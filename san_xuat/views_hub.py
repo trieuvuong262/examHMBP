@@ -1400,6 +1400,12 @@ def plan_board(request):
         from urllib.parse import urlencode
         return redirect(f"{reverse('san_xuat:plan_board')}?{urlencode(params)}")
 
+    npl_open_id = 0
+    try:
+        npl_open_id = int(request.GET.get('npl') or request.POST.get('npl_open') or 0)
+    except (TypeError, ValueError):
+        npl_open_id = 0
+
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
         try:
@@ -1477,6 +1483,85 @@ def plan_board(request):
                     f'Đã gắn {" + ".join(bits) or "hồ sơ"} cho {ln.product_code} trên KHSX.',
                 )
                 return _board_redirect()
+            elif action in {'open_npl', 'refresh_npl', 'save_npl', 'apply_npl', 'create_npl_pr'} and order_id:
+                from san_xuat.services.plan_order_npl import build_pr_from_order, sync_order_npl
+
+                if action == 'create_npl_pr':
+                    if not (
+                        user_can_create_menu(request.user, MODULE_SAN_XUAT, 'npl_pr')
+                        or _perm_ctx(request).get('can_create')
+                    ):
+                        messages.error(request, 'Không có quyền tạo yêu cầu mua NPL.')
+                        return _board_redirect(npl=order_id)
+                elif not can_schedule:
+                    messages.error(request, 'Không có quyền cập nhật kế hoạch NPL.')
+                    return _board_redirect()
+
+                buy_by_line = None
+                kit = None
+                apply = False
+                if action in {'save_npl', 'apply_npl', 'create_npl_pr'}:
+                    apply = action == 'apply_npl'
+                    buy_by_line = {}
+                    for key, val in request.POST.items():
+                        if not key.startswith('buy_for__'):
+                            continue
+                        sid = key[len('buy_for__'):].strip()
+                        if not sid.isdigit():
+                            continue
+                        raw = (val or '').strip()
+                        if raw == '':
+                            buy_by_line[int(sid)] = None
+                        else:
+                            try:
+                                buy_by_line[int(sid)] = max(0, min(int(raw), 365))
+                            except (TypeError, ValueError):
+                                buy_by_line[int(sid)] = None
+                    kit_raw = (request.POST.get('npl_kit_days') or '').strip()
+                    if kit_raw != '':
+                        try:
+                            kit = max(0, min(int(kit_raw), 120))
+                        except (TypeError, ValueError):
+                            kit = None
+                try:
+                    order = sync_order_npl(
+                        order_id=order_id,
+                        kit_days=kit,
+                        buy_by_line=buy_by_line,
+                        apply_schedule=apply,
+                    )
+                except PlanningError as exc:
+                    messages.error(request, str(exc))
+                    return _board_redirect(npl=order_id)
+                if action == 'create_npl_pr':
+                    try:
+                        pr = build_pr_from_order(order_id=order.pk, user=request.user)
+                    except PlanningError as exc:
+                        messages.error(request, str(exc))
+                        return _board_redirect(npl=order.pk)
+                    messages.success(
+                        request,
+                        f'Đã tạo yêu cầu mua NPL {pr.code} từ {order.code} ({pr.lines.count()} mã).',
+                    )
+                    return redirect('san_xuat:npl_purchase_request_detail', pk=pr.pk)
+                if action == 'open_npl':
+                    messages.success(request, f'Đã bung nhu cầu NPL cho {order.code}.')
+                elif action == 'refresh_npl':
+                    messages.success(request, f'Đã làm mới tồn NPL {order.code}.')
+                elif apply:
+                    if order.npl_status == SxSalesOrder.NPL_READY:
+                        extra = ''
+                        if order.npl_ready_date:
+                            extra = f' — NPL sẵn {order.npl_ready_date.strftime("%d/%m/%Y")}'
+                        messages.success(request, f'Đã tính thời gian NPL vào KHSX {order.code}{extra}.')
+                    else:
+                        messages.error(
+                            request,
+                            'Chưa cộng được vào KHSX — nhập số ngày mua cho mọi mã thiếu.',
+                        )
+                else:
+                    messages.success(request, f'Đã lưu nháp kế hoạch NPL {order.code}.')
+                return _board_redirect(npl=order.pk)
             elif action == 'release' and can_release and order_id:
                 bom_by_product: dict[str, int] = {}
                 routing_by_product: dict[str, int] = {}
@@ -1677,6 +1762,8 @@ def plan_board(request):
         )
         today_start, today_end_month = _month_bounds(timezone.localdate())
 
+    from san_xuat.services.planning import npl_prep_days
+
     return render(request, 'san_xuat/plan_board.html', {
         **_perm_ctx(request),
         'mode': mode,
@@ -1707,6 +1794,12 @@ def plan_board(request):
         'filter_next_to': filter_next_to,
         'filter_month_label': filter_month_label,
         'filter_is_current_month': filter_is_current_month,
+        'npl_open_id': npl_open_id,
+        'npl_kit_default': npl_prep_days(),
+        'can_create_npl_pr': (
+            user_can_create_menu(request.user, MODULE_SAN_XUAT, 'npl_pr')
+            or bool(_perm_ctx(request).get('can_create'))
+        ),
     })
 
 
@@ -2074,7 +2167,7 @@ def plan_detail_detail(request, pk: int):
 def plan_npl(request):
     base_qs = (
         SxMaterialPlan.objects.filter(is_demo=False)
-        .select_related('overall_plan')
+        .select_related('overall_plan', 'sales_order')
         .prefetch_related('lines')
         .order_by('-created_at', '-pk')
     )
@@ -2089,17 +2182,35 @@ def plan_npl(request):
 @module_perm_required(MODULE_SAN_XUAT, 'create')
 def plan_npl_create(request):
     overall = None
+    sales_order = None
     if request.method == 'POST':
         form = MaterialPlanExplodeForm(request.POST)
         if form.is_valid():
-            overall = form.cleaned_data['overall_plan']
+            overall = form.cleaned_data.get('overall_plan')
+            sales_order = form.cleaned_data.get('sales_order')
             try:
-                mat_plan = explode_material_plan(
-                    overall_plan_id=overall.pk,
-                    code=form.cleaned_data.get('code') or None,
-                    name=form.cleaned_data.get('name') or '',
-                    user=request.user,
-                )
+                if sales_order:
+                    from san_xuat.services.plan_order_npl import (
+                        sync_order_npl,
+                        upsert_material_plan_from_order,
+                    )
+
+                    sync_order_npl(order_id=sales_order.pk)
+                    mat_plan = upsert_material_plan_from_order(
+                        sales_order,
+                        code=form.cleaned_data.get('code') or None,
+                        name=form.cleaned_data.get('name') or '',
+                        user=request.user,
+                    )
+                    if mat_plan is None:
+                        raise PlanningError('Chưa bung được NPL từ đơn — gắn BOM trước.')
+                else:
+                    mat_plan = explode_material_plan(
+                        overall_plan_id=overall.pk,
+                        code=form.cleaned_data.get('code') or None,
+                        name=form.cleaned_data.get('name') or '',
+                        user=request.user,
+                    )
             except PlanningError as exc:
                 messages.error(request, str(exc))
             else:
@@ -2112,18 +2223,25 @@ def plan_npl_create(request):
         if overall_id and str(overall_id).isdigit():
             overall = get_object_or_404(SxOverallPlan, pk=int(overall_id))
             initial['overall_plan'] = overall.pk
+        order_id = request.GET.get('order')
+        if order_id and str(order_id).isdigit():
+            from san_xuat.hub_models import SxSalesOrder
+
+            sales_order = get_object_or_404(SxSalesOrder, pk=int(order_id), is_demo=False)
+            initial['sales_order'] = sales_order.pk
         form = MaterialPlanExplodeForm(initial=initial)
     return render(request, 'san_xuat/plan_npl_form.html', {
         **_perm_ctx(request),
         'form': form,
         'overall': overall,
+        'sales_order': sales_order,
     })
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def plan_npl_detail(request, pk: int):
     mat_plan = get_object_or_404(
-        SxMaterialPlan.objects.select_related('overall_plan').prefetch_related('lines'),
+        SxMaterialPlan.objects.select_related('overall_plan', 'sales_order').prefetch_related('lines'),
         pk=pk,
     )
     can_update = _perm_ctx(request).get('can_update')
@@ -2138,8 +2256,22 @@ def plan_npl_detail(request, pk: int):
                 messages.success(request, f'Kế hoạch NPL {mat_plan.code} đã xác nhận.')
                 return redirect('san_xuat:plan_npl_detail', pk=mat_plan.pk)
         elif action == 'refresh' and can_update:
-            if not mat_plan.overall_plan_id:
-                messages.error(request, 'Kế hoạch NPL không gắn kế hoạch tổng thể nguồn.')
+            if mat_plan.sales_order_id:
+                from san_xuat.services.plan_order_npl import (
+                    sync_order_npl,
+                    upsert_material_plan_from_order,
+                )
+
+                try:
+                    order = sync_order_npl(order_id=mat_plan.sales_order_id)
+                    mat_plan = upsert_material_plan_from_order(order, user=request.user) or mat_plan
+                except PlanningError as exc:
+                    messages.error(request, str(exc))
+                else:
+                    messages.success(request, f'Đã cập nhật tồn/shortfall cho kế hoạch NPL {mat_plan.code}.')
+                    return redirect('san_xuat:plan_npl_detail', pk=mat_plan.pk)
+            elif not mat_plan.overall_plan_id:
+                messages.error(request, 'Kế hoạch NPL không gắn kế hoạch tổng thể nguồn hoặc đơn KHSX.')
             else:
                 try:
                     mat_plan = explode_material_plan(
@@ -2196,7 +2328,7 @@ def plan_npl_detail(request, pk: int):
 def npl_purchase_request(request):
     base_qs = (
         SxNplPurchaseRequest.objects.filter(is_demo=False)
-        .select_related('material_plan', 'material_plan__overall_plan')
+        .select_related('material_plan', 'material_plan__overall_plan', 'sales_order')
         .prefetch_related('lines')
         .order_by('-created_at', '-pk')
     )
@@ -2235,6 +2367,15 @@ def npl_purchase_request_create(request):
         if plan_id and str(plan_id).isdigit():
             mat_plan = get_object_or_404(SxMaterialPlan, pk=int(plan_id))
             initial['material_plan'] = mat_plan.pk
+        order_id = request.GET.get('order')
+        if order_id and str(order_id).isdigit() and not mat_plan:
+            from san_xuat.hub_models import SxSalesOrder
+            from san_xuat.services.plan_order_npl import active_material_plan_for_order
+
+            so = get_object_or_404(SxSalesOrder, pk=int(order_id), is_demo=False)
+            mat_plan = active_material_plan_for_order(so)
+            if mat_plan:
+                initial['material_plan'] = mat_plan.pk
         form = NplPurchaseRequestCreateForm(initial=initial)
     return render(request, 'san_xuat/npl_purchase_request_form.html', {
         **_perm_ctx(request),
@@ -2246,7 +2387,9 @@ def npl_purchase_request_create(request):
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def npl_purchase_request_detail(request, pk: int):
     pr = get_object_or_404(
-        SxNplPurchaseRequest.objects.select_related('material_plan', 'material_plan__overall_plan')
+        SxNplPurchaseRequest.objects.select_related(
+            'material_plan', 'material_plan__overall_plan', 'sales_order',
+        )
         .prefetch_related('lines', 'purchase_orders'),
         pk=pk,
     )

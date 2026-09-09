@@ -325,8 +325,16 @@ def filter_tuple_rows(
 # --- Preset theo từng màn danh sách ---
 
 SX_FILTER_PLAN_PERIOD = SxFilterSpec(date_range_fields=('date_from', 'date_to'))
-SX_FILTER_PLAN_NPL = SxFilterSpec(date_field='created_at')
-SX_FILTER_NPL_PR = SxFilterSpec(name_fields=('notes',), date_field='request_date')
+SX_FILTER_PLAN_NPL = SxFilterSpec(
+    code_fields=('code', 'sales_order__code'),
+    name_fields=('name', 'sales_order__customer_name'),
+    date_field='created_at',
+)
+SX_FILTER_NPL_PR = SxFilterSpec(
+    code_fields=('code', 'sales_order__code', 'material_plan__code'),
+    name_fields=('notes', 'sales_order__customer_name'),
+    date_field='request_date',
+)
 SX_FILTER_PURCHASE_ORDER = SxFilterSpec(name_fields=('supplier_name',), date_field='created_at')
 
 SX_FILTER_COST_SHEET = SxFilterSpec(date_range_fields=('date_from', 'date_to'))

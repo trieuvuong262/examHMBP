@@ -15,6 +15,16 @@
     </nav>
   </div>
 
+  {% if mat_plan.sales_order %}
+  <p class="small mb-3">
+    Đơn KHSX
+    <a href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=queue&amp;q={{ mat_plan.sales_order.code|urlencode }}&amp;npl={{ mat_plan.sales_order.pk }}"><strong>{{ mat_plan.sales_order.code }}</strong></a>
+    {% if mat_plan.sales_order.customer_name %} — {{ mat_plan.sales_order.customer_name }}{% endif %}
+  </p>
+  {% elif mat_plan.overall_plan %}
+  <p class="small text-muted mb-3">Nguồn KHTT {{ mat_plan.overall_plan.code }}</p>
+  {% endif %}
+
   {% if mat_plan.notes %}
   <div class="alert alert-warning border-0 mb-3" role="status">{{ mat_plan.notes }}</div>
   {% endif %}
@@ -39,12 +49,14 @@
         <div class="fs-5 fw-semibold {% if earliest_need and earliest_need < today %}text-danger{% endif %}">
           {% if earliest_need %}{{ earliest_need|date:"d/m/Y" }}{% else %}—{% endif %}
         </div>
-        <div class="small text-muted">Chuẩn bị trước {{ prep_days }} ngày sản xuất</div>
+        <div class="small text-muted">{% if mat_plan.sales_order %}Ngày cần = NPL sẵn trên KHSX{% else %}Chuẩn bị trước {{ prep_days }} ngày sản xuất{% endif %}</div>
       </div>
     </div>
     <div class="col-md-3 d-flex align-items-center flex-wrap gap-2">
-      {% if mat_plan.status == 'confirmed' and shortfall_total > 0 %}
+      {% if shortfall_total > 0 %}
+      {% if mat_plan.sales_order_id or mat_plan.status == 'confirmed' %}
       <a href="{% url 'san_xuat:npl_purchase_request_create' %}?plan={{ mat_plan.pk }}" class="btn btn-hm btn-sm">Tạo yêu cầu mua nguyên phụ liệu từ shortfall</a>
+      {% endif %}
       {% endif %}
       {% if can_update %}
       {% if mat_plan.status == 'draft' or mat_plan.status == 'confirmed' %}

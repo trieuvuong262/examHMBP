@@ -69,3 +69,31 @@ def working_days(date_from: date, date_to: date) -> list[date]:
 
 def working_day_count(date_from: date, date_to: date) -> int:
     return len(working_days(date_from, date_to))
+
+
+def next_working_day(day: date) -> date:
+    """Ngày làm việc tại ``day`` hoặc ngày LV kế tiếp."""
+    d = day
+    for _ in range(800):
+        if is_working_day(d):
+            return d
+        d += timedelta(days=1)
+    return d
+
+
+def add_working_days(start: date, days: int) -> date:
+    """Cộng ``days`` ngày làm việc *sau* ``start`` (không tính chính start).
+
+    days=0 → trả ``start``. days=2 từ thứ Tư → thứ Sáu (nếu không nghỉ).
+    """
+    if days <= 0:
+        return start
+    day = start
+    added = 0
+    guard = 0
+    while added < int(days) and guard < 800:
+        day += timedelta(days=1)
+        if is_working_day(day):
+            added += 1
+        guard += 1
+    return day

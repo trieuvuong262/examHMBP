@@ -460,7 +460,7 @@ def build_pr_from_material_plan(
         .prefetch_related("lines")
         .get(pk=material_plan_id)
     )
-    if mat_plan.status != SxOverallPlan.STATUS_CONFIRMED:
+    if mat_plan.status != SxOverallPlan.STATUS_CONFIRMED and not mat_plan.sales_order_id:
         raise PlanningError("KHNVL phải đã xác nhận trước khi sinh YCM.")
 
     lines_qs = mat_plan.lines.all()
@@ -487,11 +487,16 @@ def build_pr_from_material_plan(
         pr.lines.all().delete()
         pr.due_date = resolved_due or pr.due_date
         pr.notes = notes or pr.notes
-        pr.save(update_fields=["due_date", "notes"])
+        if mat_plan.sales_order_id and pr.sales_order_id != mat_plan.sales_order_id:
+            pr.sales_order_id = mat_plan.sales_order_id
+            pr.save(update_fields=["due_date", "notes", "sales_order"])
+        else:
+            pr.save(update_fields=["due_date", "notes"])
     else:
         pr = SxNplPurchaseRequest.objects.create(
             code=_code("npl_pr", SxNplPurchaseRequest, code=code),
             material_plan=mat_plan,
+            sales_order=mat_plan.sales_order,
             request_date=timezone.localdate(),
             due_date=resolved_due,
             status=SxNplPurchaseRequest.STATUS_DRAFT,
@@ -520,6 +525,7 @@ def build_pr_from_material_plan(
         ),
         changes={
             "material_plan": mat_plan.code,
+            "sales_order": getattr(mat_plan.sales_order, "code", None),
             "lines": len(create_lines),
             "due_date": resolved_due.isoformat() if resolved_due else None,
         },

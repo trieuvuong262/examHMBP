@@ -158,6 +158,48 @@ class SxSalesOrder(DemoMarkedModel):
         help_text='Neo lịch trên lộ trình (kéo thả). Trống = dùng ngày dự kiến thực hiện.',
     )
 
+    NPL_NONE = 'none'
+    NPL_DRAFT = 'draft'
+    NPL_READY = 'ready'
+    NPL_STATUS_CHOICES = [
+        (NPL_NONE, 'Chưa lập'),
+        (NPL_DRAFT, 'Nháp'),
+        (NPL_READY, 'Đã tính vào KHSX'),
+    ]
+    npl_status = models.CharField(
+        max_length=12,
+        choices=NPL_STATUS_CHOICES,
+        default=NPL_NONE,
+        db_index=True,
+        verbose_name='TT kế hoạch NPL',
+    )
+    npl_anchor = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Neo chuẩn bị NPL',
+        help_text='Ngày bắt đầu mua / kitting. Trống = hôm nay lúc lưu.',
+    )
+    npl_kit_days = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name='Ngày kitting (override)',
+        help_text='Trống = lấy thiết lập chung npl_prep_days.',
+    )
+    npl_ready_date = models.DateField(
+        null=True,
+        blank=True,
+        db_index=True,
+        verbose_name='Ngày NPL sẵn',
+    )
+    npl_lead_days = models.PositiveSmallIntegerField(
+        default=0,
+        verbose_name='Lead NPL (ngày lịch)',
+    )
+    npl_short_count = models.PositiveSmallIntegerField(
+        default=0,
+        verbose_name='Số mã NPL thiếu',
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -251,6 +293,47 @@ class SxSalesOrderLine(models.Model):
         if not std:
             return Decimal('0')
         return ((self.routing_total_smv - std) / std * Decimal('100')).quantize(Decimal('0.01'))
+
+
+class SxOrderNplLine(models.Model):
+    """Snapshot nhu cầu NPL theo đơn trên KHSX — tồn + ngày mua tự nhập."""
+
+    order = models.ForeignKey(
+        SxSalesOrder,
+        on_delete=models.CASCADE,
+        related_name='npl_lines',
+        verbose_name='Đơn đặt hàng',
+    )
+    material_code = models.CharField(max_length=60, db_index=True, verbose_name='Mã NPL')
+    material_name = models.CharField(max_length=255, blank=True, default='', verbose_name='Tên NPL')
+    unit = models.CharField(max_length=30, blank=True, default='', verbose_name='ĐVT')
+    qty_required = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal('0'))
+    qty_on_hand = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal('0'))
+    qty_available = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal('0'))
+    qty_inbound = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal('0'))
+    qty_shortfall = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal('0'))
+    buy_lead_days = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name='Ngày mua (tự nhập)',
+    )
+    ready_date = models.DateField(null=True, blank=True, verbose_name='Ngày sẵn')
+    notes = models.CharField(max_length=200, blank=True, default='')
+    sort_order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ['sort_order', 'id']
+        verbose_name = 'Dòng NPL trên KHSX'
+        verbose_name_plural = 'Dòng NPL trên KHSX'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['order', 'material_code'],
+                name='sx_order_npl_line_unique_mat',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.order_id} {self.material_code}'
 
 
 class SxSalesOrderRoutingLine(models.Model):
@@ -694,6 +777,15 @@ class SxMaterialPlan(DemoMarkedModel):
     overall_plan = models.ForeignKey(
         SxOverallPlan, on_delete=models.SET_NULL, null=True, blank=True, related_name='material_plans',
     )
+    sales_order = models.ForeignKey(
+        'san_xuat.SxSalesOrder',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='material_plans',
+        verbose_name='Đơn KHSX',
+        help_text='Nguồn từ bảng kế hoạch SX theo đơn. Trống = lập từ KHTT.',
+    )
     status = models.CharField(max_length=20, choices=SxOverallPlan.STATUS_CHOICES, default=SxOverallPlan.STATUS_DRAFT)
     notes = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -753,6 +845,14 @@ class SxNplPurchaseRequest(DemoMarkedModel):
     code = models.CharField(max_length=40, unique=True, verbose_name='Mã YCM')
     material_plan = models.ForeignKey(
         SxMaterialPlan, on_delete=models.SET_NULL, null=True, blank=True, related_name='purchase_requests',
+    )
+    sales_order = models.ForeignKey(
+        'san_xuat.SxSalesOrder',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='npl_purchase_requests',
+        verbose_name='Đơn KHSX',
     )
     request_date = models.DateField(null=True, blank=True, verbose_name='Ngày YC')
     due_date = models.DateField(null=True, blank=True)

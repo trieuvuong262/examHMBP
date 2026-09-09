@@ -401,9 +401,7 @@
             <i class="bi bi-chevron-up" aria-hidden="true"></i>
           </button>
         </div>
-        <div class="jp-so-fold-body mt-2" id="jp-so-npl-board">
-          <p class="text-muted small mb-0">Chọn <strong>Số lượng</strong> hoặc <strong>%</strong> rồi nhập ĐM áp dụng. Nhu cầu = ĐM áp dụng × SL.</p>
-        </div>
+        <div class="jp-so-fold-body mt-2" id="jp-so-npl-board"></div>
       </div>
     </div>
 
@@ -416,9 +414,7 @@
             <i class="bi bi-chevron-up" aria-hidden="true"></i>
           </button>
         </div>
-        <div class="jp-so-fold-body mt-2" id="jp-so-ops-board">
-          <p class="text-muted small mb-0">Chọn <strong>Số lượng</strong> hoặc <strong>%</strong> rồi nhập SMV đơn hàng.</p>
-        </div>
+        <div class="jp-so-fold-body mt-2" id="jp-so-ops-board"></div>
       </div>
     </div>
   </form>
@@ -1296,17 +1292,8 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
         opsCount += steps.length;
       }
     });
-    npl.innerHTML = nplGroups.length
-      ? renderNplTable(nplGroups)
-      : '<p class="text-muted small mb-0">Chọn sản phẩm, BOM và số lượng. Nhu cầu = ĐM × SL.</p>';
-    if (opsGroups.length) {
-      ops.innerHTML = renderOpsTable(opsGroups);
-    } else {
-      var hasRt = visibleLineRows().some(function (row) { return selectedRoutingId(row); });
-      ops.innerHTML = hasRt
-        ? '<p class="text-muted small mb-0">OB đã chọn nhưng chưa có công đoạn. Mở hồ sơ để thêm công đoạn.</p>'
-        : '<p class="text-muted small mb-0">Chọn sản phẩm và OB để hiện công đoạn.</p>';
-    }
+    npl.innerHTML = nplGroups.length ? renderNplTable(nplGroups) : '';
+    ops.innerHTML = opsGroups.length ? renderOpsTable(opsGroups) : '';
     setBoardCount('jp-so-npl-count', nplCount);
     setBoardCount('jp-so-ops-count', opsCount);
     refreshNplNeed();

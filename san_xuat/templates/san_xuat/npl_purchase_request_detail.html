@@ -29,6 +29,22 @@
               <div>{% if pr.due_date %}{{ pr.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</div>
             </div>
             <div class="col-12">
+              <div class="small text-muted">Đơn KHSX</div>
+              <div>
+                {% if pr.sales_order %}
+                <a href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=queue&amp;q={{ pr.sales_order.code|urlencode }}&amp;npl={{ pr.sales_order.pk }}">{{ pr.sales_order.code }}</a>
+                {% else %}—{% endif %}
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="small text-muted">Kế hoạch NPL</div>
+              <div>
+                {% if pr.material_plan %}
+                <a href="{% url 'san_xuat:plan_npl_detail' pr.material_plan.pk %}">{{ pr.material_plan.code }}</a>
+                {% else %}—{% endif %}
+              </div>
+            </div>
+            <div class="col-12">
               <div class="small text-muted">Ghi chú</div>
               <div>{{ pr.notes|default:"—" }}</div>
             </div>
@@ -39,6 +55,7 @@
               <thead class="table-light">
                 <tr>
                   <th>Nguyên phụ liệu</th>
+                  <th>Ngày cần</th>
                   <th class="text-end">SL yêu cầu mua</th>
                 </tr>
               </thead>
@@ -49,10 +66,11 @@
                     <div class="fw-semibold small">{{ line.material_code }}</div>
                     <div class="text-muted small">{{ line.material_name|default:"—" }}</div>
                   </td>
+                  <td class="small">{% if line.need_date %}{{ line.need_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
                   <td class="text-end">{{ line.qty|sx_num }}</td>
                 </tr>
               {% empty %}
-                <tr><td colspan="2" class="text-muted small">Chưa có dòng nguyên vật liệu.</td></tr>
+                <tr><td colspan="3" class="text-muted small">Chưa có dòng nguyên vật liệu.</td></tr>
               {% endfor %}
               </tbody>
             </table>

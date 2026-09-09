@@ -380,25 +380,60 @@ def search_products(q: str = '', *, limit: int = 30) -> list[dict]:
     except ImportError:
         return []
 
-    rows: list[dict] = []
-    seen: set[str] = set()
+    groups: dict[str, dict] = {}
+    order: list[str] = []
 
-    def _add(code: str, name: str, base_price=0) -> bool:
+    def _touch(code: str, *, name: str = '', image_url: str = '', color: str = '', base_price=0) -> bool:
         key = code.casefold()
-        if not code or key in seen:
-            return len(rows) >= limit
-        seen.add(key)
-        label = f'{code} — {name}' if name else code
-        rows.append({
-            'id': code,
-            'code': code,
-            'name': name,
-            'text': label,
-            'base_price': str(base_price or 0),
-        })
-        return len(rows) >= limit
+        if not code:
+            return len(order) >= limit
+        g = groups.get(key)
+        if g is None:
+            if len(order) >= limit:
+                return True
+            groups[key] = {
+                'code': code,
+                'name': (name or '').strip(),
+                'image_url': (image_url or '').strip(),
+                'colors': [],
+                '_color_keys': set(),
+                'base_price': base_price or 0,
+            }
+            order.append(key)
+            g = groups[key]
+        if name and not g['name']:
+            g['name'] = name.strip()
+        if image_url and not g['image_url']:
+            g['image_url'] = image_url.strip()
+        if not g['base_price'] and base_price:
+            g['base_price'] = base_price
+        color = (color or '').strip()
+        ck = color.casefold()
+        if ck in ('', 'nocolor', 'none', '-'):
+            return False
+        if ck not in g['_color_keys']:
+            g['_color_keys'].add(ck)
+            g['colors'].append(color)
+        return False
 
-    prod_qs = Product.objects.filter(is_active=True).order_by('style_code', 'code')
+    from django.db.models import BigIntegerField
+    from django.db.models.expressions import RawSQL
+    from kho_san_pham.sku_vocabulary import extract_sp_number
+
+    def _with_sp_num(qs, expr: str):
+        return qs.annotate(
+            _sp_num=RawSQL(
+                f"COALESCE((regexp_match({expr}, 'SP([0-9]+)'))[1]::bigint, -1)",
+                [],
+                output_field=BigIntegerField(),
+            )
+        )
+
+    # Cùng danh mục kho SP: số SP lớn → nhỏ, không theo tiền tố JP-SET-SC.
+    prod_qs = _with_sp_num(
+        Product.objects.filter(is_active=True),
+        "COALESCE(NULLIF(BTRIM(style_code), ''), code)",
+    ).order_by('-_sp_num', 'style_code', 'code')
     if q:
         prod_qs = prod_qs.filter(
             Q(style_code__icontains=q)
@@ -406,23 +441,41 @@ def search_products(q: str = '', *, limit: int = 30) -> list[dict]:
             | Q(name__icontains=q)
             | Q(full_name__icontains=q)
             | Q(bar_code__icontains=q)
-            | Q(kiotviet_code__icontains=q),
+            | Q(kiotviet_code__icontains=q)
+            | Q(color_label__icontains=q)
+            | Q(color_code__icontains=q),
         )
 
     for product in prod_qs[: limit * 8]:
-        style = (product.style_code or '').strip()
-        if style:
-            name = (product.name or product.full_name or '').strip()
-            if _add(style, name, product.base_price or 0):
-                break
-        else:
-            sku = (product.code or '').strip()
-            name = (product.name or product.full_name or '').strip()
-            if _add(sku, name, product.base_price or 0):
-                break
+        style = (product.style_code or '').strip() or (product.code or '').strip()
+        name = (product.name or product.full_name or '').strip()
+        color = (product.color_label or product.color_code or '').strip()
+        if _touch(
+            style,
+            name=name,
+            image_url=product.display_image_url or '',
+            color=color,
+            base_price=product.base_price or 0,
+        ):
+            break
 
-    if len(rows) < limit:
-        style_qs = ProductStyle.objects.filter(is_active=True).order_by('code')
+    if groups:
+        style_names = {
+            (s.code or '').strip().casefold(): (s.name or '').strip()
+            for s in ProductStyle.objects.filter(
+                code__in=[groups[k]['code'] for k in order],
+            )
+        }
+        for key in order:
+            n = style_names.get(key)
+            if n:
+                groups[key]['name'] = n
+
+    if len(order) < limit:
+        style_qs = _with_sp_num(
+            ProductStyle.objects.filter(is_active=True),
+            'code',
+        ).order_by('-_sp_num', 'code')
         if q:
             style_qs = style_qs.filter(
                 Q(code__icontains=q)
@@ -430,10 +483,32 @@ def search_products(q: str = '', *, limit: int = 30) -> list[dict]:
                 | Q(root_kiotviet_code__icontains=q),
             )
         for style in style_qs[:limit]:
-            if _add((style.code or '').strip(), (style.name or '').strip()):
+            if _touch((style.code or '').strip(), name=(style.name or '').strip()):
                 break
 
-    # Tồn TP khả dụng (KV) — tham khảo trên form ĐĐH / TomSelect
+    order.sort(
+        key=lambda k: (extract_sp_number(groups[k]['code']), groups[k]['code'].upper()),
+        reverse=True,
+    )
+    order = order[:limit]
+
+    rows: list[dict] = []
+    for key in order:
+        g = groups[key]
+        name = g['name']
+        code = g['code']
+        color = ', '.join(g['colors'])
+        rows.append({
+            'id': code,
+            'code': code,
+            'name': name,
+            'text': f'{code} — {name}' if name else code,
+            'image_url': g['image_url'],
+            'color': color,
+            'sp_num': extract_sp_number(code),
+            'base_price': str(g['base_price'] or 0),
+        })
+
     try:
         from san_xuat.services.demand import fg_stock_map
 

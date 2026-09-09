@@ -33,6 +33,11 @@
           <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:plan_npl_detail' plan.pk %}">
             <td class="npl-col" data-col="code"><strong>{{ plan.code }}</strong></td>
             <td class="npl-col" data-col="name">{{ plan.name }}</td>
+            <td class="npl-col" data-col="khsx">
+              {% if plan.sales_order %}
+              <a href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=queue&amp;q={{ plan.sales_order.code|urlencode }}&amp;npl={{ plan.sales_order.pk }}">{{ plan.sales_order.code }}</a>
+              {% else %}—{% endif %}
+            </td>
             <td class="npl-col" data-col="overall">
               {% if plan.overall_plan %}{{ plan.overall_plan.code }}{% else %}—{% endif %}
             </td>

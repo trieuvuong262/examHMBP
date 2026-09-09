@@ -19,6 +19,8 @@
     <div class="card-body">
       <form method="post">
         {% csrf_token %}
+        {% if form.non_field_errors %}<div class="text-danger small mb-2">{{ form.non_field_errors }}</div>{% endif %}
+        <p class="small text-muted mb-3">Chọn <strong>đơn KHSX</strong> (bảng kế hoạch SX) hoặc KHTT — không chọn cả hai.</p>
         {% for field in form %}
         <div class="mb-3">
           <label class="form-label small text-muted" for="{{ field.id_for_label }}">{{ field.label }}{{ field|sx_req_star }}</label>

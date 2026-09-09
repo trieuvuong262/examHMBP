@@ -15,7 +15,16 @@ from django.db.models import Prefetch, Q, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
-from san_xuat.hub_models import SxProductionOrder, SxSalesOrder, SxSalesOrderLine, SxSalesOrderPlanStep, SxWorkCenter
+from san_xuat.hub_models import (
+    SxMaterialPlan,
+    SxNplPurchaseRequest,
+    SxOverallPlan,
+    SxProductionOrder,
+    SxSalesOrder,
+    SxSalesOrderLine,
+    SxSalesOrderPlanStep,
+    SxWorkCenter,
+)
 from san_xuat.services.dispatch import DispatchError, create_mo_from_bom
 from san_xuat.services.planning import PlanningError
 from san_xuat.services.order_routing import sales_order_line_routing, steps_dicts_from_order_line
@@ -196,6 +205,16 @@ class PlanBoardRow:
     subcontract: object | None = None
     missing_bom: bool = False
     missing_ops: bool = False
+    npl_status: str = SxSalesOrder.NPL_NONE
+    npl_ready_date: date | None = None
+    npl_lead_days: int = 0
+    npl_short_count: int = 0
+    npl_ok_count: int = 0
+    npl_missing_buy: bool = False
+    npl_plan_id: int = 0
+    npl_plan_code: str = ''
+    npl_pr_id: int = 0
+    npl_pr_code: str = ''
 
 
 @dataclass
@@ -242,6 +261,7 @@ class TeamKhsxSpan:
     pinned: bool = False
     duration_label: str = ''
     duration_work_days: int = 0
+    can_drag: bool = True
 
 
 def enqueue_on_confirm(order: SxSalesOrder) -> None:
@@ -518,10 +538,30 @@ def team_khsx_spans(
     from san_xuat.services.inter_step_times import schedule_span
 
     loads = _team_loads_from_order(order, product_flows=product_flows)
-    if not loads:
-        return []
     today = today or timezone.localdate()
-    anchor = order.plan_start_date or order.request_date or today
+    from san_xuat.services.plan_order_npl import npl_span_for_order, production_start_for_order
+
+    npl_pair = npl_span_for_order(order, today=today)
+    npl_spans: list[TeamKhsxSpan] = []
+    if npl_pair:
+        npl_start, npl_end = npl_pair
+        lead = int(order.npl_lead_days or 0)
+        npl_spans.append(TeamKhsxSpan(
+            slug='npl',
+            label='Chuẩn bị NPL',
+            work_minutes=Decimal('0'),
+            buffer_minutes=Decimal('0'),
+            minutes=Decimal('0'),
+            start=npl_start,
+            end=npl_end,
+            pinned=False,
+            duration_label=f'{lead} ngày' if lead else '',
+            duration_work_days=lead,
+            can_drag=False,
+        ))
+    if not loads:
+        return npl_spans
+    anchor = production_start_for_order(order, today=today)
     pinned = _pinned_starts_from_steps(plan_steps if plan_steps is not None else list(order.plan_steps.all()))
 
     cursor = anchor
@@ -558,7 +598,7 @@ def team_khsx_spans(
             duration_label=dur_label,
             duration_work_days=dur_days,
         ))
-    return spans
+    return npl_spans + spans
 
 
 def _mo_progress(mos: list[SxProductionOrder]) -> tuple[int, int, Decimal, Decimal, Decimal]:
@@ -683,6 +723,23 @@ def build_plan_board_rows(
                 queryset=SxSalesOrderPlanStep.objects.select_related('work_center').order_by(
                     'sequence', 'id',
                 ),
+            ),
+            'npl_lines',
+            Prefetch(
+                'material_plans',
+                queryset=SxMaterialPlan.objects.filter(is_demo=False)
+                .exclude(status__in=(SxOverallPlan.STATUS_CANCELLED, SxOverallPlan.STATUS_DONE))
+                .order_by('-id')
+                .prefetch_related(
+                    Prefetch(
+                        'purchase_requests',
+                        queryset=SxNplPurchaseRequest.objects.filter(is_demo=False).order_by('-id'),
+                    ),
+                ),
+            ),
+            Prefetch(
+                'npl_purchase_requests',
+                queryset=SxNplPurchaseRequest.objects.filter(is_demo=False).order_by('-id'),
             ),
         )
     )
@@ -851,6 +908,9 @@ def build_plan_board_rows(
             'cycle_minutes': format_sx_num_input(cycle_min),
             'duration_label': duration_label,
             'work_days': duration_work_days,
+            'npl_ready': _fmt_date(order.npl_ready_date),
+            'npl_lead_days': int(order.npl_lead_days or 0),
+            'npl_status': order.npl_status,
             'teams': [
                 {
                     'slug': ts.slug,
@@ -907,6 +967,13 @@ def build_plan_board_rows(
                 'has_ops': line_has_ops,
             })
 
+        npl_plan = next(iter(order.material_plans.all()), None)
+        npl_pr = None
+        if npl_plan:
+            npl_pr = next(iter(npl_plan.purchase_requests.all()), None)
+        if npl_pr is None:
+            npl_pr = next(iter(order.npl_purchase_requests.all()), None)
+
         rows.append(PlanBoardRow(
             order=order,
             total_qty=_q(total_qty),
@@ -944,6 +1011,19 @@ def build_plan_board_rows(
             team_spans=team_spans,
             missing_bom=missing_bom,
             missing_ops=missing_ops,
+            npl_status=order.npl_status,
+            npl_ready_date=order.npl_ready_date,
+            npl_lead_days=int(order.npl_lead_days or 0),
+            npl_short_count=int(order.npl_short_count or 0),
+            npl_ok_count=sum(1 for ln in order.npl_lines.all() if ln.qty_shortfall <= 0),
+            npl_missing_buy=any(
+                ln.qty_shortfall > 0 and ln.buy_lead_days is None
+                for ln in order.npl_lines.all()
+            ),
+            npl_plan_id=npl_plan.pk if npl_plan else 0,
+            npl_plan_code=(npl_plan.code if npl_plan else ''),
+            npl_pr_id=npl_pr.pk if npl_pr else 0,
+            npl_pr_code=(npl_pr.code if npl_pr else ''),
         ))
 
     rows.sort(
@@ -1512,6 +1592,8 @@ def reschedule_order_team_start(*, order_id: int, start_date: date, team_slug: s
     valid = {s.slug for s in spans}
     if slug not in valid:
         raise PlanningError('Tổ này không tham gia đơn.')
+    if slug == 'npl':
+        raise PlanningError('Không kéo thanh chuẩn bị NPL — sửa ngày mua trên hàng đợi.')
 
     any_pinned = any(getattr(s, 'planned_date', None) for s in steps)
     if not any_pinned:
@@ -1964,7 +2046,7 @@ def build_order_timeline(
                     bar_text=t_text,
                     clips_left=ts.start < start,
                     clips_right=ts.end > end,
-                    can_drag=can_drag,
+                    can_drag=can_drag and ts.slug != 'npl' and getattr(ts, 'can_drag', True),
                     span_days=max(1, (ts.end - ts.start).days + 1),
                     minutes=ts.minutes,
                     duration_label=ts.duration_label or '',

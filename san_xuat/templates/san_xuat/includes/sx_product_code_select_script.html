@@ -3,6 +3,60 @@
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
 <style>
 body > .ts-dropdown { z-index: 2200; }
+body > .ts-dropdown.jp-sx-product-dd {
+  min-width: min(28rem, 92vw);
+}
+body > .ts-dropdown.jp-sx-product-dd .option {
+  padding: .35rem .65rem;
+}
+.jp-sx-product-opt {
+  display: grid;
+  grid-template-columns: 36px 1fr minmax(4.75rem, 30%);
+  align-items: center;
+  column-gap: .65rem;
+  width: 100%;
+  min-width: 0;
+}
+.jp-sx-product-opt-img {
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  object-fit: cover;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  display: block;
+}
+.jp-sx-product-opt-img.is-empty {
+  display: block;
+}
+.jp-sx-product-opt-name {
+  min-width: 0;
+  text-align: center;
+  font-weight: 600;
+  font-size: .85rem;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jp-sx-product-opt-color {
+  min-width: 0;
+  text-align: right;
+  color: #64748b;
+  font-size: .78rem;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+[data-theme="dark"] .jp-sx-product-opt-img,
+[data-theme="dark"] .jp-sx-product-opt-img.is-empty {
+  background: #1e293b;
+  border-color: #334155;
+}
+[data-theme="dark"] .jp-sx-product-opt-color {
+  color: #94a3b8;
+}
 </style>
 <script>
 (function () {
@@ -104,9 +158,14 @@ body > .ts-dropdown { z-index: 2200; }
       maxItems: 1,
       valueField: 'id',
       labelField: 'text',
-      searchField: ['text', 'code', 'name'],
+      searchField: ['text', 'code', 'name', 'color'],
+      sortField: [
+        { field: 'sp_num', direction: 'desc' },
+        { field: 'code', direction: 'desc' },
+      ],
       placeholder: select.dataset.placeholder || 'Gõ mã SX hoặc tên sản phẩm…',
       dropdownParent: 'body',
+      dropdownClass: labelMode === 'name' ? 'ts-dropdown jp-sx-product-dd' : 'ts-dropdown',
       openOnFocus: true,
       preload: 'focus',
       shouldLoad: function () { return true; },
@@ -122,12 +181,28 @@ body > .ts-dropdown { z-index: 2200; }
       render: {
         option: function (data, escape) {
           if (labelMode === 'name') {
-            var name = escape(data.name || data.text || data.code || '');
-            var code = escape(data.code || '');
-            if (data.code && data.name && String(data.code) !== String(data.name)) {
-              return '<div><div>' + name + '</div><div class="small text-muted">' + code + '</div></div>';
+            var name = (data.name || data.text || data.code || '').trim();
+            var color = (data.color || '').trim();
+            if (/^(nocolor|none|-)$/i.test(color)) color = '';
+            if (name && color) {
+              var suffixes = [' - ' + color, ' – ' + color, ' — ' + color];
+              var lower = name.toLowerCase();
+              for (var i = 0; i < suffixes.length; i++) {
+                if (lower.endsWith(suffixes[i].toLowerCase())) {
+                  name = name.slice(0, name.length - suffixes[i].length).trim();
+                  break;
+                }
+              }
             }
-            return '<div>' + name + '</div>';
+            var img = (data.image_url || '').trim();
+            var imgHtml = img
+              ? '<img class="jp-sx-product-opt-img" src="' + escape(img) + '" alt="" width="36" height="36">'
+              : '<span class="jp-sx-product-opt-img is-empty"></span>';
+            return '<div class="jp-sx-product-opt">'
+              + imgHtml
+              + '<span class="jp-sx-product-opt-name">' + escape(name) + '</span>'
+              + '<span class="jp-sx-product-opt-color">' + escape(color) + '</span>'
+              + '</div>';
           }
           return '<div>' + escape(data.text || data.code || '') + '</div>';
         },

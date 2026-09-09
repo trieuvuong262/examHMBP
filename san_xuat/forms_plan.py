@@ -3,6 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django import forms
+from django.db.models import Q
 
 _DATE_SM = {"class": "form-control form-control-sm jp-date-vn", "type": "date"}
 
@@ -316,7 +317,14 @@ class ImportKvOrderForm(forms.Form):
 class MaterialPlanExplodeForm(forms.Form):
     overall_plan = forms.ModelChoiceField(
         queryset=None,
+        required=False,
         label="KHTT nguồn",
+        widget=forms.Select(attrs={"class": "form-select form-select-sm"}),
+    )
+    sales_order = forms.ModelChoiceField(
+        queryset=None,
+        required=False,
+        label="Đơn KHSX",
         widget=forms.Select(attrs={"class": "form-select form-select-sm"}),
     )
     code = forms.CharField(
@@ -333,13 +341,31 @@ class MaterialPlanExplodeForm(forms.Form):
     )
 
     def __init__(self, *args, **kwargs):
-        from san_xuat.hub_models import SxOverallPlan
+        from san_xuat.hub_models import SxOverallPlan, SxSalesOrder
 
         super().__init__(*args, **kwargs)
         self.fields["overall_plan"].queryset = (
             SxOverallPlan.objects.filter(is_demo=False, status=SxOverallPlan.STATUS_CONFIRMED)
             .order_by("-date_from", "-pk")
         )
+        self.fields["sales_order"].queryset = (
+            SxSalesOrder.objects.filter(
+                is_demo=False,
+                confirm_status=SxSalesOrder.CONFIRM_CONFIRMED,
+            )
+            .exclude(plan_status=SxSalesOrder.PLAN_ON_HOLD)
+            .order_by("-plan_queued_at", "-id")
+        )
+        self.fields["overall_plan"].empty_label = "— Chọn KHTT —"
+        self.fields["sales_order"].empty_label = "— Chọn đơn trên KHSX —"
+
+    def clean(self):
+        cleaned = super().clean()
+        overall = cleaned.get("overall_plan")
+        order = cleaned.get("sales_order")
+        if bool(overall) == bool(order):
+            raise forms.ValidationError("Chọn một nguồn: KHTT hoặc đơn KHSX.")
+        return cleaned
 
 
 class NplPurchaseRequestCreateForm(forms.Form):
@@ -374,11 +400,27 @@ class NplPurchaseRequestCreateForm(forms.Form):
         from san_xuat.hub_models import SxMaterialPlan, SxOverallPlan
 
         super().__init__(*args, **kwargs)
-        self.fields["material_plan"].queryset = (
-            SxMaterialPlan.objects.filter(is_demo=False, status=SxOverallPlan.STATUS_CONFIRMED)
-            .select_related("overall_plan")
+        field = self.fields["material_plan"]
+        field.queryset = (
+            SxMaterialPlan.objects.filter(is_demo=False)
+            .filter(
+                Q(status=SxOverallPlan.STATUS_CONFIRMED)
+                | Q(sales_order_id__isnull=False)
+            )
+            .exclude(status__in=(SxOverallPlan.STATUS_CANCELLED, SxOverallPlan.STATUS_DONE))
+            .select_related("overall_plan", "sales_order")
             .order_by("-created_at", "-pk")
         )
+
+        def _label(obj):
+            bits = [obj.code]
+            if obj.sales_order_id:
+                bits.append(obj.sales_order.code)
+            elif getattr(obj, "overall_plan", None):
+                bits.append(obj.overall_plan.code)
+            return " · ".join(bits)
+
+        field.label_from_instance = _label
 
 
 class DetailPlanExplodeForm(forms.Form):

@@ -32,6 +32,11 @@
         {% for req in requests %}
           <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:npl_purchase_request_detail' req.pk %}">
             <td class="npl-col" data-col="code"><strong>{{ req.code }}</strong></td>
+            <td class="npl-col" data-col="khsx">
+              {% if req.sales_order %}
+              <a href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=queue&amp;q={{ req.sales_order.code|urlencode }}&amp;npl={{ req.sales_order.pk }}">{{ req.sales_order.code }}</a>
+              {% else %}—{% endif %}
+            </td>
             <td class="npl-col" data-col="plan">
               {% if req.material_plan %}
               <a href="{% url 'san_xuat:plan_npl_detail' req.material_plan.pk %}">{{ req.material_plan.code }}</a>

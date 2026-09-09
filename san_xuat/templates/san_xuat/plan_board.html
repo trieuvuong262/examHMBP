@@ -514,6 +514,150 @@
   }
   .jp-pb-empty a { font-weight: 700; }
   .jp-pb-hold-note { margin: 0.55rem 0 0; font-size: 0.78rem; color: var(--pb-muted); }
+
+  .jp-pb-npl {
+    margin: 0.55rem 0 0;
+    padding: 0.7rem 0.8rem 0.75rem;
+    background: var(--pb-soft);
+    border: 1px solid var(--pb-line);
+    border-radius: 0.75rem;
+  }
+  .jp-pb-npl.is-critical { background: #fef2f2; border-color: #fecaca; }
+  .jp-pb-npl.is-urgent { background: #fff7ed; border-color: #fed7aa; }
+  .jp-pb-npl.is-high { background: #fffbeb; border-color: #fde68a; }
+  .jp-pb-npl.is-normal { background: #e0f2fe; border-color: #bae6fd; }
+  .jp-pb-npl.is-low { background: #f1f5f9; border-color: #e2e8f0; }
+  .jp-pb-npl-tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 1.85rem;
+    padding: 0 0.7rem;
+    line-height: 1;
+    font-size: 0.78rem;
+    font-weight: 700;
+    border-radius: 0.4rem;
+    border: 1px solid transparent;
+    text-decoration: none;
+    cursor: pointer;
+    appearance: none;
+    font-family: inherit;
+    background: #fff;
+  }
+  .jp-pb-npl-tab.is-critical { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
+  .jp-pb-npl-tab.is-urgent { color: #c2410c; background: #fff7ed; border-color: #fed7aa; }
+  .jp-pb-npl-tab.is-high { color: #a16207; background: #fffbeb; border-color: #fde68a; }
+  .jp-pb-npl-tab.is-normal { color: #0369a1; background: #e0f2fe; border-color: #bae6fd; }
+  .jp-pb-npl-tab.is-low { color: #475569; background: #f1f5f9; border-color: #e2e8f0; }
+  .jp-pb-npl-tab:hover { filter: brightness(0.97); }
+  .jp-pb-npl.is-critical tr.is-short td { background: #fecaca; }
+  .jp-pb-npl.is-urgent tr.is-short td { background: #fed7aa; }
+  .jp-pb-npl.is-high tr.is-short td { background: #fde68a; }
+  .jp-pb-npl.is-normal tr.is-short td { background: #bae6fd; }
+  .jp-pb-npl.is-low tr.is-short td { background: #e2e8f0; }
+  .jp-pb-npl-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.4rem 0.75rem;
+    margin: 0 0 0.5rem;
+  }
+  .jp-pb-npl-toolbar .jp-pb-stats { margin: 0; }
+  .jp-pb-npl-kit {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--pb-muted);
+  }
+  .jp-pb-npl-kit input {
+    width: 3.6rem;
+    height: 1.85rem;
+  }
+  .jp-pb-npl-table-wrap { overflow-x: auto; }
+  .jp-pb-npl-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.78rem;
+  }
+  .jp-pb-npl-table th,
+  .jp-pb-npl-table td {
+    padding: 0.4rem 0.45rem;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+  }
+  .jp-pb-npl-table th {
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--pb-muted);
+    text-align: left;
+    border-bottom: 1px solid var(--pb-line);
+  }
+  .jp-pb-npl-table .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+  }
+  .jp-pb-npl-code { font-weight: 800; color: var(--pb-ink); }
+  .jp-pb-npl-name { color: var(--pb-muted); font-weight: 600; font-size: 0.7rem; }
+  .jp-pb-npl-table input[type="number"] {
+    width: 4.4rem;
+    height: 1.85rem;
+    margin-left: auto;
+  }
+  .jp-pb-npl-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0.55rem 0 0;
+  }
+  .jp-pb-npl-actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .jp-pb-npl-links {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.15rem;
+    margin-left: auto;
+  }
+  .jp-pb-npl-links a {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.55rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--pb-muted);
+    text-decoration: none;
+    border-radius: 0.35rem;
+    line-height: 1.3;
+  }
+  .jp-pb-npl-links a:hover {
+    color: var(--pb-ink);
+    background: rgba(0, 0, 0, 0.045);
+  }
+  .jp-pb-npl-empty {
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--pb-muted);
+    font-weight: 600;
+  }
+  .jp-pb-npl-box { margin: 0.55rem 0 0; }
+  .jp-pb-npl-box > summary.jp-pb-npl-tab {
+    height: auto;
+    min-height: 1.85rem;
+    margin: 0;
+    list-style: none;
+  }
+  .jp-pb-npl-box > summary.jp-pb-npl-tab::-webkit-details-marker { display: none; }
   .jp-pb-attach {
     margin: 0.55rem 0.75rem 0.7rem;
     padding: 0.65rem 0.75rem;
@@ -753,6 +897,19 @@
                   data-order-code="{{ row.order.code }}"
                   data-products-id="{{ row.release_script_id }}">Chuyển SX</button>
           {% endif %}
+          {% if can_schedule and row.order.plan_status != 'on_hold' %}
+            {% if row.order.npl_status == 'none' %}
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="open_npl">
+              <input type="hidden" name="order_id" value="{{ row.order.pk }}">
+              <button type="submit" class="jp-pb-npl-tab is-{{ row.order.plan_priority }}">NPL</button>
+            </form>
+            {% else %}
+            <a class="jp-pb-npl-tab is-{{ row.order.plan_priority }}"
+               href="{% url 'san_xuat:plan_board' %}?mode={{ mode }}&tab={{ tab }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}&npl={{ row.order.pk }}">NPL</a>
+            {% endif %}
+          {% endif %}
           {% include 'san_xuat/includes/plan_board_gc_actions.html' %}
           {% if can_schedule %}
             {% if row.order.plan_status == 'on_hold' %}
@@ -804,6 +961,18 @@
               {% endif %}
             {% else %}<strong>—</strong>{% endif %}
           </span>
+          <span class="jp-pb-stat{% if row.npl_short_count or row.npl_missing_buy %} is-late{% endif %}">
+            NPL
+            {% if row.npl_status == 'ready' %}
+              <strong>{% if row.npl_short_count %}thiếu {{ row.npl_short_count }} mã{% else %}đủ{% endif %}</strong>
+              {% if row.npl_lead_days %} · {{ row.npl_lead_days }} ngày{% endif %}
+              {% if row.npl_ready_date %} · sẵn {{ row.npl_ready_date|date:"d/m/Y" }}{% endif %}
+            {% elif row.npl_status == 'draft' %}
+              <strong>nháp{% if row.npl_short_count %} · thiếu {{ row.npl_short_count }} mã{% endif %}</strong>
+            {% else %}
+              <strong>—</strong>
+            {% endif %}
+          </span>
         </div>
 
         {% if row.product_flows %}
@@ -825,6 +994,16 @@
         {% endif %}
         {% if row.order.plan_hold_reason %}
         <p class="jp-pb-hold-note">Giữ: {{ row.order.plan_hold_reason }}</p>
+        {% endif %}
+        {% if row.order.npl_status != 'none' or npl_open_id == row.order.pk %}
+          {% if npl_open_id == row.order.pk %}
+            {% include 'san_xuat/includes/plan_board_npl.html' %}
+          {% else %}
+          <details class="jp-pb-npl-box">
+            <summary class="jp-pb-npl-tab is-{{ row.order.plan_priority }}">NPL</summary>
+            {% include 'san_xuat/includes/plan_board_npl.html' %}
+          </details>
+          {% endif %}
         {% endif %}
       </div>
     </article>
@@ -1313,6 +1492,11 @@
         '<div class="jp-pb-dur-card"><span class="k">KHSX</span><span class="v">' +
           esc(data.khsx_start || '—') +
           (data.khsx_end && data.khsx_end !== data.khsx_start ? ' → ' + esc(data.khsx_end) : '') +
+        '</span></div>' +
+        '<div class="jp-pb-dur-card"><span class="k">NPL sẵn</span><span class="v">' +
+          (data.npl_ready
+            ? esc(data.npl_ready) + (data.npl_lead_days ? ' · ' + esc(data.npl_lead_days) + ' ngày' : '')
+            : '—') +
         '</span></div>' +
         '<div class="jp-pb-dur-card"><span class="k">Hạn giao</span><span class="v">' + esc(data.due || '—') + '</span></div>' +
         '<div class="jp-pb-dur-card"><span class="k">Làm trong</span><span class="v">' + esc(data.duration_label || '—') + '</span></div>' +

@@ -444,6 +444,7 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
         _cols(
             _col('code', 'Mã', required=True),
             _col('name', 'Tên', weight=140),
+            _col('khsx', 'Đơn KHSX', weight=130),
             _col('overall', 'Kế hoạch tổng thể nguồn', weight=140, default=False),
             _col('line_count', 'Dòng NPL', weight=80, align='end', default=False),
             _col('status', 'Trạng thái', weight=100),
@@ -452,6 +453,7 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
         {
             'code': 'code',
             'name': 'name',
+            'khsx': 'sales_order__code',
             'overall': 'overall_plan__code',
             'line_count': 'pk',
             'status': 'status',
@@ -462,6 +464,7 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
     'npl_purchase_request': _spec(
         _cols(
             _col('code', 'Mã', required=True),
+            _col('khsx', 'Đơn KHSX', weight=130),
             _col('plan', 'Kế hoạch NPL', weight=130, default=False),
             _col('request_date', 'Ngày yêu cầu', weight=100),
             _col('due_date', 'Hạn', weight=90),
@@ -471,7 +474,8 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
         ),
         {
             'code': 'code',
-            'plan': 'npl_plan__code',
+            'khsx': 'sales_order__code',
+            'plan': 'material_plan__code',
             'request_date': 'request_date',
             'due_date': 'due_date',
             'line_count': 'pk',
