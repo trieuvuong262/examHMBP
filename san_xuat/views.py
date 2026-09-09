@@ -641,7 +641,7 @@ def doc_detail(request, pk):
             work_center_code = (request.POST.get('work_center_code') or '').strip()
             _ob_before = routing_snapshot(routing) if routing else {'lines': []}
             if not group_code or not op_name:
-                messages.error(request, 'Chọn nhóm và công đoạn từ thư viện.')
+                messages.error(request, 'Chọn tên công đoạn và nhóm công đoạn.')
             else:
                 try:
                     if routing is None:
@@ -715,6 +715,7 @@ def doc_detail(request, pk):
         elif action == 'save_doc_routing_lines' and tab == 'process':
             from decimal import Decimal, InvalidOperation
 
+            from django.db import transaction
             from san_xuat.ie_models import SxRouting
             from san_xuat.models import ProcessStep
             from san_xuat.services.ie_ops import (
@@ -738,45 +739,79 @@ def doc_detail(request, pk):
                 assert_routing_editable(routing)
                 if not line_ids:
                     raise IeOpsError('Chưa có công đoạn để lưu.')
-                updated = 0
+                all_lines = {
+                    line.pk: line
+                    for line in routing.lines.all()
+                }
+                entries = []
+                seen_sequences = set()
                 for raw_id in line_ids:
                     if not str(raw_id).isdigit():
                         continue
-                    line = routing.lines.filter(pk=int(raw_id)).first()
+                    line = all_lines.get(int(raw_id))
                     if line is None:
                         continue
+                    seq_raw = (request.POST.get(f'seq_no_{raw_id}') or '').strip()
                     smv_raw = (request.POST.get(f'applied_unit_smv_{raw_id}') or '').strip()
                     notes_raw = (request.POST.get(f'notes_{raw_id}') or '').strip()
                     try:
+                        sequence = int(seq_raw)
+                        if sequence <= 0:
+                            raise ValueError
                         product_smv = (
                             Decimal(smv_raw.replace(',', '.')) if smv_raw else Decimal('0')
                         )
                     except (InvalidOperation, ValueError) as exc:
                         raise IeOpsError(
-                            f'SMV sản phẩm không hợp lệ (TT {line.seq_no}).'
+                            f'TT hoặc SMV sản phẩm không hợp lệ (dòng {line.seq_no}).'
                         ) from exc
+                    if sequence in seen_sequences:
+                        raise IeOpsError(f'TT {sequence} đang bị trùng.')
+                    seen_sequences.add(sequence)
                     if product_smv < 0:
                         raise IeOpsError(
                             f'SMV sản phẩm không được âm (TT {line.seq_no}).'
                         )
-                    line.applied_unit_smv = product_smv
-                    line.notes = notes_raw[:255]
-                    line.save()
-                    smv = line.applied_unit_smv or line.library_unit_smv or Decimal('0')
-                    if bom and smv > 0:
-                        norm = norm_per_hour_from_smv_seconds(smv)
-                        ProcessStep.objects.filter(bom=bom, routing_line=line).update(
-                            norm_per_hour=max(norm, Decimal('0.01')),
-                            std_time_minutes=(smv / Decimal('60')).quantize(Decimal('0.01')),
-                            notes=notes_raw[:255],
-                        )
-                    updated += 1
-                if not updated:
+                    entries.append((line, sequence, product_smv, notes_raw[:255]))
+
+                if not entries:
                     raise IeOpsError('Không cập nhật được dòng nào.')
+                submitted_ids = {line.pk for line, _seq, _smv, _notes in entries}
+                untouched_sequences = {
+                    line.seq_no for pk, line in all_lines.items() if pk not in submitted_ids
+                }
+                conflict = seen_sequences & untouched_sequences
+                if conflict:
+                    raise IeOpsError(f'TT {min(conflict)} đang được dùng bởi công đoạn khác.')
+
+                with transaction.atomic():
+                    SxRouting.objects.select_for_update().get(pk=routing.pk)
+                    max_sequence = max((line.seq_no for line in all_lines.values()), default=0)
+                    temporary_start = max_sequence + len(entries) + 1000
+                    for index, (line, _sequence, _smv, _notes) in enumerate(entries):
+                        routing.lines.filter(pk=line.pk).update(seq_no=temporary_start + index)
+                    for line, sequence, product_smv, notes_raw in entries:
+                        line.seq_no = sequence
+                        line.applied_unit_smv = product_smv
+                        line.notes = notes_raw
+                        line.save()
+                        smv = line.applied_unit_smv or line.library_unit_smv or Decimal('0')
+                        if bom and smv > 0:
+                            norm = norm_per_hour_from_smv_seconds(smv)
+                            ProcessStep.objects.filter(bom=bom, routing_line=line).update(
+                                sequence=sequence,
+                                norm_per_hour=max(norm, Decimal('0.01')),
+                                std_time_minutes=(smv / Decimal('60')).quantize(Decimal('0.01')),
+                                notes=notes_raw,
+                            )
+                updated = len(entries)
             except IeOpsError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'Đã lưu {updated} công đoạn (SMV sản phẩm + mô tả).')
+                messages.success(
+                    request,
+                    f'Đã lưu thứ tự, SMV sản phẩm và mô tả của {updated} công đoạn.',
+                )
             return _doc_tab_redirect(
                 request,
                 'process',

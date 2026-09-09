@@ -1,4 +1,16 @@
 {% load sx_format %}
+<style>
+#doc-routing-lines-save-form input[name^="seq_no_"] {
+  width: 3.75rem;
+  text-align: center;
+}
+#doc-routing-lines-save-form .ob-drag-handle { cursor: grab; }
+#doc-routing-lines-save-form .ob-drag-handle:active { cursor: grabbing; }
+#doc-routing-lines-save-form .ob-line-row.is-dragging {
+  opacity: 0.45;
+  background: #fef2f2;
+}
+</style>
 <div class="card border-0 shadow-sm mb-3">
   <div class="card-body">
     {% if can_update and edit_mode %}
@@ -14,6 +26,11 @@
       <input type="hidden" name="library_unit_smv" value="">
 
       <div class="col-md-4">
+        <label class="form-label small mb-1">Tên công đoạn <span class="text-danger">*</span></label>
+        <select class="form-select form-select-sm jp-ie-op-select"
+                data-placeholder="Gõ tìm tên công đoạn…"></select>
+      </div>
+      <div class="col-md-4">
         <label class="form-label small mb-1">Nhóm công đoạn <span class="text-danger">*</span></label>
         <select name="group_code" class="form-select form-select-sm jp-sx-process-group-select" required
                 data-placeholder="Gõ tìm nhóm công đoạn…">
@@ -22,12 +39,6 @@
           <option value="{{ group.code }}">{{ group.name }}</option>
           {% endfor %}
         </select>
-      </div>
-      <div class="col-md-4">
-        <label class="form-label small mb-1">Tên công đoạn <span class="text-danger">*</span></label>
-        <select class="form-select form-select-sm jp-ie-op-select"
-                data-filter-by-group="1"
-                data-placeholder="Chọn nhóm trước, rồi chọn công đoạn…"></select>
       </div>
       <div class="col-md-3">
         <label class="form-label small mb-1">Bộ phận</label>
@@ -80,10 +91,24 @@
             {% if can_update and edit_mode %}<th></th>{% endif %}
           </tr>
         </thead>
-        <tbody>
+        <tbody id="ob-routing-lines-body">
           {% for line in routing_lines %}
-          <tr>
-            <td>{{ line.seq_no }}</td>
+          <tr class="ob-line-row">
+            <td>
+              {% if can_update and edit_mode and process_routing %}
+              <div class="d-flex align-items-center gap-1">
+                <button type="button" class="btn btn-link btn-sm text-muted p-0 ob-drag-handle"
+                        title="Kéo để đổi thứ tự" aria-label="Kéo để đổi thứ tự">
+                  <i class="bi bi-grip-vertical"></i>
+                </button>
+                <input type="number" name="seq_no_{{ line.pk }}"
+                       class="form-control form-control-sm" min="1" step="1"
+                       value="{{ line.seq_no }}" aria-label="Thứ tự {{ line.op_name_vi|default:line.op_code }}">
+              </div>
+              {% else %}
+              {{ line.seq_no }}
+              {% endif %}
+            </td>
             <td>{{ line.display_group_name|default:line.group_code|default:"—" }}</td>
             <td>{{ line.op_name_vi|default:"—" }}</td>
             <td>{% if line.work_center %}{{ line.work_center.name }}{% elif line.work_center_code %}{{ line.work_center_code }}{% else %}—{% endif %}</td>
@@ -127,7 +152,7 @@
 
     {% if can_update and edit_mode and process_routing and routing_lines %}
       <div class="d-flex justify-content-end mt-3">
-        <button type="submit" class="btn btn-sm btn-hm">Lưu SMV sản phẩm &amp; mô tả</button>
+        <button type="submit" class="btn btn-sm btn-hm">Lưu thứ tự, SMV &amp; mô tả</button>
       </div>
     </form>
     {% for line in routing_lines %}
@@ -138,6 +163,33 @@
       <input type="hidden" name="line_id" value="{{ line.pk }}">
     </form>
     {% endfor %}
+    {% endif %}
+
+    {% if can_update and edit_mode and process_routing and routing_lines %}
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+    <script>
+    (function () {
+      var body = document.getElementById('ob-routing-lines-body');
+      if (!body) return;
+
+      function renumberRows() {
+        body.querySelectorAll('.ob-line-row').forEach(function (row, index) {
+          var input = row.querySelector('input[name^="seq_no_"]');
+          if (input) input.value = index + 1;
+        });
+      }
+
+      if (typeof Sortable !== 'undefined') {
+        new Sortable(body, {
+          handle: '.ob-drag-handle',
+          draggable: '.ob-line-row',
+          animation: 150,
+          ghostClass: 'is-dragging',
+          onEnd: renumberRows,
+        });
+      }
+    })();
+    </script>
     {% endif %}
   </div>
 </div>

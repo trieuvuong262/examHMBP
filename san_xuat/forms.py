@@ -294,7 +294,7 @@ class BomLineForm(forms.ModelForm):
                 'inputmode': 'decimal',
             }),
             'notes': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
-            'sort_order': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'min': '0'}),
+            'sort_order': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'min': '1'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -318,6 +318,7 @@ class BomLineForm(forms.ModelForm):
         if qty_field is not None:
             qty_field.localize = False
             qty_field.widget.is_localized = False
+        self.fields['sort_order'].min_value = 1
 
     def full_clean(self):
         if self.data:
@@ -470,10 +471,27 @@ class ProcessStepBaseFormSet(BaseInlineFormSet):
         return kwargs
 
 
+class BomLineBaseFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        seen = set()
+        for form in self.forms:
+            data = getattr(form, 'cleaned_data', {})
+            if not data or data.get('DELETE') or not data.get('material'):
+                continue
+            order = data.get('sort_order')
+            if order in seen:
+                raise forms.ValidationError(f'TT {order} đang bị trùng.')
+            seen.add(order)
+
+
 BomLineFormSet = inlineformset_factory(
     BomVersion,
     BomLine,
     form=BomLineForm,
+    formset=BomLineBaseFormSet,
     extra=1,
     can_delete=True,
 )

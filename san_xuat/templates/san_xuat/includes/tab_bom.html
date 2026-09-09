@@ -21,6 +21,7 @@
                 <table class="table table-sm align-middle mb-0 jp-sx-bom-npl-table">
                     <thead class="table-light">
                         <tr>
+                            <th style="width:88px">TT</th>
                             <th style="min-width:280px">Nguyên phụ liệu <span class="text-danger">*</span></th>
                             <th style="width:100px" class="text-end">Định mức <span class="text-danger">*</span></th>
                             <th style="width:72px">ĐVT</th>
@@ -33,8 +34,16 @@
                         {% for f in line_formset %}
                         <tr class="bom-line-row">
                             {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+                            <td>
+                                <div class="d-flex align-items-center gap-1">
+                                    <button type="button" class="btn btn-link btn-sm text-muted p-0 bom-drag-handle"
+                                            title="Kéo để đổi thứ tự" aria-label="Kéo để đổi thứ tự">
+                                        <i class="bi bi-grip-vertical"></i>
+                                    </button>
+                                    {{ f.sort_order }}
+                                </div>
+                            </td>
                             <td class="jp-npl-material-cell">
-                                <div class="d-none">{{ f.sort_order }}</div>
                                 <div class="jp-npl-material-field">{{ f.material }}{% if f.material.errors %}<div class="text-danger small">{{ f.material.errors }}</div>{% endif %}</div>
                             </td>
                             <td class="text-end">{{ f.qty }}{% if f.qty.errors %}<div class="text-danger small">{{ f.qty.errors }}</div>{% endif %}</td>
@@ -75,8 +84,16 @@
             {% with f=line_formset.empty_form %}
             <tr class="bom-line-row">
                 {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+                <td>
+                    <div class="d-flex align-items-center gap-1">
+                        <button type="button" class="btn btn-link btn-sm text-muted p-0 bom-drag-handle"
+                                title="Kéo để đổi thứ tự" aria-label="Kéo để đổi thứ tự">
+                            <i class="bi bi-grip-vertical"></i>
+                        </button>
+                        {{ f.sort_order }}
+                    </div>
+                </td>
                 <td class="jp-npl-material-cell">
-                    <div class="d-none">{{ f.sort_order }}</div>
                     <div class="jp-npl-material-field">{{ f.material }}</div>
                 </td>
                 <td class="text-end">{{ f.qty }}</td>
@@ -95,6 +112,7 @@
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
 <style>
 /* Dropdown NPL BOM: cùng layout phiếu xuất (tên trái · tồn phải) */
 #bom-form .jp-npl-material-field .ts-wrapper,
@@ -104,6 +122,16 @@
 }
 #bom-form .ts-dropdown .jp-npl-material-option.is-name-stock {
   min-width: min(22rem, 88vw);
+}
+#bom-form input[name$="-sort_order"] {
+  width: 3.75rem;
+  text-align: center;
+}
+#bom-form .bom-drag-handle { cursor: grab; }
+#bom-form .bom-drag-handle:active { cursor: grabbing; }
+#bom-form .bom-line-row.is-dragging {
+  opacity: 0.45;
+  background: #fef2f2;
 }
 </style>
 
@@ -209,6 +237,18 @@
                 },
             },
             onChange: function (value) {
+                if (value && row) {
+                    var sortInput = row.querySelector('input[name$="-sort_order"]');
+                    if (sortInput && (parseInt(sortInput.value || '0', 10) || 0) <= 0) {
+                        var orders = visibleRows().filter(function (item) {
+                            return item !== row;
+                        }).map(function (item) {
+                            var input = item.querySelector('input[name$="-sort_order"]');
+                            return parseInt((input && input.value) || '0', 10) || 0;
+                        });
+                        sortInput.value = (orders.length ? Math.max.apply(Math, orders) : 0) + 1;
+                    }
+                }
                 var opt = value ? this.options[value] : null;
                 var unit = opt ? (opt.unit_name || opt.unit || '') : '';
                 setLineUnit(row, unit);
@@ -299,6 +339,34 @@
     var tmpl = document.getElementById('empty-bom-row-template');
     var totalForms = document.getElementById('id_lines-TOTAL_FORMS');
 
+    function visibleRows() {
+        if (!body) return [];
+        return Array.from(body.querySelectorAll('.bom-line-row')).filter(function (row) {
+            var del = row.querySelector('input[type=checkbox][name$="-DELETE"]');
+            var material = row.querySelector('select[name$="-material"]');
+            return row.style.display !== 'none'
+                && !(del && del.checked)
+                && (!material || Boolean(material.value));
+        });
+    }
+
+    function renumberRows() {
+        visibleRows().forEach(function (row, index) {
+            var input = row.querySelector('input[name$="-sort_order"]');
+            if (input) input.value = index + 1;
+        });
+    }
+
+    if (body && typeof Sortable !== 'undefined') {
+        new Sortable(body, {
+            handle: '.bom-drag-handle',
+            draggable: '.bom-line-row',
+            animation: 150,
+            ghostClass: 'is-dragging',
+            onEnd: renumberRows,
+        });
+    }
+
     document.getElementById('add-bom-row')?.addEventListener('click', function () {
         if (!body || !tmpl || !totalForms) return;
         var idx = parseInt(totalForms.value, 10);
@@ -308,6 +376,11 @@
         var rows = body.querySelectorAll('.bom-line-row');
         var lastRow = rows[rows.length - 1];
         if (lastRow) {
+            var orders = Array.from(body.querySelectorAll('input[name$="-sort_order"]')).map(function (input) {
+                return parseInt(input.value || '0', 10) || 0;
+            });
+            var sortInput = lastRow.querySelector('input[name$="-sort_order"]');
+            if (sortInput) sortInput.value = (orders.length ? Math.max.apply(Math, orders) : 0) + 1;
             initBomMaterialSelect(lastRow.querySelector('select.jp-npl-material-select'));
         }
     });
@@ -324,6 +397,7 @@
         } else if (row) {
             row.remove();
         }
+        renumberRows();
     });
 })();
 </script>
@@ -332,6 +406,7 @@
             <table class="table table-sm align-middle mb-0">
                 <thead class="table-light">
                     <tr>
+                        <th>TT</th>
                         <th>Mã NPL</th>
                         <th>Tên</th>
                         <th class="text-end">Định mức</th>
@@ -342,6 +417,7 @@
                 <tbody>
                     {% for line in bom.lines.all %}
                     <tr>
+                        <td>{{ line.sort_order }}</td>
                         <td><strong>{{ line.material.code }}</strong></td>
                         <td>{{ line.material.name }}</td>
                         <td class="text-end">{{ line.qty|sx_num }}</td>
@@ -349,7 +425,7 @@
                         <td class="text-end{% if line.stock_qty == 0 %} text-danger{% endif %}">{{ line.stock_qty|default:0|sx_num }}</td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="5" class="text-muted text-center py-3">Chưa có dòng NPL.</td></tr>
+                    <tr><td colspan="6" class="text-muted text-center py-3">Chưa có dòng NPL.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
