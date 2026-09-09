@@ -646,6 +646,12 @@ def create_subcontract_order(
         if source_line is None:
             raise Phase3Error("Mã sản phẩm không thuộc đơn đặt hàng.")
         product_name = product_name or source_line.product_name
+        mo = (
+            so.production_orders.filter(is_demo=False, product_code__iexact=product_code)
+            .exclude(status=SxProductionOrder.STATUS_CANCELLED)
+            .order_by('-pk')
+            .first()
+        )
     else:
         raise Phase3Error("Chọn đơn đặt hàng hoặc lệnh sản xuất.")
 

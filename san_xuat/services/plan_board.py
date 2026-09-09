@@ -1988,6 +1988,7 @@ class PlanTimelineRow:
     span_days: int = 1
     accepted_teams: list = field(default_factory=list)
     teams: list[TeamTimelineBar] = field(default_factory=list)
+    product_images: list[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -2296,6 +2297,13 @@ def build_order_timeline(
         if names:
             extra = names[0] if len(names) == 1 else f'{len(names)} mã'
             subtitle = f'{subtitle} · {extra}' if subtitle else extra
+        product_images = []
+        for pf in (r.product_flows or [])[:2]:
+            product_images.append({
+                'url': pf.image_url or '',
+                'urls_json': pf.image_urls_json,
+                'name': pf.product_name or pf.product_code,
+            })
         can_drag = r.order.plan_status in QUEUE_STATUSES and r.mo_count == 0
         span_days = max(1, (bar_end - bar_start).days + 1)
         status_key = r.order.plan_status
@@ -2375,6 +2383,7 @@ def build_order_timeline(
             span_days=span_days,
             accepted_teams=accepts_by_order.get(r.order.pk, []),
             teams=team_bars,
+            product_images=product_images,
         ))
 
     today_col = (today - start).days + 1 if start <= today <= end else None

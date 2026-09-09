@@ -520,6 +520,20 @@
     color: #166534;
     background: #f0fdf4;
   }
+  .jp-pb-stage-gc-recv {
+    margin: 0;
+    display: inline-flex;
+  }
+  button.jp-pb-stage-product-gc-link {
+    appearance: none;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .jp-pb-stage-product-gc-link.is-recv {
+    border-color: #991b1b;
+    color: #991b1b;
+    background: #fff;
+  }
   .jp-pb-stage-team-title {
     justify-content: flex-start;
     margin: 0.55rem 0 0.4rem;
@@ -1388,7 +1402,7 @@
   {% if tab == 'released' %}
   <div class="jp-pb-list">
     {% for row in released_rows %}
-    <article class="jp-pb-ticket jp-pb-ticket-plain{% if row.is_overdue %} is-overdue{% endif %}">
+    <article class="jp-pb-ticket is-{{ row.order.plan_priority }}{% if row.is_overdue %} is-overdue{% endif %}">
       <div class="jp-pb-ticket-head">
         <div class="jp-pb-ticket-lead">
           {% include 'san_xuat/includes/plan_board_product_images.html' %}
@@ -1402,27 +1416,33 @@
         </div>
         {% include 'san_xuat/includes/plan_board_ticket_times.html' %}
         <div class="jp-pb-side">
-          {% if row.mo_count %}
-            <a href="{% url 'san_xuat:order_progress_order' row.order.pk %}" class="btn btn-hm btn-sm fw-bold">Tiến độ</a>
-          {% endif %}
-          {% if can_release and row.can_unrelease %}
-          <form method="post" class="d-inline"
-                onsubmit="return confirm('Hủy chuyển SX {{ row.order.code }}?\nCác lệnh sản xuất sẽ bị hủy và đơn về hàng đợi để sửa.');">
-            {% csrf_token %}
-            <input type="hidden" name="mode" value="list">
-            <input type="hidden" name="tab" value="released">
-            {% if filter_date_from %}<input type="hidden" name="date_from" value="{{ filter_date_from|date:'Y-m-d' }}">{% endif %}
-            {% if filter_date_to %}<input type="hidden" name="date_to" value="{{ filter_date_to|date:'Y-m-d' }}">{% endif %}
-            <input type="hidden" name="action" value="unrelease">
-            <input type="hidden" name="order_id" value="{{ row.order.pk }}">
-            <button type="submit" class="btn btn-outline-danger btn-sm" title="Hủy LSX chưa phát sinh SX, đơn về hàng đợi">Hủy chuyển SX</button>
-          </form>
-          {% endif %}
-          <a href="{% url 'san_xuat:dispatch_mo' %}?q={{ row.order.code|urlencode }}" class="btn btn-outline-secondary btn-sm">Lệnh SX</a>
+          <div class="jp-pb-side-cta">
+            <span class="jp-pb-urgency is-{{ row.order.plan_priority }}">{{ row.order.get_plan_priority_display }}</span>
+            {% if row.mo_count %}
+              <a href="{% url 'san_xuat:order_progress_order' row.order.pk %}" class="btn btn-hm btn-sm fw-bold">Tiến độ</a>
+            {% endif %}
+            {% if can_release and row.can_unrelease %}
+            <form method="post" class="d-inline"
+                  onsubmit="return confirm('Hủy chuyển SX {{ row.order.code }}?\nCác lệnh sản xuất sẽ bị hủy và đơn về hàng đợi để sửa.');">
+              {% csrf_token %}
+              <input type="hidden" name="mode" value="list">
+              <input type="hidden" name="tab" value="released">
+              {% if filter_date_from %}<input type="hidden" name="date_from" value="{{ filter_date_from|date:'Y-m-d' }}">{% endif %}
+              {% if filter_date_to %}<input type="hidden" name="date_to" value="{{ filter_date_to|date:'Y-m-d' }}">{% endif %}
+              <input type="hidden" name="action" value="unrelease">
+              <input type="hidden" name="order_id" value="{{ row.order.pk }}">
+              <button type="submit" class="btn btn-outline-danger btn-sm" title="Hủy LSX chưa phát sinh SX, đơn về hàng đợi">Hủy chuyển SX</button>
+            </form>
+            {% endif %}
+            <a href="{% url 'san_xuat:dispatch_mo' %}?q={{ row.order.code|urlencode }}" class="btn btn-outline-secondary btn-sm">Lệnh SX</a>
+          </div>
         </div>
       </div>
       <div class="jp-pb-ticket-body">
         {% include 'san_xuat/includes/plan_board_ticket_timeline.html' %}
+        {% if npl_open_id == row.order.pk %}
+          {% include 'san_xuat/includes/plan_board_npl.html' %}
+        {% endif %}
       </div>
     </article>
     {% empty %}
@@ -2126,7 +2146,7 @@
       return;
     }
 
-    if (event.target.closest('a.jp-pb-stage-gc, a.jp-pb-stage-product-gc-link')) return;
+    if (event.target.closest('a.jp-pb-stage-gc, a.jp-pb-stage-product-gc-link, .jp-pb-stage-gc-recv')) return;
     var button = event.target.closest('[data-jp-stage-open]');
     if (!button) return;
     var root = button.closest('.jp-pb-tl');

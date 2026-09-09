@@ -1620,8 +1620,7 @@ def plan_board(request):
                         messages.error(request, str(exc))
                     else:
                         messages.success(request, f'Đã nhận hàng {gc.code}.')
-                tab_back = (request.POST.get('tab') or tab or 'released').strip()
-                return redirect(f"{reverse('san_xuat:plan_board')}?mode=list&tab={tab_back}")
+                return _board_redirect()
             elif action == 'delete_gc':
                 from san_xuat.services.phase3 import (
                     Phase3Error,
@@ -6641,6 +6640,17 @@ def subcontract_create(request):
         so = (
             SxSalesOrder.objects.prefetch_related('lines')
             .filter(pk=int(raw_so), is_demo=False)
+            .first()
+        )
+    if mo is None and so is not None and raw_product:
+        mo = (
+            SxProductionOrder.objects.filter(
+                sales_order=so,
+                is_demo=False,
+                product_code__iexact=raw_product,
+            )
+            .exclude(status=SxProductionOrder.STATUS_CANCELLED)
+            .order_by('-pk')
             .first()
         )
     team = team_by_slug(raw_team) if raw_team else None

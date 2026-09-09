@@ -14,9 +14,9 @@
       Thời gian chuẩn bị
       <input type="number" name="npl_kit_days" min="0" max="120" class="form-control form-control-sm"
              value="{% if row.order.npl_kit_days is not None %}{{ row.order.npl_kit_days }}{% else %}{{ npl_kit_default }}{% endif %}"
-             {% if not can_schedule or row.order.plan_status == 'on_hold' %}readonly{% endif %}>
+             {% if not can_schedule or row.order.plan_status == 'on_hold' or tab != 'queue' %}readonly{% endif %}>
     </label>
-    {% if can_schedule and row.order.plan_status != 'on_hold' %}
+    {% if can_schedule and row.order.plan_status != 'on_hold' and tab == 'queue' %}
     <button type="submit" name="action" value="apply_npl" class="btn btn-hm btn-sm fw-bold">Lưu</button>
     {% endif %}
   </div>
@@ -55,7 +55,7 @@
           <td class="num">
             <input type="number" name="buy_for__{{ ln.pk }}" min="0" max="365" class="form-control form-control-sm"
                    value="{{ ln.buy_lead_days|default_if_none:'' }}"
-                   {% if not can_schedule or row.order.plan_status == 'on_hold' %}readonly{% endif %}>
+                   {% if not can_schedule or row.order.plan_status == 'on_hold' or tab != 'queue' %}readonly{% endif %}>
           </td>
         </tr>
         {% endif %}

@@ -99,7 +99,7 @@
       </span>
       {% endif %}
       {% if not forloop.last %}
-        {% if step.kind == 'team' and step.can_edit_hop and can_schedule and row.order.plan_status != 'done' %}
+        {% if step.kind == 'team' and step.can_edit_hop and can_schedule and tab == 'queue' and row.order.plan_status != 'done' %}
         <details class="jp-pb-hop-edit jp-pb-tl-plus">
           <summary class="jp-pb-hop-add"
                    title="Điều chỉnh thời gian kiểm đếm / vận chuyển"
@@ -170,6 +170,20 @@
               <a class="jp-pb-stage-product-gc-link is-hired"
                  href="{% url 'san_xuat:subcontract_detail' gc.pk %}"
                  title="Xem phiếu {{ gc.code }}">{{ gc.code }}</a>
+              {% if tab == 'released' and can_receive_gc and gc.status != 'done' and gc.status != 'received' and gc.status != 'cancelled' %}
+              <form method="post" class="jp-pb-stage-gc-recv"
+                    onsubmit="return confirm('Nhận hàng gia công {{ gc.code }}?');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="receive_gc">
+                <input type="hidden" name="gc_id" value="{{ gc.pk }}">
+                <input type="hidden" name="tab" value="{{ tab }}">
+                <input type="hidden" name="mode" value="{{ mode }}">
+                {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
+                {% if filter_date_from %}<input type="hidden" name="date_from" value="{{ filter_date_from|date:'Y-m-d' }}">{% endif %}
+                {% if filter_date_to %}<input type="hidden" name="date_to" value="{{ filter_date_to|date:'Y-m-d' }}">{% endif %}
+                <button type="submit" class="jp-pb-stage-product-gc-link is-recv">Nhận hàng</button>
+              </form>
+              {% endif %}
               {% empty %}
                 {% if can_create_subcontract and row.order.plan_status != 'done' %}
                 <a class="jp-pb-stage-product-gc-link"

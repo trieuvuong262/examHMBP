@@ -1,3 +1,4 @@
+{% load sx_format %}
 <div class="jp-pb-ticket-times" aria-label="Chi tiết thời gian KHSX">
   {% if row.duration_script_id %}{{ row.duration_detail|json_script:row.duration_script_id }}{% endif %}
   <div class="jp-pb-stats">
@@ -23,6 +24,12 @@
     <span class="jp-pb-stat">
       <button type="button" class="jp-pb-dur-btn" data-jp-duration-open
               data-detail-id="{{ row.duration_script_id }}">Chi tiết</button>
+    </span>
+    {% endif %}
+    {% if tab == 'released' and row.mo_count %}
+    <span class="jp-pb-stat" title="Tiến độ lệnh sản xuất">
+      Tiến độ <strong>{{ row.progress_pct|sx_num }}%</strong>
+      <span class="text-muted fw-semibold">({{ row.qty_done|sx_num }}/{{ row.qty_planned|sx_num }})</span>
     </span>
     {% endif %}
     <span class="jp-pb-stat{% if row.is_overdue %} is-late{% endif %}">

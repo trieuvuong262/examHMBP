@@ -1,6 +1,6 @@
 {% if row.product_flows %}
 <div class="jp-pb-ticket-products" aria-label="Hình ảnh sản phẩm">
-  {% for pf in row.product_flows %}
+  {% for pf in row.product_flows|slice:":2" %}
     {% if pf.image_url %}
     <button type="button" class="jp-pb-ticket-product-image" data-sx-gallery
             data-sx-gallery-title="{{ pf.product_name|default:pf.product_code }}"
