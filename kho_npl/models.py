@@ -82,6 +82,13 @@ class MaterialSpecification(models.Model):
     def __str__(self):
         return self.name
 
+    @staticmethod
+    def _compact_qty(value) -> str:
+        text = format(Decimal(str(value or 0)).normalize(), 'f')
+        if '.' in text:
+            text = text.rstrip('0').rstrip('.')
+        return text or '0'
+
     @property
     def level_count(self):
         return self.levels.count()
@@ -95,11 +102,14 @@ class MaterialSpecification(models.Model):
         cumulative = Decimal('1')
         for row in levels[1:]:
             cumulative *= row.qty_in_next_lower
+            qty = self._compact_qty(row.qty_in_next_lower)
             parts.append(
-                f'1 {row.unit.name} = {row.qty_in_next_lower:g} {levels[row.level - 2].unit.name}'
+                f'1 {row.unit.name} = {qty} {levels[row.level - 2].unit.name}'
             )
         if len(levels) == 3:
-            parts.append(f'1 {levels[-1].unit.name} = {cumulative:g} {levels[0].unit.name}')
+            parts.append(
+                f'1 {levels[-1].unit.name} = {self._compact_qty(cumulative)} {levels[0].unit.name}'
+            )
         return ' · '.join(parts)
 
 

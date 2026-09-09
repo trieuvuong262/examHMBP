@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function fmtQty(value) {
         const n = Number(value);
         if (!Number.isFinite(n) || n <= 0) return '';
-        return n.toLocaleString('vi-VN', { maximumFractionDigits: 6 });
+        return n.toLocaleString('vi-VN', { maximumFractionDigits: 6, minimumFractionDigits: 0 });
     }
     function render() {
         const u1 = unitName(fields[0]), u2 = unitName(fields[1]), q2 = Number(fields[2]?.value);
