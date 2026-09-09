@@ -203,31 +203,66 @@
   .jp-pb-code:hover { color: var(--hm-primary, #dc2626); }
   .jp-pb-customer { color: var(--pb-muted); font-size: 0.86rem; font-weight: 600; }
   .jp-pb-status { font-size: 0.75rem; font-weight: 700; color: var(--pb-muted); }
+  .jp-pb-hold-chip {
+    max-width: 16rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.35rem;
+    padding: 0.12rem 0.5rem;
+  }
   .jp-pb-side {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.4rem;
+    justify-content: flex-end;
+    gap: 0.55rem;
+  }
+  .jp-pb-tools {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .jp-pb-tools form { margin: 0; display: inline-flex; }
+  .jp-pb-side-cta {
+    display: inline-flex;
+    align-items: center;
+    padding-left: 0.55rem;
+    border-left: 1px solid var(--pb-line);
+  }
+  .jp-pb-side-cta:only-child {
+    padding-left: 0;
+    border-left: 0;
+  }
+  .jp-pb-side .btn,
+  .jp-pb-tools .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 1.85rem;
+    padding: 0 0.7rem;
+    line-height: 1;
   }
   .jp-pb-prio form { margin: 0; display: inline-flex; }
   .jp-pb-prio select {
-    min-width: 7.2rem;
+    min-width: 6.6rem;
     height: 1.85rem;
     font-weight: 700;
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     padding: 0 0.45rem;
+    line-height: 1;
   }
   .jp-pb-prio.is-critical select { color: #991b1b; border-color: #fca5a5; background: #fef2f2; }
   .jp-pb-prio.is-urgent select { color: #c2410c; border-color: #fdba74; background: #fff7ed; }
   .jp-pb-prio.is-high select { color: #a16207; border-color: #fcd34d; background: #fffbeb; }
   .jp-pb-prio.is-normal select { color: #0369a1; border-color: #7dd3fc; background: #e0f2fe; }
   .jp-pb-prio.is-low select { color: #475569; border-color: #cbd5e1; background: #f1f5f9; }
-  .jp-pb-hold-form {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-  }
-  .jp-pb-hold-form .form-control { width: 7.5rem; height: 1.85rem; }
 
   .jp-pb-ticket-body { padding: 0.85rem 1.05rem 1rem; }
   .jp-pb-stats {
@@ -251,6 +286,20 @@
   .jp-pb-stat strong { color: var(--pb-ink); font-weight: 800; }
   .jp-pb-stat.is-late { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
   .jp-pb-stat.is-late strong { color: #991b1b; }
+  .jp-pb-npl-stat-form { margin: 0; display: inline-flex; }
+  button.jp-pb-stat,
+  a.jp-pb-stat {
+    font: inherit;
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    appearance: none;
+  }
+  button.jp-pb-stat:hover,
+  a.jp-pb-stat:hover { filter: brightness(0.97); }
+  a.jp-pb-npl-stat.is-open {
+    box-shadow: inset 0 0 0 1px currentColor;
+  }
   .jp-pb-dur-btn {
     display: inline-flex;
     align-items: center;
@@ -267,6 +316,78 @@
     cursor: pointer;
   }
   .jp-pb-dur-btn:hover { border-color: #0369a1; background: #e0f2fe; }
+  .jp-pb-tl {
+    margin: 0 0 0.75rem;
+  }
+  .jp-pb-tl-track {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 2px;
+    padding: 0.2rem;
+    background: var(--pb-soft);
+    border: 1px solid var(--pb-line);
+    border-radius: 0.75rem;
+  }
+  .jp-pb-tl-npl-form {
+    margin: 0;
+    display: flex;
+    min-width: 6.2rem;
+  }
+  .jp-pb-tl-npl-form .jp-pb-tl-seg { flex: 1; width: 100%; }
+  .jp-pb-tl-seg {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.1rem;
+    min-width: 5.6rem;
+    flex: 1 1 5.6rem;
+    padding: 0.38rem 0.55rem 0.4rem;
+    border: 1px solid transparent;
+    border-radius: 0.5rem;
+    text-align: left;
+    text-decoration: none;
+    color: var(--pb-ink);
+    background: #fff;
+    font: inherit;
+    cursor: default;
+    appearance: none;
+  }
+  a.jp-pb-tl-seg,
+  button.jp-pb-tl-seg { cursor: pointer; }
+  a.jp-pb-tl-seg:hover,
+  button.jp-pb-tl-seg:hover {
+    border-color: #cbd5e1;
+    color: var(--pb-ink);
+  }
+  .jp-pb-tl-name {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+  .jp-pb-tl-date {
+    font-size: 0.64rem;
+    font-weight: 600;
+    color: var(--pb-muted);
+    line-height: 1.2;
+  }
+  .jp-pb-tl-seg.is-npl.is-empty,
+  .jp-pb-tl-seg.is-npl.is-draft,
+  .jp-pb-tl-seg.is-team.is-empty {
+    background: transparent;
+    border-style: dashed;
+    border-color: #cbd5e1;
+  }
+  .jp-pb-tl-seg.is-npl.is-short,
+  .jp-pb-tl-seg.is-late {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #991b1b;
+  }
+  .jp-pb-tl-seg.is-npl.is-short .jp-pb-tl-date,
+  .jp-pb-tl-seg.is-late .jp-pb-tl-date { color: #b91c1c; }
+  .jp-pb-tl-seg.is-open { border-color: #94a3b8; }
   .jp-pb-dur-table { width: 100%; font-size: 0.82rem; }
   .jp-pb-dur-table th {
     font-size: 0.68rem;
@@ -513,7 +634,6 @@
     border-radius: 0.85rem;
   }
   .jp-pb-empty a { font-weight: 700; }
-  .jp-pb-hold-note { margin: 0.55rem 0 0; font-size: 0.78rem; color: var(--pb-muted); }
 
   .jp-pb-npl {
     margin: 0.55rem 0 0;
@@ -869,111 +989,57 @@
           <div class="jp-pb-title-row">
             <span class="jp-pb-rank" title="Thứ tự xếp">{{ row.order.plan_rank|default:"·" }}</span>
             <a class="jp-pb-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
+            {% if can_schedule %}
+            <div class="jp-pb-prio is-{{ row.order.plan_priority }}">
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="set_priority">
+                <input type="hidden" name="order_id" value="{{ row.order.pk }}">
+                <select name="priority" class="form-select form-select-sm" onchange="this.form.submit()" aria-label="Mức độ gấp">
+                  {% for val, lab in priority_choices %}
+                  <option value="{{ val }}" {% if row.order.plan_priority == val %}selected{% endif %}>{{ lab }}</option>
+                  {% endfor %}
+                </select>
+              </form>
+            </div>
+            {% else %}
             <span class="jp-pb-urgency is-{{ row.order.plan_priority }}">{{ row.order.get_plan_priority_display }}</span>
+            {% endif %}
             <span class="jp-pb-status">{{ row.order.get_plan_status_display }}</span>
+            {% if row.order.plan_status == 'on_hold' and row.order.plan_hold_reason %}
+            <span class="jp-pb-hold-chip" title="{{ row.order.plan_hold_reason }}">{{ row.order.plan_hold_reason }}</span>
+            {% endif %}
           </div>
           <div class="jp-pb-customer mt-1">{{ row.order.customer_name|default:"—" }}</div>
         </div>
         <div class="jp-pb-side">
-          {% if can_schedule %}
-          <div class="jp-pb-prio is-{{ row.order.plan_priority }}">
-            <form method="post">
-              {% csrf_token %}
-              <input type="hidden" name="action" value="set_priority">
-              <input type="hidden" name="order_id" value="{{ row.order.pk }}">
-              <select name="priority" class="form-select form-select-sm" onchange="this.form.submit()" aria-label="Mức độ gấp">
-                {% for val, lab in priority_choices %}
-                <option value="{{ val }}" {% if row.order.plan_priority == val %}selected{% endif %}>{{ lab }}</option>
-                {% endfor %}
-              </select>
-            </form>
+          {% if row.subcontract or can_schedule and row.order.plan_status == 'on_hold' %}
+          <div class="jp-pb-tools">
+            {% include 'san_xuat/includes/plan_board_gc_actions.html' %}
+            {% if can_schedule and row.order.plan_status == 'on_hold' %}
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="unhold">
+                <input type="hidden" name="order_id" value="{{ row.order.pk }}">
+                <button type="submit" class="btn btn-outline-secondary btn-sm">Bỏ giữ</button>
+              </form>
+            {% endif %}
           </div>
           {% endif %}
           {% if can_release and row.order.plan_status != 'on_hold' and not row.missing_bom and not row.missing_ops %}
           {{ row.release_products|json_script:row.release_script_id }}
-          <button type="button" class="btn btn-hm btn-sm fw-bold"
-                  data-jp-release-open
-                  data-order-id="{{ row.order.pk }}"
-                  data-order-code="{{ row.order.code }}"
-                  data-products-id="{{ row.release_script_id }}">Chuyển SX</button>
-          {% endif %}
-          {% if can_schedule and row.order.plan_status != 'on_hold' %}
-            {% if row.order.npl_status == 'none' %}
-            <form method="post">
-              {% csrf_token %}
-              <input type="hidden" name="action" value="open_npl">
-              <input type="hidden" name="order_id" value="{{ row.order.pk }}">
-              <button type="submit" class="jp-pb-npl-tab is-{{ row.order.plan_priority }}">NPL</button>
-            </form>
-            {% else %}
-            <a class="jp-pb-npl-tab is-{{ row.order.plan_priority }}"
-               href="{% url 'san_xuat:plan_board' %}?mode={{ mode }}&tab={{ tab }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}&npl={{ row.order.pk }}">NPL</a>
-            {% endif %}
-          {% endif %}
-          {% include 'san_xuat/includes/plan_board_gc_actions.html' %}
-          {% if can_schedule %}
-            {% if row.order.plan_status == 'on_hold' %}
-            <form method="post">
-              {% csrf_token %}
-              <input type="hidden" name="action" value="unhold">
-              <input type="hidden" name="order_id" value="{{ row.order.pk }}">
-              <button type="submit" class="btn btn-outline-secondary btn-sm">Bỏ giữ</button>
-            </form>
-            {% else %}
-            <form method="post" class="jp-pb-hold-form">
-              {% csrf_token %}
-              <input type="hidden" name="action" value="hold">
-              <input type="hidden" name="order_id" value="{{ row.order.pk }}">
-              <input type="text" name="reason" class="form-control form-control-sm" placeholder="Lý do giữ" maxlength="200">
-              <button type="submit" class="btn btn-outline-secondary btn-sm">Giữ</button>
-            </form>
-            {% endif %}
+          <div class="jp-pb-side-cta">
+            <button type="button" class="btn btn-hm btn-sm fw-bold"
+                    data-jp-release-open
+                    data-order-id="{{ row.order.pk }}"
+                    data-order-code="{{ row.order.code }}"
+                    data-products-id="{{ row.release_script_id }}">Chuyển SX</button>
+          </div>
           {% endif %}
         </div>
       </div>
       <div class="jp-pb-ticket-body">
-        <div class="jp-pb-stats">
-          <span class="jp-pb-stat{% if row.khsx_overrun %} is-late{% endif %}"
-                title="Từ ngày dự kiến thực hiện, theo SMV × SL mọi mã + kiểm/VC">
-            KHSX
-            {% if row.khsx_start %}
-              <strong>{{ row.khsx_start|date:"d/m/Y" }}</strong>
-              {% if row.khsx_end and row.khsx_end != row.khsx_start %}
-                → <strong>{{ row.khsx_end|date:"d/m/Y" }}</strong>
-              {% endif %}
-            {% else %}<strong>—</strong>{% endif %}
-          </span>
-          {{ row.duration_detail|json_script:row.duration_script_id }}
-          {% if row.duration_label %}
-          <span class="jp-pb-stat" title="Tổng thời gian làm đơn (SMV × SL mọi mã + kiểm/VC)">
-            Làm trong <strong>{{ row.duration_label }}</strong>
-            <button type="button" class="jp-pb-dur-btn" data-jp-duration-open
-                    data-detail-id="{{ row.duration_script_id }}">Chi tiết</button>
-          </span>
-          {% endif %}
-          <span class="jp-pb-stat{% if row.is_overdue %} is-late{% endif %}">
-            Hạn
-            {% if row.order.due_date %}
-              <strong>{{ row.order.due_date|date:"d/m/Y" }}</strong>
-              {% if row.days_to_due is not None %}
-                {% if row.is_overdue %}trễ {{ row.days_to_due|stringformat:"d"|cut:"-" }} ngày
-                {% else %}còn {{ row.days_to_due }} ngày{% endif %}
-              {% endif %}
-            {% else %}<strong>—</strong>{% endif %}
-          </span>
-          <span class="jp-pb-stat{% if row.npl_short_count or row.npl_missing_buy %} is-late{% endif %}">
-            NPL
-            {% if row.npl_status == 'ready' %}
-              <strong>{% if row.npl_short_count %}thiếu {{ row.npl_short_count }} mã{% else %}đủ{% endif %}</strong>
-              {% if row.npl_lead_days %} · {{ row.npl_lead_days }} ngày{% endif %}
-              {% if row.npl_ready_date %} · sẵn {{ row.npl_ready_date|date:"d/m/Y" }}{% endif %}
-            {% elif row.npl_status == 'draft' %}
-              <strong>nháp{% if row.npl_short_count %} · thiếu {{ row.npl_short_count }} mã{% endif %}</strong>
-            {% else %}
-              <strong>—</strong>
-            {% endif %}
-          </span>
-        </div>
+        {% include 'san_xuat/includes/plan_board_ticket_timeline.html' %}
 
         {% if row.product_flows %}
         <div class="jp-pb-products">
@@ -992,18 +1058,8 @@
         {% else %}
         {% include 'san_xuat/includes/plan_board_flow.html' with flow_groups=row.flow_groups %}
         {% endif %}
-        {% if row.order.plan_hold_reason %}
-        <p class="jp-pb-hold-note">Giữ: {{ row.order.plan_hold_reason }}</p>
-        {% endif %}
-        {% if row.order.npl_status != 'none' or npl_open_id == row.order.pk %}
-          {% if npl_open_id == row.order.pk %}
-            {% include 'san_xuat/includes/plan_board_npl.html' %}
-          {% else %}
-          <details class="jp-pb-npl-box">
-            <summary class="jp-pb-npl-tab is-{{ row.order.plan_priority }}">NPL</summary>
-            {% include 'san_xuat/includes/plan_board_npl.html' %}
-          </details>
-          {% endif %}
+        {% if npl_open_id == row.order.pk %}
+          {% include 'san_xuat/includes/plan_board_npl.html' %}
         {% endif %}
       </div>
     </article>

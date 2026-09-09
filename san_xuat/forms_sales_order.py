@@ -212,8 +212,12 @@ SalesOrderLineFormSet = forms.formset_factory(
 
 class SalesOrderRejectForm(forms.Form):
     reason = forms.CharField(
-        required=False,
+        required=True,
         max_length=500,
         label='Lý do từ chối',
-        widget=forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'Nhập lý do…'}),
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'placeholder': 'Nhập lý do từ chối…',
+            'rows': 4,
+        }),
     )

@@ -12,6 +12,17 @@ from utilities.meal_labels import dish_label_key, merge_counts_by_label, pick_di
 from utilities.models import MealOrder, SalaryAdvanceRequest
 
 
+def _employee_display_name(order) -> str:
+    profile = getattr(order.employee, 'profile', None)
+    if profile and profile.full_name:
+        return profile.full_name
+    return order.employee.username
+
+
+def _join_employee_names(names: list[str]) -> str:
+    return ', '.join(names)
+
+
 def _xlsx_response(sheets: dict[str, pd.DataFrame], filename_prefix: str) -> HttpResponse:
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -58,18 +69,22 @@ def export_meal_summary_xlsx(
         qs = qs.filter(dish_id=dish_id)
 
     rows = []
+    names_by_bucket: dict[tuple, list[str]] = {}
     for order in qs.select_related(
         'employee__profile', 'employee__profile__department', 'dish',
     ).order_by('meal_date', 'employee__profile__full_name'):
         profile = getattr(order.employee, 'profile', None)
+        employee_name = _employee_display_name(order)
         rows.append({
             'Ngày ăn': order.meal_date.strftime('%d/%m/%Y'),
-            'Nhân viên': profile.full_name if profile and profile.full_name else order.employee.username,
+            'Nhân viên': employee_name,
             'Phòng ban': profile.department.name if profile and profile.department_id else '',
             'Món': order.display_name(),
             'Ghi chú': order.note,
             'Đặt lúc': timezone.localtime(order.created_at).strftime('%d/%m/%Y %H:%M'),
         })
+        bucket_key = (order.meal_date, dish_label_key(order.display_name()))
+        names_by_bucket.setdefault(bucket_key, []).append(employee_name)
     labeled = list(
         qs.annotate(label=Coalesce(NullIf('dish_name', Value('')), 'dish__name'))
         .values('meal_date', 'label')
@@ -87,8 +102,17 @@ def export_meal_summary_xlsx(
         merged = merge_counts_by_label(
             [{'dish': pick_dish_display(v['names']), 'count': v['count']} for v in buckets.values()],
         )
-        totals = [{'Món': row['dish'], 'Số lượng': row['count']} for row in merged]
-        empty_totals = [{'Món': '—', 'Số lượng': 0}]
+        totals = [
+            {
+                'Món': row['dish'],
+                'Số lượng': row['count'],
+                'Tên': _join_employee_names(
+                    names_by_bucket.get((date_from, dish_label_key(row['dish'])), []),
+                ),
+            }
+            for row in merged
+        ]
+        empty_totals = [{'Món': '—', 'Số lượng': 0, 'Tên': ''}]
         prefix = f'dat_com_{date_from.isoformat()}'
     else:
         totals = []
@@ -97,8 +121,9 @@ def export_meal_summary_xlsx(
                 'Ngày ăn': meal_dt.strftime('%d/%m/%Y'),
                 'Món': pick_dish_display(data['names']),
                 'Số lượng': data['count'],
+                'Tên': _join_employee_names(names_by_bucket.get((meal_dt, _k), [])),
             })
-        empty_totals = [{'Ngày ăn': '—', 'Món': '—', 'Số lượng': 0}]
+        empty_totals = [{'Ngày ăn': '—', 'Món': '—', 'Số lượng': 0, 'Tên': ''}]
         prefix = f'dat_com_{date_from.isoformat()}_{date_to.isoformat()}'
     return _xlsx_response(
         {

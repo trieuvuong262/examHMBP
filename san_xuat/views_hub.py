@@ -660,45 +660,11 @@ def sales_order_confirm_list(request):
     if not user_can_access_menu(request.user, MODULE_SAN_XUAT, 'order_confirm'):
         return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'order_confirm')
 
-    from san_xuat.forms_sales_order import SalesOrderRejectForm
     from san_xuat.hub_models import SxSalesOrder
     from san_xuat.services.sales_orders import (
         PROD_STATUS_LABELS,
-        confirm_sales_order,
         production_status_summary,
-        reject_sales_order,
     )
-
-    can_confirm = user_can_update_menu(request.user, MODULE_SAN_XUAT, 'order_confirm')
-    reject_form = SalesOrderRejectForm()
-
-    if request.method == 'POST' and can_confirm:
-        action = (request.POST.get('action') or '').strip()
-        try:
-            order_id = int(request.POST.get('order_id') or 0)
-        except (TypeError, ValueError):
-            order_id = 0
-        if order_id and action == 'confirm':
-            try:
-                order = confirm_sales_order(order_id=order_id, user=request.user)
-            except PlanningError as exc:
-                messages.error(request, str(exc))
-            else:
-                messages.success(request, f'Đã xác nhận đơn {order.code}.')
-            return redirect('san_xuat:sales_order_confirm_list')
-        if order_id and action == 'reject':
-            reject_form = SalesOrderRejectForm(request.POST)
-            if reject_form.is_valid():
-                try:
-                    order = reject_sales_order(
-                        order_id=order_id,
-                        reason=reject_form.cleaned_data.get('reason') or '',
-                    )
-                except PlanningError as exc:
-                    messages.error(request, str(exc))
-                else:
-                    messages.success(request, f'Đã từ chối đơn {order.code}.')
-                return redirect('san_xuat:sales_order_confirm_list')
 
     q = (request.GET.get('q') or '').strip()
     qs = SxSalesOrder.objects.filter(
@@ -729,8 +695,6 @@ def sales_order_confirm_list(request):
         **_perm_ctx(request),
         'rows': rows,
         'search_query': q,
-        'can_confirm': can_confirm,
-        'reject_form': reject_form,
     })
 
 
@@ -882,6 +846,11 @@ def sales_order_detail(request, pk: int):
         is_demo=False,
     )
     can_confirm = user_can_update_menu(request.user, MODULE_SAN_XUAT, 'order_confirm')
+    review_mode = (
+        request.GET.get('review') == '1'
+        and user_can_access_menu(request.user, MODULE_SAN_XUAT, 'order_confirm')
+    )
+    can_review_order = can_confirm and review_mode
     can_edit_routing = user_can_edit_order_routing(request.user)
     can_attach_routing = can_edit_routing or user_can_update_menu(
         request.user, MODULE_SAN_XUAT, 'order_create',
@@ -898,7 +867,7 @@ def sales_order_detail(request, pk: int):
         except OrderRoutingError as exc:
             messages.error(request, str(exc))
             return redirect('san_xuat:sales_order_detail', pk=order.pk)
-        if action in {'confirm', 'reject'} and not can_confirm:
+        if action in {'confirm', 'reject'} and not can_review_order:
             return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'order_confirm')
         if action == 'confirm' and order.confirm_status == SxSalesOrder.CONFIRM_DRAFT:
             try:
@@ -907,7 +876,7 @@ def sales_order_detail(request, pk: int):
                 messages.error(request, str(exc))
             else:
                 messages.success(request, f'Đã xác nhận đơn {order.code}.')
-                return redirect('san_xuat:sales_order_detail', pk=order.pk)
+                return redirect('san_xuat:sales_order_confirm_list')
         elif action == 'reject':
             reject_form = SalesOrderRejectForm(request.POST)
             if reject_form.is_valid():
@@ -920,7 +889,7 @@ def sales_order_detail(request, pk: int):
                     messages.error(request, str(exc))
                 else:
                     messages.success(request, f'Đã từ chối đơn {order.code}.')
-                    return redirect('san_xuat:sales_order_detail', pk=order.pk)
+                    return redirect('san_xuat:sales_order_confirm_list')
 
     prod_status = production_status_summary(order)
     can_edit_order = (
@@ -951,7 +920,8 @@ def sales_order_detail(request, pk: int):
     return render(request, 'san_xuat/sales_order_detail.html', {
         **_perm_ctx(request),
         'order': order,
-        'can_confirm': can_confirm,
+        'can_confirm': can_review_order,
+        'review_mode': review_mode,
         'can_edit_order_routing': can_edit_routing and tech_editable,
         'can_attach_routing': can_attach_routing and tech_editable,
         'routing_locked': routing_locked,

@@ -1,0 +1,49 @@
+{% with npl_open=npl_open_id|default:0 %}
+<div class="jp-pb-tl">
+  <div class="jp-pb-tl-track" aria-label="Lộ trình KHSX">
+    {% for step in row.timeline_steps %}
+      {% if step.kind == 'npl' %}
+        {% if can_schedule and row.order.plan_status != 'on_hold' and row.npl_status == 'none' %}
+        <form method="post" class="jp-pb-tl-npl-form" style="flex: {{ step.flex }} 1 6.2rem">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="open_npl">
+          <input type="hidden" name="order_id" value="{{ row.order.pk }}">
+          <button type="submit" class="jp-pb-tl-seg is-npl is-{{ step.status }}{% if step.is_late %} is-late{% endif %}"
+                  title="Chuẩn bị nguyên phụ liệu — mở kế hoạch NPL">
+            <span class="jp-pb-tl-name">Chuẩn bị NPL</span>
+            <span class="jp-pb-tl-date">{% if step.date_label %}{{ step.date_label }}{% else %}Chưa lập{% endif %}</span>
+          </button>
+        </form>
+        {% elif row.npl_status != 'none' %}
+        <a class="jp-pb-tl-seg is-npl is-{{ step.status }}{% if step.is_late %} is-late{% endif %}{% if npl_open == row.order.pk %} is-open{% endif %}"
+           style="flex: {{ step.flex }} 1 6.2rem"
+           href="{% url 'san_xuat:plan_board' %}?mode={{ mode }}&amp;tab={{ tab }}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% if npl_open != row.order.pk %}&amp;npl={{ row.order.pk }}{% endif %}"
+           title="Chuẩn bị nguyên phụ liệu{% if step.duration_label %} · {{ step.duration_label }}{% endif %}">
+          <span class="jp-pb-tl-name">Chuẩn bị NPL</span>
+          <span class="jp-pb-tl-date">
+            {% if step.date_label %}{{ step.date_label }}
+            {% elif step.status == 'draft' %}Nháp
+            {% else %}—{% endif %}
+            {% if step.duration_label and step.date_label %} · {{ step.duration_label }}{% endif %}
+          </span>
+        </a>
+        {% else %}
+        <span class="jp-pb-tl-seg is-npl is-{{ step.status }}"
+              style="flex: {{ step.flex }} 1 6.2rem"
+              title="Chuẩn bị nguyên phụ liệu">
+          <span class="jp-pb-tl-name">Chuẩn bị NPL</span>
+          <span class="jp-pb-tl-date">—</span>
+        </span>
+        {% endif %}
+      {% else %}
+      <span class="jp-pb-tl-seg is-{{ step.kind }} is-{{ step.status }}{% if step.is_late %} is-late{% endif %}"
+            style="flex: {{ step.flex }} 1 5.6rem"
+            title="{{ step.label }}{% if step.date_label %} · {{ step.date_label }}{% endif %}{% if step.duration_label %} · {{ step.duration_label }}{% endif %}">
+        <span class="jp-pb-tl-name">{{ step.label }}</span>
+        <span class="jp-pb-tl-date">{{ step.date_label|default:"—" }}</span>
+      </span>
+      {% endif %}
+    {% endfor %}
+  </div>
+</div>
+{% endwith %}

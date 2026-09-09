@@ -40,7 +40,7 @@
         {% for row in rows %}
           <tr>
             <td>
-              <a href="{% url 'san_xuat:sales_order_detail' row.order.pk %}" class="fw-bold text-decoration-none">
+              <a href="{% url 'san_xuat:sales_order_detail' row.order.pk %}?review=1" class="fw-bold text-decoration-none">
                 {{ row.order.code }}
               </a>
             </td>
@@ -50,25 +50,8 @@
             <td class="text-end">{{ row.line_count }}</td>
             <td class="text-end">{{ row.total_qty|sx_num }}</td>
             <td class="text-end text-nowrap">
-              {% if can_confirm %}
-              <form method="post" class="d-inline">
-                {% csrf_token %}
-                <input type="hidden" name="order_id" value="{{ row.order.pk }}">
-                <input type="hidden" name="action" value="confirm">
-                <button type="submit" class="btn btn-hm btn-sm fw-bold">Xác nhận</button>
-              </form>
-              <form method="post" class="d-inline-flex flex-wrap gap-1 align-items-center ms-1">
-                {% csrf_token %}
-                <input type="hidden" name="order_id" value="{{ row.order.pk }}">
-                <input type="hidden" name="action" value="reject">
-                <input type="text" name="reason" class="form-control form-control-sm" style="width:140px"
-                       placeholder="Lý do từ chối" maxlength="500">
-                <button type="submit" class="btn btn-outline-danger btn-sm"
-                        onclick="return confirm('Từ chối đơn {{ row.order.code }}?');">Từ chối</button>
-              </form>
-              {% else %}
-              <a href="{% url 'san_xuat:sales_order_detail' row.order.pk %}" class="btn btn-outline-secondary btn-sm">Xem</a>
-              {% endif %}
+              <a href="{% url 'san_xuat:sales_order_detail' row.order.pk %}?review=1"
+                 class="btn btn-outline-secondary btn-sm">Chi tiết</a>
             </td>
           </tr>
         {% empty %}

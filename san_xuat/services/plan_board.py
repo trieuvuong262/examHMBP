@@ -215,6 +215,7 @@ class PlanBoardRow:
     npl_plan_code: str = ''
     npl_pr_id: int = 0
     npl_pr_code: str = ''
+    timeline_steps: list = field(default_factory=list)
 
 
 @dataclass
@@ -262,6 +263,33 @@ class TeamKhsxSpan:
     duration_label: str = ''
     duration_work_days: int = 0
     can_drag: bool = True
+
+
+@dataclass
+class TicketTimelineStep:
+    """Một nấc trên timeline ticket KHSX: NPL → tổ → nhập kho."""
+
+    slug: str
+    kind: str
+    label: str
+    start: date | None = None
+    end: date | None = None
+    duration_label: str = ''
+    days: int = 0
+    status: str = ''
+    flex: int = 1
+    is_late: bool = False
+
+    @property
+    def date_label(self) -> str:
+        if not self.start:
+            return ''
+        a = self.start.strftime('%d/%m')
+        if not self.end or self.end == self.start:
+            return a
+        if self.start.month == self.end.month:
+            return f'{self.start.strftime("%d")}–{self.end.strftime("%d/%m")}'
+        return f'{a}–{self.end.strftime("%d/%m")}'
 
 
 def enqueue_on_confirm(order: SxSalesOrder) -> None:
@@ -548,7 +576,7 @@ def team_khsx_spans(
         lead = int(order.npl_lead_days or 0)
         npl_spans.append(TeamKhsxSpan(
             slug='npl',
-            label='Chuẩn bị NPL',
+            label='Chuẩn bị nguyên phụ liệu',
             work_minutes=Decimal('0'),
             buffer_minutes=Decimal('0'),
             minutes=Decimal('0'),
@@ -599,6 +627,114 @@ def team_khsx_spans(
             duration_work_days=dur_days,
         ))
     return npl_spans + spans
+
+
+def _span_days(start: date | None, end: date | None) -> int:
+    if not start:
+        return 0
+    finish = end or start
+    if finish < start:
+        start, finish = finish, start
+    return max(1, (finish - start).days + 1)
+
+
+def build_ticket_timeline_steps(
+    *,
+    team_spans: list[TeamKhsxSpan],
+    npl_status: str = '',
+    npl_ready_date: date | None = None,
+    npl_lead_days: int = 0,
+    npl_short_count: int = 0,
+    khsx_end: date | None = None,
+    due_date: date | None = None,
+) -> list[TicketTimelineStep]:
+    """Nấc ticket: chuẩn bị NPL → công đoạn → hoàn thành nhập kho."""
+    spans = list(team_spans or [])
+    npl_span = next((s for s in spans if s.slug == 'npl'), None)
+    teams = [s for s in spans if s.slug != 'npl']
+    steps: list[TicketTimelineStep] = []
+
+    if npl_span:
+        days = _span_days(npl_span.start, npl_span.end)
+        npl_status_key = 'short' if npl_short_count else 'ready'
+        steps.append(TicketTimelineStep(
+            slug='npl',
+            kind='npl',
+            label='Chuẩn bị nguyên phụ liệu',
+            start=npl_span.start,
+            end=npl_span.end,
+            duration_label=npl_span.duration_label,
+            days=days,
+            status=npl_status_key,
+            flex=days,
+            is_late=bool(due_date and npl_span.end and npl_span.end > due_date),
+        ))
+    else:
+        status = 'empty'
+        if npl_status == SxSalesOrder.NPL_DRAFT:
+            status = 'short' if npl_short_count else 'draft'
+        elif npl_status == SxSalesOrder.NPL_READY:
+            status = 'short' if npl_short_count else 'ready'
+        ready_one = npl_ready_date if npl_status == SxSalesOrder.NPL_READY else None
+        dur = ''
+        if status == 'ready' and not npl_lead_days:
+            dur = 'sẵn'
+        elif npl_lead_days:
+            dur = f'{int(npl_lead_days)} ngày'
+        steps.append(TicketTimelineStep(
+            slug='npl',
+            kind='npl',
+            label='Chuẩn bị nguyên phụ liệu',
+            start=ready_one,
+            end=ready_one,
+            duration_label=dur,
+            days=0,
+            status=status,
+            flex=1,
+        ))
+
+    if teams:
+        for s in teams:
+            days = _span_days(s.start, s.end)
+            steps.append(TicketTimelineStep(
+                slug=s.slug,
+                kind='team',
+                label=s.label or 'Công đoạn',
+                start=s.start,
+                end=s.end,
+                duration_label=s.duration_label,
+                days=days,
+                status='ok',
+                flex=days,
+                is_late=bool(due_date and s.end and s.end > due_date),
+            ))
+    else:
+        steps.append(TicketTimelineStep(
+            slug='ops',
+            kind='team',
+            label='Công đoạn',
+            status='empty',
+            flex=1,
+        ))
+
+    last_end = None
+    dated = [s.end for s in teams if s.end] or ([npl_span.end] if npl_span and npl_span.end else [])
+    if dated:
+        last_end = max(dated)
+    last_end = last_end or khsx_end
+    steps.append(TicketTimelineStep(
+        slug='kho',
+        kind='kho',
+        label='Hoàn thành · nhập kho',
+        start=last_end,
+        end=last_end,
+        duration_label='',
+        days=1 if last_end else 0,
+        status='end',
+        flex=1,
+        is_late=bool(due_date and last_end and last_end > due_date),
+    ))
+    return steps
 
 
 def _mo_progress(mos: list[SxProductionOrder]) -> tuple[int, int, Decimal, Decimal, Decimal]:
@@ -973,6 +1109,16 @@ def build_plan_board_rows(
             npl_pr = next(iter(npl_plan.purchase_requests.all()), None)
         if npl_pr is None:
             npl_pr = next(iter(order.npl_purchase_requests.all()), None)
+        npl_short = int(order.npl_short_count or 0)
+        timeline_steps = build_ticket_timeline_steps(
+            team_spans=team_spans,
+            npl_status=order.npl_status,
+            npl_ready_date=order.npl_ready_date,
+            npl_lead_days=int(order.npl_lead_days or 0),
+            npl_short_count=npl_short,
+            khsx_end=khsx_end,
+            due_date=order.due_date,
+        )
 
         rows.append(PlanBoardRow(
             order=order,
@@ -1014,7 +1160,7 @@ def build_plan_board_rows(
             npl_status=order.npl_status,
             npl_ready_date=order.npl_ready_date,
             npl_lead_days=int(order.npl_lead_days or 0),
-            npl_short_count=int(order.npl_short_count or 0),
+            npl_short_count=npl_short,
             npl_ok_count=sum(1 for ln in order.npl_lines.all() if ln.qty_shortfall <= 0),
             npl_missing_buy=any(
                 ln.qty_shortfall > 0 and ln.buy_lead_days is None
@@ -1024,6 +1170,7 @@ def build_plan_board_rows(
             npl_plan_code=(npl_plan.code if npl_plan else ''),
             npl_pr_id=npl_pr.pk if npl_pr else 0,
             npl_pr_code=(npl_pr.code if npl_pr else ''),
+            timeline_steps=timeline_steps,
         ))
 
     rows.sort(
