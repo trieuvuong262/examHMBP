@@ -57,6 +57,16 @@ def line_ready_date(
     return add_working_days(anchor, kit)
 
 
+def total_npl_lead_days(*, lines, kit_days: int) -> int:
+    """Tổng ngày NPL = cộng lead mua mọi mã thiếu + ngày chuẩn bị."""
+    total_buy_days = sum(
+        int(ln.buy_lead_days or 0)
+        for ln in lines
+        if (ln.qty_shortfall or 0) > 0
+    )
+    return total_buy_days + max(0, int(kit_days or 0))
+
+
 def production_start_for_order(order: SxSalesOrder, *, today: date | None = None) -> date:
     """Neo ngày bắt đầu tổ SX = max(plan_start|request, npl_ready nếu đã tính)."""
     today = today or timezone.localdate()
@@ -150,7 +160,6 @@ def _apply_header_ready(
         return
 
     anchor = npl_anchor_for_order(order, today=today)
-    ready_dates: list[date] = []
     for ln in lines:
         ready = line_ready_date(
             anchor=anchor,
@@ -160,9 +169,16 @@ def _apply_header_ready(
         )
         ln.ready_date = ready
         ln.save(update_fields=['ready_date'])
-        ready_dates.append(ready)
-    npl_ready = max(ready_dates) if ready_dates else anchor
-    lead = max(0, (npl_ready - anchor).days)
+
+    # Kế hoạch tổng cộng dồn thời gian mua của mọi mã thiếu, sau đó mới
+    # cộng thời gian chuẩn bị NPL.
+    lead = total_npl_lead_days(lines=lines, kit_days=kit_days)
+    kit = max(0, int(kit_days or 0))
+    total_buy_days = max(0, lead - kit)
+    npl_ready = add_working_days(
+        anchor + timedelta(days=total_buy_days),
+        kit,
+    )
     order.npl_anchor = anchor
     order.npl_ready_date = npl_ready
     order.npl_lead_days = lead
