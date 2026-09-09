@@ -19,6 +19,12 @@ def _employee_display_name(order) -> str:
     return order.employee.username
 
 
+def _employee_given_name(order) -> str:
+    """Chỉ tên gọi (từ cuối họ tên), không lấy họ."""
+    parts = [p for p in _employee_display_name(order).split() if p]
+    return parts[-1] if parts else ''
+
+
 def _join_employee_names(names: list[str]) -> str:
     return ', '.join(names)
 
@@ -84,7 +90,7 @@ def export_meal_summary_xlsx(
             'Đặt lúc': timezone.localtime(order.created_at).strftime('%d/%m/%Y %H:%M'),
         })
         bucket_key = (order.meal_date, dish_label_key(order.display_name()))
-        names_by_bucket.setdefault(bucket_key, []).append(employee_name)
+        names_by_bucket.setdefault(bucket_key, []).append(_employee_given_name(order))
     labeled = list(
         qs.annotate(label=Coalesce(NullIf('dish_name', Value('')), 'dish__name'))
         .values('meal_date', 'label')
