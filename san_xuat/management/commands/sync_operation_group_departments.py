@@ -21,6 +21,12 @@ GROUP_PREFIX_DEPARTMENTS = (
     ('FOD_', 'Giao hàng thành phẩm'),
 )
 
+# Các công đoạn từng được nhập nhầm vào PRE_PRE dù thuộc nhóm In - Ép.
+OPERATION_GROUP_OVERRIDES = {
+    'PRE_PRE_1005': 'HTF_LOG',
+    'PRE_PRE_1007': 'HTF_HEM',
+}
+
 
 def _department_for_group(group: SxOperationGroup):
     code = (group.code or '').strip().upper()
@@ -93,7 +99,24 @@ class Command(BaseCommand):
                     ])
                     stats['groups'] += 1
 
+            groups_by_code = {
+                (group.code or '').strip().casefold(): group
+                for group in groups
+            }
+
             for operation in SxOperation.objects.select_related('group').iterator():
+                target_group_code = OPERATION_GROUP_OVERRIDES.get(
+                    (operation.op_code or '').strip().upper()
+                )
+                target_group = (
+                    groups_by_code.get(target_group_code.casefold())
+                    if target_group_code
+                    else None
+                )
+                changed_fields = []
+                if target_group is not None and operation.group_id != target_group.pk:
+                    operation.group = target_group
+                    changed_fields.append('group')
                 department = group_departments.get(operation.group_id)
                 if department is None:
                     continue
@@ -102,13 +125,10 @@ class Command(BaseCommand):
                 ).strip()[:100]
                 if operation.process_stage_label != department_name:
                     operation.process_stage_label = department_name
-                    operation.save(update_fields=['process_stage_label', 'updated_at'])
+                    changed_fields.append('process_stage_label')
+                if changed_fields:
+                    operation.save(update_fields=[*changed_fields, 'updated_at'])
                     stats['operations'] += 1
-
-            groups_by_code = {
-                (group.code or '').strip().casefold(): group
-                for group in groups
-            }
 
             for line in SxRoutingLine.objects.select_related(
                 'operation__group', 'work_center',
@@ -121,13 +141,16 @@ class Command(BaseCommand):
                 department = group_departments.get(group.pk) if group else None
                 if department is None:
                     continue
+                target_group_code = (group.code or '').strip()
                 if (
                     line.work_center_id != department.pk
                     or line.work_center_code != department.code
+                    or line.group_code != target_group_code
                 ):
                     line.work_center = department
                     line.work_center_code = department.code
-                    line.save(update_fields=['work_center', 'work_center_code'])
+                    line.group_code = target_group_code
+                    line.save(update_fields=['work_center', 'work_center_code', 'group_code'])
                     stats['routing_lines'] += 1
 
             for line in SxSalesOrderRoutingLine.objects.select_related(
@@ -141,13 +164,16 @@ class Command(BaseCommand):
                 department = group_departments.get(group.pk) if group else None
                 if department is None:
                     continue
+                target_group_code = (group.code or '').strip()
                 if (
                     line.work_center_id != department.pk
                     or line.work_center_code != department.code
+                    or line.group_code != target_group_code
                 ):
                     line.work_center = department
                     line.work_center_code = department.code
-                    line.save(update_fields=['work_center', 'work_center_code'])
+                    line.group_code = target_group_code
+                    line.save(update_fields=['work_center', 'work_center_code', 'group_code'])
                     stats['order_lines'] += 1
 
             if dry_run:
