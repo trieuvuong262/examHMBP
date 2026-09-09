@@ -1417,9 +1417,11 @@ def plan_board(request):
             elif action == 'save_hops' and can_schedule and order_id:
                 hops = []
                 one_id = (request.POST.get('hop_step_id') or '').strip()
-                if one_id.isdigit():
+                one_process = (request.POST.get('hop_process_name') or '').strip()
+                if one_id.isdigit() or one_process:
                     hops.append({
-                        'step_id': int(one_id),
+                        'step_id': int(one_id) if one_id.isdigit() else 0,
+                        'process_name': one_process,
                         'count_minutes': request.POST.get('count_minutes') or 0,
                         'transfer_minutes': request.POST.get('transfer_minutes') or 0,
                     })

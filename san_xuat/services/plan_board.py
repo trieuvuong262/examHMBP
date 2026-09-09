@@ -1357,8 +1357,17 @@ def save_plan_hops(*, order_id: int, hops: list[dict]) -> list[SxSalesOrderPlanS
         try:
             sid = int(raw.get('step_id') or 0)
         except (TypeError, ValueError):
-            continue
+            sid = 0
         step = by_id.get(sid)
+        if step is None:
+            process_name = (raw.get('process_name') or '').strip().casefold()
+            if process_name:
+                candidates = [
+                    row for row in steps
+                    if (row.process_name or '').strip().casefold() == process_name
+                ]
+                if candidates:
+                    step = max(candidates, key=lambda row: (row.sequence or 0, row.pk or 0))
         if step is None:
             continue
         try:

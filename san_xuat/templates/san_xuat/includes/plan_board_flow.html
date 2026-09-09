@@ -36,7 +36,7 @@
         {% if g.form_transfer_minutes %}<span class="v">{{ g.form_transfer_minutes|sx_num }}′ VC</span>{% endif %}
       </span>
       {% endif %}
-      {% if can_schedule and row.order.plan_status != 'done' and g.hop_step_id %}
+      {% if can_schedule and row.order.plan_status != 'done' and g.process_names %}
       <details class="jp-pb-hop-edit">
         <summary class="jp-pb-hop-add"
                  title="Điều chỉnh thời gian kiểm đếm / vận chuyển"
@@ -50,6 +50,7 @@
           <input type="hidden" name="action" value="save_hops">
           <input type="hidden" name="order_id" value="{{ row.order.pk }}">
           <input type="hidden" name="hop_step_id" value="{{ g.hop_step_id }}">
+          <input type="hidden" name="hop_process_name" value="{{ g.process_names|last }}">
           <input type="hidden" name="mode" value="{{ mode }}">
           <input type="hidden" name="tab" value="{{ tab }}">
           {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
