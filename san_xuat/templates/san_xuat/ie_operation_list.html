@@ -118,7 +118,7 @@
             <td class="npl-col small" data-col="skill_level">{{ op.skill_level_label|default:"—" }}</td>
             <td class="npl-col text-end time-sec" data-col="time_sec" data-smv="{{ op.base_smv_min|sx_num_input }}">—</td>
             <td class="npl-col text-end" data-col="std_capacity">{{ op.std_capacity_pcs_hour|sx_num }}</td>
-            <td class="npl-col small" data-col="process_stage">{{ op.process_stage_label|default:"—" }}</td>
+            <td class="npl-col small" data-col="process_stage">{{ op.group.process_stage_label|default:"—" }}</td>
             <td class="npl-col small" data-col="product_part">{{ op.product_part|default:"—" }}</td>
             <td class="npl-col small jp-ie-cell-wrap" data-col="method_variant" title="{{ op.method_variant }}">{{ op.method_variant|default:"—"|truncatechars:40 }}</td>
             <td class="npl-col small" data-col="machine_code">{{ op.machine_code|default:"—" }}</td>
@@ -245,13 +245,10 @@
               </select>
             </div>
             <div class="col-md-6">
-              <label class="form-label small text-muted mb-1">Khâu SX <span class="text-danger">*</span></label>
-              <select name="process_stage_label" id="ieAddOpStage" class="form-select form-select-sm" required>
-                <option value="">— Chọn khâu —</option>
-                {% for s in process_stages %}
-                <option value="{{ s.name }}">{{ s.name }}</option>
-                {% endfor %}
-              </select>
+              <label class="form-label small text-muted mb-1">Tên bộ phận</label>
+              <input type="text" id="ieAddOpDepartment" class="form-control form-control-sm"
+                     placeholder="Chọn nhóm để lấy bộ phận" readonly>
+              <input type="hidden" name="process_stage_label" id="ieAddOpStage">
             </div>
             <div class="col-md-6">
               <label class="form-label small text-muted mb-1">Cụm chi tiết</label>
@@ -336,13 +333,9 @@
   groupSel.addEventListener('change', function () {
     var opt = groupSel.options[groupSel.selectedIndex];
     var stage = opt && opt.getAttribute('data-stage');
-    if (!stage) return;
-    for (var i = 0; i < stageSel.options.length; i++) {
-      if (stageSel.options[i].value === stage) {
-        stageSel.value = stage;
-        break;
-      }
-    }
+    stageSel.value = stage || '';
+    var display = document.getElementById('ieAddOpDepartment');
+    if (display) display.value = stage || '';
   });
 })();
 </script>

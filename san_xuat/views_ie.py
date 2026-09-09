@@ -844,6 +844,8 @@ def group_list(request):
             'list_columns': cols,
             'total_col_weight': sum(c['weight'] for c in cols),
         }
+    from san_xuat.services.capacity_from_hrm import hr_work_centers_qs
+
     return render(request, 'san_xuat/ie_group_list.html', {
         **perms,
         **_ie_io_context(KIND_GROUPS),
@@ -854,7 +856,7 @@ def group_list(request):
         'term': term,
         'active_filter': active_filter,
         'total': qs.count(),
-        'process_stages': ensure_process_stage_defaults(),
+        'work_centers': list(hr_work_centers_qs()),
         'current_user_display_name': ie_user_display_name(request.user),
         'can_pick_rows': _can_bulk_delete(perms),
     })

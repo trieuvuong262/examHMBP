@@ -109,7 +109,7 @@ def resolve_operation(op_code: str, op_rev: str | None = None) -> SxOperation | 
 
 
 def operation_library_snapshot(op: SxOperation | None) -> dict:
-    """Snapshot thư viện để điền dòng routing (tên, nhóm, máy, SMV chuẩn…)."""
+    """Snapshot thư viện; bộ phận lấy đúng từ tên bộ phận của nhóm."""
     if op is None:
         return {}
     group_code = op.group.code if op.group_id else ''
@@ -122,14 +122,9 @@ def operation_library_snapshot(op: SxOperation | None) -> dict:
         from san_xuat.services.capacity_from_hrm import resolve_work_center_code
 
         grp = op.group
-        wc_code_raw = (grp.default_work_center_code or '').strip()
-        if not wc_code_raw and grp.default_work_center_id:
-            wc_code_raw = (grp.default_work_center.code or '').strip()
-        wc = resolve_work_center_code(
-            wc_code_raw,
-            name_hint=f'{group_code} {(op.name_vi or "").strip()}',
-        )
-        work_center_code = (wc.code if wc else wc_code_raw)[:40]
+        department_name = (grp.process_stage_label or '').strip()
+        wc = resolve_work_center_code(department_name)
+        work_center_code = (wc.code if wc else '')[:40]
     return {
         'op_rev': (op.op_rev or 'R01').strip() or 'R01',
         'name_vi': (op.name_vi or '').strip(),

@@ -35,7 +35,7 @@
   <div class="jp-sx-page-body">
   <form method="get" class="row g-2 mb-3" id="ieGroupFilterForm">
     <div class="col-md-5">
-      <input type="search" name="q" value="{{ term }}" class="form-control form-control-sm" placeholder="Tìm mã, tên, khâu SX, sản phẩm cần, người lập…" autocomplete="off">
+      <input type="search" name="q" value="{{ term }}" class="form-control form-control-sm" placeholder="Tìm mã, tên, bộ phận, sản phẩm cần, người lập…" autocomplete="off">
     </div>
     <div class="col-md-3">
       <select name="active" class="form-select form-select-sm">
@@ -190,11 +190,11 @@
               <input type="text" name="group_name" class="form-control form-control-sm" required maxlength="150" placeholder="VD: May">
             </div>
             <div class="col-md-6">
-              <label class="form-label small text-muted mb-1">Khâu sản xuất <span class="text-danger">*</span></label>
+              <label class="form-label small text-muted mb-1">Tên bộ phận <span class="text-danger">*</span></label>
               <select name="process_stage_label" class="form-select form-select-sm" required>
-                <option value="">— Chọn khâu —</option>
-                {% for s in process_stages %}
-                <option value="{{ s.name }}">{{ s.name }}</option>
+                <option value="">— Chọn bộ phận —</option>
+                {% for wc in work_centers %}
+                <option value="{{ wc.name }}">{{ wc.name }}</option>
                 {% endfor %}
               </select>
             </div>
@@ -259,11 +259,11 @@
               <input type="text" name="group_name" id="ieEditGroupName" class="form-control form-control-sm" required maxlength="150">
             </div>
             <div class="col-md-6">
-              <label class="form-label small text-muted mb-1">Khâu sản xuất <span class="text-danger">*</span></label>
+              <label class="form-label small text-muted mb-1">Tên bộ phận <span class="text-danger">*</span></label>
               <select name="process_stage_label" id="ieEditGroupStage" class="form-select form-select-sm" required>
-                <option value="">— Chọn khâu —</option>
-                {% for s in process_stages %}
-                <option value="{{ s.name }}">{{ s.name }}</option>
+                <option value="">— Chọn bộ phận —</option>
+                {% for wc in work_centers %}
+                <option value="{{ wc.name }}">{{ wc.name }}</option>
                 {% endfor %}
               </select>
             </div>

@@ -2017,7 +2017,7 @@ def mo_bom_versions_api(request):
 def process_catalog_search(request):
     """Gõ tìm công đoạn chuẩn trong thư viện IE.
 
-    Trả thêm default_work_center_id để JS tự điền bộ phận khi chọn công đoạn.
+    Trả thêm bộ phận lấy từ trường tên bộ phận của nhóm công đoạn.
     """
     q = (request.GET.get('q') or '').strip()
     from django.db.models import Q as _Q
@@ -2025,7 +2025,7 @@ def process_catalog_search(request):
     from san_xuat.ie_models import SxOperation
     from san_xuat.services.process_catalog import _STANDARD_STATUSES, _hr_work_center_id
 
-    # Lấy từ IE: name_vi + default_work_center qua group
+    # Bộ phận chỉ lấy từ tên bộ phận đã khai báo trên nhóm; không suy từ tên CĐ.
     qs = (
         SxOperation.objects.filter(status__in=_STANDARD_STATUSES)
         .exclude(name_vi='')
@@ -2045,12 +2045,10 @@ def process_catalog_search(request):
         wc_name = ''
         if grp:
             wc_id = _hr_work_center_id(
-                work_center=grp.default_work_center,
-                work_center_code=grp.default_work_center_code or '',
-                name_hint=f'{grp.process_stage_label} {grp.name} {name}',
+                work_center_code=grp.process_stage_label or '',
             )
-            if wc_id and grp.default_work_center_id == wc_id and grp.default_work_center:
-                wc_name = grp.default_work_center.name or ''
+            if wc_id:
+                wc_name = grp.process_stage_label or ''
         seen[name.casefold()] = {
             'id': name,
             'name': name,

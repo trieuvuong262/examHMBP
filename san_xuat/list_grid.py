@@ -726,7 +726,7 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
         _cols(
             _col('code', 'Mã nhóm', required=True, weight=90, sortable=False),
             _col('name', 'Tên nhóm', required=True, weight=140, sortable=False),
-            _col('process_stage', 'Khâu sản xuất', weight=110, sortable=False),
+            _col('process_stage', 'Tên bộ phận', weight=110, sortable=False),
             _col('product_part', 'Sản phẩm cần', weight=110, sortable=False),
             _col('description', 'Mô tả chi tiết', weight=140, default=False, sortable=False),
             _col('is_active', 'Hiệu lực', weight=80, sortable=False),
@@ -751,7 +751,7 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
             _col('skill_level', 'Bậc CĐ', weight=70, sortable=False),
             _col('time_sec', 'ĐM thời gian (giây)', weight=100, align='end', sortable=False),
             _col('std_capacity', 'ĐM SP/H', weight=80, align='end', sortable=False),
-            _col('process_stage', 'Khâu SX', weight=90, sortable=False),
+            _col('process_stage', 'Tên bộ phận', weight=90, sortable=False),
             _col('product_part', 'Cụm chi tiết', weight=100, default=False, sortable=False),
             _col('method_variant', 'Mô tả PP', weight=120, default=False, sortable=False),
             _col('machine_code', 'Mã máy', weight=80, sortable=False),

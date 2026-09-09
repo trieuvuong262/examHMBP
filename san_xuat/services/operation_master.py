@@ -62,12 +62,12 @@ KIND_ROUTING = 'routing'
 IE_DATASET_KINDS = (KIND_GROUPS, KIND_LIBRARY, KIND_ROUTING)
 
 GROUP_HEADERS = [
-    'MÃ NHÓM', 'TÊN NHÓM', 'KHÂU SẢN XUẤT', 'SẢN PHẨM CẦN', 'MÔ TẢ CHI TIẾT',
+    'MÃ NHÓM', 'TÊN NHÓM', 'TÊN BỘ PHẬN', 'SẢN PHẨM CẦN', 'MÔ TẢ CHI TIẾT',
     'HIỆU LỰC', 'NGƯỜI LẬP', 'NGÀY HIỆU LỰC', 'NOTES',
 ]
 LIB_HEADERS = [
     'MÃ NHÓM', 'MÃ CÔNG ĐOẠN', 'PHIÊN BẢN', 'TÊN CÔNG ĐOẠN', 'TÊN CÔNG ĐOẠN_EN',
-    'BẬC CÔNG ĐOẠN', 'ĐỊNH MỨC THỜI GIAN', 'ĐỊNH MỨC SP/H', 'KHÂU SẢN XUẤT',
+    'BẬC CÔNG ĐOẠN', 'ĐỊNH MỨC THỜI GIAN', 'ĐỊNH MỨC SP/H', 'TÊN BỘ PHẬN',
     'CỤM CHI TIẾT CHÍNH', 'MÔ TẢ PHƯƠNG PHÁP', 'MÃ MÁY MÓC', 'NHÓM MŨI MAY',
     'QUY ĐỊNH KIM/CHỈ', 'MÃ CỮ/GIÁ/CHÂN VỊT', 'ĐƠN VỊ', 'NGUỒN SMV', 'TRẠNG THÁI',
     'NGÀY HIỆU LỰC', 'NGÀY HẾT HIỆU LỰC', 'NGƯỜI LẬP', 'NGƯỜI DUYỆT',
@@ -331,21 +331,22 @@ def _import_groups(wb, result: ImportResult, *, user=None) -> None:
             result.warnings.append(f'[Nhóm] Trùng MÃ NHÓM: {code}')
             continue
         seen.add(code)
-        stage_label = _s(rec.get('KHÂU SẢN XUẤT'))
-        wc_code = _s(rec.get('DEFAULT_WORK_CENTER'))  # tùy chọn (file cũ)
-        stage = SxProcessStage.objects.filter(name=stage_label).first() if stage_label else None
-        wc = resolve_work_center_code(wc_code, name_hint=f'{stage_label} {_s(rec.get("TÊN NHÓM"))}')
+        department_name = (
+            _s(rec.get('TÊN BỘ PHẬN'))
+            or _s(rec.get('KHÂU SẢN XUẤT'))  # tương thích file cũ
+        )
+        wc = resolve_work_center_code(department_name)
         product_part = _s(rec.get('SẢN PHẨM CẦN')) or _s(rec.get('SẢN PHẨM CÂN'))
         _, created = SxOperationGroup.objects.update_or_create(
             code=code,
             defaults={
                 'name': _s(rec.get('TÊN NHÓM')),
-                'process_stage': stage,
-                'process_stage_label': stage_label,
+                'process_stage': None,
+                'process_stage_label': department_name,
                 'product_part': product_part,
                 'description': _s(rec.get('MÔ TẢ CHI TIẾT')),
-                'default_work_center': wc,
-                'default_work_center_code': wc.code if wc else '',
+                'default_work_center': None,
+                'default_work_center_code': '',
                 'data_owner': importer_name or _s(rec.get('NGƯỜI LẬP')),
                 'effective_from': _date(rec.get('NGÀY HIỆU LỰC')),
                 'is_active': _yesno(rec.get('HIỆU LỰC')) if rec.get('HIỆU LỰC') is not None else True,
@@ -354,8 +355,11 @@ def _import_groups(wb, result: ImportResult, *, user=None) -> None:
             },
         )
         result.bump('group', created)
-        if wc_code and not wc:
-            result.warnings.append(f'[Nhóm] {code}: DEFAULT_WORK_CENTER {wc_code} không map được sang bộ phận HR.')
+        if department_name and not wc:
+            result.warnings.append(
+                f'[Nhóm] {code}: TÊN BỘ PHẬN «{department_name}» '
+                'không khớp bộ phận sản xuất hiện có.'
+            )
     if skipped_samples:
         result.warnings.append(
             f'[Nhóm] Đã bỏ qua {skipped_samples} dòng ví dụ mẫu (không import vào hệ thống).'
@@ -388,7 +392,10 @@ def _import_operations(wb, result: ImportResult, *, user=None) -> None:
         seen.add(key)
 
         group_code = _s(rec.get('MÃ NHÓM'))
-        stage_label = _s(rec.get('KHÂU SẢN XUẤT'))
+        stage_label = (
+            _s(rec.get('TÊN BỘ PHẬN'))
+            or _s(rec.get('KHÂU SẢN XUẤT'))  # tương thích file cũ
+        )
         resolved = group_resolver.resolve(
             group_code,
             stage_label=stage_label,
@@ -398,7 +405,10 @@ def _import_operations(wb, result: ImportResult, *, user=None) -> None:
         if group is None:
             group, _ = SxOperationGroup.objects.get_or_create(
                 code=group_code or f'AUTO-{op_code}',
-                defaults={'name': group_code or op_code},
+                defaults={
+                    'name': group_code or op_code,
+                    'process_stage_label': stage_label,
+                },
             )
             result.warnings.append(
                 f'[Công đoạn] {op_code}: tạo nhóm tạm {group.code} '
@@ -556,6 +566,7 @@ def _import_routings(wb, result: ImportResult, *, user=None) -> None:
             machine_code = _s(rec.get('MÃ MÁY MÓC'))
             op_name = _s(rec.get('TÊN CÔNG ĐOẠN'))
             group_code = _s(rec.get('MÃ NHÓM'))
+            default_wc_code = ''
             if op:
                 snap = operation_library_snapshot(op)
                 if not op_name:
@@ -564,6 +575,7 @@ def _import_routings(wb, result: ImportResult, *, user=None) -> None:
                     group_code = snap.get('group_code', '')
                 if not machine_code:
                     machine_code = snap.get('machine_code', '')
+                default_wc_code = snap.get('work_center_code', '')
             if group_code:
                 resolved = group_resolver.resolve(
                     group_code,
@@ -572,7 +584,7 @@ def _import_routings(wb, result: ImportResult, *, user=None) -> None:
                 )
                 if resolved.group:
                     group_code = resolved.group.code
-            wc_code = _s(rec.get('WORK_CENTER'))
+            wc_code = _s(rec.get('WORK_CENTER')) or default_wc_code
             applied = _dec(rec.get('ĐỊNH MỨC THỜI GIAN')) or Decimal('0')
             library = _dec(rec.get('ĐỊNH MỨC THEO PHIÊN BẢN')) or Decimal('0')
             if not library and op:
@@ -584,10 +596,7 @@ def _import_routings(wb, result: ImportResult, *, user=None) -> None:
                 if pct > VARIANCE_WARN_PCT:
                     variance_text = f'Import Excel — lệch {pct.quantize(Decimal("0.01"))}%'
             from san_xuat.services.capacity_from_hrm import resolve_work_center_code
-            wc = resolve_work_center_code(
-                wc_code,
-                name_hint=f'{_s(rec.get("MÃ NHÓM"))} {_s(rec.get("TÊN CÔNG ĐOẠN"))}',
-            )
+            wc = resolve_work_center_code(wc_code)
             line = SxRoutingLine(
                 routing=routing,
                 seq_no=seq,
@@ -861,7 +870,7 @@ def _library_export_rows() -> list[list]:
             op.group.code if op.group_id else '',
             op.op_code, op.op_rev, op.name_vi, op.name_en,
             op.skill_level_label, float(time_sec), float(pcs_h),
-            op.process_stage_label, op.product_part, op.method_variant,
+            (op.group.process_stage_label if op.group_id else ''), op.product_part, op.method_variant,
             op.machine_code,
             op.stitch_class.code if op.stitch_class_id else '',
             op.thread_needle, op.attachment_code, op.smv_basis,
@@ -912,7 +921,7 @@ IE_DATASETS = {
         'required_badges': [
             ('MÃ NHÓM', True),
             ('TÊN NHÓM', True),
-            ('KHÂU SẢN XUẤT', False),
+            ('TÊN BỘ PHẬN', True),
             ('SẢN PHẨM CẦN', False),
             ('MÔ TẢ CHI TIẾT', False),
             ('HIỆU LỰC', False),
@@ -928,8 +937,8 @@ IE_DATASETS = {
             ['Bước 3', 'Điền dữ liệu thật vào sheet dữ liệu (file mẫu chỉ có tiêu đề cột, không có dòng ví dụ).'],
             ['Bước 4', 'Portal → Nhóm công đoạn → Import.'],
             [],
-            ['Cột bắt buộc', 'MÃ NHÓM · TÊN NHÓM'],
-            ['Cột chi tiết', 'KHÂU SẢN XUẤT · SẢN PHẨM CẦN · MÔ TẢ CHI TIẾT'],
+            ['Cột bắt buộc', 'MÃ NHÓM · TÊN NHÓM · TÊN BỘ PHẬN'],
+            ['Cột chi tiết', 'SẢN PHẨM CẦN · MÔ TẢ CHI TIẾT'],
             ['Cột hiệu lực', 'HIỆU LỰC (Có/Không) · NGƯỜI LẬP · NGÀY HIỆU LỰC · NOTES'],
             ['Trùng mã', 'Cùng MÃ NHÓM → hệ thống CẬP NHẬT nhóm cũ.'],
             ['Mẹo', 'Xuất Excel nhóm hiện tại rồi chỉnh — dễ hơn điền từ file trống.'],
@@ -956,7 +965,7 @@ IE_DATASETS = {
             ('BẬC CÔNG ĐOẠN', False),
             ('ĐỊNH MỨC THỜI GIAN (giây)', False),
             ('ĐỊNH MỨC SP/H', False),
-            ('KHÂU SẢN XUẤT', False),
+            ('TÊN BỘ PHẬN', False),
             ('CỤM CHI TIẾT CHÍNH', False),
             ('MÔ TẢ PHƯƠNG PHÁP', False),
             ('MÃ MÁY MÓC', False),
@@ -983,13 +992,13 @@ IE_DATASETS = {
             ['Bước 4', 'Portal → Thư viện công đoạn → Import.'],
             [],
             ['Cột bắt buộc', 'MÃ CÔNG ĐOẠN · TÊN CÔNG ĐOẠN · PHIÊN BẢN (mặc định R01)'],
-            ['Cột chi tiết (xanh)', 'MÃ NHÓM · BẬC · ĐỊNH MỨC THỜI GIAN · SP/H · KHÂU SX · CỤM · MÔ TẢ · MÁY · MŨI · KIM/CHỈ · CỮ/GÁ · ĐƠN VỊ · NGUỒN SMV'],
+            ['Cột chi tiết (xanh)', 'MÃ NHÓM · TÊN BỘ PHẬN · BẬC · ĐỊNH MỨC THỜI GIAN · SP/H · CỤM · MÔ TẢ · MÁY · MŨI · KIM/CHỈ · CỮ/GÁ · ĐƠN VỊ · NGUỒN SMV'],
             ['Cột hiệu lực (xanh đậm)', 'TRẠNG THÁI · NGÀY HL · NGÀY HẾT HL · NGƯỜI LẬP · NGƯỜI DUYỆT · LÝ DO · VIDEO_URL · NOTES'],
             [],
             ['ĐỊNH MỨC THỜI GIAN', 'Đơn vị GIÂY — lưu trực tiếp làm SMV thư viện trên Portal. Ví dụ 36 giây.'],
             ['Trùng mã', 'Cùng MÃ CÔNG ĐOẠN + PHIÊN BẢN → hệ thống CẬP NHẬT bản ghi cũ.'],
             ['TRẠNG THÁI', 'Nháp | Thử nghiệm | Đã duyệt | Ngưng sử dụng'],
-            ['Nhóm chưa có', 'Nếu MÃ NHÓM không khớp nhóm hiện có, hệ thống thử ghép theo tên/khâu SX/alias (May, SEW→MAY…). Không khớp mới tạo nhóm tạm.'],
+            ['Nhóm chưa có', 'Nếu MÃ NHÓM không khớp nhóm hiện có, hệ thống thử ghép theo tên bộ phận/alias (May, SEW→MAY…). Không khớp mới tạo nhóm tạm.'],
             ['Mẹo', 'Xuất Excel thư viện hiện tại rồi chỉnh — dễ hơn điền từ file trống.'],
             ['Dòng mẫu cũ', 'Nếu file còn SEW-1001/1002 «ví dụ» hoặc NOTES «Dòng mẫu», hệ thống sẽ bỏ qua khi import.'],
         ],

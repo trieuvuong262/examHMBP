@@ -181,6 +181,7 @@
         <table class="table table-sm table-hover align-middle mb-0">
           <thead class="table-light">
             <tr>
+              <th class="text-center">Ảnh</th>
               <th>Mã SP</th>
               <th>Tên</th>
               <th>BOM</th>
@@ -193,6 +194,22 @@
           <tbody>
           {% for ln in order.lines.all %}
             <tr>
+              <td class="text-center">
+                {% if ln.product_image_url %}
+                <button type="button" class="sx-doc-thumb"
+                        data-sx-gallery
+                        data-sx-gallery-title="{{ ln.product_name|default:ln.product_code }}"
+                        data-sx-gallery-image="{{ ln.product_image_url }}"
+                        aria-label="Phóng to ảnh {{ ln.product_name|default:ln.product_code }}">
+                  <img src="{{ ln.product_image_url }}" alt="" class="jp-so-product-image" loading="lazy">
+                </button>
+                {% else %}
+                <span class="jp-so-product-image-placeholder mx-auto"
+                      title="Sản phẩm chưa có ảnh">
+                  <i class="bi bi-image" aria-hidden="true"></i>
+                </span>
+                {% endif %}
+              </td>
               <td><strong>{{ ln.product_code }}</strong></td>
               <td class="small">{{ ln.product_name|default:"—" }}</td>
               <td class="small">
@@ -226,7 +243,7 @@
               <td class="small">{% if ln.due_date %}{{ ln.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
             </tr>
           {% empty %}
-            <tr><td colspan="7" class="text-muted small">Chưa có dòng.</td></tr>
+            <tr><td colspan="8" class="text-muted small">Chưa có dòng.</td></tr>
           {% endfor %}
           </tbody>
         </table>
