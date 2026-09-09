@@ -224,6 +224,16 @@
         </div>
         <button type="submit" class="btn btn-outline-secondary btn-sm fw-bold">Cập nhật</button>
       </form>
+      <form method="post"
+            onsubmit="return confirm('Xóa phiên bản BOM {{ bom.version_label|escapejs }}?');"
+            data-loading-message="Đang xóa phiên bản BOM…">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="delete_bom_version">
+        <input type="hidden" name="bom_id" value="{{ bom.pk }}">
+        <button type="submit" class="btn btn-outline-danger btn-sm fw-bold">
+          <i class="bi bi-trash me-1"></i>Xóa
+        </button>
+      </form>
       {% endif %}
       <button type="button" class="btn btn-hm btn-sm fw-bold"
               data-bs-toggle="modal" data-bs-target="#jpNewBomVersionModal">
@@ -306,6 +316,16 @@
           </select>
         </div>
         <button type="submit" class="btn btn-outline-secondary btn-sm fw-bold">Cập nhật</button>
+      </form>
+      <form method="post"
+            onsubmit="return confirm('Xóa phiên bản OB {{ process_routing.routing_rev|escapejs }}?');"
+            data-loading-message="Đang xóa phiên bản OB…">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="delete_ob_version">
+        <input type="hidden" name="routing_id" value="{{ process_routing.pk }}">
+        <button type="submit" class="btn btn-outline-danger btn-sm fw-bold">
+          <i class="bi bi-trash me-1"></i>Xóa
+        </button>
       </form>
       {% endif %}
       <button type="button" class="btn btn-hm btn-sm fw-bold"

@@ -79,17 +79,30 @@
     if (opt) window.jpIeApplyOperationPick(form, opt, true);
   }
 
-  function mapOpRows(data) {
+  function compactSmv(value) {
+    if (value === null || value === undefined || value === '') return '—';
+    var number = Number(value);
+    if (!Number.isFinite(number)) return String(value);
+    return number.toLocaleString('vi-VN', { maximumFractionDigits: 4 });
+  }
+
+  function mapOpRows(data, labelMode) {
     return (data.results || []).map(function (row) {
+      var text = row.text;
+      if (labelMode === 'name-smv') {
+        text = (row.name_vi || row.op_code || row.text || '') + ' - ' + compactSmv(row.library_unit_smv);
+      }
       return {
         value: row.id,
-        text: row.text,
+        text: text,
         op_code: row.op_code,
         op_rev: row.op_rev,
         name_vi: row.name_vi,
         group_code: row.group_code,
         machine_code: row.machine_code,
         library_unit_smv: row.library_unit_smv,
+        display_name: row.name_vi || row.op_code || row.text || '',
+        display_smv: compactSmv(row.library_unit_smv),
         applied_unit_smv: row.applied_unit_smv,
         work_center_code: row.work_center_code,
         skill_level_label: row.skill_level_label,
@@ -138,6 +151,7 @@
     if (!sel || sel.tomselect || typeof TomSelect === 'undefined') return;
     var form = sel.closest('form');
     var filterByGroup = sel.dataset.filterByGroup === '1';
+    var labelMode = sel.dataset.operationLabel || '';
     function currentGroup() {
       if (!form) return '';
       var g = form.querySelector('[name="group_code"]');
@@ -157,7 +171,17 @@
       valueField: 'value',
       labelField: 'text',
       searchField: ['text', 'op_code', 'name_vi'],
-      load: remoteLoad(opSearchUrl, mapOpRows, {
+      render: labelMode === 'name-smv' ? {
+        option: function (data, escape) {
+          return '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1rem;align-items:center;">'
+            + '<span style="overflow:hidden;text-overflow:ellipsis;">' + escape(data.display_name || '') + '</span>'
+            + '<span class="text-muted text-end text-nowrap">' + escape(data.display_smv || '—') + '</span>'
+            + '</div>';
+        },
+      } : {},
+      load: remoteLoad(opSearchUrl, function (data) {
+        return mapOpRows(data, labelMode);
+      }, {
         requireGroup: filterByGroup,
         extraParams: function () {
           if (!filterByGroup) return {};

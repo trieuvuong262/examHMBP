@@ -130,6 +130,21 @@ def ensure_single_active(tech_doc: ProductTechDoc) -> None:
         )
 
 
+@transaction.atomic
+def delete_bom_version(bom: BomVersion) -> str:
+    """Xóa phiên bản BOM nếu chưa được dùng trên lệnh sản xuất."""
+    if bom is None:
+        raise BomError('Không tìm thấy phiên bản BOM.')
+    locked = BomVersion.objects.select_for_update().get(pk=bom.pk)
+    if locked.production_orders.exists():
+        raise BomError(
+            f'Không thể xóa BOM {locked.version_label}: phiên bản đang được dùng trên lệnh SX.'
+        )
+    label = locked.version_label
+    locked.delete()
+    return label
+
+
 def next_version_label(tech_doc: ProductTechDoc) -> str:
     n = tech_doc.bom_versions.count() + 1
     return f'v{n}'

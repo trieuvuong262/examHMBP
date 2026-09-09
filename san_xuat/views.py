@@ -34,6 +34,7 @@ from san_xuat.services.bom import (
     BomError,
     create_bom_version,
     create_tech_doc,
+    delete_bom_version,
     get_working_bom,
     set_bom_status,
 )
@@ -553,6 +554,30 @@ def doc_detail(request, pk):
                     f'Đã chuyển BOM {bom.version_label} sang “{bom.get_status_display()}”.',
                 )
             return _doc_tab_redirect(request, 'bom', bom=bom.pk)
+        elif action == 'delete_bom_version' and tab == 'bom':
+            bom_id = (request.POST.get('bom_id') or '').strip()
+            target = (
+                doc.bom_versions.filter(pk=int(bom_id)).first()
+                if bom_id.isdigit() else None
+            )
+            try:
+                if target is None:
+                    raise BomError('Không tìm thấy phiên bản BOM.')
+                label = delete_bom_version(target)
+            except BomError as exc:
+                messages.error(request, str(exc))
+                return _doc_tab_redirect(
+                    request,
+                    'bom',
+                    bom=target.pk if target else (bom.pk if bom else None),
+                )
+            messages.success(request, f'Đã xóa phiên bản BOM {label}.')
+            next_bom = get_working_bom(doc)
+            return _doc_tab_redirect(
+                request,
+                'bom',
+                bom=next_bom.pk if next_bom else None,
+            )
         elif action == 'save_ob_status' and tab == 'process':
             from san_xuat.ie_models import SxRouting
             from san_xuat.services.ie_ops import IeOpsError, set_routing_status
@@ -587,6 +612,37 @@ def doc_detail(request, pk):
                 'process',
                 bom=bom.pk if bom else None,
                 routing=routing.pk if routing else None,
+            )
+        elif action == 'delete_ob_version' and tab == 'process':
+            from san_xuat.ie_models import SxRouting
+            from san_xuat.services.ie_ops import IeOpsError, delete_routing
+
+            routing_id = (request.POST.get('routing_id') or '').strip()
+            target = (
+                SxRouting.objects.filter(
+                    Q(tech_doc=doc) | Q(bom_versions__tech_doc=doc),
+                    pk=int(routing_id),
+                ).distinct().first()
+                if routing_id.isdigit() else None
+            )
+            try:
+                if target is None:
+                    raise IeOpsError('Không tìm thấy phiên bản OB.')
+                revision = target.routing_rev
+                delete_routing(routing=target)
+            except IeOpsError as exc:
+                messages.error(request, str(exc))
+                return _doc_tab_redirect(
+                    request,
+                    'process',
+                    bom=bom.pk if bom else None,
+                    routing=target.pk if target else None,
+                )
+            messages.success(request, f'Đã xóa phiên bản OB {revision}.')
+            return _doc_tab_redirect(
+                request,
+                'process',
+                bom=bom.pk if bom else None,
             )
         elif bom and action == 'save_bom' and tab == 'bom':
             from san_xuat.services.bom_audit import bom_diff, bom_snapshot, log_bom_event
