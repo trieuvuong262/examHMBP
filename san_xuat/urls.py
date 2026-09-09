@@ -168,6 +168,7 @@ urlpatterns = [
     path('ho-so/', views.doc_list, name='doc_list'),
     path('ho-so/them/', views.doc_create, name='doc_create'),
     path('ho-so/<int:pk>/', views.doc_detail, name='doc_detail'),
+    path('ho-so/<int:pk>/costing.xlsx', views.doc_costing_export, name='doc_costing_export'),
     path('ho-so/tai-lieu/<int:pk>/', views.design_file_serve, name='design_file'),
     path('ho-so/tai-lieu/<int:pk>/xem/', views.design_file_preview, name='design_file_preview'),
     path('bom/', views.bom_list, name='bom_list'),

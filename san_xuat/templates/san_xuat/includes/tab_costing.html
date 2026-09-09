@@ -10,7 +10,7 @@
 }
 .jp-cost-filters {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1.2fr)) repeat(2, minmax(0, 1fr));
   gap: 0.85rem 1.25rem;
   align-items: start;
   margin-bottom: 1rem;
@@ -49,6 +49,7 @@
   appearance: auto;
   cursor: pointer;
 }
+.jp-cost-extra-form { display: contents; }
 .jp-cost-filters input.ctrl:focus,
 .jp-cost-filters select.ctrl:focus {
   border-color: #f87171;
@@ -57,7 +58,7 @@
 }
 .jp-cost-sums {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.75rem;
 }
 .jp-cost-sums .cell {
@@ -85,6 +86,53 @@
 }
 .jp-cost-sums .cell.is-total .k { color: #991b1b; }
 .jp-cost-sums .cell.is-total .v { color: #b91c1c; }
+.jp-cost-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid #f1f5f9;
+}
+.jp-cost-versions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+.jp-cost-version {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  background: #fff;
+  color: #334155;
+  font-size: 0.78rem;
+  text-decoration: none;
+}
+.jp-cost-version:hover { border-color: #fca5a5; color: #b91c1c; }
+.jp-cost-version-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+.jp-cost-version-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 1px solid #fecaca;
+  border-radius: 999px;
+  background: #fff;
+  color: #dc2626;
+}
+.jp-cost-version-delete:hover { background: #fef2f2; color: #991b1b; }
 @media (max-width: 767.98px) {
   .jp-cost-sums { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .jp-cost-filters { grid-template-columns: 1fr; }
@@ -122,22 +170,35 @@
     </form>
 
     {% if can_update and overhead_form %}
-    <form method="post" class="field" id="jp-cost-oh-form" data-loading-message="Đang lưu…">
+    <form method="post" class="jp-cost-extra-form" id="jp-cost-oh-form"
+          data-loading-message="Đang lưu chi phí…">
       {% csrf_token %}
-      <input type="hidden" name="action" value="save_overhead">
       {% if process_routing %}<input type="hidden" name="routing_id" value="{{ process_routing.pk }}">{% endif %}
-      <label for="{{ overhead_form.overhead_amount.id_for_label }}">SX chung / 1 SP</label>
-      <input type="text" name="overhead_amount" id="{{ overhead_form.overhead_amount.id_for_label }}"
-             class="ctrl" inputmode="decimal" value="{{ overhead_form.overhead_amount.value|sx_num_input }}"
-             onchange="this.form.submit()" onkeydown="if(event.key==='Enter'){event.preventDefault();this.form.submit();}">
-      {% if overhead_form.overhead_amount.errors %}
-      <div class="text-danger small">{{ overhead_form.overhead_amount.errors }}</div>
-      {% endif %}
+      <div class="field">
+        <label for="{{ overhead_form.overhead_amount.id_for_label }}">SX chung / 1 SP</label>
+        <input type="text" name="overhead_amount" id="{{ overhead_form.overhead_amount.id_for_label }}"
+               class="ctrl" inputmode="decimal" value="{{ overhead_form.overhead_amount.value|sx_num_input }}">
+        {% if overhead_form.overhead_amount.errors %}
+        <div class="text-danger small">{{ overhead_form.overhead_amount.errors }}</div>
+        {% endif %}
+      </div>
+      <div class="field">
+        <label for="{{ overhead_form.other_cost_amount.id_for_label }}">Chi phí khác / 1 SP</label>
+        <input type="text" name="other_cost_amount" id="{{ overhead_form.other_cost_amount.id_for_label }}"
+               class="ctrl" inputmode="decimal" value="{{ overhead_form.other_cost_amount.value|sx_num_input }}">
+        {% if overhead_form.other_cost_amount.errors %}
+        <div class="text-danger small">{{ overhead_form.other_cost_amount.errors }}</div>
+        {% endif %}
+      </div>
     </form>
     {% else %}
     <div class="field">
       <label>SX chung / 1 SP</label>
       <input type="text" class="ctrl" value="{{ costing.overhead_cost|sx_num }}" readonly>
+    </div>
+    <div class="field">
+      <label>Chi phí khác / 1 SP</label>
+      <input type="text" class="ctrl" value="{{ costing.other_cost|sx_num }}" readonly>
     </div>
     {% endif %}
   </div>
@@ -155,9 +216,62 @@
       <span class="k">SX chung</span>
       <span class="v">{{ costing.overhead_cost|sx_num }} đ</span>
     </div>
+    <div class="cell">
+      <span class="k">Chi phí khác</span>
+      <span class="v">{{ costing.other_cost|sx_num }} đ</span>
+    </div>
     <div class="cell is-total">
       <span class="k">Tổng giá thành</span>
       <span class="v">{{ costing.total_cost|sx_num }} đ</span>
+    </div>
+  </div>
+
+  <div class="jp-cost-actions">
+    <div class="jp-cost-versions">
+      <span class="small fw-semibold text-muted">Phiên bản Cost</span>
+      {% for snap in snapshots %}
+      <span class="jp-cost-version-wrap">
+        {% if can_export %}
+        <a class="jp-cost-version"
+           href="{% url 'san_xuat:doc_costing_export' doc.pk %}?bom={{ bom.pk }}&snapshot={{ snap.pk }}"
+           download
+           title="Xuất {{ snap.version_label }} — {{ snap.created_at|date:'d/m/Y H:i' }}">
+          <strong>{{ snap.version_label }}</strong>
+          <span>{{ snap.total_cost|sx_num }} đ</span>
+          <i class="bi bi-download" aria-hidden="true"></i>
+        </a>
+        {% else %}
+        <span class="jp-cost-version">
+          <strong>{{ snap.version_label }}</strong>
+          <span>{{ snap.total_cost|sx_num }} đ</span>
+        </span>
+        {% endif %}
+        {% if can_update %}
+        <form method="post" class="d-inline"
+              onsubmit="return confirm('Xóa phiên bản Cost {{ snap.version_label|escapejs }}?');">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete_cost_snapshot">
+          <input type="hidden" name="snapshot_id" value="{{ snap.pk }}">
+          {% if process_routing %}<input type="hidden" name="routing_id" value="{{ process_routing.pk }}">{% endif %}
+          <button type="submit" class="jp-cost-version-delete"
+                  title="Xóa phiên bản Cost {{ snap.version_label }}"
+                  aria-label="Xóa phiên bản Cost {{ snap.version_label }}">
+            <i class="bi bi-trash" aria-hidden="true"></i>
+          </button>
+        </form>
+        {% endif %}
+      </span>
+      {% empty %}
+      <span class="small text-muted">Chưa lưu phiên bản nào.</span>
+      {% endfor %}
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      {% if can_update and overhead_form %}
+      <button type="submit" form="jp-cost-oh-form" name="action" value="snapshot"
+              class="btn btn-outline-hm btn-sm fw-bold">
+        <i class="bi bi-bookmark-check me-1"></i>Lưu phiên bản Cost
+      </button>
+      {% endif %}
     </div>
   </div>
 </div>
@@ -207,19 +321,27 @@
           <thead class="table-light">
             <tr>
               <th>Công đoạn</th>
-              <th class="text-end">Giờ/cái</th>
-              <th class="text-end">Tiền NC</th>
+              <th class="text-end">SMV thư viện</th>
+              <th class="text-end">SMV sản phẩm</th>
+              <th class="text-end">Đơn giá nhân công</th>
             </tr>
           </thead>
           <tbody>
             {% for row in costing.process_lines %}
             <tr>
               <td>{{ row.sequence }}. {{ row.process_name }}</td>
-              <td class="text-end">{{ row.hours_per_piece }}</td>
-              <td class="text-end">{{ row.labor_amount|sx_num }}</td>
+              <td class="text-end">
+                {% if row.library_smv_seconds %}{{ row.library_smv_seconds|sx_num }} giây{% else %}—{% endif %}
+              </td>
+              <td class="text-end">
+                {% if row.smv_seconds %}{{ row.smv_seconds|sx_num }} giây{% else %}—{% endif %}
+              </td>
+              <td class="text-end">
+                {% if row.has_labor_cost %}{{ row.labor_amount|sx_num }}{% else %}—{% endif %}
+              </td>
             </tr>
             {% empty %}
-            <tr><td colspan="3" class="text-muted text-center py-3">Chưa có công đoạn.</td></tr>
+            <tr><td colspan="4" class="text-muted text-center py-3">Chưa có công đoạn.</td></tr>
             {% endfor %}
           </tbody>
         </table>

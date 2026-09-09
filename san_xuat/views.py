@@ -35,6 +35,7 @@ from san_xuat.services.bom import (
     create_bom_version,
     create_tech_doc,
     get_working_bom,
+    set_bom_status,
 )
 from san_xuat.services.costing import compute_costing, save_costing_snapshot
 from san_xuat.services.dispatch import fg_receipt_prefill
@@ -343,7 +344,7 @@ def _get_bom_for_doc(doc: ProductTechDoc, bom_id: str | None) -> BomVersion | No
             return qs.get(pk=int(bom_id))
         except (ValueError, BomVersion.DoesNotExist):
             return None
-    return qs.order_by('-created_at', '-id').first()
+    return get_working_bom(doc)
 
 
 def _prefetch_doc_bom(bom: BomVersion | None) -> BomVersion | None:
@@ -540,6 +541,53 @@ def doc_detail(request, pk):
                 design_file.delete()
                 messages.success(request, 'Đã xóa tài liệu thiết kế.')
             return _doc_tab_redirect(request, 'design')
+        elif bom and action == 'save_bom_status' and tab == 'bom':
+            requested_status = (request.POST.get('status') or '').strip()
+            try:
+                bom = set_bom_status(bom, requested_status)
+            except BomError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(
+                    request,
+                    f'Đã chuyển BOM {bom.version_label} sang “{bom.get_status_display()}”.',
+                )
+            return _doc_tab_redirect(request, 'bom', bom=bom.pk)
+        elif action == 'save_ob_status' and tab == 'process':
+            from san_xuat.ie_models import SxRouting
+            from san_xuat.services.ie_ops import IeOpsError, set_routing_status
+
+            routing_id = (request.POST.get('routing_id') or '').strip()
+            routing = (
+                SxRouting.objects.filter(
+                    Q(tech_doc=doc) | Q(bom_versions__tech_doc=doc),
+                    pk=int(routing_id),
+                ).distinct().first()
+                if routing_id.isdigit() else None
+            )
+            requested_status = (request.POST.get('status') or '').strip()
+            try:
+                if routing is None:
+                    raise IeOpsError('Không tìm thấy phiên bản OB.')
+                routing = set_routing_status(
+                    routing=routing,
+                    status=requested_status,
+                    user=request.user,
+                )
+            except IeOpsError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(
+                    request,
+                    f'Đã chuyển OB {routing.routing_rev} sang '
+                    f'“{routing.get_approval_status_display()}”.',
+                )
+            return _doc_tab_redirect(
+                request,
+                'process',
+                bom=bom.pk if bom else None,
+                routing=routing.pk if routing else None,
+            )
         elif bom and action == 'save_bom' and tab == 'bom':
             from san_xuat.services.bom_audit import bom_diff, bom_snapshot, log_bom_event
             meta_form = BomVersionMetaForm(request.POST, instance=bom)
@@ -996,8 +1044,11 @@ def doc_detail(request, pk):
 
             restored.overhead_pct = Decimal(str(snapshot.get('overhead_pct') or '0'))
             restored.overhead_amount = Decimal(str(snapshot.get('overhead_amount') or '0'))
+            restored.other_cost_amount = Decimal(str(snapshot.get('other_cost_amount') or '0'))
             restored.notes = (snapshot.get('notes') or '')
-            restored.save(update_fields=['overhead_pct', 'overhead_amount', 'notes', 'updated_at'])
+            restored.save(update_fields=[
+                'overhead_pct', 'overhead_amount', 'other_cost_amount', 'notes', 'updated_at',
+            ])
 
             skipped = 0
             for item in snapshot.get('lines') or []:
@@ -1096,20 +1147,64 @@ def doc_detail(request, pk):
             return _doc_tab_redirect(
                 request, 'costing', bom=bom.pk, routing=routing.pk,
             )
-        elif bom and action == 'save_overhead' and tab == 'costing':
+        elif bom and action in ('save_costs', 'save_overhead') and tab == 'costing':
             overhead_form = BomOverheadAmountForm(request.POST, instance=bom)
             if overhead_form.is_valid():
                 overhead_form.save()
-                messages.success(request, 'Đã lưu chi phí sản xuất chung.')
+                messages.success(request, 'Đã lưu chi phí bổ sung.')
                 return _doc_tab_redirect(
                     request, 'costing', bom=bom.pk,
                     routing=request.POST.get('routing_id') or None,
                 )
             _edit_flag = True
-            messages.error(request, 'Không lưu được chi phí sản xuất chung — kiểm tra lại số tiền.')
+            messages.error(request, 'Không lưu được chi phí — kiểm tra lại số tiền.')
         elif bom and action == 'snapshot' and tab == 'costing':
-            snap = save_costing_snapshot(bom, user=request.user)
-            messages.success(request, f'Đã chốt costing: {snap.total_cost:,.0f} đ.')
+            overhead_form = BomOverheadAmountForm(request.POST, instance=bom)
+            if not overhead_form.is_valid():
+                _edit_flag = True
+                messages.error(request, 'Không lưu được phiên bản Cost — kiểm tra lại số tiền.')
+                return _doc_tab_redirect(
+                    request, 'costing', bom=bom.pk,
+                    routing=request.POST.get('routing_id') or None,
+                )
+            overhead_form.save()
+            routing = _doc_routing_for_action(doc, request, bom)
+            try:
+                snap = save_costing_snapshot(
+                    bom,
+                    routing=routing,
+                    user=request.user,
+                    version_label=request.POST.get('cost_version_label') or '',
+                )
+            except ValueError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(
+                    request,
+                    f'Đã lưu phiên bản Cost {snap.version_label}: {snap.total_cost:,.0f} đ.',
+                )
+            return _doc_tab_redirect(
+                request, 'costing', bom=bom.pk,
+                routing=routing.pk if routing else None,
+            )
+        elif bom and action == 'delete_cost_snapshot' and tab == 'costing':
+            from san_xuat.models import CostingSnapshot
+
+            snapshot_id = (request.POST.get('snapshot_id') or '').strip()
+            snapshot = (
+                CostingSnapshot.objects.filter(
+                    pk=int(snapshot_id),
+                    bom=bom,
+                    bom__tech_doc=doc,
+                ).first()
+                if snapshot_id.isdigit() else None
+            )
+            if snapshot is None:
+                messages.error(request, 'Không tìm thấy phiên bản Cost.')
+            else:
+                label = snapshot.version_label
+                snapshot.delete()
+                messages.success(request, f'Đã xóa phiên bản Cost {label}.')
             return _doc_tab_redirect(
                 request, 'costing', bom=bom.pk,
                 routing=request.POST.get('routing_id') or (bom.routing_id or None),
@@ -1120,7 +1215,9 @@ def doc_detail(request, pk):
         bom = _prefetch_doc_bom(bom)
     elif tab == 'costing':
         versions = list(doc.bom_versions.order_by('-created_at'))
-        snapshots = list(bom.costing_snapshots.all()[:10]) if bom else []
+        snapshots = list(
+            bom.costing_snapshots.select_related('routing').all()[:10]
+        ) if bom else []
         bom = _prefetch_doc_bom(bom)
 
     if can_update:
@@ -1148,25 +1245,15 @@ def doc_detail(request, pk):
         )
         gallery_urls = [f.file_url for f in gallery_images if f.is_image and f.file_url]
 
-    issue_base_url = None
-    issue_bom_url = None
     bom_stock_map = {}
     bom_stock_map_json = '{}'
     if tab == 'bom':
         from django.db.models import Sum
         from decimal import Decimal
 
-        from hrm.module_permissions import MODULE_KHO_NPL, user_can_create_module
         from kho_npl.models import StockBalance
         from kho_npl.services.scrap_warehouse import exclude_scrap_locations
 
-        issue_base_url = (
-            reverse('kho_npl:issue_create')
-            if user_can_create_module(request.user, MODULE_KHO_NPL)
-            else None
-        )
-        if bom and issue_base_url and any(line.material_id for line in bom.lines.all()):
-            issue_bom_url = f'{issue_base_url}?bom={bom.pk}'
         if bom:
             material_ids = [line.material_id for line in bom.lines.all() if line.material_id]
             if material_ids:
@@ -1333,6 +1420,7 @@ def doc_detail(request, pk):
         'tab': tab,
         'bom': bom,
         'versions': versions,
+        'bom_status_choices': BomVersion.STATUS_CHOICES,
         'costing': costing,
         'snapshots': snapshots,
         'meta_form': meta_form,
@@ -1344,8 +1432,6 @@ def doc_detail(request, pk):
         'gallery_images': gallery_images,
         'gallery_urls_json': json.dumps(gallery_urls),
         'desc_form': desc_form,
-        'issue_base_url': issue_base_url,
-        'issue_bom_url': issue_bom_url,
         'bom_stock_map': bom_stock_map,
         'bom_stock_map_json': bom_stock_map_json,
         'skus': skus,
@@ -1358,6 +1444,7 @@ def doc_detail(request, pk):
         'sku_size_count': sku_size_count,
         'process_routings': process_routings,
         'process_routing': process_routing,
+        'ob_status_choices': SxRouting.APPROVAL_CHOICES,
         'routing_lines': routing_lines,
         'operation_groups': operation_groups,
         'work_centers': work_centers,
@@ -1372,6 +1459,35 @@ def doc_detail(request, pk):
         **_perm_ctx(request),
     }
     return render(request, 'san_xuat/doc_detail.html', ctx)
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'export')
+@require_GET
+def doc_costing_export(request, pk):
+    from san_xuat.models import CostingSnapshot
+    from san_xuat.services.costing_export import export_product_costing_xlsx
+
+    doc = get_object_or_404(ProductTechDoc, pk=pk)
+    bom = _get_bom_for_doc(doc, request.GET.get('bom'))
+    if bom is None:
+        raise Http404('Không tìm thấy BOM.')
+
+    snapshot_id = (request.GET.get('snapshot') or '').strip()
+    snapshot = (
+        CostingSnapshot.objects.select_related('routing', 'bom__tech_doc')
+        .filter(pk=int(snapshot_id), bom=bom, bom__tech_doc=doc)
+        .first()
+        if snapshot_id.isdigit() else None
+    )
+    if snapshot_id and snapshot is None:
+        raise Http404('Không tìm thấy phiên bản Cost.')
+
+    routing = snapshot.routing if snapshot else _doc_routing_for_action(doc, request, bom)
+    return export_product_costing_xlsx(
+        bom=bom,
+        routing=routing,
+        snapshot=snapshot,
+    )
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')

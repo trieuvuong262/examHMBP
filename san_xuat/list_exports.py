@@ -644,6 +644,7 @@ def _export_costing_norm(request):
             'NVL': float(getattr(result, 'material_cost', 0) or 0) if result else 0,
             'Nhân công': float(getattr(result, 'labor_cost', 0) or 0) if result else 0,
             'Chi phí chung': float(getattr(result, 'overhead_cost', 0) or 0) if result else 0,
+            'Chi phí khác': float(getattr(result, 'other_cost', 0) or 0) if result else 0,
             'Tổng': float(getattr(result, 'total_cost', 0) or 0) if result else 0,
             'Giá bán': float(getattr(result, 'sell_price', 0) or 0) if result else 0,
             'Biên LN': float(getattr(result, 'margin_pct', 0) or 0) if result else 0,

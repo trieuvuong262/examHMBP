@@ -220,9 +220,9 @@ class BomVersion(models.Model):
     STATUS_ACTIVE = 'active'
     STATUS_ARCHIVED = 'archived'
     STATUS_CHOICES = [
-        (STATUS_DRAFT, 'Sẵn sàng'),
-        (STATUS_ACTIVE, 'Sẵn sàng'),
-        (STATUS_ARCHIVED, 'Sẵn sàng'),
+        (STATUS_DRAFT, 'Nháp'),
+        (STATUS_ACTIVE, 'Đang áp dụng'),
+        (STATUS_ARCHIVED, 'Ngừng áp dụng'),
     ]
 
     tech_doc = models.ForeignKey(
@@ -259,6 +259,14 @@ class BomVersion(models.Model):
         validators=[MinValueValidator(Decimal('0'))],
         verbose_name='Chi phí sản xuất chung',
         help_text='Số tiền cố định / 1 SP — KHSH nhập tay.',
+    )
+    other_cost_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Chi phí khác',
+        help_text='Chi phí khác cố định / 1 SP.',
     )
     notes = models.TextField(blank=True, default='', verbose_name='Ghi chú')
     routing = models.ForeignKey(
@@ -519,7 +527,7 @@ class ProcessStep(models.Model):
 
 
 class CostingSnapshot(models.Model):
-    """Bản chốt costing tại một thời điểm."""
+    """Phiên bản Costing bất biến tại một thời điểm."""
 
     bom = models.ForeignKey(
         BomVersion,
@@ -527,12 +535,28 @@ class CostingSnapshot(models.Model):
         related_name='costing_snapshots',
         verbose_name='BOM',
     )
+    routing = models.ForeignKey(
+        'san_xuat.SxRouting',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='costing_snapshots',
+        verbose_name='OB',
+    )
+    version_label = models.CharField(
+        max_length=40,
+        blank=True,
+        default='',
+        verbose_name='Phiên bản Cost',
+    )
     material_cost = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     labor_cost = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     overhead_cost = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    other_cost = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     total_cost = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     sell_price = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     margin = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    details = models.JSONField(default=dict, blank=True, verbose_name='Chi tiết đã chốt')
     notes = models.TextField(blank=True, default='')
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -545,11 +569,17 @@ class CostingSnapshot(models.Model):
 
     class Meta:
         ordering = ['-created_at']
-        verbose_name = 'Bản chốt costing'
-        verbose_name_plural = 'Bản chốt costing'
+        verbose_name = 'Phiên bản Costing'
+        verbose_name_plural = 'Phiên bản Costing'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['bom', 'version_label'],
+                name='san_xuat_cost_version_unique_label_per_bom',
+            ),
+        ]
 
     def __str__(self):
-        return f'Costing {self.bom} @ {self.created_at:%Y-%m-%d}'
+        return f'Costing {self.bom} / {self.version_label or self.pk}'
 
 
 # Hub: kế hoạch / điều phối / QC / giá thành KH (import để Django register models)

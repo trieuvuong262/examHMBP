@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from decimal import Decimal
 
+from django.db import transaction
+
 from kho_npl.services.batches import material_avg_price
 from san_xuat.models import BomVersion, CostingSnapshot
 from san_xuat.services.products import resolve_product_ref
@@ -37,6 +39,9 @@ class ProcessStepCost:
     cost_per_hour: Decimal
     hours_per_piece: Decimal
     labor_amount: Decimal
+    has_labor_cost: bool = False
+    smv_seconds: Decimal = ZERO
+    library_smv_seconds: Decimal = ZERO
 
 
 @dataclass
@@ -48,6 +53,7 @@ class CostingResult:
     overhead_pct: Decimal = ZERO
     overhead_amount: Decimal = ZERO
     overhead_cost: Decimal = ZERO
+    other_cost: Decimal = ZERO
     total_cost: Decimal = ZERO
     sell_price: Decimal = ZERO
     margin: Decimal = ZERO
@@ -161,6 +167,17 @@ def compute_costing_for_sales_line(so_line) -> CostingResult:
                 _d(ln.total_unit_price) if _d(ln.total_unit_price) > 0
                 else labor_from_order_routing_lines([ln], fallback_cost_per_hour=fallback_rate)
             ),
+            has_labor_cost=(
+                _d(ln.total_unit_price) > 0
+                or (_d(ln.price_factor) > 0 and _d(ln.total_operation_smv) > 0)
+                or (fallback_rate > 0 and _d(ln.total_operation_smv) > 0)
+            ),
+            smv_seconds=(
+                _d(ln.applied_unit_smv)
+                if _d(ln.applied_unit_smv) > 0
+                else _d(ln.library_unit_smv)
+            ),
+            library_smv_seconds=_d(ln.library_unit_smv),
         )
         for ln in snaps
     ]
@@ -169,7 +186,7 @@ def compute_costing_for_sales_line(so_line) -> CostingResult:
     pct_overhead = (base * result.overhead_pct / Decimal('100')).quantize(MONEY)
     overhead = (result.overhead_amount + pct_overhead).quantize(MONEY)
     result.overhead_cost = overhead
-    result.total_cost = (base + overhead).quantize(MONEY)
+    result.total_cost = (base + overhead + result.other_cost).quantize(MONEY)
     sell = result.sell_price
     result.margin = (sell - result.total_cost).quantize(MONEY)
     if getattr(so_line, 'product_name', None):
@@ -182,6 +199,7 @@ def compute_costing(bom: BomVersion, *, routing=None) -> CostingResult:
     result = CostingResult(
         overhead_pct=_d(bom.overhead_pct),
         overhead_amount=_d(getattr(bom, 'overhead_amount', None)),
+        other_cost=_d(getattr(bom, 'other_cost_amount', None)),
         product_code=bom.tech_doc.product_code,
         product_name=bom.tech_doc.product_name,
     )
@@ -219,9 +237,26 @@ def compute_costing(bom: BomVersion, *, routing=None) -> CostingResult:
             smv = _d(line.applied_unit_smv)
             if smv <= 0:
                 smv = _d(line.library_unit_smv)
-            norm = (Decimal('3600') / smv).quantize(Decimal('0.01')) if smv > 0 else ZERO
+            qty = _d(line.qty_per_garment or 1)
+            operation_smv = _d(line.total_operation_smv)
+            if operation_smv <= 0 and smv > 0:
+                operation_smv = (qty * smv).quantize(Decimal('0.0001'))
+            norm = (
+                (Decimal('3600') / operation_smv).quantize(Decimal('0.01'))
+                if operation_smv > 0 else ZERO
+            )
             rate = _d(line.price_factor)
-            hours, amount = labor_cost_for_step(norm, rate)
+            hours = (
+                (operation_smv / Decimal('3600')).quantize(Decimal('0.000001'))
+                if operation_smv > 0 else ZERO
+            )
+            has_labor_cost = _d(line.total_unit_price) > 0 or (
+                rate > 0 and operation_smv > 0
+            )
+            amount = (
+                labor_from_order_routing_lines([line])
+                if has_labor_cost else ZERO
+            )
             labor_total += amount
             result.process_lines.append(
                 ProcessStepCost(
@@ -232,11 +267,18 @@ def compute_costing(bom: BomVersion, *, routing=None) -> CostingResult:
                     cost_per_hour=rate,
                     hours_per_piece=hours,
                     labor_amount=amount,
+                    has_labor_cost=has_labor_cost,
+                    smv_seconds=smv,
+                    library_smv_seconds=_d(line.library_unit_smv),
                 ),
             )
     else:
-        for step in bom.process_steps.all():
+        for step in bom.process_steps.select_related('routing_line').all():
             hours, amount = labor_cost_for_step(step.norm_per_hour, step.cost_per_hour)
+            has_labor_cost = _d(step.norm_per_hour) > 0 and _d(step.cost_per_hour) > 0
+            smv = _d(step.std_time_minutes) * Decimal('60')
+            if smv <= 0 and _d(step.norm_per_hour) > 0:
+                smv = (Decimal('3600') / _d(step.norm_per_hour)).quantize(Decimal('0.0001'))
             labor_total += amount
             result.process_lines.append(
                 ProcessStepCost(
@@ -247,13 +289,19 @@ def compute_costing(bom: BomVersion, *, routing=None) -> CostingResult:
                     cost_per_hour=_d(step.cost_per_hour),
                     hours_per_piece=hours,
                     labor_amount=amount,
+                    has_labor_cost=has_labor_cost,
+                    smv_seconds=smv,
+                    library_smv_seconds=(
+                        _d(step.routing_line.library_unit_smv)
+                        if step.routing_line_id else ZERO
+                    ),
                 ),
             )
 
     base = material_total + labor_total
     pct_overhead = (base * result.overhead_pct / Decimal('100')).quantize(MONEY)
     overhead = (result.overhead_amount + pct_overhead).quantize(MONEY)
-    total = (base + overhead).quantize(MONEY)
+    total = (base + overhead + result.other_cost).quantize(MONEY)
 
     ref = resolve_product_ref(bom.tech_doc.product_code)
     sell = _d(ref.base_price) if ref else ZERO
@@ -288,16 +336,70 @@ def list_costing_from_active_boms(*, include_draft: bool = False) -> list[tuple]
     return rows
 
 
-def save_costing_snapshot(bom: BomVersion, *, user=None, notes: str = '') -> CostingSnapshot:
-    result = compute_costing(bom)
+def costing_details(result: CostingResult) -> dict:
+    """Dữ liệu bất biến để xem/xuất lại đúng phiên bản Cost đã lưu."""
+    return {
+        'product_code': result.product_code,
+        'product_name': result.product_name,
+        'material_lines': [
+            {
+                'material_code': row.material_code,
+                'material_name': row.material_name,
+                'qty_with_scrap': str(row.qty_with_scrap),
+                'unit_name': row.unit_name,
+                'unit_price': str(row.unit_price),
+                'amount': str(row.amount),
+            }
+            for row in result.material_lines
+        ],
+        'process_lines': [
+            {
+                'sequence': row.sequence,
+                'process_name': row.process_name,
+                'hours_per_piece': str(row.hours_per_piece),
+                'smv_seconds': str(row.smv_seconds),
+                'library_smv_seconds': str(row.library_smv_seconds),
+                'labor_amount': str(row.labor_amount),
+                'has_labor_cost': row.has_labor_cost,
+            }
+            for row in result.process_lines
+        ],
+    }
+
+
+@transaction.atomic
+def save_costing_snapshot(
+    bom: BomVersion,
+    *,
+    routing=None,
+    user=None,
+    notes: str = '',
+    version_label: str = '',
+) -> CostingSnapshot:
+    BomVersion.objects.select_for_update().get(pk=bom.pk)
+    label = (version_label or '').strip()
+    if not label:
+        index = bom.costing_snapshots.count() + 1
+        label = f'v{index}'
+        while bom.costing_snapshots.filter(version_label=label).exists():
+            index += 1
+            label = f'v{index}'
+    if bom.costing_snapshots.filter(version_label=label).exists():
+        raise ValueError(f'Phiên bản Cost {label} đã tồn tại.')
+
+    result = compute_costing(bom, routing=routing)
     return CostingSnapshot.objects.create(
         bom=bom,
+        routing=routing,
+        version_label=label[:40],
         material_cost=result.material_cost,
         labor_cost=result.labor_cost,
         overhead_cost=result.overhead_cost,
+        other_cost=result.other_cost,
         total_cost=result.total_cost,
         sell_price=result.sell_price,
         margin=result.margin,
+        details=costing_details(result),
         notes=notes or '',
         created_by=user if getattr(user, 'is_authenticated', False) else None,
     )

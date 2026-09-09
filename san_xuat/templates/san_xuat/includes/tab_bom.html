@@ -10,11 +10,7 @@
                     <label class="form-label small">Phiên bản{{ meta_form.version_label|sx_req_star }}</label>
                     {{ meta_form.version_label }}
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label small">Phụ phí (%){{ meta_form.overhead_pct|sx_req_star }}</label>
-                    {{ meta_form.overhead_pct }}
-                </div>
-                <div class="col-md-3">
+                <div class="col-md-9">
                     <label class="form-label small">Ghi chú BOM{{ meta_form.notes|sx_req_star }}</label>
                     {{ meta_form.notes }}
                 </div>
@@ -30,7 +26,6 @@
                             <th style="width:72px">ĐVT</th>
                             <th style="width:110px" class="text-end">Tồn (mọi kho)</th>
                             <th style="width:120px">Ghi chú</th>
-                            <th style="width:4rem">TT</th>
                             <th style="width:40px"></th>
                         </tr>
                     </thead>
@@ -39,6 +34,7 @@
                         <tr class="bom-line-row">
                             {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
                             <td class="jp-npl-material-cell">
+                                <div class="d-none">{{ f.sort_order }}</div>
                                 <div class="jp-npl-material-field">{{ f.material }}{% if f.material.errors %}<div class="text-danger small">{{ f.material.errors }}</div>{% endif %}</div>
                             </td>
                             <td class="text-end">{{ f.qty }}{% if f.qty.errors %}<div class="text-danger small">{{ f.qty.errors }}</div>{% endif %}</td>
@@ -52,7 +48,6 @@
                                 </span>
                             </td>
                             <td>{{ f.notes }}</td>
-                            <td>{{ f.sort_order }}</td>
                             <td class="text-center">
                                 {% if f.DELETE %}
                                 <div class="d-none">{{ f.DELETE }}</div>
@@ -71,11 +66,6 @@
                     <button type="button" class="btn btn-outline-hm btn-sm" id="add-bom-row">
                         <i class="bi bi-plus-lg me-1"></i>Thêm NPL
                     </button>
-                    {% if issue_bom_url %}
-                    <a href="{{ issue_bom_url }}" class="btn btn-outline-hm btn-sm" target="_blank">
-                        <i class="bi bi-box-arrow-up-right me-1"></i>Tạo phiếu xuất BOM
-                    </a>
-                    {% endif %}
                 </div>
                 <button type="submit" class="btn btn-hm">Lưu BOM</button>
             </div>
@@ -86,13 +76,13 @@
             <tr class="bom-line-row">
                 {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
                 <td class="jp-npl-material-cell">
+                    <div class="d-none">{{ f.sort_order }}</div>
                     <div class="jp-npl-material-field">{{ f.material }}</div>
                 </td>
                 <td class="text-end">{{ f.qty }}</td>
                 <td class="jp-npl-line-unit-cell"><span class="jp-npl-line-unit text-muted small">—</span></td>
                 <td class="text-end"><span class="jp-npl-stock-qty small text-muted">—</span></td>
                 <td>{{ f.notes }}</td>
-                <td>{{ f.sort_order }}</td>
                 <td class="text-center">
                     <div class="d-none">{{ f.DELETE }}</div>
                     <button type="button" class="btn btn-link btn-sm text-danger p-0 remove-bom-row" title="Xóa dòng">
@@ -364,13 +354,6 @@
                 </tbody>
             </table>
         </div>
-        {% if issue_bom_url %}
-        <div class="mt-3">
-            <a href="{{ issue_bom_url }}" class="btn btn-outline-hm btn-sm" target="_blank">
-                <i class="bi bi-box-arrow-up-right me-1"></i>Tạo phiếu xuất BOM
-            </a>
-        </div>
-        {% endif %}
         {% endif %}
     </div>
 </div>

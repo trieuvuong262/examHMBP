@@ -355,7 +355,7 @@ def create_blank_routing(
         product_family=(product_family or '')[:150],
         routing_rev=rev,
         tech_doc=tech_doc,
-        is_active=True,
+        is_active=False,
         approval_status=SxRouting.APPROVAL_DRAFT,
         ie_owner=ie_user_display_name(user),
         effective_from=timezone.localdate(),
@@ -1086,6 +1086,12 @@ def approve_routing(*, routing: SxRouting, user=None) -> SxRouting:
     routing.approved_at = timezone.now()
     if not routing.effective_from:
         routing.effective_from = timezone.localdate()
+    siblings = SxRouting.objects.select_for_update().exclude(pk=routing.pk)
+    if routing.tech_doc_id:
+        siblings = siblings.filter(tech_doc_id=routing.tech_doc_id)
+    else:
+        siblings = siblings.filter(style_code=routing.style_code)
+    siblings.filter(is_active=True).update(is_active=False)
     routing.is_active = True
     routing.save(update_fields=[
         'approval_status', 'approved_by', 'approved_at', 'effective_from', 'is_active', 'updated_at',
@@ -1110,8 +1116,32 @@ def reject_routing(*, routing: SxRouting, user=None) -> SxRouting:
         raise IeOpsError('Thiếu routing.')
     assert_routing_editable(routing)
     routing.approval_status = SxRouting.APPROVAL_REJECTED
-    routing.save(update_fields=['approval_status', 'updated_at'])
+    routing.is_active = False
+    routing.save(update_fields=['approval_status', 'is_active', 'updated_at'])
     return routing
+
+
+@transaction.atomic
+def set_routing_status(*, routing: SxRouting, status: str, user=None) -> SxRouting:
+    """Đổi trạng thái OB; chỉ bản đã duyệt mới được đánh dấu đang áp dụng."""
+    allowed = {value for value, _label in SxRouting.APPROVAL_CHOICES}
+    if status not in allowed:
+        raise IeOpsError('Trạng thái OB không hợp lệ.')
+    if status == SxRouting.APPROVAL_APPROVED:
+        return approve_routing(routing=routing, user=user)
+    if status == SxRouting.APPROVAL_REJECTED:
+        return reject_routing(routing=routing, user=user)
+
+    locked = SxRouting.objects.select_for_update().get(pk=routing.pk)
+    assert_routing_editable(locked)
+    locked.approval_status = status
+    locked.is_active = False
+    locked.approved_by = ''
+    locked.approved_at = None
+    locked.save(update_fields=[
+        'approval_status', 'is_active', 'approved_by', 'approved_at', 'updated_at',
+    ])
+    return locked
 
 
 @transaction.atomic
@@ -1136,7 +1166,7 @@ def clone_routing_revision(*, routing: SxRouting, user=None) -> SxRouting:
         routing_rev=new_rev,
         tech_doc=routing.tech_doc,
         effective_from=None,
-        is_active=True,
+        is_active=False,
         approval_status=SxRouting.APPROVAL_DRAFT,
         ie_owner=routing.ie_owner,
         notes=f'Clone từ {routing.routing_id}'[:255],

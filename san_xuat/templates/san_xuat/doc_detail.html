@@ -46,13 +46,49 @@
 .jp-sx-bom-ver .st {
   font-size: 0.68rem;
   font-weight: 700;
-  opacity: 0.85;
+  padding: 0.08rem 0.35rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #475569;
 }
+.jp-sx-bom-ver .st-active,
+.jp-sx-bom-ver .st-approved { background: #dcfce7; color: #166534; }
+.jp-sx-bom-ver .st-pending { background: #fef3c7; color: #92400e; }
+.jp-sx-bom-ver .st-archived,
+.jp-sx-bom-ver .st-rejected { background: #fee2e2; color: #991b1b; }
 .jp-sx-bom-ver-actions {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  align-items: flex-end;
+  gap: 0.5rem;
   margin-left: auto;
+}
+.jp-sx-version-status {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.35rem;
+}
+.jp-sx-version-status-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.jp-sx-version-status-field label {
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+}
+@media (max-width: 767.98px) {
+  .jp-sx-bom-ver-actions {
+    width: 100%;
+    margin-left: 0;
+    padding-top: 0.5rem;
+    border-top: 1px solid #e2e8f0;
+  }
+  .jp-sx-version-status { flex: 1 1 auto; }
+  .jp-sx-version-status-field { flex: 1 1 auto; }
+  .jp-sx-version-status-field select { width: 100% !important; }
 }
 </style>
 {% endblock %}
@@ -167,6 +203,7 @@
        data-loading-message="Đang tải {{ v.version_label }}…"
        title="{% if v.notes %}{{ v.notes }}{% else %}{{ v.version_label }}{% endif %}">
       {{ v.version_label }}
+      <span class="st st-{{ v.status }}">{{ v.get_status_display }}</span>
     </a>
     {% empty %}
     <span class="text-muted small">Chưa có phiên bản</span>
@@ -174,28 +211,66 @@
     {% if can_update and edit_mode %}
     <div class="jp-sx-bom-ver-actions">
       {% if bom %}
-      <form method="post" class="d-inline">
+      <form method="post" class="jp-sx-version-status">
         {% csrf_token %}
-        <input type="hidden" name="action" value="new_bom">
-        <input type="hidden" name="copy" value="1">
-        <button type="submit" class="btn btn-outline-hm btn-sm fw-bold"
-                title="Tạo version ngang hàng, copy NPL + công đoạn từ bản đang xem">
-          <i class="bi bi-files me-1"></i>Version mới (sao chép)
-        </button>
+        <input type="hidden" name="action" value="save_bom_status">
+        <div class="jp-sx-version-status-field">
+          <label for="jpBomStatus">Trạng thái {{ bom.version_label }}</label>
+          <select id="jpBomStatus" name="status" class="form-select form-select-sm" style="width:auto">
+            {% for value, label in bom_status_choices %}
+            <option value="{{ value }}" {% if bom.status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-outline-secondary btn-sm fw-bold">Cập nhật</button>
       </form>
       {% endif %}
-      <form method="post" class="d-inline-flex align-items-center gap-1">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="new_bom">
-        <input type="text" name="version_label" class="form-control form-control-sm"
-               style="width:7.5rem" placeholder="vd. Gia công" maxlength="40">
-        <button type="submit" class="btn btn-hm btn-sm fw-bold">
-          <i class="bi bi-plus-lg me-1"></i>Thêm
-        </button>
-      </form>
+      <button type="button" class="btn btn-hm btn-sm fw-bold"
+              data-bs-toggle="modal" data-bs-target="#jpNewBomVersionModal">
+        <i class="bi bi-plus-lg me-1"></i>Phiên bản mới
+      </button>
     </div>
     {% endif %}
   </div>
+
+  {% if can_update and edit_mode %}
+  <div class="modal fade" id="jpNewBomVersionModal" tabindex="-1"
+       aria-labelledby="jpNewBomVersionTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <form method="post" data-loading-message="Đang tạo phiên bản BOM…">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="new_bom">
+          <div class="modal-header">
+            <h5 class="modal-title" id="jpNewBomVersionTitle">Tạo phiên bản BOM mới</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+          </div>
+          <div class="modal-body">
+            <label for="jpNewBomVersionLabel" class="form-label fw-semibold">Tên phiên bản</label>
+            <input id="jpNewBomVersionLabel" type="text" name="version_label"
+                   class="form-control" placeholder="Ví dụ: v2 hoặc Gia công" maxlength="40">
+            <div class="form-text">Để trống để hệ thống tự đặt tên phiên bản tiếp theo.</div>
+            {% if bom %}
+            <div class="form-check mt-3">
+              <input class="form-check-input" type="checkbox" name="copy" value="1"
+                     id="jpCopyCurrentBom" checked>
+              <label class="form-check-label" for="jpCopyCurrentBom">
+                Sao chép nguyên phụ liệu từ {{ bom.version_label }}
+              </label>
+            </div>
+            {% endif %}
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+            <button type="submit" class="btn btn-hm">
+              <i class="bi bi-plus-lg me-1"></i>Tạo phiên bản
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endif %}
   {% endif %}
 
   {% if tab == 'process' %}
@@ -207,7 +282,10 @@
        data-loading-message="Đang tải OB {{ item.routing_rev }}…"
        title="{{ item.routing_id }} — {{ item.n_lines }} công đoạn">
       {{ item.routing_rev }}
-      <span class="st">({{ item.n_lines }})</span>
+      <span class="st st-{{ item.approval_status }}">{{ item.get_approval_status_display }}</span>
+      {% if item.is_active and item.approval_status == 'approved' %}
+      <span class="st st-active">Đang áp dụng</span>
+      {% endif %}
     </a>
     {% empty %}
     <span class="text-muted small">Chưa có phiên bản</span>
@@ -215,28 +293,75 @@
     {% if can_update and edit_mode %}
     <div class="jp-sx-bom-ver-actions">
       {% if process_routing %}
-      <form method="post" class="d-inline">
+      <form method="post" class="jp-sx-version-status">
         {% csrf_token %}
-        <input type="hidden" name="action" value="clone_doc_routing">
+        <input type="hidden" name="action" value="save_ob_status">
         <input type="hidden" name="routing_id" value="{{ process_routing.pk }}">
-        <button type="submit" class="btn btn-outline-hm btn-sm fw-bold"
-                title="Tạo phiên bản routing mới, copy toàn bộ công đoạn từ bản đang xem">
-          <i class="bi bi-files me-1"></i>Version mới (sao chép)
-        </button>
+        <div class="jp-sx-version-status-field">
+          <label for="jpObStatus">Trạng thái {{ process_routing.routing_rev }}</label>
+          <select id="jpObStatus" name="status" class="form-select form-select-sm" style="width:auto">
+            {% for value, label in ob_status_choices %}
+            <option value="{{ value }}" {% if process_routing.approval_status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-outline-secondary btn-sm fw-bold">Cập nhật</button>
       </form>
       {% endif %}
-      <form method="post" class="d-inline-flex align-items-center gap-1">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="create_doc_routing">
-        <input type="text" name="routing_rev" class="form-control form-control-sm"
-               style="width:5.5rem" placeholder="vd. R02" maxlength="10">
-        <button type="submit" class="btn btn-hm btn-sm fw-bold">
-          <i class="bi bi-plus-lg me-1"></i>Thêm
-        </button>
-      </form>
+      <button type="button" class="btn btn-hm btn-sm fw-bold"
+              data-bs-toggle="modal" data-bs-target="#jpNewObVersionModal">
+        <i class="bi bi-plus-lg me-1"></i>Phiên bản mới
+      </button>
     </div>
     {% endif %}
   </div>
+
+  {% if can_update and edit_mode %}
+  <div class="modal fade" id="jpNewObVersionModal" tabindex="-1"
+       aria-labelledby="jpNewObVersionTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <form method="post" data-loading-message="Đang tạo phiên bản OB…">
+          {% csrf_token %}
+          <input type="hidden" name="action" id="jpNewObAction"
+                 value="{% if process_routing %}clone_doc_routing{% else %}create_doc_routing{% endif %}">
+          {% if process_routing %}
+          <input type="hidden" name="routing_id" value="{{ process_routing.pk }}">
+          {% endif %}
+          <div class="modal-header">
+            <h5 class="modal-title" id="jpNewObVersionTitle">Tạo phiên bản OB mới</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+          </div>
+          <div class="modal-body">
+            <label for="jpNewObVersionLabel" class="form-label fw-semibold">Tên phiên bản</label>
+            <input id="jpNewObVersionLabel" type="text" name="routing_rev"
+                   class="form-control" placeholder="Ví dụ: R03" maxlength="10"
+                   {% if process_routing %}disabled{% endif %}>
+            <div class="form-text">
+              Để trống để hệ thống tự đặt tên phiên bản tiếp theo.
+              {% if process_routing %}Bỏ chọn sao chép để tự đặt tên cho bản trống.{% endif %}
+            </div>
+            {% if process_routing %}
+            <div class="form-check mt-3">
+              <input class="form-check-input" type="checkbox" id="jpCopyCurrentOb" checked
+                     onchange="document.getElementById('jpNewObAction').value=this.checked?'clone_doc_routing':'create_doc_routing';document.getElementById('jpNewObVersionLabel').disabled=this.checked">
+              <label class="form-check-label" for="jpCopyCurrentOb">
+                Sao chép công đoạn từ {{ process_routing.routing_rev }}
+              </label>
+            </div>
+            {% endif %}
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+            <button type="submit" class="btn btn-hm">
+              <i class="bi bi-plus-lg me-1"></i>Tạo phiên bản
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endif %}
   {% endif %}
 
     {% if tab == 'info' %}

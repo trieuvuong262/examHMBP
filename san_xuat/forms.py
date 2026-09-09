@@ -249,22 +249,27 @@ class TechDocGalleryUploadForm(forms.Form):
 class BomVersionMetaForm(forms.ModelForm):
     class Meta:
         model = BomVersion
-        fields = ('version_label', 'overhead_pct', 'notes')
+        fields = ('version_label', 'notes')
         widgets = {
             'version_label': forms.TextInput(attrs={'class': 'form-control'}),
-            'overhead_pct': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
             'notes': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
 
 class BomOverheadAmountForm(forms.ModelForm):
-    """KHSH nhập chi phí sản xuất chung / 1 SP trên tab Costing."""
+    """Nhập các chi phí bổ sung / 1 SP trên tab Costing."""
 
     class Meta:
         model = BomVersion
-        fields = ('overhead_amount',)
+        fields = ('overhead_amount', 'other_cost_amount')
         widgets = {
             'overhead_amount': CompactNumberInput(attrs={
+                'class': 'form-control form-control-sm',
+                'step': '1',
+                'min': '0',
+                'inputmode': 'decimal',
+            }),
+            'other_cost_amount': CompactNumberInput(attrs={
                 'class': 'form-control form-control-sm',
                 'step': '1',
                 'min': '0',

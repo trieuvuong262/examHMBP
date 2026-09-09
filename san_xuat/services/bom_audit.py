@@ -47,6 +47,7 @@ def bom_snapshot(bom) -> dict:
         'version_label': bom.version_label,
         'overhead_pct': str(bom.overhead_pct),
         'overhead_amount': str(bom.overhead_amount),
+        'other_cost_amount': str(bom.other_cost_amount),
         'notes': bom.notes or '',
         'lines': lines,
     }
@@ -56,6 +57,7 @@ BOM_FIELD_LABELS = {
     'version_label': 'Phiên bản',
     'overhead_pct': 'Phụ phí (%)',
     'overhead_amount': 'SX chung / SP',
+    'other_cost_amount': 'Chi phí khác / SP',
     'notes': 'Ghi chú',
 }
 

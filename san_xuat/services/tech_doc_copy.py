@@ -134,10 +134,13 @@ def resolve_doc_routing(doc: ProductTechDoc, *, routing_id: str | int | None = N
 def _copy_bom_lines(source: BomVersion, target: BomVersion) -> int:
     target.overhead_pct = source.overhead_pct
     target.overhead_amount = source.overhead_amount
+    target.other_cost_amount = source.other_cost_amount
     src_code = source.tech_doc.product_code
     copied = f'Sao chép từ {src_code} / {source.version_label}'
     target.notes = (source.notes or '').strip() or copied
-    target.save(update_fields=['overhead_pct', 'overhead_amount', 'notes', 'updated_at'])
+    target.save(update_fields=[
+        'overhead_pct', 'overhead_amount', 'other_cost_amount', 'notes', 'updated_at',
+    ])
     target.lines.all().delete()
     n = 0
     for line in source.lines.order_by('sort_order', 'id'):

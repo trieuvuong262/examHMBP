@@ -46,7 +46,10 @@ class ProductTechDocAdmin(admin.ModelAdmin):
 
 @admin.register(BomVersion)
 class BomVersionAdmin(admin.ModelAdmin):
-    list_display = ('tech_doc', 'version_label', 'status', 'overhead_pct', 'overhead_amount', 'updated_at')
+    list_display = (
+        'tech_doc', 'version_label', 'status', 'overhead_pct',
+        'overhead_amount', 'other_cost_amount', 'updated_at',
+    )
     list_filter = ('status',)
     search_fields = ('tech_doc__product_code', 'version_label')
     inlines = [BomLineInline, ProcessStepInline]
@@ -54,14 +57,20 @@ class BomVersionAdmin(admin.ModelAdmin):
 
 @admin.register(CostingSnapshot)
 class CostingSnapshotAdmin(admin.ModelAdmin):
-    list_display = ('bom', 'total_cost', 'sell_price', 'margin', 'created_at')
+    list_display = (
+        'bom', 'version_label', 'routing', 'total_cost', 'sell_price', 'margin', 'created_at',
+    )
     readonly_fields = (
+        'version_label',
+        'routing',
         'material_cost',
         'labor_cost',
         'overhead_cost',
+        'other_cost',
         'total_cost',
         'sell_price',
         'margin',
+        'details',
         'created_at',
     )
 

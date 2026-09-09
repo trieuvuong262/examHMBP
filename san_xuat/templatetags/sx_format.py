@@ -105,6 +105,7 @@ _AUDIT_LEGACY_LABELS = {
     "version_label": "Phiên bản",
     "overhead_pct": "Phụ phí (%)",
     "overhead_amount": "SX chung / SP",
+    "other_cost_amount": "Chi phí khác / SP",
     "notes": "Ghi chú",
     "op_code": "Mã công đoạn",
     "op_name": "Tên công đoạn",

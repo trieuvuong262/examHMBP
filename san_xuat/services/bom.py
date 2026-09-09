@@ -1,8 +1,4 @@
-"""BOM lifecycle: nhiều phiên bản ngang hàng trên cùng hồ sơ SX.
-
-Mỗi version (vd. Nội bộ / Gia công) đều dùng được — không còn mô hình
-1 bản «đang dùng» và các bản còn lại bị lưu trữ.
-"""
+"""Vòng đời BOM: nhiều phiên bản, tối đa một bản đang áp dụng mỗi hồ sơ."""
 
 from __future__ import annotations
 
@@ -18,12 +14,28 @@ class BomError(Exception):
 
 
 def get_active_bom(tech_doc: ProductTechDoc) -> BomVersion | None:
-    """BOM mặc định khi không chỉ định — lấy bản mới nhất (mọi version ngang hàng)."""
-    return get_working_bom(tech_doc)
+    """BOM đang áp dụng của hồ sơ."""
+    return (
+        tech_doc.bom_versions.prefetch_related('lines__material', 'process_steps')
+        .filter(status=BomVersion.STATUS_ACTIVE)
+        .order_by('-activated_at', '-updated_at', '-id')
+        .first()
+    )
 
 
 def get_working_bom(tech_doc: ProductTechDoc) -> BomVersion | None:
-    """Bản BOM mới nhất của hồ sơ (các version ngang hàng)."""
+    """Ưu tiên bản đang áp dụng; nếu chưa có thì lấy bản chưa ngừng mới nhất."""
+    active = get_active_bom(tech_doc)
+    if active is not None:
+        return active
+    working = (
+        tech_doc.bom_versions.prefetch_related('lines__material', 'process_steps')
+        .exclude(status=BomVersion.STATUS_ARCHIVED)
+        .order_by('-created_at', '-id')
+        .first()
+    )
+    if working is not None:
+        return working
     return (
         tech_doc.bom_versions.prefetch_related('lines__material', 'process_steps')
         .order_by('-created_at', '-id')
@@ -78,17 +90,44 @@ def create_tech_doc(
 
 @transaction.atomic
 def activate_bom(bom: BomVersion) -> BomVersion:
-    """Giữ API cũ — không archive các version khác (các bản ngang hàng)."""
-    if not bom.activated_at:
-        bom.activated_at = timezone.now()
-        bom.save(update_fields=['activated_at', 'updated_at'])
-    return bom
+    """Đưa một BOM vào áp dụng và ngừng bản đang áp dụng trước đó."""
+    return set_bom_status(bom, BomVersion.STATUS_ACTIVE)
+
+
+@transaction.atomic
+def set_bom_status(bom: BomVersion, status: str) -> BomVersion:
+    """Đổi trạng thái BOM, bảo đảm mỗi hồ sơ chỉ có một bản đang áp dụng."""
+    allowed = {value for value, _label in BomVersion.STATUS_CHOICES}
+    if status not in allowed:
+        raise BomError('Trạng thái BOM không hợp lệ.')
+
+    locked = BomVersion.objects.select_for_update().get(pk=bom.pk)
+    if status == BomVersion.STATUS_ACTIVE:
+        (
+            BomVersion.objects.select_for_update()
+            .filter(tech_doc_id=locked.tech_doc_id, status=BomVersion.STATUS_ACTIVE)
+            .exclude(pk=locked.pk)
+            .update(status=BomVersion.STATUS_ARCHIVED)
+        )
+        locked.activated_at = timezone.now()
+    locked.status = status
+    locked.save(update_fields=['status', 'activated_at', 'updated_at'])
+    return locked
 
 
 @transaction.atomic
 def ensure_single_active(tech_doc: ProductTechDoc) -> None:
-    """Không còn ép 1 active — giữ hàm để tương thích chỗ gọi cũ."""
-    return
+    """Giữ bản active mới nhất và ngừng các bản active còn lại."""
+    active_ids = list(
+        tech_doc.bom_versions.select_for_update()
+        .filter(status=BomVersion.STATUS_ACTIVE)
+        .order_by('-activated_at', '-updated_at', '-id')
+        .values_list('pk', flat=True)
+    )
+    if len(active_ids) > 1:
+        tech_doc.bom_versions.filter(pk__in=active_ids[1:]).update(
+            status=BomVersion.STATUS_ARCHIVED,
+        )
 
 
 def next_version_label(tech_doc: ProductTechDoc) -> str:
@@ -113,6 +152,7 @@ def create_bom_version(
         status=BomVersion.STATUS_DRAFT,
         overhead_pct=copy_from.overhead_pct if copy_from else 0,
         overhead_amount=copy_from.overhead_amount if copy_from else 0,
+        other_cost_amount=copy_from.other_cost_amount if copy_from else 0,
         notes=copy_from.notes if copy_from else '',
         created_by=user if getattr(user, 'is_authenticated', False) else None,
     )
