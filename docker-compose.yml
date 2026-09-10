@@ -152,6 +152,8 @@ services:
       - ./PortalJustPlay/nginx/security-headers.conf:/etc/nginx/conf.d/security-headers.conf:ro
       - ./PortalJustPlay/nginx/performance.conf:/etc/nginx/conf.d/performance.conf:ro
       - ./PortalJustPlay/nginx/erp.conf:/etc/nginx/conf.d/erp.conf:ro
+      - ./PortalJustPlay/nginx/error-pages.conf:/etc/nginx/error-pages.conf:ro
+      - ./PortalJustPlay/nginx/html:/etc/nginx/jp-errors:ro
       - static_volume:/app/staticfiles
       - media_volume:/app/media
       - certbot_webroot:/var/www/certbot

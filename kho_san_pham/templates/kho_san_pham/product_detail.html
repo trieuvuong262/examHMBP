@@ -26,6 +26,12 @@
                 <i class="bi bi-pencil me-1"></i>Sửa
             </a>
             {% endif %}
+            {% if can_create %}
+            <a href="{% url 'kho_san_pham:product_duplicate' product.pk %}" class="btn btn-outline-hm btn-sm"
+               title="Tạo SKU mới cùng style, có thể đổi màu/size">
+                <i class="bi bi-copy me-1"></i>Nhân bản
+            </a>
+            {% endif %}
             {% if can_update and product.is_active %}
             <a href="{% url 'kho_san_pham:product_deactivate' product.pk %}" class="btn btn-outline-danger btn-sm">
                 <i class="bi bi-slash-circle me-1"></i>Ngừng dùng

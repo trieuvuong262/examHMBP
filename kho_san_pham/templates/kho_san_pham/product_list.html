@@ -173,7 +173,16 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
                             </div>
                         </td>
                         <td class="text-end">
-                            <a href="{% url 'kho_san_pham:product_detail' item.id %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
+                            <div class="d-inline-flex flex-wrap gap-1 justify-content-end">
+                                <a href="{% url 'kho_san_pham:product_detail' item.id %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
+                                {% if can_create %}
+                                <a href="{% url 'kho_san_pham:product_duplicate' item.id %}"
+                                   class="btn btn-sm btn-outline-secondary"
+                                   title="Nhân bản — đổi màu/size">
+                                    <i class="bi bi-copy"></i>
+                                </a>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% if item.is_group %}
@@ -225,7 +234,16 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
                             {% endif %}
                         </td>
                         <td class="text-end">
-                            <a href="{% url 'kho_san_pham:product_detail' variant.id %}" class="btn btn-sm btn-outline-secondary">Chi tiết</a>
+                            <div class="d-inline-flex flex-wrap gap-1 justify-content-end">
+                                <a href="{% url 'kho_san_pham:product_detail' variant.id %}" class="btn btn-sm btn-outline-secondary">Chi tiết</a>
+                                {% if can_create %}
+                                <a href="{% url 'kho_san_pham:product_duplicate' variant.id %}"
+                                   class="btn btn-sm btn-outline-secondary"
+                                   title="Nhân bản — đổi màu/size">
+                                    <i class="bi bi-copy"></i>
+                                </a>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}

@@ -7,8 +7,6 @@ from django.shortcuts import render
 from django.template import loader
 from django.views.decorators.csrf import requires_csrf_token
 
-from audit.login_security import it_contact_display
-
 
 def _wants_json(request) -> bool:
     accept = request.headers.get('Accept') or ''
@@ -19,10 +17,7 @@ def _wants_json(request) -> bool:
 
 
 def _error_context(*, title: str, extra: dict | None = None) -> dict:
-    ctx = {
-        'jp_page_title': title,
-        'it_contact': it_contact_display(),
-    }
+    ctx = {'jp_page_title': title}
     if extra:
         ctx.update(extra)
     return ctx
@@ -71,7 +66,4 @@ def server_error(request):
             status=500,
         )
     template = loader.get_template('500.html')
-    html = template.render({
-        'it_contact': it_contact_display(),
-    })
-    return HttpResponse(html, status=500)
+    return HttpResponse(template.render({}), status=500)

@@ -51,6 +51,7 @@ class RoutingStep:
     minutes_per_unit: Decimal
     count_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
     transfer_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
+    group_code: str = ''
 
     @property
     def work_center_id(self) -> int | None:
@@ -147,11 +148,16 @@ def product_routing(product_code: str) -> ProductRouting:
         from san_xuat.services.capacity_from_hrm import map_ie_center_to_hr
 
         rows = []
-        for line in routing.lines.select_related('work_center').order_by('seq_no'):
+        for line in routing.lines.select_related(
+            'work_center', 'operation__group',
+        ).order_by('seq_no'):
             # SMV IE lưu bằng giây → phút cho lịch/công suất.
             minutes = _q((line.total_operation_smv or Decimal('0')) / Decimal('60'), '0.0001')
             if minutes <= 0:
                 continue
+            group_code = (line.group_code or '').strip()
+            if not group_code and line.operation_id and line.operation and line.operation.group_id:
+                group_code = (line.operation.group.code or '').strip()
             rows.append(
                 RoutingStep(
                     sequence=line.seq_no or 10,
@@ -160,6 +166,7 @@ def product_routing(product_code: str) -> ProductRouting:
                     minutes_per_unit=minutes,
                     count_minutes=_q(getattr(line, 'count_minutes', 0)),
                     transfer_minutes=_q(getattr(line, 'transfer_minutes', 0)),
+                    group_code=group_code,
                 )
             )
         if rows:

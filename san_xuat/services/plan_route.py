@@ -81,7 +81,9 @@ def ensure_order_plan_steps(order: SxSalesOrder) -> list[SxSalesOrderPlanStep]:
 
     merged: list[dict] = []
     seq_cursor = 0
-    for ln in order.lines.prefetch_related('routing_lines__work_center').order_by('sort_order', 'id'):
+    for ln in order.lines.prefetch_related(
+        'routing_lines__work_center', 'routing_lines__operation__group',
+    ).order_by('sort_order', 'id'):
         routing = sales_order_line_routing(ln)
         line_rows: list[dict] = []
         for step in routing.steps:
@@ -91,6 +93,7 @@ def ensure_order_plan_steps(order: SxSalesOrder) -> list[SxSalesOrderPlanStep]:
             line_rows.append({
                 'sequence': int(step.sequence or (len(line_rows) + 1) * 10),
                 'process_name': name,
+                'group_code': (getattr(step, 'group_code', None) or '').strip(),
                 'work_center_id': step.work_center_id,
                 'minutes_per_unit': _q(step.minutes_per_unit),
                 'count_minutes': _q(getattr(step, 'count_minutes', 0)),
@@ -128,6 +131,7 @@ def ensure_order_plan_steps(order: SxSalesOrder) -> list[SxSalesOrderPlanStep]:
                 sales_order=order,
                 sequence=seq,
                 process_name=row['process_name'],
+                group_code=(row.get('group_code') or '')[:30],
                 work_center_id=row['work_center_id'],
                 minutes_per_unit=row['minutes_per_unit'] or Decimal('0'),
                 count_minutes=count,
@@ -174,6 +178,7 @@ def replace_order_plan_steps(*, order_id: int, steps: list[dict]) -> list[SxSale
         cleaned.append({
             'sequence': seq,
             'process_name': name[:120],
+            'group_code': (raw.get('group_code') or '')[:30],
             'work_center_id': wc_id,
             'planned_date': planned,
             'minutes_per_unit': mins,
@@ -194,6 +199,7 @@ def replace_order_plan_steps(*, order_id: int, steps: list[dict]) -> list[SxSale
                 sales_order=order,
                 sequence=seq,
                 process_name=row['process_name'],
+                group_code=(row.get('group_code') or '')[:30],
                 work_center_id=row['work_center_id'],
                 planned_date=row['planned_date'],
                 minutes_per_unit=row['minutes_per_unit'],

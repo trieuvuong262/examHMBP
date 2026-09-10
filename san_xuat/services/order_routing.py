@@ -390,7 +390,9 @@ def sales_order_line_routing(order_line: SxSalesOrderLine):
     code = (order_line.product_code or '').strip()
     result = ProductRouting(product_code=code)
     rows: list[RoutingStep] = []
-    src_lines = list(order_line.routing_lines.all())
+    src_lines = list(
+        order_line.routing_lines.select_related('work_center', 'operation__group').all()
+    )
     src_lines.sort(key=lambda ln: (ln.seq_no or 0, ln.pk or 0))
     for line in src_lines:
         # Snapshot đơn lưu SMV giây → phút cho lịch/công suất.
@@ -398,6 +400,9 @@ def sales_order_line_routing(order_line: SxSalesOrderLine):
         if minutes <= 0:
             continue
         wc = map_ie_center_to_hr(line.work_center) or line.work_center
+        group_code = (line.group_code or '').strip()
+        if not group_code and line.operation_id and line.operation and line.operation.group_id:
+            group_code = (line.operation.group.code or '').strip()
         rows.append(
             RoutingStep(
                 sequence=line.seq_no or 10,
@@ -406,6 +411,7 @@ def sales_order_line_routing(order_line: SxSalesOrderLine):
                 minutes_per_unit=minutes,
                 count_minutes=_q(getattr(line, 'count_minutes', 0)),
                 transfer_minutes=_q(getattr(line, 'transfer_minutes', 0)),
+                group_code=group_code,
             )
         )
     if rows:

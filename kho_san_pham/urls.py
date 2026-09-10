@@ -19,6 +19,7 @@ urlpatterns = [
     path('danh-muc/them/', views.product_create, name='product_create'),
     path('danh-muc/dong-bo-kv/', views.product_sync_kv, name='product_sync_kv'),
     path('danh-muc/<int:pk>/', views.product_detail, name='product_detail'),
+    path('danh-muc/<int:pk>/nhan-ban/', views.product_duplicate, name='product_duplicate'),
     path('danh-muc/<int:pk>/sua/', views.product_edit, name='product_edit'),
     path('danh-muc/<int:pk>/ngung/', views.product_deactivate, name='product_deactivate'),
     path('danh-muc/<int:pk>/dung-lai/', views.product_reactivate, name='product_reactivate'),

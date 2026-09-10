@@ -16,6 +16,7 @@ server {
 
     include /etc/nginx/conf.d/security-headers.conf;
     include /etc/nginx/conf.d/performance.conf;
+    include /etc/nginx/error-pages.conf;
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
 
     location / {

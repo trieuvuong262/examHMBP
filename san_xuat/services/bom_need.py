@@ -51,6 +51,13 @@ def per_unit_with_scrap(qty, scrap_pct) -> Decimal:
     return (_q(qty) * factor).quantize(Decimal('0.0001'))
 
 
+def _unit_display(unit) -> str:
+    """Nhãn ĐVT trên giao diện: tên, không dùng mã."""
+    from kho_npl.catalog_labels import unit_label
+
+    return (unit_label(unit) or '')[:30]
+
+
 @dataclass(frozen=True)
 class MaterialNeed:
     material_code: str
@@ -82,10 +89,15 @@ def explode_overrides(
             bom_line_id = None
         if not code and not name and not bom_line_id:
             continue
+        bl = None
         if bom_line_id and not code:
             from san_xuat.models import BomLine
 
-            bl = BomLine.objects.select_related('material').filter(pk=bom_line_id).first()
+            bl = (
+                BomLine.objects.select_related('material', 'material__unit')
+                .filter(pk=bom_line_id)
+                .first()
+            )
             if bl is not None and bl.material_id:
                 code = (bl.material.code or '').strip()
                 name = name or (bl.material.name or '').strip()
@@ -96,6 +108,9 @@ def explode_overrides(
         total = (per * scale).quantize(Decimal('0.001'))
         if total <= 0 and per <= 0:
             continue
+        unit = str(raw.get('unit') or '')[:30]
+        if bl is not None and getattr(bl, 'material_id', None) and bl.material.unit_id:
+            unit = _unit_display(bl.material.unit)
         rows.append(
             MaterialNeed(
                 material_code=code[:60],
@@ -104,7 +119,7 @@ def explode_overrides(
                 qty_total=total,
                 scrap_pct=scrap,
                 size_code=size_code[:20],
-                unit=str(raw.get('unit') or '')[:30],
+                unit=unit,
                 bom_line_id=bom_line_id,
                 scale_qty=scale,
             )
@@ -130,9 +145,7 @@ def explode_bom(
         per = bl.qty_with_scrap
         scale = scale_qty(size_code=size_code, line_qty=qty, size_qtys=size_qtys)
         total = (per * scale).quantize(Decimal('0.001'))
-        unit = ''
-        if mat.unit_id:
-            unit = (mat.unit.code or mat.unit.name or '')[:30]
+        unit = _unit_display(mat.unit) if mat.unit_id else ''
         rows.append(
             MaterialNeed(
                 material_code=(mat.code or '')[:60],
@@ -269,24 +282,49 @@ def resolve_issue_material(need: MaterialNeed):
 def needs_as_display_dicts(rows: list[MaterialNeed]) -> list[dict]:
     from django.db.models.functions import Lower
 
-    from kho_npl.models import Material
+    from kho_npl.models import Material, Unit
 
     codes = {(r.material_code or '').strip() for r in rows if (r.material_code or '').strip()}
     image_by_code: dict[str, str] = {}
+    unit_by_mat: dict[str, str] = {}
     if codes:
         folded = {c.casefold() for c in codes}
         materials = (
-            Material.objects.annotate(_code_l=Lower('code'))
+            Material.objects.select_related('unit')
+            .annotate(_code_l=Lower('code'))
             .filter(_code_l__in=folded)
-            .only('code', 'image')
         )
         for material in materials:
+            key = (material.code or '').strip().casefold()
             try:
                 url = material.image.url if material.image else ''
             except (ValueError, OSError):
                 url = ''
             if url:
-                image_by_code[(material.code or '').strip().casefold()] = url
+                image_by_code[key] = url
+            if material.unit_id:
+                unit_by_mat[key] = _unit_display(material.unit)
+    leftover = {
+        (r.unit or '').strip()
+        for r in rows
+        if (r.unit or '').strip()
+        and not unit_by_mat.get((r.material_code or '').strip().casefold())
+    }
+    unit_by_code: dict[str, str] = {}
+    if leftover:
+        folded_units = {u.casefold() for u in leftover}
+        for unit in Unit.objects.filter(code__in=folded_units):
+            unit_by_code[(unit.code or '').casefold()] = _unit_display(unit)
+
+    def _display_unit(row: MaterialNeed) -> str:
+        key = (row.material_code or '').strip().casefold()
+        if unit_by_mat.get(key):
+            return unit_by_mat[key]
+        stored = (row.unit or '').strip()
+        if stored:
+            return unit_by_code.get(stored.casefold()) or stored
+        return ''
+
     return [
         {
             'material_code': r.material_code,
@@ -295,7 +333,7 @@ def needs_as_display_dicts(rows: list[MaterialNeed]) -> list[dict]:
             'qty_total': r.qty_total,
             'scrap_pct': r.scrap_pct,
             'size_code': r.size_code,
-            'unit': r.unit,
+            'unit': _display_unit(r),
             'scale_qty': r.scale_qty,
             'image_url': image_by_code.get((r.material_code or '').strip().casefold(), ''),
         }

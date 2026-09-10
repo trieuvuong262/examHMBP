@@ -210,7 +210,28 @@
     padding: 0 0.7rem;
     line-height: 1;
   }
+  .jp-pb-prio {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+  }
   .jp-pb-prio form { margin: 0; display: inline-flex; }
+  .jp-pb-color-form input[type="color"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 1.85rem;
+    height: 1.85rem;
+    padding: 0;
+    border: 1px solid #e2e8f0;
+    border-radius: .4rem;
+    background: #fff;
+    cursor: pointer;
+  }
+  .jp-pb-color-form input[type="color"]::-webkit-color-swatch-wrapper { padding: 2px; }
+  .jp-pb-color-form input[type="color"]::-webkit-color-swatch {
+    border: 0;
+    border-radius: .28rem;
+  }
   .jp-pb-prio select {
     min-width: 6.6rem;
     height: 1.85rem;
@@ -1300,16 +1321,16 @@
         {% endif %}
       </div>
       {% elif tab == 'route' and route_board %}
-      <div class="jp-pb-date-shift" aria-label="Chuyển tháng">
+      <div class="jp-pb-date-shift" aria-label="Chuyển khoảng ngày">
         <a href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;route_from={{ route_board.prev_from|date:'Y-m-d' }}&amp;route_to={{ route_board.prev_to|date:'Y-m-d' }}"
-           title="Tháng trước"><i class="bi bi-chevron-left"></i></a>
+           title="Khoảng trước"><i class="bi bi-chevron-left"></i></a>
         <span title="{{ route_board.range_start|date:'d/m/Y' }} – {{ route_board.range_end|date:'d/m/Y' }}">{{ route_board.month_label }}</span>
         <a href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;route_from={{ route_board.next_from|date:'Y-m-d' }}&amp;route_to={{ route_board.next_to|date:'Y-m-d' }}"
-           title="Tháng sau"><i class="bi bi-chevron-right"></i></a>
+           title="Khoảng sau"><i class="bi bi-chevron-right"></i></a>
         {% if not route_board.is_current_month and this_month_from and this_month_to %}
         <a class="jp-pb-month-now"
            href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;route_from={{ this_month_from|date:'Y-m-d' }}&amp;route_to={{ this_month_to|date:'Y-m-d' }}"
-           title="Về tháng hiện tại">Tháng này</a>
+           title="Về 60 ngày từ hôm nay">Hiện tại</a>
         {% endif %}
       </div>
       {% endif %}
@@ -1363,6 +1384,18 @@
                   <option value="{{ val }}" {% if row.order.plan_priority == val %}selected{% endif %}>{{ lab }}</option>
                   {% endfor %}
                 </select>
+              </form>
+              <form method="post" class="jp-pb-color-form" title="Tạo màu lộ trình">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="set_color">
+                <input type="hidden" name="order_id" value="{{ row.order.pk }}">
+                <input type="hidden" name="mode" value="{{ mode }}">
+                <input type="hidden" name="tab" value="{{ tab }}">
+                {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
+                <input type="color" name="color"
+                       value="{{ row.order.plan_color|default:'#dc2626' }}"
+                       aria-label="Tạo màu đơn {{ row.order.code }}"
+                       onchange="this.form.submit()">
               </form>
             </div>
             {% else %}
@@ -1987,6 +2020,23 @@
     if (!y || !mo || !d) return null;
     return new Date(y, mo - 1, d);
   }
+  function fmtYmd(d) {
+    var m = d.getMonth() + 1;
+    var day = d.getDate();
+    return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
+  }
+  function addDays(ymd, n) {
+    var d = parseYmd(ymd);
+    if (!d) return ymd;
+    d.setDate(d.getDate() + n);
+    return fmtYmd(d);
+  }
+  function dayDiff(fromYmd, toYmd) {
+    var a = parseYmd(fromYmd);
+    var b = parseYmd(toYmd);
+    if (!a || !b) return 0;
+    return Math.round((b.getTime() - a.getTime()) / 86400000);
+  }
   function barCanDrag(bar) {
     if (!bar) return false;
     if (bar.getAttribute('data-can-drag') === '1') return true;
@@ -2005,8 +2055,13 @@
   function dateFromClientX(x) {
     var days = chart.querySelectorAll('.jp-tl-day[data-date]');
     if (!days.length) return null;
+    var label = chart.querySelector('.jp-tl-label');
+    if (label) {
+      var edge = label.getBoundingClientRect().right;
+      if (x < edge) x = edge + 1;
+    }
     var first = days[0].getBoundingClientRect();
-    if (x < first.left) return null;
+    if (x < first.left) return days[0].getAttribute('data-date');
     var last = days[days.length - 1].getBoundingClientRect();
     if (x >= last.right) return days[days.length - 1].getAttribute('data-date');
     for (var i = 0; i < days.length; i++) {
@@ -2090,6 +2145,7 @@
       bar: bar,
       handle: handle,
       start: bar.getAttribute('data-start') || '',
+      grabDate: dateFromClientX(ev.clientX) || bar.getAttribute('data-start') || '',
     };
     try {
       ev.dataTransfer.effectAllowed = 'move';
@@ -2105,7 +2161,12 @@
     if (!dragging) return;
     ev.preventDefault();
     try { ev.dataTransfer.dropEffect = 'move'; } catch (e) {}
-    hintDate(dateFromClientX(ev.clientX));
+    var hover = dateFromClientX(ev.clientX);
+    var hint = hover;
+    if (hover && dragging.grabDate && dragging.start) {
+      hint = addDays(dragging.start, dayDiff(dragging.grabDate, hover));
+    }
+    hintDate(hint);
   }
   function onDrop(ev) {
     if (!dragging) return;
@@ -2114,9 +2175,14 @@
     var ymd = dateFromClientX(ev.clientX);
     dragging = null;
     clearDragClass();
-    if (!ymd || ymd === payload.start) return;
-    if (!parseYmd(ymd)) return;
-    save(payload.bar, ymd);
+    if (!ymd || !parseYmd(ymd)) return;
+    var newStart = ymd;
+    if (payload.grabDate && payload.start) {
+      newStart = addDays(payload.start, dayDiff(payload.grabDate, ymd));
+    }
+    if (!newStart || newStart === payload.start) return;
+    if (!parseYmd(newStart)) return;
+    save(payload.bar, newStart);
   }
 
   document.addEventListener('dragover', onDragOver);
@@ -2127,6 +2193,27 @@
       clearDragClass();
     }, 0);
   });
+
+  function clearOrderFocus() {
+    chart.classList.remove('is-order-focus');
+    chart.querySelectorAll('.is-order-on').forEach(function (el) {
+      el.classList.remove('is-order-on');
+    });
+  }
+  function focusOrder(orderId) {
+    clearOrderFocus();
+    if (!orderId) return;
+    var hits = chart.querySelectorAll('[data-order-id="' + orderId + '"]');
+    if (!hits.length) return;
+    chart.classList.add('is-order-focus');
+    hits.forEach(function (el) { el.classList.add('is-order-on'); });
+  }
+  chart.addEventListener('pointerover', function (ev) {
+    var hit = ev.target.closest('[data-order-id]');
+    if (!hit || !chart.contains(hit)) return;
+    focusOrder(hit.getAttribute('data-order-id') || '');
+  });
+  chart.addEventListener('pointerleave', clearOrderFocus);
 })();
 
 

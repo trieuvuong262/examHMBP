@@ -6,12 +6,15 @@
     <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-center gap-2">
         <div>
             <h2 class="fw-bold text-hm mb-0 jp-page-title">
-                {% if is_edit %}Sửa sản phẩm{% else %}Thêm sản phẩm{% endif %}
+                {% if is_edit %}Sửa sản phẩm{% elif is_duplicate %}Nhân bản sản phẩm{% else %}Thêm sản phẩm{% endif %}
             </h2>
+            {% if is_duplicate and source_product %}
+            <div class="small text-muted mt-1">Từ SKU <code>{{ source_product.code }}</code> — đổi màu hoặc size rồi lưu</div>
+            {% endif %}
         </div>
         <div class="d-flex flex-wrap align-items-center gap-2">
             <button type="submit" class="btn btn-hm btn-sm fw-bold">
-                {% if is_edit %}Lưu{% else %}Tạo mới{% endif %}
+                {% if is_edit %}Lưu{% elif is_duplicate %}Tạo bản sao{% else %}Tạo mới{% endif %}
             </button>
             <a href="{{ cancel_url }}" class="btn btn-outline-secondary btn-sm">Hủy</a>
             <a href="{{ cancel_url }}" class="btn btn-outline-secondary btn-sm">
@@ -24,6 +27,16 @@
         <div class="card-body p-3 p-md-4">
                 {% csrf_token %}
                 {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+                {% if is_duplicate and source_product %}
+                <div class="alert alert-info py-2 mb-3">
+                    Nhân bản từ <code>{{ source_product.code }}</code>
+                    {% if source_product.color_code or source_product.size_label %}
+                    ({{ source_product.color_label|default:source_product.color_code|default:"—" }}
+                    · size {{ source_product.size_label|default:"—" }})
+                    {% endif %}.
+                    Đổi <strong>màu</strong> hoặc <strong>size</strong> — SKU, mã vạch và mã KiotViet sẽ tạo mới. Tồn kho bắt đầu từ 0.
+                </div>
+                {% endif %}
                 <div class="row g-3">
                     <div class="col-md-3">
                         <label class="form-label fw-bold small" for="{{ form.product_type.id_for_label }}">Loại SP</label>
@@ -40,13 +53,17 @@
                         {{ form.style_code }}
                         {% if form.style_code.errors %}<div class="text-danger small">{{ form.style_code.errors }}</div>{% endif %}
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-bold small" for="{{ form.color_code.id_for_label }}">Màu</label>
+                    <div class="col-md-3{% if is_duplicate %} rounded px-2 py-1 bg-light{% endif %}">
+                        <label class="form-label fw-bold small" for="{{ form.color_code.id_for_label }}">
+                            Màu{% if is_duplicate %} <span class="text-hm">*</span>{% endif %}
+                        </label>
                         {{ form.color_code }}
                         {% if form.color_code.errors %}<div class="text-danger small">{{ form.color_code.errors }}</div>{% endif %}
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-bold small" for="{{ form.size_label.id_for_label }}">Size</label>
+                    <div class="col-md-3{% if is_duplicate %} rounded px-2 py-1 bg-light{% endif %}">
+                        <label class="form-label fw-bold small" for="{{ form.size_label.id_for_label }}">
+                            Size{% if is_duplicate %} <span class="text-hm">*</span>{% endif %}
+                        </label>
                         {{ form.size_label }}
                         {% if form.size_label.errors %}<div class="text-danger small">{{ form.size_label.errors }}</div>{% endif %}
                     </div>
@@ -100,6 +117,11 @@
                     <div class="col-md-4">
                         <label class="form-label fw-bold small" for="{{ form.image.id_for_label }}">Hình ảnh</label>
                         {{ form.image }}
+                        {% if is_duplicate and source_product.display_image_url %}
+                        <div class="form-text">Để trống sẽ dùng ảnh sản phẩm gốc.</div>
+                        <img src="{{ source_product.display_image_url }}" alt="" class="rounded border mt-1"
+                             style="max-height:64px;object-fit:contain">
+                        {% endif %}
                     </div>
                     <div class="col-12">
                         <label class="form-label fw-bold small" for="{{ form.description.id_for_label }}">Mô tả</label>

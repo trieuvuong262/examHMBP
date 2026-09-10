@@ -138,6 +138,13 @@ class SxSalesOrder(DemoMarkedModel):
         db_index=True,
         verbose_name='Mức độ gấp',
     )
+    plan_color = models.CharField(
+        max_length=7,
+        blank=True,
+        default='',
+        verbose_name='Màu lộ trình',
+        help_text='Màu tự chọn trên lộ trình (#RRGGBB). Trống = màu hệ thống.',
+    )
     plan_rank = models.PositiveIntegerField(
         null=True, blank=True, db_index=True, verbose_name='Thứ tự xếp',
     )
@@ -309,7 +316,20 @@ class SxOrderNplLine(models.Model):
     unit = models.CharField(max_length=30, blank=True, default='', verbose_name='ĐVT')
     qty_required = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal('0'))
     qty_on_hand = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal('0'))
-    qty_available = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal('0'))
+    qty_available = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        default=Decimal('0'),
+        verbose_name='Còn đặt được',
+        help_text='Tồn kho trừ phần đơn khác đã đặt (chưa xuất phiếu).',
+    )
+    qty_allocated = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        default=Decimal('0'),
+        verbose_name='Đặt cho đơn',
+        help_text='SL tồn kho nhân viên KHSX gán cho đơn này — giữ chỗ mềm, chưa xuất phiếu.',
+    )
     qty_inbound = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal('0'))
     qty_shortfall = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal('0'))
     buy_lead_days = models.PositiveSmallIntegerField(
@@ -514,6 +534,7 @@ class SxSalesOrderPlanStep(models.Model):
     )
     sequence = models.PositiveSmallIntegerField(default=10, verbose_name='Thứ tự')
     process_name = models.CharField(max_length=120, verbose_name='Công đoạn')
+    group_code = models.CharField(max_length=30, blank=True, default='', verbose_name='Mã nhóm')
     work_center = models.ForeignKey(
         'san_xuat.SxWorkCenter',
         on_delete=models.SET_NULL,
@@ -814,7 +835,7 @@ class SxMaterialPlanLine(models.Model):
         decimal_places=4,
         default=Decimal('0'),
         verbose_name='Đã giữ chỗ',
-        help_text='Số lượng thực tế giữ được trong kho khi xác nhận kế hoạch.',
+        help_text='Số lượng thực tế giữ được trong kho (số đặt KHSX hoặc xác nhận KHNVL).',
     )
     need_date = models.DateField(
         null=True,

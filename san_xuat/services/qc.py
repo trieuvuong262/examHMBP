@@ -232,14 +232,27 @@ def resolve_team_slug_from_routing_line(line) -> str | None:
         team_slug_for_process_label,
         team_slug_for_work_center_code,
     )
+    from san_xuat.services.team_personnel import _group_code_slug, _slug_for_operation_group
+
+    group_code = (getattr(line, "group_code", "") or "").strip()
+    group = None
+    op = getattr(line, "operation", None)
+    if op is not None:
+        group = getattr(op, "group", None)
+        if not group_code and group is not None:
+            group_code = (group.code or "").strip()
+    if group is not None:
+        slug = _slug_for_operation_group(group)
+        if slug:
+            return slug
+    if group_code:
+        slug = _group_code_slug(group_code)
+        if slug:
+            return slug
 
     wc = getattr(line, "work_center", None)
     code = (getattr(wc, "code", None) or getattr(line, "work_center_code", "") or "").strip()
     slug = team_slug_for_work_center_code(code)
-    if slug:
-        return slug
-    group = (getattr(line, "group_code", "") or "").strip()
-    slug = team_slug_for_work_center_code(group)
     if slug:
         return slug
     name = (

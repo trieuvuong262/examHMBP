@@ -1,0 +1,32 @@
+{% load sx_format %}
+<tr{% if ln.qty_shortfall > 0 %} class="is-short"{% endif %}>
+  <td>
+    <div class="jp-pb-npl-material">
+      {% if ln.material_image_url %}
+      <img src="{{ ln.material_image_url }}" alt="" class="jp-pb-npl-image" loading="lazy">
+      {% else %}
+      <span class="jp-pb-npl-image is-empty" aria-hidden="true"><i class="bi bi-image"></i></span>
+      {% endif %}
+      <span class="jp-pb-npl-name">{{ ln.material_name|default:"—" }}</span>
+    </div>
+  </td>
+  <td class="num">{{ ln.qty_required|sx_num }}{% if ln.unit %} {{ ln.unit }}{% endif %}</td>
+  <td class="num" title="Tồn trừ phần đơn khác đã đặt">{{ ln.qty_available|sx_num }}</td>
+  <td class="num">
+    <input type="number" name="allocate_for__{{ ln.pk }}" min="0" step="0.0001"
+           class="form-control form-control-sm"
+           value="{{ ln.qty_allocated|sx_num_input }}"
+           {% if not can_schedule or row.order.plan_status == 'on_hold' or tab != 'queue' %}readonly{% endif %}>
+  </td>
+  <td{% if ln.supplier_code %} title="{{ ln.supplier_code }}"{% endif %}>{{ ln.supplier_name|default:"—" }}</td>
+  <td class="num">{% if ln.qty_shortfall > 0 %}<strong>{{ ln.qty_shortfall|sx_num }}</strong>{% else %}—{% endif %}</td>
+  <td class="num">
+    {% if ln.qty_shortfall > 0 %}
+    <input type="number" name="buy_for__{{ ln.pk }}" min="0" max="365" class="form-control form-control-sm"
+           value="{{ ln.buy_lead_days|default_if_none:'' }}"
+           {% if not can_schedule or row.order.plan_status == 'on_hold' or tab != 'queue' %}readonly{% endif %}>
+    {% else %}
+    —
+    {% endif %}
+  </td>
+</tr>

@@ -12,12 +12,16 @@ nếu chưa khai báo cặp thì dùng mặc định chung. Từng đơn ghi đ�
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from decimal import Decimal, ROUND_CEILING
 
 from san_xuat.services.sx_settings import sx_decimal, sx_int
 from san_xuat.services.work_calendar import is_working_day
+
+_GROUP_SLUGS: ContextVar[dict[str, str] | None] = ContextVar('sx_op_group_slugs', default=None)
 
 _Q2 = Decimal('0.01')
 
@@ -110,12 +114,13 @@ def hop_buffer_minutes(steps) -> Decimal:
         return Decimal('0')
     pairs = hop_pair_map()
     total = Decimal('0')
-    for i, step in enumerate(rows[:-1]):
-        nxt = rows[i + 1]
-        if not is_inter_team_hop(step, nxt):
-            continue
-        c, t = resolve_adjacent_hop(step, nxt, fill_default=True, pairs=pairs)
-        total += c + t
+    with _group_slug_scope():
+        for i, step in enumerate(rows[:-1]):
+            nxt = rows[i + 1]
+            if not is_inter_team_hop(step, nxt):
+                continue
+            c, t = resolve_adjacent_hop(step, nxt, fill_default=True, pairs=pairs)
+            total += c + t
     return _q(total)
 
 
@@ -176,18 +181,19 @@ class PlanHop:
 def hops_from_steps(steps) -> list[PlanHop]:
     rows = list(steps or [])
     hops: list[PlanHop] = []
-    for i, step in enumerate(rows[:-1]):
-        nxt = rows[i + 1]
-        if not is_inter_team_hop(step, nxt):
-            continue
-        c, t = resolve_adjacent_hop(step, nxt, fill_default=False)
-        hops.append(PlanHop(
-            step_id=int(_step_attr(step, 'pk', 0) or 0),
-            from_name=(_step_attr(step, 'process_name') or '').strip(),
-            to_name=(_step_attr(nxt, 'process_name') or '').strip(),
-            count_minutes=c,
-            transfer_minutes=t,
-        ))
+    with _group_slug_scope():
+        for i, step in enumerate(rows[:-1]):
+            nxt = rows[i + 1]
+            if not is_inter_team_hop(step, nxt):
+                continue
+            c, t = resolve_adjacent_hop(step, nxt, fill_default=False)
+            hops.append(PlanHop(
+                step_id=int(_step_attr(step, 'pk', 0) or 0),
+                from_name=(_step_attr(step, 'process_name') or '').strip(),
+                to_name=(_step_attr(nxt, 'process_name') or '').strip(),
+                count_minutes=c,
+                transfer_minutes=t,
+            ))
     return hops
 
 
@@ -197,22 +203,96 @@ def _step_attr(step, name: str, default=None):
     return getattr(step, name, default)
 
 
+def _load_group_slugs() -> dict[str, str]:
+    """Mã nhóm thư viện → slug bộ phận theo trường Nhóm, không đoán tên công đoạn."""
+    from san_xuat.ie_models import SxOperationGroup
+    from san_xuat.services.team_personnel import _group_code_slug, _slug_for_operation_group
+
+    out: dict[str, str] = {}
+    for grp in SxOperationGroup.objects.select_related('default_work_center'):
+        slug = _slug_for_operation_group(grp) or _group_code_slug(grp.code or '')
+        code = (grp.code or '').strip()
+        if slug and code:
+            out[code.casefold()] = slug
+    return out
+
+
+@contextmanager
+def _group_slug_scope():
+    token = None
+    if _GROUP_SLUGS.get() is None:
+        token = _GROUP_SLUGS.set(_load_group_slugs())
+    try:
+        yield
+    finally:
+        if token is not None:
+            _GROUP_SLUGS.reset(token)
+
+
+def _step_group_code(step) -> str:
+    code = (_step_attr(step, 'group_code') or '').strip()
+    if code:
+        return code
+    op = _step_attr(step, 'operation')
+    if op is not None:
+        grp = getattr(op, 'group', None)
+        if grp is not None:
+            return (getattr(grp, 'code', None) or '').strip()
+    return ''
+
+
+def attach_group_codes_from_routing(steps, routing_lines) -> None:
+    """Gắn group_code từ snapshot routing (Nhóm thư viện) khi bước kế hoạch còn trống."""
+    by_name: dict[str, str] = {}
+    for line in routing_lines or []:
+        name = (
+            getattr(line, 'op_name_vi', None)
+            or getattr(line, 'process_name', None)
+            or ''
+        ).strip().casefold()
+        gc = (getattr(line, 'group_code', None) or '').strip()
+        if not gc:
+            op = getattr(line, 'operation', None)
+            if op is not None and getattr(op, 'group', None) is not None:
+                gc = (op.group.code or '').strip()
+        if name and gc and name not in by_name:
+            by_name[name] = gc
+    if not by_name:
+        return
+    for step in steps or []:
+        if _step_group_code(step):
+            continue
+        name = (_step_attr(step, 'process_name') or '').strip().casefold()
+        gc = by_name.get(name)
+        if gc:
+            try:
+                step.group_code = gc
+            except Exception:
+                pass
+
+
 def _step_team_slug(step) -> str | None:
-    """Slug bộ phận chuẩn (cat/may/ht/…) từ tổ hoặc tên công đoạn."""
+    """Slug bộ phận (cat/may/…) từ trường Nhóm thư viện công đoạn chuẩn."""
     if step is None:
         return None
+    group_code = _step_group_code(step)
+    if group_code:
+        mapping = _GROUP_SLUGS.get()
+        if mapping is None:
+            mapping = _load_group_slugs()
+        slug = mapping.get(group_code.casefold())
+        if slug:
+            return _norm_slug(slug)
+        from san_xuat.services.team_personnel import _group_code_slug
+
+        slug = _group_code_slug(group_code)
+        if slug:
+            return _norm_slug(slug)
     wc = _step_attr(step, 'work_center')
     if wc is not None:
         from san_xuat.services.capacity_from_hrm import team_slug_for_work_center
 
         slug = team_slug_for_work_center(wc)
-        if slug:
-            return _norm_slug(slug)
-    name = (_step_attr(step, 'process_name') or '').strip()
-    if name:
-        from san_xuat.services.progress_template import team_slug_for_process_label
-
-        slug = team_slug_for_process_label(name)
         if slug:
             return _norm_slug(slug)
     label = (_step_attr(step, 'team_label') or '').strip()
@@ -243,6 +323,10 @@ def _step_team_key(step) -> tuple[int | None, str]:
 
 def is_inter_team_hop(step, nxt) -> bool:
     """True khi bước sau thuộc tổ khác (cùng quy tắc cụm trên bảng kế hoạch)."""
+    next_slug = _step_team_slug(nxt)
+    cur_slug = _step_team_slug(step)
+    if next_slug or cur_slug:
+        return (next_slug or '') != (cur_slug or '')
     next_id, _ = _step_team_key(nxt)
     if next_id is None:
         return True
@@ -369,16 +453,17 @@ def sort_steps_by_factory_flow(steps) -> list:
 
     slug_rank = {slug: i for i, (slug, *_rest) in enumerate(TEAM_SLUGS)}
     indexed: list[tuple[int, int, int, object]] = []
-    for i, step in enumerate(steps or []):
-        slug = _step_team_slug(step) or ''
-        seq = int(_step_attr(step, 'sequence', 0) or 0)
-        if slug in slug_rank:
-            rank = slug_rank[slug]
-        elif slug:
-            rank = 800
-        else:
-            rank = 900
-        indexed.append((rank, seq, i, step))
+    with _group_slug_scope():
+        for i, step in enumerate(steps or []):
+            slug = _step_team_slug(step) or ''
+            seq = int(_step_attr(step, 'sequence', 0) or 0)
+            if slug in slug_rank:
+                rank = slug_rank[slug]
+            elif slug:
+                rank = 800
+            else:
+                rank = 900
+            indexed.append((rank, seq, i, step))
     indexed.sort(key=lambda row: (row[0], row[1], row[2]))
     return [row[3] for row in indexed]
 
@@ -387,76 +472,78 @@ def flow_groups_from_steps(steps, *, sort_factory: bool = False) -> list[PlanFlo
     """Gộp công đoạn liền kề cùng tổ. Bước chưa gán tổ đứng riêng.
 
     ``sort_factory=True``: xếp lại theo luồng xưởng trước khi gộp (hết nhảy tổ).
+    Tổ lấy từ trường Nhóm thư viện công đoạn chuẩn, không tự lọc theo tên CĐ.
     """
     rows = list(steps or [])
     if not rows:
         return []
-    if sort_factory:
-        rows = sort_steps_by_factory_flow(rows)
+    with _group_slug_scope():
+        if sort_factory:
+            rows = sort_steps_by_factory_flow(rows)
 
-    clusters: list[tuple[int | None, str, str, list]] = []
-    for step in rows:
-        wc_id, label = _step_team_key(step)
-        slug = _step_team_slug(step) or ''
-        # Gộp theo slug chuẩn khi có — tránh trùng pill vì WC khác tên cùng tổ
-        cluster_key = slug or (f'wc:{wc_id}' if wc_id is not None else None)
-        if cluster_key is None:
-            clusters.append((None, label, '', [step]))
-            continue
-        if clusters and clusters[-1][2] == cluster_key and cluster_key:
-            clusters[-1][3].append(step)
-            # Giữ nhãn/wc đầu tiên; bổ sung label nếu cụm trước trống
-            if not clusters[-1][1] and label:
-                clusters[-1] = (wc_id or clusters[-1][0], label, cluster_key, clusters[-1][3])
-            elif clusters[-1][0] is None and wc_id is not None:
-                clusters[-1] = (wc_id, label or clusters[-1][1], cluster_key, clusters[-1][3])
-        else:
-            clusters.append((wc_id, label, cluster_key, [step]))
+        clusters: list[tuple[int | None, str, str, list]] = []
+        for step in rows:
+            wc_id, label = _step_team_key(step)
+            slug = _step_team_slug(step) or ''
+            # Gộp theo slug chuẩn khi có — tránh trùng pill vì WC khác tên cùng tổ
+            cluster_key = slug or (f'wc:{wc_id}' if wc_id is not None else None)
+            if cluster_key is None:
+                clusters.append((None, label, '', [step]))
+                continue
+            if clusters and clusters[-1][2] == cluster_key and cluster_key:
+                clusters[-1][3].append(step)
+                # Giữ nhãn/wc đầu tiên; bổ sung label nếu cụm trước trống
+                if not clusters[-1][1] and label:
+                    clusters[-1] = (wc_id or clusters[-1][0], label, cluster_key, clusters[-1][3])
+                elif clusters[-1][0] is None and wc_id is not None:
+                    clusters[-1] = (wc_id, label or clusters[-1][1], cluster_key, clusters[-1][3])
+            else:
+                clusters.append((wc_id, label, cluster_key, [step]))
 
-    groups: list[PlanFlowGroup] = []
-    pairs = hop_pair_map()
-    from san_xuat.services.progress_template import team_by_slug
+        groups: list[PlanFlowGroup] = []
+        pairs = hop_pair_map()
+        from san_xuat.services.progress_template import team_by_slug
 
-    for i, (wc_id, label, ckey, cluster) in enumerate(clusters):
-        # Nhãn chuẩn theo slug xưởng khi gộp (ỦI + GẤP XẾP → «Ủi - Gấp xếp»)
-        if ckey and not ckey.startswith('wc:'):
-            meta = team_by_slug(ckey)
-            if meta:
-                label = meta.get('group_label') or meta.get('label') or label
-        names: list[str] = []
-        seen: set[str] = set()
-        for step in cluster:
-            name = (_step_attr(step, 'process_name') or '').strip()
-            key = name.casefold()
-            if name and key not in seen:
-                seen.add(key)
-                names.append(name)
-        hop_c = hop_t = Decimal('0')
-        hop_step_id = 0
-        from_slug = to_slug = ''
-        def_c, def_t = _global_hop_minutes()
-        if i < len(clusters) - 1:
-            last = cluster[-1]
-            nxt_first = clusters[i + 1][3][0]
-            hop_step_id = int(_step_attr(last, 'pk', 0) or 0)
-            from_slug = _step_team_slug(last) or ''
-            to_slug = _step_team_slug(nxt_first) or ''
-            hop_c, hop_t = resolve_adjacent_hop(last, nxt_first, fill_default=False, pairs=pairs)
-            def_c, def_t = default_hop_minutes(from_slug, to_slug, pairs=pairs)
-        groups.append(PlanFlowGroup(
-            team_label=label,
-            work_center_id=wc_id,
-            process_names=names,
-            hop_step_id=hop_step_id,
-            count_minutes=hop_c,
-            transfer_minutes=hop_t,
-            from_slug=from_slug,
-            to_slug=to_slug,
-            team_slug=ckey if ckey and not str(ckey).startswith('wc:') else '',
-            default_count_minutes=def_c,
-            default_transfer_minutes=def_t,
-        ))
-    return groups
+        for i, (wc_id, label, ckey, cluster) in enumerate(clusters):
+            # Nhãn chuẩn theo slug xưởng khi gộp (ỦI + GẤP XẾP → «Ủi - Gấp xếp»)
+            if ckey and not ckey.startswith('wc:'):
+                meta = team_by_slug(ckey)
+                if meta:
+                    label = meta.get('group_label') or meta.get('label') or label
+            names: list[str] = []
+            seen: set[str] = set()
+            for step in cluster:
+                name = (_step_attr(step, 'process_name') or '').strip()
+                key = name.casefold()
+                if name and key not in seen:
+                    seen.add(key)
+                    names.append(name)
+            hop_c = hop_t = Decimal('0')
+            hop_step_id = 0
+            from_slug = to_slug = ''
+            def_c, def_t = _global_hop_minutes()
+            if i < len(clusters) - 1:
+                last = cluster[-1]
+                nxt_first = clusters[i + 1][3][0]
+                hop_step_id = int(_step_attr(last, 'pk', 0) or 0)
+                from_slug = _step_team_slug(last) or ''
+                to_slug = _step_team_slug(nxt_first) or ''
+                hop_c, hop_t = resolve_adjacent_hop(last, nxt_first, fill_default=False, pairs=pairs)
+                def_c, def_t = default_hop_minutes(from_slug, to_slug, pairs=pairs)
+            groups.append(PlanFlowGroup(
+                team_label=label,
+                work_center_id=wc_id if isinstance(wc_id, int) else None,
+                process_names=names,
+                hop_step_id=hop_step_id,
+                count_minutes=hop_c,
+                transfer_minutes=hop_t,
+                from_slug=from_slug,
+                to_slug=to_slug,
+                team_slug=ckey if ckey and not str(ckey).startswith('wc:') else '',
+                default_count_minutes=def_c,
+                default_transfer_minutes=def_t,
+            ))
+        return groups
 
 
 def hop_pair_form_context() -> dict:

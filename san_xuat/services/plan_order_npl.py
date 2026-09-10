@@ -9,8 +9,12 @@ from decimal import Decimal
 from django.db import transaction
 from django.utils import timezone
 
-from kho_npl.models import Material
-from kho_npl.services.reservation import material_available_qty
+from kho_npl.models import Material, StockReservation
+from kho_npl.services.reservation import (
+    material_available_qty,
+    release_reservations_for_khsx_order,
+    upsert_reservations_for_khsx_order,
+)
 from kho_npl.services.stock import material_total_qty
 from san_xuat.hub_models import (
     SxMaterialPlan,
@@ -88,8 +92,17 @@ class ExplodedNpl:
     qty_shortfall: Decimal
 
 
+def line_shortfall(*, qty_required: Decimal, qty_allocated: Decimal, qty_inbound: Decimal) -> Decimal:
+    """Thiếu = nhu cầu − số đặt − hàng đang về."""
+    return max(Decimal('0'), _q(qty_required) - _q(qty_allocated) - _q(qty_inbound))
+
+
 def explode_order_npl_rows(order: SxSalesOrder) -> list[ExplodedNpl]:
-    """Gộp nhu cầu NPL mọi dòng SP, đọc tồn kho_npl."""
+    """Gộp nhu cầu NPL mọi dòng SP, đọc tồn kho_npl.
+
+    ``qty_available`` = còn đặt được cho đơn này (tồn − giữ chỗ đơn khác).
+    Thiếu hụt tính sau khi nhân viên gõ số đặt, không lấy từ tồn chung.
+    """
     needed: dict[str, dict] = {}
     for ln in order.lines.all():
         if (ln.qty or 0) <= 0:
@@ -119,9 +132,14 @@ def explode_order_npl_rows(order: SxSalesOrder) -> list[ExplodedNpl]:
         rec = needed[key]
         mat = Material.objects.filter(code__iexact=rec['code'], is_active=True).first()
         on_hand = _q(material_total_qty(mat) if mat else 0)
-        available = _q(material_available_qty(mat) if mat else 0)
+        available = _q(
+            material_available_qty(
+                mat,
+                exclude_ref_type=StockReservation.REF_KHSX,
+                exclude_ref_code=order.code,
+            ) if mat else 0
+        )
         inbound = _q(_expected_inbound_qty(rec['code']))
-        shortfall = max(Decimal('0'), rec['qty'] - available - inbound)
         out.append(ExplodedNpl(
             material_code=rec['code'],
             material_name=rec['name'],
@@ -130,7 +148,7 @@ def explode_order_npl_rows(order: SxSalesOrder) -> list[ExplodedNpl]:
             qty_on_hand=on_hand,
             qty_available=available,
             qty_inbound=inbound,
-            qty_shortfall=shortfall.quantize(_Q4),
+            qty_shortfall=Decimal('0'),
         ))
     return out
 
@@ -195,10 +213,11 @@ def sync_order_npl(
     order_id: int,
     kit_days: int | None = None,
     buy_by_line: dict[int, int | None] | None = None,
+    allocate_by_line: dict[int, Decimal | None] | None = None,
     apply_schedule: bool = False,
     refresh_stock: bool = True,
 ) -> SxSalesOrder:
-    """Explode/làm mới dòng NPL; lưu ngày mua; tùy chọn cộng vào KHSX."""
+    """Explode/làm mới dòng NPL; lưu số đặt + ngày mua; tùy chọn cộng vào KHSX."""
     order = (
         SxSalesOrder.objects.select_for_update()
         .prefetch_related('lines', 'npl_lines')
@@ -215,6 +234,7 @@ def sync_order_npl(
 
     rows = explode_order_npl_rows(order)
     if not rows:
+        release_reservations_for_khsx_order(order=order)
         order.npl_lines.all().delete()
         order.npl_status = SxSalesOrder.NPL_NONE
         order.npl_ready_date = None
@@ -227,18 +247,14 @@ def sync_order_npl(
 
     existing = {ln.material_code.casefold(): ln for ln in order.npl_lines.all()}
     keep_ids: list[int] = []
-    seen: set[str] = set()
     sort = 0
     for rec in rows:
         key = rec.material_code.casefold()
-        seen.add(key)
         sort += 10
         ln = existing.get(key)
         buy = ln.buy_lead_days if ln else None
         if buy_by_line is not None and ln and ln.pk in buy_by_line:
             buy = buy_by_line[ln.pk]
-        if rec.qty_shortfall <= 0:
-            buy = None
         if ln is None:
             ln = SxOrderNplLine(order=order, material_code=rec.material_code)
         ln.material_name = rec.material_name
@@ -248,7 +264,9 @@ def sync_order_npl(
             ln.qty_on_hand = rec.qty_on_hand
             ln.qty_available = rec.qty_available
             ln.qty_inbound = rec.qty_inbound
-            ln.qty_shortfall = rec.qty_shortfall
+        cap = min(_q(ln.qty_required), _q(ln.qty_available))
+        if (ln.qty_allocated or 0) > cap:
+            ln.qty_allocated = cap
         ln.buy_lead_days = buy
         ln.sort_order = sort
         ln.save()
@@ -257,13 +275,43 @@ def sync_order_npl(
     order.npl_lines.exclude(pk__in=keep_ids).delete()
     lines = list(order.npl_lines.order_by('sort_order', 'id'))
 
-    if buy_by_line is not None:
+    if allocate_by_line is not None:
+        over: list[str] = []
         for ln in lines:
-            if ln.pk in buy_by_line:
-                ln.buy_lead_days = buy_by_line[ln.pk]
-                if ln.qty_shortfall <= 0:
-                    ln.buy_lead_days = None
-                ln.save(update_fields=['buy_lead_days'])
+            if ln.pk not in allocate_by_line:
+                continue
+            raw = allocate_by_line[ln.pk]
+            placed = _q(0 if raw is None else raw)
+            if placed < 0:
+                placed = Decimal('0')
+            cap = min(_q(ln.qty_required), _q(ln.qty_available))
+            if placed > cap:
+                label = ln.material_name or ln.material_code
+                over.append(f'{label}: còn đặt được {cap}')
+                continue
+            ln.qty_allocated = placed
+        if over:
+            raise PlanningError(
+                'Số đặt vượt phần còn lại (đơn khác đã đặt). ' + '; '.join(over)
+            )
+        for ln in lines:
+            ln.save(update_fields=['qty_allocated'])
+
+    for ln in lines:
+        ln.qty_shortfall = line_shortfall(
+            qty_required=ln.qty_required,
+            qty_allocated=ln.qty_allocated,
+            qty_inbound=ln.qty_inbound,
+        )
+        if ln.qty_shortfall <= 0:
+            ln.buy_lead_days = None
+        elif buy_by_line is not None and ln.pk in buy_by_line:
+            ln.buy_lead_days = buy_by_line[ln.pk]
+        ln.save(update_fields=['qty_shortfall', 'buy_lead_days'])
+
+    if hasattr(order, '_prefetched_objects_cache'):
+        order._prefetched_objects_cache.pop('npl_lines', None)
+    upsert_reservations_for_khsx_order(order=order)
 
     if kit_days is not None:
         kit = max(0, min(int(kit_days), 120))
@@ -275,6 +323,7 @@ def sync_order_npl(
     if (
         not apply_schedule
         and buy_by_line is None
+        and allocate_by_line is None
         and order.npl_status == SxSalesOrder.NPL_READY
     ):
         apply_schedule = True
@@ -344,6 +393,7 @@ def upsert_material_plan_from_order(
                 qty_on_hand=ln.qty_on_hand,
                 qty_expected_inbound=ln.qty_inbound,
                 qty_shortfall=ln.qty_shortfall,
+                qty_reserved=ln.qty_allocated,
                 need_date=ln.ready_date or need_default,
             )
             for ln in lines

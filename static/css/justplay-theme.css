@@ -12612,13 +12612,6 @@ body.jp-monitor-modal-open {
     flex-wrap: wrap;
     justify-content: center;
     gap: 0.65rem;
-    margin-bottom: 1.15rem;
-}
-
-.jp-http-error-help {
-    font-size: 0.82rem;
-    color: var(--jp-text-muted);
-    line-height: 1.5;
 }
 
 [data-theme="dark"] .jp-http-error-card {

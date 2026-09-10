@@ -253,6 +253,14 @@ ensure_ssl_conf() {
   else
     echo "    ${ssl_conf} OK"
   fi
+  if [[ -f "${ssl_conf}" ]] && ! grep -q 'error-pages.conf' "${ssl_conf}"; then
+    if grep -q 'include /etc/nginx/conf.d/performance.conf;' "${ssl_conf}"; then
+      sed -i '/include \/etc\/nginx\/conf.d\/performance.conf;/a\    include /etc/nginx/error-pages.conf;' "${ssl_conf}"
+    else
+      sed -i '/^}/i\    include /etc/nginx/error-pages.conf;' "${ssl_conf}"
+    fi
+    echo "    Injected error-pages include into ssl.conf"
+  fi
 }
 
 echo "==> 1) Pull latest code"

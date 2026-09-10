@@ -1,4 +1,4 @@
-"""Giữ chỗ tồn NPL — trừ khỏi available cho KHNVL / YCX."""
+"""Giữ chỗ tồn NPL — trừ khỏi available cho KHSX / KHNVL / YCX."""
 
 from __future__ import annotations
 
@@ -15,21 +15,35 @@ class ReservationError(Exception):
     pass
 
 
-def material_reserved_qty(material: Material) -> Decimal:
-    total = (
-        StockReservation.objects.filter(
-            material=material,
-            status=StockReservation.STATUS_ACTIVE,
-        ).aggregate(t=Sum("quantity"))["t"]
-        or Decimal("0")
+def material_reserved_qty(
+    material: Material,
+    *,
+    exclude_ref_type: str = '',
+    exclude_ref_code: str = '',
+) -> Decimal:
+    qs = StockReservation.objects.filter(
+        material=material,
+        status=StockReservation.STATUS_ACTIVE,
     )
+    if exclude_ref_type and exclude_ref_code:
+        qs = qs.exclude(ref_type=exclude_ref_type, ref_code=exclude_ref_code)
+    total = qs.aggregate(t=Sum("quantity"))["t"] or Decimal("0")
     return total
 
 
-def material_available_qty(material: Material) -> Decimal:
+def material_available_qty(
+    material: Material,
+    *,
+    exclude_ref_type: str = '',
+    exclude_ref_code: str = '',
+) -> Decimal:
     """Tồn on-hand − đang giữ chỗ (không âm)."""
     on_hand = material_total_qty(material)
-    reserved = material_reserved_qty(material)
+    reserved = material_reserved_qty(
+        material,
+        exclude_ref_type=exclude_ref_type,
+        exclude_ref_code=exclude_ref_code,
+    )
     avail = on_hand - reserved
     return avail if avail > 0 else Decimal("0")
 
@@ -92,16 +106,70 @@ def release_reservations_for_ycx(*, ycx_code: str) -> int:
 
 
 @transaction.atomic
+def upsert_reservations_for_khsx_order(*, order) -> list[StockReservation]:
+    """Giữ chỗ mềm theo số đặt trên đơn KHSX — chưa xuất phiếu."""
+    from san_xuat.hub_models import SxSalesOrder
+
+    if not isinstance(order, SxSalesOrder):
+        order = SxSalesOrder.objects.prefetch_related("npl_lines").get(pk=order)
+
+    StockReservation.objects.filter(
+        ref_type=StockReservation.REF_KHSX,
+        ref_code=order.code,
+        status=StockReservation.STATUS_ACTIVE,
+    ).update(status=StockReservation.STATUS_RELEASED)
+
+    created: list[StockReservation] = []
+    for line in order.npl_lines.all():
+        hold = (line.qty_allocated or Decimal("0")).quantize(Decimal("0.001"))
+        if hold <= 0:
+            continue
+        mat = Material.objects.filter(code__iexact=line.material_code, is_active=True).first()
+        if not mat:
+            continue
+        created.append(
+            StockReservation.objects.create(
+                material=mat,
+                quantity=hold,
+                ref_type=StockReservation.REF_KHSX,
+                ref_code=order.code,
+                status=StockReservation.STATUS_ACTIVE,
+                notes=f"KHSX {order.code}",
+            )
+        )
+    return created
+
+
+@transaction.atomic
+def release_reservations_for_khsx_order(*, order) -> int:
+    from san_xuat.hub_models import SxSalesOrder
+
+    if not isinstance(order, SxSalesOrder):
+        order = SxSalesOrder.objects.get(pk=order)
+    return StockReservation.objects.filter(
+        ref_type=StockReservation.REF_KHSX,
+        ref_code=order.code,
+        status=StockReservation.STATUS_ACTIVE,
+    ).update(status=StockReservation.STATUS_RELEASED)
+
+
+@transaction.atomic
 def upsert_reservations_for_khnvl(*, plan) -> list[StockReservation]:
     """Giữ chỗ tồn NPL cho KHNVL đã xác nhận.
 
     Giữ tối đa phần tồn khả dụng đang có (không thể giữ hàng chưa về). Số thực
     giữ được ghi lại vào `qty_reserved` của từng dòng KHNVL để biết còn hở bao nhiêu.
+
+    KHNVL gắn đơn KHSX: bỏ qua — chỗ đã giữ bằng số đặt (REF_KHSX).
     """
     from san_xuat.hub_models import SxMaterialPlan
 
     if not isinstance(plan, SxMaterialPlan):
         plan = SxMaterialPlan.objects.prefetch_related("lines").get(pk=plan)
+
+    if getattr(plan, "sales_order_id", None):
+        # Số đặt trên KHSX đã giữ REF_KHSX — không cộng chồng KHNVL.
+        return []
 
     StockReservation.objects.filter(
         ref_type=StockReservation.REF_KHNVL,
@@ -145,6 +213,9 @@ def release_reservations_for_khnvl(*, plan) -> int:
 
     if not isinstance(plan, SxMaterialPlan):
         plan = SxMaterialPlan.objects.prefetch_related("lines").get(pk=plan)
+
+    if getattr(plan, "sales_order_id", None):
+        return 0
 
     freed = StockReservation.objects.filter(
         ref_type=StockReservation.REF_KHNVL,

@@ -143,6 +143,65 @@ ACTIVE_MO_STATUSES = (
 )
 
 
+ROUTE_TRACK_COUNT = 10
+ROUTE_TRACK_COLORS = (
+    ('#dc2626', '#fef2f2'),
+    ('#2563eb', '#eff6ff'),
+    ('#059669', '#ecfdf5'),
+    ('#d97706', '#fffbeb'),
+    ('#7c3aed', '#f5f3ff'),
+    ('#db2777', '#fdf2f8'),
+    ('#0f766e', '#f0fdfa'),
+    ('#ea580c', '#fff7ed'),
+    ('#4f46e5', '#eef2ff'),
+    ('#4d7c0f', '#f7fee7'),
+)
+
+
+def route_track_index(order_id: int) -> int:
+    """Chỉ số màu ổn định theo đơn — lần Cắt/May/Ủi cùng một sắc."""
+    return (int(order_id or 0) * 7 + 3) % ROUTE_TRACK_COUNT
+
+
+def normalize_plan_color(raw: str, *, allow_empty: bool = False) -> str:
+    text = (raw or '').strip().lower()
+    if text.startswith('#') and len(text) == 7:
+        hex_part = text[1:]
+    elif len(text) == 6:
+        hex_part = text
+        text = f'#{hex_part}'
+    elif allow_empty and text == '':
+        return ''
+    else:
+        raise PlanningError('Màu không hợp lệ — chọn mã #RRGGBB.')
+    if any(ch not in '0123456789abcdef' for ch in hex_part):
+        raise PlanningError('Màu không hợp lệ — chọn mã #RRGGBB.')
+    return text
+
+
+def mix_track_soft(hex_color: str) -> str:
+    color = normalize_plan_color(hex_color)
+    red = int(color[1:3], 16)
+    green = int(color[3:5], 16)
+    blue = int(color[5:7], 16)
+    red = min(255, int(red + (255 - red) * 0.88))
+    green = min(255, int(green + (255 - green) * 0.88))
+    blue = min(255, int(blue + (255 - blue) * 0.88))
+    return f'#{red:02x}{green:02x}{blue:02x}'
+
+
+def route_track_pair(order: SxSalesOrder) -> tuple[str, str]:
+    custom = (getattr(order, 'plan_color', '') or '').strip()
+    if custom:
+        try:
+            color = normalize_plan_color(custom)
+            return color, mix_track_soft(color)
+        except PlanningError:
+            pass
+    idx = route_track_index(order.pk)
+    return ROUTE_TRACK_COLORS[idx]
+
+
 def _q(value, places: str = '0.01') -> Decimal:
     return Decimal(str(value or 0)).quantize(Decimal(places))
 
@@ -511,33 +570,38 @@ def _team_loads_from_order(
     product_flows: list[PlanProductFlow] | None = None,
 ) -> list[dict]:
     """Phút làm + hop theo tổ tham gia Ob, thứ tự xưởng."""
-    from san_xuat.services.inter_step_times import _step_team_slug, flow_groups_from_steps
+    from san_xuat.services.inter_step_times import (
+        _group_slug_scope,
+        _step_team_slug,
+        flow_groups_from_steps,
+    )
 
     work: dict[str, Decimal] = {}
     hops: dict[str, Decimal] = {}
     labels: dict[str, str] = {}
     lines = [ln for ln in order.lines.all() if (ln.qty or 0) > 0]
-    for ln in lines:
-        routing = sales_order_line_routing(ln)
-        qty = ln.qty_to_produce
-        for step in routing.steps:
-            slug = (_step_team_slug(step) or '').strip().lower()
-            if not slug:
-                continue
-            work[slug] = work.get(slug, Decimal('0')) + _q(
-                (step.minutes_per_unit or Decimal('0')) * qty, '0.0001',
-            )
-            if slug not in labels:
-                labels[slug] = _team_display_label(slug, step.team_label)
-
-    if product_flows:
-        for pf in product_flows:
-            _add_flow_hops(pf.flow_groups, hops)
-    else:
+    with _group_slug_scope():
         for ln in lines:
             routing = sales_order_line_routing(ln)
-            if routing.steps:
-                _add_flow_hops(flow_groups_from_steps(routing.steps, sort_factory=True), hops)
+            qty = ln.qty_to_produce
+            for step in routing.steps:
+                slug = (_step_team_slug(step) or '').strip().lower()
+                if not slug:
+                    continue
+                work[slug] = work.get(slug, Decimal('0')) + _q(
+                    (step.minutes_per_unit or Decimal('0')) * qty, '0.0001',
+                )
+                if slug not in labels:
+                    labels[slug] = _team_display_label(slug, step.team_label)
+
+        if product_flows:
+            for pf in product_flows:
+                _add_flow_hops(pf.flow_groups, hops)
+        else:
+            for ln in lines:
+                routing = sales_order_line_routing(ln)
+                if routing.steps:
+                    _add_flow_hops(flow_groups_from_steps(routing.steps, sort_factory=True), hops)
 
     rank = _factory_slug_rank()
     slugs = sorted(work.keys(), key=lambda s: (rank.get(s, 99), s))
@@ -576,8 +640,9 @@ def team_khsx_spans(
     plan_steps=None,
     today: date | None = None,
 ) -> list[TeamKhsxSpan]:
-    """Span KHSX từng tổ: mặc định nối tiếp; tổ đã kéo dùng planned_date độc lập."""
+    """Span KHSX từng tổ: nối tiếp Cắt → May → …; tổ đã kéo giữ ngày nếu không chồng khâu trước."""
     from san_xuat.services.inter_step_times import schedule_span
+    from san_xuat.services.work_calendar import next_working_day
 
     loads = _team_loads_from_order(order, product_flows=product_flows)
     today = today or timezone.localdate()
@@ -607,21 +672,14 @@ def team_khsx_spans(
     pinned = _pinned_starts_from_steps(plan_steps if plan_steps is not None else list(order.plan_steps.all()))
 
     cursor = anchor
-    defaults: dict[str, tuple[date, date]] = {}
-    for row in loads:
-        start, end = schedule_span(
-            start=cursor,
-            lead_minutes=row['minutes'],
-            minutes_per_day=PLAN_SHIFT_MINUTES,
-        )
-        defaults[row['slug']] = (start, end)
-        cursor = _next_working_day_after(end)
-
     spans: list[TeamKhsxSpan] = []
     for row in loads:
         slug = row['slug']
         is_pinned = slug in pinned
-        start = pinned[slug] if is_pinned else defaults[slug][0]
+        start = pinned[slug] if is_pinned else cursor
+        if start < cursor:
+            start = cursor
+        start = next_working_day(start)
         start, end = schedule_span(
             start=start,
             lead_minutes=row['minutes'],
@@ -640,7 +698,63 @@ def team_khsx_spans(
             duration_label=dur_label,
             duration_work_days=dur_days,
         ))
+        cursor = _next_working_day_after(end)
     return npl_spans + spans
+
+
+def _waterfall_team_starts(
+    *,
+    teams: list[TeamKhsxSpan],
+    drag_slug: str,
+    new_start: date,
+    floor: date | None,
+) -> dict[str, date]:
+    """Kéo một tổ: tổ trước giữ nguyên, tổ sau dịch cùng khoảng; không chồng khâu trước."""
+    from san_xuat.services.inter_step_times import schedule_span
+    from san_xuat.services.work_calendar import next_working_day
+
+    idx = next(i for i, t in enumerate(teams) if t.slug == drag_slug)
+    delta = new_start - teams[idx].start
+    proposed: list[date] = []
+    for i, team in enumerate(teams):
+        if i < idx:
+            proposed.append(team.start)
+        elif i == idx:
+            proposed.append(new_start)
+        else:
+            proposed.append(team.start + delta)
+
+    cursor = floor
+    out: dict[str, date] = {}
+    for team, raw in zip(teams, proposed):
+        start = raw
+        if cursor is not None and start < cursor:
+            start = cursor
+        start = next_working_day(start)
+        out[team.slug] = start
+        _, end = schedule_span(
+            start=start,
+            lead_minutes=team.minutes,
+            minutes_per_day=PLAN_SHIFT_MINUTES,
+        )
+        cursor = _next_working_day_after(end)
+    return out
+
+
+def _write_team_planned_dates(steps, starts_by_slug: dict[str, date]) -> int:
+    from san_xuat.services.inter_step_times import _group_slug_scope, _step_team_slug
+
+    written = 0
+    with _group_slug_scope():
+        for step in steps:
+            st = (_step_team_slug(step) or '').strip().lower()
+            if st not in starts_by_slug:
+                continue
+            if step.planned_date != starts_by_slug[st]:
+                step.planned_date = starts_by_slug[st]
+                step.save(update_fields=['planned_date'])
+            written += 1
+    return written
 
 
 def _span_days(start: date | None, end: date | None) -> int:
@@ -906,6 +1020,7 @@ def build_plan_board_rows(
                     'bom_version', 'routing',
                 ).order_by('sort_order', 'id').prefetch_related(
                     'routing_lines__work_center',
+                    'routing_lines__operation__group',
                     'bom_version__process_steps',
                 ),
             ),
@@ -982,10 +1097,17 @@ def build_plan_board_rows(
         plan_steps = list(order.plan_steps.all())
         if plan_steps:
             from san_xuat.services.inter_step_times import (
+                attach_group_codes_from_routing,
                 flow_groups_from_steps,
                 hops_from_steps,
             )
 
+            routing_lines = [
+                rl
+                for ln in lines
+                for rl in ln.routing_lines.all()
+            ]
+            attach_group_codes_from_routing(plan_steps, routing_lines)
             hops = hops_from_steps(plan_steps)
             flow_groups = flow_groups_from_steps(plan_steps, sort_factory=True)
             # buffer_min không lấy từ plan_steps gộp (đơn nhiều mã bị cộng hop giả
@@ -1492,6 +1614,19 @@ def set_plan_priority(*, order_id: int, priority: str) -> SxSalesOrder:
 
 
 @transaction.atomic
+def set_plan_color(*, order_id: int, color: str = '', clear: bool = False) -> SxSalesOrder:
+    order = SxSalesOrder.objects.select_for_update().get(pk=order_id, is_demo=False)
+    if order.confirm_status != SxSalesOrder.CONFIRM_CONFIRMED:
+        raise PlanningError('Chỉ tô màu đơn đã xác nhận.')
+    if clear or not (color or '').strip():
+        order.plan_color = ''
+    else:
+        order.plan_color = normalize_plan_color(color)
+    order.save(update_fields=['plan_color', 'updated_at'])
+    return order
+
+
+@transaction.atomic
 def hold_plan_order(*, order_id: int, reason: str = '') -> SxSalesOrder:
     order = SxSalesOrder.objects.select_for_update().get(pk=order_id, is_demo=False)
     if order.confirm_status != SxSalesOrder.CONFIRM_CONFIRMED:
@@ -1845,7 +1980,7 @@ def reschedule_order_plan_start(*, order_id: int, start_date: date) -> SxSalesOr
 
 @transaction.atomic
 def reschedule_order_team_start(*, order_id: int, start_date: date, team_slug: str = '') -> SxSalesOrder:
-    """Kéo thả một tổ trên lộ trình — các tổ khác giữ nguyên ngày."""
+    """Kéo một tổ trên lộ trình — tổ sau dịch theo, không bắt đầu trước khi tổ trước xong."""
     if not isinstance(start_date, date):
         raise PlanningError('Ngày bắt đầu không hợp lệ.')
     order = SxSalesOrder.objects.select_for_update().get(pk=order_id, is_demo=False)
@@ -1858,40 +1993,43 @@ def reschedule_order_team_start(*, order_id: int, start_date: date, team_slug: s
     ).exists():
         raise PlanningError('Đơn đã có LSX — hủy chuyển SX trước khi xếp lại lịch.')
 
-    from san_xuat.services.inter_step_times import _step_team_slug
+    from san_xuat.services.inter_step_times import attach_group_codes_from_routing
     from san_xuat.services.plan_route import ensure_order_plan_steps
+    from san_xuat.services.work_calendar import next_working_day
 
     steps = ensure_order_plan_steps(order)
+    routing_lines = [
+        rl for ln in order.lines.all() for rl in ln.routing_lines.all()
+    ]
+    attach_group_codes_from_routing(steps, routing_lines)
     spans = team_khsx_spans(order, plan_steps=steps)
-    if not spans:
+    prod = [s for s in spans if s.slug != 'npl']
+    npl = next((s for s in spans if s.slug == 'npl'), None)
+    if not prod:
         raise PlanningError('Đơn chưa có tổ trên Ob để xếp lịch.')
     slug = (team_slug or '').strip().lower()
     if not slug:
-        slug = spans[0].slug
-    valid = {s.slug for s in spans}
-    if slug not in valid:
-        raise PlanningError('Tổ này không tham gia đơn.')
+        slug = prod[0].slug
     if slug == 'npl':
         raise PlanningError('Không kéo thanh chuẩn bị NPL — sửa ngày mua trên hàng đợi.')
+    if slug not in {s.slug for s in prod}:
+        raise PlanningError('Tổ này không tham gia đơn.')
 
-    any_pinned = any(getattr(s, 'planned_date', None) for s in steps)
-    if not any_pinned:
-        by_start = {s.slug: s.start for s in spans}
-        for step in steps:
-            st = (_step_team_slug(step) or '').strip().lower()
-            if st and st in by_start:
-                step.planned_date = by_start[st]
-                step.save(update_fields=['planned_date'])
-
-    for step in steps:
-        st = (_step_team_slug(step) or '').strip().lower()
-        if st == slug:
-            step.planned_date = start_date
-            step.save(update_fields=['planned_date'])
+    new_start = next_working_day(start_date)
+    floor = _next_working_day_after(npl.end) if npl else None
+    starts_by_slug = _waterfall_team_starts(
+        teams=prod,
+        drag_slug=slug,
+        new_start=new_start,
+        floor=floor,
+    )
+    written = _write_team_planned_dates(steps, starts_by_slug)
+    if written <= 0:
+        raise PlanningError('Không gán được công đoạn của tổ này.')
 
     steps = list(order.plan_steps.select_related('work_center').order_by('sequence', 'id'))
     spans = team_khsx_spans(order, plan_steps=steps)
-    starts = [s.start for s in spans if s.start]
+    starts = [s.start for s in spans if s.start and s.slug != 'npl']
     if starts:
         order.plan_start_date = min(starts)
         order.save(update_fields=['plan_start_date', 'updated_at'])
@@ -1908,6 +2046,7 @@ def load_snapshot_for_board(*, days: int = 14) -> dict:
 
 TIMELINE_DAYS = 28
 TIMELINE_MAX_DAYS = 93
+ROUTE_TIMELINE_DAYS = 60
 
 
 _WD_VN = ('T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN')
@@ -1989,6 +2128,11 @@ class PlanTimelineRow:
     accepted_teams: list = field(default_factory=list)
     teams: list[TeamTimelineBar] = field(default_factory=list)
     product_images: list[dict] = field(default_factory=list)
+    product_code_label: str = ''
+    track_index: int = 0
+    track_color: str = '#dc2626'
+    track_soft: str = '#fef2f2'
+    color_custom: bool = False
 
 
 @dataclass
@@ -2039,6 +2183,16 @@ def _shift_month(d: date, delta: int) -> date:
 
 def _month_label(d: date) -> str:
     return f'Tháng {d.month}/{d.year}'
+
+
+def _span_bounds(start: date, *, days: int = ROUTE_TIMELINE_DAYS) -> tuple[date, date]:
+    """Khoảng ``days`` ngày bắt đầu từ ``start`` (gồm cả ngày đầu)."""
+    span = max(1, int(days))
+    return start, start + timedelta(days=span - 1)
+
+
+def _range_label(start: date, end: date) -> str:
+    return f'{start.strftime("%d/%m")} – {end.strftime("%d/%m/%Y")}'
 
 
 def _accepted_teams_by_order_ids(order_ids: list[int]) -> dict[int, list[dict]]:
@@ -2247,15 +2401,19 @@ def build_order_timeline(
     range_from: date | None = None,
     range_to: date | None = None,
 ) -> MoTimelineBoard:
-    """Timeline đơn trên KHSX — mặc định tháng hiện tại."""
+    """Timeline đơn trên KHSX — mặc định 60 ngày từ hôm nay."""
     today = timezone.localdate()
     if not range_from and not range_to:
-        range_from, range_to = _month_bounds(today)
+        range_from, range_to = _span_bounds(today)
     elif range_from and not range_to:
-        range_from, range_to = _month_bounds(range_from)
+        range_from, range_to = _span_bounds(range_from)
     elif range_to and not range_from:
-        range_from, range_to = _month_bounds(range_to)
-    start, end = _timeline_range(range_from, range_to, today=today)
+        range_from, range_to = _span_bounds(
+            range_to - timedelta(days=ROUTE_TIMELINE_DAYS - 1),
+        )
+    start, end = _timeline_range(
+        range_from, range_to, today=today, days=ROUTE_TIMELINE_DAYS,
+    )
     axis_days, month_spans, span = _timeline_axis(start, end, today)
 
     accepts_by_order = _accepted_teams_by_order_ids([r.order.pk for r in plan_rows])
@@ -2297,6 +2455,21 @@ def build_order_timeline(
         if names:
             extra = names[0] if len(names) == 1 else f'{len(names)} mã'
             subtitle = f'{subtitle} · {extra}' if subtitle else extra
+        product_codes: list[str] = []
+        seen_codes: set[str] = set()
+        for pf in r.product_flows or []:
+            code = (pf.product_code or '').strip()
+            key = code.casefold()
+            if not code or key in seen_codes:
+                continue
+            seen_codes.add(key)
+            product_codes.append(code)
+        if not product_codes:
+            product_code_label = r.order.code
+        elif len(product_codes) == 1:
+            product_code_label = product_codes[0]
+        else:
+            product_code_label = f'{product_codes[0]} +{len(product_codes) - 1}'
         product_images = []
         for pf in (r.product_flows or [])[:2]:
             product_images.append({
@@ -2304,15 +2477,20 @@ def build_order_timeline(
                 'urls_json': pf.image_urls_json,
                 'name': pf.product_name or pf.product_code,
             })
+        track_color, track_soft = route_track_pair(r.order)
         can_drag = r.order.plan_status in QUEUE_STATUSES and r.mo_count == 0
         span_days = max(1, (bar_end - bar_start).days + 1)
         status_key = r.order.plan_status
         if status_key == SxSalesOrder.PLAN_RANKED:
             status_key = SxSalesOrder.PLAN_QUEUED
-        status_label = (
-            'Chờ xếp' if status_key == SxSalesOrder.PLAN_QUEUED
-            else r.order.get_plan_status_display()
-        )
+        if status_key in (SxSalesOrder.PLAN_QUEUED, SxSalesOrder.PLAN_ON_HOLD):
+            status_label = 'Chờ xếp'
+            if status_key == SxSalesOrder.PLAN_ON_HOLD:
+                status_label = 'Tạm giữ'
+        elif status_key == SxSalesOrder.PLAN_DONE:
+            status_label = 'Hoàn thành'
+        else:
+            status_label = 'Đang sản xuất'
         team_bars: list[TeamTimelineBar] = []
         if visible_spans:
             for i, (ts, placed_team) in enumerate(visible_spans):
@@ -2384,15 +2562,15 @@ def build_order_timeline(
             accepted_teams=accepts_by_order.get(r.order.pk, []),
             teams=team_bars,
             product_images=product_images,
+            product_code_label=product_code_label,
+            track_index=route_track_index(r.order.pk),
+            track_color=track_color,
+            track_soft=track_soft,
+            color_custom=bool((r.order.plan_color or '').strip()),
         ))
 
     today_col = (today - start).days + 1 if start <= today <= end else None
-    cur_month_start, cur_month_end = _month_bounds(today)
-    anchor = _month_bounds(start)[0]
-    prev_month = _shift_month(anchor, -1)
-    next_month = _shift_month(anchor, 1)
-    prev_from, prev_to = _month_bounds(prev_month)
-    next_from, next_to = _month_bounds(next_month)
+    default_from, default_to = _span_bounds(today)
     return MoTimelineBoard(
         range_start=start,
         range_end=end,
@@ -2401,14 +2579,14 @@ def build_order_timeline(
         rows=rows,
         today=today,
         today_col=today_col,
-        prev_from=prev_from,
-        prev_to=prev_to,
-        next_from=next_from,
-        next_to=next_to,
+        prev_from=start - timedelta(days=span),
+        prev_to=start - timedelta(days=1),
+        next_from=end + timedelta(days=1),
+        next_to=end + timedelta(days=span),
         unscheduled=unscheduled[:80],
         search='',
-        month_label=_month_label(start),
-        is_current_month=(start == cur_month_start and end == cur_month_end),
+        month_label=_range_label(start, end),
+        is_current_month=(start == default_from and end == default_to),
     )
 
 

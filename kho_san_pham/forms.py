@@ -208,7 +208,8 @@ class ProductForm(forms.ModelForm):
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, clone_from=None, **kwargs):
+        self.clone_from = clone_from
         super().__init__(*args, **kwargs)
         from kho_san_pham.catalog_models import ProductType
         from san_xuat.hub_models import SxColor, SxSize
@@ -250,19 +251,21 @@ class ProductForm(forms.ModelForm):
         size_choices = [('', '— Chọn size —')] + [
             (s.code, s.name or s.code) for s in sizes
         ]
-        # Giữ giá trị đang dùng nếu không còn active
+        # Giữ giá trị đang dùng (kể cả khi nhân bản) nếu không còn active
         inst = self.instance
+        ref = inst if inst and inst.pk else self.clone_from
         if inst and inst.pk:
             self.fields['qty_on_hand'].initial = inst.qty_on_hand
-            if inst.color_code and inst.color_code not in {c.code for c in colors}:
-                color_choices.append((inst.color_code, f'{inst.color_code} (đang dùng)'))
-            if inst.size_label and inst.size_label not in {s.code for s in sizes}:
-                size_choices.append((inst.size_label, f'{inst.size_label} (đang dùng)'))
-            if inst.catalog_type_id and not ProductType.objects.filter(
-                pk=inst.catalog_type_id, is_active=True,
+        if ref and getattr(ref, 'pk', None):
+            if ref.color_code and ref.color_code not in {c.code for c in colors}:
+                color_choices.append((ref.color_code, f'{ref.color_code} (đang dùng)'))
+            if ref.size_label and ref.size_label not in {s.code for s in sizes}:
+                size_choices.append((ref.size_label, f'{ref.size_label} (đang dùng)'))
+            if ref.catalog_type_id and not ProductType.objects.filter(
+                pk=ref.catalog_type_id, is_active=True,
             ).exists():
                 self.fields['catalog_type'].queryset = (
-                    ProductType.objects.filter(Q(is_active=True) | Q(pk=inst.catalog_type_id))
+                    ProductType.objects.filter(Q(is_active=True) | Q(pk=ref.catalog_type_id))
                     .order_by('sort_order', 'code')
                 )
         self.fields['color_code'].widget = forms.Select(
@@ -274,6 +277,11 @@ class ProductForm(forms.ModelForm):
             choices=size_choices,
         )
         self._color_name_map = {c.code.upper(): c.name for c in colors}
+        if self.clone_from and self.clone_from.color_code:
+            self._color_name_map.setdefault(
+                self.clone_from.color_code.upper(),
+                self.clone_from.color_label or self.clone_from.color_code,
+            )
 
     def clean_code(self):
         return (self.cleaned_data.get('code') or '').strip().upper()
@@ -342,7 +350,10 @@ class ProductForm(forms.ModelForm):
         if self.instance.pk:
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
-            self.add_error('code', 'SKU đã tồn tại.')
+            if self.clone_from and cleaned['code'] == (self.clone_from.code or '').strip().upper():
+                self.add_error('code', 'Đổi màu hoặc size để tạo SKU khác sản phẩm gốc.')
+            else:
+                self.add_error('code', 'SKU đã tồn tại.')
 
         if not (cleaned.get('name') or '').strip():
             cleaned['name'] = style or cleaned['code']

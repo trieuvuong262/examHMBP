@@ -1313,6 +1313,7 @@ def plan_board(request):
         reschedule_order_team_start,
         save_plan_hops,
         set_plan_priority,
+        set_plan_color,
         unhold_plan_order,
         unrelease_order_from_production,
     )
@@ -1422,6 +1423,13 @@ def plan_board(request):
                     priority=(request.POST.get('priority') or '').strip(),
                 )
                 messages.success(request, 'Đã cập nhật ưu tiên.')
+            elif action == 'set_color' and can_schedule and order_id:
+                set_plan_color(
+                    order_id=order_id,
+                    color=(request.POST.get('color') or '').strip(),
+                    clear=bool(request.POST.get('clear_color')),
+                )
+                messages.success(request, 'Đã lưu màu đơn trên lộ trình.')
             elif action == 'hold' and can_schedule and order_id:
                 hold_plan_order(
                     order_id=order_id,
@@ -1502,25 +1510,43 @@ def plan_board(request):
                     return _board_redirect()
 
                 buy_by_line = None
+                allocate_by_line = None
                 kit = None
                 apply = False
                 if action in {'save_npl', 'apply_npl', 'create_npl_pr'}:
+                    from decimal import InvalidOperation
+
                     apply = action == 'apply_npl'
                     buy_by_line = {}
+                    allocate_by_line = {}
                     for key, val in request.POST.items():
-                        if not key.startswith('buy_for__'):
-                            continue
-                        sid = key[len('buy_for__'):].strip()
-                        if not sid.isdigit():
-                            continue
-                        raw = (val or '').strip()
-                        if raw == '':
-                            buy_by_line[int(sid)] = None
-                        else:
-                            try:
-                                buy_by_line[int(sid)] = max(0, min(int(raw), 365))
-                            except (TypeError, ValueError):
+                        if key.startswith('buy_for__'):
+                            sid = key[len('buy_for__'):].strip()
+                            if not sid.isdigit():
+                                continue
+                            raw = (val or '').strip()
+                            if raw == '':
                                 buy_by_line[int(sid)] = None
+                            else:
+                                try:
+                                    buy_by_line[int(sid)] = max(0, min(int(raw), 365))
+                                except (TypeError, ValueError):
+                                    buy_by_line[int(sid)] = None
+                        elif key.startswith('allocate_for__'):
+                            sid = key[len('allocate_for__'):].strip()
+                            if not sid.isdigit():
+                                continue
+                            raw = (val or '').strip().replace(',', '.')
+                            if raw == '':
+                                allocate_by_line[int(sid)] = Decimal('0')
+                            else:
+                                try:
+                                    allocate_by_line[int(sid)] = max(
+                                        Decimal('0'),
+                                        Decimal(raw).quantize(Decimal('0.0001')),
+                                    )
+                                except (InvalidOperation, TypeError, ValueError):
+                                    allocate_by_line[int(sid)] = None
                     kit_raw = (request.POST.get('npl_kit_days') or '').strip()
                     if kit_raw != '':
                         try:
@@ -1532,6 +1558,7 @@ def plan_board(request):
                         order_id=order_id,
                         kit_days=kit,
                         buy_by_line=buy_by_line,
+                        allocate_by_line=allocate_by_line,
                         apply_schedule=apply,
                     )
                 except PlanningError as exc:
@@ -1561,7 +1588,7 @@ def plan_board(request):
                     else:
                         messages.error(
                             request,
-                            'Chưa cộng được vào KHSX — nhập số ngày mua cho mọi mã thiếu.',
+                            'Chưa cộng được vào KHSX — nhập số ngày mua cho mọi mã còn thiếu sau khi đặt.',
                         )
                 else:
                     messages.success(request, f'Đã lưu nháp kế hoạch NPL {order.code}.')
@@ -1895,7 +1922,7 @@ def plan_board(request):
         route_board = None
     else:
         from san_xuat.list_filters import parse_sx_date
-        from san_xuat.services.plan_board import _month_bounds
+        from san_xuat.services.plan_board import _span_bounds
 
         route_rows = build_plan_board_rows(include_released=True, search=q)
         route_from = parse_sx_date((request.GET.get('route_from') or '').strip())
@@ -1905,7 +1932,7 @@ def plan_board(request):
             range_from=route_from,
             range_to=route_to,
         )
-        today_start, today_end_month = _month_bounds(timezone.localdate())
+        today_start, today_end_month = _span_bounds(timezone.localdate())
 
     from san_xuat.services.planning import npl_prep_days
 

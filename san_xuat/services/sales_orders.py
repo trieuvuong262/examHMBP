@@ -142,12 +142,12 @@ def bom_lines_snapshot(bom_id: int | None) -> list[dict]:
     )
     if bom is None:
         return []
+    from kho_npl.catalog_labels import unit_label
+
     out: list[dict] = []
     for line in bom.lines.select_related('material', 'material__unit').order_by('sort_order', 'pk'):
         mat = line.material
-        unit = ''
-        if mat and mat.unit_id:
-            unit = (mat.unit.code or mat.unit.name or '')[:30]
+        unit = (unit_label(mat.unit) or '')[:30] if mat and mat.unit_id else ''
         qty = _q(line.qty)
         image_url = ''
         if mat and mat.image:

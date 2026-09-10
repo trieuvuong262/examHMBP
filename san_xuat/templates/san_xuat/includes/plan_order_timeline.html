@@ -7,17 +7,6 @@
     {% if row.duration_script_id %}{{ row.duration_detail|json_script:row.duration_script_id }}{% endif %}
   {% endfor %}
   <div class="jp-tl-wrap">
-    <div class="jp-tl-toolbar">
-      <span class="jp-tl-count">{{ route_board.rows|length }} đơn trong khoảng</span>
-      {% if can_schedule %}
-      <span class="jp-tl-hint">Kéo thẻ Cắt / May / Ủi… thả vào ngày để xếp lịch (đơn chờ xếp).</span>
-      {% endif %}
-      <div class="jp-tl-legend" aria-label="Chú thích">
-        <span><i style="background:#dc2626"></i>Công đoạn · mã đơn</span>
-        <span><i style="background:#475569"></i>Chuẩn bị nguyên phụ liệu</span>
-        <span><i style="background:#9f1239"></i>Trễ hạn</span>
-      </div>
-    </div>
     {% if route_board.rows %}
     <div class="jp-tl-chart" style="--tl-days: {{ route_board.days|length }}">
       <div class="jp-tl-corner">Đơn</div>
@@ -34,7 +23,9 @@
       {% endfor %}
       {% for row in route_board.rows %}
         {% with r=forloop.counter|add:2 %}
-      <div class="jp-tl-label is-prio-{{ row.order.plan_priority }}" style="grid-column: 1; grid-row: {{ r }}"
+      <div class="jp-tl-label is-prio-{{ row.order.plan_priority }} jp-tl-track-{{ row.track_index }}"
+           style="--tl-track: {{ row.track_color }}; --tl-track-soft: {{ row.track_soft }}; grid-column: 1; grid-row: {{ r }}"
+           data-order-id="{{ row.order.pk }}"
            title="{{ row.subtitle }}">
         {% if row.product_images %}
         <div class="jp-tl-products" aria-label="Hình ảnh sản phẩm">
@@ -54,19 +45,42 @@
           {% endfor %}
         </div>
         {% endif %}
-        <a class="jp-tl-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
-        <span class="jp-tl-st is-{{ row.status_key }}{% if row.is_late %} is-late{% endif %}">{{ row.status_label }}</span>
+        {% if can_schedule %}
+        <form method="post" class="jp-tl-color-form" title="Tạo màu cho đơn">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="set_color">
+          <input type="hidden" name="order_id" value="{{ row.order.pk }}">
+          <input type="hidden" name="mode" value="{{ mode }}">
+          <input type="hidden" name="tab" value="{{ tab }}">
+          {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
+          <input type="hidden" name="route_from" value="{{ route_board.range_start|date:'Y-m-d' }}">
+          <input type="hidden" name="route_to" value="{{ route_board.range_end|date:'Y-m-d' }}">
+          <input type="color" name="color" value="{{ row.track_color }}"
+                 aria-label="Tạo màu đơn {{ row.order.code }}"
+                 onchange="this.form.submit()">
+          {% if row.color_custom %}
+          <button type="submit" name="clear_color" value="1" class="jp-tl-color-clear" title="Xóa màu tự chọn">×</button>
+          {% endif %}
+        </form>
+        {% else %}
+        <span class="jp-tl-swatch" aria-hidden="true"></span>
+        {% endif %}
+        <div class="jp-tl-id">
+          <a class="jp-tl-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
+          <span class="jp-tl-st is-{{ row.status_key }}{% if row.is_late %} is-late{% endif %}">{{ row.status_label }}</span>
+        </div>
       </div>
       {% for d in route_board.days %}
-      <div class="jp-tl-slot jp-tl-line{% if d.is_today %} is-today{% endif %}{% if d.is_weekend %} is-weekend{% endif %}{% if d.is_week_start %} is-week-start{% endif %}"
+      <div class="jp-tl-slot jp-tl-line jp-tl-track-{{ row.track_index }}{% if d.is_today %} is-today{% endif %}{% if d.is_weekend %} is-weekend{% endif %}{% if d.is_week_start %} is-week-start{% endif %}"
            data-date="{{ d.date|date:'Y-m-d' }}"
            data-col="{{ forloop.counter }}"
-           style="grid-column: {{ forloop.counter|add:1 }}; grid-row: {{ r }}"></div>
+           data-order-id="{{ row.order.pk }}"
+           style="--tl-track: {{ row.track_color }}; --tl-track-soft: {{ row.track_soft }}; grid-column: {{ forloop.counter|add:1 }}; grid-row: {{ r }}"></div>
       {% endfor %}
       {% for team in row.teams %}
       {% if team.placed %}
-        <div class="jp-tl-bar{% if row.is_late %} is-late{% endif %}{% if team.slug == 'npl' %} is-npl{% endif %}{% if can_schedule and team.can_drag %} is-draggable{% endif %}"
-             style="grid-row: {{ r }}; grid-column: {{ team.col_start|add:1 }} / {{ team.col_end|add:1 }}"
+        <div class="jp-tl-bar jp-tl-track-{{ row.track_index }}{% if row.is_late %} is-late{% endif %}{% if team.slug == 'npl' %} is-npl{% endif %}{% if can_schedule and team.can_drag %} is-draggable{% endif %}"
+             style="--tl-track: {{ row.track_color }}; --tl-track-soft: {{ row.track_soft }}; grid-row: {{ r }}; grid-column: {{ team.col_start|add:1 }} / {{ team.col_end|add:1 }}"
              data-jp-team-drag
              data-order-id="{{ row.order.pk }}"
              data-order-code="{{ row.order.code }}"
@@ -79,11 +93,7 @@
              draggable="{% if can_schedule and team.can_drag %}true{% else %}false{% endif %}"
              title="{{ team.label }} · {{ row.order.code }} · {{ team.start|date:'d/m/Y' }} – {{ team.end|date:'d/m/Y' }}{% if team.duration_label %} · {{ team.duration_label }}{% endif %}{% if can_schedule and team.can_drag %} · Kéo thả vào ngày{% endif %}">
           <span class="jp-tl-bar-name">{{ team.label }}</span>
-          {% if team.vis_days >= 3 %}
-          <span class="jp-tl-bar-code">{% if team.duration_label %}{{ team.duration_label }} · {% endif %}{{ row.order.code }}</span>
-          {% else %}
-          <span class="jp-tl-bar-code">{{ row.order.code }}</span>
-          {% endif %}
+          <span class="jp-tl-bar-code">{{ row.product_code_label|default:row.order.code }}</span>
         </div>
       {% endif %}
       {% endfor %}
@@ -91,7 +101,7 @@
       {% endfor %}
     </div>
     {% else %}
-    <div class="jp-tl-empty">Không có đơn trong khoảng {{ route_board.range_start|date:"d/m/Y" }} – {{ route_board.range_end|date:"d/m/Y" }}. Đổi tháng hoặc khoảng ngày để xem.</div>
+    <div class="jp-tl-empty">Không có đơn trong khoảng {{ route_board.range_start|date:"d/m/Y" }} – {{ route_board.range_end|date:"d/m/Y" }}. Đổi khoảng ngày để xem.</div>
     {% endif %}
   </div>
 </section>

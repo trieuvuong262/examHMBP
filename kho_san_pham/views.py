@@ -20,6 +20,7 @@ from kho_san_pham.forms import ProductForm
 from kho_san_pham.models import Product
 from kho_san_pham.product_list_columns import PRODUCT_LIST_SORT_FIELDS
 from kho_san_pham.sku_vocabulary import extract_sp_number
+from kho_san_pham.services.barcode import allocate_barcode
 from kho_san_pham.services.stock import StockMovementError, set_catalog_qty
 from kho_san_pham.services.product_import_export import (
     ProductImportError,
@@ -399,6 +400,71 @@ def product_create(request):
         'form': form,
         'is_edit': False,
         'cancel_url': reverse('kho_san_pham:product_list'),
+    })
+
+
+def _clone_form_initial(source: Product) -> dict:
+    """Copy thuộc tính dùng chung; SKU / mã vạch / KV / tồn để trống — đổi màu/size rồi ghép mới."""
+    return {
+        'product_type': source.product_type,
+        'catalog_type': source.catalog_type_id,
+        'style_code': source.style_code,
+        'color_code': source.color_code,
+        'size_label': source.size_label,
+        'accounting_code': source.accounting_code,
+        'name': source.name,
+        'full_name': source.full_name,
+        'unit': source.unit,
+        'category_name': source.category_name,
+        'base_price': source.base_price,
+        'description': source.description,
+        'notes': source.notes,
+        'is_active': True,
+        'code': '',
+        'bar_code': '',
+        'kiotviet_code': '',
+    }
+
+
+@module_perm_required_methods(MODULE_KHO_SAN_PHAM, get='create', post='create')
+def product_duplicate(request, pk: int):
+    source = get_object_or_404(Product, pk=pk)
+    form = ProductForm(
+        request.POST or None,
+        request.FILES or None,
+        initial=_clone_form_initial(source),
+        clone_from=source,
+    )
+    if request.method == 'POST' and form.is_valid():
+        try:
+            with transaction.atomic():
+                product = form.save(commit=False)
+                product.sync_source = SYNC_SOURCE_MANUAL
+                product.created_by = request.user
+                product.gender = source.gender
+                product.category_path = source.category_path
+                product.allows_sale = source.allows_sale
+                if not product.image and source.image:
+                    product.image = source.image
+                if not (product.image_url or '').strip():
+                    product.image_url = source.image_url or ''
+                if not (product.bar_code or '').strip():
+                    product.bar_code = allocate_barcode()
+                product.save()
+                _apply_catalog_qty(product, form, user=request.user)
+        except StockMovementError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, f'Đã nhân bản {source.code} thành {product.code}.')
+            return redirect('kho_san_pham:product_detail', pk=product.pk)
+    return render(request, 'kho_san_pham/product_form.html', {
+        **nav_context('products', user=request.user),
+        **perm_context(request.user, 'products'),
+        'form': form,
+        'is_edit': False,
+        'is_duplicate': True,
+        'source_product': source,
+        'cancel_url': reverse('kho_san_pham:product_detail', args=[source.pk]),
     })
 
 

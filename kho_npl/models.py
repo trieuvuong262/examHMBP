@@ -1188,10 +1188,12 @@ class StockReservation(models.Model):
 
     REF_YCX = 'ycx'
     REF_KHNVL = 'khnvl'
+    REF_KHSX = 'khsx'
     REF_MO = 'mo'
     REF_CHOICES = [
         (REF_YCX, 'Yêu cầu xuất'),
         (REF_KHNVL, 'Kế hoạch nguyên phụ liệu'),
+        (REF_KHSX, 'Đặt chỗ KHSX'),
         (REF_MO, 'Lệnh sản xuất'),
     ]
 
