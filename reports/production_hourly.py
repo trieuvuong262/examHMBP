@@ -2290,12 +2290,34 @@ def report_has_manager_fixable_anomaly(report: DailyWorkReport) -> bool:
     return bool(anomaly_product_ids_for_report(report))
 
 
+def is_blank_unsubmitted_production_report(report: DailyWorkReport) -> bool:
+    """Nháp trống (chưa có công đoạn) — nhập hộ như chưa có báo cáo."""
+    if not report or not report.pk:
+        return False
+    if report.status == DailyWorkReport.STATUS_SUBMITTED:
+        return False
+    return not list_production_products(report)
+
+
 def can_manager_edit_unsubmitted_production_report(viewer, report: DailyWorkReport) -> bool:
+    """Sửa nháp sai số liệu (anomaly) — giữ DRAFT; khác với nháp trống (nhập hộ đầy đủ)."""
     if not report or not report.pk or report.status == DailyWorkReport.STATUS_SUBMITTED:
         return False
     if not can_proxy_enter_daily_report(viewer, report.employee):
         return False
     return report_has_manager_fixable_anomaly(report)
+
+
+def can_proxy_fill_unsubmitted_production_report(viewer, report: DailyWorkReport) -> bool:
+    """Cho phép nhập hộ ghi đè nháp trống hoặc sửa nháp có anomaly."""
+    if not report or not report.pk or report.status == DailyWorkReport.STATUS_SUBMITTED:
+        return False
+    if not can_proxy_enter_daily_report(viewer, report.employee):
+        return False
+    return (
+        is_blank_unsubmitted_production_report(report)
+        or report_has_manager_fixable_anomaly(report)
+    )
 
 
 def validate_production_submit_efficiency(

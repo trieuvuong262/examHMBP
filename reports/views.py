@@ -678,8 +678,10 @@ def proxy_report_entry(request):
         can_edit_production_norms,
         can_manager_edit_unsubmitted_production_report,
         can_proxy_enter_daily_report,
+        can_proxy_fill_unsubmitted_production_report,
         enrich_proxy_shift_sessions_for_anomaly_fix,
         employee_self_submitted_production_report,
+        is_blank_unsubmitted_production_report,
         manager_may_edit_submitted_production_report,
         production_anomaly_edit_message,
         report_has_manager_fixable_anomaly,
@@ -776,9 +778,11 @@ def proxy_report_entry(request):
         )
         report = _ensure_daily_report_saved(report)
         lock_session_times = employee_self_submitted_production_report(report)
+        # Nháp trống: nhập hộ đầy đủ (nộp). Nháp có anomaly: chỉ sửa công đoạn sai, giữ DRAFT.
         preserve_draft = (
             not lock_session_times
             and report.status != DailyWorkReport.STATUS_SUBMITTED
+            and not is_blank_unsubmitted_production_report(report)
             and can_manager_edit_unsubmitted_production_report(request.user, report)
         )
         if lock_session_times:
@@ -786,7 +790,7 @@ def proxy_report_entry(request):
                 messages.error(request, 'Bạn không có quyền chỉnh sửa báo cáo này.')
                 return redirect(_proxy_url(subject.id, post_shift))
         elif report.status != DailyWorkReport.STATUS_SUBMITTED:
-            if not can_manager_edit_unsubmitted_production_report(request.user, report):
+            if not can_proxy_fill_unsubmitted_production_report(request.user, report):
                 messages.error(request, production_anomaly_edit_message())
                 return redirect(_proxy_url(subject.id, post_shift))
         elif is_report_locked(report) or (
@@ -898,6 +902,7 @@ def proxy_report_entry(request):
             and report_has_manager_fixable_anomaly(report)
         )
         has_time_anomaly = bool(report.pk) and report_has_time_efficiency_anomaly(report)
+        is_blank_draft = bool(report.pk) and is_blank_unsubmitted_production_report(report)
         proxy_data = build_proxy_shift_sessions(report)
         if ai_import and ai_import.shift == shift:
             extracted = ai_import.extracted_data or {}
@@ -964,6 +969,7 @@ def proxy_report_entry(request):
                 or not report.pk
                 or manager_may_edit_submitted
                 or has_anomaly
+                or is_blank_draft
             ),
         })
 
@@ -2692,7 +2698,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         build_productivity_report,
         can_edit_production_norms,
         can_edit_production_report,
-        can_manager_edit_unsubmitted_production_report,
+        can_proxy_fill_unsubmitted_production_report,
         parse_decimal,
         delete_production_products,
         update_product_norms,
@@ -3026,7 +3032,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         )
     elif (
         report.is_production_report
-        and can_manager_edit_unsubmitted_production_report(request.user, report)
+        and can_proxy_fill_unsubmitted_production_report(request.user, report)
     ):
         edit_report_url = (
             f"{reverse('reports:proxy_cn')}?date={report.report_date.isoformat()}"

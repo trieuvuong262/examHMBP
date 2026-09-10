@@ -107,7 +107,7 @@
   {% endif %}
 
   {% if not flat_steps %}
-  <div class="alert alert-warning">Tổ này chưa có công đoạn mẫu.</div>
+  <div class="alert alert-warning">Tổ này chưa có công đoạn trên lệnh / Ob.</div>
   {% elif not sheet.sizes %}
   <div class="alert alert-warning">Lệnh sản xuất chưa có dòng size. Nhập ma trận màu×size trên lệnh sản xuất trước.</div>
   {% else %}
@@ -136,7 +136,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr class="sec-label"><td class="sticky-col" colspan="{{ flat_steps|length|add:2 }}">SL thực hiện</td></tr>
+        <tr class="sec-label"><td class="sticky-col" colspan="{{ sheet.step_count|add:2 }}">SL thực hiện</td></tr>
         {% for row in sheet.done_rows %}
         <tr data-size="{{ row.size_label }}" data-plan="{{ row.qty }}">
           <td class="sticky-col">{{ row.size_label }}</td>
@@ -158,7 +158,7 @@
         </tr>
         {% endfor %}
 
-        <tr class="sec-label"><td class="sticky-col" colspan="{{ flat_steps|length|add:2 }}">SL còn thiếu</td></tr>
+        <tr class="sec-label"><td class="sticky-col" colspan="{{ sheet.step_count|add:2 }}">SL còn thiếu</td></tr>
         {% for row in sheet.remain_rows %}
         <tr data-remain-size="{{ row.size_label }}">
           <td class="sticky-col">{{ row.size_label }}</td>
@@ -170,7 +170,7 @@
         {% endfor %}
 
         {% if sheet.daily_display %}
-        <tr class="sec-label"><td class="sticky-col" colspan="{{ flat_steps|length|add:2 }}">Theo ngày (tổ {{ team.label }})</td></tr>
+        <tr class="sec-label"><td class="sticky-col" colspan="{{ sheet.step_count|add:2 }}">Theo ngày (tổ {{ team.label }})</td></tr>
         {% for row in sheet.daily_display %}
         <tr class="daily">
           <td class="sticky-col">{{ row.stat_date|date:"d/m/Y" }} · {{ row.size_label }}</td>

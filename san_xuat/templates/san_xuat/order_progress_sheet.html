@@ -70,6 +70,16 @@
   {% if not sheets %}
   <div class="alert alert-warning">Chưa có lệnh để theo dõi tiến độ.</div>
   {% else %}
+  {% for item in sheets %}
+  {% with item.sheet as sheet %}
+  {% if sheets|length > 1 %}
+  <div class="jp-ops-meta mb-2">
+    <span>Lệnh <strong>{{ item.mo.code }}</strong></span>
+    <span>SP <strong>{{ sheet.product_code }}</strong>{% if sheet.product_name %} — {{ sheet.product_name }}{% endif %}</span>
+    {% if sheet.color_summary %}<span>Màu <strong>{{ sheet.color_summary }}</strong></span>{% endif %}
+    <span>SL <strong>{{ sheet.total_qty|sx_num }}</strong></span>
+  </div>
+  {% endif %}
   <div class="jp-ops-wrap mb-3">
     <table class="jp-ops-table">
       <thead>
@@ -89,20 +99,14 @@
         </tr>
       </thead>
       <tbody>
-        <tr class="sec-label"><td class="sticky-col" colspan="{{ flat_steps|length|add:2 }}">SL thực hiện</td></tr>
-        {% for item in sheets %}
-        {% if sheets|length > 1 %}
-        <tr class="sku-label">
-          <td class="sticky-col" colspan="{{ flat_steps|length|add:2 }}">
-            {{ item.sheet.product_name|default:item.sheet.product_code }}
-            <span class="fw-semibold text-muted">· {{ item.sheet.product_code }} · {{ item.mo.code }} · SL {{ item.sheet.total_qty|sx_num }}</span>
-          </td>
-        </tr>
-        {% endif %}
-        {% if not item.sheet.sizes %}
-        <tr><td class="sticky-col" colspan="{{ flat_steps|length|add:2 }}">Chưa có dòng size trên lệnh này.</td></tr>
+        {% if not sheet.groups %}
+        <tr><td class="sticky-col" colspan="2">Lệnh này chưa có công đoạn Ob / LSX.</td></tr>
         {% else %}
-        {% for row in item.sheet.done_rows %}
+        <tr class="sec-label"><td class="sticky-col" colspan="{{ sheet.step_count|add:2 }}">SL thực hiện</td></tr>
+        {% if not sheet.sizes %}
+        <tr><td class="sticky-col" colspan="{{ sheet.step_count|add:2 }}">Chưa có dòng size trên lệnh này.</td></tr>
+        {% else %}
+        {% for row in sheet.done_rows %}
         <tr>
           <td class="sticky-col">{{ row.size_label }}</td>
           <td class="qty-plan">{{ row.qty|sx_num }}</td>
@@ -112,19 +116,9 @@
         </tr>
         {% endfor %}
         {% endif %}
-        {% endfor %}
 
-        <tr class="sec-label"><td class="sticky-col" colspan="{{ flat_steps|length|add:2 }}">SL còn thiếu</td></tr>
-        {% for item in sheets %}
-        {% if sheets|length > 1 %}
-        <tr class="sku-label">
-          <td class="sticky-col" colspan="{{ flat_steps|length|add:2 }}">
-            {{ item.sheet.product_name|default:item.sheet.product_code }}
-            <span class="fw-semibold text-muted">· {{ item.sheet.product_code }}</span>
-          </td>
-        </tr>
-        {% endif %}
-        {% for row in item.sheet.remain_rows %}
+        <tr class="sec-label"><td class="sticky-col" colspan="{{ sheet.step_count|add:2 }}">SL còn thiếu</td></tr>
+        {% for row in sheet.remain_rows %}
         <tr>
           <td class="sticky-col">{{ row.size_label }}</td>
           <td class="qty-plan">{{ row.qty|sx_num }}</td>
@@ -133,12 +127,10 @@
           {% endfor %}
         </tr>
         {% endfor %}
-        {% endfor %}
 
-        {% for item in sheets %}
-        {% if item.sheet.daily_display %}
-        <tr class="sec-label"><td class="sticky-col" colspan="{{ flat_steps|length|add:2 }}">Theo ngày{% if sheets|length > 1 %} · {{ item.sheet.product_code }}{% endif %}</td></tr>
-        {% for row in item.sheet.daily_display %}
+        {% if sheet.daily_display %}
+        <tr class="sec-label"><td class="sticky-col" colspan="{{ sheet.step_count|add:2 }}">Theo ngày</td></tr>
+        {% for row in sheet.daily_display %}
         <tr class="daily">
           <td class="sticky-col">{{ row.stat_date|date:"d/m/Y" }} · {{ row.size_label }}</td>
           <td class="qty-plan">—</td>
@@ -148,10 +140,12 @@
         </tr>
         {% endfor %}
         {% endif %}
-        {% endfor %}
+        {% endif %}
       </tbody>
     </table>
   </div>
+  {% endwith %}
+  {% endfor %}
   {% endif %}
 </div>
 {% endblock %}

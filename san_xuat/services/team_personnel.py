@@ -26,7 +26,7 @@ from san_xuat.hub_models import (
     SxTeamWorkClose,
 )
 from san_xuat.services.planning import PlanningError
-from san_xuat.services.progress_template import steps_for_group, team_by_slug
+from san_xuat.services.progress_template import step_by_key, team_by_slug
 from san_xuat.services.production_machines import format_machine_codes_display, machine_options_for_codes
 from san_xuat.services.team_division_map import (
     has_mapped_divisions,
@@ -39,6 +39,21 @@ User = get_user_model()
 SKILL_LEVELS = ('A', 'B', 'C')
 OUTPUT_LOOKBACK_DAYS = 14
 _MANAGER_ROLES = {ROLE_DIRECTOR, ROLE_DEPARTMENT_HEAD, ROLE_DIVISION_HEAD}
+
+
+@dataclass
+class TeamProcessDef:
+    key: str
+    label: str
+    group_code: str = ''
+    group_label: str = ''
+
+
+@dataclass
+class TeamProcessGroup:
+    code: str
+    label: str
+    steps: list[TeamProcessDef] = field(default_factory=list)
 
 
 @dataclass
@@ -95,7 +110,8 @@ class TeamPersonnelBoard:
     team: dict
     rows: list[TeamPersonnelRow]
     step_defs: list
-    mapped: bool
+    process_groups: list[TeamProcessGroup] = field(default_factory=list)
+    mapped: bool = False
     total: int = 0
     busy: int = 0
     idle: int = 0
@@ -139,6 +155,215 @@ def can_edit_team_personnel(user, slug: str) -> bool:
         mapped = mapped_division_ids(slug)
         return bool(mapped and (user_team_division_ids(user) & mapped))
     return False
+
+
+# Mã nhóm hồ sơ TK / thư viện → tổ (khi nhóm chưa gắn bộ phận).
+_GROUP_PREFIX_SLUGS: tuple[tuple[str, str], ...] = (
+    ('PRE_', 'cat'),
+    ('CUT-', 'cat'),
+    ('CUT_', 'cat'),
+    ('CAT-', 'cat'),
+    ('CAT_', 'cat'),
+    ('SUB_', 'inep'),
+    ('HTF_', 'inep'),
+    ('DEC-', 'inep'),
+    ('DEC_', 'inep'),
+    ('FUS-', 'inep'),
+    ('FUS_', 'inep'),
+    ('PRT-', 'inep'),
+    ('THEU', 'theu'),
+    ('EMB-', 'theu'),
+    ('SEW_', 'may'),
+    ('SEW-', 'may'),
+    ('CHK_', 'may'),
+    ('QC-', 'may'),
+    ('QC_', 'may'),
+    ('IRN_', 'ht'),
+    ('FIN-', 'ht'),
+    ('FIN_', 'ht'),
+    ('FOD_', 'gh'),
+    ('PACK-', 'gh'),
+    ('PACK_', 'gh'),
+)
+
+
+def _group_code_slug(code: str) -> str | None:
+    raw = (code or '').strip().upper()
+    if not raw:
+        return None
+    for prefix, slug in _GROUP_PREFIX_SLUGS:
+        if raw.startswith(prefix):
+            return slug
+    return None
+
+
+def _slug_for_work_center(work_center, code: str = '', name_hint: str = '') -> str | None:
+    from san_xuat.services.capacity_from_hrm import (
+        resolve_work_center_code,
+        team_slug_for_work_center,
+    )
+    from san_xuat.services.progress_template import team_slug_for_work_center_code
+
+    if work_center is not None:
+        slug = team_slug_for_work_center(work_center)
+        if slug:
+            return slug
+    slug = team_slug_for_work_center_code(code)
+    if slug:
+        return slug
+    resolved = resolve_work_center_code(code, name_hint=name_hint)
+    if resolved is not None:
+        return team_slug_for_work_center(resolved)
+    return None
+
+
+def _slug_for_operation_group(group) -> str | None:
+    if group is None:
+        return None
+    slug = _slug_for_work_center(
+        getattr(group, 'default_work_center', None),
+        getattr(group, 'default_work_center_code', '') or '',
+        name_hint=f'{getattr(group, "process_stage_label", "")} {getattr(group, "name", "")}',
+    )
+    if slug:
+        return slug
+    stage = (getattr(group, 'process_stage_label', None) or '').strip()
+    if stage:
+        slug = _slug_for_work_center(None, stage, name_hint=getattr(group, 'name', '') or '')
+        if slug:
+            return slug
+    return _group_code_slug(getattr(group, 'code', '') or '')
+
+
+def _slug_for_routing_line(line, groups_by_code: dict) -> str | None:
+    group = groups_by_code.get((getattr(line, 'group_code', None) or '').strip())
+    slug = _slug_for_operation_group(group)
+    if slug:
+        return slug
+    slug = _group_code_slug(getattr(line, 'group_code', '') or '')
+    if slug:
+        return slug
+    return _slug_for_work_center(
+        getattr(line, 'work_center', None),
+        getattr(line, 'work_center_code', '') or '',
+        name_hint=getattr(line, 'op_name_vi', '') or '',
+    )
+
+
+def library_process_groups_for_team(slug: str) -> list[TeamProcessGroup]:
+    """Công đoạn làm được = thư viện CĐ + nhóm CĐ trên hồ sơ thiết kế của tổ."""
+    team = team_by_slug(slug)
+    if not team:
+        return []
+    wanted = team['slug']
+    from san_xuat.ie_models import SxOperation, SxOperationGroup, SxRoutingLine
+
+    groups = list(
+        SxOperationGroup.objects.filter(is_active=True).select_related('default_work_center')
+    )
+    groups_by_code = {(g.code or '').strip(): g for g in groups if (g.code or '').strip()}
+    group_meta: dict[str, tuple[str, int]] = {}
+    for grp in groups:
+        code = (grp.code or '').strip()
+        if not code:
+            continue
+        group_meta[code] = ((grp.name or code).strip() or code, int(grp.sort_order or 100))
+
+    collected: dict[str, dict] = {}
+
+    def _add(*, key: str, label: str, group_code: str, group_label: str = '', sort_order: int = 500):
+        key = (key or '').strip()
+        label = (label or '').strip()
+        if not key or not label:
+            return
+        gcode = (group_code or '').strip() or 'KHAC'
+        meta = group_meta.get(gcode)
+        glabel = (group_label or '').strip()
+        order = sort_order
+        if meta:
+            glabel = glabel or meta[0]
+            order = meta[1]
+        glabel = glabel or gcode
+        prev = collected.get(key)
+        if prev:
+            if not prev['label']:
+                prev['label'] = label
+            return
+        collected[key] = {
+            'key': key,
+            'label': label,
+            'group_code': gcode,
+            'group_label': glabel,
+            'sort_order': order,
+        }
+
+    ops = (
+        SxOperation.objects.filter(status=SxOperation.STATUS_APPROVED)
+        .exclude(name_vi='')
+        .select_related('group__default_work_center')
+    )
+    for op in ops:
+        if _slug_for_operation_group(op.group) != wanted:
+            continue
+        grp = op.group
+        _add(
+            key=op.op_code,
+            label=op.name_vi,
+            group_code=(grp.code if grp else '') or '',
+            group_label=(grp.name if grp else '') or '',
+        )
+
+    lines = (
+        SxRoutingLine.objects.filter(routing__is_active=True)
+        .exclude(op_name_vi='')
+        .select_related('work_center', 'operation', 'operation__group')
+    )
+    for line in lines:
+        if _slug_for_routing_line(line, groups_by_code) != wanted:
+            continue
+        gcode = (line.group_code or '').strip()
+        grp = groups_by_code.get(gcode)
+        _add(
+            key=(line.op_code or '').strip() or (getattr(line.operation, 'op_code', '') if line.operation_id else ''),
+            label=(line.op_name_vi or '').strip()
+            or ((line.operation.name_vi if line.operation_id else '') or ''),
+            group_code=gcode,
+            group_label=(grp.name if grp else '') or gcode,
+        )
+
+    grouped: dict[str, TeamProcessGroup] = {}
+    for item in collected.values():
+        gcode = item['group_code']
+        bucket = grouped.get(gcode)
+        if bucket is None:
+            bucket = TeamProcessGroup(code=gcode, label=item['group_label'], steps=[])
+            grouped[gcode] = bucket
+        bucket.steps.append(
+            TeamProcessDef(
+                key=item['key'],
+                label=item['label'],
+                group_code=gcode,
+                group_label=item['group_label'],
+            )
+        )
+
+    def _group_sort(group: TeamProcessGroup):
+        meta = group_meta.get(group.code)
+        order = meta[1] if meta else 500
+        return (order, group.label.casefold(), group.code)
+
+    out: list[TeamProcessGroup] = []
+    for group in sorted(grouped.values(), key=_group_sort):
+        group.steps.sort(key=lambda s: (s.label.casefold(), s.key))
+        out.append(group)
+    return out
+
+
+def team_process_defs(slug: str) -> list[TeamProcessDef]:
+    steps: list[TeamProcessDef] = []
+    for group in library_process_groups_for_team(slug):
+        steps.extend(group.steps)
+    return steps
 
 
 def _normalize_process_keys(raw, *, allowed: set[str]) -> list[str]:
@@ -259,7 +484,7 @@ def upsert_team_personnel_skill(
     pool_ids = set(users_in_mapped_divisions(slug).values_list('pk', flat=True))
     if int(user_id) not in pool_ids:
         raise PlanningError('Nhân viên không thuộc bộ phận đã map vào tổ này.')
-    allowed = {s.key for s in steps_for_group(team['group_key'])}
+    allowed = {s.key for s in team_process_defs(team['slug'])}
     keys = _normalize_process_keys(process_keys, allowed=allowed)
     avg_qty = _normalize_process_avg_qty(process_avg_qty or {}, allowed=allowed, selected_keys=keys)
     level = _normalize_skill_level(skill_level)
@@ -409,7 +634,8 @@ def build_team_personnel_board(*, slug: str, search: str = '') -> TeamPersonnelB
     team = team_by_slug(slug)
     if not team:
         raise PlanningError('Tổ không hợp lệ.')
-    step_defs = steps_for_group(team['group_key'])
+    process_groups = library_process_groups_for_team(team['slug'])
+    step_defs = [step for group in process_groups for step in group.steps]
     label_by_key = {s.key: s.label for s in step_defs}
     mapped = has_mapped_divisions(slug)
     qs = users_in_mapped_divisions(slug).select_related(
@@ -449,6 +675,12 @@ def build_team_personnel_board(*, slug: str, search: str = '') -> TeamPersonnelB
         profile = getattr(user, 'profile', None)
         skill_rec = skills.get(user.pk)
         keys = skill_rec.process_key_list() if skill_rec else []
+        for key in keys:
+            if key in label_by_key:
+                continue
+            legacy = step_by_key(key)
+            if legacy:
+                label_by_key[key] = legacy.label
         raw_machines = (skill_rec.machines if skill_rec else '') or ''
         machine_opts = machine_options_for_codes(raw_machines)
         avg_map = skill_rec.process_avg_qty_map() if skill_rec else {}
@@ -520,6 +752,7 @@ def build_team_personnel_board(*, slug: str, search: str = '') -> TeamPersonnelB
         team=team,
         rows=rows,
         step_defs=step_defs,
+        process_groups=process_groups,
         mapped=mapped,
         total=len(rows),
         busy=busy,

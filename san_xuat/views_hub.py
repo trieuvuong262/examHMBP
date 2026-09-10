@@ -2068,6 +2068,8 @@ def order_progress_sheet(request, mo_id: int):
         siblings = _active_progress_mos(mo.sales_order)
         if len(siblings) > 1:
             return redirect('san_xuat:order_progress_order', order_id=mo.sales_order_id)
+        if siblings:
+            return _render_order_progress(request, mos=siblings, order=mo.sales_order)
     return _render_order_progress(request, mos=[mo], order=mo.sales_order)
 
 
@@ -2088,11 +2090,23 @@ def order_progress_order(request, order_id: int):
 
 
 def _active_progress_mos(order) -> list:
-    from san_xuat.hub_models import SxProductionOrder
+    from django.db.models import Prefetch
+
+    from san_xuat.hub_models import SxMoProcessStep, SxProductionOrder
 
     return list(
         order.production_orders.filter(is_demo=False)
         .exclude(status=SxProductionOrder.STATUS_CANCELLED)
+        .select_related('sales_order')
+        .prefetch_related(
+            Prefetch(
+                'mo_process_steps',
+                queryset=SxMoProcessStep.objects.select_related('work_center').order_by(
+                    'sequence', 'id'
+                ),
+            ),
+            'lines',
+        )
         .order_by('id')
     )
 
@@ -2107,7 +2121,6 @@ def _render_order_progress(request, *, mos, order):
         record_progress_qty,
     )
     from san_xuat.services.planning import PlanningError
-    from san_xuat.services.progress_template import progress_steps
 
     menu_key = 'plan_board'
     if not (
@@ -2165,7 +2178,6 @@ def _render_order_progress(request, *, mos, order):
 
     sheets = [{'mo': m, 'sheet': build_progress_sheet(m)} for m in mos]
     total_qty = sum((item['sheet'].total_qty for item in sheets), Decimal('0'))
-    flat_steps = progress_steps()
     return render(request, 'san_xuat/order_progress_sheet.html', {
         **_perm_ctx(request),
         'mo': primary,
@@ -2173,7 +2185,6 @@ def _render_order_progress(request, *, mos, order):
         'sheets': sheets,
         'sheet': sheets[0]['sheet'],
         'total_qty': total_qty,
-        'flat_steps': flat_steps,
         'can_update': can_update,
         'today': timezone.localdate(),
     })
@@ -5697,12 +5708,9 @@ def team_work_personnel(request, slug: str):
         except (TypeError, ValueError):
             user_id = 0
         try:
-            from san_xuat.services.progress_template import steps_for_group
-            from san_xuat.services.team_personnel import parse_process_avg_qty_post
+            from san_xuat.services.team_personnel import parse_process_avg_qty_post, team_process_defs
 
-            allowed_process_keys = {
-                s.key for s in steps_for_group(team_meta['group_key'])
-            }
+            allowed_process_keys = {s.key for s in team_process_defs(slug)}
             upsert_team_personnel_skill(
                 slug=slug,
                 user_id=user_id,
@@ -5775,14 +5783,17 @@ def team_work_progress(request, slug: str, mo_id: int):
     """Phiếu tiến độ theo tổ — xem/ghi SL công đoạn của tổ, không cần vào KHSX."""
     from decimal import Decimal, InvalidOperation
 
-    from san_xuat.hub_models import SxProductionOrder
+    from django.db.models import Prefetch
+
+    from san_xuat.hub_models import SxMoProcessStep, SxProductionOrder
     from san_xuat.services.order_progress_sheet import (
         build_progress_sheet,
         ensure_progress_work_centers,
+        progress_steps_for_mo,
         set_progress_done_qty,
     )
     from san_xuat.services.planning import PlanningError
-    from san_xuat.services.progress_template import steps_for_group, team_by_slug
+    from san_xuat.services.progress_template import team_by_slug
     from san_xuat.services.team_work import (
         accept_production,
         close_team_job,
@@ -5815,6 +5826,15 @@ def team_work_progress(request, slug: str, mo_id: int):
         .exclude(status=SxProductionOrder.STATUS_CANCELLED)
         .exclude(status=SxProductionOrder.STATUS_DRAFT)
         .select_related('sales_order')
+        .prefetch_related(
+            Prefetch(
+                'mo_process_steps',
+                queryset=SxMoProcessStep.objects.select_related('work_center').order_by(
+                    'sequence', 'id'
+                ),
+            ),
+            'lines',
+        )
         .first()
     )
     if not mo:
@@ -5822,7 +5842,7 @@ def team_work_progress(request, slug: str, mo_id: int):
         return redirect('san_xuat:team_work_board', slug=slug)
 
     group_key = team_meta['group_key']
-    team_steps = steps_for_group(group_key)
+    team_steps = [s for s in progress_steps_for_mo(mo) if s.group == group_key]
     allowed_keys = {s.key for s in team_steps}
     ensure_progress_work_centers()
     job_closed = is_team_job_closed(mo_id=mo.pk, team_slug=slug)

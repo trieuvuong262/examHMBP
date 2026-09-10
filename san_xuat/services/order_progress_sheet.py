@@ -1,10 +1,11 @@
-"""Phiếu theo dõi tiến độ đơn (size × công đoạn mẫu cố định)."""
+"""Phiếu theo dõi tiến độ đơn (size × công đoạn Ob/LSX của lệnh)."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
+import re
 
 from django.db import transaction
 from django.utils import timezone
@@ -17,10 +18,14 @@ from san_xuat.hub_models import (
 )
 from san_xuat.services.planning import PlanningError
 from san_xuat.services.progress_template import (
+    GROUPS,
+    ProgressGroup,
+    ProgressStepDef,
     WC_SEED,
-    progress_groups_with_steps,
     progress_steps,
-    step_by_key,
+    step_by_label,
+    team_by_slug,
+    team_slug_for_process_label,
 )
 
 
@@ -133,6 +138,114 @@ class ProgressSheet:
     remain_rows: list[dict] = field(default_factory=list)
     daily_display: list[dict] = field(default_factory=list)
 
+    @property
+    def step_count(self) -> int:
+        return sum(len(steps) for _group, steps in self.groups)
+
+
+def _process_key(seq: int, name: str) -> str:
+    slug = re.sub(r'[^a-z0-9]+', '_', (name or '').casefold()).strip('_')[:36] or 'cd'
+    return f'op_{int(seq or 0)}_{slug}'
+
+
+def _group_for_line(line) -> ProgressGroup:
+    from san_xuat.services.capacity_from_hrm import team_slug_for_work_center
+    from san_xuat.services.qc import resolve_team_slug_from_routing_line
+
+    wc = getattr(line, 'work_center', None)
+    slug = team_slug_for_work_center(wc) if wc is not None else None
+    if not slug:
+        slug = resolve_team_slug_from_routing_line(line)
+    if not slug:
+        name = (
+            getattr(line, 'op_name_vi', None)
+            or getattr(line, 'process_name', None)
+            or ''
+        )
+        slug = team_slug_for_process_label(name)
+    meta = team_by_slug(slug or '')
+    key = (meta or {}).get('group_key') or ''
+    for group in GROUPS:
+        if group.key == key:
+            return group
+    return GROUPS[3] if len(GROUPS) > 3 else GROUPS[-1]
+
+
+def progress_steps_for_mo(mo: SxProductionOrder) -> list[ProgressStepDef]:
+    """Công đoạn phiếu tiến độ = Ob/LSX của lệnh, không lấy catalog mẫu 50 CĐ."""
+    if 'mo_process_steps' in getattr(mo, '_prefetched_objects_cache', {}):
+        source_lines: list = list(mo.mo_process_steps.all())
+    else:
+        source_lines = list(
+            mo.mo_process_steps.select_related('work_center').order_by('sequence', 'id')
+        )
+    if source_lines:
+        source_lines.sort(key=lambda s: (int(getattr(s, 'sequence', 0) or 0), getattr(s, 'pk', 0) or 0))
+    else:
+        from san_xuat.services.qc import ob_source_lines
+
+        source_lines = list(ob_source_lines(mo=mo) or [])
+
+    steps: list[ProgressStepDef] = []
+    seen: set[str] = set()
+    for i, line in enumerate(source_lines, start=1):
+        label = (
+            getattr(line, 'process_name', None)
+            or getattr(line, 'op_name_vi', None)
+            or ''
+        ).strip()
+        if not label:
+            continue
+        fold = label.casefold()
+        if fold in seen:
+            continue
+        seen.add(fold)
+        seq = int(
+            getattr(line, 'sequence', None)
+            or getattr(line, 'seq_no', None)
+            or i * 10
+        )
+        group = _group_for_line(line)
+        tmpl = step_by_label(label)
+        if tmpl and tmpl.group == group.key:
+            steps.append(tmpl)
+            continue
+        steps.append(
+            ProgressStepDef(
+                key=_process_key(seq, label),
+                label=label,
+                group=group.key,
+                work_center_code=group.work_center_code,
+                sequence=seq or ((len(steps) + 1) * 10),
+            )
+        )
+    rank = {group.key: i for i, group in enumerate(GROUPS)}
+    steps.sort(key=lambda item: (rank.get(item.group, 99), item.sequence, item.label))
+    return steps
+
+
+def progress_groups_for_steps(
+    steps: list[ProgressStepDef],
+) -> list[tuple[ProgressGroup, list[ProgressStepDef]]]:
+    by_group: dict[str, list[ProgressStepDef]] = {group.key: [] for group in GROUPS}
+    for step in steps:
+        by_group.setdefault(step.group, []).append(step)
+    return [
+        (group, by_group[group.key])
+        for group in GROUPS
+        if by_group.get(group.key)
+    ]
+
+
+def resolve_progress_step(*, mo: SxProductionOrder, process_key: str) -> ProgressStepDef | None:
+    key = (process_key or '').strip()
+    if not key:
+        return None
+    for step in progress_steps_for_mo(mo):
+        if step.key == key:
+            return step
+    return None
+
 
 def _size_plans(mo: SxProductionOrder) -> list[SizePlanRow]:
     lines = list(
@@ -174,15 +287,13 @@ def build_progress_sheet(
     *,
     group_key: str | None = None,
 ) -> ProgressSheet:
-    all_steps = progress_steps()
-    all_groups = progress_groups_with_steps()
+    all_steps = progress_steps_for_mo(mo)
     gk = (group_key or '').strip().upper()
     if gk:
-        groups = [(g, steps) for g, steps in all_groups if g.key == gk]
         steps = [s for s in all_steps if s.group == gk]
     else:
-        groups = all_groups
         steps = all_steps
+    groups = progress_groups_for_steps(steps)
     sizes = _size_plans(mo)
     label_map = {s.label.casefold(): s for s in all_steps}
 
@@ -318,9 +429,6 @@ def record_progress_qty(
     from san_xuat.services.dispatch import _code, _recompute_mo_progress
     from san_xuat.services.sku_catalog import SkuError, resolve_sku_fields
 
-    step = step_by_key(process_key)
-    if not step:
-        raise PlanningError('Công đoạn không thuộc mẫu cố định.')
     qty = _q(qty)
     if qty <= 0:
         raise PlanningError('SL phải lớn hơn 0.')
@@ -331,6 +439,10 @@ def record_progress_qty(
         raise PlanningError('Lệnh sản xuất đã hủy.')
     if mo.status == SxProductionOrder.STATUS_DRAFT:
         raise PlanningError('Lệnh sản xuất còn nháp — phát hành trước khi ghi tiến độ.')
+
+    step = resolve_progress_step(mo=mo, process_key=process_key)
+    if not step:
+        raise PlanningError('Công đoạn không thuộc lệnh này.')
 
     size = (size_label or '').strip()
     if size == 'Tổng':
@@ -426,9 +538,6 @@ def set_progress_done_qty(
 
     from san_xuat.services.dispatch import _recompute_mo_progress
 
-    step = step_by_key(process_key)
-    if not step:
-        raise PlanningError('Công đoạn không thuộc mẫu cố định.')
     qty = _q(qty)
     if qty < 0:
         raise PlanningError('SL không được âm.')
@@ -438,6 +547,10 @@ def set_progress_done_qty(
         raise PlanningError('Lệnh sản xuất đã hủy.')
     if mo.status == SxProductionOrder.STATUS_DRAFT:
         raise PlanningError('Lệnh sản xuất còn nháp — phát hành trước khi ghi tiến độ.')
+
+    step = resolve_progress_step(mo=mo, process_key=process_key)
+    if not step:
+        raise PlanningError('Công đoạn không thuộc lệnh này.')
 
     size = (size_label or '').strip()
     if size == 'Tổng':
