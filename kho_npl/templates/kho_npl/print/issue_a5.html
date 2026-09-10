@@ -1,5 +1,22 @@
 {% extends 'san_xuat/print/base_a5.html' %}
 {% load npl_extras %}
+{% block print_extra_css %}
+.sheet {
+  padding: 5mm;
+  border: 2.5pt solid #111;
+}
+table.lines th,
+table.lines td {
+  border-width: 1.5pt;
+  padding: 3px 5px;
+}
+@media print {
+  .sheet {
+    padding: 4mm;
+    border: 2.5pt solid #111;
+  }
+}
+{% endblock %}
 {% block print_body %}
 <div class="doc-title">Phiếu xuất kho NPL</div>
 
