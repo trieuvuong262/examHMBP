@@ -909,7 +909,7 @@ def sales_order_detail(request, pk: int):
             sales_order_line__order_id=order.pk,
         ).first()
 
-    from san_xuat.services.bom_need import explode_for_sales_line
+    from san_xuat.services.bom_need import explode_for_sales_line, needs_as_display_dicts
     from san_xuat.services.order_routing import boms_for_product, routings_for_product
     from san_xuat.services.products import resolve_product_ref
 
@@ -918,7 +918,7 @@ def sales_order_detail(request, pk: int):
         ln.product_image_url = product_ref.image_url if product_ref else ''
         ln.available_routings = routings_for_product(ln.product_code) if not ln.routing_id else []
         ln.available_boms = boms_for_product(ln.product_code) if not ln.bom_version_id else []
-        ln.npl_needs = explode_for_sales_line(ln)
+        ln.npl_needs = needs_as_display_dicts(explode_for_sales_line(ln))
 
     return render(request, 'san_xuat/sales_order_detail.html', {
         **_perm_ctx(request),

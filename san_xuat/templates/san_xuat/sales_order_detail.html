@@ -64,6 +64,45 @@
   .jp-so-product-name {
     line-height: 1.35;
   }
+  .jp-so-npl-material {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+  .jp-so-npl-image-btn {
+    display: block;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    border-radius: 0.4rem;
+    line-height: 0;
+    cursor: zoom-in;
+    flex: 0 0 auto;
+  }
+  .jp-so-npl-image {
+    width: 2.25rem;
+    height: 2.25rem;
+    flex: 0 0 2.25rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.4rem;
+    object-fit: cover;
+    background: #fff;
+  }
+  .jp-so-npl-image-btn:hover .jp-so-npl-image,
+  .jp-so-npl-image-btn:focus-visible .jp-so-npl-image {
+    border-color: rgba(220, 38, 38, 0.45);
+  }
+  .jp-so-npl-image.is-empty {
+    display: grid;
+    place-items: center;
+    color: #94a3b8;
+    font-size: 0.85rem;
+  }
+  .jp-so-npl-name {
+    min-width: 0;
+    line-height: 1.35;
+  }
 </style>
 {% endblock %}
 
@@ -289,10 +328,23 @@
               </td>
               {% endif %}
               <td class="small">
-                {{ need.material_name|default:need.material_code }}
-                {% if need.size_code %}
-                <span class="badge bg-light text-dark border">{{ need.size_code }}</span>
-                {% endif %}
+                <div class="jp-so-npl-material">
+                  {% if need.image_url %}
+                  <button type="button" class="jp-so-npl-image-btn"
+                          data-npl-material-image="{{ need.image_url }}"
+                          data-npl-material-image-title="{{ need.material_code }} — {{ need.material_name|default:need.material_code }}">
+                    <img src="{{ need.image_url }}" alt="" class="jp-so-npl-image" loading="lazy">
+                  </button>
+                  {% else %}
+                  <span class="jp-so-npl-image is-empty" aria-hidden="true"><i class="bi bi-image"></i></span>
+                  {% endif %}
+                  <span class="jp-so-npl-name">
+                    {{ need.material_name|default:need.material_code }}
+                    {% if need.size_code %}
+                    <span class="badge bg-light text-dark border">{{ need.size_code }}</span>
+                    {% endif %}
+                  </span>
+                </div>
               </td>
               <td class="text-end small">{{ need.qty_per_unit|sx_num }}</td>
               <td class="text-end small text-muted">{{ need.scale_qty|sx_num }}</td>
@@ -368,4 +420,5 @@
 </script>
 {% endif %}
 {% include 'san_xuat/includes/product_image_gallery_modal.html' %}
+{% include 'kho_npl/includes/material_image_modal.html' %}
 {% endblock %}

@@ -200,6 +200,46 @@
   .jp-so-fold-body { margin-top: .4rem; }
   .jp-so-fold.is-collapsed .jp-so-fold-body { display: none; }
   .jp-so-fold.is-collapsed .jp-so-fold-btn .bi { transform: rotate(180deg); }
+
+  .jp-so-npl-material {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+  .jp-so-npl-image-btn {
+    display: block;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    border-radius: 0.4rem;
+    line-height: 0;
+    cursor: zoom-in;
+    flex: 0 0 auto;
+  }
+  .jp-so-npl-image {
+    width: 2.25rem;
+    height: 2.25rem;
+    flex: 0 0 2.25rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.4rem;
+    object-fit: cover;
+    background: #fff;
+  }
+  .jp-so-npl-image-btn:hover .jp-so-npl-image,
+  .jp-so-npl-image-btn:focus-visible .jp-so-npl-image {
+    border-color: rgba(220, 38, 38, 0.45);
+  }
+  .jp-so-npl-image.is-empty {
+    display: grid;
+    place-items: center;
+    color: #94a3b8;
+    font-size: 0.85rem;
+  }
+  .jp-so-npl-name {
+    min-width: 0;
+    line-height: 1.35;
+  }
   .jp-so-pct-input { max-width: 5.2rem; margin-left: auto; }
   .jp-so-entry {
     display: flex;
@@ -1148,11 +1188,9 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
       if (!tr) return;
       var sl = tr.querySelector('[data-role="npl-scale"]');
       var appliedEl = tr.querySelector('[data-role="npl-applied"]');
-      var pctEl = tr.querySelector('[data-role="npl-pct"]');
       var need = tr.querySelector('[data-role="npl-need"]');
       if (sl) sl.textContent = fmtNeed(scale);
       if (appliedEl) appliedEl.textContent = fmtNeed(entry.applied);
-      if (pctEl) pctEl.textContent = fmtPct(entry.pct);
       if (need) need.textContent = fmtNeed(nplNeedOf(inp, row));
     });
   }
@@ -1173,14 +1211,28 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
     return '<td rowspan="' + rowspan + '" class="small fw-semibold align-middle">' + escAttr(label) + '</td>';
   }
 
+  function nplThumbHtml(ln, name) {
+    var url = String((ln && ln.image_url) || '').trim();
+    var code = String((ln && ln.material_code) || '').trim();
+    var title = (code ? code + ' — ' : '') + name;
+    if (url) {
+      return '<button type="button" class="jp-so-npl-image-btn"'
+        + ' data-npl-material-image="' + escAttr(url) + '"'
+        + ' data-npl-material-image-title="' + escAttr(title) + '"'
+        + ' aria-label="Xem ảnh ' + escAttr(name) + '">'
+        + '<img src="' + escAttr(url) + '" alt="" class="jp-so-npl-image" loading="lazy">'
+        + '</button>';
+    }
+    return '<span class="jp-so-npl-image is-empty" aria-hidden="true"><i class="bi bi-image"></i></span>';
+  }
+
   function renderNplTable(groups) {
     var html = '<div class="table-responsive"><table class="table table-sm table-bordered mb-0">'
       + '<thead class="table-light"><tr>'
       + '<th style="width:16%">Sản phẩm</th><th>NPL</th>'
       + '<th class="text-end" style="width:6rem">ĐM gốc</th>'
-      + '<th class="text-end" style="width:12.2rem" title="Chọn Số lượng hoặc % rồi nhập ĐM áp dụng">Nhập ĐM</th>'
+      + '<th class="text-end" style="width:12.2rem" title="Chọn Số lượng hoặc % rồi nhập thay đổi định mức">Nhập thay đổi</th>'
       + '<th class="text-end" style="width:6.5rem">ĐM áp dụng</th>'
-      + '<th class="text-end" style="width:4.2rem">%</th>'
       + '<th class="text-end" style="width:5rem">SL</th>'
       + '<th class="text-end" style="width:7rem">Nhu cầu</th>'
       + '<th style="width:4rem">ĐVT</th>'
@@ -1213,11 +1265,14 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
           + ' data-scrap-pct="' + scrap + '"';
         html += '<tr>'
           + (i === 0 ? productLabelCell(g.label, g.lines.length) : '')
-          + '<td>' + escAttr(name) + (size ? ' <span class="badge bg-light text-dark border">' + escAttr(size) + '</span>' : '') + '</td>'
+          + '<td><div class="jp-so-npl-material">'
+          + nplThumbHtml(ln, name)
+          + '<span class="jp-so-npl-name">' + escAttr(name)
+          + (size ? ' <span class="badge bg-light text-dark border">' + escAttr(size) + '</span>' : '')
+          + '</span></div></td>'
           + '<td class="text-end text-muted">' + qtyStd + '</td>'
           + '<td>' + entryCellHtml('bom', g.key, bomAttrs, mode, applied, pct, 'ĐM ' + name) + '</td>'
           + '<td class="text-end fw-semibold" data-role="npl-applied">' + fmtNeed(applied) + '</td>'
-          + '<td class="text-end text-muted" data-role="npl-pct">' + fmtPct(pct) + '</td>'
           + '<td class="text-end small text-muted" data-role="npl-scale">' + fmtNeed(scale) + '</td>'
           + '<td class="text-end fw-semibold" data-role="npl-need">' + fmtNeed(need) + '</td>'
           + '<td class="small text-muted">' + escAttr(unit || '—') + '</td></tr>';
@@ -1232,7 +1287,7 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
       + '<thead class="table-light"><tr>'
       + '<th style="width:16%">Sản phẩm</th><th style="width:3.5rem">Bước</th><th>Công đoạn</th>'
       + '<th class="text-end" style="width:7rem">SMV sản phẩm</th>'
-      + '<th class="text-end" style="width:12.2rem" title="Chọn Số lượng hoặc % rồi nhập SMV đơn hàng">Nhập SMV</th>'
+      + '<th class="text-end" style="width:12.2rem" title="Chọn Số lượng hoặc % rồi nhập thay đổi SMV đơn hàng">Nhập thay đổi</th>'
       + '<th class="text-end" style="width:7.5rem">SMV đơn hàng</th>'
       + '<th>Mô tả</th></tr></thead><tbody>';
     groups.forEach(function (g) {
@@ -1559,5 +1614,6 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
 })();
 </script>
 {% include 'san_xuat/includes/sales_order_suggest_modal_script.html' %}
+{% include 'kho_npl/includes/material_image_modal.html' %}
 <script src="{% static 'js/sales-order-autosave.js' %}?v=20260813a"></script>
 {% endblock %}

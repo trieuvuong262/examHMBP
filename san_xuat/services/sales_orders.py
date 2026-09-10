@@ -149,6 +149,12 @@ def bom_lines_snapshot(bom_id: int | None) -> list[dict]:
         if mat and mat.unit_id:
             unit = (mat.unit.code or mat.unit.name or '')[:30]
         qty = _q(line.qty)
+        image_url = ''
+        if mat and mat.image:
+            try:
+                image_url = mat.image.url or ''
+            except (ValueError, OSError):
+                image_url = ''
         out.append({
             'bom_line_id': line.pk,
             'material_code': (mat.code if mat else '')[:60],
@@ -160,6 +166,7 @@ def bom_lines_snapshot(bom_id: int | None) -> list[dict]:
             'scrap_pct': float(_q(line.scrap_pct)),
             'unit': unit,
             'size_code': (line.size_code or '')[:20],
+            'image_url': image_url,
         })
     return out
 
