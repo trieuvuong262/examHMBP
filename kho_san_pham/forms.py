@@ -1,4 +1,5 @@
 from django import forms
+from django.core.exceptions import ValidationError
 from django.db.models import Q
 from decimal import Decimal, InvalidOperation
 
@@ -14,8 +15,126 @@ FORM_SELECT = {'class': 'form-select form-select-sm'}
 FORM_TEXTAREA = {'class': 'form-control form-control-sm', 'rows': 3}
 
 
+def parse_vnd_integer(value):
+    """Nhận giá VND: 195000, 195.000, 195,000 → 195000. Không lấy phần thập phân."""
+    if value in (None, ''):
+        return None
+    if isinstance(value, bool):
+        raise ValueError('invalid')
+    if isinstance(value, (int, Decimal)):
+        d = Decimal(value)
+        if d != d.to_integral_value():
+            raise ValueError('decimal')
+        return d.quantize(Decimal('1'))
+    if isinstance(value, float):
+        d = Decimal(str(value))
+        if d != d.to_integral_value():
+            raise ValueError('decimal')
+        return d.quantize(Decimal('1'))
+
+    text = (
+        str(value)
+        .strip()
+        .replace('\u00a0', '')
+        .replace(' ', '')
+        .replace('₫', '')
+        .replace('đ', '')
+        .replace('VND', '')
+        .replace('vnd', '')
+        .replace('_', '')
+    )
+    if not text:
+        return None
+    if text.startswith('+'):
+        text = text[1:]
+    if text.startswith('-'):
+        raise ValueError('negative')
+
+    has_dot = '.' in text
+    has_comma = ',' in text
+
+    if has_dot and has_comma:
+        last_dot = text.rfind('.')
+        last_comma = text.rfind(',')
+        if last_comma > last_dot:
+            intpart, frac = text[:last_comma], text[last_comma + 1:]
+            intpart = intpart.replace('.', '')
+        else:
+            intpart, frac = text[:last_dot], text[last_dot + 1:]
+            intpart = intpart.replace(',', '')
+        if not intpart.isdigit() or (frac and not frac.isdigit()):
+            raise ValueError('invalid')
+        if frac and int(frac) != 0:
+            raise ValueError('decimal')
+        text = intpart
+    elif has_dot or has_comma:
+        sep = '.' if has_dot else ','
+        parts = text.split(sep)
+        if not parts[0] or not all(p.isdigit() for p in parts):
+            raise ValueError('invalid')
+        if len(parts) > 2:
+            if any(len(p) != 3 for p in parts[1:]):
+                raise ValueError('invalid')
+            text = ''.join(parts)
+        else:
+            frac = parts[1]
+            if len(frac) == 3:
+                text = parts[0] + frac
+            elif not frac or int(frac) == 0:
+                text = parts[0]
+            else:
+                raise ValueError('decimal')
+
+    if not text.isdigit():
+        raise ValueError('invalid')
+    return Decimal(text)
+
+
+class VndAmountInput(forms.TextInput):
+    def format_value(self, value):
+        if value in (None, ''):
+            return ''
+        try:
+            parsed = parse_vnd_integer(value)
+        except (InvalidOperation, ValueError, TypeError):
+            return str(value)
+        if parsed is None:
+            return ''
+        return str(int(parsed))
+
+
+class VndIntegerField(forms.DecimalField):
+    default_error_messages = {
+        'invalid': 'Giá bán không phải số. Nhập 195000 hoặc 195.000.',
+        'decimal': 'Giá bán là số nguyên, không có số thập phân.',
+    }
+
+    def to_python(self, value):
+        if value in self.empty_values:
+            return None
+        try:
+            return parse_vnd_integer(value)
+        except ValueError as exc:
+            code = str(exc) if str(exc) in ('decimal', 'invalid') else 'invalid'
+            raise ValidationError(self.error_messages.get(code, self.error_messages['invalid']), code=code) from exc
+
+
 class ProductForm(forms.ModelForm):
     """Form SP — SKU ghép Style-[Màu-]Size."""
+
+    base_price = VndIntegerField(
+        required=False,
+        min_value=Decimal('0'),
+        max_digits=18,
+        decimal_places=0,
+        label='Giá bán',
+        widget=VndAmountInput(attrs={
+            **FORM_CONTROL,
+            'inputmode': 'decimal',
+            'autocomplete': 'off',
+            'placeholder': 'VD: 195000 hoặc 195.000',
+        }),
+    )
 
     # Không nằm trong Meta.fields: lưu qua set_catalog_qty → sổ kho, không ghi cột thẳng.
     qty_on_hand = forms.DecimalField(
@@ -74,7 +193,12 @@ class ProductForm(forms.ModelForm):
             'bar_code': forms.TextInput(attrs=FORM_CONTROL),
             'unit': forms.TextInput(attrs={**FORM_CONTROL, 'placeholder': 'VD: Cái, Bộ…'}),
             'category_name': forms.TextInput(attrs=FORM_CONTROL),
-            'base_price': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '1', 'min': '0'}),
+            'base_price': VndAmountInput(attrs={
+                **FORM_CONTROL,
+                'inputmode': 'decimal',
+                'autocomplete': 'off',
+                'placeholder': 'VD: 195000 hoặc 195.000',
+            }),
             'image': forms.ClearableFileInput(attrs={
                 'class': 'form-control form-control-sm',
                 'accept': 'image/*,.jpg,.jpeg,.png,.gif,.webp',
@@ -105,6 +229,8 @@ class ProductForm(forms.ModelForm):
         self.fields['unit'].required = False
         self.fields['category_name'].required = False
         self.fields['base_price'].required = False
+        self.fields['base_price'].localize = False
+        self.fields['base_price'].widget.is_localized = False
         self.fields['qty_on_hand'].required = False
         self.fields['image'].required = False
         self.fields['description'].required = False
@@ -151,6 +277,10 @@ class ProductForm(forms.ModelForm):
 
     def clean_code(self):
         return (self.cleaned_data.get('code') or '').strip().upper()
+
+    def clean_base_price(self):
+        value = self.cleaned_data.get('base_price')
+        return value if value is not None else Decimal('0')
 
     def clean_qty_on_hand(self):
         qty = self.cleaned_data.get('qty_on_hand')
