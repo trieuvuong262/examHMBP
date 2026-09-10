@@ -640,9 +640,8 @@ def team_khsx_spans(
     plan_steps=None,
     today: date | None = None,
 ) -> list[TeamKhsxSpan]:
-    """Span KHSX từng tổ: nối tiếp Cắt → May → …; tổ đã kéo giữ ngày nếu không chồng khâu trước."""
+    """Span KHSX từng tổ: mặc định nối tiếp; tổ đã kéo dùng planned_date độc lập (được chồng ngày)."""
     from san_xuat.services.inter_step_times import schedule_span
-    from san_xuat.services.work_calendar import next_working_day
 
     loads = _team_loads_from_order(order, product_flows=product_flows)
     today = today or timezone.localdate()
@@ -672,14 +671,21 @@ def team_khsx_spans(
     pinned = _pinned_starts_from_steps(plan_steps if plan_steps is not None else list(order.plan_steps.all()))
 
     cursor = anchor
+    defaults: dict[str, tuple[date, date]] = {}
+    for row in loads:
+        start, end = schedule_span(
+            start=cursor,
+            lead_minutes=row['minutes'],
+            minutes_per_day=PLAN_SHIFT_MINUTES,
+        )
+        defaults[row['slug']] = (start, end)
+        cursor = _next_working_day_after(end)
+
     spans: list[TeamKhsxSpan] = []
     for row in loads:
         slug = row['slug']
         is_pinned = slug in pinned
-        start = pinned[slug] if is_pinned else cursor
-        if start < cursor:
-            start = cursor
-        start = next_working_day(start)
+        start = pinned[slug] if is_pinned else defaults[slug][0]
         start, end = schedule_span(
             start=start,
             lead_minutes=row['minutes'],
@@ -698,47 +704,7 @@ def team_khsx_spans(
             duration_label=dur_label,
             duration_work_days=dur_days,
         ))
-        cursor = _next_working_day_after(end)
     return npl_spans + spans
-
-
-def _waterfall_team_starts(
-    *,
-    teams: list[TeamKhsxSpan],
-    drag_slug: str,
-    new_start: date,
-    floor: date | None,
-) -> dict[str, date]:
-    """Kéo một tổ: tổ trước giữ nguyên, tổ sau dịch cùng khoảng; không chồng khâu trước."""
-    from san_xuat.services.inter_step_times import schedule_span
-    from san_xuat.services.work_calendar import next_working_day
-
-    idx = next(i for i, t in enumerate(teams) if t.slug == drag_slug)
-    delta = new_start - teams[idx].start
-    proposed: list[date] = []
-    for i, team in enumerate(teams):
-        if i < idx:
-            proposed.append(team.start)
-        elif i == idx:
-            proposed.append(new_start)
-        else:
-            proposed.append(team.start + delta)
-
-    cursor = floor
-    out: dict[str, date] = {}
-    for team, raw in zip(teams, proposed):
-        start = raw
-        if cursor is not None and start < cursor:
-            start = cursor
-        start = next_working_day(start)
-        out[team.slug] = start
-        _, end = schedule_span(
-            start=start,
-            lead_minutes=team.minutes,
-            minutes_per_day=PLAN_SHIFT_MINUTES,
-        )
-        cursor = _next_working_day_after(end)
-    return out
 
 
 def _write_team_planned_dates(steps, starts_by_slug: dict[str, date]) -> int:
@@ -1980,7 +1946,7 @@ def reschedule_order_plan_start(*, order_id: int, start_date: date) -> SxSalesOr
 
 @transaction.atomic
 def reschedule_order_team_start(*, order_id: int, start_date: date, team_slug: str = '') -> SxSalesOrder:
-    """Kéo một tổ trên lộ trình — tổ sau dịch theo, không bắt đầu trước khi tổ trước xong."""
+    """Kéo một tổ trên lộ trình — các tổ khác giữ nguyên ngày, được chồng lịch."""
     if not isinstance(start_date, date):
         raise PlanningError('Ngày bắt đầu không hợp lệ.')
     order = SxSalesOrder.objects.select_for_update().get(pk=order_id, is_demo=False)
@@ -2004,7 +1970,6 @@ def reschedule_order_team_start(*, order_id: int, start_date: date, team_slug: s
     attach_group_codes_from_routing(steps, routing_lines)
     spans = team_khsx_spans(order, plan_steps=steps)
     prod = [s for s in spans if s.slug != 'npl']
-    npl = next((s for s in spans if s.slug == 'npl'), None)
     if not prod:
         raise PlanningError('Đơn chưa có tổ trên Ob để xếp lịch.')
     slug = (team_slug or '').strip().lower()
@@ -2015,14 +1980,9 @@ def reschedule_order_team_start(*, order_id: int, start_date: date, team_slug: s
     if slug not in {s.slug for s in prod}:
         raise PlanningError('Tổ này không tham gia đơn.')
 
-    new_start = next_working_day(start_date)
-    floor = _next_working_day_after(npl.end) if npl else None
-    starts_by_slug = _waterfall_team_starts(
-        teams=prod,
-        drag_slug=slug,
-        new_start=new_start,
-        floor=floor,
-    )
+    # Ghim ngày hiện tại của mọi tổ rồi chỉ đổi tổ đang kéo — các tổ khác không đi theo.
+    starts_by_slug = {s.slug: s.start for s in prod}
+    starts_by_slug[slug] = next_working_day(start_date)
     written = _write_team_planned_dates(steps, starts_by_slug)
     if written <= 0:
         raise PlanningError('Không gán được công đoạn của tổ này.')
