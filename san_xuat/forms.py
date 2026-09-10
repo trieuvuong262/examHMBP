@@ -311,6 +311,17 @@ class BomLineForm(forms.ModelForm):
                 Material.objects.filter(pk=material_id).select_related('unit')
             )
             self.fields['material'].label_from_instance = lambda m: m.name
+            mat = getattr(self.instance, 'material', None)
+            if mat is None or mat.pk != material_id:
+                mat = self.fields['material'].queryset.first()
+            image_url = ''
+            if mat and mat.image:
+                try:
+                    image_url = mat.image.url or ''
+                except ValueError:
+                    image_url = ''
+            if image_url:
+                self.fields['material'].widget.attrs['data-image-url'] = image_url
         else:
             self.fields['material'].queryset = Material.objects.none()
         self.fields['material'].empty_label = None
