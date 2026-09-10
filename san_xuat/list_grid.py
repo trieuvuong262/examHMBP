@@ -744,6 +744,7 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
     'ie_operation': _spec(
         _cols(
             _col('group_code', 'Mã nhóm', weight=80, sortable=False),
+            _col('group_name', 'Nhóm', required=True, weight=140, sortable=False),
             _col('op_code', 'Mã CĐ', required=True, weight=90, sortable=False),
             _col('op_rev', 'Phiên bản', weight=70, sortable=False),
             _col('name_vi', 'Tên công đoạn', required=True, weight=140, sortable=False),

@@ -111,6 +111,7 @@
             </td>
             {% endif %}
             <td class="npl-col small" data-col="group_code">{{ op.group.code }}</td>
+            <td class="npl-col" data-col="group_name">{% if op.group %}{{ op.group.name }}{% else %}—{% endif %}</td>
             <td class="npl-col fw-semibold" data-col="op_code">{{ op.op_code }}</td>
             <td class="npl-col" data-col="op_rev"><span class="badge bg-light text-dark">{{ op.op_rev }}</span></td>
             <td class="npl-col" data-col="name_vi">{{ op.name_vi }}</td>

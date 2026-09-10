@@ -1018,6 +1018,8 @@ def operation_list(request):
             | Q(name_vi__icontains=term)
             | Q(name_en__icontains=term)
             | Q(machine_code__icontains=term)
+            | Q(group__code__icontains=term)
+            | Q(group__name__icontains=term)
         )
     group_code = (request.GET.get('group') or '').strip()
     if group_code:
@@ -1034,7 +1036,7 @@ def operation_list(request):
 
     qs = qs.order_by('op_code', 'op_rev')
     grid = sx_list_grid_context(request, 'ie_operation')
-    grid['sx_list_storage_key'] = 'san_xuat_ie_operation_cols_v4'
+    grid['sx_list_storage_key'] = 'san_xuat_ie_operation_cols_v5'
     if not perms.get('can_update'):
         cols = [c for c in grid['list_columns'] if c['key'] != 'actions']
         grid = {
