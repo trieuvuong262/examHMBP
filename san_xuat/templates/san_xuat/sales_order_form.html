@@ -1165,9 +1165,7 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
       var entry = readEntry(inp, std);
       var tr = inp.closest('tr');
       var el = tr ? tr.querySelector('[data-role="smv-applied"]') : null;
-      var pctEl = tr ? tr.querySelector('[data-role="smv-pct"]') : null;
       if (el) el.textContent = fmtNeed(entry.applied);
-      if (pctEl) pctEl.textContent = fmtPct(entry.pct);
     });
   }
 
@@ -1236,7 +1234,6 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
       + '<th class="text-end" style="width:7rem">SMV sản phẩm</th>'
       + '<th class="text-end" style="width:12.2rem" title="Chọn Số lượng hoặc % rồi nhập SMV đơn hàng">Nhập SMV</th>'
       + '<th class="text-end" style="width:7.5rem">SMV đơn hàng</th>'
-      + '<th class="text-end" style="width:4.2rem">%</th>'
       + '<th>Mô tả</th></tr></thead><tbody>';
     groups.forEach(function (g) {
       g.steps.forEach(function (st, i) {
@@ -1257,7 +1254,6 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
           + '<td class="text-end text-muted">' + parseFloat(std.toFixed(4)) + '</td>'
           + '<td>' + entryCellHtml('smv', g.key, 'data-smv-seq="' + (st.seq || '') + '" data-smv-std="' + std + '"', mode, applied, pct, 'SMV ' + name) + '</td>'
           + '<td class="text-end fw-semibold" data-role="smv-applied">' + fmtNeed(applied) + '</td>'
-          + '<td class="text-end text-muted" data-role="smv-pct">' + fmtPct(pct) + '</td>'
           + '<td><input type="text" class="form-control form-control-sm jp-so-notes-input" maxlength="255"'
           + ' data-line-key="' + escAttr(g.key) + '" data-smv-seq="' + (st.seq || '') + '"'
           + ' value="' + escAttr(notes) + '" placeholder="Mô tả" aria-label="Mô tả ' + escAttr(name) + '"></td></tr>';
