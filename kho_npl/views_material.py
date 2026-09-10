@@ -650,9 +650,21 @@ def material_detail(request, pk):
     })
 
 
+def _preselect_specification(form, request):
+    if request.method != 'GET':
+        return
+    raw = (request.GET.get('select_specification') or '').strip()
+    if not raw.isdigit():
+        return
+    spec_id = int(raw)
+    if form.fields['specification'].queryset.filter(pk=spec_id).exists():
+        form.initial['specification'] = spec_id
+
+
 @module_perm_required_methods(MODULE_KHO_NPL, get='create', post='create')
 def material_create(request):
     form = MaterialForm(request.POST or None, request.FILES or None)
+    _preselect_specification(form, request)
     if request.method == 'POST' and form.is_valid():
         material = form.save()
         messages.success(request, f'Đã thêm nguyên phụ liệu {material.code}.')
@@ -670,6 +682,7 @@ def material_create(request):
 def material_edit(request, pk):
     material = get_object_or_404(Material, pk=pk)
     form = MaterialForm(request.POST or None, request.FILES or None, instance=material)
+    _preselect_specification(form, request)
     if request.method == 'POST' and form.is_valid():
         material = form.save()
         messages.success(request, f'Đã cập nhật {material.code}.')

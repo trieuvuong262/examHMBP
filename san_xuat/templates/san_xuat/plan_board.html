@@ -2065,23 +2065,6 @@
     if (!y || !mo || !d) return null;
     return new Date(y, mo - 1, d);
   }
-  function fmtYmd(d) {
-    var m = d.getMonth() + 1;
-    var day = d.getDate();
-    return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
-  }
-  function addDays(ymd, n) {
-    var d = parseYmd(ymd);
-    if (!d) return ymd;
-    d.setDate(d.getDate() + n);
-    return fmtYmd(d);
-  }
-  function dayDiff(fromYmd, toYmd) {
-    var a = parseYmd(fromYmd);
-    var b = parseYmd(toYmd);
-    if (!a || !b) return 0;
-    return Math.round((b.getTime() - a.getTime()) / 86400000);
-  }
   function barCanDrag(bar) {
     if (!bar) return false;
     if (bar.getAttribute('data-can-drag') === '1') return true;
@@ -2098,7 +2081,15 @@
     return chart.querySelector(sel);
   }
   function dateFromClientX(x) {
-    var days = chart.querySelectorAll('.jp-tl-day[data-date]');
+    var days = [];
+    var sample = chart.querySelector('.jp-tl-slot[data-date]');
+    if (sample) {
+      var oid = sample.getAttribute('data-order-id') || '';
+      if (oid) {
+        days = chart.querySelectorAll('.jp-tl-slot[data-order-id="' + oid + '"][data-date]');
+      }
+    }
+    if (!days.length) days = chart.querySelectorAll('.jp-tl-day[data-date]');
     if (!days.length) return null;
     var label = chart.querySelector('.jp-tl-label');
     if (label) {
@@ -2190,7 +2181,6 @@
       bar: bar,
       handle: handle,
       start: bar.getAttribute('data-start') || '',
-      grabDate: dateFromClientX(ev.clientX) || bar.getAttribute('data-start') || '',
     };
     try {
       ev.dataTransfer.effectAllowed = 'move';
@@ -2206,12 +2196,7 @@
     if (!dragging) return;
     ev.preventDefault();
     try { ev.dataTransfer.dropEffect = 'move'; } catch (e) {}
-    var hover = dateFromClientX(ev.clientX);
-    var hint = hover;
-    if (hover && dragging.grabDate && dragging.start) {
-      hint = addDays(dragging.start, dayDiff(dragging.grabDate, hover));
-    }
-    hintDate(hint);
+    hintDate(dateFromClientX(ev.clientX));
   }
   function onDrop(ev) {
     if (!dragging) return;
@@ -2221,13 +2206,8 @@
     dragging = null;
     clearDragClass();
     if (!ymd || !parseYmd(ymd)) return;
-    var newStart = ymd;
-    if (payload.grabDate && payload.start) {
-      newStart = addDays(payload.start, dayDiff(payload.grabDate, ymd));
-    }
-    if (!newStart || newStart === payload.start) return;
-    if (!parseYmd(newStart)) return;
-    save(payload.bar, newStart);
+    if (ymd === payload.start) return;
+    save(payload.bar, ymd);
   }
 
   document.addEventListener('dragover', onDragOver);

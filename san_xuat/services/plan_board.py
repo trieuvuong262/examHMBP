@@ -619,17 +619,30 @@ def _team_loads_from_order(
     return out
 
 
-def _pinned_starts_from_steps(plan_steps) -> dict[str, date]:
+def _plan_step_team_slug(step) -> str:
+    """Slug tổ của bước kế hoạch — group_code, rồi tên công đoạn."""
     from san_xuat.services.inter_step_times import _step_team_slug
+    from san_xuat.services.progress_template import team_slug_for_process_label
+
+    slug = (_step_team_slug(step) or '').strip().lower()
+    if slug:
+        return slug
+    name = (getattr(step, 'process_name', None) or '').strip()
+    return (team_slug_for_process_label(name) or '').strip().lower()
+
+
+def _pinned_starts_from_steps(plan_steps) -> dict[str, date]:
+    from san_xuat.services.inter_step_times import _group_slug_scope
 
     pinned: dict[str, date] = {}
-    for step in plan_steps or []:
-        slug = (_step_team_slug(step) or '').strip().lower()
-        planned = getattr(step, 'planned_date', None)
-        if not slug or not planned:
-            continue
-        if slug not in pinned or planned < pinned[slug]:
-            pinned[slug] = planned
+    with _group_slug_scope():
+        for step in plan_steps or []:
+            slug = _plan_step_team_slug(step)
+            planned = getattr(step, 'planned_date', None)
+            if not slug or not planned:
+                continue
+            if slug not in pinned or planned < pinned[slug]:
+                pinned[slug] = planned
     return pinned
 
 
@@ -707,19 +720,28 @@ def team_khsx_spans(
     return npl_spans + spans
 
 
-def _write_team_planned_dates(steps, starts_by_slug: dict[str, date]) -> int:
-    from san_xuat.services.inter_step_times import _group_slug_scope, _step_team_slug
+def _write_team_planned_dates(steps, starts_by_slug: dict[str, date], *, require_slug: str = '') -> int:
+    from san_xuat.services.inter_step_times import _group_slug_scope
 
     written = 0
+    wrote_required = not require_slug
     with _group_slug_scope():
         for step in steps:
-            st = (_step_team_slug(step) or '').strip().lower()
+            st = _plan_step_team_slug(step)
             if st not in starts_by_slug:
                 continue
             if step.planned_date != starts_by_slug[st]:
+                fields = ['planned_date']
                 step.planned_date = starts_by_slug[st]
-                step.save(update_fields=['planned_date'])
+                gc = (getattr(step, 'group_code', None) or '').strip()
+                if gc:
+                    fields.append('group_code')
+                step.save(update_fields=fields)
             written += 1
+            if require_slug and st == require_slug:
+                wrote_required = True
+    if require_slug and not wrote_required:
+        return 0
     return written
 
 
@@ -1968,6 +1990,12 @@ def reschedule_order_team_start(*, order_id: int, start_date: date, team_slug: s
         rl for ln in order.lines.all() for rl in ln.routing_lines.all()
     ]
     attach_group_codes_from_routing(steps, routing_lines)
+    dirty_gc = [
+        s for s in steps
+        if getattr(s, 'pk', None) and (getattr(s, 'group_code', None) or '').strip()
+    ]
+    if dirty_gc:
+        SxSalesOrderPlanStep.objects.bulk_update(dirty_gc, ['group_code'])
     spans = team_khsx_spans(order, plan_steps=steps)
     prod = [s for s in spans if s.slug != 'npl']
     if not prod:
@@ -1983,7 +2011,7 @@ def reschedule_order_team_start(*, order_id: int, start_date: date, team_slug: s
     # Ghim ngày hiện tại của mọi tổ rồi chỉ đổi tổ đang kéo — các tổ khác không đi theo.
     starts_by_slug = {s.slug: s.start for s in prod}
     starts_by_slug[slug] = next_working_day(start_date)
-    written = _write_team_planned_dates(steps, starts_by_slug)
+    written = _write_team_planned_dates(steps, starts_by_slug, require_slug=slug)
     if written <= 0:
         raise PlanningError('Không gán được công đoạn của tổ này.')
 

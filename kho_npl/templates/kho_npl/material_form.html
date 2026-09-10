@@ -121,7 +121,20 @@
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-bold small" for="{{ form.specification.id_for_label }}">Quy cách / khổ</label>
-                        {{ form.specification }}
+                        <div class="d-flex align-items-start gap-2">
+                            <div class="flex-grow-1 min-w-0">{{ form.specification }}</div>
+                            {% if can_create %}
+                            {% if is_edit %}
+                            {% url 'kho_npl:material_edit' material.pk as npl_form_url %}
+                            {% else %}
+                            {% url 'kho_npl:material_create' as npl_form_url %}
+                            {% endif %}
+                            <a href="{% url 'kho_npl:settings_create' 'quy-cach' %}?next={{ npl_form_url|urlencode }}"
+                               class="btn btn-outline-secondary btn-sm text-nowrap">
+                                <i class="bi bi-plus-lg me-1"></i>Thêm quy cách
+                            </a>
+                            {% endif %}
+                        </div>
                         {% if form.specification.errors %}<div class="text-danger small">{{ form.specification.errors }}</div>{% endif %}
                         <div class="form-text">
                             Quy cách được khai báo tại Thiết lập → Quy cách / khổ.

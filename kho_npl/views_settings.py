@@ -1,8 +1,10 @@
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
 from django.contrib import messages
-from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+from django.urls import Resolver404, resolve, reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from assessment.decorators import module_perm_required, module_perm_required_methods
 from hrm.module_permissions import MODULE_KHO_NPL
@@ -12,6 +14,35 @@ from PortalJustPlay.pagination import paginate_queryset
 
 from kho_npl.settings_registry import SETTINGS_SECTIONS, get_settings_section
 from kho_npl.view_utils import nav_context, perm_context
+
+_MATERIAL_FORM_URL_NAMES = frozenset({'material_create', 'material_edit'})
+
+
+def _safe_material_form_next(request) -> str:
+    """Chỉ nhận next về form tạo/sửa NPL trên cùng host."""
+    next_url = (request.POST.get('next') or request.GET.get('next') or '').strip()
+    if not next_url:
+        return ''
+    if not url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return ''
+    try:
+        match = resolve(urlsplit(next_url).path)
+    except Resolver404:
+        return ''
+    if match.namespace != 'kho_npl' or match.url_name not in _MATERIAL_FORM_URL_NAMES:
+        return ''
+    return next_url
+
+
+def _append_query(url: str, **params) -> str:
+    parts = urlsplit(url)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    query.update({key: str(value) for key, value in params.items()})
+    return urlunsplit(parts._replace(query=urlencode(query)))
 
 
 def _settings_form_extra(config):
@@ -62,9 +93,15 @@ def settings_create(request, section):
     config = _section_or_404(section)
     form_class = config['form_class']
     form = form_class(request.POST or None)
+    next_url = _safe_material_form_next(request)
+    cancel_url = next_url or reverse('kho_npl:settings_list', kwargs={'section': section})
     if request.method == 'POST' and form.is_valid():
         obj = form.save()
         messages.success(request, f'Đã thêm {obj}.')
+        if next_url:
+            if section == 'quy-cach':
+                next_url = _append_query(next_url, select_specification=obj.pk)
+            return redirect(next_url)
         return redirect('kho_npl:settings_list', section=section)
     return render(request, 'kho_npl/settings_form.html', {
         **nav_context('settings', user=request.user),
@@ -72,7 +109,8 @@ def settings_create(request, section):
         'section': config,
         'form': form,
         'is_edit': False,
-        'cancel_url': reverse('kho_npl:settings_list', kwargs={'section': section}),
+        'next_url': next_url,
+        'cancel_url': cancel_url,
         **_settings_form_extra(config),
     })
 
