@@ -335,6 +335,44 @@
   border-radius: 0.75rem;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 18px rgba(15, 23, 42, 0.05);
 }
+.jp-mo-npl-material {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.jp-mo-npl-name {
+  min-width: 0;
+  line-height: 1.35;
+}
+.jp-mo-npl-image-btn {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 0.4rem;
+  line-height: 0;
+  cursor: zoom-in;
+}
+.jp-mo-npl-image {
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: 0 0 2.25rem;
+  border: 1px solid var(--jp-mo-line);
+  border-radius: 0.4rem;
+  object-fit: cover;
+  background: #fff;
+}
+.jp-mo-npl-image-btn:hover .jp-mo-npl-image,
+.jp-mo-npl-image-btn:focus-visible .jp-mo-npl-image {
+  border-color: rgba(220, 38, 38, 0.45);
+}
+.jp-mo-npl-image.is-empty {
+  display: grid;
+  place-items: center;
+  color: var(--jp-mo-muted);
+  font-size: 0.85rem;
+}
 .jp-mo-empty {
   text-align: center;
   padding: 2.5rem 1rem;

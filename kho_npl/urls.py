@@ -5,6 +5,7 @@ from . import views
 from . import views_adjustment
 from . import views_issue
 from . import views_material
+from . import views_print
 from . import views_receipt
 from . import views_reports
 from . import views_settings
@@ -54,6 +55,7 @@ urlpatterns = [
     path('phieu-xuat/them/', views_issue.issue_create, name='issue_create'),
     path('phieu-xuat/<int:pk>/', views_issue.issue_detail, name='issue_detail'),
     path('phieu-xuat/<int:pk>/sua/', views_issue.issue_edit, name='issue_edit'),
+    path('phieu-xuat/<int:pk>/in/', views_print.print_issue, name='issue_print'),
     path('phieu-xuat/<int:pk>/ghi-chu/', views_issue.issue_update_notes, name='issue_update_notes'),
     path('phieu-xuat/<int:pk>/ghi-chu-dong/', views_issue.issue_update_line_notes, name='issue_update_line_notes'),
     path('phieu-xuat/<int:pk>/chung-tu/', views_issue.issue_replace_attachment, name='issue_replace_attachment'),

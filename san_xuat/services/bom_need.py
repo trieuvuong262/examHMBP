@@ -267,6 +267,26 @@ def resolve_issue_material(need: MaterialNeed):
 
 
 def needs_as_display_dicts(rows: list[MaterialNeed]) -> list[dict]:
+    from django.db.models.functions import Lower
+
+    from kho_npl.models import Material
+
+    codes = {(r.material_code or '').strip() for r in rows if (r.material_code or '').strip()}
+    image_by_code: dict[str, str] = {}
+    if codes:
+        folded = {c.casefold() for c in codes}
+        materials = (
+            Material.objects.annotate(_code_l=Lower('code'))
+            .filter(_code_l__in=folded)
+            .only('code', 'image')
+        )
+        for material in materials:
+            try:
+                url = material.image.url if material.image else ''
+            except (ValueError, OSError):
+                url = ''
+            if url:
+                image_by_code[(material.code or '').strip().casefold()] = url
     return [
         {
             'material_code': r.material_code,
@@ -277,6 +297,7 @@ def needs_as_display_dicts(rows: list[MaterialNeed]) -> list[dict]:
             'size_code': r.size_code,
             'unit': r.unit,
             'scale_qty': r.scale_qty,
+            'image_url': image_by_code.get((r.material_code or '').strip().casefold(), ''),
         }
         for r in rows
     ]

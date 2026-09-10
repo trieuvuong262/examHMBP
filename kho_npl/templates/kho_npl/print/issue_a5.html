@@ -1,0 +1,62 @@
+{% extends 'san_xuat/print/base_a5.html' %}
+{% load npl_extras %}
+{% block print_body %}
+<div class="doc-title">Phiếu xuất kho NPL</div>
+
+<div class="meta-grid">
+  <div><span class="label">Trạng thái:</span> {{ issue.get_status_display }}</div>
+  <div><span class="label">Ngày xuất:</span> {{ issue.issue_date|date:"d/m/Y" }}</div>
+  <div class="full"><span class="label">Lý do xuất:</span> {{ issue.issue_type|default:"—" }}</div>
+  <div><span class="label">Người xuất:</span> {% if issue.issued_by %}{{ issue.issued_by.get_full_name|default:issue.issued_by.username }}{% else %}—{% endif %}</div>
+  <div><span class="label">Người nhận:</span>
+    {% if issue.recipient %}
+      {{ issue.recipient_name|default:issue.recipient.get_full_name|default:issue.recipient.username }}
+    {% elif issue.recipient_name %}
+      {{ issue.recipient_name }}
+    {% else %}
+      —
+    {% endif %}
+  </div>
+  {% if issue.recipient_department %}
+  <div class="full"><span class="label">Bộ phận nhận:</span> {{ issue.recipient_department }}</div>
+  {% endif %}
+  {% if issue.production_order %}
+  <div><span class="label">Lệnh SX:</span> {{ issue.production_order }}</div>
+  {% endif %}
+  {% if issue.product_code %}
+  <div><span class="label">Mã SP:</span> {{ issue.product_code }}</div>
+  {% endif %}
+</div>
+
+<table class="lines">
+  <thead>
+    <tr>
+      <th style="width:6%">STT</th>
+      <th>Nguyên phụ liệu</th>
+      <th style="width:12%">SL xuất</th>
+      <th style="width:10%">ĐVT</th>
+      <th style="width:14%">Vị trí</th>
+      <th style="width:18%">Ghi chú</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for line in lines %}
+    <tr>
+      <td class="text-center">{{ forloop.counter }}</td>
+      <td>
+        <strong>{{ line.material.code }}</strong><br>
+        {{ line.material.name }}
+      </td>
+      <td class="text-end">{{ line.quantity|npl_qty }}</td>
+      <td class="text-center">{% if line.line_unit %}{{ line.line_unit.code }}{% else %}{{ line.material.unit.code }}{% endif %}</td>
+      <td class="text-center">{{ line.location.name }}</td>
+      <td>{{ line.notes|default:"—" }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="6" class="text-center">Chưa có dòng chi tiết.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<div class="notes"><span class="label">Ghi chú:</span> {{ issue.notes|default:"—" }}</div>
+{% endblock %}

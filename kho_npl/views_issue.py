@@ -44,6 +44,26 @@ from kho_npl.doc_prefill import (
 from kho_npl.view_utils import nav_context, perm_context
 
 
+def _issue_print_url(pk: int) -> str:
+    return reverse('kho_npl:issue_print', args=[pk]) + '?autoprint=1'
+
+
+def _redirect_after_issue_save(request, doc, *, action: str):
+    if action == 'post':
+        try:
+            post_stock_issue(doc, request.user)
+            messages.success(request, f'Phiếu {doc.number} đã xuất kho và trừ tồn.')
+        except IssueWorkflowError as exc:
+            messages.error(request, str(exc))
+            return redirect('kho_npl:issue_edit', pk=doc.pk)
+        return redirect('kho_npl:issue_detail', pk=doc.pk)
+    if action == 'save_print':
+        messages.success(request, f'Đã lưu nháp phiếu {doc.number}.')
+        return redirect(_issue_print_url(doc.pk))
+    messages.success(request, f'Đã lưu nháp phiếu {doc.number}.')
+    return redirect('kho_npl:issue_detail', pk=doc.pk)
+
+
 def _save_issue_form(request, issue, *, is_create: bool):
     form = StockIssueForm(request.POST, request.FILES, instance=issue, operator=request.user)
     formset = StockIssueLineFormSet(request.POST, instance=issue, prefix='lines')
@@ -146,6 +166,7 @@ def issue_detail(request, pk):
         'issue_replace_attachment_url': reverse('kho_npl:issue_replace_attachment', args=[issue.pk]),
         'notes_form': notes_form,
         'line_notes_formset': line_notes_formset,
+        'issue_print_url': _issue_print_url(issue.pk),
     })
 
 
@@ -165,16 +186,7 @@ def issue_create(request):
             if product_code and not doc.product_code:
                 doc.product_code = product_code
                 doc.save(update_fields=['product_code'])
-            if action == 'post':
-                try:
-                    post_stock_issue(doc, request.user)
-                    messages.success(request, f'Phiếu {doc.number} đã xuất kho và trừ tồn.')
-                except IssueWorkflowError as exc:
-                    messages.error(request, str(exc))
-                    return redirect('kho_npl:issue_edit', pk=doc.pk)
-            else:
-                messages.success(request, f'Đã lưu nháp phiếu {doc.number}.')
-            return redirect('kho_npl:issue_detail', pk=doc.pk)
+            return _redirect_after_issue_save(request, doc, action=action)
     if request.method != 'POST':
         form_initial = {}
         initial_lines = bom_lines
@@ -209,6 +221,7 @@ def issue_create(request):
         'formset': formset,
         'is_edit': False,
         'cancel_url': reverse('kho_npl:issue_list'),
+        'list_url': reverse('kho_npl:issue_list'),
         'existing_attachments': [],
     })
 
@@ -226,6 +239,8 @@ def issue_update_notes(request, pk):
         obj = form.save(commit=False)
         obj.save(update_fields=['notes'])
         messages.success(request, f'Đã cập nhật ghi chú phiếu {issue.number}.')
+        if request.POST.get('action') == 'save_print':
+            return redirect(_issue_print_url(pk))
     else:
         messages.error(request, 'Không lưu được ghi chú — kiểm tra lại nội dung.')
     return redirect('kho_npl:issue_detail', pk=pk)
@@ -256,6 +271,8 @@ def issue_update_line_notes(request, pk):
     if formset.is_valid():
         formset.save()
         messages.success(request, f'Đã cập nhật ghi chú dòng phiếu {issue.number}.')
+        if request.POST.get('action') == 'save_print':
+            return redirect(_issue_print_url(pk))
     else:
         messages.error(request, 'Không lưu được ghi chú dòng — kiểm tra lại nội dung.')
     return redirect('kho_npl:issue_detail', pk=pk)
@@ -271,16 +288,7 @@ def issue_edit(request, pk):
         action = request.POST.get('action', 'save')
         form, formset, doc = _save_issue_form(request, issue, is_create=False)
         if doc:
-            if action == 'post':
-                try:
-                    post_stock_issue(doc, request.user)
-                    messages.success(request, f'Phiếu {doc.number} đã xuất kho và trừ tồn.')
-                except IssueWorkflowError as exc:
-                    messages.error(request, str(exc))
-                    return redirect('kho_npl:issue_edit', pk=doc.pk)
-            else:
-                messages.success(request, f'Đã lưu nháp phiếu {doc.number}.')
-            return redirect('kho_npl:issue_detail', pk=doc.pk)
+            return _redirect_after_issue_save(request, doc, action=action)
     if request.method != 'POST':
         form = StockIssueForm(instance=issue, operator=request.user)
         formset = StockIssueLineFormSet(instance=issue, prefix='lines')
@@ -292,6 +300,7 @@ def issue_edit(request, pk):
         'is_edit': True,
         'issue': issue,
         'cancel_url': reverse('kho_npl:issue_detail', args=[issue.pk]),
+        'list_url': reverse('kho_npl:issue_list'),
         'existing_attachments': doc_attachments_for(issue),
     })
 

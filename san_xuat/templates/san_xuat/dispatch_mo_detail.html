@@ -338,10 +338,23 @@
               {% for bl in bom_lines %}
                 <tr{% if forloop.counter > 5 %} class="jp-mo-more-row"{% endif %}>
                   <td class="small">
-                    {{ bl.material_name|default:bl.material_code }}
-                    {% if bl.size_code %}
-                    <span class="badge bg-light text-dark border">{{ bl.size_code }}</span>
-                    {% endif %}
+                    <div class="jp-mo-npl-material">
+                      {% if bl.image_url %}
+                      <button type="button" class="jp-mo-npl-image-btn"
+                              data-npl-material-image="{{ bl.image_url }}"
+                              data-npl-material-image-title="{{ bl.material_code }} — {{ bl.material_name|default:bl.material_code }}">
+                        <img src="{{ bl.image_url }}" alt="" class="jp-mo-npl-image" loading="lazy">
+                      </button>
+                      {% else %}
+                      <span class="jp-mo-npl-image is-empty" aria-hidden="true"><i class="bi bi-image"></i></span>
+                      {% endif %}
+                      <span class="jp-mo-npl-name">
+                        {{ bl.material_name|default:bl.material_code }}
+                        {% if bl.size_code %}
+                        <span class="badge bg-light text-dark border">{{ bl.size_code }}</span>
+                        {% endif %}
+                      </span>
+                    </div>
                   </td>
                   <td class="text-end small">{{ bl.qty_per_unit|sx_num }}</td>
                   <td class="text-end small text-muted">{{ bl.scrap_pct }}%</td>
@@ -659,6 +672,7 @@
 </div>
 {% include 'san_xuat/includes/sx_mo_fold_script.html' %}
 {% include 'san_xuat/includes/product_image_gallery_modal.html' %}
+{% include 'kho_npl/includes/material_image_modal.html' %}
 {% if mo.status == 'draft' and can_update %}
 {% include 'san_xuat/includes/sx_mo_matrix_script.html' %}
 {% endif %}
