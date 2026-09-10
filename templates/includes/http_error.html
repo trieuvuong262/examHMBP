@@ -1,0 +1,47 @@
+<div class="jp-http-error">
+    <div class="jp-http-error-card">
+        <div class="jp-http-error-icon" aria-hidden="true">
+            <i class="bi {{ error_icon }}"></i>
+        </div>
+        <p class="jp-http-error-code">{{ error_code }}</p>
+        <h1 class="jp-http-error-title">{{ error_title }}</h1>
+        <p class="jp-http-error-lead">{{ error_lead }}</p>
+
+        {% if request_path %}
+        <div class="jp-http-error-path" title="{{ request_path }}">
+            <i class="bi bi-link-45deg" aria-hidden="true"></i>
+            <code>{{ request_path }}</code>
+        </div>
+        {% endif %}
+
+        <div class="jp-http-error-actions">
+            <a href="{% url 'home_portal' %}" class="btn btn-hm">
+                <i class="bi bi-house-door" aria-hidden="true"></i>
+                Về trang chủ
+            </a>
+            <a href="{% url 'home_portal' %}" class="btn btn-outline-secondary" data-jp-error-back>
+                <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                Quay lại
+            </a>
+        </div>
+
+        {% if it_contact %}
+        <p class="jp-http-error-help mb-0">
+            Nếu bạn chắc link đúng, liên hệ <strong>{{ it_contact }}</strong>.
+        </p>
+        {% endif %}
+    </div>
+</div>
+<script>
+(function () {
+    var back = document.querySelector('[data-jp-error-back]');
+    if (!back) return;
+    back.addEventListener('click', function (e) {
+        var sameHost = document.referrer && document.referrer.indexOf(location.host) !== -1;
+        if (sameHost && history.length > 1) {
+            e.preventDefault();
+            history.back();
+        }
+    });
+})();
+</script>

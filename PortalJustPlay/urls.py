@@ -63,3 +63,7 @@ if settings.RQ_QUEUES:
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += staticfiles_urlpatterns() # Thần chú để tự nhận diện STATICFILES_DIRS
+
+handler403 = 'PortalJustPlay.errors.permission_denied'
+handler404 = 'PortalJustPlay.errors.page_not_found'
+handler500 = 'PortalJustPlay.errors.server_error'

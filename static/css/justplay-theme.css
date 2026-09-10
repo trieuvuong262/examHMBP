@@ -12525,6 +12525,112 @@ body.jp-monitor-modal-open {
     max-width: min(100%, 28rem);
 }
 
+/* ============================================================
+   HTTP error pages (404 / 403 / 500)
+   ============================================================ */
+.jp-http-error {
+    min-height: min(68vh, 620px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.75rem 1rem 2.5rem;
+}
+
+.jp-http-error-card {
+    width: 100%;
+    max-width: 32rem;
+    text-align: center;
+    background: var(--jp-surface-bg);
+    border: 1px solid var(--jp-surface-border);
+    border-radius: 16px;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.08);
+    padding: 2.15rem 1.5rem 1.85rem;
+}
+
+.jp-http-error-icon {
+    width: 4.25rem;
+    height: 4.25rem;
+    margin: 0 auto;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--hm-primary-soft);
+    color: var(--hm-primary);
+    font-size: 1.85rem;
+}
+
+.jp-http-error-code {
+    font-family: var(--jp-font-emphasis);
+    font-size: clamp(3.4rem, 9vw, 5.25rem);
+    line-height: 0.92;
+    letter-spacing: -0.04em;
+    color: var(--hm-primary);
+    margin: 0.85rem 0 0.55rem;
+}
+
+.jp-http-error-title {
+    font-family: var(--jp-font-emphasis);
+    font-size: 1.35rem;
+    color: var(--jp-text-primary);
+    margin-bottom: 0.45rem;
+}
+
+.jp-http-error-lead {
+    color: var(--jp-text-muted);
+    font-size: 0.95rem;
+    line-height: 1.55;
+    margin: 0 auto 1.15rem;
+    max-width: 26rem;
+}
+
+.jp-http-error-path {
+    display: inline-flex;
+    max-width: 100%;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 1.35rem;
+    padding: 0.42rem 0.85rem;
+    border-radius: 999px;
+    background: var(--jp-surface-muted);
+    border: 1px solid var(--jp-surface-border);
+    color: var(--jp-text-secondary);
+    font-size: 0.82rem;
+}
+
+.jp-http-error-path code {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: min(22rem, 70vw);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color: inherit;
+}
+
+.jp-http-error-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.65rem;
+    margin-bottom: 1.15rem;
+}
+
+.jp-http-error-help {
+    font-size: 0.82rem;
+    color: var(--jp-text-muted);
+    line-height: 1.5;
+}
+
+[data-theme="dark"] .jp-http-error-card {
+    background: var(--jp-surface-bg);
+    border-color: var(--jp-surface-border);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="dark"] .jp-http-error-path {
+    background: rgba(255, 255, 255, 0.04);
+}
+
 /* Không faux-bold — mọi chữ dùng Gotham Medium */
 b, strong,
 .fw-bold, .fw-bolder, .fw-semibold,

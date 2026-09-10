@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+
+{% block title %}Không có quyền truy cập - Just Play Portal{% endblock %}
+{% block meta_description %}Bạn không có quyền mở trang này trên Just Play Portal.{% endblock %}
+
+{% block content %}
+{% include "includes/http_error.html" with error_code="403" error_icon="bi-shield-lock" error_title="Không có quyền truy cập" error_lead="Bạn đã vào portal nhưng không được phép mở trang này. Quay về trang chủ hoặc liên hệ IT nếu cần cấp quyền." %}
+{% endblock %}
