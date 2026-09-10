@@ -37,6 +37,27 @@ from kho_npl.doc_list_utils import RECEIPT_STATUS_FILTER_CHOICES, doc_list_sort,
 from kho_npl.view_utils import nav_context, perm_context
 
 
+def _receipt_print_url(pk: int) -> str:
+    from kho_npl.views_print import print_url
+    return print_url('receipt_print', pk)
+
+
+def _redirect_after_receipt_save(request, doc, *, action: str):
+    if action == 'post':
+        try:
+            post_stock_receipt(doc, request.user)
+            messages.success(request, f'Phiếu {doc.number} đã nhập kho và cập nhật tồn.')
+        except ReceiptWorkflowError as exc:
+            messages.error(request, str(exc))
+            return redirect('kho_npl:receipt_edit', pk=doc.pk)
+        return redirect('kho_npl:receipt_detail', pk=doc.pk)
+    if action == 'save_print':
+        messages.success(request, f'Đã lưu nháp phiếu {doc.number}.')
+        return redirect(_receipt_print_url(doc.pk))
+    messages.success(request, f'Đã lưu nháp phiếu {doc.number}.')
+    return redirect('kho_npl:receipt_detail', pk=doc.pk)
+
+
 def _receipt_form_context(request, *, form, formset, is_edit, cancel_url, receipt=None):
     existing_attachments = doc_attachments_for(receipt) if receipt and receipt.pk else []
     return {
@@ -46,6 +67,7 @@ def _receipt_form_context(request, *, form, formset, is_edit, cancel_url, receip
         'formset': formset,
         'is_edit': is_edit,
         'cancel_url': cancel_url,
+        'list_url': reverse('kho_npl:receipt_list'),
         'can_create_supplier': user_can_create_menu(request.user, MODULE_KHO_NPL, 'settings'),
         'existing_attachments': existing_attachments,
         **({'receipt': receipt} if receipt else {}),
@@ -134,6 +156,7 @@ def receipt_detail(request, pk):
         'receipt_replace_attachment_url': reverse('kho_npl:receipt_replace_attachment', args=[receipt.pk]),
         'notes_form': notes_form,
         'line_notes_formset': line_notes_formset,
+        'receipt_print_url': _receipt_print_url(receipt.pk),
     })
 
 
@@ -150,6 +173,8 @@ def receipt_update_notes(request, pk):
         obj = form.save(commit=False)
         obj.save(update_fields=['notes'])
         messages.success(request, f'Đã cập nhật ghi chú phiếu {receipt.number}.')
+        if request.POST.get('action') == 'save_print':
+            return redirect(_receipt_print_url(pk))
     else:
         messages.error(request, 'Không lưu được ghi chú — kiểm tra lại nội dung.')
     return redirect('kho_npl:receipt_detail', pk=pk)
@@ -192,16 +217,7 @@ def receipt_create(request):
         action = request.POST.get('action', 'save')
         form, formset, doc = _save_receipt_form(request, receipt, is_create=True)
         if doc:
-            if action == 'post':
-                try:
-                    post_stock_receipt(doc, request.user)
-                    messages.success(request, f'Phiếu {doc.number} đã nhập kho và cập nhật tồn.')
-                except ReceiptWorkflowError as exc:
-                    messages.error(request, str(exc))
-                    return redirect('kho_npl:receipt_edit', pk=doc.pk)
-            else:
-                messages.success(request, f'Đã lưu nháp phiếu {doc.number}.')
-            return redirect('kho_npl:receipt_detail', pk=doc.pk)
+            return _redirect_after_receipt_save(request, doc, action=action)
     if request.method != 'POST':
         form = StockReceiptForm(instance=receipt, operator=request.user)
         formset = StockReceiptLineFormSet(instance=receipt, prefix='lines')
@@ -224,16 +240,7 @@ def receipt_edit(request, pk):
         action = request.POST.get('action', 'save')
         form, formset, doc = _save_receipt_form(request, receipt, is_create=False)
         if doc:
-            if action == 'post':
-                try:
-                    post_stock_receipt(doc, request.user)
-                    messages.success(request, f'Phiếu {doc.number} đã nhập kho và cập nhật tồn.')
-                except ReceiptWorkflowError as exc:
-                    messages.error(request, str(exc))
-                    return redirect('kho_npl:receipt_edit', pk=doc.pk)
-            else:
-                messages.success(request, f'Đã lưu nháp phiếu {doc.number}.')
-            return redirect('kho_npl:receipt_detail', pk=doc.pk)
+            return _redirect_after_receipt_save(request, doc, action=action)
     if request.method != 'POST':
         form = StockReceiptForm(instance=receipt, operator=request.user)
         formset = StockReceiptLineFormSet(instance=receipt, prefix='lines')

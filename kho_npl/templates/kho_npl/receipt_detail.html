@@ -32,6 +32,18 @@
                 <i class="bi bi-x-circle me-1"></i>Hủy phiếu
             </a>
             {% endif %}
+            {% if can_edit_notes and notes_form %}
+            <button type="submit" form="jp-npl-receipt-notes-form" name="action" value="save" class="btn btn-outline-hm btn-sm">
+                <i class="bi bi-save me-1"></i>Lưu
+            </button>
+            <button type="submit" form="jp-npl-receipt-notes-form" name="action" value="save_print" class="btn btn-hm btn-sm">
+                <i class="bi bi-printer me-1"></i>Lưu và in
+            </button>
+            {% else %}
+            <a href="{{ receipt_print_url }}" class="btn btn-hm btn-sm" target="_blank" rel="noopener">
+                <i class="bi bi-printer me-1"></i>Lưu và in
+            </a>
+            {% endif %}
             <a href="{% url 'kho_npl:receipt_list' %}" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-arrow-left me-1"></i>Danh sách
             </a>
@@ -52,15 +64,12 @@
                 <dt class="col-sm-3 text-muted">Ghi chú</dt>
                 <dd class="col-sm-9">
                     {% if can_edit_notes and notes_form %}
-                    <form method="post" action="{% url 'kho_npl:receipt_update_notes' receipt.pk %}" class="jp-npl-receipt-notes-form">
+                    <form method="post" action="{% url 'kho_npl:receipt_update_notes' receipt.pk %}" id="jp-npl-receipt-notes-form" class="jp-npl-receipt-notes-form">
                         {% csrf_token %}
                         {{ notes_form.notes }}
                         {% if notes_form.notes.errors %}
                         <div class="text-danger small mt-1">{{ notes_form.notes.errors }}</div>
                         {% endif %}
-                        <button type="submit" class="btn btn-outline-hm btn-sm mt-2">
-                            <i class="bi bi-save me-1"></i>Lưu ghi chú
-                        </button>
                     </form>
                     {% elif receipt.notes %}
                     {{ receipt.notes|linebreaksbr }}

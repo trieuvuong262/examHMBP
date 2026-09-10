@@ -13,9 +13,17 @@
                 {% if is_edit %}Sửa phiếu nhập {{ receipt.number }}{% else %}Tạo phiếu nhập kho{% endif %}
             </h2>
         </div>
-        <a href="{{ cancel_url }}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-arrow-left me-1"></i>Quay lại
-        </a>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="submit" form="receipt-form" name="action" value="save" class="btn btn-outline-hm btn-sm">
+                <i class="bi bi-save me-1"></i>Lưu
+            </button>
+            <button type="submit" form="receipt-form" name="action" value="save_print" class="btn btn-hm btn-sm">
+                <i class="bi bi-printer me-1"></i>Lưu và in
+            </button>
+            <a href="{{ list_url }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Danh sách
+            </a>
+        </div>
     </div>
 
     <form method="post" id="receipt-form" class="jp-npl-doc-form jp-npl-validated-form" enctype="multipart/form-data" novalidate
@@ -145,9 +153,6 @@
         {% endif %}
 
         <div class="d-flex flex-wrap gap-2">
-            <button type="submit" name="action" value="save" class="btn btn-outline-hm fw-bold px-4">
-                <i class="bi bi-save me-1"></i>Lưu nháp
-            </button>
             <button type="submit" name="action" value="post" class="btn btn-hm fw-bold px-4">
                 <i class="bi bi-check2-circle me-1"></i>Nhập kho
             </button>

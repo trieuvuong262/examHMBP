@@ -45,7 +45,8 @@ from kho_npl.view_utils import nav_context, perm_context
 
 
 def _issue_print_url(pk: int) -> str:
-    return reverse('kho_npl:issue_print', args=[pk]) + '?autoprint=1'
+    from kho_npl.views_print import print_url
+    return print_url('issue_print', pk)
 
 
 def _redirect_after_issue_save(request, doc, *, action: str):

@@ -12,9 +12,17 @@
                 Sửa phiếu chuyển {{ transfer.number }}
             </h2>
         </div>
-        <a href="{{ cancel_url }}" class="btn btn-outline-secondary btn-sm fw-bold">
-            <i class="bi bi-arrow-left me-1"></i>Quay lại
-        </a>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="submit" form="transfer-form" name="action" value="save" class="btn btn-outline-hm btn-sm fw-bold">
+                <i class="bi bi-save me-1"></i>Lưu
+            </button>
+            <button type="submit" form="transfer-form" name="action" value="save_print" class="btn btn-hm btn-sm fw-bold">
+                <i class="bi bi-printer me-1"></i>Lưu và in
+            </button>
+            <a href="{{ list_url|default:cancel_url }}" class="btn btn-outline-secondary btn-sm fw-bold">
+                <i class="bi bi-arrow-left me-1"></i>Danh sách
+            </a>
+        </div>
     </div>
 
     <form method="post" action="{{ form_action_url }}" id="transfer-form" class="jp-npl-doc-form jp-npl-validated-form" enctype="multipart/form-data" novalidate
@@ -24,9 +32,6 @@
         {% include 'kho_npl/includes/transfer_form_fields.html' %}
         <div class="card border-0 shadow-sm jp-npl-transfer-form-actions">
             <div class="card-body d-flex flex-wrap gap-2">
-                <button type="submit" class="btn btn-hm fw-bold px-4">
-                    <i class="bi bi-save me-1"></i>Lưu thay đổi
-                </button>
                 <a href="{{ cancel_url }}" class="btn btn-outline-secondary fw-bold">Huỷ</a>
             </div>
         </div>

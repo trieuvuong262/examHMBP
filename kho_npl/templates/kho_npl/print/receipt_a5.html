@@ -1,0 +1,49 @@
+﻿{% extends 'san_xuat/print/base_a5.html' %}
+{% load npl_extras %}
+{% block print_body %}
+<div class="doc-title">Phiếu nhập kho NPL</div>
+
+<div class="meta-grid">
+  <div><span class="label">Trạng thái:</span> {{ receipt.get_status_display }}</div>
+  <div><span class="label">Ngày nhập:</span> {{ receipt.receipt_date|date:"d/m/Y" }}</div>
+  <div class="full"><span class="label">NCC:</span> {{ receipt.supplier.name|default:"—" }}</div>
+  <div><span class="label">PO:</span> {{ receipt.po_number|default:"—" }}</div>
+  <div><span class="label">Người nhập:</span> {% if receipt.received_by %}{{ receipt.received_by.get_full_name|default:receipt.received_by.username }}{% else %}—{% endif %}</div>
+  <div><span class="label">Người kiểm:</span> {% if receipt.checked_by %}{{ receipt.checked_by.get_full_name|default:receipt.checked_by.username }}{% else %}—{% endif %}</div>
+  <div><span class="label">Người tạo:</span> {% if receipt.created_by %}{{ receipt.created_by.get_full_name|default:receipt.created_by.username }}{% else %}—{% endif %}</div>
+</div>
+
+<table class="lines">
+  <thead>
+    <tr>
+      <th style="width:6%">STT</th>
+      <th>Nguyên phụ liệu</th>
+      <th style="width:12%">SL nhập</th>
+      <th style="width:10%">ĐVT</th>
+      <th style="width:14%">Vị trí</th>
+      <th style="width:14%">Đơn giá</th>
+      <th style="width:16%">Ghi chú</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for line in lines %}
+    <tr>
+      <td class="text-center">{{ forloop.counter }}</td>
+      <td>
+        <strong>{{ line.material.code }}</strong><br>
+        {{ line.material.name }}
+      </td>
+      <td class="text-end">{{ line.received_qty|npl_qty }}</td>
+      <td class="text-center">{% if line.line_unit %}{{ line.line_unit.code }}{% else %}{{ line.material.unit.code }}{% endif %}</td>
+      <td class="text-center">{{ line.location.name }}</td>
+      <td class="text-end">{{ line.unit_price|npl_money }}</td>
+      <td>{{ line.notes|default:"—" }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="7" class="text-center">Chưa có dòng chi tiết.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<div class="notes"><span class="label">Ghi chú:</span> {{ receipt.notes|default:"—" }}</div>
+{% endblock %}

@@ -98,6 +98,11 @@ def _warehouse_locked(transfer) -> bool:
     return bool(transfer.pk and transfer.lines.exists())
 
 
+def _transfer_print_url(pk: int) -> str:
+    from kho_npl.views_print import print_url
+    return print_url('transfer_print', pk)
+
+
 def _save_transfer_form(request, transfer, *, is_create: bool):
     wh_locked = _warehouse_locked(transfer)
     form = StockTransferForm(
@@ -244,6 +249,7 @@ def transfer_detail(request, pk):
         'can_send': transfer_can_send(transfer),
         'can_receive': transfer_can_receive(transfer),
         'list_url': _transfer_list_url(tab, status=list_status),
+        'transfer_print_url': _transfer_print_url(transfer.pk),
     })
 
 
@@ -255,6 +261,10 @@ def transfer_create(request):
     transfer = StockTransfer()
     form, formset, doc = _save_transfer_form(request, transfer, is_create=True)
     if doc:
+        action = request.POST.get('action', 'save')
+        if action == 'save_print':
+            messages.success(request, f'Đã lưu phiếu {doc.number}.')
+            return redirect(_transfer_print_url(doc.pk))
         messages.success(
             request,
             f'Đã lưu phiếu {doc.number}. Vào tab Chuyển để gửi hàng đi.',
@@ -269,6 +279,7 @@ def transfer_create(request):
         'is_edit': False,
         'transfer': transfer,
         'cancel_url': _transfer_list_url(TRANSFER_TAB_NHAP),
+        'list_url': _transfer_list_url(TRANSFER_TAB_NHAP),
         'form_action_url': reverse('kho_npl:transfer_create'),
         'warehouse_locked': _warehouse_locked(transfer),
         'existing_attachments': [],
@@ -284,7 +295,10 @@ def transfer_edit(request, pk):
     if request.method == 'POST':
         form, formset, doc = _save_transfer_form(request, transfer, is_create=False)
         if doc:
+            action = request.POST.get('action', 'save')
             messages.success(request, f'Đã cập nhật phiếu {doc.number}.')
+            if action == 'save_print':
+                return redirect(_transfer_print_url(doc.pk))
             return redirect('kho_npl:transfer_detail', pk=doc.pk)
     if request.method != 'POST':
         wh_locked = transfer.lines.exists()
@@ -298,6 +312,7 @@ def transfer_edit(request, pk):
         'is_edit': True,
         'transfer': transfer,
         'cancel_url': reverse('kho_npl:transfer_detail', args=[pk]),
+        'list_url': reverse('kho_npl:transfer_hub'),
         'form_action_url': reverse('kho_npl:transfer_edit', args=[pk]),
         'warehouse_locked': transfer.lines.exists(),
         'existing_attachments': doc_attachments_for(transfer),

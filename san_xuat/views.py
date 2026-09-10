@@ -1826,17 +1826,21 @@ def sales_order_line_versions_api(request):
 
         bom_for_lines = BomVersion.objects.filter(pk=payload['default_bom_id']).first()
 
+    rt_candidates = []
     if preview_rt_id.isdigit():
         rt = SxRouting.objects.filter(pk=int(preview_rt_id)).first()
         if rt:
-            steps = process_preview_from_routing(rt)
+            rt_candidates.append(rt)
+    if default_rt and all(r.pk != default_rt.pk for r in rt_candidates):
+        rt_candidates.append(default_rt)
+    for rt in rt_candidates:
+        steps = process_preview_from_routing(rt)
+        if steps:
             source = 'ie'
+            break
     if not steps and bom_for_lines is not None:
         steps = process_preview_from_bom(bom_for_lines)
         source = 'bom'
-    if not steps and default_rt:
-        steps = process_preview_from_routing(default_rt)
-        source = 'ie'
     payload['steps'] = steps
     payload['steps_source'] = source
 

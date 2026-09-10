@@ -1,0 +1,47 @@
+﻿{% extends 'san_xuat/print/base_a5.html' %}
+{% load npl_extras %}
+{% block print_body %}
+<div class="doc-title">Phiếu kiểm kê NPL</div>
+
+<div class="meta-grid">
+  <div><span class="label">Trạng thái:</span> {{ adjustment.get_status_display }}</div>
+  <div><span class="label">Ngày kiểm kê:</span> {{ adjustment.adjust_date|date:"d/m/Y" }}</div>
+  <div class="full"><span class="label">Lý do:</span> {{ adjustment.reason|default:"—" }}</div>
+  <div><span class="label">Người đề xuất:</span> {% if adjustment.proposed_by %}{{ adjustment.proposed_by.get_full_name|default:adjustment.proposed_by.username }}{% else %}—{% endif %}</div>
+  <div><span class="label">Người duyệt:</span> {% if adjustment.approved_by %}{{ adjustment.approved_by.get_full_name|default:adjustment.approved_by.username }}{% else %}—{% endif %}</div>
+</div>
+
+<table class="lines">
+  <thead>
+    <tr>
+      <th style="width:6%">STT</th>
+      <th>Nguyên phụ liệu</th>
+      <th style="width:12%">Vị trí</th>
+      <th style="width:12%">Tồn HT</th>
+      <th style="width:12%">Tồn TT</th>
+      <th style="width:10%">ĐVT</th>
+      <th style="width:10%">Chênh</th>
+      <th style="width:14%">Ghi chú</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for line in lines %}
+    <tr>
+      <td class="text-center">{{ forloop.counter }}</td>
+      <td>
+        <strong>{{ line.material.code }}</strong><br>
+        {{ line.material.name }}
+      </td>
+      <td class="text-center">{{ line.location.name }}</td>
+      <td class="text-end">{{ line.system_qty|npl_qty }}</td>
+      <td class="text-end">{{ line.actual_qty|npl_qty }}</td>
+      <td class="text-center">{% if line.line_unit %}{{ line.line_unit.code }}{% else %}{{ line.material.unit.code }}{% endif %}</td>
+      <td class="text-end">{{ line.variance|npl_qty }}</td>
+      <td>{{ line.notes|default:"—" }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="8" class="text-center">Chưa có dòng chi tiết.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

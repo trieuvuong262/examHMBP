@@ -1,0 +1,45 @@
+﻿{% extends 'san_xuat/print/base_a5.html' %}
+{% load npl_extras %}
+{% block print_body %}
+<div class="doc-title">Phiếu chuyển kho NPL</div>
+
+<div class="meta-grid">
+  <div><span class="label">Trạng thái:</span> {{ transfer.get_status_display }}</div>
+  <div><span class="label">Ngày chuyển:</span> {{ transfer.transfer_date|date:"d/m/Y" }}</div>
+  <div class="full"><span class="label">Kho gửi:</span> {{ transfer.from_location.name }}</div>
+  <div class="full"><span class="label">Kho nhận:</span> {{ transfer.to_location.name }}</div>
+  <div><span class="label">Người tạo:</span> {% if transfer.created_by %}{{ transfer.created_by.get_full_name|default:transfer.created_by.username }}{% else %}—{% endif %}</div>
+  <div><span class="label">Người gửi:</span> {% if transfer.sent_by %}{{ transfer.sent_by.get_full_name|default:transfer.sent_by.username }}{% else %}—{% endif %}</div>
+  <div><span class="label">Người nhận:</span> {% if transfer.received_by %}{{ transfer.received_by.get_full_name|default:transfer.received_by.username }}{% else %}—{% endif %}</div>
+</div>
+
+<table class="lines">
+  <thead>
+    <tr>
+      <th style="width:6%">STT</th>
+      <th>Nguyên phụ liệu</th>
+      <th style="width:14%">SL chuyển</th>
+      <th style="width:12%">ĐVT</th>
+      <th style="width:20%">Ghi chú</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for line in lines %}
+    <tr>
+      <td class="text-center">{{ forloop.counter }}</td>
+      <td>
+        <strong>{{ line.material.code }}</strong><br>
+        {{ line.material.name }}
+      </td>
+      <td class="text-end">{{ line.quantity|npl_qty }}</td>
+      <td class="text-center">{% if line.line_unit %}{{ line.line_unit.code }}{% else %}{{ line.material.unit.code }}{% endif %}</td>
+      <td>{{ line.notes|default:"—" }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="5" class="text-center">Chưa có dòng chi tiết.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<div class="notes"><span class="label">Ghi chú:</span> {{ transfer.notes|default:"—" }}</div>
+{% endblock %}

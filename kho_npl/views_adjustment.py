@@ -45,6 +45,11 @@ def _save_adjustment_form(request, adjustment, *, is_create: bool):
     return form, formset, doc
 
 
+def _adjustment_print_url(pk: int) -> str:
+    from kho_npl.views_print import print_url
+    return print_url('adjustment_print', pk)
+
+
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def adjustment_list(request):
     search_query = get_search_query(request)
@@ -93,6 +98,7 @@ def adjustment_detail(request, pk):
         'can_replace_attachment': can_replace_attachment,
         'attachments': doc_attachments_for(adjustment),
         'adjustment_replace_attachment_url': reverse('kho_npl:adjustment_replace_attachment', args=[adjustment.pk]),
+        'adjustment_print_url': _adjustment_print_url(adjustment.pk),
     })
 
 
@@ -113,12 +119,15 @@ def adjustment_replace_attachment(request, pk):
 def adjustment_create(request):
     adjustment = StockAdjustment()
     if request.method == 'POST':
+        action = request.POST.get('action', 'save')
         form, formset, doc = _save_adjustment_form(request, adjustment, is_create=True)
         if doc:
             messages.success(
                 request,
                 f'Đã tạo phiếu kiểm kê {doc.number} ({doc.lines.count()} dòng) — chờ duyệt.',
             )
+            if action == 'save_print':
+                return redirect(_adjustment_print_url(doc.pk))
             return redirect('kho_npl:adjustment_detail', pk=doc.pk)
     else:
         form = StockAdjustmentForm(instance=adjustment)
@@ -130,6 +139,7 @@ def adjustment_create(request):
         'formset': formset,
         'is_edit': False,
         'cancel_url': reverse('kho_npl:adjustment_list'),
+        'list_url': reverse('kho_npl:adjustment_list'),
         'existing_attachments': [],
     })
 

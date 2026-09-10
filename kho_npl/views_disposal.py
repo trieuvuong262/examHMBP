@@ -36,6 +36,30 @@ def _scrap_warehouse_context() -> dict:
     return {'scrap_warehouse_label': get_scrap_location().display_label()}
 
 
+def _disposal_print_url(pk: int) -> str:
+    from kho_npl.views_print import print_url
+    return print_url('disposal_print', pk)
+
+
+def _redirect_after_disposal_save(request, doc, *, action: str):
+    if action == 'post':
+        try:
+            post_stock_disposal(doc, request.user)
+            messages.success(
+                request,
+                f'Đã ghi sổ phiếu {doc.number} — hàng chuyển sang {get_scrap_location().display_label()}.',
+            )
+        except DisposalWorkflowError as exc:
+            messages.error(request, str(exc))
+            return redirect('kho_npl:disposal_edit', pk=doc.pk)
+        return redirect('kho_npl:disposal_detail', pk=doc.pk)
+    if action == 'save_print':
+        messages.success(request, f'Đã lưu nháp phiếu {doc.number}.')
+        return redirect(_disposal_print_url(doc.pk))
+    messages.success(request, f'Đã lưu nháp phiếu {doc.number}.')
+    return redirect('kho_npl:disposal_detail', pk=doc.pk)
+
+
 def _save_disposal_form(request, disposal, *, is_create: bool):
     form = StockDisposalForm(request.POST, request.FILES, instance=disposal)
     formset = StockDisposalLineFormSet(request.POST, instance=disposal, prefix='lines')
@@ -113,6 +137,7 @@ def disposal_detail(request, pk):
         'attachments': doc_attachments_for(disposal),
         'can_replace_attachment': can_replace_attachment,
         'disposal_replace_attachment_url': reverse('kho_npl:disposal_replace_attachment', args=[disposal.pk]),
+        'disposal_print_url': _disposal_print_url(disposal.pk),
         **_scrap_warehouse_context(),
     })
 
@@ -124,19 +149,7 @@ def disposal_create(request):
         action = request.POST.get('action', 'save')
         form, formset, doc = _save_disposal_form(request, disposal, is_create=True)
         if doc:
-            if action == 'post':
-                try:
-                    post_stock_disposal(doc, request.user)
-                    messages.success(
-                        request,
-                        f'Đã ghi sổ phiếu {doc.number} — hàng chuyển sang {get_scrap_location().display_label()}.',
-                    )
-                except DisposalWorkflowError as exc:
-                    messages.error(request, str(exc))
-                    return redirect('kho_npl:disposal_edit', pk=doc.pk)
-            else:
-                messages.success(request, f'Đã lưu nháp phiếu {doc.number}.')
-            return redirect('kho_npl:disposal_detail', pk=doc.pk)
+            return _redirect_after_disposal_save(request, doc, action=action)
     if request.method != 'POST':
         form = StockDisposalForm(instance=disposal)
         formset = StockDisposalLineFormSet(instance=disposal, prefix='lines')
@@ -149,6 +162,7 @@ def disposal_create(request):
         'disposal': disposal,
         **_scrap_warehouse_context(),
         'cancel_url': reverse('kho_npl:disposal_list'),
+        'list_url': reverse('kho_npl:disposal_list'),
         'existing_attachments': [],
     })
 
@@ -163,16 +177,7 @@ def disposal_edit(request, pk):
         action = request.POST.get('action', 'save')
         form, formset, doc = _save_disposal_form(request, disposal, is_create=False)
         if doc:
-            if action == 'post':
-                try:
-                    post_stock_disposal(doc, request.user)
-                    messages.success(request, f'Đã ghi sổ phiếu {doc.number}.')
-                except DisposalWorkflowError as exc:
-                    messages.error(request, str(exc))
-                    return redirect('kho_npl:disposal_edit', pk=doc.pk)
-            else:
-                messages.success(request, f'Đã lưu nháp phiếu {doc.number}.')
-            return redirect('kho_npl:disposal_detail', pk=doc.pk)
+            return _redirect_after_disposal_save(request, doc, action=action)
     if request.method != 'POST':
         form = StockDisposalForm(instance=disposal)
         formset = StockDisposalLineFormSet(instance=disposal, prefix='lines')
@@ -185,6 +190,7 @@ def disposal_edit(request, pk):
         'disposal': disposal,
         **_scrap_warehouse_context(),
         'cancel_url': reverse('kho_npl:disposal_detail', args=[disposal.pk]),
+        'list_url': reverse('kho_npl:disposal_list'),
         'existing_attachments': doc_attachments_for(disposal),
     })
 

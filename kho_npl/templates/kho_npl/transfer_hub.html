@@ -43,8 +43,11 @@
         {% include 'kho_npl/includes/transfer_form_fields.html' %}
         <div class="card border-0 shadow-sm jp-npl-transfer-form-actions">
             <div class="card-body d-flex flex-wrap gap-2">
-                <button type="submit" class="btn btn-hm fw-bold px-4">
-                    <i class="bi bi-save me-1"></i>Lưu phiếu
+                <button type="submit" name="action" value="save" class="btn btn-outline-hm fw-bold px-4">
+                    <i class="bi bi-save me-1"></i>Lưu
+                </button>
+                <button type="submit" name="action" value="save_print" class="btn btn-hm fw-bold px-4">
+                    <i class="bi bi-printer me-1"></i>Lưu và in
                 </button>
                 <a href="{% url 'kho_npl:transfer_hub' %}?tab=chuyen" class="btn btn-outline-secondary fw-bold">Xem phiếu chờ chuyển</a>
             </div>

@@ -72,14 +72,23 @@ def assert_order_routing_editable(order: SxSalesOrder) -> None:
         )
 
 
+def _ob_smv_seconds(src) -> tuple[Decimal, Decimal]:
+    """SMV thư viện + SMV sản phẩm (giây) từ dòng OB hồ sơ thiết kế."""
+    library = _q(getattr(src, 'library_unit_smv', 0) or 0)
+    product = _q(getattr(src, 'applied_unit_smv', 0) or 0)
+    if product <= 0:
+        product = library
+    return library, product
+
+
 def _copy_from_routing_line(
     order_line: SxSalesOrderLine,
     src,
     *,
     seq_no: int | None = None,
 ) -> SxSalesOrderRoutingLine:
-    # Baseline trên đơn = SMV sản phẩm (OB applied). Không lấy SMV thư viện.
-    product = src.applied_unit_smv or Decimal('0')
+    # Baseline trên đơn = SMV sản phẩm (OB applied, fallback thư viện).
+    _library, product = _ob_smv_seconds(src)
     return SxSalesOrderRoutingLine(
         sales_order_line=order_line,
         source_routing_line_id=getattr(src, 'pk', None),
@@ -136,8 +145,7 @@ def process_preview_from_routing(routing, *, limit: int = 80) -> list[dict]:
     if routing is None:
         return out
     for src in routing.lines.select_related('operation').order_by('seq_no', 'id')[:limit]:
-        library = _q(src.library_unit_smv or 0)
-        product = _q(src.applied_unit_smv or 0)
+        library, product = _ob_smv_seconds(src)
         code, name = _step_code_and_name(
             code=src.op_code,
             name=src.op_name_vi,
@@ -163,9 +171,18 @@ def process_preview_from_bom(bom, *, limit: int = 80) -> list[dict]:
         return out
     steps = bom.process_steps
     if hasattr(steps, 'select_related'):
-        steps = steps.select_related('operation')
+        steps = steps.select_related('operation', 'routing_line')
     for src in steps.order_by('sequence', 'id')[:limit]:
-        smv = smv_from_process_step(src)
+        rl = getattr(src, 'routing_line', None)
+        if rl is not None:
+            library, product = _ob_smv_seconds(rl)
+        else:
+            library = product = Decimal('0')
+        smv = product if product > 0 else _q(smv_from_process_step(src) * Decimal('60'))
+        if product <= 0:
+            product = smv
+        if library <= 0:
+            library = smv
         code, name = _step_code_and_name(
             code=src.op_code,
             name=src.process_name,
@@ -175,6 +192,8 @@ def process_preview_from_bom(bom, *, limit: int = 80) -> list[dict]:
             'seq': src.sequence or 0,
             'code': code,
             'name': name,
+            'smv_library': str(library),
+            'smv_product': str(product),
             'smv_std': str(smv),
             'smv': str(smv),
             'notes': (getattr(src, 'notes', None) or '')[:255],
@@ -184,8 +203,11 @@ def process_preview_from_bom(bom, *, limit: int = 80) -> list[dict]:
 
 
 def _copy_from_process_step(order_line: SxSalesOrderLine, src) -> SxSalesOrderRoutingLine:
-    # BOM std_time_minutes (phút) → snapshot đơn lưu giây.
-    smv = _q(smv_from_process_step(src) * Decimal('60'))
+    # Ưu tiên SMV sản phẩm trên dòng OB gắn ProcessStep; không thì phút BOM → giây.
+    rl = getattr(src, 'routing_line', None)
+    smv = _ob_smv_seconds(rl)[1] if rl is not None else Decimal('0')
+    if smv <= 0:
+        smv = _q(smv_from_process_step(src) * Decimal('60'))
     wc = getattr(src, 'work_center', None)
     return SxSalesOrderRoutingLine(
         sales_order_line=order_line,
@@ -306,7 +328,9 @@ def seed_order_line_routing(
         if bom is not None:
             used_seq: set[int] = set()
             for i, src in enumerate(
-                bom.process_steps.select_related('operation', 'work_center').order_by('sequence', 'id')
+                bom.process_steps.select_related(
+                    'operation', 'work_center', 'routing_line',
+                ).order_by('sequence', 'id')
             ):
                 row = _copy_from_process_step(order_line, src)
                 if not row.seq_no or row.seq_no in used_seq:

@@ -1376,8 +1376,9 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
     var url = versionsUrl + '?product_code=' + encodeURIComponent(code);
     var bomVal = keepBom || (bomSel && bomSel.value) || '';
     var rtVal = keepRouting || (rtSel && rtSel.value) || '';
+    var requestedRt = (rtVal && rtVal !== CREATE_VAL) ? String(rtVal) : '';
     if (bomVal) url += '&bom_version_id=' + encodeURIComponent(bomVal);
-    if (rtVal && rtVal !== CREATE_VAL) url += '&routing_id=' + encodeURIComponent(rtVal);
+    if (requestedRt) url += '&routing_id=' + encodeURIComponent(requestedRt);
     if (showLoad) beginSoLoad((opts && opts.message) || 'Đang tải BOM / OB…');
     fetch(url, { headers: { 'Accept': 'application/json' } })
       .then(function (r) { return r.json(); })
@@ -1407,6 +1408,23 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
           autoRt,
           '＋ Tạo OB trên hồ sơ',
         );
+        var selectedRt = selectedRoutingId(row) || '';
+        if (
+          selectedRt
+          && selectedRt !== requestedRt
+          && (data.steps_source || '') !== 'ie'
+          && !(opts && opts._rtSynced)
+        ) {
+          loadVersions(
+            row,
+            selectedBomId(row),
+            selectedRt,
+            keepSmv,
+            keepBomQty,
+            Object.assign({}, opts || {}, { _rtSynced: true, loading: showLoad }),
+          );
+          return;
+        }
         applyIeStatus(row, data);
         syncBoards(row, keepSmv, keepBomQty);
         if (typeof window.jpSoAfterLineVersions === 'function') window.jpSoAfterLineVersions(row);

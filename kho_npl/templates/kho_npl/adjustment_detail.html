@@ -17,6 +17,9 @@
                 <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-x me-1"></i>Từ chối</button>
             </form>
             {% endif %}
+            <a href="{{ adjustment_print_url }}" class="btn btn-hm btn-sm" target="_blank" rel="noopener">
+                <i class="bi bi-printer me-1"></i>Lưu và in
+            </a>
             <a href="{% url 'kho_npl:adjustment_list' %}" class="btn btn-outline-secondary btn-sm">Danh sách</a>
         </div>
     </div>
