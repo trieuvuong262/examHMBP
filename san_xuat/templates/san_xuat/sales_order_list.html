@@ -41,7 +41,7 @@
     padding-left: 2.25rem;
   }
   .jp-so-list .jp-so-table {
-    min-width: 850px;
+    min-width: 1020px;
   }
   .jp-so-list .jp-so-table thead th {
     padding: 0.8rem 0.9rem;
@@ -74,6 +74,59 @@
   }
   .jp-so-list .jp-so-code:hover {
     color: var(--hm-red, #dc2626);
+  }
+  .jp-so-list .jp-so-products {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    min-width: 11rem;
+    max-width: 18rem;
+  }
+  .jp-so-list .jp-so-product {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-width: 0;
+  }
+  .jp-so-list .jp-so-product-image,
+  .jp-so-list .jp-so-product-image-placeholder {
+    width: 2.4rem;
+    height: 2.4rem;
+    flex: 0 0 2.4rem;
+    border: 1px solid #e1e6ee;
+    border-radius: 0.45rem;
+    background: #fff;
+  }
+  .jp-so-list .jp-so-product-image {
+    display: block;
+    object-fit: cover;
+  }
+  .jp-so-list .jp-so-product-image-placeholder {
+    display: grid;
+    color: #9aa3b1;
+    place-items: center;
+    font-size: 0.85rem;
+  }
+  .jp-so-list .jp-so-product-meta {
+    min-width: 0;
+    line-height: 1.25;
+  }
+  .jp-so-list .jp-so-product-name {
+    display: block;
+    color: var(--so-ink);
+    font-size: 0.8rem;
+    font-weight: 650;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .jp-so-list .jp-so-product-code {
+    display: block;
+    color: var(--so-muted);
+    font-size: 0.68rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .jp-so-list .jp-so-date {
     color: #566173;
@@ -180,7 +233,7 @@
         <label class="form-label small fw-semibold text-muted mb-1">Tìm kiếm</label>
         <i class="bi bi-search" aria-hidden="true"></i>
         <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm"
-               placeholder="Mã đơn / khách hàng…" autocomplete="off">
+               placeholder="Mã đơn / khách hàng / sản phẩm…" autocomplete="off">
       </div>
       <div style="min-width:180px">
         <label class="form-label small fw-semibold text-muted mb-1">Trạng thái xác nhận</label>
@@ -210,6 +263,7 @@
         <thead>
           <tr>
             <th>Số đơn</th>
+            <th>Sản phẩm</th>
             <th>Khách hàng</th>
             <th>Ngày dự kiến thực hiện</th>
             <th>Ngày dự kiến hoàn thành</th>
@@ -227,6 +281,36 @@
                 {{ row.order.code }}
               </a>
             </td>
+            <td onclick="event.stopPropagation()">
+              {% if row.products %}
+              <div class="jp-so-products" aria-label="Sản phẩm trên đơn">
+                {% for p in row.products %}
+                <div class="jp-so-product">
+                  {% if p.image_url %}
+                  <button type="button" class="sx-doc-thumb" data-sx-gallery
+                          data-sx-gallery-title="{{ p.name }}"
+                          data-sx-gallery-image="{{ p.image_url }}"
+                          aria-label="Phóng to ảnh {{ p.name }}">
+                    <img src="{{ p.image_url }}" alt="" class="jp-so-product-image" loading="lazy">
+                  </button>
+                  {% else %}
+                  <span class="jp-so-product-image-placeholder" title="Sản phẩm chưa có ảnh" aria-hidden="true">
+                    <i class="bi bi-image"></i>
+                  </span>
+                  {% endif %}
+                  <div class="jp-so-product-meta">
+                    <span class="jp-so-product-name" title="{{ p.name }}">{{ p.name }}</span>
+                    {% if p.code and p.code != p.name %}
+                    <span class="jp-so-product-code" title="{{ p.code }}">{{ p.code }}</span>
+                    {% endif %}
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+              {% else %}
+              <span class="small text-muted">—</span>
+              {% endif %}
+            </td>
             <td class="small fw-semibold">{{ row.order.customer_name|default:"—" }}</td>
             <td class="small jp-so-date">{{ row.order.request_date|date:"d/m/Y" }}</td>
             <td class="small jp-so-date">{% if row.order.due_date %}{{ row.order.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
@@ -241,7 +325,7 @@
           </tr>
         {% empty %}
           <tr>
-            <td colspan="8" class="jp-so-empty text-center">
+            <td colspan="9" class="jp-so-empty text-center">
               <span class="jp-so-empty-icon"><i class="bi bi-inbox" aria-hidden="true"></i></span>
               <div class="fw-semibold text-dark">Chưa có đơn đặt hàng</div>
               <div class="small text-muted mt-1">
@@ -255,4 +339,5 @@
     </div>
   </div>
 </div>
+{% include 'san_xuat/includes/product_image_gallery_modal.html' %}
 {% endblock %}

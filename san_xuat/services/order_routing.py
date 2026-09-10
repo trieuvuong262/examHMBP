@@ -81,6 +81,67 @@ def _ob_smv_seconds(src) -> tuple[Decimal, Decimal]:
     return library, product
 
 
+def _fold_op(code: str) -> str:
+    return (code or '').strip().casefold()
+
+
+def _next_unique_seq(raw, used: set[int], index: int) -> int:
+    """SEQ ổn định: giữ số gốc nếu hợp lệ, không thì 10/20/30… không trùng."""
+    try:
+        seq = int(raw or 0)
+    except (TypeError, ValueError):
+        seq = 0
+    if seq <= 0 or seq in used:
+        seq = (index + 1) * 10
+        while seq <= 0 or seq in used:
+            seq += 10
+    used.add(seq)
+    return seq
+
+
+def _smv_pct_of(line) -> Decimal:
+    std = line.library_unit_smv or Decimal('0')
+    applied = line.applied_unit_smv or Decimal('0')
+    if std > 0:
+        return (applied / std * Decimal('100')).quantize(Decimal('0.01'))
+    return Decimal('100')
+
+
+def smv_override_dicts(order_line: SxSalesOrderLine) -> list[dict]:
+    """Snapshot SMV đơn hàng (kèm mã CĐ) để hydrate form / áp lại khi đổi BOM-OB."""
+    out: list[dict] = []
+    for rl in order_line.routing_lines.order_by('seq_no', 'id'):
+        applied = rl.applied_unit_smv or Decimal('0')
+        out.append({
+            'seq': rl.seq_no,
+            'op_code': rl.op_code or '',
+            'smv': float(applied),
+            'smv_pct': float(_smv_pct_of(rl)),
+            'smv_mode': 'pct',
+            'notes': rl.notes or '',
+        })
+    return out
+
+
+def _match_routing_line(lines, *, seq: int, op_code: str, used: set[int]):
+    """Khớp override theo mã CĐ (ổn định); seq chỉ dùng khi không có mã — tránh gán nhầm khi đổi OB."""
+    code = _fold_op(op_code)
+    unused = [ln for ln in lines if ln.pk not in used]
+    if code and seq:
+        for ln in unused:
+            if _fold_op(ln.op_code) == code and ln.seq_no == seq:
+                return ln
+    if code:
+        for ln in unused:
+            if _fold_op(ln.op_code) == code:
+                return ln
+    if seq and not code:
+        for ln in unused:
+            if ln.seq_no == seq:
+                return ln
+    return None
+
+
 def _copy_from_routing_line(
     order_line: SxSalesOrderLine,
     src,
@@ -144,7 +205,8 @@ def process_preview_from_routing(routing, *, limit: int = 80) -> list[dict]:
     out = []
     if routing is None:
         return out
-    for src in routing.lines.select_related('operation').order_by('seq_no', 'id')[:limit]:
+    used: set[int] = set()
+    for i, src in enumerate(routing.lines.select_related('operation').order_by('seq_no', 'id')[:limit]):
         library, product = _ob_smv_seconds(src)
         code, name = _step_code_and_name(
             code=src.op_code,
@@ -152,7 +214,7 @@ def process_preview_from_routing(routing, *, limit: int = 80) -> list[dict]:
             operation=getattr(src, 'operation', None),
         )
         out.append({
-            'seq': src.seq_no or 0,
+            'seq': _next_unique_seq(src.seq_no, used, i),
             'code': code,
             'name': name,
             'smv_library': str(library),
@@ -172,7 +234,8 @@ def process_preview_from_bom(bom, *, limit: int = 80) -> list[dict]:
     steps = bom.process_steps
     if hasattr(steps, 'select_related'):
         steps = steps.select_related('operation', 'routing_line')
-    for src in steps.order_by('sequence', 'id')[:limit]:
+    used: set[int] = set()
+    for i, src in enumerate(steps.order_by('sequence', 'id')[:limit]):
         rl = getattr(src, 'routing_line', None)
         if rl is not None:
             library, product = _ob_smv_seconds(rl)
@@ -189,7 +252,7 @@ def process_preview_from_bom(bom, *, limit: int = 80) -> list[dict]:
             operation=getattr(src, 'operation', None),
         )
         out.append({
-            'seq': src.sequence or 0,
+            'seq': _next_unique_seq(src.sequence, used, i),
             'code': code,
             'name': name,
             'smv_library': str(library),
@@ -228,10 +291,10 @@ def _copy_from_process_step(order_line: SxSalesOrderLine, src) -> SxSalesOrderRo
 
 
 def apply_smv_overrides(order_line: SxSalesOrderLine, overrides) -> int:
-    """Ghi đè SMV đơn hàng theo seq từ form lên đơn (không đụng SMV sản phẩm baseline)."""
+    """Ghi đè SMV đơn hàng theo mã CĐ (rồi seq) — không đụng SMV sản phẩm baseline."""
     if not overrides:
         return 0
-    by_seq: dict[int, tuple[Decimal, str, str | None, Decimal | None]] = {}
+    parsed: list[tuple[int, str, Decimal, str, str | None, Decimal | None]] = []
     for row in overrides:
         if not isinstance(row, dict):
             continue
@@ -240,24 +303,29 @@ def apply_smv_overrides(order_line: SxSalesOrderLine, overrides) -> int:
             smv = _q(row.get('smv') or 0)
         except (TypeError, ValueError):
             continue
-        if seq > 0:
-            expl = str(row.get('explanation') or row.get('reason') or '').strip()[:500]
-            notes = None
-            if 'notes' in row or 'description' in row:
-                notes = str(row.get('notes') or row.get('description') or '').strip()[:255]
-            pct = None
-            mode = str(row.get('smv_mode') or '').strip().lower()
-            if mode != 'qty' and row.get('smv_pct') is not None and str(row.get('smv_pct')).strip() != '':
-                try:
-                    pct = _q(row.get('smv_pct'))
-                except (TypeError, ValueError):
-                    pct = None
-            by_seq[seq] = (smv, expl, notes, pct)
-    n = 0
-    for line in order_line.routing_lines.all():
-        if line.seq_no not in by_seq:
+        op_code = str(row.get('op_code') or row.get('code') or '').strip()
+        if seq <= 0 and not op_code:
             continue
-        smv, expl, notes, pct = by_seq[line.seq_no]
+        expl = str(row.get('explanation') or row.get('reason') or '').strip()[:500]
+        notes = None
+        if 'notes' in row or 'description' in row:
+            notes = str(row.get('notes') or row.get('description') or '').strip()[:255]
+        pct = None
+        mode = str(row.get('smv_mode') or '').strip().lower()
+        if mode != 'qty' and row.get('smv_pct') is not None and str(row.get('smv_pct')).strip() != '':
+            try:
+                pct = _q(row.get('smv_pct'))
+            except (TypeError, ValueError):
+                pct = None
+        parsed.append((seq, op_code, smv, expl, notes, pct))
+    n = 0
+    lines = list(order_line.routing_lines.all())
+    used: set[int] = set()
+    for seq, op_code, smv, expl, notes, pct in parsed:
+        line = _match_routing_line(lines, seq=seq, op_code=op_code, used=used)
+        if line is None:
+            continue
+        used.add(line.pk)
         if pct is not None:
             std = line.library_unit_smv or Decimal('0')
             smv = (std * pct / Decimal('100')).quantize(Decimal('0.0001'))
@@ -315,8 +383,12 @@ def seed_order_line_routing(
         order_line.routing_lines.all().delete()
     rows = []
     if routing is not None:
-        for src in routing.lines.select_related('operation', 'machine', 'work_center').order_by('seq_no', 'id'):
+        used_seq: set[int] = set()
+        for i, src in enumerate(
+            routing.lines.select_related('operation', 'machine', 'work_center').order_by('seq_no', 'id')
+        ):
             row = _copy_from_routing_line(order_line, src)
+            row.seq_no = _next_unique_seq(row.seq_no, used_seq, i)
             row.recompute()
             rows.append(row)
     elif order_line.bom_version_id:
@@ -333,11 +405,7 @@ def seed_order_line_routing(
                 ).order_by('sequence', 'id')
             ):
                 row = _copy_from_process_step(order_line, src)
-                if not row.seq_no or row.seq_no in used_seq:
-                    row.seq_no = (i + 1) * 10
-                    while row.seq_no in used_seq:
-                        row.seq_no += 10
-                used_seq.add(row.seq_no)
+                row.seq_no = _next_unique_seq(row.seq_no, used_seq, i)
                 row.recompute()
                 rows.append(row)
     if rows:
@@ -606,7 +674,7 @@ def boms_for_product(product_code: str):
 def attach_order_line_bom(order_line: SxSalesOrderLine, *, bom_version_id: int) -> int:
     """Gắn phiên bản BOM vào dòng đơn (nháp / chờ xếp KHSX)."""
     from san_xuat.models import BomVersion
-    from san_xuat.services.sales_orders import bom_lines_snapshot
+    from san_xuat.services.sales_orders import bom_lines_snapshot, merge_bom_overrides
 
     assert_order_routing_editable(order_line.order)
     try:
@@ -621,7 +689,12 @@ def attach_order_line_bom(order_line: SxSalesOrderLine, *, bom_version_id: int) 
     if code and bom_code and code != bom_code:
         raise OrderRoutingError('Phiên bản BOM không thuộc mã sản phẩm này.')
     order_line.bom_version = bom
-    order_line.bom_line_overrides = bom_lines_snapshot(bom.pk)
+    fresh = bom_lines_snapshot(bom.pk)
+    prev = list(order_line.bom_line_overrides or [])
+    if prev:
+        order_line.bom_line_overrides = merge_bom_overrides(fresh, prev)
+    else:
+        order_line.bom_line_overrides = fresh
     order_line.save(update_fields=['bom_version', 'bom_line_overrides'])
     if order_line.routing_lines.exists():
         return order_line.routing_lines.count()
@@ -645,9 +718,13 @@ def attach_order_line_routing(order_line: SxSalesOrderLine, *, routing_id: int) 
     routing = qs.first()
     if routing is None:
         raise OrderRoutingError('Phiên bản công đoạn không tồn tại hoặc không thuộc mã này.')
+    prev = smv_override_dicts(order_line)
     order_line.routing = routing
     order_line.save(update_fields=['routing'])
-    return seed_order_line_routing(order_line, routing=routing, replace=True)
+    n = seed_order_line_routing(order_line, routing=routing, replace=True)
+    if prev:
+        apply_smv_overrides(order_line, prev)
+    return n
 
 
 def _routing_q_for_product(product_code: str):

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -450,16 +450,10 @@ def _lines_from_sales_order_formset(formset) -> list:
 
 
 def _sales_order_line_form_initial(order) -> list[dict]:
+    from san_xuat.services.order_routing import smv_override_dicts
+
     rows: list[dict] = []
     for ln in order.lines.all():
-        applied_smv = [
-            {
-                'seq': rl.seq_no,
-                'smv': float(rl.applied_unit_smv or 0),
-                'notes': rl.notes or '',
-            }
-            for rl in ln.routing_lines.all()
-        ]
         rows.append({
             'product_code': ln.product_code or '',
             'product_name': ln.product_name or '',
@@ -467,7 +461,7 @@ def _sales_order_line_form_initial(order) -> list[dict]:
             'routing_id': str(ln.routing_id or ''),
             'qty': ln.qty,
             'size_qtys': ln.size_qtys or {},
-            'applied_smv_json': json.dumps(applied_smv, ensure_ascii=False),
+            'applied_smv_json': json.dumps(smv_override_dicts(ln), ensure_ascii=False),
             'applied_bom_json': json.dumps(ln.bom_line_overrides or [], ensure_ascii=False),
         })
     return rows
@@ -489,6 +483,7 @@ def sales_order_list(request):
         return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'orders')
 
     from san_xuat.hub_models import SxSalesOrder
+    from san_xuat.services.products import product_gallery_map
 
     q = (request.GET.get('q') or '').strip()
     confirm = (request.GET.get('confirm') or '').strip()
@@ -499,7 +494,9 @@ def sales_order_list(request):
         qs = qs.filter(
             Q(code__icontains=q)
             | Q(customer_name__icontains=q)
-        )
+            | Q(lines__product_code__icontains=q)
+            | Q(lines__product_name__icontains=q)
+        ).distinct()
     if confirm in {
         SxSalesOrder.CONFIRM_DRAFT,
         SxSalesOrder.CONFIRM_CONFIRMED,
@@ -508,12 +505,31 @@ def sales_order_list(request):
         qs = qs.filter(confirm_status=confirm)
 
     orders = list(qs.order_by('-request_date', '-id')[:300])
+    product_codes = [
+        ln.product_code
+        for o in orders
+        for ln in o.lines.all()
+        if (ln.product_code or '').strip()
+    ]
+    galleries = product_gallery_map(product_codes)
     rows = []
     for o in orders:
+        lines = list(o.lines.all())
+        products = []
+        for ln in lines:
+            code = (ln.product_code or '').strip()
+            name = (ln.product_name or '').strip() or code or '—'
+            urls = galleries.get(code.casefold()) or []
+            products.append({
+                'code': code,
+                'name': name,
+                'image_url': urls[0] if urls else '',
+            })
         rows.append({
             'order': o,
-            'line_count': o.lines.count(),
-            'total_qty': sum((ln.qty for ln in o.lines.all()), start=Decimal('0')),
+            'line_count': len(lines),
+            'total_qty': sum((ln.qty for ln in lines), start=Decimal('0')),
+            'products': products,
         })
 
     can_create_order = user_can_create_menu(
@@ -1451,7 +1467,6 @@ def plan_board(request):
                         'transfer_minutes': request.POST.get('transfer_minutes') or 0,
                     })
                     if not request.POST.get('hop_clear'):
-                        from decimal import Decimal, InvalidOperation
                         try:
                             c = Decimal(str(hops[0]['count_minutes'] or 0))
                             t = Decimal(str(hops[0]['transfer_minutes'] or 0))
@@ -1514,8 +1529,6 @@ def plan_board(request):
                 kit = None
                 apply = False
                 if action in {'save_npl', 'apply_npl', 'create_npl_pr'}:
-                    from decimal import InvalidOperation
-
                     apply = action == 'apply_npl'
                     buy_by_line = {}
                     allocate_by_line = {}

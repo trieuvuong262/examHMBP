@@ -1,4 +1,4 @@
-﻿from django.contrib.auth.models import User
+from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
@@ -36,11 +36,14 @@ class SpecQuickAddReturnTests(TestCase):
         response = self.client.get(self.create_url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, f'{self.spec_create_url}?next={self.create_url}')
-        href_block = response.content.decode()
-        spec_idx = href_block.find('Thêm quy cách')
+        html = response.content.decode()
+        marker = f'{self.spec_create_url}?next='
+        spec_idx = html.find(marker)
         self.assertGreater(spec_idx, 0)
-        nearby = href_block[max(0, spec_idx - 400):spec_idx]
-        self.assertNotIn('target="_blank"', nearby)
+        tag_start = html.rfind('<a ', 0, spec_idx)
+        tag_end = html.find('>', spec_idx)
+        spec_tag = html[tag_start:tag_end]
+        self.assertNotIn('target="_blank"', spec_tag)
 
     def test_create_spec_with_next_returns_to_material_form(self):
         response = self.client.post(self.spec_create_url, {
@@ -100,3 +103,12 @@ class SpecQuickAddReturnTests(TestCase):
             f'<option value="{spec.pk}" selected',
             html=False,
         )
+        self.assertContains(response, 'jp-npl-mat-form-highlight')
+
+    def test_material_form_uses_section_cards(self):
+        response = self.client.get(self.create_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'jp-npl-mat-detail-hero')
+        self.assertContains(response, 'jp-npl-mat-detail-section')
+        self.assertNotContains(response, 'jp-tab-pills')
+        self.assertNotContains(response, 'nav-tabs')

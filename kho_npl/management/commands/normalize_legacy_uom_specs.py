@@ -4,25 +4,15 @@ from decimal import Decimal
 
 from django.apps import apps
 from django.core.management.base import BaseCommand, CommandError
-from django.db import models, transaction
-from django.db.models import F, Value
+from django.db import transaction
 
 from kho_npl.models import (
     Material,
-    MaterialBatch,
     MaterialSpecification,
     MaterialSpecificationLevel,
-    StockAdjustmentLine,
-    StockBalance,
-    StockDisposalLine,
-    StockIssueLine,
-    StockLedger,
-    StockReceiptLine,
-    StockReservation,
-    StocktakeLine,
-    StockTransferLine,
     Unit,
 )
+from kho_npl.services.uom import rebase_material_base as convert_material_base
 
 
 UNIT_NAMES = {
@@ -128,18 +118,6 @@ def _factor_for_code(levels, code):
     return None
 
 
-def _multiply(qs, field_names, factor):
-    updates = {name: F(name) * Value(factor) for name in field_names}
-    if updates:
-        qs.update(**updates)
-
-
-def _divide(qs, field_names, factor):
-    updates = {name: F(name) / Value(factor) for name in field_names}
-    if updates:
-        qs.update(**updates)
-
-
 def _convert_json(value, factors_by_code):
     changed = False
     if isinstance(value, list):
@@ -176,26 +154,6 @@ def _convert_json(value, factors_by_code):
     return result, changed
 
 
-def _convert_code_based_production_data(material, factor):
-    """Các bảng sản xuất lưu mã NPL thay vì FK vẫn đang dùng ĐVT cơ sở."""
-    for model in apps.get_models():
-        field_names = {field.name for field in model._meta.fields}
-        if 'material_code' not in field_names:
-            continue
-        qs = model.objects.filter(material_code__iexact=material.code)
-        qty_fields = [
-            field.name for field in model._meta.fields
-            if isinstance(field, models.DecimalField)
-            and (field.name == 'qty' or field.name.startswith('qty_') or field.name.endswith('_qty'))
-        ]
-        price_fields = [
-            field.name for field in model._meta.fields
-            if isinstance(field, models.DecimalField) and 'unit_price' in field.name
-        ]
-        _multiply(qs, qty_fields, factor)
-        _divide(qs, price_fields, factor)
-
-
 def _convert_all_json_snapshots(factors_by_code):
     # Chỉ snapshot BOM này chứa material_code + qty. Các JSON khác là size,
     # cấu hình hoặc audit lịch sử, không được phép sửa.
@@ -215,49 +173,6 @@ def _convert_all_json_snapshots(factors_by_code):
             changed_rows = []
     if changed_rows:
         model.objects.bulk_update(changed_rows, [field_name])
-
-
-def convert_material_base(material, old_unit, factor):
-    """Đổi các trường đang lưu theo ĐVT cơ sở cũ sang ĐVT lẻ mới."""
-    _multiply(StockBalance.objects.filter(material=material), ['quantity'], factor)
-    _multiply(MaterialBatch.objects.filter(material=material), ['quantity'], factor)
-    _divide(MaterialBatch.objects.filter(material=material), ['unit_price'], factor)
-    _multiply(StockLedger.objects.filter(material=material), ['qty_delta', 'balance_after'], factor)
-    _divide(StockLedger.objects.filter(material=material), ['unit_price'], factor)
-    _multiply(StockReservation.objects.filter(material=material), ['quantity'], factor)
-
-    Material.objects.filter(pk=material.pk).update(
-        min_stock=F('min_stock') * Value(factor),
-        base_price=F('base_price') / Value(factor),
-    )
-
-    line_configs = (
-        (StockReceiptLine, 'received_qty'),
-        (StockIssueLine, 'quantity'),
-        (StockDisposalLine, 'quantity'),
-        (StockTransferLine, 'quantity'),
-        (StockAdjustmentLine, 'actual_qty'),
-        (StocktakeLine, 'actual_qty'),
-    )
-    for model, entered_qty in line_configs:
-        qs = model.objects.filter(material=material, line_unit=old_unit)
-        qs.update(
-            uom_factor=factor,
-            qty_base=F(entered_qty) * Value(factor),
-        )
-
-    _divide(StockIssueLine.objects.filter(material=material), ['unit_price'], factor)
-    _multiply(StockAdjustmentLine.objects.filter(material=material), ['system_qty'], factor)
-    _multiply(StocktakeLine.objects.filter(material=material), ['system_qty'], factor)
-
-    try:
-        BomLine = apps.get_model('san_xuat', 'BomLine')
-    except LookupError:
-        BomLine = None
-    if BomLine is not None:
-        _multiply(BomLine.objects.filter(material=material), ['qty'], factor)
-
-    _convert_code_based_production_data(material, factor)
 
 
 class Command(BaseCommand):

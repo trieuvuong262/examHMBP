@@ -2,187 +2,239 @@
 
 {% block extra_head %}
 {% include 'kho_npl/includes/material_color_styles.html' %}
+{% include 'kho_npl/includes/material_detail_styles.html' %}
+{% include 'kho_npl/includes/material_form_styles.html' %}
 {% include 'kho_npl/includes/filter_multi_select_head.html' %}
-<style>
-.jp-npl-material-form-page .ts-wrapper.jp-npl-search-select,
-.jp-npl-material-form-page .ts-wrapper.form-select {
-    width: 100%;
-}
-.jp-npl-variant-group-box {
-    background: var(--bs-tertiary-bg);
-}
-.jp-npl-material-form-page .min-w-0 {
-    min-width: 0;
-}
-</style>
 {% include 'kho_npl/includes/form_validation_assets.html' %}
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-npl-material-form-page py-3 py-md-4 mb-5">
+{% if is_edit %}
+{% url 'kho_npl:material_edit' material.pk as npl_form_url %}
+{% else %}
+{% url 'kho_npl:material_create' as npl_form_url %}
+{% endif %}
+<div class="container jp-page jp-npl-material-detail-page jp-npl-material-form-page py-3 py-md-4 mb-5">
+    <form method="post" enctype="multipart/form-data" class="jp-npl-validated-form" novalidate>
+        {% csrf_token %}
 
-    <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
-        <div>
-            <h2 class="fw-bold text-hm mb-1 jp-page-title">
-                
-                {% if is_edit %}Sửa nguyên phụ liệu{% else %}Thêm nguyên phụ liệu{% endif %}
-            </h2>
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 jp-npl-mat-detail-toolbar">
+            <div>
+                <a href="{{ cancel_url }}" class="jp-npl-mat-detail-back">
+                    <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                    {% if is_edit %}Chi tiết NPL{% else %}Danh mục NPL{% endif %}
+                </a>
+                <h2 class="fw-bold text-hm mb-0 mt-2 jp-page-title">
+                    {% if is_edit %}Sửa nguyên phụ liệu{% else %}Thêm nguyên phụ liệu{% endif %}
+                </h2>
+                {% if is_edit %}
+                <p class="jp-page-subtitle mb-0">{{ material.code }} — {{ material.name }}</p>
+                {% endif %}
+            </div>
+            <div class="d-flex flex-wrap gap-2 jp-npl-mat-detail-toolbar-actions">
+                <button type="submit" class="btn btn-hm btn-sm fw-bold">
+                    <i class="bi bi-check-lg me-1"></i>{% if is_edit %}Cập nhật{% else %}Thêm NPL{% endif %}
+                </button>
+                <a href="{{ cancel_url }}" class="btn btn-outline-secondary btn-sm">Huỷ</a>
+            </div>
         </div>
-        <a href="{{ cancel_url }}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-arrow-left me-1"></i>Quay lại
-        </a>
-    </div>
 
-    <div class="card border-0 shadow-sm">
-        <div class="card-body p-3 p-md-4">
-            <form method="post" enctype="multipart/form-data" class="jp-npl-validated-form" novalidate>
-                {% csrf_token %}
-                {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold small" for="{{ form.code.id_for_label }}">Mã NPL</label>
-                        {{ form.code }}
-                        {% if form.code.errors %}<div class="text-danger small">{{ form.code.errors }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-8">
-                        <label class="form-label fw-bold small" for="{{ form.name.id_for_label }}">Tên</label>
-                        {{ form.name }}
-                        {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold small" for="{{ form.category.id_for_label }}">Loại NPL</label>
-                        {{ form.category }}
-                        {% if form.category.errors %}<div class="text-danger small">{{ form.category.errors }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold small" for="{{ form.unit.id_for_label }}">ĐVT lẻ (BOM và tồn)</label>
-                        {{ form.unit }}
-                        {% if form.unit.errors %}<div class="text-danger small">{{ form.unit.errors }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold small" for="{{ form.min_stock.id_for_label }}">Tồn tối thiểu</label>
-                        {{ form.min_stock }}
-                        {% if form.min_stock.errors %}<div class="text-danger small">{{ form.min_stock.errors }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold small" for="{{ form.primary_location.id_for_label }}">Vị trí mặc định</label>
-                        {{ form.primary_location }}
-                        {% if form.primary_location.help_text %}<div class="form-text">{{ form.primary_location.help_text }}</div>{% endif %}
-                        {% if form.primary_location.errors %}<div class="text-danger small">{{ form.primary_location.errors }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold small" for="{{ form.base_price.id_for_label }}">Giá cơ bản (₫)</label>
-                        {{ form.base_price }}
-                        {% if form.base_price.errors %}<div class="text-danger small">{{ form.base_price.errors }}</div>{% endif %}
-                    </div>
-                    <div class="col-12">
-                        <div class="jp-npl-variant-group-box border rounded-3 p-3">
-                            <div class="fw-bold mb-1">
-                                <i class="bi bi-collection me-1"></i>Gom nhóm hàng hoá
-                                <span class="fw-normal text-muted">(không bắt buộc)</span>
-                            </div>
-                            <div class="small text-muted mb-3">
-                                Dùng khi nhiều mã chỉ khác màu hoặc quy cách. Ví dụ BB-BICH-01 và BB-BICH-02
-                                sẽ hiển thị chung dưới nhóm BB-BICH.
-                            </div>
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold small" for="{{ form.variant_group.id_for_label }}">
-                                        Gom NPL này vào
-                                    </label>
-                                    {{ form.variant_group }}
-                                    {% if form.variant_group.help_text %}<div class="form-text">{{ form.variant_group.help_text }}</div>{% endif %}
-                                    {% if form.variant_group.errors %}<div class="text-danger small">{{ form.variant_group.errors }}</div>{% endif %}
-                                </div>
-                                <div class="col-md-6" id="jp-npl-new-variant-group-wrap" hidden>
-                                    <label class="form-label fw-bold small" for="{{ form.new_variant_group.id_for_label }}">
-                                        Tên nhóm mới
-                                    </label>
-                                    {{ form.new_variant_group }}
-                                    <div class="form-text">Chỉ nhập phần nhận diện, ví dụ BICH hoặc SIEU.</div>
-                                    {% if form.new_variant_group.errors %}<div class="text-danger small">{{ form.new_variant_group.errors }}</div>{% endif %}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold small" for="{{ form.color.id_for_label }}">Màu sắc</label>
-                        <div class="d-flex align-items-start gap-2">
-                            <div class="flex-grow-1 min-w-0">{{ form.color }}</div>
-                            {% if can_create %}
-                            <a href="{% url 'kho_npl:settings_create' 'mau' %}" target="_blank" rel="noopener"
-                               class="btn btn-outline-secondary btn-sm text-nowrap">
-                                <i class="bi bi-plus-lg me-1"></i>Thêm màu
-                            </a>
-                            {% endif %}
-                        </div>
-                        {% if form.color.errors %}<div class="text-danger small">{{ form.color.errors }}</div>{% endif %}
-                        {% include 'kho_npl/includes/material_form_color_select.html' %}
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold small" for="{{ form.specification.id_for_label }}">Quy cách / khổ</label>
-                        <div class="d-flex align-items-start gap-2">
-                            <div class="flex-grow-1 min-w-0">{{ form.specification }}</div>
-                            {% if can_create %}
+        {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+        <div class="card jp-npl-mat-detail-hero shadow-sm mb-3">
+            <div class="card-body p-3 p-md-4">
+                <div class="row g-4 align-items-start">
+                    <div class="col-lg-4 col-xl-3">
+                        <div class="jp-npl-mat-detail-media">
                             {% if is_edit %}
-                            {% url 'kho_npl:material_edit' material.pk as npl_form_url %}
+                            {% include 'kho_npl/includes/material_image_preview.html' with show_hint=False %}
                             {% else %}
-                            {% url 'kho_npl:material_create' as npl_form_url %}
+                            <div class="jp-npl-mat-preview-empty text-muted">
+                                <i class="bi bi-image display-6 d-block mb-2 opacity-50"></i>
+                                <span class="small">Chưa có hình ảnh</span>
+                            </div>
                             {% endif %}
-                            <a href="{% url 'kho_npl:settings_create' 'quy-cach' %}?next={{ npl_form_url|urlencode }}"
-                               class="btn btn-outline-secondary btn-sm text-nowrap">
-                                <i class="bi bi-plus-lg me-1"></i>Thêm quy cách
-                            </a>
-                            {% endif %}
-                        </div>
-                        {% if form.specification.errors %}<div class="text-danger small">{{ form.specification.errors }}</div>{% endif %}
-                        <div class="form-text">
-                            Quy cách được khai báo tại Thiết lập → Quy cách / khổ.
-                            Đơn vị chẵn: <strong id="jp-package-unit-name">—</strong>
+                            <label class="form-label fw-bold small mt-3 mb-1" for="{{ form.image.id_for_label }}">Hình ảnh</label>
+                            <div class="jp-npl-doc-attachment-field">
+                                {{ form.image }}
+                            </div>
+                            {% if form.image.errors %}<div class="text-danger small">{{ form.image.errors }}</div>{% endif %}
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold small" for="{{ form.supplier.id_for_label }}">NCC chính</label>
-                        {{ form.supplier }}
-                        {% if form.supplier.errors %}<div class="text-danger small">{{ form.supplier.errors }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold small" for="{{ form.image.id_for_label }}">Hình ảnh</label>
-                        <div class="jp-npl-doc-attachment-field">
-                            {{ form.image }}
-                        </div>
-                        {% if form.image.errors %}<div class="text-danger small">{{ form.image.errors }}</div>{% endif %}
-                        {% if is_edit and material.image %}
-                        <div class="mt-2">
-                            {% include 'kho_npl/includes/material_image_preview.html' %}
-                        </div>
+                    <div class="col-lg-8 col-xl-9 jp-npl-mat-form-hero-fields">
+                        {% if is_edit %}
+                        <div class="jp-npl-mat-detail-breadcrumb">{{ material.category.name }}</div>
                         {% endif %}
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label fw-bold small" for="{{ form.notes.id_for_label }}">Ghi chú</label>
-                        {{ form.notes }}
-                        {% if form.notes.errors %}<div class="text-danger small">{{ form.notes.errors }}</div>{% endif %}
-                    </div>
-                    <div class="col-12">
-                        <div class="form-check">
-                            {{ form.is_active }}
-                            <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Đang sử dụng</label>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold small" for="{{ form.code.id_for_label }}">Mã NPL</label>
+                                {{ form.code }}
+                                {% if form.code.errors %}<div class="text-danger small">{{ form.code.errors }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label fw-bold small" for="{{ form.name.id_for_label }}">Tên</label>
+                                {{ form.name }}
+                                {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small" for="{{ form.category.id_for_label }}">Loại NPL</label>
+                                {{ form.category }}
+                                {% if form.category.errors %}<div class="text-danger small">{{ form.category.errors }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6 d-flex align-items-end">
+                                <div class="form-check mb-2">
+                                    {{ form.is_active }}
+                                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Đang sử dụng</label>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="d-flex gap-2 mt-4 pt-2 border-top">
-                    <button type="submit" class="btn btn-hm fw-bold px-4">
-                        {% if is_edit %}Cập nhật{% else %}Thêm NPL{% endif %}
-                    </button>
-                    <a href="{{ cancel_url }}" class="btn btn-outline-secondary">Huỷ</a>
-                </div>
-            </form>
+            </div>
         </div>
-    </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-lg-8">
+                <div class="card jp-npl-mat-detail-section h-100">
+                    <div class="card-header">
+                        <h2 class="jp-npl-mat-detail-section-title">
+                            <i class="bi bi-palette" aria-hidden="true"></i>Đặc tính
+                        </h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small" for="{{ form.color.id_for_label }}">Màu sắc</label>
+                                <div class="jp-npl-mat-form-combo">
+                                    <div class="jp-npl-mat-form-combo-field">{{ form.color }}</div>
+                                    {% if can_create %}
+                                    <a href="{% url 'kho_npl:settings_create' 'mau' %}" target="_blank" rel="noopener"
+                                       class="btn btn-outline-hm btn-sm jp-npl-mat-form-add" title="Thêm màu">
+                                        <i class="bi bi-plus-lg"></i>
+                                        <span class="jp-npl-mat-form-add-label ms-1">Thêm màu</span>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                                {% if form.color.errors %}<div class="text-danger small">{{ form.color.errors }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6{% if request.GET.select_specification %} jp-npl-mat-form-highlight{% endif %}">
+                                <label class="form-label fw-bold small" for="{{ form.specification.id_for_label }}">Quy cách / khổ</label>
+                                <div class="jp-npl-mat-form-combo">
+                                    <div class="jp-npl-mat-form-combo-field">{{ form.specification }}</div>
+                                    {% if can_create %}
+                                    <a href="{% url 'kho_npl:settings_create' 'quy-cach' %}?next={{ npl_form_url|urlencode }}"
+                                       class="btn btn-outline-hm btn-sm jp-npl-mat-form-add" title="Thêm quy cách">
+                                        <i class="bi bi-plus-lg"></i>
+                                        <span class="jp-npl-mat-form-add-label ms-1">Thêm quy cách</span>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                                {% if form.specification.errors %}<div class="text-danger small">{{ form.specification.errors }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small" for="{{ form.unit.id_for_label }}">ĐVT lẻ (BOM và tồn)</label>
+                                {{ form.unit }}
+                                {% if form.unit.errors %}<div class="text-danger small">{{ form.unit.errors }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">Đơn vị chẵn</label>
+                                <div class="jp-npl-mat-form-readonly" id="jp-package-unit-name">—</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card jp-npl-mat-detail-section h-100">
+                    <div class="card-header">
+                        <h2 class="jp-npl-mat-detail-section-title">
+                            <i class="bi bi-truck" aria-hidden="true"></i>Cung ứng
+                        </h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label fw-bold small" for="{{ form.supplier.id_for_label }}">NCC chính</label>
+                                {{ form.supplier }}
+                                {% if form.supplier.errors %}<div class="text-danger small">{{ form.supplier.errors }}</div>{% endif %}
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-bold small" for="{{ form.primary_location.id_for_label }}">Vị trí mặc định</label>
+                                {{ form.primary_location }}
+                                {% if form.primary_location.help_text %}<div class="form-text">{{ form.primary_location.help_text }}</div>{% endif %}
+                                {% if form.primary_location.errors %}<div class="text-danger small">{{ form.primary_location.errors }}</div>{% endif %}
+                            </div>
+                            <div class="col-sm-6 col-lg-12">
+                                <label class="form-label fw-bold small" for="{{ form.min_stock.id_for_label }}">Tồn tối thiểu</label>
+                                {{ form.min_stock }}
+                                {% if form.min_stock.errors %}<div class="text-danger small">{{ form.min_stock.errors }}</div>{% endif %}
+                            </div>
+                            <div class="col-sm-6 col-lg-12">
+                                <label class="form-label fw-bold small" for="{{ form.base_price.id_for_label }}">Giá cơ bản / 1 ĐVT lẻ (₫)</label>
+                                {{ form.base_price }}
+                                {{ form.price_qty_unit }}
+                                <div class="form-text" id="jp-base-price-unit-hint">Giá của 1 đơn vị lẻ.</div>
+                                {% if form.base_price.errors %}<div class="text-danger small">{{ form.base_price.errors }}</div>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card jp-npl-mat-detail-section mb-3">
+            <div class="card-header">
+                <h2 class="jp-npl-mat-detail-section-title">
+                    <i class="bi bi-collection" aria-hidden="true"></i>Gom nhóm hàng hoá
+                    <span class="fw-normal text-muted">(không bắt buộc)</span>
+                </h2>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small" for="{{ form.variant_group.id_for_label }}">
+                            Gom NPL này vào
+                        </label>
+                        {{ form.variant_group }}
+                        {% if form.variant_group.help_text %}<div class="form-text">{{ form.variant_group.help_text }}</div>{% endif %}
+                        {% if form.variant_group.errors %}<div class="text-danger small">{{ form.variant_group.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6" id="jp-npl-new-variant-group-wrap" hidden>
+                        <label class="form-label fw-bold small" for="{{ form.new_variant_group.id_for_label }}">
+                            Tên nhóm mới
+                        </label>
+                        {{ form.new_variant_group }}
+                        <div class="form-text">Chỉ nhập phần nhận diện, ví dụ BICH hoặc SIEU.</div>
+                        {% if form.new_variant_group.errors %}<div class="text-danger small">{{ form.new_variant_group.errors }}</div>{% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card jp-npl-mat-detail-notes shadow-sm">
+            <div class="card-header bg-white border-bottom py-3">
+                <h2 class="jp-npl-mat-detail-section-title mb-0">
+                    <i class="bi bi-card-text" aria-hidden="true"></i>Ghi chú
+                </h2>
+            </div>
+            <div class="card-body">
+                {{ form.notes }}
+                {% if form.notes.errors %}<div class="text-danger small">{{ form.notes.errors }}</div>{% endif %}
+            </div>
+        </div>
+
+        <div class="d-flex gap-2 jp-npl-mat-form-actions">
+            <button type="submit" class="btn btn-hm fw-bold px-4">
+                {% if is_edit %}Cập nhật{% else %}Thêm NPL{% endif %}
+            </button>
+            <a href="{{ cancel_url }}" class="btn btn-outline-secondary">Huỷ</a>
+        </div>
+    </form>
 </div>
 {% if is_edit and material.image %}
 {% include 'kho_npl/includes/material_image_modal.html' %}
 {% endif %}
+{% include 'kho_npl/includes/material_form_color_select.html' %}
 {% include 'kho_npl/includes/material_form_search_select_script.html' %}
 {% include 'kho_npl/includes/doc_attachment_clear_script.html' %}
 <script>
@@ -203,16 +255,73 @@ document.addEventListener('DOMContentLoaded', function () {
     const specSelect = document.getElementById('{{ form.specification.id_for_label }}');
     const unitSelect = document.getElementById('{{ form.unit.id_for_label }}');
     const packageUnitName = document.getElementById('jp-package-unit-name');
+    const priceInput = document.getElementById('{{ form.base_price.id_for_label }}');
+    const minStockInput = document.getElementById('{{ form.min_stock.id_for_label }}');
+    const priceQtyUnitInput = document.getElementById('{{ form.price_qty_unit.id_for_label }}');
+    const priceHint = document.getElementById('jp-base-price-unit-hint');
     if (specSelect && unitSelect) {
+        function parseFactors(option) {
+            try { return JSON.parse((option && option.dataset.unitFactors) || '{}'); }
+            catch (err) { return {}; }
+        }
+        function parseDecimal(value) {
+            const raw = String(value || '').trim().replace(',', '.');
+            if (!raw) return null;
+            const n = Number(raw);
+            return Number.isFinite(n) ? n : null;
+        }
+        function formatDecimal(n) {
+            if (n == null || !Number.isFinite(n)) return '';
+            const rounded = Math.round(n * 1e6) / 1e6;
+            return String(rounded);
+        }
+        function convertNumeric(input, factor, mode) {
+            if (!input || !factor || factor === 1) return;
+            const current = parseDecimal(input.value);
+            if (current == null) return;
+            const next = mode === 'price' ? current / factor : current * factor;
+            input.value = formatDecimal(next);
+        }
+        function selectedOption() {
+            return specSelect.options[specSelect.selectedIndex];
+        }
+        let lastUnitId = String(
+            (priceQtyUnitInput && priceQtyUnitInput.value)
+            || (unitSelect && unitSelect.value)
+            || ''
+        );
+        let lastFactors = parseFactors(selectedOption());
         function syncBaseUnit() {
-            const option = specSelect.options[specSelect.selectedIndex];
+            const option = selectedOption();
             const unitId = option ? option.dataset.baseUnitId : '';
+            const factors = parseFactors(option);
             if (unitId) unitSelect.value = unitId;
             if (packageUnitName) {
                 packageUnitName.textContent = (option && option.dataset.packageUnitName) || '—';
             }
+            const fromId = lastUnitId;
+            const toId = unitId ? String(unitId) : '';
+            if (fromId && toId && fromId !== toId) {
+                let factor = Number(factors[fromId]);
+                if (!(Number.isFinite(factor) && factor > 0)) {
+                    const inverse = Number(lastFactors[toId]);
+                    if (Number.isFinite(inverse) && inverse > 0) factor = 1 / inverse;
+                }
+                if (Number.isFinite(factor) && factor > 0) {
+                    convertNumeric(priceInput, factor, 'price');
+                    convertNumeric(minStockInput, factor, 'qty');
+                }
+            }
+            lastUnitId = toId || fromId;
+            lastFactors = factors;
+            if (priceQtyUnitInput) priceQtyUnitInput.value = lastUnitId;
+            if (priceHint) {
+                const unitName = (option && option.dataset.baseUnitName) || (unitSelect.options[unitSelect.selectedIndex] || {}).text || 'ĐVT lẻ';
+                priceHint.textContent = 'Giá của 1 ' + unitName.trim() + '.';
+            }
         }
         specSelect.addEventListener('change', syncBaseUnit);
+        if (specSelect.tomselect) specSelect.tomselect.on('change', syncBaseUnit);
         syncBaseUnit();
     }
 

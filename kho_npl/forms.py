@@ -1,5 +1,6 @@
 from decimal import Decimal, InvalidOperation
 
+import json
 import re
 
 from django import forms
@@ -55,7 +56,19 @@ from kho_npl.services.scrap_warehouse import (
     source_locations_qs,
 )
 from kho_npl.services.adjustments import balance_qty
-from kho_npl.services.uom import UomConversionError, apply_line_conversion, to_base
+from kho_npl.services.uom import (
+    UomConversionError,
+    apply_line_conversion,
+    rebase_factor,
+    rebase_factor_from_cleaned_levels,
+    rebase_material_base,
+    rebase_price,
+    rebase_qty,
+    spec_levels,
+    spec_unit_factors,
+    to_base,
+    unit_factor_in_levels,
+)
 
 User = get_user_model()
 
@@ -235,6 +248,9 @@ class MaterialSpecificationSelect(forms.Select):
                 option['attrs']['data-base-unit-id'] = base.unit_id
                 option['attrs']['data-base-unit-name'] = base.unit.name
                 option['attrs']['data-package-unit-name'] = levels[-1].unit.name if len(levels) > 1 else ''
+                option['attrs']['data-unit-factors'] = json.dumps(
+                    spec_unit_factors(instance), separators=(',', ':'),
+                )
         return option
 
 
@@ -249,6 +265,10 @@ class MaterialForm(forms.ModelForm):
             'placeholder': 'VD: BICH, SIEU, CR3…',
             'autocomplete': 'off',
         }),
+    )
+    price_qty_unit = forms.IntegerField(
+        required=False,
+        widget=forms.HiddenInput(),
     )
     class Meta:
         model = Material
@@ -288,7 +308,9 @@ class MaterialForm(forms.ModelForm):
                 'data-placeholder': 'Tìm vị trí kho...',
             }),
             'min_stock': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0'}),
-            'base_price': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '1', 'min': '0', 'placeholder': 'VD: 15000'}),
+            'base_price': CompactDecimalInput(attrs={
+                **FORM_CONTROL, 'step': 'any', 'min': '0', 'placeholder': 'Giá 1 ĐVT lẻ, VD: 49.68',
+            }),
             'image': DocClearableFileInput(attrs={
                 'class': 'form-control',
                 'accept': 'image/*,.jpg,.jpeg,.png,.gif,.webp',
@@ -374,6 +396,13 @@ class MaterialForm(forms.ModelForm):
         self.fields['image'].required = False
         self.fields['is_active'].required = False
         self.fields['base_price'].required = False
+        self.fields['base_price'].help_text = 'Giá của 1 đơn vị lẻ (BOM và tồn kho).'
+        self.fields['price_qty_unit'].required = False
+        self._original_unit_id = self.instance.unit_id if self.instance.pk else None
+        self._rebase_factor = None
+        self._rebase_old_unit = None
+        if self.instance.pk and self.instance.unit_id:
+            self.initial.setdefault('price_qty_unit', self.instance.unit_id)
 
     def clean_base_price(self):
         return self.cleaned_data.get('base_price') or Decimal('0')
@@ -419,18 +448,53 @@ class MaterialForm(forms.ModelForm):
             if not base_level:
                 self.add_error('specification', 'Quy cách chưa có ĐVT cấp 1.')
             else:
-                old_unit_id = self.instance.unit_id if self.instance.pk else None
-                if old_unit_id and old_unit_id != base_level.unit_id:
+                new_unit = base_level.unit
+                old_unit_id = self._original_unit_id
+                old_spec = self.instance.specification if self.instance.pk else None
+                if old_unit_id and old_unit_id != new_unit.pk:
+                    factor = rebase_factor(old_unit_id, specification, old_specification=old_spec)
                     has_stock = (
-                        self.instance.balances.filter(quantity__gt=0).exists()
-                        or self.instance.batches.filter(quantity__gt=0).exists()
+                        self.instance.pk
+                        and (
+                            self.instance.balances.filter(quantity__gt=0).exists()
+                            or self.instance.batches.filter(quantity__gt=0).exists()
+                        )
                     )
-                    if has_stock:
+                    if has_stock and factor is None:
                         self.add_error(
                             'specification',
                             'Không thể đổi ĐVT lẻ khi NPL còn tồn hoặc còn tồn lô.',
                         )
-                cleaned_data['unit'] = base_level.unit
+                    elif factor and factor != 1:
+                        self._rebase_factor = factor
+                        self._rebase_old_unit = self.instance.unit
+                cleaned_data['unit'] = new_unit
+                entered_unit_id = cleaned_data.get('price_qty_unit') or old_unit_id
+                try:
+                    entered_unit_id = int(entered_unit_id) if entered_unit_id else None
+                except (TypeError, ValueError):
+                    entered_unit_id = old_unit_id
+                if entered_unit_id and entered_unit_id != new_unit.pk:
+                    price_factor = unit_factor_in_levels(
+                        spec_levels(specification), entered_unit_id,
+                    )
+                    if price_factor is None and old_spec is not None:
+                        inverse = unit_factor_in_levels(
+                            spec_levels(old_spec), new_unit.pk,
+                        )
+                        if inverse:
+                            price_factor = Decimal('1') / inverse
+                    if price_factor and price_factor != 1:
+                        try:
+                            cleaned_data['base_price'] = rebase_price(
+                                cleaned_data.get('base_price') or Decimal('0'), price_factor,
+                            )
+                            cleaned_data['min_stock'] = rebase_qty(
+                                cleaned_data.get('min_stock') or Decimal('0'), price_factor,
+                            )
+                        except UomConversionError:
+                            self.add_error('specification', 'Không quy đổi được giá/tồn tối thiểu sang ĐVT lẻ mới.')
+                cleaned_data['price_qty_unit'] = new_unit.pk
         return cleaned_data
 
     def save(self, commit=True):
@@ -438,6 +502,8 @@ class MaterialForm(forms.ModelForm):
         material.unit = self.cleaned_data['unit']
 
         if commit:
+            if self._rebase_factor and self._rebase_old_unit and material.pk:
+                rebase_material_base(material, self._rebase_old_unit, self._rebase_factor)
             material.save()
             self.save_m2m()
         return material
@@ -1632,6 +1698,7 @@ class MaterialSpecificationForm(forms.ModelForm):
             'sort_order', 'is_active',
         ])
         self.fields['is_active'].required = False
+        self._rebase_needed = False
         units = Unit.objects.filter(is_active=True).order_by('name')
         for field_name in ('level1_unit', 'level2_unit', 'level3_unit'):
             self.fields[field_name].queryset = units
@@ -1671,15 +1738,25 @@ class MaterialSpecificationForm(forms.ModelForm):
         selected = [unit.pk for unit in (level1, level2, level3) if unit]
         if len(selected) != len(set(selected)):
             raise ValidationError('Mỗi cấp phải dùng một ĐVT khác nhau.')
+        self._rebase_needed = False
         if self.instance.pk and level1:
             old_base = self.instance.levels.filter(level=1).values_list('unit_id', flat=True).first()
             if old_base and old_base != level1.pk:
+                factor = rebase_factor_from_cleaned_levels(
+                    old_base, level1, level2, qty2, level3, qty3,
+                )
+                if factor is None:
+                    inverse = unit_factor_in_levels(spec_levels(self.instance), level1.pk)
+                    if inverse:
+                        factor = Decimal('1') / inverse
                 has_stock = (
                     self.instance.materials.filter(balances__quantity__gt=0).exists()
                     or self.instance.materials.filter(batches__quantity__gt=0).exists()
                 )
-                if has_stock:
+                if has_stock and factor is None:
                     self.add_error('level1_unit', 'Không thể đổi ĐVT lẻ khi có NPL đang còn tồn.')
+                else:
+                    self._rebase_needed = True
         return cleaned
 
     def save(self, commit=True):
@@ -1704,7 +1781,17 @@ class MaterialSpecificationForm(forms.ModelForm):
                 )
                 for level, unit, qty in levels
             ])
-            specification.materials.update(unit=self.cleaned_data['level1_unit'])
+            cache = getattr(specification, '_prefetched_objects_cache', None)
+            if cache:
+                cache.pop('levels', None)
+            new_unit = self.cleaned_data['level1_unit']
+            for material in specification.materials.select_related('unit'):
+                if material.unit_id == new_unit.pk:
+                    continue
+                factor = rebase_factor(material.unit, specification)
+                if factor and factor != 1:
+                    rebase_material_base(material, material.unit, factor)
+            specification.materials.update(unit=new_unit)
         return specification
 
 

@@ -1023,14 +1023,15 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
       return;
     }
     inps.forEach(function (inp) {
-      var seq = parseInt(inp.getAttribute('data-smv-seq'), 10);
-      if (!seq) return;
+      var seq = parseInt(inp.getAttribute('data-smv-seq'), 10) || 0;
+      var op = String(inp.getAttribute('data-smv-op') || '').trim();
+      if (!seq && !op) return;
       var std = parseFloat(inp.getAttribute('data-smv-std')) || 0;
       var entry = readEntry(inp, std);
       var tr = inp.closest('tr');
       var notesInp = tr ? tr.querySelector('.jp-so-notes-input') : null;
       var notes = notesInp ? String(notesInp.value || '').trim() : '';
-      var row = { seq: seq, smv_mode: entry.mode, smv: entry.applied, notes: notes };
+      var row = { seq: seq, op_code: op, smv_mode: entry.mode, smv: entry.applied, notes: notes };
       if (entry.mode === 'pct') row.smv_pct = entry.pct;
       else row.smv_pct = '';
       rows.push(row);
@@ -1057,15 +1058,38 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
         refreshSmvApplied();
         return;
       }
-      var bySeq = {};
-      rows.forEach(function (r) {
-        if (!r) return;
-        var seq = parseInt(r.seq, 10);
-        if (seq) bySeq[seq] = r;
-      });
+      var used = {};
+      function takeSavedSmv(inp) {
+        var seq = parseInt(inp.getAttribute('data-smv-seq'), 10) || 0;
+        var code = String(inp.getAttribute('data-smv-op') || '').trim().toLowerCase();
+        function mark(i) { used[i] = true; return rows[i]; }
+        if (code && seq) {
+          for (var i = 0; i < rows.length; i++) {
+            if (used[i] || !rows[i]) continue;
+            var rc = String(rows[i].op_code || rows[i].code || '').trim().toLowerCase();
+            var rs = parseInt(rows[i].seq, 10) || 0;
+            if (rc === code && rs === seq) return mark(i);
+          }
+        }
+        if (code) {
+          for (var i = 0; i < rows.length; i++) {
+            if (used[i] || !rows[i]) continue;
+            var rc2 = String(rows[i].op_code || rows[i].code || '').trim().toLowerCase();
+            if (rc2 && rc2 === code) return mark(i);
+          }
+        }
+        if (seq) {
+          for (var i = 0; i < rows.length; i++) {
+            if (used[i] || !rows[i]) continue;
+            var rc3 = String(rows[i].op_code || rows[i].code || '').trim();
+            var rs3 = parseInt(rows[i].seq, 10) || 0;
+            if (!rc3 && rs3 === seq) return mark(i);
+          }
+        }
+        return null;
+      }
       inps.forEach(function (inp) {
-        var seq = parseInt(inp.getAttribute('data-smv-seq'), 10);
-        var saved = bySeq[seq];
+        var saved = takeSavedSmv(inp);
         if (!saved) return;
         var std = parseFloat(inp.getAttribute('data-smv-std')) || 0;
         var applied = parseFloat(saved.smv);
@@ -1106,15 +1130,31 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
         refreshNplNeed();
         return;
       }
-      var byId = {};
-      rows.forEach(function (r) {
-        if (!r) return;
-        var id = parseInt(r.bom_line_id || r.id, 10);
-        if (id) byId[id] = r;
-      });
+      var usedBom = {};
+      function takeSavedBom(inp) {
+        var id = parseInt(inp.getAttribute('data-bom-line-id'), 10) || 0;
+        var code = String(inp.getAttribute('data-mat-code') || '').trim().toLowerCase();
+        var size = String(inp.getAttribute('data-size') || '').trim().toLowerCase();
+        function mark(i) { usedBom[i] = true; return rows[i]; }
+        if (code) {
+          for (var i = 0; i < rows.length; i++) {
+            if (usedBom[i] || !rows[i]) continue;
+            var rc = String(rows[i].material_code || '').trim().toLowerCase();
+            var rs = String(rows[i].size_code || '').trim().toLowerCase();
+            if (rc === code && rs === size) return mark(i);
+          }
+        }
+        if (id) {
+          for (var i = 0; i < rows.length; i++) {
+            if (usedBom[i] || !rows[i]) continue;
+            var rid = parseInt(rows[i].bom_line_id || rows[i].id, 10) || 0;
+            if (rid === id) return mark(i);
+          }
+        }
+        return null;
+      }
       inps.forEach(function (inp) {
-        var id = parseInt(inp.getAttribute('data-bom-line-id'), 10);
-        var r = byId[id];
+        var r = takeSavedBom(inp);
         if (!r) return;
         var std = parseFloat(inp.getAttribute('data-qty-std')) || 0;
         var applied = parseFloat(r.qty);
@@ -1307,7 +1347,7 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
           + (i === 0 ? productLabelCell(g.label, g.steps.length) : '')
           + '<td>' + (st.seq || '') + '</td><td>' + escAttr(name) + '</td>'
           + '<td class="text-end text-muted">' + parseFloat(std.toFixed(4)) + '</td>'
-          + '<td>' + entryCellHtml('smv', g.key, 'data-smv-seq="' + (st.seq || '') + '" data-smv-std="' + std + '"', mode, applied, pct, 'SMV ' + name) + '</td>'
+          + '<td>' + entryCellHtml('smv', g.key, 'data-smv-seq="' + (st.seq || '') + '" data-smv-std="' + std + '" data-smv-op="' + escAttr(code) + '"', mode, applied, pct, 'SMV ' + name) + '</td>'
           + '<td class="text-end fw-semibold" data-role="smv-applied">' + fmtNeed(applied) + '</td>'
           + '<td><input type="text" class="form-control form-control-sm jp-so-notes-input" maxlength="255"'
           + ' data-line-key="' + escAttr(g.key) + '" data-smv-seq="' + (st.seq || '') + '"'
@@ -1558,14 +1598,12 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
     if (!row) return;
     var bomSel = row.querySelector('.jp-so-bom-select, select[name$="-bom_version_id"]');
     var rtSel = row.querySelector('.jp-so-routing-select, select[name$="-routing_id"]');
-    var keepSmv = sel.matches('.jp-so-bom-select, select[name$="-bom_version_id"]');
-    var keepBomQty = sel.matches('.jp-so-routing-select, select[name$="-routing_id"]');
     loadVersions(
       row,
       bomSel ? bomSel.value : '',
       rtSel ? rtSel.value : '',
-      keepSmv,
-      keepBomQty,
+      true,
+      true,
       { loading: true, message: 'Đang tải BOM / OB…' },
     );
   });

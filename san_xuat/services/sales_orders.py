@@ -21,10 +21,15 @@ from san_xuat.services.planning import PlanningError, _next_code
 from san_xuat.services.products import resolve_product_ref
 
 _Q = Decimal('0.01')
+_Q4 = Decimal('0.0001')
 
 
 def _q(value) -> Decimal:
     return (Decimal(str(value or 0))).quantize(_Q)
+
+
+def _q4(value) -> Decimal:
+    return (Decimal(str(value or 0))).quantize(_Q4)
 
 
 def _resolve_name(code: str, fallback: str = '') -> str:
@@ -98,18 +103,18 @@ def _normalize_bom_overrides(raw) -> list[dict]:
         name = str(row.get('material_name') or '').strip()[:255]
         unit = str(row.get('unit') or '').strip()[:30]
         size_code = str(row.get('size_code') or '').strip()[:20]
-        qty_std = _q(row.get('qty_std') if row.get('qty_std') is not None else row.get('qty'))
+        qty_std = _q4(row.get('qty_std') if row.get('qty_std') is not None else row.get('qty'))
         qty_mode = str(row.get('qty_mode') or '').strip().lower()
         qty_pct = row.get('qty_pct')
         if qty_mode == 'qty':
-            qty = _q(row.get('qty'))
+            qty = _q4(row.get('qty'))
             qty_pct_val = float((qty / qty_std * Decimal('100')).quantize(Decimal('0.01'))) if qty_std > 0 else 100.0
         elif qty_pct is not None and str(qty_pct).strip() != '':
-            qty = (qty_std * _q(qty_pct) / Decimal('100')).quantize(Decimal('0.0001'))
-            qty_pct_val = float(_q(qty_pct))
+            qty = (qty_std * Decimal(str(qty_pct)) / Decimal('100')).quantize(_Q4)
+            qty_pct_val = float(Decimal(str(qty_pct)).quantize(Decimal('0.01')))
             qty_mode = 'pct'
         else:
-            qty = _q(row.get('qty'))
+            qty = _q4(row.get('qty'))
             qty_pct_val = float((qty / qty_std * Decimal('100')).quantize(Decimal('0.01'))) if qty_std > 0 else 100.0
             qty_mode = 'qty' if row.get('qty') is not None else 'pct'
         if bom_line_id <= 0 and not code:
@@ -148,7 +153,7 @@ def bom_lines_snapshot(bom_id: int | None) -> list[dict]:
     for line in bom.lines.select_related('material', 'material__unit').order_by('sort_order', 'pk'):
         mat = line.material
         unit = (unit_label(mat.unit) or '')[:30] if mat and mat.unit_id else ''
-        qty = _q(line.qty)
+        qty = _q4(line.qty)
         image_url = ''
         if mat and mat.image:
             try:
@@ -168,6 +173,74 @@ def bom_lines_snapshot(bom_id: int | None) -> list[dict]:
             'size_code': (line.size_code or '')[:20],
             'image_url': image_url,
         })
+    return out
+
+
+def _bom_match_key(row: dict) -> tuple[str, str]:
+    return (
+        str(row.get('material_code') or '').strip().casefold(),
+        str(row.get('size_code') or '').strip().casefold(),
+    )
+
+
+def merge_bom_overrides(fresh: list[dict], previous) -> list[dict]:
+    """Giữ % / ĐM áp dụng theo mã NPL + size khi đổi phiên bản BOM (id dòng có thể đổi)."""
+    if not fresh:
+        return []
+    prev_rows = previous if isinstance(previous, list) else []
+    by_key: dict[tuple[str, str], dict] = {}
+    by_id: dict[int, dict] = {}
+    for raw in prev_rows:
+        if not isinstance(raw, dict):
+            continue
+        key = _bom_match_key(raw)
+        if key[0]:
+            by_key[key] = raw
+        try:
+            bid = int(raw.get('bom_line_id') or raw.get('id') or 0)
+        except (TypeError, ValueError):
+            bid = 0
+        if bid:
+            by_id[bid] = raw
+    out: list[dict] = []
+    for row in fresh:
+        prev = None
+        key = _bom_match_key(row)
+        if key[0] and key in by_key:
+            prev = by_key[key]
+        else:
+            try:
+                bid = int(row.get('bom_line_id') or 0)
+            except (TypeError, ValueError):
+                bid = 0
+            if bid:
+                prev = by_id.get(bid)
+        if not prev:
+            out.append(row)
+            continue
+        merged = dict(row)
+        std = _q4(row.get('qty_std') if row.get('qty_std') is not None else row.get('qty'))
+        mode = str(prev.get('qty_mode') or '').strip().lower()
+        if mode == 'qty':
+            qty = _q4(prev.get('qty'))
+            pct = (qty / std * Decimal('100')) if std > 0 else Decimal('100')
+            merged['qty'] = float(qty)
+            merged['qty_std'] = float(std)
+            merged['qty_pct'] = float(pct.quantize(Decimal('0.01')))
+            merged['qty_mode'] = 'qty'
+        else:
+            pct_raw = prev.get('qty_pct')
+            if pct_raw is not None and str(pct_raw).strip() != '':
+                pct = Decimal(str(pct_raw))
+                qty = (std * pct / Decimal('100')).quantize(_Q4)
+            else:
+                qty = _q4(prev.get('qty'))
+                pct = (qty / std * Decimal('100')) if std > 0 else Decimal('100')
+            merged['qty'] = float(qty)
+            merged['qty_std'] = float(std)
+            merged['qty_pct'] = float(pct.quantize(Decimal('0.01')))
+            merged['qty_mode'] = 'pct'
+        out.append(merged)
     return out
 
 
@@ -290,6 +363,7 @@ def update_sales_order(
 def _replace_lines(order: SxSalesOrder, lines: list[LineInput]) -> None:
     order.lines.all().delete()
     rows: list[SxSalesOrderLine] = []
+    rows_src: list[LineInput] = []
     for i, ln in enumerate(lines):
         code = (ln.product_code or '').strip()
         qty = _q(ln.qty)
@@ -325,22 +399,18 @@ def _replace_lines(order: SxSalesOrder, lines: list[LineInput]) -> None:
                 sort_order=i,
             )
         )
+        rows_src.append(ln)
     if not rows:
         raise PlanningError('Đơn phải có ít nhất một dòng sản phẩm hợp lệ.')
     SxSalesOrderLine.objects.bulk_create(rows)
     from san_xuat.services.order_routing import apply_smv_overrides, seed_order_routing
 
     seed_order_routing(order)
-    smv_by_code: dict[str, list] = {}
-    for ln in lines:
-        code = (ln.product_code or '').strip().casefold()
-        if code and getattr(ln, 'applied_smv', None):
-            smv_by_code[code] = ln.applied_smv
-    if smv_by_code:
-        for so_ln in order.lines.all():
-            ov = smv_by_code.get((so_ln.product_code or '').strip().casefold())
-            if ov:
-                apply_smv_overrides(so_ln, ov)
+    created = list(order.lines.order_by('sort_order', 'id'))
+    for so_ln, ln in zip(created, rows_src):
+        ov = getattr(ln, 'applied_smv', None)
+        if ov:
+            apply_smv_overrides(so_ln, ov)
 
 
 @transaction.atomic

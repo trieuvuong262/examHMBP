@@ -12,7 +12,7 @@ MATERIAL_LIST_COLUMNS = [
     {'key': 'supplier', 'label': 'NCC', 'default': True, 'required': False, 'weight': 150},
     {'key': 'primary_location', 'label': 'Vị trí mặc định', 'default': True, 'required': False, 'weight': 120},
     {'key': 'min_stock', 'label': 'Tối thiểu', 'default': True, 'required': False, 'weight': 50},
-    {'key': 'base_price', 'label': 'Giá', 'default': True, 'required': False, 'weight': 80},
+    {'key': 'base_price', 'label': 'Giá lẻ', 'default': True, 'required': False, 'weight': 80},
     {'key': 'base_price_total', 'label': 'Tổng giá', 'default': True, 'required': False, 'weight': 90},
     {'key': 'status', 'label': 'Trạng thái', 'default': True, 'required': False, 'weight': 100},
 ]
