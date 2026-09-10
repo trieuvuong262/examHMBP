@@ -1151,6 +1151,51 @@
   .jp-pb-route {
     margin-top: 1.5rem;
   }
+  .jp-pb.is-route {
+    display: flex;
+    flex-direction: column;
+    height: calc(100dvh - var(--jp-topbar-h));
+    max-height: calc(100dvh - var(--jp-topbar-h));
+    margin-bottom: 0 !important;
+    padding-top: 0.85rem !important;
+    padding-bottom: 0.85rem !important;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+  .jp-pb.is-route > .jp-npl-mat-topbar {
+    flex: 0 0 auto;
+  }
+  .jp-pb.is-route > .jp-sx-page-body {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .jp-pb.is-route .jp-team-filter-form {
+    flex: 0 0 auto;
+    margin-bottom: 0.75rem !important;
+  }
+  .jp-pb.is-route .jp-pb-route {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    margin-top: 0;
+  }
+  .jp-pb.is-route .jp-tl-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+  }
+  .jp-pb.is-route .jp-tl-empty {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+  }
   .jp-pb-route-head {
     margin: 0 0 0.7rem;
   }
@@ -1172,7 +1217,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid jp-page jp-sx-page jp-pb py-3 py-md-4 mb-5 px-3 px-lg-4">
+<div class="container-fluid jp-page jp-sx-page jp-pb py-3 py-md-4 mb-5 px-3 px-lg-4{% if tab == 'route' %} is-route{% endif %}">
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
       <h2 class="jp-npl-mat-topbar-title w-100">{% if tab == 'subcontract' %}Thuê gia công{% else %}Kế hoạch sản xuất{% endif %}</h2>
