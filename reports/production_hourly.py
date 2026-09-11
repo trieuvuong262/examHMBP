@@ -1,7 +1,7 @@
 """Logic báo cáo sản lượng hàng giờ — sản xuất."""
 
 from datetime import datetime, time, timedelta
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 import json
 from typing import Optional
 
@@ -1041,11 +1041,25 @@ def session_time_displays(product: ProductionShiftProduct) -> tuple[str, str]:
     return start.strftime('%H:%M'), end.strftime('%H:%M')
 
 
+def _is_subsequent_timed_session_product(product: ProductionShiftProduct) -> bool:
+    """True nếu còn công đoạn có mốc giờ đứng trước (theo sort_order, id)."""
+    if not product.report_id or not product.pk:
+        return False
+    return product.report.production_products.filter(
+        started_at__isnull=False,
+        ended_at__isnull=False,
+    ).filter(
+        Q(sort_order__lt=product.sort_order)
+        | Q(sort_order=product.sort_order, id__lt=product.id)
+    ).exists()
+
+
 def session_effective_hours(product: ProductionShiftProduct) -> Decimal:
     """Giờ làm thực của 1 công đoạn theo mốc bắt đầu/kết thúc, trừ giờ nghỉ ca.
 
-    Dùng mốc tới phút (khớp HH:MM hiển thị) để tránh lệch do giây/micro-giây
-    khi nhập tay cộng thời gian.
+    Dùng mốc tới phút (khớp HH:MM hiển thị) — không làm tròn phút.
+    Công đoạn đầu: end − start.
+    Công đoạn sau: +1 phút (bù phút giao ca khi mốc kết thúc/bắt đầu trùng HH:MM).
     """
     if not product.started_at or not product.ended_at:
         return Decimal('0')
@@ -1066,8 +1080,9 @@ def session_effective_hours(product: ProductionShiftProduct) -> Decimal:
             minutes -= Decimal(str((overlap_end - overlap_start).total_seconds() / 60))
     if minutes < 0:
         minutes = Decimal('0')
-    minutes = minutes.quantize(Decimal('1'))
-    return (minutes / Decimal('60')).quantize(Decimal('0.01'))
+    if _is_subsequent_timed_session_product(product):
+        minutes += Decimal('1')
+    return (minutes / Decimal('60')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 
 def product_slot_cell(product: ProductionShiftProduct, slot_index: int) -> dict:
@@ -1616,7 +1631,9 @@ def compute_day_work_waste_summary(
     for product in products:
         work_hours += _product_accounted_work_hours(product)
 
-    work_minutes = (work_hours * Decimal('60')).quantize(Decimal('1'))
+    work_minutes = (work_hours * Decimal('60')).quantize(
+        Decimal('1'), rounding=ROUND_HALF_UP,
+    )
     if work_minutes <= 0:
         return empty
 
@@ -2077,8 +2094,10 @@ def format_production_quantity(value) -> str:
 
 
 def _format_hours(value) -> str:
-    dec = Decimal(str(value)).quantize(Decimal('0.01'))
-    total_minutes = int((dec * Decimal('60')).quantize(Decimal('1')))
+    dec = Decimal(str(value)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    total_minutes = int(
+        (dec * Decimal('60')).quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+    )
     return _format_hours_minutes_vn(total_minutes, zero_value='0 phút')
 
 
@@ -2086,8 +2105,10 @@ def _format_declared_work_hours(hours) -> str:
     """Giờ làm việc nhân viên khai báo khi gửi báo cáo."""
     if hours is None or hours <= 0:
         return '—'
-    dec = Decimal(str(hours)).quantize(Decimal('0.01'))
-    total_minutes = int((dec * Decimal('60')).quantize(Decimal('1')))
+    dec = Decimal(str(hours)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    total_minutes = int(
+        (dec * Decimal('60')).quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+    )
     return _format_hours_minutes_vn(total_minutes, zero_value='—')
 
 
@@ -2431,7 +2452,9 @@ def _report_time_efficiency_pct(
     work_hours = Decimal('0')
     for product in products:
         work_hours += _product_accounted_work_hours(product)
-    work_minutes = (work_hours * Decimal('60')).quantize(Decimal('1'))
+    work_minutes = (work_hours * Decimal('60')).quantize(
+        Decimal('1'), rounding=ROUND_HALF_UP,
+    )
     return _time_efficiency_pct(declared, work_minutes)
 
 
