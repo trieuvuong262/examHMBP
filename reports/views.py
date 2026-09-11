@@ -328,7 +328,12 @@ def report_hub(request):
 
 
 def _parse_report_date(request):
-    report_date = request.GET.get('date') or request.POST.get('report_date') or timezone.localdate()
+    report_date = (
+        request.GET.get('date')
+        or request.POST.get('date')
+        or request.POST.get('report_date')
+        or timezone.localdate()
+    )
     if isinstance(report_date, str):
         report_date = datetime.strptime(report_date, '%Y-%m-%d').date()
     return report_date
@@ -837,6 +842,13 @@ def proxy_report_entry(request):
         except ValueError as exc:
             messages.error(request, str(exc))
             return redirect(_proxy_url(subject.id, post_shift))
+        if not result.get('sessions'):
+            messages.warning(
+                request,
+                'Không có công đoạn nào được lưu — kiểm tra mã hàng, công đoạn, '
+                'định mức, sản lượng và khung giờ bắt đầu/kết thúc.',
+            )
+            return redirect(_proxy_url(subject.id, post_shift))
         if hours_changed:
             from reports.report_edit_log import log_report_edit
 
@@ -851,12 +863,6 @@ def proxy_report_entry(request):
                 summary='Cập nhật thời gian làm việc.',
                 detail=f'Trước: {before_txt} giờ\nSau: {after_txt} giờ',
             )
-        if not result.get('sessions') and sessions:
-            messages.warning(
-                request,
-                'Không có công đoạn nào được lưu — kiểm tra mã hàng, sản lượng và khung giờ.',
-            )
-            return redirect(_proxy_url(subject.id, post_shift))
         if (
             ai_import
             and ai_import.shift == post_shift

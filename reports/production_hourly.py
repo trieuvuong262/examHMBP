@@ -3191,7 +3191,18 @@ def _prepare_proxy_sessions_for_save(
             content_edit_only=content_edit_only,
         )
         if not overlaps or not interval:
-            continue
+            raise ValueError(
+                f'Công đoạn «{code or process or "?"}»: giờ bắt đầu/kết thúc không hợp lệ '
+                'hoặc nằm ngoài khung ca.'
+            )
+        if not code or not process:
+            raise ValueError('Mỗi công đoạn cần có mã hàng và tên công đoạn.')
+        if not norm or norm <= 0:
+            raise ValueError(
+                f'Công đoạn «{code}»: định mức phải lớn hơn 0.'
+            )
+        if total < 0:
+            raise ValueError(f'Công đoạn «{code}»: sản lượng không hợp lệ.')
 
         prepared.append({
             'code': code,
@@ -3349,6 +3360,11 @@ def save_proxy_shift_sessions(
         preserve_draft=preserve_draft,
         snapshot=snapshot,
     )
+    if not prepared:
+        raise ValueError(
+            'Không lưu được công đoạn nào. Điền đủ mã hàng, công đoạn, định mức > 0, '
+            'sản lượng và giờ bắt đầu/kết thúc nằm trong ca.'
+        )
 
     from reports.production_edit_log import (
         collect_new_sessions_detail,

@@ -120,6 +120,7 @@
                     {% csrf_token %}
                     <input type="hidden" name="shift" value="{{ tab.shift }}">
                     <input type="hidden" name="for_user" value="{{ subject.pk }}">
+                    <input type="hidden" name="date" value="{{ report_date|date:'Y-m-d' }}">
                     <input type="hidden" name="sessions_json" class="s-sessions-json">
                     {% if ai_import and ai_import.shift == tab.shift %}
                     <input type="hidden" name="ai_import" value="{{ ai_import.pk }}">
@@ -359,24 +360,35 @@
         form.addEventListener('submit', function (ev) {
             var sessions = [];
             var invalidRange = false;
+            var incomplete = false;
             container.querySelectorAll('.jp-proxy-session').forEach(function (sess) {
                 var startTime = (sess.querySelector('.s-start-time') || {}).value || '';
                 var endTime = (sess.querySelector('.s-end-time') || {}).value || '';
-                var code = (sess.querySelector('.s-code') || {}).value || '';
+                var code = ((sess.querySelector('.s-code') || {}).value || '').trim();
+                var process = ((sess.querySelector('.s-process') || {}).value || '').trim();
+                var norm = (sess.querySelector('.s-norm') || {}).value || '';
                 var total = (sess.querySelector('.s-total') || {}).value || '';
                 var isLocked = !!sess.querySelector('.s-session-locked');
-                if (!isLocked && !code.trim() && !total && !startTime && !endTime) return;
+                if (!isLocked && !code && !total && !startTime && !endTime && !process) return;
                 if (isLocked && !sess.querySelector('.s-product-id')) return;
                 var range = hoursForClockRange(form, startTime, endTime);
                 if (startTime && endTime && !range.valid) {
                     invalidRange = true;
                     return;
                 }
+                if (!isLocked) {
+                    var normNum = parseFloat(String(norm).replace(',', '.'));
+                    var totalNum = parseFloat(String(total).replace(',', '.'));
+                    if (!code || !process || !isFinite(normNum) || normNum <= 0 || !isFinite(totalNum) || totalNum < 0 || !startTime || !endTime) {
+                        incomplete = true;
+                        return;
+                    }
+                }
                 sessions.push({
                     product_id: (sess.querySelector('.s-product-id') || {}).value || '',
                     code: code,
-                    process: (sess.querySelector('.s-process') || {}).value || '',
-                    norm: (sess.querySelector('.s-norm') || {}).value || '',
+                    process: process,
+                    norm: norm,
                     total: total,
                     damaged: (sess.querySelector('.s-damaged') || {}).value || '',
                     note: (sess.querySelector('.s-note') || {}).value || '',
@@ -388,6 +400,16 @@
             if (invalidRange) {
                 ev.preventDefault();
                 alert('Giờ bắt đầu / kết thúc không hợp lệ hoặc nằm ngoài khung ca.');
+                return;
+            }
+            if (incomplete) {
+                ev.preventDefault();
+                alert('Mỗi công đoạn cần đủ: mã hàng, công đoạn, định mức > 0, sản lượng, giờ bắt đầu và giờ kết thúc.');
+                return;
+            }
+            if (!sessions.length) {
+                ev.preventDefault();
+                alert('Chưa có công đoạn nào để lưu.');
                 return;
             }
             var hidden = form.querySelector('.s-sessions-json');
