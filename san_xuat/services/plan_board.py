@@ -1734,6 +1734,112 @@ def attach_plan_line_tech(
     return ln
 
 
+@dataclass
+class ReloadPlanTechResult:
+    order: SxSalesOrder
+    bom_count: int = 0
+    routing_count: int = 0
+    npl_reloaded: bool = False
+
+
+def _assert_plan_tech_reloadable(order: SxSalesOrder) -> None:
+    """Load BOM/OB/NPL chỉ khi đơn còn trên hàng đợi, chưa có LSX."""
+    if order.confirm_status != SxSalesOrder.CONFIRM_CONFIRMED:
+        raise PlanningError('Chỉ tải lại BOM / OB / NPL trên đơn đã xác nhận.')
+    if order.plan_status == SxSalesOrder.PLAN_ON_HOLD:
+        raise PlanningError('Đơn đang tạm giữ — bỏ giữ trước khi tải lại.')
+    if order.plan_status not in QUEUE_STATUSES:
+        raise PlanningError(
+            'Đơn đã chuyển SX — BOM, OB, NPL đã khoá. Hủy chuyển SX nếu cần tải lại.'
+        )
+    if order.production_orders.filter(is_demo=False).exclude(
+        status=SxProductionOrder.STATUS_CANCELLED,
+    ).exists():
+        raise PlanningError(
+            'Đơn đã có lệnh sản xuất — BOM, OB, NPL đã khoá. Hủy chuyển SX nếu cần tải lại.'
+        )
+
+
+@transaction.atomic
+def reload_plan_order_tech(*, order_id: int, user=None) -> ReloadPlanTechResult:
+    """Ghi đè snapshot BOM / OB / NPL trên KHSX từ hồ sơ hiện tại.
+
+    Dùng khi sửa BOM/OB sau lúc gắn nhưng đơn chưa Chuyển SX. Sau Chuyển SX
+    snapshot bị khoá — không gọi hàm này.
+    """
+    from san_xuat.services.order_routing import seed_order_line_routing
+    from san_xuat.services.plan_audit import log_plan_action
+    from san_xuat.services.plan_route import ensure_order_plan_steps
+    from san_xuat.services.sales_orders import bom_lines_snapshot
+
+    order = (
+        SxSalesOrder.objects.select_for_update()
+        .prefetch_related(
+            'lines__bom_version__process_steps',
+            'lines__routing',
+            'npl_lines',
+        )
+        .get(pk=order_id, is_demo=False)
+    )
+    _assert_plan_tech_reloadable(order)
+
+    lines = [ln for ln in order.lines.all() if (ln.qty or 0) > 0]
+    if not lines:
+        raise PlanningError('Đơn không có dòng sản phẩm.')
+
+    bom_count = 0
+    routing_count = 0
+    for ln in lines:
+        if ln.bom_version_id:
+            ln.bom_line_overrides = bom_lines_snapshot(ln.bom_version_id)
+            ln.save(update_fields=['bom_line_overrides'])
+            bom_count += 1
+        bom = ln.bom_version if ln.bom_version_id else None
+        has_ob_source = bool(ln.routing_id) or bool(
+            bom is not None and bom.process_steps.exists()
+        )
+        if has_ob_source:
+            n = seed_order_line_routing(ln, replace=True)
+            if n:
+                routing_count += 1
+    if bom_count <= 0 and routing_count <= 0:
+        raise PlanningError('Chưa gắn BOM / OB trên đơn — gắn hồ sơ trước khi Load.')
+
+    order.plan_steps.all().delete()
+    ensure_order_plan_steps(order)
+
+    npl_reloaded = False
+    if order.npl_status != SxSalesOrder.NPL_NONE or order.npl_lines.exists():
+        from san_xuat.services.plan_order_npl import sync_order_npl
+
+        try:
+            order = sync_order_npl(order_id=order.pk)
+            npl_reloaded = True
+        except PlanningError:
+            npl_reloaded = False
+
+    bits = []
+    if bom_count:
+        bits.append('BOM')
+    if routing_count:
+        bits.append('OB')
+    if npl_reloaded:
+        bits.append('NPL')
+    log_plan_action(
+        action='reload_tech',
+        obj=order,
+        summary=f'Load {", ".join(bits) or "hồ sơ"} trên KHSX {order.code}.',
+        changes={'bom': bom_count, 'routing': routing_count, 'npl': npl_reloaded},
+        user=user,
+    )
+    return ReloadPlanTechResult(
+        order=order,
+        bom_count=bom_count,
+        routing_count=routing_count,
+        npl_reloaded=npl_reloaded,
+    )
+
+
 @transaction.atomic
 def release_order_to_production(
     *,

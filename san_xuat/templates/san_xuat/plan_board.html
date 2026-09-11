@@ -956,6 +956,9 @@
     text-align: left;
   }
   .jp-pb-npl-toolbar > .btn { margin-left: auto; }
+  .jp-pb-npl-toolbar > .jp-pb-npl-actions { margin-left: auto; display: inline-flex; gap: 0.35rem; }
+  .jp-pb-npl-toolbar > .jp-pb-npl-actions > .btn { margin-left: 0; }
+  .jp-pb-reload-form { margin: 0; display: inline-flex; }
   .jp-pb-npl-table-wrap { overflow-x: auto; }
   .jp-pb-npl-table {
     width: 100%;
@@ -1446,6 +1449,22 @@
             {% else %}
             <span class="jp-pb-urgency is-{{ row.order.plan_priority }}">{{ row.order.get_plan_priority_display }}</span>
             {% endif %}
+            {% if can_schedule or can_release %}
+            {% if row.order.plan_status != 'on_hold' %}
+            <form method="post" class="jp-pb-reload-form"
+                  onsubmit="return confirm('Load lại BOM, OB, NPL của {{ row.order.code }} từ hồ sơ thiết kế?\nĐịnh mức đang snapshot trên KHSX sẽ bị ghi đè.');">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="reload_tech">
+              <input type="hidden" name="order_id" value="{{ row.order.pk }}">
+              <input type="hidden" name="mode" value="{{ mode }}">
+              <input type="hidden" name="tab" value="{{ tab }}">
+              {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
+              {% if npl_open_id == row.order.pk %}<input type="hidden" name="npl_open" value="{{ row.order.pk }}">{% endif %}
+              <button type="submit" class="btn btn-outline-secondary btn-sm fw-bold"
+                      title="Tải lại BOM, OB, NPL từ hồ sơ thiết kế. Khoá khi Chuyển SX.">Load</button>
+            </form>
+            {% endif %}
+            {% endif %}
             {% if can_release and row.order.plan_status != 'on_hold' and not row.missing_bom and not row.missing_ops %}
             {{ row.release_products|json_script:row.release_script_id }}
             <button type="button" class="btn btn-hm btn-sm fw-bold"
@@ -1602,7 +1621,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
       </div>
       <div class="modal-body">
-        <p class="small text-muted mb-3">Xác nhận BOM và công đoạn đã gắn trên KHSX trước khi xuống xưởng.</p>
+        <p class="small text-muted mb-3">Xác nhận BOM và công đoạn đã gắn trên KHSX trước khi xuống xưởng. Sau khi chuyển, snapshot BOM / OB / NPL sẽ khoá — Load lại nếu vừa sửa hồ sơ.</p>
         <div id="jpReleaseBomRows" class="d-flex flex-column gap-3"></div>
         <div id="jpReleaseBomEmpty" class="text-muted small d-none">Không có dòng sản phẩm để chuyển.</div>
       </div>

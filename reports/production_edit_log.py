@@ -10,6 +10,7 @@ from reports.production_hourly import (
     _proxy_session_has_input,
     format_production_quantity,
     parse_decimal,
+    parse_efficiency_bonus_pct,
     parse_int,
     parse_non_negative_decimal,
     session_time_displays,
@@ -20,6 +21,7 @@ def snapshot_production_session(product: ProductionShiftProduct) -> dict[str, st
     """Ảnh chụp trạng thái một công đoạn để so sánh trước / sau."""
     start, end = session_time_displays(product)
     norm = product.norm_per_hour
+    bonus = product.efficiency_bonus_pct
     return {
         'code': (product.product_code or '').strip() or '—',
         'process': (product.process_name or '').strip() or '—',
@@ -28,6 +30,11 @@ def snapshot_production_session(product: ProductionShiftProduct) -> dict[str, st
         'damaged': str(int(product.total_damaged_quantity or 0)),
         'time': f'{start}–{end}' if start and end else '—',
         'note': (product.completion_note or '').strip() or '—',
+        'bonus': (
+            format_production_quantity(bonus)
+            if bonus is not None and bonus != 0
+            else '—'
+        ),
     }
 
 
@@ -49,6 +56,7 @@ def snapshot_proxy_session_form(
     norm = parse_decimal(sess.get('norm'))
     total = parse_non_negative_decimal(sess.get('total'), default=Decimal('0'))
     damaged = parse_int(sess.get('damaged'))
+    bonus = parse_efficiency_bonus_pct(sess.get('efficiency_bonus'), default=None)
     return {
         'code': (sess.get('code') or '').strip() or '—',
         'process': (sess.get('process') or '').strip() or '—',
@@ -57,6 +65,7 @@ def snapshot_proxy_session_form(
         'damaged': str(max(0, damaged)),
         'time': f'{start}–{end}' if start and end else '—',
         'note': (sess.get('note') or '').strip() or '—',
+        'bonus': format_production_quantity(bonus) if bonus else '—',
     }
 
 
@@ -70,6 +79,8 @@ def format_snapshot_line(snap: dict[str, str]) -> str:
     ]
     if snap.get('damaged', '0') != '0':
         parts.append(f"Hỏng {snap['damaged']}")
+    if snap.get('bonus', '—') not in ('—', '', '0'):
+        parts.append(f"HS bù {snap['bonus']}%")
     if snap.get('note', '—') != '—':
         parts.append(f"GC: {snap['note']}")
     return ', '.join(parts)

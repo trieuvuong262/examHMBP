@@ -302,6 +302,26 @@
                                    autocomplete="off" placeholder="VD: Máy hỏng…">
                         </div>
                     </div>
+                    {% if can_set_efficiency_bonus %}
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small mb-1" for="eff-bonus-{{ row.id }}">
+                            Hiệu suất bù
+                            <span class="text-muted fw-normal">(tuỳ chọn — khi chuyển công đoạn mới)</span>
+                        </label>
+                        <div class="input-group">
+                            <input type="text"
+                                   id="eff-bonus-{{ row.id }}"
+                                   name="efficiency_bonus_pct"
+                                   class="form-control"
+                                   inputmode="decimal"
+                                   autocomplete="off"
+                                   placeholder="12,5 hoặc 12.5%"
+                                   value="{{ row.efficiency_bonus_input }}">
+                            <span class="input-group-text">%</span>
+                        </div>
+                        <div class="form-text">Hiệu suất tổng = hiệu suất gốc + hiệu suất bù.</div>
+                    </div>
+                    {% endif %}
                     <div class="mb-3">
                         <label class="form-label fw-bold small mb-1">Ghi chú <span class="text-muted fw-normal">(tuỳ chọn)</span></label>
                         <input type="text" name="note" class="form-control" maxlength="500"

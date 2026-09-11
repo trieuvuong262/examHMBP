@@ -1325,6 +1325,7 @@ def plan_board(request):
         build_plan_board_rows,
         confirmed_order_qty_summary,
         hold_plan_order,
+        reload_plan_order_tech,
         release_order_to_production,
         reschedule_order_team_start,
         save_plan_hops,
@@ -1510,6 +1511,22 @@ def plan_board(request):
                     f'Đã gắn {" + ".join(bits) or "hồ sơ"} cho {ln.product_code} trên KHSX.',
                 )
                 return _board_redirect()
+            elif action == 'reload_tech' and (can_schedule or can_release) and order_id:
+                result = reload_plan_order_tech(order_id=order_id, user=request.user)
+                bits = []
+                if result.bom_count:
+                    bits.append('BOM')
+                if result.routing_count:
+                    bits.append('OB')
+                if result.npl_reloaded:
+                    bits.append('NPL')
+                messages.success(
+                    request,
+                    f'Đã Load {" / ".join(bits) or "hồ sơ"} {result.order.code} từ thiết kế. '
+                    'Snapshot khoá khi Chuyển SX.',
+                )
+                extra = {'npl': order_id} if npl_open_id == order_id else {}
+                return _board_redirect(**extra)
             elif action in {'open_npl', 'refresh_npl', 'save_npl', 'apply_npl', 'create_npl_pr'} and order_id:
                 from san_xuat.services.plan_order_npl import build_pr_from_order, sync_order_npl
 
@@ -1627,7 +1644,8 @@ def plan_board(request):
                 )
                 messages.success(
                     request,
-                    f'Đã chuyển xuống SX — tạo {len(created)} lệnh sản xuất (đã phát hành vào Công việc tổ).',
+                    f'Đã chuyển xuống SX — tạo {len(created)} lệnh sản xuất (đã phát hành vào Công việc tổ). '
+                    'BOM / OB / NPL trên KHSX đã khoá.',
                 )
                 return redirect(f"{reverse('san_xuat:plan_board')}?mode=list&tab=released")
             elif action == 'unrelease' and can_release and order_id:

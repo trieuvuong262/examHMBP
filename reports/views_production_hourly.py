@@ -46,7 +46,9 @@ from reports.production_hourly import (
     product_may_be_edited_by,
     production_server_now,
     viewer_may_edit_stage_time,
+    viewer_may_set_efficiency_bonus,
     parse_decimal,
+    parse_efficiency_bonus_pct,
     parse_non_negative_decimal,
     delete_production_products,
     resolve_declared_work_hours_for_save,
@@ -635,6 +637,25 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
             snapshot_production_session,
         )
 
+        bonus_kw = {}
+        if viewer_may_set_efficiency_bonus(request.user, report):
+            raw_bonus = request.POST.get('efficiency_bonus_pct')
+            if raw_bonus is not None:
+                # Chuỗi rỗng = xóa hiệu suất bù.
+                if str(raw_bonus).strip() == '':
+                    bonus_kw['efficiency_bonus_pct'] = None
+                else:
+                    parsed_bonus = parse_efficiency_bonus_pct(raw_bonus, default=None)
+                    if parsed_bonus is None:
+                        messages.error(
+                            request,
+                            'Hiệu suất bù không hợp lệ. Nhập dạng 12,5 hoặc 12.5%.',
+                        )
+                        return redirect(
+                            _production_redirect(report_date, shift, for_user or None, review_extra)
+                        )
+                    bonus_kw['efficiency_bonus_pct'] = parsed_bonus
+
         before_snap = snapshot_production_session(product)
         try:
             update_session_product(
@@ -650,6 +671,7 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
                 end_time=end_time,
                 updated_by=request.user,
                 allow_edit_stage_time=may_edit_time,
+                **bonus_kw,
             )
         except ValueError as exc:
             messages.error(request, str(exc))
@@ -1326,6 +1348,11 @@ def today_production_hourly(request, report_date, report_context_common):
             )
             if report and report.pk
             else True
+        ),
+        'can_set_efficiency_bonus': (
+            viewer_may_set_efficiency_bonus(request.user, report)
+            if report and report.pk and can_edit
+            else False
         ),
         'phase': phase,
         'shift_started': started,

@@ -34,6 +34,7 @@ from reports.production_hourly import (
     _products_for_productivity,
     _report_efficiency_totals,
     _report_overall_efficiency_pct,
+    _report_quantity_efficiency_with_bonus,
     compute_day_work_waste_summary,
     list_production_products,
     report_has_manager_fixable_anomaly,
@@ -801,12 +802,8 @@ def _combined_efficiency_parts(reports) -> tuple[Decimal, Decimal]:
     for report in reports:
         products = list_production_products(report)
         productive = _products_for_productivity(products)
-        qty, hours, expected = _report_efficiency_totals(productive)
-        quantity_pct = (
-            float((qty / expected * 100).quantize(Decimal('0.01')))
-            if expected > 0 and hours > 0
-            else None
-        )
+        _qty, hours, _expected = _report_efficiency_totals(productive)
+        quantity_pct = _report_quantity_efficiency_with_bonus(productive)
         day_times = compute_day_work_waste_summary(report, products)
         combined = _combined_efficiency_pct(
             quantity_pct,
@@ -860,9 +857,9 @@ def _weighted_efficiency_pct(reports: list[DailyWorkReport]) -> float | None:
 
 
 def report_overall_efficiency_pct(report) -> float | None:
-    """Hiệu suất TB 1 báo cáo — khớp day_summary.avg_efficiency_pct."""
+    """Hiệu suất TB 1 báo cáo — khớp day_summary.avg_efficiency_pct (đã gồm HS bù)."""
     products = list_production_products(report)
-    quantity_pct = _report_overall_efficiency_pct(_products_for_productivity(products))
+    quantity_pct = _report_quantity_efficiency_with_bonus(_products_for_productivity(products))
     day_times = compute_day_work_waste_summary(report, products)
     return _combined_efficiency_pct(quantity_pct, day_times.get('time_efficiency_pct'))
 

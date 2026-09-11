@@ -1043,7 +1043,7 @@ def proxy_report_entry(request):
         'active_shift': active_shift,
         'empty_session': {
             'code': '', 'process': '', 'norm': '', 'total': '', 'damaged': '', 'note': '',
-            'start_time': '', 'end_time': '',
+            'start_time': '', 'end_time': '', 'efficiency_bonus': '',
         },
         'back_team_url': back_url,
         'back_url': back_url,

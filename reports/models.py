@@ -305,6 +305,14 @@ class ProductionShiftProduct(models.Model):
         blank=True,
         verbose_name='Định mức 1 giờ',
     )
+    efficiency_bonus_pct = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name='Hiệu suất bù (%)',
+        help_text='Hiệu suất tặng thêm khi chuyển công đoạn mới — tổ trưởng/quản lý nhập.',
+    )
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
     sort_order = models.PositiveSmallIntegerField(default=0)
     first_slot_index = models.PositiveSmallIntegerField(
