@@ -239,10 +239,10 @@ def _export_production_report(report: DailyWorkReport, filename_prefix: str) -> 
                 'Số lượng': row['quantity'],
                 'Định mức': row['norm_per_hour'],
                 'Thời gian công đoạn': row['hours_display'],
-                'Hiệu suất gốc %': row.get('efficiency_base_pct'),
-                'Hiệu suất bù %': row.get('efficiency_bonus_pct') or '',
+                'Hiệu suất thực %': row.get('efficiency_base_pct'),
                 'Hiệu suất tổng %': row['efficiency_pct'],
                 'Cập nhật': row.get('updated_by_name') or '',
+                'Bù hiệu suất %': row.get('efficiency_bonus_pct') or '',
             })
         sheets['Tong_hop'] = pd.DataFrame(summary_rows)
 

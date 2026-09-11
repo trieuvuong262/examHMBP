@@ -649,7 +649,7 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
                     if parsed_bonus is None:
                         messages.error(
                             request,
-                            'Hiệu suất bù không hợp lệ. Nhập dạng 12,5 hoặc 12.5%.',
+                            'Bù hiệu suất không hợp lệ. Nhập dạng 12,5 hoặc 12.5%.',
                         )
                         return redirect(
                             _production_redirect(report_date, shift, for_user or None, review_extra)

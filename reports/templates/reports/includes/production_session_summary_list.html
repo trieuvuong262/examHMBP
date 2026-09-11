@@ -305,7 +305,7 @@
                     {% if can_set_efficiency_bonus %}
                     <div class="mb-3">
                         <label class="form-label fw-bold small mb-1" for="eff-bonus-{{ row.id }}">
-                            Hiệu suất bù
+                            Bù hiệu suất
                             <span class="text-muted fw-normal">(tuỳ chọn — khi chuyển công đoạn mới)</span>
                         </label>
                         <div class="input-group">
@@ -319,7 +319,7 @@
                                    value="{{ row.efficiency_bonus_input }}">
                             <span class="input-group-text">%</span>
                         </div>
-                        <div class="form-text">Hiệu suất tổng = hiệu suất gốc + hiệu suất bù.</div>
+                        <div class="form-text">Hiệu suất tổng = hiệu suất thực + bù hiệu suất.</div>
                     </div>
                     {% endif %}
                     <div class="mb-3">

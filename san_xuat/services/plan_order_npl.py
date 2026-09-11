@@ -92,9 +92,13 @@ class ExplodedNpl:
     qty_shortfall: Decimal
 
 
-def line_shortfall(*, qty_required: Decimal, qty_allocated: Decimal, qty_inbound: Decimal) -> Decimal:
-    """Thiếu = nhu cầu − số đặt − hàng đang về."""
-    return max(Decimal('0'), _q(qty_required) - _q(qty_allocated) - _q(qty_inbound))
+def line_shortfall(*, qty_required: Decimal, qty_available: Decimal, qty_inbound: Decimal) -> Decimal:
+    """Thiếu / cần mua = nhu cầu − tồn kho khả dụng − hàng đang về.
+
+    Tồn kho đã trừ giữ chỗ đơn khác. Cột Đặt chỉ giữ chỗ giữa các đơn, không
+    bắt nhập ngày mua khi kho vẫn đủ nhu cầu.
+    """
+    return max(Decimal('0'), _q(qty_required) - _q(qty_available) - _q(qty_inbound))
 
 
 def npl_line_sort_key(ln) -> tuple:
@@ -119,8 +123,8 @@ def apply_npl_line_sort(lines: list[SxOrderNplLine]) -> list[SxOrderNplLine]:
 def explode_order_npl_rows(order: SxSalesOrder) -> list[ExplodedNpl]:
     """Gộp nhu cầu NPL mọi dòng SP, đọc tồn kho_npl.
 
-    ``qty_available`` = còn đặt được cho đơn này (tồn − giữ chỗ đơn khác).
-    Thiếu hụt tính sau khi nhân viên gõ số đặt, không lấy từ tồn chung.
+    ``qty_available`` = tồn kho cho đơn này (tồn − giữ chỗ đơn khác).
+    Thiếu / ngày mua chỉ khi tồn + hàng về < nhu cầu.
     """
     needed: dict[str, dict] = {}
     order_keys: list[str] = []
@@ -331,7 +335,7 @@ def sync_order_npl(
     for ln in lines:
         ln.qty_shortfall = line_shortfall(
             qty_required=ln.qty_required,
-            qty_allocated=ln.qty_allocated,
+            qty_available=ln.qty_available,
             qty_inbound=ln.qty_inbound,
         )
         if ln.qty_shortfall <= 0:

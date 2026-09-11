@@ -35,7 +35,7 @@
                 <input type="number" min="0" step="1" class="form-control form-control-sm s-damaged" value="{{ sess.damaged }}"{% if session_locked %} readonly{% endif %}>
             </div>
             <div class="col-12 col-md-6 col-xl-3">
-                <label class="form-label jp-proxy-label">Hiệu suất bù</label>
+                <label class="form-label jp-proxy-label">Bù hiệu suất</label>
                 <div class="input-group input-group-sm">
                     <input type="text" class="form-control s-eff-bonus" value="{{ sess.efficiency_bonus }}" placeholder="12,5 hoặc 12.5%"{% if session_locked %} readonly{% endif %} inputmode="decimal" autocomplete="off">
                     <span class="input-group-text">%</span>

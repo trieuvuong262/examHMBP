@@ -80,7 +80,7 @@ def format_snapshot_line(snap: dict[str, str]) -> str:
     if snap.get('damaged', '0') != '0':
         parts.append(f"Hỏng {snap['damaged']}")
     if snap.get('bonus', '—') not in ('—', '', '0'):
-        parts.append(f"HS bù {snap['bonus']}%")
+        parts.append(f"Bù HS {snap['bonus']}%")
     if snap.get('note', '—') != '—':
         parts.append(f"GC: {snap['note']}")
     return ', '.join(parts)
