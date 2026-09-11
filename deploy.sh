@@ -25,6 +25,22 @@ compose() {
   COMPOSE_BAKE="${COMPOSE_BAKE:-false}" docker compose "${compose_files[@]}" "$@"
 }
 
+# Mốc thời gian để log chỉ ra ngay bước nào ăn thời gian.
+DEPLOY_T0="${DEPLOY_T0:-$(date +%s)}"
+export DEPLOY_T0
+STEP_T0="${DEPLOY_T0}"
+
+step() {
+  local now elapsed_prev
+  now="$(date +%s)"
+  elapsed_prev=$(( now - STEP_T0 ))
+  if [[ "${STEP_T0}" != "${DEPLOY_T0}" ]]; then
+    echo "    (bước trước: ${elapsed_prev}s)"
+  fi
+  STEP_T0="${now}"
+  echo "==> [$(( now - DEPLOY_T0 ))s] $*"
+}
+
 # Image base — khớp Dockerfile (ARG PYTHON_BASE_IMAGE)
 DOCKER_PYTHON_IMAGE="${DOCKER_PYTHON_IMAGE:-python:3.13-slim}"
 # BuildKit bắt buộc để dùng cache mount apt/pip trong Dockerfile
@@ -263,7 +279,7 @@ ensure_ssl_conf() {
   fi
 }
 
-echo "==> 1) Pull latest code"
+step "1) Pull latest code"
 git fetch --all --prune
 git checkout "${BRANCH}"
 # VPS là môi trường deploy — luôn khớp origin, không giữ sửa tay/hotfix local
@@ -281,45 +297,56 @@ git clean -ffd \
   -e '*.log' 2>/dev/null || true
 echo "    At commit: $(git rev-parse --short HEAD)"
 
-echo "==> 2) Cleanup stale files from previous deploy"
+# `git reset --hard` ở trên vừa ghi đè chính deploy.sh mà bash đang đọc dở.
+# Bash đọc script theo byte offset nên phần còn lại có thể là logic cũ (hoặc lệch
+# dòng). Chạy lại đúng một lần bằng bản vừa pull để phần sau luôn là code mới.
+if [[ "${DEPLOY_REEXEC:-0}" != "1" ]]; then
+  echo "    Re-exec deploy.sh (bản vừa pull) để tránh chạy script cũ..."
+  export DEPLOY_REEXEC=1
+  # Giữ tham số gọi ban đầu qua env vì exec tạo shell mới
+  export PROJECT_DIR BRANCH COMPOSE_FILE
+  exec bash "${PROJECT_DIR}/deploy.sh"
+fi
+
+step "2) Cleanup stale files from previous deploy"
 cleanup_stale_files
 
-echo "==> 3) Start database"
+step "3) Start database"
 compose up -d db
 wait_for_db
 
-echo "==> 4) Ensure base images + build web (apt cache giữ giữa các lần deploy)"
+step "4) Ensure base images + build web (apt cache giữ giữa các lần deploy)"
 pull_deploy_images
 ensure_web_image
 
-echo "==> 5) Create migrations if models changed"
+step "5) Create migrations if models changed"
 ensure_migrations
 
-echo "==> 6) Run migrations (before start web)"
+step "6) Run migrations (before start web)"
 run_migrate_service "migrate --noinput via migrate service"
 
 ensure_ssl_conf
 
-echo "==> 7) Start app services"
+step "7) Start app services"
 export DOCKER_PYTHON_IMAGE
 compose up -d web nginx
 
-echo "==> 8) Run migrations again on running web"
+step "8) Run migrations again on running web"
 compose exec -T web python manage.py migrate --noinput
 
 verify_migrations
 
-echo "==> 8b) Sync NPL category tree (nhóm cấp 1 + cấp 2)"
+step "8b) Sync NPL category tree (nhóm cấp 1 + cấp 2)"
 compose exec -T web python manage.py seed_kho_npl_category_tree
 
-echo "==> 8c) Sync NPL colors + backfill material colors"
+step "8c) Sync NPL colors + backfill material colors"
 compose exec -T web python manage.py seed_kho_npl_material_colors
 
-echo "==> 8d) Sync tên CĐ + tổ chuẩn cho tiến độ tổ (không tạo nhóm/OP thư viện IE)"
+step "8d) Sync tên CĐ + tổ chuẩn cho tiến độ tổ (không tạo nhóm/OP thư viện IE)"
 # Không seed SxOperationGroup / SxOperation — nhóm công đoạn do IE tự quản.
 compose exec -T web python manage.py sync_process_master
 
-echo "==> 8e) Nạp danh sách kho thành phẩm (kho trung tâm)"
+step "8e) Nạp danh sách kho thành phẩm (kho trung tâm)"
 # Bắt buộc: form chọn kho nhập thành phẩm đọc từ bảng này, chưa có kho là
 # không lập được yêu cầu nhập thành phẩm. Lệnh chạy lại nhiều lần vô hại.
 compose exec -T web python manage.py kho_sp_seed_warehouses --apply
@@ -344,7 +371,7 @@ rclone_lsd_check() {
 }
 
 verify_nas_rclone() {
-  echo "==> Verify NAS rclone in web container (tối đa ${NAS_VERIFY_TIMEOUT}s/lệnh)"
+  step "Verify NAS rclone in web container (tối đa ${NAS_VERIFY_TIMEOUT}s/lệnh)"
   if nas_verify_disabled; then
     echo "    Skipped (SKIP_NAS_VERIFY=1)."
     return 0
@@ -375,7 +402,7 @@ verify_nas_rclone() {
 }
 
 verify_nas_dsm() {
-  echo "==> Verify NAS DSM API in web container (tối đa ${NAS_VERIFY_TIMEOUT}s)"
+  step "Verify NAS DSM API in web container (tối đa ${NAS_VERIFY_TIMEOUT}s)"
   if nas_verify_disabled; then
     echo "    Skipped (SKIP_NAS_VERIFY=1)."
     return 0
@@ -400,7 +427,7 @@ if m.get('cpu', {}).get('percent') is None and not m.get('processes'):
   fi
 }
 
-echo "==> 9) PWA icons from static/images/logo/logo.png"
+step "9) PWA icons from static/images/logo/logo.png"
 if [ -f "static/images/logo/logo.png" ]; then
   set +e
   compose exec -T web python scripts/generate_pwa_icons.py >/dev/null 2>&1
@@ -419,30 +446,30 @@ else
   echo "    WARNING: static/images/logo/logo.png missing — skip icon generation"
 fi
 
-echo "==> 10) Collect static files (clear old assets)"
+step "10) Collect static files (clear old assets)"
 compose exec -T web python manage.py collectstatic --noinput --clear
 
-echo "==> 11) Cleanup orphan media (files not referenced in DB/HTML)"
+step "11) Cleanup orphan media (files not referenced in DB/HTML)"
 if grep -qE '^CLEANUP_ORPHAN_MEDIA=(0|false|no|off)' .env 2>/dev/null; then
   echo "    Skipped (CLEANUP_ORPHAN_MEDIA is disabled in .env)."
 else
   compose exec -T web python manage.py cleanup_orphan_media
 fi
 
-echo "==> 11b) Cleanup nhật ký thao tác cũ hơn 7 ngày"
+step "11b) Cleanup nhật ký thao tác cũ hơn 7 ngày"
 compose exec -T web python manage.py cleanup_activity_logs || echo "    WARNING: cleanup_activity_logs failed"
 
-echo "==> 12) Show status"
+step "12) Show status"
 compose ps
 
-echo "==> 12a) Cron web push nhắc lịch (mỗi phút)"
+step "12a) Cron web push nhắc lịch (mỗi phút)"
 if [[ -f scripts/setup-schedule-reminder-cron.sh ]]; then
   bash scripts/setup-schedule-reminder-cron.sh || echo "    WARNING: setup-schedule-reminder-cron.sh failed"
 else
   echo "    WARNING: scripts/setup-schedule-reminder-cron.sh not found"
 fi
 
-echo "==> 12b) Cron xóa nhật ký thao tác > 7 ngày (03:15 hàng ngày)"
+step "12b) Cron xóa nhật ký thao tác > 7 ngày (03:15 hàng ngày)"
 if [[ -f scripts/setup-activity-log-cleanup-cron.sh ]]; then
   bash scripts/setup-activity-log-cleanup-cron.sh || echo "    WARNING: setup-activity-log-cleanup-cron.sh failed"
 else
@@ -458,12 +485,13 @@ fi
 verify_nas_rclone
 verify_nas_dsm
 
-echo "==> 13) Cleanup dangling images only (giữ build cache apt/pip/LibreOffice)"
+step "13) Cleanup dangling images only (giữ build cache apt/pip/LibreOffice)"
 # KHÔNG docker builder prune -af — sẽ buộc cài lại LibreOffice mỗi lần deploy
 docker image prune -f >/dev/null 2>&1 || true
 
+echo "    (bước trước: $(( $(date +%s) - STEP_T0 ))s)"
 echo ""
-echo "Deploy completed successfully."
+echo "Deploy completed successfully in $(( $(date +%s) - DEPLOY_T0 ))s."
 echo ""
 echo "Recurring tasks (công việc lặp): chạy cron hàng ngày:"
 echo "  sudo bash scripts/setup-recurring-tasks-cron.sh"

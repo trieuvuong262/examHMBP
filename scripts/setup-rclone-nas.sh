@@ -19,11 +19,39 @@ NAS_USER=$(grep '^username=' /root/.nas-cred | cut -d= -f2-)
 NAS_PASS=$(grep '^password=' /root/.nas-cred | cut -d= -f2-)
 OBSCURED=$("$RCLONE_BIN" obscure "$NAS_PASS")
 
+# Host SMB lấy từ NAS_SMB_HOST, nếu không có thì suy ra từ NAS_DSM_URL trong .env.
+# Trước đây IP bị hardcode nên khi IP Tailscale của NAS đổi thì rclone trỏ vào
+# địa chỉ chết và treo trọn --contimeout (1 phút) × retries ở mỗi lệnh.
+ENV_FILE="${ENV_FILE:-/opt/portaljustplay/.env}"
+NAS_SMB_HOST="${NAS_SMB_HOST:-}"
+if [[ -z "$NAS_SMB_HOST" && -f "$ENV_FILE" ]]; then
+  NAS_SMB_HOST=$(
+    grep -E '^NAS_DSM_URL=' "$ENV_FILE" \
+      | tail -1 | cut -d= -f2- | tr -d $'\r"'"'"' ' \
+      | sed -E 's#^https?://##; s#[:/].*$##'
+  )
+fi
+if [[ -z "$NAS_SMB_HOST" ]]; then
+  echo "ERROR: khong xac dinh duoc host NAS." >&2
+  echo "       Dat NAS_SMB_HOST=<ip-tailscale> hoac NAS_DSM_URL trong ${ENV_FILE}" >&2
+  exit 1
+fi
+echo "=== NAS SMB host: ${NAS_SMB_HOST} ==="
+
+# Kiem tra ket noi truoc khi cau hinh — that bai som thay vi treo o rclone
+if ! timeout 10 bash -c "cat < /dev/null > /dev/tcp/${NAS_SMB_HOST}/445" 2>/dev/null; then
+  echo "ERROR: khong mo duoc cong SMB 445 tren ${NAS_SMB_HOST} (10s)." >&2
+  echo "       Kiem tra: tailscale status | grep ${NAS_SMB_HOST}" >&2
+  echo "       IP Tailscale cua NAS co the da doi — cap nhat NAS_DSM_URL trong .env." >&2
+  exit 1
+fi
+echo "    SMB 445 OK"
+
 "$RCLONE_BIN" config delete synology 2>/dev/null || true
-"$RCLONE_BIN" config create synology smb host 100.93.5.42 user "$NAS_USER" pass "$OBSCURED"
+"$RCLONE_BIN" config create synology smb host "$NAS_SMB_HOST" user "$NAS_USER" pass "$OBSCURED"
 
 echo "=== rclone lsd ==="
-"$RCLONE_BIN" lsd synology:
+"$RCLONE_BIN" lsd synology: --contimeout 5s --timeout 10s --retries 1 --low-level-retries 2
 
 fusermount -u /mnt/nas-portal 2>/dev/null || true
 mkdir -p /mnt/nas-portal
