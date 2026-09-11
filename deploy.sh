@@ -324,15 +324,49 @@ echo "==> 8e) Nạp danh sách kho thành phẩm (kho trung tâm)"
 # không lập được yêu cầu nhập thành phẩm. Lệnh chạy lại nhiều lần vô hại.
 compose exec -T web python manage.py kho_sp_seed_warehouses --apply
 
+# Bước verify NAS chỉ để cảnh báo — không được kéo dài deploy.
+# rclone mặc định --contimeout 1m --timeout 5m --retries 3 --low-level-retries 10,
+# nên khi NAS/Tailscale không thông một lệnh `rclone lsd` có thể treo hàng chục phút.
+# Ép flag ngắn + bọc `timeout` để luôn có giới hạn trên.
+NAS_VERIFY_TIMEOUT="${NAS_VERIFY_TIMEOUT:-25}"
+RCLONE_VERIFY_FLAGS=(--contimeout 5s --timeout 10s --retries 1 --low-level-retries 2)
+
+# SKIP_NAS_VERIFY=1 ./deploy.sh → bỏ hẳn 2 bước verify NAS
+nas_verify_disabled() {
+  [[ "${SKIP_NAS_VERIFY:-0}" == "1" || "${SKIP_NAS_VERIFY:-0}" == "true" ]]
+}
+
+rclone_lsd_check() {
+  local remote="$1"
+  timeout "${NAS_VERIFY_TIMEOUT}" \
+    docker compose "${compose_files[@]}" exec -T web \
+    rclone lsd "${remote}" "${RCLONE_VERIFY_FLAGS[@]}" >/dev/null 2>&1
+}
+
 verify_nas_rclone() {
-  echo "==> Verify NAS rclone in web container"
-  if compose exec -T web rclone lsd synology: >/dev/null 2>&1; then
+  echo "==> Verify NAS rclone in web container (tối đa ${NAS_VERIFY_TIMEOUT}s/lệnh)"
+  if nas_verify_disabled; then
+    echo "    Skipped (SKIP_NAS_VERIFY=1)."
+    return 0
+  fi
+  local rc=0
+  rclone_lsd_check "synology:" || rc=$?
+  if [[ "${rc}" -eq 0 ]]; then
     echo "    NAS rclone OK (synology: — user tailscale-justplay)"
   else
-    echo "    WARNING: rclone không kết nối được NAS trong container."
+    if [[ "${rc}" -eq 124 ]]; then
+      echo "    WARNING: rclone quá ${NAS_VERIFY_TIMEOUT}s không phản hồi (NAS/Tailscale không thông?)."
+    else
+      echo "    WARNING: rclone không kết nối được NAS trong container (exit ${rc})."
+    fi
     echo "             Kiểm tra: /root/.config/rclone/rclone.conf và scripts/setup-rclone-nas.sh"
+    echo "             Bỏ qua bước này: SKIP_NAS_VERIFY=1 ./deploy.sh"
+    # NAS gốc đã không thông thì khỏi thử share con — tránh chờ thêm một lượt timeout
+    return 0
   fi
-  if compose exec -T web rclone lsd synology:backup >/dev/null 2>&1; then
+  rc=0
+  rclone_lsd_check "synology:backup" || rc=$?
+  if [[ "${rc}" -eq 0 ]]; then
     echo "    NAS backup folder OK (synology:backup)"
   else
     echo "    WARNING: Không thấy synology:backup — tạo shared folder 'backup' trên Synology"
@@ -341,8 +375,13 @@ verify_nas_rclone() {
 }
 
 verify_nas_dsm() {
-  echo "==> Verify NAS DSM API in web container"
-  if compose exec -T web python manage.py shell -c "
+  echo "==> Verify NAS DSM API in web container (tối đa ${NAS_VERIFY_TIMEOUT}s)"
+  if nas_verify_disabled; then
+    echo "    Skipped (SKIP_NAS_VERIFY=1)."
+    return 0
+  fi
+  if timeout "${NAS_VERIFY_TIMEOUT}" \
+    docker compose "${compose_files[@]}" exec -T web python manage.py shell -c "
 from audit.services.nas_monitor import dsm_configured, collect_nas_metrics
 if not dsm_configured():
     raise SystemExit('not configured')
