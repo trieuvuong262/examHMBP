@@ -1,4 +1,4 @@
-{% load sx_format %}
+{% load sx_format npl_extras %}
 <tr{% if ln.qty_shortfall > 0 %} class="is-short"{% endif %}>
   <td>
     <div class="jp-pb-npl-material">
@@ -10,16 +10,16 @@
       <span class="jp-pb-npl-name">{{ ln.material_name|default:"—" }}</span>
     </div>
   </td>
-  <td class="num">{{ ln.qty_required|sx_num }}{% if ln.unit %} {{ ln.unit }}{% endif %}</td>
-  <td class="num" title="Tồn trừ phần đơn khác đã đặt">{{ ln.qty_available|sx_num }}</td>
+  <td class="num">{{ ln.qty_required|npl_qty }}{% if ln.unit %} {{ ln.unit|npl_unit }}{% endif %}</td>
+  <td class="num" title="Tồn kho trừ phần đơn khác đã đặt">{{ ln.qty_available|npl_qty }}{% if ln.unit %} {{ ln.unit|npl_unit }}{% endif %}</td>
   <td class="num">
-    <input type="number" name="allocate_for__{{ ln.pk }}" min="0" step="0.0001"
+    <input type="number" name="allocate_for__{{ ln.pk }}" min="0" step="any"
            class="form-control form-control-sm"
            value="{{ ln.qty_allocated|sx_num_input }}"
            {% if not can_schedule or row.order.plan_status == 'on_hold' or tab != 'queue' %}readonly{% endif %}>
   </td>
   <td{% if ln.supplier_code %} title="{{ ln.supplier_code }}"{% endif %}>{{ ln.supplier_name|default:"—" }}</td>
-  <td class="num">{% if ln.qty_shortfall > 0 %}<strong>{{ ln.qty_shortfall|sx_num }}</strong>{% else %}—{% endif %}</td>
+  <td class="num">{% if ln.qty_shortfall > 0 %}<strong>{{ ln.qty_shortfall|npl_qty }}</strong>{% if ln.unit %} {{ ln.unit|npl_unit }}{% endif %}{% else %}—{% endif %}</td>
   <td class="num">
     {% if ln.qty_shortfall > 0 %}
     <input type="number" name="buy_for__{{ ln.pk }}" min="0" max="365" class="form-control form-control-sm"

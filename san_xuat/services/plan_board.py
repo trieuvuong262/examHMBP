@@ -1761,7 +1761,14 @@ def _assert_plan_tech_reloadable(order: SxSalesOrder) -> None:
 
 
 @transaction.atomic
-def reload_plan_order_tech(*, order_id: int, user=None) -> ReloadPlanTechResult:
+def reload_plan_order_tech(
+    *,
+    order_id: int,
+    user=None,
+    kit_days: int | None = None,
+    buy_by_line: dict | None = None,
+    allocate_by_line: dict | None = None,
+) -> ReloadPlanTechResult:
     """Ghi đè snapshot BOM / OB / NPL trên KHSX từ hồ sơ hiện tại.
 
     Dùng khi sửa BOM/OB sau lúc gắn nhưng đơn chưa Chuyển SX. Sau Chuyển SX
@@ -1812,8 +1819,15 @@ def reload_plan_order_tech(*, order_id: int, user=None) -> ReloadPlanTechResult:
     if order.npl_status != SxSalesOrder.NPL_NONE or order.npl_lines.exists():
         from san_xuat.services.plan_order_npl import sync_order_npl
 
+        was_ready = order.npl_status == SxSalesOrder.NPL_READY
         try:
-            order = sync_order_npl(order_id=order.pk)
+            order = sync_order_npl(
+                order_id=order.pk,
+                kit_days=kit_days,
+                buy_by_line=buy_by_line,
+                allocate_by_line=allocate_by_line,
+                apply_schedule=was_ready,
+            )
             npl_reloaded = True
         except PlanningError:
             npl_reloaded = False

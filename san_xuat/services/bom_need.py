@@ -111,6 +111,8 @@ def explode_overrides(
         unit = str(raw.get('unit') or '')[:30]
         if bl is not None and getattr(bl, 'material_id', None) and bl.material.unit_id:
             unit = _unit_display(bl.material.unit)
+        else:
+            unit = _unit_display(unit)
         rows.append(
             MaterialNeed(
                 material_code=code[:60],

@@ -320,7 +320,7 @@ class SxOrderNplLine(models.Model):
         max_digits=14,
         decimal_places=4,
         default=Decimal('0'),
-        verbose_name='Còn đặt được',
+        verbose_name='Tồn kho',
         help_text='Tồn kho trừ phần đơn khác đã đặt (chưa xuất phiếu).',
     )
     qty_allocated = models.DecimalField(

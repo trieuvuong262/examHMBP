@@ -33,7 +33,7 @@
         <tr>
           <th>Nguyên Phụ Liệu</th>
           <th class="num">Nhu cầu</th>
-          <th class="num">Còn đặt được</th>
+          <th class="num">Tồn kho</th>
           <th class="num">Đặt</th>
           <th>NCC</th>
           <th class="num">Thiếu</th>
@@ -42,14 +42,7 @@
       </thead>
       <tbody>
         {% for ln in row.order.npl_lines.all %}
-        {% if ln.qty_shortfall > 0 %}
         {% include 'san_xuat/includes/plan_board_npl_row.html' %}
-        {% endif %}
-        {% endfor %}
-        {% for ln in row.order.npl_lines.all %}
-        {% if ln.qty_shortfall <= 0 %}
-        {% include 'san_xuat/includes/plan_board_npl_row.html' %}
-        {% endif %}
         {% endfor %}
       </tbody>
     </table>

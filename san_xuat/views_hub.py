@@ -1512,7 +1512,56 @@ def plan_board(request):
                 )
                 return _board_redirect()
             elif action == 'reload_tech' and (can_schedule or can_release) and order_id:
-                result = reload_plan_order_tech(order_id=order_id, user=request.user)
+                buy_by_line = None
+                allocate_by_line = None
+                kit = None
+                if any(
+                    key.startswith('buy_for__') or key.startswith('allocate_for__')
+                    for key in request.POST
+                ):
+                    buy_by_line = {}
+                    allocate_by_line = {}
+                    for key, val in request.POST.items():
+                        if key.startswith('buy_for__'):
+                            sid = key[len('buy_for__'):].strip()
+                            if not sid.isdigit():
+                                continue
+                            raw = (val or '').strip()
+                            if raw == '':
+                                buy_by_line[int(sid)] = None
+                            else:
+                                try:
+                                    buy_by_line[int(sid)] = max(0, min(int(raw), 365))
+                                except (TypeError, ValueError):
+                                    buy_by_line[int(sid)] = None
+                        elif key.startswith('allocate_for__'):
+                            sid = key[len('allocate_for__'):].strip()
+                            if not sid.isdigit():
+                                continue
+                            raw = (val or '').strip().replace(',', '.')
+                            if raw == '':
+                                allocate_by_line[int(sid)] = Decimal('0')
+                            else:
+                                try:
+                                    allocate_by_line[int(sid)] = max(
+                                        Decimal('0'),
+                                        Decimal(raw).quantize(Decimal('0.0001')),
+                                    )
+                                except (InvalidOperation, TypeError, ValueError):
+                                    allocate_by_line[int(sid)] = None
+                    kit_raw = (request.POST.get('npl_kit_days') or '').strip()
+                    if kit_raw != '':
+                        try:
+                            kit = max(0, min(int(kit_raw), 120))
+                        except (TypeError, ValueError):
+                            kit = None
+                result = reload_plan_order_tech(
+                    order_id=order_id,
+                    user=request.user,
+                    kit_days=kit,
+                    buy_by_line=buy_by_line,
+                    allocate_by_line=allocate_by_line,
+                )
                 bits = []
                 if result.bom_count:
                     bits.append('BOM')

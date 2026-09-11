@@ -97,6 +97,25 @@ def line_shortfall(*, qty_required: Decimal, qty_allocated: Decimal, qty_inbound
     return max(Decimal('0'), _q(qty_required) - _q(qty_allocated) - _q(qty_inbound))
 
 
+def npl_line_sort_key(ln) -> tuple:
+    """Thiếu trước, rồi Còn đặt được giảm dần, rồi tên."""
+    short = 0 if (ln.qty_shortfall or 0) > 0 else 1
+    avail = _q(ln.qty_available)
+    name = (ln.material_name or ln.material_code or '').casefold()
+    return (short, -avail, name)
+
+
+def apply_npl_line_sort(lines: list[SxOrderNplLine]) -> list[SxOrderNplLine]:
+    """Ghi sort_order đúng thứ tự hiển thị panel Chuẩn bị NPL."""
+    ordered = sorted(lines, key=npl_line_sort_key)
+    for i, ln in enumerate(ordered, start=1):
+        seq = i * 10
+        if ln.sort_order != seq:
+            ln.sort_order = seq
+            ln.save(update_fields=['sort_order'])
+    return ordered
+
+
 def explode_order_npl_rows(order: SxSalesOrder) -> list[ExplodedNpl]:
     """Gộp nhu cầu NPL mọi dòng SP, đọc tồn kho_npl.
 
@@ -104,6 +123,7 @@ def explode_order_npl_rows(order: SxSalesOrder) -> list[ExplodedNpl]:
     Thiếu hụt tính sau khi nhân viên gõ số đặt, không lấy từ tồn chung.
     """
     needed: dict[str, dict] = {}
+    order_keys: list[str] = []
     for ln in order.lines.all():
         if (ln.qty or 0) <= 0:
             continue
@@ -120,6 +140,7 @@ def explode_order_npl_rows(order: SxSalesOrder) -> list[ExplodedNpl]:
                     'unit': (need.unit or '')[:30],
                     'qty': _q(need.qty_total),
                 }
+                order_keys.append(key)
             else:
                 row['qty'] += _q(need.qty_total)
                 if not row['name']:
@@ -128,9 +149,13 @@ def explode_order_npl_rows(order: SxSalesOrder) -> list[ExplodedNpl]:
                     row['unit'] = (need.unit or '')[:30]
 
     out: list[ExplodedNpl] = []
-    for key in sorted(needed):
+    for key in order_keys:
         rec = needed[key]
-        mat = Material.objects.filter(code__iexact=rec['code'], is_active=True).first()
+        mat = (
+            Material.objects.filter(code__iexact=rec['code'], is_active=True)
+            .select_related('unit')
+            .first()
+        )
         on_hand = _q(material_total_qty(mat) if mat else 0)
         available = _q(
             material_available_qty(
@@ -140,10 +165,16 @@ def explode_order_npl_rows(order: SxSalesOrder) -> list[ExplodedNpl]:
             ) if mat else 0
         )
         inbound = _q(_expected_inbound_qty(rec['code']))
+        from kho_npl.catalog_labels import unit_label
+
+        if mat and mat.unit_id:
+            unit = (unit_label(mat.unit) or rec['unit'] or '')[:30]
+        else:
+            unit = (unit_label(rec['unit']) or rec['unit'] or '')[:30]
         out.append(ExplodedNpl(
             material_code=rec['code'],
             material_name=rec['name'],
-            unit=rec['unit'],
+            unit=unit,
             qty_required=rec['qty'].quantize(_Q4),
             qty_on_hand=on_hand,
             qty_available=available,
@@ -287,7 +318,7 @@ def sync_order_npl(
             cap = min(_q(ln.qty_required), _q(ln.qty_available))
             if placed > cap:
                 label = ln.material_name or ln.material_code
-                over.append(f'{label}: còn đặt được {cap}')
+                over.append(f'{label}: tồn kho {cap}')
                 continue
             ln.qty_allocated = placed
         if over:
@@ -308,6 +339,8 @@ def sync_order_npl(
         elif buy_by_line is not None and ln.pk in buy_by_line:
             ln.buy_lead_days = buy_by_line[ln.pk]
         ln.save(update_fields=['qty_shortfall', 'buy_lead_days'])
+
+    lines = apply_npl_line_sort(lines)
 
     if hasattr(order, '_prefetched_objects_cache'):
         order._prefetched_objects_cache.pop('npl_lines', None)
