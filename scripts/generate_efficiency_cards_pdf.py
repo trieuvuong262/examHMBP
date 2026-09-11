@@ -88,40 +88,42 @@ def main() -> None:
 
     cards = [
         (
-            '1. Hiệu suất thực',
-            'Tổng SL ÷ tổng (định mức × giờ từng công đoạn) × 100.<br/>'
-            'Chưa cộng bù hiệu suất.',
+            '1. Hiệu suất TB trong ngày',
+            'Hiệu suất sản lượng × Hiệu suất thời gian ÷ 100.',
         ),
         (
-            '2. Hiệu suất tổng',
-            'Hiệu suất thực + bù hiệu suất (trung bình theo giờ các công đoạn).<br/>'
-            'Không có bù thì bằng Hiệu suất thực.',
+            '2. Hiệu suất sản lượng',
+            '(HS công đoạn 1 × giờ 1 + HS công đoạn 2 × giờ 2 + …) '
+            '÷ tổng giờ công đoạn.<br/>'
+            'HS từng dòng đã là % — không nhân thêm 100, không cộng bù.',
         ),
         (
-            '3. Hiệu suất sản lượng',
-            'Cùng công thức với Hiệu suất thực (chưa cộng bù).',
-        ),
-        (
-            '4. Hiệu suất thời gian',
+            '3. Hiệu suất thời gian',
             'Thời gian thực tế ÷ Thời gian làm việc × 100.<br/>'
             'Đo có dùng đủ giờ đã khai báo hay không.',
         ),
         (
-            '5. Tổng hư hỏng',
+            '4. Tổng hư hỏng',
             'Cộng tất cả số lượng hư hỏng của các công đoạn trong ngày.',
         ),
         (
-            '6. Thời gian làm việc',
+            '5. Thời gian làm việc',
             'Số giờ công nhân <b>khai báo</b> khi gửi báo cáo (ví dụ 9,5 giờ).',
         ),
         (
-            '7. Thời gian thực tế',
+            '6. Thời gian thực tế',
             'Cộng giờ của mọi công đoạn đã ghi trong ngày (kể cả công đoạn SL = 0).',
         ),
         (
-            '8. Thời gian hao phí',
+            '7. Thời gian hao phí',
             'Thời gian làm việc − Thời gian thực tế.<br/>'
             'Phần giờ khai báo nhưng không gắn vào công đoạn nào.',
+        ),
+        (
+            '8. Hiệu suất hỗ trợ',
+            '((HS sau khi bù 1 × giờ 1 + HS sau khi bù 2 × giờ 2 + …) '
+            '÷ tổng giờ công đoạn) × Hiệu suất thời gian ÷ 100.<br/>'
+            'HS sau khi bù = HS + bù.',
         ),
     ]
 
@@ -147,7 +149,7 @@ def main() -> None:
     table.setStyle(TableStyle(style_cmds))
     story.append(table)
     story.append(Paragraph(
-        'Ghi chú: Bù hiệu suất do tổ trưởng/quản lý nhập khi công nhân chuyển công đoạn mới.',
+        'Ghi chú: Cột Bù hiệu suất giữ riêng, không cộng vào các thẻ hiệu suất ở trên.',
         note,
     ))
 

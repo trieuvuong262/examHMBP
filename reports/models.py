@@ -351,6 +351,20 @@ class ProductionShiftProduct(models.Model):
         related_name='production_products_updated',
         verbose_name='Cập nhật',
     )
+    updated_by_2 = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='production_products_updated_2',
+        verbose_name='Cập nhật (người 2)',
+    )
+    manager_changed_fields = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name='Ô đã sửa bởi quản lý',
+        help_text='Các khóa cột bị chỉnh: code, process, start, end, hours, quantity, damaged, norm.',
+    )
 
     class Meta:
         ordering = ['sort_order', 'id']

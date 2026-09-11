@@ -1826,6 +1826,151 @@ body .modal-backdrop.show {
     background: transparent;
 }
 
+.jp-prod-formula-help {
+    margin-top: 0.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.jp-prod-formula-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.4rem 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 0.82rem;
+    font-weight: 600;
+    line-height: 1.2;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.jp-prod-formula-toggle:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #cbd5e1;
+}
+
+.jp-prod-formula-toggle:focus-visible {
+    outline: 2px solid #94a3b8;
+    outline-offset: 2px;
+}
+
+.jp-prod-formula-toggle-icon {
+    font-size: 0.85rem;
+    transition: transform 0.2s ease;
+}
+
+.jp-prod-formula-toggle[aria-expanded="true"] .jp-prod-formula-toggle-icon {
+    transform: rotate(180deg);
+}
+
+.jp-prod-formula-panel {
+    margin-top: 0.75rem;
+    padding: 0.9rem 1rem;
+    border: 1px solid #eef2f6;
+    border-radius: 0.75rem;
+    background: #fafbfc;
+    display: grid;
+    gap: 1rem;
+}
+
+.jp-prod-formula-group-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    margin-bottom: 0.55rem;
+}
+
+.jp-prod-formula-item + .jp-prod-formula-item {
+    margin-top: 0.7rem;
+    padding-top: 0.7rem;
+    border-top: 1px dashed #e2e8f0;
+}
+
+.jp-prod-formula-name {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 0.25rem;
+}
+
+.jp-prod-formula-eq {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem 0.55rem;
+    color: #334155;
+    line-height: 1.35;
+    font-size: 0.88rem;
+}
+
+.jp-frac {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+    text-align: center;
+    max-width: 100%;
+}
+
+.jp-frac-num,
+.jp-frac-den {
+    display: block;
+    padding: 0.12rem 0.35rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.jp-frac-num {
+    border-bottom: 1.5px solid #94a3b8;
+    padding-bottom: 0.28rem;
+    margin-bottom: 0.28rem;
+}
+
+.jp-frac-den {
+    padding-top: 0;
+}
+
+.jp-frac-op,
+.jp-frac-plain {
+    font-weight: 600;
+    color: #0f172a;
+    white-space: nowrap;
+}
+
+.jp-frac-op {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.jp-prod-formula-note,
+.jp-prod-formula-hint {
+    font-size: 0.78rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.jp-prod-formula-note {
+    margin-top: 0.35rem;
+}
+
+.jp-prod-formula-hint {
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+@media (min-width: 768px) {
+    .jp-prod-formula-panel {
+        grid-template-columns: 1fr 1fr;
+        gap: 1.25rem;
+    }
+}
+
 .jp-prod-productivity-table--summary tbody tr {
     background: #fafbfc;
 }
@@ -1842,34 +1987,20 @@ body .modal-backdrop.show {
     color: #64748b;
 }
 
-.jp-prod-summary-row.is-manager-updated,
-.jp-prod-summary-row.is-manager-updated > td {
-    background: transparent !important;
+.jp-prod-summary-row td.is-field-updated,
+.jp-prod-summary-row td.is-field-updated .jp-prod-code-pill,
+.jp-prod-summary-row td.is-field-updated .jp-prod-process-display,
+.jp-prod-summary-row td.is-field-updated .jp-prod-qty-val,
+.jp-prod-summary-row td.is-field-updated .jp-prod-norm-display,
+.jp-prod-summary-row td.is-field-updated .jp-prod-damaged-val,
+.jp-prod-summary-row td.is-field-updated.text-muted {
     color: #dc2626 !important;
-}
-
-.jp-prod-summary-row.is-manager-updated:hover,
-.jp-prod-summary-row.is-manager-updated:hover > td {
-    background: #f1f5f9 !important;
-}
-
-.jp-prod-summary-row.is-manager-updated .jp-prod-code-pill,
-.jp-prod-summary-row.is-manager-updated .jp-prod-process-display,
-.jp-prod-summary-row.is-manager-updated .jp-prod-qty-val,
-.jp-prod-summary-row.is-manager-updated .jp-prod-norm-display,
-.jp-prod-summary-row.is-manager-updated .jp-prod-note-val,
-.jp-prod-summary-row.is-manager-updated .jp-prod-proxy-name,
-.jp-prod-summary-row.is-manager-updated .jp-prod-damaged-val,
-.jp-prod-summary-row.is-manager-updated .text-muted {
-    color: #dc2626 !important;
-}
-
-.jp-prod-summary-row.is-manager-updated .jp-prod-proxy-name {
     font-weight: 700;
 }
 
-.jp-prod-summary-row.is-manager-updated .jp-eff.is-none {
-    color: #dc2626 !important;
+.jp-prod-proxy-name {
+    font-weight: 600;
+    color: #b91c1c;
 }
 
 .jp-prod-editable-cell,

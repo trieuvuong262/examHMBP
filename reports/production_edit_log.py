@@ -16,6 +16,16 @@ from reports.production_hourly import (
     session_time_displays,
 )
 
+# Khóa cột tô đỏ trên bảng tổng hợp (khớp template).
+MANAGER_FIELD_CODE = 'code'
+MANAGER_FIELD_PROCESS = 'process'
+MANAGER_FIELD_START = 'start'
+MANAGER_FIELD_END = 'end'
+MANAGER_FIELD_HOURS = 'hours'
+MANAGER_FIELD_QUANTITY = 'quantity'
+MANAGER_FIELD_DAMAGED = 'damaged'
+MANAGER_FIELD_NORM = 'norm'
+
 
 def snapshot_production_session(product: ProductionShiftProduct) -> dict[str, str]:
     """Ảnh chụp trạng thái một công đoạn để so sánh trước / sau."""
@@ -28,6 +38,8 @@ def snapshot_production_session(product: ProductionShiftProduct) -> dict[str, st
         'norm': format_production_quantity(norm) if norm and norm > 0 else '—',
         'quantity': format_production_quantity(product.total_quantity or 0),
         'damaged': str(int(product.total_damaged_quantity or 0)),
+        'start': start or '—',
+        'end': end or '—',
         'time': f'{start}–{end}' if start and end else '—',
         'note': (product.completion_note or '').strip() or '—',
         'bonus': (
@@ -63,10 +75,40 @@ def snapshot_proxy_session_form(
         'norm': format_production_quantity(norm) if norm and norm > 0 else '—',
         'quantity': format_production_quantity(total),
         'damaged': str(max(0, damaged)),
+        'start': start or '—',
+        'end': end or '—',
         'time': f'{start}–{end}' if start and end else '—',
         'note': (sess.get('note') or '').strip() or '—',
         'bonus': format_production_quantity(bonus) if bonus else '—',
     }
+
+
+def diff_manager_changed_fields(
+    before: dict[str, str] | None,
+    after: dict[str, str] | None,
+) -> list[str]:
+    """Các cột nội dung thay đổi giữa hai ảnh chụp (bỏ ghi chú / bù)."""
+    if not before or not after:
+        return []
+    changed: list[str] = []
+    pairs = (
+        (MANAGER_FIELD_CODE, 'code'),
+        (MANAGER_FIELD_PROCESS, 'process'),
+        (MANAGER_FIELD_START, 'start'),
+        (MANAGER_FIELD_END, 'end'),
+        (MANAGER_FIELD_QUANTITY, 'quantity'),
+        (MANAGER_FIELD_DAMAGED, 'damaged'),
+        (MANAGER_FIELD_NORM, 'norm'),
+    )
+    for field_key, snap_key in pairs:
+        if (before.get(snap_key) or '—') != (after.get(snap_key) or '—'):
+            changed.append(field_key)
+    if MANAGER_FIELD_START in changed or MANAGER_FIELD_END in changed:
+        if MANAGER_FIELD_HOURS not in changed:
+            changed.append(MANAGER_FIELD_HOURS)
+    elif (before.get('time') or '—') != (after.get('time') or '—'):
+        changed.append(MANAGER_FIELD_HOURS)
+    return changed
 
 
 def format_snapshot_line(snap: dict[str, str]) -> str:
@@ -75,7 +117,7 @@ def format_snapshot_line(snap: dict[str, str]) -> str:
         f"CD {snap['process']}",
         f"SL {snap['quantity']}",
         f"ĐM {snap['norm']}/giờ",
-        f"Giờ {snap['time']}",
+        f"Giờ {snap.get('time') or ((snap.get('start') or '—') + '–' + (snap.get('end') or '—'))}",
     ]
     if snap.get('damaged', '0') != '0':
         parts.append(f"Hỏng {snap['damaged']}")

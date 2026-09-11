@@ -314,10 +314,6 @@
         }
         var total = parseFloat((sess.querySelector('.s-total') || {}).value) || 0;
         var norm = parseFloat((sess.querySelector('.s-norm') || {}).value) || 0;
-        var bonusRaw = ((sess.querySelector('.s-eff-bonus') || {}).value || '').toString()
-            .replace(/%/g, '').replace(',', '.').trim();
-        var bonus = parseFloat(bonusRaw);
-        if (!isFinite(bonus) || bonus < 0) bonus = 0;
         var hoursEl = sess.querySelector('.s-hours');
         if (hoursEl) hoursEl.textContent = (Math.round(hours * 100) / 100) + 'h';
         var badge = sess.querySelector('.s-eff');
@@ -325,7 +321,6 @@
             var pct = null;
             if (total > 0 && norm > 0 && hours > 0) {
                 pct = Math.round((total / (norm * hours)) * 10000) / 100;
-                pct = Math.round((pct + bonus) * 100) / 100;
             }
             badge.className = 'jp-proxy-eff-badge s-eff ' + classFor(pct);
             badge.textContent = pct === null ? '—' : (pct.toFixed(1) + '%');

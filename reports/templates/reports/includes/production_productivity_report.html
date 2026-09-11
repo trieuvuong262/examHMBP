@@ -5,19 +5,7 @@
     <div class="jp-prod-day-summary row g-3 mb-4 row-cols-2 row-cols-md-3 row-cols-xl-4">
         <div class="col">
             <div class="jp-prod-day-summary-card h-100">
-                <div class="jp-prod-day-summary-label">Hiệu suất thực</div>
-                <div class="jp-prod-day-summary-value">
-                    {% if productivity.day_summary.base_avg_efficiency_pct is not None %}
-                    <span class="jp-eff {{ productivity.day_summary.base_avg_efficiency_pct|summary_efficiency_class }}">{{ productivity.day_summary.base_avg_efficiency_pct|efficiency_pct_display:2 }}%</span>
-                    {% else %}
-                    <span class="text-muted">—</span>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        <div class="col">
-            <div class="jp-prod-day-summary-card h-100">
-                <div class="jp-prod-day-summary-label">Hiệu suất tổng</div>
+                <div class="jp-prod-day-summary-label">Hiệu suất TB trong ngày</div>
                 <div class="jp-prod-day-summary-value">
                     {% if productivity.day_summary.avg_efficiency_pct is not None %}
                     <span class="jp-eff {{ productivity.day_summary.avg_efficiency_pct|summary_efficiency_class }}">{{ productivity.day_summary.avg_efficiency_pct|efficiency_pct_display:2 }}%</span>
@@ -75,6 +63,16 @@
                 <div class="jp-prod-day-summary-value{% if productivity.day_summary.has_waste %} text-warning-emphasis{% endif %}">{{ productivity.day_summary.waste_time_display }}</div>
             </div>
         </div>
+        {% if productivity.day_summary.support_efficiency_pct is not None and productivity.day_summary.support_efficiency_pct != productivity.day_summary.avg_efficiency_pct %}
+        <div class="col">
+            <div class="jp-prod-day-summary-card h-100">
+                <div class="jp-prod-day-summary-label">Hiệu suất hỗ trợ</div>
+                <div class="jp-prod-day-summary-value">
+                    <span class="jp-eff {{ productivity.day_summary.support_efficiency_pct|summary_efficiency_class }}">{{ productivity.day_summary.support_efficiency_pct|efficiency_pct_display:2 }}%</span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
     {% endif %}
 
@@ -93,35 +91,36 @@
                     <th class="text-end">Hư hỏng</th>
                     <th class="text-end">Định mức</th>
                     <th class="text-end">Thời gian công đoạn</th>
-                    <th class="text-end">Hiệu suất tổng</th>
+                    <th class="text-end">Hiệu suất</th>
                     <th>Ghi chú</th>
                     <th>Cập nhật</th>
                     <th class="text-end">Bù hiệu suất</th>
+                    <th class="text-end">Hiệu suất hỗ trợ</th>
                 </tr>
             </thead>
             <tbody>
                 {% for row in productivity.product_summaries %}
-                <tr class="jp-prod-summary-row{% if row.is_zero_reason_only %} is-zero-qty{% endif %}{% if row.updated_by_name %} is-manager-updated{% endif %}" data-product-id="{{ row.product_id }}" data-quantity="{{ row.quantity }}" data-hours="{{ row.hours }}">
+                <tr class="jp-prod-summary-row{% if row.is_zero_reason_only %} is-zero-qty{% endif %}" data-product-id="{{ row.product_id }}" data-quantity="{{ row.quantity }}" data-hours="{{ row.hours }}">
                     <td class="text-center text-muted">{{ forloop.counter }}</td>
-                    <td>
+                    <td class="{% if 'code' in row.changed_fields %}is-field-updated{% endif %}">
                         <span class="jp-prod-code-pill jp-prod-code-display">{{ row.product_code }}</span>
                     </td>
-                    <td>
+                    <td class="{% if 'process' in row.changed_fields %}is-field-updated{% endif %}">
                         <span class="jp-prod-process-display">{{ row.process_name }}</span>
                     </td>
-                    <td class="text-center text-nowrap">{{ row.started_at_display|default:"—" }}</td>
-                    <td class="text-center text-nowrap">{{ row.ended_at_display|default:"—" }}</td>
-                    <td class="text-end"><span class="jp-prod-qty-val">{{ row.quantity|prod_qty }}</span></td>
-                    <td class="text-end">
+                    <td class="text-center text-nowrap{% if 'start' in row.changed_fields %} is-field-updated{% endif %}">{{ row.started_at_display|default:"—" }}</td>
+                    <td class="text-center text-nowrap{% if 'end' in row.changed_fields %} is-field-updated{% endif %}">{{ row.ended_at_display|default:"—" }}</td>
+                    <td class="text-end{% if 'quantity' in row.changed_fields %} is-field-updated{% endif %}"><span class="jp-prod-qty-val">{{ row.quantity|prod_qty }}</span></td>
+                    <td class="text-end{% if 'damaged' in row.changed_fields %} is-field-updated{% endif %}">
                         {% if row.damaged_quantity %}<span class="jp-prod-damaged-val">{{ row.damaged_quantity|prod_qty }}</span>{% else %}<span class="text-muted">—</span>{% endif %}
                     </td>
-                    <td class="text-end">
+                    <td class="text-end{% if 'norm' in row.changed_fields %} is-field-updated{% endif %}">
                         <span class="jp-prod-norm-display">{% if row.norm_per_hour %}{{ row.norm_per_hour|floatformat:0 }}{% else %}—{% endif %}</span>
                     </td>
-                    <td class="text-end text-muted">{{ row.hours_display }}</td>
+                    <td class="text-end text-muted{% if 'hours' in row.changed_fields %} is-field-updated{% endif %}">{{ row.hours_display }}</td>
                     <td class="text-end jp-prod-eff-cell">
                         {% if row.efficiency_pct is not None %}
-                        <span class="jp-eff {{ row.efficiency_pct|summary_efficiency_class }}"{% if row.efficiency_base_pct is not None and row.efficiency_bonus_pct %} title="Thực {{ row.efficiency_base_pct|efficiency_pct_display:2 }}% + bù {{ row.efficiency_bonus_pct|efficiency_pct_display:2 }}%"{% endif %}>{{ row.efficiency_pct|efficiency_pct_display:2 }}%</span>
+                        <span class="jp-eff {{ row.efficiency_pct|summary_efficiency_class }}">{{ row.efficiency_pct|efficiency_pct_display:2 }}%</span>
                         {% else %}
                         <span class="jp-eff is-none" title="{% if row.is_zero_reason_only %}Không tính hiệu suất (sản lượng 0){% endif %}">—</span>
                         {% endif %}
@@ -130,8 +129,8 @@
                         {% if row.note %}<span class="jp-prod-note-val" title="{{ row.note }}">{{ row.note|truncatechars:40 }}</span>{% else %}<span class="text-muted">—</span>{% endif %}
                     </td>
                     <td class="jp-prod-proxy-cell">
-                        {% if row.updated_by_name %}
-                        <span class="jp-prod-proxy-name">{{ row.updated_by_name }}</span>
+                        {% if row.updated_by_names %}
+                        <span class="jp-prod-proxy-name">{% for name in row.updated_by_names %}{% if not forloop.first %}, {% endif %}{{ name }}{% endfor %}</span>
                         {% else %}
                         <span class="text-muted">—</span>
                         {% endif %}
@@ -143,10 +142,106 @@
                         <span class="text-muted">—</span>
                         {% endif %}
                     </td>
+                    <td class="text-end jp-prod-eff-cell">
+                        {% if row.efficiency_after_bonus_pct is not None %}
+                        <span class="jp-eff {{ row.efficiency_after_bonus_pct|summary_efficiency_class }}">{{ row.efficiency_after_bonus_pct|efficiency_pct_display:2 }}%</span>
+                        {% else %}
+                        <span class="jp-eff is-none">—</span>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
     {% endif %}
+
+    <div class="jp-prod-formula-help">
+        <button class="jp-prod-formula-toggle"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#jp-prod-formula-panel"
+                aria-expanded="false"
+                aria-controls="jp-prod-formula-panel">
+            <span class="jp-prod-formula-toggle-text">Cách tính thẻ &amp; cột</span>
+            <i class="bi bi-chevron-down jp-prod-formula-toggle-icon" aria-hidden="true"></i>
+        </button>
+        <div class="collapse" id="jp-prod-formula-panel">
+            <div class="jp-prod-formula-panel">
+                <div class="jp-prod-formula-group">
+                    <div class="jp-prod-formula-group-title">Thẻ ngày</div>
+                    <div class="jp-prod-formula-item">
+                        <div class="jp-prod-formula-name">Hiệu suất TB trong ngày</div>
+                        <div class="jp-prod-formula-eq" aria-label="Hiệu suất sản lượng nhân Hiệu suất thời gian chia 100">
+                            <span class="jp-frac">
+                                <span class="jp-frac-num">Hiệu suất sản lượng × Hiệu suất thời gian</span>
+                                <span class="jp-frac-den">100</span>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="jp-prod-formula-item">
+                        <div class="jp-prod-formula-name">Hiệu suất sản lượng</div>
+                        <div class="jp-prod-formula-eq" aria-label="Trung bình hiệu suất công đoạn theo giờ">
+                            <span class="jp-frac">
+                                <span class="jp-frac-num">HS<sub>1</sub> × giờ<sub>1</sub> + HS<sub>2</sub> × giờ<sub>2</sub> + …</span>
+                                <span class="jp-frac-den">Tổng giờ công đoạn</span>
+                            </span>
+                        </div>
+                        <div class="jp-prod-formula-note">HS từng dòng = cột Hiệu suất trên bảng (chưa cộng bù)</div>
+                    </div>
+                    <div class="jp-prod-formula-item">
+                        <div class="jp-prod-formula-name">Hiệu suất thời gian</div>
+                        <div class="jp-prod-formula-eq" aria-label="Thời gian thực tế chia Thời gian làm việc nhân 100">
+                            <span class="jp-frac">
+                                <span class="jp-frac-num">Thời gian thực tế</span>
+                                <span class="jp-frac-den">Thời gian làm việc</span>
+                            </span>
+                            <span class="jp-frac-op">×</span>
+                            <span class="jp-frac-plain">100</span>
+                        </div>
+                    </div>
+                    <div class="jp-prod-formula-item">
+                        <div class="jp-prod-formula-name">Thời gian hao phí</div>
+                        <div class="jp-prod-formula-eq">
+                            <span class="jp-frac-plain">Thời gian làm việc − Thời gian thực tế</span>
+                        </div>
+                    </div>
+                    <div class="jp-prod-formula-item">
+                        <div class="jp-prod-formula-name">Hiệu suất hỗ trợ <span class="jp-prod-formula-hint">(chỉ hiện khi khác HS TB)</span></div>
+                        <div class="jp-prod-formula-eq" aria-label="Trung bình HS hỗ trợ theo giờ nhân hiệu suất thời gian chia 100">
+                            <span class="jp-frac">
+                                <span class="jp-frac-num">HS hỗ trợ<sub>1</sub> × giờ<sub>1</sub> + HS hỗ trợ<sub>2</sub> × giờ<sub>2</sub> + …</span>
+                                <span class="jp-frac-den">Tổng giờ công đoạn</span>
+                            </span>
+                            <span class="jp-frac-op">×</span>
+                            <span class="jp-frac">
+                                <span class="jp-frac-num">Hiệu suất thời gian</span>
+                                <span class="jp-frac-den">100</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="jp-prod-formula-group">
+                    <div class="jp-prod-formula-group-title">Cột trên bảng</div>
+                    <div class="jp-prod-formula-item">
+                        <div class="jp-prod-formula-name">Hiệu suất</div>
+                        <div class="jp-prod-formula-eq" aria-label="Số lượng chia định mức nhân thời gian nhân 100">
+                            <span class="jp-frac">
+                                <span class="jp-frac-num">Số lượng</span>
+                                <span class="jp-frac-den">Định mức × Thời gian công đoạn</span>
+                            </span>
+                            <span class="jp-frac-op">×</span>
+                            <span class="jp-frac-plain">100</span>
+                        </div>
+                    </div>
+                    <div class="jp-prod-formula-item">
+                        <div class="jp-prod-formula-name">Hiệu suất hỗ trợ</div>
+                        <div class="jp-prod-formula-eq">
+                            <span class="jp-frac-plain">Hiệu suất + Bù hiệu suất</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>

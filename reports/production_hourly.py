@@ -344,18 +344,66 @@ def assign_product_updated_by(
     product: ProductionShiftProduct,
     report: DailyWorkReport,
     user,
+    *,
+    changed_fields: list[str] | None = None,
 ) -> None:
-    """Ghi quản lý vào cột «Cập nhật» khi sửa/thêm công đoạn của NV."""
+    """Ghi quản lý vào cột «Cập nhật» (tối đa 2 người) + các ô đã sửa."""
     if not user or not report or user.id == report.employee_id:
         return
-    product.updated_by = user
+
+    if changed_fields:
+        existing = [
+            str(item)
+            for item in (getattr(product, 'manager_changed_fields', None) or [])
+            if item
+        ]
+        for field in changed_fields:
+            if field and field not in existing:
+                existing.append(field)
+        product.manager_changed_fields = existing
+
+    if not product.updated_by_id:
+        product.updated_by = user
+        return
+    if product.updated_by_id == user.id:
+        return
+    if not getattr(product, 'updated_by_2_id', None):
+        product.updated_by_2 = user
+        return
+    if product.updated_by_2_id != user.id:
+        # Đã có 2 người — giữ người đầu, thay người 2 bằng lần sửa mới nhất.
+        product.updated_by_2 = user
 
 
 def product_updated_by_display(product: ProductionShiftProduct, report: DailyWorkReport) -> str:
-    if product.updated_by_id:
-        return user_display_name(product.updated_by)
-    return ''
+    names = product_updated_by_names(product)
+    return ', '.join(names)
 
+
+def product_updated_by_names(product: ProductionShiftProduct) -> list[str]:
+    names: list[str] = []
+    if product.updated_by_id:
+        names.append(user_display_name(product.updated_by))
+    second = getattr(product, 'updated_by_2', None)
+    if getattr(product, 'updated_by_2_id', None) and second:
+        second_name = user_display_name(second)
+        if second_name and second_name not in names:
+            names.append(second_name)
+    return names[:2]
+
+
+def product_manager_changed_fields(product: ProductionShiftProduct) -> list[str]:
+    raw = getattr(product, 'manager_changed_fields', None) or []
+    return [str(item) for item in raw if item]
+
+
+def product_update_display_payload(product: ProductionShiftProduct, report: DailyWorkReport) -> dict:
+    names = product_updated_by_names(product)
+    return {
+        'updated_by_name': ', '.join(names),
+        'updated_by_names': names,
+        'changed_fields': product_manager_changed_fields(product),
+    }
 
 @transaction.atomic
 def ensure_work_day_started(report: DailyWorkReport) -> DailyWorkReport:
@@ -747,6 +795,12 @@ def update_session_product(
     efficiency_bonus_pct=_EFFICIENCY_BONUS_UNSET,
 ) -> ProductionShiftProduct:
     """Chỉnh sửa một công đoạn đã hoàn tất trên màn tổng kết — cập nhật thông tin + chia lại sản lượng."""
+    from reports.production_edit_log import (
+        diff_manager_changed_fields,
+        snapshot_production_session,
+    )
+
+    before_snap = snapshot_production_session(product)
     code = (product_code or '').strip()
     process = (process_name or '').strip()
     norm = parse_decimal(norm_per_hour)
@@ -823,8 +877,12 @@ def update_session_product(
     report = product.report
     if report.status == DailyWorkReport.STATUS_SUBMITTED:
         product.submitted_locked = False
-    if updated_by:
-        assign_product_updated_by(product, report, updated_by)
+    after_snap = snapshot_production_session(product)
+    changed_fields = diff_manager_changed_fields(before_snap, after_snap)
+    if updated_by and changed_fields:
+        assign_product_updated_by(
+            product, report, updated_by, changed_fields=changed_fields,
+        )
     product.save()
     return product
 
@@ -1221,8 +1279,12 @@ def _ordered_hourly_entries(product: ProductionShiftProduct) -> list:
     return sorted(product.hourly_entries.all(), key=lambda e: e.slot_index or 0)
 
 
-def _product_efficiency_pct(product: ProductionShiftProduct) -> float | None:
-    """Hiệu suất gốc theo mã hàng — chưa cộng hiệu suất bù."""
+def _product_countable_qty_hours(
+    product: ProductionShiftProduct,
+) -> tuple[Decimal, Decimal] | None:
+    """SL và giờ dùng để tính HS 1 công đoạn. None nếu không tính được."""
+    if _product_is_zero_reason_only(product):
+        return None
     norm = product.norm_per_hour
     if not norm or norm <= 0:
         return None
@@ -1250,14 +1312,36 @@ def _product_efficiency_pct(product: ProductionShiftProduct) -> float | None:
             qty = entry.quantity
             if qty > 0:
                 product_hours += _entry_hours(entry)
-    prod_expected = norm * product_hours
-    if prod_expected > 0:
-        return float((prod_qty / prod_expected * 100).quantize(Decimal('0.01')))
-    return None
+    if product_hours <= 0:
+        return None
+    return prod_qty, product_hours
+
+
+def _product_efficiency_and_hours(
+    product: ProductionShiftProduct,
+) -> tuple[float, Decimal] | None:
+    """HS công đoạn (%) và giờ dùng để trọng số. None nếu không tính được."""
+    parts = _product_countable_qty_hours(product)
+    if parts is None:
+        return None
+    prod_qty, product_hours = parts
+    prod_expected = product.norm_per_hour * product_hours
+    if prod_expected <= 0:
+        return None
+    pct = float((prod_qty / prod_expected * 100).quantize(Decimal('0.01')))
+    return pct, product_hours
+
+
+def _product_efficiency_pct(product: ProductionShiftProduct) -> float | None:
+    """Hiệu suất theo mã hàng — SL / (định mức × giờ) × 100."""
+    parts = _product_efficiency_and_hours(product)
+    if parts is None:
+        return None
+    return parts[0]
 
 
 def _product_efficiency_bonus_pct(product: ProductionShiftProduct) -> Decimal:
-    """Hiệu suất bù đã lưu — 0 nếu chưa nhập."""
+    """Hiệu suất bù đã lưu — 0 nếu chưa nhập. Không cộng vào cột hiệu suất."""
     raw = getattr(product, 'efficiency_bonus_pct', None)
     if raw is None:
         return Decimal('0')
@@ -1267,8 +1351,8 @@ def _product_efficiency_bonus_pct(product: ProductionShiftProduct) -> Decimal:
         return Decimal('0')
 
 
-def _apply_efficiency_bonus(base_pct: float | None, bonus) -> float | None:
-    """Hiệu suất giờ = hiệu suất gốc + hiệu suất bù."""
+def _efficiency_after_bonus_pct(base_pct: float | None, bonus) -> float | None:
+    """Hiệu suất sau khi bù = hiệu suất + bù hiệu suất."""
     if base_pct is None:
         return None
     try:
@@ -1278,66 +1362,6 @@ def _apply_efficiency_bonus(base_pct: float | None, bonus) -> float | None:
     if bonus_dec < 0:
         bonus_dec = Decimal('0')
     return float((Decimal(str(base_pct)) + bonus_dec).quantize(Decimal('0.01')))
-
-
-def _product_display_efficiency_pct(product: ProductionShiftProduct) -> float | None:
-    """Hiệu suất hiển thị theo mã hàng (gốc + bù)."""
-    return _apply_efficiency_bonus(
-        _product_efficiency_pct(product),
-        _product_efficiency_bonus_pct(product),
-    )
-
-
-def _product_work_hours_for_efficiency(product: ProductionShiftProduct) -> Decimal:
-    """Giờ công đoạn dùng khi cộng trọng số hiệu suất bù."""
-    if _product_is_zero_reason_only(product):
-        return Decimal('0')
-    norm = product.norm_per_hour
-    if not norm or norm <= 0:
-        return Decimal('0')
-    if not _product_has_positive_quantity(product):
-        return Decimal('0')
-    if is_session_reported_product(product) and product.started_at and product.ended_at:
-        return session_effective_hours(product)
-    hours = Decimal('0')
-    for entry in _ordered_hourly_entries(product):
-        if not _entry_is_filled(entry):
-            continue
-        if entry.slot_index < product.first_slot_index:
-            continue
-        qty = entry.quantity or Decimal('0')
-        if qty > 0:
-            hours += _entry_hours(entry)
-    return hours
-
-
-def _report_hours_weighted_bonus_pct(products: list[ProductionShiftProduct]) -> float:
-    """Trung bình trọng số theo giờ của hiệu suất bù các công đoạn có HS gốc."""
-    total_hours = Decimal('0')
-    weighted = Decimal('0')
-    for product in products:
-        if _product_efficiency_pct(product) is None:
-            continue
-        hours = _product_work_hours_for_efficiency(product)
-        if hours <= 0:
-            continue
-        bonus = _product_efficiency_bonus_pct(product)
-        total_hours += hours
-        weighted += bonus * hours
-    if total_hours <= 0:
-        return 0.0
-    return float((weighted / total_hours).quantize(Decimal('0.01')))
-
-
-def _report_quantity_efficiency_with_bonus(
-    products: list[ProductionShiftProduct],
-) -> float | None:
-    """Hiệu suất sản lượng đã cộng hiệu suất bù (trọng số theo giờ)."""
-    base = _report_overall_efficiency_pct(products)
-    if base is None:
-        return None
-    bonus = _report_hours_weighted_bonus_pct(products)
-    return _apply_efficiency_bonus(base, bonus)
 
 
 def _report_efficiency_totals(
@@ -1408,14 +1432,47 @@ def _zero_hour_step_label(product: ProductionShiftProduct) -> str:
     return process
 
 
+def _report_hours_weighted_stage_efficiency_pct(
+    products: list[ProductionShiftProduct],
+    *,
+    after_bonus: bool = False,
+) -> float | None:
+    """Trung bình HS công đoạn theo giờ: Σ(HS × giờ) / Σ giờ.
+
+    HS từng dòng đã là %, không nhân thêm 100.
+    """
+    weighted = Decimal('0')
+    total_hours = Decimal('0')
+    for product in products:
+        parts = _product_efficiency_and_hours(product)
+        if parts is None:
+            continue
+        pct, hours = parts
+        if after_bonus:
+            pct = _efficiency_after_bonus_pct(
+                pct, _product_efficiency_bonus_pct(product),
+            )
+            if pct is None:
+                continue
+        weighted += Decimal(str(pct)) * hours
+        total_hours += hours
+    if total_hours <= 0:
+        return None
+    return float((weighted / total_hours).quantize(Decimal('0.01')))
+
+
 def _report_overall_efficiency_pct(
     products: list[ProductionShiftProduct],
 ) -> float | None:
-    """Hiệu suất sản lượng — trọng số theo giờ: ΣSL / Σ(định mức × giờ)."""
-    total_qty, total_hours, total_expected = _report_efficiency_totals(products)
-    if total_expected <= 0 or total_hours <= 0:
-        return None
-    return float((total_qty / total_expected * 100).quantize(Decimal('0.01')))
+    """Hiệu suất sản lượng — trung bình HS công đoạn theo giờ (chưa bù)."""
+    return _report_hours_weighted_stage_efficiency_pct(products, after_bonus=False)
+
+
+def _report_support_quantity_efficiency_pct(
+    products: list[ProductionShiftProduct],
+) -> float | None:
+    """Phần sản lượng của HS hỗ trợ — trung bình HS sau khi bù theo giờ."""
+    return _report_hours_weighted_stage_efficiency_pct(products, after_bonus=True)
 
 
 def _combined_efficiency_pct(
@@ -1445,17 +1502,15 @@ def _work_item_from_entry(
     if zero_only:
         code = 'Sản lượng 0'
         process = _product_zero_reason(product) or '—'
-        base_efficiency_pct = None
         efficiency_pct = None
     else:
         code = (product.product_code or '').strip() or '—'
         process = (product.process_name or '').strip() or 'Chưa gắn mã'
-        base_efficiency_pct = (
+        efficiency_pct = (
             product_efficiency_pct
             if product_efficiency_pct is not None
             else _product_efficiency_pct(product)
         )
-        efficiency_pct = _apply_efficiency_bonus(base_efficiency_pct, bonus_pct)
     metrics = _slot_metrics_from_entry(
         product, entry, product_efficiency_pct=efficiency_pct,
     )
@@ -1470,7 +1525,7 @@ def _work_item_from_entry(
         'norm_per_hour': float(norm) if norm is not None else None,
         'hours': metrics['hours'],
         'hours_display': _format_hours(metrics['hours']),
-        'efficiency_base_pct': base_efficiency_pct,
+        'efficiency_base_pct': efficiency_pct,
         'efficiency_bonus_pct': bonus_pct if bonus_pct else None,
         'efficiency_pct': efficiency_pct,
         'damaged_quantity': entry.damaged_quantity or 0,
@@ -1672,10 +1727,13 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
     """Báo cáo năng suất theo từng khung giờ — dành cho quản lý xem."""
     shift = _shift_for_report(report)
     products = list(
-        report.production_products.prefetch_related(
-            'hourly_entries',
+        report.production_products.select_related(
             'updated_by',
             'updated_by__profile',
+            'updated_by_2',
+            'updated_by_2__profile',
+        ).prefetch_related(
+            'hourly_entries',
         ).order_by('sort_order', 'id')
     )
     product_order = {product.id: index for index, product in enumerate(products)}
@@ -1731,7 +1789,7 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
                 'ended_at_display': ended_display,
                 'damaged_quantity': 0,
                 'note': reason,
-                'updated_by_name': product_updated_by_display(product, report),
+                **product_update_display_payload(product, report),
                 'is_zero_reason_only': True,
             })
             continue
@@ -1759,10 +1817,9 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
 
             if qty > 0 and norm and norm > 0:
                 expected = norm * hours
-                slot_base = float(
+                efficiency_pct = float(
                     (Decimal(qty) / expected * 100).quantize(Decimal('0.01'))
                 )
-                efficiency_pct = _apply_efficiency_bonus(slot_base, bonus_pct)
                 prod_qty += qty
                 prod_hours += hours
                 prod_expected += expected
@@ -1809,12 +1866,12 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
                 'hours_display': _format_hours(prod_hours),
                 'efficiency_base_pct': base_eff,
                 'efficiency_bonus_pct': bonus_pct_float,
-                'efficiency_pct': _apply_efficiency_bonus(base_eff, bonus_pct),
+                'efficiency_pct': base_eff,
                 'started_at_display': started_display,
                 'ended_at_display': ended_display,
                 'damaged_quantity': product.total_damaged_quantity or 0,
                 'note': (product.completion_note or '').strip(),
-                'updated_by_name': product_updated_by_display(product, report),
+                **product_update_display_payload(product, report),
                 'is_zero_reason_only': False,
             })
         elif _product_should_appear_in_summary(product) and not _product_has_positive_quantity(product):
@@ -1836,17 +1893,24 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
                 'ended_at_display': ended_display,
                 'damaged_quantity': product.total_damaged_quantity or 0,
                 'note': (product.completion_note or '').strip() or reason,
-                'updated_by_name': product_updated_by_display(product, report),
+                **product_update_display_payload(product, report),
                 'is_zero_reason_only': True,
             })
 
     hourly_rows.sort(
         key=lambda row: (product_order.get(row['product_id'], 999), row['slot_index'])
     )
+    for row in product_summaries:
+        row['efficiency_after_bonus_pct'] = _efficiency_after_bonus_pct(
+            row.get('efficiency_pct'),
+            row.get('efficiency_bonus_pct'),
+        )
 
     total_qty, total_hours, total_expected = _report_efficiency_totals(productivity_products)
-    base_quantity_efficiency_pct = _report_overall_efficiency_pct(productivity_products)
-    overall_efficiency_pct = _report_quantity_efficiency_with_bonus(productivity_products)
+    overall_efficiency_pct = _report_overall_efficiency_pct(productivity_products)
+    support_quantity_efficiency_pct = _report_support_quantity_efficiency_pct(
+        productivity_products,
+    )
     overall_quantity_per_hour = None
     if total_hours > 0 and total_qty > 0:
         overall_quantity_per_hour = float(
@@ -1864,13 +1928,20 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
     work_timeline = build_work_day_timeline(report)
     day_times = compute_day_work_waste_summary(report, products)
     # Thẻ:
-    # - Hiệu suất thực / Hiệu suất sản lượng = ΣSL / Σ(ĐM×giờ) × 100 (chưa bù)
-    # - Hiệu suất tổng = HS thực + bù TB theo giờ
-    # - Hiệu suất thời gian = giờ thực tế / giờ khai báo × 100 (riêng)
-    quantity_efficiency_pct = base_quantity_efficiency_pct
+    # - Hiệu suất sản lượng = Σ(HS công đoạn × giờ) / tổng giờ (không cộng bù)
+    # - Hiệu suất thời gian = giờ thực tế / giờ khai báo × 100
+    # - Hiệu suất TB trong ngày = HS sản lượng × HS thời gian
+    # - Hiệu suất hỗ trợ = Σ(HS sau khi bù × giờ) / tổng giờ × HS thời gian
+    quantity_efficiency_pct = overall_efficiency_pct
     time_efficiency_pct = day_times['time_efficiency_pct']
-    base_avg_efficiency_pct = base_quantity_efficiency_pct
-    avg_efficiency_pct = overall_efficiency_pct
+    avg_efficiency_pct = _combined_efficiency_pct(
+        quantity_efficiency_pct,
+        time_efficiency_pct,
+    )
+    support_efficiency_pct = _combined_efficiency_pct(
+        support_quantity_efficiency_pct,
+        time_efficiency_pct,
+    )
     total_damaged = sum(int(product.total_damaged_quantity or 0) for product in products)
 
     return {
@@ -1885,9 +1956,8 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
         'overall_quantity_per_hour': overall_quantity_per_hour,
         'day_summary': {
             'avg_efficiency_pct': avg_efficiency_pct,
-            'base_avg_efficiency_pct': base_avg_efficiency_pct,
             'quantity_efficiency_pct': quantity_efficiency_pct,
-            'base_quantity_efficiency_pct': base_quantity_efficiency_pct,
+            'support_efficiency_pct': support_efficiency_pct,
             'time_efficiency_pct': time_efficiency_pct,
             'total_damaged': total_damaged,
             'total_damaged_display': format_production_quantity(total_damaged),
@@ -1933,6 +2003,12 @@ def update_production_product_fields(
     updated_by=None,
 ) -> int:
     """Quản lý chỉnh mã hàng, công đoạn, định mức trên báo cáo năng suất."""
+    from reports.production_edit_log import (
+        MANAGER_FIELD_CODE,
+        MANAGER_FIELD_NORM,
+        MANAGER_FIELD_PROCESS,
+    )
+
     norms_by_id = norms_by_id or {}
     codes_by_id = codes_by_id or {}
     processes_by_id = processes_by_id or {}
@@ -1946,23 +2022,45 @@ def update_production_product_fields(
         if not product:
             continue
         update_fields: list[str] = []
+        changed_fields: list[str] = []
         if product_id in codes_by_id:
-            product.product_code = str(codes_by_id[product_id] or '').strip()[:80]
-            update_fields.append('product_code')
+            new_code = str(codes_by_id[product_id] or '').strip()[:80]
+            if new_code != (product.product_code or '').strip():
+                product.product_code = new_code
+                update_fields.append('product_code')
+                changed_fields.append(MANAGER_FIELD_CODE)
         if product_id in processes_by_id:
-            product.process_name = str(processes_by_id[product_id] or '').strip()[:120]
-            update_fields.append('process_name')
+            new_process = str(processes_by_id[product_id] or '').strip()[:120]
+            if new_process != (product.process_name or '').strip():
+                product.process_name = new_process
+                update_fields.append('process_name')
+                changed_fields.append(MANAGER_FIELD_PROCESS)
         if product_id in norms_by_id:
             norm = norms_by_id[product_id]
             if norm is None or norm <= 0:
                 continue
-            product.norm_per_hour = Decimal(str(norm))
-            update_fields.append('norm_per_hour')
+            if product.norm_per_hour != Decimal(str(norm)):
+                product.norm_per_hour = Decimal(str(norm))
+                update_fields.append('norm_per_hour')
+                changed_fields.append(MANAGER_FIELD_NORM)
         if update_fields:
-            if updated_by:
-                assign_product_updated_by(product, report, updated_by)
-                update_fields.append('updated_by')
-            product.save(update_fields=update_fields)
+            if updated_by and changed_fields:
+                assign_product_updated_by(
+                    product, report, updated_by, changed_fields=changed_fields,
+                )
+                update_fields.extend([
+                    'updated_by',
+                    'updated_by_2',
+                    'manager_changed_fields',
+                ])
+            # Deduplicate update_fields while keeping order
+            seen: set[str] = set()
+            unique_fields = []
+            for field in update_fields:
+                if field not in seen:
+                    seen.add(field)
+                    unique_fields.append(field)
+            product.save(update_fields=unique_fields)
             updated_ids.add(int(product_id))
     return len(updated_ids)
 
@@ -2087,7 +2185,7 @@ def build_hourly_grid(report: DailyWorkReport, *, steps_editable: bool | None = 
         'has_unfinalized': any(r['is_unfinalized'] for r in rows),
         'shift': shift,
         'uses_session_reporting': bool(rows) and all(r['is_session_reported'] for r in rows),
-        'overall_efficiency_pct': _report_quantity_efficiency_with_bonus(productive),
+        'overall_efficiency_pct': _report_overall_efficiency_pct(productive),
         **_efficiency_cap_payload(),
     }
 
@@ -2167,7 +2265,7 @@ def build_proxy_entry_grid(report: DailyWorkReport) -> dict:
         'has_unfinalized': any(r['is_unfinalized'] for r in rows),
         'proxy_mode': True,
         'shift': shift,
-        'overall_efficiency_pct': _report_quantity_efficiency_with_bonus(productive),
+        'overall_efficiency_pct': _report_overall_efficiency_pct(productive),
         **_efficiency_cap_payload(),
     }
 
@@ -3131,6 +3229,8 @@ def _snapshot_from_prepared_proxy_item(item: dict) -> dict[str, str]:
         'norm': format_production_quantity(norm) if norm and norm > 0 else '—',
         'quantity': format_production_quantity(item.get('total') or 0),
         'damaged': str(max(0, int(item.get('damaged') or 0))),
+        'start': start_disp or '—',
+        'end': end_disp or '—',
         'time': f'{start_disp}–{end_disp}' if start_disp and end_disp else '—',
         'note': (item.get('note') or '').strip() or '—',
         'bonus': format_production_quantity(bonus) if bonus else '—',
@@ -3144,12 +3244,16 @@ def _build_proxy_product_meta(report: DailyWorkReport) -> dict[int, dict]:
     for product in report.production_products.all():
         meta[product.id] = {
             'updated_by_id': product.updated_by_id,
+            'updated_by_2_id': getattr(product, 'updated_by_2_id', None),
+            'manager_changed_fields': list(
+                getattr(product, 'manager_changed_fields', None) or []
+            ),
             'snapshot': snapshot_production_session(product),
         }
     return meta
 
 
-def _resolve_proxy_product_updated_by_id(
+def _resolve_proxy_product_update_meta(
     *,
     track_manager_updates: bool,
     user,
@@ -3157,19 +3261,52 @@ def _resolve_proxy_product_updated_by_id(
     product_id: int,
     old_meta: dict[int, dict],
     new_snap: dict[str, str],
-) -> int | None:
-    """Chỉ gán «Cập nhật» cho công đoạn mới hoặc có thay đổi nội dung."""
+) -> dict:
+    """Trả updated_by / updated_by_2 / manager_changed_fields khi lưu nhập hộ."""
+    from reports.production_edit_log import diff_manager_changed_fields
+
+    empty = {
+        'updated_by_id': None,
+        'updated_by_2_id': None,
+        'manager_changed_fields': [],
+    }
     if not track_manager_updates:
-        return None
+        return empty
     if not user or user.id == report.employee_id:
-        return None
+        return empty
+
     if product_id >= 0 and product_id in old_meta:
         old = old_meta[product_id]
-        if old['snapshot'] == new_snap:
-            return old.get('updated_by_id')
-        return user.id
-    return user.id
+        old_snap = old['snapshot']
+        if old_snap == new_snap:
+            return {
+                'updated_by_id': old.get('updated_by_id'),
+                'updated_by_2_id': old.get('updated_by_2_id'),
+                'manager_changed_fields': list(old.get('manager_changed_fields') or []),
+            }
+        fields = list(old.get('manager_changed_fields') or [])
+        for field in diff_manager_changed_fields(old_snap, new_snap):
+            if field not in fields:
+                fields.append(field)
+        first_id = old.get('updated_by_id')
+        second_id = old.get('updated_by_2_id')
+        if not first_id:
+            first_id = user.id
+        elif first_id != user.id:
+            if not second_id or second_id != user.id:
+                second_id = user.id
+        return {
+            'updated_by_id': first_id,
+            'updated_by_2_id': second_id,
+            'manager_changed_fields': fields,
+        }
 
+    # Công đoạn mới do quản lý thêm — ghi người cập nhật, chưa tô ô cụ thể.
+    return {
+        'updated_by_id': user.id,
+        'updated_by_2_id': None,
+        'manager_changed_fields': [],
+    }
 
 @transaction.atomic
 def save_proxy_shift_sessions(
@@ -3247,7 +3384,7 @@ def save_proxy_shift_sessions(
         indices = [idx for idx, _ in overlaps]
         first = indices[0]
         total_overlap_hours = sum((hours for _, hours in overlaps), Decimal('0'))
-        updated_by_id = _resolve_proxy_product_updated_by_id(
+        update_meta = _resolve_proxy_product_update_meta(
             track_manager_updates=track_manager_updates,
             user=user,
             report=report,
@@ -3270,7 +3407,9 @@ def save_proxy_shift_sessions(
             total_quantity=total,
             total_damaged_quantity=damaged,
             completion_note=note[:500],
-            updated_by_id=updated_by_id,
+            updated_by_id=update_meta['updated_by_id'],
+            updated_by_2_id=update_meta['updated_by_2_id'],
+            manager_changed_fields=update_meta['manager_changed_fields'],
         )
         sort_order += 1
 

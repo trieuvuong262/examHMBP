@@ -2718,6 +2718,8 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
             'production_products__hourly_entries',
             'production_products__updated_by',
             'production_products__updated_by__profile',
+            'production_products__updated_by_2',
+            'production_products__updated_by_2__profile',
         ),
         pk=pk,
     )
