@@ -1863,16 +1863,14 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
 
     work_timeline = build_work_day_timeline(report)
     day_times = compute_day_work_waste_summary(report, products)
-    quantity_efficiency_pct = overall_efficiency_pct
+    # Thẻ:
+    # - Hiệu suất thực / Hiệu suất sản lượng = ΣSL / Σ(ĐM×giờ) × 100 (chưa bù)
+    # - Hiệu suất tổng = HS thực + bù TB theo giờ
+    # - Hiệu suất thời gian = giờ thực tế / giờ khai báo × 100 (riêng)
+    quantity_efficiency_pct = base_quantity_efficiency_pct
     time_efficiency_pct = day_times['time_efficiency_pct']
-    avg_efficiency_pct = _combined_efficiency_pct(
-        quantity_efficiency_pct,
-        time_efficiency_pct,
-    )
-    base_avg_efficiency_pct = _combined_efficiency_pct(
-        base_quantity_efficiency_pct,
-        time_efficiency_pct,
-    )
+    base_avg_efficiency_pct = base_quantity_efficiency_pct
+    avg_efficiency_pct = overall_efficiency_pct
     total_damaged = sum(int(product.total_damaged_quantity or 0) for product in products)
 
     return {

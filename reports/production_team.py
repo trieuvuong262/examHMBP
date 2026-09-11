@@ -857,11 +857,9 @@ def _weighted_efficiency_pct(reports: list[DailyWorkReport]) -> float | None:
 
 
 def report_overall_efficiency_pct(report) -> float | None:
-    """Hiệu suất TB 1 báo cáo — khớp day_summary.avg_efficiency_pct (đã gồm HS bù)."""
+    """Hiệu suất tổng 1 báo cáo — HS sản lượng đã gồm bù (không nhân HS thời gian)."""
     products = list_production_products(report)
-    quantity_pct = _report_quantity_efficiency_with_bonus(_products_for_productivity(products))
-    day_times = compute_day_work_waste_summary(report, products)
-    return _combined_efficiency_pct(quantity_pct, day_times.get('time_efficiency_pct'))
+    return _report_quantity_efficiency_with_bonus(_products_for_productivity(products))
 
 
 def _day_efficiency_pct(reports: list[DailyWorkReport]) -> float | None:
