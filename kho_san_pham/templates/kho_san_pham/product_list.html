@@ -182,6 +182,13 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
                                     <i class="bi bi-copy"></i>
                                 </a>
                                 {% endif %}
+                                {% if can_delete %}
+                                <a href="{% url 'kho_san_pham:product_delete' item.id %}"
+                                   class="btn btn-sm btn-outline-danger"
+                                   title="Xóa SKU">
+                                    <i class="bi bi-trash3"></i>
+                                </a>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
@@ -241,6 +248,13 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
                                    class="btn btn-sm btn-outline-secondary"
                                    title="Nhân bản — đổi màu/size">
                                     <i class="bi bi-copy"></i>
+                                </a>
+                                {% endif %}
+                                {% if can_delete %}
+                                <a href="{% url 'kho_san_pham:product_delete' variant.id %}"
+                                   class="btn btn-sm btn-outline-danger"
+                                   title="Xóa SKU">
+                                    <i class="bi bi-trash3"></i>
                                 </a>
                                 {% endif %}
                             </div>

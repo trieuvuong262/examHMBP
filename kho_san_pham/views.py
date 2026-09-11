@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Q
+from django.db.models.deletion import ProtectedError
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
@@ -522,21 +523,61 @@ def product_reactivate(request, pk: int):
     })
 
 
+def _product_delete_blockers(product: Product) -> list[str]:
+    """Chỉ xóa SKU chưa có phát sinh kho; tồn rỗng không chặn."""
+    checks = (
+        ('Sổ kho', product.ledger_entries),
+        ('Phiếu nhập', product.stock_receipt_lines),
+    )
+    blockers = [
+        f'{label}: {manager.count()}'
+        for label, manager in checks
+        if manager.exists()
+    ]
+    nonzero_balances = product.stock_balances.exclude(qty_on_hand=0).count()
+    if nonzero_balances:
+        blockers.append(f'Tồn kho: {nonzero_balances}')
+    return blockers
+
+
 @module_perm_required_methods(MODULE_KHO_SAN_PHAM, get='delete', post='delete')
 def product_delete(request, pk: int):
     product = get_object_or_404(Product, pk=pk)
-    if product.is_kv_synced:
-        messages.error(request, 'Không xóa thành phẩm đồng bộ từ KiotViet — hãy ngừng dùng.')
-        return redirect('kho_san_pham:product_detail', pk=product.pk)
+    blockers = _product_delete_blockers(product)
     if request.method == 'POST':
-        code = product.code
-        product.delete()
+        try:
+            with transaction.atomic():
+                product = get_object_or_404(
+                    Product.objects.select_for_update(),
+                    pk=pk,
+                )
+                blockers = _product_delete_blockers(product)
+                if blockers:
+                    messages.error(
+                        request,
+                        f'Không thể xóa {product.code} vì đã có dữ liệu phát sinh. '
+                        'Hãy dùng “Ngừng dùng” để giữ lịch sử.',
+                    )
+                    return redirect('kho_san_pham:product_detail', pk=product.pk)
+                code = product.code
+                image = product.image
+                product.stock_balances.filter(qty_on_hand=0).delete()
+                product.delete()
+                if image:
+                    transaction.on_commit(lambda: image.delete(save=False))
+        except ProtectedError:
+            messages.error(
+                request,
+                f'Không thể xóa {product.code} vì đang được dữ liệu khác sử dụng.',
+            )
+            return redirect('kho_san_pham:product_detail', pk=pk)
         messages.success(request, f'Đã xóa {code}.')
         return redirect('kho_san_pham:product_list')
     return render(request, 'kho_san_pham/product_confirm_delete.html', {
         **nav_context('products', user=request.user),
         **perm_context(request.user, 'products'),
         'product': product,
+        'delete_blockers': blockers,
     })
 
 
