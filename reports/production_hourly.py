@@ -24,6 +24,7 @@ from reports.production_slots import (
     due_slot_indices,
     normalize_shift,
     shift_break_intervals,
+    shift_break_intervals_minute_local,
     shift_contains_datetime,
     slot_by_index,
     slot_count_for_shift,
@@ -1041,10 +1042,36 @@ def session_time_displays(product: ProductionShiftProduct) -> tuple[str, str]:
     return start.strftime('%H:%M'), end.strftime('%H:%M')
 
 
+def _prefetched_sibling_products(product: ProductionShiftProduct) -> list | None:
+    """Công đoạn cùng báo cáo đã nạp sẵn qua prefetch — None nếu chưa nạp.
+
+    Dùng để tránh N+1: trang danh sách team prefetch
+    ``production_products__hourly_entries`` nên toàn bộ công đoạn của báo cáo đã
+    có trong bộ nhớ, không cần truy vấn EXISTS riêng cho từng công đoạn.
+    """
+    report = product._state.fields_cache.get('report')
+    if report is None:
+        return None
+    cache = getattr(report, '_prefetched_objects_cache', None) or {}
+    siblings = cache.get('production_products')
+    if siblings is None:
+        return None
+    return list(siblings)
+
+
 def _is_subsequent_timed_session_product(product: ProductionShiftProduct) -> bool:
     """True nếu còn công đoạn có mốc giờ đứng trước (theo sort_order, id)."""
     if not product.report_id or not product.pk:
         return False
+    siblings = _prefetched_sibling_products(product)
+    if siblings is not None:
+        key = (product.sort_order, product.id)
+        return any(
+            sibling.started_at
+            and sibling.ended_at
+            and (sibling.sort_order, sibling.id) < key
+            for sibling in siblings
+        )
     return product.report.production_products.filter(
         started_at__isnull=False,
         ended_at__isnull=False,
@@ -1071,9 +1098,9 @@ def session_effective_hours(product: ProductionShiftProduct) -> Decimal:
     minutes = Decimal(str((end - start).total_seconds() / 60))
     report_date = product.report.report_date
     shift = _shift_for_product(product)
-    for break_start, break_end in shift_break_intervals(report_date, shift):
-        local_break_start = timezone.localtime(break_start).replace(second=0, microsecond=0)
-        local_break_end = timezone.localtime(break_end).replace(second=0, microsecond=0)
+    for local_break_start, local_break_end in shift_break_intervals_minute_local(
+        report_date, shift,
+    ):
         overlap_start = max(start, local_break_start)
         overlap_end = min(end, local_break_end)
         if overlap_end > overlap_start:

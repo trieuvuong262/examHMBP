@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta
 from decimal import Decimal
+from functools import lru_cache
 from typing import Optional
 
 from django.utils import timezone
@@ -101,25 +102,36 @@ def slot_grid_meta(slot: ProductionHourlySlot) -> dict:
     }
 
 
+# Mốc giờ ca là hằng số theo (ngày, khung giờ) và luôn tính theo múi giờ công ty
+# (settings.TIME_ZONE). Trang danh sách team gọi hàng chục nghìn lần trên một
+# request nên memo hoá ở đây — `timezone.make_aware` là điểm nóng (~8µs/lần).
+@lru_cache(maxsize=8192)
 def _slot_start_dt(report_date, slot: ProductionHourlySlot) -> datetime:
     day = report_date + timedelta(days=slot.start_day_offset)
-    return timezone.make_aware(datetime.combine(day, slot.start))
+    return timezone.make_aware(
+        datetime.combine(day, slot.start), timezone.get_default_timezone(),
+    )
 
 
+@lru_cache(maxsize=8192)
 def _slot_end_dt(report_date, slot: ProductionHourlySlot) -> datetime:
     day = report_date + timedelta(days=slot.end_day_offset)
-    return timezone.make_aware(datetime.combine(day, slot.end))
+    return timezone.make_aware(
+        datetime.combine(day, slot.end), timezone.get_default_timezone(),
+    )
 
 
+@lru_cache(maxsize=2048)
 def _shift_window(report_date, shift: str | None) -> tuple[datetime, datetime]:
     slots = slots_for_shift(shift)
     return _slot_start_dt(report_date, slots[0]), _slot_end_dt(report_date, slots[-1])
 
 
+@lru_cache(maxsize=2048)
 def shift_break_intervals(
     report_date,
     shift: str | None,
-) -> list[tuple[datetime, datetime]]:
+) -> tuple[tuple[datetime, datetime], ...]:
     """Khoảng nghỉ cố định trong ca (vd. nghỉ trưa 12h–13h)."""
     slots = slots_for_shift(shift)
     intervals: list[tuple[datetime, datetime]] = []
@@ -128,7 +140,22 @@ def shift_break_intervals(
         gap_end = _slot_start_dt(report_date, slots[i + 1])
         if gap_end > gap_start:
             intervals.append((gap_start, gap_end))
-    return intervals
+    return tuple(intervals)
+
+
+@lru_cache(maxsize=2048)
+def shift_break_intervals_minute_local(
+    report_date,
+    shift: str | None,
+) -> tuple[tuple[datetime, datetime], ...]:
+    """Khoảng nghỉ ở giờ địa phương, cắt tới phút — dùng khi trừ giờ nghỉ ca."""
+    return tuple(
+        (
+            timezone.localtime(start).replace(second=0, microsecond=0),
+            timezone.localtime(end).replace(second=0, microsecond=0),
+        )
+        for start, end in shift_break_intervals(report_date, shift)
+    )
 
 
 def shift_contains_datetime(
