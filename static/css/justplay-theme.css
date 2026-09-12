@@ -6469,6 +6469,16 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
     opacity: 0.9;
 }
 
+.jp-sidebar-nested-toggle-main > span:not(.jp-sidebar-link-icon) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.jp-sidebar-nested-toggle-main .jp-sidebar-link-icon {
+    overflow: visible;
+}
+
 .jp-sidebar-nested-chevron {
     flex-shrink: 0;
     font-size: 0.72rem;

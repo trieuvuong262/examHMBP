@@ -87,22 +87,34 @@ DEPARTMENT_MODULE_LABELS = {
     MODULE_KPI: 'KPI',
 }
 
-# Gộp hiển thị ma trận nhóm quyền — một nhóm «Đào tạo» như sidebar.
-LEARNING_PERM_MATRIX_MODULES = frozenset({MODULE_TRAINING, MODULE_ASSESSMENT})
-LEARNING_PERM_MATRIX_SUBMENUS = (
+# Nhân sự + KPI + Đào tạo — Đào tạo/Kiểm tra là menu con trong nhóm Nhân sự.
+# Key module/submenu không đổi — chỉ gộp hiển thị sidebar + ma trận quyền.
+HRM_PERM_MATRIX_MODULES = frozenset({
+    MODULE_HRM, MODULE_KPI, MODULE_TRAINING, MODULE_ASSESSMENT,
+})
+HRM_PERM_MATRIX_SUBMENUS = (
+    (MODULE_HRM, 'users'),
+    (MODULE_HRM, 'locked_accounts'),
+    (MODULE_KPI, 'boards'),
+    (MODULE_KPI, 'summary'),
     (MODULE_TRAINING, 'lessons'),
     (MODULE_ASSESSMENT, 'exams'),
     (MODULE_TRAINING, 'manage'),
     (MODULE_ASSESSMENT, 'manage'),
 )
 
-# Nhân sự + KPI — KPI là menu con trong nhóm Nhân sự (sidebar + ma trận quyền).
-HRM_PERM_MATRIX_MODULES = frozenset({MODULE_HRM, MODULE_KPI})
-HRM_PERM_MATRIX_SUBMENUS = (
-    (MODULE_HRM, 'users'),
-    (MODULE_HRM, 'locked_accounts'),
-    (MODULE_KPI, 'boards'),
-    (MODULE_KPI, 'summary'),
+# Báo cáo + Công việc — một nhóm sidebar «Báo cáo & Công việc».
+WORK_PERM_MATRIX_MODULES = frozenset({MODULE_REPORTS, MODULE_TASKS})
+WORK_PERM_MATRIX_SUBMENUS = (
+    (MODULE_REPORTS, 'daily_cn'),
+    (MODULE_REPORTS, 'daily_cn_detail'),
+    (MODULE_REPORTS, 'report_stats'),
+    (MODULE_REPORTS, 'general_settings'),
+    (MODULE_REPORTS, 'daily_vp'),
+    (MODULE_REPORTS, 'daily_vp_detail'),
+    (MODULE_TASKS, 'personal'),
+    (MODULE_TASKS, 'project'),
+    (MODULE_TASKS, 'cross_dept'),
 )
 
 
@@ -121,15 +133,20 @@ DEPARTMENT_MENU_SECTIONS = [
         'modules': _visible_module_list([
             MODULE_ANNOUNCEMENTS,
             MODULE_RECRUITMENT,
-            MODULE_HRM,
-            MODULE_KPI,
-            MODULE_REPORTS,
-            MODULE_TASKS,
         ]),
     },
     {
-        'label': 'Đào tạo',
-        'modules': _visible_module_list([MODULE_TRAINING, MODULE_ASSESSMENT]),
+        'label': 'Báo cáo & Công việc',
+        'modules': _visible_module_list([MODULE_REPORTS, MODULE_TASKS]),
+    },
+    {
+        'label': 'Nhân sự',
+        'modules': _visible_module_list([
+            MODULE_HRM,
+            MODULE_KPI,
+            MODULE_TRAINING,
+            MODULE_ASSESSMENT,
+        ]),
     },
     {
         'label': 'Yêu cầu',

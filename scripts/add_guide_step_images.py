@@ -114,7 +114,7 @@ def transform_intro_sections(html: str, section_id: str) -> str:
     if section_id == 'gioi-thieu' and 'guide-step--illustrated' not in html:
         steps = [
             ('<p><strong>JustPlay Portal</strong> là cổng thông tin nội bộ. Menu chỉ hiện module bạn được phân quyền.</p>', 1),
-            ('<p>Các module phổ biến: Thông báo, Báo cáo, Đào tạo, Kiểm tra, Công việc, Tài liệu — tùy nhóm quyền của bạn.</p>', 2),
+            ('<p>Các module phổ biến: Thông báo, Nhân sự (gồm Đào tạo / Kiểm tra), Báo cáo & Công việc, Tài liệu — tùy nhóm quyền của bạn.</p>', 2),
             ('<p>Trang chủ hiển thị lời chào và các ô truy cập nhanh theo quyền.</p>', 3),
             ('<p>HR / IT thường có thêm: Nhân sự, Phân quyền, Quản trị hệ thống.</p>', 4),
         ]

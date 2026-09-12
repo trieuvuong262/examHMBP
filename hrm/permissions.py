@@ -8,7 +8,7 @@ Vai trò (Profile.role):
   DEPARTMENT_HEAD  — Trưởng phòng
   DIRECTOR         — Giám đốc (staff portal khi lưu Profile)
 
-Quản trị portal (menu Tuyển dụng, Đào tạo, Kiểm tra, Nhân sự):
+Quản trị portal (menu Tuyển dụng, Nhân sự gồm Đào tạo/Kiểm tra):
   is_staff — HR / IT / Giám đốc
 """
 
