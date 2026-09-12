@@ -177,6 +177,7 @@ def product_list(request):
 
     # Đánh dấu nhóm đã có hồ sơ thiết kế (theo mã SX / style)
     from django.db.models import Q
+    from hrm.module_permissions import MODULE_SAN_XUAT, user_can_update_module
     from san_xuat.models import ProductTechDoc
 
     candidate_codes: set[str] = set()
@@ -237,6 +238,8 @@ def product_list(request):
             search_query or status != 'all' or product_type or selected_order != 'code:desc'
         ),
         'expand_search_hits': bool(search_query),
+        'can_update_sx': user_can_update_module(request.user, MODULE_SAN_XUAT),
+        'list_next': request.get_full_path(),
     })
 
 
@@ -375,6 +378,13 @@ def product_detail(request, pk: int):
     })
 
 
+def _redirect_after_product_sync(request, product):
+    nxt = (request.POST.get('next') or '').strip()
+    if nxt.startswith('/kho-san-pham/danh-muc'):
+        return redirect(nxt)
+    return redirect('kho_san_pham:product_detail', pk=product.pk)
+
+
 @module_perm_required_methods(MODULE_KHO_SAN_PHAM, post='update')
 @require_POST
 def product_sync_tech_doc(request, pk: int):
@@ -384,12 +394,12 @@ def product_sync_tech_doc(request, pk: int):
     product = get_object_or_404(Product, pk=pk)
     if not user_can_update_module(request.user, MODULE_SAN_XUAT):
         messages.error(request, 'Cần quyền cập nhật Sản xuất để đồng bộ hồ sơ thiết kế.')
-        return redirect('kho_san_pham:product_detail', pk=product.pk)
+        return _redirect_after_product_sync(request, product)
     try:
         result = sync_tech_doc_from_catalog(product=product, user=request.user)
     except TechDocSyncError as exc:
         messages.error(request, str(exc))
-        return redirect('kho_san_pham:product_detail', pk=product.pk)
+        return _redirect_after_product_sync(request, product)
 
     bits = result.changed or ['dữ liệu danh mục']
     msg = (
@@ -412,7 +422,7 @@ def product_sync_tech_doc(request, pk: int):
         messages.warning(request, msg + ' — ' + '; '.join(result.warnings[:3]))
     else:
         messages.success(request, msg)
-    return redirect('kho_san_pham:product_detail', pk=product.pk)
+    return _redirect_after_product_sync(request, product)
 
 
 @module_perm_required_methods(MODULE_KHO_SAN_PHAM, get='create', post='create')
