@@ -146,19 +146,41 @@ def fill_tech_doc_display_images(docs) -> None:
             kv_ids.add(product.kiotviet_id)
 
     kv_images_by_id: dict[int, list[str]] = {}
-    if kv_ids:
+    kv_images_by_code: dict[str, list[str]] = {}
+    kv_codes = {
+        token
+        for product in products
+        for token in (
+            (product.code or '').strip(),
+            (product.kiotviet_code or '').strip(),
+        )
+        if token
+    }
+    kv_codes.update(codes)
+    if kv_ids or kv_codes:
         try:
             from kiotviet.models import KvProduct
         except ImportError:
             KvProduct = None
         if KvProduct is not None:
-            for row in KvProduct.objects.filter(
-                kiotviet_id__in=kv_ids, is_deleted=False,
-            ).only('kiotviet_id', 'image_urls'):
+            kv_q = Q()
+            if kv_ids:
+                kv_q |= Q(kiotviet_id__in=kv_ids)
+            if kv_codes:
+                kv_q |= Q(code__in=_lookup_code_set(kv_codes))
+            for row in KvProduct.objects.filter(kv_q, is_deleted=False).only(
+                'kiotviet_id', 'code', 'image_urls',
+            ):
                 bucket = kv_images_by_id.setdefault(row.kiotviet_id, [])
                 seen_kv: dict[str, bool] = {u: True for u in bucket}
                 for url in row.image_urls or []:
                     _append_unique_url(bucket, seen_kv, url)
+                kv_code = (row.code or '').strip()
+                if kv_code:
+                    code_bucket = kv_images_by_code.setdefault(kv_code.casefold(), [])
+                    seen_code = {u: True for u in code_bucket}
+                    for url in bucket:
+                        _append_unique_url(code_bucket, seen_code, url)
 
     for doc in docs:
         key = (doc.product_code or '').strip().casefold()
@@ -181,8 +203,17 @@ def fill_tech_doc_display_images(docs) -> None:
             if product.kiotviet_id:
                 for url in kv_images_by_id.get(product.kiotviet_id, []):
                     _append_unique_url(urls, seen, url)
+            for token in ((product.code or ''), (product.kiotviet_code or '')):
+                key = token.strip().casefold()
+                if key:
+                    for url in kv_images_by_code.get(key, []):
+                        _append_unique_url(urls, seen, url)
         if getattr(doc, 'kv_product_id', None):
             for url in kv_images_by_id.get(doc.kv_product_id, []):
+                _append_unique_url(urls, seen, url)
+        code_key = (doc.product_code or '').strip().casefold()
+        if code_key:
+            for url in kv_images_by_code.get(code_key, []):
                 _append_unique_url(urls, seen, url)
 
     _apply_galleries()

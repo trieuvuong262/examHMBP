@@ -134,7 +134,7 @@
     </form>
     {% endif %}
 
-    {% if gallery_images %}
+    {% if product_photos %}
     <div class="sx-desc-hero" id="sx-desc-hero"
          data-sx-gallery
          data-sx-gallery-title="{{ doc.product_name|default:doc.product_code }}"
@@ -143,22 +143,17 @@
          role="button"
          tabindex="0"
          aria-label="Xem ảnh lớn">
-        {% for img in gallery_images %}
-        {% if forloop.first %}
-        <img id="sx-desc-hero-img" src="{{ img.file_url }}" alt="{{ img.display_name }}">
-        {% endif %}
-        {% endfor %}
+        <img id="sx-desc-hero-img" src="{{ product_photos.0.url }}" alt="{{ product_photos.0.display_name }}">
     </div>
-    <div class="sx-desc-gallery{% if can_update %} is-sortable{% endif %}" id="sx-desc-gallery"
+    <div class="sx-desc-gallery{% if can_update and gallery_images %} is-sortable{% endif %}" id="sx-desc-gallery"
          data-reorder-url="{{ request.path }}?tab=info">
-        {% for img in gallery_images %}
-        {% if img.is_image %}
-        <div class="sx-desc-gallery-item{% if forloop.first %} is-active{% endif %}" data-file-id="{{ img.pk }}">
+        {% for img in product_photos %}
+        <div class="sx-desc-gallery-item{% if forloop.first %} is-active{% endif %}"{% if img.pk %} data-file-id="{{ img.pk }}"{% endif %}>
             <button type="button" class="sx-desc-thumb" data-sx-desc-thumb
                     aria-label="Xem {{ img.display_name }}">
-                <img src="{{ img.file_url }}" alt="{{ img.display_name }}">
+                <img src="{{ img.url }}" alt="{{ img.display_name }}">
             </button>
-            {% if can_update %}
+            {% if can_update and img.pk %}
             <form method="post" class="sx-desc-gallery-del-form"
                   onsubmit="return confirm('Xóa ảnh này?');">
                 {% csrf_token %}
@@ -171,7 +166,6 @@
             </form>
             {% endif %}
         </div>
-        {% endif %}
         {% endfor %}
     </div>
     {% else %}
@@ -235,9 +229,9 @@
   var csrf = document.querySelector('[name=csrfmiddlewaretoken]');
   var token = csrf ? csrf.value : '';
   var url = el.getAttribute('data-reorder-url') || (location.pathname + '?tab=info');
-  new Sortable(el, {
+    new Sortable(el, {
     animation: 160,
-    draggable: '.sx-desc-gallery-item',
+    draggable: '.sx-desc-gallery-item[data-file-id]',
     filter: '.sx-desc-gallery-del, .sx-desc-gallery-del-form',
     preventOnFilter: true,
     ghostClass: 'sortable-ghost',

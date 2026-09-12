@@ -105,6 +105,9 @@
               data-sx-gallery-images="{{ doc.display_image_urls_json }}"
               aria-label="Xem ảnh {{ doc.product_name|default:doc.product_code }}">
         <img src="{{ doc.display_image_url }}" alt="" class="jp-sx-doc-title-img rounded border">
+        {% if doc.display_image_urls|length > 1 %}
+        <span class="sx-doc-thumb-count">{{ doc.display_image_urls|length }}</span>
+        {% endif %}
       </button>
       {% endif %}
       <div class="jp-sx-doc-title-text">

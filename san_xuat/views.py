@@ -1426,14 +1426,12 @@ def doc_detail(request, pk):
     from django.urls import reverse
     from san_xuat.ie_models import SxOperationGroup, SxRouting
 
-    if tab in ('info', 'design'):
-        all_files = list(doc.design_files.select_related('uploaded_by').all())
-        design_files = [f for f in all_files if f.purpose != TechDocDesignFile.PURPOSE_GALLERY]
-        gallery_images = sorted(
-            [f for f in all_files if f.purpose == TechDocDesignFile.PURPOSE_GALLERY],
-            key=lambda f: (f.sort_order, f.uploaded_at, f.pk),
-        )
-        gallery_urls = [f.file_url for f in gallery_images if f.is_image and f.file_url]
+    all_files = list(doc.design_files.select_related('uploaded_by').all())
+    design_files = [f for f in all_files if f.purpose != TechDocDesignFile.PURPOSE_GALLERY]
+    gallery_images = sorted(
+        [f for f in all_files if f.purpose == TechDocDesignFile.PURPOSE_GALLERY],
+        key=lambda f: (f.sort_order, f.uploaded_at, f.pk),
+    )
 
     bom_stock_map = {}
     bom_stock_map_json = '{}'
@@ -1573,12 +1571,24 @@ def doc_detail(request, pk):
     from san_xuat.services.products import fill_tech_doc_display_images
 
     doc.gallery_images = gallery_images
-    if tab in ('info', 'design'):
-        fill_tech_doc_display_images([doc])
-    else:
-        url = (doc.product_image_url or '').strip()
-        doc._display_image_url = url
-        doc._display_image_urls = [url] if url else []
+    fill_tech_doc_display_images([doc])
+    uploaded_by_url = {
+        (item.file_url or '').strip(): item
+        for item in gallery_images
+        if item.is_image and (item.file_url or '').strip()
+    }
+    product_photos = []
+    for url in doc.display_image_urls:
+        uploaded = uploaded_by_url.get(url)
+        product_photos.append({
+            'url': url,
+            'pk': uploaded.pk if uploaded else None,
+            'display_name': (
+                (uploaded.display_name if uploaded else '') or 'Ảnh sản phẩm'
+            ),
+            'is_uploaded': uploaded is not None,
+        })
+    gallery_urls = [item['url'] for item in product_photos]
 
     office_preview_ready = False
     if tab == 'design':
@@ -1621,7 +1631,8 @@ def doc_detail(request, pk):
         'design_files': design_files,
         'gallery_form': gallery_form,
         'gallery_images': gallery_images,
-        'gallery_urls_json': json.dumps(gallery_urls),
+        'product_photos': product_photos,
+        'gallery_urls_json': json.dumps(gallery_urls, ensure_ascii=False),
         'desc_form': desc_form,
         'bom_stock_map': bom_stock_map,
         'bom_stock_map_json': bom_stock_map_json,
