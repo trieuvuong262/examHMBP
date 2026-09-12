@@ -258,6 +258,16 @@ class ApproveTimeStudyResult:
     warnings: list[str] = field(default_factory=list)
 
 
+@dataclass
+class ReloadObSmvResult:
+    source: SxRouting
+    clone: SxRouting
+    n_updated: int = 0
+    n_unchanged: int = 0
+    n_missing: int = 0
+    n_applied_synced: int = 0
+
+
 def _next_routing_rev(style_code: str, preferred: str = 'R01') -> str:
     preferred = (preferred or 'R01').strip().upper() or 'R01'
     if not preferred.startswith('R'):
@@ -1193,6 +1203,142 @@ def clone_routing_revision(*, routing: SxRouting, user=None) -> SxRouting:
             variance_explanation=line.variance_explanation,
         )
     return clone
+
+
+def _smv_q(value) -> Decimal:
+    return Decimal(str(value or 0)).quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP)
+
+
+def _library_operation_for_line(line: SxRoutingLine) -> SxOperation | None:
+    op = line.operation
+    if op is not None:
+        return op
+    op = resolve_operation(line.op_code, line.op_rev)
+    if op is not None:
+        return op
+    return resolve_operation(line.op_code)
+
+
+def _sync_process_steps_after_smv_reload(
+    *,
+    source: SxRouting,
+    clone: SxRouting,
+    target_bom: BomVersion | None,
+) -> None:
+    if target_bom is None or target_bom.production_orders.exists():
+        return
+    if target_bom.routing_id != clone.pk:
+        target_bom.routing = clone
+        target_bom.save(update_fields=['routing', 'updated_at'])
+
+    old_by_seq = {}
+    for step in target_bom.process_steps.filter(routing_line__routing=source).select_related('routing_line').order_by('id'):
+        key = step.routing_line.seq_no if step.routing_line_id else step.sequence
+        old_by_seq.setdefault(key, step)
+    for new_line in clone.lines.order_by('seq_no', 'pk'):
+        smv = new_line.applied_unit_smv or new_line.library_unit_smv or Decimal('0')
+        norm = max(norm_per_hour_from_smv_seconds(smv), Decimal('0.01'))
+        std_minutes = (smv / Decimal('60')).quantize(Decimal('0.01')) if smv > 0 else Decimal('0')
+        old = old_by_seq.get(new_line.seq_no)
+        if old is not None:
+            old.routing_line = new_line
+            old.sequence = new_line.seq_no or old.sequence
+            old.operation = new_line.operation
+            old.op_code = (new_line.op_code or '')[:30]
+            old.process_name = (new_line.op_name_vi or new_line.op_code or old.process_name)[:120]
+            old.norm_per_hour = norm
+            old.std_time_minutes = std_minutes
+            old.work_center = new_line.work_center
+            old.save()
+            continue
+        ProcessStep.objects.update_or_create(
+            bom=target_bom,
+            routing_line=new_line,
+            defaults={
+                'sequence': new_line.seq_no or 10,
+                'process_name': (new_line.op_name_vi or new_line.op_code or '')[:120],
+                'operation': new_line.operation,
+                'op_code': (new_line.op_code or '')[:30],
+                'norm_per_hour': norm,
+                'cost_per_hour': Decimal('0'),
+                'std_time_minutes': std_minutes,
+                'work_center': new_line.work_center,
+                'notes': (new_line.notes or f'Routing {clone.routing_id}')[:255],
+            },
+        )
+
+
+@transaction.atomic
+def reload_ob_smv_from_library(
+    *,
+    routing: SxRouting,
+    user=None,
+    target_bom: BomVersion | None = None,
+) -> ReloadObSmvResult:
+    """Tạo REV OB mới và nạp SMV thư viện đã đổi — bản cũ giữ nguyên."""
+    if routing is None:
+        raise IeOpsError('Không tìm thấy phiên bản OB.')
+    lines = list(routing.lines.select_related('operation').order_by('seq_no', 'pk'))
+    if not lines:
+        raise IeOpsError('OB chưa có công đoạn để nạp SMV.')
+
+    updates: dict[int, tuple[Decimal, bool, SxOperation | None]] = {}
+    n_unchanged = 0
+    n_missing = 0
+    for line in lines:
+        op = _library_operation_for_line(line)
+        if op is None:
+            n_missing += 1
+            continue
+        new_lib = _smv_q(op.base_smv_min)
+        if new_lib <= 0:
+            n_missing += 1
+            continue
+        old_lib = _smv_q(line.library_unit_smv)
+        old_applied = _smv_q(line.applied_unit_smv)
+        if new_lib == old_lib:
+            n_unchanged += 1
+            continue
+        sync_applied = old_applied <= 0 or old_applied == old_lib
+        updates[line.pk] = (new_lib, sync_applied, op)
+
+    if not updates:
+        if n_missing and n_unchanged == 0:
+            raise IeOpsError(
+                'Không khớp được công đoạn OB với thư viện (hoặc SMV thư viện = 0).'
+            )
+        raise IeOpsError('SMV thư viện không đổi so với OB hiện tại — không tạo phiên bản mới.')
+
+    clone = clone_routing_revision(routing=routing, user=user)
+    clone.notes = f'Load SMV từ {routing.routing_id}'[:255]
+    clone.save(update_fields=['notes', 'updated_at'])
+
+    n_applied_synced = 0
+    clone_lines = list(clone.lines.select_related('operation').order_by('seq_no', 'pk'))
+    for source_line, clone_line in zip(lines, clone_lines):
+        change = updates.get(source_line.pk)
+        if change is None:
+            continue
+        new_lib, sync_applied, op = change
+        clone_line.library_unit_smv = new_lib
+        if op is not None and clone_line.operation_id != op.pk:
+            clone_line.operation = op
+            if op.op_rev:
+                clone_line.op_rev = op.op_rev
+        if sync_applied:
+            clone_line.applied_unit_smv = new_lib
+            n_applied_synced += 1
+        clone_line.save()
+
+    _sync_process_steps_after_smv_reload(source=routing, clone=clone, target_bom=target_bom)
+    return ReloadObSmvResult(
+        source=routing,
+        clone=clone,
+        n_updated=len(updates),
+        n_unchanged=n_unchanged,
+        n_missing=n_missing,
+        n_applied_synced=n_applied_synced,
+    )
 
 
 @transaction.atomic

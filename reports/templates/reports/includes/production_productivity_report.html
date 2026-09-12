@@ -63,12 +63,16 @@
                 <div class="jp-prod-day-summary-value{% if productivity.day_summary.has_waste %} text-warning-emphasis{% endif %}">{{ productivity.day_summary.waste_time_display }}</div>
             </div>
         </div>
-        {% if productivity.day_summary.support_efficiency_pct is not None and productivity.day_summary.support_efficiency_pct != productivity.day_summary.avg_efficiency_pct %}
+        {% if productivity.has_efficiency_bonus %}
         <div class="col">
             <div class="jp-prod-day-summary-card h-100">
                 <div class="jp-prod-day-summary-label">Hiệu suất hỗ trợ</div>
                 <div class="jp-prod-day-summary-value">
+                    {% if productivity.day_summary.support_efficiency_pct is not None %}
                     <span class="jp-eff {{ productivity.day_summary.support_efficiency_pct|summary_efficiency_class }}">{{ productivity.day_summary.support_efficiency_pct|efficiency_pct_display:2 }}%</span>
+                    {% else %}
+                    <span class="text-muted">—</span>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -95,7 +99,9 @@
                     <th>Ghi chú</th>
                     <th>Cập nhật</th>
                     <th class="text-end">Bù hiệu suất</th>
+                    {% if productivity.has_efficiency_bonus %}
                     <th class="text-end">Hiệu suất hỗ trợ</th>
+                    {% endif %}
                 </tr>
             </thead>
             <tbody>
@@ -142,6 +148,7 @@
                         <span class="text-muted">—</span>
                         {% endif %}
                     </td>
+                    {% if productivity.has_efficiency_bonus %}
                     <td class="text-end jp-prod-eff-cell">
                         {% if row.efficiency_after_bonus_pct is not None %}
                         <span class="jp-eff {{ row.efficiency_after_bonus_pct|summary_efficiency_class }}">{{ row.efficiency_after_bonus_pct|efficiency_pct_display:2 }}%</span>
@@ -149,6 +156,7 @@
                         <span class="jp-eff is-none">—</span>
                         {% endif %}
                     </td>
+                    {% endif %}
                 </tr>
                 {% endfor %}
             </tbody>
@@ -206,8 +214,9 @@
                             <span class="jp-frac-plain">Thời gian làm việc − Thời gian thực tế</span>
                         </div>
                     </div>
+                    {% if productivity.has_efficiency_bonus %}
                     <div class="jp-prod-formula-item">
-                        <div class="jp-prod-formula-name">Hiệu suất hỗ trợ <span class="jp-prod-formula-hint">(chỉ hiện khi khác HS TB)</span></div>
+                        <div class="jp-prod-formula-name">Hiệu suất hỗ trợ</div>
                         <div class="jp-prod-formula-eq" aria-label="Trung bình HS hỗ trợ theo giờ nhân hiệu suất thời gian chia 100">
                             <span class="jp-frac">
                                 <span class="jp-frac-num">HS hỗ trợ<sub>1</sub> × giờ<sub>1</sub> + HS hỗ trợ<sub>2</sub> × giờ<sub>2</sub> + …</span>
@@ -220,6 +229,7 @@
                             </span>
                         </div>
                     </div>
+                    {% endif %}
                 </div>
                 <div class="jp-prod-formula-group">
                     <div class="jp-prod-formula-group-title">Cột trên bảng</div>
@@ -234,12 +244,14 @@
                             <span class="jp-frac-plain">100</span>
                         </div>
                     </div>
+                    {% if productivity.has_efficiency_bonus %}
                     <div class="jp-prod-formula-item">
                         <div class="jp-prod-formula-name">Hiệu suất hỗ trợ</div>
                         <div class="jp-prod-formula-eq">
                             <span class="jp-frac-plain">Hiệu suất + Bù hiệu suất</span>
                         </div>
                     </div>
+                    {% endif %}
                 </div>
             </div>
         </div>

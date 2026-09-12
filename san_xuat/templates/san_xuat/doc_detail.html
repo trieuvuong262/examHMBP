@@ -126,31 +126,58 @@
         </a>
         {% endif %}
       {% endif %}
-      {% if can_update and can_paste_clipboard %}
-      <form method="post" class="d-inline" data-loading-message="Đang dán BOM + OB…"
-            onsubmit="return confirm('Dán đè BOM + OB đã copy từ {{ doc_clipboard.source_code|escapejs }} vào hồ sơ này?');">
+      {% if tab == 'bom' %}
+      {% if can_update and can_paste_bom %}
+      <form method="post" class="d-inline" data-loading-message="Đang dán BOM…"
+            onsubmit="return confirm('Dán đè BOM đã copy từ {{ bom_clipboard.source_code|escapejs }} ({{ bom_clipboard.bom_label|escapejs }}) vào hồ sơ này? OB không bị đè.');">
         {% csrf_token %}
-        <input type="hidden" name="action" value="paste_bom_ob">
-        {% if process_routing %}<input type="hidden" name="routing_id" value="{{ process_routing.pk }}">{% endif %}
+        <input type="hidden" name="action" value="paste_bom">
+        {% if bom %}<input type="hidden" name="bom_id" value="{{ bom.pk }}">{% endif %}
         <button type="submit" class="btn btn-sm btn-hm fw-bold"
-                title="Dán đè từ {{ doc_clipboard.source_code }} — BOM {{ doc_clipboard.bom_label }} / OB {{ doc_clipboard.routing_rev }}">
-          <i class="bi bi-clipboard-check me-1"></i>Dán đè
+                title="Dán đè BOM từ {{ bom_clipboard.source_code }} — {{ bom_clipboard.bom_label }} ({{ bom_clipboard.n_bom_lines }} NPL). Không đè OB.">
+          <i class="bi bi-clipboard-check me-1"></i>Dán BOM
         </button>
       </form>
       {% endif %}
-      {% if tab == 'bom' or tab == 'process' %}
-      {% if can_update and bom or can_update and process_routing %}
-      <form method="post" class="d-inline" id="jpCopyBomObForm" data-skip-page-loading="1">
+      {% if can_update and bom %}
+      <form method="post" class="d-inline" id="jpCopyDocForm" data-skip-page-loading="1">
         {% csrf_token %}
-        <input type="hidden" name="action" value="copy_bom_ob">
+        <input type="hidden" name="action" value="copy_bom">
+        <input type="hidden" name="bom_id" value="{{ bom.pk }}">
+        <button type="submit" class="btn btn-sm btn-outline-hm fw-bold" id="jpCopyDocBtn"
+                title="Sao chép BOM đang xem, rồi mở hồ sơ khác (tab BOM) và bấm Dán BOM">
+          <i class="bi bi-clipboard me-1"></i>Sao chép BOM
+        </button>
+      </form>
+      {% endif %}
+      {% elif tab == 'process' %}
+      {% if can_update and can_paste_ob %}
+      <form method="post" class="d-inline" data-loading-message="Đang dán OB…"
+            onsubmit="return confirm('Dán đè OB đã copy từ {{ ob_clipboard.source_code|escapejs }} ({{ ob_clipboard.routing_rev|escapejs }}) vào hồ sơ này? BOM không bị đè.');">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="paste_ob">
         {% if process_routing %}<input type="hidden" name="routing_id" value="{{ process_routing.pk }}">{% endif %}
         {% if bom %}<input type="hidden" name="bom_id" value="{{ bom.pk }}">{% endif %}
-        <button type="submit" class="btn btn-sm btn-outline-hm fw-bold" id="jpCopyBomObBtn"
-                title="Sao chép BOM + OB đang xem, rồi mở hồ sơ khác và bấm Dán đè">
-          <i class="bi bi-clipboard me-1"></i>Sao chép
+        <button type="submit" class="btn btn-sm btn-hm fw-bold"
+                title="Dán đè OB từ {{ ob_clipboard.source_code }} — {{ ob_clipboard.routing_rev }} ({{ ob_clipboard.n_ob_lines }} công đoạn). Không đè BOM.">
+          <i class="bi bi-clipboard-check me-1"></i>Dán OB
         </button>
       </form>
       {% endif %}
+      {% if can_update and process_routing %}
+      <form method="post" class="d-inline" id="jpCopyDocForm" data-skip-page-loading="1">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="copy_ob">
+        <input type="hidden" name="routing_id" value="{{ process_routing.pk }}">
+        {% if bom %}<input type="hidden" name="bom_id" value="{{ bom.pk }}">{% endif %}
+        <button type="submit" class="btn btn-sm btn-outline-hm fw-bold" id="jpCopyDocBtn"
+                title="Sao chép OB đang xem, rồi mở hồ sơ khác (tab OB) và bấm Dán OB">
+          <i class="bi bi-clipboard me-1"></i>Sao chép OB
+        </button>
+      </form>
+      {% endif %}
+      {% endif %}
+      {% if tab == 'bom' or tab == 'process' %}
       <button type="button" class="btn btn-sm btn-outline-secondary fw-bold"
               data-bs-toggle="modal" data-bs-target="#jpAuditModal">
         <i class="bi bi-clock-history me-1"></i>Lịch sử
@@ -300,9 +327,22 @@
     {% empty %}
     <span class="text-muted small">Chưa có phiên bản</span>
     {% endfor %}
-    {% if can_update and edit_mode %}
+    {% if can_update and process_routing or can_update and edit_mode %}
     <div class="jp-sx-bom-ver-actions">
       {% if process_routing %}
+      <form method="post"
+            onsubmit="return confirm('Nạp SMV mới từ thư viện công đoạn và tạo phiên bản OB cao hơn (hiện tại {{ process_routing.routing_rev|escapejs }})? Bản cũ được giữ nguyên.');"
+            data-loading-message="Đang nạp SMV từ thư viện…">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="load_ob_smv">
+        <input type="hidden" name="routing_id" value="{{ process_routing.pk }}">
+        {% if bom %}<input type="hidden" name="bom_id" value="{{ bom.pk }}">{% endif %}
+        <button type="submit" class="btn btn-outline-hm btn-sm fw-bold"
+                title="Cập nhật SMV đã đổi từ thư viện và tạo phiên bản OB mới">
+          <i class="bi bi-arrow-repeat me-1"></i>Load SMV
+        </button>
+      </form>
+      {% if edit_mode %}
       <form method="post" class="jp-sx-version-status">
         {% csrf_token %}
         <input type="hidden" name="action" value="save_ob_status">
@@ -328,10 +368,13 @@
         </button>
       </form>
       {% endif %}
+      {% endif %}
+      {% if edit_mode %}
       <button type="button" class="btn btn-hm btn-sm fw-bold"
               data-bs-toggle="modal" data-bs-target="#jpNewObVersionModal">
         <i class="bi bi-plus-lg me-1"></i>Phiên bản mới
       </button>
+      {% endif %}
     </div>
     {% endif %}
   </div>
@@ -434,11 +477,11 @@
 {% endif %}
 <script>
 (function () {
-  var form = document.getElementById('jpCopyBomObForm');
+  var form = document.getElementById('jpCopyDocForm');
   if (!form) return;
   form.addEventListener('submit', function (e) {
     e.preventDefault();
-    var btn = document.getElementById('jpCopyBomObBtn');
+    var btn = document.getElementById('jpCopyDocBtn');
     var html = btn ? btn.innerHTML : '';
     if (btn) {
       btn.disabled = true;

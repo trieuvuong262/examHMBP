@@ -1907,6 +1907,11 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
             row.get('efficiency_bonus_pct'),
         )
 
+    has_efficiency_bonus = any(
+        float(row.get('efficiency_bonus_pct') or 0) > 0
+        for row in product_summaries
+    )
+
     total_qty, total_hours, total_expected = _report_efficiency_totals(productivity_products)
     overall_efficiency_pct = _report_overall_efficiency_pct(productivity_products)
     support_quantity_efficiency_pct = _report_support_quantity_efficiency_pct(
@@ -1958,7 +1963,7 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
         'day_summary': {
             'avg_efficiency_pct': avg_efficiency_pct,
             'quantity_efficiency_pct': quantity_efficiency_pct,
-            'support_efficiency_pct': support_efficiency_pct,
+            'support_efficiency_pct': support_efficiency_pct if has_efficiency_bonus else None,
             'time_efficiency_pct': time_efficiency_pct,
             'total_damaged': total_damaged,
             'total_damaged_display': format_production_quantity(total_damaged),
@@ -1968,7 +1973,9 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
             ),
             'waste_time_display': day_times['waste_minutes_display'],
             'has_waste': day_times['has_waste'],
+            'has_efficiency_bonus': has_efficiency_bonus,
         },
+        'has_efficiency_bonus': has_efficiency_bonus,
         'employee_name': employee_name,
         'department_name': department_name,
         'report_date': report.report_date,

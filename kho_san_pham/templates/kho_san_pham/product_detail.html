@@ -160,6 +160,17 @@
                     <a href="{% url 'san_xuat:doc_detail' tech_doc.pk %}" class="btn btn-outline-hm btn-sm fw-bold">
                         <i class="bi bi-folder2-open me-1"></i>Xem hồ sơ
                     </a>
+                    {% if can_update and can_update_sx %}
+                    <form method="post" action="{% url 'kho_san_pham:product_sync_tech_doc' product.pk %}" class="d-inline"
+                          onsubmit="return confirm('Đồng bộ tên, ảnh, mã style, nhóm hàng, đơn vị, SKU, màu, size, mô tả từ danh mục sang hồ sơ {{ tech_doc.product_code|escapejs }}?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-hm btn-sm fw-bold"
+                                title="Cập nhật hồ sơ thiết kế theo danh mục sản phẩm"
+                                data-loading-message="Đang đồng bộ hồ sơ thiết kế…">
+                            <i class="bi bi-arrow-repeat me-1"></i>Đồng bộ
+                        </button>
+                    </form>
+                    {% endif %}
                     {% if can_create_sx %}
                     <a href="{% url 'san_xuat:dispatch_mo_create' %}?product={{ sx_code|urlencode }}"
                        class="btn btn-hm btn-sm fw-bold"

@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 
+from django.db import transaction
 from django.db.models import Q
 
 
@@ -834,6 +835,209 @@ def resolve_gc_out_item(raw: str) -> tuple[str, str, str]:
     if ref:
         return ref.code, ref.name, 'cái'
     raise ValueError(f'Không tìm thấy NPL / BTP {value}.')
+
+
+class TechDocSyncError(Exception):
+    pass
+
+
+@dataclass
+class TechDocSyncResult:
+    doc: object
+    changed: list[str]
+    sku_created: int = 0
+    sku_updated: int = 0
+    sku_linked: int = 0
+    sku_retired: int = 0
+    warnings: list[str] = field(default_factory=list)
+
+
+def _catalog_style_products(product):
+    from kho_san_pham.models import Product
+
+    style = _norm(getattr(product, 'style_code', None) or getattr(product, 'code', None))
+    if style:
+        siblings = list(
+            Product.objects.filter(style_code__iexact=style).order_by(
+                'color_code', 'size_label', 'code',
+            )
+        )
+        if siblings:
+            return style, siblings
+    return style or _norm(getattr(product, 'code', None)), [product]
+
+
+def _catalog_style_name(style: str, product) -> str:
+    name = ''
+    if style:
+        try:
+            from kho_san_pham.models import ProductStyle
+
+            row = ProductStyle.objects.filter(code__iexact=style).first()
+            if row:
+                name = (row.name or '').strip()
+        except Exception:
+            name = ''
+    if not name:
+        name = (getattr(product, 'name', None) or getattr(product, 'full_name', None) or '').strip()
+    return name
+
+
+@transaction.atomic
+def sync_tech_doc_from_catalog(*, product, user=None) -> TechDocSyncResult:
+    """Đẩy tên/ảnh/mã style/mô tả/SKU từ danh mục kho SP sang hồ sơ thiết kế."""
+    from san_xuat.hub_models import SxSku
+    from san_xuat.models import ProductTechDoc
+    from san_xuat.services.sku_catalog import (
+        COLOR_NONE,
+        SkuError,
+        get_or_create_sku,
+        normalize_style,
+        normalize_token,
+    )
+
+    if product is None:
+        raise TechDocSyncError('Không tìm thấy sản phẩm danh mục.')
+    doc = find_tech_doc_for_product(product)
+    if doc is None:
+        raise TechDocSyncError(
+            'Chưa có hồ sơ thiết kế cho mã này. Tạo hồ sơ trước rồi bấm Đồng bộ.'
+        )
+
+    style, siblings = _catalog_style_products(product)
+    name = _catalog_style_name(style, product)
+    image = ''
+    description = (product.description or '').strip()
+    kv_id = getattr(product, 'kiotviet_id', None)
+    for item in siblings:
+        if not image:
+            image = (getattr(item, 'display_image_url', None) or '').strip()
+        if not description:
+            description = (item.description or '').strip()
+        if not kv_id:
+            kv_id = item.kiotviet_id
+
+    changed: list[str] = []
+    fields: list[str] = []
+    warnings: list[str] = []
+
+    if style and style.casefold() != (doc.product_code or '').strip().casefold():
+        clash = (
+            ProductTechDoc.objects.filter(product_code__iexact=style)
+            .exclude(pk=doc.pk)
+            .exists()
+        )
+        if clash:
+            warnings.append(f'Mã style {style} đã gắn hồ sơ khác — giữ {doc.product_code}.')
+        else:
+            doc.product_code = style[:60]
+            fields.append('product_code')
+            changed.append('Mã style')
+
+    if name and name != (doc.product_name or '').strip():
+        doc.product_name = name[:255]
+        fields.append('product_name')
+        changed.append('Tên')
+
+    if image and image != (doc.product_image_url or '').strip():
+        doc.product_image_url = image[:500]
+        fields.append('product_image_url')
+        changed.append('Ảnh')
+
+    if description and description != (doc.description or '').strip():
+        doc.description = description
+        fields.append('description')
+        changed.append('Mô tả')
+
+    if kv_id and kv_id != doc.kv_product_id:
+        doc.kv_product_id = kv_id
+        fields.append('kv_product_id')
+
+    if fields:
+        fields.append('updated_at')
+        doc.save(update_fields=fields)
+
+    sku_created = sku_updated = sku_linked = 0
+    matched_ids: set[int] = set()
+    style_for_sku = (doc.product_code or style or '').strip()
+    for item in siblings:
+        size = (item.size_label or '').strip()
+        if not size:
+            continue
+        style_n = normalize_style(style_for_sku)
+        color_n = normalize_token(item.color_code) if item.color_code else COLOR_NONE
+        size_n = normalize_token(size)
+        sex = normalize_token(item.gender, max_len=10)
+        existed = SxSku.objects.filter(
+            style_code__iexact=style_n,
+            color_code__iexact=color_n,
+            size_label__iexact=size_n,
+            gender=sex,
+        ).exists() or SxSku.objects.filter(sku_code__iexact=item.code).exists()
+        try:
+            sku = get_or_create_sku(
+                style_code=style_for_sku,
+                color_code=item.color_code,
+                size_label=size,
+                color_label=item.color_label,
+                style_name=name,
+                sku_code=item.code,
+                gender=item.gender,
+                user=user,
+            )
+        except SkuError as exc:
+            warnings.append(str(exc))
+            continue
+        matched_ids.add(sku.pk)
+        sku_fields: list[str] = []
+        if name and sku.style_name != name[:255]:
+            sku.style_name = name[:255]
+            sku_fields.append('style_name')
+        catalog_sku = (item.code or '').strip().upper()
+        if catalog_sku and sku.sku_code.upper() != catalog_sku:
+            clash_sku = SxSku.objects.filter(sku_code__iexact=catalog_sku).exclude(pk=sku.pk).exists()
+            if not clash_sku:
+                sku.sku_code = catalog_sku[:100]
+                sku_fields.append('sku_code')
+        if sku_fields:
+            sku.save(update_fields=sku_fields)
+        if not existed:
+            sku_created += 1
+        elif sku_fields:
+            sku_updated += 1
+        if item.sx_sku_id != sku.pk:
+            item.sx_sku = sku
+            item.save(update_fields=['sx_sku'])
+            sku_linked += 1
+
+    sku_retired = 0
+    if style_for_sku and matched_ids:
+        sku_retired = (
+            SxSku.objects.filter(style_code__iexact=style_for_sku, is_active=True)
+            .exclude(pk__in=matched_ids)
+            .update(is_active=False)
+        )
+
+    if sku_created or sku_updated or sku_linked or sku_retired:
+        changed.append('SKU / màu / size')
+    changed.append('Nhóm hàng / đơn vị')
+
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for label in changed:
+        if label not in seen:
+            seen.add(label)
+            ordered.append(label)
+
+    return TechDocSyncResult(
+        doc=doc,
+        changed=ordered,
+        sku_created=sku_created,
+        sku_updated=sku_updated,
+        sku_linked=sku_linked,
+        sku_retired=sku_retired,
+        warnings=warnings,
+    )
 
 
 # --- Aliases tương thích API cũ (trước đây lấy từ KiotViet) ---

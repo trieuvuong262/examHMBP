@@ -346,6 +346,7 @@ def product_detail(request, pk: int):
     from hrm.module_permissions import (
         MODULE_SAN_XUAT,
         user_can_create_module,
+        user_can_update_module,
         user_can_view_module,
     )
     from san_xuat.services.bom import get_working_bom
@@ -370,7 +371,48 @@ def product_detail(request, pk: int):
         'sx_code': sx_code,
         'can_view_sx': user_can_view_module(request.user, MODULE_SAN_XUAT),
         'can_create_sx': user_can_create_module(request.user, MODULE_SAN_XUAT),
+        'can_update_sx': user_can_update_module(request.user, MODULE_SAN_XUAT),
     })
+
+
+@module_perm_required_methods(MODULE_KHO_SAN_PHAM, post='update')
+@require_POST
+def product_sync_tech_doc(request, pk: int):
+    from hrm.module_permissions import MODULE_SAN_XUAT, user_can_update_module
+    from san_xuat.services.products import TechDocSyncError, sync_tech_doc_from_catalog
+
+    product = get_object_or_404(Product, pk=pk)
+    if not user_can_update_module(request.user, MODULE_SAN_XUAT):
+        messages.error(request, 'Cần quyền cập nhật Sản xuất để đồng bộ hồ sơ thiết kế.')
+        return redirect('kho_san_pham:product_detail', pk=product.pk)
+    try:
+        result = sync_tech_doc_from_catalog(product=product, user=request.user)
+    except TechDocSyncError as exc:
+        messages.error(request, str(exc))
+        return redirect('kho_san_pham:product_detail', pk=product.pk)
+
+    bits = result.changed or ['dữ liệu danh mục']
+    msg = (
+        f'Đã đồng bộ hồ sơ {result.doc.product_code}: '
+        + ', '.join(bits)
+        + '.'
+    )
+    extra = []
+    if result.sku_created:
+        extra.append(f'thêm {result.sku_created} SKU')
+    if result.sku_updated:
+        extra.append(f'cập nhật {result.sku_updated} SKU')
+    if result.sku_linked:
+        extra.append(f'gắn {result.sku_linked} SKU')
+    if result.sku_retired:
+        extra.append(f'ngừng {result.sku_retired} SKU cũ')
+    if extra:
+        msg += ' (' + '; '.join(extra) + ')'
+    if result.warnings:
+        messages.warning(request, msg + ' — ' + '; '.join(result.warnings[:3]))
+    else:
+        messages.success(request, msg)
+    return redirect('kho_san_pham:product_detail', pk=product.pk)
 
 
 @module_perm_required_methods(MODULE_KHO_SAN_PHAM, get='create', post='create')
