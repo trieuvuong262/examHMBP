@@ -8,10 +8,9 @@ from datetime import datetime
 from typing import Any, Callable
 
 from django.conf import settings
-from django.db import transaction
 from django.utils import timezone
 
-from .client import KiotVietAPIError, KiotVietClient
+from .client import KiotVietClient
 from .kv_parse import (
     parse_kv_date,
     parse_kv_datetime,
@@ -19,7 +18,7 @@ from .kv_parse import (
     parse_kv_float,
     parse_kv_int,
 )
-from .sync_helpers import extract_product_image_urls, needs_upsert
+from .sync_helpers import extract_product_image_urls, kv_update_or_create, needs_upsert
 from .models import (
     KvBankAccount,
     KvBranch,
@@ -271,6 +270,8 @@ def _sync_paginated(
     skipped_total = 0
     removed_total = 0
     pages = 0
+    row_errors = 0
+    last_row_error = ''
 
     try:
         while True:
@@ -283,10 +284,15 @@ def _sync_paginated(
                 payload.get('removedIds') or payload.get('removeIds') or [],
             )
             for row in rows:
-                if upsert_fn(retailer, row):
-                    upserted_total += 1
-                else:
-                    skipped_total += 1
+                try:
+                    if upsert_fn(retailer, row):
+                        upserted_total += 1
+                    else:
+                        skipped_total += 1
+                except Exception as exc:
+                    logger.exception('KiotViet sync %s row failed', entity_type)
+                    row_errors += 1
+                    last_row_error = str(exc)[:2000]
                 max_modified = _track_max_modified(row, max_modified, entity_type=entity_type)
                 rows_total += 1
 
@@ -311,7 +317,10 @@ def _sync_paginated(
 
         state.last_success_at = timezone.now()
         state.records_total = record_count
-        state.last_error = ''
+        if row_errors:
+            state.last_error = f'{row_errors} dòng lỗi. Gần nhất: {last_row_error}'
+        else:
+            state.last_error = ''
         if max_modified:
             state.last_modified_from = max_modified
         if full:
@@ -328,7 +337,7 @@ def _sync_paginated(
             'records': record_count,
             'error': None,
         }
-    except KiotVietAPIError as exc:
+    except Exception as exc:
         state.last_error = str(exc)[:2000]
         state.save(update_fields=['last_error'])
         logger.exception('KiotViet sync %s failed', entity_type)
@@ -351,7 +360,8 @@ def upsert_branch(retailer: str, row: dict, *, force: bool = False) -> bool:
     modified = parse_kv_datetime(row.get('modifiedDate'))
     if not force and not needs_upsert(KvBranch, retailer=retailer, kiotviet_id=kid, incoming_modified=modified):
         return False
-    KvBranch.objects.update_or_create(
+    kv_update_or_create(
+        KvBranch,
         retailer=retailer,
         kiotviet_id=kid,
         defaults={
@@ -375,7 +385,8 @@ def upsert_category(retailer: str, row: dict, *, force: bool = False) -> bool:
     modified = parse_kv_datetime(row.get('modifiedDate'))
     if not force and not needs_upsert(KvCategory, retailer=retailer, kiotviet_id=kid, incoming_modified=modified):
         return False
-    KvCategory.objects.update_or_create(
+    kv_update_or_create(
+        KvCategory,
         retailer=retailer,
         kiotviet_id=kid,
         defaults={
@@ -413,7 +424,8 @@ def _sync_product_children(retailer: str, product_id: int, row: dict) -> None:
         if uid is None:
             continue
         seen_units.add(uid)
-        KvProductUnit.objects.update_or_create(
+        kv_update_or_create(
+            KvProductUnit,
             retailer=retailer,
             kiotviet_id=uid,
             defaults={
@@ -436,7 +448,8 @@ def _sync_product_children(retailer: str, product_id: int, row: dict) -> None:
         on_hand = inv.get('onHand')
         if on_hand is None:
             on_hand = inv.get('onhand')
-        KvProductInventory.objects.update_or_create(
+        kv_update_or_create(
+            KvProductInventory,
             retailer=retailer,
             product_kiotviet_id=product_id,
             branch_kiotviet_id=branch_id,
@@ -468,7 +481,8 @@ def upsert_product(retailer: str, row: dict, *, force: bool = False) -> bool:
                 KvProduct.objects.filter(pk=existing.pk).update(image_urls=image_urls)
                 return True
             return False
-    KvProduct.objects.update_or_create(
+    kv_update_or_create(
+        KvProduct,
         retailer=retailer,
         kiotviet_id=kid,
         defaults={
@@ -506,7 +520,8 @@ def upsert_customer(retailer: str, row: dict, *, force: bool = False) -> bool:
     modified = parse_kv_datetime(row.get('modifiedDate'))
     if not force and not needs_upsert(KvCustomer, retailer=retailer, kiotviet_id=kid, incoming_modified=modified):
         return False
-    KvCustomer.objects.update_or_create(
+    kv_update_or_create(
+        KvCustomer,
         retailer=retailer,
         kiotviet_id=kid,
         defaults={
@@ -576,7 +591,8 @@ def upsert_order(retailer: str, row: dict, *, force: bool = False) -> bool:
     modified = parse_kv_datetime(row.get('modifiedDate'))
     if not force and not needs_upsert(KvOrder, retailer=retailer, kiotviet_id=kid, incoming_modified=modified):
         return False
-    KvOrder.objects.update_or_create(
+    kv_update_or_create(
+        KvOrder,
         retailer=retailer,
         kiotviet_id=kid,
         defaults={
@@ -619,7 +635,8 @@ def upsert_invoice(retailer: str, row: dict, *, force: bool = False) -> bool:
     modified = parse_kv_datetime(row.get('modifiedDate'))
     if not force and not needs_upsert(KvInvoice, retailer=retailer, kiotviet_id=kid, incoming_modified=modified):
         return False
-    KvInvoice.objects.update_or_create(
+    kv_update_or_create(
+        KvInvoice,
         retailer=retailer,
         kiotviet_id=kid,
         defaults={
@@ -665,7 +682,8 @@ def upsert_purchase_order(retailer: str, row: dict, *, force: bool = False) -> b
         incoming_modified=modified,
     ):
         return False
-    KvPurchaseOrder.objects.update_or_create(
+    kv_update_or_create(
+        KvPurchaseOrder,
         retailer=retailer,
         kiotviet_id=kid,
         defaults={
@@ -733,7 +751,8 @@ def upsert_user(retailer: str, row: dict, *, force: bool = False) -> bool:
     modified = _row_modified_at(row, entity_type='users')
     if not force and not needs_upsert(KvUser, retailer=retailer, kiotviet_id=kid, incoming_modified=modified):
         return False
-    KvUser.objects.update_or_create(
+    kv_update_or_create(
+        KvUser,
         retailer=retailer,
         kiotviet_id=kid,
         defaults={
@@ -761,7 +780,8 @@ def upsert_sale_channel(retailer: str, row: dict, *, force: bool = False) -> boo
         KvSaleChannel, retailer=retailer, kiotviet_id=kid, incoming_modified=modified,
     ):
         return False
-    KvSaleChannel.objects.update_or_create(
+    kv_update_or_create(
+        KvSaleChannel,
         retailer=retailer,
         kiotviet_id=kid,
         defaults={
@@ -786,7 +806,8 @@ def upsert_location(retailer: str, row: dict, *, force: bool = False) -> bool:
         existing = KvLocation.objects.filter(retailer=retailer, kiotviet_id=kid).first()
         if existing and existing.name == (row.get('name') or ''):
             return False
-    KvLocation.objects.update_or_create(
+    kv_update_or_create(
+        KvLocation,
         retailer=retailer,
         kiotviet_id=kid,
         defaults={
@@ -807,7 +828,8 @@ def upsert_bank_account(retailer: str, row: dict, *, force: bool = False) -> boo
         KvBankAccount, retailer=retailer, kiotviet_id=kid, incoming_modified=modified,
     ):
         return False
-    KvBankAccount.objects.update_or_create(
+    kv_update_or_create(
+        KvBankAccount,
         retailer=retailer,
         kiotviet_id=kid,
         defaults={
@@ -830,7 +852,8 @@ def upsert_surcharge(retailer: str, row: dict, *, force: bool = False) -> bool:
         KvSurcharge, retailer=retailer, kiotviet_id=kid, incoming_modified=modified,
     ):
         return False
-    KvSurcharge.objects.update_or_create(
+    kv_update_or_create(
+        KvSurcharge,
         retailer=retailer,
         kiotviet_id=kid,
         defaults={
@@ -854,7 +877,8 @@ def upsert_customer_group(retailer: str, row: dict, *, force: bool = False) -> b
         KvCustomerGroup, retailer=retailer, kiotviet_id=kid, incoming_modified=modified,
     ):
         return False
-    KvCustomerGroup.objects.update_or_create(
+    kv_update_or_create(
+        KvCustomerGroup,
         retailer=retailer,
         kiotviet_id=kid,
         defaults={
@@ -879,7 +903,8 @@ def upsert_pricebook(retailer: str, row: dict, *, force: bool = False) -> bool:
         KvPricebook, retailer=retailer, kiotviet_id=kid, incoming_modified=modified,
     ):
         return False
-    KvPricebook.objects.update_or_create(
+    kv_update_or_create(
+        KvPricebook,
         retailer=retailer,
         kiotviet_id=kid,
         defaults={
@@ -907,7 +932,8 @@ def upsert_transfer(retailer: str, row: dict, *, force: bool = False) -> bool:
         KvTransfer, retailer=retailer, kiotviet_id=kid, incoming_modified=modified,
     ):
         return False
-    KvTransfer.objects.update_or_create(
+    kv_update_or_create(
+        KvTransfer,
         retailer=retailer,
         kiotviet_id=kid,
         defaults={
@@ -940,7 +966,8 @@ def upsert_return(retailer: str, row: dict, *, force: bool = False) -> bool:
         KvReturn, retailer=retailer, kiotviet_id=kid, incoming_modified=modified,
     ):
         return False
-    KvReturn.objects.update_or_create(
+    kv_update_or_create(
+        KvReturn,
         retailer=retailer,
         kiotviet_id=kid,
         defaults={
@@ -984,7 +1011,8 @@ def upsert_cashflow(retailer: str, row: dict, *, force: bool = False) -> bool:
         KvCashflow, retailer=retailer, kiotviet_id=kid, incoming_modified=modified,
     ):
         return False
-    KvCashflow.objects.update_or_create(
+    kv_update_or_create(
+        KvCashflow,
         retailer=retailer,
         kiotviet_id=kid,
         defaults={
@@ -1195,7 +1223,6 @@ def refresh_product_images(
     )
 
 
-@transaction.atomic
 def sync_all(*, full: bool = False, entities: list[str] | None = None) -> list[dict[str, Any]]:
     order = list(entities or ENTITY_ALL)
     client = KiotVietClient()

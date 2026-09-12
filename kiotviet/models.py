@@ -5,6 +5,8 @@ from __future__ import annotations
 from django.conf import settings
 from django.db import models
 
+from .sync_helpers import DEFAULT_SYNC_INTERVAL_MINUTES
+
 
 
 class KvSyncState(models.Model):
@@ -59,7 +61,7 @@ class KvRetailerSyncedModel(models.Model):
 class KvBranch(KvRetailerSyncedModel):
     branch_name = models.CharField(max_length=255, blank=True, default='')
     branch_code = models.CharField(max_length=64, blank=True, default='')
-    contact_number = models.CharField(max_length=32, blank=True, default='')
+    contact_number = models.CharField(max_length=128, blank=True, default='')
     email = models.CharField(max_length=255, blank=True, default='')
     address = models.TextField(blank=True, default='')
     kv_created_at = models.DateTimeField(null=True, blank=True)
@@ -235,14 +237,14 @@ class KvCustomer(KvRetailerSyncedModel):
     name = models.CharField(max_length=255, blank=True, default='')
     gender = models.BooleanField(null=True, blank=True)
     birth_date = models.DateField(null=True, blank=True)
-    contact_number = models.CharField(max_length=32, blank=True, default='', db_index=True)
+    contact_number = models.CharField(max_length=128, blank=True, default='', db_index=True)
     address = models.TextField(blank=True, default='')
     location_name = models.CharField(max_length=255, blank=True, default='')
     ward_name = models.CharField(max_length=255, blank=True, default='')
     email = models.CharField(max_length=255, blank=True, default='')
     organization = models.CharField(max_length=255, blank=True, default='')
     comments = models.TextField(blank=True, default='')
-    tax_code = models.CharField(max_length=32, blank=True, default='')
+    tax_code = models.CharField(max_length=64, blank=True, default='')
     debt = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
     total_invoiced = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
     total_revenue = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
@@ -775,7 +777,7 @@ class KvSyncConfig(models.Model):
     """Cấu hình đồng bộ KiotViet (một bản ghi / retailer)."""
 
     retailer = models.CharField(max_length=64, unique=True)
-    interval_minutes = models.PositiveSmallIntegerField(default=30)
+    interval_minutes = models.PositiveSmallIntegerField(default=DEFAULT_SYNC_INTERVAL_MINUTES)
     schedule_enabled = models.BooleanField(default=True)
     enabled_entities = models.JSONField(default=list, blank=True)
     updated_at = models.DateTimeField(auto_now=True)

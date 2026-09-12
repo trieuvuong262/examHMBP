@@ -92,7 +92,7 @@
                             <label class="form-label fw-semibold" for="interval_minutes">Tần suất đồng bộ</label>
                             <select class="form-select" name="interval_minutes" id="interval_minutes">
                                 {% for value, label in interval_choices %}
-                                <option value="{{ value }}" {% if config and config.interval_minutes == value %}selected{% elif not config and value == 30 %}selected{% endif %}>{{ label }}</option>
+                                <option value="{{ value }}" {% if config and config.interval_minutes == value %}selected{% elif not config and value == default_interval %}selected{% endif %}>{{ label }}</option>
                                 {% endfor %}
                             </select>
                             <div class="form-text">Cron gợi ý trên VPS: <code>{{ cron_hint }}</code></div>

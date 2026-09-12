@@ -5,6 +5,7 @@ Usage:
     python manage.py kiotviet_sync --full
     python manage.py kiotviet_sync --entity products
     python manage.py kiotviet_sync --entity customers --entity orders
+    python manage.py kiotviet_sync --scheduled
 """
 
 from django.core.management.base import BaseCommand
@@ -15,7 +16,6 @@ from kiotviet.sync_service import (
     ENTITY_ALL,
     current_retailer,
     refresh_product_images,
-    sync_all,
     sync_entity,
 )
 
@@ -36,6 +36,11 @@ class Command(BaseCommand):
             help='Full sync (bỏ cursor lastModifiedFrom)',
         )
         parser.add_argument(
+            '--scheduled',
+            action='store_true',
+            help='Chạy từ cron: tôn trọng lịch và danh sách entity đã lưu',
+        )
+        parser.add_argument(
             '--refresh-images',
             action='store_true',
             help='Quét SP từ API và bổ sung image_urls còn thiếu (không full sync toàn bộ field)',
@@ -51,6 +56,7 @@ class Command(BaseCommand):
         entities = options.get('entities')
         full = bool(options.get('full'))
         refresh_images = bool(options.get('refresh_images'))
+        scheduled = bool(options.get('scheduled'))
 
         if refresh_images:
             result = refresh_product_images()
@@ -67,15 +73,21 @@ class Command(BaseCommand):
 
         if not entities:
             retailer = current_retailer()
-            if retailer:
-                config = KvSyncConfig.get_for_retailer(retailer)
-                if config.schedule_enabled:
-                    entities = list(config.enabled_entities or ENTITY_ALL)
+            config = KvSyncConfig.get_for_retailer(retailer) if retailer else None
+            if scheduled and config and not config.schedule_enabled:
+                self.stdout.write('Lịch đồng bộ đang tắt — bỏ qua.')
+                return
+            if config:
+                entities = list(config.enabled_entities or ENTITY_ALL)
+            else:
+                entities = list(ENTITY_ALL)
 
-        if entities:
-            results = [sync_entity(e, full=full) for e in entities]
-        else:
-            results = sync_all(full=full)
+        results = []
+        for entity in entities:
+            try:
+                results.append(sync_entity(entity, full=full))
+            except Exception as exc:
+                results.append({'entity': entity, 'error': str(exc)})
 
         has_error = False
         for row in results:

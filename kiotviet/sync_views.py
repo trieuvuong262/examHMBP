@@ -16,7 +16,12 @@ from .mirror import mirror_summary, sync_states
 from .models import KvSyncConfig, KvSyncJob
 from .odoo_bridge import odoo_ready
 from .odoo_push_runner import OdooPushRunnerError, start_odoo_push_async
-from .sync_helpers import SYNC_INTERVAL_CHOICES, cron_hint_for_minutes, normalize_interval_minutes
+from .sync_helpers import (
+    DEFAULT_SYNC_INTERVAL_MINUTES,
+    SYNC_INTERVAL_CHOICES,
+    cron_hint_for_minutes,
+    normalize_interval_minutes,
+)
 from .sync_runner import KvSyncRunnerError, active_sync_job, latest_sync_job, start_sync_async
 from .sync_service import ENTITY_ALL, ENTITY_LABELS, current_retailer
 
@@ -48,7 +53,7 @@ def _sync_page_context(user) -> dict:
     running_job = active_job or (
         latest_job if latest_job and latest_job.is_active else None
     )
-    interval_minutes = config.interval_minutes if config else 30
+    interval_minutes = config.interval_minutes if config else DEFAULT_SYNC_INTERVAL_MINUTES
 
     return {
         'can_export': user_can_export_module(user, MODULE_AUDIT),
@@ -63,6 +68,7 @@ def _sync_page_context(user) -> dict:
         'active_job': running_job,
         'latest_job': latest_job,
         'cron_hint': cron_hint_for_minutes(interval_minutes),
+        'default_interval': DEFAULT_SYNC_INTERVAL_MINUTES,
     }
 
 

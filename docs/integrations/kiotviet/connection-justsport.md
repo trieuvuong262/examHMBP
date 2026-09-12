@@ -71,13 +71,13 @@ docker compose exec web python manage.py kiotviet_status
 
 ### Đồng bộ định kỳ (cron)
 
-Cấu hình lịch và entity trong **Quản Trị Hệ thống → Đồng bộ KiotViet** (5p / 30p / 6h / 12h / 24h). Trên VPS:
+Cấu hình lịch và entity trong **Quản Trị Hệ thống → Đồng bộ KiotViet**. Mặc định: **3 lần/ngày lúc 6h · 12h · 19h**, đồng bộ tất cả mục. Trên VPS:
 
 ```bash
-sudo bash scripts/setup-kiotviet-cron.sh 1440   # ví dụ: mỗi 24h
+sudo bash scripts/setup-kiotviet-cron.sh 481   # 06:00, 12:00, 19:00 (Asia/Ho_Chi_Minh)
 ```
 
-Cron chạy `kiotviet_sync` **incremental** (chỉ bản ghi mới/thay đổi). Log: `/var/log/portal-kiotviet-sync.log`.
+Cron chạy `kiotviet_sync --scheduled` **incremental** (chỉ bản ghi mới/thay đổi). Log: `/var/log/portal-kiotviet-sync.log`.
 
 ### Biến môi trường thêm (tùy chọn)
 
