@@ -124,7 +124,8 @@ run_manage() {
 }
 
 ensure_web_image() {
-  echo "==> Build web Docker image (apt/LibreOffice chỉ lần đầu hoặc khi đổi Dockerfile)..."
+  echo "==> Build app Docker image (apt/LibreOffice chỉ lần đầu hoặc khi đổi Dockerfile)..."
+  # web / worker / migrate cùng image portaljustplay-app:latest → build 1 lần là đủ.
   export DOCKER_PYTHON_IMAGE
   # Không --pull: tránh đổi base digest → cài lại apt mỗi deploy
   if ! compose build web; then
@@ -315,7 +316,7 @@ step "3) Start database"
 compose up -d db
 wait_for_db
 
-step "4) Ensure base images + build web (apt cache giữ giữa các lần deploy)"
+step "4) Ensure base images + build app image (apt cache giữ giữa các lần deploy)"
 pull_deploy_images
 ensure_web_image
 
@@ -323,17 +324,20 @@ step "5) Create migrations if models changed"
 ensure_migrations
 
 step "6) Run migrations (before start web)"
+# Service migrate dùng chung image portaljustplay-app:latest vừa build ở bước 4,
+# nên đây là code mới. Không chạy migrate lần 2 sau khi web start — verify ở dưới
+# đủ để phát hiện migration còn treo.
 run_migrate_service "migrate --noinput via migrate service"
 
 ensure_ssl_conf
 
-step "7) Start app services"
+step "7) Start app services (web + worker + nginx)"
 export DOCKER_PYTHON_IMAGE
-compose up -d web nginx
+# worker phải nằm trong danh sách: trước đây chỉ `up -d web nginx` nên container
+# worker cũ vẫn chạy image cũ → job RQ thực thi code của bản deploy trước.
+compose up -d web worker nginx
 
-step "8) Run migrations again on running web"
-compose exec -T web python manage.py migrate --noinput
-
+step "8) Verify migrations on running web"
 verify_migrations
 
 step "8b) Sync NPL category tree (nhóm cấp 1 + cấp 2)"
@@ -358,9 +362,11 @@ compose exec -T web python manage.py kho_sp_seed_warehouses --apply
 NAS_VERIFY_TIMEOUT="${NAS_VERIFY_TIMEOUT:-25}"
 RCLONE_VERIFY_FLAGS=(--contimeout 5s --timeout 10s --retries 1 --low-level-retries 2)
 
-# SKIP_NAS_VERIFY=1 ./deploy.sh → bỏ hẳn 2 bước verify NAS
+# Mặc định BỎ QUA verify NAS: 3 lệnh × 25s = tới ~75s mỗi deploy chỉ để in WARNING,
+# trong khi trang giám sát NAS đã báo trạng thái này liên tục.
+# Cần kiểm tra khi deploy: SKIP_NAS_VERIFY=0 ./deploy.sh
 nas_verify_disabled() {
-  [[ "${SKIP_NAS_VERIFY:-0}" == "1" || "${SKIP_NAS_VERIFY:-0}" == "true" ]]
+  [[ "${SKIP_NAS_VERIFY:-1}" == "1" || "${SKIP_NAS_VERIFY:-1}" == "true" ]]
 }
 
 rclone_lsd_check() {
@@ -373,7 +379,7 @@ rclone_lsd_check() {
 verify_nas_rclone() {
   step "Verify NAS rclone in web container (tối đa ${NAS_VERIFY_TIMEOUT}s/lệnh)"
   if nas_verify_disabled; then
-    echo "    Skipped (SKIP_NAS_VERIFY=1)."
+    echo "    Skipped (mặc định). Cần kiểm tra: SKIP_NAS_VERIFY=0 ./deploy.sh"
     return 0
   fi
   local rc=0
@@ -387,7 +393,7 @@ verify_nas_rclone() {
       echo "    WARNING: rclone không kết nối được NAS trong container (exit ${rc})."
     fi
     echo "             Kiểm tra: /root/.config/rclone/rclone.conf và scripts/setup-rclone-nas.sh"
-    echo "             Bỏ qua bước này: SKIP_NAS_VERIFY=1 ./deploy.sh"
+    echo "             (bước này mặc định bị bỏ qua khi deploy)"
     # NAS gốc đã không thông thì khỏi thử share con — tránh chờ thêm một lượt timeout
     return 0
   fi
@@ -404,7 +410,7 @@ verify_nas_rclone() {
 verify_nas_dsm() {
   step "Verify NAS DSM API in web container (tối đa ${NAS_VERIFY_TIMEOUT}s)"
   if nas_verify_disabled; then
-    echo "    Skipped (SKIP_NAS_VERIFY=1)."
+    echo "    Skipped (mặc định). Cần kiểm tra: SKIP_NAS_VERIFY=0 ./deploy.sh"
     return 0
   fi
   if timeout "${NAS_VERIFY_TIMEOUT}" \
@@ -446,18 +452,21 @@ else
   echo "    WARNING: static/images/logo/logo.png missing — skip icon generation"
 fi
 
-step "10) Collect static files (clear old assets)"
-compose exec -T web python manage.py collectstatic --noinput --clear
-
-step "11) Cleanup orphan media (files not referenced in DB/HTML)"
-if grep -qE '^CLEANUP_ORPHAN_MEDIA=(0|false|no|off)' .env 2>/dev/null; then
-  echo "    Skipped (CLEANUP_ORPHAN_MEDIA is disabled in .env)."
+step "10) Collect static files"
+# Mặc định KHÔNG --clear: Django so mtime và chỉ copy file mới (~275 file/96MB
+# nếu copy lại toàn bộ). Cần dọn asset rác: COLLECTSTATIC_CLEAR=1 ./deploy.sh
+if [[ "${COLLECTSTATIC_CLEAR:-0}" == "1" || "${COLLECTSTATIC_CLEAR:-0}" == "true" ]]; then
+  echo "    COLLECTSTATIC_CLEAR=1 → xóa staticfiles cũ trước khi copy."
+  compose exec -T web python manage.py collectstatic --noinput --clear
 else
-  compose exec -T web python manage.py cleanup_orphan_media
+  compose exec -T web python manage.py collectstatic --noinput
 fi
 
-step "11b) Cleanup nhật ký thao tác cũ hơn 7 ngày"
-compose exec -T web python manage.py cleanup_activity_logs || echo "    WARNING: cleanup_activity_logs failed"
+# Dọn media mồ côi và nhật ký thao tác KHÔNG còn chạy trong deploy:
+#   - cleanup_orphan_media quét toàn bộ FileField/RichTextField của mọi model +
+#     rglob toàn bộ media → tốn theo kích thước dữ liệu, không liên quan bản mới.
+#   - cleanup_activity_logs đã có cron 03:15 (bước 12b) → chạy ở đây là trùng.
+# Cả hai chạy bằng cron, cài ở bước 12b/12c.
 
 step "12) Show status"
 compose ps
@@ -474,6 +483,13 @@ if [[ -f scripts/setup-activity-log-cleanup-cron.sh ]]; then
   bash scripts/setup-activity-log-cleanup-cron.sh || echo "    WARNING: setup-activity-log-cleanup-cron.sh failed"
 else
   echo "    WARNING: scripts/setup-activity-log-cleanup-cron.sh not found"
+fi
+
+step "12c) Cron dọn media mồ côi (03:40 hàng ngày)"
+if [[ -f scripts/setup-orphan-media-cleanup-cron.sh ]]; then
+  bash scripts/setup-orphan-media-cleanup-cron.sh || echo "    WARNING: setup-orphan-media-cleanup-cron.sh failed"
+else
+  echo "    WARNING: scripts/setup-orphan-media-cleanup-cron.sh not found"
 fi
 
 if [[ -f scripts/setup-production-report-reminder-cron.sh ]]; then
@@ -505,8 +521,12 @@ echo "Backup NAS 00:00 hàng ngày (DB + source + media):"
 echo "  sudo bash scripts/setup-backup-cron.sh"
 echo "Xóa nhật ký thao tác cũ hơn 7 ngày (03:15 hàng ngày):"
 echo "  sudo bash scripts/setup-activity-log-cleanup-cron.sh"
+echo "Dọn media mồ côi (03:40 hàng ngày — trước đây chạy trong deploy):"
+echo "  sudo bash scripts/setup-orphan-media-cleanup-cron.sh"
 echo ""
 echo "Auto deploy: xem docs/HUONG_DAN_AUTO_DEPLOY.md"
 echo "Optional — tạo dữ liệu demo:"
 echo "  docker compose exec web python manage.py seed_demo_data"
 echo "Làm mới base image từ Hub (khi cần): PULL_BASE_IMAGES=1 ./deploy.sh"
+echo "Dọn sạch staticfiles rồi copy lại:   COLLECTSTATIC_CLEAR=1 ./deploy.sh"
+echo "Kiểm tra NAS ngay trong deploy:      SKIP_NAS_VERIFY=0 ./deploy.sh"

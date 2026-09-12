@@ -13,10 +13,21 @@
 
 name: Deploy PortalJustPlay
 
+# CHỈ chạy khi bấm tay (Actions → Deploy PortalJustPlay → Run workflow).
+#
+# Đường deploy chính là `update.cmd` / `publish.ps1` từ máy dev: push xong SSH
+# thẳng vào VPS chạy ./deploy.sh (deploy.local.env có DEPLOY_AFTER_PUSH=1).
+# Nếu bật lại `on: push`, mỗi lần publish sẽ có HAI tiến trình deploy.sh chạy
+# song song trên cùng /opt/portaljustplay — tranh lock docker, build 2 lượt và
+# có thể `git reset --hard` giữa lúc lượt kia đang build. `concurrency` bên dưới
+# chỉ chặn được các run của Actions, không chặn được lượt SSH từ máy dev.
+#
+# Muốn dùng Actions làm đường chính: bỏ comment `push` ở đây VÀ đặt
+# DEPLOY_AFTER_PUSH=0 trong deploy.local.env.
 on:
-  push:
-    branches:
-      - main
+  # push:
+  #   branches:
+  #     - main
   workflow_dispatch:
 
 concurrency:

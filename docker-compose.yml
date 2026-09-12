@@ -64,6 +64,10 @@ services:
     restart: always
 
   web:
+    # web / worker / migrate dùng CHUNG một image: deploy.sh chỉ `compose build web`
+    # là cả ba service có code mới. Trước đây mỗi service một image riêng
+    # (portaljustplay-web/-worker/-migrate) nên worker và migrate chạy code cũ.
+    image: portaljustplay-app:latest
     build:
       context: .
       args:
@@ -107,6 +111,7 @@ services:
   # Worker chạy job nền (RQ). Cùng image, cùng mount NAS như web vì job phải
   # đọc/ghi được file đính kèm trên NAS. Không mở port, không nhận HTTP.
   worker:
+    image: portaljustplay-app:latest
     build:
       context: .
       args:
@@ -132,6 +137,7 @@ services:
     restart: always
 
   migrate:
+    image: portaljustplay-app:latest
     build:
       context: .
       args:

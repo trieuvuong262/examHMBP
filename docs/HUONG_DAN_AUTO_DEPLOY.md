@@ -55,11 +55,16 @@ Script sẽ lần lượt:
 | `publish.sh` | Git Bash / Linux / macOS |
 | `deploy.local.env` | Cấu hình VPS (không commit — đã gitignore) |
 | `deploy.sh` | Chạy trên VPS: pull code, migrate, collectstatic, restart |
-| `.github/workflows/deploy.yml` | Tự deploy khi push `main` (qua GitHub Actions) |
+| `.github/workflows/deploy.yml` | Deploy dự phòng qua GitHub Actions — **chỉ chạy khi bấm tay** |
 
-## Hai cách deploy sau khi push
+## Hai cách deploy sau khi push — chỉ bật MỘT cách
 
-### A) SSH từ máy bạn (`deploy.local.env`)
+> Nếu bật cả hai, mỗi lần publish sẽ có **hai** tiến trình `deploy.sh` chạy song
+> song trên cùng `/opt/portaljustplay`: tranh lock docker, build 2 lượt, và lượt
+> này có thể `git reset --hard` trong lúc lượt kia đang build. Hiện đang dùng
+> cách A, nên `on: push` trong workflow đã được comment lại.
+
+### A) SSH từ máy bạn (`deploy.local.env`) — đang dùng
 
 Tạo `deploy.local.env`:
 
@@ -76,7 +81,11 @@ Chạy `publish.ps1` → push xong → SSH chạy `deploy.sh` ngay.
 
 ### B) GitHub Actions (không cần `deploy.local.env`)
 
-Đã có workflow `.github/workflows/deploy.yml`: mỗi lần **push lên `main`**, GitHub SSH vào VPS chạy `./deploy.sh`.
+Workflow `.github/workflows/deploy.yml` hiện chỉ chạy khi bấm tay:
+**GitHub → Actions → Deploy PortalJustPlay → Run workflow**.
+
+Muốn Actions thành đường chính (tự deploy mỗi lần push `main`): bỏ comment khối
+`on: push` trong workflow **và** đặt `DEPLOY_AFTER_PUSH=0` trong `deploy.local.env`.
 
 Cấu hình **GitHub → Settings → Secrets → Actions**:
 
@@ -85,7 +94,15 @@ Cấu hình **GitHub → Settings → Secrets → Actions**:
 - `VPS_SSH_KEY` — private key PEM (public key đã có trong `~/.ssh/authorized_keys` trên VPS)
 - `VPS_PORT` — (tuỳ chọn) mặc định 22
 
-Khi đó chỉ cần `git push`; không bắt buộc chạy SSH từ `publish.ps1`.
+Khi đó chỉ cần `git push`; không chạy SSH từ `publish.ps1` nữa.
+
+## Cờ tùy chọn của `deploy.sh`
+
+| Biến | Mặc định | Tác dụng |
+|------|----------|----------|
+| `COLLECTSTATIC_CLEAR=1` | tắt | Xóa sạch `staticfiles` rồi copy lại (chỉ cần khi có asset rác). Mặc định `collectstatic` chỉ copy file mới. |
+| `SKIP_NAS_VERIFY=0` | bỏ qua | Kiểm tra rclone/DSM NAS trong lúc deploy (tốn tới ~75s). Bình thường xem ở trang giám sát NAS. |
+| `PULL_BASE_IMAGES=1` | tắt | Pull lại base image từ Docker Hub (có thể kéo theo build lại LibreOffice ~10–15 phút). |
 
 ## Lần đầu trên VPS
 
