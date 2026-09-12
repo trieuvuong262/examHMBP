@@ -37,6 +37,11 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
                     <input type="search" class="form-control" id="ksp-q" name="q"
                            value="{{ search_query }}" placeholder="SKU, Style, màu, size, tên…" autocomplete="off" aria-label="Tìm">
                 </div>
+                <select name="hsx" id="ksp-hsx" class="form-select form-select-sm jp-npl-mat-status-select" aria-label="Hồ sơ thiết kế">
+                    {% for value, label in hsx_choices %}
+                    <option value="{{ value }}" {% if selected_hsx == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
                 <select name="status" id="ksp-status" class="form-select form-select-sm jp-npl-mat-status-select" aria-label="Trạng thái">
                     {% for value, label in status_choices %}
                     <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
@@ -296,7 +301,7 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
         if (form.requestSubmit) form.requestSubmit();
         else form.submit();
     }
-    ['ksp-type', 'ksp-status', 'ksp-order'].forEach(function (id) {
+    ['ksp-type', 'ksp-hsx', 'ksp-status', 'ksp-order'].forEach(function (id) {
         var el = document.getElementById(id);
         if (el) el.addEventListener('change', submitFilters);
     });

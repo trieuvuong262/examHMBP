@@ -55,6 +55,58 @@ def _list_type(request) -> str:
     return ''
 
 
+HSX_FILTER_CHOICES = (
+    ('', 'Mọi hồ sơ SX'),
+    ('yes', 'Có hồ sơ SX'),
+    ('no', 'Chưa có hồ sơ SX'),
+)
+
+
+def _list_hsx(request) -> str:
+    value = (request.GET.get('hsx') or '').strip().lower()
+    if value in {'yes', 'no'}:
+        return value
+    return ''
+
+
+def _tech_doc_code_lookup() -> set[str]:
+    from san_xuat.models import ProductTechDoc
+
+    lookup: set[str] = set()
+    for raw in ProductTechDoc.objects.exclude(product_code='').values_list('product_code', flat=True):
+        code = (raw or '').strip()
+        if not code:
+            continue
+        lookup.add(code)
+        lookup.add(code.upper())
+        lookup.add(code.lower())
+    return lookup
+
+
+def _apply_hsx_filter(qs, hsx: str):
+    """Lọc theo nhóm đã gắn hồ sơ thiết kế (mã SX = style hoặc SKU)."""
+    if not hsx:
+        return qs
+    lookup = _tech_doc_code_lookup()
+    if not lookup:
+        return qs.none() if hsx == 'yes' else qs
+    hit = Q(style_code__in=lookup) | Q(code__in=lookup)
+    styles = [
+        (s or '').strip()
+        for s in Product.objects.filter(hit).exclude(style_code='').values_list('style_code', flat=True)
+        if (s or '').strip()
+    ]
+    style_lookup: set[str] = set()
+    for style in styles:
+        style_lookup.update((style, style.upper(), style.lower()))
+    group_hit = hit
+    if style_lookup:
+        group_hit |= Q(style_code__in=style_lookup)
+    if hsx == 'yes':
+        return qs.filter(group_hit)
+    return qs.exclude(group_hit)
+
+
 # Lựa chọn trên thanh lọc — value = "sort:dir" để một select đủ cả chiều.
 # SKU mặc định theo số SP (SP008484 trước SP008476), không theo tiền tố JP-SET-SC.
 PRODUCT_LIST_ORDER_CHOICES = (
@@ -94,6 +146,7 @@ def _product_list_qs(request):
     search_query = get_search_query(request)
     status = _list_status(request)
     product_type = _list_type(request)
+    hsx = _list_hsx(request)
     qs = Product.objects.all()
     if status == 'active':
         qs = qs.filter(is_active=True)
@@ -101,6 +154,7 @@ def _product_list_qs(request):
         qs = qs.filter(is_active=False)
     if product_type:
         qs = qs.filter(product_type=product_type)
+    qs = _apply_hsx_filter(qs, hsx)
     if search_query:
         qs = qs.filter(
             Q(code__icontains=search_query)
@@ -159,6 +213,7 @@ def hub_redirect(request):
 @module_perm_required(MODULE_KHO_SAN_PHAM, 'view')
 def product_list(request):
     qs, search_query, status, product_type, sort_key, sort_dir = _product_list_qs(request)
+    hsx = _list_hsx(request)
     # Gom theo Style trước khi phân trang (giống Bán hàng – Hàng hoá)
     products = list(qs)
     groups = [format_style_group(g) for g in group_products_by_style(products)]
@@ -234,9 +289,11 @@ def product_list(request):
         'sort_dir': sort_dir,
         'stock_sort_href': f'?{stock_sort_params.urlencode()}',
         'has_filters': bool(
-            search_query or status != 'all' or product_type or selected_order != 'code:desc'
+            search_query or status != 'all' or product_type or hsx or selected_order != 'code:desc'
         ),
         'expand_search_hits': bool(search_query),
+        'selected_hsx': hsx,
+        'hsx_choices': HSX_FILTER_CHOICES,
     })
 
 
