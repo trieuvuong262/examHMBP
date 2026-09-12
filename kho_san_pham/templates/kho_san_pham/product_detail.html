@@ -182,13 +182,6 @@
                         </button>
                     </form>
                     {% endif %}
-                    {% if can_create_sx %}
-                    <a href="{% url 'san_xuat:dispatch_mo_create' %}?product={{ sx_code|urlencode }}"
-                       class="btn btn-hm btn-sm fw-bold"
-                       title="Tạo lệnh sản xuất từ hồ sơ này">
-                        <i class="bi bi-play-circle me-1"></i>Thực hiện lệnh sản xuất
-                    </a>
-                    {% endif %}
                     {% elif can_create_sx %}
                     <a href="{% url 'san_xuat:doc_create' %}?code={{ sx_code|urlencode }}"
                        class="btn btn-hm btn-sm fw-bold">
