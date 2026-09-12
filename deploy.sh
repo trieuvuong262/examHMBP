@@ -337,6 +337,44 @@ export DOCKER_PYTHON_IMAGE
 # worker cũ vẫn chạy image cũ → job RQ thực thi code của bản deploy trước.
 compose up -d web worker nginx
 
+step "7b) Reload nginx để resolve lại IP container web"
+# PortalJustPlay/nginx/default.conf dùng `upstream django_app { server web:8000; }`.
+# nginx resolve tên `web` MỘT lần lúc khởi động và cache mãi. Container web tạo lại
+# (mỗi deploy có code mới) có thể nhận IP khác trong network → nginx vẫn gửi vào IP
+# cũ và cả portal trả 502 cho tới khi nginx được reload.
+if compose exec -T nginx nginx -s reload >/dev/null 2>&1; then
+  echo "    nginx reloaded (upstream django_app trỏ lại IP web hiện tại)."
+else
+  echo "    reload không được — restart nginx."
+  compose restart nginx
+fi
+
+step "7c) Smoke check qua nginx (bắt 502 ngay tại deploy)"
+smoke_code=""
+for attempt in 1 2 3 4 5 6; do
+  smoke_code="$(curl -sk -o /dev/null -w '%{http_code}' --max-time 15 \
+    http://127.0.0.1/accounts/login/ 2>/dev/null || echo 000)"
+  case "${smoke_code}" in
+    200|301|302|403)
+      echo "    OK: nginx → web trả ${smoke_code}."
+      break
+      ;;
+  esac
+  echo "    attempt ${attempt}/6: http ${smoke_code} — chờ 5s..."
+  sleep 5
+done
+case "${smoke_code}" in
+  200|301|302|403) ;;
+  *)
+    echo "ERROR: nginx trả ${smoke_code} (502 = không tới được container web)."
+    echo "    docker compose ps"
+    echo "    docker compose logs --tail=50 web"
+    echo "    docker compose restart nginx"
+    compose ps
+    exit 1
+    ;;
+esac
+
 step "8) Verify migrations on running web"
 verify_migrations
 
