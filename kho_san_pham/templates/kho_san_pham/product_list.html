@@ -69,13 +69,6 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
             <button type="button" class="btn btn-outline-hm btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#kspImportModal">
                 <i class="bi bi-upload me-1"></i>Nhập Excel
             </button>
-            <form method="post" action="{% url 'kho_san_pham:product_sync_kv' %}" class="d-inline">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-outline-secondary btn-sm fw-bold"
-                        title="Thêm mã mới từ mirror KiotViet (không ghi đè SP đã có). Lịch đồng bộ KV cũng chạy bước này.">
-                    <i class="bi bi-arrow-repeat me-1"></i>Đồng bộ KV
-                </button>
-            </form>
             <a href="{% url 'kho_san_pham:product_create' %}?type=hang_hoa" class="btn btn-hm btn-sm fw-bold">
                 <i class="bi bi-plus-lg me-1"></i>Thêm
             </a>
