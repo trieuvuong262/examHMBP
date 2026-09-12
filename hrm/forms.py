@@ -1241,10 +1241,12 @@ class PermissionGroupPermissionForm(forms.Form):
         return rows
 
     def matrix_rows(self):
-        """Ma trận hiển thị — gộp Nhân sự + Báo cáo & Công việc như sidebar."""
+        """Ma trận hiển thị — gộp nhóm sidebar (Nhân sự, Báo cáo & Công việc, Khảo sát)."""
         from hrm.module_permissions import (
             HRM_PERM_MATRIX_MODULES,
             HRM_PERM_MATRIX_SUBMENUS,
+            SURVEY_PERM_MATRIX_MODULES,
+            SURVEY_PERM_MATRIX_SUBMENUS,
             WORK_PERM_MATRIX_MODULES,
             WORK_PERM_MATRIX_SUBMENUS,
         )
@@ -1254,6 +1256,7 @@ class PermissionGroupPermissionForm(forms.Form):
         hub_module_sets = (
             (HRM_PERM_MATRIX_MODULES, HRM_PERM_MATRIX_SUBMENUS, 'hrm_hub', 'Nhân sự', 'bi-people-fill'),
             (WORK_PERM_MATRIX_MODULES, WORK_PERM_MATRIX_SUBMENUS, 'work_hub', 'Báo cáo & Công việc', 'bi-clipboard-check-fill'),
+            (SURVEY_PERM_MATRIX_MODULES, SURVEY_PERM_MATRIX_SUBMENUS, 'survey_hub', 'Khảo sát', 'bi-ui-radios'),
         )
         for modules, _subs, _hub, _label, _icon in hub_module_sets:
             for row in all_rows:

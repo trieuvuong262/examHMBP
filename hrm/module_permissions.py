@@ -117,6 +117,16 @@ WORK_PERM_MATRIX_SUBMENUS = (
     (MODULE_TASKS, 'cross_dept'),
 )
 
+# Góp ý + Khảo sát — một nhóm sidebar «Khảo sát».
+SURVEY_PERM_MATRIX_MODULES = frozenset({MODULE_FEEDBACK, MODULE_SURVEYS})
+SURVEY_PERM_MATRIX_SUBMENUS = (
+    (MODULE_FEEDBACK, 'create'),
+    (MODULE_FEEDBACK, 'list'),
+    (MODULE_SURVEYS, 'create'),
+    (MODULE_SURVEYS, 'share'),
+    (MODULE_SURVEYS, 'results'),
+)
+
 
 def is_portal_module_visible(module_key: str) -> bool:
     return module_key not in HIDDEN_PORTAL_MODULES
@@ -153,11 +163,13 @@ DEPARTMENT_MENU_SECTIONS = [
         'modules': _visible_module_list([MODULE_DE_XUAT, MODULE_HO_TRO]),
     },
     {
+        'label': 'Khảo sát',
+        'modules': _visible_module_list([MODULE_FEEDBACK, MODULE_SURVEYS]),
+    },
+    {
         'label': 'Vận hành',
         'modules': _visible_module_list([
             MODULE_EQUIPMENT,
-            MODULE_FEEDBACK,
-            MODULE_SURVEYS,
             MODULE_UTILITIES,
             MODULE_ODOO,
             MODULE_NAS_STORAGE,
