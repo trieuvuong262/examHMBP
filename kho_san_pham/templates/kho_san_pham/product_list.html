@@ -175,19 +175,6 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
                         <td class="text-end">
                             <div class="d-inline-flex flex-wrap gap-1 justify-content-end">
                                 <a href="{% url 'kho_san_pham:product_detail' item.id %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
-                                {% if item.has_tech_doc and can_update and can_update_sx %}
-                                <form method="post" action="{% url 'kho_san_pham:product_sync_tech_doc' item.id %}" class="d-inline"
-                                      onsubmit="return confirm('Đồng bộ danh mục sang hồ sơ thiết kế của style này?');">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="next" value="{{ list_next }}">
-                                    <button type="submit" class="btn btn-sm btn-outline-hm"
-                                            title="Đẩy tên, ảnh, SKU, màu, size… sang hồ sơ thiết kế"
-                                            data-loading-message="Đang đồng bộ hồ sơ thiết kế…">
-                                        <i class="bi bi-arrow-repeat"></i>
-                                        <span class="d-none d-xl-inline ms-1">Đồng bộ hồ sơ</span>
-                                    </button>
-                                </form>
-                                {% endif %}
                                 {% if can_create %}
                                 <a href="{% url 'kho_san_pham:product_duplicate' item.id %}"
                                    class="btn btn-sm btn-outline-secondary"
