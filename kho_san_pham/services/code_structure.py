@@ -168,7 +168,7 @@ def get_or_create_kv_style(
 
 
 def resolve_type_for_category(category_name: str) -> ProductType | None:
-    """Ưu tiên exact, rồi contains; trong cùng mode theo priority tăng dần."""
+    """Ưu tiên exact, rồi prefix exact (STREET II ← STREET), rồi contains."""
     raw = (category_name or '').strip()
     if not raw:
         return None
@@ -181,6 +181,17 @@ def resolve_type_for_category(category_name: str) -> ProductType | None:
     for row in maps:
         if row.match_mode == KV_MAP_MATCH_EXACT and row.match_value.casefold() == folded:
             return row.product_type
+    best = None
+    best_len = 0
+    for row in maps:
+        if row.match_mode != KV_MAP_MATCH_EXACT:
+            continue
+        needle = (row.match_value or '').strip().casefold()
+        if needle and folded.startswith(needle + ' ') and len(needle) > best_len:
+            best = row.product_type
+            best_len = len(needle)
+    if best is not None:
+        return best
     for row in maps:
         needle = (row.match_value or '').strip()
         if row.match_mode == KV_MAP_MATCH_CONTAINS and needle and needle.casefold() in folded:

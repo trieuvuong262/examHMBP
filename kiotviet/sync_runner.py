@@ -129,6 +129,9 @@ def run_sync_job(*, job_id: int) -> None:
             )
         else:
             job.message = f'Cập nhật {rows_total:,} bản ghi mới/thay đổi.'
+        catalog_bits = [r.get('catalog') for r in results if r.get('catalog')]
+        if catalog_bits:
+            job.message += ' Kho sản phẩm: ' + '; '.join(str(x) for x in catalog_bits) + '.'
     job.current_entity = ''
     job.save()
 

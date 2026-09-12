@@ -103,6 +103,10 @@ class Command(BaseCommand):
                     f'xóa {row.get("removed", 0)}, '
                     f'tổng mirror {row.get("records", 0)}'
                 )
+                if row.get('catalog'):
+                    self.stdout.write(f'  kho sản phẩm: {row["catalog"]}')
+                if row.get('store_stock'):
+                    self.stdout.write(f'  tồn cửa hàng: {row["store_stock"]}')
 
         if has_error:
             self.stderr.write(self.style.WARNING('Một số entity sync thất bại.'))

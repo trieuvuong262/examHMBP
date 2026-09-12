@@ -1138,6 +1138,16 @@ def sync_entity(
         )
         if not result.get('error'):
             try:
+                from kho_san_pham.services.sync_from_kiotviet import sync_thanh_pham_from_kiotviet
+
+                catalog = sync_thanh_pham_from_kiotviet(retailer=retailer)
+                result['catalog'] = catalog.summary()
+                if catalog.errors:
+                    logger.warning('kho sản phẩm sync: %s', '; '.join(catalog.errors[:5]))
+                    result['catalog_errors'] = catalog.errors[:10]
+            except Exception:
+                logger.exception('Không đồng bộ được kho sản phẩm từ KiotViet')
+            try:
                 from kho_san_pham.services.sync_store_stock import sync_store_stock_from_kiotviet
                 stock = sync_store_stock_from_kiotviet(apply=True)
                 result['store_stock'] = stock.summary()
