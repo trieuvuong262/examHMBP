@@ -120,10 +120,10 @@ def _parse_text(value) -> str:
     return text
 
 
-def _parse_bool(value) -> bool:
+def _parse_bool(value):
     text = str(value or '').strip().lower()
     if text in ('', 'nan', 'none'):
-        return True
+        return None
     if text in ('1', 'true', 'yes', 'y', 'co', 'có', 'dang dung', 'đang dùng', 'x'):
         return True
     if text in ('0', 'false', 'no', 'n', 'khong', 'không', 'ngung', 'ngừng'):
@@ -131,7 +131,7 @@ def _parse_bool(value) -> bool:
     return True
 
 
-def _parse_decimal(value, default=Decimal('0')) -> Decimal:
+def _parse_decimal(value, default=None) -> Decimal | None:
     if value is None or (isinstance(value, float) and pd.isna(value)):
         return default
     text = str(value).strip()
@@ -156,7 +156,7 @@ def _apply_imported_qty(product, row, *, user=None) -> None:
     from kho_san_pham.services.stock import StockMovementError, set_catalog_qty
 
     try:
-        set_catalog_qty(product, _parse_decimal(raw), user=user)
+        set_catalog_qty(product, _parse_decimal(raw, default=Decimal('0')), user=user)
     except StockMovementError:
         # Thiếu kho seed thì danh mục vẫn nhập được; tồn để 0.
         return
@@ -165,8 +165,8 @@ def _apply_imported_qty(product, row, *, user=None) -> None:
 def _parse_product_type(value) -> str:
     text = _parse_text(value).lower()
     if not text:
-        return PRODUCT_TYPE_HANG_HOA
-    return _TYPE_ALIASES.get(text, PRODUCT_TYPE_HANG_HOA)
+        return ''
+    return _TYPE_ALIASES.get(text, '')
 
 
 def product_to_row(product: Product) -> dict:
@@ -298,6 +298,7 @@ def import_products_from_excel(file_obj, *, user=None) -> dict:
         product_type = _parse_product_type(row.get('Loại'))
         is_active = _parse_bool(row.get('Đang dùng'))
         notes = _parse_text(row.get('Ghi chú'))
+        base_price = _parse_decimal(row.get('Giá bán'))
 
         defaults = {
             'style_code': style,
@@ -307,15 +308,22 @@ def import_products_from_excel(file_obj, *, user=None) -> dict:
             'accounting_code': accounting_code,
             'name': name,
             'full_name': _parse_text(row.get('Tên đầy đủ')),
-            'product_type': product_type,
             'bar_code': _parse_text(row.get('Mã vạch')),
             'unit': _parse_text(row.get('ĐVT')),
             'category_name': _parse_text(row.get('Nhóm hàng')),
-            'base_price': _parse_decimal(row.get('Giá bán')),
             'description': _parse_text(row.get('Mô tả')),
             'notes': notes,
-            'is_active': is_active,
         }
+        if product_type:
+            defaults['product_type'] = product_type
+        elif existing is None:
+            defaults['product_type'] = PRODUCT_TYPE_HANG_HOA
+        if is_active is not None:
+            defaults['is_active'] = is_active
+        elif existing is None:
+            defaults['is_active'] = True
+        if base_price is not None:
+            defaults['base_price'] = base_price
         kv_code = _parse_text(row.get('Mã KiotViet'))
         if kv_code:
             defaults['kiotviet_code'] = kv_code
@@ -343,6 +351,8 @@ def import_products_from_excel(file_obj, *, user=None) -> dict:
 
         if existing:
             for key, value in defaults.items():
+                if value in ('', None) and getattr(existing, key, None) not in ('', None):
+                    continue
                 setattr(existing, key, value)
             existing.code = code
             if sx_sku:

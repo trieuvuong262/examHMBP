@@ -56,9 +56,9 @@ def _list_type(request) -> str:
 
 
 HSX_FILTER_CHOICES = (
-    ('', 'Mọi hồ sơ SX'),
-    ('yes', 'Có hồ sơ SX'),
-    ('no', 'Chưa có hồ sơ SX'),
+    ('', 'Mọi hồ sơ'),
+    ('yes', 'Có hồ sơ'),
+    ('no', 'Chưa có hồ sơ'),
 )
 
 

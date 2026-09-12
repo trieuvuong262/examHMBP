@@ -18,6 +18,41 @@
 }
 html[data-theme="dark"] .ksp-catalog-table .kv-product-variant-row td { background-color: rgba(255, 255, 255, 0.04); }
 html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expanded { background-color: rgba(255, 255, 255, 0.03); }
+.jp-npl-material-catalog-page .jp-npl-mat-topbar-actions { margin-left: auto; }
+.jp-npl-material-catalog-page .jp-npl-mat-topbar-search {
+    flex: 1 1 100%;
+    max-width: none;
+    margin-left: 0;
+    order: 3;
+}
+.jp-npl-material-catalog-page .ksp-filter-row {
+    display: grid;
+    grid-template-columns: minmax(12rem, 2.2fr) repeat(4, minmax(8.25rem, 1fr)) auto;
+    gap: 0.4rem;
+    width: 100%;
+    align-items: center;
+}
+.jp-npl-material-catalog-page .ksp-filter-row .jp-npl-mat-search-input,
+.jp-npl-material-catalog-page .ksp-filter-row .form-select {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    flex: none;
+}
+.jp-npl-material-catalog-page .ksp-filter-clear {
+    width: var(--jp-npl-mat-ctl-h);
+    padding-left: 0;
+    padding-right: 0;
+    justify-content: center;
+}
+@media (max-width: 991.98px) {
+    .jp-npl-material-catalog-page .ksp-filter-row {
+        grid-template-columns: 1fr 1fr;
+    }
+    .jp-npl-material-catalog-page .ksp-filter-row .jp-npl-mat-search-input {
+        grid-column: 1 / -1;
+    }
+}
 </style>
 {% endblock %}
 
@@ -26,17 +61,17 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
     <div class="jp-npl-mat-topbar">
         <h2 class="jp-npl-mat-topbar-title">Kho sản phẩm</h2>
         <form method="get" class="jp-npl-mat-topbar-search" id="ksp-search-form">
-            <div class="jp-npl-mat-search-row">
+            <div class="jp-npl-mat-search-row ksp-filter-row">
+                <div class="input-group input-group-sm jp-npl-mat-filter-field jp-npl-mat-search-input">
+                    <input type="search" class="form-control" id="ksp-q" name="q"
+                           value="{{ search_query }}" placeholder="SKU, Style, màu, size, tên…" autocomplete="off" aria-label="Tìm">
+                </div>
                 <select name="type" id="ksp-type" class="form-select form-select-sm jp-npl-mat-status-select" aria-label="Loại">
                     <option value="">Mọi loại</option>
                     {% for value, label in type_choices %}
                     <option value="{{ value }}" {% if selected_type == value %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
-                <div class="input-group input-group-sm jp-npl-mat-filter-field jp-npl-mat-search-input">
-                    <input type="search" class="form-control" id="ksp-q" name="q"
-                           value="{{ search_query }}" placeholder="SKU, Style, màu, size, tên…" autocomplete="off" aria-label="Tìm">
-                </div>
                 <select name="hsx" id="ksp-hsx" class="form-select form-select-sm jp-npl-mat-status-select" aria-label="Hồ sơ thiết kế">
                     {% for value, label in hsx_choices %}
                     <option value="{{ value }}" {% if selected_hsx == value %}selected{% endif %}>{{ label }}</option>
@@ -52,9 +87,8 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
                     <option value="{{ value }}" {% if selected_order == value %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
-                <button type="submit" class="btn btn-hm btn-sm fw-bold">Tìm</button>
                 {% if has_filters %}
-                <a href="{% url 'kho_san_pham:product_list' %}" class="btn btn-outline-secondary btn-sm fw-bold px-2" title="Xóa lọc">×</a>
+                <a href="{% url 'kho_san_pham:product_list' %}" class="btn btn-outline-secondary btn-sm fw-bold ksp-filter-clear" title="Xóa lọc">×</a>
                 {% endif %}
             </div>
         </form>
@@ -294,9 +328,27 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
         if (form.requestSubmit) form.requestSubmit();
         else form.submit();
     }
-    ['ksp-type', 'ksp-hsx', 'ksp-status', 'ksp-order'].forEach(function (id) {
-        var el = document.getElementById(id);
-        if (el) el.addEventListener('change', submitFilters);
+    form.querySelectorAll('select').forEach(function (el) {
+        el.addEventListener('change', submitFilters);
+    });
+    var search = document.getElementById('ksp-q');
+    if (!search) return;
+    var timer = null;
+    var lastSubmitted = search.value;
+    search.addEventListener('input', function () {
+        clearTimeout(timer);
+        timer = setTimeout(function () {
+            if (search.value === lastSubmitted) return;
+            lastSubmitted = search.value;
+            submitFilters();
+        }, 400);
+    });
+    search.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        clearTimeout(timer);
+        lastSubmitted = search.value;
+        submitFilters();
     });
 })();
 
