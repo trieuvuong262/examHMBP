@@ -42,10 +42,6 @@
     <div class="card border-0 shadow-sm">
         <div class="card-header bg-white py-3 border-bottom">
             <h5 class="mb-0 fw-bold">Quét virus file người dùng tải lên</h5>
-            <p class="small text-muted mb-0 mt-1">
-                File đính kèm báo cáo / thông báo được quét bằng ClamAV trước khi ghi lên NAS.
-                Nhân viên map ổ đĩa NAS nên một file độc lọt vào là nằm trong ổ đĩa của mọi máy.
-            </p>
         </div>
         <div class="card-body">
             {% if scanner.force_off %}
@@ -130,10 +126,6 @@
                     <label class="form-check-label fw-bold ms-2" for="fs_enabled">
                         Bật quét virus file tải lên
                     </label>
-                    <div class="form-text ms-2">
-                        Tắt thì vẫn còn các lớp khác: danh sách định dạng cho phép, kiểm tra
-                        kiểu file thật, chặn file thực thi và chặn đuôi kép.
-                    </div>
                 </div>
 
                 <div class="form-check form-switch mb-4">
@@ -144,19 +136,9 @@
                     <label class="form-check-label fw-bold ms-2" for="fs_fail_closed">
                         Từ chối file khi không quét được
                     </label>
-                    <div class="form-text ms-2">
-                        Chặt hơn, nhưng ClamAV chết là không ai gửi được đính kèm.
-                        Nên để tắt trong vài ngày đầu.
-                    </div>
                 </div>
 
-                <h6 class="fw-bold mb-2">Kích thước tối đa theo loại file (MB)</h6>
-                <p class="small text-muted mb-3">
-                    Áp dụng ngay khi lưu — không cần deploy lại.
-                    Nginx hiện giới hạn request khoảng <code>200&nbsp;MB</code>
-                    (<code>client_max_body_size</code>); đặt cao hơn trên portal
-                    vẫn bị nginx chặn trước.
-                </p>
+                <h6 class="fw-bold mb-3">Kích thước tối đa theo loại file (MB)</h6>
                 <div class="row g-3 mb-4">
                     <div class="col-6 col-md-4 col-lg">
                         <label class="form-label small fw-semibold" for="max_mb_image">Ảnh</label>
@@ -218,19 +200,6 @@
                 </div>
             </form>
 
-            <hr class="my-4">
-            <div class="d-flex flex-wrap align-items-center gap-3">
-                <form method="post" action="{% url 'audit:file_scan_test' %}">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-outline-dark fw-bold">
-                        <i class="bi bi-bug me-1"></i>Thử bằng file mẫu EICAR
-                    </button>
-                </form>
-                <span class="small text-muted">
-                    Gửi chuỗi thử chuẩn EICAR tới scanner. Kết quả phải là “phát hiện” —
-                    chỉ kết nối được chưa chắc là nhận diện được.
-                </span>
-            </div>
             {% else %}
             <p class="text-muted mb-0">Bạn chỉ có quyền xem. Liên hệ IT để bật/tắt quét virus.</p>
             {% endif %}

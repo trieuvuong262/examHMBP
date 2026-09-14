@@ -167,34 +167,6 @@ def save_file_scan_extensions_view(request):
 
 @module_perm_required(MODULE_AUDIT, 'export')
 @require_POST
-def test_file_scan_view(request):
-    """Gửi chuỗi thử EICAR để xác nhận scanner thực sự phát hiện được."""
-    import io
-
-    from nas_storage.av_scan import scan_stream
-    from nas_storage.management.commands.av_status import EICAR
-
-    result = scan_stream(io.BytesIO(EICAR), size=len(EICAR))
-    if result.is_infected:
-        messages.success(
-            request,
-            f'Scanner hoạt động đúng — phát hiện chuỗi thử EICAR ({result.signature}).',
-        )
-    elif result.is_clean:
-        messages.error(
-            request,
-            'Scanner báo chuỗi thử EICAR là SẠCH — không hoạt động đúng. Liên hệ IT.',
-        )
-    else:
-        messages.error(
-            request,
-            f'Không quét được ({result.status}): {result.detail}',
-        )
-    return redirect(reverse('audit:login_security') + '?tab=filescan')
-
-
-@module_perm_required(MODULE_AUDIT, 'export')
-@require_POST
 def save_login_security_config_view(request):
     _, invalid_wan, invalid_blacklist = save_login_security_config(
         wan_whitelist_text=request.POST.get('wan_whitelist_ips', ''),

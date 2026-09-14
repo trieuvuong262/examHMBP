@@ -37,11 +37,6 @@ urlpatterns = [
         views_login_security.save_file_scan_extensions_view,
         name='file_scan_save_extensions',
     ),
-    path(
-        'bao-mat-dang-nhap/quet-virus/thu-eicar/',
-        views_login_security.test_file_scan_view,
-        name='file_scan_test',
-    ),
     path('bao-mat-dang-nhap/unlock-user/<int:pk>/', views_login_security.unlock_user_login, name='unlock_user_login'),
     path('bao-mat-dang-nhap/unlock-ip/<int:pk>/', views_login_security.unlock_ip_login, name='unlock_ip_login'),
     path('', views.log_list, name='log_list'),

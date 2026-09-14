@@ -166,32 +166,7 @@ class FileScanTabViewTests(TestCase):
             self.client.post(reverse('audit:file_scan_save_config'), {'enabled': 'on'})
         self.assertEqual(FileScanConfig.get_solo().updated_by, self.user)
 
-    def test_eicar_button_reports_detection(self):
-        class FakeSock:
-            def settimeout(self, _v): pass
-            def sendall(self, _d): pass
-            def recv(self, _n): return b'stream: Eicar-Test-Signature FOUND\0'
-            def __enter__(self): return self
-            def __exit__(self, *_e): return False
 
-        fsc.save_config(enabled=True, fail_closed=False, admin_user=self.user)
-        with patch.object(socket, 'create_connection', lambda *a, **k: FakeSock()):
-            resp = self.client.post(reverse('audit:file_scan_test'), {}, follow=True)
-        self.assertContains(resp, 'hoạt động đúng')
-
-    def test_eicar_button_reports_failure_when_clean(self):
-        """Scanner báo EICAR sạch là dấu hiệu xấu — phải báo lỗi rõ."""
-        class FakeSock:
-            def settimeout(self, _v): pass
-            def sendall(self, _d): pass
-            def recv(self, _n): return b'stream: OK\0'
-            def __enter__(self): return self
-            def __exit__(self, *_e): return False
-
-        fsc.save_config(enabled=True, fail_closed=False, admin_user=self.user)
-        with patch.object(socket, 'create_connection', lambda *a, **k: FakeSock()):
-            resp = self.client.post(reverse('audit:file_scan_test'), {}, follow=True)
-        self.assertContains(resp, 'không hoạt động đúng')
 
     def test_view_only_user_sees_no_form(self):
         RoleModulePermission.objects.update_or_create(
