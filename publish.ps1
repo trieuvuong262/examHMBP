@@ -6,6 +6,17 @@ $ErrorActionPreference = "Stop"
 $Root = $PSScriptRoot
 Set-Location $Root
 
+# SSH/deploy.sh in ra UTF-8; Windows mặc định CP437/850 → chữ Việt thành "c├┤ng viß╗çc".
+try {
+    $utf8 = [System.Text.UTF8Encoding]::new($false)
+    [Console]::OutputEncoding = $utf8
+    [Console]::InputEncoding = $utf8
+    $OutputEncoding = $utf8
+    cmd /c "chcp 65001 >nul" | Out-Null
+} catch {
+    # Console ẩn / non-interactive — bỏ qua
+}
+
 function Load-DeployEnv {
     $path = Join-Path $Root "deploy.local.env"
     if (-not (Test-Path $path)) { return @{} }
@@ -99,7 +110,14 @@ function Invoke-SshDeploy {
     }
     try {
         # Out-Host: log Docker khong bi function capture thanh gia tri tra ve.
-        & ssh @sshArgs "${User}@${HostName}" $RemoteCmd | Out-Host
+        # Ghi từng dòng qua Write-Host với console UTF-8 (đã set ở đầu script).
+        & ssh @sshArgs "${User}@${HostName}" $RemoteCmd 2>&1 | ForEach-Object {
+            if ($_ -is [System.Management.Automation.ErrorRecord]) {
+                Write-Host $_.ToString()
+            } else {
+                Write-Host $_
+            }
+        }
         if ($null -eq $LASTEXITCODE) { return 1 }
         return [int]$LASTEXITCODE
     } catch {
