@@ -517,18 +517,13 @@ def _handle_add_report_comment(request, *, report, can_review, redirect_fn, dail
         create_kwargs['daily_report'] = daily_report
     else:
         create_kwargs['weekly_report'] = weekly_report
-    if uploaded_files:
-        from nas_storage.upload_guard import UploadRejected, validate_uploads
-
-        try:
-            validate_uploads(uploaded_files)
-        except UploadRejected as exc:
-            messages.error(request, '; '.join(exc.messages))
-            return redirect_fn()
 
     comment = ReportComment.objects.create(**create_kwargs)
+    rejected: list[str] = []
     try:
-        save_comment_attachments(comment, uploaded_files)
+        _created, rejected = save_comment_attachments(
+            comment, uploaded_files, request=request,
+        )
     except OSError as exc:
         logger.exception('Comment attachment save failed: %s', exc)
         mark_storage_unavailable()
@@ -541,6 +536,10 @@ def _handle_add_report_comment(request, *, report, can_review, redirect_fn, dail
             report.hod_reviewed = True
             report.save(update_fields=['hod_reviewed', 'updated_at'])
     messages.success(request, 'Đã gửi nhận xét.')
+    if rejected:
+        from nas_storage.upload_guard import format_rejected_upload_notice
+
+        messages.warning(request, format_rejected_upload_notice(rejected))
     return redirect_fn()
 
 
@@ -1178,21 +1177,20 @@ def _today_office_report(request, report_date, *, report_period: str = PERIOD_DA
                     or request.FILES.getlist('link_files'),
                 )
                 if has_uploads:
-                    from nas_storage.upload_guard import UploadRejected
-
                     try:
-                        save_daily_uploads(
+                        _created, rejected = save_daily_uploads(
                             report,
                             link_images=request.FILES.getlist('link_images'),
                             link_files=request.FILES.getlist('link_files'),
+                            request=request,
                         )
-                    except UploadRejected as exc:
-                        # Báo cáo đã lưu; chỉ đính kèm bị từ chối.
-                        messages.error(
-                            request,
-                            'Báo cáo đã lưu nhưng không nhận được đính kèm: '
-                            + '; '.join(exc.messages),
-                        )
+                        if rejected:
+                            from nas_storage.upload_guard import format_rejected_upload_notice
+
+                            messages.warning(
+                                request,
+                                format_rejected_upload_notice(rejected),
+                            )
                     except OSError as exc:
                         logger.exception('Daily report attachment save failed: %s', exc)
                         mark_storage_unavailable()
@@ -1287,17 +1285,20 @@ def _weekly_report(request, *, report_profile: str):
                 messages.success(request, msg)
                 report.save()
                 if image_uploads or file_uploads:
-                    from nas_storage.upload_guard import UploadRejected
-
                     try:
-                        save_weekly_uploads(report, image_list=image_uploads, file_list=file_uploads)
-                    except UploadRejected as exc:
-                        # Báo cáo đã lưu; chỉ đính kèm bị từ chối.
-                        messages.error(
-                            request,
-                            'Báo cáo đã lưu nhưng không nhận được đính kèm: '
-                            + '; '.join(exc.messages),
+                        _created, rejected = save_weekly_uploads(
+                            report,
+                            image_list=image_uploads,
+                            file_list=file_uploads,
+                            request=request,
                         )
+                        if rejected:
+                            from nas_storage.upload_guard import format_rejected_upload_notice
+
+                            messages.warning(
+                                request,
+                                format_rejected_upload_notice(rejected),
+                            )
                     except OSError as exc:
                         logger.exception('Weekly report attachment save failed: %s', exc)
                         mark_storage_unavailable()

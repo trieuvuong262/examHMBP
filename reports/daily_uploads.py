@@ -7,12 +7,20 @@ from .models import DailyWorkReportAttachment
 
 def _is_image_upload(uploaded) -> bool:
     name = (getattr(uploaded, 'name', '') or '').lower()
-    if name.endswith(('.pdf', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.ppt', '.pptx', '.zip', '.rar', '.7z')):
+    if name.endswith((
+        '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.ppt', '.pptx',
+        '.zip', '.rar', '.7z',
+        '.psd', '.psb', '.ai', '.eps', '.indd', '.idml', '.cdr',
+        '.sketch', '.xd', '.fig', '.afdesign', '.afphoto', '.afpub',
+    )):
         return False
     content_type = (getattr(uploaded, 'content_type', '') or '').lower()
     if content_type.startswith('image/'):
         return True
-    return name.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg', '.heic', '.heif'))
+    return name.endswith((
+        '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg',
+        '.heic', '.heif', '.tif', '.tiff',
+    ))
 
 
 def save_daily_uploads(
@@ -25,22 +33,31 @@ def save_daily_uploads(
     vanban_files=None,
     link_images=None,
     link_files=None,
+    request=None,
 ):
     """Lưu file/ảnh báo cáo VP — mặc định gộp vào tab Link.
 
-    Raise ``UploadRejected`` (ValidationError) nếu có file không hợp lệ, và
-    KHÔNG lưu gì cả — kiểm tra hết trước khi ghi để không tạo trạng thái nửa vời.
+    File không hợp lệ bị loại + trả về ``rejected`` (để hiện popup); file hợp lệ
+    và nội dung báo cáo vẫn được lưu.
     """
-    from nas_storage.upload_guard import GROUP_IMAGE, validate_uploads
+    from nas_storage.upload_guard import GROUP_IMAGE, partition_uploads, upload_audit
 
-    # Ô "ảnh" chỉ nhận ảnh; ô "file" nhận mọi định dạng trong whitelist.
-    validate_uploads(bang_images, groups=(GROUP_IMAGE,))
-    validate_uploads(vanban_images, groups=(GROUP_IMAGE,))
-    validate_uploads(link_images, groups=(GROUP_IMAGE,))
-    validate_uploads(attachments)
-    validate_uploads(bang_files)
-    validate_uploads(vanban_files)
-    validate_uploads(link_files)
+    rejected: list[str] = []
+    with upload_audit(request):
+        bang_images, r = partition_uploads(bang_images, groups=(GROUP_IMAGE,))
+        rejected.extend(r)
+        vanban_images, r = partition_uploads(vanban_images, groups=(GROUP_IMAGE,))
+        rejected.extend(r)
+        link_images, r = partition_uploads(link_images, groups=(GROUP_IMAGE,))
+        rejected.extend(r)
+        attachments, r = partition_uploads(attachments)
+        rejected.extend(r)
+        bang_files, r = partition_uploads(bang_files)
+        rejected.extend(r)
+        vanban_files, r = partition_uploads(vanban_files)
+        rejected.extend(r)
+        link_files, r = partition_uploads(link_files)
+        rejected.extend(r)
 
     created = []
     for uploaded in attachments or []:
@@ -117,7 +134,7 @@ def save_daily_uploads(
                 original_name=getattr(uploaded, 'name', '') or 'file',
             ),
         )
-    return created
+    return created, rejected
 
 
 def copy_daily_attachments_job(source_report_id: int, target_report_id: int) -> int:

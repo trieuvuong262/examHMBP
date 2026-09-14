@@ -23,11 +23,147 @@ from __future__ import annotations
 import logging
 import os
 import unicodedata
+from contextlib import contextmanager
+from contextvars import ContextVar
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
+
+# Request đang validate upload — views gắn vào để log biết ai gửi file bị chặn.
+_upload_request: ContextVar[object | None] = ContextVar('upload_request', default=None)
+
+
+@contextmanager
+def upload_audit(request=None):
+    """Gắn request vào luồng validate — log biết user/IP/path khi từ chối file."""
+    token = _upload_request.set(request)
+    try:
+        yield
+    finally:
+        _upload_request.reset(token)
+
+
+def _current_request():
+    return _upload_request.get()
+
+
+def _actor_from_request(request) -> tuple[str, str]:
+    """Trả (username, label hiển thị)."""
+    if request is None:
+        return '', 'anonymous'
+    user = getattr(request, 'user', None)
+    if user is None or not getattr(user, 'is_authenticated', False):
+        return '', 'anonymous'
+    username = getattr(user, 'username', '') or ''
+    full = (getattr(user, 'get_full_name', lambda: '')() or '').strip()
+    label = f'{username} ({full})' if full and full != username else (username or 'anonymous')
+    return username, label
+
+
+def _client_ip(request) -> str:
+    if request is None:
+        return ''
+    forwarded = (request.META.get('HTTP_X_FORWARDED_FOR') or '').split(',')[0].strip()
+    return forwarded or (request.META.get('REMOTE_ADDR') or '')
+
+
+def _file_meta(uploaded) -> dict:
+    if uploaded is None:
+        return {}
+    meta = {
+        'filename': getattr(uploaded, 'name', '') or '',
+        'size': getattr(uploaded, 'size', None),
+        'content_type': getattr(uploaded, 'content_type', '') or '',
+    }
+    return {k: v for k, v in meta.items() if v is not None and v != ''}
+
+
+def _log_blocked_upload(
+    message: str,
+    *,
+    code: str,
+    name: str = '',
+    uploaded=None,
+    signature: str = '',
+    detail: str = '',
+) -> None:
+    """Ghi log server + nhật ký thao tác (khi có request) cho mọi lần chặn upload."""
+    request = _current_request()
+    username, actor = _actor_from_request(request)
+    ip = _client_ip(request)
+    path = getattr(request, 'path', '') if request is not None else ''
+    meta = _file_meta(uploaded)
+    filename = name or meta.get('filename') or '(không tên)'
+    size = meta.get('size')
+    content_type = meta.get('content_type') or ''
+
+    logger.warning(
+        'UPLOAD_BLOCKED code=%s user=%s ip=%s path=%s file=%s size=%s content_type=%s '
+        'signature=%s detail=%s msg=%s',
+        code,
+        username or actor,
+        ip or '-',
+        path or '-',
+        filename,
+        size if size is not None else '-',
+        content_type or '-',
+        signature or '-',
+        detail or '-',
+        message,
+    )
+
+    if request is None:
+        return
+    try:
+        from audit.models import UserActivityLog
+        from audit.utils import create_activity_log
+
+        summary = f'Từ chối upload «{filename}» [{code}] — {actor}'
+        if signature:
+            summary = f'{summary} · {signature}'
+        create_activity_log(
+            request=request,
+            action=UserActivityLog.ACTION_OTHER,
+            summary=summary[:500],
+            object_type='upload_rejected',
+            object_repr=filename[:255],
+            extra={
+                'upload_block': {
+                    'code': code,
+                    'filename': filename,
+                    'size': size,
+                    'content_type': content_type,
+                    'signature': signature,
+                    'detail': detail,
+                    'message': message,
+                },
+            },
+        )
+    except Exception:  # noqa: BLE001 — không để ghi log làm gãy luồng upload
+        logger.debug('Không ghi được UserActivityLog cho upload bị chặn', exc_info=True)
+
+
+def _reject(
+    message: str,
+    *,
+    code: str,
+    name: str = '',
+    uploaded=None,
+    signature: str = '',
+    detail: str = '',
+) -> None:
+    """Log rồi raise UploadRejected — mọi chỗ chặn đi qua đây."""
+    _log_blocked_upload(
+        message,
+        code=code,
+        name=name,
+        uploaded=uploaded,
+        signature=signature,
+        detail=detail,
+    )
+    raise UploadRejected(message)
 
 MB = 1024 * 1024
 
@@ -35,17 +171,20 @@ GROUP_IMAGE = 'image'
 GROUP_DOC = 'doc'
 GROUP_ARCHIVE = 'archive'
 GROUP_VIDEO = 'video'
+GROUP_DESIGN = 'design'
 
-ALL_GROUPS = (GROUP_IMAGE, GROUP_DOC, GROUP_ARCHIVE, GROUP_VIDEO)
+ALL_GROUPS = (GROUP_IMAGE, GROUP_DOC, GROUP_ARCHIVE, GROUP_VIDEO, GROUP_DESIGN)
 
 # Phần mở rộng cho phép theo nhóm. Nguồn: quét toàn bộ FileField/ImageField
 # trong DB (2.616 file) — jpg/jpeg/png chiếm 95%, còn lại pdf, xlsx, docx, ods,
 # doc, xls, zip, mp4, mkv. Các đuôi raster khác thêm sẵn vì vô hại.
+# Nhóm design: PSD/AI/EPS… dùng cho thiết kế sản phẩm / hồ sơ SX.
 EXT_GROUPS: dict[str, str] = {
     # Ảnh — CỐ Ý không có .svg
     '.jpg': GROUP_IMAGE, '.jpeg': GROUP_IMAGE, '.png': GROUP_IMAGE,
     '.gif': GROUP_IMAGE, '.webp': GROUP_IMAGE, '.bmp': GROUP_IMAGE,
     '.heic': GROUP_IMAGE, '.heif': GROUP_IMAGE,
+    '.tif': GROUP_IMAGE, '.tiff': GROUP_IMAGE,
     # Tài liệu
     '.pdf': GROUP_DOC,
     '.doc': GROUP_DOC, '.docx': GROUP_DOC,
@@ -53,6 +192,14 @@ EXT_GROUPS: dict[str, str] = {
     '.ppt': GROUP_DOC, '.pptx': GROUP_DOC,
     '.odt': GROUP_DOC, '.ods': GROUP_DOC, '.odp': GROUP_DOC,
     '.csv': GROUP_DOC, '.txt': GROUP_DOC,
+    # Thiết kế (Adobe / Corel / Affinity / Sketch…)
+    '.psd': GROUP_DESIGN, '.psb': GROUP_DESIGN,
+    '.ai': GROUP_DESIGN, '.eps': GROUP_DESIGN,
+    '.indd': GROUP_DESIGN, '.idml': GROUP_DESIGN,
+    '.cdr': GROUP_DESIGN,
+    '.sketch': GROUP_DESIGN, '.xd': GROUP_DESIGN,
+    '.fig': GROUP_DESIGN,
+    '.afdesign': GROUP_DESIGN, '.afphoto': GROUP_DESIGN, '.afpub': GROUP_DESIGN,
     # Nén
     '.zip': GROUP_ARCHIVE, '.rar': GROUP_ARCHIVE, '.7z': GROUP_ARCHIVE,
     # Video
@@ -65,6 +212,7 @@ DEFAULT_MAX_BYTES: dict[str, int] = {
     GROUP_DOC: 30 * MB,
     GROUP_ARCHIVE: 50 * MB,
     GROUP_VIDEO: 200 * MB,
+    GROUP_DESIGN: 100 * MB,
 }
 
 _SETTING_BY_GROUP = {
@@ -72,6 +220,7 @@ _SETTING_BY_GROUP = {
     GROUP_DOC: 'UPLOAD_MAX_BYTES_DOC',
     GROUP_ARCHIVE: 'UPLOAD_MAX_BYTES_ARCHIVE',
     GROUP_VIDEO: 'UPLOAD_MAX_BYTES_VIDEO',
+    GROUP_DESIGN: 'UPLOAD_MAX_BYTES_DESIGN',
 }
 
 # Đuôi nguy hiểm — chặn cả khi nằm ở giữa tên (bao-cao.pdf.exe) vì Windows chỉ
@@ -104,6 +253,8 @@ MAGIC_SIGNATURES: dict[str, list[tuple[int, bytes]]] = {
     '.gif': [(0, b'GIF87a'), (0, b'GIF89a')],
     '.webp': [(0, b'RIFF')],
     '.bmp': [(0, b'BM')],
+    '.tif': [(0, b'II*\x00'), (0, b'MM\x00*')],
+    '.tiff': [(0, b'II*\x00'), (0, b'MM\x00*')],
     '.heic': _FTYP_SIGS,
     '.heif': _FTYP_SIGS,
     '.pdf': [(0, b'%PDF')],
@@ -117,8 +268,22 @@ MAGIC_SIGNATURES: dict[str, list[tuple[int, bytes]]] = {
     '.mkv': [(0, b'\x1a\x45\xdf\xa3')],
     '.webm': [(0, b'\x1a\x45\xdf\xa3')],
     '.avi': [(0, b'RIFF')],
-    # .csv/.txt là văn bản thuần, không có chữ ký — chỉ dựa vào kiểm tra
-    # "chữ ký nguy hiểm" bên dưới.
+    # Thiết kế
+    '.psd': [(0, b'8BPS')],
+    '.psb': [(0, b'8BPS')],
+    # AI hiện đại thường là PDF; bản cũ/EPS là PostScript; một số bản lưu CFB.
+    '.ai': [(0, b'%PDF'), (0, b'%!PS'), (0, b'%!'), *_OLE_SIGS],
+    '.eps': [(0, b'%!PS'), (0, b'%!'), (0, b'\xc5\xd0\xd3\xc6')],
+    '.idml': _ZIP_SIGS,
+    '.sketch': _ZIP_SIGS,
+    '.xd': _ZIP_SIGS,
+    '.fig': _ZIP_SIGS,  # Figma export thường là zip
+    '.afdesign': _ZIP_SIGS,
+    '.afphoto': _ZIP_SIGS,
+    '.afpub': _ZIP_SIGS,
+    # CorelDRAW X4+ thường RIFF…CDR / ZIP; bản cũ không bắt buộc magic.
+    '.cdr': [(0, b'RIFF'), *_ZIP_SIGS],
+    # .indd / .csv / .txt — không có chữ ký ổn định → chỉ chặn magic nguy hiểm.
 }
 
 # Chữ ký của file thực thi / script — chặn bất kể đuôi là gì.
@@ -170,45 +335,73 @@ def _clean_name(uploaded) -> str:
     # Chỉ giữ phần tên, bỏ mọi thành phần đường dẫn (chống ../ và C:\)
     name = raw.replace('\\', '/').split('/')[-1].strip()
     if not name:
-        raise UploadRejected('Tên file trống.')
+        _reject('Tên file trống.', code='empty_name', uploaded=uploaded)
     if any(ch in _BIDI_CONTROLS for ch in name):
-        raise UploadRejected(
+        _reject(
             'Tên file chứa ký tự đảo chiều hiển thị — không được phép. '
             'Hãy đổi tên file rồi gửi lại.',
+            code='bidi_name',
+            name=name,
+            uploaded=uploaded,
         )
     if any(unicodedata.category(ch) == 'Cc' for ch in name):
-        raise UploadRejected('Tên file chứa ký tự điều khiển — hãy đổi tên file.')
+        _reject(
+            'Tên file chứa ký tự điều khiển — hãy đổi tên file.',
+            code='control_name',
+            name=name,
+            uploaded=uploaded,
+        )
     if len(name) > 200:
-        raise UploadRejected('Tên file quá dài (tối đa 200 ký tự).')
+        _reject(
+            'Tên file quá dài (tối đa 200 ký tự).',
+            code='name_too_long',
+            name=name,
+            uploaded=uploaded,
+        )
     return name
 
 
-def _check_extension(name: str, groups) -> tuple[str, str]:
+def _check_extension(name: str, groups, uploaded=None) -> tuple[str, str]:
     parts = name.lower().split('.')
     if len(parts) < 2:
-        raise UploadRejected(
+        _reject(
             f'File «{name}» không có phần mở rộng. '
             f'Chỉ nhận: {", ".join(allowed_extensions(groups))}.',
+            code='no_extension',
+            name=name,
+            uploaded=uploaded,
         )
 
     # Đuôi nguy hiểm nằm ở bất kỳ vị trí nào — chặn double extension
     for segment in parts[1:]:
         if f'.{segment}' in DANGEROUS_EXTS:
-            raise UploadRejected(
+            _reject(
                 f'File «{name}» có phần mở rộng không được phép (.{segment}).',
+                code='dangerous_ext',
+                name=name,
+                uploaded=uploaded,
+                detail=f'.{segment}',
             )
 
     ext = f'.{parts[-1]}'
     group = EXT_GROUPS.get(ext)
     if group is None:
-        raise UploadRejected(
+        _reject(
             f'File «{name}»: định dạng {ext} không được phép. '
             f'Chỉ nhận: {", ".join(allowed_extensions(groups))}.',
+            code='ext_not_allowed',
+            name=name,
+            uploaded=uploaded,
+            detail=ext,
         )
     if groups and group not in groups:
-        raise UploadRejected(
+        _reject(
             f'File «{name}»: chỗ này chỉ nhận '
             f'{", ".join(allowed_extensions(groups))}.',
+            code='ext_group_denied',
+            name=name,
+            uploaded=uploaded,
+            detail=ext,
         )
     return ext, group
 
@@ -219,11 +412,20 @@ def _check_size(uploaded, name: str, group: str, max_bytes: int | None) -> None:
         return
     limit = max_bytes if max_bytes else _max_bytes_for(group)
     if size > limit:
-        raise UploadRejected(
+        _reject(
             f'File «{name}» nặng {_mb(size)}MB, vượt giới hạn {_mb(limit)}MB.',
+            code='too_large',
+            name=name,
+            uploaded=uploaded,
+            detail=f'size={size} limit={limit}',
         )
     if size == 0:
-        raise UploadRejected(f'File «{name}» rỗng (0 byte).')
+        _reject(
+            f'File «{name}» rỗng (0 byte).',
+            code='empty_file',
+            name=name,
+            uploaded=uploaded,
+        )
 
 
 def _read_head(uploaded) -> bytes:
@@ -255,18 +457,26 @@ def _check_magic(uploaded, name: str, ext: str) -> None:
 
     for offset, signature, label in DANGEROUS_SIGNATURES:
         if _matches(head, offset, signature):
-            raise UploadRejected(
+            _reject(
                 f'File «{name}» thực chất là {label} — bị từ chối '
                 f'dù phần mở rộng là {ext}.',
+                code='dangerous_magic',
+                name=name,
+                uploaded=uploaded,
+                detail=label,
             )
 
     expected = MAGIC_SIGNATURES.get(ext)
     if not expected:
         return
     if not any(_matches(head, off, sig) for off, sig in expected):
-        raise UploadRejected(
+        _reject(
             f'Nội dung file «{name}» không khớp phần mở rộng {ext}. '
             'File có thể bị đổi tên hoặc đã hỏng.',
+            code='magic_mismatch',
+            name=name,
+            uploaded=uploaded,
+            detail=ext,
         )
 
 
@@ -283,22 +493,36 @@ def scan_for_malware(uploaded, name: str) -> None:
 
     result = scan_upload(uploaded)
     if result.is_infected:
-        logger.warning(
-            'Từ chối file nhiễm virus: %s — %s', name, result.signature,
-        )
-        raise UploadRejected(
+        _reject(
             f'File «{name}» chứa mã độc ({result.signature}) — đã bị từ chối. '
             'Hãy quét virus máy của bạn rồi gửi lại.',
+            code='malware',
+            name=name,
+            uploaded=uploaded,
+            signature=result.signature or '',
+            detail=result.detail or '',
         )
     if result.is_clean:
         return
 
     # Không quét được (clamd chết, quá lớn, timeout).
-    logger.warning('Không quét được virus cho «%s»: %s', name, result.detail)
+    request = _current_request()
+    username, actor = _actor_from_request(request)
+    logger.warning(
+        'UPLOAD_SCAN_SKIPPED user=%s ip=%s file=%s detail=%s',
+        username or actor,
+        _client_ip(request) or '-',
+        name,
+        result.detail,
+    )
     if av_fail_closed():
-        raise UploadRejected(
+        _reject(
             f'Chưa quét được virus cho «{name}» nên tạm thời không nhận file. '
             'Vui lòng thử lại sau hoặc liên hệ IT.',
+            code='scan_unavailable',
+            name=name,
+            uploaded=uploaded,
+            detail=result.detail or '',
         )
 
 
@@ -308,35 +532,93 @@ def validate_upload(
     groups=None,
     max_bytes: int | None = None,
     scan: bool = True,
+    request=None,
 ) -> str:
     """Kiểm tra một file upload. Raise ``UploadRejected`` nếu không hợp lệ.
 
     ``groups``: giới hạn nhóm cho phép, vd. ``(GROUP_IMAGE,)`` cho ô chỉ nhận ảnh.
     ``scan``: có quét virus không (đặt False khi đã quét ở nơi khác).
+    ``request``: gắn vào audit context nếu chưa có (để log user/IP).
     Trả về tên file đã chuẩn hoá.
     """
-    if uploaded is None:
-        raise UploadRejected('Không có file.')
-    groups = tuple(groups) if groups else None
-    name = _clean_name(uploaded)
-    ext, group = _check_extension(name, groups)
-    _check_size(uploaded, name, group, max_bytes)
-    _check_magic(uploaded, name, ext)
-    if scan:
-        scan_for_malware(uploaded, name)
-    return name
+    def _run() -> str:
+        if uploaded is None:
+            _reject('Không có file.', code='no_file')
+        groups_t = tuple(groups) if groups else None
+        name = _clean_name(uploaded)
+        ext, group = _check_extension(name, groups_t, uploaded=uploaded)
+        _check_size(uploaded, name, group, max_bytes)
+        _check_magic(uploaded, name, ext)
+        if scan:
+            scan_for_malware(uploaded, name)
+        return name
+
+    if request is not None and _current_request() is None:
+        with upload_audit(request):
+            return _run()
+    return _run()
 
 
-def validate_uploads(files, *, groups=None, max_bytes: int | None = None) -> None:
-    """Kiểm tra danh sách file — lỗi đầu tiên là dừng.
+def validate_uploads(files, *, groups=None, max_bytes: int | None = None, request=None) -> None:
+    """Kiểm tra danh sách file — có bất kỳ file lỗi nào thì raise (chế độ nghiêm).
 
-    Chạy hai lượt: lượt 1 toàn bộ phép kiểm tra rẻ, lượt 2 mới quét virus. Nhờ
-    vậy một lô có file sai định dạng bị chặn ngay, không phải chờ quét.
+    Dùng ``partition_uploads`` khi muốn nhận phần hợp lệ và chỉ báo file bị chặn.
     """
-    items = [f for f in (files or []) if f]
-    names = [
-        validate_upload(f, groups=groups, max_bytes=max_bytes, scan=False)
-        for f in items
-    ]
-    for uploaded, name in zip(items, names):
-        scan_for_malware(uploaded, name)
+    _accepted, rejected = partition_uploads(
+        files, groups=groups, max_bytes=max_bytes, request=request,
+    )
+    if rejected:
+        raise UploadRejected(rejected)
+
+
+def partition_uploads(
+    files,
+    *,
+    groups=None,
+    max_bytes: int | None = None,
+    request=None,
+) -> tuple[list, list[str]]:
+    """Lọc danh sách upload: trả (file_hợp_lệ, danh_sách_lý_do_từ_chối).
+
+    File lỗi bị loại + ghi log; file còn lại vẫn nhận. Dùng khi gửi báo cáo /
+    nhận xét: nội dung chữ và file chuẩn vẫn lưu, popup báo các file bị chặn.
+    """
+    def _run() -> tuple[list, list[str]]:
+        items = [f for f in (files or []) if f]
+        candidates: list[tuple[object, str]] = []
+        rejected: list[str] = []
+        for uploaded in items:
+            try:
+                name = validate_upload(
+                    uploaded, groups=groups, max_bytes=max_bytes, scan=False,
+                )
+                candidates.append((uploaded, name))
+            except UploadRejected as exc:
+                rejected.extend(exc.messages)
+        accepted: list = []
+        for uploaded, name in candidates:
+            try:
+                scan_for_malware(uploaded, name)
+            except UploadRejected as exc:
+                rejected.extend(exc.messages)
+                continue
+            accepted.append(uploaded)
+        return accepted, rejected
+
+    if request is not None and _current_request() is None:
+        with upload_audit(request):
+            return _run()
+    return _run()
+
+
+def format_rejected_upload_notice(rejected: list[str], *, saved_ok: bool = True) -> str:
+    """Ghép thông báo popup khi một phần file bị chặn."""
+    if not rejected:
+        return ''
+    detail = '; '.join(rejected)
+    if saved_ok:
+        return (
+            f'Không nhận {len(rejected)} file: {detail}. '
+            'Nội dung báo cáo / nhận xét và các file hợp lệ đã được lưu.'
+        )
+    return f'Không nhận {len(rejected)} file: {detail}.'

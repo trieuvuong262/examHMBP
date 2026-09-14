@@ -3,7 +3,7 @@
     {% for message in messages %}
     <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show border-0 shadow-sm jp-flash-alert"
          role="alert"
-         data-jp-flash-ms="3000">
+         data-jp-flash-ms="{% if 'error' in message.tags or 'warning' in message.tags %}10000{% else %}3000{% endif %}">
         {{ message }}
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng"></button>
     </div>

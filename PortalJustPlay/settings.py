@@ -627,6 +627,7 @@ UPLOAD_MAX_BYTES_IMAGE = int(os.getenv('UPLOAD_MAX_BYTES_IMAGE', str(15 * 1024 *
 UPLOAD_MAX_BYTES_DOC = int(os.getenv('UPLOAD_MAX_BYTES_DOC', str(30 * 1024 * 1024)))
 UPLOAD_MAX_BYTES_ARCHIVE = int(os.getenv('UPLOAD_MAX_BYTES_ARCHIVE', str(50 * 1024 * 1024)))
 UPLOAD_MAX_BYTES_VIDEO = int(os.getenv('UPLOAD_MAX_BYTES_VIDEO', str(200 * 1024 * 1024)))
+UPLOAD_MAX_BYTES_DESIGN = int(os.getenv('UPLOAD_MAX_BYTES_DESIGN', str(100 * 1024 * 1024)))
 
 # Quét virus file upload bằng ClamAV — xem nas_storage/av_scan.py
 AV_SCAN_ENABLED = env_bool('AV_SCAN_ENABLED', False)

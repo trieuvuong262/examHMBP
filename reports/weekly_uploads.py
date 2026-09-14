@@ -5,16 +5,19 @@ from django.core.files.base import ContentFile
 from .models import WeeklyWorkReportAttachment
 
 
-def save_weekly_uploads(report, *, image_list=None, file_list=None):
+def save_weekly_uploads(report, *, image_list=None, file_list=None, request=None):
     """Lưu file/ảnh báo cáo tuần.
 
-    Raise ``UploadRejected`` (ValidationError) nếu có file không hợp lệ, và
-    KHÔNG lưu gì cả — kiểm tra hết trước khi ghi.
+    File lỗi bị loại (trả ``rejected``); file hợp lệ vẫn lưu.
     """
-    from nas_storage.upload_guard import GROUP_IMAGE, validate_uploads
+    from nas_storage.upload_guard import GROUP_IMAGE, partition_uploads, upload_audit
 
-    validate_uploads(image_list, groups=(GROUP_IMAGE,))
-    validate_uploads(file_list)
+    rejected: list[str] = []
+    with upload_audit(request):
+        image_list, r = partition_uploads(image_list, groups=(GROUP_IMAGE,))
+        rejected.extend(r)
+        file_list, r = partition_uploads(file_list)
+        rejected.extend(r)
 
     created = []
     for uploaded in image_list or []:
@@ -35,7 +38,7 @@ def save_weekly_uploads(report, *, image_list=None, file_list=None):
                 original_name=getattr(uploaded, 'name', '') or 'file',
             ),
         )
-    return created
+    return created, rejected
 
 
 def copy_weekly_attachments(source_report, target_report):
