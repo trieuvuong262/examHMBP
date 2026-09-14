@@ -148,6 +148,7 @@ cleanup_stale_files() {
     -e media/ \
     -e staticfiles \
     -e staticfiles/ \
+    -e 'PortalJustPlay/nginx/ssl.conf' \
     -e '*.log' 2>/dev/null | grep -q .; then
     echo "    Removing untracked leftover paths:"
     git clean -ffdn \
@@ -157,6 +158,7 @@ cleanup_stale_files() {
       -e media/ \
       -e staticfiles \
       -e staticfiles/ \
+      -e 'PortalJustPlay/nginx/ssl.conf' \
       -e '*.log' 2>/dev/null | sed 's/^/      /'
     git clean -ffd \
       -e .env \
@@ -165,6 +167,7 @@ cleanup_stale_files() {
       -e media/ \
       -e staticfiles \
       -e staticfiles/ \
+      -e 'PortalJustPlay/nginx/ssl.conf' \
       -e '*.log' 2>/dev/null || true
   else
     echo "    No untracked leftover paths."
@@ -295,6 +298,7 @@ git clean -ffd \
   -e media/ \
   -e staticfiles \
   -e staticfiles/ \
+  -e 'PortalJustPlay/nginx/ssl.conf' \
   -e '*.log' 2>/dev/null || true
 echo "    At commit: $(git rev-parse --short HEAD)"
 
