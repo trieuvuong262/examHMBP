@@ -67,13 +67,21 @@ def login_security_page(request):
 
     # Chỉ ping clamd khi thực sự mở tab đó — tránh thêm I/O mạng cho 2 tab kia.
     if tab == 'filescan':
-        from audit.file_scan_config import get_config, scanner_status
+        from audit.file_scan_config import (
+            configured_allowed_extensions,
+            get_config,
+            scanner_status,
+            upload_limits_mb,
+        )
         from audit.models import UserActivityLog
-        from nas_storage.upload_guard import allowed_extensions
 
-        ctx['file_scan_config'] = get_config()
+        cfg = get_config()
+        ctx['file_scan_config'] = cfg
         ctx['scanner'] = scanner_status()
-        ctx['allowed_exts'] = allowed_extensions()
+        ctx['allowed_exts'] = configured_allowed_extensions()
+        ctx['allowed_exts_text'] = '\n'.join(ctx['allowed_exts'])
+        ctx['extensions_is_custom'] = bool(getattr(cfg, 'allowed_extensions', None))
+        ctx['upload_limits_mb'] = upload_limits_mb()
         ctx['upload_block_logs'] = (
             UserActivityLog.objects
             .filter(object_type='upload_rejected')
@@ -86,12 +94,22 @@ def login_security_page(request):
 @module_perm_required(MODULE_AUDIT, 'export')
 @require_POST
 def save_file_scan_config_view(request):
-    """Lưu công tắc quét virus file upload."""
-    from audit.file_scan_config import force_off, save_config
+    """Lưu công tắc quét virus + giới hạn dung lượng upload."""
+    from audit.file_scan_config import force_off, save_config, upload_limits_mb
 
     enabled = request.POST.get('enabled') == 'on'
     fail_closed = request.POST.get('fail_closed') == 'on'
-    save_config(enabled=enabled, fail_closed=fail_closed, admin_user=request.user)
+    defaults = upload_limits_mb()
+    save_config(
+        enabled=enabled,
+        fail_closed=fail_closed,
+        admin_user=request.user,
+        max_mb_image=request.POST.get('max_mb_image', defaults['image']),
+        max_mb_doc=request.POST.get('max_mb_doc', defaults['doc']),
+        max_mb_archive=request.POST.get('max_mb_archive', defaults['archive']),
+        max_mb_design=request.POST.get('max_mb_design', defaults['design']),
+        max_mb_video=request.POST.get('max_mb_video', defaults['video']),
+    )
 
     if enabled:
         from nas_storage.av_scan import ping
@@ -110,10 +128,40 @@ def save_file_scan_config_view(request):
                 '"docker compose up -d clamav". Lần đầu tải signature mất vài phút.',
             )
         else:
-            messages.success(request, 'Đã bật quét virus file upload.')
+            messages.success(request, 'Đã bật quét virus file upload và lưu giới hạn dung lượng.')
     else:
-        messages.success(request, 'Đã tắt quét virus file upload.')
+        messages.success(request, 'Đã tắt quét virus file upload. Đã lưu giới hạn dung lượng.')
 
+    return redirect(reverse('audit:login_security') + '?tab=filescan')
+
+
+@module_perm_required(MODULE_AUDIT, 'export')
+@require_POST
+def save_file_scan_extensions_view(request):
+    """Lưu / khôi phục danh sách đuôi file được phép upload."""
+    from audit.file_scan_config import parse_extensions_input, save_allowed_extensions
+
+    if request.POST.get('reset_default') == '1':
+        save_allowed_extensions(extensions=[], admin_user=request.user, reset_default=True)
+        messages.success(request, 'Đã khôi phục danh sách định dạng mặc định trong mã.')
+        return redirect(reverse('audit:login_security') + '?tab=filescan')
+
+    valid, rejected = parse_extensions_input(request.POST.get('allowed_extensions', ''))
+    if not valid:
+        messages.error(
+            request,
+            'Danh sách trống hoặc không hợp lệ. Giữ ít nhất một đuôi an toàn, '
+            'hoặc dùng «Khôi phục mặc định».',
+        )
+        return redirect(reverse('audit:login_security') + '?tab=filescan')
+
+    save_allowed_extensions(extensions=valid, admin_user=request.user)
+    msg = f'Đã lưu {len(valid)} định dạng được phép.'
+    if rejected:
+        msg += f' Bỏ qua (nguy hiểm/không hợp lệ): {", ".join(rejected[:12])}'
+        messages.warning(request, msg)
+    else:
+        messages.success(request, msg)
     return redirect(reverse('audit:login_security') + '?tab=filescan')
 
 

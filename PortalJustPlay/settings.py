@@ -633,8 +633,10 @@ UPLOAD_MAX_BYTES_DESIGN = int(os.getenv('UPLOAD_MAX_BYTES_DESIGN', str(100 * 102
 AV_SCAN_ENABLED = env_bool('AV_SCAN_ENABLED', False)
 AV_CLAMD_HOST = os.getenv('AV_CLAMD_HOST', 'clamav').strip()
 AV_CLAMD_PORT = int(os.getenv('AV_CLAMD_PORT', '3310') or '3310')
-AV_SCAN_TIMEOUT = float(os.getenv('AV_SCAN_TIMEOUT', '30') or '30')
-AV_SCAN_MAX_BYTES = int(os.getenv('AV_SCAN_MAX_BYTES', str(50 * 1024 * 1024)))
+# File lớn (≤200MB) quét lâu hơn — 90s vẫn dưới gunicorn --timeout 300.
+AV_SCAN_TIMEOUT = float(os.getenv('AV_SCAN_TIMEOUT', '90') or '90')
+# Phải ≤ StreamMaxLength của clamd (docker/clamav/entrypoint-wrapper.sh → 200M).
+AV_SCAN_MAX_BYTES = int(os.getenv('AV_SCAN_MAX_BYTES', str(200 * 1024 * 1024)))
 # Hai biến dưới chỉ là GIÁ TRỊ KHỞI TẠO lần đầu. Công tắc thật nằm ở DB
 # (audit.FileScanConfig), bật/tắt tại Nhật ký → Bảo mật đăng nhập → Quét virus.
 # AV_SCAN_ENABLED còn quyết định deploy.sh có khởi động container clamav không.

@@ -33,7 +33,12 @@ urlpatterns = [
         name='file_scan_save_config',
     ),
     path(
-        'bao-mat-dang-nhap/quet-virus/thu/',
+        'bao-mat-dang-nhap/quet-virus/dinh-dang/',
+        views_login_security.save_file_scan_extensions_view,
+        name='file_scan_save_extensions',
+    ),
+    path(
+        'bao-mat-dang-nhap/quet-virus/thu-eicar/',
         views_login_security.test_file_scan_view,
         name='file_scan_test',
     ),

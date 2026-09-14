@@ -12,7 +12,8 @@ server {
     ssl_session_cache shared:SSL:10m;
     ssl_protocols TLSv1.2 TLSv1.3;
 
-    client_max_body_size 100M;
+    # Khớp trần upload video / quét ClamAV (200MB). File lớn hơn bị nginx chặn trước.
+    client_max_body_size 200M;
 
     include /etc/nginx/conf.d/security-headers.conf;
     include /etc/nginx/conf.d/performance.conf;

@@ -11,9 +11,10 @@ THIẾT KẾ
 --------
 * Quét **đồng bộ trong request**, sau khi các phép kiểm tra rẻ (whitelist, magic
   bytes) đã qua — không tốn công quét file vốn đã bị từ chối.
-* Có giới hạn dung lượng quét ``AV_SCAN_MAX_BYTES``. File lớn hơn không quét
-  được (clamd cũng có ``StreamMaxLength`` riêng); hành vi khi đó do
-  ``AV_FAIL_CLOSED`` quyết định.
+* Có giới hạn dung lượng quét ``AV_SCAN_MAX_BYTES`` (mặc định 200MB). File lớn
+  hơn không quét được (clamd cũng có ``StreamMaxLength`` riêng, cấu hình
+  đồng bộ trong ``docker/clamav/entrypoint-wrapper.sh``); hành vi khi đó do
+  ``AV_FAIL_CLOSED`` / công tắc fail_closed trên UI quyết định.
 * ``AV_FAIL_CLOSED``:
   - ``True``  → không quét được thì TỪ CHỐI (an toàn hơn, nhưng ClamAV chết là
     không ai upload được).
@@ -99,11 +100,12 @@ def _timeout() -> float:
 
 
 def _max_bytes() -> int:
+    default = 200 * 1024 * 1024
     try:
-        value = int(getattr(settings, 'AV_SCAN_MAX_BYTES', 50 * 1024 * 1024) or 0)
+        value = int(getattr(settings, 'AV_SCAN_MAX_BYTES', default) or 0)
     except (TypeError, ValueError):
-        value = 50 * 1024 * 1024
-    return value if value > 0 else 50 * 1024 * 1024
+        value = default
+    return value if value > 0 else default
 
 
 def _read_until_nul(sock: socket.socket) -> bytes:

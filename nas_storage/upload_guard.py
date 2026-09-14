@@ -310,6 +310,16 @@ class UploadRejected(ValidationError):
 
 
 def _max_bytes_for(group: str) -> int:
+    """Ưu tiên giới hạn trong DB (tab Quét virus), không thì .env / mặc định mã."""
+    try:
+        from audit.file_scan_config import configured_max_bytes
+
+        configured = configured_max_bytes(group)
+        if configured is not None and configured > 0:
+            return configured
+    except Exception:  # noqa: BLE001 — không để cấu hình làm gãy upload
+        logger.debug('Không đọc được giới hạn upload từ DB', exc_info=True)
+
     setting_name = _SETTING_BY_GROUP.get(group)
     default = DEFAULT_MAX_BYTES.get(group, 30 * MB)
     if not setting_name:
@@ -326,8 +336,24 @@ def _mb(value: int) -> str:
 
 
 def allowed_extensions(groups=None) -> list[str]:
+    """Đuôi được phép — giao của nhóm yêu cầu và danh sách cấu hình (DB hoặc mặc định mã)."""
     groups = tuple(groups) if groups else ALL_GROUPS
-    return sorted(ext for ext, grp in EXT_GROUPS.items() if grp in groups)
+    try:
+        from audit.file_scan_config import configured_allowed_extensions
+
+        configured = set(configured_allowed_extensions())
+    except Exception:  # noqa: BLE001 — DB/migrate chưa sẵn thì dùng mã nguồn
+        logger.debug('Không đọc được allowed_extensions từ DB', exc_info=True)
+        configured = None
+
+    out: list[str] = []
+    for ext, grp in EXT_GROUPS.items():
+        if grp not in groups:
+            continue
+        if configured is not None and ext not in configured:
+            continue
+        out.append(ext)
+    return sorted(out)
 
 
 def _clean_name(uploaded) -> str:
@@ -363,10 +389,11 @@ def _clean_name(uploaded) -> str:
 
 def _check_extension(name: str, groups, uploaded=None) -> tuple[str, str]:
     parts = name.lower().split('.')
+    allowed = allowed_extensions(groups)
     if len(parts) < 2:
         _reject(
             f'File «{name}» không có phần mở rộng. '
-            f'Chỉ nhận: {", ".join(allowed_extensions(groups))}.',
+            f'Chỉ nhận: {", ".join(allowed)}.',
             code='no_extension',
             name=name,
             uploaded=uploaded,
@@ -388,7 +415,7 @@ def _check_extension(name: str, groups, uploaded=None) -> tuple[str, str]:
     if group is None:
         _reject(
             f'File «{name}»: định dạng {ext} không được phép. '
-            f'Chỉ nhận: {", ".join(allowed_extensions(groups))}.',
+            f'Chỉ nhận: {", ".join(allowed)}.',
             code='ext_not_allowed',
             name=name,
             uploaded=uploaded,
@@ -397,8 +424,18 @@ def _check_extension(name: str, groups, uploaded=None) -> tuple[str, str]:
     if groups and group not in groups:
         _reject(
             f'File «{name}»: chỗ này chỉ nhận '
-            f'{", ".join(allowed_extensions(groups))}.',
+            f'{", ".join(allowed)}.',
             code='ext_group_denied',
+            name=name,
+            uploaded=uploaded,
+            detail=ext,
+        )
+    if ext not in allowed:
+        # Có trong mã nhưng bị cắt bởi danh sách tuỳ chỉnh trên UI.
+        _reject(
+            f'File «{name}»: định dạng {ext} không được phép. '
+            f'Chỉ nhận: {", ".join(allowed)}.',
+            code='ext_not_allowed',
             name=name,
             uploaded=uploaded,
             detail=ext,

@@ -98,6 +98,12 @@
                 </div>
             </div>
 
+            <p class="small text-muted mt-3 mb-0">
+                ClamAV chỉ quét file ≤ <strong>{{ scanner.max_scan_mb }}&nbsp;MB</strong>
+                (<code>AV_SCAN_MAX_BYTES</code>). File lớn hơn không quét —
+                hành vi phụ thuộc công tắc “Từ chối khi không quét được”.
+            </p>
+
             {% if not scanner.alive and not scanner.container_enabled %}
             <div class="alert alert-warning small">
                 Container ClamAV chưa được khởi động. Trên VPS đặt
@@ -144,6 +150,61 @@
                     </div>
                 </div>
 
+                <h6 class="fw-bold mb-2">Kích thước tối đa theo loại file (MB)</h6>
+                <p class="small text-muted mb-3">
+                    Áp dụng ngay khi lưu — không cần deploy lại.
+                    Nginx hiện giới hạn request khoảng <code>200&nbsp;MB</code>
+                    (<code>client_max_body_size</code>); đặt cao hơn trên portal
+                    vẫn bị nginx chặn trước.
+                </p>
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-md-4 col-lg">
+                        <label class="form-label small fw-semibold" for="max_mb_image">Ảnh</label>
+                        <div class="input-group input-group-sm">
+                            <input type="number" class="form-control" id="max_mb_image" name="max_mb_image"
+                                   min="1" max="2048" step="1" required
+                                   value="{{ upload_limits_mb.image }}">
+                            <span class="input-group-text">MB</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-4 col-lg">
+                        <label class="form-label small fw-semibold" for="max_mb_doc">Tài liệu</label>
+                        <div class="input-group input-group-sm">
+                            <input type="number" class="form-control" id="max_mb_doc" name="max_mb_doc"
+                                   min="1" max="2048" step="1" required
+                                   value="{{ upload_limits_mb.doc }}">
+                            <span class="input-group-text">MB</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-4 col-lg">
+                        <label class="form-label small fw-semibold" for="max_mb_archive">File nén</label>
+                        <div class="input-group input-group-sm">
+                            <input type="number" class="form-control" id="max_mb_archive" name="max_mb_archive"
+                                   min="1" max="2048" step="1" required
+                                   value="{{ upload_limits_mb.archive }}">
+                            <span class="input-group-text">MB</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-4 col-lg">
+                        <label class="form-label small fw-semibold" for="max_mb_design">Thiết kế</label>
+                        <div class="input-group input-group-sm">
+                            <input type="number" class="form-control" id="max_mb_design" name="max_mb_design"
+                                   min="1" max="2048" step="1" required
+                                   value="{{ upload_limits_mb.design }}">
+                            <span class="input-group-text">MB</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-4 col-lg">
+                        <label class="form-label small fw-semibold" for="max_mb_video">Video</label>
+                        <div class="input-group input-group-sm">
+                            <input type="number" class="form-control" id="max_mb_video" name="max_mb_video"
+                                   min="1" max="2048" step="1" required
+                                   value="{{ upload_limits_mb.video }}">
+                            <span class="input-group-text">MB</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="d-flex flex-wrap align-items-center gap-3">
                     <button type="submit" class="btn btn-hm text-white fw-bold">
                         <i class="bi bi-save me-1"></i>Lưu
@@ -177,15 +238,41 @@
             {% if allowed_exts %}
             <hr class="my-4">
             <div class="small text-muted mb-2 fw-bold">Định dạng được phép tải lên</div>
+            {% if can_unlock %}
+            <form method="post" action="{% url 'audit:file_scan_save_extensions' %}" class="mb-3">
+                {% csrf_token %}
+                <label class="form-label small" for="allowed_extensions">
+                    Mỗi dòng một đuôi (vd. <code>.pdf</code>). Lưu áp dụng ngay.
+                </label>
+                <textarea class="form-control font-monospace small" id="allowed_extensions"
+                          name="allowed_extensions" rows="8"
+                          spellcheck="false">{{ allowed_exts_text }}</textarea>
+                <div class="form-text mb-3">
+                    File thực thi, script, HTML/SVG và Office có macro luôn bị chặn dù có ghi vào đây.
+                    {% if extensions_is_custom %}
+                    Đang dùng danh sách tuỳ chỉnh.
+                    {% else %}
+                    Đang dùng danh sách mặc định trong mã.
+                    {% endif %}
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="submit" class="btn btn-hm text-white fw-bold btn-sm">
+                        <i class="bi bi-save me-1"></i>Lưu định dạng
+                    </button>
+                    <button type="submit" name="reset_default" value="1"
+                            class="btn btn-outline-secondary btn-sm fw-bold"
+                            onclick="return confirm('Khôi phục danh sách mặc định?');">
+                        Khôi phục mặc định
+                    </button>
+                </div>
+            </form>
+            {% else %}
             <div class="d-flex flex-wrap gap-1">
                 {% for ext in allowed_exts %}
                 <span class="badge bg-light text-dark border font-monospace">{{ ext }}</span>
                 {% endfor %}
             </div>
-            <div class="form-text mt-2">
-                Danh sách này nằm trong mã nguồn (<code>nas_storage/upload_guard.py</code>) —
-                đổi cần deploy. File thực thi, script, HTML/SVG và Office có macro luôn bị chặn.
-            </div>
+            {% endif %}
             {% endif %}
 
             <hr class="my-4">

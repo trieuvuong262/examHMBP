@@ -183,7 +183,7 @@ class LoginSecurityConfig(models.Model):
 
 
 class FileScanConfig(models.Model):
-    """Công tắc quét virus file upload (singleton pk=1).
+    """Công tắc quét virus + giới hạn upload (singleton pk=1).
 
     Trước đây chỉ bật/tắt được qua ``AV_SCAN_ENABLED`` trong ``.env``, tức phải
     SSH vào VPS và deploy lại. Đưa vào DB để IT bật/tắt ngay trên portal.
@@ -205,6 +205,35 @@ class FileScanConfig(models.Model):
             'Bật: ClamAV lỗi thì không nhận file (an toàn hơn nhưng scanner chết '
             'là không ai gửi được đính kèm). Tắt: cho qua và ghi log cảnh báo.'
         ),
+    )
+    allowed_extensions = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name='Định dạng được phép',
+        help_text=(
+            'Danh sách phần mở rộng (có dấu chấm). Để trống để dùng danh sách '
+            'mặc định trong mã.'
+        ),
+    )
+    max_mb_image = models.PositiveIntegerField(
+        default=15,
+        verbose_name='Ảnh tối đa (MB)',
+    )
+    max_mb_doc = models.PositiveIntegerField(
+        default=30,
+        verbose_name='Tài liệu tối đa (MB)',
+    )
+    max_mb_archive = models.PositiveIntegerField(
+        default=50,
+        verbose_name='File nén tối đa (MB)',
+    )
+    max_mb_design = models.PositiveIntegerField(
+        default=100,
+        verbose_name='Thiết kế tối đa (MB)',
+    )
+    max_mb_video = models.PositiveIntegerField(
+        default=200,
+        verbose_name='Video tối đa (MB)',
     )
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(
@@ -230,7 +259,15 @@ class FileScanConfig(models.Model):
             # Lần đầu: lấy giá trị hiện hành từ .env để không đổi hành vi đang chạy.
             obj.enabled = bool(getattr(settings, 'AV_SCAN_ENABLED', False))
             obj.fail_closed = bool(getattr(settings, 'AV_FAIL_CLOSED', False))
-            obj.save(update_fields=['enabled', 'fail_closed'])
+            obj.max_mb_image = max(1, int(getattr(settings, 'UPLOAD_MAX_BYTES_IMAGE', 15 * 1024 * 1024)) // (1024 * 1024))
+            obj.max_mb_doc = max(1, int(getattr(settings, 'UPLOAD_MAX_BYTES_DOC', 30 * 1024 * 1024)) // (1024 * 1024))
+            obj.max_mb_archive = max(1, int(getattr(settings, 'UPLOAD_MAX_BYTES_ARCHIVE', 50 * 1024 * 1024)) // (1024 * 1024))
+            obj.max_mb_design = max(1, int(getattr(settings, 'UPLOAD_MAX_BYTES_DESIGN', 100 * 1024 * 1024)) // (1024 * 1024))
+            obj.max_mb_video = max(1, int(getattr(settings, 'UPLOAD_MAX_BYTES_VIDEO', 200 * 1024 * 1024)) // (1024 * 1024))
+            obj.save(update_fields=[
+                'enabled', 'fail_closed',
+                'max_mb_image', 'max_mb_doc', 'max_mb_archive', 'max_mb_design', 'max_mb_video',
+            ])
         return obj
 
 

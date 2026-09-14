@@ -77,14 +77,20 @@ services:
   clamav:
     image: clamav/clamav:stable
     mem_limit: 2g
+    # Nâng StreamMaxLength/MaxFileSize lên 200M (khớp AV_SCAN_MAX_BYTES).
+    entrypoint: ["/bin/sh", "/entrypoint-wrapper.sh"]
     volumes:
       - clamav_data:/var/lib/clamav
+      - ./docker/clamav/entrypoint-wrapper.sh:/entrypoint-wrapper.sh:ro
     environment:
       # Chỉ chạy clamd + freshclam, không cần milter (tiết kiệm RAM)
       CLAMAV_NO_MILTERD: "true"
       CLAMAV_NO_CLAMD: "false"
       CLAMAV_NO_FRESHCLAMD: "false"
       FRESHCLAM_CHECKS: "2"
+      CLAM_STREAM_MAX_LENGTH: "200M"
+      CLAM_MAX_FILE_SIZE: "200M"
+      CLAM_MAX_SCAN_SIZE: "400M"
     healthcheck:
       test: ["CMD-SHELL", "clamdscan --ping 1 || exit 1"]
       interval: 30s
