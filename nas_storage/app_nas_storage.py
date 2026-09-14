@@ -31,7 +31,11 @@ def persist_app_nas_file(
     file_rel = (file_rel or '').lstrip('/')
     folder_rel_base = (folder_rel_base or '').strip('/')
 
-    if allow_mount:
+    from nas_storage.nas_mount_health import mount_io_safe
+
+    # Chỉ chạm mount khi chắc chắn không treo: mkdir/copyfile trên mount FUSE đã
+    # mất kết nối sẽ kẹt D-state, không kill được bằng gunicorn --timeout.
+    if allow_mount and mount_io_safe(mount_dest):
         try:
             mount_dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(tmp_path, mount_dest)
@@ -54,7 +58,9 @@ def persist_app_nas_file(
             rclone_cmd,
             capture_output=True,
             text=True,
-            timeout=600 if allow_mount else 90,
+            # 600s cũ vượt `gunicorn --timeout 300` → worker bị kill trước khi
+            # rclone hết hạn. Dùng ngân sách an toàn cho request.
+            timeout=rclone_request_timeout() if allow_mount else 90,
             check=False,
             env=_rclone_env(),
         )
@@ -75,17 +81,38 @@ def persist_app_nas_file(
         ) from exc
 
 
+def rclone_request_timeout() -> int:
+    """Timeout rclone cho code chạy trong request web (< gunicorn --timeout)."""
+    try:
+        value = int(getattr(settings, 'NAS_RCLONE_REQUEST_TIMEOUT', 120) or 120)
+    except (TypeError, ValueError):
+        value = 120
+    return max(5, min(280, value))
+
+
+def rclone_job_timeout() -> int:
+    """Timeout rclone cho job nền (RQ) — không bị gunicorn giới hạn."""
+    try:
+        value = int(getattr(settings, 'NAS_RCLONE_JOB_TIMEOUT', 600) or 600)
+    except (TypeError, ValueError):
+        value = 600
+    return max(30, value)
+
+
 def persist_app_nas_mkdir(folder_rel_base: str) -> None:
     """Tạo thư mục gốc lưu trữ ứng dụng trên NAS (best-effort)."""
     folder_rel_base = (folder_rel_base or '').strip('/')
     if not folder_rel_base:
         return
+    from nas_storage.nas_mount_health import mount_io_safe
+
     mount_root = Path(getattr(settings, 'NAS_MOUNT_ROOT', '/mnt/nas-portal')) / folder_rel_base
-    try:
-        mount_root.mkdir(parents=True, exist_ok=True)
-        return
-    except OSError:
-        pass
+    if mount_io_safe(mount_root):
+        try:
+            mount_root.mkdir(parents=True, exist_ok=True)
+            return
+        except OSError:
+            pass
     target = app_storage_rclone_target(folder_rel_base, '')
     proc = subprocess.run(
         ['rclone', 'mkdir', target.rstrip('/')],

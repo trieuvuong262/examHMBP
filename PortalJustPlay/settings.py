@@ -553,6 +553,15 @@ NAS_DEPT_ROOT_REMOTES = os.getenv('NAS_DEPT_ROOT_REMOTES', 'KD-MKT:synology:KD-M
 NAS_DEPT_MOUNT_ROOTS = os.getenv('NAS_DEPT_MOUNT_ROOTS', 'KD-MKT:/mnt/nas-kd-mkt')
 NAS_LISTING_CACHE_SECONDS = int(os.getenv('NAS_LISTING_CACHE_SECONDS', '120'))
 NAS_RCLONE_FAST_LIST = env_bool('NAS_RCLONE_FAST_LIST', True)
+# Timeout rclone khi chạy TRONG request web. PHẢI nhỏ hơn `gunicorn --timeout`
+# (300s ở docker-compose.yml): nếu lớn hơn, gunicorn kill worker trước khi rclone
+# kịp hết hạn → người dùng nhận 502/504 thay vì thông báo lỗi rõ ràng.
+NAS_RCLONE_REQUEST_TIMEOUT = int(os.getenv('NAS_RCLONE_REQUEST_TIMEOUT', '120') or '120')
+# Timeout rclone trong job nền (RQ) — không bị gunicorn giới hạn.
+NAS_RCLONE_JOB_TIMEOUT = int(os.getenv('NAS_RCLONE_JOB_TIMEOUT', '600') or '600')
+# Timeout `rclone lsjson` khi liệt kê thư mục (trước đây đọc bằng getattr nhưng
+# không khai báo ở đâu nên không cấu hình được từ .env).
+NAS_RCLONE_LIST_TIMEOUT = int(os.getenv('NAS_RCLONE_LIST_TIMEOUT', '60') or '60')
 NAS_AUTO_SYNC_INTERVAL = int(os.getenv('NAS_AUTO_SYNC_INTERVAL', '60'))
 NAS_BACKGROUND_SYNC_DEFAULT = env_bool('NAS_BACKGROUND_SYNC_DEFAULT', False)
 # Backup Portal → NAS (database + source + media)
@@ -584,6 +593,9 @@ NAS_LDAP_BIND_DN = os.getenv(
 NAS_LDAP_BIND_PASSWORD = os.getenv('NAS_LDAP_BIND_PASSWORD', '').strip()
 NAS_LDAP_SYNC_SKIP_USERNAMES = os.getenv('NAS_LDAP_SYNC_SKIP_USERNAMES', 'admin,ductn').strip()
 NAS_LDAP_DOMAIN = os.getenv('NAS_LDAP_DOMAIN', 'ldap.justplay.local').strip()
+# ldap3 mặc định không có timeout — NAS qua Tailscale rớt là treo request vô hạn.
+NAS_LDAP_CONNECT_TIMEOUT = int(os.getenv('NAS_LDAP_CONNECT_TIMEOUT', '5') or '5')
+NAS_LDAP_RECEIVE_TIMEOUT = int(os.getenv('NAS_LDAP_RECEIVE_TIMEOUT', '10') or '10')
 # RaiDrive / NAS ngoài (Thư viện → Tải bộ cài)
 NAS_WEBDAV_PORT = int(os.getenv('NAS_WEBDAV_PORT', '5678') or '5678')
 NAS_SMB_PORT = int(os.getenv('NAS_SMB_PORT', '445') or '445')

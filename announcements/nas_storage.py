@@ -60,16 +60,29 @@ class AnnouncementNasStorage(FileSystemStorage):
         return str(announcement_nas_abs_root() / name)
 
     def exists(self, name: str) -> bool:
+        from nas_storage.nas_mount_health import mount_io_safe
+
+        path = Path(self.path(name))
+        if not mount_io_safe(path):
+            return False
         try:
-            return Path(self.path(name)).is_file()
+            return path.is_file()
         except OSError:
             return False
 
     def open(self, name: str, mode: str = 'rb'):
-        return Path(self.path(name)).open(mode)
+        from nas_storage.nas_mount_health import guard_mount_io
+
+        path = Path(self.path(name))
+        guard_mount_io(path, what='thông báo')
+        return path.open(mode)
 
     def delete(self, name: str) -> None:
+        from nas_storage.nas_mount_health import mount_io_safe
+
         path = Path(self.path(name))
+        if not mount_io_safe(path):
+            return
         try:
             if path.is_file():
                 path.unlink()
@@ -77,7 +90,11 @@ class AnnouncementNasStorage(FileSystemStorage):
             pass
 
     def size(self, name: str) -> int:
-        return Path(self.path(name)).stat().st_size
+        from nas_storage.nas_mount_health import guard_mount_io
+
+        path = Path(self.path(name))
+        guard_mount_io(path, what='thông báo')
+        return path.stat().st_size
 
     def _save(self, name, content):
         name = self.get_available_name(name)
@@ -114,12 +131,15 @@ def announcement_file_abs_path(announcement, field_name: str) -> Path | None:
     name = field.name if field else ''
     if not name:
         return None
+    from nas_storage.nas_mount_health import mount_io_safe
+
     path = Path(AnnouncementNasStorage().path(name))
-    try:
-        if path.is_file():
-            return path
-    except OSError:
-        pass
+    if mount_io_safe(path):
+        try:
+            if path.is_file():
+                return path
+        except OSError:
+            pass
     cached = _rclone_cache_path(name)
     if cached.is_file():
         return cached
@@ -155,6 +175,8 @@ def _rclone_cache_path(rel_name: str) -> Path:
 
 
 def _rclone_download_to_cache(rel_name: str) -> Path:
+    from nas_storage.app_nas_storage import rclone_request_timeout
+
     cached = _rclone_cache_path(rel_name)
     cached.parent.mkdir(parents=True, exist_ok=True)
     target = _announcement_rclone_target(rel_name)
@@ -162,7 +184,8 @@ def _rclone_download_to_cache(rel_name: str) -> Path:
         ['rclone', 'copyto', target, str(cached)],
         capture_output=True,
         text=True,
-        timeout=600,
+        # Chạy trong request mở file thông báo → phải nhỏ hơn `gunicorn --timeout`.
+        timeout=rclone_request_timeout(),
         check=False,
         env=_rclone_env(),
     )

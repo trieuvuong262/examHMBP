@@ -84,6 +84,24 @@ def _ldap_verify_ssl() -> bool:
     return bool(getattr(settings, 'NAS_LDAP_VERIFY_SSL', False))
 
 
+def _ldap_connect_timeout() -> int:
+    """Giới hạn thời gian bắt tay TCP/TLS tới NAS."""
+    try:
+        value = int(getattr(settings, 'NAS_LDAP_CONNECT_TIMEOUT', 5) or 5)
+    except (TypeError, ValueError):
+        value = 5
+    return max(1, min(60, value))
+
+
+def _ldap_receive_timeout() -> int:
+    """Giới hạn thời gian chờ phản hồi cho mỗi operation LDAP."""
+    try:
+        value = int(getattr(settings, 'NAS_LDAP_RECEIVE_TIMEOUT', 10) or 10)
+    except (TypeError, ValueError):
+        value = 10
+    return max(1, min(120, value))
+
+
 def _ldap_base_dn() -> str:
     return (getattr(settings, 'NAS_LDAP_BASE_DN', 'dc=ldap,dc=justplay,dc=local') or '').strip()
 
@@ -171,11 +189,15 @@ def _ldap_connection():
     if _ldap_use_ssl():
         tls = Tls(validate=ssl.CERT_REQUIRED if _ldap_verify_ssl() else ssl.CERT_NONE)
 
+    # QUAN TRỌNG: ldap3 mặc định KHÔNG có timeout. NAS đi qua Tailscale nên khi
+    # NAS/Tailscale rớt, `auto_bind=True` treo vô hạn — mà luồng này nằm ngay
+    # trong request lưu nhân viên / đổi mật khẩu, đủ để cạn gunicorn worker.
     server = Server(
         _ldap_host(),
         port=_ldap_port(),
         use_ssl=_ldap_use_ssl(),
         tls=tls,
+        connect_timeout=_ldap_connect_timeout(),
     )
     conn = Connection(
         server,
@@ -183,6 +205,7 @@ def _ldap_connection():
         password=_ldap_bind_password(),
         auto_bind=True,
         raise_exceptions=True,
+        receive_timeout=_ldap_receive_timeout(),
     )
     try:
         yield conn

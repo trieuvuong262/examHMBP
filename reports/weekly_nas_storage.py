@@ -186,6 +186,8 @@ def _rclone_cache_path(rel_name: str) -> Path:
 
 
 def _rclone_download_to_cache(rel_name: str) -> Path:
+    from nas_storage.app_nas_storage import rclone_request_timeout
+
     cached = _rclone_cache_path(rel_name)
     cached.parent.mkdir(parents=True, exist_ok=True)
     target = _weekly_rclone_target(rel_name)
@@ -193,7 +195,8 @@ def _rclone_download_to_cache(rel_name: str) -> Path:
         ['rclone', 'copyto', target, str(cached)],
         capture_output=True,
         text=True,
-        timeout=600,
+        # Chạy trong request mở đính kèm → phải nhỏ hơn `gunicorn --timeout`.
+        timeout=rclone_request_timeout(),
         check=False,
         env=_rclone_env(),
     )

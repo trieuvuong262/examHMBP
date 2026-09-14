@@ -90,7 +90,17 @@ def app_storage_rclone_target(folder_rel_base: str, file_rel: str) -> str:
 
 
 def nas_is_available() -> bool:
+    """NAS có sẵn sàng để đọc qua mount hay không.
+
+    Với mount FUSE, KHÔNG stat mount (``is_dir``/``os.access`` treo D-state khi
+    NAS mất kết nối) — dùng probe mạng có cache. Với thư mục thường (dev/test)
+    giữ nguyên cách kiểm tra cũ.
+    """
+    from nas_storage.nas_mount_health import path_on_fuse_mount, remote_reachable
+
     root = nas_mount_root()
+    if path_on_fuse_mount(root):
+        return remote_reachable()
     return root.is_dir() and os.access(root, os.R_OK)
 
 
@@ -354,9 +364,19 @@ def resolve_nas_path(user, rel_path: str) -> Path:
     if not user_can_access_private_nas_rel(user, rel):
         raise NasPathError('Bạn không có quyền truy cập thư mục này.')
 
+    from nas_storage.nas_mount_health import mount_io_safe
+
     mount, rel = nas_mount_base_and_rel(user, rel_path)
-    candidate = (mount / rel).resolve() if rel else mount.resolve()
-    mount_resolved = mount.resolve()
+    raw_candidate = (mount / rel) if rel else mount
+    if mount_io_safe(mount):
+        candidate = raw_candidate.resolve()
+        mount_resolved = mount.resolve()
+    else:
+        # NAS mất kết nối: `.resolve()` gọi lstat trên mount FUSE → treo D-state.
+        # Chuẩn hoá thuần văn bản (đã chặn '..' ở normalize_rel_path) rồi trả về
+        # để caller đi tiếp bằng rclone/DSM.
+        candidate = Path(os.path.normpath(str(raw_candidate)))
+        mount_resolved = Path(os.path.normpath(str(mount)))
     try:
         candidate.relative_to(mount_resolved)
     except ValueError as exc:
@@ -399,6 +419,8 @@ def rclone_listing_available() -> bool:
 
 def nas_path_exists(rel_path: str, *, user=None) -> bool:
     """Kiểm tra nhanh qua mount — không gọi rclone (tránh chậm trang gốc NAS)."""
+    from nas_storage.nas_mount_health import mount_io_safe
+
     dept_code = user_department_folder_code(user) if user else None
     rel = strip_legacy_dept_prefix(rel_path, dept_code)
     if not rel:
@@ -406,6 +428,8 @@ def nas_path_exists(rel_path: str, *, user=None) -> bool:
 
     mount, rel = nas_mount_base_and_rel(user, rel_path) if user else (nas_mount_root(), rel)
     candidate = mount / rel
+    if not mount_io_safe(candidate):
+        return False
     try:
         return candidate.exists()
     except OSError:
@@ -423,7 +447,15 @@ def list_directory_with_source(
     dept_code = user_department_folder_code(user) if user else None
     rel = strip_legacy_dept_prefix(rel_path, dept_code)
 
-    if not fresh:
+    from nas_storage.nas_mount_health import mount_io_safe
+
+    # NAS mất kết nối + mount FUSE → bỏ hẳn nhánh mount (mọi I/O sẽ treo D-state),
+    # để rclone (có timeout, kill được) đọc thay.
+    mount_readable = mount_io_safe(path)
+    if not mount_readable:
+        logger.warning('NAS mount đang treo — chuyển sang rclone cho %s', path)
+
+    if not fresh and mount_readable:
         try:
             if path.is_dir():
                 listing = _apply_listing_privacy(user, rel, _list_directory_local(path))
@@ -448,6 +480,11 @@ def list_directory_with_source(
                     'Liên hệ IT kiểm tra cấu hình rclone trên server.'
                 ) from None
 
+    if not mount_readable:
+        raise NasPathError(
+            'NAS đang mất kết nối — không đọc được thư mục. Thử lại sau ít phút.'
+        )
+
     listing = _apply_listing_privacy(user, rel, _list_directory_local(path))
     return listing, 'mount', bool(fresh and rel)
 
@@ -464,6 +501,11 @@ def listing_fingerprint(listing: dict) -> str:
 
 
 def _list_directory_local(path: Path) -> dict:
+    from nas_storage.nas_mount_health import mount_io_safe
+
+    # Chốt chặn cuối: không bao giờ iterdir trên mount FUSE đang treo.
+    if not mount_io_safe(path):
+        raise NasPathError('NAS đang mất kết nối — không đọc được thư mục.')
     try:
         if not path.is_dir():
             raise NasPathError('Thư mục không tồn tại.')
@@ -651,15 +693,18 @@ def nas_item_kind(rel_path: str, *, user=None) -> str | None:
     if not rel:
         return None
 
+    from nas_storage.nas_mount_health import mount_io_safe
+
     local_root, rel = nas_mount_base_and_rel(user, rel_path) if user else (nas_mount_root(), rel)
     local = local_root / rel if rel else local_root
-    try:
-        if local.is_file():
-            return 'file'
-        if local.is_dir():
-            return 'dir'
-    except OSError:
-        pass
+    if mount_io_safe(local):
+        try:
+            if local.is_file():
+                return 'file'
+            if local.is_dir():
+                return 'dir'
+        except OSError:
+            pass
 
     if not rclone_listing_available():
         return None
