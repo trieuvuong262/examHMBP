@@ -8,6 +8,7 @@ from kho_npl.models import StockBalance, StockIssue, StockLedger
 from kho_npl.services.batches import (
     BatchWorkflowError,
     batch_effective_price,
+    catalog_base_unit_price,
     decrease_batch_qty,
     ledger_amount,
     resolve_outflow_batches,
@@ -58,10 +59,11 @@ def post_stock_issue(issue: StockIssue, user) -> StockIssue:
         except BatchWorkflowError as exc:
             raise IssueWorkflowError(str(exc)) from exc
 
-        # Snapshot giá xuất = giá lô đầu (FIFO); gắn lô chính lên dòng phiếu
+        # Snapshot giá xuất = giá cơ bản / 1 ĐVT lẻ (khớp danh mục + ĐVT chọn).
+        # Sổ kho vẫn trừ theo giá lô FIFO từng allocation bên dưới.
         primary_batch = allocations[0][0]
         line.batch = primary_batch
-        line.unit_price = batch_effective_price(primary_batch)
+        line.unit_price = catalog_base_unit_price(line.material, fallback_batch=primary_batch)
         line.save(update_fields=['batch', 'unit_price', 'line_unit', 'uom_factor', 'qty_base'])
 
         running = balance.quantity

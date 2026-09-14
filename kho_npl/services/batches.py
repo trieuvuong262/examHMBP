@@ -29,6 +29,16 @@ def batch_effective_price(batch: MaterialBatch) -> Decimal:
     return batch.material.base_price or Decimal('0')
 
 
+def catalog_base_unit_price(material: Material, *, fallback_batch: MaterialBatch | None = None) -> Decimal:
+    """Giá ĐVT lẻ trên phiếu xuất: ưu tiên giá cơ bản danh mục, thiếu thì giá lô FIFO."""
+    price = material.base_price or Decimal('0')
+    if price > 0:
+        return price
+    if fallback_batch is not None:
+        return batch_effective_price(fallback_batch)
+    return Decimal('0')
+
+
 def batch_label(batch: MaterialBatch) -> str:
     """Nhãn lô: mã — tồn kèm ĐVT — giá. VD: TON-DAU — 200 gói — 15.000đ."""
     from kho_npl.catalog_labels import unit_label

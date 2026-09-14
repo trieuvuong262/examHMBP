@@ -34,7 +34,10 @@
 
     function formatMoney(n) {
         if (!Number.isFinite(n)) return '—';
-        return Math.round(n).toLocaleString('vi-VN') + 'đ';
+        return n.toLocaleString('vi-VN', {
+            maximumFractionDigits: 2,
+            minimumFractionDigits: 0,
+        }) + 'đ';
     }
 
     function priceInputValue(n) {
@@ -214,10 +217,16 @@
         totalEl.textContent = formatMoney(sum);
     }
 
+    function catalogOrStockPrice(data) {
+        if (!data) return null;
+        const catalog = parseQty(data.base_price);
+        if (catalog != null && catalog > 0) return catalog;
+        return parseQty(data.stock_unit_price);
+    }
+
     function suggestBasePrice(row, option) {
         if (priceMode !== 'input') {
-            const stockPrice = option ? parseQty(option.stock_unit_price) : null;
-            setUnitPriceDisplay(row, stockPrice);
+            setUnitPriceDisplay(row, catalogOrStockPrice(option));
             return;
         }
         // Giá danh mục lưu theo ĐVT lẻ, ô phiếu nhập hiển thị theo ĐVT chọn.
@@ -558,6 +567,8 @@
                             name: data.name || ts.options[materialId]?.name || '',
                             unit: data.unit || ts.options[materialId]?.unit || '',
                             qty_label: data.qty_label || materialStockLabel(data),
+                            base_price: data.base_price,
+                            stock_unit_price: data.stock_unit_price,
                         };
                         if (materialDisplay !== 'name-stock') {
                             patch.text = data.text;
@@ -569,8 +580,8 @@
                 if (showLineUnit && (data.unit_name || data.unit)) {
                     setLineUnit(row, data.unit_name || data.unit, data.units || []);
                 }
-                if (priceMode !== 'input' && data.stock_unit_price != null) {
-                    setUnitPriceDisplay(row, parseQty(data.stock_unit_price));
+                if (priceMode !== 'input' && (data.base_price != null || data.stock_unit_price != null)) {
+                    setUnitPriceDisplay(row, catalogOrStockPrice(data));
                     updateLineAmount(row);
                 }
             })

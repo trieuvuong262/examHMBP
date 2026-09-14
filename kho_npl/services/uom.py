@@ -101,6 +101,16 @@ def price_to_base(price_entered, factor) -> Decimal:
     )
 
 
+def price_from_base(price_base, factor) -> Decimal:
+    """Đơn giá theo ĐVT chọn = giá ĐVT lẻ × hệ số (1 kg = 51 cái → giá kg = giá cái × 51)."""
+    factor = Decimal(str(factor or 0))
+    if factor <= 0:
+        raise UomConversionError('Hệ số quy đổi phải lớn hơn 0.')
+    return (Decimal(str(price_base or 0)) * factor).quantize(
+        PRICE_QUANT, rounding=ROUND_HALF_UP,
+    )
+
+
 def spec_unit_factors(specification) -> dict[str, str]:
     """unit_id → hệ số về ĐVT lẻ, dùng cho data-attribute trên form."""
     levels = spec_levels(specification)

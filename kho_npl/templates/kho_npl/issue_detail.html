@@ -95,7 +95,7 @@
                             <th>Mã NPL</th>
                             <th>Tên</th>
                             <th class="text-end">Số lượng</th>
-                            <th class="text-end">Đơn giá / ĐVT xuất</th>
+                            <th class="text-end">Giá cơ bản / ĐVT xuất</th>
                             <th class="text-end">Thành tiền</th>
                             <th>Vị trí</th>
                             <th>Ghi chú</th>
@@ -108,7 +108,7 @@
                             <td class="fw-semibold">{{ line.material.code }}</td>
                             <td>{{ line.material.name }}</td>
                             <td class="text-end">{{ line.quantity|npl_qty_with_unit:line.line_unit }}</td>
-                            <td class="text-end" title="{{ line.selected_unit_price|npl_money_exact }}">{{ line.selected_unit_price|npl_money }}</td>
+                            <td class="text-end" title="{{ line.selected_unit_price|npl_money_exact }}">{{ line.selected_unit_price|npl_money_exact }}</td>
                             <td class="text-end" title="{{ line.amount|npl_money_exact }}">{{ line.amount|npl_money }}</td>
                             <td>{{ line.location.name }}</td>
                             <td>
@@ -142,7 +142,7 @@
                         <th>Mã NPL</th>
                         <th>Tên</th>
                         <th class="text-end">Số lượng</th>
-                        <th class="text-end">Đơn giá / ĐVT xuất</th>
+                        <th class="text-end">Giá cơ bản / ĐVT xuất</th>
                         <th class="text-end">Thành tiền</th>
                         <th>Vị trí</th>
                         <th>Ghi chú</th>
@@ -154,7 +154,7 @@
                         <td class="fw-semibold">{{ line.material.code }}</td>
                         <td>{{ line.material.name }}</td>
                         <td class="text-end">{{ line.quantity|npl_qty_with_unit:line.line_unit }}</td>
-                        <td class="text-end" title="{{ line.selected_unit_price|npl_money_exact }}">{{ line.selected_unit_price|npl_money }}</td>
+                        <td class="text-end" title="{{ line.selected_unit_price|npl_money_exact }}">{{ line.selected_unit_price|npl_money_exact }}</td>
                         <td class="text-end" title="{{ line.amount|npl_money_exact }}">{{ line.amount|npl_money }}</td>
                         <td>{{ line.location.name }}</td>
                         <td>{{ line.notes|default:'—' }}</td>

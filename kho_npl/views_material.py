@@ -218,7 +218,7 @@ def material_search(request):
             'primary_location_id': material.primary_location_id or '',
             'image_url': image_url,
             'base_price': float(material.base_price or 0),
-            # Phiếu xuất dùng FIFO; đây là đơn giá ĐVT lẻ của lô sẽ xuất đầu tiên.
+            # Giá vốn lô FIFO (ĐVT lẻ) — phiếu nhập/sổ kho. Phiếu xuất ưu tiên base_price.
             'stock_unit_price': float(
                 fifo_price_by_material.get(material.pk) or material.base_price or 0
             ),
@@ -266,6 +266,7 @@ def balance_lookup(request):
         'qty_label': _material_qty_label(material, qty),
         'text': _material_stock_label(material, qty),
         'name': material.name,
+        'base_price': float(material.base_price or 0),
         'stock_unit_price': float(stock_unit_price or 0),
         'units': material_units(material),
     })
