@@ -316,15 +316,8 @@ step "3) Start database"
 compose up -d db
 wait_for_db
 
-# ClamAV chỉ khởi động khi bật trong .env — tránh chiếm 2GB RAM vô ích.
-# Không chờ healthy: freshclam lần đầu tải ~250MB, portal vẫn chạy bình thường
-# ở chế độ AV_FAIL_CLOSED=0 trong lúc đó.
-if grep -qE '^AV_SCAN_ENABLED=(1|true|yes|on)' .env 2>/dev/null; then
-  echo "    AV_SCAN_ENABLED bật — khởi động clamav (không chờ healthy)"
-  compose up -d clamav || echo "    WARNING: không khởi động được clamav"
-else
-  echo "    AV_SCAN_ENABLED tắt — bỏ qua clamav"
-fi
+# Container ClamAV được đồng bộ theo công tắc trong DB — xem sync_av_container()
+# chạy sau khi web đã lên (bước này chưa đọc được DB).
 
 step "4) Ensure base images + build app image (apt cache giữ giữa các lần deploy)"
 pull_deploy_images
@@ -546,8 +539,30 @@ else
   echo "    WARNING: scripts/setup-production-report-reminder-cron.sh not found"
 fi
 
+# Đồng bộ container ClamAV với công tắc trong DB (Nhật ký → Bảo mật đăng nhập →
+# Quét virus file). Nhờ vậy IT bật/tắt trên portal, không cần SSH sửa .env.
+# Bật  → tạo/khởi động container (không chờ healthy: freshclam lần đầu tải ~250MB).
+# Tắt  → dừng container, trả lại ~2GB RAM.
+av_container_wanted() {
+  local state
+  state="$(timeout 30 compose exec -T web python manage.py av_container_state 2>/dev/null \
+    | tr -d '\r' | tail -1 | tr -d '[:space:]')"
+  [[ "${state}" == "on" ]]
+}
+
+sync_av_container() {
+  step "Đồng bộ container ClamAV theo công tắc trên portal"
+  if av_container_wanted; then
+    echo "    Công tắc BẬT — khởi động clamav (không chờ healthy)"
+    compose up -d clamav || echo "    WARNING: không khởi động được clamav"
+  else
+    echo "    Công tắc TẮT — dừng clamav để trả lại RAM"
+    compose stop clamav >/dev/null 2>&1 || true
+  fi
+}
+
 verify_av_scanner() {
-  if ! grep -qE '^AV_SCAN_ENABLED=(1|true|yes|on)' .env 2>/dev/null; then
+  if ! av_container_wanted; then
     return 0
   fi
   step "Verify quét virus (ClamAV)"
@@ -560,6 +575,7 @@ verify_av_scanner() {
   fi
 }
 
+sync_av_container
 verify_nas_rclone
 verify_nas_dsm
 verify_av_scanner

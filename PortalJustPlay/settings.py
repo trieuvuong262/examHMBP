@@ -228,6 +228,11 @@ INSTALLED_APPS = [
     'django_cleanup.apps.CleanupConfig', # 👉 Thêm dòng này vào cuối
 ]
 
+# django-ckeditor in cảnh báo này ở MỌI lệnh manage.py, làm rác log deploy và
+# lẫn vào output của các lệnh mà script cần đọc. Đã biết và đã theo dõi —
+# CKEditor 4 chỉ dùng cho soạn nội dung nội bộ, không nhận input từ ngoài.
+SILENCED_SYSTEM_CHECKS = ['ckeditor.W001']
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
