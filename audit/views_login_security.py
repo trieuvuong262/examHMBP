@@ -40,7 +40,7 @@ def login_security_page(request):
     tab = request.GET.get('tab', 'bots')
     if tab == 'accounts':
         return redirect('locked_accounts')
-    if tab not in ('bots', 'config'):
+    if tab not in ('bots', 'config', 'filescan'):
         tab = 'bots'
 
     blocked_ips = (
@@ -51,7 +51,7 @@ def login_security_page(request):
     recent_ip_blocks = IpLoginBlock.objects.order_by('-last_failed_at')[:30]
     security_config = get_security_config()
 
-    return render(request, 'audit/login_security.html', {
+    ctx = {
         'tab': tab,
         'blocked_ips': blocked_ips,
         'recent_ip_blocks': recent_ip_blocks,
@@ -63,7 +63,80 @@ def login_security_page(request):
         'stats': {
             'blocked_ip_count': blocked_ips.count(),
         },
-    })
+    }
+
+    # Chỉ ping clamd khi thực sự mở tab đó — tránh thêm I/O mạng cho 2 tab kia.
+    if tab == 'filescan':
+        from audit.file_scan_config import get_config, scanner_status
+        from nas_storage.upload_guard import allowed_extensions
+
+        ctx['file_scan_config'] = get_config()
+        ctx['scanner'] = scanner_status()
+        ctx['allowed_exts'] = allowed_extensions()
+
+    return render(request, 'audit/login_security.html', ctx)
+
+
+@module_perm_required(MODULE_AUDIT, 'export')
+@require_POST
+def save_file_scan_config_view(request):
+    """Lưu công tắc quét virus file upload."""
+    from audit.file_scan_config import force_off, save_config
+
+    enabled = request.POST.get('enabled') == 'on'
+    fail_closed = request.POST.get('fail_closed') == 'on'
+    save_config(enabled=enabled, fail_closed=fail_closed, admin_user=request.user)
+
+    if enabled:
+        from nas_storage.av_scan import ping
+
+        if force_off():
+            messages.warning(
+                request,
+                'Đã lưu, nhưng AV_SCAN_FORCE_OFF đang bật trong .env nên vẫn KHÔNG quét. '
+                'Bỏ biến đó rồi deploy lại.',
+            )
+        elif not ping():
+            messages.warning(
+                request,
+                'Đã bật công tắc, nhưng chưa liên lạc được ClamAV nên file vẫn chưa '
+                'được quét. Kiểm tra container: AV_SCAN_ENABLED=1 trong .env rồi '
+                '"docker compose up -d clamav". Lần đầu tải signature mất vài phút.',
+            )
+        else:
+            messages.success(request, 'Đã bật quét virus file upload.')
+    else:
+        messages.success(request, 'Đã tắt quét virus file upload.')
+
+    return redirect(reverse('audit:login_security') + '?tab=filescan')
+
+
+@module_perm_required(MODULE_AUDIT, 'export')
+@require_POST
+def test_file_scan_view(request):
+    """Gửi chuỗi thử EICAR để xác nhận scanner thực sự phát hiện được."""
+    import io
+
+    from nas_storage.av_scan import scan_stream
+    from nas_storage.management.commands.av_status import EICAR
+
+    result = scan_stream(io.BytesIO(EICAR), size=len(EICAR))
+    if result.is_infected:
+        messages.success(
+            request,
+            f'Scanner hoạt động đúng — phát hiện chuỗi thử EICAR ({result.signature}).',
+        )
+    elif result.is_clean:
+        messages.error(
+            request,
+            'Scanner báo chuỗi thử EICAR là SẠCH — không hoạt động đúng. Liên hệ IT.',
+        )
+    else:
+        messages.error(
+            request,
+            f'Không quét được ({result.status}): {result.detail}',
+        )
+    return redirect(reverse('audit:login_security') + '?tab=filescan')
 
 
 @module_perm_required(MODULE_AUDIT, 'export')

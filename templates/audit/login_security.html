@@ -30,9 +30,167 @@
                 Cấu hình IP
             </a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link fw-bold {% if tab == 'filescan' %}active{% endif %}"
+               href="{% url 'audit:login_security' %}?tab=filescan">
+                <i class="bi bi-shield-check me-1"></i>Quét virus file
+            </a>
+        </li>
     </ul>
 
-    {% if tab == 'bots' %}
+    {% if tab == 'filescan' %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h5 class="mb-0 fw-bold">Quét virus file người dùng tải lên</h5>
+            <p class="small text-muted mb-0 mt-1">
+                File đính kèm báo cáo / thông báo được quét bằng ClamAV trước khi ghi lên NAS.
+                Nhân viên map ổ đĩa NAS nên một file độc lọt vào là nằm trong ổ đĩa của mọi máy.
+            </p>
+        </div>
+        <div class="card-body">
+            {% if scanner.force_off %}
+            <div class="alert alert-danger d-flex align-items-start gap-2">
+                <i class="bi bi-exclamation-octagon-fill fs-5"></i>
+                <div>
+                    <strong>Đang bị chặn bằng cầu dao khẩn cấp.</strong>
+                    <div class="small">
+                        <code>AV_SCAN_FORCE_OFF=1</code> trong <code>.env</code> — không quét
+                        bất kể công tắc dưới đây. Bỏ biến đó rồi deploy lại để dùng được.
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="border rounded p-3 h-100">
+                        <div class="small text-muted mb-1">Trạng thái quét</div>
+                        {% if file_scan_config.enabled and scanner.alive and not scanner.force_off %}
+                        <span class="badge bg-success-subtle text-success fw-bold">Đang bảo vệ</span>
+                        {% elif file_scan_config.enabled %}
+                        <span class="badge bg-warning text-dark fw-bold">Bật nhưng chưa quét được</span>
+                        {% else %}
+                        <span class="badge bg-secondary-subtle text-secondary fw-bold">Đang tắt</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="border rounded p-3 h-100">
+                        <div class="small text-muted mb-1">ClamAV</div>
+                        {% if scanner.alive %}
+                        <span class="badge bg-success-subtle text-success fw-bold">Kết nối được</span>
+                        <div class="small text-muted mt-1 font-monospace">{{ scanner.version|truncatechars:44 }}</div>
+                        {% else %}
+                        <span class="badge bg-danger-subtle text-danger fw-bold">Không phản hồi</span>
+                        <div class="small text-muted mt-1 font-monospace">{{ scanner.host }}:{{ scanner.port }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="border rounded p-3 h-100">
+                        <div class="small text-muted mb-1">Khi không quét được</div>
+                        {% if file_scan_config.fail_closed %}
+                        <span class="badge bg-danger-subtle text-danger fw-bold">Từ chối file</span>
+                        {% else %}
+                        <span class="badge bg-secondary-subtle text-secondary fw-bold">Cho qua + ghi log</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            {% if not scanner.alive and not scanner.container_enabled %}
+            <div class="alert alert-warning small">
+                Container ClamAV chưa được khởi động. Trên VPS đặt
+                <code>AV_SCAN_ENABLED=1</code> trong <code>.env</code> rồi chạy
+                <code>./deploy.sh</code>. Lần đầu tải khoảng 250MB dữ liệu nhận diện,
+                mất vài phút mới quét được.
+            </div>
+            {% elif not scanner.alive %}
+            <div class="alert alert-warning small">
+                Container đã bật trong <code>.env</code> nhưng clamd chưa phản hồi — có thể
+                đang tải dữ liệu nhận diện. Kiểm tra:
+                <code>docker compose logs --tail=30 clamav</code>
+            </div>
+            {% endif %}
+
+            {% if can_unlock %}
+            <form method="post" action="{% url 'audit:file_scan_save_config' %}">
+                {% csrf_token %}
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" role="switch"
+                           id="fs_enabled" name="enabled"
+                           style="width:3rem;height:1.5rem;"
+                           {% if file_scan_config.enabled %}checked{% endif %}>
+                    <label class="form-check-label fw-bold ms-2" for="fs_enabled">
+                        Bật quét virus file tải lên
+                    </label>
+                    <div class="form-text ms-2">
+                        Tắt thì vẫn còn các lớp khác: danh sách định dạng cho phép, kiểm tra
+                        kiểu file thật, chặn file thực thi và chặn đuôi kép.
+                    </div>
+                </div>
+
+                <div class="form-check form-switch mb-4">
+                    <input class="form-check-input" type="checkbox" role="switch"
+                           id="fs_fail_closed" name="fail_closed"
+                           style="width:3rem;height:1.5rem;"
+                           {% if file_scan_config.fail_closed %}checked{% endif %}>
+                    <label class="form-check-label fw-bold ms-2" for="fs_fail_closed">
+                        Từ chối file khi không quét được
+                    </label>
+                    <div class="form-text ms-2">
+                        Chặt hơn, nhưng ClamAV chết là không ai gửi được đính kèm.
+                        Nên để tắt trong vài ngày đầu.
+                    </div>
+                </div>
+
+                <div class="d-flex flex-wrap align-items-center gap-3">
+                    <button type="submit" class="btn btn-hm text-white fw-bold">
+                        <i class="bi bi-save me-1"></i>Lưu
+                    </button>
+                    {% if file_scan_config.updated_at %}
+                    <span class="small text-muted">
+                        Cập nhật: {{ file_scan_config.updated_at|date:"d/m/Y H:i" }}
+                        {% if file_scan_config.updated_by %}· {{ file_scan_config.updated_by.username }}{% endif %}
+                    </span>
+                    {% endif %}
+                </div>
+            </form>
+
+            <hr class="my-4">
+            <div class="d-flex flex-wrap align-items-center gap-3">
+                <form method="post" action="{% url 'audit:file_scan_test' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-dark fw-bold">
+                        <i class="bi bi-bug me-1"></i>Thử bằng file mẫu EICAR
+                    </button>
+                </form>
+                <span class="small text-muted">
+                    Gửi chuỗi thử chuẩn EICAR tới scanner. Kết quả phải là “phát hiện” —
+                    chỉ kết nối được chưa chắc là nhận diện được.
+                </span>
+            </div>
+            {% else %}
+            <p class="text-muted mb-0">Bạn chỉ có quyền xem. Liên hệ IT để bật/tắt quét virus.</p>
+            {% endif %}
+
+            {% if allowed_exts %}
+            <hr class="my-4">
+            <div class="small text-muted mb-2 fw-bold">Định dạng được phép tải lên</div>
+            <div class="d-flex flex-wrap gap-1">
+                {% for ext in allowed_exts %}
+                <span class="badge bg-light text-dark border font-monospace">{{ ext }}</span>
+                {% endfor %}
+            </div>
+            <div class="form-text mt-2">
+                Danh sách này nằm trong mã nguồn (<code>nas_storage/upload_guard.py</code>) —
+                đổi cần deploy. File thực thi, script, HTML/SVG và Office có macro luôn bị chặn.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% elif tab == 'bots' %}
     <div class="card border-0 shadow-sm overflow-hidden">
         <div class="card-header bg-white py-3 border-bottom">
             <h5 class="mb-0 fw-bold">IP bị chặn — bot quét exploit / blacklist</h5>

@@ -182,6 +182,58 @@ class LoginSecurityConfig(models.Model):
         return obj
 
 
+class FileScanConfig(models.Model):
+    """Công tắc quét virus file upload (singleton pk=1).
+
+    Trước đây chỉ bật/tắt được qua ``AV_SCAN_ENABLED`` trong ``.env``, tức phải
+    SSH vào VPS và deploy lại. Đưa vào DB để IT bật/tắt ngay trên portal.
+
+    Lưu ý: đây là công tắc **hành vi quét**. Việc container ``clamav`` có chạy
+    hay không vẫn do ``AV_SCAN_ENABLED`` trong ``.env`` quyết định lúc deploy
+    (nó chiếm ~2GB RAM nên không khởi động vô điều kiện). Màn hình cấu hình
+    kiểm tra clamd trực tiếp và cảnh báo nếu bật công tắc mà chưa có scanner.
+    """
+
+    enabled = models.BooleanField(
+        default=False,
+        verbose_name='Bật quét virus file upload',
+    )
+    fail_closed = models.BooleanField(
+        default=False,
+        verbose_name='Từ chối file khi không quét được',
+        help_text=(
+            'Bật: ClamAV lỗi thì không nhận file (an toàn hơn nhưng scanner chết '
+            'là không ai gửi được đính kèm). Tắt: cho qua và ghi log cảnh báo.'
+        ),
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='file_scan_configs_updated',
+        verbose_name='Cập nhật bởi',
+    )
+
+    class Meta:
+        verbose_name = 'Cấu hình quét virus file'
+        verbose_name_plural = 'Cấu hình quét virus file'
+
+    def __str__(self):
+        return 'Bật' if self.enabled else 'Tắt'
+
+    @classmethod
+    def get_solo(cls):
+        obj, created = cls.objects.get_or_create(pk=1)
+        if created:
+            # Lần đầu: lấy giá trị hiện hành từ .env để không đổi hành vi đang chạy.
+            obj.enabled = bool(getattr(settings, 'AV_SCAN_ENABLED', False))
+            obj.fail_closed = bool(getattr(settings, 'AV_FAIL_CLOSED', False))
+            obj.save(update_fields=['enabled', 'fail_closed'])
+        return obj
+
+
 class IpLoginBlock(models.Model):
     """Chặn IP do bot spam đăng nhập (user không tồn tại / quét hàng loạt)."""
 

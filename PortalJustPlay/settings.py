@@ -629,10 +629,15 @@ AV_CLAMD_HOST = os.getenv('AV_CLAMD_HOST', 'clamav').strip()
 AV_CLAMD_PORT = int(os.getenv('AV_CLAMD_PORT', '3310') or '3310')
 AV_SCAN_TIMEOUT = float(os.getenv('AV_SCAN_TIMEOUT', '30') or '30')
 AV_SCAN_MAX_BYTES = int(os.getenv('AV_SCAN_MAX_BYTES', str(50 * 1024 * 1024)))
+# Hai biến dưới chỉ là GIÁ TRỊ KHỞI TẠO lần đầu. Công tắc thật nằm ở DB
+# (audit.FileScanConfig), bật/tắt tại Nhật ký → Bảo mật đăng nhập → Quét virus.
+# AV_SCAN_ENABLED còn quyết định deploy.sh có khởi động container clamav không.
 # True = không quét được thì từ chối file (an toàn hơn nhưng ClamAV chết là
 # không ai upload được). False = cho qua kèm log cảnh báo, vẫn còn lớp
 # whitelist + magic bytes + AV trên NAS.
 AV_FAIL_CLOSED = env_bool('AV_FAIL_CLOSED', False)
+# Cầu dao khẩn cấp: bật là tắt quét bất kể cấu hình trong DB.
+AV_SCAN_FORCE_OFF = env_bool('AV_SCAN_FORCE_OFF', False)
 
 # Share ẩn khỏi Duyệt thư mục Portal + Quét từ NAS (share hệ thống: docker, backup, log…)
 NAS_PORTAL_BROWSE_HIDDEN_SHARES = os.getenv(

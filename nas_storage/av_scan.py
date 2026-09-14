@@ -65,11 +65,20 @@ class ScanResult:
 
 
 def av_enabled() -> bool:
-    return bool(getattr(settings, 'AV_SCAN_ENABLED', False))
+    """Có quét hay không — công tắc trong DB, .env là giá trị dự phòng.
+
+    Import muộn vì ``audit`` đã import ``nas_storage`` (nas_monitor), import ở
+    đầu module sẽ thành vòng tròn.
+    """
+    from audit.file_scan_config import scan_enabled
+
+    return scan_enabled()
 
 
 def av_fail_closed() -> bool:
-    return bool(getattr(settings, 'AV_FAIL_CLOSED', False))
+    from audit.file_scan_config import scan_fail_closed
+
+    return scan_fail_closed()
 
 
 def _host_port() -> tuple[str, int]:
