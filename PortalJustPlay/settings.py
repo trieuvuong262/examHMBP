@@ -623,6 +623,17 @@ UPLOAD_MAX_BYTES_DOC = int(os.getenv('UPLOAD_MAX_BYTES_DOC', str(30 * 1024 * 102
 UPLOAD_MAX_BYTES_ARCHIVE = int(os.getenv('UPLOAD_MAX_BYTES_ARCHIVE', str(50 * 1024 * 1024)))
 UPLOAD_MAX_BYTES_VIDEO = int(os.getenv('UPLOAD_MAX_BYTES_VIDEO', str(200 * 1024 * 1024)))
 
+# Quét virus file upload bằng ClamAV — xem nas_storage/av_scan.py
+AV_SCAN_ENABLED = env_bool('AV_SCAN_ENABLED', False)
+AV_CLAMD_HOST = os.getenv('AV_CLAMD_HOST', 'clamav').strip()
+AV_CLAMD_PORT = int(os.getenv('AV_CLAMD_PORT', '3310') or '3310')
+AV_SCAN_TIMEOUT = float(os.getenv('AV_SCAN_TIMEOUT', '30') or '30')
+AV_SCAN_MAX_BYTES = int(os.getenv('AV_SCAN_MAX_BYTES', str(50 * 1024 * 1024)))
+# True = không quét được thì từ chối file (an toàn hơn nhưng ClamAV chết là
+# không ai upload được). False = cho qua kèm log cảnh báo, vẫn còn lớp
+# whitelist + magic bytes + AV trên NAS.
+AV_FAIL_CLOSED = env_bool('AV_FAIL_CLOSED', False)
+
 # Share ẩn khỏi Duyệt thư mục Portal + Quét từ NAS (share hệ thống: docker, backup, log…)
 NAS_PORTAL_BROWSE_HIDDEN_SHARES = os.getenv(
     'NAS_PORTAL_BROWSE_HIDDEN_SHARES', 'docker,backup,log',

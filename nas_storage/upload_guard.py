@@ -20,11 +20,14 @@ NGUYÊN TẮC
 
 from __future__ import annotations
 
+import logging
 import os
 import unicodedata
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+
+logger = logging.getLogger(__name__)
 
 MB = 1024 * 1024
 
@@ -267,10 +270,49 @@ def _check_magic(uploaded, name: str, ext: str) -> None:
         )
 
 
-def validate_upload(uploaded, *, groups=None, max_bytes: int | None = None) -> str:
+def scan_for_malware(uploaded, name: str) -> None:
+    """Quét virus. Raise ``UploadRejected`` nếu nhiễm.
+
+    Tách riêng khỏi các phép kiểm tra rẻ vì đây là lần duy nhất có I/O mạng —
+    chỉ gọi khi file đã qua whitelist và magic bytes.
+    """
+    from nas_storage.av_scan import av_enabled, av_fail_closed, scan_upload
+
+    if not av_enabled():
+        return
+
+    result = scan_upload(uploaded)
+    if result.is_infected:
+        logger.warning(
+            'Từ chối file nhiễm virus: %s — %s', name, result.signature,
+        )
+        raise UploadRejected(
+            f'File «{name}» chứa mã độc ({result.signature}) — đã bị từ chối. '
+            'Hãy quét virus máy của bạn rồi gửi lại.',
+        )
+    if result.is_clean:
+        return
+
+    # Không quét được (clamd chết, quá lớn, timeout).
+    logger.warning('Không quét được virus cho «%s»: %s', name, result.detail)
+    if av_fail_closed():
+        raise UploadRejected(
+            f'Chưa quét được virus cho «{name}» nên tạm thời không nhận file. '
+            'Vui lòng thử lại sau hoặc liên hệ IT.',
+        )
+
+
+def validate_upload(
+    uploaded,
+    *,
+    groups=None,
+    max_bytes: int | None = None,
+    scan: bool = True,
+) -> str:
     """Kiểm tra một file upload. Raise ``UploadRejected`` nếu không hợp lệ.
 
     ``groups``: giới hạn nhóm cho phép, vd. ``(GROUP_IMAGE,)`` cho ô chỉ nhận ảnh.
+    ``scan``: có quét virus không (đặt False khi đã quét ở nơi khác).
     Trả về tên file đã chuẩn hoá.
     """
     if uploaded is None:
@@ -280,11 +322,21 @@ def validate_upload(uploaded, *, groups=None, max_bytes: int | None = None) -> s
     ext, group = _check_extension(name, groups)
     _check_size(uploaded, name, group, max_bytes)
     _check_magic(uploaded, name, ext)
+    if scan:
+        scan_for_malware(uploaded, name)
     return name
 
 
 def validate_uploads(files, *, groups=None, max_bytes: int | None = None) -> None:
-    """Kiểm tra danh sách file — lỗi đầu tiên là dừng."""
-    for uploaded in files or []:
-        if uploaded:
-            validate_upload(uploaded, groups=groups, max_bytes=max_bytes)
+    """Kiểm tra danh sách file — lỗi đầu tiên là dừng.
+
+    Chạy hai lượt: lượt 1 toàn bộ phép kiểm tra rẻ, lượt 2 mới quét virus. Nhờ
+    vậy một lô có file sai định dạng bị chặn ngay, không phải chờ quét.
+    """
+    items = [f for f in (files or []) if f]
+    names = [
+        validate_upload(f, groups=groups, max_bytes=max_bytes, scan=False)
+        for f in items
+    ]
+    for uploaded, name in zip(items, names):
+        scan_for_malware(uploaded, name)

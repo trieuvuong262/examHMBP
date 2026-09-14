@@ -63,6 +63,36 @@ services:
       retries: 5
     restart: always
 
+  # Quét virus file người dùng upload (clamd, giao thức INSTREAM cổng 3310).
+  # Bật bằng AV_SCAN_ENABLED=1 trong .env — xem nas_storage/av_scan.py.
+  #
+  # RAM: clamd nạp toàn bộ signature DB vào bộ nhớ (~1.2-1.5GB). VPS 8GB đang
+  # có Postgres shared_buffers=2GB + 10 gunicorn worker, nên GIỚI HẠN cứng 2GB
+  # để clamd không đẩy Postgres ra khỏi page cache. Nếu VPS chật, tắt service
+  # này và chuyển việc quét sang Synology Antivirus Essential trên NAS.
+  #
+  # Lần khởi động đầu freshclam phải tải ~250MB signature — mất vài phút, trong
+  # thời gian đó healthcheck chưa pass và portal chạy bình thường ở chế độ
+  # AV_FAIL_CLOSED=0 (cho qua kèm log cảnh báo).
+  clamav:
+    image: clamav/clamav:stable
+    mem_limit: 2g
+    volumes:
+      - clamav_data:/var/lib/clamav
+    environment:
+      # Chỉ chạy clamd + freshclam, không cần milter (tiết kiệm RAM)
+      CLAMAV_NO_MILTERD: "true"
+      CLAMAV_NO_CLAMD: "false"
+      CLAMAV_NO_FRESHCLAMD: "false"
+      FRESHCLAM_CHECKS: "2"
+    healthcheck:
+      test: ["CMD-SHELL", "clamdscan --ping 1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+    restart: always
+
   web:
     # web / worker / migrate dùng CHUNG một image: deploy.sh chỉ `compose build web`
     # là cả ba service có code mới. Trước đây mỗi service một image riêng
@@ -177,6 +207,7 @@ networks:
 volumes:
   postgres_data:
   redis_data:
+  clamav_data:  # signature DB ClamAV — giữ lại để không phải tải ~250MB mỗi lần deploy
   static_volume:
   media_volume:
   certbot_webroot:

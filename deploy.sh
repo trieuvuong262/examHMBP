@@ -316,6 +316,16 @@ step "3) Start database"
 compose up -d db
 wait_for_db
 
+# ClamAV chỉ khởi động khi bật trong .env — tránh chiếm 2GB RAM vô ích.
+# Không chờ healthy: freshclam lần đầu tải ~250MB, portal vẫn chạy bình thường
+# ở chế độ AV_FAIL_CLOSED=0 trong lúc đó.
+if grep -qE '^AV_SCAN_ENABLED=(1|true|yes|on)' .env 2>/dev/null; then
+  echo "    AV_SCAN_ENABLED bật — khởi động clamav (không chờ healthy)"
+  compose up -d clamav || echo "    WARNING: không khởi động được clamav"
+else
+  echo "    AV_SCAN_ENABLED tắt — bỏ qua clamav"
+fi
+
 step "4) Ensure base images + build app image (apt cache giữ giữa các lần deploy)"
 pull_deploy_images
 ensure_web_image
@@ -536,8 +546,23 @@ else
   echo "    WARNING: scripts/setup-production-report-reminder-cron.sh not found"
 fi
 
+verify_av_scanner() {
+  if ! grep -qE '^AV_SCAN_ENABLED=(1|true|yes|on)' .env 2>/dev/null; then
+    return 0
+  fi
+  step "Verify quét virus (ClamAV)"
+  if timeout 40 compose exec -T web python manage.py av_status --eicar 2>&1 \
+      | sed 's/^/    /'; then
+    :
+  else
+    echo "    WARNING: không kiểm tra được ClamAV (có thể freshclam đang tải signature)."
+    echo "             Chạy lại sau vài phút: docker compose exec web python manage.py av_status --eicar"
+  fi
+}
+
 verify_nas_rclone
 verify_nas_dsm
+verify_av_scanner
 
 step "13) Cleanup dangling images only (giữ build cache apt/pip/LibreOffice)"
 # KHÔNG docker builder prune -af — sẽ buộc cài lại LibreOffice mỗi lần deploy
