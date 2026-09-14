@@ -1,5 +1,5 @@
 {% load static %}
-<link rel="stylesheet" href="{% static 'css/reports-submit-loading.css' %}?v=20260710a">
+<link rel="stylesheet" href="{% static 'css/reports-submit-loading.css' %}?v=20260914a">
 <div id="jp-report-submit-loading" class="jp-report-submit-loading" hidden aria-live="polite" aria-busy="false">
     <div class="jp-report-submit-backdrop" aria-hidden="true"></div>
     <div class="jp-report-submit-loading-box" role="status">
@@ -12,11 +12,12 @@
 <div id="jp-report-submit-success" class="jp-report-submit-success" hidden role="alertdialog" aria-modal="true" aria-labelledby="jpReportSubmitSuccessTitle">
     <div class="jp-report-submit-backdrop" aria-hidden="true"></div>
     <div class="jp-report-submit-success-box">
-        <div class="jp-report-submit-success-icon" aria-hidden="true">
-            <i class="bi bi-check-circle-fill"></i>
+        <div class="jp-report-submit-success-icon" id="jpReportSubmitSuccessIcon" aria-hidden="true">
+            <i class="bi bi-check-circle-fill" id="jpReportSubmitSuccessIconGlyph"></i>
         </div>
         <h5 class="fw-bold text-success mb-2" id="jpReportSubmitSuccessTitle">Gửi báo cáo thành công</h5>
-        <p class="text-muted small mb-3 mb-md-4">Báo cáo đã được gửi. Bạn có thể tiếp tục sử dụng portal.</p>
+        <p class="text-muted small mb-3 mb-md-4" id="jpReportSubmitSuccessDetail">Báo cáo đã được gửi. Bạn có thể tiếp tục sử dụng portal.</p>
+        <div class="jp-report-submit-success-warnings alert alert-warning text-start small mb-3 mb-md-4 py-2 px-3" id="jpReportSubmitSuccessWarnings" hidden></div>
         <button type="button" class="btn btn-hm fw-bold w-100" id="jpReportSubmitSuccessCloseBtn">Đã hiểu</button>
     </div>
 </div>
@@ -37,4 +38,4 @@
         <button type="button" class="btn btn-hm fw-bold w-100" id="jpReportSubmitErrorCloseBtn">Đã hiểu</button>
     </div>
 </div>
-<script src="{% static 'js/reports-submit-loading.js' %}?v=20260815a"></script>
+<script src="{% static 'js/reports-submit-loading.js' %}?v=20260914a"></script>

@@ -12,6 +12,11 @@
     var msgEl = overlay.querySelector('[data-loading-message]');
     var successOverlay = document.getElementById('jp-report-submit-success');
     var successCloseBtn = document.getElementById('jpReportSubmitSuccessCloseBtn');
+    var successTitleEl = document.getElementById('jpReportSubmitSuccessTitle');
+    var successDetailEl = document.getElementById('jpReportSubmitSuccessDetail');
+    var successWarningsEl = document.getElementById('jpReportSubmitSuccessWarnings');
+    var successIconEl = document.getElementById('jpReportSubmitSuccessIcon');
+    var successIconGlyph = document.getElementById('jpReportSubmitSuccessIconGlyph');
     var errorOverlay = document.getElementById('jp-report-submit-error');
     var errorCloseBtn = document.getElementById('jpReportSubmitErrorCloseBtn');
 
@@ -129,15 +134,96 @@
         document.body.classList.remove('jp-report-submitting');
     }
 
-    function showSuccess(redirectUrl) {
+    function extractFlashMessages(html) {
+        var warnings = [];
+        var errors = [];
+        if (!html || typeof html !== 'string') {
+            return { warnings: warnings, errors: errors };
+        }
+        try {
+            var doc = new DOMParser().parseFromString(html, 'text/html');
+            doc.querySelectorAll('.jp-flash-alert').forEach(function (el) {
+                var text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+                if (!text) return;
+                // Bỏ nút đóng «×» / «Đóng» nếu còn trong textContent
+                text = text.replace(/\s*Đóng\s*$/i, '').trim();
+                if (el.classList.contains('alert-danger') || el.classList.contains('alert-error')) {
+                    errors.push(text);
+                } else if (el.classList.contains('alert-warning')) {
+                    warnings.push(text);
+                }
+            });
+        } catch (err) {
+            // ignore parse errors
+        }
+        return { warnings: warnings, errors: errors };
+    }
+
+    function resetSuccessModal() {
+        if (successTitleEl) {
+            successTitleEl.textContent = 'Gửi báo cáo thành công';
+            successTitleEl.classList.remove('text-warning');
+            successTitleEl.classList.add('text-success');
+        }
+        if (successDetailEl) {
+            successDetailEl.textContent = 'Báo cáo đã được gửi. Bạn có thể tiếp tục sử dụng portal.';
+        }
+        if (successWarningsEl) {
+            successWarningsEl.hidden = true;
+            successWarningsEl.textContent = '';
+        }
+        if (successIconEl) {
+            successIconEl.classList.remove('is-warning');
+        }
+        if (successIconGlyph) {
+            successIconGlyph.className = 'bi bi-check-circle-fill';
+        }
+        if (successOverlay) {
+            successOverlay.classList.remove('has-warnings');
+        }
+    }
+
+    function showSuccess(redirectUrl, options) {
         hide();
         hideError();
+        resetSuccessModal();
         // Giữ khóa nút sau thành công — không cho spam thêm trước khi chuyển trang.
         submitting = true;
         lockAllSubmitButtons();
         pendingRedirectUrl = redirectUrl || window.location.href;
+
+        var warnings = (options && options.warnings) || [];
+        if (warnings.length) {
+            if (successTitleEl) {
+                successTitleEl.textContent = 'Đã gửi báo cáo — một số file bị chặn';
+                successTitleEl.classList.remove('text-success');
+                successTitleEl.classList.add('text-warning');
+            }
+            if (successDetailEl) {
+                successDetailEl.textContent =
+                    'Nội dung báo cáo và các file hợp lệ đã được lưu. Các file sau không được nhận:';
+            }
+            if (successWarningsEl) {
+                successWarningsEl.hidden = false;
+                successWarningsEl.textContent = warnings.join('\n');
+            }
+            if (successIconEl) {
+                successIconEl.classList.add('is-warning');
+            }
+            if (successIconGlyph) {
+                successIconGlyph.className = 'bi bi-exclamation-triangle-fill';
+            }
+            if (successOverlay) {
+                successOverlay.classList.add('has-warnings');
+            }
+        }
+
         if (!successOverlay) {
-            window.alert('Gửi báo cáo thành công.');
+            if (warnings.length) {
+                window.alert('Gửi báo cáo thành công.\n\n' + warnings.join('\n'));
+            } else {
+                window.alert('Gửi báo cáo thành công.');
+            }
             goToPendingRedirect();
             return;
         }
@@ -295,7 +381,10 @@
                 err.httpStatus = resp.status;
                 throw err;
             }
-            showSuccess(resp.url || url);
+            return resp.text().then(function (html) {
+                var flashes = extractFlashMessages(html);
+                showSuccess(resp.url || url, { warnings: flashes.warnings.concat(flashes.errors) });
+            });
         }).catch(function (err) {
             enableSubmitControls();
             showErrorModal(err && err.httpStatus ? err.httpStatus : 0);

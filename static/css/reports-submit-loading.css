@@ -64,6 +64,22 @@
     color: #166534;
 }
 
+.jp-report-submit-success-icon.is-warning {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.jp-report-submit-success.has-warnings .jp-report-submit-success-box {
+    width: min(100%, 28rem);
+}
+
+.jp-report-submit-success-warnings {
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 12rem;
+    overflow: auto;
+}
+
 .jp-report-submit-error-icon {
     background: #fee2e2;
     color: #b91c1c;

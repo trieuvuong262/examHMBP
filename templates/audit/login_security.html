@@ -187,6 +187,59 @@
                 đổi cần deploy. File thực thi, script, HTML/SVG và Office có macro luôn bị chặn.
             </div>
             {% endif %}
+
+            <hr class="my-4">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                <div class="small text-muted mb-0 fw-bold">File bị từ chối gần đây</div>
+                <span class="small text-muted">{{ upload_block_logs|length }} bản ghi (tối đa 50)</span>
+            </div>
+            <div class="table-responsive border rounded">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Thời gian</th>
+                            <th>Người gửi</th>
+                            <th>File</th>
+                            <th>Lý do</th>
+                            <th>Trang</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in upload_block_logs %}
+                        <tr>
+                            <td class="small text-nowrap">{{ log.created_at|date:"d/m/Y H:i:s" }}</td>
+                            <td class="small">
+                                <span class="fw-bold">{{ log.username|default:"—" }}</span>
+                                {% if log.full_name %}<div class="text-muted">{{ log.full_name }}</div>{% endif %}
+                            </td>
+                            <td class="small font-monospace">
+                                {{ log.extra.upload_block.filename|default:log.object_repr|default:"—" }}
+                                {% if log.extra.upload_block.size %}
+                                <div class="text-muted">{{ log.extra.upload_block.size|filesizeformat }}</div>
+                                {% endif %}
+                            </td>
+                            <td class="small">
+                                <span class="badge bg-danger-subtle text-danger font-monospace">
+                                    {{ log.extra.upload_block.code|default:"?" }}
+                                </span>
+                                {% if log.extra.upload_block.signature %}
+                                <div class="text-danger mt-1">{{ log.extra.upload_block.signature }}</div>
+                                {% endif %}
+                                <div class="text-muted mt-1">{{ log.extra.upload_block.message|default:log.summary|truncatechars:120 }}</div>
+                            </td>
+                            <td class="small font-monospace text-muted">{{ log.path|default:"—"|truncatechars:40 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">
+                                Chưa có file nào bị chặn. Khi nhân viên gửi đuôi cấm / virus,
+                                dòng sẽ hiện ở đây (và trong nhật ký thao tác).
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 

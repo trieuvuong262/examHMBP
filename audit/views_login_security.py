@@ -68,11 +68,17 @@ def login_security_page(request):
     # Chỉ ping clamd khi thực sự mở tab đó — tránh thêm I/O mạng cho 2 tab kia.
     if tab == 'filescan':
         from audit.file_scan_config import get_config, scanner_status
+        from audit.models import UserActivityLog
         from nas_storage.upload_guard import allowed_extensions
 
         ctx['file_scan_config'] = get_config()
         ctx['scanner'] = scanner_status()
         ctx['allowed_exts'] = allowed_extensions()
+        ctx['upload_block_logs'] = (
+            UserActivityLog.objects
+            .filter(object_type='upload_rejected')
+            .order_by('-created_at')[:50]
+        )
 
     return render(request, 'audit/login_security.html', ctx)
 

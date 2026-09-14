@@ -547,26 +547,41 @@ fi
 # Quét virus file). Nhờ vậy IT bật/tắt trên portal, không cần SSH sửa .env.
 # Bật  → tạo/khởi động container (không chờ healthy: freshclam lần đầu tải ~250MB).
 # Tắt  → dừng container, trả lại ~2GB RAM.
-av_container_wanted() {
+# unknown / lỗi đọc → GIỮ NGUYÊN container (không stop) để tránh tắt scanner nhầm.
+read_av_container_state() {
   local state
   state="$(timeout 30 compose exec -T web python manage.py av_container_state 2>/dev/null \
     | tr -d '\r' | tail -1 | tr -d '[:space:]')"
-  [[ "${state}" == "on" ]]
+  case "${state}" in
+    on|off) printf '%s' "${state}" ;;
+    *) printf '%s' 'unknown' ;;
+  esac
 }
 
 sync_av_container() {
   step "Đồng bộ container ClamAV theo công tắc trên portal"
-  if av_container_wanted; then
-    echo "    Công tắc BẬT — khởi động clamav (không chờ healthy)"
-    compose up -d clamav || echo "    WARNING: không khởi động được clamav"
-  else
-    echo "    Công tắc TẮT — dừng clamav để trả lại RAM"
-    compose stop clamav >/dev/null 2>&1 || true
-  fi
+  local state
+  state="$(read_av_container_state)"
+  case "${state}" in
+    on)
+      echo "    Công tắc BẬT — khởi động clamav (không chờ healthy)"
+      compose up -d clamav || echo "    WARNING: không khởi động được clamav"
+      ;;
+    off)
+      echo "    Công tắc TẮT — dừng clamav để trả lại RAM"
+      compose stop clamav >/dev/null 2>&1 || true
+      ;;
+    *)
+      echo "    WARNING: không đọc được công tắc ClamAV (state=${state}) — giữ nguyên container hiện tại."
+      echo "             Kiểm tra: docker compose exec web python manage.py av_container_state"
+      ;;
+  esac
 }
 
 verify_av_scanner() {
-  if ! av_container_wanted; then
+  local state
+  state="$(read_av_container_state)"
+  if [[ "${state}" != "on" ]]; then
     return 0
   fi
   step "Verify quét virus (ClamAV)"
