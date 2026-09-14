@@ -8,10 +8,20 @@ def _is_image_upload(uploaded) -> bool:
     content_type = (getattr(uploaded, 'content_type', '') or '').lower()
     if content_type.startswith('image/'):
         return True
+    # .svg đã bị loại khỏi whitelist upload (nas_storage/upload_guard.py) nên
+    # nhánh này không còn nhận SVG; giữ lại để phân loại dữ liệu cũ.
     return name.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg', '.heic', '.heif'))
 
 
 def save_comment_attachments(comment, uploaded_files):
+    """Lưu đính kèm nhận xét.
+
+    Raise ``UploadRejected`` (ValidationError) nếu có file không hợp lệ.
+    """
+    from nas_storage.upload_guard import validate_uploads
+
+    validate_uploads(uploaded_files)
+
     created = []
     for uploaded in uploaded_files or []:
         if not uploaded:

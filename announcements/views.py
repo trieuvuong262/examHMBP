@@ -113,7 +113,8 @@ def announcement_file_serve(request, pk, field):
         'image/gif',
         'image/webp',
         'image/bmp',
-        'image/svg+xml',
+        # CỐ Ý KHÔNG có image/svg+xml: SVG là XML chạy được JavaScript; phục vụ
+        # inline cùng origin sẽ thành stored XSS (đánh cắp session người xem).
         'video/mp4',
         'video/webm',
         'video/ogg',
@@ -123,6 +124,9 @@ def announcement_file_serve(request, pk, field):
     response = FileResponse(file_handle, content_type=content_type, as_attachment=as_attachment)
     if as_attachment:
         response['Content-Disposition'] = f'attachment; filename="{display_name}"'
+    # Chặn mọi thứ có thể chạy được nếu lỡ lọt file HTML/SVG.
+    response['Content-Security-Policy'] = "default-src 'none'; sandbox; style-src 'unsafe-inline'"
+    response['X-Content-Type-Options'] = 'nosniff'
     return response
 
 

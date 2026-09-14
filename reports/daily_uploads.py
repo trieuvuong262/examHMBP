@@ -26,7 +26,22 @@ def save_daily_uploads(
     link_images=None,
     link_files=None,
 ):
-    """Lưu file/ảnh báo cáo VP — mặc định gộp vào tab Link."""
+    """Lưu file/ảnh báo cáo VP — mặc định gộp vào tab Link.
+
+    Raise ``UploadRejected`` (ValidationError) nếu có file không hợp lệ, và
+    KHÔNG lưu gì cả — kiểm tra hết trước khi ghi để không tạo trạng thái nửa vời.
+    """
+    from nas_storage.upload_guard import GROUP_IMAGE, validate_uploads
+
+    # Ô "ảnh" chỉ nhận ảnh; ô "file" nhận mọi định dạng trong whitelist.
+    validate_uploads(bang_images, groups=(GROUP_IMAGE,))
+    validate_uploads(vanban_images, groups=(GROUP_IMAGE,))
+    validate_uploads(link_images, groups=(GROUP_IMAGE,))
+    validate_uploads(attachments)
+    validate_uploads(bang_files)
+    validate_uploads(vanban_files)
+    validate_uploads(link_files)
+
     created = []
     for uploaded in attachments or []:
         created.append(

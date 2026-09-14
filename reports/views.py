@@ -517,6 +517,15 @@ def _handle_add_report_comment(request, *, report, can_review, redirect_fn, dail
         create_kwargs['daily_report'] = daily_report
     else:
         create_kwargs['weekly_report'] = weekly_report
+    if uploaded_files:
+        from nas_storage.upload_guard import UploadRejected, validate_uploads
+
+        try:
+            validate_uploads(uploaded_files)
+        except UploadRejected as exc:
+            messages.error(request, '; '.join(exc.messages))
+            return redirect_fn()
+
     comment = ReportComment.objects.create(**create_kwargs)
     try:
         save_comment_attachments(comment, uploaded_files)
@@ -1169,11 +1178,20 @@ def _today_office_report(request, report_date, *, report_period: str = PERIOD_DA
                     or request.FILES.getlist('link_files'),
                 )
                 if has_uploads:
+                    from nas_storage.upload_guard import UploadRejected
+
                     try:
                         save_daily_uploads(
                             report,
                             link_images=request.FILES.getlist('link_images'),
                             link_files=request.FILES.getlist('link_files'),
+                        )
+                    except UploadRejected as exc:
+                        # Báo cáo đã lưu; chỉ đính kèm bị từ chối.
+                        messages.error(
+                            request,
+                            'Báo cáo đã lưu nhưng không nhận được đính kèm: '
+                            + '; '.join(exc.messages),
                         )
                     except OSError as exc:
                         logger.exception('Daily report attachment save failed: %s', exc)
@@ -1269,8 +1287,17 @@ def _weekly_report(request, *, report_profile: str):
                 messages.success(request, msg)
                 report.save()
                 if image_uploads or file_uploads:
+                    from nas_storage.upload_guard import UploadRejected
+
                     try:
                         save_weekly_uploads(report, image_list=image_uploads, file_list=file_uploads)
+                    except UploadRejected as exc:
+                        # Báo cáo đã lưu; chỉ đính kèm bị từ chối.
+                        messages.error(
+                            request,
+                            'Báo cáo đã lưu nhưng không nhận được đính kèm: '
+                            + '; '.join(exc.messages),
+                        )
                     except OSError as exc:
                         logger.exception('Weekly report attachment save failed: %s', exc)
                         mark_storage_unavailable()
@@ -3480,7 +3507,8 @@ def daily_attachment_serve(request, pk):
         'image/gif',
         'image/webp',
         'image/bmp',
-        'image/svg+xml',
+        # CỐ Ý KHÔNG có image/svg+xml: SVG là XML chạy được JavaScript; phục vụ
+        # inline cùng origin sẽ thành stored XSS (đánh cắp session người xem).
     }
     force_download = request.GET.get('download', '').lower() in ('1', 'true', 'yes')
     as_attachment = force_download or content_type not in inline_types
@@ -3493,6 +3521,9 @@ def daily_attachment_serve(request, pk):
         response['Content-Disposition'] = attachment_content_disposition(att.display_name)
     elif content_type == 'application/pdf':
         response['Content-Disposition'] = _inline_content_disposition(att.display_name)
+    # Chặn mọi thứ có thể chạy được nếu lỡ lọt file HTML/SVG.
+    response['Content-Security-Policy'] = "default-src 'none'; sandbox; style-src 'unsafe-inline'"
+    response['X-Content-Type-Options'] = 'nosniff'
     return response
 
 
@@ -3545,7 +3576,8 @@ def weekly_attachment_serve(request, pk):
         'image/gif',
         'image/webp',
         'image/bmp',
-        'image/svg+xml',
+        # CỐ Ý KHÔNG có image/svg+xml: SVG là XML chạy được JavaScript; phục vụ
+        # inline cùng origin sẽ thành stored XSS (đánh cắp session người xem).
     }
     force_download = request.GET.get('download', '').lower() in ('1', 'true', 'yes')
     as_attachment = force_download or content_type not in inline_types
@@ -3558,6 +3590,9 @@ def weekly_attachment_serve(request, pk):
         response['Content-Disposition'] = attachment_content_disposition(att.display_name)
     elif content_type == 'application/pdf':
         response['Content-Disposition'] = _inline_content_disposition(att.display_name)
+    # Chặn mọi thứ có thể chạy được nếu lỡ lọt file HTML/SVG.
+    response['Content-Security-Policy'] = "default-src 'none'; sandbox; style-src 'unsafe-inline'"
+    response['X-Content-Type-Options'] = 'nosniff'
     return response
 
 
@@ -3612,7 +3647,8 @@ def comment_attachment_serve(request, pk):
         'image/gif',
         'image/webp',
         'image/bmp',
-        'image/svg+xml',
+        # CỐ Ý KHÔNG có image/svg+xml: SVG là XML chạy được JavaScript; phục vụ
+        # inline cùng origin sẽ thành stored XSS (đánh cắp session người xem).
     }
     force_download = request.GET.get('download', '').lower() in ('1', 'true', 'yes')
     as_attachment = force_download or content_type not in inline_types
@@ -3622,6 +3658,9 @@ def comment_attachment_serve(request, pk):
         from reports.weekly_preview import attachment_content_disposition
 
         response['Content-Disposition'] = attachment_content_disposition(att.display_name)
+    # Chặn mọi thứ có thể chạy được nếu lỡ lọt file HTML/SVG.
+    response['Content-Security-Policy'] = "default-src 'none'; sandbox; style-src 'unsafe-inline'"
+    response['X-Content-Type-Options'] = 'nosniff'
     return response
 
 

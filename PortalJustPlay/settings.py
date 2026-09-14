@@ -617,6 +617,12 @@ NAS_RAIDRIVE_LINUX_DOWNLOAD_PAGE = os.getenv(
     'NAS_RAIDRIVE_LINUX_DOWNLOAD_PAGE',
     'https://www.raidrive.com/download/linux',
 ).strip()
+# Giới hạn dung lượng file người dùng upload (byte) — xem nas_storage/upload_guard.py
+UPLOAD_MAX_BYTES_IMAGE = int(os.getenv('UPLOAD_MAX_BYTES_IMAGE', str(15 * 1024 * 1024)))
+UPLOAD_MAX_BYTES_DOC = int(os.getenv('UPLOAD_MAX_BYTES_DOC', str(30 * 1024 * 1024)))
+UPLOAD_MAX_BYTES_ARCHIVE = int(os.getenv('UPLOAD_MAX_BYTES_ARCHIVE', str(50 * 1024 * 1024)))
+UPLOAD_MAX_BYTES_VIDEO = int(os.getenv('UPLOAD_MAX_BYTES_VIDEO', str(200 * 1024 * 1024)))
+
 # Share ẩn khỏi Duyệt thư mục Portal + Quét từ NAS (share hệ thống: docker, backup, log…)
 NAS_PORTAL_BROWSE_HIDDEN_SHARES = os.getenv(
     'NAS_PORTAL_BROWSE_HIDDEN_SHARES', 'docker,backup,log',

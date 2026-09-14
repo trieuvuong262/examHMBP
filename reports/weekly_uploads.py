@@ -6,7 +6,16 @@ from .models import WeeklyWorkReportAttachment
 
 
 def save_weekly_uploads(report, *, image_list=None, file_list=None):
-    """Lưu file/ảnh báo cáo tuần — giới hạn kích thước theo UPLOAD_MAX_MB (settings)."""
+    """Lưu file/ảnh báo cáo tuần.
+
+    Raise ``UploadRejected`` (ValidationError) nếu có file không hợp lệ, và
+    KHÔNG lưu gì cả — kiểm tra hết trước khi ghi.
+    """
+    from nas_storage.upload_guard import GROUP_IMAGE, validate_uploads
+
+    validate_uploads(image_list, groups=(GROUP_IMAGE,))
+    validate_uploads(file_list)
+
     created = []
     for uploaded in image_list or []:
         created.append(
