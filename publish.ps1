@@ -30,6 +30,67 @@ function Invoke-Git {
     }
 }
 
+function Test-TcpPort {
+    param(
+        [Parameter(Mandatory = $true)][string]$Target,
+        [int]$Port = 22,
+        [int]$TimeoutSec = 2
+    )
+    $client = [System.Net.Sockets.TcpClient]::new()
+    try {
+        $iar = $client.BeginConnect($Target, $Port, $null, $null)
+        if (-not $iar.AsyncWaitHandle.WaitOne($TimeoutSec * 1000, $false)) {
+            return $false
+        }
+        if (-not $client.Connected) { return $false }
+        $client.EndConnect($iar) | Out-Null
+        return $true
+    } catch {
+        return $false
+    } finally {
+        $client.Dispose()
+    }
+}
+
+function Get-SshIdentity {
+    param($cfg)
+    if ($cfg["VPS_SSH_KEY"]) { return $cfg["VPS_SSH_KEY"] }
+    $defaultKey = Join-Path $env:USERPROFILE ".ssh\vps_portal"
+    if (Test-Path $defaultKey) { return $defaultKey }
+    return $null
+}
+
+function Get-DeployHostCandidates {
+    param($cfg, [string]$PublicHost)
+    $list = New-Object System.Collections.Generic.List[string]
+    $ts = $cfg["VPS_TAILSCALE_HOST"]
+    if (-not $ts) { $ts = "100.79.206.125" }
+    if ($ts) { [void]$list.Add($ts) }
+    if ($PublicHost -and $PublicHost -ne $ts) { [void]$list.Add($PublicHost) }
+    return @($list | Select-Object -Unique)
+}
+
+function Invoke-SshDeploy {
+    param(
+        [string]$User,
+        [string]$HostName,
+        [string]$Port,
+        [string]$RemoteCmd,
+        [string]$IdentityFile
+    )
+    $sshArgs = @(
+        "-p", $Port,
+        "-o", "BatchMode=yes",
+        "-o", "ConnectTimeout=8",
+        "-o", "StrictHostKeyChecking=accept-new"
+    )
+    if ($IdentityFile) {
+        $sshArgs += @("-i", $IdentityFile, "-o", "IdentitiesOnly=yes")
+    }
+    & ssh @sshArgs "${User}@${HostName}" $RemoteCmd
+    return $LASTEXITCODE
+}
+
 $commitMsg = if ($args.Count -gt 0 -and $args[0]) { $args[0] } else { "update" }
 $cfg = Load-DeployEnv
 
@@ -76,17 +137,46 @@ $user = if ($cfg["VPS_USER"]) { $cfg["VPS_USER"] } else { "root" }
 $port = if ($cfg["VPS_PORT"]) { $cfg["VPS_PORT"] } else { "22" }
 $projectDir = if ($cfg["PROJECT_DIR"]) { $cfg["PROJECT_DIR"] } else { "/opt/portaljustplay" }
 $branch = if ($cfg["BRANCH"]) { $cfg["BRANCH"] } else { "main" }
+$identity = Get-SshIdentity $cfg
+$candidates = Get-DeployHostCandidates $cfg $host_
 
 $remoteCmd = "set -Eeuo pipefail; cd '$projectDir' && BRANCH='$branch' ./deploy.sh"
+
+$sshHost = $null
 Write-Host ""
-Write-Host "==> SSH deploy ${user}@${host_}:${port}"
+Write-Host "==> Chon SSH host (Tailscale truoc, IP public sau)"
+foreach ($h in $candidates) {
+    Write-Host "    probe ${h}:${port} ..."
+    if (Test-TcpPort -Target $h -Port ([int]$port) -TimeoutSec 2) {
+        $sshHost = $h
+        Write-Host "    OK: $h"
+        break
+    }
+    Write-Host "    timeout: $h"
+}
+
+if (-not $sshHost) {
+    $sshHost = $candidates[0]
+    Write-Host "    Khong probe duoc TCP, van thu SSH: $sshHost"
+}
+
+Write-Host "==> SSH deploy ${user}@${sshHost}:${port}"
 Write-Host "    $projectDir -> ./deploy.sh"
 
-& ssh -p $port -o BatchMode=yes -o ConnectTimeout=15 "${user}@${host_}" $remoteCmd
-if ($LASTEXITCODE -ne 0) {
+$exitCode = Invoke-SshDeploy -User $user -HostName $sshHost -Port $port -RemoteCmd $remoteCmd -IdentityFile $identity
+if ($exitCode -ne 0) {
+    $fallback = @($candidates | Where-Object { $_ -ne $sshHost } | Select-Object -First 1)
+    if ($fallback) {
+        Write-Host ""
+        Write-Host "==> Retry SSH ${user}@$($fallback[0]):${port}"
+        $exitCode = Invoke-SshDeploy -User $user -HostName $fallback[0] -Port $port -RemoteCmd $remoteCmd -IdentityFile $identity
+    }
+}
+
+if ($exitCode -ne 0) {
     Write-Host ""
-    Write-Host "SSH deploy failed. Test: ssh ${user}@${host_}"
-    exit $LASTEXITCODE
+    Write-Host "SSH deploy failed. Test: ssh -i `$env:USERPROFILE\.ssh\vps_portal ${user}@$sshHost"
+    exit $exitCode
 }
 
 Write-Host ""

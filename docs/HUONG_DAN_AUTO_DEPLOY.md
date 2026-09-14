@@ -3,7 +3,8 @@
 ## Cách nhanh (Windows)
 
 1. Một lần: copy `deploy.local.env.example` → `deploy.local.env`, sửa IP/user SSH.
-2. Đảm bảo SSH vào VPS không hỏi mật khẩu (`ssh root@103.90.224.203`).
+2. Đảm bảo SSH vào VPS không hỏi mật khẩu. Ưu tiên Tailscale khi IP public bị chặn:
+   `ssh portal-vps` (alias → `100.79.206.125`) hoặc `ssh root@103.90.224.203`.
 3. Chạy (**dùng `.bat` hoặc `.cmd`**, không gọi trực tiếp `publish.ps1` nếu PowerShell báo Execution Policy):
 
 Trong **PowerShell** (terminal Cursor), phải có `.\` trước tên file:
@@ -70,6 +71,7 @@ Tạo `deploy.local.env`:
 
 ```env
 VPS_HOST=103.90.224.203
+VPS_TAILSCALE_HOST=100.79.206.125
 VPS_USER=root
 VPS_PORT=22
 PROJECT_DIR=/opt/portaljustplay
@@ -77,7 +79,7 @@ BRANCH=main
 DEPLOY_AFTER_PUSH=1
 ```
 
-Chạy `publish.ps1` → push xong → SSH chạy `deploy.sh` ngay.
+Chạy `publish.ps1` / `update.cmd` → push xong → probe Tailscale trước (~2s), nếu không được mới thử IP public, rồi SSH chạy `deploy.sh`.
 
 ### B) GitHub Actions (không cần `deploy.local.env`)
 
