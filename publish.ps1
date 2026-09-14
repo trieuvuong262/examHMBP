@@ -79,16 +79,39 @@ function Invoke-SshDeploy {
         [string]$IdentityFile
     )
     $sshArgs = @(
+        "-T",
         "-p", $Port,
         "-o", "BatchMode=yes",
         "-o", "ConnectTimeout=8",
+        "-o", "ServerAliveInterval=15",
+        "-o", "ServerAliveCountMax=8",
         "-o", "StrictHostKeyChecking=accept-new"
     )
     if ($IdentityFile) {
         $sshArgs += @("-i", $IdentityFile, "-o", "IdentitiesOnly=yes")
     }
-    & ssh @sshArgs "${User}@${HostName}" $RemoteCmd
-    return $LASTEXITCODE
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    $prevNative = $null
+    if (Get-Variable -Name PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyContinue) {
+        $prevNative = $PSNativeCommandUseErrorActionPreference
+        $PSNativeCommandUseErrorActionPreference = $false
+    }
+    try {
+        # Out-Host: log Docker khong bi function capture thanh gia tri tra ve.
+        & ssh @sshArgs "${User}@${HostName}" $RemoteCmd | Out-Host
+        if ($null -eq $LASTEXITCODE) { return 1 }
+        return [int]$LASTEXITCODE
+    } catch {
+        Write-Host $_.Exception.Message
+        if ($null -ne $LASTEXITCODE) { return [int]$LASTEXITCODE }
+        return 1
+    } finally {
+        $ErrorActionPreference = $prevEap
+        if ($null -ne $prevNative) {
+            $PSNativeCommandUseErrorActionPreference = $prevNative
+        }
+    }
 }
 
 $commitMsg = if ($args.Count -gt 0 -and $args[0]) { $args[0] } else { "update" }
@@ -164,11 +187,12 @@ Write-Host "==> SSH deploy ${user}@${sshHost}:${port}"
 Write-Host "    $projectDir -> ./deploy.sh"
 
 $exitCode = Invoke-SshDeploy -User $user -HostName $sshHost -Port $port -RemoteCmd $remoteCmd -IdentityFile $identity
-if ($exitCode -ne 0) {
+# 255 = khong ket noi duoc. Khong retry khi deploy.sh da chay (tranh 2 tien trinh song song).
+if ($exitCode -eq 255) {
     $fallback = @($candidates | Where-Object { $_ -ne $sshHost } | Select-Object -First 1)
     if ($fallback) {
         Write-Host ""
-        Write-Host "==> Retry SSH ${user}@$($fallback[0]):${port}"
+        Write-Host "==> Retry SSH ${user}@$($fallback[0]):${port} (loi ket noi)"
         $exitCode = Invoke-SshDeploy -User $user -HostName $fallback[0] -Port $port -RemoteCmd $remoteCmd -IdentityFile $identity
     }
 }

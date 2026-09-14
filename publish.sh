@@ -108,12 +108,14 @@ ssh_deploy() {
 }
 
 DEPLOY_OK=0
-if ssh_deploy "${SSH_HOST}"; then
+SSH_RC=0
+ssh_deploy "${SSH_HOST}" || SSH_RC=$?
+if [[ "${SSH_RC}" -eq 0 ]]; then
   DEPLOY_OK=1
-else
+elif [[ "${SSH_RC}" -eq 255 ]]; then
   for h in "${CANDIDATES[@]}"; do
     [[ "$h" == "${SSH_HOST}" ]] && continue
-    echo "==> Retry SSH ${VPS_USER}@${h}:${VPS_PORT}"
+    echo "==> Retry SSH ${VPS_USER}@${h}:${VPS_PORT} (lỗi kết nối)"
     if ssh_deploy "$h"; then
       DEPLOY_OK=1
       break
