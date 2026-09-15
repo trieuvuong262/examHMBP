@@ -2255,6 +2255,12 @@ class SxWorkCenter(DemoMarkedModel):
         help_text='Khớp field team_label trên TKSX để đối chiếu sản lượng thực tế.',
     )
     is_active = models.BooleanField(default=True, db_index=True)
+    is_subcontract = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name='Tổ thuê gia công',
+        help_text='Đánh dấu tổ này là đơn vị gia công. Nút Thuê gia công lấy tổ từ danh sách này.',
+    )
     notes = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 

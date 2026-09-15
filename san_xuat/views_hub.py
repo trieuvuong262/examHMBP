@@ -1520,36 +1520,9 @@ def plan_board(request):
                     key.startswith('buy_for__') or key.startswith('allocate_for__')
                     for key in request.POST
                 ):
-                    buy_by_line = {}
-                    allocate_by_line = {}
-                    for key, val in request.POST.items():
-                        if key.startswith('buy_for__'):
-                            sid = key[len('buy_for__'):].strip()
-                            if not sid.isdigit():
-                                continue
-                            raw = (val or '').strip()
-                            if raw == '':
-                                buy_by_line[int(sid)] = None
-                            else:
-                                try:
-                                    buy_by_line[int(sid)] = max(0, min(int(raw), 365))
-                                except (TypeError, ValueError):
-                                    buy_by_line[int(sid)] = None
-                        elif key.startswith('allocate_for__'):
-                            sid = key[len('allocate_for__'):].strip()
-                            if not sid.isdigit():
-                                continue
-                            raw = (val or '').strip().replace(',', '.')
-                            if raw == '':
-                                allocate_by_line[int(sid)] = Decimal('0')
-                            else:
-                                try:
-                                    allocate_by_line[int(sid)] = max(
-                                        Decimal('0'),
-                                        Decimal(raw).quantize(Decimal('0.0001')),
-                                    )
-                                except (InvalidOperation, TypeError, ValueError):
-                                    allocate_by_line[int(sid)] = None
+                    from san_xuat.services.plan_order_npl import parse_npl_board_post
+
+                    buy_by_line, allocate_by_line = parse_npl_board_post(request.POST)
                     kit_raw = (request.POST.get('npl_kit_days') or '').strip()
                     if kit_raw != '':
                         try:
@@ -1578,7 +1551,7 @@ def plan_board(request):
                 extra = {'npl': order_id} if npl_open_id == order_id else {}
                 return _board_redirect(**extra)
             elif action in {'open_npl', 'refresh_npl', 'save_npl', 'apply_npl', 'create_npl_pr'} and order_id:
-                from san_xuat.services.plan_order_npl import build_pr_from_order, sync_order_npl
+                from san_xuat.services.plan_order_npl import build_pr_from_order, parse_npl_board_post, sync_order_npl
 
                 if action == 'create_npl_pr':
                     if not (
@@ -1597,36 +1570,7 @@ def plan_board(request):
                 apply = False
                 if action in {'save_npl', 'apply_npl', 'create_npl_pr'}:
                     apply = action == 'apply_npl'
-                    buy_by_line = {}
-                    allocate_by_line = {}
-                    for key, val in request.POST.items():
-                        if key.startswith('buy_for__'):
-                            sid = key[len('buy_for__'):].strip()
-                            if not sid.isdigit():
-                                continue
-                            raw = (val or '').strip()
-                            if raw == '':
-                                buy_by_line[int(sid)] = None
-                            else:
-                                try:
-                                    buy_by_line[int(sid)] = max(0, min(int(raw), 365))
-                                except (TypeError, ValueError):
-                                    buy_by_line[int(sid)] = None
-                        elif key.startswith('allocate_for__'):
-                            sid = key[len('allocate_for__'):].strip()
-                            if not sid.isdigit():
-                                continue
-                            raw = (val or '').strip().replace(',', '.')
-                            if raw == '':
-                                allocate_by_line[int(sid)] = Decimal('0')
-                            else:
-                                try:
-                                    allocate_by_line[int(sid)] = max(
-                                        Decimal('0'),
-                                        Decimal(raw).quantize(Decimal('0.0001')),
-                                    )
-                                except (InvalidOperation, TypeError, ValueError):
-                                    allocate_by_line[int(sid)] = None
+                    buy_by_line, allocate_by_line = parse_npl_board_post(request.POST)
                     kit_raw = (request.POST.get('npl_kit_days') or '').strip()
                     if kit_raw != '':
                         try:
@@ -6352,6 +6296,7 @@ def _upsert_work_center_from_form(*, form, request, center_id: int | None = None
         work_location=data.get('work_location') or '',
         division=data.get('division'),
         is_active=bool(data.get('is_active')),
+        is_subcontract=bool(data.get('is_subcontract')),
         notes=data.get('notes') or '',
         center_id=center_id,
         user=request.user if not center_id else None,
@@ -6581,6 +6526,7 @@ def capacity_edit(request, pk: int):
             'work_location': center.work_location,
             'division': center.division_id,
             'is_active': center.is_active,
+            'is_subcontract': center.is_subcontract,
             'notes': center.notes,
         })
     return render(request, 'san_xuat/capacity_form.html', {
@@ -6764,7 +6710,12 @@ def subcontract_list(request):
 @login_required
 def subcontract_create(request):
     from san_xuat.hub_models import SxSalesOrder
-    from san_xuat.services.phase3 import Phase3Error, create_subcontract_order, npl_lines_for_subcontract
+    from san_xuat.services.phase3 import (
+        Phase3Error,
+        create_subcontract_order,
+        default_subcontract_vendor_name,
+        npl_lines_for_subcontract,
+    )
     from san_xuat.services.progress_template import team_by_slug
     from san_xuat.services.team_work import active_subcontract_for_team
 
@@ -6927,6 +6878,7 @@ def subcontract_create(request):
             'product_code': product_code,
             'product_name': product_name,
             'team_slug': team['slug'],
+            'vendor_name': default_subcontract_vendor_name(team_slug=team['slug']),
         }
         form = SubcontractCreateForm(initial=initial, lock_source=True)
         npl_initial = npl_lines_for_subcontract(

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
 from django.utils import timezone
@@ -99,6 +99,82 @@ def line_shortfall(*, qty_required: Decimal, qty_available: Decimal, qty_inbound
     bắt nhập ngày mua khi kho vẫn đủ nhu cầu.
     """
     return max(Decimal('0'), _q(qty_required) - _q(qty_available) - _q(qty_inbound))
+
+
+def parse_npl_board_post(post) -> tuple[dict[int, int | None], dict[int, Decimal | None]]:
+    """Đọc ngày mua + SL đặt trên panel NPL. SL đặt quy về ĐVT lẻ nếu đang chọn ĐVT chẵn."""
+    from kho_npl.models import Material
+    from kho_npl.services.uom import UomConversionError, to_base
+
+    buy_by_line: dict[int, int | None] = {}
+    allocate_raw: dict[int, Decimal | None] = {}
+    unit_by_line: dict[int, int] = {}
+
+    for key, val in post.items():
+        if key.startswith('buy_for__'):
+            sid = key[len('buy_for__'):].strip()
+            if not sid.isdigit():
+                continue
+            raw = (val or '').strip()
+            if raw == '':
+                buy_by_line[int(sid)] = None
+            else:
+                try:
+                    buy_by_line[int(sid)] = max(0, min(int(raw), 365))
+                except (TypeError, ValueError):
+                    buy_by_line[int(sid)] = None
+        elif key.startswith('allocate_for__'):
+            sid = key[len('allocate_for__'):].strip()
+            if not sid.isdigit():
+                continue
+            raw = (val or '').strip().replace(',', '.')
+            if raw == '':
+                allocate_raw[int(sid)] = Decimal('0')
+            else:
+                try:
+                    allocate_raw[int(sid)] = max(
+                        Decimal('0'),
+                        Decimal(raw).quantize(Decimal('0.0001')),
+                    )
+                except (InvalidOperation, TypeError, ValueError):
+                    allocate_raw[int(sid)] = None
+        elif key.startswith('npl_uom__'):
+            sid = key[len('npl_uom__'):].strip()
+            if not sid.isdigit():
+                continue
+            raw = (val or '').strip()
+            if raw.isdigit():
+                unit_by_line[int(sid)] = int(raw)
+
+    allocate_by_line: dict[int, Decimal | None] = dict(allocate_raw)
+    pks = [pk for pk, qty in allocate_raw.items() if qty is not None and unit_by_line.get(pk)]
+    if pks:
+        lines = list(
+            SxOrderNplLine.objects.filter(pk__in=pks).only('id', 'material_code')
+        )
+        codes = [(ln.material_code or '').strip() for ln in lines if (ln.material_code or '').strip()]
+        mats = {
+            material.code.casefold(): material
+            for material in (
+                Material.objects.filter(code__in=codes)
+                .select_related('unit', 'specification')
+                .prefetch_related('specification__levels__unit')
+            )
+        }
+        for ln in lines:
+            qty = allocate_raw.get(ln.pk)
+            unit_id = unit_by_line.get(ln.pk)
+            if qty is None or not unit_id:
+                continue
+            material = mats.get((ln.material_code or '').strip().casefold())
+            if material is None:
+                continue
+            try:
+                allocate_by_line[ln.pk] = to_base(material, qty, unit_id).quantize(Decimal('0.0001'))
+            except UomConversionError:
+                allocate_by_line[ln.pk] = qty
+
+    return buy_by_line, allocate_by_line
 
 
 def npl_line_sort_key(ln) -> tuple:

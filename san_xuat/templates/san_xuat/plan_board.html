@@ -985,6 +985,19 @@
     font-variant-numeric: tabular-nums;
     font-weight: 700;
   }
+  .jp-pb-npl-uom-cell {
+    white-space: nowrap;
+    min-width: 6.5rem;
+  }
+  .jp-pb-npl-uom {
+    min-width: 6.2rem;
+    width: auto;
+    max-width: 8.5rem;
+    height: 1.85rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0 0.35rem;
+  }
   .jp-pb-npl-material {
     display: flex;
     align-items: center;
@@ -2461,6 +2474,55 @@
   }
   form.querySelectorAll('select, input[type="date"]').forEach(function (field) {
     field.addEventListener('change', submitFilter);
+  });
+})();
+
+(function () {
+  function factorOf(select) {
+    if (!select) return 1;
+    var opt = select.options[select.selectedIndex];
+    var n = parseFloat(String((opt && opt.getAttribute('data-factor')) || '1').replace(',', '.'));
+    return n > 0 ? n : 1;
+  }
+  function fmtQty(n) {
+    if (!isFinite(n)) return '—';
+    var r = Math.round(n * 1000) / 1000;
+    return r.toLocaleString('vi-VN', { maximumFractionDigits: 3 });
+  }
+  function inputQty(n) {
+    if (!isFinite(n)) return '0';
+    var r = Math.round(n * 10000) / 10000;
+    if (Math.abs(r - Math.round(r)) < 1e-9) return String(Math.round(r));
+    return String(r);
+  }
+  function baseQty(el) {
+    var n = parseFloat(String((el && el.getAttribute('data-base-qty')) || '0').replace(',', '.'));
+    return isFinite(n) ? n : 0;
+  }
+  function applyRow(row) {
+    var select = row.querySelector('select.jp-pb-npl-uom');
+    var f = factorOf(select);
+    row.querySelectorAll('td.jp-pb-npl-qty').forEach(function (td) {
+      td.textContent = fmtQty(baseQty(td) / f);
+    });
+    var shortEl = row.querySelector('.jp-pb-npl-short strong.jp-pb-npl-qty');
+    if (shortEl) shortEl.textContent = fmtQty(baseQty(shortEl) / f);
+    var allocate = row.querySelector('input.jp-pb-npl-allocate');
+    if (allocate) allocate.value = inputQty(baseQty(allocate) / f);
+  }
+  document.querySelectorAll('form.jp-pb-npl tbody tr').forEach(function (row) {
+    var select = row.querySelector('select.jp-pb-npl-uom');
+    var allocate = row.querySelector('input.jp-pb-npl-allocate');
+    if (select) {
+      select.addEventListener('change', function () { applyRow(row); });
+    }
+    if (allocate && select) {
+      allocate.addEventListener('input', function () {
+        var n = parseFloat(String(allocate.value || '0').replace(',', '.'));
+        if (!isFinite(n) || n < 0) n = 0;
+        allocate.setAttribute('data-base-qty', String(n * factorOf(select)));
+      });
+    }
   });
 })();
 </script>

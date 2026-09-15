@@ -10,16 +10,34 @@
       <span class="jp-pb-npl-name">{{ ln.material_name|default:"—" }}</span>
     </div>
   </td>
-  <td class="num">{{ ln.qty_required|npl_qty }}{% if ln.unit %} {{ ln.unit|npl_unit }}{% endif %}</td>
-  <td class="num" title="Tồn kho trừ phần đơn khác đã đặt">{{ ln.qty_available|npl_qty }}{% if ln.unit %} {{ ln.unit|npl_unit }}{% endif %}</td>
+  {% if row.show_npl_uom_col %}
+  <td class="jp-pb-npl-uom-cell">
+    {% if ln.uom_choices %}
+    <select name="npl_uom__{{ ln.pk }}" class="form-select form-select-sm jp-pb-npl-uom"
+            aria-label="Đơn vị tính"
+            {% if not can_schedule or row.order.plan_status == 'on_hold' or tab != 'queue' %}disabled{% endif %}>
+      {% for u in ln.uom_choices %}
+      <option value="{{ u.id }}" data-factor="{{ u.factor }}"{% if u.is_base %} selected{% endif %}>{{ u.name }}</option>
+      {% endfor %}
+    </select>
+    {% elif ln.unit %}
+    {{ ln.unit|npl_unit }}
+    {% else %}
+    —
+    {% endif %}
+  </td>
+  {% endif %}
+  <td class="num jp-pb-npl-qty" data-base-qty="{{ ln.qty_required }}">{{ ln.qty_required|npl_qty }}{% if not row.show_npl_uom_col and ln.unit %} {{ ln.unit|npl_unit }}{% endif %}</td>
+  <td class="num jp-pb-npl-qty" data-base-qty="{{ ln.qty_available }}" title="Tồn kho trừ phần đơn khác đã đặt">{{ ln.qty_available|npl_qty }}{% if not row.show_npl_uom_col and ln.unit %} {{ ln.unit|npl_unit }}{% endif %}</td>
   <td class="num">
     <input type="number" name="allocate_for__{{ ln.pk }}" min="0" step="any"
-           class="form-control form-control-sm"
+           class="form-control form-control-sm jp-pb-npl-allocate"
+           data-base-qty="{{ ln.qty_allocated }}"
            value="{{ ln.qty_allocated|sx_num_input }}"
            {% if not can_schedule or row.order.plan_status == 'on_hold' or tab != 'queue' %}readonly{% endif %}>
   </td>
   <td{% if ln.supplier_code %} title="{{ ln.supplier_code }}"{% endif %}>{{ ln.supplier_name|default:"—" }}</td>
-  <td class="num">{% if ln.qty_shortfall > 0 %}<strong>{{ ln.qty_shortfall|npl_qty }}</strong>{% if ln.unit %} {{ ln.unit|npl_unit }}{% endif %}{% else %}—{% endif %}</td>
+  <td class="num jp-pb-npl-short"{% if ln.qty_shortfall > 0 %} data-base-qty="{{ ln.qty_shortfall }}"{% endif %}>{% if ln.qty_shortfall > 0 %}<strong class="jp-pb-npl-qty" data-base-qty="{{ ln.qty_shortfall }}">{{ ln.qty_shortfall|npl_qty }}</strong>{% if not row.show_npl_uom_col and ln.unit %} {{ ln.unit|npl_unit }}{% endif %}{% else %}—{% endif %}</td>
   <td class="num">
     {% if ln.qty_shortfall > 0 %}
     <input type="number" name="buy_for__{{ ln.pk }}" min="0" max="365" class="form-control form-control-sm"

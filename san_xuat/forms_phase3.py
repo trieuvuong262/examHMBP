@@ -210,6 +210,12 @@ class WorkCenterForm(forms.Form):
         label="Đang dùng",
         widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
     )
+    is_subcontract = forms.BooleanField(
+        required=False,
+        initial=False,
+        label="Tổ thuê gia công",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
     notes = forms.CharField(
         required=False,
         label="Ghi chú",
@@ -409,10 +415,10 @@ PackingLineFormSet = formset_factory(PackingLineForm, extra=3, can_delete=False)
 
 
 class SubcontractCreateForm(forms.Form):
-    vendor_name = forms.CharField(
-        max_length=200,
+    vendor_name = forms.ChoiceField(
         label="Đơn vị gia công",
-        widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
+        choices=[],
+        widget=forms.Select(attrs={"class": "form-select form-select-sm"}),
     )
     product_code = forms.ChoiceField(
         label="Mã sản phẩm",
@@ -507,7 +513,20 @@ class SubcontractCreateForm(forms.Form):
         if mo is not None and so is None:
             so = mo.sales_order
         self.fields["product_code"].choices = _product_code_choices(extra_product)
+        from san_xuat.services.phase3 import subcontract_vendor_choices
         from san_xuat.services.progress_template import team_by_slug
+
+        extra_vendor = ""
+        if data is not None:
+            extra_vendor = (data.get("vendor_name") or "").strip()
+        elif self.initial:
+            extra_vendor = (self.initial.get("vendor_name") or "").strip()
+        vendor_choices = subcontract_vendor_choices(extra_name=extra_vendor)
+        self.fields["vendor_name"].choices = (
+            [("", "— Chọn tổ gia công —")] + vendor_choices
+        )
+        if not vendor_choices:
+            self.fields["vendor_name"].choices = [("", "— Chưa khai tổ thuê gia công —")]
 
         team_meta = team_by_slug(extra_team) if extra_team else None
         self.fields["team_slug"].choices = (
@@ -546,6 +565,12 @@ class SubcontractCreateForm(forms.Form):
             raise forms.ValidationError(f"Mã {code} không có trong kho sản phẩm.")
         return ref.code
 
+    def clean_vendor_name(self):
+        name = (self.cleaned_data.get("vendor_name") or "").strip()
+        if not name:
+            raise forms.ValidationError("Chọn tổ thuê gia công trong danh mục năng lực.")
+        return name
+
     def clean_team_slug(self):
         return (self.cleaned_data.get("team_slug") or "").strip().lower()
 
@@ -580,10 +605,10 @@ class SubcontractCreateForm(forms.Form):
 
 
 class SubcontractUpdateForm(forms.Form):
-    vendor_name = forms.CharField(
-        max_length=200,
+    vendor_name = forms.ChoiceField(
         label="Đơn vị gia công",
-        widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
+        choices=[],
+        widget=forms.Select(attrs={"class": "form-select form-select-sm"}),
     )
     order_date = forms.DateField(label="Ngày", widget=forms.DateInput(attrs=_DATE_SM))
     due_date = forms.DateField(required=False, label="Hạn", widget=forms.DateInput(attrs=_DATE_SM))
@@ -592,6 +617,29 @@ class SubcontractUpdateForm(forms.Form):
         label="Ghi chú",
         widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from san_xuat.services.phase3 import subcontract_vendor_choices
+
+        extra_vendor = ""
+        data = args[0] if args else None
+        if data is not None:
+            extra_vendor = (data.get("vendor_name") or "").strip()
+        elif self.initial:
+            extra_vendor = (self.initial.get("vendor_name") or "").strip()
+        vendor_choices = subcontract_vendor_choices(extra_name=extra_vendor)
+        self.fields["vendor_name"].choices = (
+            [("", "— Chọn tổ gia công —")] + vendor_choices
+        )
+        if not vendor_choices:
+            self.fields["vendor_name"].choices = [("", "— Chưa khai tổ thuê gia công —")]
+
+    def clean_vendor_name(self):
+        name = (self.cleaned_data.get("vendor_name") or "").strip()
+        if not name:
+            raise forms.ValidationError("Chọn tổ thuê gia công trong danh mục năng lực.")
+        return name
 
 
 class SubcontractMaterialLineForm(forms.Form):

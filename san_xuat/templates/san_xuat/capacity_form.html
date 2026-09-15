@@ -87,9 +87,15 @@
             {% if form.division.errors %}<div class="text-danger small">{{ form.division.errors }}</div>{% endif %}
           </div>
           <div class="col-12">
-            <div class="form-check">
-              {{ form.is_active }}
-              <label class="form-check-label" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
+            <div class="d-flex flex-wrap gap-4">
+              <div class="form-check">
+                {{ form.is_active }}
+                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
+              </div>
+              <div class="form-check">
+                {{ form.is_subcontract }}
+                <label class="form-check-label" for="{{ form.is_subcontract.id_for_label }}">{{ form.is_subcontract.label }}</label>
+              </div>
             </div>
           </div>
           <div class="col-12">

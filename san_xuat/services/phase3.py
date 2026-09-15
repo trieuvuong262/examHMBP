@@ -204,6 +204,7 @@ def upsert_work_center(
     efficiency_pct: Decimal | None = None,
     work_location: str = "",
     division=None,
+    is_subcontract: bool = False,
 ) -> SxWorkCenter:
     name = (name or "").strip()
     if not name:
@@ -259,6 +260,7 @@ def upsert_work_center(
         "efficiency_pct": eff,
         "work_location": location,
         "division": division,
+        "is_subcontract": bool(is_subcontract),
     }
 
     if center_id:
@@ -276,6 +278,47 @@ def upsert_work_center(
         is_demo=False,
         created_by=user,
     )
+
+
+def subcontract_vendor_choices(*, extra_name: str = "") -> list[tuple[str, str]]:
+    """Tổ đánh dấu thuê gia công trên danh mục năng lực — dùng làm Đơn vị GC."""
+    qs = (
+        SxWorkCenter.objects.filter(is_demo=False, is_active=True, is_subcontract=True)
+        .order_by("name", "code")
+    )
+    seen: set[str] = set()
+    choices: list[tuple[str, str]] = []
+    for center in qs:
+        name = (center.name or "").strip()
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        label = f"{name} ({center.code})" if center.code else name
+        choices.append((name, label))
+    extra = (extra_name or "").strip()
+    if extra and extra not in seen:
+        choices.append((extra, extra))
+    return choices
+
+
+def default_subcontract_vendor_name(*, team_slug: str = "") -> str:
+    """Ưu tiên tổ GC cùng slug với công đoạn; nếu chỉ có một tổ GC thì lấy tổ đó."""
+    centers = list(
+        SxWorkCenter.objects.filter(is_demo=False, is_active=True, is_subcontract=True)
+        .order_by("name", "code")
+    )
+    if not centers:
+        return ""
+    slug = (team_slug or "").strip().lower()
+    if slug:
+        from san_xuat.services.capacity_from_hrm import team_slug_for_work_center
+
+        for center in centers:
+            if team_slug_for_work_center(center) == slug:
+                return (center.name or "").strip()
+    if len(centers) == 1:
+        return (centers[0].name or "").strip()
+    return ""
 
 
 @transaction.atomic

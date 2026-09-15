@@ -275,6 +275,7 @@ class PlanBoardRow:
     npl_plan_code: str = ''
     npl_pr_id: int = 0
     npl_pr_code: str = ''
+    show_npl_uom_col: bool = False
     timeline_steps: list = field(default_factory=list)
 
 
@@ -1372,6 +1373,7 @@ def build_plan_board_rows(
 def _fill_npl_supplier_names(rows: list[PlanBoardRow]) -> None:
     """Gắn NCC chính từ danh mục kho lên dòng NPL để hiển thị trên KHSX."""
     from kho_npl.models import Material
+    from kho_npl.services.uom import material_units
 
     codes = {
         (ln.material_code or '').strip()
@@ -1381,23 +1383,29 @@ def _fill_npl_supplier_names(rows: list[PlanBoardRow]) -> None:
     }
     materials = (
         Material.objects.filter(code__in=codes)
-        .select_related('supplier')
-        .only('code', 'image', 'supplier__code', 'supplier__name')
+        .select_related('supplier', 'unit', 'specification')
+        .prefetch_related('specification__levels__unit')
     )
     material_info = {
         material.code.casefold(): material
         for material in materials
     }
     for row in rows:
+        has_alt_uom = False
         for ln in row.order.npl_lines.all():
             material = material_info.get((ln.material_code or '').strip().casefold())
             supplier = material.supplier if material and material.supplier_id else None
             ln.supplier_name = supplier.name if supplier else ''
             ln.supplier_code = supplier.code if supplier else ''
+            units = material_units(material) if material else []
+            ln.uom_choices = units if len(units) > 1 else []
+            if ln.uom_choices:
+                has_alt_uom = True
             try:
                 ln.material_image_url = material.image.url if material and material.image else ''
             except (ValueError, OSError):
                 ln.material_image_url = ''
+        row.show_npl_uom_col = has_alt_uom
 
 
 def _fill_product_flow_images(rows: list[PlanBoardRow]) -> None:
