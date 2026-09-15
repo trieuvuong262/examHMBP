@@ -332,6 +332,7 @@ def sync_order_npl(
     allocate_by_line: dict[int, Decimal | None] | None = None,
     apply_schedule: bool = False,
     refresh_stock: bool = True,
+    reset_allocated: bool = False,
 ) -> SxSalesOrder:
     """Explode/làm mới dòng NPL; lưu số đặt + ngày mua; tùy chọn cộng vào KHSX."""
     order = (
@@ -385,7 +386,7 @@ def sync_order_npl(
             qty_required=ln.qty_required,
             qty_available=ln.qty_available,
         )
-        if is_new or (allocate_by_line is None and (ln.qty_allocated or 0) <= 0):
+        if reset_allocated or is_new or (allocate_by_line is None and (ln.qty_allocated or 0) <= 0):
             ln.qty_allocated = cap
         elif (ln.qty_allocated or 0) > cap:
             ln.qty_allocated = cap
@@ -397,7 +398,7 @@ def sync_order_npl(
     order.npl_lines.exclude(pk__in=keep_ids).delete()
     lines = list(order.npl_lines.order_by('sort_order', 'id'))
 
-    if allocate_by_line is not None:
+    if allocate_by_line is not None and not reset_allocated:
         over: list[str] = []
         for ln in lines:
             if ln.pk not in allocate_by_line:

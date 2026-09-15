@@ -1776,6 +1776,7 @@ def reload_plan_order_tech(
     kit_days: int | None = None,
     buy_by_line: dict | None = None,
     allocate_by_line: dict | None = None,
+    reset_allocated: bool = False,
 ) -> ReloadPlanTechResult:
     """Ghi đè snapshot BOM / OB / NPL trên KHSX từ hồ sơ hiện tại.
 
@@ -1833,7 +1834,8 @@ def reload_plan_order_tech(
                 order_id=order.pk,
                 kit_days=kit_days,
                 buy_by_line=buy_by_line,
-                allocate_by_line=allocate_by_line,
+                allocate_by_line=None if reset_allocated else allocate_by_line,
+                reset_allocated=reset_allocated,
                 apply_schedule=was_ready,
             )
             npl_reloaded = True

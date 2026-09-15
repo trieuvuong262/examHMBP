@@ -1514,15 +1514,11 @@ def plan_board(request):
                 return _board_redirect()
             elif action == 'reload_tech' and (can_schedule or can_release) and order_id:
                 buy_by_line = None
-                allocate_by_line = None
                 kit = None
-                if any(
-                    key.startswith('buy_for__') or key.startswith('allocate_for__')
-                    for key in request.POST
-                ):
+                if any(key.startswith('buy_for__') for key in request.POST):
                     from san_xuat.services.plan_order_npl import parse_npl_board_post
 
-                    buy_by_line, allocate_by_line = parse_npl_board_post(request.POST)
+                    buy_by_line, _allocate = parse_npl_board_post(request.POST)
                     kit_raw = (request.POST.get('npl_kit_days') or '').strip()
                     if kit_raw != '':
                         try:
@@ -1534,7 +1530,7 @@ def plan_board(request):
                     user=request.user,
                     kit_days=kit,
                     buy_by_line=buy_by_line,
-                    allocate_by_line=allocate_by_line,
+                    reset_allocated=True,
                 )
                 bits = []
                 if result.bom_count:
