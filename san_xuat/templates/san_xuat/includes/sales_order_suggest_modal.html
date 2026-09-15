@@ -39,13 +39,6 @@
     white-space: normal;
     line-height: 1.25;
   }
-  .jp-so-suggest-sheet .jp-so-sg-label .jp-so-sg-sub {
-    display: block;
-    font-weight: 600;
-    font-size: .68rem;
-    color: #1e3a8a;
-    margin-top: .12rem;
-  }
   .jp-so-suggest-sheet .jp-so-sg-size {
     background: #f8fafc;
     text-align: center;
@@ -166,7 +159,7 @@
     margin-bottom: .25rem;
   }
   .jp-so-sg-toolbar .jp-so-sg-field-product {
-    grid-column: 1 / -1;
+    min-width: 0;
   }
   .jp-so-sg-toolbar .form-control {
     border: 1px solid #94a3b8 !important;
@@ -189,12 +182,6 @@
     font-size: .72rem;
     margin-top: .25rem;
   }
-  .jp-so-suggest-sheet .jp-so-sg-formula {
-    background: #e2e8f0;
-    font-weight: 600;
-    color: #334155;
-    font-size: .78rem;
-  }
   .jp-so-suggest-total {
     display: flex;
     flex-wrap: wrap;
@@ -210,6 +197,7 @@
   .jp-so-suggest-total strong { font-variant-numeric: tabular-nums; }
   .jp-so-suggest-total #jp-so-sg-total { color: #9a3412; }
   @media (max-width: 767.98px) {
+    .jp-so-sg-toolbar { grid-template-columns: 1fr; }
     .jp-so-suggest-sheet .jp-so-sg-label { width: 7.5rem; white-space: normal; font-size: .72rem; }
     .jp-so-suggest-sheet th,
     .jp-so-suggest-sheet td { font-size: .72rem; }
@@ -285,16 +273,6 @@
                 </td>
                 {% endfor %}
                 <td class="jp-so-sg-row-total" data-total-of="vel">0</td>
-              </tr>
-              <tr class="jp-so-sg-formula-row">
-                <th class="jp-so-sg-label is-wrap" scope="row">
-                  Công thức đề xuất
-                  <span class="jp-so-sg-sub">(Tiêu thụ × hệ số) − Tồn kho</span>
-                </th>
-                {% for sz in suggest_sizes_all %}
-                <td class="jp-so-sg-formula{% if sz not in suggest_sizes %} jp-so-sg-col-extra{% endif %}" data-size="{{ sz }}"></td>
-                {% endfor %}
-                <td class="jp-so-sg-row-total">—</td>
               </tr>
               <tr class="jp-so-sg-raw-row">
                 <th class="jp-so-sg-label" scope="row">Giá trị sau khi tính</th>
