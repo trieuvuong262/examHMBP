@@ -163,9 +163,9 @@
   }
   .jp-so-sg-toolbar {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: .65rem .85rem;
-    margin-bottom: .85rem;
+    margin-bottom: .55rem;
   }
   .jp-so-sg-toolbar .jp-so-sg-field label {
     display: block;
@@ -176,6 +176,7 @@
   }
   .jp-so-sg-toolbar .jp-so-sg-field-product {
     min-width: 0;
+    grid-column: 1 / -1;
   }
   .jp-so-sg-field-product .jp-so-product-pick {
     display: flex;
@@ -187,6 +188,7 @@
     flex: 0 0 2.75rem;
     width: 2.75rem;
     height: 2.75rem;
+    padding: 0;
     border: 1px solid #94a3b8;
     border-radius: .45rem;
     background: #f8fafc;
@@ -195,7 +197,10 @@
     align-items: center;
     justify-content: center;
     overflow: hidden;
+    cursor: default;
   }
+  .jp-so-sg-field-product .jp-so-product-thumb.has-image { cursor: zoom-in; }
+  .jp-so-sg-field-product .jp-so-product-thumb:disabled { opacity: 1; }
   .jp-so-sg-field-product .jp-so-product-thumb i { font-size: 1.05rem; }
   .jp-so-sg-field-product .jp-so-product-thumb img {
     display: none;
@@ -228,7 +233,7 @@
   }
   .jp-so-sg-product-meta {
     font-size: .72rem;
-    margin-top: .25rem;
+    margin: 0 0 .85rem;
   }
   .jp-so-suggest-total {
     display: flex;
@@ -246,6 +251,7 @@
   .jp-so-suggest-total #jp-so-sg-total { color: #9a3412; }
   @media (max-width: 767.98px) {
     .jp-so-sg-toolbar { grid-template-columns: 1fr; }
+    .jp-so-sg-toolbar .jp-so-sg-field-product { grid-column: auto; }
     .jp-so-suggest-sheet .jp-so-sg-label { width: 7.5rem; white-space: normal; font-size: .72rem; }
     .jp-so-suggest-sheet th,
     .jp-so-suggest-sheet td { font-size: .72rem; }
@@ -272,13 +278,20 @@
             <label for="jp-so-sg-round">Làm tròn</label>
             <input type="number" class="form-control form-control-sm" id="jp-so-sg-round" value="50" min="1" step="1" inputmode="numeric">
           </div>
+          <div class="jp-so-sg-field">
+            <label for="jp-so-sg-period">Thời gian dự đoán (ngày)</label>
+            <input type="number" class="form-control form-control-sm" id="jp-so-sg-period"
+                   value="30" min="1" max="365" step="1" inputmode="numeric"
+                   aria-label="Số ngày dự đoán">
+          </div>
           <div class="jp-so-sg-field jp-so-sg-field-product">
             <label for="jp-so-sg-product">Loại hàng</label>
             <div class="jp-so-product-pick">
-              <span class="jp-so-product-thumb is-empty" aria-hidden="true">
+              <button type="button" class="jp-so-product-thumb is-empty" disabled
+                      aria-label="Chưa có ảnh sản phẩm">
                 <i class="bi bi-image"></i>
                 <img alt="">
-              </span>
+              </button>
               <div class="jp-so-product-select">
                 <select id="jp-so-sg-product"
                         class="form-select form-select-sm jp-so-sg-product-select"
@@ -290,15 +303,9 @@
               </div>
             </div>
           </div>
-          <div class="jp-so-sg-field">
-            <label for="jp-so-sg-period">Thời gian dự đoán (ngày)</label>
-            <input type="number" class="form-control form-control-sm" id="jp-so-sg-period"
-                   value="30" min="1" max="365" step="1" inputmode="numeric"
-                   aria-label="Số ngày dự đoán">
-            <div class="jp-so-sg-product-meta text-muted" id="jp-so-sg-period-meta">
-              Tốc độ tiêu thụ = tổng SL bán KiotViet trong N ngày gần nhất
-            </div>
-          </div>
+        </div>
+        <div class="jp-so-sg-product-meta text-muted" id="jp-so-sg-period-meta">
+          Tốc độ tiêu thụ = tổng SL bán KiotViet trong N ngày gần nhất
         </div>
         <div class="table-responsive">
           <table class="jp-so-suggest-sheet" id="jp-so-suggest-sheet">

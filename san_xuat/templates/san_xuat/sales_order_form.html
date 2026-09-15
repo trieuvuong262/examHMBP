@@ -171,6 +171,7 @@
     flex: 0 0 2.75rem;
     width: 2.75rem;
     height: 2.75rem;
+    padding: 0;
     border: 1px solid var(--bs-border-color, #e2e8f0);
     border-radius: .45rem;
     background: #f8fafc;
@@ -179,7 +180,10 @@
     align-items: center;
     justify-content: center;
     overflow: hidden;
+    cursor: default;
   }
+  .jp-so-product-thumb.has-image { cursor: zoom-in; }
+  .jp-so-product-thumb:disabled { opacity: 1; }
   .jp-so-product-thumb i {
     font-size: 1.05rem;
   }
@@ -404,10 +408,11 @@
               <tr class="jp-so-line-row">
                 <td class="jp-so-product-col">
                   <div class="jp-so-product-pick">
-                    <span class="jp-so-product-thumb is-empty" aria-hidden="true">
+                    <button type="button" class="jp-so-product-thumb is-empty" disabled
+                            aria-label="Chưa có ảnh sản phẩm">
                       <i class="bi bi-image"></i>
                       <img alt="">
-                    </span>
+                    </button>
                     <div class="jp-so-product-select">
                       {{ f.product_code }}
                       {{ f.product_name }}
@@ -507,10 +512,11 @@
   <tr class="jp-so-line-row">
     <td class="jp-so-product-col">
       <div class="jp-so-product-pick">
-        <span class="jp-so-product-thumb is-empty" aria-hidden="true">
+        <button type="button" class="jp-so-product-thumb is-empty" disabled
+                aria-label="Chưa có ảnh sản phẩm">
           <i class="bi bi-image"></i>
           <img alt="">
-        </span>
+        </button>
         <div class="jp-so-product-select">{{ f.product_code }}{{ f.product_name }}</div>
       </div>
     </td>
@@ -1702,6 +1708,7 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
 })();
 </script>
 {% include 'san_xuat/includes/sales_order_suggest_modal_script.html' %}
+{% include 'san_xuat/includes/product_image_gallery_modal.html' %}
 {% include 'kho_npl/includes/material_image_modal.html' %}
 <script src="{% static 'js/sales-order-autosave.js' %}?v=20260813a"></script>
 {% endblock %}

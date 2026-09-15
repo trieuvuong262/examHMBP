@@ -113,20 +113,41 @@ body > .ts-dropdown.jp-sx-product-dd .option {
     if (!thumb) return;
     var img = thumb.querySelector('img');
     var url = opt && String(opt.image_url || '').trim();
+    var title = opt && ((opt.name || '').trim() || (opt.text || '').trim() || (opt.code || '').trim()) || 'Ảnh sản phẩm';
+
+    function setThumbGallery(hasUrl) {
+      if (hasUrl) {
+        thumb.setAttribute('data-sx-gallery', '');
+        thumb.setAttribute('data-sx-gallery-image', url);
+        thumb.setAttribute('data-sx-gallery-title', title);
+        thumb.removeAttribute('disabled');
+        thumb.setAttribute('aria-label', 'Phóng to ảnh ' + title);
+      } else {
+        thumb.removeAttribute('data-sx-gallery');
+        thumb.removeAttribute('data-sx-gallery-image');
+        thumb.removeAttribute('data-sx-gallery-title');
+        thumb.setAttribute('disabled', 'disabled');
+        thumb.setAttribute('aria-label', 'Chưa có ảnh sản phẩm');
+      }
+    }
+
     if (img && url) {
       img.onload = function () {
         thumb.classList.add('has-image');
         thumb.classList.remove('is-empty');
+        setThumbGallery(true);
       };
       img.onerror = function () {
         img.removeAttribute('src');
         thumb.classList.remove('has-image');
         thumb.classList.add('is-empty');
+        setThumbGallery(false);
       };
       if (img.getAttribute('src') !== url) img.src = url;
       else {
         thumb.classList.add('has-image');
         thumb.classList.remove('is-empty');
+        setThumbGallery(true);
       }
       return;
     }
@@ -137,6 +158,7 @@ body > .ts-dropdown.jp-sx-product-dd .option {
     }
     thumb.classList.remove('has-image');
     thumb.classList.add('is-empty');
+    setThumbGallery(false);
   }
 
   function enrichProductOption(select, ts, code) {

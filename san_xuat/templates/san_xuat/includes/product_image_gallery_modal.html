@@ -73,6 +73,8 @@
   display: block;
   border-radius: .25rem;
 }
+#sxProductGalleryModal { z-index: 2010; }
+.modal-backdrop.sx-gallery-backdrop { z-index: 2005; }
 </style>
 <div class="modal fade" id="sxProductGalleryModal" tabindex="-1" aria-hidden="true"
      data-bs-backdrop="true" data-bs-keyboard="true">
@@ -208,6 +210,8 @@
 
   modalEl.addEventListener('shown.bs.modal', function () {
     document.addEventListener('keydown', onKey);
+    var backs = document.querySelectorAll('.modal-backdrop');
+    if (backs.length) backs[backs.length - 1].classList.add('sx-gallery-backdrop');
   });
   modalEl.addEventListener('hidden.bs.modal', function () {
     document.removeEventListener('keydown', onKey);
