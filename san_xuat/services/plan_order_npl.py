@@ -101,6 +101,11 @@ def line_shortfall(*, qty_required: Decimal, qty_available: Decimal, qty_inbound
     return max(Decimal('0'), _q(qty_required) - _q(qty_available) - _q(qty_inbound))
 
 
+def default_qty_allocated(*, qty_required: Decimal, qty_available: Decimal) -> Decimal:
+    """Đặt mặc định = nhu cầu; nếu tồn kho nhỏ hơn thì lấy hết tồn khả dụng."""
+    return min(_q(qty_required), max(Decimal('0'), _q(qty_available)))
+
+
 def parse_npl_board_post(post) -> tuple[dict[int, int | None], dict[int, Decimal | None]]:
     """Đọc ngày mua + SL đặt trên panel NPL. SL đặt quy về ĐVT lẻ nếu đang chọn ĐVT chẵn."""
     from kho_npl.models import Material
@@ -363,6 +368,7 @@ def sync_order_npl(
         key = rec.material_code.casefold()
         sort += 10
         ln = existing.get(key)
+        is_new = ln is None
         buy = ln.buy_lead_days if ln else None
         if buy_by_line is not None and ln and ln.pk in buy_by_line:
             buy = buy_by_line[ln.pk]
@@ -375,8 +381,13 @@ def sync_order_npl(
             ln.qty_on_hand = rec.qty_on_hand
             ln.qty_available = rec.qty_available
             ln.qty_inbound = rec.qty_inbound
-        cap = min(_q(ln.qty_required), _q(ln.qty_available))
-        if (ln.qty_allocated or 0) > cap:
+        cap = default_qty_allocated(
+            qty_required=ln.qty_required,
+            qty_available=ln.qty_available,
+        )
+        if is_new or (allocate_by_line is None and (ln.qty_allocated or 0) <= 0):
+            ln.qty_allocated = cap
+        elif (ln.qty_allocated or 0) > cap:
             ln.qty_allocated = cap
         ln.buy_lead_days = buy
         ln.sort_order = sort
@@ -395,7 +406,10 @@ def sync_order_npl(
             placed = _q(0 if raw is None else raw)
             if placed < 0:
                 placed = Decimal('0')
-            cap = min(_q(ln.qty_required), _q(ln.qty_available))
+            cap = default_qty_allocated(
+                qty_required=ln.qty_required,
+                qty_available=ln.qty_available,
+            )
             if placed > cap:
                 label = ln.material_name or ln.material_code
                 over.append(f'{label}: tồn kho {cap}')

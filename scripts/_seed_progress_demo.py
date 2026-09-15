@@ -48,7 +48,7 @@ def _pick_product() -> tuple[str, str]:
 
 @transaction.atomic
 def run():
-    ensure_progress_work_centers()
+    ensure_progress_work_centers(create_missing=True)
     today = timezone.localdate()
     product_code, product_name = _pick_product()
     product_name = 'Pháp xanh đen 2026 - TAY DÀI'

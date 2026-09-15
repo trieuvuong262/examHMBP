@@ -391,8 +391,8 @@ compose exec -T web python manage.py seed_kho_npl_category_tree
 step "8c) Sync NPL colors + backfill material colors"
 compose exec -T web python manage.py seed_kho_npl_material_colors
 
-step "8d) Sync tên CĐ + tổ chuẩn cho tiến độ tổ (không tạo nhóm/OP thư viện IE)"
-# Không seed SxOperationGroup / SxOperation — nhóm công đoạn do IE tự quản.
+step "8d) Sync tên CĐ cho tiến độ tổ (không tạo tổ năng lực / nhóm IE)"
+# Không seed SxOperationGroup / SxOperation / SxWorkCenter — catalog do user tự quản.
 compose exec -T web python manage.py sync_process_master
 
 step "8e) Nạp danh sách kho thành phẩm (kho trung tâm)"

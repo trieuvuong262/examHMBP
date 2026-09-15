@@ -80,7 +80,7 @@ def _pick_users(n: int) -> list[int]:
 
 @transaction.atomic
 def seed() -> SxProductionOrder:
-    ensure_progress_work_centers()
+    ensure_progress_work_centers(create_missing=True)
     today = timezone.localdate()
     product_code, product_name = _pick_product()
     product_name = product_name or 'Áo demo Công việc tổ'

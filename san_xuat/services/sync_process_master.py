@@ -96,16 +96,13 @@ def sync_standard_process_library(
     retire_missing: bool = False,
     purge_missing: bool = False,
 ) -> dict[str, int]:
-    """Đồng bộ tên CĐ + tổ chuẩn cho tiến độ tổ.
+    """Đồng bộ tên CĐ cho tiến độ tổ.
 
-    Không tạo/sửa ``SxOperation`` hay ``SxOperationGroup`` — thư viện IE tự quản
-    (màn nhóm công đoạn / import Excel). Deploy không được tái tạo nhóm đã xóa.
-    ``purge_missing`` / ``retire_missing`` chỉ áp dụng khi gọi chủ động với cờ đó.
+    Không tạo/sửa ``SxOperation`` / ``SxOperationGroup`` (thư viện IE tự quản)
+    và không tạo tổ năng lực (catalog user tự khai). Deploy không tái tạo
+    nhóm/tổ đã xóa. ``purge_missing`` / ``retire_missing`` chỉ khi gọi có cờ.
     """
     from san_xuat.models import SxProcessName
-    from san_xuat.services.order_progress_sheet import ensure_progress_work_centers
-
-    ensure_progress_work_centers()
 
     stats = {
         'stages': 0,
@@ -184,14 +181,6 @@ def sync_standard_process_library(
                 st.save(update_fields=['is_active'])
                 stats['stages_deactivated'] += 1
 
-        # Năng lực SX: chỉ giữ 6 tổ chuẩn đang dùng
-        from san_xuat.hub_models import SxWorkCenter
-        from san_xuat.services.progress_template import standard_work_center_codes
-
-        ensure_progress_work_centers(deactivate_others=False)
-        stale_wc = SxWorkCenter.objects.filter(is_demo=False, is_active=True).exclude(
-            code__in=standard_work_center_codes(),
-        )
-        stats['work_centers_deactivated'] = stale_wc.update(is_active=False)
+        # Không đụng catalog năng lực khi purge thư viện CĐ.
 
     return stats

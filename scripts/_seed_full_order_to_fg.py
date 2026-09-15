@@ -75,7 +75,7 @@ def _wipe():
 
 @transaction.atomic
 def run():
-    ensure_progress_work_centers()
+    ensure_progress_work_centers(create_missing=True)
     _wipe()
 
     today = timezone.localdate()

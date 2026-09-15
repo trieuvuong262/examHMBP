@@ -33,35 +33,51 @@ def _q(v) -> Decimal:
     return Decimal(str(v or 0))
 
 
-def ensure_progress_work_centers(*, deactivate_others: bool = False) -> list[SxWorkCenter]:
-    """Tạo/cập nhật 6 tổ chuẩn (Cắt → Giao hàng thành phẩm)."""
-    out: list[SxWorkCenter] = []
+def ensure_progress_work_centers(
+    *,
+    deactivate_others: bool = False,
+    create_missing: bool = False,
+) -> list[SxWorkCenter]:
+    """Lấy 6 tổ chuẩn (Cắt → GH) nếu đã có trên danh mục năng lực.
+
+    Catalog năng lực do user thêm/sửa/xóa — mặc định không tự tạo tổ.
+    Seed demo mới ``create_missing=True``.
+    """
     keep = {code for code, _n, _t in WC_SEED}
+    existing = {
+        wc.code: wc
+        for wc in SxWorkCenter.objects.filter(code__in=keep, is_demo=False)
+    }
+    out: list[SxWorkCenter] = []
     for code, name, team in WC_SEED:
-        wc, created = SxWorkCenter.objects.get_or_create(
-            code=code,
-            defaults={
-                'name': name,
-                'team_label': team,
-                'is_active': True,
-                'is_demo': False,
-            },
-        )
-        update_fields: list[str] = []
-        if (wc.name or '') != name:
-            wc.name = name
-            update_fields.append('name')
-        if (wc.team_label or '') != team:
-            wc.team_label = team
-            update_fields.append('team_label')
-        if not wc.is_active:
-            wc.is_active = True
-            update_fields.append('is_active')
-        if wc.is_demo:
-            wc.is_demo = False
-            update_fields.append('is_demo')
-        if update_fields:
-            wc.save(update_fields=update_fields)
+        wc = existing.get(code)
+        if wc is None:
+            if not create_missing:
+                continue
+            wc = SxWorkCenter.objects.create(
+                code=code,
+                name=name,
+                team_label=team,
+                is_active=True,
+                is_demo=False,
+            )
+            existing[code] = wc
+        elif create_missing:
+            update_fields: list[str] = []
+            if (wc.name or '') != name:
+                wc.name = name
+                update_fields.append('name')
+            if (wc.team_label or '') != team:
+                wc.team_label = team
+                update_fields.append('team_label')
+            if not wc.is_active:
+                wc.is_active = True
+                update_fields.append('is_active')
+            if wc.is_demo:
+                wc.is_demo = False
+                update_fields.append('is_demo')
+            if update_fields:
+                wc.save(update_fields=update_fields)
         out.append(wc)
     if deactivate_others:
         SxWorkCenter.objects.filter(is_demo=False, is_active=True).exclude(
