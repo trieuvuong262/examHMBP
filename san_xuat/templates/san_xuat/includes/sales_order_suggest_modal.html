@@ -286,11 +286,14 @@
                 {% endfor %}
                 <td class="jp-so-sg-row-total" data-total-of="vel">0</td>
               </tr>
-              <tr>
-                <th class="jp-so-sg-label" scope="row">Công thức đề xuất</th>
-                <td class="jp-so-sg-formula" colspan="{{ suggest_sizes_all|length }}">
-                  (Tốc độ tiêu thụ × hệ số) − Tồn kho thực tế
-                </td>
+              <tr class="jp-so-sg-formula-row">
+                <th class="jp-so-sg-label is-wrap" scope="row">
+                  Công thức đề xuất
+                  <span class="jp-so-sg-sub">(Tiêu thụ × hệ số) − Tồn kho</span>
+                </th>
+                {% for sz in suggest_sizes_all %}
+                <td class="jp-so-sg-formula{% if sz not in suggest_sizes %} jp-so-sg-col-extra{% endif %}" data-size="{{ sz }}"></td>
+                {% endfor %}
                 <td class="jp-so-sg-row-total">—</td>
               </tr>
               <tr class="jp-so-sg-raw-row">
@@ -311,7 +314,6 @@
                 <th class="jp-so-sg-label is-wrap" scope="row"
                     title="Điều chỉnh số lượng từng size trước khi áp dụng vào đơn. Mặc định = giá trị đề xuất.">
                   Xác nhận lên đơn
-                  <span class="jp-so-sg-sub">Có thể chỉnh từng size</span>
                 </th>
                 {% for sz in suggest_sizes_all %}
                 <td class="jp-so-sg-confirm-cell{% if sz not in suggest_sizes %} jp-so-sg-col-extra{% endif %}">
@@ -324,7 +326,6 @@
                 <th class="jp-so-sg-label is-wrap" scope="row"
                     title="Tỷ lệ cắt = số lượng xác nhận ÷ bước làm tròn. Phần trăm = tỷ trọng size trên tổng lên đơn.">
                   Tỷ lệ mỗi size
-                  <span class="jp-so-sg-sub">SL xác nhận ÷ làm tròn</span>
                 </th>
                 {% for sz in suggest_sizes_all %}
                 <td class="jp-so-sg-ratio{% if sz not in suggest_sizes %} jp-so-sg-col-extra{% endif %}" data-size="{{ sz }}">0</td>
