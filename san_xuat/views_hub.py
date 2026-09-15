@@ -1530,7 +1530,7 @@ def plan_board(request):
                     user=request.user,
                     kit_days=kit,
                     buy_by_line=buy_by_line,
-                    reset_allocated=True,
+                    reset_allocated=False,
                 )
                 bits = []
                 if result.bom_count:
@@ -1580,6 +1580,7 @@ def plan_board(request):
                         buy_by_line=buy_by_line,
                         allocate_by_line=allocate_by_line,
                         apply_schedule=apply,
+                        reset_allocated=(action == 'refresh_npl'),
                     )
                 except PlanningError as exc:
                     messages.error(request, str(exc))
@@ -1598,7 +1599,7 @@ def plan_board(request):
                 if action == 'open_npl':
                     messages.success(request, f'Đã bung nhu cầu NPL cho {order.code}.')
                 elif action == 'refresh_npl':
-                    messages.success(request, f'Đã làm mới tồn NPL {order.code}.')
+                    messages.success(request, f'Đã load tồn và cột Đặt {order.code}.')
                 elif apply:
                     if order.npl_status == SxSalesOrder.NPL_READY:
                         extra = ''
