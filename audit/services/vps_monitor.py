@@ -245,7 +245,7 @@ def _network_bytes_from_stats(stats: dict) -> tuple[int, int]:
     return rx, tx
 
 
-def _docker_request(method: str, path: str, *, timeout: float = 120.0) -> dict | list:
+def _docker_request_bytes(method: str, path: str, *, timeout: float = 120.0) -> bytes:
     sock_path = _docker_socket()
     if not sock_path.exists():
         raise VpsMonitorError('Docker socket không khả dụng trên container web.')
@@ -271,10 +271,95 @@ def _docker_request(method: str, path: str, *, timeout: float = 120.0) -> dict |
     finally:
         sock.close()
 
-    body = _docker_response_body(raw)
+    return _docker_response_body(raw)
+
+
+def _docker_request(method: str, path: str, *, timeout: float = 120.0) -> dict | list:
+    body = _docker_request_bytes(method, path, timeout=timeout)
     if not body.strip():
         return {}
     return _parse_docker_json(body)
+
+
+def _demux_docker_logs(data: bytes) -> str:
+    """Giải multiplex stream Docker logs (stdout/stderr) thành text."""
+    if not data:
+        return ''
+    multiplexed = (
+        len(data) >= 8
+        and data[0] in (1, 2)
+        and data[1:4] == b'\x00\x00\x00'
+    )
+    if not multiplexed:
+        return data.decode('utf-8', errors='replace')
+    chunks: list[bytes] = []
+    pos = 0
+    length = len(data)
+    while pos + 8 <= length:
+        size = int.from_bytes(data[pos + 4:pos + 8], 'big')
+        pos += 8
+        if size < 0 or pos + size > length:
+            break
+        chunks.append(data[pos:pos + size])
+        pos += size
+    return b''.join(chunks).decode('utf-8', errors='replace')
+
+
+def docker_container_logs(
+    name_substr: str,
+    *,
+    since: int | None = None,
+    tail: int = 4000,
+    timeout: float = 25.0,
+) -> dict:
+    """Đọc stdout/stderr một container đang chạy. name_substr khớp tên (không phân biệt hoa thường)."""
+    needle = (name_substr or '').strip().lower()
+    if not needle:
+        raise VpsMonitorError('Thiếu tên container.')
+    if not docker_available():
+        raise VpsMonitorError('Docker socket không khả dụng trên container web.')
+
+    containers = _docker_request('GET', '/containers/json?all=0')
+    ranked: list[tuple[int, dict]] = []
+    for item in containers or []:
+        if not isinstance(item, dict):
+            continue
+        names = [str(n).lstrip('/') for n in (item.get('Names') or [])]
+        if not any(needle in n.lower() for n in names):
+            continue
+        score = 0
+        for name in names:
+            lowered = name.lower()
+            if lowered.endswith(f'-{needle}') or lowered.endswith(f'-{needle}-1') or f'-{needle}-' in lowered:
+                score = 2
+            elif lowered.endswith(needle):
+                score = max(score, 1)
+        ranked.append((score, item))
+    if not ranked:
+        raise VpsMonitorError(f'Không thấy container đang chạy khớp “{name_substr}”.')
+    ranked.sort(key=lambda row: row[0], reverse=True)
+    match = ranked[0][1]
+
+    cid = match.get('Id') or ''
+    names = [str(n).lstrip('/') for n in (match.get('Names') or [])]
+    params = [
+        'stdout=1',
+        'stderr=1',
+        'timestamps=1',
+        f'tail={max(1, min(int(tail), 8000))}',
+    ]
+    if since:
+        params.append(f'since={int(since)}')
+    body = _docker_request_bytes(
+        'GET',
+        f'/containers/{cid}/logs?{"&".join(params)}',
+        timeout=timeout,
+    )
+    return {
+        'id': cid[:12],
+        'name': names[0] if names else cid[:12],
+        'text': _demux_docker_logs(body),
+    }
 
 
 def _container_stats() -> list[dict]:

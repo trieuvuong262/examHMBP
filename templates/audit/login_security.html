@@ -9,7 +9,7 @@
                 Bảo mật đăng nhập
             </h2>
             <p class="text-muted small mb-0">
-                Chặn IP bot quét exploit / blacklist thủ công
+                Chặn IP bot quét exploit / blacklist thủ công / theo dõi nginx log
             </p>
         </div>
     </div>
@@ -22,6 +22,12 @@
                 {% if stats.blocked_ip_count %}
                 <span class="badge bg-warning text-dark ms-1">{{ stats.blocked_ip_count }}</span>
                 {% endif %}
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link fw-bold {% if tab == 'nginx' %}active{% endif %}"
+               href="{% url 'audit:login_security' %}?tab=nginx">
+                <i class="bi bi-journal-text me-1"></i>Nginx log
             </a>
         </li>
         <li class="nav-item">
@@ -376,6 +382,172 @@
                     {% endif %}
                     {% empty %}
                     <tr><td colspan="4" class="text-center text-muted py-3">—</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% elif tab == 'nginx' %}
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <p class="small text-muted mb-0">
+            Access log container
+            {% if nginx_watch.container %}<code>{{ nginx_watch.container }}</code>{% else %}<code>nginx</code>{% endif %}
+            — 4xx/5xx, scanner, POST đăng nhập. Không lưu DB, đọc Docker logs khi mở tab.
+        </p>
+        <div class="d-flex flex-wrap align-items-center gap-1">
+            {% for h in nginx_hour_choices %}
+            <a class="btn btn-sm {% if nginx_hours == h %}btn-hm text-white{% else %}btn-outline-secondary{% endif %} fw-bold"
+               href="{% url 'audit:login_security' %}?tab=nginx&hours={{ h }}">{{ h }}h</a>
+            {% endfor %}
+            <a class="btn btn-sm btn-outline-secondary"
+               href="{% url 'audit:login_security' %}?tab=nginx&hours={{ nginx_hours }}">
+                <i class="bi bi-arrow-clockwise"></i>
+            </a>
+        </div>
+    </div>
+
+    {% if nginx_watch.error %}
+    <div class="alert alert-warning d-flex align-items-start gap-2">
+        <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+        <div>
+            <strong>Chưa đọc được log nginx.</strong>
+            <div class="small">{{ nginx_watch.error }}</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-6">
+            <div class="border rounded p-3 h-100">
+                <div class="small text-muted mb-1">Dòng access ({{ nginx_hours }}h)</div>
+                <div class="fs-4 fw-bold">{{ nginx_watch.line_count|intcomma }}</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="border rounded p-3 h-100">
+                <div class="small text-muted mb-1">4xx</div>
+                <div class="fs-4 fw-bold {% if nginx_watch.count_4xx %}text-warning{% endif %}">{{ nginx_watch.count_4xx|intcomma }}</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="border rounded p-3 h-100">
+                <div class="small text-muted mb-1">5xx</div>
+                <div class="fs-4 fw-bold {% if nginx_watch.count_5xx %}text-danger{% endif %}">{{ nginx_watch.count_5xx|intcomma }}</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="border rounded p-3 h-100">
+                <div class="small text-muted mb-1">Scanner / POST login</div>
+                <div class="fs-4 fw-bold">
+                    <span class="{% if nginx_watch.count_scanner %}text-danger{% endif %}">{{ nginx_watch.count_scanner|intcomma }}</span>
+                    <span class="text-muted">/</span>
+                    {{ nginx_watch.count_login_post|intcomma }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm overflow-hidden h-100">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h6 class="mb-0 fw-bold">Đường dẫn lỗi / scanner nhiều nhất</h6>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="text-end" style="width:4rem">Lần</th>
+                                <th>Status / method / path</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for path, count in nginx_watch.top_paths %}
+                            <tr>
+                                <td class="text-end font-monospace">{{ count|intcomma }}</td>
+                                <td class="small font-monospace">{{ path }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="2" class="text-center text-muted py-3">Không có 4xx/5xx trong cửa sổ này.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm overflow-hidden h-100">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h6 class="mb-0 fw-bold">IP nguồn (chỉ dòng lỗi / scanner)</h6>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="text-end" style="width:4rem">Lần</th>
+                                <th>IP</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ip, count in nginx_watch.top_ips %}
+                            <tr>
+                                <td class="text-end font-monospace">{{ count|intcomma }}</td>
+                                <td class="font-monospace">{{ ip }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="2" class="text-center text-muted py-3">—</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm overflow-hidden mt-4">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h6 class="mb-0 fw-bold">Dòng gần đây cần theo dõi</h6>
+            <p class="small text-muted mb-0 mt-1">Tối đa {{ nginx_watch.recent|length }} dòng (scanner, 4xx/5xx, POST /accounts/login).</p>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Thời gian</th>
+                        <th>IP</th>
+                        <th>Status</th>
+                        <th>Request</th>
+                        <th>Ghi chú</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in nginx_watch.recent %}
+                    <tr>
+                        <td class="small text-nowrap text-muted">{{ row.time }}</td>
+                        <td class="font-monospace small">{{ row.ip }}</td>
+                        <td>
+                            {% if row.status >= 500 %}
+                            <span class="badge bg-danger-subtle text-danger">{{ row.status }}</span>
+                            {% elif row.status >= 400 %}
+                            <span class="badge bg-warning text-dark">{{ row.status }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary">{{ row.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="small font-monospace">{{ row.method }} {{ row.path }}</td>
+                        <td class="small">
+                            {% if row.scanner %}<span class="badge bg-danger-subtle text-danger">scanner</span>{% endif %}
+                            {% if row.login_post %}<span class="badge bg-secondary-subtle text-secondary">login</span>{% endif %}
+                            {% if row.ua %}<span class="text-muted d-block text-truncate" style="max-width:22rem" title="{{ row.ua }}">{{ row.ua }}</span>{% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                            Không có dòng đáng ngờ trong {{ nginx_hours }} giờ gần đây.
+                        </td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>

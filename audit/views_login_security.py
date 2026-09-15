@@ -40,7 +40,7 @@ def login_security_page(request):
     tab = request.GET.get('tab', 'bots')
     if tab == 'accounts':
         return redirect('locked_accounts')
-    if tab not in ('bots', 'config', 'filescan'):
+    if tab not in ('bots', 'config', 'filescan', 'nginx'):
         tab = 'bots'
 
     blocked_ips = (
@@ -65,7 +65,7 @@ def login_security_page(request):
         },
     }
 
-    # Chỉ ping clamd khi thực sự mở tab đó — tránh thêm I/O mạng cho 2 tab kia.
+    # Chỉ tải ClamAV / nginx log khi mở đúng tab.
     if tab == 'filescan':
         from audit.file_scan_config import (
             configured_allowed_extensions,
@@ -87,6 +87,14 @@ def login_security_page(request):
             .filter(object_type='upload_rejected')
             .order_by('-created_at')[:50]
         )
+
+    if tab == 'nginx':
+        from audit.services.nginx_log_monitor import WATCH_HOURS, clamp_hours, collect_nginx_log_watch
+
+        hours = clamp_hours(request.GET.get('hours'))
+        ctx['nginx_hours'] = hours
+        ctx['nginx_hour_choices'] = WATCH_HOURS
+        ctx['nginx_watch'] = collect_nginx_log_watch(hours=hours)
 
     return render(request, 'audit/login_security.html', ctx)
 
