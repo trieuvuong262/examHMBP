@@ -54,13 +54,6 @@
     return String(r);
   }
 
-  function fmtPct(share) {
-    if (!Number.isFinite(share) || share <= 0) return '0%';
-    var p = share * 100;
-    if (Math.abs(p - Math.round(p)) < 0.05) return String(Math.round(p)) + '%';
-    return String(Math.round(p * 10) / 10) + '%';
-  }
-
   function canonSize(raw) {
     var s = String(raw || '').trim().toUpperCase();
     if (!s) return '';
@@ -259,10 +252,7 @@
       var conf = confirmBySize[sz] || 0;
       var ratio = step > 0 ? (conf / step) : 0;
       var ratioEl = ratioCell(sz);
-      if (ratioEl) {
-        var share = (visSet[sz] && confirmSum > 0) ? (conf / confirmSum) : 0;
-        ratioEl.innerHTML = '<span class="jp-so-sg-ratio-n">' + fmtRatio(ratio) + '</span><span class="jp-so-sg-pct">' + fmtPct(share) + '</span>';
-      }
+      if (ratioEl) ratioEl.textContent = fmtRatio(ratio);
       if (visSet[sz]) ratioSum += ratio;
     });
 
@@ -271,7 +261,7 @@
     setRowTotal('raw', rawSum);
     setRowTotal('out', sugSum);
     setRowTotal('confirm', confirmSum);
-    setRowTotal('ratio', 0, '<span class="jp-so-sg-ratio-n">' + fmtRatio(ratioSum) + '</span><span class="jp-so-sg-pct">' + (confirmSum > 0 ? '100%' : '0%') + '</span>');
+    setRowTotal('ratio', 0, fmtRatio(ratioSum));
 
     if (suggestTotalEl) suggestTotalEl.textContent = fmt(sugSum);
     if (totalEl) totalEl.textContent = fmt(confirmSum);
@@ -522,10 +512,6 @@
     var ratioVals = sizes.map(function (sz) {
       return fmtRatio(step > 0 ? confirmQtyOf(sz) / step : 0);
     });
-    var confirmSum = sumNums(confVals);
-    var pctVals = sizes.map(function (sz) {
-      return fmtPct(confirmSum > 0 ? confirmQtyOf(sz) / confirmSum : 0);
-    });
     lines.push('Size\t' + sizes.join('\t') + '\tTổng');
     lines.push('Hệ số\t' + coef);
     lines.push('Làm tròn\t' + step);
@@ -536,8 +522,7 @@
     lines.push('Giá trị sau khi tính\t' + withTotal(rawVals));
     lines.push('Giá trị đề xuất\t' + withTotal(outVals));
     lines.push('Xác nhận lên đơn\t' + withTotal(confVals));
-    lines.push('Tỷ lệ (SL/làm tròn)\t' + withTotal(ratioVals, fmtRatio));
-    lines.push('Tỷ lệ %\t' + pctVals.join('\t') + '\t' + (confirmSum > 0 ? '100%' : '0%'));
+    lines.push('Tỷ lệ mỗi size\t' + withTotal(ratioVals, fmtRatio));
     var text = lines.join('\n');
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(function () {

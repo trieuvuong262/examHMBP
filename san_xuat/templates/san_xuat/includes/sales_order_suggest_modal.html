@@ -51,6 +51,7 @@
   .jp-so-suggest-sheet .jp-so-sg-num,
   .jp-so-suggest-sheet .jp-so-sg-calc,
   .jp-so-suggest-sheet .jp-so-sg-suggest,
+  .jp-so-suggest-sheet .jp-so-sg-ratio,
   .jp-so-suggest-sheet .jp-so-sg-row-total {
     text-align: center;
     font-variant-numeric: tabular-nums;
@@ -111,32 +112,9 @@
   .jp-so-suggest-sheet .jp-so-sg-confirm-cell input:focus {
     background: #fff7ed;
   }
-  .jp-so-suggest-sheet .jp-so-sg-ratio,
-  .jp-so-suggest-sheet .jp-so-sg-row-total.is-ratio {
+  .jp-so-suggest-sheet .jp-so-sg-ratio {
     background: #e9d5ff;
     color: #6b21a8;
-    height: auto;
-    min-height: 2.1rem;
-    line-height: 1.2;
-    padding: .22rem 0;
-  }
-  .jp-so-suggest-sheet .jp-so-sg-ratio-n,
-  .jp-so-suggest-sheet .jp-so-sg-pct {
-    display: block;
-    text-align: center;
-    font-variant-numeric: tabular-nums;
-    font-feature-settings: "tnum" 1;
-  }
-  .jp-so-suggest-sheet .jp-so-sg-ratio-n {
-    font-weight: 700;
-    font-size: .8125rem;
-    line-height: 1.2;
-  }
-  .jp-so-suggest-sheet .jp-so-sg-pct {
-    font-weight: 600;
-    font-size: .68rem;
-    color: #7c3aed;
-    line-height: 1.2;
   }
   .jp-so-suggest-sheet .jp-so-sg-total-head,
   .jp-so-suggest-sheet .jp-so-sg-row-total {
@@ -340,7 +318,7 @@
               </tr>
               <tr class="jp-so-sg-ratio-row">
                 <th class="jp-so-sg-label is-wrap" scope="row"
-                    title="Tỷ lệ cắt = số lượng xác nhận ÷ bước làm tròn. Phần trăm = tỷ trọng size trên tổng lên đơn.">
+                    title="Tỷ lệ = số lượng xác nhận ÷ bước làm tròn">
                   Tỷ lệ mỗi size
                 </th>
                 {% for sz in suggest_sizes_all %}
