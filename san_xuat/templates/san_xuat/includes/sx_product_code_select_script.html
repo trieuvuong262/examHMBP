@@ -17,6 +17,9 @@ body > .ts-dropdown.jp-sx-product-dd .option {
   width: 100%;
   min-width: 0;
 }
+.jp-sx-product-opt.is-simple {
+  grid-template-columns: 36px 1fr;
+}
 .jp-sx-product-opt-img {
   width: 36px;
   height: 36px;
@@ -39,6 +42,7 @@ body > .ts-dropdown.jp-sx-product-dd .option {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.jp-sx-product-opt-name.is-start { text-align: left; }
 .jp-sx-product-opt-color {
   min-width: 0;
   text-align: right;
@@ -100,9 +104,12 @@ body > .ts-dropdown.jp-sx-product-dd .option {
   }
 
   function fillImageFromOption(select, opt) {
-    var row = select.closest('tr') || select.closest('.row');
-    if (!row) return;
-    var thumb = row.querySelector('.jp-so-product-thumb');
+    var wrap = select.closest('.jp-so-product-pick')
+      || select.closest('tr')
+      || select.closest('.jp-so-sg-field')
+      || select.closest('.row');
+    if (!wrap) return;
+    var thumb = wrap.querySelector('.jp-so-product-thumb');
     if (!thumb) return;
     var img = thumb.querySelector('img');
     var url = opt && String(opt.image_url || '').trim();
@@ -232,7 +239,7 @@ body > .ts-dropdown.jp-sx-product-dd .option {
       ],
       placeholder: select.dataset.placeholder || 'Gõ mã SX hoặc tên sản phẩm…',
       dropdownParent: 'body',
-      dropdownClass: labelMode === 'name' ? 'ts-dropdown jp-sx-product-dd' : 'ts-dropdown',
+      dropdownClass: 'ts-dropdown jp-sx-product-dd',
       openOnFocus: true,
       preload: 'focus',
       shouldLoad: function () { return true; },
@@ -247,6 +254,10 @@ body > .ts-dropdown.jp-sx-product-dd .option {
       },
       render: {
         option: function (data, escape) {
+          var img = (data.image_url || '').trim();
+          var imgHtml = img
+            ? '<img class="jp-sx-product-opt-img" src="' + escape(img) + '" alt="" width="36" height="36">'
+            : '<span class="jp-sx-product-opt-img is-empty"></span>';
           if (labelMode === 'name') {
             var name = (data.name || data.text || data.code || '').trim();
             var color = (data.color || '').trim();
@@ -261,17 +272,16 @@ body > .ts-dropdown.jp-sx-product-dd .option {
                 }
               }
             }
-            var img = (data.image_url || '').trim();
-            var imgHtml = img
-              ? '<img class="jp-sx-product-opt-img" src="' + escape(img) + '" alt="" width="36" height="36">'
-              : '<span class="jp-sx-product-opt-img is-empty"></span>';
             return '<div class="jp-sx-product-opt">'
               + imgHtml
               + '<span class="jp-sx-product-opt-name">' + escape(name) + '</span>'
               + '<span class="jp-sx-product-opt-color">' + escape(color) + '</span>'
               + '</div>';
           }
-          return '<div>' + escape(data.text || data.code || '') + '</div>';
+          return '<div class="jp-sx-product-opt is-simple">'
+            + imgHtml
+            + '<span class="jp-sx-product-opt-name is-start">' + escape(data.text || data.code || '') + '</span>'
+            + '</div>';
         },
         item: function (data, escape) {
           return '<div>' + escape(itemLabel(data)) + '</div>';
@@ -322,6 +332,16 @@ body > .ts-dropdown.jp-sx-product-dd .option {
   }
 
   window.jpInitProductCodeSelect = initProductCodeSelect;
+  window.jpSyncProductSelectExtras = function (select) {
+    if (!select) return;
+    if (!select.tomselect) {
+      fillImageFromOption(select, null);
+      return;
+    }
+    var v = select.tomselect.getValue();
+    fillNameFromOption(select, v ? select.tomselect.options[v] : null);
+  };
+  window.jpEnrichProductSelect = enrichProductOption;
 
   document.querySelectorAll('.jp-sx-product-code-select').forEach(initProductCodeSelect);
 })();

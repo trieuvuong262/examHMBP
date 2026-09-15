@@ -292,6 +292,9 @@
     productTs.on('change', function (value) {
       clearConfirmEdits();
       loadStockForStyle(value || '');
+      if (typeof window.jpSyncProductSelectExtras === 'function') {
+        window.jpSyncProductSelectExtras(productEl);
+      }
     });
   }
 
@@ -319,6 +322,7 @@
         searchField: ['text', 'code', 'name'],
         placeholder: productEl.dataset.placeholder || 'Gõ mã SX hoặc tên sản phẩm…',
         dropdownParent: 'body',
+        dropdownClass: 'ts-dropdown jp-sx-product-dd',
         openOnFocus: true,
         loadThrottle: 220,
         load: function (query, callback) {
@@ -331,7 +335,14 @@
         },
         render: {
           option: function (data, escape) {
-            return '<div>' + escape(data.text || data.code || '') + '</div>';
+            var img = (data.image_url || '').trim();
+            var imgHtml = img
+              ? '<img class="jp-sx-product-opt-img" src="' + escape(img) + '" alt="" width="36" height="36">'
+              : '<span class="jp-sx-product-opt-img is-empty"></span>';
+            return '<div class="jp-sx-product-opt is-simple">'
+              + imgHtml
+              + '<span class="jp-sx-product-opt-name is-start">' + escape(data.text || data.code || '') + '</span>'
+              + '</div>';
           },
           item: function (data, escape) {
             var label = data.text || (data.code && data.name ? (data.code + ' — ' + data.name) : (data.code || ''));
@@ -353,6 +364,9 @@
     if (roundEl) roundEl.value = '50';
     if (periodEl) periodEl.value = '30';
     if (productTs) productTs.clear(true);
+    if (typeof window.jpSyncProductSelectExtras === 'function') {
+      window.jpSyncProductSelectExtras(productEl);
+    }
     if (periodMeta) {
       periodMeta.textContent = 'Tốc độ tiêu thụ = tổng SL bán KiotViet trong 30 ngày gần nhất';
     }
@@ -378,15 +392,31 @@
       clearConfirmEdits();
       var nameInput = document.querySelector('#jp-so-lines-table tbody tr.jp-so-line-row:not([style*="display: none"]) input[name$="-product_name"]');
       var name = nameInput ? nameInput.value.trim() : '';
+      var srcOpt = (codeSelect.tomselect && codeSelect.tomselect.options[code]) || {};
+      var imageUrl = String(srcOpt.image_url || '').trim();
+      if (!imageUrl) {
+        var lineThumb = codeSelect.closest('tr');
+        var lineImg = lineThumb && lineThumb.querySelector('.jp-so-product-thumb.has-image img');
+        imageUrl = lineImg ? String(lineImg.getAttribute('src') || '').trim() : '';
+      }
       if (!productTs.options[code]) {
         productTs.addOption({
           id: code,
           code: code,
           text: name ? (code + ' — ' + name) : code,
           name: name,
+          image_url: imageUrl,
         });
+      } else if (imageUrl && !(productTs.options[code].image_url || '').trim()) {
+        productTs.updateOption(code, Object.assign({}, productTs.options[code], { image_url: imageUrl }));
       }
       productTs.setValue(code, true);
+      if (typeof window.jpSyncProductSelectExtras === 'function') {
+        window.jpSyncProductSelectExtras(productEl);
+      }
+      if (typeof window.jpEnrichProductSelect === 'function') {
+        window.jpEnrichProductSelect(productEl, productTs, code);
+      }
       loadStockForStyle(code);
     }
     recalc();

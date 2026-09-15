@@ -177,6 +177,38 @@
   .jp-so-sg-toolbar .jp-so-sg-field-product {
     min-width: 0;
   }
+  .jp-so-sg-field-product .jp-so-product-pick {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    min-width: 0;
+  }
+  .jp-so-sg-field-product .jp-so-product-thumb {
+    flex: 0 0 2.75rem;
+    width: 2.75rem;
+    height: 2.75rem;
+    border: 1px solid #94a3b8;
+    border-radius: .45rem;
+    background: #f8fafc;
+    color: #94a3b8;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .jp-so-sg-field-product .jp-so-product-thumb i { font-size: 1.05rem; }
+  .jp-so-sg-field-product .jp-so-product-thumb img {
+    display: none;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .jp-so-sg-field-product .jp-so-product-thumb.has-image i { display: none; }
+  .jp-so-sg-field-product .jp-so-product-thumb.has-image img { display: block; }
+  .jp-so-sg-field-product .jp-so-product-select {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
   .jp-so-sg-toolbar .form-control {
     border: 1px solid #94a3b8 !important;
     border-radius: .4rem !important;
@@ -242,13 +274,21 @@
           </div>
           <div class="jp-so-sg-field jp-so-sg-field-product">
             <label for="jp-so-sg-product">Loại hàng</label>
-            <select id="jp-so-sg-product"
-                    class="form-select form-select-sm jp-so-sg-product-select"
-                    data-placeholder="Gõ mã SX hoặc tên sản phẩm…"
-                    data-item-label="text"
-                    aria-label="Loại hàng">
-              <option value="">Gõ mã SX hoặc tên sản phẩm…</option>
-            </select>
+            <div class="jp-so-product-pick">
+              <span class="jp-so-product-thumb is-empty" aria-hidden="true">
+                <i class="bi bi-image"></i>
+                <img alt="">
+              </span>
+              <div class="jp-so-product-select">
+                <select id="jp-so-sg-product"
+                        class="form-select form-select-sm jp-so-sg-product-select"
+                        data-placeholder="Gõ mã SX hoặc tên sản phẩm…"
+                        data-item-label="text"
+                        aria-label="Loại hàng">
+                  <option value="">Gõ mã SX hoặc tên sản phẩm…</option>
+                </select>
+              </div>
+            </div>
           </div>
           <div class="jp-so-sg-field">
             <label for="jp-so-sg-period">Thời gian dự đoán (ngày)</label>
