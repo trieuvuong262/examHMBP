@@ -120,17 +120,17 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'orders', 'label': 'Danh sách đơn', 'icon': 'bi-cart-check'},
         {'key': 'order_create', 'label': 'Lên đơn đặt hàng', 'icon': 'bi-cart-plus'},
         {'key': 'order_confirm', 'label': 'Xác nhận đơn đặt hàng', 'icon': 'bi-check2-square'},
-        # —— Hồ sơ (khớp sidebar): hồ sơ TK → thư viện CĐ → duyệt → thiết lập → năng lực ——
+        # —— Hồ sơ (khớp sidebar): hồ sơ TK → thư viện CĐ → duyệt → thiết lập ——
         {'key': 'docs', 'label': 'Hồ sơ thiết kế sản phẩm', 'icon': 'bi-journal-text'},
         {'key': 'ie', 'label': 'Thư viện công đoạn chuẩn', 'icon': 'bi-diagram-3'},
         {'key': 'ie_approve', 'label': 'Duyệt công đoạn', 'icon': 'bi-check2-circle'},
         {'key': 'ie_settings', 'label': 'Thiết lập công đoạn', 'icon': 'bi-gear'},
-        {'key': 'capacity', 'label': 'Năng lực SX', 'icon': 'bi-speedometer'},
         {'key': 'bom', 'label': 'BOM', 'icon': 'bi-diagram-3'},
         {'key': 'products_nvl', 'label': 'Sản phẩm – NPL', 'icon': 'bi-box'},
         {'key': 'capacity_load', 'label': 'Tải theo tổ', 'icon': 'bi-bar-chart-steps'},
         {'key': 'plan', 'label': 'Kế hoạch sản xuất', 'icon': 'bi-calendar3'},
         {'key': 'plan_board', 'label': 'Kế hoạch sản xuất', 'icon': 'bi-kanban'},
+        {'key': 'capacity', 'label': 'Năng lực sản xuất', 'icon': 'bi-speedometer'},
         {'key': 'plan_route', 'label': 'Lộ trình sản xuất', 'icon': 'bi-calendar2-week'},
         {'key': 'plan_inter_step', 'label': 'Thời gian trung gian', 'icon': 'bi-hourglass-split'},
         {'key': 'plan_progress', 'label': 'Tiến độ', 'icon': 'bi-clipboard-data'},
@@ -486,6 +486,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
 # URL gắn menu A vẫn vào được nếu user có một trong các menu thay thế.
 MENU_PATH_ACCESS_ALIASES: dict[tuple[str, str], tuple[str, ...]] = {
     (MODULE_SAN_XUAT, 'subcontract'): ('plan_board', 'plan'),
+    (MODULE_SAN_XUAT, 'capacity'): ('plan', 'plan_board'),
 }
 
 MENU_FIELD_SEP = '__'

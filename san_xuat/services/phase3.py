@@ -28,6 +28,9 @@ from san_xuat.hub_models import (
     SxSubcontractOrder,
     SxWorkAssignment,
     SxWorkCenter,
+    DEFAULT_SHIFT_MINUTES,
+    DEFAULT_WORK_HOURS_PER_DAY,
+    shift_minutes_from_hours,
 )
 
 
@@ -60,6 +63,10 @@ def _code(kind: str, model, *, code: str | None = None, field: str = "code"):
     if raw:
         return raw
     return _next_code(sx_prefix(kind), model, field=field)
+
+
+def next_work_center_code() -> str:
+    return _next_code(sx_prefix("work_center", fallback="NL"), SxWorkCenter)
 
 
 def _user_display(user) -> str:
@@ -181,9 +188,9 @@ def complete_work_assignment(*, assignment_id: int) -> SxWorkAssignment:
 @transaction.atomic
 def upsert_work_center(
     *,
-    code: str,
+    code: str | None = None,
     name: str,
-    capacity_per_day: Decimal,
+    capacity_per_day: Decimal | None = None,
     uom_label: str = "SP",
     team_label: str = "",
     is_active: bool = True,
@@ -192,56 +199,115 @@ def upsert_work_center(
     user=None,
     headcount: int | None = None,
     shift_minutes_per_head: int | None = None,
+    work_hours_per_day: Decimal | None = None,
+    throughput_per_sec: Decimal | None = None,
     efficiency_pct: Decimal | None = None,
+    work_location: str = "",
+    division=None,
 ) -> SxWorkCenter:
-    code = (code or "").strip().upper()
     name = (name or "").strip()
-    if not code or not name:
-        raise Phase3Error("Mã và tên tổ/chuyền là bắt buộc.")
-    if capacity_per_day is None or capacity_per_day < 0:
-        raise Phase3Error("Năng lực/ngày không hợp lệ.")
-    capacity_per_day = Decimal(str(capacity_per_day)).quantize(Decimal("0.01"))
-    team_label = (team_label or "").strip() or name
+    if not name:
+        raise Phase3Error("Tên tổ sản xuất là bắt buộc.")
+    code = (code or "").strip().upper()
+    if not code:
+        code = next_work_center_code()
 
     heads = max(0, int(headcount or 0))
-    shift = int(shift_minutes_per_head) if shift_minutes_per_head is not None else 480
-    shift = max(0, min(1440, shift))
+    if work_hours_per_day is not None:
+        hours = Decimal(str(work_hours_per_day))
+        if hours < 0 or hours > 24:
+            raise Phase3Error("Thời gian làm việc phải trong khoảng 0–24 giờ/ngày.")
+        shift = shift_minutes_from_hours(hours)
+    elif shift_minutes_per_head is not None:
+        shift = max(0, min(1440, int(shift_minutes_per_head)))
+        hours = (Decimal(shift) / Decimal("60")).quantize(Decimal("0.01"))
+    else:
+        hours = DEFAULT_WORK_HOURS_PER_DAY
+        shift = DEFAULT_SHIFT_MINUTES
+
+    rate = Decimal(str(throughput_per_sec)) if throughput_per_sec is not None else Decimal("0")
+    if rate < 0:
+        raise Phase3Error("Hiệu suất chung không được âm.")
     eff = Decimal(str(efficiency_pct)) if efficiency_pct is not None else Decimal("100")
     if eff < 0 or eff > 200:
-        raise Phase3Error("Tải phải trong khoảng 0–200%.")
+        raise Phase3Error("Hệ số tải phải trong khoảng 0–200%.")
+
+    team_label = (team_label or "").strip() or name
+    location = (work_location or "").strip()
+    computed = (
+        Decimal(heads) * rate * Decimal("3600") * hours * (eff / Decimal("100"))
+    ).quantize(Decimal("0.01"))
+    if capacity_per_day is None or capacity_per_day < 0:
+        capacity_per_day = computed
+    elif computed > 0:
+        capacity_per_day = computed
+    else:
+        capacity_per_day = Decimal(str(capacity_per_day)).quantize(Decimal("0.01"))
+
+    fields = {
+        "code": code,
+        "name": name,
+        "capacity_per_day": capacity_per_day,
+        "uom_label": (uom_label or "SP").strip() or "SP",
+        "team_label": team_label,
+        "is_active": is_active,
+        "notes": notes or "",
+        "headcount": heads,
+        "shift_minutes_per_head": shift,
+        "work_hours_per_day": hours,
+        "throughput_per_sec": rate,
+        "efficiency_pct": eff,
+        "work_location": location,
+        "division": division,
+    }
 
     if center_id:
         center = SxWorkCenter.objects.select_for_update().get(pk=center_id)
         if SxWorkCenter.objects.filter(code__iexact=code).exclude(pk=center.pk).exists():
             raise Phase3Error(f"Mã tổ/chuyền đã tồn tại: {code}")
-        center.code = code
-        center.name = name
-        center.capacity_per_day = capacity_per_day
-        center.uom_label = (uom_label or "SP").strip() or "SP"
-        center.team_label = team_label
-        center.is_active = is_active
-        center.notes = notes or ""
-        center.headcount = heads
-        center.shift_minutes_per_head = shift
-        center.efficiency_pct = eff
+        for key, value in fields.items():
+            setattr(center, key, value)
         center.save()
         return center
     if SxWorkCenter.objects.filter(code__iexact=code).exists():
         raise Phase3Error(f"Mã tổ/chuyền đã tồn tại: {code}")
     return SxWorkCenter.objects.create(
-        code=code,
-        name=name,
-        capacity_per_day=capacity_per_day,
-        uom_label=(uom_label or "SP").strip() or "SP",
-        team_label=team_label,
-        is_active=is_active,
-        notes=notes or "",
-        headcount=heads,
-        shift_minutes_per_head=shift,
-        efficiency_pct=eff,
+        **fields,
         is_demo=False,
         created_by=user,
     )
+
+
+@transaction.atomic
+def delete_work_center(*, center_id: int) -> str:
+    from django.db.models.deletion import ProtectedError, RestrictedError
+
+    center = SxWorkCenter.objects.select_for_update().get(pk=center_id, is_demo=False)
+    label = f'{center.code} — {center.name}'
+    try:
+        center.delete()
+    except (ProtectedError, RestrictedError) as exc:
+        raise Phase3Error(
+            f'Không xóa được {label} vì đang được dùng ở chứng từ / định mức khác.'
+        ) from exc
+    return label
+
+
+def delete_work_centers(*, center_ids: list[int]) -> tuple[list[str], list[str]]:
+    deleted: list[str] = []
+    errors: list[str] = []
+    seen: set[int] = set()
+    for center_id in center_ids:
+        if not center_id or center_id in seen:
+            continue
+        seen.add(center_id)
+        try:
+            deleted.append(delete_work_center(center_id=center_id))
+        except SxWorkCenter.DoesNotExist:
+            errors.append('Tổ sản xuất không tồn tại hoặc đã xóa.')
+        except Phase3Error as exc:
+            errors.append(str(exc))
+    return deleted, errors
 
 
 @dataclass
@@ -271,10 +337,10 @@ class CapacityLoadRow:
 
 
 def build_capacity_load(*, date_from, date_to) -> list[CapacityLoadRow]:
-    from san_xuat.services.order_progress_sheet import standard_work_centers_qs
-
+    centers = list(
+        SxWorkCenter.objects.filter(is_demo=False, is_active=True).order_by('name', 'code')
+    )
     days = max((date_to - date_from).days + 1, 1)
-    centers = standard_work_centers_qs()
     rows: list[CapacityLoadRow] = []
     for center in centers:
         capacity = (center.capacity_per_day or Decimal("0")) * days

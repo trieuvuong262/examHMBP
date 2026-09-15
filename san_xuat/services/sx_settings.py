@@ -20,6 +20,7 @@ _PREFIX_DEFAULTS = {
     'packing': 'DG',
     'subcontract': 'GC',
     'work_assign': 'GV',
+    'work_center': 'NL',
     'plan_overall': 'KHTT',
     'plan_npl': 'KHNVL',
     'plan_detail': 'KHCT',

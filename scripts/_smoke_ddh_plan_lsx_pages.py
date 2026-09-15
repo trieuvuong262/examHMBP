@@ -138,7 +138,6 @@ def main() -> int:
 
     # --- Năng lực ---
     check(client, 'capacity_list', reverse('san_xuat:capacity_list'))
-    check(client, 'capacity_setup', reverse('san_xuat:capacity_setup'))
     check(client, 'capacity_create', reverse('san_xuat:capacity_create'))
     # redirect cũ
     check(

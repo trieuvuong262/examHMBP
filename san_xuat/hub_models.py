@@ -2163,9 +2163,29 @@ class SxHoliday(models.Model):
         return f'{self.holiday_date:%d/%m/%Y} {self.name}'.strip()
 
 
+DEFAULT_WORK_HOURS_PER_DAY = Decimal('9.50')
+DEFAULT_SHIFT_MINUTES = 570  # 9,5 giờ × 60
+
+
+def shift_minutes_from_hours(hours) -> int:
+    try:
+        mins = Decimal(str(hours if hours is not None else DEFAULT_WORK_HOURS_PER_DAY)) * Decimal('60')
+        mins = mins.quantize(Decimal('1'))
+    except Exception:
+        mins = Decimal(str(DEFAULT_SHIFT_MINUTES))
+    return max(0, min(1440, int(mins)))
+
+
+def work_hours_from_minutes(minutes) -> Decimal:
+    try:
+        return (Decimal(int(minutes or 0)) / Decimal('60')).quantize(Decimal('0.01'))
+    except Exception:
+        return DEFAULT_WORK_HOURS_PER_DAY
+
+
 class SxWorkCenter(DemoMarkedModel):
     code = models.CharField(max_length=40, unique=True, verbose_name='Mã tổ/chuyền')
-    name = models.CharField(max_length=120)
+    name = models.CharField(max_length=120, verbose_name='Tên tổ sản xuất')
     capacity_per_day = models.DecimalField(
         max_digits=14, decimal_places=2, default=Decimal('0'), verbose_name='Năng lực/ngày',
     )
@@ -2174,24 +2194,58 @@ class SxWorkCenter(DemoMarkedModel):
     # --- Năng lực theo thời gian (P3) — nền để xếp lịch bằng SMV ---
     headcount = models.PositiveSmallIntegerField(
         default=0,
-        verbose_name='Số nhân sự',
-        help_text='Đồng bộ từ cơ cấu HR phòng Sản xuất.',
+        verbose_name='Số lượng người',
+        help_text='Số người làm việc trên tổ. Có thể lấy gợi ý từ bộ phận HR đã gắn.',
     )
     shift_minutes_per_head = models.PositiveSmallIntegerField(
-        default=480,
+        default=DEFAULT_SHIFT_MINUTES,
         verbose_name='Phút làm việc / người / ngày',
-        help_text='Mặc định 480 phút = 8 giờ một ca.',
+        help_text='Đồng bộ từ thời gian làm việc (mặc định 9,5 giờ = 570 phút).',
+    )
+    work_hours_per_day = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=DEFAULT_WORK_HOURS_PER_DAY,
+        verbose_name='Thời gian làm việc (giờ/ngày)',
+        help_text='Mặc định 9,5 giờ/ngày.',
+        validators=[
+            MinValueValidator(Decimal('0')),
+            MaxValueValidator(Decimal('24')),
+        ],
+    )
+    throughput_per_sec = models.DecimalField(
+        max_digits=14,
+        decimal_places=6,
+        default=Decimal('0'),
+        verbose_name='Hiệu suất chung (sản phẩm/s)',
+        help_text='Số sản phẩm một người làm được mỗi giây.',
+        validators=[MinValueValidator(Decimal('0'))],
     )
     efficiency_pct = models.DecimalField(
         max_digits=5,
         decimal_places=2,
         default=Decimal('100'),
-        verbose_name='Tải (%)',
-        help_text='Hệ số năng lực tổ so với bình thường: 80 = thiếu người, 100 = bình thường, 150 = tăng ca. Nhân vào quỹ phút hữu ích.',
+        verbose_name='Hệ số tải (%)',
+        help_text='Khả năng tăng ca so với ca chuẩn: 100 = bình thường, 150 = tăng ca 50%. Nhân vào quỹ phút và sản lượng ngày.',
         validators=[
             MinValueValidator(Decimal('0')),
             MaxValueValidator(Decimal('200')),
         ],
+    )
+    work_location = models.CharField(
+        max_length=120,
+        blank=True,
+        default='',
+        verbose_name='Địa điểm làm việc',
+    )
+    division = models.ForeignKey(
+        'hrm.Division',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sx_work_centers',
+        verbose_name='Thuộc tổ (cơ cấu nhân sự)',
+        help_text='Không bắt buộc. Tổ sản xuất tự khai, không phụ thuộc bộ phận HR.',
     )
     team_label = models.CharField(
         max_length=80,
@@ -2206,17 +2260,35 @@ class SxWorkCenter(DemoMarkedModel):
 
     class Meta:
         ordering = ['code']
-        verbose_name = 'Năng lực SX'
-        verbose_name_plural = 'Năng lực SX'
+        verbose_name = 'Năng lực sản xuất'
+        verbose_name_plural = 'Năng lực sản xuất'
 
     def __str__(self):
         return f'{self.code} — {self.name}'
 
+    def sync_shift_from_hours(self) -> None:
+        self.shift_minutes_per_head = shift_minutes_from_hours(self.work_hours_per_day)
+
+    @property
+    def computed_capacity_per_day(self) -> Decimal:
+        """NL/ngày (SP) = số người × hiệu suất (SP/s) × 3600 × giờ/ngày × hệ số tải."""
+        heads = Decimal(self.headcount or 0)
+        hours = Decimal(str(self.work_hours_per_day or 0))
+        rate = Decimal(str(self.throughput_per_sec or 0))
+        load = (self.efficiency_pct or Decimal('0')) / Decimal('100')
+        return (heads * rate * Decimal('3600') * hours * load).quantize(Decimal('0.01'))
+
+    def apply_computed_capacity(self) -> None:
+        qty = self.computed_capacity_per_day
+        if qty > 0:
+            self.capacity_per_day = qty
+
     @property
     def available_minutes_per_day(self) -> Decimal:
-        """Phút hữu ích mỗi ngày = số người × phút/ca × tải %."""
+        """Phút hữu ích mỗi ngày = số người × giờ/ngày × 60 × hệ số tải."""
         heads = Decimal(self.headcount or 0)
-        shift = Decimal(self.shift_minutes_per_head or 0)
+        hours = Decimal(str(self.work_hours_per_day or 0))
+        shift = hours * Decimal('60') if hours > 0 else Decimal(self.shift_minutes_per_head or 0)
         load = (self.efficiency_pct or Decimal('0')) / Decimal('100')
         return (heads * shift * load).quantize(Decimal('0.01'))
 

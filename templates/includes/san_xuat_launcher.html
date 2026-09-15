@@ -272,11 +272,12 @@
     { area: 'docs', test: function (p) {
       return p.indexOf('/san-xuat/ho-so') !== -1
         || p.indexOf('/san-xuat/bom') !== -1
-        || p.indexOf('/san-xuat/nang-luc') !== -1
         || p.indexOf('/san-xuat/cong-doan') !== -1;
     }},
     { area: 'plan', test: function (p) {
-      return p.indexOf('/san-xuat/ke-hoach') !== -1 || p.indexOf('/san-xuat/thue-gia-cong') !== -1;
+      return p.indexOf('/san-xuat/ke-hoach') !== -1
+        || p.indexOf('/san-xuat/thue-gia-cong') !== -1
+        || p.indexOf('/san-xuat/nang-luc') !== -1;
     } },
     { area: 'kho_npl', test: function (p) { return p.indexOf('/kho-npl') !== -1; } },
     { area: 'dispatch', test: function (p) { return p.indexOf('/san-xuat/dieu-phoi') !== -1; } },

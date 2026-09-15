@@ -18,6 +18,7 @@ from hrm.menu_permissions import (
     handle_menu_access_denied,
     user_can_access_menu,
     user_can_create_menu,
+    user_can_delete_menu,
     user_can_print_menu,
     user_can_update_menu,
 )
@@ -6304,53 +6305,101 @@ def general_settings(request):
     })
 
 
+def _capacity_access_denied(request):
+    if not (
+        user_can_access_menu(request.user, MODULE_SAN_XUAT, 'capacity')
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan')
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan_board')
+    ):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'capacity')
+    return None
+
+
+def _work_location_options() -> list[str]:
+    names: list[str] = []
+    try:
+        from kho_san_pham.stock_models import Warehouse
+
+        names = list(
+            Warehouse.objects.filter(is_active=True).order_by('name').values_list('name', flat=True)
+        )
+    except Exception:
+        names = []
+    extras = ['Xưởng sản xuất', 'Chi nhánh trung tâm']
+    seen: set[str] = set()
+    out: list[str] = []
+    for raw in extras + list(names):
+        label = (raw or '').strip()
+        key = label.casefold()
+        if not label or key in seen:
+            continue
+        seen.add(key)
+        out.append(label)
+    return out
+
+
+def _upsert_work_center_from_form(*, form, request, center_id: int | None = None):
+    from san_xuat.services.phase3 import upsert_work_center
+
+    data = form.cleaned_data
+    return upsert_work_center(
+        code=data.get('code') or None,
+        name=data['name'],
+        headcount=data.get('headcount'),
+        work_hours_per_day=data.get('work_hours_per_day'),
+        throughput_per_sec=data.get('throughput_per_sec'),
+        efficiency_pct=data.get('efficiency_pct'),
+        work_location=data.get('work_location') or '',
+        division=data.get('division'),
+        is_active=bool(data.get('is_active')),
+        notes=data.get('notes') or '',
+        center_id=center_id,
+        user=request.user if not center_id else None,
+    )
+
+
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def capacity_list(request):
-    from san_xuat.list_filters import resolve_sx_period
-    from san_xuat.services.phase3 import build_capacity_load
+    denied = _capacity_access_denied(request)
+    if denied:
+        return denied
 
-    can_update = _perm_ctx(request).get('can_update')
-    if request.method == 'POST' and (request.POST.get('action') or '').strip() == 'sync_from_hrm':
-        if not can_update:
-            messages.error(request, 'Bạn không có quyền đồng bộ năng lực.')
+    can_delete = bool(_perm_ctx(request).get('can_delete')) or user_can_delete_menu(
+        request.user, MODULE_SAN_XUAT, 'capacity',
+    )
+    if request.method == 'POST':
+        action = (request.POST.get('action') or '').strip()
+        if action in {'delete', 'bulk_delete'}:
+            if not can_delete:
+                messages.error(request, 'Bạn không có quyền xóa tổ sản xuất.')
+                return redirect('san_xuat:capacity_list')
+            from san_xuat.services.phase3 import delete_work_centers
+
+            pks: list[int] = []
+            for raw in request.POST.getlist('pk'):
+                try:
+                    pk = int(raw)
+                except (TypeError, ValueError):
+                    continue
+                if pk > 0:
+                    pks.append(pk)
+            if not pks:
+                messages.error(request, 'Chưa chọn tổ cần xóa.')
+                return redirect('san_xuat:capacity_list')
+            deleted, errors = delete_work_centers(center_ids=pks)
+            if deleted:
+                if len(deleted) == 1:
+                    messages.success(request, f'Đã xóa {deleted[0]}.')
+                else:
+                    messages.success(request, f'Đã xóa {len(deleted)} tổ sản xuất.')
+            for err in errors:
+                messages.error(request, err)
             return redirect('san_xuat:capacity_list')
-        from san_xuat.services.capacity_from_hrm import (
-            remap_all_to_hr,
-            sync_capacity_from_hrm,
-        )
 
-        result = sync_capacity_from_hrm()
-        if not result.department:
-            messages.error(request, 'Không tìm thấy phòng ban SẢN XUẤT trên HR.')
-        else:
-            remapped = remap_all_to_hr()
-            messages.success(
-                request,
-                f'Đã đồng bộ từ HR ({result.department}): '
-                f'+{result.created} · cập nhật {result.updated} · tắt {result.deactivated} · '
-                f'remap BOM {remapped["process_steps"]} · nhóm IE {remapped["groups"]} · '
-                f'dòng routing {remapped["routing_lines"]}.',
-            )
-        return redirect('san_xuat:capacity_list')
-
-    month = (request.GET.get('month') or '').strip()
-    date_from, date_to, filters = resolve_sx_period(request)
-
-    from san_xuat.services.order_progress_sheet import ensure_progress_work_centers
-    from san_xuat.services.progress_template import standard_work_center_codes
-
-    ensure_progress_work_centers()
-    seed_codes = list(standard_work_center_codes())
-    # Thứ tự theo mẫu: Cắt → In-Ép → Thêu → May → Ủi-Gấp → GH
-    from san_xuat.services.progress_template import WC_SEED
-
-    seed_order = {code: i for i, (code, _n, _t) in enumerate(WC_SEED)}
+    filters = parse_sx_list_filters(request)
     base_centers = (
-        SxWorkCenter.objects.filter(
-            is_demo=False,
-            code__in=seed_codes,
-        )
-        .select_related('created_by')
+        SxWorkCenter.objects.filter(is_demo=False)
+        .select_related('created_by', 'division', 'division__department')
     )
     from san_xuat.list_grid import apply_sx_list_sort, sx_list_grid_context
 
@@ -6359,28 +6408,15 @@ def capacity_list(request):
         request,
         'capacity_catalog',
     )
-    # Không sort tay → giữ thứ tự mẫu
     if not (request.GET.get('sort') or '').strip():
-        centers = sorted(
-            list(centers),
-            key=lambda wc: seed_order.get(wc.code, 999),
-        )
-    load_rows = build_capacity_load(date_from=date_from, date_to=date_to)
-    preserve = {'month': month} if month else None
-    from san_xuat.services.sx_settings import sx_int
-
-    from san_xuat.list_grid import apply_sx_list_sort, sx_list_grid_context
+        centers = centers.order_by('name', 'code')
 
     return render(request, 'san_xuat/capacity_list.html', {
         **_perm_ctx(request),
+        'can_delete': can_delete,
+        'can_pick_rows': can_delete,
         'centers': centers,
-        'load_rows': load_rows,
-        'date_from': date_from,
-        'date_to': date_to,
-        'month_value': f'{date_from.year:04d}-{date_from.month:02d}',
-        'capacity_load_warn_pct': sx_int('capacity_load_warn_pct', 80, min_v=1, max_v=200),
-        'capacity_load_danger_pct': sx_int('capacity_load_danger_pct', 100, min_v=1, max_v=200),
-        **sx_filter_context(filters, preserve=preserve),
+        **sx_filter_context(filters),
         **sx_list_grid_context(request, 'capacity_catalog'),
     })
 
@@ -6388,95 +6424,19 @@ def capacity_list(request):
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def capacity_load_matrix(request):
     """Bookmark cũ /tai-theo-to/ → gộp vào Năng lực SX."""
+    denied = _capacity_access_denied(request)
+    if denied:
+        return denied
     return redirect('san_xuat:capacity_list')
 
 
-@module_perm_required(MODULE_SAN_XUAT, 'update')
+@module_perm_required(MODULE_SAN_XUAT, 'view')
 def capacity_setup(request):
-    """Chỉnh nhanh các tham số năng lực của toàn bộ tổ/chuyền đang dùng."""
-    from django import forms
-    from django.forms import modelformset_factory
-
-    class CompactNumberInput(forms.NumberInput):
-        """Hiển thị số không ép đuôi .00."""
-
-        def format_value(self, value):
-            if value is None or value == '':
-                return None
-            try:
-                text = format(Decimal(str(value)), 'f')
-            except Exception:
-                return super().format_value(value)
-            if '.' in text:
-                text = text.rstrip('0').rstrip('.')
-            return text or '0'
-
-    class CapacitySetupForm(forms.ModelForm):
-        class Meta:
-            model = SxWorkCenter
-            fields = ('capacity_per_day', 'shift_minutes_per_head', 'efficiency_pct')
-            widgets = {
-                'capacity_per_day': CompactNumberInput(
-                    attrs={'class': 'form-control form-control-sm text-end', 'min': '0', 'step': 'any'},
-                ),
-                'shift_minutes_per_head': forms.NumberInput(
-                    attrs={'class': 'form-control form-control-sm text-end', 'min': '0', 'max': '1440'},
-                ),
-                'efficiency_pct': CompactNumberInput(
-                    attrs={'class': 'form-control form-control-sm text-end', 'min': '0', 'max': '200', 'step': 'any'},
-                ),
-            }
-            labels = {
-                'efficiency_pct': 'Tải (%)',
-            }
-
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.fields['efficiency_pct'].label = 'Tải (%)'
-            self.fields['efficiency_pct'].help_text = (
-                '80 = thiếu người; 100 = bình thường; 150 = tăng ca.'
-            )
-            self.fields['efficiency_pct'].max_value = Decimal('200')
-            self.fields['efficiency_pct'].min_value = Decimal('0')
-
-        def clean_efficiency_pct(self):
-            value = self.cleaned_data.get('efficiency_pct')
-            if value is None:
-                return Decimal('100')
-            if value < 0 or value > 200:
-                raise forms.ValidationError('Tải phải trong khoảng 0–200%.')
-            return value
-
-    # Nhân sự chỉ lấy từ HR (Đồng bộ HR) — không cho sửa tay trên màn này.
-    CapacityFormSet = modelformset_factory(SxWorkCenter, form=CapacitySetupForm, extra=0)
-    from django.db.models import Case, IntegerField, Value, When
-
-    from san_xuat.services.order_progress_sheet import ensure_progress_work_centers
-    from san_xuat.services.progress_template import WC_SEED, standard_work_center_codes
-
-    ensure_progress_work_centers()
-    order_whens = [When(code=code, then=Value(i)) for i, (code, _n, _t) in enumerate(WC_SEED)]
-    centers = (
-        SxWorkCenter.objects.filter(
-            is_demo=False,
-            is_active=True,
-            code__in=standard_work_center_codes(),
-        )
-        .annotate(_seed_ord=Case(*order_whens, default=Value(999), output_field=IntegerField()))
-        .order_by('_seed_ord', 'code')
-    )
-    formset = CapacityFormSet(request.POST or None, queryset=centers)
-    if request.method == 'POST':
-        if formset.is_valid():
-            changed = len(formset.save())
-            messages.success(request, f'Đã cập nhật năng lực cho {changed} tổ/chuyền.')
-            return redirect('san_xuat:capacity_list')
-        messages.error(request, 'Không lưu được thiết lập — kiểm tra lại các giá trị.')
-
-    return render(request, 'san_xuat/capacity_setup.html', {
-        **_perm_ctx(request),
-        'formset': formset,
-    })
+    """Bookmark cũ /nang-luc/thiet-lap/ → danh mục năng lực."""
+    denied = _capacity_access_denied(request)
+    if denied:
+        return denied
+    return redirect('san_xuat:capacity_list')
 
 
 def _parse_iso_date_safe(raw: str):
@@ -6526,45 +6486,110 @@ def plan_audit_log(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'create')
 def capacity_create(request):
-    from san_xuat.services.phase3 import Phase3Error, upsert_work_center
+    from san_xuat.hub_models import DEFAULT_WORK_HOURS_PER_DAY
+    from san_xuat.services.phase3 import Phase3Error
+
+    denied = _capacity_access_denied(request)
+    if denied:
+        return denied
 
     if request.method == 'POST':
         form = WorkCenterForm(request.POST)
         if form.is_valid():
             try:
-                center = upsert_work_center(
-                    code=form.cleaned_data['code'],
-                    name=form.cleaned_data['name'],
-                    capacity_per_day=form.cleaned_data['capacity_per_day'],
-                    uom_label=form.cleaned_data.get('uom_label') or 'SP',
-                    team_label=form.cleaned_data.get('team_label') or '',
-                    is_active=bool(form.cleaned_data.get('is_active')),
-                    notes=form.cleaned_data.get('notes') or '',
-                    headcount=form.cleaned_data.get('headcount'),
-                    shift_minutes_per_head=form.cleaned_data.get('shift_minutes_per_head'),
-                    efficiency_pct=form.cleaned_data.get('efficiency_pct'),
-                )
+                center = _upsert_work_center_from_form(form=form, request=request)
             except Phase3Error as exc:
                 messages.error(request, str(exc))
             else:
                 messages.success(
                     request,
-                    f'Đã thêm {center.code} — quỹ {center.available_minutes_per_day} phút/ngày.',
+                    f'Đã thêm {center.name} — {center.available_minutes_per_day} phút/ngày · '
+                    f'{center.capacity_per_day} SP/ngày.',
                 )
                 return redirect('san_xuat:capacity_list')
-        messages.error(request, 'Không lưu được tổ/chuyền.')
+        messages.error(request, 'Không lưu được tổ sản xuất.')
     else:
+        from san_xuat.services.phase3 import next_work_center_code
+
         form = WorkCenterForm(initial={
             'is_active': True,
-            'uom_label': 'SP',
-            'shift_minutes_per_head': 480,
+            'work_hours_per_day': DEFAULT_WORK_HOURS_PER_DAY,
             'efficiency_pct': Decimal('100'),
+            'headcount': 0,
+            'code': next_work_center_code(),
         })
-    return render(request, 'san_xuat/phase3_form.html', {
+    return render(request, 'san_xuat/capacity_form.html', {
         **_perm_ctx(request),
         'form': form,
-        'title': 'Thêm năng lực SX',
-        'back_url': 'san_xuat:capacity_list',
+        'title': 'Thêm tổ sản xuất',
+        'center': None,
+        'location_options': _work_location_options(),
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'update')
+def capacity_edit(request, pk: int):
+    from san_xuat.services.phase3 import Phase3Error
+
+    denied = _capacity_access_denied(request)
+    if denied:
+        return denied
+
+    center = get_object_or_404(
+        SxWorkCenter.objects.select_related('division', 'division__department'),
+        pk=pk,
+        is_demo=False,
+    )
+    can_delete = bool(_perm_ctx(request).get('can_delete')) or user_can_delete_menu(
+        request.user, MODULE_SAN_XUAT, 'capacity',
+    )
+    if request.method == 'POST' and (request.POST.get('action') or '').strip() == 'delete':
+        if not can_delete:
+            messages.error(request, 'Bạn không có quyền xóa tổ sản xuất.')
+            return redirect('san_xuat:capacity_edit', pk=pk)
+        from san_xuat.services.phase3 import delete_work_center
+
+        try:
+            label = delete_work_center(center_id=center.pk)
+        except Phase3Error as exc:
+            messages.error(request, str(exc))
+            return redirect('san_xuat:capacity_edit', pk=pk)
+        messages.success(request, f'Đã xóa {label}.')
+        return redirect('san_xuat:capacity_list')
+
+    if request.method == 'POST':
+        form = WorkCenterForm(request.POST)
+        if form.is_valid():
+            try:
+                center = _upsert_work_center_from_form(
+                    form=form, request=request, center_id=center.pk,
+                )
+            except Phase3Error as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã cập nhật {center.name}.')
+                return redirect('san_xuat:capacity_list')
+        messages.error(request, 'Không lưu được tổ sản xuất.')
+    else:
+        form = WorkCenterForm(initial={
+            'name': center.name,
+            'code': center.code,
+            'headcount': center.headcount,
+            'throughput_per_sec': center.throughput_per_sec,
+            'work_hours_per_day': center.work_hours_per_day,
+            'efficiency_pct': center.efficiency_pct,
+            'work_location': center.work_location,
+            'division': center.division_id,
+            'is_active': center.is_active,
+            'notes': center.notes,
+        })
+    return render(request, 'san_xuat/capacity_form.html', {
+        **_perm_ctx(request),
+        'form': form,
+        'title': f'Sửa {center.name}',
+        'center': center,
+        'can_delete': can_delete,
+        'location_options': _work_location_options(),
     })
 
 

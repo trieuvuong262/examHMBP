@@ -41,10 +41,7 @@ from san_xuat.list_filters import (
     SxFilterSpec,
     SxListFilters,
 )
-from san_xuat.services.excel_export import (
-    dataframe_to_xlsx_response,
-    dataframes_to_xlsx_response,
-)
+from san_xuat.services.excel_export import dataframe_to_xlsx_response
 
 EXPORT_ROW_LIMIT = 5000
 
@@ -137,45 +134,33 @@ def _export_bom_list(request: HttpRequest) -> HttpResponse:
 
 def _export_capacity(request: HttpRequest) -> HttpResponse:
     from san_xuat.hub_models import SxWorkCenter
-    from san_xuat.list_filters import resolve_sx_period
-    from san_xuat.services.phase3 import build_capacity_load
 
-    month = (request.GET.get('month') or '').strip()
-    date_from, date_to, filters = resolve_sx_period(request)
-
-    base = SxWorkCenter.objects.filter(is_demo=False).order_by('code')
-    centers = apply_sx_list_filters(base, filters, SX_FILTER_WORK_CENTER)[:EXPORT_ROW_LIMIT]
-    load_rows = build_capacity_load(date_from=date_from, date_to=date_to)
-
-    center_rows = [
+    base = SxWorkCenter.objects.filter(is_demo=False).select_related(
+        'division', 'division__department',
+    ).order_by('code')
+    centers = _filtered(request, base, SX_FILTER_WORK_CENTER)
+    rows = [
         {
             'Mã': c.code,
             'Tên': c.name,
-            'Nhãn tổ': c.team_label or '',
+            'Số người': c.headcount or 0,
+            'Hiệu suất SP/s': float(c.throughput_per_sec or 0),
+            'Thời gian làm việc': float(c.work_hours_per_day or 0),
+            'Hệ số tải %': float(c.efficiency_pct or 0),
+            'Ước lượng SP/ngày': float(c.computed_capacity_per_day or 0),
+            'Địa điểm': c.work_location or '',
+            'Tổ': (
+                f'{c.division.department.name} — {c.division.name}'
+                if c.division_id and getattr(c.division, 'department', None)
+                else (c.division.name if c.division_id else '')
+            ),
             'NL/ngày': float(c.capacity_per_day or 0),
             'ĐVT': c.uom_label or '',
             'Trạng thái': 'Đang dùng' if c.is_active else 'Tắt',
         }
         for c in centers
     ]
-    load_sheet = []
-    for row in load_rows:
-        center = row.center
-        load_sheet.append({
-            'Tổ/chuyền': f'{getattr(center, "code", "")} — {getattr(center, "name", "")}',
-            'NL kỳ': float(row.capacity_period or 0),
-            'Còn lại': float(row.assigned_open or 0),
-            'Tải %': row.load_pct or 0,
-            'SX đạt kỳ': float(row.output_period or 0),
-            'Tận dụng %': row.utilization_pct or 0,
-        })
-    return dataframes_to_xlsx_response(
-        {
-            'Tai_ky': pd.DataFrame(load_sheet),
-            'Danh_muc': pd.DataFrame(center_rows),
-        },
-        'Nang_luc_SX',
-    )
+    return _rows_to_response(rows, 'Nang_luc_SX', 'Danh_muc')
 
 
 def _hub_model_export(

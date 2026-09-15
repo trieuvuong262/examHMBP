@@ -4,62 +4,17 @@
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
 <style>
   .sx-cap-page {
-    --sx-cap-ok: #059669;
-    --sx-cap-warn: #d97706;
-    --sx-cap-danger: #dc2626;
-    --sx-cap-track: #eef2f6;
     --sx-cap-ink: #0f172a;
     --sx-cap-muted: #64748b;
   }
-  .sx-cap-section-head {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 0.35rem 1rem;
-    margin: 0 0 0.75rem;
-  }
-  .sx-cap-section-head h3 {
-    margin: 0;
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: var(--sx-cap-ink);
-    letter-spacing: -0.01em;
-  }
-  .sx-cap-section-head .sx-cap-period {
-    font-size: 0.8rem;
-    color: var(--sx-cap-muted);
-  }
-  .sx-cap-load-card {
+  .sx-cap-catalog-card {
     border: 0;
     border-radius: 0.85rem;
     box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.04);
     overflow: hidden;
-    margin-bottom: 1.5rem;
-    background: #fff;
   }
-  .sx-cap-load-table {
-    margin: 0;
-    font-size: 0.875rem;
-  }
-  .sx-cap-load-table thead th {
-    background: #f8fafc;
-    border-bottom: 1px solid #e2e8f0;
-    color: var(--sx-cap-muted);
-    font-weight: 600;
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    padding: 0.7rem 1rem;
-    white-space: nowrap;
-  }
-  .sx-cap-load-table tbody td {
-    padding: 0.85rem 1rem;
-    border-color: #f1f5f9;
-    vertical-align: middle;
-  }
-  .sx-cap-load-table tbody tr:hover {
-    background: #fafbfc;
+  .sx-cap-page .jp-npl-catalog-row[data-href] {
+    cursor: pointer;
   }
   .sx-cap-center-name {
     font-weight: 650;
@@ -75,74 +30,6 @@
     font-variant-numeric: tabular-nums;
     font-weight: 600;
     color: var(--sx-cap-ink);
-  }
-  .sx-cap-meter {
-    min-width: 7.5rem;
-  }
-  .sx-cap-meter-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 0.5rem;
-    margin-bottom: 0.3rem;
-  }
-  .sx-cap-meter-val {
-    font-variant-numeric: tabular-nums;
-    font-weight: 700;
-    font-size: 0.9rem;
-  }
-  .sx-cap-meter-val.is-ok { color: var(--sx-cap-ok); }
-  .sx-cap-meter-val.is-warn { color: var(--sx-cap-warn); }
-  .sx-cap-meter-val.is-danger { color: var(--sx-cap-danger); }
-  .sx-cap-bar {
-    height: 0.45rem;
-    border-radius: 999px;
-    background: var(--sx-cap-track);
-    overflow: hidden;
-  }
-  .sx-cap-bar > span,
-  .sx-cap-bar > .sx-cap-bar-fill {
-    display: block;
-    height: 100%;
-    width: 0;
-    border-radius: inherit;
-    background: var(--sx-cap-ok);
-    max-width: 100%;
-    transition: width .25s ease;
-  }
-  .sx-cap-bar.is-warn > span,
-  .sx-cap-bar.is-warn > .sx-cap-bar-fill { background: var(--sx-cap-warn); }
-  .sx-cap-bar.is-danger > span,
-  .sx-cap-bar.is-danger > .sx-cap-bar-fill { background: var(--sx-cap-danger); }
-  .sx-cap-bar.is-util > span,
-  .sx-cap-bar.is-util > .sx-cap-bar-fill { background: #0284c7; }
-  .sx-cap-meter-val.is-util { color: #0284c7; }
-  .sx-cap-legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem 1.25rem;
-    padding: 0.65rem 1rem;
-    border-top: 1px solid #f1f5f9;
-    background: #fafbfc;
-    font-size: 0.75rem;
-    color: var(--sx-cap-muted);
-  }
-  .sx-cap-legend i {
-    display: inline-block;
-    width: 0.55rem;
-    height: 0.55rem;
-    border-radius: 50%;
-    margin-right: 0.35rem;
-    vertical-align: middle;
-  }
-  .sx-cap-legend .lg-ok { background: var(--sx-cap-ok); }
-  .sx-cap-legend .lg-warn { background: var(--sx-cap-warn); }
-  .sx-cap-legend .lg-danger { background: var(--sx-cap-danger); }
-  .sx-cap-catalog-card {
-    border: 0;
-    border-radius: 0.85rem;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.04);
-    overflow: hidden;
   }
   .sx-cap-status {
     display: inline-flex;
@@ -168,14 +55,6 @@
     border-radius: 50%;
     background: currentColor;
   }
-  @media (max-width: 767.98px) {
-    .sx-cap-load-table thead th,
-    .sx-cap-load-table tbody td {
-      padding-left: 0.65rem;
-      padding-right: 0.65rem;
-    }
-    .sx-cap-meter { min-width: 5.5rem; }
-  }
 </style>
 {% endblock %}
 {% load humanize %}
@@ -186,131 +65,71 @@
      data-loading-message="Đang tải năng lực SX…">
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
-      <h2 class="jp-npl-mat-topbar-title w-100">Năng lực SX</h2>
+      <h2 class="jp-npl-mat-topbar-title w-100">Năng lực sản xuất</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       {% include 'san_xuat/includes/sx_export_btn.html' with export_key='capacity_list' %}
-      {% if can_update %}
-      <a href="{% url 'san_xuat:capacity_setup' %}" class="btn btn-hm btn-sm fw-bold">
-        <i class="bi bi-sliders me-1"></i>Thiết lập năng lực
-      </a>
-      <form method="post" class="d-inline" data-loading-message="Đang đồng bộ từ HR…">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="sync_from_hrm">
-        <button type="submit" class="btn btn-outline-hm btn-sm fw-bold" title="Tạo/cập nhật bộ phận từ HR phòng SẢN XUẤT; tắt mã IE/tổ cũ">
-          <i class="bi bi-arrow-repeat me-1"></i>Đồng bộ HR
-        </button>
-      </form>
-      {% endif %}
       {% if can_create %}
       <a href="{% url 'san_xuat:capacity_create' %}" class="btn btn-hm btn-sm fw-bold">
-        <i class="bi bi-plus-lg me-1"></i>Thêm tổ/chuyền
+        <i class="bi bi-plus-lg me-1"></i>Thêm tổ sản xuất
       </a>
       {% endif %}
       {% include 'san_xuat/includes/sx_list_col_picker.html' %}
     </nav>
   </div>
 
-  {% include 'san_xuat/includes/sx_capacity_filter.html' %}
+  {% include 'san_xuat/includes/sx_list_filter.html' with hide_sx_date_filter=True filter_code_placeholder='Mã tổ…' filter_name_placeholder='Tên tổ, chuyền…' %}
 
-  <div class="sx-cap-section-head">
-    <h3>Lấp đầy theo kỳ</h3>
-    <span class="sx-cap-period">{{ date_from|date:"d/m/Y" }} – {{ date_to|date:"d/m/Y" }}</span>
-  </div>
-
-  <div class="sx-cap-load-card">
-    <div class="jp-npl-mat-grid-wrap">
-      <table class="table sx-cap-load-table mb-0 align-middle">
-        <thead>
-          <tr>
-            <th>Tổ / chuyền</th>
-            <th class="text-end">NL kỳ</th>
-            <th class="text-end">Còn lại</th>
-            <th class="text-end" style="min-width:4.5rem">Tải %</th>
-            <th style="min-width:8.5rem">Lấp đầy</th>
-            <th class="text-end">SX đạt</th>
-            <th style="min-width:8.5rem">Tận dụng</th>
-          </tr>
-        </thead>
-        <tbody>
-        {% for row in load_rows %}
-          <tr>
-            <td>
-              <div class="sx-cap-center-name">{{ row.center.name }}</div>
-              <div class="sx-cap-center-meta">{{ row.days }} ngày · NL/ngày {{ row.center.capacity_per_day|sx_num }} {{ row.center.uom_label }}</div>
-            </td>
-            <td class="text-end sx-cap-num">{{ row.capacity_period|sx_num }}</td>
-            <td class="text-end sx-cap-num">{{ row.assigned_open|sx_num }}</td>
-            <td class="text-end sx-cap-num">{{ row.center.efficiency_pct|sx_num }}%</td>
-            <td>
-              {% if row.load_pct > capacity_load_danger_pct %}
-              <div class="sx-cap-meter">
-                <div class="sx-cap-meter-top">
-                  <span class="sx-cap-meter-val is-danger">{{ row.load_pct|sx_num }}%</span>
-                </div>
-                <div class="sx-cap-bar is-danger"><span class="sx-cap-bar-fill" data-sx-cap-pct="{{ row.load_bar_pct }}"></span></div>
-              </div>
-              {% elif row.load_pct > capacity_load_warn_pct %}
-              <div class="sx-cap-meter">
-                <div class="sx-cap-meter-top">
-                  <span class="sx-cap-meter-val is-warn">{{ row.load_pct|sx_num }}%</span>
-                </div>
-                <div class="sx-cap-bar is-warn"><span class="sx-cap-bar-fill" data-sx-cap-pct="{{ row.load_bar_pct }}"></span></div>
-              </div>
-              {% else %}
-              <div class="sx-cap-meter">
-                <div class="sx-cap-meter-top">
-                  <span class="sx-cap-meter-val is-ok">{{ row.load_pct|sx_num }}%</span>
-                </div>
-                <div class="sx-cap-bar"><span class="sx-cap-bar-fill" data-sx-cap-pct="{{ row.load_bar_pct }}"></span></div>
-              </div>
-              {% endif %}
-            </td>
-            <td class="text-end sx-cap-num">{{ row.output_period|sx_num }}</td>
-            <td>
-              <div class="sx-cap-meter">
-                <div class="sx-cap-meter-top">
-                  <span class="sx-cap-meter-val is-util">{{ row.utilization_pct }}%</span>
-                </div>
-                <div class="sx-cap-bar is-util"><span class="sx-cap-bar-fill" data-sx-cap-pct="{{ row.util_bar_pct }}"></span></div>
-              </div>
-            </td>
-          </tr>
-        {% empty %}
-          <tr><td colspan="7" class="text-muted small p-4 text-center">Chưa có tổ/chuyền đang dùng.</td></tr>
-        {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% if load_rows %}
-    <div class="sx-cap-legend">
-      <span><i class="lg-ok" aria-hidden="true"></i>Lấp đầy ≤ {{ capacity_load_warn_pct }}%</span>
-      <span><i class="lg-warn" aria-hidden="true"></i>Cảnh báo &gt; {{ capacity_load_warn_pct }}%</span>
-      <span><i class="lg-danger" aria-hidden="true"></i>Quá quỹ &gt; {{ capacity_load_danger_pct }}%</span>
-    </div>
-    {% endif %}
-  </div>
-
-  <div class="sx-cap-section-head">
-    <h3>Danh mục tổ / chuyền</h3>
-  </div>
   <div class="card sx-cap-catalog-card overflow-hidden">
+    {% if can_pick_rows and centers %}
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 px-3 py-2 border-bottom bg-white">
+      <span class="small text-muted">Chọn nhanh để xóa hàng loạt</span>
+      <button type="submit" form="sxCapBulkForm" class="btn btn-sm btn-outline-danger" id="sxCapBulkDeleteBtn" disabled
+              onclick="return confirm('Xóa các tổ đã chọn?');">
+        <i class="bi bi-trash me-1"></i>Xóa nhanh
+      </button>
+    </div>
+    <form method="post" id="sxCapBulkForm" class="d-none">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="bulk_delete">
+    </form>
+    {% endif %}
     <div class="jp-npl-mat-grid-wrap">
       <table class="table table-hover table-sm mb-0 align-middle jp-npl-mat-grid" id="{{ sx_list_table_id }}">
         <thead class="table-light">
           <tr>
+            {% if can_pick_rows %}
+            <th class="text-center" data-col="_pick" style="width:42px">
+              <input type="checkbox" class="form-check-input" id="sxCapCheckAll" title="Chọn nhanh">
+            </th>
+            {% endif %}
             {% include 'san_xuat/includes/sx_list_grid_head.html' %}
           </tr>
         </thead>
         <tbody>
         {% for c in centers %}
-          <tr>
+          <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:capacity_edit' c.pk %}">
+            {% if can_pick_rows %}
+            <td class="text-center" data-col="_pick" onclick="event.stopPropagation()">
+              <input type="checkbox" class="form-check-input sx-cap-pick" name="pk" value="{{ c.pk }}" form="sxCapBulkForm">
+            </td>
+            {% endif %}
             <td class="npl-col" data-col="name">
               <span class="sx-cap-center-name">{{ c.name }}</span>
+              <div class="sx-cap-center-meta">{{ c.code }}</div>
             </td>
-            <td class="npl-col small text-muted" data-col="team_label">{{ c.team_label|default:"—" }}</td>
+            <td class="npl-col text-end sx-cap-num" data-col="headcount">{{ c.headcount|default:0 }}</td>
+            <td class="npl-col text-end sx-cap-num" data-col="throughput">{{ c.throughput_per_sec|sx_num }}</td>
+            <td class="npl-col text-end sx-cap-num" data-col="hours">{{ c.work_hours_per_day|sx_num }}</td>
+            <td class="npl-col text-end sx-cap-num" data-col="load">{{ c.efficiency_pct|sx_num }}%</td>
+            <td class="npl-col text-end sx-cap-num" data-col="estimate">{{ c.computed_capacity_per_day|sx_num }} SP/ngày</td>
+            <td class="npl-col small" data-col="location">{{ c.work_location|default:"—" }}</td>
+            <td class="npl-col small" data-col="division">
+              {% if c.division %}
+                {% if c.division.department %}{{ c.division.department.name }} — {% endif %}{{ c.division.name }}
+              {% else %}—{% endif %}
+            </td>
             <td class="npl-col text-end sx-cap-num" data-col="capacity">{{ c.capacity_per_day|sx_num }}</td>
-            <td class="npl-col" data-col="uom">{{ c.uom_label }}</td>
             <td class="npl-col" data-col="status">
               {% if c.is_active %}
               <span class="sx-cap-status is-on">Đang dùng</span>
@@ -321,37 +140,38 @@
             {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=c %}
           </tr>
         {% empty %}
-          <tr><td colspan="{{ list_columns|length }}" class="text-muted small p-4 text-center">Chưa khai báo tổ/chuyền.</td></tr>
+          <tr><td colspan="{% if can_pick_rows %}{{ list_columns|length|add:1 }}{% else %}{{ list_columns|length }}{% endif %}" class="text-muted small p-4 text-center">Chưa khai báo tổ sản xuất.</td></tr>
         {% endfor %}
         </tbody>
       </table>
     </div>
   </div>
-
-  <div class="card border-0 shadow-sm mt-3">
-    <div class="card-body py-3">
-      <h6 class="fw-bold small mb-2"><i class="bi bi-info-circle me-1"></i>Cách tính năng lực</h6>
-      <ul class="small text-muted mb-0 ps-3" style="line-height:1.7">
-        <li><strong>NL/ngày (SP)</strong> — ước lượng khi Đồng bộ HR: <em>số nhân sự × định mức SP/người/ngày</em> theo loại tổ
-          (Cắt/trải 25 · In ép 21 · May 14 · Ủi 30 · Gấp xếp 35 · khác 12). Có thể chỉnh tay, số chỉnh tay được giữ khi đồng bộ lại.</li>
-        <li><strong>NL kỳ</strong> = NL/ngày × số ngày trong kỳ đang lọc.</li>
-        <li><strong>Còn lại</strong> = tổng số lượng chưa làm xong (SL − đã đạt) của các lệnh SX đang mở gắn với tổ qua giao việc.</li>
-        <li><strong>Lấp đầy %</strong> = Còn lại ÷ NL kỳ — vượt {{ capacity_load_warn_pct }}% cảnh báo, vượt {{ capacity_load_danger_pct }}% quá quỹ.</li>
-        <li><strong>Tải %</strong> = hệ số năng lực tổ (80 thiếu người · 100 bình thường · 150 tăng ca) — chỉnh tại Thiết lập; nhân vào quỹ phút hữu ích.</li>
-        <li><strong>SX đạt</strong> = tổng SP đạt trên thống kê SX đã xác nhận trong kỳ (khớp nhãn tổ); <strong>Tận dụng %</strong> = SX đạt ÷ NL kỳ.</li>
-        <li><strong>Phút hữu ích/ngày</strong> = số nhân sự × phút/ca (mặc định 480) × Tải % — chỉnh tại <a href="{% url 'san_xuat:capacity_setup' %}">Thiết lập</a>.</li>
-      </ul>
-    </div>
-  </div>
 </div>
 {% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
+{% if can_pick_rows and centers %}
 <script>
 (function () {
-  document.querySelectorAll('.sx-cap-bar-fill[data-sx-cap-pct]').forEach(function (el) {
-    var n = parseInt(el.getAttribute('data-sx-cap-pct'), 10);
-    if (isNaN(n)) n = 0;
-    el.style.width = Math.max(0, Math.min(100, n)) + '%';
-  });
+  var all = document.getElementById('sxCapCheckAll');
+  var picks = document.querySelectorAll('.sx-cap-pick');
+  var btn = document.getElementById('sxCapBulkDeleteBtn');
+  function sync() {
+    var n = 0;
+    picks.forEach(function (cb) { if (cb.checked) n += 1; });
+    if (btn) btn.disabled = n === 0;
+    if (all && picks.length) {
+      all.checked = n === picks.length;
+      all.indeterminate = n > 0 && n < picks.length;
+    }
+  }
+  if (all) {
+    all.addEventListener('change', function () {
+      picks.forEach(function (cb) { cb.checked = all.checked; });
+      sync();
+    });
+  }
+  picks.forEach(function (cb) { cb.addEventListener('change', sync); });
+  sync();
 })();
 </script>
+{% endif %}
 {% endblock %}

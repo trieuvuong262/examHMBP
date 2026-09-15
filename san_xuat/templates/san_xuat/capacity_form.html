@@ -1,0 +1,187 @@
+{% extends 'base.html' %}
+{% load sx_format %}
+{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">{{ title }}</h2>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="{% url 'san_xuat:capacity_list' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+    </nav>
+  </div>
+
+  <form method="post" id="sx-capacity-form">
+    {% csrf_token %}
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-bottom py-3">
+        <h6 class="fw-bold mb-0">Thông tin tổ sản xuất</h6>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-8">
+            <label class="form-label fw-bold small mb-1" for="{{ form.name.id_for_label }}">
+              {{ form.name.label }}{{ form.name|sx_req_star }}
+            </label>
+            {{ form.name }}
+            {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-bold small mb-1" for="{{ form.code.id_for_label }}">{{ form.code.label }}</label>
+            {{ form.code }}
+            {% if form.code.errors %}<div class="text-danger small">{{ form.code.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-bold small mb-1" for="{{ form.headcount.id_for_label }}">
+              {{ form.headcount.label }}{{ form.headcount|sx_req_star }}
+            </label>
+            <div class="input-group input-group-sm">
+              {{ form.headcount }}
+              <button type="button" class="btn btn-outline-secondary fw-bold" id="sx-cap-load-headcount"
+                      title="Lấy số người đang làm việc từ tổ đã chọn">
+                Load
+              </button>
+            </div>
+            {% if form.headcount.errors %}<div class="text-danger small">{{ form.headcount.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-bold small mb-1" for="{{ form.throughput_per_sec.id_for_label }}">
+              {{ form.throughput_per_sec.label }}
+            </label>
+            {{ form.throughput_per_sec }}
+            {% if form.throughput_per_sec.errors %}<div class="text-danger small">{{ form.throughput_per_sec.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-bold small mb-1" for="{{ form.work_hours_per_day.id_for_label }}">
+              {{ form.work_hours_per_day.label }}
+            </label>
+            {{ form.work_hours_per_day }}
+            {% if form.work_hours_per_day.errors %}<div class="text-danger small">{{ form.work_hours_per_day.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-bold small mb-1" for="{{ form.efficiency_pct.id_for_label }}">
+              {{ form.efficiency_pct.label }}
+            </label>
+            {{ form.efficiency_pct }}
+            {% if form.efficiency_pct.errors %}<div class="text-danger small">{{ form.efficiency_pct.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-bold small mb-1" for="{{ form.work_location.id_for_label }}">
+              {{ form.work_location.label }}
+            </label>
+            {{ form.work_location }}
+            <datalist id="sx-work-locations">
+              {% for loc in location_options %}
+              <option value="{{ loc }}"></option>
+              {% endfor %}
+            </datalist>
+            {% if form.work_location.errors %}<div class="text-danger small">{{ form.work_location.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-bold small mb-1" for="{{ form.division.id_for_label }}">
+              {{ form.division.label }}
+            </label>
+            {{ form.division }}
+            {% if form.division.errors %}<div class="text-danger small">{{ form.division.errors }}</div>{% endif %}
+          </div>
+          <div class="col-12">
+            <div class="form-check">
+              {{ form.is_active }}
+              <label class="form-check-label" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
+            </div>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-bold small mb-1" for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>
+            {{ form.notes }}
+          </div>
+        </div>
+
+        <div class="alert alert-light border mt-3 mb-0 small" id="sx-cap-preview">
+          <strong>Ước lượng:</strong>
+          <span id="sx-cap-preview-text">Nhập số người, hiệu suất và giờ làm để xem sản lượng ngày.</span>
+        </div>
+      </div>
+      <div class="card-footer bg-white d-flex justify-content-between align-items-center gap-2">
+        <div>
+          {% if center and can_delete %}
+          <button type="submit" form="sx-capacity-delete" class="btn btn-outline-danger"
+                  onclick="return confirm('Xóa tổ này?');">
+            <i class="bi bi-trash me-1"></i>Xóa
+          </button>
+          {% endif %}
+        </div>
+        <div class="d-flex gap-2">
+          <a href="{% url 'san_xuat:capacity_list' %}" class="btn btn-light border">Hủy</a>
+          <button type="submit" class="btn btn-hm fw-bold px-4">
+            <i class="bi bi-check-lg me-1"></i>Lưu
+          </button>
+        </div>
+      </div>
+    </div>
+  </form>
+  {% if center and can_delete %}
+  <form id="sx-capacity-delete" method="post" class="d-none">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="delete">
+  </form>
+  {% endif %}
+</div>
+<script>
+(function () {
+  var form = document.getElementById('sx-capacity-form');
+  if (!form) return;
+  var heads = form.querySelector('[name="headcount"]');
+  var rate = form.querySelector('[name="throughput_per_sec"]');
+  var hours = form.querySelector('[name="work_hours_per_day"]');
+  var load = form.querySelector('[name="efficiency_pct"]');
+  var division = form.querySelector('[name="division"]');
+  var loadBtn = document.getElementById('sx-cap-load-headcount');
+  var out = document.getElementById('sx-cap-preview-text');
+  function num(el) {
+    var n = parseFloat(String(el && el.value || '').replace(',', '.'));
+    return isNaN(n) ? 0 : n;
+  }
+  function fmt(n) {
+    if (!isFinite(n)) return '0';
+    return (Math.round(n * 100) / 100).toLocaleString('vi-VN');
+  }
+  function refresh() {
+    var h = num(heads), r = num(rate), hr = num(hours), ld = num(load) / 100;
+    var qty = h * r * 3600 * hr * ld;
+    out.textContent = fmt(qty) + ' SP/ngày (số lượng người × hiệu suất chung (SP/s) × 3600 × thời gian làm việc × hệ số tải).';
+  }
+  ['input', 'change'].forEach(function (ev) {
+    [heads, rate, hours, load].forEach(function (el) {
+      if (el) el.addEventListener(ev, refresh);
+    });
+  });
+  function selectedHeadcount() {
+    if (!division) return null;
+    var opt = division.options[division.selectedIndex];
+    if (!opt || !opt.value) return null;
+    var n = parseInt(opt.getAttribute('data-headcount') || '0', 10);
+    return isNaN(n) ? 0 : n;
+  }
+  function syncLoadBtn() {
+    if (!loadBtn) return;
+    loadBtn.disabled = !division || !division.value;
+  }
+  if (loadBtn) {
+    loadBtn.addEventListener('click', function () {
+      var n = selectedHeadcount();
+      if (n === null) return;
+      if (heads) {
+        heads.value = n;
+        heads.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      refresh();
+    });
+  }
+  if (division) division.addEventListener('change', syncLoadBtn);
+  syncLoadBtn();
+  refresh();
+})();
+</script>
+{% endblock %}

@@ -564,12 +564,12 @@ def sync_capacity_from_hrm(
     reset_capacity: bool = False,
     deactivate_legacy: bool = True,
     include_support: bool = True,
-    deactivate_non_hr: bool = True,
+    deactivate_non_hr: bool = False,
 ) -> SyncCapacityResult:
     """Tạo/cập nhật SxWorkCenter theo Division phòng SẢN XUẤT trên HR.
 
-    deactivate_non_hr: tắt các tổ không phải HRD-* (WC IE, tổ tay cũ) để danh sách
-    bộ phận chỉ còn bộ phận thật từ HR. Mã WC-* vẫn giữ bản ghi cho FK routing IE.
+    Danh mục năng lực trên Kế hoạch SX là catalog tự khai (thêm/sửa/xóa).
+    Đồng bộ HR không tắt tổ người dùng đã tạo, trừ khi ``deactivate_non_hr=True``.
     """
     result = SyncCapacityResult()
     dept = _sx_department()
@@ -614,6 +614,7 @@ def sync_capacity_from_hrm(
             'is_demo': False,
             # P3: số nhân sự để tính phút khả dụng khi xếp lịch theo SMV
             'headcount': staff,
+            'division': div,
         }
 
         center = SxWorkCenter.objects.filter(code__iexact=code).first()
@@ -632,6 +633,8 @@ def sync_capacity_from_hrm(
             center.notes = defaults_common['notes']
             center.is_demo = False
             center.headcount = staff
+            if center.division_id != div.pk:
+                center.division = div
             if reset_capacity or center.capacity_per_day is None or center.capacity_per_day <= 0:
                 center.capacity_per_day = estimated
             center.save()

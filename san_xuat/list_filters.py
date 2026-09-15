@@ -431,7 +431,7 @@ SUBCONTRACT_WORK_STATUS_CHOICES = (
     (SUBCONTRACT_WORK_STATUS_RUNNING, 'Đang sản xuất'),
     (SUBCONTRACT_WORK_STATUS_DONE, 'Hoàn thành'),
 )
-SX_FILTER_WORK_CENTER = SxFilterSpec(name_fields=('name', 'team_label'), date_field='created_at')
+SX_FILTER_WORK_CENTER = SxFilterSpec(name_fields=('name', 'team_label'))
 
 SX_FILTER_TECH_DOC = SxFilterSpec(
     code_fields=('product_code',),

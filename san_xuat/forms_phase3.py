@@ -116,55 +116,61 @@ class WorkAssignmentCreateForm(forms.Form):
         )
 
 
+class _DivisionHeadcountSelect(forms.Select):
+    """Option Tổ kèm số NV đang làm việc (data-headcount)."""
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(
+            name, value, label, selected, index, subindex=subindex, attrs=attrs,
+        )
+        instance = getattr(value, 'instance', None)
+        if instance is not None:
+            option['attrs']['data-headcount'] = str(int(getattr(instance, 'staff_count', 0) or 0))
+        return option
+
+
 class WorkCenterForm(forms.Form):
-    code = forms.CharField(
-        max_length=40,
-        label="Mã",
-        widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
-    )
     name = forms.CharField(
         max_length=120,
-        label="Tên tổ/chuyền",
-        widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
+        label="Tên tổ sản xuất",
+        widget=forms.TextInput(attrs={"class": "form-control form-control-sm", "autocomplete": "off"}),
     )
-    capacity_per_day = forms.DecimalField(
-        max_digits=14,
-        decimal_places=2,
-        min_value=Decimal("0"),
-        label="Năng lực/ngày",
-        widget=forms.NumberInput(attrs={"class": "form-control form-control-sm", "step": "0.01", "min": "0"}),
-    )
-    uom_label = forms.CharField(
+    code = forms.CharField(
         max_length=40,
         required=False,
-        initial="cái",
-        label="Đơn vị tính",
-        widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
-    )
-    team_label = forms.CharField(
-        max_length=80,
-        required=False,
-        label="Nhãn tổ (khớp thống kê sản xuất)",
-        widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
-        help_text="Để trống = dùng tên tổ/chuyền.",
+        label="Mã",
+        widget=forms.TextInput(attrs={"class": "form-control form-control-sm", "autocomplete": "off"}),
     )
     headcount = forms.IntegerField(
         required=False,
         min_value=0,
         max_value=2000,
         initial=0,
-        label="Số nhân sự",
+        label="Số lượng người",
         widget=forms.NumberInput(attrs={"class": "form-control form-control-sm", "min": "0"}),
-        help_text="Đồng bộ HR sẽ ghi đè số này.",
     )
-    shift_minutes_per_head = forms.IntegerField(
+    throughput_per_sec = forms.DecimalField(
         required=False,
-        min_value=0,
-        max_value=1440,
-        initial=480,
-        label="Phút làm việc / người / ngày",
-        widget=forms.NumberInput(attrs={"class": "form-control form-control-sm", "min": "0"}),
-        help_text="480 phút = 8 giờ một ca.",
+        max_digits=14,
+        decimal_places=6,
+        min_value=Decimal("0"),
+        initial=Decimal("0"),
+        label="Hiệu suất chung (sản phẩm/s)",
+        widget=_CompactDecimalInput(
+            attrs={"class": "form-control form-control-sm", "step": "0.000001", "min": "0"},
+        ),
+    )
+    work_hours_per_day = forms.DecimalField(
+        required=False,
+        max_digits=5,
+        decimal_places=2,
+        min_value=Decimal("0"),
+        max_value=Decimal("24"),
+        initial=Decimal("9.50"),
+        label="Thời gian làm việc",
+        widget=_CompactDecimalInput(
+            attrs={"class": "form-control form-control-sm", "step": "0.5", "min": "0", "max": "24"},
+        ),
     )
     efficiency_pct = forms.DecimalField(
         required=False,
@@ -173,9 +179,30 @@ class WorkCenterForm(forms.Form):
         min_value=Decimal("0"),
         max_value=Decimal("200"),
         initial=Decimal("100"),
-        label="Tải (%)",
-        widget=forms.NumberInput(attrs={"class": "form-control form-control-sm", "step": "0.5", "min": "0", "max": "200"}),
-        help_text="80 = thiếu người; 100 = bình thường; 150 = tăng ca. Nhân vào quỹ phút hữu ích.",
+        label="Hệ số tải (%)",
+        widget=_CompactDecimalInput(
+            attrs={"class": "form-control form-control-sm", "step": "1", "min": "0", "max": "200"},
+        ),
+    )
+    work_location = forms.CharField(
+        max_length=120,
+        required=False,
+        label="Địa điểm làm việc",
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control form-control-sm",
+                "list": "sx-work-locations",
+                "autocomplete": "off",
+                "placeholder": "Ví dụ: Xưởng sản xuất",
+            },
+        ),
+    )
+    division = forms.ModelChoiceField(
+        queryset=None,
+        required=False,
+        label="Tổ",
+        empty_label="— Chọn tổ —",
+        widget=_DivisionHeadcountSelect(attrs={"class": "form-select form-select-sm"}),
     )
     is_active = forms.BooleanField(
         required=False,
@@ -188,6 +215,58 @@ class WorkCenterForm(forms.Form):
         label="Ghi chú",
         widget=forms.Textarea(attrs={"class": "form-control form-control-sm", "rows": 2}),
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from django.db.models import Count, Q
+        from hrm.models import Division
+
+        self.fields["division"].queryset = (
+            Division.objects.filter(is_active=True)
+            .select_related("department")
+            .annotate(
+                staff_count=Count(
+                    "division_profiles",
+                    filter=Q(division_profiles__is_employed=True),
+                    distinct=True,
+                )
+            )
+            .order_by("department__name", "sort_order", "name")
+        )
+        self.fields["division"].label_from_instance = _division_choice_label
+
+    def clean_code(self):
+        code = (self.cleaned_data.get("code") or "").strip().upper()
+        if code:
+            return code
+        from san_xuat.services.phase3 import next_work_center_code
+
+        return next_work_center_code()
+
+    def clean_work_location(self):
+        return (self.cleaned_data.get("work_location") or "").strip()
+
+    def clean_headcount(self):
+        value = self.cleaned_data.get("headcount")
+        return 0 if value is None else value
+
+    def clean_throughput_per_sec(self):
+        value = self.cleaned_data.get("throughput_per_sec")
+        return Decimal("0") if value is None else value
+
+    def clean_work_hours_per_day(self):
+        value = self.cleaned_data.get("work_hours_per_day")
+        return Decimal("9.50") if value is None else value
+
+    def clean_efficiency_pct(self):
+        value = self.cleaned_data.get("efficiency_pct")
+        return Decimal("100") if value is None else value
+
+
+def _division_choice_label(obj) -> str:
+    dept = getattr(getattr(obj, "department", None), "name", "") or ""
+    name = getattr(obj, "name", "") or ""
+    return f"{dept} — {name}" if dept else name
 
 
 class PackingCreateForm(forms.Form):
