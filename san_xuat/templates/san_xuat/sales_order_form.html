@@ -161,6 +161,40 @@
     text-align: right;
     font-variant-numeric: tabular-nums;
   }
+  .jp-so-product-pick {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    min-width: 0;
+  }
+  .jp-so-product-thumb {
+    flex: 0 0 2.75rem;
+    width: 2.75rem;
+    height: 2.75rem;
+    border: 1px solid var(--bs-border-color, #e2e8f0);
+    border-radius: .45rem;
+    background: #f8fafc;
+    color: #94a3b8;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .jp-so-product-thumb i {
+    font-size: 1.05rem;
+  }
+  .jp-so-product-thumb img {
+    display: none;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .jp-so-product-thumb.has-image i { display: none; }
+  .jp-so-product-thumb.has-image img { display: block; }
+  .jp-so-product-select {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
   /* TomSelect KH: đảm bảo placeholder hiện khi chưa chọn */
   #jp-so-form .ts-wrapper:has(.jp-so-customer-select) .ts-control .placeholder,
   #jp-so-form select.jp-so-customer-select + .ts-wrapper .ts-control .placeholder {
@@ -369,9 +403,17 @@
             {% for f in formset %}
               <tr class="jp-so-line-row">
                 <td class="jp-so-product-col">
-                  {{ f.product_code }}
-                  {{ f.product_name }}
-                  {% if f.product_code.errors %}<div class="text-danger small">{{ f.product_code.errors }}</div>{% endif %}
+                  <div class="jp-so-product-pick">
+                    <span class="jp-so-product-thumb is-empty" aria-hidden="true">
+                      <i class="bi bi-image"></i>
+                      <img alt="">
+                    </span>
+                    <div class="jp-so-product-select">
+                      {{ f.product_code }}
+                      {{ f.product_name }}
+                      {% if f.product_code.errors %}<div class="text-danger small">{{ f.product_code.errors }}</div>{% endif %}
+                    </div>
+                  </div>
                 </td>
                 <td class="jp-so-bom-col">
                   {{ f.bom_version_id }}
@@ -463,7 +505,15 @@
 <template id="jp-so-empty-row">
   {% with f=formset.empty_form %}
   <tr class="jp-so-line-row">
-    <td class="jp-so-product-col">{{ f.product_code }}{{ f.product_name }}</td>
+    <td class="jp-so-product-col">
+      <div class="jp-so-product-pick">
+        <span class="jp-so-product-thumb is-empty" aria-hidden="true">
+          <i class="bi bi-image"></i>
+          <img alt="">
+        </span>
+        <div class="jp-so-product-select">{{ f.product_code }}{{ f.product_name }}</div>
+      </div>
+    </td>
     <td class="jp-so-bom-col">{{ f.bom_version_id }}{{ f.applied_bom_json }}</td>
     <td class="jp-so-ie-col">
       {{ f.routing_id }}{{ f.applied_smv_json }}

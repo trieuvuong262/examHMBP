@@ -96,6 +96,73 @@ body > .ts-dropdown.jp-sx-product-dd .option {
       }
     }
     fillStockFromOption(select, opt);
+    fillImageFromOption(select, opt);
+  }
+
+  function fillImageFromOption(select, opt) {
+    var row = select.closest('tr') || select.closest('.row');
+    if (!row) return;
+    var thumb = row.querySelector('.jp-so-product-thumb');
+    if (!thumb) return;
+    var img = thumb.querySelector('img');
+    var url = opt && String(opt.image_url || '').trim();
+    if (img && url) {
+      img.onload = function () {
+        thumb.classList.add('has-image');
+        thumb.classList.remove('is-empty');
+      };
+      img.onerror = function () {
+        img.removeAttribute('src');
+        thumb.classList.remove('has-image');
+        thumb.classList.add('is-empty');
+      };
+      if (img.getAttribute('src') !== url) img.src = url;
+      else {
+        thumb.classList.add('has-image');
+        thumb.classList.remove('is-empty');
+      }
+      return;
+    }
+    if (img) {
+      img.removeAttribute('src');
+      img.onload = null;
+      img.onerror = null;
+    }
+    thumb.classList.remove('has-image');
+    thumb.classList.add('is-empty');
+  }
+
+  function enrichProductOption(select, ts, code) {
+    code = (code || '').trim();
+    if (!code || !ts) return;
+    var existing = ts.options[code] || {};
+    if ((existing.image_url || '').trim()) {
+      fillNameFromOption(select, existing);
+      return;
+    }
+    fetch(searchUrl + '?q=' + encodeURIComponent(code), {
+      headers: { 'Accept': 'application/json' },
+      credentials: 'same-origin',
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var rows = data.results || [];
+        var needle = code.toLowerCase();
+        var match = null;
+        for (var i = 0; i < rows.length; i++) {
+          var id = String(rows[i].id || rows[i].code || '').toLowerCase();
+          if (id === needle) { match = rows[i]; break; }
+        }
+        if (!match) return;
+        var merged = Object.assign({}, existing, match, {
+          id: code,
+          code: match.code || code,
+        });
+        if (ts.options[code]) ts.updateOption(code, merged);
+        else ts.addOption(merged);
+        fillNameFromOption(select, ts.options[code]);
+      })
+      .catch(function () {});
   }
 
   function fillStockFromOption(select, opt) {
@@ -219,6 +286,7 @@ body > .ts-dropdown.jp-sx-product-dd .option {
         },
       },
       onInitialize: function () {
+        var ts = this;
         if (!initialValue) return;
         if (!this.options[initialValue]) {
           var initName = '';
@@ -233,6 +301,8 @@ body > .ts-dropdown.jp-sx-product-dd .option {
           });
         }
         this.setValue(initialValue, true);
+        fillNameFromOption(select, this.options[initialValue]);
+        enrichProductOption(select, ts, initialValue);
       },
       onItemAdd: function (value) {
         fillNameFromOption(select, this.options[value]);
