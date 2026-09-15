@@ -28,6 +28,11 @@ urlpatterns = [
         name='login_security_save_config',
     ),
     path(
+        'bao-mat-dang-nhap/duong-ssh/',
+        views_login_security.save_remote_access_mode_view,
+        name='remote_access_save_mode',
+    ),
+    path(
         'bao-mat-dang-nhap/quet-virus/',
         views_login_security.save_file_scan_config_view,
         name='file_scan_save_config',

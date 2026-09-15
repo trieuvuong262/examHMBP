@@ -96,6 +96,11 @@ def login_security_page(request):
         ctx['nginx_hour_choices'] = WATCH_HOURS
         ctx['nginx_watch'] = collect_nginx_log_watch(hours=hours)
 
+    if tab == 'config':
+        from audit.services.remote_access import remote_access_status
+
+        ctx['remote_access'] = remote_access_status()
+
     return render(request, 'audit/login_security.html', ctx)
 
 
@@ -194,6 +199,34 @@ def save_login_security_config_view(request):
         )
     if not invalid_wan and not invalid_blacklist:
         messages.success(request, 'Đã lưu cấu hình whitelist / blacklist IP.')
+    return redirect(reverse('audit:login_security') + '?tab=config')
+
+
+@module_perm_required(MODULE_AUDIT, 'export')
+@require_POST
+def save_remote_access_mode_view(request):
+    from audit.services.remote_access import apply_remote_access_mode
+    from audit.services.vps_monitor import VpsMonitorError
+
+    mode = (request.POST.get('mode') or '').strip().lower()
+    if request.POST.get('confirm') != 'on':
+        messages.error(request, 'Hãy xác nhận trước khi đổi đường SSH.')
+        return redirect(reverse('audit:login_security') + '?tab=config')
+    try:
+        result = apply_remote_access_mode(mode)
+    except VpsMonitorError as exc:
+        messages.error(request, str(exc))
+        return redirect(reverse('audit:login_security') + '?tab=config')
+    if result.get('unchanged'):
+        messages.info(request, result.get('output') or 'Đang ở chế độ này rồi.')
+    elif mode == 'fortinet':
+        messages.success(
+            request,
+            'Đã chuyển Fortinet: Tailscale tắt. SSH chỉ từ WAN văn phòng. '
+            'IPsec NAS không đổi. Máy IT dùng IP public VPS, không còn 100.x.',
+        )
+    else:
+        messages.success(request, 'Đã bật lại Tailscale. SSH WAN văn phòng vẫn giữ.')
     return redirect(reverse('audit:login_security') + '?tab=config')
 
 

@@ -245,7 +245,14 @@ def _network_bytes_from_stats(stats: dict) -> tuple[int, int]:
     return rx, tx
 
 
-def _docker_request_bytes(method: str, path: str, *, timeout: float = 120.0) -> bytes:
+def _docker_request_bytes(
+    method: str,
+    path: str,
+    *,
+    timeout: float = 120.0,
+    body: bytes | None = None,
+    content_type: str = 'application/json',
+) -> bytes:
     sock_path = _docker_socket()
     if not sock_path.exists():
         raise VpsMonitorError('Docker socket không khả dụng trên container web.')
@@ -254,13 +261,18 @@ def _docker_request_bytes(method: str, path: str, *, timeout: float = 120.0) -> 
     sock.settimeout(timeout)
     try:
         sock.connect(str(sock_path))
-        payload = (
-            f'{method} {path} HTTP/1.1\r\n'
-            'Host: localhost\r\n'
-            'Connection: close\r\n'
-            '\r\n'
-        )
-        sock.sendall(payload.encode('utf-8'))
+        headers = [
+            f'{method} {path} HTTP/1.1',
+            'Host: localhost',
+            'Connection: close',
+        ]
+        if body is not None:
+            headers.append(f'Content-Type: {content_type}')
+            headers.append(f'Content-Length: {len(body)}')
+        payload = ('\r\n'.join(headers) + '\r\n\r\n').encode('utf-8')
+        sock.sendall(payload)
+        if body:
+            sock.sendall(body)
         chunks: list[bytes] = []
         while True:
             chunk = sock.recv(65536)
@@ -279,6 +291,77 @@ def _docker_request(method: str, path: str, *, timeout: float = 120.0) -> dict |
     if not body.strip():
         return {}
     return _parse_docker_json(body)
+
+
+def _docker_request_json(
+    method: str,
+    path: str,
+    payload: dict | None = None,
+    *,
+    timeout: float = 120.0,
+) -> dict | list:
+    raw = json.dumps(payload).encode('utf-8') if payload is not None else None
+    body = _docker_request_bytes(method, path, timeout=timeout, body=raw)
+    if not body.strip():
+        return {}
+    return _parse_docker_json(body)
+
+
+def docker_run_host_script(
+    script_path: str,
+    *args: str,
+    timeout: float = 90.0,
+    env: dict[str, str] | None = None,
+) -> dict:
+    """Chạy script trên PID 1 (host) qua container tạm + nsenter. Không đụng IPsec."""
+    if not docker_available():
+        raise VpsMonitorError('Docker socket không khả dụng trên container web.')
+    image = os.getenv('DOCKER_APP_IMAGE', 'portaljustplay-app:latest')
+    argv = [str(script_path), *[str(a) for a in args]]
+    spec = {
+        'Image': image,
+        'Entrypoint': ['/nsenter'],
+        'Cmd': ['-t', '1', '-m', '-u', '-i', '-n', '-p', '--', 'bash', *argv],
+        'Env': [f'{key}={value}' for key, value in (env or {}).items()],
+        'HostConfig': {
+            'Privileged': True,
+            'PidMode': 'host',
+            'NetworkMode': 'host',
+            'AutoRemove': False,
+            'Binds': ['/usr/bin/nsenter:/nsenter:ro'],
+        },
+    }
+    try:
+        _docker_request_bytes('DELETE', '/containers/jp-remote-access?force=1', timeout=10.0)
+    except VpsMonitorError:
+        pass
+    created = _docker_request_json(
+        'POST',
+        '/containers/create?name=jp-remote-access',
+        spec,
+        timeout=30.0,
+    )
+    cid = (created or {}).get('Id')
+    if not cid:
+        raise VpsMonitorError('Không tạo được container tạm để chạy script host.')
+    try:
+        _docker_request_bytes('POST', f'/containers/{cid}/start', timeout=15.0)
+        waited = _docker_request('POST', f'/containers/{cid}/wait', timeout=timeout)
+        code = int((waited or {}).get('StatusCode') or 0)
+        log_body = _docker_request_bytes(
+            'GET',
+            f'/containers/{cid}/logs?stdout=1&stderr=1&timestamps=0',
+            timeout=20.0,
+        )
+        text = _demux_docker_logs(log_body).strip()
+        if code != 0:
+            raise VpsMonitorError(text or f'Script host thoát mã {code}.')
+        return {'code': code, 'output': text}
+    finally:
+        try:
+            _docker_request_bytes('DELETE', f'/containers/{cid}?force=1', timeout=15.0)
+        except VpsMonitorError:
+            pass
 
 
 def _demux_docker_logs(data: bytes) -> str:

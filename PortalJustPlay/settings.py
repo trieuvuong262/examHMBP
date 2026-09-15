@@ -578,8 +578,11 @@ NAS_BACKUP_RETENTION_DAYS = int(os.getenv('NAS_BACKUP_RETENTION_DAYS', '30'))
 VPS_HOST_PROC = os.getenv('VPS_HOST_PROC', '/host/proc')
 VPS_HOST_ROOT = os.getenv('VPS_HOST_ROOT', '/host/root')
 VPS_DOCKER_SOCKET = os.getenv('VPS_DOCKER_SOCKET', '/var/run/docker.sock')
+HOST_PROJECT_DIR = os.getenv('HOST_PROJECT_DIR', '/opt/portaljustplay').strip() or '/opt/portaljustplay'
+# WAN Fortigate (văn phòng) — công tắc SSH Fortinet vs Tailscale
+FORTIGATE_WAN_IP = os.getenv('FORTIGATE_WAN_IP', '14.161.25.119').strip() or '14.161.25.119'
 # Giám sát NAS Synology (DSM Web API — CPU/RAM/tiến trình realtime)
-NAS_DSM_URL = os.getenv('NAS_DSM_URL', 'https://100.90.91.74:5556').strip()
+NAS_DSM_URL = os.getenv('NAS_DSM_URL', 'https://192.168.40.252:5556').strip()
 NAS_DSM_ACCOUNT = os.getenv('NAS_DSM_ACCOUNT', 'tailscale-justplay').strip()
 NAS_DSM_PASSWORD = os.getenv('NAS_DSM_PASSWORD', '').strip()
 NAS_DSM_CRED_FILE = os.getenv('NAS_DSM_CRED_FILE', '/root/.nas-cred').strip()
@@ -598,7 +601,7 @@ NAS_LDAP_BIND_DN = os.getenv(
 NAS_LDAP_BIND_PASSWORD = os.getenv('NAS_LDAP_BIND_PASSWORD', '').strip()
 NAS_LDAP_SYNC_SKIP_USERNAMES = os.getenv('NAS_LDAP_SYNC_SKIP_USERNAMES', 'admin,ductn').strip()
 NAS_LDAP_DOMAIN = os.getenv('NAS_LDAP_DOMAIN', 'ldap.justplay.local').strip()
-# ldap3 mặc định không có timeout — NAS qua Tailscale rớt là treo request vô hạn.
+# ldap3 mặc định không có timeout — NAS qua IPsec rớt là treo request vô hạn.
 NAS_LDAP_CONNECT_TIMEOUT = int(os.getenv('NAS_LDAP_CONNECT_TIMEOUT', '5') or '5')
 NAS_LDAP_RECEIVE_TIMEOUT = int(os.getenv('NAS_LDAP_RECEIVE_TIMEOUT', '10') or '10')
 # RaiDrive / NAS ngoài (Thư viện → Tải bộ cài)

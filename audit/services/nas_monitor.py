@@ -114,14 +114,14 @@ def _sanitize_dsm_error(exc: Exception) -> str:
         base = _dsm_base_url() if (getattr(settings, 'NAS_DSM_URL', '') or '').strip() else 'https://NAS:5556'
         return (
             f'Không kết nối được DSM tại {base} (connection refused). '
-            'SMB/rclone vẫn chạy được nhưng cổng HTTPS DSM có thể chưa mở trên IP Tailscale. '
+            'SMB/rclone vẫn chạy được nhưng cổng HTTPS DSM có thể chưa mở trên IP LAN IPsec. '
             'Trên Synology: Control Panel → Login Portal → DSM (ghi cổng HTTPS), '
-            'Security → Firewall → cho phép cổng đó từ dải Tailscale 100.64.0.0/10.'
+            'Security → Firewall → cho phép cổng đó từ dải VPS/IPsec.'
         )
     if 'Failed to establish a new connection' in msg or 'Max retries exceeded' in msg:
         return (
             'Không kết nối được NAS qua DSM API từ container Portal. '
-            'Kiểm tra NAS_DSM_URL, Tailscale và firewall Synology.'
+            'Kiểm tra NAS_DSM_URL (nên là 192.168.40.252 qua IPsec) và firewall Synology.'
         )
     return f'Không đăng nhập được DSM: {msg}'
 

@@ -555,6 +555,89 @@
     </div>
 
     {% else %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h5 class="mb-0 fw-bold">Đường SSH IT — Fortinet / Tailscale</h5>
+            <p class="small text-muted mb-0 mt-1">
+                NAS / backup / LDAP đi IPsec Fortigate (<code>192.168.40.252</code>) — công tắc này
+                <strong>không tắt IPsec</strong>. Chỉ đổi cách máy IT SSH vào VPS.
+            </p>
+        </div>
+        <div class="card-body">
+            {% if remote_access.mismatch %}
+            <div class="alert alert-warning small">File mode và tiến trình Tailscale lệch nhau — bấm lại chế độ muốn dùng.</div>
+            {% endif %}
+            {% if remote_access.nas_on_tailscale %}
+            <div class="alert alert-warning small">
+                <code>NAS_DSM_URL</code> vẫn là IP Tailscale. Trước khi tắt Tailscale, đổi trên VPS
+                thành <code>{{ remote_access.nas_lan_url }}</code> (IPsec LAN) rồi deploy lại —
+                không thì giám sát NAS / LDAP / DSM upload sẽ mất đường.
+            </div>
+            {% endif %}
+            <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                    <div class="small text-muted mb-1">Đang dùng</div>
+                    {% if remote_access.mode == 'fortinet' %}
+                    <span class="badge bg-success-subtle text-success fw-bold">VPN Fortinet (WAN văn phòng)</span>
+                    {% else %}
+                    <span class="badge bg-secondary-subtle text-secondary fw-bold">Tailscale</span>
+                    {% endif %}
+                </div>
+                <div class="col-md-4">
+                    <div class="small text-muted mb-1">Tailscale daemon</div>
+                    {% if remote_access.tailscale_on %}
+                    <span class="badge bg-warning text-dark">Đang chạy</span>
+                    {% else %}
+                    <span class="badge bg-success-subtle text-success">Đã tắt</span>
+                    {% endif %}
+                </div>
+                <div class="col-md-4">
+                    <div class="small text-muted mb-1">WAN Fortigate</div>
+                    <code>{{ remote_access.fortigate_wan }}</code>
+                </div>
+            </div>
+            {% if can_unlock %}
+            <form method="post" action="{% url 'audit:remote_access_save_mode' %}" class="row g-3 align-items-end">
+                {% csrf_token %}
+                <div class="col-lg-6">
+                    <label class="form-label fw-bold">Chuyển sang</label>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="submit" name="mode" value="fortinet"
+                                class="btn {% if remote_access.mode == 'fortinet' %}btn-hm text-white{% else %}btn-outline-hm{% endif %} fw-bold"
+                                {% if remote_access.mode == 'fortinet' and not remote_access.tailscale_on %}disabled{% endif %}>
+                            Fortinet
+                        </button>
+                        <button type="submit" name="mode" value="tailscale"
+                                class="btn {% if remote_access.mode == 'tailscale' %}btn-hm text-white{% else %}btn-outline-secondary{% endif %} fw-bold"
+                                {% if remote_access.mode == 'tailscale' and remote_access.tailscale_on %}disabled{% endif %}>
+                            Tailscale
+                        </button>
+                    </div>
+                    <div class="form-text">
+                        Fortinet: tắt Tailscale, SSH chỉ từ <code>{{ remote_access.fortigate_wan }}</code>.
+                        Cổng 500/4500 IPsec cũng chỉ còn IP Fortigate.
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="confirm" value="on" id="jp-remote-access-confirm" required>
+                        <label class="form-check-label" for="jp-remote-access-confirm">
+                            Xác nhận: đang ở văn phòng (cùng WAN Fortigate). Fortinet xong thì
+                            <code>ssh portal-vps</code> (100.x) không còn; dùng
+                            <code>ssh root@103.90.224.203</code>.
+                        </label>
+                    </div>
+                </div>
+            </form>
+            {% else %}
+            <p class="text-muted small mb-0">Chỉ IT có quyền export mới đổi được công tắc.</p>
+            {% endif %}
+            {% if not remote_access.host_ok %}
+            <p class="small text-muted mt-3 mb-0">Máy dev không mount host VPS — công tắc chỉ chạy được trên production.</p>
+            {% endif %}
+        </div>
+    </div>
+
     <div class="card border-0 shadow-sm">
         <div class="card-header bg-white py-3 border-bottom">
             <h5 class="mb-0 fw-bold">Whitelist / Blacklist IP đăng nhập</h5>

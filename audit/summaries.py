@@ -693,6 +693,9 @@ NAMESPACE_URL_DESCRIPTIONS: dict[str, dict[str, str] | str] = {
     'audit:login_security_save_config': {
         'POST': 'lưu cấu hình whitelist / blacklist IP đăng nhập',
     },
+    'audit:remote_access_save_mode': {
+        'POST': 'đổi đường SSH IT (Fortinet / Tailscale)',
+    },
     'audit:unlock_user_login': 'mở khóa đăng nhập tài khoản #{pk}',
     'audit:unlock_ip_login': 'bỏ chặn IP đăng nhập #{pk}',
     'audit:backup_page': 'xem trang backup Portal lên NAS',
