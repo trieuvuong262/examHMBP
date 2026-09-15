@@ -122,7 +122,7 @@ def parse_npl_board_post(post) -> tuple[dict[int, int | None], dict[int, Decimal
                 continue
             raw = (val or '').strip()
             if raw == '':
-                buy_by_line[int(sid)] = None
+                buy_by_line[int(sid)] = 0
             else:
                 try:
                     buy_by_line[int(sid)] = max(0, min(int(raw), 365))
@@ -431,7 +431,10 @@ def sync_order_npl(
         if ln.qty_shortfall <= 0:
             ln.buy_lead_days = None
         elif buy_by_line is not None and ln.pk in buy_by_line:
-            ln.buy_lead_days = buy_by_line[ln.pk]
+            val = buy_by_line[ln.pk]
+            ln.buy_lead_days = 0 if val is None else val
+        elif ln.buy_lead_days is None:
+            ln.buy_lead_days = 0
         ln.save(update_fields=['qty_shortfall', 'buy_lead_days'])
 
     lines = apply_npl_line_sort(lines)

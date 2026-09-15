@@ -41,7 +41,7 @@
   <td class="num">
     {% if ln.qty_shortfall > 0 %}
     <input type="number" name="buy_for__{{ ln.pk }}" min="0" max="365" class="form-control form-control-sm"
-           value="{{ ln.buy_lead_days|default_if_none:'' }}"
+           value="{{ ln.buy_lead_days|default_if_none:0 }}"
            {% if not can_schedule or row.order.plan_status == 'on_hold' or tab != 'queue' %}readonly{% endif %}>
     {% else %}
     —
