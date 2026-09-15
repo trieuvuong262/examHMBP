@@ -21,6 +21,7 @@
   var productEl = document.getElementById('jp-so-sg-product');
   var periodEl = document.getElementById('jp-so-sg-period');
   var totalEl = document.getElementById('jp-so-sg-total');
+  var suggestTotalEl = document.getElementById('jp-so-sg-suggest-total');
   var breakdownEl = document.getElementById('jp-so-sg-breakdown');
   var expandBtn = document.getElementById('jp-so-sg-expand');
   var dialogEl = document.getElementById('jp-so-sg-dialog');
@@ -46,6 +47,20 @@
     return String(Math.round(n));
   }
 
+  function fmtRatio(n) {
+    if (!Number.isFinite(n) || n === 0) return '0';
+    var r = Math.round(n * 100) / 100;
+    if (Math.abs(r - Math.round(r)) < 1e-9) return String(Math.round(r));
+    return String(r);
+  }
+
+  function fmtPct(share) {
+    if (!Number.isFinite(share) || share <= 0) return '0%';
+    var p = share * 100;
+    if (Math.abs(p - Math.round(p)) < 0.05) return String(Math.round(p)) + '%';
+    return String(Math.round(p * 10) / 10) + '%';
+  }
+
   function canonSize(raw) {
     var s = String(raw || '').trim().toUpperCase();
     if (!s) return '';
@@ -64,6 +79,27 @@
   }
   function outCell(size) {
     return modalEl.querySelector('.jp-so-sg-out[data-size="' + size + '"]');
+  }
+  function confirmInput(size) {
+    return modalEl.querySelector('.jp-so-sg-confirm[data-size="' + size + '"]');
+  }
+  function ratioCell(size) {
+    return modalEl.querySelector('.jp-so-sg-ratio[data-size="' + size + '"]');
+  }
+  function setRowTotal(name, value, html) {
+    var el = modalEl.querySelector('.jp-so-sg-row-total[data-total-of="' + name + '"]');
+    if (!el) return;
+    if (html) el.innerHTML = html;
+    else el.textContent = fmt(value);
+  }
+  function confirmQtyOf(size) {
+    return Math.max(0, Math.round(num(confirmInput(size), 0)));
+  }
+  function clearConfirmEdits() {
+    ALL_SIZES.forEach(function (sz) {
+      var el = confirmInput(sz);
+      if (el) delete el.dataset.userEdited;
+    });
   }
 
   function visibleSizes() {
@@ -180,11 +216,15 @@
   function recalc() {
     var coef = num(coefEl, 2);
     var step = num(roundEl, 50);
-    var total = 0;
-    var parts = [];
     var vis = visibleSizes();
     var visSet = {};
     vis.forEach(function (sz) { visSet[sz] = true; });
+
+    var stockSum = 0;
+    var velSum = 0;
+    var rawSum = 0;
+    var sugSum = 0;
+    var confirmBySize = {};
 
     ALL_SIZES.forEach(function (sz) {
       var stock = num(stockInput(sz), 0);
@@ -195,16 +235,55 @@
       var sugEl = outCell(sz);
       if (rawEl) rawEl.textContent = fmt(raw);
       if (sugEl) sugEl.textContent = fmt(sug);
+
+      var confEl = confirmInput(sz);
+      if (confEl && confEl.dataset.userEdited !== '1') {
+        confEl.value = String(sug);
+      }
+      var conf = confirmQtyOf(sz);
+      confirmBySize[sz] = conf;
+
       if (visSet[sz]) {
-        total += sug;
-        if (sug > 0) parts.push(sz + ':' + fmt(sug));
+        stockSum += stock;
+        velSum += vel;
+        rawSum += raw;
+        sugSum += sug;
       }
     });
-    if (totalEl) totalEl.textContent = fmt(total);
+
+    var confirmSum = 0;
+    vis.forEach(function (sz) { confirmSum += confirmBySize[sz] || 0; });
+
+    var ratioSum = 0;
+    ALL_SIZES.forEach(function (sz) {
+      var conf = confirmBySize[sz] || 0;
+      var ratio = step > 0 ? (conf / step) : 0;
+      var ratioEl = ratioCell(sz);
+      if (ratioEl) {
+        var share = (visSet[sz] && confirmSum > 0) ? (conf / confirmSum) : 0;
+        ratioEl.innerHTML = fmtRatio(ratio) + '<span class="jp-so-sg-pct">' + fmtPct(share) + '</span>';
+      }
+      if (visSet[sz]) ratioSum += ratio;
+    });
+
+    setRowTotal('stock', stockSum);
+    setRowTotal('vel', velSum);
+    setRowTotal('raw', rawSum);
+    setRowTotal('out', sugSum);
+    setRowTotal('confirm', confirmSum);
+    setRowTotal('ratio', 0, fmtRatio(ratioSum) + '<span class="jp-so-sg-pct">' + (confirmSum > 0 ? '100%' : '0%') + '</span>');
+
+    if (suggestTotalEl) suggestTotalEl.textContent = fmt(sugSum);
+    if (totalEl) totalEl.textContent = fmt(confirmSum);
     if (breakdownEl) {
+      var parts = [];
+      vis.forEach(function (sz) {
+        var q = confirmBySize[sz] || 0;
+        if (q > 0) parts.push(sz + ':' + fmt(q));
+      });
       breakdownEl.textContent = parts.length ? ('(' + parts.join(' · ') + ')') : '';
     }
-    return total;
+    return confirmSum;
   }
 
   function productLabel() {
@@ -221,6 +300,7 @@
     if (!productTs || productBound) return;
     productBound = true;
     productTs.on('change', function (value) {
+      clearConfirmEdits();
       loadStockForStyle(value || '');
     });
   }
@@ -289,8 +369,10 @@
     ALL_SIZES.forEach(function (sz) {
       var s = stockInput(sz);
       var v = velocityInput(sz);
+      var c = confirmInput(sz);
       if (s) { s.value = '0'; s.classList.remove('is-from-kho'); }
       if (v) { v.value = '0'; v.classList.remove('is-from-kv'); }
+      if (c) { c.value = '0'; delete c.dataset.userEdited; }
     });
     setExpanded(false);
     recalc();
@@ -303,6 +385,7 @@
       code = (codeSelect.tomselect && codeSelect.tomselect.getValue()) || codeSelect.value || '';
     }
     if (code && productTs && !productTs.getValue()) {
+      clearConfirmEdits();
       var nameInput = document.querySelector('#jp-so-lines-table tbody tr.jp-so-line-row:not([style*="display: none"]) input[name$="-product_name"]');
       var name = nameInput ? nameInput.value.trim() : '';
       if (!productTs.options[code]) {
@@ -351,14 +434,14 @@
     if (row) {
       var sizeMap = {};
       visibleSizes().forEach(function (sz) {
-        var sug = parseInt((outCell(sz) || {}).textContent || '0', 10) || 0;
-        if (sug > 0) sizeMap[sz] = sug;
+        var q = confirmQtyOf(sz);
+        if (q > 0) sizeMap[sz] = q;
       });
       // Size ngoài bộ mặc định (1–15, 4XL…) cũng ghi nếu đang mở rộng
       ALL_SIZES.forEach(function (sz) {
         if (sizeMap[sz]) return;
-        var sug = parseInt((outCell(sz) || {}).textContent || '0', 10) || 0;
-        if (sug > 0) sizeMap[sz] = sug;
+        var q = confirmQtyOf(sz);
+        if (q > 0) sizeMap[sz] = q;
       });
       // Hiện đủ size đang mở trong modal (kể cả SL = 0) để dòng SP khớp lưới đề xuất
       if (typeof window.jpSoEnsureLineSizes === 'function') {
@@ -407,12 +490,12 @@
       var period = periodDays() + ' ngày';
       var parts = [];
       visibleSizes().forEach(function (sz) {
-        var sug = parseInt((outCell(sz) || {}).textContent || '0', 10) || 0;
-        if (sug > 0) parts.push(sz + '=' + sug);
+        var q = confirmQtyOf(sz);
+        if (q > 0) parts.push(sz + '=' + q);
       });
       var line = 'Đề xuất' + (product ? ' ' + product : '')
         + (period ? ' (' + period + ')' : '')
-        + ': tổng ' + Math.round(total)
+        + ': tổng lên đơn ' + Math.round(total)
         + (parts.length ? ' [' + parts.join(', ') + ']' : '');
       var cur = (notes.value || '').trim();
       notes.value = cur ? (cur + '\n' + line) : line;
@@ -425,15 +508,36 @@
     var coef = num(coefEl, 2);
     var step = num(roundEl, 50);
     var lines = [];
-    lines.push('Size\t' + sizes.join('\t'));
+    function sumNums(vals) {
+      return vals.reduce(function (acc, v) { return acc + (parseFloat(v) || 0); }, 0);
+    }
+    function withTotal(vals, formatter) {
+      return vals.join('\t') + '\t' + (formatter || fmt)(sumNums(vals));
+    }
+    var stockVals = sizes.map(function (sz) { return fmt(num(stockInput(sz), 0)); });
+    var velVals = sizes.map(function (sz) { return fmt(num(velocityInput(sz), 0)); });
+    var rawVals = sizes.map(function (sz) { return (rawCell(sz) || {}).textContent || '0'; });
+    var outVals = sizes.map(function (sz) { return (outCell(sz) || {}).textContent || '0'; });
+    var confVals = sizes.map(function (sz) { return fmt(confirmQtyOf(sz)); });
+    var ratioVals = sizes.map(function (sz) {
+      return fmtRatio(step > 0 ? confirmQtyOf(sz) / step : 0);
+    });
+    var confirmSum = sumNums(confVals);
+    var pctVals = sizes.map(function (sz) {
+      return fmtPct(confirmSum > 0 ? confirmQtyOf(sz) / confirmSum : 0);
+    });
+    lines.push('Size\t' + sizes.join('\t') + '\tTổng');
     lines.push('Hệ số\t' + coef);
     lines.push('Làm tròn\t' + step);
     lines.push('Loại hàng\t' + productLabel());
     lines.push('Thời gian dự đoán\t' + periodDays() + ' ngày');
-    lines.push('Tồn kho thực tế\t' + sizes.map(function (sz) { return fmt(num(stockInput(sz), 0)); }).join('\t'));
-    lines.push('Tốc độ tiêu thụ\t' + sizes.map(function (sz) { return fmt(num(velocityInput(sz), 0)); }).join('\t'));
-    lines.push('Giá trị sau khi tính\t' + sizes.map(function (sz) { return (rawCell(sz) || {}).textContent || '0'; }).join('\t'));
-    lines.push('Giá trị đề xuất\t' + sizes.map(function (sz) { return (outCell(sz) || {}).textContent || '0'; }).join('\t'));
+    lines.push('Tồn kho thực tế\t' + withTotal(stockVals));
+    lines.push('Tốc độ tiêu thụ\t' + withTotal(velVals));
+    lines.push('Giá trị sau khi tính\t' + withTotal(rawVals));
+    lines.push('Giá trị đề xuất\t' + withTotal(outVals));
+    lines.push('Xác nhận lên đơn\t' + withTotal(confVals));
+    lines.push('Tỷ lệ (SL/làm tròn)\t' + withTotal(ratioVals, fmtRatio));
+    lines.push('Tỷ lệ %\t' + pctVals.join('\t') + '\t' + (confirmSum > 0 ? '100%' : '0%'));
     var text = lines.join('\n');
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(function () {
@@ -485,6 +589,9 @@
         loadStockForStyle(currentStyle());
       }, 350);
       return;
+    }
+    if (e.target.matches('.jp-so-sg-confirm')) {
+      e.target.dataset.userEdited = '1';
     }
     if (e.target.matches('input')) recalc();
   });

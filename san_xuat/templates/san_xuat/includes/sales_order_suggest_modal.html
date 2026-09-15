@@ -1,6 +1,6 @@
 {# Công cụ đề xuất SL theo size — (tiêu thụ × hệ số) − tồn → làm tròn lên #}
 <style>
-  .jp-so-suggest-modal .modal-dialog { max-width: min(960px, 96vw); }
+  .jp-so-suggest-modal .modal-dialog { max-width: min(1080px, 96vw); }
   .jp-so-suggest-modal .modal-content { border: 0; border-radius: .85rem; overflow: visible; }
   .jp-so-suggest-modal .modal-body { overflow: visible; }
   .jp-so-suggest-modal .modal-header {
@@ -32,8 +32,19 @@
     background: #93c5fd;
     font-weight: 700;
     color: #0f172a;
-    width: 11.5rem;
+    width: 12.25rem;
     white-space: nowrap;
+  }
+  .jp-so-suggest-sheet .jp-so-sg-label.is-wrap {
+    white-space: normal;
+    line-height: 1.25;
+  }
+  .jp-so-suggest-sheet .jp-so-sg-label .jp-so-sg-sub {
+    display: block;
+    font-weight: 600;
+    font-size: .68rem;
+    color: #1e3a8a;
+    margin-top: .12rem;
   }
   .jp-so-suggest-sheet .jp-so-sg-size {
     background: #f8fafc;
@@ -69,6 +80,48 @@
     font-weight: 800;
     color: #9d174d;
   }
+  .jp-so-suggest-sheet .jp-so-sg-confirm-cell { background: #fdba74; padding: .15rem; }
+  .jp-so-suggest-sheet .jp-so-sg-confirm-cell input {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    text-align: center;
+    font-weight: 800;
+    font-size: .8125rem;
+    padding: .2rem .15rem;
+    color: #9a3412;
+    outline: none;
+  }
+  .jp-so-suggest-sheet .jp-so-sg-confirm-cell input:focus {
+    background: #fff7ed;
+    border-radius: .2rem;
+  }
+  .jp-so-suggest-sheet .jp-so-sg-ratio {
+    background: #e9d5ff;
+    text-align: center;
+    font-weight: 700;
+    color: #6b21a8;
+    font-size: .78rem;
+    line-height: 1.2;
+  }
+  .jp-so-suggest-sheet .jp-so-sg-pct {
+    display: block;
+    font-weight: 600;
+    font-size: .68rem;
+    color: #7c3aed;
+  }
+  .jp-so-suggest-sheet .jp-so-sg-total-head,
+  .jp-so-suggest-sheet .jp-so-sg-row-total {
+    background: #cbd5e1;
+    text-align: center;
+    font-weight: 800;
+    color: #0f172a;
+    min-width: 3.6rem;
+    white-space: nowrap;
+  }
+  .jp-so-suggest-sheet .jp-so-sg-row-total.is-confirm { background: #fb923c; color: #7c2d12; }
+  .jp-so-suggest-sheet .jp-so-sg-row-total.is-ratio { background: #d8b4fe; color: #6b21a8; }
+  .jp-so-suggest-sheet .jp-so-sg-row-total.is-suggest { background: #f9a8d4; color: #9d174d; }
   .jp-so-suggest-sheet .jp-so-sg-text-cell input {
     text-align: left;
     padding-left: .45rem;
@@ -155,6 +208,7 @@
     font-size: .875rem;
   }
   .jp-so-suggest-total strong { font-variant-numeric: tabular-nums; }
+  .jp-so-suggest-total #jp-so-sg-total { color: #9a3412; }
   @media (max-width: 767.98px) {
     .jp-so-suggest-sheet .jp-so-sg-label { width: 7.5rem; white-space: normal; font-size: .72rem; }
     .jp-so-suggest-sheet th,
@@ -210,6 +264,7 @@
                 {% for sz in suggest_sizes_all %}
                 <th class="jp-so-sg-size{% if sz not in suggest_sizes %} jp-so-sg-col-extra{% endif %}" data-size="{{ sz }}">{{ sz }}</th>
                 {% endfor %}
+                <th class="jp-so-sg-total-head">Tổng</th>
               </tr>
             </thead>
             <tbody>
@@ -220,6 +275,7 @@
                   <input type="number" class="jp-so-sg-stock" data-size="{{ sz }}" value="0" min="0" step="1" inputmode="numeric" aria-label="Tồn {{ sz }}">
                 </td>
                 {% endfor %}
+                <td class="jp-so-sg-row-total" data-total-of="stock">0</td>
               </tr>
               <tr class="jp-so-sg-vel-row">
                 <th class="jp-so-sg-label" scope="row">Tốc độ tiêu thụ</th>
@@ -228,24 +284,52 @@
                   <input type="number" class="jp-so-sg-velocity" data-size="{{ sz }}" value="0" min="0" step="1" inputmode="numeric" aria-label="Tiêu thụ {{ sz }}">
                 </td>
                 {% endfor %}
+                <td class="jp-so-sg-row-total" data-total-of="vel">0</td>
               </tr>
               <tr>
                 <th class="jp-so-sg-label" scope="row">Công thức đề xuất</th>
                 <td class="jp-so-sg-formula" colspan="{{ suggest_sizes_all|length }}">
                   (Tốc độ tiêu thụ × hệ số) − Tồn kho thực tế
                 </td>
+                <td class="jp-so-sg-row-total">—</td>
               </tr>
               <tr class="jp-so-sg-raw-row">
                 <th class="jp-so-sg-label" scope="row">Giá trị sau khi tính</th>
                 {% for sz in suggest_sizes_all %}
                 <td class="jp-so-sg-calc jp-so-sg-raw{% if sz not in suggest_sizes %} jp-so-sg-col-extra{% endif %}" data-size="{{ sz }}">0</td>
                 {% endfor %}
+                <td class="jp-so-sg-row-total" data-total-of="raw">0</td>
               </tr>
               <tr class="jp-so-sg-out-row">
                 <th class="jp-so-sg-label" scope="row">Giá trị đề xuất</th>
                 {% for sz in suggest_sizes_all %}
                 <td class="jp-so-sg-suggest jp-so-sg-out{% if sz not in suggest_sizes %} jp-so-sg-col-extra{% endif %}" data-size="{{ sz }}">0</td>
                 {% endfor %}
+                <td class="jp-so-sg-row-total is-suggest" data-total-of="out">0</td>
+              </tr>
+              <tr class="jp-so-sg-confirm-row">
+                <th class="jp-so-sg-label is-wrap" scope="row"
+                    title="Điều chỉnh số lượng từng size trước khi áp dụng vào đơn. Mặc định = giá trị đề xuất.">
+                  Xác nhận lên đơn
+                  <span class="jp-so-sg-sub">Có thể chỉnh từng size</span>
+                </th>
+                {% for sz in suggest_sizes_all %}
+                <td class="jp-so-sg-confirm-cell{% if sz not in suggest_sizes %} jp-so-sg-col-extra{% endif %}">
+                  <input type="number" class="jp-so-sg-confirm" data-size="{{ sz }}" value="0" min="0" step="1" inputmode="numeric" aria-label="Xác nhận {{ sz }}">
+                </td>
+                {% endfor %}
+                <td class="jp-so-sg-row-total is-confirm" data-total-of="confirm">0</td>
+              </tr>
+              <tr class="jp-so-sg-ratio-row">
+                <th class="jp-so-sg-label is-wrap" scope="row"
+                    title="Tỷ lệ cắt = số lượng xác nhận ÷ bước làm tròn. Phần trăm = tỷ trọng size trên tổng lên đơn.">
+                  Tỷ lệ mỗi size
+                  <span class="jp-so-sg-sub">SL xác nhận ÷ làm tròn</span>
+                </th>
+                {% for sz in suggest_sizes_all %}
+                <td class="jp-so-sg-ratio{% if sz not in suggest_sizes %} jp-so-sg-col-extra{% endif %}" data-size="{{ sz }}">0</td>
+                {% endfor %}
+                <td class="jp-so-sg-row-total is-ratio" data-total-of="ratio">0</td>
               </tr>
             </tbody>
           </table>
@@ -257,7 +341,8 @@
           <span class="small text-muted">Mặc định: S · M · L · XL · 2XL · 3XL</span>
         </div>
         <div class="jp-so-suggest-total">
-          <span>Tổng đề xuất: <strong id="jp-so-sg-total">0</strong></span>
+          <span>Tổng đề xuất: <strong id="jp-so-sg-suggest-total">0</strong></span>
+          <span>Tổng lên đơn: <strong id="jp-so-sg-total">0</strong></span>
           <span class="text-muted" id="jp-so-sg-breakdown"></span>
         </div>
       </div>
