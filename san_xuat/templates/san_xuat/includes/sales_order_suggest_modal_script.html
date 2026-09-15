@@ -261,7 +261,7 @@
       var ratioEl = ratioCell(sz);
       if (ratioEl) {
         var share = (visSet[sz] && confirmSum > 0) ? (conf / confirmSum) : 0;
-        ratioEl.innerHTML = fmtRatio(ratio) + '<span class="jp-so-sg-pct">' + fmtPct(share) + '</span>';
+        ratioEl.innerHTML = '<span class="jp-so-sg-ratio-n">' + fmtRatio(ratio) + '</span><span class="jp-so-sg-pct">' + fmtPct(share) + '</span>';
       }
       if (visSet[sz]) ratioSum += ratio;
     });
@@ -271,7 +271,7 @@
     setRowTotal('raw', rawSum);
     setRowTotal('out', sugSum);
     setRowTotal('confirm', confirmSum);
-    setRowTotal('ratio', 0, fmtRatio(ratioSum) + '<span class="jp-so-sg-pct">' + (confirmSum > 0 ? '100%' : '0%') + '</span>');
+    setRowTotal('ratio', 0, '<span class="jp-so-sg-ratio-n">' + fmtRatio(ratioSum) + '</span><span class="jp-so-sg-pct">' + (confirmSum > 0 ? '100%' : '0%') + '</span>');
 
     if (suggestTotalEl) suggestTotalEl.textContent = fmt(sugSum);
     if (totalEl) totalEl.textContent = fmt(confirmSum);

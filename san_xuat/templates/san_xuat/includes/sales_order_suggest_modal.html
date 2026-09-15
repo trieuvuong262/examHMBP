@@ -25,7 +25,7 @@
   .jp-so-suggest-sheet th,
   .jp-so-suggest-sheet td {
     border: 1px solid #94a3b8;
-    padding: .28rem .35rem;
+    padding: 0;
     vertical-align: middle;
   }
   .jp-so-suggest-sheet .jp-so-sg-label {
@@ -34,6 +34,8 @@
     color: #0f172a;
     width: 12.25rem;
     white-space: nowrap;
+    padding: .28rem .45rem;
+    text-align: left;
   }
   .jp-so-suggest-sheet .jp-so-sg-label.is-wrap {
     white-space: normal;
@@ -44,73 +46,109 @@
     text-align: center;
     font-weight: 700;
     color: #334155;
+    padding: .28rem .2rem;
   }
-  .jp-so-suggest-sheet .jp-so-sg-input-cell { background: #fde047; padding: .15rem; }
-  .jp-so-suggest-sheet .jp-so-sg-input-cell input {
+  .jp-so-suggest-sheet .jp-so-sg-num,
+  .jp-so-suggest-sheet .jp-so-sg-calc,
+  .jp-so-suggest-sheet .jp-so-sg-suggest,
+  .jp-so-suggest-sheet .jp-so-sg-row-total {
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    font-size: .8125rem;
+    font-weight: 700;
+    height: 2.1rem;
+    line-height: 2.1rem;
+    padding: 0;
+  }
+  .jp-so-suggest-sheet .jp-so-sg-input-cell { background: #fde047; }
+  .jp-so-suggest-sheet .jp-so-sg-confirm-cell { background: #fdba74; }
+  .jp-so-suggest-sheet .jp-so-sg-input-cell input,
+  .jp-so-suggest-sheet .jp-so-sg-confirm-cell input {
+    display: block;
     width: 100%;
+    height: 2.1rem;
+    line-height: 2.1rem;
+    margin: 0;
     border: 0;
+    border-radius: 0;
     background: transparent;
     text-align: center;
-    font-weight: 600;
+    font-weight: 700;
     font-size: .8125rem;
-    padding: .2rem .15rem;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    padding: 0;
     color: #0f172a;
     outline: none;
+    box-sizing: border-box;
+    appearance: textfield;
+    -moz-appearance: textfield;
+  }
+  .jp-so-suggest-sheet .jp-so-sg-input-cell input::-webkit-outer-spin-button,
+  .jp-so-suggest-sheet .jp-so-sg-input-cell input::-webkit-inner-spin-button,
+  .jp-so-suggest-sheet .jp-so-sg-confirm-cell input::-webkit-outer-spin-button,
+  .jp-so-suggest-sheet .jp-so-sg-confirm-cell input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
   }
   .jp-so-suggest-sheet .jp-so-sg-input-cell input:focus {
     background: #fffbeb;
-    border-radius: .2rem;
   }
   .jp-so-suggest-sheet .jp-so-sg-calc {
     background: #bbf7d0;
-    text-align: center;
-    font-weight: 700;
     color: #14532d;
   }
   .jp-so-suggest-sheet .jp-so-sg-suggest {
     background: #f9a8d4;
-    text-align: center;
     font-weight: 800;
     color: #9d174d;
   }
-  .jp-so-suggest-sheet .jp-so-sg-confirm-cell { background: #fdba74; padding: .15rem; }
   .jp-so-suggest-sheet .jp-so-sg-confirm-cell input {
-    width: 100%;
-    border: 0;
-    background: transparent;
-    text-align: center;
-    font-weight: 800;
-    font-size: .8125rem;
-    padding: .2rem .15rem;
     color: #9a3412;
-    outline: none;
+    font-weight: 800;
   }
   .jp-so-suggest-sheet .jp-so-sg-confirm-cell input:focus {
     background: #fff7ed;
-    border-radius: .2rem;
   }
-  .jp-so-suggest-sheet .jp-so-sg-ratio {
+  .jp-so-suggest-sheet .jp-so-sg-ratio,
+  .jp-so-suggest-sheet .jp-so-sg-row-total.is-ratio {
     background: #e9d5ff;
-    text-align: center;
-    font-weight: 700;
     color: #6b21a8;
-    font-size: .78rem;
+    height: auto;
+    min-height: 2.1rem;
+    line-height: 1.2;
+    padding: .22rem 0;
+  }
+  .jp-so-suggest-sheet .jp-so-sg-ratio-n,
+  .jp-so-suggest-sheet .jp-so-sg-pct {
+    display: block;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+  .jp-so-suggest-sheet .jp-so-sg-ratio-n {
+    font-weight: 700;
+    font-size: .8125rem;
     line-height: 1.2;
   }
   .jp-so-suggest-sheet .jp-so-sg-pct {
-    display: block;
     font-weight: 600;
     font-size: .68rem;
     color: #7c3aed;
+    line-height: 1.2;
   }
   .jp-so-suggest-sheet .jp-so-sg-total-head,
   .jp-so-suggest-sheet .jp-so-sg-row-total {
     background: #cbd5e1;
-    text-align: center;
-    font-weight: 800;
     color: #0f172a;
     min-width: 3.6rem;
     white-space: nowrap;
+  }
+  .jp-so-suggest-sheet .jp-so-sg-total-head {
+    padding: .28rem .2rem;
+    text-align: center;
+    font-weight: 800;
   }
   .jp-so-suggest-sheet .jp-so-sg-row-total.is-confirm { background: #fb923c; color: #7c2d12; }
   .jp-so-suggest-sheet .jp-so-sg-row-total.is-ratio { background: #d8b4fe; color: #6b21a8; }
