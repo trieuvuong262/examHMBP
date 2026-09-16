@@ -26,7 +26,7 @@
               data-detail-id="{{ row.duration_script_id }}">Chi tiết</button>
     </span>
     {% endif %}
-    {% if tab == 'released' and row.mo_count %}
+    {% if row.is_released and row.mo_count %}
     <span class="jp-pb-stat" title="Tiến độ lệnh sản xuất">
       Tiến độ <strong>{{ row.progress_pct|sx_num }}%</strong>
       <span class="text-muted fw-semibold">({{ row.qty_done|sx_num }}/{{ row.qty_planned|sx_num }})</span>

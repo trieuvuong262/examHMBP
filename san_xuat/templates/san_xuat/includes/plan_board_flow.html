@@ -36,7 +36,7 @@
         {% if g.form_transfer_minutes %}<span class="v">{{ g.form_transfer_minutes|sx_num }}′ VC</span>{% endif %}
       </span>
       {% endif %}
-      {% if show_hop_edit != False and can_schedule and row.order.plan_status != 'done' and g.process_names %}
+      {% if show_hop_edit != False and can_schedule and row.can_adjust_timeline and g.process_names %}
       <details class="jp-pb-hop-edit">
         <summary class="jp-pb-hop-add"
                  title="Điều chỉnh thời gian kiểm đếm / vận chuyển"
@@ -54,6 +54,8 @@
           <input type="hidden" name="mode" value="{{ mode }}">
           <input type="hidden" name="tab" value="{{ tab }}">
           {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
+          {% if filter_date_from %}<input type="hidden" name="date_from" value="{{ filter_date_from|date:'Y-m-d' }}">{% endif %}
+          {% if filter_date_to %}<input type="hidden" name="date_to" value="{{ filter_date_to|date:'Y-m-d' }}">{% endif %}
           <p class="jp-pb-hop-pop-title">Kiểm đếm / vận chuyển</p>
           <label>
             Kiểm đếm (phút)

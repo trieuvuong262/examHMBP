@@ -48,7 +48,7 @@
       <a href="{% url 'san_xuat:dispatch_mo' %}?q={{ order.code|urlencode }}"><i class="bi bi-file-earmark-text" aria-hidden="true"></i>Lệnh sản xuất</a>
       {% endif %}
       <span class="sep" aria-hidden="true"></span>
-      <a href="{% url 'san_xuat:plan_board' %}?mode=list&tab=released" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Kế hoạch</a>
+      <a href="{% url 'san_xuat:plan_board' %}?mode=list&tab=queue" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Kế hoạch</a>
     </nav>
   </div>
 

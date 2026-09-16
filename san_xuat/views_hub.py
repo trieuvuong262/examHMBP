@@ -1315,12 +1315,12 @@ def plan_stub(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def plan_board(request):
-    """Kế hoạch SX theo đơn — hàng đợi / đã chuyển SX."""
+    """Kế hoạch SX theo đơn — kế hoạch (hàng đợi + đã chuyển SX) / lộ trình."""
     from san_xuat.hub_models import SxSalesOrder
     from san_xuat.services.plan_board import (
+        BOARD_LIST_STATUSES,
         PLAN_STATUS_LABELS,
         PRIORITY_LABELS,
-        QUEUE_STATUSES,
         attach_plan_line_tech,
         build_order_timeline,
         build_plan_board_rows,
@@ -1366,7 +1366,9 @@ def plan_board(request):
         if q_early := (request.GET.get('q') or '').strip():
             params['q'] = q_early
         return redirect(f"{reverse('san_xuat:plan_board')}?{urlencode(params)}")
-    if tab not in {'queue', 'released', 'route', 'subcontract'}:
+    if tab == 'released':
+        tab = 'queue'
+    if tab not in {'queue', 'route', 'subcontract'}:
         tab = 'queue'
     q = (request.GET.get('q') or request.POST.get('q') or '').strip()
     date_from_raw = (request.GET.get('date_from') or request.POST.get('date_from') or '').strip()
@@ -1384,7 +1386,7 @@ def plan_board(request):
         params = {'mode': mode, 'tab': tab}
         if q:
             params['q'] = q
-        if tab in {'queue', 'released'}:
+        if tab == 'queue':
             if priority_filter:
                 params['priority_filter'] = priority_filter
             if npl_filter:
@@ -1393,7 +1395,7 @@ def plan_board(request):
                 params['tech'] = tech_filter
             if deadline_filter:
                 params['deadline'] = deadline_filter
-        if tab in {'queue', 'released', 'subcontract'}:
+        if tab in {'queue', 'subcontract'}:
             if date_from_raw:
                 params['date_from'] = date_from_raw
             if date_to_raw:
@@ -1559,6 +1561,15 @@ def plan_board(request):
                 elif not can_schedule:
                     messages.error(request, 'Không có quyền cập nhật kế hoạch NPL.')
                     return _board_redirect()
+                if action in {'refresh_npl', 'save_npl', 'apply_npl', 'create_npl_pr'}:
+                    npl_order = SxSalesOrder.objects.filter(pk=order_id, is_demo=False).only('plan_status').first()
+                    if npl_order and npl_order.plan_status not in (
+                        SxSalesOrder.PLAN_QUEUED,
+                        SxSalesOrder.PLAN_RANKED,
+                        SxSalesOrder.PLAN_ON_HOLD,
+                    ):
+                        messages.error(request, 'Đơn đã chuyển SX — NPL đã khoá.')
+                        return _board_redirect(npl=order_id)
 
                 buy_by_line = None
                 allocate_by_line = None
@@ -1638,7 +1649,7 @@ def plan_board(request):
                     f'Đã chuyển xuống SX — tạo {len(created)} lệnh sản xuất (đã phát hành vào Công việc tổ). '
                     'BOM / OB / NPL trên KHSX đã khoá.',
                 )
-                return redirect(f"{reverse('san_xuat:plan_board')}?mode=list&tab=released")
+                return redirect(f"{reverse('san_xuat:plan_board')}?mode=list&tab=queue")
             elif action == 'unrelease' and can_release and order_id:
                 order, n = unrelease_order_from_production(order_id=order_id)
                 messages.success(
@@ -1836,30 +1847,6 @@ def plan_board(request):
 
     if tab == 'queue':
         from san_xuat.list_filters import parse_sx_date
-        from san_xuat.services.plan_board import _month_bounds
-
-        today = timezone.localdate()
-        filter_date_from = parse_sx_date(date_from_raw)
-        filter_date_to = parse_sx_date(date_to_raw)
-        if not filter_date_from and not filter_date_to:
-            filter_date_from, filter_date_to = _month_bounds(today)
-        elif filter_date_from and not filter_date_to:
-            filter_date_from, filter_date_to = _month_bounds(filter_date_from)
-        elif filter_date_to and not filter_date_from:
-            filter_date_from, filter_date_to = _month_bounds(filter_date_to)
-        elif filter_date_from > filter_date_to:
-            filter_date_from, filter_date_to = filter_date_to, filter_date_from
-
-        queue_rows = build_plan_board_rows(
-            statuses=QUEUE_STATUSES,
-            search=q,
-            date_from=filter_date_from,
-            date_to=filter_date_to,
-        )
-        queue_rows = _apply_board_filters(queue_rows)
-        route_board = None
-    elif tab == 'released':
-        from san_xuat.list_filters import parse_sx_date
         from san_xuat.services.plan_board import (
             _month_bounds,
             _month_label,
@@ -1886,18 +1873,14 @@ def plan_board(request):
         filter_prev_from, filter_prev_to = _month_bounds(_shift_month(filter_date_from, -1))
         filter_next_from, filter_next_to = _month_bounds(_shift_month(filter_date_from, 1))
 
-        released_rows = build_plan_board_rows(
-            statuses=(
-                SxSalesOrder.PLAN_RELEASED,
-                SxSalesOrder.PLAN_IN_PROGRESS,
-                SxSalesOrder.PLAN_DONE,
-            ),
+        queue_rows = build_plan_board_rows(
+            statuses=BOARD_LIST_STATUSES,
             search=q,
             include_released=True,
             date_from=filter_date_from,
             date_to=filter_date_to,
         )
-        released_rows = _apply_board_filters(released_rows)
+        queue_rows = _apply_board_filters(queue_rows)
         route_board = None
     elif tab == 'subcontract':
         from django.db.models import Q
@@ -2096,8 +2079,8 @@ def plan_route(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def plan_progress_monitor(request):
-    """Đã gộp vào bảng kế hoạch SX (tab Đã chuyển SX)."""
-    return redirect(f"{reverse('san_xuat:plan_board')}?tab=released")
+    """Đã gộp vào bảng kế hoạch SX."""
+    return redirect(f"{reverse('san_xuat:plan_board')}?tab=queue")
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
@@ -2134,7 +2117,7 @@ def order_progress_order(request, order_id: int):
     mos = _active_progress_mos(order)
     if not mos:
         messages.error(request, 'Đơn chưa có lệnh sản xuất.')
-        return redirect(f"{reverse('san_xuat:plan_board')}?tab=released")
+        return redirect(f"{reverse('san_xuat:plan_board')}?tab=queue")
     return _render_order_progress(request, mos=mos, order=order)
 
 

@@ -6,12 +6,12 @@ from audit.services.vps_monitor import VpsMonitorError
 
 class RemoteAccessModeTests(SimpleTestCase):
     def test_infer_prefers_file(self):
-        self.assertEqual(infer_mode(file_mode='fortinet', tailscale_on=True), 'fortinet')
-        self.assertEqual(infer_mode(file_mode='tailscale', tailscale_on=False), 'tailscale')
+        self.assertEqual(infer_mode(file_mode='fortinet', nas_on_tailscale=True), 'fortinet')
+        self.assertEqual(infer_mode(file_mode='tailscale', nas_on_tailscale=False), 'tailscale')
 
     def test_infer_without_file(self):
-        self.assertEqual(infer_mode(file_mode='', tailscale_on=True), 'tailscale')
-        self.assertEqual(infer_mode(file_mode='', tailscale_on=False), 'fortinet')
+        self.assertEqual(infer_mode(file_mode='', nas_on_tailscale=True), 'tailscale')
+        self.assertEqual(infer_mode(file_mode='', nas_on_tailscale=False), 'fortinet')
 
     def test_invalid_mode_rejected(self):
         with self.assertRaises(VpsMonitorError):

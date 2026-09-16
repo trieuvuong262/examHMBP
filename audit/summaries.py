@@ -694,7 +694,7 @@ NAMESPACE_URL_DESCRIPTIONS: dict[str, dict[str, str] | str] = {
         'POST': 'lưu cấu hình whitelist / blacklist IP đăng nhập',
     },
     'audit:remote_access_save_mode': {
-        'POST': 'đổi đường SSH IT (Fortinet / Tailscale)',
+        'POST': 'đổi đường NAS Portal (Fortinet IPsec / Tailscale)',
     },
     'audit:unlock_user_login': 'mở khóa đăng nhập tài khoản #{pk}',
     'audit:unlock_ip_login': 'bỏ chặn IP đăng nhập #{pk}',

@@ -1,0 +1,46 @@
+{% load sx_format %}
+{% with npl_open=npl_open_id|default:0 step=row.npl_step %}
+<div class="jp-pb-prep">
+  {% if row.npl_status == 'none' %}
+    {% if can_schedule and row.can_edit_npl %}
+    <form method="post" class="jp-pb-prep-open">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="open_npl">
+      <input type="hidden" name="order_id" value="{{ row.order.pk }}">
+      <input type="hidden" name="mode" value="{{ mode }}">
+      <input type="hidden" name="tab" value="{{ tab }}">
+      {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
+      {% if filter_date_from %}<input type="hidden" name="date_from" value="{{ filter_date_from|date:'Y-m-d' }}">{% endif %}
+      {% if filter_date_to %}<input type="hidden" name="date_to" value="{{ filter_date_to|date:'Y-m-d' }}">{% endif %}
+      <button type="submit" class="jp-pb-prep-sum is-{{ step.status|default:'empty' }}"
+              title="Bung nhu cầu nguyên phụ liệu cần chuẩn bị">
+        <span class="jp-pb-prep-k">Cần chuẩn bị</span>
+        <span class="jp-pb-prep-v">Chưa lập NPL — mở chi tiết</span>
+      </button>
+    </form>
+    {% else %}
+    <div class="jp-pb-prep-sum is-empty">
+      <span class="jp-pb-prep-k">Cần chuẩn bị</span>
+      <span class="jp-pb-prep-v">Chưa lập NPL</span>
+    </div>
+    {% endif %}
+  {% else %}
+  <details class="jp-pb-prep-box is-{{ step.status|default:row.npl_status }}{% if step.is_late %} is-late{% endif %}"
+           {% if npl_open == row.order.pk %}open{% endif %}>
+    <summary class="jp-pb-prep-sum"
+             title="Chi tiết nguyên phụ liệu cần chuẩn bị">
+      <span class="jp-pb-prep-k">Cần chuẩn bị</span>
+      <span class="jp-pb-prep-v">
+        {% if step.date_label %}{{ step.date_label }}
+        {% elif step.status == 'draft' %}Nháp
+        {% elif row.npl_ready_date %}{{ row.npl_ready_date|date:"d/m/Y" }}
+        {% else %}NPL{% endif %}
+        {% if step.duration_label %} · {{ step.duration_label }}{% endif %}
+        {% if row.npl_short_count %} · thiếu {{ row.npl_short_count }}{% endif %}
+      </span>
+    </summary>
+    {% include 'san_xuat/includes/plan_board_npl.html' %}
+  </details>
+  {% endif %}
+</div>
+{% endwith %}

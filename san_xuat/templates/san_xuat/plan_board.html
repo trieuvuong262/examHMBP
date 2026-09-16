@@ -247,6 +247,42 @@
   .jp-pb-prio.is-low select { color: #475569; border-color: #cbd5e1; background: #f1f5f9; }
 
   .jp-pb-ticket-body { padding: 0.85rem 1.05rem 1rem; }
+  .jp-pb-prep { margin: 0 0 0.7rem; }
+  .jp-pb-prep-open { margin: 0; }
+  .jp-pb-prep-sum {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.35rem 0.7rem;
+    width: 100%;
+    padding: 0.45rem 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.7rem;
+    background: #f8fafc;
+    color: #334155;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    list-style: none;
+  }
+  .jp-pb-prep-sum::-webkit-details-marker { display: none; }
+  .jp-pb-prep-box > summary.jp-pb-prep-sum::before {
+    content: '▸';
+    color: #64748b;
+    font-size: 0.72rem;
+  }
+  .jp-pb-prep-box[open] > summary.jp-pb-prep-sum::before { content: '▾'; }
+  button.jp-pb-prep-sum { appearance: none; }
+  .jp-pb-prep-sum:hover { border-color: #cbd5e1; background: #fff; }
+  .jp-pb-prep-box[open] > .jp-pb-prep-sum,
+  .jp-pb-prep-sum.is-short,
+  .jp-pb-prep-box.is-short > .jp-pb-prep-sum {
+    border-color: #fecaca;
+    background: #fff1f2;
+  }
+  .jp-pb-prep-k { font-size: 0.74rem; font-weight: 800; color: #0f172a; }
+  .jp-pb-prep-v { font-size: 0.74rem; font-weight: 600; color: #64748b; }
+  .jp-pb-prep-box .jp-pb-npl { margin-top: 0.55rem; }
   .jp-pb-stats {
     display: flex;
     flex-wrap: wrap;
@@ -308,7 +344,7 @@
     gap: 0.4rem;
     padding: 0.4rem;
     background: #fff;
-    border: 1px solid #fecaca;
+    border: 1px solid #e2e8f0;
     border-radius: 0.85rem;
     overflow: visible;
   }
@@ -328,12 +364,12 @@
     min-height: 4.25rem;
     flex: 1 1 0;
     padding: 0.65rem 0.8rem;
-    border: 1px solid #dc2626;
+    border: 1px solid var(--st, #cbd5e1);
     border-radius: 0.65rem;
     text-align: left;
     text-decoration: none;
-    color: var(--pb-ink);
-    background: #fff;
+    color: var(--st, var(--pb-ink));
+    background: var(--st-soft, #fff);
     font: inherit;
     cursor: default;
     appearance: none;
@@ -342,9 +378,8 @@
   button.jp-pb-tl-seg { cursor: pointer; }
   a.jp-pb-tl-seg:hover,
   button.jp-pb-tl-seg:hover {
-    border-color: #991b1b;
-    background: #fff;
-    color: var(--pb-ink);
+    filter: brightness(0.97);
+    color: var(--st, var(--pb-ink));
   }
   .jp-pb-tl-name {
     font-size: 0.86rem;
@@ -355,12 +390,11 @@
   .jp-pb-tl-date {
     font-size: 0.74rem;
     font-weight: 650;
-    color: var(--pb-muted);
+    color: color-mix(in srgb, var(--st, var(--pb-muted)) 72%, #0f172a);
     line-height: 1.2;
   }
   .jp-pb-stage-btn.is-active {
-    border-color: #991b1b;
-    box-shadow: 0 0 0 2px rgba(153, 27, 27, 0.08);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--st, #dc2626) 22%, transparent);
   }
   .jp-pb-stage-cell {
     isolation: isolate;
@@ -635,18 +669,13 @@
   .jp-pb-tl-seg.is-npl.is-empty,
   .jp-pb-tl-seg.is-npl.is-draft,
   .jp-pb-tl-seg.is-team.is-empty {
-    background: #fff;
+    background: var(--st-soft, #fff);
     border-style: solid;
-    border-color: #dc2626;
+    border-color: var(--st, #cbd5e1);
   }
-  .jp-pb-tl-seg.is-npl.is-short,
   .jp-pb-tl-seg.is-late {
-    background: #fff;
-    border-color: #dc2626;
-    color: #991b1b;
+    box-shadow: inset 0 0 0 1px #b91c1c;
   }
-  .jp-pb-tl-seg.is-npl.is-short .jp-pb-tl-date,
-  .jp-pb-tl-seg.is-late .jp-pb-tl-date { color: #b91c1c; }
   .jp-pb-tl-seg.is-open { border-width: 2px; }
   .jp-pb-dur-table { width: 100%; font-size: 0.82rem; }
   .jp-pb-dur-table th {
@@ -1242,12 +1271,8 @@
     <nav class="jp-sx-tools jp-pb-top-tabs" aria-label="Tab kế hoạch" role="tablist">
       <a role="tab"
          class="btn btn-sm fw-bold {% if tab == 'queue' %}btn-hm{% else %}btn-outline-secondary{% endif %}"
-         href="{% url 'san_xuat:plan_board' %}?mode=list&tab=queue{% if search_query %}&q={{ search_query|urlencode }}{% endif %}"
-         aria-selected="{% if tab == 'queue' %}true{% else %}false{% endif %}">Hàng đợi</a>
-      <a role="tab"
-         class="btn btn-sm fw-bold {% if tab == 'released' %}btn-hm{% else %}btn-outline-secondary{% endif %}"
-         href="{% url 'san_xuat:plan_board' %}?mode=list&tab=released{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if tab == 'released' and filter_date_from %}&date_from={{ filter_date_from|date:'Y-m-d' }}{% endif %}{% if tab == 'released' and filter_date_to %}&date_to={{ filter_date_to|date:'Y-m-d' }}{% endif %}"
-         aria-selected="{% if tab == 'released' %}true{% else %}false{% endif %}">Đã chuyển SX</a>
+         href="{% url 'san_xuat:plan_board' %}?mode=list&tab=queue{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if tab == 'queue' and filter_date_from %}&date_from={{ filter_date_from|date:'Y-m-d' }}{% endif %}{% if tab == 'queue' and filter_date_to %}&date_to={{ filter_date_to|date:'Y-m-d' }}{% endif %}"
+         aria-selected="{% if tab == 'queue' %}true{% else %}false{% endif %}">Kế hoạch</a>
       <a role="tab"
          class="btn btn-sm fw-bold {% if tab == 'route' %}btn-hm{% else %}btn-outline-secondary{% endif %}"
          href="{% url 'san_xuat:plan_board' %}?mode=list&tab=route{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if tab == 'route' and route_board %}&route_from={{ route_board.range_start|date:'Y-m-d' }}&route_to={{ route_board.range_end|date:'Y-m-d' }}{% endif %}"
@@ -1263,7 +1288,7 @@
     <div class="card-body p-3 jp-team-filter-body">
       <input type="hidden" name="mode" value="{{ mode }}">
       <input type="hidden" name="tab" value="{{ tab }}">
-      {% if tab == 'queue' or tab == 'released' or tab == 'subcontract' %}
+      {% if tab == 'queue' or tab == 'subcontract' %}
       <div class="jp-team-filter-dates">
         <div>
           <label class="form-label fw-bold small mb-1" for="jp-pb-date-from">Từ ngày</label>
@@ -1286,7 +1311,7 @@
                  class="form-control form-control-sm"
                  placeholder="Mã đơn, khách, sản phẩm, nguyên phụ liệu…" autocomplete="off">
         </div>
-        {% if tab == 'queue' or tab == 'released' %}
+        {% if tab == 'queue' %}
         <div class="jp-team-filter-org">
           <label class="form-label fw-bold small mb-1" for="jp-pb-filter-priority">Mức độ gấp</label>
           <select id="jp-pb-filter-priority" name="priority_filter" class="form-select form-select-sm">
@@ -1368,16 +1393,16 @@
         </a>
       </div>
       {% endif %}
-      {% if tab == 'released' and filter_date_from and filter_date_to %}
+      {% if tab == 'queue' and filter_date_from and filter_date_to %}
       <div class="jp-pb-date-shift" aria-label="Chuyển tháng">
-        <a href="?mode={{ mode }}&amp;tab=released{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% if priority_filter %}&amp;priority_filter={{ priority_filter|urlencode }}{% endif %}{% if npl_filter %}&amp;npl_status={{ npl_filter|urlencode }}{% endif %}{% if tech_filter %}&amp;tech={{ tech_filter|urlencode }}{% endif %}{% if deadline_filter %}&amp;deadline={{ deadline_filter|urlencode }}{% endif %}&amp;date_from={{ filter_prev_from|date:'Y-m-d' }}&amp;date_to={{ filter_prev_to|date:'Y-m-d' }}"
+        <a href="?mode={{ mode }}&amp;tab=queue{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% if priority_filter %}&amp;priority_filter={{ priority_filter|urlencode }}{% endif %}{% if npl_filter %}&amp;npl_status={{ npl_filter|urlencode }}{% endif %}{% if tech_filter %}&amp;tech={{ tech_filter|urlencode }}{% endif %}{% if deadline_filter %}&amp;deadline={{ deadline_filter|urlencode }}{% endif %}&amp;date_from={{ filter_prev_from|date:'Y-m-d' }}&amp;date_to={{ filter_prev_to|date:'Y-m-d' }}"
            title="Tháng trước"><i class="bi bi-chevron-left"></i></a>
         <span title="{{ filter_date_from|date:'d/m/Y' }} – {{ filter_date_to|date:'d/m/Y' }}">{{ filter_month_label }}</span>
-        <a href="?mode={{ mode }}&amp;tab=released{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% if priority_filter %}&amp;priority_filter={{ priority_filter|urlencode }}{% endif %}{% if npl_filter %}&amp;npl_status={{ npl_filter|urlencode }}{% endif %}{% if tech_filter %}&amp;tech={{ tech_filter|urlencode }}{% endif %}{% if deadline_filter %}&amp;deadline={{ deadline_filter|urlencode }}{% endif %}&amp;date_from={{ filter_next_from|date:'Y-m-d' }}&amp;date_to={{ filter_next_to|date:'Y-m-d' }}"
+        <a href="?mode={{ mode }}&amp;tab=queue{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% if priority_filter %}&amp;priority_filter={{ priority_filter|urlencode }}{% endif %}{% if npl_filter %}&amp;npl_status={{ npl_filter|urlencode }}{% endif %}{% if tech_filter %}&amp;tech={{ tech_filter|urlencode }}{% endif %}{% if deadline_filter %}&amp;deadline={{ deadline_filter|urlencode }}{% endif %}&amp;date_from={{ filter_next_from|date:'Y-m-d' }}&amp;date_to={{ filter_next_to|date:'Y-m-d' }}"
            title="Tháng sau"><i class="bi bi-chevron-right"></i></a>
         {% if not filter_is_current_month and this_month_from and this_month_to %}
         <a class="jp-pb-month-now"
-           href="?mode={{ mode }}&amp;tab=released{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% if priority_filter %}&amp;priority_filter={{ priority_filter|urlencode }}{% endif %}{% if npl_filter %}&amp;npl_status={{ npl_filter|urlencode }}{% endif %}{% if tech_filter %}&amp;tech={{ tech_filter|urlencode }}{% endif %}{% if deadline_filter %}&amp;deadline={{ deadline_filter|urlencode }}{% endif %}&amp;date_from={{ this_month_from|date:'Y-m-d' }}&amp;date_to={{ this_month_to|date:'Y-m-d' }}"
+           href="?mode={{ mode }}&amp;tab=queue{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% if priority_filter %}&amp;priority_filter={{ priority_filter|urlencode }}{% endif %}{% if npl_filter %}&amp;npl_status={{ npl_filter|urlencode }}{% endif %}{% if tech_filter %}&amp;tech={{ tech_filter|urlencode }}{% endif %}{% if deadline_filter %}&amp;deadline={{ deadline_filter|urlencode }}{% endif %}&amp;date_from={{ this_month_from|date:'Y-m-d' }}&amp;date_to={{ this_month_to|date:'Y-m-d' }}"
            title="Về tháng hiện tại">Tháng này</a>
         {% endif %}
       </div>
@@ -1408,7 +1433,7 @@
           <div>
             <div class="jp-pb-title-row">
               <a class="jp-pb-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
-              {% if row.order.plan_status == 'on_hold' %}
+              {% if row.order.plan_status != 'queued' and row.order.plan_status != 'ranked' %}
               <span class="jp-pb-status">{{ row.order.get_plan_status_display }}</span>
               {% endif %}
               {% if row.order.plan_status == 'on_hold' and row.order.plan_hold_reason %}
@@ -1432,7 +1457,7 @@
             {% endif %}
           </div>
           {% endif %}
-          {% if can_schedule or can_release and row.order.plan_status != 'on_hold' and not row.missing_bom and not row.missing_ops %}
+          {% if can_schedule or row.is_released or can_release and row.in_queue and row.order.plan_status != 'on_hold' and not row.missing_bom and not row.missing_ops %}
           <div class="jp-pb-side-cta">
             {% if can_schedule %}
             <div class="jp-pb-prio is-{{ row.order.plan_priority }}">
@@ -1446,22 +1471,11 @@
                   {% endfor %}
                 </select>
               </form>
-              <form method="post" class="jp-pb-color-form" title="Tạo màu lộ trình">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="set_color">
-                <input type="hidden" name="order_id" value="{{ row.order.pk }}">
-                <input type="hidden" name="mode" value="{{ mode }}">
-                <input type="hidden" name="tab" value="{{ tab }}">
-                {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
-                <input type="color" name="color"
-                       value="{{ row.order.plan_color|default:'#dc2626' }}"
-                       aria-label="Tạo màu đơn {{ row.order.code }}"
-                       onchange="this.form.submit()">
-              </form>
             </div>
             {% else %}
             <span class="jp-pb-urgency is-{{ row.order.plan_priority }}">{{ row.order.get_plan_priority_display }}</span>
             {% endif %}
+            {% if row.in_queue %}
             {% if can_schedule or can_release %}
             {% if row.order.plan_status != 'on_hold' %}
             <form method="post" class="jp-pb-reload-form"
@@ -1486,48 +1500,7 @@
                     data-order-code="{{ row.order.code }}"
                     data-products-id="{{ row.release_script_id }}">Chuyển SX</button>
             {% endif %}
-          </div>
-          {% endif %}
-        </div>
-      </div>
-      <div class="jp-pb-ticket-body">
-        {% include 'san_xuat/includes/plan_board_ticket_timeline.html' %}
-        {% if row.missing_bom or row.missing_ops %}
-          {% include 'san_xuat/includes/plan_board_operation_details.html' with allow_attach=True %}
-        {% endif %}
-        {% if npl_open_id == row.order.pk %}
-          {% include 'san_xuat/includes/plan_board_npl.html' %}
-        {% endif %}
-      </div>
-    </article>
-    {% empty %}
-    <div class="jp-pb-empty">
-      Chưa có đơn trong hàng đợi.
-      <a href="{% url 'san_xuat:sales_order_confirm_list' %}">Xác nhận đơn đặt hàng</a>
-    </div>
-    {% endfor %}
-  </div>
-  {% endif %}
-
-  {% if tab == 'released' %}
-  <div class="jp-pb-list">
-    {% for row in released_rows %}
-    <article class="jp-pb-ticket is-{{ row.order.plan_priority }}{% if row.is_overdue %} is-overdue{% endif %}">
-      <div class="jp-pb-ticket-head">
-        <div class="jp-pb-ticket-lead">
-          {% include 'san_xuat/includes/plan_board_product_images.html' %}
-          <div>
-            <div class="jp-pb-title-row">
-              <a class="jp-pb-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
-              <span class="jp-pb-status">{{ row.order.get_plan_status_display }}</span>
-            </div>
-            <div class="jp-pb-customer mt-1">{{ row.order.customer_name|default:"—" }}</div>
-          </div>
-        </div>
-        {% include 'san_xuat/includes/plan_board_ticket_times.html' %}
-        <div class="jp-pb-side">
-          <div class="jp-pb-side-cta">
-            <span class="jp-pb-urgency is-{{ row.order.plan_priority }}">{{ row.order.get_plan_priority_display }}</span>
+            {% elif row.is_released %}
             {% if row.mo_count %}
               <a href="{% url 'san_xuat:order_progress_order' row.order.pk %}" class="btn btn-hm btn-sm fw-bold">Tiến độ</a>
             {% endif %}
@@ -1536,7 +1509,7 @@
                   onsubmit="return confirm('Hủy chuyển SX {{ row.order.code }}?\nCác lệnh sản xuất sẽ bị hủy và đơn về hàng đợi để sửa.');">
               {% csrf_token %}
               <input type="hidden" name="mode" value="list">
-              <input type="hidden" name="tab" value="released">
+              <input type="hidden" name="tab" value="{{ tab }}">
               {% if filter_date_from %}<input type="hidden" name="date_from" value="{{ filter_date_from|date:'Y-m-d' }}">{% endif %}
               {% if filter_date_to %}<input type="hidden" name="date_to" value="{{ filter_date_to|date:'Y-m-d' }}">{% endif %}
               <input type="hidden" name="action" value="unrelease">
@@ -1545,22 +1518,26 @@
             </form>
             {% endif %}
             <a href="{% url 'san_xuat:dispatch_mo' %}?q={{ row.order.code|urlencode }}" class="btn btn-outline-secondary btn-sm">Lệnh SX</a>
+            {% endif %}
           </div>
+          {% endif %}
         </div>
       </div>
       <div class="jp-pb-ticket-body">
+        {% include 'san_xuat/includes/plan_board_ticket_prep.html' %}
         {% include 'san_xuat/includes/plan_board_ticket_timeline.html' %}
-        {% if npl_open_id == row.order.pk %}
-          {% include 'san_xuat/includes/plan_board_npl.html' %}
+        {% if row.missing_bom or row.missing_ops %}
+          {% include 'san_xuat/includes/plan_board_operation_details.html' with allow_attach=True %}
         {% endif %}
       </div>
     </article>
     {% empty %}
     <div class="jp-pb-empty">
-      {% if search_query or filter_date_from %}
-        Không có đơn trong khoảng lọc.
+      {% if search_query or priority_filter or npl_filter or tech_filter or deadline_filter %}
+        Không có đơn khớp bộ lọc.
       {% else %}
-        Chưa có đơn chuyển xuống sản xuất. Vào tab <strong>Hàng đợi</strong> và bấm <strong>Chuyển SX</strong>.
+        Không có đơn chờ xếp hoặc đơn sản xuất trong tháng này.
+        <a href="{% url 'san_xuat:sales_order_confirm_list' %}">Xác nhận đơn đặt hàng</a>
       {% endif %}
     </div>
     {% endfor %}

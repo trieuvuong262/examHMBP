@@ -72,12 +72,12 @@ def total_npl_lead_days(*, lines, kit_days: int) -> int:
 
 
 def production_start_for_order(order: SxSalesOrder, *, today: date | None = None) -> date:
-    """Neo ngày bắt đầu tổ SX = max(plan_start|request, npl_ready nếu đã tính)."""
+    """Neo ngày bắt đầu tổ SX = plan_start / ngày yêu cầu / hôm nay.
+
+    Không chờ NPL sẵn — một số công đoạn làm trước khi chuẩn bị NPL xong.
+    """
     today = today or timezone.localdate()
-    intent = order.plan_start_date or order.request_date or today
-    if order.npl_status == SxSalesOrder.NPL_READY and order.npl_ready_date:
-        return max(intent, order.npl_ready_date)
-    return intent
+    return order.plan_start_date or order.request_date or today
 
 
 @dataclass

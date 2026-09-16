@@ -1,4 +1,12 @@
 <style>
+  .jp-stage-cat { --st: #2563eb; --st-soft: #dbeafe; }
+  .jp-stage-inep { --st: #7c3aed; --st-soft: #ede9fe; }
+  .jp-stage-theu { --st: #db2777; --st-soft: #fce7f3; }
+  .jp-stage-may { --st: #e11d48; --st-soft: #ffe4e6; }
+  .jp-stage-ht { --st: #d97706; --st-soft: #fef3c7; }
+  .jp-stage-gh { --st: #0f766e; --st-soft: #ccfbf1; }
+  .jp-stage-kho { --st: #16a34a; --st-soft: #dcfce7; }
+
   .jp-tl {
     --tl-ink:#0f172a; --tl-muted:#64748b; --tl-line:#eef2f6; --tl-soft:#f8fafc;
     --tl-today:#dc2626; --tl-label:11.25rem; --tl-day:6.5rem;
@@ -324,7 +332,7 @@
   /* Lộ trình KHSX: lưới lớn, màu theo đơn, 2 hàng bộ phận / mã hàng. */
   .jp-pb-route.jp-tl {
     --tl-label: 14rem;
-    --tl-day: 8.35rem;
+    --tl-day: 2.5rem;
     --tl-line: #e2e8f0;
   }
   .jp-pb-route .jp-tl-wrap {
@@ -333,23 +341,24 @@
   }
   .jp-pb-route .jp-tl-chart {
     --tl-month-h: 1.85rem;
-    --tl-row-h: 3.75rem;
+    --tl-row-h: 4.85rem;
     --tl-bar-h: 2.55rem;
     --tl-track: #dc2626;
     --tl-track-soft: #fef2f2;
+    grid-template-columns: var(--tl-label) repeat(var(--tl-days), var(--tl-day));
     grid-template-rows: var(--tl-month-h) auto;
     grid-auto-rows: var(--tl-row-h);
   }
-  .jp-pb-route .jp-tl-track-0 { --tl-track: #dc2626; --tl-track-soft: #fef2f2; }
-  .jp-pb-route .jp-tl-track-1 { --tl-track: #2563eb; --tl-track-soft: #eff6ff; }
-  .jp-pb-route .jp-tl-track-2 { --tl-track: #059669; --tl-track-soft: #ecfdf5; }
-  .jp-pb-route .jp-tl-track-3 { --tl-track: #d97706; --tl-track-soft: #fffbeb; }
-  .jp-pb-route .jp-tl-track-4 { --tl-track: #7c3aed; --tl-track-soft: #f5f3ff; }
-  .jp-pb-route .jp-tl-track-5 { --tl-track: #db2777; --tl-track-soft: #fdf2f8; }
-  .jp-pb-route .jp-tl-track-6 { --tl-track: #0f766e; --tl-track-soft: #f0fdfa; }
-  .jp-pb-route .jp-tl-track-7 { --tl-track: #ea580c; --tl-track-soft: #fff7ed; }
-  .jp-pb-route .jp-tl-track-8 { --tl-track: #4f46e5; --tl-track-soft: #eef2ff; }
-  .jp-pb-route .jp-tl-track-9 { --tl-track: #4d7c0f; --tl-track-soft: #f7fee7; }
+  .jp-pb-route .jp-tl-track-0,
+  .jp-pb-route .jp-tl-track-1,
+  .jp-pb-route .jp-tl-track-2,
+  .jp-pb-route .jp-tl-track-3,
+  .jp-pb-route .jp-tl-track-4,
+  .jp-pb-route .jp-tl-track-5,
+  .jp-pb-route .jp-tl-track-6,
+  .jp-pb-route .jp-tl-track-7,
+  .jp-pb-route .jp-tl-track-8,
+  .jp-pb-route .jp-tl-track-9 { --tl-track: #64748b; --tl-track-soft: #f8fafc; }
   .jp-pb-route .jp-tl-corner {
     font-size: .72rem;
     padding: 0 1rem .5rem;
@@ -359,11 +368,11 @@
     letter-spacing: .02em;
   }
   .jp-pb-route .jp-tl-day {
-    padding: .28rem 0 .35rem;
+    padding: .08rem 0 .1rem;
     border-bottom: 1px solid #e2e8f0;
   }
-  .jp-pb-route .jp-tl-day .n { font-size: .88rem; }
-  .jp-pb-route .jp-tl-day .w { font-size: .66rem; }
+  .jp-pb-route .jp-tl-day .n { font-size: .58rem; }
+  .jp-pb-route .jp-tl-day .w { font-size: .46rem; }
   .jp-pb-route .jp-tl-line.is-week-start { box-shadow: inset 2px 0 0 #94a3b8; }
   .jp-pb-route .jp-tl-day.is-today {
     background: #fff1f2;
@@ -371,14 +380,14 @@
   }
   .jp-pb-route .jp-tl-label {
     flex-direction: row;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     align-items: center;
     gap: .38rem;
     padding: .28rem .55rem .28rem .6rem;
-    overflow: hidden;
-    border-left-width: 4px;
-    border-left-color: var(--tl-track);
-    background: var(--tl-track-soft);
+    overflow: visible;
+    border-left-width: 3px;
+    border-left-color: #e2e8f0;
+    background: #fff;
   }
   .jp-pb-route .jp-tl-products { margin: 0; flex: 0 0 auto; }
   .jp-pb-route .jp-tl-product {
@@ -448,6 +457,26 @@
     min-width: 0;
     gap: .05rem;
   }
+  .jp-pb-route .jp-tl-prep {
+    flex: 1 1 100%;
+    z-index: 8;
+  }
+  .jp-pb-route .jp-tl-prep > summary {
+    background: #fff;
+    color: #334155;
+    border-color: #e2e8f0;
+  }
+  .jp-pb-route .jp-tl-prep[open] > summary {
+    border-color: #fecaca;
+    color: #9f1239;
+    background: #fff1f2;
+  }
+  .jp-pb-route .jp-tl-prep > ul {
+    z-index: 12;
+    min-width: 13rem;
+    max-height: 16rem;
+    overflow: auto;
+  }
   .jp-pb-route .jp-tl-st {
     display: block;
     width: auto;
@@ -471,13 +500,13 @@
     min-height: var(--tl-row-h);
     padding: 0;
     justify-content: center;
-    background: var(--tl-track-soft);
+    background: #f8fafc;
   }
   .jp-pb-route .jp-tl-slot.is-weekend {
-    background: color-mix(in srgb, var(--tl-track-soft) 35%, #f8fafc);
+    background: #f1f5f9;
   }
   .jp-pb-route .jp-tl-slot.is-today {
-    background: color-mix(in srgb, var(--tl-track-soft) 40%, #fef2f2);
+    background: #fff7ed;
   }
   .jp-pb-route .jp-tl-bar {
     align-self: center;
@@ -486,11 +515,11 @@
     max-height: var(--tl-bar-h);
     flex-direction: column;
     gap: .02rem;
-    padding: .12rem .4rem .14rem;
-    margin: 0 2px;
-    border-radius: .4rem;
-    background: var(--tl-track);
-    box-shadow: 0 2px 6px color-mix(in srgb, var(--tl-track) 35%, transparent);
+    padding: .08rem .1rem .1rem;
+    margin: 0 1px;
+    border-radius: .28rem;
+    background: var(--st, #64748b);
+    box-shadow: 0 2px 6px color-mix(in srgb, var(--st, #64748b) 35%, transparent);
   }
   .jp-pb-route .jp-tl-bar-name {
     font-size: .72rem;
@@ -507,14 +536,14 @@
     opacity: .92;
   }
   .jp-pb-route .jp-tl-bar.is-npl {
-    background: var(--tl-track-soft);
-    color: var(--tl-track);
-    box-shadow: inset 0 0 0 1.5px var(--tl-track);
+    background: var(--st-soft, #f8fafc);
+    color: var(--st, #334155);
+    box-shadow: inset 0 0 0 1.5px var(--st, #64748b);
   }
   .jp-pb-route .jp-tl-bar.is-npl .jp-tl-bar-code { opacity: .8; }
   .jp-pb-route .jp-tl-bar.is-late {
-    background: var(--tl-track);
-    box-shadow: 0 2px 6px color-mix(in srgb, var(--tl-track) 35%, transparent), inset 0 0 0 2px #7f1d1d;
+    background: var(--st, #64748b);
+    box-shadow: 0 2px 6px color-mix(in srgb, var(--st, #64748b) 35%, transparent), inset 0 0 0 2px #7f1d1d;
   }
   .jp-pb-route .jp-tl-bar.is-late::after {
     content: '';
@@ -524,8 +553,8 @@
     border-left: .7rem solid transparent;
   }
   .jp-pb-route .jp-tl-bar.is-late.is-npl {
-    background: var(--tl-track-soft);
-    color: var(--tl-track);
+    background: var(--st-soft, #f8fafc);
+    color: var(--st, #334155);
   }
   .jp-pb-route .jp-tl-chart.is-order-focus .jp-tl-bar,
   .jp-pb-route .jp-tl-chart.is-order-focus .jp-tl-label {

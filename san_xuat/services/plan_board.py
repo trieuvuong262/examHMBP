@@ -135,6 +135,13 @@ QUEUE_STATUSES = (
     SxSalesOrder.PLAN_ON_HOLD,
 )
 
+# Tab kế hoạch gộp hàng đợi + đã chuyển SX
+BOARD_LIST_STATUSES = QUEUE_STATUSES + (
+    SxSalesOrder.PLAN_RELEASED,
+    SxSalesOrder.PLAN_IN_PROGRESS,
+    SxSalesOrder.PLAN_DONE,
+)
+
 ACTIVE_MO_STATUSES = (
     SxProductionOrder.STATUS_DRAFT,
     SxProductionOrder.STATUS_RELEASED,
@@ -278,6 +285,39 @@ class PlanBoardRow:
     show_npl_uom_col: bool = False
     timeline_steps: list = field(default_factory=list)
 
+    @property
+    def in_queue(self) -> bool:
+        return self.order.plan_status in QUEUE_STATUSES
+
+    @property
+    def is_released(self) -> bool:
+        return self.order.plan_status in (
+            SxSalesOrder.PLAN_RELEASED,
+            SxSalesOrder.PLAN_IN_PROGRESS,
+            SxSalesOrder.PLAN_DONE,
+        )
+
+    @property
+    def can_adjust_timeline(self) -> bool:
+        return self.order.plan_status not in (
+            SxSalesOrder.PLAN_ON_HOLD,
+            SxSalesOrder.PLAN_DONE,
+        )
+
+    @property
+    def can_edit_npl(self) -> bool:
+        return self.order.plan_status in (
+            SxSalesOrder.PLAN_QUEUED,
+            SxSalesOrder.PLAN_RANKED,
+        )
+
+    @property
+    def npl_step(self):
+        for step in self.timeline_steps:
+            if getattr(step, 'kind', '') == 'npl':
+                return step
+        return None
+
 
 @dataclass
 class PlanProductFlow:
@@ -329,7 +369,7 @@ class TeamKhsxSpan:
 
 @dataclass
 class TicketTimelineStep:
-    """Một nấc trên timeline ticket KHSX: NPL → tổ → nhập kho."""
+    """Một nấc trên timeline ticket KHSX: tổ → nhập kho. NPL tách khỏi trục công đoạn."""
 
     slug: str
     kind: str
@@ -1049,8 +1089,6 @@ def build_plan_board_rows(
 
     term = (search or '').strip()
     if term:
-        from django.db.models import Q
-
         qs = qs.filter(
             Q(code__icontains=term)
             | Q(customer_name__icontains=term)
@@ -1064,10 +1102,13 @@ def build_plan_board_rows(
         qs = qs.annotate(
             _plan_anchor=Coalesce('plan_start_date', 'request_date'),
         )
+        date_q = Q()
         if date_from:
-            qs = qs.filter(_plan_anchor__gte=date_from)
+            date_q &= Q(_plan_anchor__gte=date_from)
         if date_to:
-            qs = qs.filter(_plan_anchor__lte=date_to)
+            date_q &= Q(_plan_anchor__lte=date_to)
+        # Hàng đợi luôn hiện; đơn đã chuyển SX lọc theo tháng KHSX.
+        qs = qs.filter(Q(plan_status__in=QUEUE_STATUSES) | date_q)
 
     today = timezone.localdate()
     rows: list[PlanBoardRow] = []
@@ -1196,8 +1237,15 @@ def build_plan_board_rows(
             today=today,
         )
         if team_spans:
-            khsx_start = min(s.start for s in team_spans)
-            khsx_end = max(s.end for s in team_spans)
+            prod_spans = [s for s in team_spans if s.slug != 'npl' and s.start]
+            if not prod_spans:
+                prod_spans = [s for s in team_spans if s.start]
+            if prod_spans:
+                khsx_start = min(s.start for s in prod_spans)
+                khsx_end = max((s.end or s.start) for s in prod_spans)
+            else:
+                khsx_start = order.plan_start_date or order.request_date or today
+                khsx_end = khsx_start
         else:
             khsx_start = order.plan_start_date or order.request_date or today
             khsx_end = khsx_start
@@ -1549,15 +1597,13 @@ def save_plan_hops(*, order_id: int, hops: list[dict]) -> list[SxSalesOrderPlanS
     from san_xuat.services.plan_route import ensure_order_plan_steps
 
     order = SxSalesOrder.objects.select_for_update().get(pk=order_id, is_demo=False)
-    if order.confirm_status != SxSalesOrder.CONFIRM_CONFIRMED:
-        raise PlanningError('Chỉ chỉnh thời gian chuyển CĐ trên đơn đã xác nhận.')
-    if order.plan_status == SxSalesOrder.PLAN_DONE:
-        raise PlanningError('Đơn đã hoàn thành.')
+    _assert_schedule_editable(order)
     steps = ensure_order_plan_steps(order)
     if len(steps) < 2:
         raise PlanningError('Đơn chưa có đủ công đoạn để khai báo khoảng chuyển.')
     by_id = {s.pk: s for s in steps}
     updated = 0
+    first_touched = None
     for raw in hops or []:
         try:
             sid = int(raw.get('step_id') or 0)
@@ -1585,9 +1631,13 @@ def save_plan_hops(*, order_id: int, hops: list[dict]) -> list[SxSalesOrderPlanS
         step.count_minutes = count
         step.transfer_minutes = transfer
         step.save(update_fields=['count_minutes', 'transfer_minutes'])
+        if first_touched is None or (step.sequence, step.pk) < (first_touched.sequence, first_touched.pk):
+            first_touched = step
         updated += 1
     if not updated:
         raise PlanningError('Không cập nhật được khoảng công đoạn.')
+    origin = _plan_step_team_slug(first_touched) if first_touched is not None else ''
+    _reflow_order_from(order, origin_slug=origin)
     return list(order.plan_steps.order_by('sequence', 'id'))
 
 
@@ -2079,41 +2129,41 @@ def unrelease_order_from_production(*, order_id: int) -> tuple[SxSalesOrder, int
 
 @transaction.atomic
 def reschedule_order_plan_start(*, order_id: int, start_date: date) -> SxSalesOrder:
-    """Kéo thả lộ trình: neo ngày bắt đầu KHSX (chỉ đơn chưa chuyển SX)."""
+    """Kéo thả lộ trình: neo ngày bắt đầu KHSX, dồn các công đoạn sau."""
     if not isinstance(start_date, date):
         raise PlanningError('Ngày bắt đầu không hợp lệ.')
     order = SxSalesOrder.objects.select_for_update().get(pk=order_id, is_demo=False)
-    if order.confirm_status != SxSalesOrder.CONFIRM_CONFIRMED:
-        raise PlanningError('Chỉ xếp lịch đơn đã xác nhận.')
-    if order.plan_status not in QUEUE_STATUSES:
-        raise PlanningError('Chỉ kéo thả đơn chưa chuyển SX.')
-    if order.production_orders.filter(is_demo=False).exclude(
-        status=SxProductionOrder.STATUS_CANCELLED,
-    ).exists():
-        raise PlanningError('Đơn đã có LSX — hủy chuyển SX trước khi xếp lại lịch.')
-    order.plan_start_date = start_date
-    order.save(update_fields=['plan_start_date', 'updated_at'])
-    return order
+    _assert_schedule_editable(order)
+    return _reflow_order_from(order, origin_slug='', origin_start=start_date)
 
 
 @transaction.atomic
 def reschedule_order_team_start(*, order_id: int, start_date: date, team_slug: str = '') -> SxSalesOrder:
-    """Kéo một tổ trên lộ trình — các tổ khác giữ nguyên ngày, được chồng lịch."""
+    """Kéo một tổ trên lộ trình — các tổ khác giữ nguyên ngày."""
     if not isinstance(start_date, date):
         raise PlanningError('Ngày bắt đầu không hợp lệ.')
     order = SxSalesOrder.objects.select_for_update().get(pk=order_id, is_demo=False)
+    _assert_schedule_editable(order)
+    slug = (team_slug or '').strip().lower()
+    if slug == 'npl':
+        raise PlanningError('Không kéo thanh chuẩn bị NPL — sửa ngày mua trên kế hoạch.')
+    if not slug:
+        return _reflow_order_from(order, origin_slug='', origin_start=start_date)
+    return _move_team_start_independent(order, slug=slug, start_date=start_date)
+
+
+def _assert_schedule_editable(order: SxSalesOrder) -> None:
     if order.confirm_status != SxSalesOrder.CONFIRM_CONFIRMED:
         raise PlanningError('Chỉ xếp lịch đơn đã xác nhận.')
-    if order.plan_status not in QUEUE_STATUSES:
-        raise PlanningError('Chỉ kéo thả đơn chưa chuyển SX.')
-    if order.production_orders.filter(is_demo=False).exclude(
-        status=SxProductionOrder.STATUS_CANCELLED,
-    ).exists():
-        raise PlanningError('Đơn đã có LSX — hủy chuyển SX trước khi xếp lại lịch.')
+    if order.plan_status == SxSalesOrder.PLAN_DONE:
+        raise PlanningError('Đơn đã hoàn thành — không chỉnh lộ trình.')
+    if order.plan_status == SxSalesOrder.PLAN_ON_HOLD:
+        raise PlanningError('Đơn đang tạm giữ — bỏ giữ trước khi chỉnh lộ trình.')
 
+
+def _load_schedule_steps(order: SxSalesOrder):
     from san_xuat.services.inter_step_times import attach_group_codes_from_routing
     from san_xuat.services.plan_route import ensure_order_plan_steps
-    from san_xuat.services.work_calendar import next_working_day
 
     steps = ensure_order_plan_steps(order)
     routing_lines = [
@@ -2126,32 +2176,128 @@ def reschedule_order_team_start(*, order_id: int, start_date: date, team_slug: s
     ]
     if dirty_gc:
         SxSalesOrderPlanStep.objects.bulk_update(dirty_gc, ['group_code'])
+    return steps
+
+
+def _move_team_start_independent(
+    order: SxSalesOrder, *, slug: str, start_date: date,
+) -> SxSalesOrder:
+    """Ghim ngày mọi tổ đang hiện, rồi chỉ dịch tổ được kéo."""
+    from san_xuat.services.work_calendar import next_working_day
+
+    steps = _load_schedule_steps(order)
     spans = team_khsx_spans(order, plan_steps=steps)
     prod = [s for s in spans if s.slug != 'npl']
-    if not prod:
-        raise PlanningError('Đơn chưa có tổ trên Ob để xếp lịch.')
-    slug = (team_slug or '').strip().lower()
-    if not slug:
-        slug = prod[0].slug
-    if slug == 'npl':
-        raise PlanningError('Không kéo thanh chuẩn bị NPL — sửa ngày mua trên hàng đợi.')
     if slug not in {s.slug for s in prod}:
         raise PlanningError('Tổ này không tham gia đơn.')
-
-    # Ghim ngày hiện tại của mọi tổ rồi chỉ đổi tổ đang kéo — các tổ khác không đi theo.
-    starts_by_slug = {s.slug: s.start for s in prod}
-    starts_by_slug[slug] = next_working_day(start_date)
-    written = _write_team_planned_dates(steps, starts_by_slug, require_slug=slug)
+    starts: dict[str, date] = {
+        span.slug: span.start for span in prod if span.start
+    }
+    starts[slug] = next_working_day(start_date)
+    written = _write_team_planned_dates(steps, starts, require_slug=slug)
     if written <= 0:
         raise PlanningError('Không gán được công đoạn của tổ này.')
+    return _sync_schedule_to_mos(order, starts)
+
+
+def _sync_schedule_to_mos(order: SxSalesOrder, starts: dict[str, date]) -> SxSalesOrder:
+    from san_xuat.services.capacity_from_hrm import team_slug_for_work_center
+    from san_xuat.services.progress_template import team_slug_for_process_label
 
     steps = list(order.plan_steps.select_related('work_center').order_by('sequence', 'id'))
     spans = team_khsx_spans(order, plan_steps=steps)
-    starts = [s.start for s in spans if s.start and s.slug != 'npl']
-    if starts:
-        order.plan_start_date = min(starts)
+    prod = [s for s in spans if s.slug != 'npl' and s.start]
+    if not prod:
+        return order
+    pstart = min(s.start for s in prod)
+    pend = max((s.end or s.start) for s in prod)
+    if order.plan_start_date != pstart:
+        order.plan_start_date = pstart
         order.save(update_fields=['plan_start_date', 'updated_at'])
+    mos = order.production_orders.filter(is_demo=False).exclude(
+        status=SxProductionOrder.STATUS_CANCELLED,
+    )
+    for mo in mos:
+        fields: list[str] = []
+        if mo.planned_start != pstart:
+            mo.planned_start = pstart
+            fields.append('planned_start')
+        if mo.planned_end != pend:
+            mo.planned_end = pend
+            fields.append('planned_end')
+        if fields:
+            mo.save(update_fields=fields)
+        for step in mo.mo_process_steps.select_related('work_center'):
+            st_slug = (
+                team_slug_for_process_label(step.process_name or '')
+                or team_slug_for_work_center(step.work_center)
+                or ''
+            ).strip().lower()
+            new_date = starts.get(st_slug)
+            if new_date and step.planned_date != new_date:
+                step.planned_date = new_date
+                step.save(update_fields=['planned_date'])
     return order
+
+
+def _reflow_order_from(
+    order: SxSalesOrder,
+    *,
+    origin_slug: str = '',
+    origin_start: date | None = None,
+) -> SxSalesOrder:
+    """Giữ ngày tổ đang sửa, dồn các tổ sau theo quỹ phút + ngày làm việc."""
+    from san_xuat.services.inter_step_times import schedule_span
+    from san_xuat.services.work_calendar import next_working_day
+
+    steps = _load_schedule_steps(order)
+    spans = team_khsx_spans(order, plan_steps=steps)
+    prod = [s for s in spans if s.slug != 'npl']
+    if not prod:
+        return order
+    slug = (origin_slug or '').strip().lower() or prod[0].slug
+    if slug not in {s.slug for s in prod}:
+        raise PlanningError('Tổ này không tham gia đơn.')
+
+    starts: dict[str, date] = {}
+    prev_end = None
+    passed = False
+    for span in prod:
+        if span.slug == slug:
+            passed = True
+            raw = origin_start if origin_start is not None else span.start
+            if raw is None:
+                raw = timezone.localdate()
+            start = next_working_day(raw)
+            start, end = schedule_span(
+                start=start,
+                lead_minutes=span.minutes,
+                minutes_per_day=PLAN_SHIFT_MINUTES,
+            )
+            starts[span.slug] = start
+            prev_end = end
+            continue
+        if not passed:
+            if span.start:
+                starts[span.slug] = span.start
+            prev_end = span.end or span.start
+            continue
+        cursor = (
+            _next_working_day_after(prev_end)
+            if prev_end else next_working_day(timezone.localdate())
+        )
+        start, end = schedule_span(
+            start=cursor,
+            lead_minutes=span.minutes,
+            minutes_per_day=PLAN_SHIFT_MINUTES,
+        )
+        starts[span.slug] = start
+        prev_end = end
+
+    written = _write_team_planned_dates(steps, starts, require_slug=slug)
+    if written <= 0:
+        raise PlanningError('Không gán được công đoạn của tổ này.')
+    return _sync_schedule_to_mos(order, starts)
 
 
 def load_snapshot_for_board(*, days: int = 14) -> dict:
@@ -2550,6 +2696,8 @@ def build_order_timeline(
         team_spans = list(r.team_spans or [])
         visible_spans = []
         for ts in team_spans:
+            if ts.slug == 'npl':
+                continue
             placed_team = _bar_columns(ts.start, ts.end or ts.start, start, end)
             if placed_team is not None:
                 visible_spans.append((ts, placed_team))
@@ -2596,7 +2744,7 @@ def build_order_timeline(
                 'name': pf.product_name or pf.product_code,
             })
         track_color, track_soft = route_track_pair(r.order)
-        can_drag = r.order.plan_status in QUEUE_STATUSES and r.mo_count == 0
+        can_drag = r.can_adjust_timeline
         span_days = max(1, (bar_end - bar_start).days + 1)
         status_key = r.order.plan_status
         if status_key == SxSalesOrder.PLAN_RANKED:

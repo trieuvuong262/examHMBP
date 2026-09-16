@@ -1,30 +1,39 @@
 #!/usr/bin/env bash
-# Công tắc đường admin VPS: Fortinet (WAN văn phòng) <-> Tailscale.
-# IPsec NAS (strongSwan) không tắt — chỉ siết UDP 500/4500 về IP Fortigate.
+# Swap đường NAS Portal: Fortinet IPsec (LAN) <-> Tailscale.
+# KHÔNG tắt tailscaled — mesh SSH 100.x giữ làm dự phòng.
 #
 #   bash scripts/vps-remote-access-mode.sh status
 #   bash scripts/vps-remote-access-mode.sh fortinet
 #   bash scripts/vps-remote-access-mode.sh tailscale
-#
-# Portal gọi cùng script qua Docker nsenter (PID 1).
 set -euo pipefail
 
 MODE="${1:-status}"
 FORTIGATE_WAN="${FORTIGATE_WAN_IP:-14.161.25.119}"
-TS_CIDR="100.64.0.0/10"
+NAS_LAN="${NAS_LAN_HOST:-192.168.40.252}"
+NAS_TS="${NAS_TS_HOST:-100.90.91.74}"
+HOST_DIR="${HOST_PROJECT_DIR:-/opt/portaljustplay}"
+ENV_FILE="${HOST_DIR}/.env"
+RCLONE_CONF="${RCLONE_CONFIG:-/root/.config/rclone/rclone.conf}"
 STATE_DIR="/etc/portaljustplay"
 STATE_FILE="${STATE_DIR}/remote-access.mode"
+TS_CIDR="100.64.0.0/10"
 
 log() { echo "$@"; }
 
+tcp_open() {
+  timeout 5 bash -c "echo >/dev/tcp/${1}/${2}" 2>/dev/null
+}
+
+write_state() {
+  mkdir -p "$STATE_DIR"
+  echo "$1" > "$STATE_FILE"
+  chmod 644 "$STATE_FILE"
+}
+
 ensure_ufw() {
   if ! command -v ufw >/dev/null 2>&1; then
-    export DEBIAN_FRONTEND=noninteractive
-    apt-get update -qq
-    apt-get install -y -qq ufw
+    return 0
   fi
-  ufw default deny incoming >/dev/null 2>&1 || true
-  ufw default allow outgoing >/dev/null 2>&1 || true
   ufw allow 80/tcp comment 'HTTP' >/dev/null 2>&1 || true
   ufw allow 443/tcp comment 'HTTPS' >/dev/null 2>&1 || true
 }
@@ -32,6 +41,7 @@ ensure_ufw() {
 ensure_rule() {
   local spec="$1"
   local comment="$2"
+  command -v ufw >/dev/null 2>&1 || return 0
   if ufw status 2>/dev/null | grep -Fq "$spec"; then
     log "    giữ: $spec"
     return 0
@@ -40,25 +50,59 @@ ensure_rule() {
   log "    + ufw allow $spec"
 }
 
-delete_matching_ssh_or_ike() {
-  local needle="$1"
-  local pass=0
-  while [[ $pass -lt 12 ]]; do
-    local line num
-    line="$(ufw status numbered 2>/dev/null | grep -F "$needle" | head -1 || true)"
-    [[ -z "$line" ]] && break
-    num="$(echo "$line" | sed -n 's/^\[\s*\([0-9]\+\)\].*/\1/p')"
-    [[ -z "$num" ]] && break
-    ufw --force delete "$num" >/dev/null
-    log "    - ufw delete #$num ($needle)"
-    pass=$((pass + 1))
-  done
+rewrite_nas_hosts() {
+  local new_host="$1"
+  [[ -f "$ENV_FILE" ]] || { echo "ERROR: không thấy ${ENV_FILE}"; exit 1; }
+  cp -a "$ENV_FILE" "${ENV_FILE}.bak.remote-access"
+  python3 - "$ENV_FILE" "$new_host" <<'PY'
+import re, sys
+path, host = sys.argv[1], sys.argv[2]
+text = open(path, encoding='utf-8').read()
+
+def sub_url(m):
+    return f'{m.group(1)}{host}{m.group(2)}'
+
+text, n_url = re.subn(
+    r'^(NAS_DSM_URL=https?://)[^/:\s]+(.*)$', sub_url, text, flags=re.M,
+)
+for key in ('NAS_LDAP_HOST', 'NAS_SSH_HOST', 'NAS_SMB_HOST'):
+    text, n = re.subn(rf'^{key}=.*$', f'{key}={host}', text, flags=re.M)
+    if n == 0 and key != 'NAS_SMB_HOST':
+        text = text.rstrip() + f'\n{key}={host}\n'
+if n_url == 0:
+    if re.search(r'^NAS_DSM_URL=', text, re.M):
+        raise SystemExit('ERROR: NAS_DSM_URL có trong .env nhưng không parse được.')
+    text = text.rstrip() + f'\nNAS_DSM_URL=https://{host}:5556\n'
+open(path, 'w', encoding='utf-8').write(text)
+print(f'    .env NAS host -> {host}')
+PY
+  if [[ -f "$RCLONE_CONF" ]]; then
+    cp -a "$RCLONE_CONF" "${RCLONE_CONF}.bak.remote-access"
+    python3 - "$RCLONE_CONF" "$NAS_TS" "$NAS_LAN" "$new_host" <<'PY'
+import sys
+path, ts, lan, new = sys.argv[1:5]
+old = lan if new == ts else ts
+text = open(path, encoding='utf-8').read()
+text2 = text.replace(f'host = {old}', f'host = {new}')
+if text2 != text:
+    open(path, 'w', encoding='utf-8').write(text2)
+    print(f'    rclone host {old} -> {new}')
+else:
+    print(f'    rclone: không có host = {old} (bỏ qua)')
+PY
+  else
+    log "    rclone.conf không có — bỏ qua"
+  fi
 }
 
-write_state() {
-  mkdir -p "$STATE_DIR"
-  echo "$1" > "$STATE_FILE"
-  chmod 644 "$STATE_FILE"
+recreate_app() {
+  if [[ ! -f "${HOST_DIR}/docker-compose.yml" ]]; then
+    log "    WARN: không thấy docker-compose.yml — restart tay web/worker"
+    return 0
+  fi
+  log "    recreate web + worker để nạp .env mới"
+  docker compose -f "${HOST_DIR}/docker-compose.yml" --project-directory "${HOST_DIR}" \
+    up -d --force-recreate --no-deps web worker
 }
 
 cmd_status() {
@@ -68,60 +112,55 @@ cmd_status() {
   if systemctl is-active --quiet tailscaled 2>/dev/null; then
     ts="on"
   fi
+  local dsm=""
+  if [[ -f "$ENV_FILE" ]]; then
+    dsm="$(grep -E '^NAS_DSM_URL=' "$ENV_FILE" | head -1 | cut -d= -f2- || true)"
+  fi
   echo "mode_file=${file_mode}"
   echo "tailscale=${ts}"
+  echo "nas_dsm_url=${dsm}"
+  echo "nas_lan=${NAS_LAN}"
+  echo "nas_ts=${NAS_TS}"
   echo "fortigate_wan=${FORTIGATE_WAN}"
-  echo "ssh_wan=$(ufw status 2>/dev/null | grep -F "$FORTIGATE_WAN" | grep -c '22' || true)"
-  echo "ssh_tailscale=$(ufw status 2>/dev/null | grep -F "$TS_CIDR" | grep -c '22' || true)"
-  if command -v tailscale >/dev/null 2>&1; then
-    tailscale status --json 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print('tailscale_self='+d.get('Self',{}).get('DNSName',''))" 2>/dev/null || true
-  fi
+  echo "lan_445=$(tcp_open "$NAS_LAN" 445 && echo open || echo closed)"
+  echo "lan_5556=$(tcp_open "$NAS_LAN" 5556 && echo open || echo closed)"
+  echo "ts_5556=$(tcp_open "$NAS_TS" 5556 && echo open || echo closed)"
 }
 
 cmd_fortinet() {
-  log "==> Chế độ Fortinet: SSH chỉ WAN văn phòng, tắt Tailscale"
-  log "    Fortigate WAN: ${FORTIGATE_WAN}"
+  log "==> Swap NAS sang Fortinet IPsec (${NAS_LAN}) — Tailscale giữ chạy"
+  if ! tcp_open "$NAS_LAN" 445 && ! tcp_open "$NAS_LAN" 5556; then
+    echo "ERROR: NAS LAN ${NAS_LAN} chưa thông (445/5556). Không swap. Tailscale không đổi."
+    exit 1
+  fi
   ensure_ufw
-  # 1) Mở SSH WAN trước — tránh tự khóa nếu đang SSH qua Tailscale
   ensure_rule "from ${FORTIGATE_WAN} to any port 22 proto tcp" "SSH Fortinet WAN"
   ensure_rule "from ${FORTIGATE_WAN} to any port 500 proto udp" "IPsec IKE"
   ensure_rule "from ${FORTIGATE_WAN} to any port 4500 proto udp" "IPsec NAT-T"
-  delete_matching_ssh_or_ike "22/tcp                     ALLOW IN    Anywhere"
-  delete_matching_ssh_or_ike "500/udp                    ALLOW IN    Anywhere"
-  delete_matching_ssh_or_ike "4500/udp                   ALLOW IN    Anywhere"
-  delete_matching_ssh_or_ike "500/udp (v6)"
-  delete_matching_ssh_or_ike "4500/udp (v6)"
-  delete_matching_ssh_or_ike "${TS_CIDR}"
-  if ! ufw status | grep -qi 'Status: active'; then
-    ufw --force enable
-  fi
-  ufw reload >/dev/null 2>&1 || true
-  if ! ufw status | grep -F "${FORTIGATE_WAN}" | grep -q '22'; then
-    echo "ERROR: Chưa có rule SSH từ ${FORTIGATE_WAN} — hủy, không tắt Tailscale."
-    exit 1
-  fi
-  systemctl disable --now tailscaled
+  ensure_rule "from ${TS_CIDR} to any port 22 proto tcp" "SSH Tailscale"
+  rewrite_nas_hosts "$NAS_LAN"
+  recreate_app
   write_state fortinet
-  log "    Tailscale đã tắt. IPsec NAS giữ nguyên."
-  ufw status | grep -E '22|500|4500|Status' || true
+  log "    NAS đi ${NAS_LAN}. tailscaled không tắt."
 }
 
 cmd_tailscale() {
-  log "==> Chế độ Tailscale: bật mesh + SSH từ 100.64.0.0/10 (giữ SSH WAN)"
+  log "==> Swap NAS về Tailscale (${NAS_TS}) — Tailscale giữ chạy"
+  if ! systemctl is-active --quiet tailscaled 2>/dev/null; then
+    systemctl enable --now tailscaled
+    command -v tailscale >/dev/null 2>&1 && tailscale up --timeout=25s || true
+  fi
+  if ! tcp_open "$NAS_TS" 445 && ! tcp_open "$NAS_TS" 5556; then
+    echo "ERROR: NAS Tailscale ${NAS_TS} chưa thông. Không swap."
+    exit 1
+  fi
   ensure_ufw
   ensure_rule "from ${FORTIGATE_WAN} to any port 22 proto tcp" "SSH Fortinet WAN"
-  systemctl enable --now tailscaled
-  if command -v tailscale >/dev/null 2>&1; then
-    tailscale up --timeout=25s || log "    WARN: tailscale up chưa xong — kiểm tra sau."
-  fi
   ensure_rule "from ${TS_CIDR} to any port 22 proto tcp" "SSH Tailscale"
-  if ! ufw status | grep -qi 'Status: active'; then
-    ufw --force enable
-  fi
-  ufw reload >/dev/null 2>&1 || true
+  rewrite_nas_hosts "$NAS_TS"
+  recreate_app
   write_state tailscale
-  log "    Tailscale đã bật. SSH WAN văn phòng vẫn giữ."
-  ufw status | grep -E '22|Status' || true
+  log "    NAS đi ${NAS_TS}. tailscaled vẫn chạy."
 }
 
 case "$MODE" in

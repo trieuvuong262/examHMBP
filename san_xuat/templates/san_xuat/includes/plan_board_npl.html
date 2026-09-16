@@ -14,9 +14,9 @@
       Thời gian chuẩn bị
       <input type="number" name="npl_kit_days" min="0" max="120" class="form-control form-control-sm"
              value="{% if row.order.npl_kit_days is not None %}{{ row.order.npl_kit_days }}{% else %}{{ npl_kit_default }}{% endif %}"
-             {% if not can_schedule or row.order.plan_status == 'on_hold' or tab != 'queue' %}readonly{% endif %}>
+             {% if not can_schedule or not row.can_edit_npl %}readonly{% endif %}>
     </label>
-    {% if can_schedule and row.order.plan_status != 'on_hold' and tab == 'queue' %}
+    {% if can_schedule and row.can_edit_npl %}
     <span class="jp-pb-npl-actions">
       <button type="submit" name="action" value="refresh_npl" class="btn btn-outline-secondary btn-sm fw-bold"
               title="Làm mới tồn kho và điền lại cột Đặt (nhu cầu, tối đa bằng tồn).">Load tồn</button>

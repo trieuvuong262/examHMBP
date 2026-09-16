@@ -210,7 +210,7 @@ def save_remote_access_mode_view(request):
 
     mode = (request.POST.get('mode') or '').strip().lower()
     if request.POST.get('confirm') != 'on':
-        messages.error(request, 'Hãy xác nhận trước khi đổi đường SSH.')
+        messages.error(request, 'Hãy xác nhận trước khi đổi đường NAS.')
         return redirect(reverse('audit:login_security') + '?tab=config')
     try:
         result = apply_remote_access_mode(mode)
@@ -222,11 +222,10 @@ def save_remote_access_mode_view(request):
     elif mode == 'fortinet':
         messages.success(
             request,
-            'Đã chuyển Fortinet: Tailscale tắt. SSH chỉ từ WAN văn phòng. '
-            'IPsec NAS không đổi. Máy IT dùng IP public VPS, không còn 100.x.',
+            'Đã swap NAS sang Fortinet IPsec (LAN). Tailscale vẫn chạy — SSH 100.x còn.',
         )
     else:
-        messages.success(request, 'Đã bật lại Tailscale. SSH WAN văn phòng vẫn giữ.')
+        messages.success(request, 'Đã swap NAS về Tailscale. Daemon Tailscale vẫn chạy.')
     return redirect(reverse('audit:login_security') + '?tab=config')
 
 
