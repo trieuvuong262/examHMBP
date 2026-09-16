@@ -1036,7 +1036,7 @@ def team_khsx_spans(
         start = pinned[slug] if is_pinned else defaults[slug][0]
         day_rows = day_plans_by_slug.get(slug) or []
         pieces: list[TeamDayPiece] = []
-        if day_rows:
+        if len(day_rows) >= 2:
             dates = [d.plan_date for d in day_rows if d.plan_date]
             if dates:
                 start = min(dates)
@@ -1047,17 +1047,18 @@ def team_khsx_spans(
                     lead_minutes=row['minutes'],
                     minutes_per_day=PLAN_SHIFT_MINUTES,
                 )
-            if len(day_rows) >= 2:
-                for dp in day_rows:
-                    if not dp.plan_date:
-                        continue
-                    qty = _q(dp.qty)
-                    pieces.append(TeamDayPiece(
-                        plan_date=dp.plan_date,
-                        qty=qty,
-                        qty_label=format_sx_num_input(qty) if qty > 0 else '0',
-                    ))
+            for dp in day_rows:
+                if not dp.plan_date:
+                    continue
+                qty = _q(dp.qty)
+                pieces.append(TeamDayPiece(
+                    plan_date=dp.plan_date,
+                    qty=qty,
+                    qty_label=format_sx_num_input(qty) if qty > 0 else '0',
+                ))
         else:
+            if len(day_rows) == 1 and day_rows[0].plan_date:
+                start = day_rows[0].plan_date
             start, end = schedule_span(
                 start=start,
                 lead_minutes=row['minutes'],

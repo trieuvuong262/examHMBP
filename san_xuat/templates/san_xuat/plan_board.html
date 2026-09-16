@@ -1949,8 +1949,8 @@ document.addEventListener('contextmenu', function (ev) {
           không đổi danh mục năng lực hay lệnh sản xuất đã tạo.
         </p>
         <div class="jp-khsx-cap-span">
-          <div>Bắt đầu <strong id="jpKhsxCapStart">—</strong></div>
-          <div>Kết thúc <strong id="jpKhsxCapEnd">—</strong></div>
+          <div>Bắt đầu dự kiến <strong id="jpKhsxCapStart">—</strong></div>
+          <div>Kết thúc dự kiến <strong id="jpKhsxCapEnd">—</strong></div>
         </div>
         <p class="jp-khsx-cap-hint mb-2" id="jpKhsxCapRef"></p>
         <div class="jp-khsx-cap-row">
@@ -2128,22 +2128,59 @@ document.addEventListener('contextmenu', function (ev) {
     var p = ymd.split('-');
     return (p[2] || '') + '/' + (p[1] || '');
   }
+  function parseYmd(ymd) {
+    if (!ymd || ymd.indexOf('-') < 0) return null;
+    var p = ymd.split('-');
+    var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function toYmd(d) {
+    var m = d.getMonth() + 1;
+    var day = d.getDate();
+    return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
+  }
+  function isJsWorkday(d) {
+    var wd = d.getDay();
+    return wd !== 0 && wd !== 6;
+  }
+  function endAfterWorkDays(startYmd, daysNeed) {
+    var d = parseYmd(startYmd);
+    if (!d) return '';
+    var remaining = Math.max(1, daysNeed | 0);
+    var guard = 0;
+    while (remaining > 0 && guard < 800) {
+      if (isJsWorkday(d)) {
+        remaining -= 1;
+        if (remaining === 0) return toYmd(d);
+      }
+      d.setDate(d.getDate() + 1);
+      guard += 1;
+    }
+    return toYmd(d);
+  }
   function capNum(el, fallback) {
     var n = parseFloat((el && el.value) || '');
     return isFinite(n) ? n : fallback;
   }
   function refreshCapPreview() {
-    if (!capPreview || !state.bar) return;
+    if (!state.bar) return;
     var heads = Math.max(1, Math.min(500, Math.round(capNum(capHead, 1))));
     var eff = Math.max(1, Math.min(200, capNum(capEff, 100)));
     var hours = parseFloat(state.bar.getAttribute('data-work-hours') || '9.5') || 9.5;
     var labor = parseFloat(state.bar.getAttribute('data-labor-minutes') || '0') || 0;
     var capMin = heads * hours * 60 * (eff / 100);
     var cal = capMin > 0 ? labor * SHIFT_MIN / capMin : labor;
-    var days = capMin > 0 ? Math.max(1, Math.ceil(cal / SHIFT_MIN)) : 0;
-    capPreview.innerHTML =
-      'Quỹ phút/ngày KHSX: <strong>' + Math.round(capMin) + '′</strong>' +
-      (days ? ' · khoảng <strong>' + days + ' ngày làm việc</strong>' : '');
+    var days = capMin > 0 ? Math.max(1, Math.ceil(cal / SHIFT_MIN)) : 1;
+    var startYmd = state.bar.getAttribute('data-start') || '';
+    var endYmd = endAfterWorkDays(startYmd, days);
+    if (capStart) capStart.textContent = fmtYmdToDm(startYmd);
+    if (capEnd) capEnd.textContent = fmtYmdToDm(endYmd || startYmd);
+    if (capPreview) {
+      capPreview.innerHTML =
+        'Quỹ phút/ngày KHSX: <strong>' + Math.round(capMin) + '′</strong>' +
+        ' · khoảng <strong>' + days + ' ngày làm việc</strong>' +
+        (startYmd && endYmd ? ' · <strong>' + fmtYmdToDm(startYmd) + ' – ' + fmtYmdToDm(endYmd) + '</strong>' : '');
+    }
   }
   function openCapacityEditor(bar) {
     if (!canSplitBar(bar)) {
@@ -2159,8 +2196,6 @@ document.addEventListener('contextmenu', function (ev) {
     var label = (bar.getAttribute('title') || '').split(' · ')[0] || bar.getAttribute('data-team-slug') || '';
     var code = bar.getAttribute('data-order-code') || '';
     if (capTitle) capTitle.textContent = 'Điều chỉnh thời gian — ' + label + (code ? ' · ' + code : '');
-    if (capStart) capStart.textContent = fmtYmdToDm(bar.getAttribute('data-start') || '');
-    if (capEnd) capEnd.textContent = fmtYmdToDm(bar.getAttribute('data-end') || bar.getAttribute('data-start') || '');
     var refH = bar.getAttribute('data-ref-headcount') || '0';
     var refE = bar.getAttribute('data-ref-efficiency') || '100';
     if (capRef) capRef.textContent = 'Tham khảo năng lực SX: ' + refH + ' người · ' + refE + '% tải.';
