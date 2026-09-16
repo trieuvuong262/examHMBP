@@ -811,12 +811,12 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
   window.jpSoSyncLineSizeJson = syncSizeJson;
   window.jpSoReadSizeMap = function (row) { return readSizeMap(lineRowOf(row) || row); };
 
-  addBtn.addEventListener('click', function () {
+  function addLineRow() {
     var idx = parseInt(totalInput.value, 10) || 0;
     var node = tpl.content.cloneNode(true);
     var lineRow = node.querySelector('tr.jp-so-line-row');
     var sizeRow = node.querySelector('tr.jp-so-size-row');
-    if (!lineRow) return;
+    if (!lineRow) return null;
     reindexAttrs(lineRow, idx);
     if (sizeRow) reindexAttrs(sizeRow, idx);
     body.appendChild(node);
@@ -829,7 +829,10 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
     if (typeof window.jpSoLoadLineVersions === 'function') {
       window.jpSoLoadLineVersions(lineRow, '', '');
     }
-  });
+    return lineRow;
+  }
+  window.jpSoAddLineRow = addLineRow;
+  addBtn.addEventListener('click', function () { addLineRow(); });
 
   body.addEventListener('click', function (e) {
     var btn = e.target.closest('.jp-so-remove-row');

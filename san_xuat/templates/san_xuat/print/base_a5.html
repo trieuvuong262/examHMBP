@@ -127,7 +127,7 @@
     }
     .sig-row {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat({{ signature_roles|length|default:4 }}, 1fr);
       gap: 4px;
       margin-top: 8px;
       page-break-inside: avoid;

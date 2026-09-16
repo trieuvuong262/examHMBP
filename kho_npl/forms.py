@@ -33,7 +33,7 @@ from kho_npl.models import (
     Unit,
     WarehouseLocation,
 )
-from hrm.user_search import exclude_hidden_hrm_users, issue_recipient_label, issue_recipient_org_name
+from hrm.user_search import exclude_hidden_hrm_users, issue_recipient_label
 from kho_npl.category_tree import material_form_category_queryset
 from kho_npl.doc_attachment import (
     DOC_ATTACHMENT_ACCEPT,
@@ -837,7 +837,7 @@ class StockIssueForm(DocAttachmentsFormMixin, forms.ModelForm):
             'issue_date',
             'issue_type',
             'issued_by',
-            'recipient',
+            'recipient_name',
             'notes',
         ]
         widgets = {
@@ -847,7 +847,11 @@ class StockIssueForm(DocAttachmentsFormMixin, forms.ModelForm):
                 'placeholder': 'VD: Xuất cho sản xuất, làm mẫu...',
             }),
             'issued_by': forms.Select(attrs=ISSUE_EMPLOYEE_SELECT),
-            'recipient': forms.Select(attrs=ISSUE_EMPLOYEE_SELECT),
+            'recipient_name': forms.TextInput(attrs={
+                **FORM_CONTROL,
+                'placeholder': 'VD: Nguyễn Văn A, Tổ trưởng chuyền 1...',
+                'autocomplete': 'off',
+            }),
             'notes': forms.Textarea(attrs=FORM_TEXTAREA),
         }
 
@@ -864,18 +868,13 @@ class StockIssueForm(DocAttachmentsFormMixin, forms.ModelForm):
             if operator and not instance.issued_by_id:
                 instance.issued_by = operator
         super().__init__(*args, **kwargs)
-        selected_recipient_id = None
-        if self.instance.pk and self.instance.recipient_id:
-            selected_recipient_id = self.instance.recipient_id
-        elif self.data.get('recipient'):
-            raw = str(self.data.get('recipient') or '').strip()
-            if raw.isdigit():
-                selected_recipient_id = int(raw)
-        _configure_employee_select_field(
-            self.fields['recipient'],
-            selected_id=selected_recipient_id,
-            required=False,
-        )
+        if (
+            not self.data
+            and self.instance.pk
+            and not (self.instance.recipient_name or '').strip()
+            and self.instance.recipient_id
+        ):
+            self.initial['recipient_name'] = self.instance.display_recipient_name
         selected_issued_id = None
         if self.instance.pk and self.instance.issued_by_id:
             selected_issued_id = self.instance.issued_by_id
@@ -900,28 +899,19 @@ class StockIssueForm(DocAttachmentsFormMixin, forms.ModelForm):
             raise ValidationError('Vui lòng nhập lý do xuất.')
         return value
 
+    def clean_recipient_name(self):
+        return (self.cleaned_data.get('recipient_name') or '').strip()
+
     def full_clean(self):
         if self.data:
-            for field_name in ('recipient', 'issued_by'):
-                raw = str(self.data.get(field_name) or '').strip()
-                if raw.isdigit():
-                    self.fields[field_name].queryset = _employed_users_qs().filter(pk=int(raw))
+            raw = str(self.data.get('issued_by') or '').strip()
+            if raw.isdigit():
+                self.fields['issued_by'].queryset = _employed_users_qs().filter(pk=int(raw))
         super().full_clean()
 
     def save(self, commit=True):
         instance = super().save(commit=False)
-        recipient = self.cleaned_data.get('recipient')
-        instance.recipient_department = ''
-        if recipient:
-            profile = getattr(recipient, 'profile', None)
-            instance.recipient_name = (
-                profile.full_name
-                if profile and profile.full_name
-                else recipient.get_full_name() or recipient.username
-            )
-            instance.recipient_department = issue_recipient_org_name(profile)
-        else:
-            instance.recipient_name = ''
+        instance.recipient = None
         if commit:
             instance.save()
         return instance

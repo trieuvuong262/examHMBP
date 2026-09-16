@@ -422,82 +422,143 @@
     recalc();
   }
 
-  function findTargetQtyInput() {
-    if (activeQtyInput && document.body.contains(activeQtyInput)) {
-      var row = activeQtyInput.closest('tr');
-      if (row && row.style.display !== 'none') return activeQtyInput;
-    }
+  function visibleLineRows() {
     var rows = document.querySelectorAll('#jp-so-lines-table tbody tr.jp-so-line-row');
+    var out = [];
     for (var i = 0; i < rows.length; i++) {
       var r = rows[i];
       if (r.style.display === 'none') continue;
       var del = r.querySelector('input[type=checkbox][name$="-DELETE"]');
       if (del && del.checked) continue;
-      var qty = r.querySelector('input[name$="-qty"]');
-      if (qty) return qty;
+      out.push(r);
+    }
+    return out;
+  }
+
+  function lineProductCode(row) {
+    if (!row) return '';
+    var sel = row.querySelector('.jp-sx-product-code-select, select[name$="-product_code"]');
+    if (!sel) return '';
+    return String((sel.tomselect && sel.tomselect.getValue()) || sel.value || '').trim();
+  }
+
+  function findTargetRow() {
+    var want = currentStyle();
+    var rows = visibleLineRows();
+    var i;
+    var r;
+    var code;
+    if (activeQtyInput && document.body.contains(activeQtyInput)) {
+      r = activeQtyInput.closest('tr.jp-so-line-row');
+      if (r && r.style.display !== 'none') {
+        code = lineProductCode(r);
+        if (!want || !code || code === want) return r;
+      }
+    }
+    if (want) {
+      for (i = 0; i < rows.length; i++) {
+        if (lineProductCode(rows[i]) === want) return rows[i];
+      }
+    }
+    for (i = 0; i < rows.length; i++) {
+      if (!lineProductCode(rows[i])) return rows[i];
     }
     return null;
   }
 
+  function applyProductToRow(row) {
+    if (!row || !productTs) return;
+    var code = String(productTs.getValue() || '').trim();
+    if (!code) return;
+    var sel = row.querySelector('.jp-sx-product-code-select, select[name$="-product_code"]');
+    if (!sel) return;
+    var current = lineProductCode(row);
+    if (current && current === code) return;
+    var opt = productTs.options[code] || {};
+    var option = {
+      id: code,
+      code: opt.code || code,
+      text: opt.text || (opt.name ? (code + ' — ' + opt.name) : code),
+      name: opt.name || '',
+      image_url: opt.image_url || '',
+      color: opt.color || '',
+    };
+    if (sel.tomselect) {
+      if (!sel.tomselect.options[code]) sel.tomselect.addOption(option);
+      else if (option.image_url && !(sel.tomselect.options[code].image_url || '').trim()) {
+        sel.tomselect.updateOption(code, Object.assign({}, sel.tomselect.options[code], option));
+      }
+      sel.tomselect.setValue(code);
+    } else {
+      var native = Array.prototype.find.call(sel.options || [], function (o) {
+        return o.value === code;
+      });
+      if (!native) {
+        native = document.createElement('option');
+        native.value = code;
+        native.textContent = option.text;
+        sel.appendChild(native);
+      }
+      sel.value = code;
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    var nameInput = row.querySelector('input[name$="-product_name"]');
+    if (nameInput && option.name) nameInput.value = option.name;
+    if (sel.tomselect && typeof window.jpEnrichProductSelect === 'function') {
+      window.jpEnrichProductSelect(sel, sel.tomselect, code);
+    }
+  }
+
   function applyToForm() {
     var total = recalc();
-    var qty = findTargetQtyInput();
+    var row = findTargetRow();
+    if (!row && typeof window.jpSoAddLineRow === 'function') {
+      row = window.jpSoAddLineRow();
+    }
+    if (!row) {
+      var addBtn = document.getElementById('jp-so-add-row');
+      if (addBtn) addBtn.click();
+      row = findTargetRow();
+    }
+    var qty = row && row.querySelector('input[name$="-qty"], .jp-so-qty-total');
     if (!qty) {
-      window.alert('Chưa có dòng sản phẩm để áp dụng. Thêm sản phẩm trước.');
+      window.alert('Chưa thêm được dòng sản phẩm. Thử bấm «Thêm sản phẩm» rồi áp dụng lại.');
       return;
     }
+    applyProductToRow(row);
     qty.value = String(Math.round(total));
     qty.dispatchEvent(new Event('input', { bubbles: true }));
     qty.dispatchEvent(new Event('change', { bubbles: true }));
 
-    var row = qty.closest('tr');
-    if (row) {
-      var sizeMap = {};
-      visibleSizes().forEach(function (sz) {
-        var q = confirmQtyOf(sz);
-        if (q > 0) sizeMap[sz] = q;
-      });
-      // Size ngoài bộ mặc định (1–15, 4XL…) cũng ghi nếu đang mở rộng
-      ALL_SIZES.forEach(function (sz) {
-        if (sizeMap[sz]) return;
-        var q = confirmQtyOf(sz);
-        if (q > 0) sizeMap[sz] = q;
-      });
-      // Hiện đủ size đang mở trong modal (kể cả SL = 0) để dòng SP khớp lưới đề xuất
-      if (typeof window.jpSoEnsureLineSizes === 'function') {
-        window.jpSoEnsureLineSizes(row, visibleSizes());
-      }
-      if (typeof window.jpSoWriteLineSizeQtys === 'function') {
-        window.jpSoWriteLineSizeQtys(row, sizeMap);
-      } else {
-        var sizeHost = row.nextElementSibling && row.nextElementSibling.classList.contains('jp-so-size-row')
-          ? row.nextElementSibling : row;
-        Object.keys(sizeMap).forEach(function (sz) {
-          var inp = sizeHost.querySelector('.jp-so-size-qty[data-size="' + sz + '"]');
-          if (inp) {
-            inp.value = String(sizeMap[sz]);
-            inp.classList.add('is-filled');
-          }
-        });
-        var hidden = sizeHost.querySelector('.jp-so-size-qtys-json, input[name$="-size_qtys"]');
-        if (hidden) hidden.value = JSON.stringify(sizeMap);
-      }
+    var sizeMap = {};
+    visibleSizes().forEach(function (sz) {
+      var q = confirmQtyOf(sz);
+      if (q > 0) sizeMap[sz] = q;
+    });
+    // Size ngoài bộ mặc định (1–15, 4XL…) cũng ghi nếu đang mở rộng
+    ALL_SIZES.forEach(function (sz) {
+      if (sizeMap[sz]) return;
+      var q = confirmQtyOf(sz);
+      if (q > 0) sizeMap[sz] = q;
+    });
+    // Hiện đủ size đang mở trong modal (kể cả SL = 0) để dòng SP khớp lưới đề xuất
+    if (typeof window.jpSoEnsureLineSizes === 'function') {
+      window.jpSoEnsureLineSizes(row, visibleSizes());
     }
-
-    if (row && productTs && productTs.getValue()) {
-      var sel = row.querySelector('.jp-sx-product-code-select');
-      if (sel && !(sel.value || (sel.tomselect && sel.tomselect.getValue()))) {
-        var code = productTs.getValue();
-        var opt = productTs.options[code];
-        if (sel.tomselect) {
-          if (!sel.tomselect.options[code] && opt) sel.tomselect.addOption(opt);
-          sel.tomselect.setValue(code);
-        } else {
-          sel.value = code;
+    if (typeof window.jpSoWriteLineSizeQtys === 'function') {
+      window.jpSoWriteLineSizeQtys(row, sizeMap);
+    } else {
+      var sizeHost = row.nextElementSibling && row.nextElementSibling.classList.contains('jp-so-size-row')
+        ? row.nextElementSibling : row;
+      Object.keys(sizeMap).forEach(function (sz) {
+        var inp = sizeHost.querySelector('.jp-so-size-qty[data-size="' + sz + '"]');
+        if (inp) {
+          inp.value = String(sizeMap[sz]);
+          inp.classList.add('is-filled');
         }
-        var nameInput = row.querySelector('input[name$="-product_name"]');
-        if (nameInput && opt) nameInput.value = (opt.name || '').trim();
-      }
+      });
+      var hidden = sizeHost.querySelector('.jp-so-size-qtys-json, input[name$="-size_qtys"]');
+      if (hidden) hidden.value = JSON.stringify(sizeMap);
     }
 
     qty.focus();

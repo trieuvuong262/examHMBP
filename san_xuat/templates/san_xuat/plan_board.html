@@ -359,9 +359,9 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 0.25rem;
-    min-width: 7rem;
-    min-height: 4.25rem;
+    gap: 0.28rem;
+    min-width: 7.6rem;
+    min-height: 5.1rem;
     flex: 1 1 0;
     padding: 0.65rem 0.8rem;
     border: 1px solid var(--st, #cbd5e1);
@@ -387,11 +387,39 @@
     letter-spacing: -0.01em;
     line-height: 1.2;
   }
-  .jp-pb-tl-date {
-    font-size: 0.74rem;
-    font-weight: 650;
+  .jp-pb-tl-name.jp-pb-tl-team {
+    font-size: 0.64rem;
+    font-weight: 700;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+  .jp-pb-tl-meta {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 0.5rem;
+    row-gap: 0.1rem;
+    align-items: baseline;
+    min-width: 0;
+  }
+  .jp-pb-tl-k {
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0;
     color: color-mix(in srgb, var(--st, var(--pb-muted)) 72%, #0f172a);
+    white-space: nowrap;
+  }
+  .jp-pb-tl-v {
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-align: right;
     line-height: 1.2;
+    color: var(--st, var(--pb-ink));
+  }
+  .jp-pb-tl-qty {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: color-mix(in srgb, var(--st, var(--pb-muted)) 80%, #0f172a);
+    line-height: 1.15;
   }
   .jp-pb-stage-btn.is-active {
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--st, #dc2626) 22%, transparent);
@@ -400,7 +428,8 @@
     isolation: isolate;
     position: relative;
     display: flex;
-    min-width: 7rem;
+    flex-direction: column;
+    min-width: 10.4rem;
   }
   .jp-pb-stage-cell > .jp-pb-stage-btn {
     position: relative;
@@ -408,44 +437,210 @@
     width: 100%;
     min-width: 0;
     flex: 1 1 auto;
-    padding-bottom: 1.7rem;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    padding-bottom: 0.5rem;
   }
-  .jp-pb-stage-gc {
+  .jp-pb-tl-flags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.2rem;
+    margin-top: 0.12rem;
+  }
+  .jp-pb-flag {
+    display: inline-flex;
+    align-items: center;
+    height: 1.05rem;
+    padding: 0 0.32rem;
+    border-radius: 999px;
+    font-size: 0.58rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    line-height: 1;
+  }
+  .jp-pb-flag.is-team {
+    background: #fff1f2;
+    color: #9f1239;
+  }
+  .jp-pb-flag.is-gc {
+    background: #dcfce7;
+    color: #166534;
+  }
+  .jp-pb-stage-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.18rem;
+    padding: 0.28rem 0.28rem 0.32rem;
+    background: #fff;
+    border: 1px solid var(--st, #cbd5e1);
+    border-top: 0;
+    border-radius: 0 0 0.65rem 0.65rem;
+  }
+  .jp-pb-stage-act {
     appearance: none;
     font-family: inherit;
     cursor: pointer;
-    position: absolute;
-    right: 0.35rem;
-    bottom: 0.35rem;
-    z-index: 6;
-    pointer-events: auto;
     display: inline-flex;
     align-items: center;
-    gap: 0.2rem;
-    height: 1.2rem;
-    padding: 0 0.35rem;
-    border: 1px solid #cbd5e1;
-    border-radius: 0.35rem;
-    background: #fff;
-    color: #475569;
-    font-size: 0.6rem;
+    justify-content: center;
+    min-height: 1.7rem;
+    padding: 0.18rem 0.2rem;
+    border: 0;
+    border-radius: 0.4rem;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 0.64rem;
     font-weight: 800;
-    line-height: 1;
+    line-height: 1.1;
     text-decoration: none;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
   }
-  .jp-pb-stage-gc:hover {
-    border-color: #991b1b;
-    color: #991b1b;
+  .jp-pb-stage-act:hover {
+    background: #fff1f2;
+    color: #9f1239;
   }
-  .jp-pb-stage-gc.is-hired {
-    border-color: #86efac;
-    color: #166534;
-    background: #f0fdf4;
-  }
+  .jp-pb-stage-act.is-on,
+  .jp-pb-stage-act.is-active,
   .jp-pb-stage-gc.is-active {
-    border-color: #991b1b;
-    color: #991b1b;
+    background: #fff1f2;
+    color: #9f1239;
   }
+  .jp-pb-stage-act.is-on::after,
+  .jp-pb-stage-act.is-hired::after {
+    content: "✓";
+    margin-left: 0.18rem;
+    font-weight: 900;
+  }
+  .jp-pb-stage-act.is-hired {
+    background: #f0fdf4;
+    color: #166534;
+  }
+  .jp-pb-stage-act.is-hired:hover {
+    background: #dcfce7;
+    color: #166534;
+  }
+  .jp-pb-stage-act:disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
+    background: #f8fafc;
+    color: #94a3b8;
+  }
+  .jp-pick-team-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+  .jp-pick-team-card {
+    appearance: none;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.7rem;
+    background: #fff;
+  }
+  .jp-pick-team-card:hover {
+    border-color: #fecaca;
+    background: #fff7f7;
+  }
+  .jp-pick-team-card.is-on {
+    border-color: #f87171;
+    background: #fff1f2;
+    box-shadow: 0 0 0 2px color-mix(in srgb, #dc2626 16%, transparent);
+  }
+  .jp-pick-team-card strong {
+    display: block;
+    font-size: 0.9rem;
+    color: #0f172a;
+  }
+  .jp-pick-team-card .meta {
+    display: block;
+    margin-top: 0.12rem;
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: #64748b;
+  }
+  .jp-pick-team-card .mark {
+    flex: 0 0 auto;
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: #9f1239;
+  }
+  .jp-khsx-cap-hint {
+    margin: 0 0 0.85rem;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: #64748b;
+  }
+  .jp-khsx-cap-span {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0.85rem;
+    font-size: 0.82rem;
+  }
+  .jp-khsx-cap-span span { color: #64748b; }
+  .jp-khsx-cap-span strong { color: #0f172a; }
+  .jp-khsx-cap-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.7rem;
+  }
+  .jp-khsx-cap-row label {
+    margin: 0;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #334155;
+  }
+  .jp-khsx-stepper {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.28rem;
+  }
+  .jp-khsx-stepper button {
+    appearance: none;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.4rem;
+    background: #f8fafc;
+    font-size: 1.05rem;
+    font-weight: 700;
+    line-height: 1;
+    color: #334155;
+    cursor: pointer;
+  }
+  .jp-khsx-stepper button:hover {
+    background: #fff1f2;
+    color: #9f1239;
+  }
+  .jp-khsx-stepper input {
+    width: 4.4rem;
+    height: 2rem;
+    text-align: center;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.4rem;
+    font-weight: 800;
+    font-size: 0.88rem;
+  }
+  .jp-khsx-cap-preview {
+    margin: 0.2rem 0 0;
+    padding: 0.65rem 0.75rem;
+    border-radius: 0.55rem;
+    background: #f8fafc;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: #475569;
+  }
+  .jp-khsx-cap-preview strong { color: #0f172a; }
   .jp-pb-stage-pick-hint {
     margin: 0.15rem 0 0;
     font-size: 0.72rem;
@@ -1259,6 +1454,16 @@
     font-weight: 600;
   }
 </style>
+<script>
+document.addEventListener('contextmenu', function (ev) {
+  var t = ev.target;
+  if (t && t.nodeType === 3) t = t.parentElement;
+  if (!t || !t.closest) return;
+  if (!t.closest('#lo-trinh, #jpTlCtxMenu, #jpPickTeamModal, #jpKhsxCapModal')) return;
+  ev.preventDefault();
+  ev.returnValue = false;
+}, true);
+</script>
 {% endblock %}
 
 {% block content %}
@@ -1425,7 +1630,7 @@
 
   {% if tab == 'queue' %}
   {% include 'san_xuat/includes/plan_stage_legend.html' %}
-  <div class="jp-pb-list">
+  <div class="jp-pb-list" data-can-schedule="{{ can_schedule|yesno:'1,0' }}">
     {% for row in queue_rows %}
     <article class="jp-pb-ticket is-{{ row.order.plan_priority }}{% if row.order.plan_status == 'on_hold' %} is-hold{% endif %}{% if row.is_overdue %} is-overdue{% endif %}">
       <div class="jp-pb-ticket-head">
@@ -1651,14 +1856,20 @@
   </div>
 </div>
 
-<div id="jpTlCtxMenu" class="jp-tl-ctx" hidden role="menu" aria-label="Menu lộ trình">
+<div id="jpTlCtxMenu" class="jp-tl-ctx" hidden role="menu" aria-label="Menu lộ trình"
+     oncontextmenu="event.preventDefault(); return false;">
   <button type="button" class="jp-tl-ctx-item" data-jp-ctx="split" role="menuitem">
     <i class="bi bi-scissors" aria-hidden="true"></i> Tách công đoạn
+  </button>
+  <button type="button" class="jp-tl-ctx-item" data-jp-ctx="team" role="menuitem">
+    <i class="bi bi-people" aria-hidden="true"></i> Chọn tổ
   </button>
   <button type="button" class="jp-tl-ctx-item" data-jp-ctx="refresh" role="menuitem">
     <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Làm mới
   </button>
 </div>
+
+{{ plan_work_centers|json_script:"jp-plan-work-centers" }}
 
 <div class="modal fade" id="jpSplitTeamDaysModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-scrollable">
@@ -1669,7 +1880,7 @@
       </div>
       <div class="modal-body">
         <p class="small text-muted mb-2" id="jpSplitTeamDaysHint">
-          Phân bổ số lượng dự kiến thành nhiều ngày. Tổng phải khớp SL tổ.
+          Mỗi dòng là một thẻ trên lộ trình. Tự thêm ngày và SL; tổng phải khớp SL tổ.
         </p>
         <div class="d-flex flex-wrap gap-2 align-items-center mb-2 small">
           <span>SL tổ: <strong id="jpSplitTeamDaysTarget">0</strong></span>
@@ -1705,6 +1916,69 @@
   </div>
 </div>
 
+<div class="modal fade" id="jpPickTeamModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="jpPickTeamTitle">Chọn tổ</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-muted mb-3" id="jpPickTeamHint">
+          Tổ năng lực SX dùng để chia thời gian làm công đoạn. Bấm một tổ để gán ngay.
+        </p>
+        <div id="jpPickTeamList" class="jp-pick-team-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Hủy</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="jpKhsxCapModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="jpKhsxCapTitle">Điều chỉnh thời gian</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <p class="jp-khsx-cap-hint">
+          Năng lực SX chỉ <strong>tham khảo</strong>. Số người và hệ số tải chỉnh trên KHSX
+          không đổi danh mục năng lực hay lệnh sản xuất đã tạo.
+        </p>
+        <div class="jp-khsx-cap-span">
+          <div>Bắt đầu <strong id="jpKhsxCapStart">—</strong></div>
+          <div>Kết thúc <strong id="jpKhsxCapEnd">—</strong></div>
+        </div>
+        <p class="jp-khsx-cap-hint mb-2" id="jpKhsxCapRef"></p>
+        <div class="jp-khsx-cap-row">
+          <label for="jpKhsxCapHeadcount">Số người thực hiện</label>
+          <div class="jp-khsx-stepper">
+            <button type="button" data-jp-cap-field="head" data-jp-cap-delta="-1">−</button>
+            <input type="number" id="jpKhsxCapHeadcount" min="1" max="500" step="1" inputmode="numeric">
+            <button type="button" data-jp-cap-field="head" data-jp-cap-delta="1">+</button>
+          </div>
+        </div>
+        <div class="jp-khsx-cap-row">
+          <label for="jpKhsxCapEff">Hệ số tải (%)</label>
+          <div class="jp-khsx-stepper">
+            <button type="button" data-jp-cap-field="eff" data-jp-cap-delta="-5">−</button>
+            <input type="number" id="jpKhsxCapEff" min="1" max="200" step="1" inputmode="decimal">
+            <button type="button" data-jp-cap-field="eff" data-jp-cap-delta="5">+</button>
+          </div>
+        </div>
+        <p class="jp-khsx-cap-preview" id="jpKhsxCapPreview"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Hủy</button>
+        <button type="button" class="btn btn-hm" id="jpKhsxCapSave">Áp dụng</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -1727,10 +2001,230 @@
   var modal = null;
   var ctxMenu = document.getElementById('jpTlCtxMenu');
   var ctxSplitBtn = ctxMenu ? ctxMenu.querySelector('[data-jp-ctx="split"]') : null;
+  var ctxTeamBtn = ctxMenu ? ctxMenu.querySelector('[data-jp-ctx="team"]') : null;
   var ctxRefreshBtn = ctxMenu ? ctxMenu.querySelector('[data-jp-ctx="refresh"]') : null;
+  var pickTeamEl = document.getElementById('jpPickTeamModal');
+  var pickTeamTitle = document.getElementById('jpPickTeamTitle');
+  var pickTeamList = document.getElementById('jpPickTeamList');
+  var pickTeamModal = null;
+  var capEl = document.getElementById('jpKhsxCapModal');
+  var capModal = null;
+  var capTitle = document.getElementById('jpKhsxCapTitle');
+  var capStart = document.getElementById('jpKhsxCapStart');
+  var capEnd = document.getElementById('jpKhsxCapEnd');
+  var capRef = document.getElementById('jpKhsxCapRef');
+  var capHead = document.getElementById('jpKhsxCapHeadcount');
+  var capEff = document.getElementById('jpKhsxCapEff');
+  var capPreview = document.getElementById('jpKhsxCapPreview');
+  var SHIFT_MIN = 570;
 
   function hideCtxMenu() {
     if (ctxMenu) ctxMenu.hidden = true;
+  }
+  function loadWorkCenters() {
+    var src = document.getElementById('jp-plan-work-centers');
+    if (!src) return [];
+    try { return JSON.parse(src.textContent || '[]') || []; } catch (err) { return []; }
+  }
+  function getPickTeamModal() {
+    if (pickTeamModal) return pickTeamModal;
+    if (!pickTeamEl || typeof bootstrap === 'undefined') return null;
+    try { pickTeamModal = bootstrap.Modal.getOrCreateInstance(pickTeamEl); }
+    catch (err) { return null; }
+    return pickTeamModal;
+  }
+  function openTeamPicker(bar) {
+    if (!canSplitBar(bar)) {
+      alert('Không gán được tổ (thiếu quyền xếp lịch).');
+      return false;
+    }
+    var mod = getPickTeamModal();
+    if (!mod || !pickTeamList) {
+      alert('Không mở được popup chọn tổ — tải lại trang (Ctrl+F5).');
+      return false;
+    }
+    state.bar = bar;
+    var label = (bar.getAttribute('title') || '').split(' · ')[0] || bar.getAttribute('data-team-slug') || '';
+    var code = bar.getAttribute('data-order-code') || '';
+    if (pickTeamTitle) pickTeamTitle.textContent = 'Chọn tổ — ' + label + (code ? ' · ' + code : '');
+    var list = loadWorkCenters();
+    var cur = bar.getAttribute('data-work-center-id') || '';
+    pickTeamList.innerHTML = '';
+    if (!list.length) {
+      pickTeamList.innerHTML = '<p class="small text-muted mb-0">Chưa có tổ trên Năng lực SX. Thêm tổ ở menu Năng lực sản xuất.</p>';
+    } else {
+      list.forEach(function (wc) {
+        var on = String(wc.id) === String(cur);
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'jp-pick-team-card' + (on ? ' is-on' : '');
+        btn.setAttribute('data-wc-id', wc.id || '');
+        var meta = [];
+        if (wc.headcount) meta.push(wc.headcount + ' người');
+        if (wc.minutes_per_day) meta.push(wc.minutes_per_day + '′/ngày');
+        btn.innerHTML =
+          '<span><strong>' + String(wc.name || wc.code || 'Tổ').replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</strong>' +
+          (meta.length ? '<span class="meta">' + meta.join(' · ') + '</span>' : '') +
+          '</span>' +
+          (on ? '<span class="mark">Đang chọn</span>' : '');
+        pickTeamList.appendChild(btn);
+      });
+    }
+    mod.show();
+    return true;
+  }
+  function assignTeam(bar, wcId) {
+    if (!canSplitBar(bar)) {
+      alert('Không gán được tổ (thiếu quyền xếp lịch).');
+      return;
+    }
+    if (!csrf) {
+      alert('Thiếu mã bảo mật — tải lại trang rồi thử lại.');
+      return;
+    }
+    var body = new URLSearchParams();
+    body.set('action', 'assign_plan_team');
+    body.set('order_id', bar.getAttribute('data-order-id') || '');
+    body.set('team_slug', bar.getAttribute('data-team-slug') || '');
+    body.set('work_center_id', wcId || '');
+    var params = new URLSearchParams(window.location.search);
+    body.set('mode', params.get('mode') || 'list');
+    body.set('tab', params.get('tab') || 'queue');
+    body.set('csrfmiddlewaretoken', csrf);
+    hideCtxMenu();
+    var pickMod = getPickTeamModal();
+    if (pickMod) pickMod.hide();
+    showLoading('Đang gán tổ — ' + (bar.getAttribute('data-order-code') || '') + '…');
+    fetch(window.location.pathname + window.location.search, {
+      method: 'POST',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+        'X-CSRFToken': csrf,
+      },
+      body: body,
+      credentials: 'same-origin',
+    }).then(function (res) {
+      return res.json().then(function (data) {
+        if (!res.ok || !data.ok) {
+          throw new Error((data && data.error) || 'Không gán được tổ.');
+        }
+        window.location.reload();
+      });
+    }).catch(function (err) {
+      hideLoading();
+      alert(err.message || 'Không gán được tổ.');
+    });
+  }
+  function getCapModal() {
+    if (capModal) return capModal;
+    if (!capEl || typeof bootstrap === 'undefined') return null;
+    try { capModal = bootstrap.Modal.getOrCreateInstance(capEl); }
+    catch (err) { return null; }
+    return capModal;
+  }
+  function fmtYmdToDm(ymd) {
+    if (!ymd || ymd.indexOf('-') < 0) return '—';
+    var p = ymd.split('-');
+    return (p[2] || '') + '/' + (p[1] || '');
+  }
+  function capNum(el, fallback) {
+    var n = parseFloat((el && el.value) || '');
+    return isFinite(n) ? n : fallback;
+  }
+  function refreshCapPreview() {
+    if (!capPreview || !state.bar) return;
+    var heads = Math.max(1, Math.min(500, Math.round(capNum(capHead, 1))));
+    var eff = Math.max(1, Math.min(200, capNum(capEff, 100)));
+    var hours = parseFloat(state.bar.getAttribute('data-work-hours') || '9.5') || 9.5;
+    var labor = parseFloat(state.bar.getAttribute('data-labor-minutes') || '0') || 0;
+    var capMin = heads * hours * 60 * (eff / 100);
+    var cal = capMin > 0 ? labor * SHIFT_MIN / capMin : labor;
+    var days = capMin > 0 ? Math.max(1, Math.ceil(cal / SHIFT_MIN)) : 0;
+    capPreview.innerHTML =
+      'Quỹ phút/ngày KHSX: <strong>' + Math.round(capMin) + '′</strong>' +
+      (days ? ' · khoảng <strong>' + days + ' ngày làm việc</strong>' : '');
+  }
+  function openCapacityEditor(bar) {
+    if (!canSplitBar(bar)) {
+      alert('Không chỉnh được thời gian (thiếu quyền xếp lịch).');
+      return false;
+    }
+    var mod = getCapModal();
+    if (!mod || !capHead || !capEff) {
+      alert('Không mở được popup điều chỉnh — tải lại trang (Ctrl+F5).');
+      return false;
+    }
+    state.bar = bar;
+    var label = (bar.getAttribute('title') || '').split(' · ')[0] || bar.getAttribute('data-team-slug') || '';
+    var code = bar.getAttribute('data-order-code') || '';
+    if (capTitle) capTitle.textContent = 'Điều chỉnh thời gian — ' + label + (code ? ' · ' + code : '');
+    if (capStart) capStart.textContent = fmtYmdToDm(bar.getAttribute('data-start') || '');
+    if (capEnd) capEnd.textContent = fmtYmdToDm(bar.getAttribute('data-end') || bar.getAttribute('data-start') || '');
+    var refH = bar.getAttribute('data-ref-headcount') || '0';
+    var refE = bar.getAttribute('data-ref-efficiency') || '100';
+    if (capRef) capRef.textContent = 'Tham khảo năng lực SX: ' + refH + ' người · ' + refE + '% tải.';
+    capHead.value = bar.getAttribute('data-headcount') || refH || '1';
+    capEff.value = bar.getAttribute('data-efficiency') || refE || '100';
+    hideCtxMenu();
+    refreshCapPreview();
+    mod.show();
+    return true;
+  }
+  function saveCapacity() {
+    var bar = state.bar;
+    if (!bar) return;
+    if (!canSplitBar(bar)) {
+      alert('Không chỉnh được thời gian (thiếu quyền xếp lịch).');
+      return;
+    }
+    if (!csrf) {
+      alert('Thiếu mã bảo mật — tải lại trang rồi thử lại.');
+      return;
+    }
+    var heads = Math.round(capNum(capHead, 0));
+    var eff = capNum(capEff, 0);
+    if (heads < 1 || heads > 500) {
+      alert('Số người thực hiện từ 1 đến 500.');
+      return;
+    }
+    if (eff < 1 || eff > 200) {
+      alert('Hệ số tải từ 1% đến 200%.');
+      return;
+    }
+    var body = new URLSearchParams();
+    body.set('action', 'save_plan_team_capacity');
+    body.set('order_id', bar.getAttribute('data-order-id') || '');
+    body.set('team_slug', bar.getAttribute('data-team-slug') || '');
+    body.set('headcount', String(heads));
+    body.set('efficiency_pct', String(eff));
+    var params = new URLSearchParams(window.location.search);
+    body.set('mode', params.get('mode') || 'list');
+    body.set('tab', params.get('tab') || 'queue');
+    body.set('csrfmiddlewaretoken', csrf);
+    var mod = getCapModal();
+    if (mod) mod.hide();
+    showLoading('Đang tính lại thời gian — ' + (bar.getAttribute('data-order-code') || '') + '…');
+    fetch(window.location.pathname + window.location.search, {
+      method: 'POST',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+        'X-CSRFToken': csrf,
+      },
+      body: body,
+      credentials: 'same-origin',
+    }).then(function (res) {
+      return res.json().then(function (data) {
+        if (!res.ok || !data.ok) {
+          throw new Error((data && data.error) || 'Không lưu được điều chỉnh.');
+        }
+        window.location.reload();
+      });
+    }).catch(function (err) {
+      hideLoading();
+      alert(err.message || 'Không lưu được điều chỉnh.');
+    });
   }
   function placeCtxMenu(x, y) {
     if (!ctxMenu) return;
@@ -1744,8 +2238,13 @@
     ctxMenu.style.top = Math.max(pad, top) + 'px';
   }
   function showCtxMenu(ev, bar) {
-    if (ev && ev.preventDefault) ev.preventDefault();
-    if (ev && ev.stopPropagation) ev.stopPropagation();
+    if (ev) {
+      if (ev.type !== 'pointerdown') {
+        if (ev.preventDefault) ev.preventDefault();
+        ev.returnValue = false;
+      }
+      if (ev.stopPropagation) ev.stopPropagation();
+    }
     var now = Date.now();
     if (now - lastOpen < 200) return false;
     lastOpen = now;
@@ -1753,10 +2252,11 @@
     if (ctxSplitBtn) {
       var ok = canSplitBar(bar);
       ctxSplitBtn.disabled = !ok;
-      var label = bar ? ((bar.getAttribute('title') || '').split(' · ')[0] || 'công đoạn') : '';
-      ctxSplitBtn.innerHTML = ok
-        ? '<i class="bi bi-scissors" aria-hidden="true"></i> Tách ' + (label || 'công đoạn')
-        : '<i class="bi bi-scissors" aria-hidden="true"></i> Tách công đoạn';
+      ctxSplitBtn.innerHTML = '<i class="bi bi-scissors" aria-hidden="true"></i> Tách công đoạn';
+    }
+    if (ctxTeamBtn) {
+      var teamOk = canSplitBar(bar) && bar && (bar.getAttribute('data-team-slug') || '') !== 'npl';
+      ctxTeamBtn.disabled = !teamOk;
     }
     var x = ev && ev.clientX != null ? ev.clientX : 12;
     var y = ev && ev.clientY != null ? ev.clientY : 12;
@@ -1779,8 +2279,14 @@
     if (!isFinite(n)) return '0';
     return String(Math.round(n * 100) / 100);
   }
+  var SPLIT_SEL = '[data-jp-team-split][data-team-slug]';
   function rootEl() {
-    return document.getElementById('lo-trinh');
+    return document.getElementById('lo-trinh')
+      || document.querySelector('.jp-pb-list')
+      || document.querySelector('.jp-pb');
+  }
+  function splitTargetFrom(el) {
+    return el && el.closest ? el.closest(SPLIT_SEL) : null;
   }
   function canSplitBar(bar) {
     if (!bar) return false;
@@ -1795,7 +2301,7 @@
     if (!root) return [];
     var rows = [];
     root.querySelectorAll(
-      '.jp-tl-bar[data-order-id="' + orderId + '"][data-team-slug="' + teamSlug + '"]'
+      SPLIT_SEL + '[data-order-id="' + orderId + '"][data-team-slug="' + teamSlug + '"]'
     ).forEach(function (bar) {
       if (bar.getAttribute('data-is-split') !== '1') return;
       rows.push({
@@ -1805,6 +2311,12 @@
     });
     rows.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
     return rows;
+  }
+  function addDaysYmd(ymd, n) {
+    var p = String(ymd || '').split('-');
+    if (p.length !== 3) return ymd || '';
+    var dt = new Date(+p[0], +p[1] - 1, +p[2] + n);
+    return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
   }
   function addRow(dateVal, qtyVal) {
     if (!bodyEl) return;
@@ -1861,31 +2373,33 @@
     return true;
   }
 
-  window.jpOpenTeamSplit = function (ev, bar) {
+  window.jpShowRouteCtx = function (ev) {
+    var t = ev && ev.target;
+    if (t && t.nodeType === 3) t = t.parentElement;
+    var bar = splitTargetFrom(t);
+    if (!bar && t && t.closest) bar = t.closest('.jp-tl-bar[data-team-slug]');
     return showCtxMenu(ev, bar);
   };
-  window.jpTlBarContextMenu = window.jpOpenTeamSplit;
+  window.jpOpenTeamSplit = window.jpShowRouteCtx;
+  window.jpTlBarContextMenu = window.jpShowRouteCtx;
+
+  if (ctxMenu && ctxMenu.parentNode !== document.body) {
+    document.body.appendChild(ctxMenu);
+  }
 
   document.addEventListener('contextmenu', function (ev) {
     var t = ev.target;
+    if (t && t.nodeType === 3) t = t.parentElement;
     if (!t || !t.closest) return;
-    var root = rootEl();
-    if (!root || !root.contains(t)) return;
+    var bar = splitTargetFrom(t);
+    if (!bar && !t.closest('#lo-trinh')) return;
     ev.preventDefault();
-    ev.stopPropagation();
-    var bar = t.closest('.jp-tl-bar[data-team-slug]');
-    showCtxMenu(ev, bar);
-  }, true);
+    window.jpShowRouteCtx(ev);
+  }, { capture: true, passive: false });
 
   document.addEventListener('pointerdown', function (ev) {
     if (ctxMenu && !ctxMenu.hidden && ctxMenu.contains(ev.target)) return;
-    if (ev.button === 2) {
-      var t = ev.target;
-      if (t && t.closest && rootEl() && rootEl().contains(t)) {
-        ev.preventDefault();
-      }
-      return;
-    }
+    if (ev.button === 2) return;
     hideCtxMenu();
   }, true);
 
@@ -1901,12 +2415,84 @@
       if (state.bar) openForBar(state.bar);
     });
   }
+  if (ctxTeamBtn) {
+    ctxTeamBtn.addEventListener('click', function () {
+      hideCtxMenu();
+      if (state.bar) openTeamPicker(state.bar);
+    });
+  }
   if (ctxRefreshBtn) {
     ctxRefreshBtn.addEventListener('click', function () {
       hideCtxMenu();
       window.location.reload();
     });
   }
+  if (pickTeamList) {
+    pickTeamList.addEventListener('click', function (ev) {
+      var btn = ev.target && ev.target.closest && ev.target.closest('.jp-pick-team-card');
+      if (!btn) return;
+      ev.preventDefault();
+      if (!state.bar) return;
+      assignTeam(state.bar, btn.getAttribute('data-wc-id') || '');
+    });
+  }
+  if (capEl) {
+    capEl.addEventListener('click', function (ev) {
+      var btn = ev.target && ev.target.closest && ev.target.closest('[data-jp-cap-delta]');
+      if (!btn) return;
+      ev.preventDefault();
+      var field = btn.getAttribute('data-jp-cap-field');
+      var delta = parseFloat(btn.getAttribute('data-jp-cap-delta') || '0') || 0;
+      var inp = field === 'eff' ? capEff : capHead;
+      if (!inp) return;
+      var min = parseFloat(inp.getAttribute('min') || '1') || 1;
+      var max = parseFloat(inp.getAttribute('max') || '200') || 200;
+      var next = capNum(inp, min) + delta;
+      if (field === 'head') next = Math.round(next);
+      inp.value = String(Math.max(min, Math.min(max, next)));
+      refreshCapPreview();
+    });
+    if (capHead) capHead.addEventListener('input', refreshCapPreview);
+    if (capEff) capEff.addEventListener('input', refreshCapPreview);
+  }
+  var capSave = document.getElementById('jpKhsxCapSave');
+  if (capSave) capSave.addEventListener('click', saveCapacity);
+  document.addEventListener('click', function (ev) {
+    var splitBtn = ev.target && ev.target.closest && ev.target.closest('[data-jp-stage-split]');
+    if (splitBtn) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+      var splitCell = splitTargetFrom(splitBtn);
+      if (splitCell) openForBar(splitCell);
+      return;
+    }
+    var teamBtn = ev.target && ev.target.closest && ev.target.closest('[data-jp-stage-team]');
+    if (teamBtn) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+      var teamCell = splitTargetFrom(teamBtn);
+      if (teamCell) openTeamPicker(teamCell);
+      return;
+    }
+    var capBtn = ev.target && ev.target.closest && ev.target.closest('[data-jp-stage-capacity]');
+    if (capBtn) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+      var capCell = splitTargetFrom(capBtn);
+      if (capCell) openCapacityEditor(capCell);
+      return;
+    }
+    var moreBtn = ev.target && ev.target.closest && ev.target.closest('[data-jp-bar-more]');
+    if (!moreBtn) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+    var bar = splitTargetFrom(moreBtn) || moreBtn.closest('.jp-tl-bar[data-team-slug]');
+    showCtxMenu(ev, bar);
+  });
 
   if (bodyEl) {
     bodyEl.addEventListener('input', function (ev) {
@@ -1924,7 +2510,7 @@
   if (addBtn) {
     addBtn.addEventListener('click', function () {
       var last = bodyEl && bodyEl.querySelector('tr:last-child .jp-split-date');
-      addRow(last ? last.value : '', 0);
+      addRow(addDaysYmd(last ? last.value : '', 1), 0);
       refreshTotals();
     });
   }
@@ -1935,7 +2521,7 @@
       var firstDate = '';
       var root = rootEl();
       var bar = root && root.querySelector(
-        '.jp-tl-bar[data-order-id="' + state.orderId + '"][data-team-slug="' + state.teamSlug + '"]'
+        SPLIT_SEL + '[data-order-id="' + state.orderId + '"][data-team-slug="' + state.teamSlug + '"]'
       );
       if (bar) firstDate = bar.getAttribute('data-plan-date') || bar.getAttribute('data-start') || '';
       addRow(firstDate, state.targetQty);
@@ -1968,18 +2554,18 @@
         return;
       }
       var days = [];
-      var merged = {};
       if (bodyEl) {
         bodyEl.querySelectorAll('tr').forEach(function (tr) {
           var d = (tr.querySelector('.jp-split-date') || {}).value || '';
           var q = parseNum((tr.querySelector('.jp-split-qty') || {}).value);
           if (!d || q <= 0) return;
-          merged[d] = (merged[d] || 0) + q;
+          days.push({ date: d, qty: q });
         });
       }
-      Object.keys(merged).sort().forEach(function (d) {
-        days.push({ date: d, qty: merged[d] });
-      });
+      if (!days.length) {
+        alert('Nhập ngày và SL cho từng thẻ.');
+        return;
+      }
       var sum = days.reduce(function (a, r) { return a + r.qty; }, 0);
       if (Math.abs(sum - state.targetQty) > 0.01) {
         alert('Tổng SL (' + fmtNum(sum) + ') phải bằng SL tổ (' + fmtNum(state.targetQty) + ').');
@@ -1990,8 +2576,9 @@
       body.set('order_id', state.orderId);
       body.set('team_slug', state.teamSlug);
       body.set('days', JSON.stringify(days));
-      body.set('mode', 'list');
-      body.set('tab', 'route');
+      var params = new URLSearchParams(window.location.search);
+      body.set('mode', params.get('mode') || 'list');
+      body.set('tab', params.get('tab') || 'queue');
       body.set('csrfmiddlewaretoken', csrf);
       var mod = getModal();
       if (mod) mod.hide();
@@ -2363,11 +2950,26 @@
     var teams = data.teams || [];
     var teamRows = teams.map(function (t) {
       var hit = highlight && t.slug === highlight;
+      var splits = t.splits || [];
+      var when = splits.length
+        ? splits.map(function (p) {
+            return esc(p.date || '') + (p.qty ? ' · SL ' + esc(p.qty) : '');
+          }).join('<br>')
+        : (esc(t.start || '—') + (t.end && t.end !== t.start ? ' → ' + esc(t.end) : ''));
       return '<tr' + (hit ? ' class="is-hit"' : '') + '>' +
-        '<td>' + esc(t.label || t.slug || '—') + '</td>' +
-        '<td>' + esc(t.start || '—') +
-          (t.end && t.end !== t.start ? ' → ' + esc(t.end) : '') + '</td>' +
-        '<td class="num">' + esc(t.work_minutes) + '</td>' +
+        '<td>' + esc(t.label || t.slug || '—') +
+          (t.headcount
+            ? '<div class="jp-pb-dur-muted">NL ' + esc(t.headcount) + ' người'
+              + (t.capacity_minutes_per_day ? ' · ' + esc(t.capacity_minutes_per_day) + '′/ngày' : '')
+              + '</div>'
+            : '') +
+        '</td>' +
+        '<td>' + when + '</td>' +
+        '<td class="num">' + esc(t.work_minutes) +
+          (t.labor_minutes && t.labor_minutes !== t.work_minutes
+            ? '<div class="jp-pb-dur-muted">SMV ' + esc(t.labor_minutes) + '′</div>'
+            : '') +
+        '</td>' +
         '<td class="num">' + esc(t.buffer_minutes) + '</td>' +
         '<td class="num"><strong>' + esc(t.minutes) + '</strong>' +
           (t.duration_label ? '<div class="jp-pb-dur-muted">' + esc(t.duration_label) + '</div>' : '') +
@@ -2376,7 +2978,7 @@
     }).join('');
     var teamTable = teams.length
       ? '<table class="jp-pb-dur-table jp-pb-dur-teams"><thead><tr>' +
-        '<th>Tổ</th><th>KHSX tổ</th><th class="num">Thực hiện (phút)</th><th class="num">Kiểm/VC</th><th class="num">Chu kỳ tổ</th>' +
+        '<th>Tổ</th><th>KHSX tổ</th><th class="num">Thực hiện (đã chia NL)</th><th class="num">Kiểm/VC</th><th class="num">Chu kỳ tổ</th>' +
         '</tr></thead><tbody>' + teamRows + '</tbody></table>'
       : '';
     bodyEl.innerHTML =
@@ -2403,7 +3005,7 @@
           '<td class="num"><strong>' + esc(data.work_minutes) + '</strong></td>' +
           '<td class="num"><strong>' + esc(data.buffer_minutes) + '</strong></td>' +
         '</tr><tr>' +
-          '<td colspan="4">Chu kỳ = tổng thời gian thực hiện + kiểm/VC</td>' +
+          '<td colspan="4">Chu kỳ lịch = thời gian thực hiện đã chia năng lực tổ + kiểm/VC</td>' +
           '<td class="num"><strong>' + esc(data.cycle_minutes) + ' phút</strong></td>' +
         '</tr></tfoot>' +
       '</table>';
@@ -2514,6 +3116,64 @@
     clearHints();
   }
 
+  function pointerTarget(ev) {
+    var t = ev.target;
+    if (t && t.nodeType === 3) t = t.parentElement;
+    return t;
+  }
+
+  root.addEventListener('pointerdown', function (ev) {
+    if (ev.button !== 0 || !canSchedule) return;
+    if (ev.target && ev.target.closest && ev.target.closest('[data-jp-bar-more]')) return;
+    var t = pointerTarget(ev);
+    var handle = t && t.closest ? t.closest('[data-jp-team-drag]') : null;
+    if (!handle || !root.contains(handle)) return;
+    var bar = findBar(handle);
+    if (!barCanDrag(bar)) return;
+    dragging = {
+      bar: bar,
+      handle: handle,
+      pointerId: ev.pointerId,
+      startX: ev.clientX,
+      startY: ev.clientY,
+      start: bar.getAttribute('data-plan-date') || bar.getAttribute('data-start') || '',
+      moved: false,
+    };
+  });
+
+  function onPointerMove(ev) {
+    if (!dragging || ev.pointerId !== dragging.pointerId) return;
+    var dx = Math.abs(ev.clientX - dragging.startX);
+    var dy = Math.abs(ev.clientY - dragging.startY);
+    if (!dragging.moved && dx < 5 && dy < 5) return;
+    if (!dragging.moved) {
+      dragging.moved = true;
+      dragging.bar.classList.add('is-dragging');
+      if (dragging.handle !== dragging.bar) dragging.handle.classList.add('is-dragging');
+      chart.classList.add('is-dragging-route');
+      try { dragging.bar.setPointerCapture(ev.pointerId); } catch (err) {}
+    }
+    ev.preventDefault();
+    hintDate(dateFromClientX(ev.clientX));
+  }
+
+  function onPointerUp(ev) {
+    if (!dragging || ev.pointerId !== dragging.pointerId) return;
+    var payload = dragging;
+    dragging = null;
+    try { payload.bar.releasePointerCapture(ev.pointerId); } catch (err) {}
+    clearDragClass();
+    if (!payload.moved) return;
+    var ymd = dateFromClientX(ev.clientX);
+    if (!ymd || !parseYmd(ymd)) return;
+    if (ymd === payload.start) return;
+    save(payload.bar, ymd);
+  }
+
+  document.addEventListener('pointermove', onPointerMove);
+  document.addEventListener('pointerup', onPointerUp);
+  document.addEventListener('pointercancel', onPointerUp);
+
   function save(bar, newStart) {
     if (!csrf) {
       alert('Thiếu mã bảo mật — tải lại trang rồi kéo lại.');
@@ -2571,64 +3231,6 @@
       alert(err.message || 'Không lưu được lịch.');
     });
   }
-
-  root.addEventListener('dragstart', function (ev) {
-    if (ev.button === 2 || ev.buttons === 2) {
-      ev.preventDefault();
-      return;
-    }
-    if (!canSchedule) {
-      ev.preventDefault();
-      return;
-    }
-    var handle = ev.target.closest('[data-jp-team-drag]');
-    if (!handle || !root.contains(handle)) return;
-    var bar = findBar(handle);
-    if (!barCanDrag(bar)) {
-      ev.preventDefault();
-      return;
-    }
-    dragging = {
-      bar: bar,
-      handle: handle,
-      start: bar.getAttribute('data-plan-date') || bar.getAttribute('data-start') || '',
-    };
-    try {
-      ev.dataTransfer.effectAllowed = 'move';
-      ev.dataTransfer.setData('text/plain', bar.getAttribute('data-order-id') + ':' + (bar.getAttribute('data-team-slug') || ''));
-      ev.dataTransfer.setDragImage(bar, 16, 12);
-    } catch (e) {}
-    bar.classList.add('is-dragging');
-    if (handle !== bar) handle.classList.add('is-dragging');
-    chart.classList.add('is-dragging-route');
-  });
-
-  function onDragOver(ev) {
-    if (!dragging) return;
-    ev.preventDefault();
-    try { ev.dataTransfer.dropEffect = 'move'; } catch (e) {}
-    hintDate(dateFromClientX(ev.clientX));
-  }
-  function onDrop(ev) {
-    if (!dragging) return;
-    ev.preventDefault();
-    var payload = dragging;
-    var ymd = dateFromClientX(ev.clientX);
-    dragging = null;
-    clearDragClass();
-    if (!ymd || !parseYmd(ymd)) return;
-    if (ymd === payload.start) return;
-    save(payload.bar, ymd);
-  }
-
-  document.addEventListener('dragover', onDragOver);
-  document.addEventListener('drop', onDrop);
-  root.addEventListener('dragend', function () {
-    setTimeout(function () {
-      dragging = null;
-      clearDragClass();
-    }, 0);
-  });
 
   function clearOrderFocus() {
     chart.classList.remove('is-order-focus');
@@ -2694,6 +3296,7 @@
       return;
     }
 
+    if (event.target.closest('[data-jp-bar-more], [data-jp-stage-split], [data-jp-stage-team], [data-jp-stage-capacity], #jpTlCtxMenu')) return;
     if (event.target.closest('a.jp-pb-stage-gc, a.jp-pb-stage-product-gc-link, .jp-pb-stage-gc-recv')) return;
     var button = event.target.closest('[data-jp-stage-open]');
     if (!button) return;

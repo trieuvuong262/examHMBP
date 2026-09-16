@@ -1330,6 +1330,9 @@ def plan_board(request):
         release_order_to_production,
         reschedule_order_team_start,
         save_plan_hops,
+        assign_plan_team,
+        save_plan_team_capacity,
+        plan_board_work_center_options,
         set_plan_priority,
         set_plan_color,
         unhold_plan_order,
@@ -1491,6 +1494,60 @@ def plan_board(request):
                     })
                 save_plan_hops(order_id=order_id, hops=hops)
                 messages.success(request, 'Đã lưu thời gian kiểm đếm / vận chuyển.')
+            elif action == 'assign_plan_team' and can_schedule and order_id:
+                team_slug = (request.POST.get('team_slug') or '').strip().lower()
+                raw_wc = (request.POST.get('work_center_id') or '').strip()
+                wc_id = int(raw_wc) if raw_wc.isdigit() and int(raw_wc) > 0 else None
+                order, wc = assign_plan_team(
+                    order_id=order_id,
+                    team_slug=team_slug,
+                    work_center_id=wc_id,
+                )
+                wants_json = (
+                    (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
+                    or 'application/json' in (request.headers.get('Accept') or '')
+                )
+                if wants_json:
+                    from django.http import JsonResponse
+
+                    return JsonResponse({
+                        'ok': True,
+                        'order_id': order.pk,
+                        'code': order.code,
+                        'team_slug': team_slug,
+                        'work_center_id': wc.pk if wc else 0,
+                        'work_center_name': (wc.team_label or wc.name or '') if wc else '',
+                    })
+                label = (wc.team_label or wc.name) if wc else 'chưa gán'
+                messages.success(request, f'Đã chọn tổ {label} cho {order.code}.')
+            elif action == 'save_plan_team_capacity' and can_schedule and order_id:
+                team_slug = (request.POST.get('team_slug') or '').strip().lower()
+                raw_h = (request.POST.get('headcount') or '').strip()
+                raw_e = (request.POST.get('efficiency_pct') or '').strip()
+                try:
+                    heads = int(raw_h)
+                except (TypeError, ValueError):
+                    heads = 0
+                order = save_plan_team_capacity(
+                    order_id=order_id,
+                    team_slug=team_slug,
+                    headcount=heads,
+                    efficiency_pct=raw_e,
+                )
+                wants_json = (
+                    (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
+                    or 'application/json' in (request.headers.get('Accept') or '')
+                )
+                if wants_json:
+                    from django.http import JsonResponse
+
+                    return JsonResponse({
+                        'ok': True,
+                        'order_id': order.pk,
+                        'code': order.code,
+                        'team_slug': team_slug,
+                    })
+                messages.success(request, f'Đã cập nhật số người / hệ số tải trên KHSX — {order.code}.')
             elif action == 'attach_tech' and (can_schedule or can_release) and order_id:
                 try:
                     line_id = int(request.POST.get('so_line_id') or 0)
@@ -1763,6 +1820,38 @@ def plan_board(request):
                     f'Đã xếp lại lịch {order.code} bắt đầu {order.plan_start_date.strftime("%d/%m/%Y")}.',
                 )
                 return redirect(f"{reverse('san_xuat:plan_board')}?mode=list&tab=route")
+            elif action == 'split_team_in_two' and can_schedule and order_id:
+                from san_xuat.list_filters import parse_sx_date
+                from san_xuat.services.plan_board import split_team_bar_in_two
+
+                team_slug = (request.POST.get('team_slug') or '').strip().lower()
+                from_raw = (request.POST.get('from_date') or request.POST.get('plan_date') or '').strip()
+                from_date = parse_sx_date(from_raw) if from_raw else None
+                try:
+                    segment_id = int(request.POST.get('segment_id') or 0)
+                except (TypeError, ValueError):
+                    segment_id = 0
+                order = split_team_bar_in_two(
+                    order_id=order_id,
+                    team_slug=team_slug,
+                    from_date=from_date,
+                    segment_id=segment_id,
+                )
+                wants_json = (
+                    (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
+                    or 'application/json' in (request.headers.get('Accept') or '')
+                )
+                if wants_json:
+                    from django.http import JsonResponse
+
+                    return JsonResponse({
+                        'ok': True,
+                        'order_id': order.pk,
+                        'code': order.code,
+                        'team_slug': team_slug,
+                    })
+                messages.success(request, f'Đã tách {team_slug} thành 2 thẻ — {order.code}.')
+                return redirect(f"{reverse('san_xuat:plan_board')}?mode=list&tab=route")
             elif action == 'split_team_days' and can_schedule and order_id:
                 import json as _json
 
@@ -1811,7 +1900,7 @@ def plan_board(request):
             else:
                 if action:
                     if (
-                        action in ('reschedule_route', 'split_team_days')
+                        action in ('reschedule_route', 'split_team_days', 'split_team_in_two', 'assign_plan_team', 'save_plan_team_capacity')
                         and (
                             (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
                             or 'application/json' in (request.headers.get('Accept') or '')
@@ -1826,7 +1915,7 @@ def plan_board(request):
                     messages.error(request, 'Bạn không có quyền thực hiện thao tác này.')
         except PlanningError as exc:
             if (
-                (request.POST.get('action') or '').strip() in ('reschedule_route', 'split_team_days')
+                (request.POST.get('action') or '').strip() in ('reschedule_route', 'split_team_days', 'split_team_in_two', 'assign_plan_team', 'save_plan_team_capacity')
                 and (
                     (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
                     or 'application/json' in (request.headers.get('Accept') or '')
@@ -1838,7 +1927,7 @@ def plan_board(request):
             messages.error(request, str(exc))
         except Exception as exc:
             if (
-                (request.POST.get('action') or '').strip() in ('reschedule_route', 'split_team_days')
+                (request.POST.get('action') or '').strip() in ('reschedule_route', 'split_team_days', 'split_team_in_two', 'assign_plan_team', 'save_plan_team_capacity')
                 and (
                     (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
                     or 'application/json' in (request.headers.get('Accept') or '')
@@ -2005,6 +2094,7 @@ def plan_board(request):
         'released_rows': released_rows,
         'subcontract_items': subcontract_items,
         'can_schedule': can_schedule,
+        'plan_work_centers': plan_board_work_center_options(),
         'can_release': can_release,
         'can_view_subcontract': True,
         'can_create_subcontract': can_release,

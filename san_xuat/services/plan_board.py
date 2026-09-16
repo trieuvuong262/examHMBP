@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from datetime import date, timedelta
-from decimal import Decimal
+from decimal import ROUND_DOWN, Decimal
 
 from django.db import transaction
 from django.db.models import Prefetch, Q, Sum
@@ -353,6 +353,15 @@ class PlanProductFlow:
 
 
 @dataclass
+class TeamDayPiece:
+    """Một thẻ ngày đã tách của tổ trên KHSX."""
+
+    plan_date: date
+    qty: Decimal = field(default_factory=lambda: Decimal('0'))
+    qty_label: str = ''
+
+
+@dataclass
 class TeamKhsxSpan:
     """Khoảng KHSX của một tổ tham gia Ob trên đơn."""
 
@@ -367,6 +376,15 @@ class TeamKhsxSpan:
     duration_label: str = ''
     duration_work_days: int = 0
     can_drag: bool = True
+    day_pieces: list[TeamDayPiece] = field(default_factory=list)
+    labor_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
+    headcount: int = 0
+    efficiency_pct: Decimal = field(default_factory=lambda: Decimal('0'))
+    catalog_headcount: int = 0
+    catalog_efficiency_pct: Decimal = field(default_factory=lambda: Decimal('0'))
+    work_hours_per_day: Decimal = field(default_factory=lambda: Decimal('0'))
+    capacity_minutes_per_day: Decimal = field(default_factory=lambda: Decimal('0'))
+    work_center_id: int = 0
 
 
 @dataclass
@@ -391,6 +409,19 @@ class TicketTimelineStep:
     hop_count_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
     hop_transfer_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
     can_edit_hop: bool = False
+    qty_label: str = ''
+    team_qty_total: str = ''
+    show_connector: bool = True
+    split_index: int = 0
+    split_count: int = 1
+    work_center_id: int = 0
+    headcount: int = 0
+    efficiency_pct: Decimal = field(default_factory=lambda: Decimal('0'))
+    catalog_headcount: int = 0
+    catalog_efficiency_pct: Decimal = field(default_factory=lambda: Decimal('0'))
+    work_hours_per_day: Decimal = field(default_factory=lambda: Decimal('0'))
+    labor_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
+    capacity_minutes_per_day: Decimal = field(default_factory=lambda: Decimal('0'))
 
     @property
     def unhired_product_groups(self) -> list[dict]:
@@ -596,6 +627,174 @@ def _team_display_label(slug: str, fallback: str = '') -> str:
     return (meta.get('label') or fallback or slug or '').strip()
 
 
+def _wc_has_capacity(wc: SxWorkCenter | None) -> bool:
+    if wc is None:
+        return False
+    if _q(getattr(wc, 'available_minutes_per_day', 0)) > 0:
+        return True
+    return _q(getattr(wc, 'capacity_per_day', 0)) > 0
+
+
+def _work_center_catalog_by_slug() -> dict[str, SxWorkCenter]:
+    """Tổ Năng lực SX mặc định theo slug KHSX (cat/may/…) — ưu tiên tổ có quỹ phút."""
+    from san_xuat.services.capacity_from_hrm import team_slug_for_work_center
+
+    ranked: dict[str, tuple[tuple[int, int], SxWorkCenter]] = {}
+    qs = SxWorkCenter.objects.filter(is_active=True)
+    if hasattr(SxWorkCenter, 'is_demo'):
+        qs = qs.filter(is_demo=False)
+    if hasattr(SxWorkCenter, 'is_subcontract'):
+        qs = qs.filter(is_subcontract=False)
+    for wc in qs.order_by('code', 'name'):
+        slug = (team_slug_for_work_center(wc) or '').strip().lower()
+        if not slug:
+            continue
+        cap = 1 if _wc_has_capacity(wc) else 0
+        code = (wc.code or '').strip().upper()
+        exact = 1 if code in {'CAT', 'IN-EP', 'THEU', 'MAY', 'HT', 'GH'} else 0
+        key = (cap, exact)
+        prev = ranked.get(slug)
+        if prev is None or key > prev[0]:
+            ranked[slug] = (key, wc)
+    return {slug: wc for slug, (_key, wc) in ranked.items()}
+
+
+def apply_default_capacity_teams(
+    order: SxSalesOrder,
+    steps=None,
+    *,
+    replace_without_capacity: bool = False,
+) -> list:
+    """Gán tổ Năng lực SX mặc định cho công đoạn chưa có tổ (hoặc tổ không có quỹ phút)."""
+    from san_xuat.hub_models import SxSalesOrderRoutingLine
+    from san_xuat.services.inter_step_times import (
+        _group_slug_scope,
+        _step_team_slug,
+        attach_group_codes_from_routing,
+    )
+
+    steps = list(steps) if steps is not None else list(
+        order.plan_steps.select_related('work_center').order_by('sequence', 'id'),
+    )
+    routing_lines = [
+        rl
+        for ln in order.lines.all()
+        for rl in ln.routing_lines.select_related('work_center', 'operation__group').all()
+    ]
+    if steps:
+        attach_group_codes_from_routing(steps, routing_lines)
+    catalog = _work_center_catalog_by_slug()
+    if not catalog:
+        return steps
+    dirty_steps: list[SxSalesOrderPlanStep] = []
+    dirty_lines: list = []
+    with _group_slug_scope():
+        for step in steps:
+            wc = getattr(step, 'work_center', None)
+            keep = bool(step.work_center_id) and (
+                _wc_has_capacity(wc) or not replace_without_capacity
+            )
+            if keep:
+                continue
+            slug = _plan_step_team_slug(step)
+            default = catalog.get(slug)
+            if default is None or step.work_center_id == default.pk:
+                continue
+            step.work_center = default
+            dirty_steps.append(step)
+        for rl in routing_lines:
+            wc = getattr(rl, 'work_center', None)
+            keep = bool(rl.work_center_id) and (
+                _wc_has_capacity(wc) or not replace_without_capacity
+            )
+            if keep:
+                continue
+            slug = (_step_team_slug(rl) or '').strip().lower()
+            default = catalog.get(slug)
+            if default is None or rl.work_center_id == default.pk:
+                continue
+            rl.work_center = default
+            rl.work_center_code = (default.code or '')[:40]
+            dirty_lines.append(rl)
+    if dirty_steps:
+        SxSalesOrderPlanStep.objects.bulk_update(dirty_steps, ['work_center'])
+    if dirty_lines:
+        SxSalesOrderRoutingLine.objects.bulk_update(
+            dirty_lines, ['work_center', 'work_center_code'],
+        )
+    return steps
+
+
+def plan_board_work_center_options() -> list[dict]:
+    """Danh sách tổ Năng lực SX để chọn trên menu ⋯."""
+    qs = SxWorkCenter.objects.filter(is_active=True)
+    if hasattr(SxWorkCenter, 'is_demo'):
+        qs = qs.filter(is_demo=False)
+    rows: list[dict] = []
+    for wc in qs.order_by('code', 'name'):
+        cap = _q(getattr(wc, 'available_minutes_per_day', 0))
+        rows.append({
+            'id': int(wc.pk),
+            'code': wc.code or '',
+            'name': (wc.team_label or wc.name or wc.code or '').strip(),
+            'headcount': int(wc.headcount or 0),
+            'minutes_per_day': format_sx_num_input(cap) if cap > 0 else '',
+        })
+    return rows
+
+
+def _khsx_available_minutes(
+    wc: SxWorkCenter | None,
+    *,
+    headcount: int | None = None,
+    efficiency_pct=None,
+) -> Decimal:
+    """Quỹ phút/ngày theo số người × giờ/ca × hệ số tải — giờ ca lấy từ tổ NL (tham khảo)."""
+    from san_xuat.hub_models import DEFAULT_SHIFT_MINUTES, DEFAULT_WORK_HOURS_PER_DAY
+
+    heads = headcount
+    if heads is None:
+        heads = int(getattr(wc, 'headcount', 0) or 0) if wc is not None else 0
+    heads = max(0, int(heads or 0))
+    hours = Decimal('0')
+    if wc is not None:
+        hours = _q(getattr(wc, 'work_hours_per_day', 0) or 0)
+    if hours <= 0:
+        hours = DEFAULT_WORK_HOURS_PER_DAY
+    shift = hours * Decimal('60')
+    if shift <= 0:
+        shift = Decimal(str(DEFAULT_SHIFT_MINUTES))
+    if efficiency_pct is None:
+        efficiency_pct = getattr(wc, 'efficiency_pct', None) if wc is not None else None
+    load = _q(efficiency_pct if efficiency_pct is not None else 100) / Decimal('100')
+    if load < 0:
+        load = Decimal('0')
+    return (Decimal(heads) * shift * load).quantize(Decimal('0.01'))
+
+
+def _labor_to_calendar_minutes(
+    labor: Decimal,
+    wc: SxWorkCenter | None,
+    *,
+    qty: Decimal = Decimal('0'),
+    headcount: int | None = None,
+    efficiency_pct=None,
+) -> Decimal:
+    """Phút lịch (quy về 1 ca KHSX) = công SMV chia quỹ phút tổ / NL ngày."""
+    labor = _q(labor, '0.0001')
+    if labor <= 0:
+        return Decimal('0')
+    cap_min = _khsx_available_minutes(wc, headcount=headcount, efficiency_pct=efficiency_pct)
+    if cap_min > 0:
+        return _q(labor * PLAN_SHIFT_MINUTES / cap_min, '0.0001')
+    if wc is not None and headcount is None and efficiency_pct is None:
+        cap_qty = _q(getattr(wc, 'capacity_per_day', 0))
+        qty_n = _q(qty)
+        if cap_qty > 0 and qty_n > 0:
+            return _q(qty_n / cap_qty * PLAN_SHIFT_MINUTES, '0.0001')
+    return labor
+
+
 def _add_flow_hops(groups, hop_by_slug: dict[str, Decimal]) -> None:
     rows = list(groups or [])
     for i, g in enumerate(rows[:-1]):
@@ -622,6 +821,10 @@ def _team_loads_from_order(
     work: dict[str, Decimal] = {}
     hops: dict[str, Decimal] = {}
     labels: dict[str, str] = {}
+    assigned: dict[str, SxWorkCenter] = {}
+    qty_by: dict[str, Decimal] = {}
+    overrides: dict[str, dict] = {}
+    line_slug_seen: set[tuple[int, str]] = set()
     lines = [ln for ln in order.lines.all() if (ln.qty or 0) > 0]
     with _group_slug_scope():
         for ln in lines:
@@ -634,8 +837,18 @@ def _team_loads_from_order(
                 work[slug] = work.get(slug, Decimal('0')) + _q(
                     (step.minutes_per_unit or Decimal('0')) * qty, '0.0001',
                 )
+                wc = getattr(step, 'work_center', None)
+                if wc is not None and slug not in assigned:
+                    assigned[slug] = wc
                 if slug not in labels:
-                    labels[slug] = _team_display_label(slug, step.team_label)
+                    wc_label = ''
+                    if wc is not None:
+                        wc_label = (wc.team_label or wc.name or '').strip()
+                    labels[slug] = _team_display_label(slug, wc_label or step.team_label)
+                line_key = (int(getattr(ln, 'pk', 0) or 0), slug)
+                if line_key not in line_slug_seen:
+                    line_slug_seen.add(line_key)
+                    qty_by[slug] = qty_by.get(slug, Decimal('0')) + _q(qty)
 
         if product_flows:
             for pf in product_flows:
@@ -646,18 +859,82 @@ def _team_loads_from_order(
                 if routing.steps:
                     _add_flow_hops(flow_groups_from_steps(routing.steps, sort_factory=True), hops)
 
+    with _group_slug_scope():
+        plan_mgr = getattr(order, 'plan_steps', None)
+        plan_iter = list(plan_mgr.all()) if plan_mgr is not None else []
+        for step in plan_iter:
+            slug = _plan_step_team_slug(step)
+            if not slug:
+                continue
+            wc = getattr(step, 'work_center', None)
+            if wc is not None:
+                assigned[slug] = wc
+                wc_label = (wc.team_label or wc.name or '').strip()
+                if wc_label:
+                    labels[slug] = _team_display_label(slug, wc_label)
+            ov_h = getattr(step, 'khsx_headcount', None)
+            ov_e = getattr(step, 'khsx_efficiency_pct', None)
+            if ov_h is not None or ov_e is not None:
+                cur = overrides.get(slug) or {}
+                if ov_h is not None:
+                    cur['headcount'] = int(ov_h)
+                if ov_e is not None:
+                    cur['efficiency_pct'] = _q(ov_e)
+                overrides[slug] = cur
+
+    catalog: dict[str, SxWorkCenter] | None = None
+
+    def _wc_for(slug: str) -> SxWorkCenter | None:
+        nonlocal catalog
+        found = assigned.get(slug)
+        ov = overrides.get(slug) or {}
+        if found is not None and (
+            _wc_has_capacity(found) or ov.get('headcount') or ov.get('efficiency_pct')
+        ):
+            return found
+        if catalog is None:
+            catalog = _work_center_catalog_by_slug()
+        default = catalog.get(slug)
+        picked = default or found
+        if picked is not None and slug not in assigned:
+            assigned[slug] = picked
+        return picked
+
     rank = _factory_slug_rank()
     slugs = sorted(work.keys(), key=lambda s: (rank.get(s, 99), s))
     out: list[dict] = []
     for slug in slugs:
-        work_min = _q(work.get(slug, Decimal('0')))
+        labor = _q(work.get(slug, Decimal('0')), '0.0001')
+        wc = _wc_for(slug)
+        ov = overrides.get(slug) or {}
+        catalog_h = int(getattr(wc, 'headcount', 0) or 0) if wc is not None else 0
+        catalog_e = _q(getattr(wc, 'efficiency_pct', 100) or 100) if wc is not None else Decimal('100')
+        use_h = int(ov['headcount']) if 'headcount' in ov else catalog_h
+        use_e = ov['efficiency_pct'] if 'efficiency_pct' in ov else catalog_e
+        calendar = _labor_to_calendar_minutes(
+            labor, wc, qty=qty_by.get(slug, Decimal('0')),
+            headcount=use_h, efficiency_pct=use_e,
+        )
         buf = _q(hops.get(slug, Decimal('0')))
+        cap_min = _khsx_available_minutes(wc, headcount=use_h, efficiency_pct=use_e)
+        hours = _q(getattr(wc, 'work_hours_per_day', 0) or 0) if wc is not None else Decimal('0')
+        wc_label = ''
+        if wc is not None:
+            wc_label = (wc.team_label or wc.name or '').strip()
         out.append({
             'slug': slug,
-            'label': labels.get(slug) or _team_display_label(slug),
-            'work_minutes': work_min,
+            'label': wc_label or labels.get(slug) or _team_display_label(slug),
+            'labor_minutes': labor,
+            'work_minutes': calendar,
             'buffer_minutes': buf,
-            'minutes': _q(work_min + buf),
+            'minutes': _q(calendar + buf),
+            'headcount': use_h,
+            'efficiency_pct': _q(use_e),
+            'catalog_headcount': catalog_h,
+            'catalog_efficiency_pct': catalog_e,
+            'work_hours_per_day': hours,
+            'capacity_minutes_per_day': cap_min,
+            'work_center_id': int(getattr(wc, 'pk', 0) or 0) if wc is not None else 0,
         })
     return out
 
@@ -758,6 +1035,7 @@ def team_khsx_spans(
         is_pinned = slug in pinned
         start = pinned[slug] if is_pinned else defaults[slug][0]
         day_rows = day_plans_by_slug.get(slug) or []
+        pieces: list[TeamDayPiece] = []
         if day_rows:
             dates = [d.plan_date for d in day_rows if d.plan_date]
             if dates:
@@ -769,6 +1047,16 @@ def team_khsx_spans(
                     lead_minutes=row['minutes'],
                     minutes_per_day=PLAN_SHIFT_MINUTES,
                 )
+            if len(day_rows) >= 2:
+                for dp in day_rows:
+                    if not dp.plan_date:
+                        continue
+                    qty = _q(dp.qty)
+                    pieces.append(TeamDayPiece(
+                        plan_date=dp.plan_date,
+                        qty=qty,
+                        qty_label=format_sx_num_input(qty) if qty > 0 else '0',
+                    ))
         else:
             start, end = schedule_span(
                 start=start,
@@ -787,6 +1075,15 @@ def team_khsx_spans(
             pinned=is_pinned or bool(day_rows),
             duration_label=dur_label,
             duration_work_days=dur_days,
+            day_pieces=pieces,
+            labor_minutes=_q(row.get('labor_minutes') or row['work_minutes'], '0.0001'),
+            headcount=int(row.get('headcount') or 0),
+            efficiency_pct=_q(row.get('efficiency_pct') or 0),
+            catalog_headcount=int(row.get('catalog_headcount') or 0),
+            catalog_efficiency_pct=_q(row.get('catalog_efficiency_pct') or 0),
+            work_hours_per_day=_q(row.get('work_hours_per_day') or 0),
+            capacity_minutes_per_day=_q(row.get('capacity_minutes_per_day') or 0),
+            work_center_id=int(row.get('work_center_id') or 0),
         ))
     return npl_spans + spans
 
@@ -814,6 +1111,19 @@ def _write_team_planned_dates(steps, starts_by_slug: dict[str, date], *, require
     if require_slug and not wrote_required:
         return 0
     return written
+
+
+def _ticket_capacity_kwargs(span: TeamKhsxSpan) -> dict:
+    return {
+        'work_center_id': int(getattr(span, 'work_center_id', 0) or 0),
+        'headcount': int(getattr(span, 'headcount', 0) or 0),
+        'efficiency_pct': _q(getattr(span, 'efficiency_pct', 0) or 0),
+        'catalog_headcount': int(getattr(span, 'catalog_headcount', 0) or 0),
+        'catalog_efficiency_pct': _q(getattr(span, 'catalog_efficiency_pct', 0) or 0),
+        'work_hours_per_day': _q(getattr(span, 'work_hours_per_day', 0) or 0),
+        'labor_minutes': _q(getattr(span, 'labor_minutes', 0) or 0, '0.0001'),
+        'capacity_minutes_per_day': _q(getattr(span, 'capacity_minutes_per_day', 0) or 0),
+    }
 
 
 def _span_days(start: date | None, end: date | None) -> int:
@@ -919,8 +1229,45 @@ def build_ticket_timeline_steps(
 
     if teams:
         for index, s in enumerate(teams):
-            days = _span_days(s.start, s.end)
             meta = team_meta.get((s.slug or '').strip().lower(), {})
+            qty_total = Decimal('0')
+            for pg in meta.get('product_groups') or []:
+                qty_total += _q(pg.get('qty'))
+            team_qty_label = format_sx_num_input(qty_total) if qty_total > 0 else ''
+            if not team_qty_label:
+                team_qty_label = _team_qty_label(s.slug, product_flows, Decimal('0'))
+            pieces = [p for p in (s.day_pieces or []) if p.plan_date]
+            if len(pieces) >= 2:
+                last_i = len(pieces) - 1
+                for i, piece in enumerate(pieces):
+                    is_last = i == last_i
+                    steps.append(TicketTimelineStep(
+                        slug=s.slug,
+                        kind='team',
+                        label=s.label or 'Công đoạn',
+                        start=piece.plan_date,
+                        end=piece.plan_date,
+                        duration_label=s.duration_label if i == 0 else '',
+                        days=1,
+                        status='ok',
+                        flex=1,
+                        is_late=bool(due_date and piece.plan_date and piece.plan_date > due_date),
+                        process_count=int(meta.get('process_count') or 0),
+                        product_groups=list(meta.get('product_groups') or []),
+                        hop_step_id=int(meta.get('hop_step_id') or 0) if is_last else 0,
+                        hop_process_name=(meta.get('hop_process_name') or '') if is_last else '',
+                        hop_count_minutes=_q(meta.get('hop_count_minutes') or 0) if is_last else Decimal('0'),
+                        hop_transfer_minutes=_q(meta.get('hop_transfer_minutes') or 0) if is_last else Decimal('0'),
+                        can_edit_hop=is_last and index < len(teams) - 1,
+                        qty_label=piece.qty_label,
+                        team_qty_total=team_qty_label,
+                        show_connector=is_last,
+                        split_index=i + 1,
+                        split_count=len(pieces),
+                        **_ticket_capacity_kwargs(s),
+                    ))
+                continue
+            days = _span_days(s.start, s.end)
             steps.append(TicketTimelineStep(
                 slug=s.slug,
                 kind='team',
@@ -939,6 +1286,9 @@ def build_ticket_timeline_steps(
                 hop_count_minutes=_q(meta.get('hop_count_minutes') or 0),
                 hop_transfer_minutes=_q(meta.get('hop_transfer_minutes') or 0),
                 can_edit_hop=index < len(teams) - 1,
+                qty_label=team_qty_label,
+                team_qty_total=team_qty_label,
+                **_ticket_capacity_kwargs(s),
             ))
     else:
         steps.append(TicketTimelineStep(
@@ -1160,6 +1510,15 @@ def build_plan_board_rows(
         buffer_min = Decimal('0')
         plan_steps = list(order.plan_steps.all())
         if plan_steps:
+            needs_default = any(
+                (not s.work_center_id) or (not _wc_has_capacity(getattr(s, 'work_center', None)))
+                for s in plan_steps
+            )
+            if needs_default:
+                plan_steps = apply_default_capacity_teams(
+                    order, plan_steps, replace_without_capacity=True,
+                )
+        if plan_steps:
             from san_xuat.services.inter_step_times import (
                 attach_group_codes_from_routing,
                 flow_groups_from_steps,
@@ -1251,7 +1610,21 @@ def build_plan_board_rows(
             has_routing = any(
                 pf.flow_groups or pf.smv_minutes > 0 for pf in product_flows
             )
-        cycle_min = _q(work_min + buffer_min)
+        from san_xuat.services.inter_step_times import schedule_span
+
+        team_spans = team_khsx_spans(
+            order,
+            product_flows=product_flows,
+            plan_steps=plan_steps,
+            today=today,
+        )
+        prod_all = [s for s in team_spans if s.slug != 'npl']
+        if prod_all:
+            work_min = _q(sum((s.work_minutes for s in prod_all), Decimal('0')))
+            buffer_min = _q(sum((s.buffer_minutes for s in prod_all), Decimal('0')))
+            cycle_min = _q(sum((s.minutes for s in prod_all), Decimal('0')))
+        else:
+            cycle_min = _q(work_min + buffer_min)
         score, days_to_due, is_overdue = compute_score(
             order=order, cycle_minutes=cycle_min, today=today,
         )
@@ -1262,14 +1635,7 @@ def build_plan_board_rows(
             and derived != order.plan_status
         ):
             order.plan_status = derived
-        from san_xuat.services.inter_step_times import schedule_span
 
-        team_spans = team_khsx_spans(
-            order,
-            product_flows=product_flows,
-            plan_steps=plan_steps,
-            today=today,
-        )
         if team_spans:
             prod_spans = [s for s in team_spans if s.slug != 'npl' and s.start]
             if not prod_spans:
@@ -1323,6 +1689,16 @@ def build_plan_board_rows(
                     'buffer_minutes': format_sx_num_input(ts.buffer_minutes),
                     'minutes': format_sx_num_input(ts.minutes),
                     'duration_label': ts.duration_label,
+                    'labor_minutes': format_sx_num_input(ts.labor_minutes),
+                    'headcount': ts.headcount,
+                    'capacity_minutes_per_day': format_sx_num_input(ts.capacity_minutes_per_day),
+                    'splits': [
+                        {
+                            'date': _fmt_date(p.plan_date),
+                            'qty': p.qty_label,
+                        }
+                        for p in (ts.day_pieces or [])
+                    ],
                 }
                 for ts in team_spans
             ],
@@ -1675,6 +2051,108 @@ def save_plan_hops(*, order_id: int, hops: list[dict]) -> list[SxSalesOrderPlanS
     origin = _plan_step_team_slug(first_touched) if first_touched is not None else ''
     _reflow_order_from(order, origin_slug=origin)
     return list(order.plan_steps.order_by('sequence', 'id'))
+
+
+@transaction.atomic
+def assign_plan_team(
+    *,
+    order_id: int,
+    team_slug: str,
+    work_center_id: int | None,
+) -> tuple[SxSalesOrder, SxWorkCenter | None]:
+    """Gán tổ Năng lực SX cho một cụm công đoạn trên đơn — dùng để chia thời gian."""
+    from san_xuat.services.inter_step_times import _group_slug_scope, _step_team_slug
+
+    order = SxSalesOrder.objects.select_for_update().get(pk=order_id, is_demo=False)
+    _assert_schedule_editable(order)
+    slug = (team_slug or '').strip().lower()
+    if not slug or slug == 'npl':
+        raise PlanningError('Chọn công đoạn tổ sản xuất để gán.')
+    wc = None
+    if work_center_id:
+        qs = SxWorkCenter.objects.filter(pk=int(work_center_id), is_active=True)
+        if hasattr(SxWorkCenter, 'is_demo'):
+            qs = qs.filter(is_demo=False)
+        wc = qs.first()
+        if wc is None:
+            raise PlanningError('Tổ không hợp lệ hoặc đã tắt.')
+    steps = _load_schedule_steps(order)
+    matched: list[SxSalesOrderPlanStep] = []
+    with _group_slug_scope():
+        for step in steps:
+            if _plan_step_team_slug(step) == slug:
+                matched.append(step)
+    if not matched:
+        raise PlanningError('Không tìm thấy công đoạn tương ứng trên đơn.')
+    for step in matched:
+        step.work_center = wc
+        step.khsx_headcount = None
+        step.khsx_efficiency_pct = None
+        step.save(update_fields=['work_center', 'khsx_headcount', 'khsx_efficiency_pct'])
+    with _group_slug_scope():
+        for ln in order.lines.all():
+            for rl in ln.routing_lines.select_related('work_center', 'operation__group').all():
+                rl_slug = (_step_team_slug(rl) or '').strip().lower()
+                if rl_slug != slug:
+                    continue
+                rl.work_center = wc
+                rl.work_center_code = (wc.code if wc else '')[:40]
+                rl.save(update_fields=['work_center', 'work_center_code'])
+    cache = getattr(order, '_prefetched_objects_cache', None)
+    if cache is not None:
+        cache.pop('plan_steps', None)
+        cache.pop('lines', None)
+    _reflow_order_from(order, origin_slug=slug)
+    return order, wc
+
+
+@transaction.atomic
+def save_plan_team_capacity(
+    *,
+    order_id: int,
+    team_slug: str,
+    headcount: int,
+    efficiency_pct,
+) -> SxSalesOrder:
+    """Chỉnh số người / hệ số tải trên KHSX — không đụng danh mục NL hay lệnh SX đã tạo."""
+    from san_xuat.services.inter_step_times import _group_slug_scope
+
+    order = SxSalesOrder.objects.select_for_update().get(pk=order_id, is_demo=False)
+    _assert_schedule_editable(order)
+    slug = (team_slug or '').strip().lower()
+    if not slug or slug == 'npl':
+        raise PlanningError('Chọn công đoạn tổ sản xuất để chỉnh.')
+    try:
+        heads = int(headcount)
+    except (TypeError, ValueError):
+        raise PlanningError('Số người không hợp lệ.') from None
+    if heads < 1 or heads > 500:
+        raise PlanningError('Số người thực hiện từ 1 đến 500.')
+    try:
+        load = _q(efficiency_pct)
+    except Exception:
+        raise PlanningError('Hệ số tải không hợp lệ.') from None
+    if load < 1 or load > 200:
+        raise PlanningError('Hệ số tải từ 1% đến 200%.')
+    steps = _load_schedule_steps(order)
+    matched: list[SxSalesOrderPlanStep] = []
+    with _group_slug_scope():
+        for step in steps:
+            if _plan_step_team_slug(step) == slug:
+                matched.append(step)
+    if not matched:
+        raise PlanningError('Không tìm thấy công đoạn tương ứng trên đơn.')
+    for step in matched:
+        step.khsx_headcount = heads
+        step.khsx_efficiency_pct = load
+        step.save(update_fields=['khsx_headcount', 'khsx_efficiency_pct'])
+    cache = getattr(order, '_prefetched_objects_cache', None)
+    if cache is not None:
+        cache.pop('plan_steps', None)
+    has_mo = order.production_orders.filter(is_demo=False).exclude(
+        status=SxProductionOrder.STATUS_CANCELLED,
+    ).exists()
+    return _reflow_order_from(order, origin_slug=slug, sync_mos=not has_mo)
 
 
 @transaction.atomic
@@ -2254,7 +2732,9 @@ def _move_team_start_independent(
     return _sync_schedule_to_mos(order, starts)
 
 
-def _sync_schedule_to_mos(order: SxSalesOrder, starts: dict[str, date]) -> SxSalesOrder:
+def _sync_schedule_to_mos(
+    order: SxSalesOrder, starts: dict[str, date], *, sync_mos: bool = True,
+) -> SxSalesOrder:
     from san_xuat.services.capacity_from_hrm import team_slug_for_work_center
     from san_xuat.services.progress_template import team_slug_for_process_label
 
@@ -2268,6 +2748,8 @@ def _sync_schedule_to_mos(order: SxSalesOrder, starts: dict[str, date]) -> SxSal
     if order.plan_start_date != pstart:
         order.plan_start_date = pstart
         order.save(update_fields=['plan_start_date', 'updated_at'])
+    if not sync_mos:
+        return order
     mos = order.production_orders.filter(is_demo=False).exclude(
         status=SxProductionOrder.STATUS_CANCELLED,
     )
@@ -2299,6 +2781,7 @@ def _reflow_order_from(
     *,
     origin_slug: str = '',
     origin_start: date | None = None,
+    sync_mos: bool = True,
 ) -> SxSalesOrder:
     """Giữ ngày tổ đang sửa, dồn các tổ sau theo quỹ phút + ngày làm việc."""
     from san_xuat.services.inter_step_times import schedule_span
@@ -2351,7 +2834,7 @@ def _reflow_order_from(
     written = _write_team_planned_dates(steps, starts, require_slug=slug)
     if written <= 0:
         raise PlanningError('Không gán được công đoạn của tổ này.')
-    return _sync_schedule_to_mos(order, starts)
+    return _sync_schedule_to_mos(order, starts, sync_mos=sync_mos)
 
 
 def load_snapshot_for_board(*, days: int = 14) -> dict:
@@ -2427,6 +2910,7 @@ class TeamTimelineBar:
     segment_id: int = 0
     plan_date: date | None = None
     team_qty_total: str = ''
+    work_center_id: int = 0
 
 
 @dataclass
@@ -2710,6 +3194,51 @@ def _fifo_allocate_done(planned_qtys: list[Decimal], done_total: Decimal) -> lis
     return allocated
 
 
+def _split_qty_pair(qty: Decimal) -> tuple[Decimal, Decimal]:
+    """Chia SL thành 2 phần dương, tổng giữ nguyên."""
+    total = _q(qty)
+    if total < Decimal('0.02'):
+        raise PlanningError('SL quá nhỏ để tách thành 2 thẻ.')
+    first = (total / 2).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+    if first <= 0:
+        first = Decimal('0.01')
+    second = total - first
+    if second <= 0:
+        raise PlanningError('SL quá nhỏ để tách thành 2 thẻ.')
+    return first, second
+
+
+def _next_free_workday(start: date, occupied: set[date]) -> date:
+    from san_xuat.services.work_calendar import add_working_days, next_working_day
+
+    day = add_working_days(next_working_day(start), 1)
+    for _ in range(400):
+        if day not in occupied:
+            return day
+        day = add_working_days(day, 1)
+    return day
+
+
+def _order_team_target_qty(order: SxSalesOrder, slug: str) -> Decimal:
+    lines = [ln for ln in order.lines.all() if (ln.qty or 0) > 0]
+    plan_rows_qty = Decimal('0')
+    for ln in lines:
+        plan_rows_qty += _q(ln.qty_to_produce)
+    try:
+        from san_xuat.services.inter_step_times import _group_slug_scope, _step_team_slug
+        from san_xuat.services.order_routing import sales_order_line_routing
+
+        matched = Decimal('0')
+        with _group_slug_scope():
+            for ln in lines:
+                routing = sales_order_line_routing(ln)
+                if any((_step_team_slug(step) or '').strip().lower() == slug for step in routing.steps):
+                    matched += _q(ln.qty_to_produce)
+        return matched if matched > 0 else plan_rows_qty
+    except Exception:
+        return plan_rows_qty
+
+
 def _pin_team_planned_date(order: SxSalesOrder, slug: str, pin: date) -> dict[str, date]:
     """Ghim planned_date các bước của tổ = pin; giữ pin các tổ khác."""
     from san_xuat.services.work_calendar import next_working_day
@@ -2749,37 +3278,9 @@ def save_team_day_plans(
     if slug not in {s.slug for s in prod}:
         raise PlanningError('Tổ này không tham gia đơn.')
 
-    # SL kế hoạch tổ
-    lines = [ln for ln in order.lines.all() if (ln.qty or 0) > 0]
-    # Build minimal product flows qty via existing helper path
-    plan_rows_qty = Decimal('0')
-    for ln in lines:
-        plan_rows_qty += _q(ln.qty_to_produce)
-    # Prefer product_flows from board logic: sum via _team_qty_value with empty flows → total
-    # Rebuild flows lightly from order for accuracy
-    product_flows = []
-    try:
-        # Use spans label path — qty from lines that touch this team via routing
-        from san_xuat.services.order_routing import sales_order_line_routing
-        from san_xuat.services.inter_step_times import _group_slug_scope, _step_team_slug
+    target_qty = _order_team_target_qty(order, slug)
 
-        matched = Decimal('0')
-        with _group_slug_scope():
-            for ln in lines:
-                routing = sales_order_line_routing(ln)
-                hit = False
-                for step in routing.steps:
-                    st = (_step_team_slug(step) or '').strip().lower()
-                    if st == slug:
-                        hit = True
-                        break
-                if hit:
-                    matched += _q(ln.qty_to_produce)
-        target_qty = matched if matched > 0 else plan_rows_qty
-    except Exception:
-        target_qty = plan_rows_qty
-
-    merged: dict[date, Decimal] = {}
+    parsed: list[tuple[date, Decimal]] = []
     for raw in rows or []:
         d = raw.get('date') if isinstance(raw, dict) else None
         if isinstance(d, str):
@@ -2787,34 +3288,106 @@ def save_team_day_plans(
             d = parse_sx_date(d.strip())
         if not isinstance(d, date):
             continue
-        d = next_working_day(d)
         qty = _q(raw.get('qty') if isinstance(raw, dict) else 0)
         if qty <= 0:
             continue
-        merged[d] = merged.get(d, Decimal('0')) + qty
+        parsed.append((d, qty))
 
-    if not merged:
-        # Xóa hết → về chế độ không tách
+    if not parsed:
         SxOrderTeamDayPlan.objects.filter(sales_order=order, team_slug=slug).delete()
         return order
 
-    total = sum(merged.values(), Decimal('0'))
+    total = sum((q for _d, q in parsed), Decimal('0'))
     if abs(total - target_qty) > Decimal('0.01'):
         raise PlanningError(
             f'Tổng SL tách ({format_sx_num_input(total)}) phải bằng SL tổ ({format_sx_num_input(target_qty)}).'
         )
 
     SxOrderTeamDayPlan.objects.filter(sales_order=order, team_slug=slug).delete()
-    pin = min(merged.keys())
-    if len(merged) == 1:
-        # Một ngày duy nhất = gộp / không tách — chỉ ghim ngày bắt đầu
+    if len(parsed) == 1:
+        pin = next_working_day(parsed[0][0])
         starts = _pin_team_planned_date(order, slug, pin)
         return _sync_schedule_to_mos(order, starts)
 
+    from san_xuat.services.work_calendar import add_working_days
+
+    occupied: set[date] = set()
+    assigned: list[tuple[date, Decimal]] = []
+    for d, q in parsed:
+        day = next_working_day(d)
+        while day in occupied:
+            day = add_working_days(day, 1)
+        occupied.add(day)
+        assigned.append((day, q))
+
     SxOrderTeamDayPlan.objects.bulk_create([
         SxOrderTeamDayPlan(sales_order=order, team_slug=slug, plan_date=d, qty=q)
-        for d, q in sorted(merged.items())
+        for d, q in assigned
     ])
+    pin = min(d for d, _qty in assigned)
+    starts = _pin_team_planned_date(order, slug, pin)
+    return _sync_schedule_to_mos(order, starts)
+
+
+@transaction.atomic
+def split_team_bar_in_two(
+    *,
+    order_id: int,
+    team_slug: str,
+    from_date: date | None = None,
+    segment_id: int = 0,
+) -> SxSalesOrder:
+    """Tách một thanh công đoạn thành 2 thẻ độc lập để kéo trên lộ trình."""
+    from san_xuat.services.work_calendar import next_working_day
+
+    order = SxSalesOrder.objects.select_for_update().get(pk=order_id, is_demo=False)
+    _assert_schedule_editable(order)
+    slug = (team_slug or '').strip().lower()
+    if not slug or slug == 'npl':
+        raise PlanningError('Không tách công đoạn NPL.')
+
+    steps = _load_schedule_steps(order)
+    spans = team_khsx_spans(order, plan_steps=steps)
+    prod = [s for s in spans if s.slug != 'npl']
+    span = next((s for s in prod if s.slug == slug), None)
+    if span is None:
+        raise PlanningError('Tổ này không tham gia đơn.')
+
+    existing = list(
+        SxOrderTeamDayPlan.objects.filter(sales_order=order, team_slug=slug).order_by('plan_date', 'id')
+    )
+    if existing:
+        src = None
+        sid = int(segment_id or 0)
+        if sid:
+            src = next((row for row in existing if int(row.pk) == sid), None)
+        if src is None and isinstance(from_date, date):
+            src = next((row for row in existing if row.plan_date == from_date), None)
+        if src is None:
+            src = existing[0]
+        first, second = _split_qty_pair(src.qty)
+        occupied = {row.plan_date for row in existing}
+        second_day = _next_free_workday(src.plan_date, occupied)
+        src.qty = first
+        src.save(update_fields=['qty'])
+        SxOrderTeamDayPlan.objects.create(
+            sales_order=order,
+            team_slug=slug,
+            plan_date=second_day,
+            qty=second,
+        )
+        pin = min(src.plan_date, second_day, *(row.plan_date for row in existing))
+    else:
+        target = _order_team_target_qty(order, slug)
+        first, second = _split_qty_pair(target)
+        start = from_date or span.start or timezone.localdate()
+        first_day = next_working_day(start)
+        second_day = _next_free_workday(first_day, {first_day})
+        SxOrderTeamDayPlan.objects.bulk_create([
+            SxOrderTeamDayPlan(sales_order=order, team_slug=slug, plan_date=first_day, qty=first),
+            SxOrderTeamDayPlan(sales_order=order, team_slug=slug, plan_date=second_day, qty=second),
+        ])
+        pin = min(first_day, second_day)
 
     starts = _pin_team_planned_date(order, slug, pin)
     return _sync_schedule_to_mos(order, starts)
@@ -3175,6 +3748,7 @@ def build_order_timeline(
                             segment_id=int(day_row.pk),
                             plan_date=d_start,
                             team_qty_total=team_total_label,
+                            work_center_id=int(getattr(ts, 'work_center_id', 0) or 0),
                         ))
                         first_bar = False
                     continue
@@ -3206,6 +3780,7 @@ def build_order_timeline(
                     segment_id=0,
                     plan_date=ts.start,
                     team_qty_total=team_total_label,
+                    work_center_id=int(getattr(ts, 'work_center_id', 0) or 0),
                 ))
         else:
             qty_label = format_sx_num_input(r.total_qty) if r.total_qty else ''

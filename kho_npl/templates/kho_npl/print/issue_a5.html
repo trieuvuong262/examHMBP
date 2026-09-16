@@ -9,13 +9,7 @@
   <div class="full"><span class="label">Lý do xuất:</span> {{ issue.issue_type|default:"—" }}</div>
   <div><span class="label">Người xuất:</span> {% if issue.issued_by %}{{ issue.issued_by.get_full_name|default:issue.issued_by.username }}{% else %}—{% endif %}</div>
   <div><span class="label">Người nhận:</span>
-    {% if issue.recipient %}
-      {{ issue.recipient_name|default:issue.recipient.get_full_name|default:issue.recipient.username }}
-    {% elif issue.recipient_name %}
-      {{ issue.recipient_name }}
-    {% else %}
-      —
-    {% endif %}
+    {{ issue.display_recipient_name|default:"—" }}
   </div>
   {% if issue.recipient_department %}
   <div class="full"><span class="label">Bộ phận nhận:</span> {{ issue.recipient_department }}</div>

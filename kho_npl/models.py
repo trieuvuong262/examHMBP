@@ -621,6 +621,19 @@ class StockIssue(models.Model):
     def __str__(self):
         return self.number
 
+    @property
+    def display_recipient_name(self) -> str:
+        name = (self.recipient_name or '').strip()
+        if name:
+            return name
+        user = self.recipient
+        if not user:
+            return ''
+        profile = getattr(user, 'profile', None)
+        if profile and getattr(profile, 'full_name', ''):
+            return profile.full_name
+        return user.get_full_name() or user.username
+
 
 class StockIssueLine(models.Model):
     issue = models.ForeignKey(

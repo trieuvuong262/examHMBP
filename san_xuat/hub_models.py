@@ -555,6 +555,24 @@ class SxSalesOrderPlanStep(models.Model):
         max_digits=10, decimal_places=2, default=Decimal('0'),
         verbose_name='Vận chuyển (phút)',
     )
+    khsx_headcount = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name='Số người (KHSX)',
+        help_text='Chỉnh trên kế hoạch SX để tính thời gian. Không đổi danh mục năng lực.',
+    )
+    khsx_efficiency_pct = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name='Hệ số tải KHSX (%)',
+        validators=[
+            MinValueValidator(Decimal('0')),
+            MaxValueValidator(Decimal('200')),
+        ],
+        help_text='Chỉnh trên kế hoạch SX để tính thời gian. Không đổi danh mục năng lực.',
+    )
 
     class Meta:
         ordering = ['sequence', 'id']

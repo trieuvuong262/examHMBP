@@ -49,10 +49,8 @@
             <dl class="row mb-0">
                 <dt class="col-sm-3 text-muted">Người nhận</dt>
                 <dd class="col-sm-9">
-                    {% if issue.recipient %}
-                    {{ issue.recipient_name|default:issue.recipient.username }}{% if issue.recipient_department %} - {{ issue.recipient_department }}{% endif %}
-                    {% elif issue.recipient_name %}
-                    {{ issue.recipient_name }}{% if issue.recipient_department %} - {{ issue.recipient_department }}{% endif %}
+                    {% if issue.display_recipient_name %}
+                    {{ issue.display_recipient_name }}{% if issue.recipient_department %} - {{ issue.recipient_department }}{% endif %}
                     {% else %}
                     —
                     {% endif %}

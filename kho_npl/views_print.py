@@ -29,7 +29,11 @@ DEFAULT_SIGNATURES = (
 )
 
 SIGNATURES = {
-    'issue': DEFAULT_SIGNATURES,
+    'issue': (
+        'Người lập',
+        'Người nhận',
+        'Bảo vệ',
+    ),
     'receipt': (
         'Người lập',
         'Người nhập',

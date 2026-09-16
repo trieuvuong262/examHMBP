@@ -3,69 +3,116 @@
   <div class="jp-pb-tl-track" aria-label="Lộ trình KHSX">
     {% for step in row.timeline_steps %}
       {% if step.kind == 'npl' %}
-      {% elif step.kind == 'team' and step.product_groups %}
-      <div class="jp-pb-stage-cell" style="flex: {{ step.flex }} 1 0">
+      {% elif step.kind == 'team' and step.slug and step.status != 'empty' %}
+      <div class="jp-pb-stage-cell" style="flex: {{ step.flex }} 1 0"
+           data-jp-team-split
+           data-order-id="{{ row.order.pk }}"
+           data-order-code="{{ row.order.code }}"
+           data-team-slug="{{ step.slug }}"
+           data-start="{% if step.start %}{{ step.start|date:'Y-m-d' }}{% endif %}"
+           data-end="{% if step.end %}{{ step.end|date:'Y-m-d' }}{% endif %}"
+           data-plan-date="{% if step.start %}{{ step.start|date:'Y-m-d' }}{% endif %}"
+           data-qty="{{ step.qty_label }}"
+           data-team-qty="{{ step.team_qty_total }}"
+           data-is-split="{% if step.split_count > 1 %}1{% else %}0{% endif %}"
+           data-can-split="{% if can_schedule and row.can_adjust_timeline %}1{% else %}0{% endif %}"
+           data-work-center-id="{% if step.work_center_id %}{{ step.work_center_id }}{% endif %}"
+           data-headcount="{{ step.headcount|default:0 }}"
+           data-efficiency="{{ step.efficiency_pct|sx_num_input }}"
+           data-ref-headcount="{{ step.catalog_headcount|default:0 }}"
+           data-ref-efficiency="{{ step.catalog_efficiency_pct|sx_num_input }}"
+           data-work-hours="{{ step.work_hours_per_day|sx_num_input }}"
+           data-labor-minutes="{{ step.labor_minutes|sx_num_input }}"
+           title="{{ step.label }} · {{ row.order.code }}">
       <button type="button"
               class="jp-pb-tl-seg jp-pb-stage-btn jp-stage-{{ step.slug }} is-{{ step.status }}{% if step.is_late %} is-late{% endif %}"
-              title="Xem công đoạn tổ {{ step.label }}"
-              data-jp-stage-open
-              aria-controls="jpStage-{{ row.order.pk }}-{{ step.slug }}"
-              aria-expanded="false">
-        <span class="jp-pb-tl-name">
-          {{ step.label }}
+              title="Điều chỉnh số người / hệ số tải để đổi thời gian công đoạn"
+              data-jp-stage-capacity
+              aria-haspopup="dialog">
+        <span class="jp-pb-tl-name jp-pb-tl-team">
+          Tổ: {{ step.label }}{% if step.split_count > 1 %} {{ step.split_index }}/{{ step.split_count }}{% endif %}
         </span>
-        <span class="jp-pb-tl-date">{{ step.date_label|default:"—" }}</span>
+        <span class="jp-pb-tl-meta">
+          <span class="jp-pb-tl-k">Bắt đầu</span>
+          <span class="jp-pb-tl-v">{% if step.start %}{{ step.start|date:'d/m' }}{% else %}—{% endif %}</span>
+          <span class="jp-pb-tl-k">Kết thúc</span>
+          <span class="jp-pb-tl-v">{% if step.end %}{{ step.end|date:'d/m' }}{% elif step.start %}{{ step.start|date:'d/m' }}{% else %}—{% endif %}</span>
+          {% if step.qty_label %}
+          <span class="jp-pb-tl-k">SL</span>
+          <span class="jp-pb-tl-v">{{ step.qty_label }}</span>
+          {% endif %}
+        </span>
+        {% if step.work_center_id or step.subcontracts %}
+        <span class="jp-pb-tl-flags">
+          {% if step.work_center_id %}<span class="jp-pb-flag is-team" title="Đã chọn tổ">Đã chọn tổ</span>{% endif %}
+          {% if step.subcontracts %}<span class="jp-pb-flag is-gc" title="Đã thuê gia công">Đã thuê GC</span>{% endif %}
+        </span>
+        {% endif %}
       </button>
-      {% if can_create_subcontract and row.order.plan_status != 'done' and step.unhired_product_groups %}
-        {% if step.product_groups|length == 1 %}
-          {% with pg=step.product_groups.0 %}
-          <a class="jp-pb-stage-gc"
-             href="{% url 'san_xuat:subcontract_create' %}?so={{ row.order.pk }}&amp;product={{ pg.product_code|urlencode }}&amp;team={{ step.slug }}{% if pg.production_order_id > 0 %}&amp;mo={{ pg.production_order_id }}{% endif %}&amp;next={{ request.get_full_path|urlencode }}"
-             title="Thuê gia công {{ pg.product_name }} — tổ {{ step.label }}">
-            <i class="bi bi-building" aria-hidden="true"></i> Thuê GC
-          </a>
-          {% endwith %}
+      <div class="jp-pb-stage-actions">
+        <button type="button" class="jp-pb-stage-act{% if step.split_count > 1 %} is-on{% endif %}"
+                data-jp-stage-split
+                {% if not can_schedule or not row.can_adjust_timeline %}disabled{% endif %}
+                title="Tách công đoạn theo ngày / SL">Tách</button>
+        <button type="button" class="jp-pb-stage-act{% if step.work_center_id %} is-on{% endif %}"
+                data-jp-stage-team
+                {% if not can_schedule or not row.can_adjust_timeline %}disabled{% endif %}
+                title="{% if step.work_center_id %}Đã chọn tổ — bấm để đổi{% else %}Chọn tổ năng lực SX để tính thời gian{% endif %}">Chọn tổ</button>
+        {% if can_create_subcontract and row.order.plan_status != 'done' and step.unhired_product_groups %}
+          {% if step.product_groups|length == 1 %}
+            {% with pg=step.product_groups.0 %}
+            <a class="jp-pb-stage-act jp-pb-stage-gc{% if step.subcontracts %} is-hired{% endif %}"
+               href="{% url 'san_xuat:subcontract_create' %}?so={{ row.order.pk }}&amp;product={{ pg.product_code|urlencode }}&amp;team={{ step.slug }}{% if pg.production_order_id > 0 %}&amp;mo={{ pg.production_order_id }}{% endif %}&amp;next={{ request.get_full_path|urlencode }}"
+               title="Thuê gia công {{ pg.product_name }} — tổ {{ step.label }}">Thuê GC</a>
+            {% endwith %}
+          {% else %}
+            <button type="button"
+                    class="jp-pb-stage-act jp-pb-stage-gc{% if step.subcontracts %} is-hired{% endif %}"
+                    data-jp-stage-open
+                    data-jp-gc-pick
+                    aria-controls="jpStage-{{ row.order.pk }}-{{ step.slug }}"
+                    aria-expanded="false"
+                    title="Chọn sản phẩm cần thuê gia công — tổ {{ step.label }}">Thuê GC</button>
+          {% endif %}
+        {% elif step.subcontracts %}
+          {% if step.subcontracts|length == 1 %}
+            <a class="jp-pb-stage-act jp-pb-stage-gc is-hired"
+               href="{% url 'san_xuat:subcontract_detail' step.subcontracts.0.pk %}"
+               title="Đã thuê — phiếu {{ step.subcontracts.0.code }}">Thuê GC</a>
+          {% else %}
+            <button type="button"
+                    class="jp-pb-stage-act jp-pb-stage-gc is-hired"
+                    data-jp-stage-open
+                    aria-controls="jpStage-{{ row.order.pk }}-{{ step.slug }}"
+                    aria-expanded="false"
+                    title="Đã thuê gia công — chọn phiếu">Thuê GC</button>
+          {% endif %}
         {% else %}
-          <button type="button"
-                  class="jp-pb-stage-gc"
-                  data-jp-stage-open
-                  data-jp-gc-pick
-                  aria-controls="jpStage-{{ row.order.pk }}-{{ step.slug }}"
-                  aria-expanded="false"
-                  title="Chọn sản phẩm cần thuê gia công — tổ {{ step.label }}">
-            <i class="bi bi-building" aria-hidden="true"></i> Thuê GC
-          </button>
+          <button type="button" class="jp-pb-stage-act" disabled
+                  title="Chưa thể thuê gia công cho công đoạn này">Thuê GC</button>
         {% endif %}
-      {% elif step.subcontracts %}
-        {% if step.subcontracts|length == 1 %}
-          <a class="jp-pb-stage-gc is-hired"
-             href="{% url 'san_xuat:subcontract_detail' step.subcontracts.0.pk %}"
-             title="Xem phiếu {{ step.subcontracts.0.code }} — tổ {{ step.label }}">
-            <i class="bi bi-check-circle-fill" aria-hidden="true"></i> Đã thuê GC
-          </a>
-        {% else %}
-          <button type="button"
-                  class="jp-pb-stage-gc is-hired"
-                  data-jp-stage-open
-                  aria-controls="jpStage-{{ row.order.pk }}-{{ step.slug }}"
-                  aria-expanded="false"
-                  title="Chọn phiếu gia công — tổ {{ step.label }}">
-            <i class="bi bi-check-circle-fill" aria-hidden="true"></i> Đã thuê GC
-          </button>
-        {% endif %}
-      {% endif %}
+      </div>
       </div>
       {% else %}
       <span class="jp-pb-tl-seg jp-stage-{{ step.slug }} is-{{ step.kind }} is-{{ step.status }}{% if step.is_late %} is-late{% endif %}"
             style="flex: {{ step.flex }} 1 0"
-            title="{{ step.label }}{% if step.date_label %} · {{ step.date_label }}{% endif %}{% if step.duration_label %} · {{ step.duration_label }}{% endif %}">
+            title="{{ step.label }}{% if step.start %} · {{ step.start|date:'d/m' }}{% if step.end %} – {{ step.end|date:'d/m' }}{% endif %}{% endif %}{% if step.qty_label %} · SL {{ step.qty_label }}{% endif %}{% if step.duration_label %} · {{ step.duration_label }}{% endif %}">
         <span class="jp-pb-tl-name">
-          {{ step.label }}
+          {{ step.label }}{% if step.split_count > 1 %} {{ step.split_index }}/{{ step.split_count }}{% endif %}
         </span>
-        <span class="jp-pb-tl-date">{{ step.date_label|default:"—" }}</span>
+        <span class="jp-pb-tl-meta">
+          <span class="jp-pb-tl-k">Bắt đầu</span>
+          <span class="jp-pb-tl-v">{% if step.start %}{{ step.start|date:'d/m' }}{% else %}—{% endif %}</span>
+          <span class="jp-pb-tl-k">Kết thúc</span>
+          <span class="jp-pb-tl-v">{% if step.end %}{{ step.end|date:'d/m' }}{% elif step.start %}{{ step.start|date:'d/m' }}{% else %}—{% endif %}</span>
+          {% if step.qty_label %}
+          <span class="jp-pb-tl-k">SL</span>
+          <span class="jp-pb-tl-v">{{ step.qty_label }}</span>
+          {% endif %}
+        </span>
       </span>
       {% endif %}
-      {% if step.kind != 'npl' and not forloop.last %}
+      {% if step.kind != 'npl' and not forloop.last and step.show_connector %}
         {% if step.kind == 'team' and step.can_edit_hop and can_schedule and row.can_adjust_timeline %}
         <details class="jp-pb-hop-edit jp-pb-tl-plus">
           <summary class="jp-pb-hop-add"
@@ -105,7 +152,7 @@
     {% endfor %}
   </div>
   {% for step in row.timeline_steps %}
-    {% if step.kind == 'team' and step.product_groups %}
+    {% if step.kind == 'team' and step.product_groups and step.split_index <= 1 %}
     <section id="jpStage-{{ row.order.pk }}-{{ step.slug }}"
              class="jp-pb-stage-panel" data-jp-stage-panel hidden>
       <div class="jp-pb-stage-panel-head">

@@ -63,9 +63,9 @@
                         {% if form.issued_by.errors %}<div class="text-danger small">{{ form.issued_by.errors }}</div>{% endif %}
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label fw-bold small" for="{{ form.recipient.id_for_label }}">Người nhận</label>
-                        {{ form.recipient }}
-                        {% if form.recipient.errors %}<div class="text-danger small">{{ form.recipient.errors }}</div>{% endif %}
+                        <label class="form-label fw-bold small" for="{{ form.recipient_name.id_for_label }}">Người nhận</label>
+                        {{ form.recipient_name }}
+                        {% if form.recipient_name.errors %}<div class="text-danger small">{{ form.recipient_name.errors }}</div>{% endif %}
                     </div>
                     {% include 'kho_npl/includes/doc_attachment_field.html' with field=form.attachments required=True col_class='col-md-6' existing_attachments=existing_attachments %}
                     <div class="col-12">

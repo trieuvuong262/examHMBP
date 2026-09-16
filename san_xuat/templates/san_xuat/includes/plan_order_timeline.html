@@ -1,7 +1,8 @@
 {% load sx_format %}
 <section class="jp-pb-route jp-tl" id="lo-trinh"
          data-can-schedule="{{ can_schedule|yesno:'1,0' }}"
-         data-range-start="{{ route_board.range_start|date:'Y-m-d' }}">
+         data-range-start="{{ route_board.range_start|date:'Y-m-d' }}"
+         oncontextmenu="event.preventDefault(); if (window.jpShowRouteCtx) window.jpShowRouteCtx(event); return false;">
   {% csrf_token %}
   {% for row in route_board.rows %}
     {% if row.duration_script_id %}{{ row.duration_detail|json_script:row.duration_script_id }}{% endif %}
@@ -129,7 +130,10 @@
                 <li>
                   <strong>{{ t.label|default:t.slug }}</strong>
                   <span>
-                    {% if t.start %}{{ t.start }}{% if t.end and t.end != t.start %} → {{ t.end }}{% endif %}{% else %}chưa xếp{% endif %}
+                    {% if t.splits %}
+                      {% for p in t.splits %}{{ p.date }}{% if p.qty %} · SL {{ p.qty }}{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}
+                    {% elif t.start %}{{ t.start }}{% if t.end and t.end != t.start %} → {{ t.end }}{% endif %}
+                    {% else %}chưa xếp{% endif %}
                     {% if t.duration_label %} · {{ t.duration_label }}{% endif %}
                   </span>
                   {% if t.minutes %}
@@ -170,8 +174,9 @@
              data-span-days="{{ team.vis_days }}"
              data-can-drag="{% if can_schedule and team.can_drag %}1{% else %}0{% endif %}"
              data-can-split="{% if can_schedule and team.slug and team.slug != 'npl' %}1{% else %}0{% endif %}"
-             draggable="{% if can_schedule and team.can_drag %}true{% else %}false{% endif %}"
-             title="{{ team.label }} · {{ row.order.code }}{% if team.qty_label %} · dự kiến {{ team.qty_label }}{% endif %} · đã làm {{ team.done_qty_label }} · {{ team.start|date:'d/m/Y' }} – {{ team.end|date:'d/m/Y' }}{% if team.duration_label %} · {{ team.duration_label }}{% endif %}{% if can_schedule and team.slug and team.slug != 'npl' %} · Chuột phải: Tách / Làm mới{% endif %}{% if can_schedule and team.can_drag %} · Kéo thả{% endif %}"
+             data-work-center-id="{% if team.work_center_id %}{{ team.work_center_id }}{% endif %}"
+             data-jp-team-split
+             title="{{ team.label }} · {{ row.order.code }}{% if team.qty_label %} · dự kiến {{ team.qty_label }}{% endif %} · đã làm {{ team.done_qty_label }} · {{ team.start|date:'d/m/Y' }} – {{ team.end|date:'d/m/Y' }}{% if team.duration_label %} · {{ team.duration_label }}{% endif %}{% if can_schedule and team.slug and team.slug != 'npl' %} · Chuột phải: Tách / Chọn tổ / Làm mới{% endif %}{% if can_schedule and team.can_drag %} · Kéo thả{% endif %}"
              aria-label="{{ team.label }} {{ row.order.code }} dự kiến {{ team.qty_label|default:'0' }} đã làm {{ team.done_qty_label }}">
           <div class="jp-tl-bar-plan" title="Dự kiến">
             <span class="jp-tl-bar-qty">{{ team.qty_label|default:"—" }}</span>
@@ -179,6 +184,9 @@
           <div class="jp-tl-bar-done" title="Đã thực hiện">
             <span class="jp-tl-bar-qty">{{ team.done_qty_label }}</span>
           </div>
+          {% if can_schedule and team.slug and team.slug != 'npl' %}
+          <button type="button" class="jp-tl-bar-more" data-jp-bar-more aria-label="Menu công đoạn" title="Tách / Chọn tổ / Làm mới">⋯</button>
+          {% endif %}
         </div>
       {% endif %}
       {% endfor %}
@@ -190,3 +198,59 @@
     {% endif %}
   </div>
 </section>
+<script>
+(function () {
+  var root = document.getElementById('lo-trinh');
+  if (!root || root.getAttribute('data-jp-ctx-bound') === '1') return;
+  root.setAttribute('data-jp-ctx-bound', '1');
+
+  function elFromEvent(ev) {
+    var t = ev && ev.target;
+    if (t && t.nodeType === 3) t = t.parentElement;
+    return t;
+  }
+  function fallbackMenu(ev) {
+    var menu = document.getElementById('jpTlCtxMenu');
+    if (!menu) return;
+    if (menu.parentNode !== document.body) document.body.appendChild(menu);
+    menu.hidden = false;
+    var x = ev && ev.clientX != null ? ev.clientX : 12;
+    var y = ev && ev.clientY != null ? ev.clientY : 12;
+    menu.style.left = Math.max(8, Math.min(x, window.innerWidth - 200)) + 'px';
+    menu.style.top = Math.max(8, Math.min(y, window.innerHeight - 90)) + 'px';
+  }
+  function showMenu(ev) {
+    var t = elFromEvent(ev);
+    if (!t || !(root === t || root.contains(t))) return false;
+    if (ev && ev.type !== 'pointerdown') {
+      if (ev.preventDefault) ev.preventDefault();
+      ev.returnValue = false;
+    }
+    if (window.jpShowRouteCtx) window.jpShowRouteCtx(ev);
+    else fallbackMenu(ev);
+    return false;
+  }
+  function onCtx(ev) {
+    var t = elFromEvent(ev);
+    if (!t || !(root === t || root.contains(t) || (t.closest && t.closest('#jpTlCtxMenu')))) return;
+    ev.preventDefault();
+    ev.returnValue = false;
+    if (t.closest && t.closest('#jpTlCtxMenu')) return;
+    showMenu(ev);
+  }
+
+  window.addEventListener('contextmenu', onCtx, { capture: true, passive: false });
+  document.addEventListener('contextmenu', onCtx, { capture: true, passive: false });
+  root.addEventListener('contextmenu', onCtx, { capture: true, passive: false });
+  root.addEventListener('auxclick', function (ev) {
+    if (ev.button === 2) {
+      ev.preventDefault();
+      showMenu(ev);
+    }
+  }, { capture: true, passive: false });
+  root.addEventListener('pointerdown', function (ev) {
+    if (ev.button !== 2) return;
+    showMenu(ev);
+  }, true);
+})();
+</script>

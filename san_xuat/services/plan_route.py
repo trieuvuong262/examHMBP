@@ -73,9 +73,13 @@ def _q(value, places: str = '0.0001') -> Decimal:
 
 def ensure_order_plan_steps(order: SxSalesOrder) -> list[SxSalesOrderPlanStep]:
     """Seed snapshot từ routing dòng SP nếu đơn chưa có bước; fallback mẫu cố định."""
+    from san_xuat.services.plan_board import apply_default_capacity_teams
+
     existing = list(order.plan_steps.select_related('work_center').order_by('sequence', 'id'))
     if existing:
-        return existing
+        return apply_default_capacity_teams(
+            order, existing, replace_without_capacity=True,
+        )
     if order.confirm_status != SxSalesOrder.CONFIRM_CONFIRMED:
         return []
 
@@ -111,7 +115,10 @@ def ensure_order_plan_steps(order: SxSalesOrder) -> list[SxSalesOrderPlanStep]:
     if not merged:
         from san_xuat.services.order_progress_sheet import seed_order_plan_steps_from_template
 
-        return seed_order_plan_steps_from_template(order)
+        seeded = seed_order_plan_steps_from_template(order)
+        return apply_default_capacity_teams(
+            order, seeded, replace_without_capacity=True,
+        )
 
     rows = merged
     created: list[SxSalesOrderPlanStep] = []
@@ -142,7 +149,10 @@ def ensure_order_plan_steps(order: SxSalesOrder) -> list[SxSalesOrderPlanStep]:
     cache = getattr(order, '_prefetched_objects_cache', None)
     if cache is not None:
         cache.pop('plan_steps', None)
-    return list(order.plan_steps.select_related('work_center').order_by('sequence', 'id'))
+    seeded = list(order.plan_steps.select_related('work_center').order_by('sequence', 'id'))
+    return apply_default_capacity_teams(
+        order, seeded, replace_without_capacity=True,
+    )
 
 
 @transaction.atomic

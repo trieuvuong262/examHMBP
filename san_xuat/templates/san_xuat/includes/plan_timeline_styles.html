@@ -312,6 +312,9 @@
     overflow: hidden;
     pointer-events: auto;
     user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-user-drag: none;
     box-shadow: 0 1px 2px rgba(127,29,29,.18);
   }
   .jp-tl-bar-name {
@@ -335,7 +338,6 @@
   .jp-tl-bar.is-npl { background: #475569; }
   .jp-tl-bar.is-draggable {
     cursor: grab;
-    -webkit-user-drag: element;
   }
   .jp-tl-bar.is-draggable:active { cursor: grabbing; }
   .jp-tl-bar.is-dragging { opacity: 0.45; z-index: 7; }
@@ -646,6 +648,10 @@
       calc(var(--lanes, 1) * var(--tl-lane-step) + var(--tl-lane-pad) * 2)
     );
   }
+  .jp-pb-route .jp-tl-bar,
+  .jp-pb-route .jp-tl-bar * {
+    -webkit-user-drag: none !important;
+  }
   .jp-pb-route .jp-tl-bar {
     position: relative;
     align-self: start;
@@ -790,7 +796,7 @@
   }
   .jp-tl-ctx {
     position: fixed;
-    z-index: 4000;
+    z-index: 2147483000;
     min-width: 11.5rem;
     padding: .28rem;
     margin: 0;
@@ -827,5 +833,55 @@
     cursor: not-allowed;
     color: #94a3b8;
   }
-  .jp-tl-ctx-item i { font-size: .9rem; }
+  .jp-tl-ctx-sep {
+    height: 1px;
+    margin: .28rem .2rem;
+    background: #e2e8f0;
+  }
+  .jp-tl-ctx-k {
+    padding: .2rem .55rem .15rem;
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: #64748b;
+  }
+  .jp-tl-ctx-teams {
+    max-height: 14rem;
+    overflow: auto;
+  }
+  .jp-tl-ctx-item.is-on {
+    background: #fff1f2;
+    color: #9f1239;
+  }
+  .jp-tl-ctx-muted {
+    padding: .35rem .55rem;
+    font-size: .75rem;
+    color: #94a3b8;
+  }
+  .jp-tl-bar-more {
+    position: absolute;
+    top: -0.35rem;
+    right: -0.15rem;
+    z-index: 4;
+    width: 1.05rem;
+    height: 1.05rem;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: #fff;
+    color: #0f172a;
+    font: 700 .85rem/1 inherit;
+    box-shadow: 0 1px 4px rgba(15,23,42,.28);
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .jp-tl-bar:hover .jp-tl-bar-more,
+  .jp-tl-bar:focus-within .jp-tl-bar-more,
+  .jp-pb-stage-cell:hover .jp-tl-bar-more,
+  .jp-pb-stage-cell:focus-within .jp-tl-bar-more {
+    opacity: 1;
+    pointer-events: auto;
+  }
 </style>
