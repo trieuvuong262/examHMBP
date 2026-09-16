@@ -24,7 +24,7 @@
       {% for row in route_board.rows %}
         {% with r=forloop.counter|add:2 %}
       <div class="jp-tl-label is-prio-{{ row.order.plan_priority }}"
-           style="grid-column: 1; grid-row: {{ r }}"
+           style="grid-column: 1; grid-row: {{ r }}; --lanes: {{ row.lane_count }}"
            data-order-id="{{ row.order.pk }}"
            title="{{ row.subtitle }}">
         {% if row.product_images %}
@@ -51,25 +51,97 @@
         </div>
         <details class="jp-tl-prep jp-tl-accepts">
           <summary>Cần chuẩn bị</summary>
-          <ul>
-            {% for p in row.duration_detail.products %}
-            <li>
-              <strong title="{{ p.code }}">{{ p.name|default:p.code }}</strong>
-              <span>SL {{ p.qty }}</span>
-            </li>
-            {% empty %}
-            <li><span>Chưa có mã hàng trên KHSX.</span></li>
-            {% endfor %}
-            <li>
-              <strong>NPL</strong>
-              <span>
-                {% if row.duration_detail.npl_ready %}
-                  sẵn {{ row.duration_detail.npl_ready }}{% if row.duration_detail.npl_lead_days %} · {{ row.duration_detail.npl_lead_days }} ngày{% endif %}
-                {% elif row.duration_detail.npl_status == 'draft' %}nháp
-                {% else %}chưa lập{% endif %}
-              </span>
-            </li>
-          </ul>
+          <div class="jp-tl-prep-panel">
+            <div class="jp-tl-prep-meta">
+              {% if row.duration_detail.customer %}
+              <div><span class="k">KH</span><span class="v">{{ row.duration_detail.customer }}</span></div>
+              {% endif %}
+              <div><span class="k">Yêu cầu</span><span class="v">{{ row.duration_detail.request|default:"—" }}</span></div>
+              <div><span class="k">Hạn giao</span><span class="v">{{ row.duration_detail.due|default:"—" }}</span></div>
+              <div>
+                <span class="k">KHSX</span>
+                <span class="v">
+                  {{ row.duration_detail.khsx_start|default:"—" }}{% if row.duration_detail.khsx_end and row.duration_detail.khsx_end != row.duration_detail.khsx_start %} → {{ row.duration_detail.khsx_end }}{% endif %}
+                </span>
+              </div>
+              {% if row.duration_detail.duration_label %}
+              <div><span class="k">Chu kỳ</span><span class="v">{{ row.duration_detail.duration_label }}</span></div>
+              {% endif %}
+              {% if row.duration_detail.cycle_minutes %}
+              <div><span class="k">Tổng</span><span class="v">{{ row.duration_detail.work_minutes }}′ làm · {{ row.duration_detail.buffer_minutes }}′ kiểm/VC · {{ row.duration_detail.cycle_minutes }}′ chu kỳ</span></div>
+              {% endif %}
+            </div>
+
+            <div class="jp-tl-prep-sec">
+              <div class="jp-tl-prep-h">NPL</div>
+              <ul>
+                <li>
+                  <strong>
+                    {% if row.duration_detail.npl_status == 'ready' %}Đã tính vào KHSX
+                    {% elif row.duration_detail.npl_status == 'draft' %}Nháp
+                    {% else %}Chưa lập{% endif %}
+                  </strong>
+                  <span>
+                    {% if row.duration_detail.npl_ready %}
+                      sẵn {{ row.duration_detail.npl_ready }}{% if row.duration_detail.npl_lead_days %} · lead {{ row.duration_detail.npl_lead_days }} ngày{% endif %}
+                    {% elif row.duration_detail.npl_status == 'draft' %}
+                      đang lập nhu cầu
+                    {% else %}
+                      chưa có phiếu NPL
+                    {% endif %}
+                    {% if row.duration_detail.npl_short_count %} · thiếu {{ row.duration_detail.npl_short_count }} dòng{% endif %}
+                  </span>
+                </li>
+              </ul>
+            </div>
+
+            <div class="jp-tl-prep-sec">
+              <div class="jp-tl-prep-h">Sản phẩm</div>
+              <ul>
+                {% for p in row.duration_detail.products %}
+                <li>
+                  <strong title="{{ p.code }}">{{ p.name|default:p.code }}</strong>
+                  <span class="jp-tl-prep-code">{{ p.code }}</span>
+                  <span>SL {{ p.qty }}{% if p.smv_min %} · SMV {{ p.smv_min }}′/cái{% if p.smv_sec %} ({{ p.smv_sec }}s){% endif %}{% endif %}</span>
+                  {% if p.work_minutes or p.buffer_minutes %}
+                  <span>{{ p.work_minutes|default:"0" }}′ thực hiện{% if p.buffer_minutes %} · {{ p.buffer_minutes }}′ kiểm/VC{% endif %}</span>
+                  {% endif %}
+                  {% if p.hops %}
+                  <ul class="jp-tl-prep-hops">
+                    {% for h in p.hops %}
+                    <li>{{ h.from }} → {{ h.to }}: {{ h.count }}′ kiểm + {{ h.transfer }}′ VC = <em>{{ h.total }}′</em></li>
+                    {% endfor %}
+                  </ul>
+                  {% endif %}
+                </li>
+                {% empty %}
+                <li><span>Chưa có mã hàng trên KHSX.</span></li>
+                {% endfor %}
+              </ul>
+            </div>
+
+            {% if row.duration_detail.teams %}
+            <div class="jp-tl-prep-sec">
+              <div class="jp-tl-prep-h">Công đoạn</div>
+              <ul>
+                {% for t in row.duration_detail.teams %}
+                {% if t.slug != 'npl' %}
+                <li>
+                  <strong>{{ t.label|default:t.slug }}</strong>
+                  <span>
+                    {% if t.start %}{{ t.start }}{% if t.end and t.end != t.start %} → {{ t.end }}{% endif %}{% else %}chưa xếp{% endif %}
+                    {% if t.duration_label %} · {{ t.duration_label }}{% endif %}
+                  </span>
+                  {% if t.minutes %}
+                  <span>{{ t.work_minutes|default:"0" }}′ làm · {{ t.buffer_minutes|default:"0" }}′ kiểm/VC · {{ t.minutes }}′ chu kỳ</span>
+                  {% endif %}
+                </li>
+                {% endif %}
+                {% endfor %}
+              </ul>
+            </div>
+            {% endif %}
+          </div>
         </details>
       </div>
       {% for d in route_board.days %}
@@ -77,25 +149,36 @@
            data-date="{{ d.date|date:'Y-m-d' }}"
            data-col="{{ forloop.counter }}"
            data-order-id="{{ row.order.pk }}"
-           style="grid-column: {{ forloop.counter|add:1 }}; grid-row: {{ r }}"></div>
+           style="grid-column: {{ forloop.counter|add:1 }}; grid-row: {{ r }}; --lanes: {{ row.lane_count }}"></div>
       {% endfor %}
       {% for team in row.teams %}
       {% if team.placed %}
         <div class="jp-tl-bar jp-stage-{{ team.slug }}{% if row.is_late %} is-late{% endif %}{% if team.slug == 'npl' %} is-npl{% endif %}{% if can_schedule and team.can_drag %} is-draggable{% endif %}"
-             style="grid-row: {{ r }}; grid-column: {{ team.col_start|add:1 }} / {{ team.col_end|add:1 }}"
+             style="grid-row: {{ r }}; grid-column: {{ team.col_start|add:1 }} / {{ team.col_end|add:1 }}; --lane: {{ team.lane }}; --lanes: {{ row.lane_count }}"
              data-jp-team-drag
              data-order-id="{{ row.order.pk }}"
              data-order-code="{{ row.order.code }}"
              data-team-slug="{{ team.slug }}"
              data-start="{{ team.start|date:'Y-m-d' }}"
              data-end="{{ team.end|date:'Y-m-d' }}"
+             data-plan-date="{% if team.plan_date %}{{ team.plan_date|date:'Y-m-d' }}{% else %}{{ team.start|date:'Y-m-d' }}{% endif %}"
+             data-is-split="{% if team.is_split %}1{% else %}0{% endif %}"
+             data-segment-id="{{ team.segment_id }}"
+             data-qty="{{ team.qty_label }}"
+             data-team-qty="{{ team.team_qty_total }}"
              data-col-start="{{ team.col_start }}"
              data-span-days="{{ team.vis_days }}"
              data-can-drag="{% if can_schedule and team.can_drag %}1{% else %}0{% endif %}"
+             data-can-split="{% if can_schedule and team.slug and team.slug != 'npl' %}1{% else %}0{% endif %}"
              draggable="{% if can_schedule and team.can_drag %}true{% else %}false{% endif %}"
-             title="{{ team.label }} · {{ row.order.code }} · {{ team.start|date:'d/m/Y' }} – {{ team.end|date:'d/m/Y' }}{% if team.duration_label %} · {{ team.duration_label }}{% endif %}{% if can_schedule and team.can_drag %} · Kéo thả vào ngày{% endif %}">
-          <span class="jp-tl-bar-name">{{ team.label }}</span>
-          <span class="jp-tl-bar-code">{{ row.product_code_label|default:row.order.code }}</span>
+             title="{{ team.label }} · {{ row.order.code }}{% if team.qty_label %} · dự kiến {{ team.qty_label }}{% endif %} · đã làm {{ team.done_qty_label }} · {{ team.start|date:'d/m/Y' }} – {{ team.end|date:'d/m/Y' }}{% if team.duration_label %} · {{ team.duration_label }}{% endif %}{% if can_schedule and team.slug and team.slug != 'npl' %} · Chuột phải để tách ngày{% endif %}{% if can_schedule and team.can_drag %} · Kéo thả{% endif %}"
+             aria-label="{{ team.label }} {{ row.order.code }} dự kiến {{ team.qty_label|default:'0' }} đã làm {{ team.done_qty_label }}">
+          <div class="jp-tl-bar-plan" title="Dự kiến">
+            <span class="jp-tl-bar-qty">{{ team.qty_label|default:"—" }}</span>
+          </div>
+          <div class="jp-tl-bar-done" title="Đã thực hiện">
+            <span class="jp-tl-bar-qty">{{ team.done_qty_label }}</span>
+          </div>
         </div>
       {% endif %}
       {% endfor %}

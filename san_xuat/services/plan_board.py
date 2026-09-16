@@ -18,8 +18,10 @@ from django.utils import timezone
 from san_xuat.hub_models import (
     SxMaterialPlan,
     SxNplPurchaseRequest,
+    SxOrderTeamDayPlan,
     SxOverallPlan,
     SxProductionOrder,
+    SxProductionStat,
     SxSalesOrder,
     SxSalesOrderLine,
     SxSalesOrderPlanStep,
@@ -736,15 +738,43 @@ def team_khsx_spans(
         cursor = _next_working_day_after(end)
 
     spans: list[TeamKhsxSpan] = []
+    day_plans_by_slug: dict[str, list] = {}
+    cached = getattr(order, '_prefetched_objects_cache', {})
+    if 'team_day_plans' in cached:
+        day_iter = list(order.team_day_plans.all())
+    elif getattr(order, 'pk', None):
+        day_iter = list(
+            SxOrderTeamDayPlan.objects.filter(sales_order_id=order.pk).order_by('plan_date', 'id')
+        )
+    else:
+        day_iter = []
+    for dp in day_iter:
+        sk = (dp.team_slug or '').strip().lower()
+        if sk:
+            day_plans_by_slug.setdefault(sk, []).append(dp)
+
     for row in loads:
         slug = row['slug']
         is_pinned = slug in pinned
         start = pinned[slug] if is_pinned else defaults[slug][0]
-        start, end = schedule_span(
-            start=start,
-            lead_minutes=row['minutes'],
-            minutes_per_day=PLAN_SHIFT_MINUTES,
-        )
+        day_rows = day_plans_by_slug.get(slug) or []
+        if day_rows:
+            dates = [d.plan_date for d in day_rows if d.plan_date]
+            if dates:
+                start = min(dates)
+                end = max(dates)
+            else:
+                start, end = schedule_span(
+                    start=start,
+                    lead_minutes=row['minutes'],
+                    minutes_per_day=PLAN_SHIFT_MINUTES,
+                )
+        else:
+            start, end = schedule_span(
+                start=start,
+                lead_minutes=row['minutes'],
+                minutes_per_day=PLAN_SHIFT_MINUTES,
+            )
         dur_label, dur_days = format_order_duration(row['minutes'])
         spans.append(TeamKhsxSpan(
             slug=slug,
@@ -754,7 +784,7 @@ def team_khsx_spans(
             minutes=row['minutes'],
             start=start,
             end=end,
-            pinned=is_pinned,
+            pinned=is_pinned or bool(day_rows),
             duration_label=dur_label,
             duration_work_days=dur_days,
         ))
@@ -1063,6 +1093,10 @@ def build_plan_board_rows(
                     'sequence', 'id',
                 ),
             ),
+            Prefetch(
+                'team_day_plans',
+                queryset=SxOrderTeamDayPlan.objects.order_by('plan_date', 'id'),
+            ),
             'npl_lines',
             Prefetch(
                 'material_plans',
@@ -1264,6 +1298,7 @@ def build_plan_board_rows(
 
         duration_detail = {
             'code': order.code,
+            'customer': (order.customer_name or '').strip(),
             'request': _fmt_date(order.request_date),
             'due': _fmt_date(order.due_date),
             'khsx_start': _fmt_date(khsx_start),
@@ -1277,6 +1312,7 @@ def build_plan_board_rows(
             'npl_ready': _fmt_date(order.npl_ready_date),
             'npl_lead_days': int(order.npl_lead_days or 0),
             'npl_status': order.npl_status,
+            'npl_short_count': int(order.npl_short_count or 0),
             'teams': [
                 {
                     'slug': ts.slug,
@@ -2138,8 +2174,17 @@ def reschedule_order_plan_start(*, order_id: int, start_date: date) -> SxSalesOr
 
 
 @transaction.atomic
-def reschedule_order_team_start(*, order_id: int, start_date: date, team_slug: str = '') -> SxSalesOrder:
-    """Kéo một tổ trên lộ trình — các tổ khác giữ nguyên ngày."""
+def reschedule_order_team_start(
+    *,
+    order_id: int,
+    start_date: date,
+    team_slug: str = '',
+    from_date: date | None = None,
+) -> SxSalesOrder:
+    """Kéo một tổ trên lộ trình — các tổ khác giữ nguyên ngày.
+
+    Nếu tổ đã tách ngày và có ``from_date``, chỉ dịch mảnh đó.
+    """
     if not isinstance(start_date, date):
         raise PlanningError('Ngày bắt đầu không hợp lệ.')
     order = SxSalesOrder.objects.select_for_update().get(pk=order_id, is_demo=False)
@@ -2149,6 +2194,15 @@ def reschedule_order_team_start(*, order_id: int, start_date: date, team_slug: s
         raise PlanningError('Không kéo thanh chuẩn bị NPL — sửa ngày mua trên kế hoạch.')
     if not slug:
         return _reflow_order_from(order, origin_slug='', origin_start=start_date)
+    if from_date is not None and SxOrderTeamDayPlan.objects.filter(
+        sales_order=order, team_slug=slug,
+    ).exists():
+        return move_team_day_plan(
+            order_id=order.pk,
+            team_slug=slug,
+            from_date=from_date,
+            to_date=start_date,
+        )
     return _move_team_start_independent(order, slug=slug, start_date=start_date)
 
 
@@ -2365,6 +2419,14 @@ class TeamTimelineBar:
     grid_row: int
     is_first: bool = False
     placed: bool = True
+    lane: int = 0
+    lane_count: int = 1
+    qty_label: str = ''
+    done_qty_label: str = '0'
+    is_split: bool = False
+    segment_id: int = 0
+    plan_date: date | None = None
+    team_qty_total: str = ''
 
 
 @dataclass
@@ -2397,6 +2459,7 @@ class PlanTimelineRow:
     track_color: str = '#dc2626'
     track_soft: str = '#fef2f2'
     color_custom: bool = False
+    lane_count: int = 1
 
 
 @dataclass
@@ -2571,6 +2634,311 @@ def _bar_columns(bar_start: date, bar_end: date, start: date, end: date) -> tupl
     return offset + 1, offset + length + 1, length
 
 
+def _pack_timeline_lanes(bars: list[TeamTimelineBar]) -> int:
+    """Xếp lane dọc: công đoạn chồng ngày không đè lên nhau."""
+    placed = [b for b in bars if b.placed]
+    if not placed:
+        for bar in bars:
+            bar.lane = 0
+            bar.lane_count = 1
+        return 1
+    ordered = sorted(placed, key=lambda b: (b.col_start, b.col_end, b.slug or ''))
+    lane_ends: list[int] = []
+    for bar in ordered:
+        lane = None
+        for i, end in enumerate(lane_ends):
+            if bar.col_start >= end:
+                lane = i
+                lane_ends[i] = bar.col_end
+                break
+        if lane is None:
+            lane = len(lane_ends)
+            lane_ends.append(bar.col_end)
+        bar.lane = lane
+    n = max(1, len(lane_ends))
+    for bar in bars:
+        bar.lane_count = n
+        if not bar.placed:
+            bar.lane = 0
+    return n
+
+
+def _team_qty_value(slug: str, product_flows, fallback_qty: Decimal) -> Decimal:
+    """SL kế hoạch số của tổ (Decimal)."""
+    key = (slug or '').strip().lower()
+    total = Decimal('0')
+    matched = False
+    for pf in product_flows or []:
+        groups = getattr(pf, 'flow_groups', None) or []
+        if key and any((getattr(g, 'team_slug', '') or '').strip().lower() == key for g in groups):
+            total += _q(getattr(pf, 'qty', 0))
+            matched = True
+    if not matched:
+        total = _q(fallback_qty)
+    return total if total > 0 else Decimal('0')
+
+
+def _team_qty_label(slug: str, product_flows, fallback_qty: Decimal) -> str:
+    """SL trên thanh tổ: tổng SL mã hàng đi qua tổ đó."""
+    total = _team_qty_value(slug, product_flows, fallback_qty)
+    if total <= 0:
+        return ''
+    return format_sx_num_input(total)
+
+
+def _day_plans_by_order_team(
+    order_ids: list[int],
+) -> dict[tuple[int, str], list[SxOrderTeamDayPlan]]:
+    ids = [int(x) for x in order_ids if x]
+    if not ids:
+        return {}
+    out: dict[tuple[int, str], list[SxOrderTeamDayPlan]] = {}
+    for row in SxOrderTeamDayPlan.objects.filter(sales_order_id__in=ids).order_by('plan_date', 'id'):
+        key = (int(row.sales_order_id), (row.team_slug or '').strip().lower())
+        out.setdefault(key, []).append(row)
+    return out
+
+
+def _fifo_allocate_done(planned_qtys: list[Decimal], done_total: Decimal) -> list[Decimal]:
+    """Phân bổ SL đã làm theo FIFO trên các mảnh ngày."""
+    remaining = max(_q(done_total), Decimal('0'))
+    allocated: list[Decimal] = []
+    for planned in planned_qtys:
+        take = min(remaining, max(_q(planned), Decimal('0')))
+        allocated.append(take)
+        remaining -= take
+    return allocated
+
+
+def _pin_team_planned_date(order: SxSalesOrder, slug: str, pin: date) -> dict[str, date]:
+    """Ghim planned_date các bước của tổ = pin; giữ pin các tổ khác."""
+    from san_xuat.services.work_calendar import next_working_day
+
+    steps = _load_schedule_steps(order)
+    spans = team_khsx_spans(order, plan_steps=steps)
+    prod = [s for s in spans if s.slug != 'npl']
+    starts: dict[str, date] = {
+        span.slug: span.start for span in prod if span.start
+    }
+    starts[slug] = next_working_day(pin) if pin else pin
+    written = _write_team_planned_dates(steps, starts, require_slug=slug)
+    if written <= 0:
+        raise PlanningError('Không gán được công đoạn của tổ này.')
+    return starts
+
+
+@transaction.atomic
+def save_team_day_plans(
+    *,
+    order_id: int,
+    team_slug: str,
+    rows: list[dict],
+) -> SxSalesOrder:
+    """Lưu phân bổ SL theo ngày cho một tổ. Tổng SL phải khớp kế hoạch tổ."""
+    from san_xuat.services.work_calendar import next_working_day
+
+    order = SxSalesOrder.objects.select_for_update().get(pk=order_id, is_demo=False)
+    _assert_schedule_editable(order)
+    slug = (team_slug or '').strip().lower()
+    if not slug or slug == 'npl':
+        raise PlanningError('Không tách công đoạn NPL.')
+
+    steps = _load_schedule_steps(order)
+    spans = team_khsx_spans(order, plan_steps=steps)
+    prod = [s for s in spans if s.slug != 'npl']
+    if slug not in {s.slug for s in prod}:
+        raise PlanningError('Tổ này không tham gia đơn.')
+
+    # SL kế hoạch tổ
+    lines = [ln for ln in order.lines.all() if (ln.qty or 0) > 0]
+    # Build minimal product flows qty via existing helper path
+    plan_rows_qty = Decimal('0')
+    for ln in lines:
+        plan_rows_qty += _q(ln.qty_to_produce)
+    # Prefer product_flows from board logic: sum via _team_qty_value with empty flows → total
+    # Rebuild flows lightly from order for accuracy
+    product_flows = []
+    try:
+        # Use spans label path — qty from lines that touch this team via routing
+        from san_xuat.services.order_routing import sales_order_line_routing
+        from san_xuat.services.inter_step_times import _group_slug_scope, _step_team_slug
+
+        matched = Decimal('0')
+        with _group_slug_scope():
+            for ln in lines:
+                routing = sales_order_line_routing(ln)
+                hit = False
+                for step in routing.steps:
+                    st = (_step_team_slug(step) or '').strip().lower()
+                    if st == slug:
+                        hit = True
+                        break
+                if hit:
+                    matched += _q(ln.qty_to_produce)
+        target_qty = matched if matched > 0 else plan_rows_qty
+    except Exception:
+        target_qty = plan_rows_qty
+
+    merged: dict[date, Decimal] = {}
+    for raw in rows or []:
+        d = raw.get('date') if isinstance(raw, dict) else None
+        if isinstance(d, str):
+            from san_xuat.list_filters import parse_sx_date
+            d = parse_sx_date(d.strip())
+        if not isinstance(d, date):
+            continue
+        d = next_working_day(d)
+        qty = _q(raw.get('qty') if isinstance(raw, dict) else 0)
+        if qty <= 0:
+            continue
+        merged[d] = merged.get(d, Decimal('0')) + qty
+
+    if not merged:
+        # Xóa hết → về chế độ không tách
+        SxOrderTeamDayPlan.objects.filter(sales_order=order, team_slug=slug).delete()
+        return order
+
+    total = sum(merged.values(), Decimal('0'))
+    if abs(total - target_qty) > Decimal('0.01'):
+        raise PlanningError(
+            f'Tổng SL tách ({format_sx_num_input(total)}) phải bằng SL tổ ({format_sx_num_input(target_qty)}).'
+        )
+
+    SxOrderTeamDayPlan.objects.filter(sales_order=order, team_slug=slug).delete()
+    pin = min(merged.keys())
+    if len(merged) == 1:
+        # Một ngày duy nhất = gộp / không tách — chỉ ghim ngày bắt đầu
+        starts = _pin_team_planned_date(order, slug, pin)
+        return _sync_schedule_to_mos(order, starts)
+
+    SxOrderTeamDayPlan.objects.bulk_create([
+        SxOrderTeamDayPlan(sales_order=order, team_slug=slug, plan_date=d, qty=q)
+        for d, q in sorted(merged.items())
+    ])
+
+    starts = _pin_team_planned_date(order, slug, pin)
+    return _sync_schedule_to_mos(order, starts)
+
+
+@transaction.atomic
+def move_team_day_plan(
+    *,
+    order_id: int,
+    team_slug: str,
+    from_date: date,
+    to_date: date,
+) -> SxSalesOrder:
+    """Kéo một mảnh ngày đã tách sang ngày khác (gộp nếu trùng)."""
+    from san_xuat.services.work_calendar import next_working_day
+
+    if not isinstance(from_date, date) or not isinstance(to_date, date):
+        raise PlanningError('Ngày không hợp lệ.')
+    order = SxSalesOrder.objects.select_for_update().get(pk=order_id, is_demo=False)
+    _assert_schedule_editable(order)
+    slug = (team_slug or '').strip().lower()
+    if not slug or slug == 'npl':
+        raise PlanningError('Không kéo thanh chuẩn bị NPL — sửa ngày mua trên kế hoạch.')
+
+    new_day = next_working_day(to_date)
+    old_day = from_date
+    qs = SxOrderTeamDayPlan.objects.filter(sales_order=order, team_slug=slug)
+    src = qs.filter(plan_date=old_day).first()
+    if not src:
+        # Không tìm thấy mảnh — kéo cả khối (và xóa day-plans lệch nếu có)
+        qs.delete()
+        return _move_team_start_independent(order, slug=slug, start_date=new_day)
+
+    if new_day == old_day:
+        return order
+
+    dst = qs.filter(plan_date=new_day).first()
+    if dst:
+        dst.qty = _q(dst.qty) + _q(src.qty)
+        dst.save(update_fields=['qty'])
+        src.delete()
+    else:
+        src.plan_date = new_day
+        src.save(update_fields=['plan_date'])
+
+    remaining = list(qs.order_by('plan_date'))
+    if not remaining:
+        return order
+    pin = remaining[0].plan_date
+    starts = _pin_team_planned_date(order, slug, pin)
+    return _sync_schedule_to_mos(order, starts)
+
+
+def _done_qty_by_order_team(order_ids: list[int]) -> dict[tuple[int, str], Decimal]:
+    """SL đã thực hiện (TKSX confirmed) theo (order_id, team_slug).
+
+    Trong mỗi LSX × tổ: lấy max theo công đoạn (tránh cộng đôi áo+quần),
+    rồi cộng các LSX thuộc cùng đơn.
+    """
+    from san_xuat.services.progress_template import TEAM_SLUGS, team_slug_for_process_label
+
+    ids = [int(x) for x in order_ids if x]
+    if not ids:
+        return {}
+    label_to_slug = {
+        (lab or '').strip().casefold(): slug
+        for slug, _gk, _mk, lab in TEAM_SLUGS
+        if (lab or '').strip()
+    }
+    stats = (
+        SxProductionStat.objects.filter(
+            is_demo=False,
+            status=SxProductionStat.STATUS_CONFIRMED,
+            production_order__sales_order_id__in=ids,
+            production_order__is_demo=False,
+        )
+        .exclude(production_order__status=SxProductionOrder.STATUS_CANCELLED)
+        .values(
+            'production_order_id',
+            'production_order__sales_order_id',
+            'process_name',
+            'team_label',
+            'qty_good',
+        )
+    )
+    by_mo_proc: dict[tuple[int, str, str], Decimal] = {}
+    mo_order: dict[int, int] = {}
+    for st in stats:
+        mid = int(st['production_order_id'])
+        oid = int(st['production_order__sales_order_id'] or 0)
+        if not oid:
+            continue
+        mo_order[mid] = oid
+        slug = team_slug_for_process_label(st.get('process_name') or '')
+        if not slug:
+            tl = (st.get('team_label') or '').strip().casefold()
+            slug = label_to_slug.get(tl) or ''
+            if not slug and tl:
+                for lab, s in label_to_slug.items():
+                    if lab and (lab in tl or tl in lab):
+                        slug = s
+                        break
+        if not slug:
+            continue
+        proc = (st.get('process_name') or '').strip().casefold() or '_'
+        key = (mid, slug, proc)
+        by_mo_proc[key] = by_mo_proc.get(key, Decimal('0')) + _q(st.get('qty_good') or 0)
+
+    by_mo_team: dict[tuple[int, str], Decimal] = {}
+    for (mid, slug, _proc), qty in by_mo_proc.items():
+        k = (mid, slug)
+        cur = by_mo_team.get(k)
+        by_mo_team[k] = qty if cur is None or qty > cur else cur
+
+    out: dict[tuple[int, str], Decimal] = {}
+    for (mid, slug), qty in by_mo_team.items():
+        oid = mo_order.get(mid)
+        if not oid:
+            continue
+        k = (oid, slug)
+        out[k] = out.get(k, Decimal('0')) + qty
+    return out
+
+
 def build_mo_timeline(
     *,
     range_from: date | None = None,
@@ -2681,6 +3049,8 @@ def build_order_timeline(
     axis_days, month_spans, span = _timeline_axis(start, end, today)
 
     accepts_by_order = _accepted_teams_by_order_ids([r.order.pk for r in plan_rows])
+    done_by_order_team = _done_qty_by_order_team([r.order.pk for r in plan_rows])
+    day_plans_map = _day_plans_by_order_team([r.order.pk for r in plan_rows])
 
     rows: list[PlanTimelineRow] = []
     unscheduled: list = []
@@ -2760,12 +3130,58 @@ def build_order_timeline(
         team_bars: list[TeamTimelineBar] = []
         if visible_spans:
             for i, (ts, placed_team) in enumerate(visible_spans):
+                slug_key = (ts.slug or '').strip().lower()
+                day_rows = day_plans_map.get((r.order.pk, slug_key), [])
+                team_total = _team_qty_value(ts.slug, r.product_flows, r.total_qty)
+                team_total_label = format_sx_num_input(team_total) if team_total > 0 else ''
+                done_total = done_by_order_team.get((r.order.pk, slug_key), Decimal('0'))
+                can_team_drag = can_drag and ts.slug != 'npl' and getattr(ts, 'can_drag', True)
+
+                if day_rows:
+                    planned_list = [_q(d.qty) for d in day_rows]
+                    done_parts = _fifo_allocate_done(planned_list, done_total)
+                    first_bar = True
+                    for di, day_row in enumerate(day_rows):
+                        d_start = day_row.plan_date
+                        d_end = day_row.plan_date
+                        placed_day = _bar_columns(d_start, d_end, start, end)
+                        if placed_day is None:
+                            continue
+                        t_col_s, t_col_e, t_len = placed_day
+                        qty_label = format_sx_num_input(day_row.qty) if _q(day_row.qty) > 0 else '0'
+                        done_part = done_parts[di] if di < len(done_parts) else Decimal('0')
+                        done_qty_label = format_sx_num_input(done_part) if done_part > 0 else '0'
+                        team_bars.append(TeamTimelineBar(
+                            slug=ts.slug,
+                            label=ts.label,
+                            start=d_start,
+                            end=d_end,
+                            col_start=t_col_s,
+                            col_end=t_col_e,
+                            vis_days=t_len,
+                            bar_text=qty_label,
+                            clips_left=False,
+                            clips_right=False,
+                            can_drag=can_team_drag,
+                            span_days=1,
+                            minutes=ts.minutes,
+                            duration_label=ts.duration_label or '',
+                            grid_row=grid_row,
+                            is_first=first_bar,
+                            placed=True,
+                            qty_label=qty_label,
+                            done_qty_label=done_qty_label,
+                            is_split=True,
+                            segment_id=int(day_row.pk),
+                            plan_date=d_start,
+                            team_qty_total=team_total_label,
+                        ))
+                        first_bar = False
+                    continue
+
                 t_col_s, t_col_e, t_len = placed_team
-                t_clock = (ts.duration_label or '').split('·')[0].strip()
-                if t_len >= 4 and t_clock:
-                    t_text = f'{ts.label} · {t_clock}'
-                else:
-                    t_text = ts.label
+                qty_label = _team_qty_label(ts.slug, r.product_flows, r.total_qty)
+                done_qty_label = format_sx_num_input(done_total) if done_total > 0 else '0'
                 team_bars.append(TeamTimelineBar(
                     slug=ts.slug,
                     label=ts.label,
@@ -2774,18 +3190,25 @@ def build_order_timeline(
                     col_start=t_col_s,
                     col_end=t_col_e,
                     vis_days=t_len,
-                    bar_text=t_text,
+                    bar_text=qty_label,
                     clips_left=ts.start < start,
                     clips_right=ts.end > end,
-                    can_drag=can_drag and ts.slug != 'npl' and getattr(ts, 'can_drag', True),
+                    can_drag=can_team_drag,
                     span_days=max(1, (ts.end - ts.start).days + 1),
                     minutes=ts.minutes,
                     duration_label=ts.duration_label or '',
                     grid_row=grid_row,
                     is_first=(i == 0),
                     placed=True,
+                    qty_label=qty_label,
+                    done_qty_label=done_qty_label,
+                    is_split=False,
+                    segment_id=0,
+                    plan_date=ts.start,
+                    team_qty_total=team_total_label,
                 ))
         else:
+            qty_label = format_sx_num_input(r.total_qty) if r.total_qty else ''
             team_bars.append(TeamTimelineBar(
                 slug='',
                 label='Chưa có công đoạn',
@@ -2794,7 +3217,7 @@ def build_order_timeline(
                 col_start=col_start,
                 col_end=col_end,
                 vis_days=length,
-                bar_text='',
+                bar_text=qty_label,
                 clips_left=False,
                 clips_right=False,
                 can_drag=False,
@@ -2804,7 +3227,10 @@ def build_order_timeline(
                 grid_row=grid_row,
                 is_first=True,
                 placed=False,
+                qty_label=qty_label,
+                done_qty_label='0',
             ))
+        lane_count = _pack_timeline_lanes(team_bars)
         grid_row += 1
         rows.append(PlanTimelineRow(
             order=r.order,
@@ -2833,6 +3259,7 @@ def build_order_timeline(
             track_color=track_color,
             track_soft=track_soft,
             color_custom=bool((r.order.plan_color or '').strip()),
+            lane_count=lane_count,
         ))
 
     today_col = (today - start).days + 1 if start <= today <= end else None

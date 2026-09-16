@@ -578,6 +578,42 @@ class SxSalesOrderPlanStep(models.Model):
         return (wc.team_label or wc.name or '').strip()
 
 
+class SxOrderTeamDayPlan(models.Model):
+    """Phân bổ SL dự kiến của một tổ trên đơn theo từng ngày (tách công đoạn)."""
+
+    sales_order = models.ForeignKey(
+        SxSalesOrder,
+        on_delete=models.CASCADE,
+        related_name='team_day_plans',
+        verbose_name='Đơn đặt hàng',
+    )
+    team_slug = models.CharField(max_length=40, db_index=True, verbose_name='Slug tổ')
+    plan_date = models.DateField(db_index=True, verbose_name='Ngày kế hoạch')
+    qty = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal('0'), verbose_name='Số lượng',
+    )
+
+    class Meta:
+        ordering = ['plan_date', 'id']
+        verbose_name = 'Phân bổ ngày tổ trên đơn'
+        verbose_name_plural = 'Phân bổ ngày tổ trên đơn'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['sales_order', 'team_slug', 'plan_date'],
+                name='sx_order_team_day_plan_uniq',
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=['sales_order', 'team_slug'],
+                name='sx_order_team_day_so_slug',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.sales_order_id}:{self.team_slug}@{self.plan_date}={self.qty}'
+
+
 # --- Kế hoạch ---
 
 

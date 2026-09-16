@@ -1424,6 +1424,7 @@
   </form>
 
   {% if tab == 'queue' %}
+  {% include 'san_xuat/includes/plan_stage_legend.html' %}
   <div class="jp-pb-list">
     {% for row in queue_rows %}
     <article class="jp-pb-ticket is-{{ row.order.plan_priority }}{% if row.order.plan_status == 'on_hold' %} is-hold{% endif %}{% if row.is_overdue %} is-overdue{% endif %}">
@@ -1545,6 +1546,7 @@
   {% endif %}
 
   {% if tab == 'route' %}
+  {% include 'san_xuat/includes/plan_stage_legend.html' %}
   {% include 'san_xuat/includes/plan_order_timeline.html' %}
   {% endif %}
 
@@ -1640,6 +1642,59 @@
 </div>
 
 {% include 'san_xuat/includes/product_image_gallery_modal.html' %}
+
+<div id="jpRouteDragLoading" class="jp-tool-loading d-none"
+     aria-hidden="true" role="alertdialog" aria-labelledby="jpRouteDragLoadingMsg" aria-modal="true">
+  <div class="jp-tool-loading-panel">
+    <div class="jp-tool-loading-spinner" aria-hidden="true"></div>
+    <p id="jpRouteDragLoadingMsg" class="jp-tool-loading-msg mb-0">Đang cập nhật lịch công đoạn…</p>
+  </div>
+</div>
+
+<div class="modal fade" id="jpSplitTeamDaysModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="jpSplitTeamDaysTitle">Tách công đoạn</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-muted mb-2" id="jpSplitTeamDaysHint">
+          Phân bổ số lượng dự kiến thành nhiều ngày. Tổng phải khớp SL tổ.
+        </p>
+        <div class="d-flex flex-wrap gap-2 align-items-center mb-2 small">
+          <span>SL tổ: <strong id="jpSplitTeamDaysTarget">0</strong></span>
+          <span class="text-muted">·</span>
+          <span>Đã nhập: <strong id="jpSplitTeamDaysSum">0</strong></span>
+          <span class="text-muted">·</span>
+          <span>Còn lại: <strong id="jpSplitTeamDaysRemain">0</strong></span>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-2" id="jpSplitTeamDaysTable">
+            <thead>
+              <tr>
+                <th>Ngày</th>
+                <th class="text-end" style="width:7rem">SL</th>
+                <th style="width:2.5rem"></th>
+              </tr>
+            </thead>
+            <tbody id="jpSplitTeamDaysBody"></tbody>
+          </table>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="jpSplitTeamDaysAdd">
+          + Thêm ngày
+        </button>
+      </div>
+      <div class="modal-footer flex-wrap gap-2">
+        <button type="button" class="btn btn-outline-danger me-auto" id="jpSplitTeamDaysMerge">
+          Gộp về 1 ngày
+        </button>
+        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Hủy</button>
+        <button type="button" class="btn btn-danger" id="jpSplitTeamDaysSave">Lưu</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 {% endblock %}
 
@@ -2148,9 +2203,25 @@
     body.set('order_id', bar.getAttribute('data-order-id') || '');
     body.set('start_date', newStart);
     body.set('team_slug', bar.getAttribute('data-team-slug') || '');
+    var fromDate = bar.getAttribute('data-plan-date') || bar.getAttribute('data-start') || '';
+    if (fromDate) body.set('from_date', fromDate);
     body.set('mode', 'list');
     body.set('tab', 'route');
     body.set('csrfmiddlewaretoken', csrf);
+    var orderCode = bar.getAttribute('data-order-code') || '';
+    var teamLabel = (bar.getAttribute('title') || '').split(' · ')[0] || bar.getAttribute('data-team-slug') || 'công đoạn';
+    var loadEl = document.getElementById('jpRouteDragLoading');
+    var loadMsg = document.getElementById('jpRouteDragLoadingMsg');
+    if (loadMsg) {
+      loadMsg.textContent = orderCode
+        ? ('Đang xếp ' + teamLabel + ' — ' + orderCode + '…')
+        : ('Đang cập nhật lịch ' + teamLabel + '…');
+    }
+    if (loadEl) {
+      loadEl.classList.remove('d-none');
+      loadEl.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('jp-tool-loading-active');
+    }
     bar.classList.add('is-saving');
     fetch(window.location.pathname + window.location.search, {
       method: 'POST',
@@ -2166,10 +2237,16 @@
         if (!res.ok || !data.ok) {
           throw new Error((data && data.error) || 'Không lưu được lịch.');
         }
+        if (loadMsg) loadMsg.textContent = 'Đã lưu — đang tải lại lộ trình…';
         window.location.reload();
       });
     }).catch(function (err) {
       bar.classList.remove('is-saving');
+      if (loadEl) {
+        loadEl.classList.add('d-none');
+        loadEl.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('jp-tool-loading-active');
+      }
       alert(err.message || 'Không lưu được lịch.');
     });
   }
@@ -2189,7 +2266,7 @@
     dragging = {
       bar: bar,
       handle: handle,
-      start: bar.getAttribute('data-start') || '',
+      start: bar.getAttribute('data-plan-date') || bar.getAttribute('data-start') || '',
     };
     try {
       ev.dataTransfer.effectAllowed = 'move';
@@ -2243,11 +2320,268 @@
     hits.forEach(function (el) { el.classList.add('is-order-on'); });
   }
   chart.addEventListener('pointerover', function (ev) {
+    if (chart.classList.contains('is-prep-open')) return;
     var hit = ev.target.closest('[data-order-id]');
     if (!hit || !chart.contains(hit)) return;
     focusOrder(hit.getAttribute('data-order-id') || '');
   });
-  chart.addEventListener('pointerleave', clearOrderFocus);
+  chart.addEventListener('pointerleave', function () {
+    if (chart.classList.contains('is-prep-open')) return;
+    clearOrderFocus();
+  });
+
+  function syncPrepOpen() {
+    var openList = chart.querySelectorAll('.jp-tl-prep[open]');
+    chart.classList.toggle('is-prep-open', openList.length > 0);
+    if (openList.length) clearOrderFocus();
+  }
+  chart.querySelectorAll('.jp-tl-prep').forEach(function (el) {
+    el.addEventListener('toggle', function () {
+      if (el.open) {
+        chart.querySelectorAll('.jp-tl-prep[open]').forEach(function (other) {
+          if (other !== el) other.open = false;
+        });
+      }
+      syncPrepOpen();
+    });
+  });
+  document.addEventListener('pointerdown', function (ev) {
+    var openPrep = chart.querySelector('.jp-tl-prep[open]');
+    if (!openPrep) return;
+    if (openPrep.contains(ev.target)) return;
+    openPrep.open = false;
+  });
+})();
+
+(function () {
+  var root = document.getElementById('lo-trinh');
+  if (!root) return;
+  var canSchedule = root.getAttribute('data-can-schedule') === '1';
+  var modalEl = document.getElementById('jpSplitTeamDaysModal');
+  var bodyEl = document.getElementById('jpSplitTeamDaysBody');
+  var titleEl = document.getElementById('jpSplitTeamDaysTitle');
+  var targetEl = document.getElementById('jpSplitTeamDaysTarget');
+  var sumEl = document.getElementById('jpSplitTeamDaysSum');
+  var remainEl = document.getElementById('jpSplitTeamDaysRemain');
+  var csrfInput = root.querySelector('input[name=csrfmiddlewaretoken]') || document.querySelector('input[name=csrfmiddlewaretoken]');
+  var csrf = csrfInput ? csrfInput.value : '';
+  if (!csrf) {
+    var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    csrf = m ? decodeURIComponent(m[1]) : '';
+  }
+  var state = { orderId: '', orderCode: '', teamSlug: '', teamLabel: '', targetQty: 0 };
+  var modal = null;
+
+  function getModal() {
+    if (modal) return modal;
+    if (!modalEl || typeof bootstrap === 'undefined') return null;
+    modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    return modal;
+  }
+  function parseNum(s) {
+    var n = parseFloat(String(s || '').replace(/\s/g, '').replace(',', '.'));
+    return isFinite(n) ? n : 0;
+  }
+  function fmtNum(n) {
+    if (!isFinite(n)) return '0';
+    var t = Math.round(n * 100) / 100;
+    return String(t);
+  }
+  function findSplitBar(target) {
+    if (!target || !target.closest) return null;
+    var bar = target.closest('.jp-tl-bar');
+    if (!bar || !root.contains(bar)) return null;
+    if (bar.getAttribute('data-can-split') === '1') return bar;
+    var slug = (bar.getAttribute('data-team-slug') || '').trim();
+    if (canSchedule && slug && slug !== 'npl') return bar;
+    return null;
+  }
+  function collectSegments(orderId, teamSlug) {
+    var bars = root.querySelectorAll(
+      '.jp-tl-bar[data-order-id="' + orderId + '"][data-team-slug="' + teamSlug + '"]'
+    );
+    var rows = [];
+    bars.forEach(function (bar) {
+      if (bar.getAttribute('data-is-split') !== '1') return;
+      rows.push({
+        date: bar.getAttribute('data-plan-date') || bar.getAttribute('data-start') || '',
+        qty: parseNum(bar.getAttribute('data-qty')),
+      });
+    });
+    rows.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+    return rows;
+  }
+  function addRow(dateVal, qtyVal) {
+    if (!bodyEl) return;
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><input type="date" class="form-control form-control-sm jp-split-date" value="' + (dateVal || '') + '"></td>' +
+      '<td><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end jp-split-qty" value="' + fmtNum(qtyVal || 0) + '"></td>' +
+      '<td class="text-center"><button type="button" class="btn btn-sm btn-link text-danger p-0 jp-split-del" title="Xóa">&times;</button></td>';
+    bodyEl.appendChild(tr);
+  }
+  function refreshTotals() {
+    if (!bodyEl) return;
+    var sum = 0;
+    bodyEl.querySelectorAll('.jp-split-qty').forEach(function (inp) {
+      sum += parseNum(inp.value);
+    });
+    var remain = Math.round((state.targetQty - sum) * 100) / 100;
+    if (sumEl) sumEl.textContent = fmtNum(sum);
+    if (remainEl) {
+      remainEl.textContent = fmtNum(remain);
+      remainEl.classList.toggle('text-danger', Math.abs(remain) > 0.01);
+      remainEl.classList.toggle('text-success', Math.abs(remain) <= 0.01);
+    }
+  }
+  function openForBar(bar) {
+    if (!bar) return;
+    var mod = getModal();
+    if (!mod || !bodyEl) {
+      alert('Không mở được popup tách công đoạn — tải lại trang.');
+      return;
+    }
+    state.orderId = bar.getAttribute('data-order-id') || '';
+    state.orderCode = bar.getAttribute('data-order-code') || '';
+    state.teamSlug = bar.getAttribute('data-team-slug') || '';
+    state.teamLabel = (bar.getAttribute('title') || '').split(' · ')[0] || state.teamSlug;
+    state.targetQty = parseNum(bar.getAttribute('data-team-qty')) || parseNum(bar.getAttribute('data-qty'));
+    if (titleEl) titleEl.textContent = 'Tách công đoạn — ' + state.teamLabel + ' · ' + state.orderCode;
+    if (targetEl) targetEl.textContent = fmtNum(state.targetQty);
+    bodyEl.innerHTML = '';
+    var segs = collectSegments(state.orderId, state.teamSlug);
+    if (!segs.length) {
+      addRow(
+        bar.getAttribute('data-plan-date') || bar.getAttribute('data-start') || '',
+        state.targetQty
+      );
+    } else {
+      segs.forEach(function (s) { addRow(s.date, s.qty); });
+    }
+    refreshTotals();
+    mod.show();
+  }
+
+  // Capture để chặn menu trình duyệt trước khi bubble
+  root.addEventListener('contextmenu', function (ev) {
+    var bar = findSplitBar(ev.target);
+    if (!bar) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    openForBar(bar);
+  }, true);
+
+  if (bodyEl) {
+    bodyEl.addEventListener('input', function (ev) {
+      if (ev.target.matches('.jp-split-qty, .jp-split-date')) refreshTotals();
+    });
+    bodyEl.addEventListener('click', function (ev) {
+      var btn = ev.target.closest('.jp-split-del');
+      if (!btn) return;
+      var tr = btn.closest('tr');
+      if (tr && bodyEl.querySelectorAll('tr').length > 1) tr.remove();
+      refreshTotals();
+    });
+  }
+  var addBtn = document.getElementById('jpSplitTeamDaysAdd');
+  if (addBtn) {
+    addBtn.addEventListener('click', function () {
+      var last = bodyEl && bodyEl.querySelector('tr:last-child .jp-split-date');
+      addRow(last ? last.value : '', 0);
+      refreshTotals();
+    });
+  }
+  var mergeBtn = document.getElementById('jpSplitTeamDaysMerge');
+  if (mergeBtn) {
+    mergeBtn.addEventListener('click', function () {
+      if (bodyEl) bodyEl.innerHTML = '';
+      var firstDate = '';
+      var bar = root.querySelector(
+        '.jp-tl-bar[data-order-id="' + state.orderId + '"][data-team-slug="' + state.teamSlug + '"]'
+      );
+      if (bar) firstDate = bar.getAttribute('data-plan-date') || bar.getAttribute('data-start') || '';
+      addRow(firstDate, state.targetQty);
+      refreshTotals();
+    });
+  }
+
+  function showLoading(msg) {
+    var loadEl = document.getElementById('jpRouteDragLoading');
+    var loadMsg = document.getElementById('jpRouteDragLoadingMsg');
+    if (loadMsg) loadMsg.textContent = msg || 'Đang lưu phân bổ ngày…';
+    if (loadEl) {
+      loadEl.classList.remove('d-none');
+      loadEl.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('jp-tool-loading-active');
+    }
+  }
+  function hideLoading() {
+    var loadEl = document.getElementById('jpRouteDragLoading');
+    if (loadEl) {
+      loadEl.classList.add('d-none');
+      loadEl.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('jp-tool-loading-active');
+    }
+  }
+
+  var saveBtn = document.getElementById('jpSplitTeamDaysSave');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', function () {
+      if (!csrf) {
+        alert('Thiếu mã bảo mật — tải lại trang rồi thử lại.');
+        return;
+      }
+      var days = [];
+      var merged = {};
+      if (bodyEl) {
+        bodyEl.querySelectorAll('tr').forEach(function (tr) {
+          var d = (tr.querySelector('.jp-split-date') || {}).value || '';
+          var q = parseNum((tr.querySelector('.jp-split-qty') || {}).value);
+          if (!d || q <= 0) return;
+          merged[d] = (merged[d] || 0) + q;
+        });
+      }
+      Object.keys(merged).sort().forEach(function (d) {
+        days.push({ date: d, qty: merged[d] });
+      });
+      var sum = days.reduce(function (a, r) { return a + r.qty; }, 0);
+      if (Math.abs(sum - state.targetQty) > 0.01) {
+        alert('Tổng SL (' + fmtNum(sum) + ') phải bằng SL tổ (' + fmtNum(state.targetQty) + ').');
+        return;
+      }
+      var body = new URLSearchParams();
+      body.set('action', 'split_team_days');
+      body.set('order_id', state.orderId);
+      body.set('team_slug', state.teamSlug);
+      body.set('days', JSON.stringify(days));
+      body.set('mode', 'list');
+      body.set('tab', 'route');
+      body.set('csrfmiddlewaretoken', csrf);
+      var mod = getModal();
+      if (mod) mod.hide();
+      showLoading('Đang lưu tách ' + state.teamLabel + ' — ' + state.orderCode + '…');
+      fetch(window.location.pathname + window.location.search, {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json',
+          'X-CSRFToken': csrf,
+        },
+        body: body,
+        credentials: 'same-origin',
+      }).then(function (res) {
+        return res.json().then(function (data) {
+          if (!res.ok || !data.ok) {
+            throw new Error((data && data.error) || 'Không lưu được phân bổ.');
+          }
+          window.location.reload();
+        });
+      }).catch(function (err) {
+        hideLoading();
+        alert(err.message || 'Không lưu được phân bổ.');
+      });
+    });
+  }
 })();
 
 

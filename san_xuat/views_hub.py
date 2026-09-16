@@ -1734,10 +1734,15 @@ def plan_board(request):
                 if not start_date:
                     raise PlanningError('Ngày bắt đầu không hợp lệ.')
                 team_slug = (request.POST.get('team_slug') or '').strip().lower()
+                from_raw = (
+                    (request.POST.get('from_date') or request.POST.get('plan_date') or '').strip()
+                )
+                from_date = parse_sx_date(from_raw) if from_raw else None
                 order = reschedule_order_team_start(
                     order_id=order_id,
                     start_date=start_date,
                     team_slug=team_slug,
+                    from_date=from_date,
                 )
                 wants_json = (
                     (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
@@ -1758,10 +1763,55 @@ def plan_board(request):
                     f'Đã xếp lại lịch {order.code} bắt đầu {order.plan_start_date.strftime("%d/%m/%Y")}.',
                 )
                 return redirect(f"{reverse('san_xuat:plan_board')}?mode=list&tab=route")
+            elif action == 'split_team_days' and can_schedule and order_id:
+                import json as _json
+
+                from san_xuat.services.plan_board import save_team_day_plans
+
+                team_slug = (request.POST.get('team_slug') or '').strip().lower()
+                raw_days = (request.POST.get('days') or '').strip()
+                if not raw_days and request.body:
+                    try:
+                        body = _json.loads(request.body.decode('utf-8') or '{}')
+                        raw_days = body.get('days')
+                        if not team_slug:
+                            team_slug = (body.get('team_slug') or '').strip().lower()
+                    except (_json.JSONDecodeError, UnicodeDecodeError):
+                        raw_days = ''
+                parsed_rows: list[dict] = []
+                if isinstance(raw_days, list):
+                    parsed_rows = raw_days
+                elif isinstance(raw_days, str) and raw_days:
+                    try:
+                        parsed_rows = _json.loads(raw_days)
+                    except _json.JSONDecodeError as exc:
+                        raise PlanningError('Danh sách ngày tách không hợp lệ.') from exc
+                if not isinstance(parsed_rows, list):
+                    raise PlanningError('Danh sách ngày tách không hợp lệ.')
+                order = save_team_day_plans(
+                    order_id=order_id,
+                    team_slug=team_slug,
+                    rows=parsed_rows,
+                )
+                wants_json = (
+                    (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
+                    or 'application/json' in (request.headers.get('Accept') or '')
+                )
+                if wants_json:
+                    from django.http import JsonResponse
+
+                    return JsonResponse({
+                        'ok': True,
+                        'order_id': order.pk,
+                        'code': order.code,
+                        'team_slug': team_slug,
+                    })
+                messages.success(request, f'Đã tách lịch công đoạn {team_slug} — {order.code}.')
+                return redirect(f"{reverse('san_xuat:plan_board')}?mode=list&tab=route")
             else:
                 if action:
                     if (
-                        action == 'reschedule_route'
+                        action in ('reschedule_route', 'split_team_days')
                         and (
                             (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
                             or 'application/json' in (request.headers.get('Accept') or '')
@@ -1776,7 +1826,7 @@ def plan_board(request):
                     messages.error(request, 'Bạn không có quyền thực hiện thao tác này.')
         except PlanningError as exc:
             if (
-                (request.POST.get('action') or '').strip() == 'reschedule_route'
+                (request.POST.get('action') or '').strip() in ('reschedule_route', 'split_team_days')
                 and (
                     (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
                     or 'application/json' in (request.headers.get('Accept') or '')
@@ -1788,7 +1838,7 @@ def plan_board(request):
             messages.error(request, str(exc))
         except Exception as exc:
             if (
-                (request.POST.get('action') or '').strip() == 'reschedule_route'
+                (request.POST.get('action') or '').strip() in ('reschedule_route', 'split_team_days')
                 and (
                     (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
                     or 'application/json' in (request.headers.get('Accept') or '')
