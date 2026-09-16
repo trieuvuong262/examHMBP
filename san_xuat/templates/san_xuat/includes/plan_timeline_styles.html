@@ -679,7 +679,19 @@
     line-height: 1;
     letter-spacing: -.01em;
     overflow: visible;
+    pointer-events: auto;
     z-index: calc(2 + var(--lane, 0));
+  }
+  .jp-pb-route .jp-tl-bar-plan,
+  .jp-pb-route .jp-tl-bar-done {
+    pointer-events: auto;
+  }
+  .jp-pb-route .jp-tl-slot {
+    pointer-events: none;
+  }
+  .jp-pb-route.is-dragging-route .jp-tl-slot,
+  .jp-pb-route .jp-tl-chart.is-dragging-route .jp-tl-slot {
+    pointer-events: auto;
   }
   .jp-pb-route .jp-tl-bar-plan,
   .jp-pb-route .jp-tl-bar-done {

@@ -1701,6 +1701,273 @@
 {% block scripts %}
 <script>
 (function () {
+  var modalEl = document.getElementById('jpSplitTeamDaysModal');
+  var bodyEl = document.getElementById('jpSplitTeamDaysBody');
+  var titleEl = document.getElementById('jpSplitTeamDaysTitle');
+  var targetEl = document.getElementById('jpSplitTeamDaysTarget');
+  var sumEl = document.getElementById('jpSplitTeamDaysSum');
+  var remainEl = document.getElementById('jpSplitTeamDaysRemain');
+  var csrfInput = document.querySelector('#lo-trinh input[name=csrfmiddlewaretoken], input[name=csrfmiddlewaretoken]');
+  var csrf = csrfInput ? csrfInput.value : '';
+  if (!csrf) {
+    var ck = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    csrf = ck ? decodeURIComponent(ck[1]) : '';
+  }
+  var state = { orderId: '', orderCode: '', teamSlug: '', teamLabel: '', targetQty: 0 };
+  var lastOpen = 0;
+  var modal = null;
+
+  function getModal() {
+    if (modal) return modal;
+    if (!modalEl || typeof bootstrap === 'undefined') return null;
+    try { modal = bootstrap.Modal.getOrCreateInstance(modalEl); }
+    catch (err) { return null; }
+    return modal;
+  }
+  function parseNum(s) {
+    var n = parseFloat(String(s || '').replace(/\s/g, '').replace(',', '.'));
+    return isFinite(n) ? n : 0;
+  }
+  function fmtNum(n) {
+    if (!isFinite(n)) return '0';
+    return String(Math.round(n * 100) / 100);
+  }
+  function rootEl() {
+    return document.getElementById('lo-trinh');
+  }
+  function canSplitBar(bar) {
+    if (!bar) return false;
+    var slug = (bar.getAttribute('data-team-slug') || '').trim();
+    if (!slug || slug === 'npl') return false;
+    if (bar.getAttribute('data-can-split') === '1') return true;
+    var root = rootEl();
+    return !!(root && root.getAttribute('data-can-schedule') === '1');
+  }
+  function collectSegments(orderId, teamSlug) {
+    var root = rootEl();
+    if (!root) return [];
+    var rows = [];
+    root.querySelectorAll(
+      '.jp-tl-bar[data-order-id="' + orderId + '"][data-team-slug="' + teamSlug + '"]'
+    ).forEach(function (bar) {
+      if (bar.getAttribute('data-is-split') !== '1') return;
+      rows.push({
+        date: bar.getAttribute('data-plan-date') || bar.getAttribute('data-start') || '',
+        qty: parseNum(bar.getAttribute('data-qty')),
+      });
+    });
+    rows.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+    return rows;
+  }
+  function addRow(dateVal, qtyVal) {
+    if (!bodyEl) return;
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><input type="date" class="form-control form-control-sm jp-split-date" value="' + (dateVal || '') + '"></td>' +
+      '<td><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end jp-split-qty" value="' + fmtNum(qtyVal || 0) + '"></td>' +
+      '<td class="text-center"><button type="button" class="btn btn-sm btn-link text-danger p-0 jp-split-del" title="Xóa">&times;</button></td>';
+    bodyEl.appendChild(tr);
+  }
+  function refreshTotals() {
+    if (!bodyEl) return;
+    var sum = 0;
+    bodyEl.querySelectorAll('.jp-split-qty').forEach(function (inp) {
+      sum += parseNum(inp.value);
+    });
+    var remain = Math.round((state.targetQty - sum) * 100) / 100;
+    if (sumEl) sumEl.textContent = fmtNum(sum);
+    if (remainEl) {
+      remainEl.textContent = fmtNum(remain);
+      remainEl.classList.toggle('text-danger', Math.abs(remain) > 0.01);
+      remainEl.classList.toggle('text-success', Math.abs(remain) <= 0.01);
+    }
+  }
+  function openForBar(bar) {
+    if (!canSplitBar(bar)) {
+      alert('Không tách được công đoạn này (thiếu quyền xếp lịch hoặc không phải tổ SX).');
+      return false;
+    }
+    var mod = getModal();
+    if (!mod || !bodyEl) {
+      alert('Không mở được popup tách công đoạn — tải lại trang (Ctrl+F5).');
+      return false;
+    }
+    state.orderId = bar.getAttribute('data-order-id') || '';
+    state.orderCode = bar.getAttribute('data-order-code') || '';
+    state.teamSlug = bar.getAttribute('data-team-slug') || '';
+    state.teamLabel = (bar.getAttribute('title') || '').split(' · ')[0] || state.teamSlug;
+    state.targetQty = parseNum(bar.getAttribute('data-team-qty')) || parseNum(bar.getAttribute('data-qty'));
+    if (titleEl) titleEl.textContent = 'Tách công đoạn — ' + state.teamLabel + ' · ' + state.orderCode;
+    if (targetEl) targetEl.textContent = fmtNum(state.targetQty);
+    bodyEl.innerHTML = '';
+    var segs = collectSegments(state.orderId, state.teamSlug);
+    if (!segs.length) {
+      addRow(
+        bar.getAttribute('data-plan-date') || bar.getAttribute('data-start') || '',
+        state.targetQty
+      );
+    } else {
+      segs.forEach(function (s) { addRow(s.date, s.qty); });
+    }
+    refreshTotals();
+    mod.show();
+    return true;
+  }
+
+  window.jpOpenTeamSplit = function (ev, bar) {
+    if (ev) {
+      if (ev.preventDefault) ev.preventDefault();
+      if (ev.stopPropagation) ev.stopPropagation();
+    }
+    if (!bar) return false;
+    var now = Date.now();
+    if (now - lastOpen < 400) return false;
+    lastOpen = now;
+    var slug = (bar.getAttribute('data-team-slug') || '').trim();
+    if (!slug || slug === 'npl') return false;
+    openForBar(bar);
+    return false;
+  };
+  window.jpTlBarContextMenu = window.jpOpenTeamSplit;
+
+  document.addEventListener('contextmenu', function (ev) {
+    var t = ev.target;
+    if (!t || !t.closest) return;
+    var bar = t.closest('.jp-tl-bar[data-team-slug]');
+    if (!bar) return;
+    var slug = (bar.getAttribute('data-team-slug') || '').trim();
+    if (!slug || slug === 'npl') return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    window.jpOpenTeamSplit(ev, bar);
+  }, true);
+
+  document.addEventListener('pointerdown', function (ev) {
+    if (ev.button !== 2) return;
+    var t = ev.target;
+    if (!t || !t.closest) return;
+    var bar = t.closest('.jp-tl-bar[data-team-slug]');
+    if (!bar) return;
+    var slug = (bar.getAttribute('data-team-slug') || '').trim();
+    if (!slug || slug === 'npl') return;
+    ev.preventDefault();
+    window.jpOpenTeamSplit(ev, bar);
+  }, true);
+
+  if (bodyEl) {
+    bodyEl.addEventListener('input', function (ev) {
+      if (ev.target.matches('.jp-split-qty, .jp-split-date')) refreshTotals();
+    });
+    bodyEl.addEventListener('click', function (ev) {
+      var btn = ev.target.closest('.jp-split-del');
+      if (!btn) return;
+      var tr = btn.closest('tr');
+      if (tr && bodyEl.querySelectorAll('tr').length > 1) tr.remove();
+      refreshTotals();
+    });
+  }
+  var addBtn = document.getElementById('jpSplitTeamDaysAdd');
+  if (addBtn) {
+    addBtn.addEventListener('click', function () {
+      var last = bodyEl && bodyEl.querySelector('tr:last-child .jp-split-date');
+      addRow(last ? last.value : '', 0);
+      refreshTotals();
+    });
+  }
+  var mergeBtn = document.getElementById('jpSplitTeamDaysMerge');
+  if (mergeBtn) {
+    mergeBtn.addEventListener('click', function () {
+      if (bodyEl) bodyEl.innerHTML = '';
+      var firstDate = '';
+      var root = rootEl();
+      var bar = root && root.querySelector(
+        '.jp-tl-bar[data-order-id="' + state.orderId + '"][data-team-slug="' + state.teamSlug + '"]'
+      );
+      if (bar) firstDate = bar.getAttribute('data-plan-date') || bar.getAttribute('data-start') || '';
+      addRow(firstDate, state.targetQty);
+      refreshTotals();
+    });
+  }
+  function showLoading(msg) {
+    var loadEl = document.getElementById('jpRouteDragLoading');
+    var loadMsg = document.getElementById('jpRouteDragLoadingMsg');
+    if (loadMsg) loadMsg.textContent = msg || 'Đang lưu phân bổ ngày…';
+    if (loadEl) {
+      loadEl.classList.remove('d-none');
+      loadEl.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('jp-tool-loading-active');
+    }
+  }
+  function hideLoading() {
+    var loadEl = document.getElementById('jpRouteDragLoading');
+    if (loadEl) {
+      loadEl.classList.add('d-none');
+      loadEl.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('jp-tool-loading-active');
+    }
+  }
+  var saveBtn = document.getElementById('jpSplitTeamDaysSave');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', function () {
+      if (!csrf) {
+        alert('Thiếu mã bảo mật — tải lại trang rồi thử lại.');
+        return;
+      }
+      var days = [];
+      var merged = {};
+      if (bodyEl) {
+        bodyEl.querySelectorAll('tr').forEach(function (tr) {
+          var d = (tr.querySelector('.jp-split-date') || {}).value || '';
+          var q = parseNum((tr.querySelector('.jp-split-qty') || {}).value);
+          if (!d || q <= 0) return;
+          merged[d] = (merged[d] || 0) + q;
+        });
+      }
+      Object.keys(merged).sort().forEach(function (d) {
+        days.push({ date: d, qty: merged[d] });
+      });
+      var sum = days.reduce(function (a, r) { return a + r.qty; }, 0);
+      if (Math.abs(sum - state.targetQty) > 0.01) {
+        alert('Tổng SL (' + fmtNum(sum) + ') phải bằng SL tổ (' + fmtNum(state.targetQty) + ').');
+        return;
+      }
+      var body = new URLSearchParams();
+      body.set('action', 'split_team_days');
+      body.set('order_id', state.orderId);
+      body.set('team_slug', state.teamSlug);
+      body.set('days', JSON.stringify(days));
+      body.set('mode', 'list');
+      body.set('tab', 'route');
+      body.set('csrfmiddlewaretoken', csrf);
+      var mod = getModal();
+      if (mod) mod.hide();
+      showLoading('Đang lưu tách ' + state.teamLabel + ' — ' + state.orderCode + '…');
+      fetch(window.location.pathname + window.location.search, {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json',
+          'X-CSRFToken': csrf,
+        },
+        body: body,
+        credentials: 'same-origin',
+      }).then(function (res) {
+        return res.json().then(function (data) {
+          if (!res.ok || !data.ok) {
+            throw new Error((data && data.error) || 'Không lưu được phân bổ.');
+          }
+          window.location.reload();
+        });
+      }).catch(function (err) {
+        hideLoading();
+        alert(err.message || 'Không lưu được phân bổ.');
+      });
+    });
+  }
+})();
+</script>
+<script>
+(function () {
   var bomApi = "{% url 'san_xuat:mo_bom_versions' %}";
   var versionsApi = "{% url 'san_xuat:sales_order_line_versions' %}";
   var docCreateUrl = "{% url 'san_xuat:doc_create' %}";
@@ -2252,6 +2519,10 @@
   }
 
   root.addEventListener('dragstart', function (ev) {
+    if (ev.button === 2 || ev.buttons === 2) {
+      ev.preventDefault();
+      return;
+    }
     if (!canSchedule) {
       ev.preventDefault();
       return;
@@ -2352,238 +2623,6 @@
     openPrep.open = false;
   });
 })();
-
-(function () {
-  var root = document.getElementById('lo-trinh');
-  if (!root) return;
-  var canSchedule = root.getAttribute('data-can-schedule') === '1';
-  var modalEl = document.getElementById('jpSplitTeamDaysModal');
-  var bodyEl = document.getElementById('jpSplitTeamDaysBody');
-  var titleEl = document.getElementById('jpSplitTeamDaysTitle');
-  var targetEl = document.getElementById('jpSplitTeamDaysTarget');
-  var sumEl = document.getElementById('jpSplitTeamDaysSum');
-  var remainEl = document.getElementById('jpSplitTeamDaysRemain');
-  var csrfInput = root.querySelector('input[name=csrfmiddlewaretoken]') || document.querySelector('input[name=csrfmiddlewaretoken]');
-  var csrf = csrfInput ? csrfInput.value : '';
-  if (!csrf) {
-    var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
-    csrf = m ? decodeURIComponent(m[1]) : '';
-  }
-  var state = { orderId: '', orderCode: '', teamSlug: '', teamLabel: '', targetQty: 0 };
-  var modal = null;
-
-  function getModal() {
-    if (modal) return modal;
-    if (!modalEl || typeof bootstrap === 'undefined') return null;
-    modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-    return modal;
-  }
-  function parseNum(s) {
-    var n = parseFloat(String(s || '').replace(/\s/g, '').replace(',', '.'));
-    return isFinite(n) ? n : 0;
-  }
-  function fmtNum(n) {
-    if (!isFinite(n)) return '0';
-    var t = Math.round(n * 100) / 100;
-    return String(t);
-  }
-  function findSplitBar(target) {
-    if (!target || !target.closest) return null;
-    var bar = target.closest('.jp-tl-bar');
-    if (!bar || !root.contains(bar)) return null;
-    if (bar.getAttribute('data-can-split') === '1') return bar;
-    var slug = (bar.getAttribute('data-team-slug') || '').trim();
-    if (canSchedule && slug && slug !== 'npl') return bar;
-    return null;
-  }
-  function collectSegments(orderId, teamSlug) {
-    var bars = root.querySelectorAll(
-      '.jp-tl-bar[data-order-id="' + orderId + '"][data-team-slug="' + teamSlug + '"]'
-    );
-    var rows = [];
-    bars.forEach(function (bar) {
-      if (bar.getAttribute('data-is-split') !== '1') return;
-      rows.push({
-        date: bar.getAttribute('data-plan-date') || bar.getAttribute('data-start') || '',
-        qty: parseNum(bar.getAttribute('data-qty')),
-      });
-    });
-    rows.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
-    return rows;
-  }
-  function addRow(dateVal, qtyVal) {
-    if (!bodyEl) return;
-    var tr = document.createElement('tr');
-    tr.innerHTML =
-      '<td><input type="date" class="form-control form-control-sm jp-split-date" value="' + (dateVal || '') + '"></td>' +
-      '<td><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end jp-split-qty" value="' + fmtNum(qtyVal || 0) + '"></td>' +
-      '<td class="text-center"><button type="button" class="btn btn-sm btn-link text-danger p-0 jp-split-del" title="Xóa">&times;</button></td>';
-    bodyEl.appendChild(tr);
-  }
-  function refreshTotals() {
-    if (!bodyEl) return;
-    var sum = 0;
-    bodyEl.querySelectorAll('.jp-split-qty').forEach(function (inp) {
-      sum += parseNum(inp.value);
-    });
-    var remain = Math.round((state.targetQty - sum) * 100) / 100;
-    if (sumEl) sumEl.textContent = fmtNum(sum);
-    if (remainEl) {
-      remainEl.textContent = fmtNum(remain);
-      remainEl.classList.toggle('text-danger', Math.abs(remain) > 0.01);
-      remainEl.classList.toggle('text-success', Math.abs(remain) <= 0.01);
-    }
-  }
-  function openForBar(bar) {
-    if (!bar) return;
-    var mod = getModal();
-    if (!mod || !bodyEl) {
-      alert('Không mở được popup tách công đoạn — tải lại trang.');
-      return;
-    }
-    state.orderId = bar.getAttribute('data-order-id') || '';
-    state.orderCode = bar.getAttribute('data-order-code') || '';
-    state.teamSlug = bar.getAttribute('data-team-slug') || '';
-    state.teamLabel = (bar.getAttribute('title') || '').split(' · ')[0] || state.teamSlug;
-    state.targetQty = parseNum(bar.getAttribute('data-team-qty')) || parseNum(bar.getAttribute('data-qty'));
-    if (titleEl) titleEl.textContent = 'Tách công đoạn — ' + state.teamLabel + ' · ' + state.orderCode;
-    if (targetEl) targetEl.textContent = fmtNum(state.targetQty);
-    bodyEl.innerHTML = '';
-    var segs = collectSegments(state.orderId, state.teamSlug);
-    if (!segs.length) {
-      addRow(
-        bar.getAttribute('data-plan-date') || bar.getAttribute('data-start') || '',
-        state.targetQty
-      );
-    } else {
-      segs.forEach(function (s) { addRow(s.date, s.qty); });
-    }
-    refreshTotals();
-    mod.show();
-  }
-
-  // Capture để chặn menu trình duyệt trước khi bubble
-  root.addEventListener('contextmenu', function (ev) {
-    var bar = findSplitBar(ev.target);
-    if (!bar) return;
-    ev.preventDefault();
-    ev.stopPropagation();
-    openForBar(bar);
-  }, true);
-
-  if (bodyEl) {
-    bodyEl.addEventListener('input', function (ev) {
-      if (ev.target.matches('.jp-split-qty, .jp-split-date')) refreshTotals();
-    });
-    bodyEl.addEventListener('click', function (ev) {
-      var btn = ev.target.closest('.jp-split-del');
-      if (!btn) return;
-      var tr = btn.closest('tr');
-      if (tr && bodyEl.querySelectorAll('tr').length > 1) tr.remove();
-      refreshTotals();
-    });
-  }
-  var addBtn = document.getElementById('jpSplitTeamDaysAdd');
-  if (addBtn) {
-    addBtn.addEventListener('click', function () {
-      var last = bodyEl && bodyEl.querySelector('tr:last-child .jp-split-date');
-      addRow(last ? last.value : '', 0);
-      refreshTotals();
-    });
-  }
-  var mergeBtn = document.getElementById('jpSplitTeamDaysMerge');
-  if (mergeBtn) {
-    mergeBtn.addEventListener('click', function () {
-      if (bodyEl) bodyEl.innerHTML = '';
-      var firstDate = '';
-      var bar = root.querySelector(
-        '.jp-tl-bar[data-order-id="' + state.orderId + '"][data-team-slug="' + state.teamSlug + '"]'
-      );
-      if (bar) firstDate = bar.getAttribute('data-plan-date') || bar.getAttribute('data-start') || '';
-      addRow(firstDate, state.targetQty);
-      refreshTotals();
-    });
-  }
-
-  function showLoading(msg) {
-    var loadEl = document.getElementById('jpRouteDragLoading');
-    var loadMsg = document.getElementById('jpRouteDragLoadingMsg');
-    if (loadMsg) loadMsg.textContent = msg || 'Đang lưu phân bổ ngày…';
-    if (loadEl) {
-      loadEl.classList.remove('d-none');
-      loadEl.setAttribute('aria-hidden', 'false');
-      document.body.classList.add('jp-tool-loading-active');
-    }
-  }
-  function hideLoading() {
-    var loadEl = document.getElementById('jpRouteDragLoading');
-    if (loadEl) {
-      loadEl.classList.add('d-none');
-      loadEl.setAttribute('aria-hidden', 'true');
-      document.body.classList.remove('jp-tool-loading-active');
-    }
-  }
-
-  var saveBtn = document.getElementById('jpSplitTeamDaysSave');
-  if (saveBtn) {
-    saveBtn.addEventListener('click', function () {
-      if (!csrf) {
-        alert('Thiếu mã bảo mật — tải lại trang rồi thử lại.');
-        return;
-      }
-      var days = [];
-      var merged = {};
-      if (bodyEl) {
-        bodyEl.querySelectorAll('tr').forEach(function (tr) {
-          var d = (tr.querySelector('.jp-split-date') || {}).value || '';
-          var q = parseNum((tr.querySelector('.jp-split-qty') || {}).value);
-          if (!d || q <= 0) return;
-          merged[d] = (merged[d] || 0) + q;
-        });
-      }
-      Object.keys(merged).sort().forEach(function (d) {
-        days.push({ date: d, qty: merged[d] });
-      });
-      var sum = days.reduce(function (a, r) { return a + r.qty; }, 0);
-      if (Math.abs(sum - state.targetQty) > 0.01) {
-        alert('Tổng SL (' + fmtNum(sum) + ') phải bằng SL tổ (' + fmtNum(state.targetQty) + ').');
-        return;
-      }
-      var body = new URLSearchParams();
-      body.set('action', 'split_team_days');
-      body.set('order_id', state.orderId);
-      body.set('team_slug', state.teamSlug);
-      body.set('days', JSON.stringify(days));
-      body.set('mode', 'list');
-      body.set('tab', 'route');
-      body.set('csrfmiddlewaretoken', csrf);
-      var mod = getModal();
-      if (mod) mod.hide();
-      showLoading('Đang lưu tách ' + state.teamLabel + ' — ' + state.orderCode + '…');
-      fetch(window.location.pathname + window.location.search, {
-        method: 'POST',
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest',
-          'Accept': 'application/json',
-          'X-CSRFToken': csrf,
-        },
-        body: body,
-        credentials: 'same-origin',
-      }).then(function (res) {
-        return res.json().then(function (data) {
-          if (!res.ok || !data.ok) {
-            throw new Error((data && data.error) || 'Không lưu được phân bổ.');
-          }
-          window.location.reload();
-        });
-      }).catch(function (err) {
-        hideLoading();
-        alert(err.message || 'Không lưu được phân bổ.');
-      });
-    });
-  }
-})();
-
 
 (function () {
   document.addEventListener('click', function (event) {
