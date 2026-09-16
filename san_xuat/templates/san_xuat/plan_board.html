@@ -546,6 +546,18 @@
     background: #f8fafc;
     color: #94a3b8;
   }
+  #jpSplitTeamDaysModal .modal-header {
+    cursor: move;
+    user-select: none;
+  }
+  #jpSplitTeamDaysModal .modal-header .btn-close {
+    cursor: pointer;
+  }
+  #jpSplitTeamDaysModal.is-dragged .modal-dialog {
+    margin: 0;
+    transform: none !important;
+    transition: none !important;
+  }
   .jp-pick-team-list {
     display: flex;
     flex-direction: column;
@@ -1905,7 +1917,7 @@
 <div class="modal fade" id="jpSplitTeamDaysModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-scrollable">
     <div class="modal-content">
-      <div class="modal-header">
+      <div class="modal-header" title="Kéo để di chuyển">
         <h5 class="modal-title" id="jpSplitTeamDaysTitle">Tách công đoạn</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
       </div>
@@ -2048,6 +2060,58 @@
   var capEff = document.getElementById('jpKhsxCapEff');
   var capPreview = document.getElementById('jpKhsxCapPreview');
   var SHIFT_MIN = 570;
+
+  (function bindSplitModalDrag() {
+    if (!modalEl) return;
+    var dialog = modalEl.querySelector('.modal-dialog');
+    var header = modalEl.querySelector('.modal-header');
+    if (!dialog || !header) return;
+    var drag = null;
+    function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
+    function resetPos() {
+      modalEl.classList.remove('is-dragged');
+      dialog.style.position = '';
+      dialog.style.margin = '';
+      dialog.style.transform = '';
+      dialog.style.left = '';
+      dialog.style.top = '';
+      dialog.style.width = '';
+      drag = null;
+    }
+    header.addEventListener('pointerdown', function (ev) {
+      if (ev.button !== 0) return;
+      if (ev.target && ev.target.closest && ev.target.closest('.btn-close, button, a, input')) return;
+      var rect = dialog.getBoundingClientRect();
+      drag = {
+        pointerId: ev.pointerId,
+        dx: ev.clientX - rect.left,
+        dy: ev.clientY - rect.top,
+        w: rect.width,
+        h: rect.height,
+      };
+      modalEl.classList.add('is-dragged');
+      dialog.style.position = 'absolute';
+      dialog.style.margin = '0';
+      dialog.style.transform = 'none';
+      dialog.style.left = rect.left + 'px';
+      dialog.style.top = rect.top + 'px';
+      dialog.style.width = rect.width + 'px';
+      try { header.setPointerCapture(ev.pointerId); } catch (err) {}
+      ev.preventDefault();
+    });
+    header.addEventListener('pointermove', function (ev) {
+      if (!drag || ev.pointerId !== drag.pointerId) return;
+      var x = clamp(ev.clientX - drag.dx, 8, Math.max(8, window.innerWidth - drag.w - 8));
+      var y = clamp(ev.clientY - drag.dy, 8, Math.max(8, window.innerHeight - 64));
+      dialog.style.left = x + 'px';
+      dialog.style.top = y + 'px';
+    });
+    header.addEventListener('pointerup', function (ev) {
+      if (drag && ev.pointerId === drag.pointerId) drag = null;
+    });
+    header.addEventListener('pointercancel', function () { drag = null; });
+    modalEl.addEventListener('hidden.bs.modal', resetPos);
+  })();
 
   function hideCtxMenu() {
     if (ctxMenu) ctxMenu.hidden = true;
@@ -3323,7 +3387,7 @@
     }
     if (!days.length) days = chart.querySelectorAll('.jp-sheet-day[data-date], .jp-tl-day[data-date]');
     if (!days.length) return null;
-    var freeze = chart.querySelector('td.c-dept, th.c-dept');
+    var freeze = chart.querySelector('td.c-team, th.c-team, td.c-dept, th.c-dept');
     if (freeze) {
       var edge = freeze.getBoundingClientRect().right;
       if (x < edge) x = edge + 1;
@@ -3385,7 +3449,7 @@
 
   root.addEventListener('pointerdown', function (ev) {
     if (ev.button !== 0 || !canSchedule) return;
-    if (ev.target && ev.target.closest && ev.target.closest('[data-jp-bar-more], [data-jp-order-drag]')) return;
+    if (ev.target && ev.target.closest && ev.target.closest('[data-jp-bar-more], [data-jp-stage-split], [data-jp-stage-team], [data-jp-order-drag]')) return;
     var t = pointerTarget(ev);
     var handle = t && t.closest ? t.closest('[data-jp-team-drag]') : null;
     if (!handle || !root.contains(handle)) return;

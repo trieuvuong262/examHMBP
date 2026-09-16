@@ -18,6 +18,7 @@
           <col class="c-name">
           <col class="c-po">
           <col class="c-dept">
+          <col class="c-team">
           {% for d in route_board.days %}
           <col class="jp-sheet-day{% if d.is_off %} is-off{% endif %}">
           {% endfor %}
@@ -31,6 +32,7 @@
             <th class="c-name">Tên sản phẩm</th>
             <th class="c-po">Mã đơn</th>
             <th class="c-dept">Bộ phận</th>
+            <th class="c-team">Tổ</th>
             {% for d in route_board.days %}
             <th class="jp-sheet-day{% if d.is_today %} is-today{% endif %}{% if d.is_off %} is-off{% endif %}"
                 data-date="{{ d.date|date:'Y-m-d' }}"
@@ -112,10 +114,35 @@
                   data-qty-per-day="{{ stage.qty_per_day|sx_num_input }}"
                   data-planned-qty="{{ stage.planned_qty|sx_num_input }}"
                   title="{{ stage.label }} · {{ row.order.code }}">
-                <span class="jp-tl-dept-name">{{ stage.short_label }}</span>
-                {% if can_schedule and stage.slug and stage.slug != 'npl' %}
-                <button type="button" class="jp-tl-bar-more" data-jp-bar-more aria-label="Menu công đoạn" title="Tách / Chọn tổ / Làm mới">⋯</button>
-                {% endif %}
+                <span class="jp-sheet-side">
+                  <span class="jp-tl-dept-name">{{ stage.short_label }}</span>
+                  {% if can_schedule and stage.slug and stage.slug != 'npl' and stage.can_split %}
+                  <button type="button" class="jp-sheet-split" data-jp-stage-split
+                          title="Tách thủ công theo ngày / SL" aria-label="Tách thủ công {{ stage.short_label }}">
+                    <i class="bi bi-scissors" aria-hidden="true"></i>
+                  </button>
+                  {% endif %}
+                </span>
+              </td>
+              <td class="c-team{% if stage.work_center_id %} is-on{% endif %}"
+                  data-jp-team-split
+                  data-order-id="{{ row.order.pk }}"
+                  data-order-code="{{ row.order.code }}"
+                  data-team-slug="{{ stage.slug }}"
+                  data-work-center-id="{% if stage.work_center_id %}{{ stage.work_center_id }}{% endif %}"
+                  data-can-split="{% if can_schedule and stage.can_split %}1{% else %}0{% endif %}"
+                  title="{{ stage.short_label }} · {{ row.order.code }}">
+                <span class="jp-sheet-side">
+                  <span class="jp-sheet-team-name">{% if stage.work_center_id %}{{ stage.label }}{% else %}—{% endif %}</span>
+                  {% if can_schedule and stage.slug and stage.slug != 'npl' %}
+                  <button type="button" class="jp-sheet-team{% if stage.work_center_id %} is-on{% endif %}"
+                          data-jp-stage-team
+                          title="{% if stage.work_center_id %}{{ stage.label }} — bấm để đổi tổ{% else %}Chọn tổ năng lực SX{% endif %}"
+                          aria-label="{% if stage.work_center_id %}Đổi tổ {{ stage.label }}{% else %}Chọn tổ {{ stage.short_label }}{% endif %}">
+                    <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                  </button>
+                  {% endif %}
+                </span>
               </td>
               {% for cell in stage.cells %}
               <td class="jp-sheet-cell{% if cell.is_today %} is-today{% endif %}{% if cell.is_off %} is-off{% endif %}{% if cell.bar %} has-qty{% endif %}"
@@ -198,6 +225,7 @@
               </td>
               <td class="c-po"><a class="jp-tl-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a></td>
               <td class="c-dept">—</td>
+              <td class="c-team">—</td>
               {% for d in route_board.days %}
               <td class="jp-sheet-cell{% if d.is_off %} is-off{% endif %}" data-date="{{ d.date|date:'Y-m-d' }}" data-order-id="{{ row.order.pk }}"{% if d.is_off %} data-off="1"{% endif %}></td>
               {% endfor %}

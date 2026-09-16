@@ -944,6 +944,7 @@
   .jp-tl-sheet col.c-name { width: 156px; }
   .jp-tl-sheet col.c-po { width: 118px; }
   .jp-tl-sheet col.c-dept { width: 88px; }
+  .jp-tl-sheet col.c-team { width: 88px; }
   .jp-tl-sheet col.jp-sheet-day { width: 54px; }
   .jp-tl-sheet col.c-total { width: 64px; }
   .jp-tl-sheet th,
@@ -987,25 +988,79 @@
   .jp-tl-sheet .c-img { width: 48px; min-width: 48px; max-width: 48px; padding: 4px; overflow: visible; }
   .jp-tl-sheet .c-name { width: 156px; min-width: 156px; max-width: 156px; text-align: left; font-weight: 700; color: #0f172a; overflow: visible; }
   .jp-tl-sheet .c-po { width: 118px; min-width: 118px; max-width: 118px; text-align: left; }
-  .jp-tl-sheet .c-dept { width: 88px; min-width: 88px; max-width: 88px; font-weight: 800; position: relative; }
+  .jp-tl-sheet .c-dept { width: 88px; min-width: 88px; max-width: 88px; font-weight: 800; position: relative; padding: 2px 4px; }
+  .jp-tl-sheet .c-team { width: 88px; min-width: 88px; max-width: 88px; padding: 2px 4px; }
+  .jp-tl-sheet tbody td.c-dept,
+  .jp-tl-sheet tbody td.c-team { text-align: left; }
   .jp-tl-sheet thead th.c-stt, .jp-tl-sheet tbody td.c-stt { position: sticky; left: 0; }
   .jp-tl-sheet thead th.c-prio, .jp-tl-sheet tbody td.c-prio { position: sticky; left: 44px; }
   .jp-tl-sheet thead th.c-img, .jp-tl-sheet tbody td.c-img { position: sticky; left: 132px; }
   .jp-tl-sheet thead th.c-name, .jp-tl-sheet tbody td.c-name { position: sticky; left: 180px; }
   .jp-tl-sheet thead th.c-po, .jp-tl-sheet tbody td.c-po { position: sticky; left: 336px; }
-  .jp-tl-sheet thead th.c-dept, .jp-tl-sheet tbody td.c-dept { position: sticky; left: 454px; box-shadow: 6px 0 10px -8px rgba(15, 23, 42, .22); }
+  .jp-tl-sheet thead th.c-dept, .jp-tl-sheet tbody td.c-dept { position: sticky; left: 454px; }
+  .jp-tl-sheet thead th.c-team, .jp-tl-sheet tbody td.c-team { position: sticky; left: 542px; box-shadow: 6px 0 10px -8px rgba(15, 23, 42, .22); }
   .jp-tl-sheet tbody td.c-stt,
   .jp-tl-sheet tbody td.c-prio,
   .jp-tl-sheet tbody td.c-img,
   .jp-tl-sheet tbody td.c-name,
-  .jp-tl-sheet tbody td.c-po { background: #fff; z-index: 2; }
+  .jp-tl-sheet tbody td.c-po,
+  .jp-tl-sheet tbody td.c-team { background: #fff; z-index: 2; }
   .jp-tl-sheet tbody td.c-dept { z-index: 2; }
   .jp-tl-sheet thead th.c-stt,
   .jp-tl-sheet thead th.c-prio,
   .jp-tl-sheet thead th.c-img,
   .jp-tl-sheet thead th.c-name,
   .jp-tl-sheet thead th.c-po,
-  .jp-tl-sheet thead th.c-dept { z-index: 6; background: var(--sheet-brand-soft); color: #0f172a; }
+  .jp-tl-sheet thead th.c-dept,
+  .jp-tl-sheet thead th.c-team { z-index: 6; background: var(--sheet-brand-soft); color: #0f172a; }
+  .jp-tl-sheet .jp-sheet-side {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2px;
+    width: 100%;
+    min-width: 0;
+  }
+  .jp-tl-sheet td.c-dept .jp-tl-dept-name,
+  .jp-tl-sheet td.c-team .jp-sheet-team-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: left;
+  }
+  .jp-tl-sheet td.c-team .jp-sheet-team-name {
+    font-weight: 700;
+    color: #0f172a;
+  }
+  .jp-tl-sheet .jp-sheet-split,
+  .jp-tl-sheet .jp-sheet-team {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 22px;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    margin: 0 0 0 auto;
+    border: 0;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, .62);
+    color: inherit;
+    cursor: pointer;
+    vertical-align: middle;
+    line-height: 1;
+  }
+  .jp-tl-sheet .jp-sheet-split:hover,
+  .jp-tl-sheet .jp-sheet-team:hover {
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, .16);
+  }
+  .jp-tl-sheet .jp-sheet-team.is-on {
+    background: #fff1f2;
+    color: #9f1239;
+  }
   .jp-tl-sheet .c-prio .jp-tl-prio {
     height: 1.35rem;
     padding: 0 .45rem;
@@ -1215,22 +1270,6 @@
   .jp-tl-sheet .jp-sheet-qty.is-dragging { opacity: .45; }
   .jp-tl-sheet .jp-sheet-cell.is-drop-hint { background: var(--sheet-brand-soft) !important; box-shadow: inset 0 0 0 1.5px var(--sheet-brand); }
   .jp-tl-sheet .jp-sheet-day.is-drop-hint { background: #fecaca !important; color: var(--sheet-brand); }
-  .jp-tl-sheet .c-dept .jp-tl-bar-more {
-    top: 4px;
-    right: 4px;
-    width: 16px;
-    height: 16px;
-    font-size: 11px;
-    line-height: 16px;
-    box-shadow: 0 1px 4px rgba(15, 23, 42, .12);
-    border: 0;
-    background: #fff;
-  }
-  .jp-tl-sheet .c-dept:hover .jp-tl-bar-more,
-  .jp-tl-sheet .c-dept:focus-within .jp-tl-bar-more {
-    opacity: 1;
-    pointer-events: auto;
-  }
   .jp-tl-sheet-wrap.is-order-focus .jp-tl-orow { opacity: .42; }
   .jp-tl-sheet-wrap.is-order-focus .jp-tl-orow.is-order-on { opacity: 1; }
   .jp-pb.is-route .jp-stage-legend-item.jp-stage-cat i { background: #ffd7b0; }

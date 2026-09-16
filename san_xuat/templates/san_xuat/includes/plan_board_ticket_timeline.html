@@ -45,10 +45,9 @@
           <span class="jp-pb-tl-v">{{ step.qty_label }}</span>
           {% endif %}
         </span>
-        {% if step.work_center_id or step.subcontracts %}
+        {% if step.subcontracts %}
         <span class="jp-pb-tl-flags">
-          {% if step.work_center_id %}<span class="jp-pb-flag is-team" title="Đã chọn tổ">Đã chọn tổ</span>{% endif %}
-          {% if step.subcontracts %}<span class="jp-pb-flag is-gc" title="Đã thuê gia công">Đã thuê GC</span>{% endif %}
+          <span class="jp-pb-flag is-gc" title="Đã thuê gia công">Đã thuê GC</span>
         </span>
         {% endif %}
       </button>
