@@ -1335,6 +1335,7 @@ def plan_board(request):
         plan_board_work_center_options,
         set_plan_priority,
         set_plan_color,
+        reorder_plan_orders,
         unhold_plan_order,
         unrelease_order_from_production,
     )
@@ -1410,11 +1411,11 @@ def plan_board(request):
                     params['gc_team'] = gc_team_filter
         elif tab == 'route':
             route_from_raw = (request.GET.get('route_from') or request.POST.get('route_from') or '').strip()
-            route_to_raw = (request.GET.get('route_to') or request.POST.get('route_to') or '').strip()
+            route_months_raw = (request.GET.get('route_months') or request.POST.get('route_months') or '').strip()
             if route_from_raw:
                 params['route_from'] = route_from_raw
-            if route_to_raw:
-                params['route_to'] = route_to_raw
+            if route_months_raw:
+                params['route_months'] = route_months_raw
         params.update(extra)
         from urllib.parse import urlencode
         return redirect(f"{reverse('san_xuat:plan_board')}?{urlencode(params)}")
@@ -1682,6 +1683,29 @@ def plan_board(request):
                 else:
                     messages.success(request, f'Đã lưu nháp kế hoạch NPL {order.code}.')
                 return _board_redirect(npl=order.pk)
+            elif action == 'reorder_plan_orders' and can_schedule:
+                raw_ids = request.POST.get('order_ids') or ''
+                if isinstance(raw_ids, str) and raw_ids.strip().startswith('['):
+                    import json as _json
+                    try:
+                        parsed_ids = _json.loads(raw_ids)
+                    except _json.JSONDecodeError as exc:
+                        raise PlanningError('Danh sách thứ tự đơn không hợp lệ.') from exc
+                    ordered_ids = parsed_ids if isinstance(parsed_ids, list) else []
+                else:
+                    ordered_ids = [
+                        part for part in str(raw_ids).replace(';', ',').split(',') if part.strip()
+                    ] or request.POST.getlist('order_ids')
+                updated = reorder_plan_orders(ordered_ids=ordered_ids)
+                wants_json = (
+                    (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
+                    or 'application/json' in (request.headers.get('Accept') or '')
+                )
+                if wants_json:
+                    from django.http import JsonResponse
+
+                    return JsonResponse({'ok': True, 'updated': updated})
+                messages.success(request, 'Đã cập nhật thứ tự đơn trên KHSX.')
             elif action == 'release' and can_release and order_id:
                 bom_by_product: dict[str, int] = {}
                 routing_by_product: dict[str, int] = {}
@@ -1900,7 +1924,7 @@ def plan_board(request):
             else:
                 if action:
                     if (
-                        action in ('reschedule_route', 'split_team_days', 'split_team_in_two', 'assign_plan_team', 'save_plan_team_capacity')
+                        action in ('reschedule_route', 'split_team_days', 'split_team_in_two', 'assign_plan_team', 'save_plan_team_capacity', 'reorder_plan_orders')
                         and (
                             (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
                             or 'application/json' in (request.headers.get('Accept') or '')
@@ -1915,7 +1939,7 @@ def plan_board(request):
                     messages.error(request, 'Bạn không có quyền thực hiện thao tác này.')
         except PlanningError as exc:
             if (
-                (request.POST.get('action') or '').strip() in ('reschedule_route', 'split_team_days', 'split_team_in_two', 'assign_plan_team', 'save_plan_team_capacity')
+                (request.POST.get('action') or '').strip() in ('reschedule_route', 'split_team_days', 'split_team_in_two', 'assign_plan_team', 'save_plan_team_capacity', 'reorder_plan_orders')
                 and (
                     (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
                     or 'application/json' in (request.headers.get('Accept') or '')
@@ -1927,7 +1951,7 @@ def plan_board(request):
             messages.error(request, str(exc))
         except Exception as exc:
             if (
-                (request.POST.get('action') or '').strip() in ('reschedule_route', 'split_team_days', 'split_team_in_two', 'assign_plan_team', 'save_plan_team_capacity')
+                (request.POST.get('action') or '').strip() in ('reschedule_route', 'split_team_days', 'split_team_in_two', 'assign_plan_team', 'save_plan_team_capacity', 'reorder_plan_orders')
                 and (
                     (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
                     or 'application/json' in (request.headers.get('Accept') or '')
@@ -1953,6 +1977,7 @@ def plan_board(request):
     filter_next_to = None
     filter_month_label = ''
     filter_is_current_month = False
+    route_months = 1
 
     def _apply_board_filters(rows):
         valid_priorities = {value for value, _label in SxSalesOrder.PRIORITY_CHOICES}
@@ -2066,17 +2091,17 @@ def plan_board(request):
         route_board = None
     else:
         from san_xuat.list_filters import parse_sx_date
-        from san_xuat.services.plan_board import _span_bounds
+        from san_xuat.services.plan_board import _clamp_route_months, _months_bounds
 
         route_rows = build_plan_board_rows(include_released=True, search=q)
         route_from = parse_sx_date((request.GET.get('route_from') or '').strip())
-        route_to = parse_sx_date((request.GET.get('route_to') or '').strip())
+        route_months = _clamp_route_months(request.GET.get('route_months'))
         route_board = build_order_timeline(
             route_rows,
             range_from=route_from,
-            range_to=route_to,
+            months=route_months,
         )
-        today_start, today_end_month = _span_bounds(timezone.localdate())
+        today_start, today_end_month = _months_bounds(timezone.localdate(), route_months)
 
     from san_xuat.services.planning import npl_prep_days
 
@@ -2108,6 +2133,7 @@ def plan_board(request):
         'priority_labels': PRIORITY_LABELS,
         'priority_choices': SxSalesOrder.PRIORITY_CHOICES,
         'route_board': route_board,
+        'route_months': route_months,
         'this_month_from': today_start,
         'this_month_to': today_end_month,
         'filter_date_from': filter_date_from,

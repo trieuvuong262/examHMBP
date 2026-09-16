@@ -1,0 +1,40 @@
+jp-tl-sheet-wrap {
+    display: block !important;
+    width: max-content;
+    min-width: 0 !important;
+    max-width: none;
+    overflow: visible;
+    background: #fff;
+  }
+  .jp-tl-sheet {
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+    table-layout: fixed;
+    width: max-content !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    margin: 0;
+    font: 700 11px/1.15 Calibri, Arial, Helvetica, sans-serif;
+    color: #000;
+    background: #fff;
+  }
+  .jp-tl-sheet col.c-prio { width: 96px; }
+  .jp-tl-sheet col.c-img { width: 44px; }
+  .jp-tl-sheet col.c-name { width: 148px; }
+  .jp-tl-sheet col.c-po { width: 112px; }
+  .jp-tl-sheet col.c-qty { width: 76px; }
+  .jp-tl-sheet col.c-dept { width: 80px; }
+  .jp-tl-sheet col.jp-sheet-day { width: 52px; }
+  .jp-tl-sheet col.c-total { width: 56px; }
+  .jp-tl-sheet th,
+  .jp-tl-sheet td {
+    display: table-cell !important;
+    float: none !important;
+    flex: none !important;
+    grid-column: auto !important;
+    grid-row: auto !important;
+    align-items: unset !important;
+    justify-content: unset !important;
+    min-height: 0 !important;
+    border: 1px solid #000;
+    padding: 1px

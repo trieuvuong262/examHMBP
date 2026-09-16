@@ -440,6 +440,9 @@ def confirm_sales_order(*, order_id: int, user=None) -> SxSalesOrder:
     from san_xuat.services.plan_route import ensure_order_plan_steps
 
     ensure_order_plan_steps(order)
+    from san_xuat.services.plan_board import apply_auto_team_day_splits
+
+    apply_auto_team_day_splits(order, replace_existing=False)
     return order
 
 

@@ -1,200 +1,216 @@
 {% load sx_format %}
-<section class="jp-pb-route jp-tl" id="lo-trinh"
+<section class="jp-pb-route jp-tl jp-tl-is-sheet" id="lo-trinh"
          data-can-schedule="{{ can_schedule|yesno:'1,0' }}"
          data-range-start="{{ route_board.range_start|date:'Y-m-d' }}"
-         oncontextmenu="event.preventDefault(); if (window.jpShowRouteCtx) window.jpShowRouteCtx(event); return false;">
+         oncontextmenu="event.preventDefault(); event.stopPropagation(); if (window.jpShowRouteCtx) window.jpShowRouteCtx(event); return false;">
   {% csrf_token %}
   {% for row in route_board.rows %}
     {% if row.duration_script_id %}{{ row.duration_detail|json_script:row.duration_script_id }}{% endif %}
   {% endfor %}
   <div class="jp-tl-wrap">
     {% if route_board.rows %}
-    <div class="jp-tl-chart" style="--tl-days: {{ route_board.days|length }}">
-      <div class="jp-tl-corner">Đơn</div>
-      {% for m in route_board.month_spans %}
-      <div class="jp-tl-month" style="grid-column: {{ m.grid_start }} / {{ m.grid_end }}; grid-row: 1">{{ m.label }}</div>
-      {% endfor %}
-      {% for d in route_board.days %}
-      <div class="jp-tl-day jp-tl-line{% if d.is_today %} is-today{% endif %}{% if d.is_weekend %} is-weekend{% endif %}{% if d.is_week_start %} is-week-start{% endif %}"
-           data-date="{{ d.date|date:'Y-m-d' }}"
-           style="grid-column: {{ forloop.counter|add:1 }}; grid-row: 2">
-        <span class="n">{{ d.day }}</span>
-        <span class="w">{{ d.weekday }}</span>
-      </div>
-      {% endfor %}
-      {% for row in route_board.rows %}
-        {% with r=forloop.counter|add:2 %}
-      <div class="jp-tl-label is-prio-{{ row.order.plan_priority }}"
-           style="grid-column: 1; grid-row: {{ r }}; --lanes: {{ row.lane_count }}"
-           data-order-id="{{ row.order.pk }}"
-           title="{{ row.subtitle }}">
-        {% if row.product_images %}
-        <div class="jp-tl-products" aria-label="Hình ảnh sản phẩm">
-          {% for img in row.product_images %}
-            {% if img.url %}
-            <button type="button" class="jp-tl-product" data-sx-gallery
-                    data-sx-gallery-title="{{ img.name }}"
-                    data-sx-gallery-images="{{ img.urls_json }}"
-                    title="{{ img.name }}">
-              <img src="{{ img.url }}" alt="{{ img.name }}" loading="lazy">
-            </button>
-            {% else %}
-            <span class="jp-tl-product is-empty" title="{{ img.name }}" aria-label="Sản phẩm chưa có ảnh">
-              <i class="bi bi-image" aria-hidden="true"></i>
-            </span>
-            {% endif %}
+    <div class="jp-tl-sheet-wrap">
+      <table class="jp-tl-sheet">
+        <colgroup>
+          <col class="c-stt">
+          <col class="c-prio">
+          <col class="c-img">
+          <col class="c-name">
+          <col class="c-po">
+          <col class="c-dept">
+          {% for d in route_board.days %}
+          <col class="jp-sheet-day{% if d.is_off %} is-off{% endif %}">
           {% endfor %}
-        </div>
-        {% endif %}
-        <div class="jp-tl-id">
-          <a class="jp-tl-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
-          <span class="jp-tl-st is-{{ row.status_key }}{% if row.is_late %} is-late{% endif %}">{{ row.status_label }}</span>
-        </div>
-        <details class="jp-tl-prep jp-tl-accepts">
-          <summary>Cần chuẩn bị</summary>
-          <div class="jp-tl-prep-panel">
-            <div class="jp-tl-prep-meta">
-              {% if row.duration_detail.customer %}
-              <div><span class="k">KH</span><span class="v">{{ row.duration_detail.customer }}</span></div>
-              {% endif %}
-              <div><span class="k">Yêu cầu</span><span class="v">{{ row.duration_detail.request|default:"—" }}</span></div>
-              <div><span class="k">Hạn giao</span><span class="v">{{ row.duration_detail.due|default:"—" }}</span></div>
-              <div>
-                <span class="k">KHSX</span>
-                <span class="v">
-                  {{ row.duration_detail.khsx_start|default:"—" }}{% if row.duration_detail.khsx_end and row.duration_detail.khsx_end != row.duration_detail.khsx_start %} → {{ row.duration_detail.khsx_end }}{% endif %}
-                </span>
-              </div>
-              {% if row.duration_detail.duration_label %}
-              <div><span class="k">Chu kỳ</span><span class="v">{{ row.duration_detail.duration_label }}</span></div>
-              {% endif %}
-              {% if row.duration_detail.cycle_minutes %}
-              <div><span class="k">Tổng</span><span class="v">{{ row.duration_detail.work_minutes }}′ làm · {{ row.duration_detail.buffer_minutes }}′ kiểm/VC · {{ row.duration_detail.cycle_minutes }}′ chu kỳ</span></div>
-              {% endif %}
-            </div>
-
-            <div class="jp-tl-prep-sec">
-              <div class="jp-tl-prep-h">NPL</div>
-              <ul>
-                <li>
-                  <strong>
-                    {% if row.duration_detail.npl_status == 'ready' %}Đã tính vào KHSX
-                    {% elif row.duration_detail.npl_status == 'draft' %}Nháp
-                    {% else %}Chưa lập{% endif %}
-                  </strong>
-                  <span>
-                    {% if row.duration_detail.npl_ready %}
-                      sẵn {{ row.duration_detail.npl_ready }}{% if row.duration_detail.npl_lead_days %} · lead {{ row.duration_detail.npl_lead_days }} ngày{% endif %}
-                    {% elif row.duration_detail.npl_status == 'draft' %}
-                      đang lập nhu cầu
-                    {% else %}
-                      chưa có phiếu NPL
-                    {% endif %}
-                    {% if row.duration_detail.npl_short_count %} · thiếu {{ row.duration_detail.npl_short_count }} dòng{% endif %}
-                  </span>
-                </li>
-              </ul>
-            </div>
-
-            <div class="jp-tl-prep-sec">
-              <div class="jp-tl-prep-h">Sản phẩm</div>
-              <ul>
-                {% for p in row.duration_detail.products %}
-                <li>
-                  <strong title="{{ p.code }}">{{ p.name|default:p.code }}</strong>
-                  <span class="jp-tl-prep-code">{{ p.code }}</span>
-                  <span>SL {{ p.qty }}{% if p.smv_min %} · SMV {{ p.smv_min }}′/cái{% if p.smv_sec %} ({{ p.smv_sec }}s){% endif %}{% endif %}</span>
-                  {% if p.work_minutes or p.buffer_minutes %}
-                  <span>{{ p.work_minutes|default:"0" }}′ thực hiện{% if p.buffer_minutes %} · {{ p.buffer_minutes }}′ kiểm/VC{% endif %}</span>
-                  {% endif %}
-                  {% if p.hops %}
-                  <ul class="jp-tl-prep-hops">
-                    {% for h in p.hops %}
-                    <li>{{ h.from }} → {{ h.to }}: {{ h.count }}′ kiểm + {{ h.transfer }}′ VC = <em>{{ h.total }}′</em></li>
-                    {% endfor %}
-                  </ul>
-                  {% endif %}
-                </li>
-                {% empty %}
-                <li><span>Chưa có mã hàng trên KHSX.</span></li>
-                {% endfor %}
-              </ul>
-            </div>
-
-            {% if row.duration_detail.teams %}
-            <div class="jp-tl-prep-sec">
-              <div class="jp-tl-prep-h">Công đoạn</div>
-              <ul>
-                {% for t in row.duration_detail.teams %}
-                {% if t.slug != 'npl' %}
-                <li>
-                  <strong>{{ t.label|default:t.slug }}</strong>
-                  <span>
-                    {% if t.splits %}
-                      {% for p in t.splits %}{{ p.date }}{% if p.qty %} · SL {{ p.qty }}{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}
-                    {% elif t.start %}{{ t.start }}{% if t.end and t.end != t.start %} → {{ t.end }}{% endif %}
-                    {% else %}chưa xếp{% endif %}
-                    {% if t.duration_label %} · {{ t.duration_label }}{% endif %}
-                  </span>
-                  {% if t.minutes %}
-                  <span>{{ t.work_minutes|default:"0" }}′ làm · {{ t.buffer_minutes|default:"0" }}′ kiểm/VC · {{ t.minutes }}′ chu kỳ</span>
-                  {% endif %}
-                </li>
+          <col class="c-total">
+        </colgroup>
+        <thead>
+          <tr>
+            <th class="c-stt">STT</th>
+            <th class="c-prio">Ưu tiên</th>
+            <th class="c-img">Ảnh</th>
+            <th class="c-name">Tên sản phẩm</th>
+            <th class="c-po">Mã đơn</th>
+            <th class="c-dept">Bộ phận</th>
+            {% for d in route_board.days %}
+            <th class="jp-sheet-day{% if d.is_today %} is-today{% endif %}{% if d.is_off %} is-off{% endif %}"
+                data-date="{{ d.date|date:'Y-m-d' }}"
+                title="{{ d.date|date:'d/m/Y' }} · {{ d.weekday }}{% if d.is_off %} · nghỉ{% endif %}">{{ d.date|date:'d-m' }}</th>
+            {% endfor %}
+            <th class="c-total">Tổng</th>
+          </tr>
+        </thead>
+          {% for row in route_board.rows %}
+          <tbody class="jp-sheet-order" data-order-id="{{ row.order.pk }}">
+            {% with stt=forloop.counter %}
+            {% for stage in row.stage_rows %}
+            <tr class="jp-tl-orow{% if forloop.first %} is-order-start{% endif %}{% if row.is_late %} is-late{% endif %}"
+                data-order-id="{{ row.order.pk }}"
+                data-team-slug="{{ stage.slug }}">
+              {% if forloop.first %}
+              <td class="c-stt" rowspan="{{ row.stage_rows|length }}">
+                {% if can_schedule %}
+                <button type="button" class="jp-sheet-stt" data-jp-order-drag draggable="false"
+                        title="Kéo để đổi thứ tự đơn" aria-label="Thứ tự {{ stt }} — kéo để đổi">
+                  <i class="bi bi-grip-vertical" aria-hidden="true"></i>
+                  <span class="jp-stt-num">{{ stt }}</span>
+                </button>
+                {% else %}
+                <span class="jp-stt-num">{{ stt }}</span>
                 {% endif %}
-                {% endfor %}
-              </ul>
-            </div>
-            {% endif %}
-          </div>
-        </details>
-      </div>
-      {% for d in route_board.days %}
-      <div class="jp-tl-slot jp-tl-line{% if d.is_today %} is-today{% endif %}{% if d.is_weekend %} is-weekend{% endif %}{% if d.is_week_start %} is-week-start{% endif %}"
-           data-date="{{ d.date|date:'Y-m-d' }}"
-           data-col="{{ forloop.counter }}"
-           data-order-id="{{ row.order.pk }}"
-           style="grid-column: {{ forloop.counter|add:1 }}; grid-row: {{ r }}; --lanes: {{ row.lane_count }}"></div>
-      {% endfor %}
-      {% for team in row.teams %}
-      {% if team.placed %}
-        <div class="jp-tl-bar jp-stage-{{ team.slug }}{% if row.is_late %} is-late{% endif %}{% if team.slug == 'npl' %} is-npl{% endif %}{% if can_schedule and team.can_drag %} is-draggable{% endif %}"
-             style="grid-row: {{ r }}; grid-column: {{ team.col_start|add:1 }} / {{ team.col_end|add:1 }}; --lane: {{ team.lane }}; --lanes: {{ row.lane_count }}"
-             data-jp-team-drag
-             data-order-id="{{ row.order.pk }}"
-             data-order-code="{{ row.order.code }}"
-             data-team-slug="{{ team.slug }}"
-             data-start="{{ team.start|date:'Y-m-d' }}"
-             data-end="{{ team.end|date:'Y-m-d' }}"
-             data-plan-date="{% if team.plan_date %}{{ team.plan_date|date:'Y-m-d' }}{% else %}{{ team.start|date:'Y-m-d' }}{% endif %}"
-             data-is-split="{% if team.is_split %}1{% else %}0{% endif %}"
-             data-segment-id="{{ team.segment_id }}"
-             data-qty="{{ team.qty_label }}"
-             data-team-qty="{{ team.team_qty_total }}"
-             data-col-start="{{ team.col_start }}"
-             data-span-days="{{ team.vis_days }}"
-             data-can-drag="{% if can_schedule and team.can_drag %}1{% else %}0{% endif %}"
-             data-can-split="{% if can_schedule and team.slug and team.slug != 'npl' %}1{% else %}0{% endif %}"
-             data-work-center-id="{% if team.work_center_id %}{{ team.work_center_id }}{% endif %}"
-             data-jp-team-split
-             title="{{ team.label }} · {{ row.order.code }}{% if team.qty_label %} · dự kiến {{ team.qty_label }}{% endif %} · đã làm {{ team.done_qty_label }} · {{ team.start|date:'d/m/Y' }} – {{ team.end|date:'d/m/Y' }}{% if team.duration_label %} · {{ team.duration_label }}{% endif %}{% if can_schedule and team.slug and team.slug != 'npl' %} · Chuột phải: Tách / Chọn tổ / Làm mới{% endif %}{% if can_schedule and team.can_drag %} · Kéo thả{% endif %}"
-             aria-label="{{ team.label }} {{ row.order.code }} dự kiến {{ team.qty_label|default:'0' }} đã làm {{ team.done_qty_label }}">
-          <div class="jp-tl-bar-plan" title="Dự kiến">
-            <span class="jp-tl-bar-qty">{{ team.qty_label|default:"—" }}</span>
-          </div>
-          <div class="jp-tl-bar-done" title="Đã thực hiện">
-            <span class="jp-tl-bar-qty">{{ team.done_qty_label }}</span>
-          </div>
-          {% if can_schedule and team.slug and team.slug != 'npl' %}
-          <button type="button" class="jp-tl-bar-more" data-jp-bar-more aria-label="Menu công đoạn" title="Tách / Chọn tổ / Làm mới">⋯</button>
-          {% endif %}
-        </div>
-      {% endif %}
-      {% endfor %}
-        {% endwith %}
-      {% endfor %}
+              </td>
+              <td class="c-prio" rowspan="{{ row.stage_rows|length }}"><span class="jp-tl-prio is-{{ row.order.plan_priority }}">{{ row.order.get_plan_priority_display }}</span></td>
+              <td class="c-img" rowspan="{{ row.stage_rows|length }}">
+                <div class="jp-sheet-thumbs">
+                  {% for img in row.product_images %}
+                    {% if img.url %}
+                    <button type="button" class="jp-tl-product" data-sx-gallery
+                            data-sx-gallery-title="{{ img.name }}"
+                            data-sx-gallery-images="{{ img.urls_json }}"
+                            title="{{ img.name }}">
+                      <img src="{{ img.url }}" alt="{{ img.name }}" loading="lazy">
+                    </button>
+                    {% else %}
+                    <span class="jp-tl-product is-empty" title="{{ img.name|default:'Chưa có ảnh' }}"><i class="bi bi-image" aria-hidden="true"></i></span>
+                    {% endif %}
+                  {% empty %}
+                  <span class="jp-tl-product is-empty" title="Chưa có ảnh"><i class="bi bi-image" aria-hidden="true"></i></span>
+                  {% endfor %}
+                </div>
+              </td>
+              <td class="c-name" rowspan="{{ row.stage_rows|length }}" title="{{ row.product_name_label|default:row.subtitle }}">
+                <div class="jp-sheet-names">
+                  {% for img in row.product_images %}
+                  <span title="{{ img.name }}">{{ img.name|default:"—" }}</span>
+                  {% empty %}
+                  <span>{{ row.product_name_label|default:"—" }}</span>
+                  {% endfor %}
+                </div>
+              </td>
+              <td class="c-po" rowspan="{{ row.stage_rows|length }}">
+                <a class="jp-tl-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
+              </td>
+              {% endif %}
+              <td class="c-dept jp-stage-{{ stage.slug }}"
+                  data-jp-team-split
+                  data-order-id="{{ row.order.pk }}"
+                  data-order-code="{{ row.order.code }}"
+                  data-team-slug="{{ stage.slug }}"
+                  data-start="{% if stage.first_date %}{{ stage.first_date|date:'Y-m-d' }}{% endif %}"
+                  data-end="{% if stage.last_date %}{{ stage.last_date|date:'Y-m-d' }}{% endif %}"
+                  data-plan-date="{% if stage.first_date %}{{ stage.first_date|date:'Y-m-d' }}{% endif %}"
+                  data-team-qty="{{ stage.team_qty_total }}"
+                  data-work-center-id="{% if stage.work_center_id %}{{ stage.work_center_id }}{% endif %}"
+                  data-can-split="{% if can_schedule and stage.can_split %}1{% else %}0{% endif %}"
+                  data-can-drag="{% if can_schedule and stage.can_drag %}1{% else %}0{% endif %}"
+                  data-headcount="{{ stage.headcount|default:0 }}"
+                  data-efficiency="{{ stage.efficiency_pct|sx_num_input }}"
+                  data-ref-headcount="{{ stage.catalog_headcount|default:0 }}"
+                  data-ref-efficiency="{{ stage.catalog_efficiency_pct|sx_num_input }}"
+                  data-work-hours="{{ stage.work_hours_per_day|sx_num_input }}"
+                  data-labor-minutes="{{ stage.labor_minutes|sx_num_input }}"
+                  data-smv-seconds="{{ stage.smv_seconds|sx_num_input }}"
+                  data-qty-per-day="{{ stage.qty_per_day|sx_num_input }}"
+                  data-planned-qty="{{ stage.planned_qty|sx_num_input }}"
+                  title="{{ stage.label }} · {{ row.order.code }}">
+                <span class="jp-tl-dept-name">{{ stage.short_label }}</span>
+                {% if can_schedule and stage.slug and stage.slug != 'npl' %}
+                <button type="button" class="jp-tl-bar-more" data-jp-bar-more aria-label="Menu công đoạn" title="Tách / Chọn tổ / Làm mới">⋯</button>
+                {% endif %}
+              </td>
+              {% for cell in stage.cells %}
+              <td class="jp-sheet-cell{% if cell.is_today %} is-today{% endif %}{% if cell.is_off %} is-off{% endif %}{% if cell.bar %} has-qty{% endif %}"
+                  data-date="{{ cell.date|date:'Y-m-d' }}"
+                  data-order-id="{{ row.order.pk }}"
+                  data-team-slug="{{ stage.slug }}"
+                  {% if cell.is_off %}data-off="1"{% endif %}>
+                {% if cell.bar and not cell.is_off %}
+                <button type="button"
+                        class="jp-sheet-qty jp-stage-{{ cell.bar.slug }}{% if row.is_late %} is-late{% endif %}{% if can_schedule and cell.bar.can_drag %} is-draggable{% endif %}"
+                        draggable="false"
+                        oncontextmenu="event.preventDefault(); event.stopPropagation(); if (window.jpShowRouteCtx) window.jpShowRouteCtx(event); return false;"
+                        data-jp-team-drag
+                        data-jp-team-split
+                        data-order-id="{{ row.order.pk }}"
+                        data-order-code="{{ row.order.code }}"
+                        data-team-slug="{{ cell.bar.slug }}"
+                        data-start="{{ cell.bar.start|date:'Y-m-d' }}"
+                        data-end="{{ cell.bar.end|date:'Y-m-d' }}"
+                        data-plan-date="{% if cell.bar.plan_date %}{{ cell.bar.plan_date|date:'Y-m-d' }}{% else %}{{ cell.bar.start|date:'Y-m-d' }}{% endif %}"
+                        data-is-split="{% if cell.bar.is_split %}1{% else %}0{% endif %}"
+                        data-segment-id="{{ cell.bar.segment_id }}"
+                        data-qty="{{ cell.bar.qty_label }}"
+                        data-done="{{ cell.bar.done_qty_label }}"
+                        data-team-qty="{{ cell.bar.team_qty_total }}"
+                        data-col-start="{{ cell.bar.col_start }}"
+                        data-span-days="1"
+                        data-can-drag="{% if can_schedule and cell.bar.can_drag %}1{% else %}0{% endif %}"
+                        data-can-split="{% if can_schedule and cell.bar.slug and cell.bar.slug != 'npl' %}1{% else %}0{% endif %}"
+                        data-work-center-id="{% if cell.bar.work_center_id %}{{ cell.bar.work_center_id }}{% endif %}"
+                        title="{{ cell.bar.label }} · {{ row.order.code }} · dự kiến {{ cell.bar.qty_label|default:'0' }} · đã làm {{ cell.bar.done_qty_label }}{% if can_schedule and cell.bar.can_drag %} · Kéo sang ngày khác{% endif %}">
+                  <span class="jp-sheet-plan">{{ cell.bar.qty_label|default:"—" }}</span>
+                  <span class="jp-sheet-done">{{ cell.bar.done_qty_label|default:"0" }}</span>
+                </button>
+                {% endif %}
+              </td>
+              {% endfor %}
+              <td class="c-total">{{ stage.total_label|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr class="jp-tl-orow is-order-start" data-order-id="{{ row.order.pk }}">
+              <td class="c-stt">
+                {% if can_schedule %}
+                <button type="button" class="jp-sheet-stt" data-jp-order-drag draggable="false"
+                        title="Kéo để đổi thứ tự đơn" aria-label="Thứ tự {{ stt }} — kéo để đổi">
+                  <i class="bi bi-grip-vertical" aria-hidden="true"></i>
+                  <span class="jp-stt-num">{{ stt }}</span>
+                </button>
+                {% else %}
+                <span class="jp-stt-num">{{ stt }}</span>
+                {% endif %}
+              </td>
+              <td class="c-prio"><span class="jp-tl-prio is-{{ row.order.plan_priority }}">{{ row.order.get_plan_priority_display }}</span></td>
+              <td class="c-img">
+                <div class="jp-sheet-thumbs">
+                  {% for img in row.product_images %}
+                    {% if img.url %}
+                    <button type="button" class="jp-tl-product" data-sx-gallery
+                            data-sx-gallery-title="{{ img.name }}"
+                            data-sx-gallery-images="{{ img.urls_json }}"
+                            title="{{ img.name }}">
+                      <img src="{{ img.url }}" alt="{{ img.name }}" loading="lazy">
+                    </button>
+                    {% else %}
+                    <span class="jp-tl-product is-empty" title="{{ img.name|default:'Chưa có ảnh' }}"><i class="bi bi-image" aria-hidden="true"></i></span>
+                    {% endif %}
+                  {% empty %}
+                  <span class="jp-tl-product is-empty"><i class="bi bi-image" aria-hidden="true"></i></span>
+                  {% endfor %}
+                </div>
+              </td>
+              <td class="c-name">
+                <div class="jp-sheet-names">
+                  {% for img in row.product_images %}
+                  <span title="{{ img.name }}">{{ img.name|default:"—" }}</span>
+                  {% empty %}
+                  <span>{{ row.product_name_label|default:"—" }}</span>
+                  {% endfor %}
+                </div>
+              </td>
+              <td class="c-po"><a class="jp-tl-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a></td>
+              <td class="c-dept">—</td>
+              {% for d in route_board.days %}
+              <td class="jp-sheet-cell{% if d.is_off %} is-off{% endif %}" data-date="{{ d.date|date:'Y-m-d' }}" data-order-id="{{ row.order.pk }}"{% if d.is_off %} data-off="1"{% endif %}></td>
+              {% endfor %}
+              <td class="c-total">—</td>
+            </tr>
+            {% endfor %}
+            {% endwith %}
+          </tbody>
+          {% endfor %}
+      </table>
     </div>
     {% else %}
-    <div class="jp-tl-empty">Không có đơn trong khoảng {{ route_board.range_start|date:"d/m/Y" }} – {{ route_board.range_end|date:"d/m/Y" }}. Đổi khoảng ngày để xem.</div>
+    <div class="jp-tl-empty">Không có đơn trong {{ route_board.month_label }}. Đổi tháng hiển thị để xem.</div>
     {% endif %}
   </div>
 </section>
@@ -203,54 +219,19 @@
   var root = document.getElementById('lo-trinh');
   if (!root || root.getAttribute('data-jp-ctx-bound') === '1') return;
   root.setAttribute('data-jp-ctx-bound', '1');
-
-  function elFromEvent(ev) {
+  function block(ev) {
     var t = ev && ev.target;
     if (t && t.nodeType === 3) t = t.parentElement;
-    return t;
-  }
-  function fallbackMenu(ev) {
-    var menu = document.getElementById('jpTlCtxMenu');
-    if (!menu) return;
-    if (menu.parentNode !== document.body) document.body.appendChild(menu);
-    menu.hidden = false;
-    var x = ev && ev.clientX != null ? ev.clientX : 12;
-    var y = ev && ev.clientY != null ? ev.clientY : 12;
-    menu.style.left = Math.max(8, Math.min(x, window.innerWidth - 200)) + 'px';
-    menu.style.top = Math.max(8, Math.min(y, window.innerHeight - 90)) + 'px';
-  }
-  function showMenu(ev) {
-    var t = elFromEvent(ev);
-    if (!t || !(root === t || root.contains(t))) return false;
-    if (ev && ev.type !== 'pointerdown') {
-      if (ev.preventDefault) ev.preventDefault();
-      ev.returnValue = false;
-    }
-    if (window.jpShowRouteCtx) window.jpShowRouteCtx(ev);
-    else fallbackMenu(ev);
-    return false;
-  }
-  function onCtx(ev) {
-    var t = elFromEvent(ev);
-    if (!t || !(root === t || root.contains(t) || (t.closest && t.closest('#jpTlCtxMenu')))) return;
-    ev.preventDefault();
+    if (!t || !t.closest) return;
+    if (!(root === t || root.contains(t) || t.closest('#jpTlCtxMenu'))) return;
+    if (ev.cancelable) ev.preventDefault();
     ev.returnValue = false;
-    if (t.closest && t.closest('#jpTlCtxMenu')) return;
-    showMenu(ev);
   }
-
-  window.addEventListener('contextmenu', onCtx, { capture: true, passive: false });
-  document.addEventListener('contextmenu', onCtx, { capture: true, passive: false });
-  root.addEventListener('contextmenu', onCtx, { capture: true, passive: false });
-  root.addEventListener('auxclick', function (ev) {
-    if (ev.button === 2) {
-      ev.preventDefault();
-      showMenu(ev);
-    }
-  }, { capture: true, passive: false });
-  root.addEventListener('pointerdown', function (ev) {
-    if (ev.button !== 2) return;
-    showMenu(ev);
-  }, true);
+  window.addEventListener('contextmenu', block, true);
+  root.addEventListener('contextmenu', function (ev) {
+    block(ev);
+    if (ev.stopPropagation) ev.stopPropagation();
+    return false;
+  });
 })();
 </script>

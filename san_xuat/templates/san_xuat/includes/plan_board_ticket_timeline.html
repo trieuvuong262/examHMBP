@@ -23,6 +23,9 @@
            data-ref-efficiency="{{ step.catalog_efficiency_pct|sx_num_input }}"
            data-work-hours="{{ step.work_hours_per_day|sx_num_input }}"
            data-labor-minutes="{{ step.labor_minutes|sx_num_input }}"
+           data-smv-seconds="{{ step.smv_seconds|sx_num_input }}"
+           data-qty-per-day="{{ step.qty_per_day|sx_num_input }}"
+           data-planned-qty="{{ step.planned_qty|sx_num_input }}"
            title="{{ step.label }} · {{ row.order.code }}">
       <button type="button"
               class="jp-pb-tl-seg jp-pb-stage-btn jp-stage-{{ step.slug }} is-{{ step.status }}{% if step.is_late %} is-late{% endif %}"

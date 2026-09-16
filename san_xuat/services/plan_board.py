@@ -385,6 +385,9 @@ class TeamKhsxSpan:
     work_hours_per_day: Decimal = field(default_factory=lambda: Decimal('0'))
     capacity_minutes_per_day: Decimal = field(default_factory=lambda: Decimal('0'))
     work_center_id: int = 0
+    smv_seconds: Decimal = field(default_factory=lambda: Decimal('0'))
+    qty_per_day: Decimal = field(default_factory=lambda: Decimal('0'))
+    planned_qty: Decimal = field(default_factory=lambda: Decimal('0'))
 
 
 @dataclass
@@ -422,6 +425,9 @@ class TicketTimelineStep:
     work_hours_per_day: Decimal = field(default_factory=lambda: Decimal('0'))
     labor_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
     capacity_minutes_per_day: Decimal = field(default_factory=lambda: Decimal('0'))
+    smv_seconds: Decimal = field(default_factory=lambda: Decimal('0'))
+    qty_per_day: Decimal = field(default_factory=lambda: Decimal('0'))
+    planned_qty: Decimal = field(default_factory=lambda: Decimal('0'))
 
     @property
     def unhired_product_groups(self) -> list[dict]:
@@ -795,6 +801,68 @@ def _labor_to_calendar_minutes(
     return labor
 
 
+def _floor_daily_qty(raw: Decimal) -> Decimal:
+    """Làm tròn xuống SL/ngày: ≥100 thì xuống hàng trăm (627.25 → 600), không thì xuống số nguyên."""
+    raw = _q(raw)
+    if raw <= 0:
+        return Decimal('0')
+    if raw >= 100:
+        return (raw / Decimal('100')).to_integral_value(rounding=ROUND_DOWN) * Decimal('100')
+    n = raw.to_integral_value(rounding=ROUND_DOWN)
+    return n if n > 0 else Decimal('1')
+
+
+def _smv_seconds_per_unit(labor_minutes: Decimal, qty: Decimal) -> Decimal:
+    """SMV (giây/sp) = tổng công hồ sơ thiết kế của tổ / SL đơn."""
+    qty_n = _q(qty)
+    labor = _q(labor_minutes, '0.0001')
+    if qty_n <= 0 or labor <= 0:
+        return Decimal('0')
+    return _q(labor * Decimal('60') / qty_n, '0.0001')
+
+
+def _daily_qty_capacity(smv_seconds, headcount, hours, efficiency_pct) -> Decimal:
+    """SL/ngày = (số giờ × 3600 × hiệu suất / SMV) × số CN, làm tròn xuống hàng trăm."""
+    from san_xuat.hub_models import DEFAULT_WORK_HOURS_PER_DAY
+
+    smv = _q(smv_seconds, '0.0001')
+    heads = max(0, int(headcount or 0))
+    hrs = _q(hours)
+    if hrs <= 0:
+        hrs = DEFAULT_WORK_HOURS_PER_DAY
+    load = _q(efficiency_pct if efficiency_pct is not None else 100) / Decimal('100')
+    if load < 0:
+        load = Decimal('0')
+    if smv <= 0 or heads <= 0 or hrs <= 0:
+        return Decimal('0')
+    per_head = (hrs * Decimal('3600') * load) / smv
+    return _floor_daily_qty(per_head * Decimal(heads))
+
+
+def _auto_day_qty_rows(qty, qty_per_day) -> list[Decimal]:
+    """2600 với 600/ngày → [600, 600, 600, 600, 200]."""
+    total = _q(qty)
+    daily = _q(qty_per_day)
+    if total <= 0:
+        return []
+    if daily <= 0:
+        return [total]
+    rows: list[Decimal] = []
+    remain = total
+    for _ in range(800):
+        if remain <= 0:
+            break
+        if remain > daily:
+            rows.append(daily)
+            remain = _q(remain - daily)
+        else:
+            rows.append(remain)
+            remain = Decimal('0')
+    if remain > 0:
+        rows.append(remain)
+    return rows
+
+
 def _add_flow_hops(groups, hop_by_slug: dict[str, Decimal]) -> None:
     rows = list(groups or [])
     for i, g in enumerate(rows[:-1]):
@@ -911,13 +979,23 @@ def _team_loads_from_order(
         catalog_e = _q(getattr(wc, 'efficiency_pct', 100) or 100) if wc is not None else Decimal('100')
         use_h = int(ov['headcount']) if 'headcount' in ov else catalog_h
         use_e = ov['efficiency_pct'] if 'efficiency_pct' in ov else catalog_e
-        calendar = _labor_to_calendar_minutes(
-            labor, wc, qty=qty_by.get(slug, Decimal('0')),
-            headcount=use_h, efficiency_pct=use_e,
-        )
+        hours = _q(getattr(wc, 'work_hours_per_day', 0) or 0) if wc is not None else Decimal('0')
+        if hours <= 0:
+            from san_xuat.hub_models import DEFAULT_WORK_HOURS_PER_DAY
+            hours = DEFAULT_WORK_HOURS_PER_DAY
+        qty_n = _q(qty_by.get(slug, Decimal('0')))
+        smv_sec = _smv_seconds_per_unit(labor, qty_n)
+        qpd = _daily_qty_capacity(smv_sec, use_h, hours, use_e)
+        n_days = len(_auto_day_qty_rows(qty_n, qpd)) if qpd > 0 and qty_n > 0 else 0
+        if n_days > 0:
+            calendar = _q(Decimal(n_days) * PLAN_SHIFT_MINUTES)
+        else:
+            calendar = _labor_to_calendar_minutes(
+                labor, wc, qty=qty_n,
+                headcount=use_h, efficiency_pct=use_e,
+            )
         buf = _q(hops.get(slug, Decimal('0')))
         cap_min = _khsx_available_minutes(wc, headcount=use_h, efficiency_pct=use_e)
-        hours = _q(getattr(wc, 'work_hours_per_day', 0) or 0) if wc is not None else Decimal('0')
         wc_label = ''
         if wc is not None:
             wc_label = (wc.team_label or wc.name or '').strip()
@@ -935,6 +1013,9 @@ def _team_loads_from_order(
             'work_hours_per_day': hours,
             'capacity_minutes_per_day': cap_min,
             'work_center_id': int(getattr(wc, 'pk', 0) or 0) if wc is not None else 0,
+            'qty': qty_n,
+            'smv_seconds': smv_sec,
+            'qty_per_day': qpd,
         })
     return out
 
@@ -1036,7 +1117,7 @@ def team_khsx_spans(
         start = pinned[slug] if is_pinned else defaults[slug][0]
         day_rows = day_plans_by_slug.get(slug) or []
         pieces: list[TeamDayPiece] = []
-        if len(day_rows) >= 2:
+        if day_rows:
             dates = [d.plan_date for d in day_rows if d.plan_date]
             if dates:
                 start = min(dates)
@@ -1047,24 +1128,25 @@ def team_khsx_spans(
                     lead_minutes=row['minutes'],
                     minutes_per_day=PLAN_SHIFT_MINUTES,
                 )
-            for dp in day_rows:
-                if not dp.plan_date:
-                    continue
-                qty = _q(dp.qty)
-                pieces.append(TeamDayPiece(
-                    plan_date=dp.plan_date,
-                    qty=qty,
-                    qty_label=format_sx_num_input(qty) if qty > 0 else '0',
-                ))
+            if len(day_rows) >= 2:
+                for dp in day_rows:
+                    if not dp.plan_date:
+                        continue
+                    qty = _q(dp.qty)
+                    pieces.append(TeamDayPiece(
+                        plan_date=dp.plan_date,
+                        qty=qty,
+                        qty_label=format_sx_num_input(qty) if qty > 0 else '0',
+                    ))
+            dur_days = max(1, len(dates))
+            dur_label = '1 ngày làm việc' if dur_days == 1 else f'{dur_days} ngày làm việc'
         else:
-            if len(day_rows) == 1 and day_rows[0].plan_date:
-                start = day_rows[0].plan_date
             start, end = schedule_span(
                 start=start,
                 lead_minutes=row['minutes'],
                 minutes_per_day=PLAN_SHIFT_MINUTES,
             )
-        dur_label, dur_days = format_order_duration(row['minutes'])
+            dur_label, dur_days = format_order_duration(row['minutes'])
         spans.append(TeamKhsxSpan(
             slug=slug,
             label=row['label'],
@@ -1085,6 +1167,9 @@ def team_khsx_spans(
             work_hours_per_day=_q(row.get('work_hours_per_day') or 0),
             capacity_minutes_per_day=_q(row.get('capacity_minutes_per_day') or 0),
             work_center_id=int(row.get('work_center_id') or 0),
+            smv_seconds=_q(row.get('smv_seconds') or 0, '0.0001'),
+            qty_per_day=_q(row.get('qty_per_day') or 0),
+            planned_qty=_q(row.get('qty') or 0),
         ))
     return npl_spans + spans
 
@@ -1114,6 +1199,195 @@ def _write_team_planned_dates(steps, starts_by_slug: dict[str, date], *, require
     return written
 
 
+def _clear_day_plan_cache(order: SxSalesOrder) -> None:
+    cache = getattr(order, '_prefetched_objects_cache', None)
+    if cache is not None:
+        cache.pop('team_day_plans', None)
+        cache.pop('plan_steps', None)
+
+
+def _workday_offset(start: date, target: date) -> int:
+    """Số ngày làm việc từ start đến target (0 nếu cùng ngày / target trước start)."""
+    from san_xuat.services.work_calendar import is_working_day
+
+    if not start or not target or target <= start:
+        return 0
+    n = 0
+    cur = start
+    for _ in range(800):
+        if cur >= target:
+            break
+        cur += timedelta(days=1)
+        if is_working_day(cur):
+            n += 1
+    return n
+
+
+def _last_team_day_plan(order: SxSalesOrder, slug: str) -> date | None:
+    row = (
+        SxOrderTeamDayPlan.objects.filter(sales_order=order, team_slug=slug)
+        .order_by('-plan_date', '-id')
+        .first()
+    )
+    return row.plan_date if row else None
+
+
+def _schedule_from_qty_or_minutes(span: TeamKhsxSpan, start: date) -> tuple[date, date]:
+    from san_xuat.services.inter_step_times import schedule_span
+    from san_xuat.services.work_calendar import add_working_days, next_working_day
+
+    start = next_working_day(start)
+    qpd = _q(getattr(span, 'qty_per_day', 0) or 0)
+    qty = _q(getattr(span, 'planned_qty', 0) or 0)
+    if qpd > 0 and qty > 0:
+        n = len(_auto_day_qty_rows(qty, qpd))
+        end = add_working_days(start, max(0, n - 1))
+        return start, end
+    return schedule_span(
+        start=start,
+        lead_minutes=span.minutes,
+        minutes_per_day=PLAN_SHIFT_MINUTES,
+    )
+
+
+def _rebase_team_day_plans(order: SxSalesOrder, slug: str, new_start: date) -> date | None:
+    """Dời các thẻ ngày, giữ SL và khoảng cách ngày làm việc. Trả ngày cuối."""
+    from san_xuat.services.work_calendar import add_working_days, next_working_day
+
+    rows = list(
+        SxOrderTeamDayPlan.objects.filter(sales_order=order, team_slug=slug).order_by('plan_date', 'id')
+    )
+    if not rows:
+        return None
+    new_start = next_working_day(new_start)
+    old_start = rows[0].plan_date
+    if old_start == new_start:
+        return rows[-1].plan_date
+    qtys = [_q(r.qty) for r in rows]
+    offsets = [_workday_offset(old_start, r.plan_date) for r in rows]
+    occupied: set[date] = set()
+    assigned: list[tuple[date, Decimal]] = []
+    for off, q in zip(offsets, qtys):
+        day = add_working_days(new_start, off)
+        while day in occupied:
+            day = add_working_days(day, 1)
+        occupied.add(day)
+        assigned.append((day, q))
+    SxOrderTeamDayPlan.objects.filter(sales_order=order, team_slug=slug).delete()
+    SxOrderTeamDayPlan.objects.bulk_create([
+        SxOrderTeamDayPlan(sales_order=order, team_slug=slug, plan_date=d, qty=q)
+        for d, q in assigned
+    ])
+    _clear_day_plan_cache(order)
+    return assigned[-1][0]
+
+
+def apply_auto_team_day_splits(
+    order: SxSalesOrder,
+    *,
+    only_slug: str = '',
+    replace_existing: bool = False,
+    origin_start: date | None = None,
+) -> int:
+    """Tự tách SL theo công suất ngày của tổ. Tách tay (modal Tách) vẫn sửa được."""
+    from san_xuat.services.inter_step_times import schedule_span
+    from san_xuat.services.plan_order_npl import production_start_for_order
+    from san_xuat.services.work_calendar import add_working_days, next_working_day
+
+    if not getattr(order, 'pk', None):
+        return 0
+    try:
+        _assert_schedule_editable(order)
+    except PlanningError:
+        return 0
+
+    loads = _team_loads_from_order(order)
+    if not loads:
+        return 0
+    today = timezone.localdate()
+    cursor = origin_start or production_start_for_order(order, today=today)
+    cursor = next_working_day(cursor)
+    want = (only_slug or '').strip().lower()
+    written = 0
+    existing_map: dict[str, list] = {}
+    for dp in SxOrderTeamDayPlan.objects.filter(sales_order_id=order.pk).order_by('plan_date', 'id'):
+        sk = (dp.team_slug or '').strip().lower()
+        if sk:
+            existing_map.setdefault(sk, []).append(dp)
+    pinned = _pinned_starts_from_steps(list(order.plan_steps.all()))
+    starts_to_pin: dict[str, date] = {}
+
+    for row in loads:
+        slug = row['slug']
+        qpd = _q(row.get('qty_per_day') or 0)
+        qty_n = _q(row.get('qty') or 0)
+        existing = existing_map.get(slug) or []
+        skip = bool(want) and slug != want
+        if skip:
+            if existing:
+                cursor = _next_working_day_after(existing[-1].plan_date)
+            else:
+                start = pinned.get(slug) or cursor
+                start, end = schedule_span(
+                    start=start,
+                    lead_minutes=row['minutes'],
+                    minutes_per_day=PLAN_SHIFT_MINUTES,
+                )
+                cursor = _next_working_day_after(end)
+            continue
+        need = _auto_day_qty_rows(qty_n, qpd) if qpd > 0 and qty_n > 0 else []
+        if existing and not replace_existing:
+            cursor = _next_working_day_after(existing[-1].plan_date)
+            continue
+        if not need:
+            cursor = pinned.get(slug) or cursor
+            continue
+        if want and origin_start and slug == want:
+            start = origin_start
+        else:
+            start = pinned.get(slug) or cursor
+        start = next_working_day(start)
+        SxOrderTeamDayPlan.objects.filter(sales_order=order, team_slug=slug).delete()
+        occupied: set[date] = set()
+        assigned: list[tuple[date, Decimal]] = []
+        day = start
+        for q in need:
+            while day in occupied:
+                day = add_working_days(day, 1)
+            occupied.add(day)
+            assigned.append((day, q))
+            day = add_working_days(day, 1)
+        SxOrderTeamDayPlan.objects.bulk_create([
+            SxOrderTeamDayPlan(sales_order=order, team_slug=slug, plan_date=d, qty=q)
+            for d, q in assigned
+        ])
+        existing_map[slug] = []
+        starts_to_pin[slug] = start
+        written += 1
+        cursor = _next_working_day_after(assigned[-1][0])
+
+    if starts_to_pin:
+        _clear_day_plan_cache(order)
+        steps = list(order.plan_steps.all())
+        pinned.update(starts_to_pin)
+        _write_team_planned_dates(steps, pinned)
+    return written
+
+
+def _timeline_bar_capacity(span) -> dict:
+    return {
+        'headcount': int(getattr(span, 'headcount', 0) or 0),
+        'efficiency_pct': _q(getattr(span, 'efficiency_pct', 0) or 0),
+        'catalog_headcount': int(getattr(span, 'catalog_headcount', 0) or 0),
+        'catalog_efficiency_pct': _q(getattr(span, 'catalog_efficiency_pct', 0) or 0),
+        'work_hours_per_day': _q(getattr(span, 'work_hours_per_day', 0) or 0),
+        'labor_minutes': _q(getattr(span, 'labor_minutes', 0) or 0, '0.0001'),
+        'smv_seconds': _q(getattr(span, 'smv_seconds', 0) or 0, '0.0001'),
+        'qty_per_day': _q(getattr(span, 'qty_per_day', 0) or 0),
+        'planned_qty': _q(getattr(span, 'planned_qty', 0) or 0),
+    }
+
+
 def _ticket_capacity_kwargs(span: TeamKhsxSpan) -> dict:
     return {
         'work_center_id': int(getattr(span, 'work_center_id', 0) or 0),
@@ -1124,6 +1398,9 @@ def _ticket_capacity_kwargs(span: TeamKhsxSpan) -> dict:
         'work_hours_per_day': _q(getattr(span, 'work_hours_per_day', 0) or 0),
         'labor_minutes': _q(getattr(span, 'labor_minutes', 0) or 0, '0.0001'),
         'capacity_minutes_per_day': _q(getattr(span, 'capacity_minutes_per_day', 0) or 0),
+        'smv_seconds': _q(getattr(span, 'smv_seconds', 0) or 0, '0.0001'),
+        'qty_per_day': _q(getattr(span, 'qty_per_day', 0) or 0),
+        'planned_qty': _q(getattr(span, 'planned_qty', 0) or 0),
     }
 
 
@@ -1519,6 +1796,14 @@ def build_plan_board_rows(
                 plan_steps = apply_default_capacity_teams(
                     order, plan_steps, replace_without_capacity=True,
                 )
+        wrote = apply_auto_team_day_splits(order, replace_existing=False)
+        if wrote:
+            try:
+                _reflow_order_from(order, sync_mos=False)
+            except PlanningError:
+                pass
+        _clear_day_plan_cache(order)
+        plan_steps = list(order.plan_steps.all())
         if plan_steps:
             from san_xuat.services.inter_step_times import (
                 attach_group_codes_from_routing,
@@ -2004,6 +2289,71 @@ def recompute_plan_ranks(*, only_queue: bool = True) -> int:
     return updated
 
 
+def _unique_order_ids(raw_ids) -> list[int]:
+    out: list[int] = []
+    seen: set[int] = set()
+    for raw in raw_ids or []:
+        try:
+            oid = int(raw)
+        except (TypeError, ValueError):
+            continue
+        if oid <= 0 or oid in seen:
+            continue
+        seen.add(oid)
+        out.append(oid)
+    return out
+
+
+@transaction.atomic
+def reorder_plan_orders(*, ordered_ids: list[int] | list[str]) -> int:
+    """Kéo STT trên lộ trình: ghi plan_rank theo thứ tự mới của các đơn đang hiện."""
+    sequence = _unique_order_ids(ordered_ids)
+    if len(sequence) < 2:
+        return 0
+    locked = {
+        o.pk: o
+        for o in SxSalesOrder.objects.select_for_update().filter(pk__in=sequence, is_demo=False)
+    }
+    sequence = [oid for oid in sequence if oid in locked]
+    if len(sequence) < 2:
+        return 0
+    current_ranks = [locked[oid].plan_rank for oid in sequence]
+    if all(rank is not None for rank in current_ranks) and len(set(current_ranks)) == len(current_ranks):
+        new_ranks = sorted(current_ranks)
+        merged = sequence
+    else:
+        rows = build_plan_board_rows(include_released=True)
+        all_ids = [r.order.pk for r in rows]
+        vis = set(sequence)
+        it = iter(sequence)
+        merged = []
+        for oid in all_ids:
+            if oid in vis:
+                merged.append(next(it, oid))
+            else:
+                merged.append(oid)
+        seen = set(merged)
+        merged.extend(oid for oid in sequence if oid not in seen)
+        extra = [
+            o for o in SxSalesOrder.objects.select_for_update().filter(
+                pk__in=[oid for oid in merged if oid not in locked],
+                is_demo=False,
+            )
+        ]
+        for order in extra:
+            locked[order.pk] = order
+        new_ranks = list(range(1, len(merged) + 1))
+    updated = 0
+    for oid, rank in zip(merged, new_ranks):
+        order = locked.get(oid)
+        if order is None or order.plan_rank == rank:
+            continue
+        order.plan_rank = rank
+        order.save(update_fields=['plan_rank', 'updated_at'])
+        updated += 1
+    return updated
+
+
 @transaction.atomic
 def save_plan_hops(*, order_id: int, hops: list[dict]) -> list[SxSalesOrderPlanStep]:
     """Cập nhật phút kiểm đếm / vận chuyển trên từng khoảng CĐ (đơn đã xác nhận)."""
@@ -2103,6 +2453,7 @@ def assign_plan_team(
     if cache is not None:
         cache.pop('plan_steps', None)
         cache.pop('lines', None)
+    apply_auto_team_day_splits(order, only_slug=slug, replace_existing=True)
     _reflow_order_from(order, origin_slug=slug)
     return order, wc
 
@@ -2150,6 +2501,7 @@ def save_plan_team_capacity(
     cache = getattr(order, '_prefetched_objects_cache', None)
     if cache is not None:
         cache.pop('plan_steps', None)
+    apply_auto_team_day_splits(order, only_slug=slug, replace_existing=True)
     has_mo = order.production_orders.filter(is_demo=False).exclude(
         status=SxProductionOrder.STATUS_CANCELLED,
     ).exists()
@@ -2785,7 +3137,6 @@ def _reflow_order_from(
     sync_mos: bool = True,
 ) -> SxSalesOrder:
     """Giữ ngày tổ đang sửa, dồn các tổ sau theo quỹ phút + ngày làm việc."""
-    from san_xuat.services.inter_step_times import schedule_span
     from san_xuat.services.work_calendar import next_working_day
 
     steps = _load_schedule_steps(order)
@@ -2807,11 +3158,16 @@ def _reflow_order_from(
             if raw is None:
                 raw = timezone.localdate()
             start = next_working_day(raw)
-            start, end = schedule_span(
-                start=start,
-                lead_minutes=span.minutes,
-                minutes_per_day=PLAN_SHIFT_MINUTES,
-            )
+            last = _rebase_team_day_plans(order, span.slug, start)
+            if last is None:
+                n = apply_auto_team_day_splits(
+                    order, only_slug=span.slug, replace_existing=False, origin_start=start,
+                )
+                last = _last_team_day_plan(order, span.slug) if n else None
+            if last is None:
+                start, end = _schedule_from_qty_or_minutes(span, start)
+            else:
+                end = last
             starts[span.slug] = start
             prev_end = end
             continue
@@ -2824,13 +3180,19 @@ def _reflow_order_from(
             _next_working_day_after(prev_end)
             if prev_end else next_working_day(timezone.localdate())
         )
-        start, end = schedule_span(
-            start=cursor,
-            lead_minutes=span.minutes,
-            minutes_per_day=PLAN_SHIFT_MINUTES,
-        )
-        starts[span.slug] = start
-        prev_end = end
+        last = _rebase_team_day_plans(order, span.slug, cursor)
+        if last is None:
+            n = apply_auto_team_day_splits(
+                order, only_slug=span.slug, replace_existing=False, origin_start=cursor,
+            )
+            last = _last_team_day_plan(order, span.slug) if n else None
+        if last is None:
+            start, end = _schedule_from_qty_or_minutes(span, cursor)
+            starts[span.slug] = start
+            prev_end = end
+            continue
+        starts[span.slug] = cursor
+        prev_end = last
 
     written = _write_team_planned_dates(steps, starts, require_slug=slug)
     if written <= 0:
@@ -2862,6 +3224,7 @@ class TimelineDay:
     is_today: bool
     is_weekend: bool
     is_week_start: bool
+    is_off: bool = False
 
 
 @dataclass
@@ -2912,6 +3275,53 @@ class TeamTimelineBar:
     plan_date: date | None = None
     team_qty_total: str = ''
     work_center_id: int = 0
+    headcount: int = 0
+    efficiency_pct: Decimal = field(default_factory=lambda: Decimal('0'))
+    catalog_headcount: int = 0
+    catalog_efficiency_pct: Decimal = field(default_factory=lambda: Decimal('0'))
+    work_hours_per_day: Decimal = field(default_factory=lambda: Decimal('0'))
+    labor_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
+    smv_seconds: Decimal = field(default_factory=lambda: Decimal('0'))
+    qty_per_day: Decimal = field(default_factory=lambda: Decimal('0'))
+    planned_qty: Decimal = field(default_factory=lambda: Decimal('0'))
+
+
+@dataclass
+class RouteDayCell:
+    """Một ô ngày trên lưới lộ trình (Excel)."""
+
+    date: date
+    is_today: bool = False
+    is_weekend: bool = False
+    is_week_start: bool = False
+    is_off: bool = False
+    bar: TeamTimelineBar | None = None
+
+
+@dataclass
+class RouteStageRow:
+    """Một hàng bộ phận trên lưới lộ trình."""
+
+    slug: str
+    label: str
+    short_label: str
+    work_center_id: int = 0
+    team_qty_total: str = ''
+    total_label: str = ''
+    can_drag: bool = False
+    can_split: bool = False
+    first_date: date | None = None
+    last_date: date | None = None
+    cells: list[RouteDayCell] = field(default_factory=list)
+    headcount: int = 0
+    efficiency_pct: Decimal = field(default_factory=lambda: Decimal('0'))
+    catalog_headcount: int = 0
+    catalog_efficiency_pct: Decimal = field(default_factory=lambda: Decimal('0'))
+    work_hours_per_day: Decimal = field(default_factory=lambda: Decimal('0'))
+    labor_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
+    smv_seconds: Decimal = field(default_factory=lambda: Decimal('0'))
+    qty_per_day: Decimal = field(default_factory=lambda: Decimal('0'))
+    planned_qty: Decimal = field(default_factory=lambda: Decimal('0'))
 
 
 @dataclass
@@ -2945,6 +3355,11 @@ class PlanTimelineRow:
     track_soft: str = '#fef2f2'
     color_custom: bool = False
     lane_count: int = 1
+    line_label: str = ''
+    color_label: str = ''
+    qty_label: str = ''
+    product_name_label: str = ''
+    stage_rows: list[RouteStageRow] = field(default_factory=list)
 
 
 @dataclass
@@ -2964,6 +3379,7 @@ class MoTimelineBoard:
     search: str = ''
     month_label: str = ''
     is_current_month: bool = False
+    months: int = 1
 
 
 def _monday_on_or_before(d: date) -> date:
@@ -2995,6 +3411,31 @@ def _shift_month(d: date, delta: int) -> date:
 
 def _month_label(d: date) -> str:
     return f'Tháng {d.month}/{d.year}'
+
+
+def _clamp_route_months(value) -> int:
+    try:
+        n = int(value)
+    except (TypeError, ValueError):
+        n = 1
+    return n if n in (1, 2, 3) else 1
+
+
+def _months_bounds(start: date, months: int = 1) -> tuple[date, date]:
+    """Đầu tháng của ``start`` đến cuối tháng sau ``months - 1`` tháng."""
+    months = _clamp_route_months(months)
+    first = start.replace(day=1)
+    last_start = _shift_month(first, months - 1)
+    _, last = _month_bounds(last_start)
+    return first, last
+
+
+def _months_span_label(start: date, end: date) -> str:
+    if start.year == end.year and start.month == end.month:
+        return f'Tháng {start.month}/{start.year}'
+    if start.year == end.year:
+        return f'Tháng {start.month}–{end.month}/{start.year}'
+    return f'{start.month}/{start.year} – {end.month}/{end.year}'
 
 
 def _span_bounds(start: date, *, days: int = ROUTE_TIMELINE_DAYS) -> tuple[date, date]:
@@ -3074,6 +3515,8 @@ def _timeline_range(
 
 
 def _timeline_axis(start: date, end: date, today: date) -> tuple[list[TimelineDay], list[dict], int]:
+    from san_xuat.services.work_calendar import is_working_day
+
     span = (end - start).days + 1
     if span < 1:
         span = 1
@@ -3082,14 +3525,16 @@ def _timeline_axis(start: date, end: date, today: date) -> tuple[list[TimelineDa
     axis_days: list[TimelineDay] = []
     month_spans: list[dict] = []
     for d in day_list:
+        off = not is_working_day(d)
         axis_days.append(
             TimelineDay(
                 date=d,
                 day=d.day,
                 weekday=_WD_VN[d.weekday()],
                 is_today=d == today,
-                is_weekend=d.weekday() >= 5,
+                is_weekend=d.weekday() == 6,
                 is_week_start=d.weekday() == 0,
+                is_off=off,
             )
         )
         key = (d.year, d.month)
@@ -3169,6 +3614,124 @@ def _team_qty_label(slug: str, product_flows, fallback_qty: Decimal) -> str:
     if total <= 0:
         return ''
     return format_sx_num_input(total)
+
+
+_SHEET_STAGE_LABELS = {
+    'cat': 'Cắt',
+    'inep': 'In/ép',
+    'theu': 'Thêu',
+    'may': 'May',
+    'ht': 'Ủi',
+    'gh': 'Đóng gói',
+    'kho': 'Nhập kho',
+}
+_SHEET_STAGE_ORDER = ('cat', 'inep', 'theu', 'may', 'ht', 'gh', 'kho')
+_SHEET_STAGE_ALWAYS = ('cat', 'inep', 'may', 'ht', 'gh')
+
+
+def _stage_sheet_label(slug: str, full_label: str = '') -> str:
+    key = (slug or '').strip().lower()
+    if key in _SHEET_STAGE_LABELS:
+        return _SHEET_STAGE_LABELS[key]
+    from san_xuat.services.progress_template import team_by_slug
+
+    meta = team_by_slug(key)
+    if meta and meta.get('label'):
+        return str(meta['label'])
+    text = (full_label or '').split('(')[0].strip()
+    return text or key or 'Công đoạn'
+
+
+def _color_from_product_code(code: str) -> str:
+    s = (code or '').strip()
+    i = len(s) - 1
+    while i >= 0 and s[i].isalpha():
+        i -= 1
+    tail = s[i + 1 :]
+    if 1 <= len(tail) <= 3:
+        return tail
+    return ''
+
+
+def _stage_day_cells(
+    axis_days: list[TimelineDay],
+    by_day: dict[date, TeamTimelineBar],
+) -> list[RouteDayCell]:
+    return [
+        RouteDayCell(
+            date=d.date,
+            is_today=d.is_today,
+            is_weekend=d.is_weekend,
+            is_week_start=d.is_week_start,
+            is_off=bool(getattr(d, 'is_off', d.is_weekend)),
+            bar=None if getattr(d, 'is_off', False) else by_day.get(d.date),
+        )
+        for d in axis_days
+    ]
+
+
+def _stage_rows_from_bars(
+    bars: list[TeamTimelineBar],
+    axis_days: list[TimelineDay],
+    *,
+    range_start: date,
+    range_end: date,
+) -> list[RouteStageRow]:
+    """Gom thanh tổ thành hàng bộ phận, mỗi ngày một ô SL."""
+    from collections import OrderedDict
+
+    grouped: OrderedDict[str, list[TeamTimelineBar]] = OrderedDict()
+    from san_xuat.services.work_calendar import is_working_day
+
+    for bar in bars:
+        slug = (bar.slug or '').strip().lower()
+        if slug == 'npl':
+            continue
+        grouped.setdefault(slug, []).append(bar)
+
+    ordered = list(_SHEET_STAGE_ALWAYS)
+    for key in _SHEET_STAGE_ORDER:
+        if key not in ordered and key in grouped:
+            ordered.append(key)
+    ordered.extend(k for k in grouped if k and k not in ordered)
+
+    out: list[RouteStageRow] = []
+    for slug in ordered:
+        items = grouped.get(slug) or []
+        sample = items[0] if items else None
+        by_day: dict[date, TeamTimelineBar] = {}
+        for bar in items:
+            if not bar.placed:
+                continue
+            cell_date = bar.plan_date or bar.start
+            if cell_date is None:
+                continue
+            if cell_date < range_start:
+                cell_date = range_start
+            if cell_date > range_end:
+                continue
+            if not is_working_day(cell_date):
+                continue
+            if cell_date not in by_day:
+                by_day[cell_date] = bar
+        first_date = min(by_day) if by_day else (sample.start if sample else None)
+        last_date = max(by_day) if by_day else (sample.end if sample else None)
+        cap = _timeline_bar_capacity(sample) if sample else {}
+        out.append(RouteStageRow(
+            slug=slug,
+            label=(sample.label if sample else '') or slug,
+            short_label=_stage_sheet_label(slug, sample.label if sample else ''),
+            work_center_id=int(sample.work_center_id or 0) if sample else 0,
+            team_qty_total=(sample.team_qty_total if sample else '') or '',
+            total_label=(sample.team_qty_total if sample else '') or (sample.qty_label if sample else '') or '',
+            can_drag=bool(sample.can_drag) if sample else False,
+            can_split=bool(slug and slug != 'npl'),
+            first_date=first_date,
+            last_date=last_date,
+            cells=_stage_day_cells(axis_days, by_day),
+            **cap,
+        ))
+    return out
 
 
 def _day_plans_by_order_team(
@@ -3305,11 +3868,6 @@ def save_team_day_plans(
         )
 
     SxOrderTeamDayPlan.objects.filter(sales_order=order, team_slug=slug).delete()
-    if len(parsed) == 1:
-        pin = next_working_day(parsed[0][0])
-        starts = _pin_team_planned_date(order, slug, pin)
-        return _sync_schedule_to_mos(order, starts)
-
     from san_xuat.services.work_calendar import add_working_days
 
     occupied: set[date] = set()
@@ -3606,20 +4164,14 @@ def build_order_timeline(
     *,
     range_from: date | None = None,
     range_to: date | None = None,
+    months: int = 1,
 ) -> MoTimelineBoard:
-    """Timeline đơn trên KHSX — mặc định 60 ngày từ hôm nay."""
+    """Timeline đơn trên KHSX — lưới 1/2/3 tháng, mặc định tháng hiện tại."""
     today = timezone.localdate()
-    if not range_from and not range_to:
-        range_from, range_to = _span_bounds(today)
-    elif range_from and not range_to:
-        range_from, range_to = _span_bounds(range_from)
-    elif range_to and not range_from:
-        range_from, range_to = _span_bounds(
-            range_to - timedelta(days=ROUTE_TIMELINE_DAYS - 1),
-        )
-    start, end = _timeline_range(
-        range_from, range_to, today=today, days=ROUTE_TIMELINE_DAYS,
-    )
+    months = _clamp_route_months(months)
+    if range_from and range_to and range_to < range_from:
+        range_from, range_to = range_to, range_from
+    start, end = _months_bounds(range_from or today, months)
     axis_days, month_spans, span = _timeline_axis(start, end, today)
 
     accepts_by_order = _accepted_teams_by_order_ids([r.order.pk for r in plan_rows])
@@ -3629,6 +4181,7 @@ def build_order_timeline(
     rows: list[PlanTimelineRow] = []
     unscheduled: list = []
     grid_row = 3
+    line_no = 0
     for r in plan_rows:
         bar_start = r.khsx_start
         bar_end = r.khsx_end or r.khsx_start
@@ -3660,7 +4213,7 @@ def build_order_timeline(
             bar_text = f"{max(bar_start, start).strftime('%d/%m')} – {min(bar_end, end).strftime('%d/%m')}"
         else:
             bar_text = ''
-        names = [pf.product_name or pf.product_code for pf in (r.product_flows or [])]
+        names = [n for pf in (r.product_flows or []) if (n := (pf.product_name or pf.product_code or '').strip())]
         subtitle = (r.order.customer_name or '').strip()
         if names:
             extra = names[0] if len(names) == 1 else f'{len(names)} mã'
@@ -3681,7 +4234,7 @@ def build_order_timeline(
         else:
             product_code_label = f'{product_codes[0]} +{len(product_codes) - 1}'
         product_images = []
-        for pf in (r.product_flows or [])[:2]:
+        for pf in r.product_flows or []:
             product_images.append({
                 'url': pf.image_url or '',
                 'urls_json': pf.image_urls_json,
@@ -3750,6 +4303,7 @@ def build_order_timeline(
                             plan_date=d_start,
                             team_qty_total=team_total_label,
                             work_center_id=int(getattr(ts, 'work_center_id', 0) or 0),
+                            **_timeline_bar_capacity(ts),
                         ))
                         first_bar = False
                     continue
@@ -3782,6 +4336,7 @@ def build_order_timeline(
                     plan_date=ts.start,
                     team_qty_total=team_total_label,
                     work_center_id=int(getattr(ts, 'work_center_id', 0) or 0),
+                    **_timeline_bar_capacity(ts),
                 ))
         else:
             qty_label = format_sx_num_input(r.total_qty) if r.total_qty else ''
@@ -3808,6 +4363,19 @@ def build_order_timeline(
             ))
         lane_count = _pack_timeline_lanes(team_bars)
         grid_row += 1
+        line_no += 1
+        colors = []
+        seen_color: set[str] = set()
+        for code in product_codes:
+            c = _color_from_product_code(code)
+            if c and c.casefold() not in seen_color:
+                seen_color.add(c.casefold())
+                colors.append(c)
+        color_label = ', '.join(colors)
+        qty_label = format_sx_num_input(r.total_qty) if r.total_qty else ''
+        stage_rows = _stage_rows_from_bars(
+            team_bars, axis_days, range_start=start, range_end=end,
+        )
         rows.append(PlanTimelineRow(
             order=r.order,
             start=bar_start,
@@ -3831,15 +4399,22 @@ def build_order_timeline(
             teams=team_bars,
             product_images=product_images,
             product_code_label=product_code_label,
+            product_name_label=' · '.join(names),
             track_index=route_track_index(r.order.pk),
             track_color=track_color,
             track_soft=track_soft,
             color_custom=bool((r.order.plan_color or '').strip()),
             lane_count=lane_count,
+            line_label=f'Line {line_no}',
+            color_label=color_label,
+            qty_label=qty_label,
+            stage_rows=stage_rows,
         ))
 
     today_col = (today - start).days + 1 if start <= today <= end else None
-    default_from, default_to = _span_bounds(today)
+    default_from, default_to = _months_bounds(today, months)
+    prev_from, prev_to = _months_bounds(_shift_month(start, -1), months)
+    next_from, next_to = _months_bounds(_shift_month(start, 1), months)
     return MoTimelineBoard(
         range_start=start,
         range_end=end,
@@ -3848,14 +4423,15 @@ def build_order_timeline(
         rows=rows,
         today=today,
         today_col=today_col,
-        prev_from=start - timedelta(days=span),
-        prev_to=start - timedelta(days=1),
-        next_from=end + timedelta(days=1),
-        next_to=end + timedelta(days=span),
+        prev_from=prev_from,
+        prev_to=prev_to,
+        next_from=next_from,
+        next_to=next_to,
         unscheduled=unscheduled[:80],
         search='',
-        month_label=_range_label(start, end),
+        month_label=_months_span_label(start, end),
         is_current_month=(start == default_from and end == default_to),
+        months=months,
     )
 
 
