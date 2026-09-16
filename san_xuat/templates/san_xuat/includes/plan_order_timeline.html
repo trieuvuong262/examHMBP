@@ -171,9 +171,7 @@
              data-can-drag="{% if can_schedule and team.can_drag %}1{% else %}0{% endif %}"
              data-can-split="{% if can_schedule and team.slug and team.slug != 'npl' %}1{% else %}0{% endif %}"
              draggable="{% if can_schedule and team.can_drag %}true{% else %}false{% endif %}"
-             oncontextmenu="return window.jpOpenTeamSplit(event, this);"
-             onpointerdown="if (event.button === 2) { event.preventDefault(); window.jpOpenTeamSplit(event, this); }"
-             title="{{ team.label }} · {{ row.order.code }}{% if team.qty_label %} · dự kiến {{ team.qty_label }}{% endif %} · đã làm {{ team.done_qty_label }} · {{ team.start|date:'d/m/Y' }} – {{ team.end|date:'d/m/Y' }}{% if team.duration_label %} · {{ team.duration_label }}{% endif %}{% if can_schedule and team.slug and team.slug != 'npl' %} · Chuột phải để tách ngày{% endif %}{% if can_schedule and team.can_drag %} · Kéo thả{% endif %}"
+             title="{{ team.label }} · {{ row.order.code }}{% if team.qty_label %} · dự kiến {{ team.qty_label }}{% endif %} · đã làm {{ team.done_qty_label }} · {{ team.start|date:'d/m/Y' }} – {{ team.end|date:'d/m/Y' }}{% if team.duration_label %} · {{ team.duration_label }}{% endif %}{% if can_schedule and team.slug and team.slug != 'npl' %} · Chuột phải: Tách / Làm mới{% endif %}{% if can_schedule and team.can_drag %} · Kéo thả{% endif %}"
              aria-label="{{ team.label }} {{ row.order.code }} dự kiến {{ team.qty_label|default:'0' }} đã làm {{ team.done_qty_label }}">
           <div class="jp-tl-bar-plan" title="Dự kiến">
             <span class="jp-tl-bar-qty">{{ team.qty_label|default:"—" }}</span>

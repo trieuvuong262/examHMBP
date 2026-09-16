@@ -1651,6 +1651,15 @@
   </div>
 </div>
 
+<div id="jpTlCtxMenu" class="jp-tl-ctx" hidden role="menu" aria-label="Menu lộ trình">
+  <button type="button" class="jp-tl-ctx-item" data-jp-ctx="split" role="menuitem">
+    <i class="bi bi-scissors" aria-hidden="true"></i> Tách công đoạn
+  </button>
+  <button type="button" class="jp-tl-ctx-item" data-jp-ctx="refresh" role="menuitem">
+    <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Làm mới
+  </button>
+</div>
+
 <div class="modal fade" id="jpSplitTeamDaysModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-scrollable">
     <div class="modal-content">
@@ -1713,9 +1722,47 @@
     var ck = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
     csrf = ck ? decodeURIComponent(ck[1]) : '';
   }
-  var state = { orderId: '', orderCode: '', teamSlug: '', teamLabel: '', targetQty: 0 };
+  var state = { orderId: '', orderCode: '', teamSlug: '', teamLabel: '', targetQty: 0, bar: null };
   var lastOpen = 0;
   var modal = null;
+  var ctxMenu = document.getElementById('jpTlCtxMenu');
+  var ctxSplitBtn = ctxMenu ? ctxMenu.querySelector('[data-jp-ctx="split"]') : null;
+  var ctxRefreshBtn = ctxMenu ? ctxMenu.querySelector('[data-jp-ctx="refresh"]') : null;
+
+  function hideCtxMenu() {
+    if (ctxMenu) ctxMenu.hidden = true;
+  }
+  function placeCtxMenu(x, y) {
+    if (!ctxMenu) return;
+    ctxMenu.hidden = false;
+    var pad = 8;
+    var w = ctxMenu.offsetWidth || 184;
+    var h = ctxMenu.offsetHeight || 80;
+    var left = Math.min(x, window.innerWidth - w - pad);
+    var top = Math.min(y, window.innerHeight - h - pad);
+    ctxMenu.style.left = Math.max(pad, left) + 'px';
+    ctxMenu.style.top = Math.max(pad, top) + 'px';
+  }
+  function showCtxMenu(ev, bar) {
+    if (ev && ev.preventDefault) ev.preventDefault();
+    if (ev && ev.stopPropagation) ev.stopPropagation();
+    var now = Date.now();
+    if (now - lastOpen < 200) return false;
+    lastOpen = now;
+    state.bar = bar || null;
+    if (ctxSplitBtn) {
+      var ok = canSplitBar(bar);
+      ctxSplitBtn.disabled = !ok;
+      var label = bar ? ((bar.getAttribute('title') || '').split(' · ')[0] || 'công đoạn') : '';
+      ctxSplitBtn.innerHTML = ok
+        ? '<i class="bi bi-scissors" aria-hidden="true"></i> Tách ' + (label || 'công đoạn')
+        : '<i class="bi bi-scissors" aria-hidden="true"></i> Tách công đoạn';
+    }
+    var x = ev && ev.clientX != null ? ev.clientX : 12;
+    var y = ev && ev.clientY != null ? ev.clientY : 12;
+    placeCtxMenu(x, y);
+    return false;
+  }
 
   function getModal() {
     if (modal) return modal;
@@ -1815,44 +1862,51 @@
   }
 
   window.jpOpenTeamSplit = function (ev, bar) {
-    if (ev) {
-      if (ev.preventDefault) ev.preventDefault();
-      if (ev.stopPropagation) ev.stopPropagation();
-    }
-    if (!bar) return false;
-    var now = Date.now();
-    if (now - lastOpen < 400) return false;
-    lastOpen = now;
-    var slug = (bar.getAttribute('data-team-slug') || '').trim();
-    if (!slug || slug === 'npl') return false;
-    openForBar(bar);
-    return false;
+    return showCtxMenu(ev, bar);
   };
   window.jpTlBarContextMenu = window.jpOpenTeamSplit;
 
   document.addEventListener('contextmenu', function (ev) {
     var t = ev.target;
     if (!t || !t.closest) return;
-    var bar = t.closest('.jp-tl-bar[data-team-slug]');
-    if (!bar) return;
-    var slug = (bar.getAttribute('data-team-slug') || '').trim();
-    if (!slug || slug === 'npl') return;
+    var root = rootEl();
+    if (!root || !root.contains(t)) return;
     ev.preventDefault();
     ev.stopPropagation();
-    window.jpOpenTeamSplit(ev, bar);
+    var bar = t.closest('.jp-tl-bar[data-team-slug]');
+    showCtxMenu(ev, bar);
   }, true);
 
   document.addEventListener('pointerdown', function (ev) {
-    if (ev.button !== 2) return;
-    var t = ev.target;
-    if (!t || !t.closest) return;
-    var bar = t.closest('.jp-tl-bar[data-team-slug]');
-    if (!bar) return;
-    var slug = (bar.getAttribute('data-team-slug') || '').trim();
-    if (!slug || slug === 'npl') return;
-    ev.preventDefault();
-    window.jpOpenTeamSplit(ev, bar);
+    if (ctxMenu && !ctxMenu.hidden && ctxMenu.contains(ev.target)) return;
+    if (ev.button === 2) {
+      var t = ev.target;
+      if (t && t.closest && rootEl() && rootEl().contains(t)) {
+        ev.preventDefault();
+      }
+      return;
+    }
+    hideCtxMenu();
   }, true);
+
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape') hideCtxMenu();
+  });
+  window.addEventListener('resize', hideCtxMenu);
+  window.addEventListener('scroll', hideCtxMenu, true);
+
+  if (ctxSplitBtn) {
+    ctxSplitBtn.addEventListener('click', function () {
+      hideCtxMenu();
+      if (state.bar) openForBar(state.bar);
+    });
+  }
+  if (ctxRefreshBtn) {
+    ctxRefreshBtn.addEventListener('click', function () {
+      hideCtxMenu();
+      window.location.reload();
+    });
+  }
 
   if (bodyEl) {
     bodyEl.addEventListener('input', function (ev) {

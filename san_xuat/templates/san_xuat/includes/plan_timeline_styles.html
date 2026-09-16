@@ -788,4 +788,44 @@
     background: #fff7ed !important;
     box-shadow: inset 0 0 0 1px #fdba74;
   }
+  .jp-tl-ctx {
+    position: fixed;
+    z-index: 4000;
+    min-width: 11.5rem;
+    padding: .28rem;
+    margin: 0;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: .5rem;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, .18);
+  }
+  .jp-tl-ctx[hidden] { display: none !important; }
+  .jp-tl-ctx-item {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    width: 100%;
+    margin: 0;
+    padding: .42rem .55rem;
+    border: 0;
+    border-radius: .35rem;
+    background: transparent;
+    color: #0f172a;
+    font: inherit;
+    font-size: .82rem;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+  }
+  .jp-tl-ctx-item:hover,
+  .jp-tl-ctx-item:focus {
+    background: #fff1f2;
+    color: #9f1239;
+  }
+  .jp-tl-ctx-item:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+    color: #94a3b8;
+  }
+  .jp-tl-ctx-item i { font-size: .9rem; }
 </style>
