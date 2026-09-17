@@ -6380,7 +6380,11 @@ def general_settings(request):
         sx_production_divisions,
         team_slug_choices,
     )
-    from san_xuat.services.team_stage_colors import team_stage_palette
+    from san_xuat.services.team_stage_colors import (
+        DEFAULT_TEAM_STAGE_COLORS,
+        stage_color_suggestions,
+        team_stage_palette,
+    )
 
     team_map_selected = request.session.pop('sx_team_map_preview', None) or current_maps_by_slug()
     palette = team_stage_palette()
@@ -6390,6 +6394,7 @@ def general_settings(request):
             'label': label,
             'selected_ids': set(team_map_selected.get(slug) or []),
             'color': (palette.get(slug) or {}).get('color') or '#94a3b8',
+            'default_color': DEFAULT_TEAM_STAGE_COLORS.get(slug) or '#94a3b8',
         }
         for slug, label in team_slug_choices()
     ]
@@ -6408,6 +6413,7 @@ def general_settings(request):
         'ie_candidate_users': ie_candidate_users,
         'team_map_teams': team_map_teams,
         'team_map_divisions': team_map_divisions,
+        'stage_color_suggestions': stage_color_suggestions(),
     })
 
 

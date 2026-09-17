@@ -25,6 +25,14 @@ _EXTRA_STAGE_COLORS: dict[str, str] = {
     'kho': '#a7f3d0',
 }
 _FALLBACK = '#94a3b8'
+# Pastel phụ — chọn nhanh khi không dùng màu mặc định của tổ.
+_EXTRA_COLOR_SUGGESTIONS: tuple[tuple[str, str], ...] = (
+    ('Tím nhạt', '#ddd6fe'),
+    ('Xanh ngọc', '#a5f3fc'),
+    ('Xanh cốm', '#d9f99d'),
+    ('Cam đậm', '#fdba74'),
+    ('Xám', '#cbd5e1'),
+)
 
 
 def normalize_hex_color(raw: str, default: str = _FALLBACK) -> str:
@@ -69,6 +77,24 @@ def stage_color_spec(slug: str, fill: str = '') -> dict[str, str]:
         'soft': soft,
         'accent': ink,
     }
+
+
+def stage_color_suggestions() -> list[dict[str, str]]:
+    """Màu gợi ý trên form Map bộ phận: mặc định từng tổ + vài pastel phụ."""
+    items: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for slug, _gk, _mk, label in TEAM_SLUGS:
+        spec = stage_color_spec(slug, DEFAULT_TEAM_STAGE_COLORS[slug])
+        items.append({**spec, 'label': label, 'is_default': True})
+        seen.add(spec['color'])
+    for name, fill in _EXTRA_COLOR_SUGGESTIONS:
+        color = normalize_hex_color(fill)
+        if color in seen:
+            continue
+        spec = stage_color_spec('', fill)
+        items.append({**spec, 'slug': '', 'label': name, 'is_default': False})
+        seen.add(color)
+    return items
 
 
 def team_stage_palette() -> dict[str, dict[str, str]]:
