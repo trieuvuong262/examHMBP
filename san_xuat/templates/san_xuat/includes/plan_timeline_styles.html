@@ -946,7 +946,9 @@
   .jp-tl-sheet col.c-dept { width: 88px; }
   .jp-tl-sheet col.c-team { width: 88px; }
   .jp-tl-sheet col.jp-sheet-day { width: 54px; }
-  .jp-tl-sheet col.c-total { width: 64px; }
+  .jp-tl-sheet col.c-total { width: 72px; }
+  .jp-tl-sheet col.c-total-plan,
+  .jp-tl-sheet col.c-total-done { width: 72px; }
   .jp-tl-sheet th,
   .jp-tl-sheet td {
     display: table-cell !important;
@@ -1163,23 +1165,46 @@
   .jp-tl-sheet thead th.c-total,
   .jp-tl-sheet tbody td.c-total {
     position: sticky;
-    right: 0;
-    width: 64px;
-    min-width: 64px;
+    width: 72px;
+    min-width: 72px;
+    max-width: 72px;
     font-variant-numeric: tabular-nums;
+    white-space: normal;
+    line-height: 1.15;
+  }
+  .jp-tl-sheet thead th.c-total-done,
+  .jp-tl-sheet tbody td.c-total-done {
+    right: 0;
+  }
+  .jp-tl-sheet thead th.c-total-plan,
+  .jp-tl-sheet tbody td.c-total-plan {
+    right: 72px;
   }
   .jp-tl-sheet thead th.c-total {
     z-index: 7;
     background: var(--sheet-brand-soft);
     color: #0f172a;
+    height: auto;
+    min-height: 32px;
+    padding: 4px 5px;
+  }
+  .jp-tl-sheet thead th.c-total-plan {
     box-shadow: -6px 0 10px -8px rgba(15, 23, 42, .22);
   }
   .jp-tl-sheet tbody td.c-total {
     z-index: 3;
-    font-weight: 500;
+    font-weight: 700;
+    box-shadow: none;
+  }
+  .jp-tl-sheet tbody td.c-total-plan {
     background: #fff8f8;
     color: var(--sheet-brand);
     box-shadow: -6px 0 10px -8px rgba(15, 23, 42, .22);
+  }
+  .jp-tl-sheet tbody td.c-total-done {
+    background: #fff;
+    color: #64748b;
+    font-weight: 600;
   }
   .jp-tl-sheet .jp-sheet-day {
     width: 54px;

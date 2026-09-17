@@ -3260,6 +3260,7 @@ class TeamTimelineBar:
     segment_id: int = 0
     plan_date: date | None = None
     team_qty_total: str = ''
+    done_qty_total: str = '0'
     work_center_id: int = 0
     headcount: int = 0
     efficiency_pct: Decimal = field(default_factory=lambda: Decimal('0'))
@@ -3294,6 +3295,7 @@ class RouteStageRow:
     work_center_id: int = 0
     team_qty_total: str = ''
     total_label: str = ''
+    done_total_label: str = '0'
     can_drag: bool = False
     can_split: bool = False
     first_date: date | None = None
@@ -3838,6 +3840,14 @@ def _stage_rows_from_bars(
         wc_id = int(sample.work_center_id or 0) if sample else 0
         if not wc_id and plan is not None:
             wc_id = int(getattr(plan, 'work_center_id', 0) or 0)
+        done_label = ''
+        if sample is not None:
+            done_label = (getattr(sample, 'done_qty_total', '') or '').strip()
+        if not done_label:
+            done_sum = Decimal('0')
+            for bar in items:
+                done_sum += _q(getattr(bar, 'done_qty_label', 0) or 0)
+            done_label = format_sx_num_input(done_sum) if done_sum > 0 else '0'
         out.append(RouteStageRow(
             slug=slug,
             label=full_label,
@@ -3845,6 +3855,7 @@ def _stage_rows_from_bars(
             work_center_id=wc_id,
             team_qty_total=qty_total,
             total_label=qty_total or (sample.qty_label if sample else '') or '',
+            done_total_label=done_label or '0',
             can_drag=bool(sample.can_drag) if sample else bool(plan is not None and slug != 'npl'),
             can_split=bool(slug and slug != 'npl'),
             first_date=first_date,
@@ -4383,6 +4394,7 @@ def build_order_timeline(
                 team_total = _team_qty_value(ts.slug, r.product_flows, r.total_qty)
                 team_total_label = format_sx_num_input(team_total) if team_total > 0 else ''
                 done_total = done_by_order_team.get((r.order.pk, slug_key), Decimal('0'))
+                done_total_label = format_sx_num_input(done_total) if done_total > 0 else '0'
                 can_team_drag = can_drag and ts.slug != 'npl' and getattr(ts, 'can_drag', True)
 
                 if day_rows:
@@ -4423,6 +4435,7 @@ def build_order_timeline(
                             segment_id=int(day_row.pk),
                             plan_date=d_start,
                             team_qty_total=team_total_label,
+                            done_qty_total=done_total_label,
                             work_center_id=int(getattr(ts, 'work_center_id', 0) or 0),
                             **_timeline_bar_capacity(ts),
                         ))
@@ -4456,6 +4469,7 @@ def build_order_timeline(
                     segment_id=0,
                     plan_date=ts.start,
                     team_qty_total=team_total_label,
+                    done_qty_total=done_total_label,
                     work_center_id=int(getattr(ts, 'work_center_id', 0) or 0),
                     **_timeline_bar_capacity(ts),
                 ))
