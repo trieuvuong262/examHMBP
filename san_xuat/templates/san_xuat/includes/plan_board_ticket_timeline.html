@@ -5,7 +5,7 @@
       {% if step.kind == 'npl' %}
       {% elif step.kind == 'kho' %}
       {% elif step.kind == 'team' and step.slug and step.status != 'empty' %}
-      <div class="jp-pb-stage-cell" style="flex: {{ step.flex }} 0 10.4rem"
+      <div class="jp-pb-stage-cell jp-stage-{{ step.slug }}" style="flex: {{ step.flex }} 0 10.4rem"
            data-jp-team-split
            data-order-id="{{ row.order.pk }}"
            data-order-code="{{ row.order.code }}"

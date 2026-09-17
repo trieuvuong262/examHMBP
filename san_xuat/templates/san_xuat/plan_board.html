@@ -389,12 +389,12 @@
     min-height: 5.1rem;
     flex: 1 0 8.4rem;
     padding: 0.65rem 0.8rem;
-    border: 1px solid var(--st, #cbd5e1);
+    border: 1px solid color-mix(in srgb, var(--st-fill, var(--st, #cbd5e1)) 72%, var(--st-ink, #94a3b8));
     border-radius: 0.65rem;
     text-align: left;
     text-decoration: none;
-    color: var(--st, var(--pb-ink));
-    background: var(--st-soft, #fff);
+    color: var(--st-ink, var(--pb-ink));
+    background: var(--st-fill, var(--st-soft, #fff));
     font: inherit;
     cursor: default;
     appearance: none;
@@ -404,7 +404,7 @@
   a.jp-pb-tl-seg:hover,
   button.jp-pb-tl-seg:hover {
     filter: brightness(0.97);
-    color: var(--st, var(--pb-ink));
+    color: var(--st-ink, var(--pb-ink));
   }
   .jp-pb-tl-name {
     font-size: 0.86rem;
@@ -430,7 +430,7 @@
     font-size: 0.62rem;
     font-weight: 700;
     letter-spacing: 0;
-    color: color-mix(in srgb, var(--st, var(--pb-muted)) 72%, #0f172a);
+    color: color-mix(in srgb, var(--st-ink, var(--pb-muted)) 72%, #0f172a);
     white-space: nowrap;
   }
   .jp-pb-tl-v {
@@ -438,16 +438,16 @@
     font-weight: 800;
     text-align: right;
     line-height: 1.2;
-    color: var(--st, var(--pb-ink));
+    color: var(--st-ink, var(--pb-ink));
   }
   .jp-pb-tl-qty {
     font-size: 0.7rem;
     font-weight: 700;
-    color: color-mix(in srgb, var(--st, var(--pb-muted)) 80%, #0f172a);
+    color: color-mix(in srgb, var(--st-ink, var(--pb-muted)) 80%, #0f172a);
     line-height: 1.15;
   }
   .jp-pb-stage-btn.is-active {
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--st, #dc2626) 22%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--st-ink, #dc2626) 22%, transparent);
   }
   .jp-pb-stage-cell {
     isolation: isolate;
@@ -498,7 +498,7 @@
     gap: 0.18rem;
     padding: 0.28rem 0.28rem 0.32rem;
     background: #fff;
-    border: 1px solid var(--st, #cbd5e1);
+    border: 1px solid color-mix(in srgb, var(--st-fill, var(--st, #cbd5e1)) 72%, var(--st-ink, #94a3b8));
     border-top: 0;
     border-radius: 0 0 0.65rem 0.65rem;
   }
@@ -902,9 +902,9 @@
   .jp-pb-tl-seg.is-npl.is-empty,
   .jp-pb-tl-seg.is-npl.is-draft,
   .jp-pb-tl-seg.is-team.is-empty {
-    background: var(--st-soft, #fff);
+    background: var(--st-fill, var(--st-soft, #fff));
     border-style: solid;
-    border-color: var(--st, #cbd5e1);
+    border-color: color-mix(in srgb, var(--st-fill, var(--st, #cbd5e1)) 72%, var(--st-ink, #94a3b8));
   }
   .jp-pb-tl-seg.is-late {
     box-shadow: inset 0 0 0 1px #b91c1c;
