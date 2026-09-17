@@ -425,19 +425,24 @@ def latest_subcontract_for_mo(*, mo_id: int, sales_order_id: int | None = None):
     )
 
 
-def active_subcontract_for_team(*, mo_id: int, team_slug: str):
-    """Phiếu GC còn hiệu lực đúng tổ — chặn phân công / tiến độ nội bộ của tổ đó."""
+def active_subcontract_for_team(*, mo_id: int, team_slug: str, plan_date=None):
+    """Phiếu GC còn hiệu lực đúng tổ.
+
+    Không truyền plan_date: chỉ phiếu thuê cả công đoạn (không gắn ngày tách)
+    mới chặn phân công nội bộ. Thuê từng phần 500/500/GC/500 vẫn làm nội bộ
+    các phần còn lại.
+    """
     if not mo_id:
         return None
     slug = (team_slug or '').strip().lower()
     if not slug:
         return None
-    return (
-        _subcontract_open_qs()
-        .filter(production_order_id=mo_id, team_slug=slug)
-        .order_by('-order_date', '-pk')
-        .first()
-    )
+    qs = _subcontract_open_qs().filter(production_order_id=mo_id, team_slug=slug)
+    if plan_date:
+        qs = qs.filter(plan_date=plan_date)
+    else:
+        qs = qs.filter(plan_date__isnull=True)
+    return qs.order_by('-order_date', '-pk').first()
 
 
 def is_team_job_closed(*, mo_id: int, team_slug: str = '', process_name: str = '') -> bool:

@@ -445,6 +445,10 @@ class TicketTimelineStep:
         return f'{a}–{self.end.strftime("%d/%m")}'
 
 
+def _copy_step_product_groups(meta: dict | None) -> list[dict]:
+    return [dict(pg) for pg in ((meta or {}).get('product_groups') or [])]
+
+
 def enqueue_on_confirm(order: SxSalesOrder) -> None:
     """Gọi khi ĐĐH vừa xác nhận — đưa vào hàng đợi kế hoạch."""
     if order.plan_status in (
@@ -1549,6 +1553,8 @@ def build_ticket_timeline_steps(
                 last_i = len(pieces) - 1
                 for i, piece in enumerate(pieces):
                     is_last = i == last_i
+                    cap = _ticket_capacity_kwargs(s)
+                    cap['planned_qty'] = piece.qty
                     steps.append(TicketTimelineStep(
                         slug=s.slug,
                         kind='team',
@@ -1561,7 +1567,7 @@ def build_ticket_timeline_steps(
                         flex=1,
                         is_late=bool(due_date and piece.plan_date and piece.plan_date > due_date),
                         process_count=int(meta.get('process_count') or 0),
-                        product_groups=list(meta.get('product_groups') or []),
+                        product_groups=_copy_step_product_groups(meta),
                         hop_step_id=int(meta.get('hop_step_id') or 0) if is_last else 0,
                         hop_process_name=(meta.get('hop_process_name') or '') if is_last else '',
                         hop_count_minutes=_q(meta.get('hop_count_minutes') or 0) if is_last else Decimal('0'),
@@ -1572,7 +1578,7 @@ def build_ticket_timeline_steps(
                         show_connector=is_last,
                         split_index=i + 1,
                         split_count=len(pieces),
-                        **_ticket_capacity_kwargs(s),
+                        **cap,
                     ))
                 continue
             days = _span_days(s.start, s.end)
@@ -1588,7 +1594,7 @@ def build_ticket_timeline_steps(
                 flex=days,
                 is_late=bool(due_date and s.end and s.end > due_date),
                 process_count=int(meta.get('process_count') or 0),
-                product_groups=list(meta.get('product_groups') or []),
+                product_groups=_copy_step_product_groups(meta),
                 hop_step_id=int(meta.get('hop_step_id') or 0),
                 hop_process_name=meta.get('hop_process_name') or '',
                 hop_count_minutes=_q(meta.get('hop_count_minutes') or 0),
@@ -2214,7 +2220,7 @@ def attach_subcontracts_to_plan_rows(rows: list[PlanBoardRow]) -> list[PlanBoard
             if step.kind == 'team':
                 step.subcontracts = [
                     item for item in row.subcontracts
-                    if (item.team_slug or '').strip().lower() == (step.slug or '').strip().lower()
+                    if _subcontract_matches_step(item, step)
                 ]
                 for product_group in step.product_groups:
                     code = (product_group.get('product_code') or '').strip().casefold()
@@ -2225,8 +2231,89 @@ def attach_subcontracts_to_plan_rows(rows: list[PlanBoardRow]) -> list[PlanBoard
     return rows
 
 
+def _subcontract_matches_step(item, step) -> bool:
+    """Phiếu GC gắn đúng phần tách (ngày / tổ), không phủ cả slug."""
+    if (item.team_slug or '').strip().lower() != (step.slug or '').strip().lower():
+        return False
+    gc_wc = int(getattr(item, 'work_center_id', None) or 0)
+    step_wc = int(getattr(step, 'work_center_id', 0) or 0)
+    if gc_wc and step_wc and gc_wc != step_wc:
+        return False
+    gc_date = getattr(item, 'plan_date', None)
+    split_count = int(getattr(step, 'split_count', 1) or 1)
+    if gc_date:
+        if split_count > 1 or (step.start and step.end == step.start):
+            return step.start == gc_date
+        if step.start and step.end:
+            return step.start <= gc_date <= step.end
+        return step.start == gc_date
+    return split_count <= 1
+
+
+def _gc_meta(items: list) -> dict:
+    if not items:
+        return {'gc_hired': False, 'gc_pk': 0, 'gc_code': '', 'gc_title': ''}
+    first = items[0]
+    codes = [(item.code or '').strip() for item in items if (item.code or '').strip()]
+    vendor = (getattr(first, 'vendor_name', None) or '').strip()
+    qty_bits = []
+    for item in items:
+        q = _q(getattr(item, 'qty', 0) or 0)
+        if q > 0:
+            qty_bits.append(format_sx_num_input(q))
+    parts = ['Đã thuê gia công']
+    if codes:
+        parts.append(', '.join(codes))
+    if vendor:
+        parts.append(vendor)
+    if qty_bits:
+        parts.append('SL ' + ' + '.join(qty_bits))
+    dates = []
+    seen_dates: set[str] = set()
+    for item in items:
+        d = getattr(item, 'plan_date', None)
+        if d:
+            key = d.isoformat()
+            if key not in seen_dates:
+                seen_dates.add(key)
+                dates.append(d.strftime('%d/%m'))
+    if dates:
+        parts.append('ngày ' + ', '.join(dates))
+    return {
+        'gc_hired': True,
+        'gc_pk': int(first.pk) if getattr(first, 'pk', None) else 0,
+        'gc_code': codes[0] if codes else '',
+        'gc_title': ' · '.join(parts),
+    }
+
+
+def _apply_gc_meta(target, items: list) -> None:
+    meta = _gc_meta(items)
+    target.gc_hired = meta['gc_hired']
+    target.gc_pk = meta['gc_pk']
+    target.gc_code = meta['gc_code']
+    target.gc_title = meta['gc_title']
+
+
+def _subcontract_matches_bar(item, bar) -> bool:
+    if (item.team_slug or '').strip().lower() != (bar.slug or '').strip().lower():
+        return False
+    gc_wc = int(getattr(item, 'work_center_id', None) or 0)
+    bar_wc = int(getattr(bar, 'work_center_id', 0) or 0)
+    if gc_wc and bar_wc and gc_wc != bar_wc:
+        return False
+    gc_date = getattr(item, 'plan_date', None)
+    if gc_date:
+        if bar.plan_date:
+            return bar.plan_date == gc_date
+        if bar.start and bar.end:
+            return bar.start <= gc_date <= bar.end
+        return bar.start == gc_date
+    return not bool(getattr(bar, 'is_split', False))
+
+
 def _mark_route_stages_gc(stage_rows: list[RouteStageRow], plan_row) -> list[RouteStageRow]:
-    """Đánh dấu hàng lộ trình theo phiếu thuê GC đã gắn trên tab Kế hoạch."""
+    """Đánh dấu ô ngày / hàng lộ trình theo phiếu GC gắn đúng phần tách."""
     hired: dict[str, list] = {}
     for gc in getattr(plan_row, 'subcontracts', None) or []:
         slug = (getattr(gc, 'team_slug', None) or '').strip().lower()
@@ -2238,25 +2325,22 @@ def _mark_route_stages_gc(stage_rows: list[RouteStageRow], plan_row) -> list[Rou
         items = hired.get((stage.slug or '').strip().lower()) or []
         if not items:
             continue
-        first = items[0]
-        codes = [(item.code or '').strip() for item in items if (item.code or '').strip()]
-        vendor = (getattr(first, 'vendor_name', None) or '').strip()
-        qty_bits = []
-        for item in items:
-            q = _q(getattr(item, 'qty', 0) or 0)
-            if q > 0:
-                qty_bits.append(format_sx_num_input(q))
-        parts = ['Đã thuê gia công']
-        if codes:
-            parts.append(', '.join(codes))
-        if vendor:
-            parts.append(vendor)
-        if qty_bits:
-            parts.append('SL ' + ' + '.join(qty_bits))
-        stage.gc_hired = True
-        stage.gc_pk = int(first.pk) if getattr(first, 'pk', None) else 0
-        stage.gc_code = codes[0] if codes else ''
-        stage.gc_title = ' · '.join(parts)
+        bars = [cell.bar for cell in (stage.cells or []) if cell.bar]
+        hired_bars = []
+        for bar in bars:
+            matched = [item for item in items if _subcontract_matches_bar(item, bar)]
+            if matched:
+                _apply_gc_meta(bar, matched)
+                hired_bars.append(bar)
+        dated = [item for item in items if getattr(item, 'plan_date', None)]
+        undated = [item for item in items if not getattr(item, 'plan_date', None)]
+        split_stage = any(getattr(bar, 'is_split', False) for bar in bars)
+        if undated and not split_stage:
+            _apply_gc_meta(stage, undated)
+        elif bars and hired_bars and len(hired_bars) == len(bars):
+            _apply_gc_meta(stage, items)
+        elif dated and hired_bars and not bars:
+            _apply_gc_meta(stage, dated)
     return stage_rows
 
 
@@ -3369,6 +3453,10 @@ class TeamTimelineBar:
     smv_seconds: Decimal = field(default_factory=lambda: Decimal('0'))
     qty_per_day: Decimal = field(default_factory=lambda: Decimal('0'))
     planned_qty: Decimal = field(default_factory=lambda: Decimal('0'))
+    gc_hired: bool = False
+    gc_pk: int = 0
+    gc_code: str = ''
+    gc_title: str = ''
 
 
 @dataclass

@@ -447,13 +447,18 @@ def create_blank_operation(
 
     from san_xuat.ie_permissions import ie_user_display_name
     from san_xuat.ie_models import default_smv_basis_name
+    from san_xuat.services.capacity_from_hrm import normalize_ie_group_department_label
+
+    stage = normalize_ie_group_department_label(
+        process_stage_label or group.process_stage_label or ''
+    ) or (process_stage_label or group.process_stage_label or '')
 
     return SxOperation.objects.create(
         group=group,
         op_code=op_code,
         op_rev=rev,
         name_vi=name_vi[:200],
-        process_stage_label=(process_stage_label or group.process_stage_label or '')[:100],
+        process_stage_label=stage[:100],
         machine_code=(machine_code or '')[:40],
         base_smv_min=smv,
         smv_basis=default_smv_basis_name(),
@@ -718,9 +723,22 @@ def update_operation(
     _set('name_en', None if name_en is None else name_en.strip()[:200])
     if group is not None:
         if operation.group_id != group.pk:
-            changes['group'] = {'from': operation.group.code, 'to': group.code}
+            changes['group'] = {'from': operation.group.code if operation.group_id else '', 'to': group.code}
             operation.group = group
-    _set('process_stage_label', None if process_stage_label is None else process_stage_label.strip()[:100])
+        # Khâu/bộ phận luôn theo Tên bộ phận của nhóm công đoạn chuẩn.
+        from san_xuat.services.capacity_from_hrm import normalize_ie_group_department_label
+        group_label = normalize_ie_group_department_label(group.process_stage_label or '') or (
+            group.process_stage_label or ''
+        ).strip()
+        if group_label:
+            process_stage_label = group_label
+    if process_stage_label is not None:
+        from san_xuat.services.capacity_from_hrm import normalize_ie_group_department_label
+        _set(
+            'process_stage_label',
+            normalize_ie_group_department_label(process_stage_label)[:100]
+            or process_stage_label.strip()[:100],
+        )
     _set('product_part', None if product_part is None else product_part.strip()[:120])
     _set('method_variant', None if method_variant is None else method_variant.strip())
 

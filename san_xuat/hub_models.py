@@ -2477,6 +2477,21 @@ class SxSubcontractOrder(DemoMarkedModel):
         help_text='Bắt buộc theo bộ phận. Phiếu cũ để trống không còn được coi là cả lệnh.',
     )
     qty = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    plan_date = models.DateField(
+        null=True,
+        blank=True,
+        db_index=True,
+        verbose_name='Ngày KHSX thuê GC',
+        help_text='Gắn phiếu GC với một phần tách (ngày / SL) trên KHSX. Trống = cả công đoạn.',
+    )
+    work_center = models.ForeignKey(
+        'san_xuat.SxWorkCenter',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='subcontract_orders',
+        verbose_name='Tổ KHSX thuê GC',
+    )
     qty_received = models.DecimalField(
         max_digits=14, decimal_places=2, default=Decimal('0'), verbose_name='SL nhận lại',
     )

@@ -679,6 +679,8 @@ def _open_subcontract_conflict(
     sales_order=None,
     product_code: str = "",
     team_slug: str,
+    plan_date=None,
+    work_center_id: int | None = None,
 ):
     slug = (team_slug or "").strip().lower()
     if not slug or (mo is None and sales_order is None):
@@ -692,6 +694,13 @@ def _open_subcontract_conflict(
             sales_order=sales_order,
             product_code__iexact=(product_code or "").strip(),
         )
+    if plan_date:
+        qs = qs.filter(plan_date=plan_date)
+        wc_id = int(work_center_id or 0)
+        if wc_id:
+            qs = qs.filter(Q(work_center_id=wc_id) | Q(work_center_id__isnull=True))
+    else:
+        qs = qs.filter(plan_date__isnull=True)
     hit = (
         qs
         .exclude(status=SxSubcontractOrder.STATUS_CANCELLED)
@@ -700,7 +709,10 @@ def _open_subcontract_conflict(
         .first()
     )
     if hit:
-        raise Phase3Error(f"Đã có phiếu {hit.code} đang mở cho tổ này — nhận hàng hoặc hủy phiếu đó trước.")
+        day_bit = f" ngày {plan_date.strftime('%d/%m')}" if plan_date else ""
+        raise Phase3Error(
+            f"Đã có phiếu {hit.code} đang mở cho tổ này{day_bit} — nhận hàng hoặc hủy phiếu đó trước."
+        )
 
 
 @transaction.atomic
@@ -720,6 +732,8 @@ def create_subcontract_order(
     notes: str = "",
     out_lines: list[dict] | None = None,
     created_by=None,
+    plan_date=None,
+    work_center_id: int | None = None,
 ) -> SxSubcontractOrder:
     vendor_name = (vendor_name or "").strip()
     product_code = (product_code or "").strip()
@@ -775,11 +789,15 @@ def create_subcontract_order(
     meta = team_by_slug(slug)
     process_name = (process_name or "").strip() or (meta or {}).get("label") or allowed[slug].label
 
+    wc_id = int(work_center_id or 0)
+    wc = SxWorkCenter.objects.filter(pk=wc_id, is_demo=False).first() if wc_id else None
     _open_subcontract_conflict(
         mo=mo,
         sales_order=so,
         product_code=product_code,
         team_slug=slug,
+        plan_date=plan_date,
+        work_center_id=wc.pk if wc else None,
     )
     order = SxSubcontractOrder.objects.create(
         code=_code("subcontract", SxSubcontractOrder, code=code),
@@ -791,6 +809,8 @@ def create_subcontract_order(
         process_name=process_name,
         team_slug=slug,
         qty=qty.quantize(Decimal("0.01")),
+        plan_date=plan_date,
+        work_center=wc,
         order_date=order_date or timezone.localdate(),
         due_date=due_date,
         status=SxSubcontractOrder.STATUS_DRAFT,

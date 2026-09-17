@@ -476,6 +476,25 @@ class SubcontractCreateForm(forms.Form):
         label="Ghi chú",
         widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
     )
+    qty = forms.DecimalField(
+        min_value=Decimal("0.01"),
+        label="Số lượng thuê GC",
+        widget=_CompactDecimalInput(attrs={
+            "class": "form-control form-control-sm",
+            "step": "0.01",
+            "min": "0.01",
+        }),
+    )
+    plan_date = forms.DateField(
+        required=False,
+        label="Ngày KHSX",
+        widget=forms.HiddenInput(),
+    )
+    work_center_id = forms.IntegerField(
+        required=False,
+        min_value=0,
+        widget=forms.HiddenInput(),
+    )
 
     def __init__(self, *args, **kwargs):
         from san_xuat.forms import _product_code_choices

@@ -6988,10 +6988,15 @@ def subcontract_create(request):
     ):
         return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'plan_board')
 
+    from django.utils.dateparse import parse_date
+
     raw_mo = (request.GET.get('mo') or '').strip()
     raw_so = (request.GET.get('so') or '').strip()
     raw_product = (request.GET.get('product') or '').strip()
     raw_team = (request.GET.get('team') or '').strip().lower()
+    plan_date = parse_date((request.GET.get('plan_date') or '').strip() or '')
+    raw_wc = (request.GET.get('work_center_id') or request.GET.get('wc') or '').strip()
+    work_center_id = int(raw_wc) if raw_wc.isdigit() and int(raw_wc) > 0 else 0
     embed = (request.GET.get('embed') or '').strip() == '1'
     next_url = _subcontract_next_url(request)
     mo = (
@@ -7024,21 +7029,30 @@ def subcontract_create(request):
         messages.info(request, 'Chọn tổ trên phân công để thuê gia công đúng bộ phận.')
         return redirect('san_xuat:team_work_hub')
 
-    existing = active_subcontract_for_team(mo_id=mo.pk, team_slug=team['slug']) if mo else (
-        SxSubcontractOrder.objects.filter(
+    if mo:
+        existing = active_subcontract_for_team(
+            mo_id=mo.pk, team_slug=team['slug'], plan_date=plan_date,
+        )
+    else:
+        existing_qs = SxSubcontractOrder.objects.filter(
             sales_order=so,
             production_order__isnull=True,
             product_code__iexact=raw_product,
             team_slug=team['slug'],
             status__in=(SxSubcontractOrder.STATUS_DRAFT, SxSubcontractOrder.STATUS_SENT),
             is_demo=False,
-        ).order_by('-pk').first()
-    )
+        )
+        if plan_date:
+            existing_qs = existing_qs.filter(plan_date=plan_date)
+        else:
+            existing_qs = existing_qs.filter(plan_date__isnull=True)
+        existing = existing_qs.order_by('-pk').first()
     if existing and existing.status in (
         SxSubcontractOrder.STATUS_DRAFT,
         SxSubcontractOrder.STATUS_SENT,
     ):
-        messages.info(request, f'Đã có phiếu {existing.code} đang mở cho tổ {team["label"]}.')
+        day_bit = f' ngày {plan_date.strftime("%d/%m")}' if plan_date else ''
+        messages.info(request, f'Đã có phiếu {existing.code} đang mở cho tổ {team["label"]}{day_bit}.')
         if embed:
             return redirect(f"{reverse('san_xuat:subcontract_detail', args=[existing.pk])}?embed=1")
         return redirect('san_xuat:subcontract_detail', pk=existing.pk)
@@ -7047,7 +7061,7 @@ def subcontract_create(request):
     if mo:
         product_code = mo.product_code or ''
         product_name = mo.product_name or ''
-        qty = mo.qty or Decimal('0')
+        source_qty = mo.qty or Decimal('0')
     else:
         source_line = so.lines.filter(product_code__iexact=raw_product).first()
         if source_line is None:
@@ -7059,7 +7073,18 @@ def subcontract_create(request):
             return redirect('san_xuat:plan_board')
         product_code = source_line.product_code or ''
         product_name = source_line.product_name or ''
-        qty = source_line.qty_to_produce
+        source_qty = source_line.qty_to_produce
+    qty = source_qty
+    raw_qty = (request.GET.get('qty') or '').strip()
+    if raw_qty:
+        try:
+            chunk_qty = Decimal(str(raw_qty).replace(',', '.'))
+        except (InvalidOperation, TypeError, ValueError):
+            chunk_qty = None
+        if chunk_qty is not None and chunk_qty > 0:
+            qty = chunk_qty
+            if source_qty and qty > source_qty:
+                qty = source_qty
     source_post = {
         'production_order': str(mo.pk) if mo else '',
         'sales_order': str(so.pk) if so else '',
@@ -7067,6 +7092,10 @@ def subcontract_create(request):
         'product_code': product_code,
         'product_name': product_name,
     }
+    if plan_date:
+        source_post['plan_date'] = plan_date.isoformat()
+    if work_center_id:
+        source_post['work_center_id'] = str(work_center_id)
     from urllib.parse import urlencode
 
     action_params = {'team': team['slug']}
@@ -7079,6 +7108,12 @@ def subcontract_create(request):
         action_params['embed'] = '1'
     if next_url:
         action_params['next'] = next_url
+    if plan_date:
+        action_params['plan_date'] = plan_date.isoformat()
+    if qty:
+        action_params['qty'] = format(qty.normalize(), 'f')
+    if work_center_id:
+        action_params['work_center_id'] = str(work_center_id)
     form_action = '?' + urlencode(action_params)
 
     if request.method == 'POST':
@@ -7103,7 +7138,7 @@ def subcontract_create(request):
                     product_code=product_code,
                     product_name=product_name,
                     team_slug=team['slug'],
-                    qty=qty,
+                    qty=form.cleaned_data['qty'],
                     order_date=form.cleaned_data.get('order_date'),
                     due_date=form.cleaned_data.get('due_date'),
                     production_order_id=mo.pk if mo else None,
@@ -7111,6 +7146,8 @@ def subcontract_create(request):
                     notes=form.cleaned_data.get('notes') or '',
                     out_lines=out_lines,
                     created_by=request.user,
+                    plan_date=form.cleaned_data.get('plan_date') or plan_date,
+                    work_center_id=form.cleaned_data.get('work_center_id') or work_center_id or None,
                 )
             except Phase3Error as exc:
                 messages.error(request, str(exc))
@@ -7139,6 +7176,10 @@ def subcontract_create(request):
             'product_name': product_name,
             'team_slug': team['slug'],
             'vendor_name': default_subcontract_vendor_name(team_slug=team['slug']),
+            'qty': qty,
+            'plan_date': plan_date,
+            'work_center_id': work_center_id or None,
+            'due_date': plan_date,
         }
         form = SubcontractCreateForm(initial=initial, lock_source=True)
         npl_initial = npl_lines_for_subcontract(
@@ -7168,6 +7209,8 @@ def subcontract_create(request):
         'source_team_label': team['label'],
         'order_creator_label': _order_creator_label(request.user),
         'embed': embed,
+        'gc_plan_date': plan_date,
+        'gc_chunk_qty': qty,
     })
 
 

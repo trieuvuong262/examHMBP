@@ -65,15 +65,15 @@
           {% if step.product_groups|length == 1 %}
             {% with pg=step.product_groups.0 %}
             <a class="jp-pb-stage-act jp-pb-stage-gc{% if step.subcontracts %} is-hired{% endif %}"
-               href="{% url 'san_xuat:subcontract_create' %}?so={{ row.order.pk }}&amp;product={{ pg.product_code|urlencode }}&amp;team={{ step.slug }}{% if pg.production_order_id > 0 %}&amp;mo={{ pg.production_order_id }}{% endif %}&amp;next={{ request.get_full_path|urlencode }}"
-               title="Thuê gia công {{ pg.product_name }} — tổ {{ step.label }}">Thuê GC</a>
+               href="{% url 'san_xuat:subcontract_create' %}?so={{ row.order.pk }}&amp;product={{ pg.product_code|urlencode }}&amp;team={{ step.slug }}{% if pg.production_order_id > 0 %}&amp;mo={{ pg.production_order_id }}{% endif %}{% if step.start %}&amp;plan_date={{ step.start|date:'Y-m-d' }}{% endif %}{% if step.qty_label %}&amp;qty={{ step.qty_label }}{% endif %}{% if step.work_center_id %}&amp;work_center_id={{ step.work_center_id }}{% endif %}&amp;next={{ request.get_full_path|urlencode }}"
+               title="Thuê gia công {{ pg.product_name }} — {{ step.label }}{% if step.split_count > 1 %} {{ step.split_index }}/{{ step.split_count }}{% endif %}{% if step.start %} · {{ step.start|date:'d/m' }}{% endif %}{% if step.qty_label %} · SL {{ step.qty_label }}{% endif %}">Thuê GC</a>
             {% endwith %}
           {% else %}
             <button type="button"
                     class="jp-pb-stage-act jp-pb-stage-gc{% if step.subcontracts %} is-hired{% endif %}"
                     data-jp-stage-open
                     data-jp-gc-pick
-                    aria-controls="jpStage-{{ row.order.pk }}-{{ step.slug }}"
+                    aria-controls="jpStage-{{ row.order.pk }}-{{ step.slug }}-s{{ step.split_index }}-w{{ step.work_center_id }}"
                     aria-expanded="false"
                     title="Chọn sản phẩm cần thuê gia công — tổ {{ step.label }}">Thuê GC</button>
           {% endif %}
@@ -86,7 +86,7 @@
             <button type="button"
                     class="jp-pb-stage-act jp-pb-stage-gc is-hired"
                     data-jp-stage-open
-                    aria-controls="jpStage-{{ row.order.pk }}-{{ step.slug }}"
+                    aria-controls="jpStage-{{ row.order.pk }}-{{ step.slug }}-s{{ step.split_index }}-w{{ step.work_center_id }}"
                     aria-expanded="false"
                     title="Đã thuê gia công — chọn phiếu">Thuê GC</button>
           {% endif %}
@@ -155,12 +155,15 @@
     {% endfor %}
   </div>
   {% for step in row.timeline_steps %}
-    {% if step.kind == 'team' and step.product_groups and step.split_index <= 1 %}
-    <section id="jpStage-{{ row.order.pk }}-{{ step.slug }}"
+    {% if step.kind == 'team' and step.product_groups %}
+    <section id="jpStage-{{ row.order.pk }}-{{ step.slug }}-s{{ step.split_index }}-w{{ step.work_center_id }}"
              class="jp-pb-stage-panel" data-jp-stage-panel hidden>
       <div class="jp-pb-stage-panel-head">
         <div>
-          <strong>{{ step.label }}</strong>
+          <strong>{{ step.label }}{% if step.split_count > 1 %} {{ step.split_index }}/{{ step.split_count }}{% endif %}</strong>
+          {% if step.start or step.qty_label %}
+          <p class="jp-pb-stage-pick-hint">{% if step.start %}{{ step.start|date:'d/m' }}{% endif %}{% if step.qty_label %} · SL {{ step.qty_label }}{% endif %}</p>
+          {% endif %}
           {% if step.product_groups|length > 1 and step.unhired_product_groups %}
           <p class="jp-pb-stage-pick-hint">Chọn sản phẩm cần thuê gia công.</p>
           {% endif %}
@@ -184,7 +187,7 @@
               <strong title="{{ product_group.product_code }}">{{ product_group.product_name }}</strong>
             </div>
             <div class="jp-pb-stage-product-meta">
-              <span>SL {{ product_group.qty|sx_num }}</span>
+              <span>{% if step.split_count > 1 %}SL {{ step.qty_label }}{% else %}SL {{ product_group.qty|sx_num }}{% endif %}</span>
               {% for gc in product_group.subcontracts %}
               <a class="jp-pb-stage-product-gc-link is-hired"
                  href="{% url 'san_xuat:subcontract_detail' gc.pk %}"
@@ -206,8 +209,8 @@
               {% empty %}
                 {% if can_create_subcontract and row.order.plan_status != 'done' %}
                 <a class="jp-pb-stage-product-gc-link"
-                   href="{% url 'san_xuat:subcontract_create' %}?so={{ row.order.pk }}&amp;product={{ product_group.product_code|urlencode }}&amp;team={{ step.slug }}{% if product_group.production_order_id > 0 %}&amp;mo={{ product_group.production_order_id }}{% endif %}&amp;next={{ request.get_full_path|urlencode }}"
-                   title="Thuê gia công {{ product_group.product_name }}">Thuê GC</a>
+                   href="{% url 'san_xuat:subcontract_create' %}?so={{ row.order.pk }}&amp;product={{ product_group.product_code|urlencode }}&amp;team={{ step.slug }}{% if product_group.production_order_id > 0 %}&amp;mo={{ product_group.production_order_id }}{% endif %}{% if step.start %}&amp;plan_date={{ step.start|date:'Y-m-d' }}{% endif %}{% if step.qty_label %}&amp;qty={{ step.qty_label }}{% endif %}{% if step.work_center_id %}&amp;work_center_id={{ step.work_center_id }}{% endif %}&amp;next={{ request.get_full_path|urlencode }}"
+                   title="Thuê gia công {{ product_group.product_name }}{% if step.start %} · {{ step.start|date:'d/m' }}{% endif %}{% if step.qty_label %} · SL {{ step.qty_label }}{% endif %}">Thuê GC</a>
                 {% endif %}
               {% endfor %}
             </div>

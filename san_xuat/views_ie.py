@@ -1204,6 +1204,22 @@ def operation_detail(request, pk: int):
         product_parts = [op.product_part] + product_parts
     ensure_smv_basis_defaults()
     current_owner = ie_user_display_name(request.user)
+    from san_xuat.services.capacity_from_hrm import (
+        ie_group_department_options,
+        normalize_ie_group_department_label,
+    )
+    department_options = ie_group_department_options()
+    current_dept = normalize_ie_group_department_label(op.process_stage_label or '') or (
+        op.process_stage_label or ''
+    ).strip()
+    if op.group_id and (op.group.process_stage_label or '').strip():
+        current_dept = normalize_ie_group_department_label(op.group.process_stage_label) or (
+            op.group.process_stage_label or ''
+        ).strip()
+    option_names = {opt['name'] for opt in department_options}
+    orphan_department_labels = (
+        [current_dept] if current_dept and current_dept not in option_names else []
+    )
 
     return render(request, 'san_xuat/ie_operation_detail.html', {
         **perms,
@@ -1211,7 +1227,9 @@ def operation_detail(request, pk: int):
         'groups': SxOperationGroup.objects.filter(is_active=True).order_by('sort_order', 'code'),
         'machines': ie_machine_options(extra_code=op.machine_code),
         'skill_levels': ensure_skill_levels_abc(),
-        'process_stages': ensure_process_stage_defaults(),
+        'department_options': department_options,
+        'orphan_department_labels': orphan_department_labels,
+        'current_department_label': current_dept,
         'stitch_classes': SxStitchClass.objects.filter(is_active=True).order_by('sort_order', 'code'),
         'smv_sources': SxSmvSource.objects.filter(is_active=True).order_by('sort_order', 'code'),
         'product_parts': product_parts,

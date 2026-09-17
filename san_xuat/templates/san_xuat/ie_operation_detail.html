@@ -52,9 +52,10 @@
 
         <div class="col-md-4">
           <label class="form-label small mb-1">Nhóm <span class="text-danger">*</span></label>
-          <select name="group_id" class="form-select form-select-sm ie-ts" {% if not can_update %}disabled{% endif %} required>
+          <select name="group_id" id="ieOpGroupSelect" class="form-select form-select-sm ie-ts" {% if not can_update %}disabled{% endif %} required>
             {% for g in groups %}
-            <option value="{{ g.pk }}" {% if g.pk == op.group_id %}selected{% endif %}>{{ g.name }}</option>
+            <option value="{{ g.pk }}" data-department="{{ g.process_stage_label|default:'' }}"
+                    {% if g.pk == op.group_id %}selected{% endif %}>{{ g.name }}</option>
             {% endfor %}
           </select>
         </div>
@@ -75,11 +76,14 @@
         </div>
 
         <div class="col-md-4">
-          <label class="form-label small mb-1">Khâu SX <span class="text-danger">*</span></label>
-          <select name="process_stage_label" class="form-select form-select-sm" {% if not can_update %}disabled{% endif %}>
-            <option value="">— Chọn khâu —</option>
-            {% for s in process_stages %}
-            <option value="{{ s.name }}" {% if s.name == op.process_stage_label %}selected{% endif %}>{{ s.name }}</option>
+          <label class="form-label small mb-1">Tên bộ phận <span class="text-danger">*</span></label>
+          <select name="process_stage_label" id="ieOpDepartmentSelect" class="form-select form-select-sm" {% if not can_update %}disabled{% endif %} required>
+            <option value="">— Chọn bộ phận —</option>
+            {% for opt in department_options %}
+            <option value="{{ opt.name }}" {% if opt.name == current_department_label %}selected{% endif %}>{{ opt.name }}{% if opt.department_name %} ({{ opt.department_name }}){% endif %}</option>
+            {% endfor %}
+            {% for label in orphan_department_labels %}
+            <option value="{{ label }}" {% if label == current_department_label %}selected{% endif %}>{{ label }} (cũ)</option>
             {% endfor %}
           </select>
         </div>
@@ -271,6 +275,48 @@
       plugins: ['clear_button'],
     });
   });
+
+  // Đổi nhóm → Tên bộ phận theo nhóm công đoạn chuẩn
+  var groupSel = document.getElementById('ieOpGroupSelect');
+  var deptSel = document.getElementById('ieOpDepartmentSelect');
+  if (!groupSel || !deptSel) return;
+
+  function departmentFromGroup() {
+    var value = groupSel.tomselect ? groupSel.tomselect.getValue() : groupSel.value;
+    if (!value) return '';
+    var raw = groupSel.querySelector('option[value="' + String(value).replace(/"/g, '\\"') + '"]');
+    return raw ? (raw.getAttribute('data-department') || '').trim() : '';
+  }
+
+  function applyDepartment(label) {
+    if (!label) return;
+    var found = false;
+    for (var i = 0; i < deptSel.options.length; i++) {
+      if (deptSel.options[i].value === label) { found = true; break; }
+    }
+    if (!found) {
+      var opt = document.createElement('option');
+      opt.value = label;
+      opt.textContent = label;
+      deptSel.appendChild(opt);
+    }
+    deptSel.value = label;
+  }
+
+  function onGroupChange() {
+    applyDepartment(departmentFromGroup());
+  }
+
+  if (groupSel.tomselect) {
+    groupSel.tomselect.on('change', onGroupChange);
+  } else {
+    groupSel.addEventListener('change', onGroupChange);
+  }
+  // Lần đầu: ưu tiên bộ phận nhóm nếu form đang lệch
+  var fromGroup = departmentFromGroup();
+  if (fromGroup && deptSel.value !== fromGroup) {
+    applyDepartment(fromGroup);
+  }
 })();
 </script>
 {% endif %}

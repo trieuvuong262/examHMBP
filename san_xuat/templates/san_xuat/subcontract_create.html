@@ -122,7 +122,7 @@
   <form method="post" id="jp-gc-form" action="{{ form_action }}">
     {% csrf_token %}
     {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
-    {{ form.production_order }}{{ form.sales_order }}{{ form.team_slug }}{{ form.product_code }}{{ form.product_name }}
+    {{ form.production_order }}{{ form.sales_order }}{{ form.team_slug }}{{ form.product_code }}{{ form.product_name }}{{ form.plan_date }}{{ form.work_center_id }}
 
     <div class="card border-0 shadow-sm mb-3">
       <div class="card-body p-3">
@@ -166,6 +166,14 @@
           <div class="col-md-4">
             <label class="form-label small text-muted mb-1" for="{{ form.due_date.id_for_label }}">{{ form.due_date.label }}{{ form.due_date|sx_req_star }}</label>
             {{ form.due_date }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small text-muted mb-1" for="{{ form.qty.id_for_label }}">{{ form.qty.label }}{{ form.qty|sx_req_star }}</label>
+            {{ form.qty }}
+            {% if form.qty.errors %}<div class="text-danger small">{{ form.qty.errors }}</div>{% endif %}
+            {% if gc_plan_date %}
+            <div class="form-text">Phần tách ngày {{ gc_plan_date|date:'d/m' }}{% if gc_chunk_qty %} · SL {{ gc_chunk_qty|sx_num }}{% endif %}</div>
+            {% endif %}
           </div>
           <div class="col-md-4">
             <label class="form-label small text-muted mb-1" for="{{ form.notes.id_for_label }}">{{ form.notes.label }}{{ form.notes|sx_req_star }}</label>

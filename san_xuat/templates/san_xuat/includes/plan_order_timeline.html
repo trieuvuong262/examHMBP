@@ -162,7 +162,7 @@
                   {% if cell.is_off %}data-off="1"{% endif %}>
                 {% if cell.bar and not cell.is_off %}
                 <button type="button"
-                        class="jp-sheet-qty jp-stage-{{ cell.bar.slug }}{% if row.is_late %} is-late{% endif %}{% if can_schedule and cell.bar.can_drag %} is-draggable{% endif %}"
+                        class="jp-sheet-qty jp-stage-{{ cell.bar.slug }}{% if row.is_late %} is-late{% endif %}{% if can_schedule and cell.bar.can_drag %} is-draggable{% endif %}{% if cell.bar.gc_hired %} is-gc{% endif %}"
                         draggable="false"
                         oncontextmenu="event.preventDefault(); event.stopPropagation(); if (window.jpShowRouteCtx) window.jpShowRouteCtx(event); return false;"
                         data-jp-team-drag
@@ -183,7 +183,7 @@
                         data-can-drag="{% if can_schedule and cell.bar.can_drag %}1{% else %}0{% endif %}"
                         data-can-split="{% if can_schedule and cell.bar.slug and cell.bar.slug != 'npl' %}1{% else %}0{% endif %}"
                         data-work-center-id="{% if cell.bar.work_center_id %}{{ cell.bar.work_center_id }}{% endif %}"
-                        title="{{ cell.bar.label }} · {{ row.order.code }} · dự kiến {{ cell.bar.qty_label|default:'0' }} · đã làm {{ cell.bar.done_qty_label }}{% if can_schedule and cell.bar.can_drag %} · Kéo sang ngày khác{% endif %}">
+                        title="{{ cell.bar.label }} · {{ row.order.code }} · dự kiến {{ cell.bar.qty_label|default:'0' }} · đã làm {{ cell.bar.done_qty_label }}{% if cell.bar.gc_hired %} · {{ cell.bar.gc_title }}{% endif %}{% if can_schedule and cell.bar.can_drag %} · Kéo sang ngày khác{% endif %}">
                   <span class="jp-sheet-plan">{{ cell.bar.qty_label|default:"—" }}</span>
                   <span class="jp-sheet-done">{{ cell.bar.done_qty_label|default:"0" }}</span>
                 </button>
