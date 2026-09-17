@@ -1334,6 +1334,8 @@ def plan_board(request):
         save_plan_team_capacity,
         plan_board_work_center_options,
         plan_stage_legend_items,
+        filter_route_timeline,
+        route_dept_filter_choices,
         set_plan_priority,
         set_plan_color,
         reorder_plan_orders,
@@ -1387,6 +1389,43 @@ def plan_board(request):
     gc_status_filter = (request.GET.get('gc_status') or request.POST.get('gc_status') or '').strip()
     gc_team_filter = (request.GET.get('gc_team') or request.POST.get('gc_team') or '').strip().lower()
 
+    def _multi_filter_values(*names: str) -> list[str]:
+        values: list[str] = []
+        seen: set[str] = set()
+        for name in names:
+            raw_list = list(request.GET.getlist(name)) + list(request.POST.getlist(name))
+            for raw in raw_list:
+                for part in str(raw or '').replace(';', ',').split(','):
+                    key = part.strip()
+                    if not key:
+                        continue
+                    folded = key.casefold()
+                    if folded in seen:
+                        continue
+                    seen.add(folded)
+                    values.append(key)
+        return values
+
+    route_dept_filter = [
+        slug.lower()
+        for slug in _multi_filter_values('dept', 'route_dept')
+        if slug.replace('-', '').isalnum() and len(slug) <= 30
+    ]
+    route_team_filter: list[str] = []
+    route_team_ids: list[int] = []
+    route_team_unassigned = False
+    for raw in _multi_filter_values('team', 'route_team'):
+        key = raw.strip().lower()
+        if key in {'0', 'none', 'unassigned', '-'}:
+            if not route_team_unassigned:
+                route_team_unassigned = True
+                route_team_filter.append('0')
+            continue
+        if key.isdigit():
+            if key not in route_team_filter:
+                route_team_filter.append(key)
+                route_team_ids.append(int(key))
+
     def _board_redirect(**extra):
         params = {'mode': mode, 'tab': tab}
         if q:
@@ -1417,9 +1456,13 @@ def plan_board(request):
                 params['route_from'] = route_from_raw
             if route_months_raw:
                 params['route_months'] = route_months_raw
+            if route_dept_filter:
+                params['dept'] = route_dept_filter
+            if route_team_filter:
+                params['team'] = route_team_filter
         params.update(extra)
         from urllib.parse import urlencode
-        return redirect(f"{reverse('san_xuat:plan_board')}?{urlencode(params)}")
+        return redirect(f"{reverse('san_xuat:plan_board')}?{urlencode(params, doseq=True)}")
 
     npl_open_id = 0
     try:
@@ -1979,6 +2022,7 @@ def plan_board(request):
     filter_month_label = ''
     filter_is_current_month = False
     route_months = 1
+    route_dept_choices: list[tuple[str, str]] = []
 
     def _apply_board_filters(rows):
         valid_priorities = {value for value, _label in SxSalesOrder.PRIORITY_CHOICES}
@@ -2102,6 +2146,13 @@ def plan_board(request):
             range_from=route_from,
             months=route_months,
         )
+        route_dept_choices = route_dept_filter_choices(route_board)
+        route_board = filter_route_timeline(
+            route_board,
+            dept_slugs=route_dept_filter,
+            team_ids=route_team_ids,
+            include_unassigned_team=route_team_unassigned,
+        )
         today_start, today_end_month = _months_bounds(timezone.localdate(), route_months)
 
     from san_xuat.services.planning import npl_prep_days
@@ -2141,6 +2192,9 @@ def plan_board(request):
         'priority_choices': SxSalesOrder.PRIORITY_CHOICES,
         'route_board': route_board,
         'route_months': route_months,
+        'route_dept_filter': route_dept_filter,
+        'route_team_filter': route_team_filter,
+        'route_dept_choices': route_dept_choices,
         'this_month_from': today_start,
         'this_month_to': today_end_month,
         'filter_date_from': filter_date_from,

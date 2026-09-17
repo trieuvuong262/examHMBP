@@ -238,7 +238,13 @@
       </table>
     </div>
     {% else %}
-    <div class="jp-tl-empty">Không có đơn trong {{ route_board.month_label }}. Đổi tháng hiển thị để xem.</div>
+    <div class="jp-tl-empty">
+      {% if search_query or route_dept_filter or route_team_filter %}
+        Không có đơn khớp bộ lọc. Đổi bộ phận / tổ hoặc xóa lọc để xem lại.
+      {% else %}
+        Không có đơn trong {{ route_board.month_label }}. Đổi tháng hiển thị để xem.
+      {% endif %}
+    </div>
     {% endif %}
   </div>
 </section>

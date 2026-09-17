@@ -5,6 +5,9 @@
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_plan_urgency_styles.html' %}
 {% include 'san_xuat/includes/plan_timeline_styles.html' %}
+{% if tab == 'route' %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
+{% endif %}
 {% if stage_color_css %}<style id="jp-stage-color-vars">{{ stage_color_css|safe }}</style>{% endif %}
 <style>
   .jp-pb {
@@ -1454,6 +1457,30 @@
     flex: 0 0 auto;
     margin-bottom: 0.75rem !important;
   }
+  .jp-pb.is-route .jp-team-filter-org.jp-pb-route-filter {
+    min-width: 12.5rem;
+    flex: 1 1 14rem;
+  }
+  .jp-pb.is-route .jp-pb-route-filter .ts-wrapper.form-select,
+  .jp-pb.is-route .jp-pb-route-filter .ts-wrapper.form-select-sm {
+    min-height: 1.85rem;
+    padding: 0;
+    border: 0;
+  }
+  .jp-pb.is-route .jp-pb-route-filter .ts-control {
+    min-height: 1.85rem;
+    padding: 0.12rem 0.45rem !important;
+    border: 1px solid var(--pb-line, #e8edf3) !important;
+    border-radius: 0.45rem !important;
+    box-shadow: none !important;
+    font-size: 0.82rem;
+  }
+  body > .ts-dropdown.jp-pb-route-dd {
+    z-index: 2400 !important;
+    border: 1px solid #e8edf3 !important;
+    border-radius: 0.65rem !important;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, .14) !important;
+  }
   .jp-pb.is-route .jp-pb-route {
     flex: 1 1 auto;
     display: flex;
@@ -1532,7 +1559,7 @@
          aria-selected="{% if tab == 'queue' %}true{% else %}false{% endif %}">Kế hoạch</a>
       <a role="tab"
          class="btn btn-sm fw-bold {% if tab == 'route' %}btn-hm{% else %}btn-outline-secondary{% endif %}"
-         href="{% url 'san_xuat:plan_board' %}?mode=list&tab=route{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if tab == 'route' and route_board %}&route_from={{ route_board.range_start|date:'Y-m-d' }}&route_months={{ route_months }}{% endif %}"
+         href="{% url 'san_xuat:plan_board' %}?mode=list&tab=route{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}{% if tab == 'route' and route_board %}&route_from={{ route_board.range_start|date:'Y-m-d' }}&route_months={{ route_months }}{% endif %}"
          aria-selected="{% if tab == 'route' %}true{% else %}false{% endif %}">Lộ trình</a>
     </nav>
     {% endif %}
@@ -1628,13 +1655,34 @@
         </div>
         {% endif %}
         {% if tab == 'route' %}
+        <div class="jp-team-filter-org jp-pb-route-filter">
+          <label class="form-label fw-bold small mb-1" for="jp-pb-filter-dept">Bộ phận</label>
+          <select id="jp-pb-filter-dept" name="dept" class="form-select form-select-sm jp-pb-multi-filter"
+                  multiple data-placeholder="Tất cả bộ phận">
+            {% for slug, label in route_dept_choices %}
+            <option value="{{ slug }}"{% if slug in route_dept_filter %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="jp-team-filter-org jp-pb-route-filter">
+          <label class="form-label fw-bold small mb-1" for="jp-pb-filter-team">Tổ</label>
+          <select id="jp-pb-filter-team" name="team" class="form-select form-select-sm jp-pb-multi-filter"
+                  multiple data-placeholder="Tất cả tổ">
+            <option value="0"{% if "0" in route_team_filter %} selected{% endif %}>Chưa chọn tổ</option>
+            {% for wc in plan_work_centers %}
+            <option value="{{ wc.id }}"{% if wc.id|stringformat:"s" in route_team_filter %} selected{% endif %}>
+              {{ wc.name }}{% if wc.code %} ({{ wc.code }}){% endif %}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
         <input type="hidden" name="route_from" value="{% if route_board %}{{ route_board.range_start|date:'Y-m-d' }}{% endif %}">
         <input type="hidden" name="route_months" value="{{ route_months|default:1 }}">
         {% endif %}
       </div>
-      {% if search_query or priority_filter or npl_filter or tech_filter or deadline_filter %}
+      {% if search_query or priority_filter or npl_filter or tech_filter or deadline_filter or route_dept_filter or route_team_filter %}
       <div class="jp-team-filter-actions">
-        <a href="?mode={{ mode }}&amp;tab={{ tab }}&amp;sx_reset=1"
+        <a href="?mode={{ mode }}&amp;tab={{ tab }}&amp;sx_reset=1{% if tab == 'route' and route_board %}&amp;route_from={{ route_board.range_start|date:'Y-m-d' }}&amp;route_months={{ route_months }}{% endif %}"
            class="btn btn-light border btn-sm" title="Xóa bộ lọc">
           <i class="bi bi-x-lg"></i> Xóa lọc
         </a>
@@ -1655,22 +1703,22 @@
       </div>
       {% elif tab == 'route' and route_board %}
       <div class="jp-pb-date-shift" aria-label="Chuyển tháng">
-        <a href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;route_from={{ route_board.prev_from|date:'Y-m-d' }}&amp;route_months={{ route_months }}"
+        <a href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}&amp;route_from={{ route_board.prev_from|date:'Y-m-d' }}&amp;route_months={{ route_months }}"
            title="Tháng trước"><i class="bi bi-chevron-left"></i></a>
         <span title="{{ route_board.range_start|date:'d/m/Y' }} – {{ route_board.range_end|date:'d/m/Y' }}">{{ route_board.month_label }}</span>
-        <a href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;route_from={{ route_board.next_from|date:'Y-m-d' }}&amp;route_months={{ route_months }}"
+        <a href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}&amp;route_from={{ route_board.next_from|date:'Y-m-d' }}&amp;route_months={{ route_months }}"
            title="Tháng sau"><i class="bi bi-chevron-right"></i></a>
         <span class="jp-pb-span-switch" role="group" aria-label="Hiển thị lưới">
-          <a href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;route_from={{ route_board.range_start|date:'Y-m-d' }}&amp;route_months=1"
+          <a href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}&amp;route_from={{ route_board.range_start|date:'Y-m-d' }}&amp;route_months=1"
              class="{% if route_months == 1 %}is-on{% endif %}" title="Lưới 1 tháng">1 tháng</a>
-          <a href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;route_from={{ route_board.range_start|date:'Y-m-d' }}&amp;route_months=2"
+          <a href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}&amp;route_from={{ route_board.range_start|date:'Y-m-d' }}&amp;route_months=2"
              class="{% if route_months == 2 %}is-on{% endif %}" title="Lưới 2 tháng">2 tháng</a>
-          <a href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;route_from={{ route_board.range_start|date:'Y-m-d' }}&amp;route_months=3"
+          <a href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}&amp;route_from={{ route_board.range_start|date:'Y-m-d' }}&amp;route_months=3"
              class="{% if route_months == 3 %}is-on{% endif %}" title="Lưới 3 tháng">3 tháng</a>
         </span>
         {% if not route_board.is_current_month and this_month_from %}
         <a class="jp-pb-month-now"
-           href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;route_from={{ this_month_from|date:'Y-m-d' }}&amp;route_months={{ route_months }}"
+           href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}&amp;route_from={{ this_month_from|date:'Y-m-d' }}&amp;route_months={{ route_months }}"
            title="Về tháng hiện tại">Tháng này</a>
         {% endif %}
       </div>
@@ -3951,6 +3999,7 @@
     });
   }
   form.querySelectorAll('select, input[type="date"]').forEach(function (field) {
+    if (field.classList.contains('jp-pb-multi-filter')) return;
     field.addEventListener('change', submitFilter);
   });
 })();
@@ -4004,4 +4053,44 @@
   });
 })();
 </script>
+{% if tab == 'route' %}
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
+<script>
+(function () {
+  if (typeof TomSelect === 'undefined') return;
+  var form = document.getElementById('jpPlanBoardFilter');
+  var timer = null;
+  function submitFilter() {
+    if (!form) return;
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(function () {
+      form.requestSubmit ? form.requestSubmit() : form.submit();
+    }, 400);
+  }
+  document.querySelectorAll('select.jp-pb-multi-filter').forEach(function (el) {
+    if (el.tomselect) return;
+    var ts = new TomSelect(el, {
+      plugins: ['remove_button'],
+      maxItems: null,
+      hideSelected: false,
+      closeAfterSelect: false,
+      persist: false,
+      placeholder: el.getAttribute('data-placeholder') || 'Chọn…',
+      dropdownParent: 'body',
+      dropdownClass: 'ts-dropdown jp-pb-route-dd',
+    });
+    setTimeout(function () {
+      ts.on('change', submitFilter);
+    }, 0);
+  });
+  if (!form) return;
+  form.addEventListener('submit', function () {
+    form.querySelectorAll('select.jp-pb-multi-filter').forEach(function (el) {
+      if (!el.tomselect || typeof el.tomselect.sync !== 'function') return;
+      el.tomselect.sync();
+    });
+  });
+})();
+</script>
+{% endif %}
 {% endblock %}

@@ -3677,6 +3677,62 @@ def plan_stage_legend_items(*, queue_rows=None, route_board=None) -> list[dict]:
     return ordered
 
 
+def route_dept_filter_choices(board=None) -> list[tuple[str, str]]:
+    """Bộ phận trên bộ lọc lộ trình: tổ chuẩn + slug đang có trên lưới."""
+    from san_xuat.services.team_division_map import team_slug_choices
+
+    items = list(team_slug_choices())
+    seen = {slug for slug, _label in items}
+    if board is None:
+        return items
+    extras: list[tuple[str, str]] = []
+    for row in getattr(board, 'rows', None) or []:
+        for stage in getattr(row, 'stage_rows', None) or []:
+            slug = (getattr(stage, 'slug', '') or '').strip().lower()
+            if not slug or slug in seen:
+                continue
+            extras.append((slug, getattr(stage, 'short_label', '') or getattr(stage, 'label', '') or slug))
+            seen.add(slug)
+    return items + extras
+
+
+def filter_route_timeline(
+    board,
+    *,
+    dept_slugs: list[str] | None = None,
+    team_ids: list[int] | None = None,
+    include_unassigned_team: bool = False,
+):
+    """Giữ hàng bộ phận / tổ khớp bộ lọc. Đơn không còn hàng thì ẩn."""
+    slugs = {(s or '').strip().lower() for s in (dept_slugs or []) if (s or '').strip()}
+    teams = {int(x) for x in (team_ids or []) if int(x) > 0}
+    filter_team = bool(teams) or include_unassigned_team
+    if board is None or (not slugs and not filter_team):
+        return board
+    kept = []
+    for row in list(getattr(board, 'rows', None) or []):
+        stages = []
+        for stage in list(getattr(row, 'stage_rows', None) or []):
+            slug = (getattr(stage, 'slug', '') or '').strip().lower()
+            if slugs and slug not in slugs:
+                continue
+            wc_id = int(getattr(stage, 'work_center_id', 0) or 0)
+            if filter_team:
+                if wc_id > 0 and wc_id in teams:
+                    pass
+                elif wc_id <= 0 and include_unassigned_team:
+                    pass
+                else:
+                    continue
+            stages.append(stage)
+        if not stages:
+            continue
+        row.stage_rows = stages
+        kept.append(row)
+    board.rows = kept
+    return board
+
+
 def _color_from_product_code(code: str) -> str:
     s = (code or '').strip()
     i = len(s) - 1
