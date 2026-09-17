@@ -627,10 +627,14 @@ def _factory_slug_rank() -> dict[str, int]:
 
 
 def _team_display_label(slug: str, fallback: str = '') -> str:
+    """Nhãn bộ phận: ưu tiên tên thực tế trên KHSX, rồi mới tên tổ chuẩn."""
+    text = (fallback or '').strip()
+    if text:
+        return text
     from san_xuat.services.progress_template import team_by_slug
 
     meta = team_by_slug(slug) or {}
-    return (meta.get('label') or fallback or slug or '').strip()
+    return (meta.get('label') or slug or '').strip()
 
 
 def _wc_has_capacity(wc: SxWorkCenter | None) -> bool:
@@ -1424,7 +1428,7 @@ def build_ticket_timeline_steps(
     khsx_end: date | None = None,
     due_date: date | None = None,
 ) -> list[TicketTimelineStep]:
-    """Nấc ticket: chuẩn bị NPL → công đoạn → hoàn thành nhập kho."""
+    """Nấc ticket: công đoạn trên KHSX (không gồm nhập kho)."""
     spans = list(team_spans or [])
     npl_span = next((s for s in spans if s.slug == 'npl'), None)
     teams = [s for s in spans if s.slug != 'npl']
@@ -1576,24 +1580,6 @@ def build_ticket_timeline_steps(
             status='empty',
             flex=1,
         ))
-
-    last_end = None
-    dated = [s.end for s in teams if s.end] or ([npl_span.end] if npl_span and npl_span.end else [])
-    if dated:
-        last_end = max(dated)
-    last_end = last_end or khsx_end
-    steps.append(TicketTimelineStep(
-        slug='kho',
-        kind='kho',
-        label='Hoàn thành · nhập kho',
-        start=last_end,
-        end=last_end,
-        duration_label='',
-        days=1 if last_end else 0,
-        status='end',
-        flex=1,
-        is_late=bool(due_date and last_end and last_end > due_date),
-    ))
     return steps
 
 
@@ -3641,6 +3627,54 @@ def _stage_sheet_label(slug: str, full_label: str = '') -> str:
     if meta and meta.get('label'):
         return str(meta['label'])
     return key or 'Công đoạn'
+
+
+def plan_stage_legend_items(*, queue_rows=None, route_board=None) -> list[dict]:
+    """Chú thích màu: chỉ bộ phận đang hiện trên KHSX / lộ trình."""
+    from collections import OrderedDict
+
+    from san_xuat.services.team_stage_colors import stage_color_spec, team_stage_palette
+
+    items: OrderedDict[str, str] = OrderedDict()
+    palette = team_stage_palette()
+
+    def _add(slug, label=''):
+        key = (slug or '').strip().lower()
+        if not key or key in {'npl', 'ops', 'kho'}:
+            return
+        if key not in items:
+            items[key] = (label or '').strip() or _stage_sheet_label(key)
+
+    for row in queue_rows or []:
+        for ts in getattr(row, 'team_spans', None) or []:
+            _add(getattr(ts, 'slug', ''), getattr(ts, 'label', ''))
+        for step in getattr(row, 'timeline_steps', None) or []:
+            kind = getattr(step, 'kind', '') or ''
+            if kind not in {'team', 'kho'}:
+                continue
+            _add(getattr(step, 'slug', ''), getattr(step, 'label', ''))
+
+    board = route_board
+    if board is not None:
+        for row in getattr(board, 'rows', None) or []:
+            for stage in getattr(row, 'stage_rows', None) or []:
+                _add(
+                    getattr(stage, 'slug', ''),
+                    getattr(stage, 'short_label', '') or getattr(stage, 'label', ''),
+                )
+
+    ordered: list[dict] = []
+    seen: set[str] = set()
+    for key in _SHEET_STAGE_ORDER:
+        if key in items:
+            spec = palette.get(key) or stage_color_spec(key)
+            ordered.append({**spec, 'slug': key, 'label': items[key]})
+            seen.add(key)
+    for key, label in items.items():
+        if key not in seen:
+            spec = palette.get(key) or stage_color_spec(key)
+            ordered.append({**spec, 'slug': key, 'label': label})
+    return ordered
 
 
 def _color_from_product_code(code: str) -> str:

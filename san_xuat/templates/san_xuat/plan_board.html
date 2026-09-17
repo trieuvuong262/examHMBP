@@ -5,6 +5,7 @@
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_plan_urgency_styles.html' %}
 {% include 'san_xuat/includes/plan_timeline_styles.html' %}
+{% if stage_color_css %}<style id="jp-stage-color-vars">{{ stage_color_css|safe }}</style>{% endif %}
 <style>
   .jp-pb {
     --pb-ink: #0f172a;
@@ -356,6 +357,10 @@
   .jp-pb-dur-btn:hover { border-color: #0369a1; background: #e0f2fe; }
   .jp-pb-tl {
     margin: 0 0 0.75rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
   }
   .jp-pb-tl-track {
     display: flex;
@@ -363,10 +368,10 @@
     align-items: stretch;
     gap: 0.4rem;
     padding: 0.4rem;
+    min-width: 100%;
     background: #fff;
     border: 1px solid #e2e8f0;
     border-radius: 0.85rem;
-    overflow: visible;
   }
   .jp-pb-tl-npl-form {
     margin: 0;
@@ -380,9 +385,9 @@
     flex-direction: column;
     justify-content: center;
     gap: 0.28rem;
-    min-width: 7.6rem;
+    min-width: 8.4rem;
     min-height: 5.1rem;
-    flex: 1 1 0;
+    flex: 1 0 8.4rem;
     padding: 0.65rem 0.8rem;
     border: 1px solid var(--st, #cbd5e1);
     border-radius: 0.65rem;
@@ -450,6 +455,7 @@
     display: flex;
     flex-direction: column;
     min-width: 10.4rem;
+    flex: 1 0 10.4rem;
   }
   .jp-pb-stage-cell > .jp-pb-stage-btn {
     position: relative;
@@ -1672,8 +1678,10 @@
     </div>
   </form>
 
-  {% if tab == 'queue' %}
+  {% if tab == 'route' %}
   {% include 'san_xuat/includes/plan_stage_legend.html' %}
+  {% endif %}
+  {% if tab == 'queue' %}
   <div class="jp-pb-list" data-can-schedule="{{ can_schedule|yesno:'1,0' }}">
     {% for row in queue_rows %}
     <article class="jp-pb-ticket is-{{ row.order.plan_priority }}{% if row.order.plan_status == 'on_hold' %} is-hold{% endif %}{% if row.is_overdue %} is-overdue{% endif %}">

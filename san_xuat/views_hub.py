@@ -1333,6 +1333,7 @@ def plan_board(request):
         assign_plan_team,
         save_plan_team_capacity,
         plan_board_work_center_options,
+        plan_stage_legend_items,
         set_plan_priority,
         set_plan_color,
         reorder_plan_orders,
@@ -2104,6 +2105,12 @@ def plan_board(request):
         today_start, today_end_month = _months_bounds(timezone.localdate(), route_months)
 
     from san_xuat.services.planning import npl_prep_days
+    from san_xuat.services.team_stage_colors import team_stage_color_css
+
+    legend_items = plan_stage_legend_items(
+        queue_rows=queue_rows,
+        route_board=route_board,
+    )
 
     return render(request, 'san_xuat/plan_board.html', {
         **_perm_ctx(request),
@@ -2145,6 +2152,8 @@ def plan_board(request):
         'filter_month_label': filter_month_label,
         'filter_is_current_month': filter_is_current_month,
         'npl_open_id': npl_open_id,
+        'stage_legend_items': legend_items,
+        'stage_color_css': team_stage_color_css([item.get('slug') for item in legend_items]),
         'npl_kit_default': npl_prep_days(),
         'can_create_npl_pr': (
             user_can_create_menu(request.user, MODULE_SAN_XUAT, 'npl_pr')
@@ -6314,6 +6323,7 @@ def general_settings(request):
                 suggest_maps_from_names,
                 team_slug_choices,
             )
+            from san_xuat.services.team_stage_colors import save_team_stage_colors
 
             redirect_map = redirect(f"{reverse('san_xuat:general_settings')}#sec-team-map")
             if action == 'suggest_team_map':
@@ -6324,10 +6334,13 @@ def general_settings(request):
                 )
                 return redirect_map
             payload: dict[str, list[int]] = {}
+            colors: dict[str, str] = {}
             for slug, _label in team_slug_choices():
                 raw = request.POST.getlist(f'divisions_{slug}')
                 payload[slug] = [int(x) for x in raw if str(x).isdigit()]
+                colors[slug] = (request.POST.get(f'color_{slug}') or '').strip()
             stats = save_team_maps(payload, saved_by=request.user)
+            save_team_stage_colors(colors, saved_by=request.user)
             request.session.pop('sx_team_map_preview', None)
             messages.success(
                 request,
@@ -6367,13 +6380,16 @@ def general_settings(request):
         sx_production_divisions,
         team_slug_choices,
     )
+    from san_xuat.services.team_stage_colors import team_stage_palette
 
     team_map_selected = request.session.pop('sx_team_map_preview', None) or current_maps_by_slug()
+    palette = team_stage_palette()
     team_map_teams = [
         {
             'slug': slug,
             'label': label,
             'selected_ids': set(team_map_selected.get(slug) or []),
+            'color': (palette.get(slug) or {}).get('color') or '#94a3b8',
         }
         for slug, label in team_slug_choices()
     ]

@@ -3,8 +3,9 @@
   <div class="jp-pb-tl-track" aria-label="Lộ trình KHSX">
     {% for step in row.timeline_steps %}
       {% if step.kind == 'npl' %}
+      {% elif step.kind == 'kho' %}
       {% elif step.kind == 'team' and step.slug and step.status != 'empty' %}
-      <div class="jp-pb-stage-cell" style="flex: {{ step.flex }} 1 0"
+      <div class="jp-pb-stage-cell" style="flex: {{ step.flex }} 0 10.4rem"
            data-jp-team-split
            data-order-id="{{ row.order.pk }}"
            data-order-code="{{ row.order.code }}"
@@ -97,7 +98,7 @@
       </div>
       {% else %}
       <span class="jp-pb-tl-seg jp-stage-{{ step.slug }} is-{{ step.kind }} is-{{ step.status }}{% if step.is_late %} is-late{% endif %}"
-            style="flex: {{ step.flex }} 1 0"
+            style="flex: {{ step.flex }} 0 8.4rem"
             title="{{ step.label }}{% if step.start %} · {{ step.start|date:'d/m' }}{% if step.end %} – {{ step.end|date:'d/m' }}{% endif %}{% endif %}{% if step.qty_label %} · SL {{ step.qty_label }}{% endif %}{% if step.duration_label %} · {{ step.duration_label }}{% endif %}">
         <span class="jp-pb-tl-name">
           {{ step.label }}{% if step.split_count > 1 %} {{ step.split_index }}/{{ step.split_count }}{% endif %}

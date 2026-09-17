@@ -2955,6 +2955,40 @@ class SxTeamDivisionMap(DemoMarkedModel):
         return f'{self.team_slug} ← {div_name}'
 
 
+class SxTeamStageColor(models.Model):
+    """Màu bộ phận trên KHSX / lộ trình — một dòng mỗi tổ chuyền."""
+
+    team_slug = models.CharField(
+        max_length=20,
+        unique=True,
+        db_index=True,
+        choices=SxTeamDivisionMap.TEAM_SLUG_CHOICES,
+        verbose_name='Tổ chuyền',
+    )
+    color = models.CharField(
+        max_length=7,
+        verbose_name='Màu KHSX',
+        help_text='Mã #RRGGBB — dùng cho cột bộ phận và ô SL trên lộ trình.',
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sx_team_stage_colors_updated',
+        verbose_name='Người cập nhật',
+    )
+
+    class Meta:
+        ordering = ['team_slug']
+        verbose_name = 'Màu bộ phận KHSX'
+        verbose_name_plural = 'Màu bộ phận KHSX'
+
+    def __str__(self):
+        return f'{self.team_slug} {self.color}'
+
+
 class SxInterStepHop(models.Model):
     """Phút kiểm đếm / vận chuyển mặc định giữa hai bộ phận (tổ chuyền)."""
 

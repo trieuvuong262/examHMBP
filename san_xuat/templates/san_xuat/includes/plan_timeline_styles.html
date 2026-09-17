@@ -29,16 +29,16 @@
     width: .85rem;
     height: .85rem;
     border-radius: .2rem;
-    background: var(--st);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--st) 55%, #fff);
+    background: var(--st-fill, var(--st, #94a3b8));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--st-fill, var(--st, #94a3b8)) 55%, #fff);
   }
-  .jp-stage-cat { --st: #2563eb; --st-soft: #dbeafe; }
-  .jp-stage-inep { --st: #7c3aed; --st-soft: #ede9fe; }
-  .jp-stage-theu { --st: #db2777; --st-soft: #fce7f3; }
-  .jp-stage-may { --st: #e11d48; --st-soft: #ffe4e6; }
-  .jp-stage-ht { --st: #d97706; --st-soft: #fef3c7; }
-  .jp-stage-gh { --st: #0f766e; --st-soft: #ccfbf1; }
-  .jp-stage-kho { --st: #16a34a; --st-soft: #dcfce7; }
+  .jp-stage-cat { --st-fill: #ffd7b0; --st-ink: #9a3412; --st-soft: #fff7ed; --st: #9a3412; }
+  .jp-stage-inep { --st-fill: #fecaca; --st-ink: #9f1239; --st-soft: #fff1f2; --st: #9f1239; }
+  .jp-stage-theu { --st-fill: #fef08a; --st-ink: #854d0e; --st-soft: #fefce8; --st: #854d0e; }
+  .jp-stage-may { --st-fill: #bfdbfe; --st-ink: #1e3a8a; --st-soft: #eff6ff; --st: #1e3a8a; }
+  .jp-stage-ht { --st-fill: #bbf7d0; --st-ink: #166534; --st-soft: #f0fdf4; --st: #166534; }
+  .jp-stage-gh { --st-fill: #f0cfe0; --st-ink: #9d174d; --st-soft: #fdf2f8; --st: #9d174d; }
+  .jp-stage-kho { --st-fill: #a7f3d0; --st-ink: #065f46; --st-soft: #f0fdfa; --st: #065f46; }
 
   .jp-tl {
     --tl-ink:#0f172a; --tl-muted:#64748b; --tl-line:#eef2f6; --tl-soft:#f8fafc;
@@ -1005,7 +1005,7 @@
   .jp-tl-sheet tbody td.c-name,
   .jp-tl-sheet tbody td.c-po,
   .jp-tl-sheet tbody td.c-team { background: #fff; z-index: 2; }
-  .jp-tl-sheet tbody td.c-dept { z-index: 2; background: #e2e8f0; color: #334155; }
+  .jp-tl-sheet tbody td.c-dept { z-index: 2; background: var(--st-fill, #e2e8f0); color: var(--st-ink, #334155); }
   .jp-tl-sheet thead th.c-stt,
   .jp-tl-sheet thead th.c-prio,
   .jp-tl-sheet thead th.c-img,
@@ -1197,13 +1197,13 @@
   }
   .jp-tl-sheet .jp-sheet-day.is-today { background: #fee2e2; color: var(--sheet-brand); }
   .jp-tl-sheet tr.is-order-start td { border-top: 1px solid var(--sheet-brand-line); }
-  .jp-tl-sheet td.c-dept.jp-stage-cat { background: #ffd7b0; color: #9a3412; }
-  .jp-tl-sheet td.c-dept.jp-stage-inep { background: #fecaca; color: #9f1239; }
-  .jp-tl-sheet td.c-dept.jp-stage-theu { background: #fef08a; color: #854d0e; }
-  .jp-tl-sheet td.c-dept.jp-stage-may { background: #bfdbfe; color: #1e3a8a; }
-  .jp-tl-sheet td.c-dept.jp-stage-ht { background: #bbf7d0; color: #166534; }
-  .jp-tl-sheet td.c-dept.jp-stage-gh { background: #f0cfe0; color: #9d174d; }
-  .jp-tl-sheet td.c-dept.jp-stage-kho { background: #a7f3d0; color: #065f46; }
+  .jp-tl-sheet td.c-dept.jp-stage-cat,
+  .jp-tl-sheet td.c-dept.jp-stage-inep,
+  .jp-tl-sheet td.c-dept.jp-stage-theu,
+  .jp-tl-sheet td.c-dept.jp-stage-may,
+  .jp-tl-sheet td.c-dept.jp-stage-ht,
+  .jp-tl-sheet td.c-dept.jp-stage-gh,
+  .jp-tl-sheet td.c-dept.jp-stage-kho { background: var(--st-fill); color: var(--st-ink); }
   .jp-tl-sheet .jp-sheet-cell {
     width: 54px;
     min-width: 54px;
@@ -1251,20 +1251,8 @@
     color: #64748b;
     box-shadow: none;
   }
-  .jp-tl-sheet .jp-sheet-qty.jp-stage-cat .jp-sheet-plan { background: #ffd7b0; color: #9a3412; }
-  .jp-tl-sheet .jp-sheet-qty.jp-stage-inep .jp-sheet-plan { background: #fecaca; color: #9f1239; }
-  .jp-tl-sheet .jp-sheet-qty.jp-stage-theu .jp-sheet-plan { background: #fef08a; color: #854d0e; }
-  .jp-tl-sheet .jp-sheet-qty.jp-stage-may .jp-sheet-plan { background: #bfdbfe; color: #1e3a8a; }
-  .jp-tl-sheet .jp-sheet-qty.jp-stage-ht .jp-sheet-plan { background: #bbf7d0; color: #166534; }
-  .jp-tl-sheet .jp-sheet-qty.jp-stage-gh .jp-sheet-plan { background: #f0cfe0; color: #9d174d; }
-  .jp-tl-sheet .jp-sheet-qty.jp-stage-kho .jp-sheet-plan { background: #a7f3d0; color: #065f46; }
-  .jp-tl-sheet .jp-sheet-qty.jp-stage-cat .jp-sheet-done { color: #c2410c; background: #fff7ed; }
-  .jp-tl-sheet .jp-sheet-qty.jp-stage-inep .jp-sheet-done { color: #be123c; background: #fff1f2; }
-  .jp-tl-sheet .jp-sheet-qty.jp-stage-theu .jp-sheet-done { color: #a16207; background: #fefce8; }
-  .jp-tl-sheet .jp-sheet-qty.jp-stage-may .jp-sheet-done { color: #1d4ed8; background: #eff6ff; }
-  .jp-tl-sheet .jp-sheet-qty.jp-stage-ht .jp-sheet-done { color: #15803d; background: #f0fdf4; }
-  .jp-tl-sheet .jp-sheet-qty.jp-stage-gh .jp-sheet-done { color: #be185d; background: #fdf2f8; }
-  .jp-tl-sheet .jp-sheet-qty.jp-stage-kho .jp-sheet-done { color: #0f766e; background: #f0fdfa; }
+  .jp-tl-sheet .jp-sheet-qty[class*="jp-stage-"] .jp-sheet-plan { background: var(--st-fill, #bfdbfe); color: var(--st-ink, #1e3a8a); }
+  .jp-tl-sheet .jp-sheet-qty[class*="jp-stage-"] .jp-sheet-done { color: var(--st-ink, #64748b); background: var(--st-soft, #fff); }
   .jp-tl-sheet .jp-sheet-qty.is-draggable { cursor: grab; }
   .jp-tl-sheet .jp-sheet-qty:hover { box-shadow: inset 0 0 0 1.5px var(--sheet-brand); }
   .jp-tl-sheet .jp-sheet-qty.is-dragging { opacity: .45; }
@@ -1272,11 +1260,5 @@
   .jp-tl-sheet .jp-sheet-day.is-drop-hint { background: #fecaca !important; color: var(--sheet-brand); }
   .jp-tl-sheet-wrap.is-order-focus .jp-tl-orow { opacity: .42; }
   .jp-tl-sheet-wrap.is-order-focus .jp-tl-orow.is-order-on { opacity: 1; }
-  .jp-pb.is-route .jp-stage-legend-item.jp-stage-cat i { background: #ffd7b0; }
-  .jp-pb.is-route .jp-stage-legend-item.jp-stage-inep i { background: #fecaca; }
-  .jp-pb.is-route .jp-stage-legend-item.jp-stage-theu i { background: #fef08a; }
-  .jp-pb.is-route .jp-stage-legend-item.jp-stage-may i { background: #bfdbfe; }
-  .jp-pb.is-route .jp-stage-legend-item.jp-stage-ht i { background: #bbf7d0; }
-  .jp-pb.is-route .jp-stage-legend-item.jp-stage-gh i { background: #f0cfe0; }
-  .jp-pb.is-route .jp-stage-legend-item.jp-stage-kho i { background: #a7f3d0; }
+  .jp-pb.is-route .jp-stage-legend-item i { background: var(--st-fill, var(--st)); }
 </style>

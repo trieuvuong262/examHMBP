@@ -1,9 +1,12 @@
-<div class="jp-stage-legend" aria-label="Ghi chú màu công đoạn">
-  <span class="jp-stage-legend-k">Màu công đoạn</span>
-  <span class="jp-stage-legend-item jp-stage-cat"><i aria-hidden="true"></i>Cắt</span>
-  <span class="jp-stage-legend-item jp-stage-inep"><i aria-hidden="true"></i>In/ép</span>
-  <span class="jp-stage-legend-item jp-stage-may"><i aria-hidden="true"></i>May</span>
-  <span class="jp-stage-legend-item jp-stage-ht"><i aria-hidden="true"></i>Ủi</span>
-  <span class="jp-stage-legend-item jp-stage-gh"><i aria-hidden="true"></i>Đóng gói</span>
+{% if stage_legend_items %}
+<div class="jp-stage-legend" aria-label="Ghi chú màu bộ phận">
+  <span class="jp-stage-legend-k">Bộ phận</span>
+  {% for item in stage_legend_items %}
+  <span class="jp-stage-legend-item jp-stage-{{ item.slug }}"
+        style="--st-fill: {{ item.color }}; --st-ink: {{ item.ink }}; --st-soft: {{ item.soft }}; --st: {{ item.ink }};"><i aria-hidden="true"></i>{{ item.label }}</span>
+  {% endfor %}
+  {% if tab == 'route' %}
   <span class="jp-stage-legend-note">Ô số: trên = dự kiến, dưới = đã thực hiện</span>
+  {% endif %}
 </div>
+{% endif %}

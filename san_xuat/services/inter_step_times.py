@@ -505,8 +505,8 @@ def flow_groups_from_steps(steps, *, sort_factory: bool = False) -> list[PlanFlo
         from san_xuat.services.progress_template import team_by_slug
 
         for i, (wc_id, label, ckey, cluster) in enumerate(clusters):
-            # Nhãn chuẩn theo slug xưởng khi gộp (ỦI + GẤP XẾP → «Ủi - Gấp xếp»)
-            if ckey and not ckey.startswith('wc:'):
+            # Chỉ điền nhãn chuẩn khi cụm chưa có tên tổ/bộ phận thực tế.
+            if (not label) and ckey and not str(ckey).startswith('wc:'):
                 meta = team_by_slug(ckey)
                 if meta:
                     label = meta.get('group_label') or meta.get('label') or label

@@ -643,6 +643,7 @@ from san_xuat.hub_models import (  # noqa: E402,F401
     SxSubcontractOrder,
     SxInterStepHop,
     SxTeamDivisionMap,
+    SxTeamStageColor,
     SxTeamHrMap,
     SxTeamPersonnelSkill,
     SxTeamWorkClose,

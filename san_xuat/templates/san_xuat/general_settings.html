@@ -91,7 +91,16 @@
     border: 1px solid #e8edf3; border-radius: .65rem; padding: .75rem .9rem; background: #fff;
   }
   .jp-sx-settings #sec-team-map .jp-tdm-row-title {
+    display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .75rem;
     font-weight: 700; font-size: .88rem; margin: 0 0 .45rem; color: #0f172a;
+  }
+  .jp-sx-settings #sec-team-map .jp-tdm-color {
+    display: inline-flex; align-items: center; gap: .4rem;
+    margin-left: auto; font-weight: 600; font-size: .75rem; color: #64748b;
+  }
+  .jp-sx-settings #sec-team-map .jp-tdm-color input[type="color"] {
+    width: 2rem; height: 1.65rem; padding: 0; border: 1px solid #e8edf3;
+    border-radius: .4rem; background: #fff; cursor: pointer;
   }
   .jp-sx-settings #sec-team-map .ts-wrapper.form-select { padding: 0; border: 0; min-height: 0; }
   .jp-sx-settings #sec-team-map .ts-control {
@@ -961,21 +970,31 @@
               Gắn bộ phận Nhân sự (phòng Sản xuất) với từng tổ trên menu Công việc tổ.
               Tổ trưởng chỉ phân công được cấp dưới (kể cả kiêm nhiệm) thuộc các bộ phận đã map.
               Mỗi bộ phận chỉ thuộc một tổ.
+              Màu KHSX dùng cho cột bộ phận và ô số trên tab Lộ trình.
             </p>
             {% if not team_map_divisions %}
-            <div class="alert alert-warning py-2 mb-0">
-              Chưa có bộ phận active trong phòng Sản xuất trên Nhân sự.
+            <div class="alert alert-warning py-2">
+              Chưa có bộ phận active trong phòng Sản xuất trên Nhân sự — vẫn chọn được màu KHSX.
             </div>
-            {% else %}
+            {% endif %}
             <form method="post" id="jpTdmForm">
               {% csrf_token %}
               <div class="jp-tdm-grid">
                 {% for team in team_map_teams %}
                 <div class="jp-tdm-row">
                   <p class="jp-tdm-row-title">
-                    {{ team.label }}
-                    <span class="badge text-bg-light border ms-1">{{ team.slug }}</span>
+                    <span>{{ team.label }}
+                      <span class="badge text-bg-light border ms-1">{{ team.slug }}</span>
+                    </span>
+                    <label class="jp-tdm-color" title="Màu cột bộ phận trên lộ trình">
+                      Màu KHSX
+                      <input type="color" name="color_{{ team.slug }}"
+                             value="{{ team.color }}"
+                             {% if not can_update %}disabled{% endif %}
+                             aria-label="Màu {{ team.label }}">
+                    </label>
                   </p>
+                  {% if team_map_divisions %}
                   <select name="divisions_{{ team.slug }}"
                           class="jp-tdm-select"
                           multiple
@@ -988,6 +1007,7 @@
                     </option>
                     {% endfor %}
                   </select>
+                  {% endif %}
                 </div>
                 {% endfor %}
               </div>
@@ -996,14 +1016,15 @@
                 <button type="submit" name="action" value="save_team_map" class="btn btn-hm btn-sm fw-bold">
                   <i class="bi bi-check2 me-1"></i>Lưu map
                 </button>
+                {% if team_map_divisions %}
                 <button type="submit" name="action" value="suggest_team_map" class="btn btn-outline-secondary btn-sm">
                   <i class="bi bi-magic me-1"></i>Gợi ý theo tên
                 </button>
                 <span class="small text-muted">Gợi ý chỉ điền form — cần Lưu mới ghi nhận.</span>
+                {% endif %}
               </div>
               {% endif %}
             </form>
-            {% endif %}
           </div>
         </section>
     </div>
