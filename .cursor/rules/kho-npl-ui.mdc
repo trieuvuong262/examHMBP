@@ -19,7 +19,7 @@ Các mục con **không** thêm thanh tab / pill phụ bên trong trang.
 - **Thẻ kho** = master-detail: danh mục NPL phía dưới, chọn NPL → sổ biến động từ `StockLedger` (dòng +nhập / -xuất, tồn lũy kế). Tồn hệ thống phải khớp tổng sổ kho.
 - **Chuyển kho** (ngoại lệ): trang hub có **3 tab** Nhập / Chuyển / Nhận (`jp-npl-transfer-tabs`, query `?tab=nhap|chuyen|nhan`) — workflow phiếu chuyển, không thay sidebar.
 
-- **Được:** hub dạng thẻ (Báo cáo, Thiết lập), breadcrumb, nút quay lại, form lọc.
+- **Được:** hub dạng thẻ (Thiết lập), breadcrumb, nút quay lại, form lọc. **Báo cáo** = trang xuất nhập tồn (không chia thẻ con).
 - **Không:** `nav-tabs`, `jp-tab-pills`, pill chuyển tab trong cùng một menu con (vd. tab Nhóm/ĐVT/Vị trí/NCC; tab Nháp/Đã ghi sổ).
 
 Khi cần nhiều màn trong một menu con → **trang hub + trang danh sách riêng** (pattern Báo cáo / Thiết lập), hoặc query `?status=` / filter form.
