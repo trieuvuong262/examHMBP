@@ -193,8 +193,11 @@
               <label class="form-label small text-muted mb-1">Tên bộ phận <span class="text-danger">*</span></label>
               <select name="process_stage_label" class="form-select form-select-sm" required>
                 <option value="">— Chọn bộ phận —</option>
-                {% for wc in work_centers %}
-                <option value="{{ wc.name }}">{{ wc.name }}</option>
+                {% for div in hr_divisions %}
+                <option value="{{ div.name }}">{{ div.name }}{% if div.department_id %} ({{ div.department.name }}){% endif %}</option>
+                {% endfor %}
+                {% for label in orphan_department_labels %}
+                <option value="{{ label }}">{{ label }} (cũ)</option>
                 {% endfor %}
               </select>
             </div>
@@ -262,8 +265,11 @@
               <label class="form-label small text-muted mb-1">Tên bộ phận <span class="text-danger">*</span></label>
               <select name="process_stage_label" id="ieEditGroupStage" class="form-select form-select-sm" required>
                 <option value="">— Chọn bộ phận —</option>
-                {% for wc in work_centers %}
-                <option value="{{ wc.name }}">{{ wc.name }}</option>
+                {% for div in hr_divisions %}
+                <option value="{{ div.name }}">{{ div.name }}{% if div.department_id %} ({{ div.department.name }}){% endif %}</option>
+                {% endfor %}
+                {% for label in orphan_department_labels %}
+                <option value="{{ label }}">{{ label }} (cũ)</option>
                 {% endfor %}
               </select>
             </div>

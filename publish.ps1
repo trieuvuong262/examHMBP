@@ -74,10 +74,9 @@ function Get-SshIdentity {
 function Get-DeployHostCandidates {
     param($cfg, [string]$PublicHost)
     $list = New-Object System.Collections.Generic.List[string]
+    if ($PublicHost) { [void]$list.Add($PublicHost) }
     $ts = $cfg["VPS_TAILSCALE_HOST"]
-    if (-not $ts) { $ts = "100.79.206.125" }
-    if ($ts) { [void]$list.Add($ts) }
-    if ($PublicHost -and $PublicHost -ne $ts) { [void]$list.Add($PublicHost) }
+    if ($ts -and $ts -ne $PublicHost) { [void]$list.Add($ts) }
     return @($list | Select-Object -Unique)
 }
 
@@ -185,7 +184,7 @@ $remoteCmd = "set -Eeuo pipefail; cd '$projectDir' && BRANCH='$branch' ./deploy.
 
 $sshHost = $null
 Write-Host ""
-Write-Host "==> Chon SSH host (Tailscale truoc, IP public sau)"
+Write-Host "==> Chon SSH host (IP public truoc)"
 foreach ($h in $candidates) {
     Write-Host "    probe ${h}:${port} ..."
     if (Test-TcpPort -Target $h -Port ([int]$port) -TimeoutSec 2) {

@@ -3,8 +3,8 @@
 ## Cách nhanh (Windows)
 
 1. Một lần: copy `deploy.local.env.example` → `deploy.local.env`, sửa IP/user SSH.
-2. Đảm bảo SSH vào VPS không hỏi mật khẩu. Ưu tiên Tailscale khi IP public bị chặn:
-   `ssh portal-vps` (alias → `100.79.206.125`) hoặc `ssh root@103.90.224.203`.
+2. Đảm bảo SSH vào VPS không hỏi mật khẩu. Mặc định IP public:
+   `ssh portal-vps` (→ `103.90.224.203`) hoặc `ssh root@103.90.224.203`.
 3. Chạy (**dùng `.bat` hoặc `.cmd`**, không gọi trực tiếp `publish.ps1` nếu PowerShell báo Execution Policy):
 
 Trong **PowerShell** (terminal Cursor), phải có `.\` trước tên file:

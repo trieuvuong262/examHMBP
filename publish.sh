@@ -63,7 +63,7 @@ VPS_USER="${VPS_USER:-root}"
 VPS_PORT="${VPS_PORT:-22}"
 PROJECT_DIR="${PROJECT_DIR:-/opt/portaljustplay}"
 BRANCH="${BRANCH:-main}"
-VPS_TAILSCALE_HOST="${VPS_TAILSCALE_HOST:-100.79.206.125}"
+VPS_TAILSCALE_HOST="${VPS_TAILSCALE_HOST:-}"
 SSH_ID_ARGS=()
 if [[ -n "${VPS_SSH_KEY:-}" && -f "${VPS_SSH_KEY}" ]]; then
   SSH_ID_ARGS=(-i "${VPS_SSH_KEY}" -o IdentitiesOnly=yes)
@@ -81,12 +81,12 @@ ssh_port_open() {
 }
 
 CANDIDATES=()
-[[ -n "${VPS_TAILSCALE_HOST}" ]] && CANDIDATES+=("${VPS_TAILSCALE_HOST}")
-[[ "${VPS_HOST}" != "${VPS_TAILSCALE_HOST}" ]] && CANDIDATES+=("${VPS_HOST}")
+[[ -n "${VPS_HOST:-}" ]] && CANDIDATES+=("${VPS_HOST}")
+[[ -n "${VPS_TAILSCALE_HOST:-}" && "${VPS_TAILSCALE_HOST}" != "${VPS_HOST:-}" ]] && CANDIDATES+=("${VPS_TAILSCALE_HOST}")
 
 SSH_HOST=""
 echo ""
-echo "==> Chọn SSH host (Tailscale trước, IP public sau)"
+echo "==> Chọn SSH host (IP public trước)"
 for h in "${CANDIDATES[@]}"; do
   echo "    probe ${h}:${VPS_PORT} ..."
   if ssh_port_open "$h"; then

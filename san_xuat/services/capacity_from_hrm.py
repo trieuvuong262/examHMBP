@@ -17,6 +17,9 @@ from hrm.permissions import ROLE_DIVISION_HEAD, ROLE_TEAM_LEADER
 from san_xuat.hub_models import SxTeamHrMap, SxWorkCenter
 
 SX_DEPT_NAMES = ('SẢN XUẤT', 'SAN XUAT')
+QC_DEPT_NAMES = ('ĐẢM BẢO CHẤT LƯỢNG', 'DAM BAO CHAT LUONG')
+# Nhóm công đoạn / IE: bộ phận thuộc hai phòng này trên HR.
+IE_GROUP_DEPT_NAME_GROUPS = (SX_DEPT_NAMES, QC_DEPT_NAMES)
 CODE_PREFIX = 'HRD-'
 _tls = local()
 LEGACY_FAKE_CODES = frozenset({
@@ -245,6 +248,72 @@ def _sx_department() -> Department | None:
         if dept:
             return dept
     return Department.objects.filter(name__icontains='SẢN XUẤT').first()
+
+
+def _department_from_names(
+    names: tuple[str, ...],
+    *,
+    contains_fallback: str = '',
+) -> Department | None:
+    for name in names:
+        dept = Department.objects.filter(name__iexact=name, is_active=True).first()
+        if dept:
+            return dept
+    needle = (contains_fallback or '').strip()
+    if needle:
+        return Department.objects.filter(name__icontains=needle, is_active=True).first()
+    return None
+
+
+def departments_for_ie_groups() -> list[Department]:
+    """Phòng SẢN XUẤT + ĐẢM BẢO CHẤT LƯỢNG (HR) dùng cho dropdown nhóm công đoạn."""
+    found: list[Department] = []
+    seen: set[int] = set()
+    fallbacks = ('SẢN XUẤT', 'ĐẢM BẢO')
+    for names, fallback in zip(IE_GROUP_DEPT_NAME_GROUPS, fallbacks):
+        dept = _department_from_names(names, contains_fallback=fallback)
+        if dept and dept.pk not in seen:
+            found.append(dept)
+            seen.add(dept.pk)
+    return found
+
+
+def hr_divisions_for_ie_groups():
+    """Bộ phận (Division) thuộc phòng SẢN XUẤT và ĐẢM BẢO CHẤT LƯỢNG trên Nhân sự."""
+    depts = departments_for_ie_groups()
+    if not depts:
+        return Division.objects.none()
+    return (
+        Division.objects.filter(department__in=depts, is_active=True)
+        .select_related('department')
+        .order_by('department__sort_order', 'department__name', 'sort_order', 'name')
+    )
+
+
+def ie_group_department_label_choices(*, include_labels: list[str] | None = None) -> list[str]:
+    """Danh sách tên bộ phận hợp lệ cho nhóm công đoạn (HR + nhãn cũ tùy chọn)."""
+    names = [d.name for d in hr_divisions_for_ie_groups()]
+    seen = {n.casefold() for n in names}
+    for raw in include_labels or []:
+        label = (raw or '').strip()
+        if label and label.casefold() not in seen:
+            names.append(label)
+            seen.add(label.casefold())
+    return names
+
+
+def is_ie_group_department_label_allowed(
+    label: str,
+    *,
+    allow_existing: str = '',
+) -> bool:
+    label = (label or '').strip()
+    if not label:
+        return False
+    allowed = {n.casefold() for n in ie_group_department_label_choices()}
+    if allow_existing.strip():
+        allowed.add(allow_existing.strip().casefold())
+    return label.casefold() in allowed
 
 
 def _is_team_lead_title(job_position: str) -> bool:

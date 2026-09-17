@@ -749,10 +749,16 @@ def group_list(request):
                             effective_from = _date_cls.fromisoformat(eff_raw)
                     except ValueError as exc:
                         raise IeOpsError('Ngày hiệu lực không hợp lệ (dd/mm/yyyy).') from exc
+                stage_label = (request.POST.get('process_stage_label') or '').strip()
+                from san_xuat.services.capacity_from_hrm import is_ie_group_department_label_allowed
+                if not is_ie_group_department_label_allowed(stage_label):
+                    raise IeOpsError(
+                        'Chọn bộ phận thuộc phòng SẢN XUẤT hoặc ĐẢM BẢO CHẤT LƯỢNG (Nhân sự).'
+                    )
                 group = create_operation_group(
                     code=(request.POST.get('group_code') or '').strip(),
                     name=(request.POST.get('group_name') or '').strip(),
-                    process_stage_label=(request.POST.get('process_stage_label') or '').strip(),
+                    process_stage_label=stage_label,
                     product_part=(request.POST.get('product_part') or '').strip(),
                     description=(request.POST.get('description') or '').strip(),
                     effective_from=effective_from,
@@ -779,10 +785,19 @@ def group_list(request):
                             effective_from = _date_cls.fromisoformat(eff_raw)
                     except ValueError as exc:
                         raise IeOpsError('Ngày hiệu lực không hợp lệ (dd/mm/yyyy).') from exc
+                stage_label = (request.POST.get('process_stage_label') or '').strip()
+                from san_xuat.services.capacity_from_hrm import is_ie_group_department_label_allowed
+                if not is_ie_group_department_label_allowed(
+                    stage_label,
+                    allow_existing=group.process_stage_label or '',
+                ):
+                    raise IeOpsError(
+                        'Chọn bộ phận thuộc phòng SẢN XUẤT hoặc ĐẢM BẢO CHẤT LƯỢNG (Nhân sự).'
+                    )
                 update_operation_group(
                     group=group,
                     name=(request.POST.get('group_name') or '').strip(),
-                    process_stage_label=(request.POST.get('process_stage_label') or '').strip(),
+                    process_stage_label=stage_label,
                     product_part=(request.POST.get('product_part') or '').strip(),
                     description=(request.POST.get('description') or '').strip(),
                     data_owner=group.data_owner,
@@ -844,7 +859,19 @@ def group_list(request):
             'list_columns': cols,
             'total_col_weight': sum(c['weight'] for c in cols),
         }
-    from san_xuat.services.capacity_from_hrm import hr_work_centers_qs
+    from san_xuat.services.capacity_from_hrm import hr_divisions_for_ie_groups
+
+    hr_divisions = list(hr_divisions_for_ie_groups())
+    division_names = {d.name for d in hr_divisions}
+    # Giữ nhãn cũ trên bản ghi nếu không còn trong HR (vẫn sửa được).
+    orphan_labels = sorted(
+        {
+            (label or '').strip()
+            for label in SxOperationGroup.objects.values_list('process_stage_label', flat=True)
+            if (label or '').strip() and (label or '').strip() not in division_names
+        },
+        key=str.casefold,
+    )
 
     return render(request, 'san_xuat/ie_group_list.html', {
         **perms,
@@ -856,7 +883,8 @@ def group_list(request):
         'term': term,
         'active_filter': active_filter,
         'total': qs.count(),
-        'work_centers': list(hr_work_centers_qs()),
+        'hr_divisions': hr_divisions,
+        'orphan_department_labels': orphan_labels,
         'current_user_display_name': ie_user_display_name(request.user),
         'can_pick_rows': _can_bulk_delete(perms),
     })
