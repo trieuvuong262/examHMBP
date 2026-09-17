@@ -63,8 +63,7 @@ kho_npl/templates/kho_npl/overview.html
 kho_npl/templates/kho_npl/receipt_detail.html
 kho_npl/templates/kho_npl/receipt_form.html
 kho_npl/templates/kho_npl/receipt_list.html
-kho_npl/templates/kho_npl/report_hub.html
-kho_npl/templates/kho_npl/report_table.html
+kho_npl/templates/kho_npl/report_xuat_nhap_ton.html
 kho_npl/templates/kho_npl/settings_form.html
 kho_npl/templates/kho_npl/settings_hub.html
 kho_npl/templates/kho_npl/settings_list.html

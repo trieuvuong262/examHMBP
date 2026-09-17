@@ -1,18 +1,36 @@
-from datetime import date
+"""Báo cáo xuất nhập tồn — tổng hợp theo mã hàng trên sổ kho."""
+
+from __future__ import annotations
+
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
-from django.db.models import Q
+from django.db.models import Case, DecimalField, F, Q, Sum, Value, When
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
-from kho_npl.choices import (
-    ADJUST_STATUS_APPROVED,
-    DOC_STATUS_POSTED,
-    STOCK_STATUS_LOW,
-    STOCK_STATUS_OUT,
-    issue_type_display,
-)
-from kho_npl.models import StockAdjustment, StockIssue, StockIssueLine, StockLedger, StocktakeLine
-from kho_npl.services.stock import material_stock_rows
+from kho_npl.models import Material, StockLedger
+from kho_npl.services.scrap_warehouse import exclude_scrap_locations, source_locations_qs
+
+DISPLAY_LIMIT = 2000
+
+QTY_FIELD = DecimalField(max_digits=14, decimal_places=3)
+AMT_FIELD = DecimalField(max_digits=16, decimal_places=2)
+ZERO_QTY = Value(Decimal('0.000'), output_field=QTY_FIELD)
+ZERO_AMT = Value(Decimal('0.00'), output_field=AMT_FIELD)
+
+XNT_COLUMNS = [
+    ('code', 'Mã hàng'),
+    ('name', 'Tên hàng'),
+    ('qty_open', 'Tồn đầu kỳ'),
+    ('val_open', 'Giá trị đầu kỳ'),
+    ('qty_in', 'SL Nhập'),
+    ('val_in', 'Giá trị nhập'),
+    ('qty_out', 'SL Xuất'),
+    ('val_out', 'Giá trị xuất'),
+    ('qty_close', 'Tồn cuối kỳ'),
+    ('val_close', 'Giá trị cuối kỳ'),
+]
 
 
 def _parse_date(value: str | None, default: date | None = None) -> date | None:
@@ -24,164 +42,204 @@ def _parse_date(value: str | None, default: date | None = None) -> date | None:
         return default
 
 
-def report_stock_current_rows():
-    rows = []
-    for row in material_stock_rows():
-        m = row['material']
-        rows.append({
-            'Mã NPL': m.code,
-            'Tên': m.name,
-            'Nhóm': m.category.name,
-            'Quy cách': m.specification.name if m.specification_id else '',
-            'Tồn lẻ': float(row['total_qty']),
-            'ĐVT lẻ': m.unit.name,
-            'Tồn chẵn': float(row['package_qty']) if row.get('package_qty') is not None else '',
-            'Đơn vị chẵn': m.package_unit.name if m.package_unit else '',
-            'Đơn giá BQ': float(row.get('avg_unit_price') or 0),
-            'Giá trị tồn': float(row.get('stock_value') or 0),
-            'Tối thiểu': float(m.min_stock),
-            'Trạng thái': row['status_label'],
-            'Vị trí mặc định': (
-                m.primary_location.display_label() if m.primary_location_id else ''
-            ),
-        })
-    return rows
+def _period_bounds(date_from: date, date_to: date) -> tuple[datetime, datetime]:
+    tz = timezone.get_current_timezone()
+    start = timezone.make_aware(datetime.combine(date_from, time.min), tz)
+    end = timezone.make_aware(datetime.combine(date_to + timedelta(days=1), time.min), tz)
+    return start, end
 
 
-def report_alert_rows():
-    rows = []
-    for row in material_stock_rows():
-        if row['status'] not in (STOCK_STATUS_LOW, STOCK_STATUS_OUT):
-            continue
-        m = row['material']
-        rows.append({
-            'Mã NPL': m.code,
-            'Tên': m.name,
-            'Nhóm': m.category.name,
-            'Tồn lẻ': float(row['total_qty']),
-            'ĐVT lẻ': m.unit.name,
-            'Tồn chẵn': float(row['package_qty']) if row.get('package_qty') is not None else '',
-            'Đơn vị chẵn': m.package_unit.name if m.package_unit else '',
-            'Tối thiểu': float(m.min_stock),
-            'Trạng thái': row['status_label'],
-        })
-    return rows
+def _ledger_qs(location_id: int | None = None):
+    qs = StockLedger.objects.all()
+    if location_id:
+        return qs.filter(location_id=location_id)
+    return exclude_scrap_locations(qs)
 
 
-def report_movement_rows(date_from: date | None, date_to: date | None, material_code: str = ''):
-    qs = StockLedger.objects.select_related('material__unit', 'location', 'created_by').order_by('-created_at')
-    if date_from:
-        qs = qs.filter(created_at__date__gte=date_from)
-    if date_to:
-        qs = qs.filter(created_at__date__lte=date_to)
-    if material_code:
-        qs = qs.filter(material__code__icontains=material_code.strip())
-    rows = []
-    ref_labels = {
-        StockLedger.REF_RECEIPT: 'Nhập',
-        StockLedger.REF_ISSUE: 'Xuất',
-        StockLedger.REF_ADJUSTMENT: 'Kiểm kê',
-        StockLedger.REF_STOCKTAKE: 'Kiểm kê (kỳ cũ)',
-    }
-    for entry in qs[:5000]:
-        rows.append({
-            'Thời gian': timezone.localtime(entry.created_at).strftime('%d/%m/%Y %H:%M'),
-            'Mã NPL': entry.material.code,
-            'Tên NPL': entry.material.name,
-            'Vị trí': entry.location.display_label(),
-            'Loại': ref_labels.get(entry.ref_type, entry.ref_type),
-            'Số chứng từ': entry.ref_number,
-            'Biến động': float(entry.qty_delta),
-            'Tồn sau': float(entry.balance_after),
-            'ĐVT lẻ': entry.material.unit.name if entry.material.unit_id else '',
-            'Người thực hiện': (
-                entry.created_by.get_full_name() or entry.created_by.username
-            ) if entry.created_by else '',
-        })
-    return rows
-
-
-def report_issue_by_lsx_rows(date_from: date | None, date_to: date | None, lsx: str = ''):
-    qs = StockIssueLine.objects.select_related(
-        'issue', 'material__unit', 'line_unit', 'location',
-    ).filter(issue__status=DOC_STATUS_POSTED)
-    if date_from:
-        qs = qs.filter(issue__issue_date__gte=date_from)
-    if date_to:
-        qs = qs.filter(issue__issue_date__lte=date_to)
-    if lsx:
-        qs = qs.filter(
-            Q(issue__production_order__icontains=lsx) | Q(issue__product_code__icontains=lsx),
-        )
-    rows = []
-    for line in qs.order_by('-issue__issue_date')[:5000]:
-        rows.append({
-            'Ngày xuất': line.issue.issue_date.strftime('%d/%m/%Y'),
-            'Số phiếu': line.issue.number,
-            'LSX': line.issue.production_order,
-            'Mã SP': line.issue.product_code,
-            'Lý do': issue_type_display(line.issue.issue_type),
-            'Mã NPL': line.material.code,
-            'Tên NPL': line.material.name,
-            'Vị trí': line.location.display_label(),
-            'Số lượng': float(line.quantity),
-            'ĐVT': (line.line_unit or line.material.unit).name,
-            'SL ĐVT lẻ': float(line.qty_base),
-            'ĐVT lẻ': line.material.unit.name,
-        })
-    return rows
-
-
-def report_stocktake_history_rows():
-    """Lịch sử phiếu kiểm kê (= StockAdjustment đã duyệt)."""
-    rows = []
-    qs = (
-        StockAdjustment.objects.filter(status=ADJUST_STATUS_APPROVED)
-        .prefetch_related('lines')
-        .order_by('-adjust_date', '-id')[:200]
+def _signed_amount():
+    return Case(
+        When(qty_delta__lt=0, then=-F('amount')),
+        default=F('amount'),
+        output_field=AMT_FIELD,
     )
-    for adj in qs:
-        lines = list(adj.lines.all())
-        variance_total = sum((line.variance for line in lines), Decimal('0'))
-        diff_count = sum(1 for line in lines if line.variance != 0)
-        rows.append({
-            'Số phiếu': adj.number,
-            'Ngày kiểm': adj.adjust_date.strftime('%d/%m/%Y'),
-            'Lý do': (adj.reason or '')[:120],
-            'Số dòng': len(lines),
-            'Dòng chênh': diff_count,
-            'Tổng chênh': float(variance_total),
-            'Ngày duyệt': (
-                timezone.localtime(adj.approved_at).strftime('%d/%m/%Y %H:%M')
-                if adj.approved_at else ''
-            ),
+
+
+def _qty_in():
+    return Case(
+        When(qty_delta__gt=0, then=F('qty_delta')),
+        default=ZERO_QTY,
+        output_field=QTY_FIELD,
+    )
+
+
+def _qty_out():
+    return Case(
+        When(qty_delta__lt=0, then=-F('qty_delta')),
+        default=ZERO_QTY,
+        output_field=QTY_FIELD,
+    )
+
+
+def _val_in():
+    return Case(
+        When(qty_delta__gt=0, then=F('amount')),
+        default=ZERO_AMT,
+        output_field=AMT_FIELD,
+    )
+
+
+def _val_out():
+    return Case(
+        When(qty_delta__lt=0, then=F('amount')),
+        default=ZERO_AMT,
+        output_field=AMT_FIELD,
+    )
+
+
+def _as_map(rows, keys: tuple[str, ...]) -> dict[int, dict]:
+    out = {}
+    for row in rows:
+        mid = row['material_id']
+        out[mid] = {key: row.get(key) or Decimal('0') for key in keys}
+    return out
+
+
+def _zero_totals() -> dict:
+    return {
+        'qty_open': Decimal('0'),
+        'val_open': Decimal('0'),
+        'qty_in': Decimal('0'),
+        'val_in': Decimal('0'),
+        'qty_out': Decimal('0'),
+        'val_out': Decimal('0'),
+        'qty_close': Decimal('0'),
+        'val_close': Decimal('0'),
+    }
+
+
+def _add_totals(totals: dict, row: dict) -> None:
+    for key in totals:
+        totals[key] += row[key]
+
+
+def location_scope_label(location_id: int | None) -> str:
+    if not location_id:
+        return 'Toàn bộ kho'
+    loc = source_locations_qs().filter(pk=location_id).first()
+    return loc.display_label() if loc else 'Toàn bộ kho'
+
+
+def report_xuat_nhap_ton(
+    date_from: date,
+    date_to: date,
+    *,
+    location_id: int | None = None,
+    search: str = '',
+    limit: int | None = DISPLAY_LIMIT,
+) -> dict:
+    """Tồn đầu kỳ + nhập − xuất = tồn cuối kỳ, theo từng mã NPL."""
+    start, end = _period_bounds(date_from, date_to)
+    qs = _ledger_qs(location_id)
+
+    opening_qs = qs.filter(created_at__lt=start)
+    period_qs = qs.filter(created_at__gte=start, created_at__lt=end)
+    if not location_id:
+        # Chuyển kho nội bộ không đổi tổng tồn khi xem toàn bộ kho.
+        period_qs = period_qs.exclude(ref_type=StockLedger.REF_TRANSFER)
+
+    opening_map = _as_map(
+        opening_qs.values('material_id').annotate(
+            qty_open=Coalesce(Sum('qty_delta'), ZERO_QTY),
+            val_open=Coalesce(Sum(_signed_amount()), ZERO_AMT),
+        ),
+        ('qty_open', 'val_open'),
+    )
+    period_map = _as_map(
+        period_qs.values('material_id').annotate(
+            qty_in=Coalesce(Sum(_qty_in()), ZERO_QTY),
+            val_in=Coalesce(Sum(_val_in()), ZERO_AMT),
+            qty_out=Coalesce(Sum(_qty_out()), ZERO_QTY),
+            val_out=Coalesce(Sum(_val_out()), ZERO_AMT),
+        ),
+        ('qty_in', 'val_in', 'qty_out', 'val_out'),
+    )
+
+    materials = Material.objects.select_related('unit')
+    search = (search or '').strip()
+    if search:
+        materials = materials.filter(Q(code__icontains=search) | Q(name__icontains=search))
+    else:
+        moved_ids = set(opening_map) | set(period_map)
+        materials = materials.filter(Q(is_active=True) | Q(pk__in=moved_ids))
+    materials = list(materials.order_by('code'))
+
+    all_rows = []
+    totals = _zero_totals()
+    for material in materials:
+        opening = opening_map.get(material.pk, {})
+        period = period_map.get(material.pk, {})
+        qty_open = opening.get('qty_open') or Decimal('0')
+        val_open = opening.get('val_open') or Decimal('0')
+        qty_in = period.get('qty_in') or Decimal('0')
+        val_in = period.get('val_in') or Decimal('0')
+        qty_out = period.get('qty_out') or Decimal('0')
+        val_out = period.get('val_out') or Decimal('0')
+        row = {
+            'code': material.code,
+            'name': material.name,
+            'qty_open': qty_open,
+            'val_open': val_open,
+            'qty_in': qty_in,
+            'val_in': val_in,
+            'qty_out': qty_out,
+            'val_out': val_out,
+            'qty_close': qty_open + qty_in - qty_out,
+            'val_close': val_open + val_in - val_out,
+        }
+        _add_totals(totals, row)
+        all_rows.append(row)
+
+    total_count = len(all_rows)
+    if limit is None or limit <= 0:
+        rows = all_rows
+    else:
+        rows = all_rows[:limit]
+    return {
+        'rows': rows,
+        'all_rows': all_rows,
+        'totals': totals,
+        'total_count': total_count,
+        'displayed_count': len(rows),
+        'truncated': total_count > len(rows),
+        'display_limit': DISPLAY_LIMIT if limit is None else limit,
+    }
+
+
+def report_xuat_nhap_ton_export_rows(
+    date_from: date,
+    date_to: date,
+    *,
+    location_id: int | None = None,
+    search: str = '',
+) -> list[dict]:
+    data = report_xuat_nhap_ton(
+        date_from,
+        date_to,
+        location_id=location_id,
+        search=search,
+        limit=None,
+    )
+    export_rows = []
+    for row in data['all_rows']:
+        export_rows.append({
+            label: row[key]
+            for key, label in XNT_COLUMNS
         })
-    return rows
-
-
-def report_ledger_detail_rows(date_from: date | None, date_to: date | None, material_code: str = ''):
-    return report_movement_rows(date_from, date_to, material_code)
-
-
-def stocktake_variance_detail(stocktake_id: int):
-    rows = []
-    for line in StocktakeLine.objects.filter(
-        stocktake_id=stocktake_id,
-    ).select_related('material__unit', 'location', 'stocktake'):
-        if line.actual_qty is None:
-            continue
-        actual_base = line.qty_base if line.qty_base is not None else line.actual_qty
-        variance = actual_base - line.system_qty
-        if variance == 0:
-            continue
-        rows.append({
-            'Mã kỳ': line.stocktake.number,
-            'Mã NPL': line.material.code,
-            'Tên NPL': line.material.name,
-            'ĐVT lẻ': line.material.unit.name if line.material.unit_id else '',
-            'Vị trí': line.location.display_label(),
-            'Tồn HT': float(line.system_qty),
-            'Tồn TT': float(actual_base),
-            'Chênh': float(variance),
+    totals = data['totals']
+    if export_rows:
+        export_rows.append({
+            'Mã hàng': '',
+            'Tên hàng': 'Tổng cộng',
+            **{label: totals[key] for key, label in XNT_COLUMNS if key not in ('code', 'name')},
         })
-    return rows
+    return export_rows

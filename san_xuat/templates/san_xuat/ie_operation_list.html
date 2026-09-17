@@ -119,7 +119,7 @@
             <td class="npl-col small" data-col="skill_level">{{ op.skill_level_label|default:"—" }}</td>
             <td class="npl-col text-end time-sec" data-col="time_sec" data-smv="{{ op.base_smv_min|sx_num_input }}">—</td>
             <td class="npl-col text-end" data-col="std_capacity">{{ op.std_capacity_pcs_hour|sx_num }}</td>
-            <td class="npl-col small" data-col="process_stage">{{ op.group.process_stage_label|default:"—" }}</td>
+            <td class="npl-col small" data-col="process_stage">{{ op.process_stage_label|default:op.group.process_stage_label|default:"—" }}</td>
             <td class="npl-col small" data-col="product_part">{{ op.product_part|default:"—" }}</td>
             <td class="npl-col small jp-ie-cell-wrap" data-col="method_variant" title="{{ op.method_variant }}">{{ op.method_variant|default:"—"|truncatechars:40 }}</td>
             <td class="npl-col small" data-col="machine_code">{{ op.machine_code|default:"—" }}</td>

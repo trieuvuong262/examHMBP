@@ -136,8 +136,6 @@ if qa_user:
         'kho_npl:issue_list', 'kho_npl:issue_create',
         'kho_npl:adjustment_list', 'kho_npl:adjustment_create',
         'kho_npl:report_hub',
-        'kho_npl:report_stock', 'kho_npl:report_alerts', 'kho_npl:report_movement',
-        'kho_npl:report_issue_lsx', 'kho_npl:report_stocktake_history', 'kho_npl:report_ledger',
         'kho_npl:settings_hub',
     ]
     for name in page_urls:
@@ -157,8 +155,7 @@ if qa_user:
             fail(f'GET settings/{section_key}', f'status={r.status_code}')
 
     export_names = [
-        'kho_npl:report_stock_export', 'kho_npl:report_alerts_export',
-        'kho_npl:report_movement_export', 'kho_npl:report_ledger_export',
+        'kho_npl:report_export',
     ]
     for name in export_names:
         url = reverse(name)

@@ -53,7 +53,7 @@ def check_user(uname, expect_create=None, expect_export=None):
     if not can_create and r_create.status_code == 200:
         # có thể vẫn 200 nhưng form disabled — chỉ warn
         pass
-    exp_r = c.get(reverse('kho_npl:report_stock_export'))
+    exp_r = c.get(reverse('kho_npl:report_export'))
     if can_export:
         if exp_r.status_code != 200:
             FAIL.append(f'{uname} export -> {exp_r.status_code}')

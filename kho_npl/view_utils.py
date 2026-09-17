@@ -1,8 +1,6 @@
 from hrm.menu_permissions import menu_perm_context
 from hrm.module_permissions import MODULE_KHO_NPL
 
-from kho_npl.reports_registry import report_hub_items
-
 NAV_ITEMS = [
     {'key': 'materials', 'url_name': 'kho_npl:material_list', 'label': 'Danh mục', 'icon': 'bi-tags'},
     {'key': 'material_stock', 'url_name': 'kho_npl:material_stock', 'label': 'Tồn kho', 'icon': 'bi-boxes'},
@@ -35,7 +33,3 @@ def nav_context(active_key: str, user=None):
 def perm_context(user, menu_key: str) -> dict:
     """Quyền UI theo menu con — khớp decorator và sidebar."""
     return menu_perm_context(user, MODULE_KHO_NPL, menu_key)
-
-
-def report_context():
-    return {'report_items': report_hub_items()}

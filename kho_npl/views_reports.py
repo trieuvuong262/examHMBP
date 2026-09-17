@@ -4,18 +4,17 @@ from django.utils import timezone
 
 from assessment.decorators import module_perm_required
 from hrm.module_permissions import MODULE_KHO_NPL
-from kho_npl.reports_registry import REPORT_DEFINITIONS
+from kho_npl.reports_registry import REPORT_XNT
 from kho_npl.services.excel_export import dataframe_to_xlsx_response
 from kho_npl.services.reports import (
+    DISPLAY_LIMIT,
     _parse_date,
-    report_alert_rows,
-    report_issue_by_lsx_rows,
-    report_ledger_detail_rows,
-    report_movement_rows,
-    report_stock_current_rows,
-    report_stocktake_history_rows,
+    location_scope_label,
+    report_xuat_nhap_ton,
+    report_xuat_nhap_ton_export_rows,
 )
-from kho_npl.view_utils import nav_context, perm_context, report_context
+from kho_npl.services.scrap_warehouse import source_locations_qs
+from kho_npl.view_utils import nav_context, perm_context
 from utilities.date_range_filter import (
     date_range_from_span,
     date_range_span_context,
@@ -23,177 +22,70 @@ from utilities.date_range_filter import (
 )
 
 
+def _parse_location_id(raw) -> int | None:
+    value = (raw or '').strip()
+    if value.isdigit():
+        loc_id = int(value)
+        if source_locations_qs().filter(pk=loc_id).exists():
+            return loc_id
+    return None
+
+
 def _filter_params(request):
     date_from = _parse_date(request.GET.get('date_from'))
     date_to = _parse_date(request.GET.get('date_to'))
-    span = parse_date_range_span_from_request(request)
+    span = parse_date_range_span_from_request(request, default=30)
     if not date_to:
         date_to = timezone.localdate()
     if not date_from:
         date_from = date_range_from_span(date_to, span)
     if date_from > date_to:
         date_from, date_to = date_to, date_from
+    location_id = _parse_location_id(request.GET.get('location'))
     return {
         'date_from': date_from,
         'date_to': date_to,
-        'material_code': (request.GET.get('material') or '').strip(),
-        'lsx': (request.GET.get('lsx') or '').strip(),
+        'location_id': location_id,
+        'search': (request.GET.get('q') or '').strip(),
         **date_range_span_context(date_from, date_to),
     }
 
 
-def _report_meta(slug: str):
-    return REPORT_DEFINITIONS[slug]
-
-
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def report_hub(request):
-    return render(request, 'kho_npl/report_hub.html', {
-        **nav_context('reports', user=request.user),
-        **perm_context(request.user, 'reports'),
-        **report_context(),
-    })
-
-
-@module_perm_required(MODULE_KHO_NPL, 'view')
-def report_stock(request):
-    rows = report_stock_current_rows()
-    meta = _report_meta('ton-kho')
-    return render(request, 'kho_npl/report_table.html', {
-        **nav_context('reports', user=request.user),
-        **perm_context(request.user, 'reports'),
-        'report': meta,
-        'report_slug': 'ton-kho',
-        'rows': rows,
-        'columns': list(rows[0].keys()) if rows else [],
-        'filters': {},
-    })
-
-
-@module_perm_required(MODULE_KHO_NPL, 'export')
-def report_stock_export(request):
-    df = pd.DataFrame(report_stock_current_rows())
-    return dataframe_to_xlsx_response(df, 'Ton_kho_hien_tai', 'Ton_kho')
-
-
-@module_perm_required(MODULE_KHO_NPL, 'view')
-def report_alerts(request):
-    rows = report_alert_rows()
-    meta = _report_meta('can-bao')
-    return render(request, 'kho_npl/report_table.html', {
-        **nav_context('reports', user=request.user),
-        **perm_context(request.user, 'reports'),
-        'report': meta,
-        'report_slug': 'can-bao',
-        'rows': rows,
-        'columns': list(rows[0].keys()) if rows else [],
-        'filters': {},
-    })
-
-
-@module_perm_required(MODULE_KHO_NPL, 'export')
-def report_alerts_export(request):
-    df = pd.DataFrame(report_alert_rows())
-    return dataframe_to_xlsx_response(df, 'NPL_can_bao', 'Can_bao')
-
-
-@module_perm_required(MODULE_KHO_NPL, 'view')
-def report_movement(request):
     filters = _filter_params(request)
-    rows = report_movement_rows(filters['date_from'], filters['date_to'], filters['material_code'])
-    meta = _report_meta('bien-dong')
-    return render(request, 'kho_npl/report_table.html', {
+    data = report_xuat_nhap_ton(
+        filters['date_from'],
+        filters['date_to'],
+        location_id=filters['location_id'],
+        search=filters['search'],
+        limit=DISPLAY_LIMIT,
+    )
+    return render(request, 'kho_npl/report_xuat_nhap_ton.html', {
         **nav_context('reports', user=request.user),
         **perm_context(request.user, 'reports'),
-        'report': meta,
-        'report_slug': 'bien-dong',
-        'rows': rows,
-        'columns': list(rows[0].keys()) if rows else [],
+        'report': REPORT_XNT,
         'filters': filters,
-        'show_date_filter': True,
-        'show_material_filter': True,
+        'locations': source_locations_qs().order_by('name', 'code'),
+        'scope_label': location_scope_label(filters['location_id']),
+        'printed_at': timezone.localtime(),
+        'rows': data['rows'],
+        'totals': data['totals'],
+        'total_count': data['total_count'],
+        'displayed_count': data['displayed_count'],
+        'truncated': data['truncated'],
+        'display_limit': data['display_limit'],
     })
 
 
 @module_perm_required(MODULE_KHO_NPL, 'export')
-def report_movement_export(request):
+def report_export(request):
     filters = _filter_params(request)
-    df = pd.DataFrame(report_movement_rows(
-        filters['date_from'], filters['date_to'], filters['material_code'],
-    ))
-    return dataframe_to_xlsx_response(df, 'Bien_dong_ton', 'Bien_dong')
-
-
-@module_perm_required(MODULE_KHO_NPL, 'view')
-def report_issue_lsx(request):
-    filters = _filter_params(request)
-    rows = report_issue_by_lsx_rows(filters['date_from'], filters['date_to'], filters['lsx'])
-    meta = _report_meta('xuat-lsx')
-    return render(request, 'kho_npl/report_table.html', {
-        **nav_context('reports', user=request.user),
-        **perm_context(request.user, 'reports'),
-        'report': meta,
-        'report_slug': 'xuat-lsx',
-        'rows': rows,
-        'columns': list(rows[0].keys()) if rows else [],
-        'filters': filters,
-        'show_date_filter': True,
-        'show_lsx_filter': True,
-    })
-
-
-@module_perm_required(MODULE_KHO_NPL, 'export')
-def report_issue_lsx_export(request):
-    filters = _filter_params(request)
-    df = pd.DataFrame(report_issue_by_lsx_rows(
-        filters['date_from'], filters['date_to'], filters['lsx'],
-    ))
-    return dataframe_to_xlsx_response(df, 'Xuat_theo_LSX', 'Xuat_LSX')
-
-
-@module_perm_required(MODULE_KHO_NPL, 'view')
-def report_stocktake_history(request):
-    rows = report_stocktake_history_rows()
-    meta = _report_meta('kiem-ke')
-    return render(request, 'kho_npl/report_table.html', {
-        **nav_context('reports', user=request.user),
-        **perm_context(request.user, 'reports'),
-        'report': meta,
-        'report_slug': 'kiem-ke',
-        'rows': rows,
-        'columns': list(rows[0].keys()) if rows else [],
-        'filters': {},
-    })
-
-
-@module_perm_required(MODULE_KHO_NPL, 'export')
-def report_stocktake_history_export(request):
-    df = pd.DataFrame(report_stocktake_history_rows())
-    return dataframe_to_xlsx_response(df, 'Lich_su_kiem_ke', 'Kiem_ke')
-
-
-@module_perm_required(MODULE_KHO_NPL, 'view')
-def report_ledger(request):
-    filters = _filter_params(request)
-    rows = report_ledger_detail_rows(filters['date_from'], filters['date_to'], filters['material_code'])
-    meta = _report_meta('so-kho')
-    return render(request, 'kho_npl/report_table.html', {
-        **nav_context('reports', user=request.user),
-        **perm_context(request.user, 'reports'),
-        'report': meta,
-        'report_slug': 'so-kho',
-        'rows': rows,
-        'columns': list(rows[0].keys()) if rows else [],
-        'filters': filters,
-        'show_date_filter': True,
-        'show_material_filter': True,
-    })
-
-
-@module_perm_required(MODULE_KHO_NPL, 'export')
-def report_ledger_export(request):
-    filters = _filter_params(request)
-    df = pd.DataFrame(report_ledger_detail_rows(
-        filters['date_from'], filters['date_to'], filters['material_code'],
-    ))
-    return dataframe_to_xlsx_response(df, 'So_kho_chi_tiet', 'So_kho')
+    rows = report_xuat_nhap_ton_export_rows(
+        filters['date_from'],
+        filters['date_to'],
+        location_id=filters['location_id'],
+        search=filters['search'],
+    )
+    df = pd.DataFrame(rows)
+    return dataframe_to_xlsx_response(df, 'Xuat_nhap_ton', 'Xuat_nhap_ton')
