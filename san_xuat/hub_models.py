@@ -606,6 +606,15 @@ class SxOrderTeamDayPlan(models.Model):
         verbose_name='Đơn đặt hàng',
     )
     team_slug = models.CharField(max_length=40, db_index=True, verbose_name='Slug tổ')
+    work_center = models.ForeignKey(
+        'san_xuat.SxWorkCenter',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='order_team_day_plans',
+        verbose_name='Tổ năng lực SX',
+        help_text='Một bộ phận (slug) có thể tách SL cho nhiều tổ làm cùng lúc.',
+    )
     plan_date = models.DateField(db_index=True, verbose_name='Ngày kế hoạch')
     qty = models.DecimalField(
         max_digits=14, decimal_places=2, default=Decimal('0'), verbose_name='Số lượng',
@@ -617,8 +626,14 @@ class SxOrderTeamDayPlan(models.Model):
         verbose_name_plural = 'Phân bổ ngày tổ trên đơn'
         constraints = [
             models.UniqueConstraint(
+                fields=['sales_order', 'team_slug', 'plan_date', 'work_center'],
+                condition=models.Q(work_center__isnull=False),
+                name='sx_order_team_day_plan_wc_uniq',
+            ),
+            models.UniqueConstraint(
                 fields=['sales_order', 'team_slug', 'plan_date'],
-                name='sx_order_team_day_plan_uniq',
+                condition=models.Q(work_center__isnull=True),
+                name='sx_order_team_day_plan_null_wc_uniq',
             ),
         ]
         indexes = [

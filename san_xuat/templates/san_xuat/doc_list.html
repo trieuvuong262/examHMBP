@@ -26,7 +26,7 @@
         </nav>
     </div>
 
-    {% include 'san_xuat/includes/sx_list_filter.html' %}
+    {% include 'san_xuat/includes/sx_list_filter.html' with filter_auto_ms=4000 %}
 
     <div class="card border-0 shadow-sm overflow-hidden">
         {% if can_pick_rows and page_obj %}

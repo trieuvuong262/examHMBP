@@ -30,11 +30,12 @@
     <input type="hidden" name="{{ key }}" value="{{ val }}">
     {% endfor %}
     {% endif %}
-    {% if has_list_filters or list_filter_preserve or list_filter_status_value %}
     <div class="jp-team-filter-actions">
+      <button type="submit" class="btn btn-hm btn-sm fw-bold">Lọc</button>
+      {% if has_list_filters or list_filter_preserve or list_filter_status_value %}
       <a href="{{ list_filter_clear_url|default:request.path }}{% if '?' in list_filter_clear_url %}&{% else %}?{% endif %}sx_reset=1" class="btn btn-light border" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>
+      {% endif %}
     </div>
-    {% endif %}
   </div>
 </form>
 <script>
@@ -61,7 +62,7 @@
         if (el.value === lastSubmitted) return;
         lastSubmitted = el.value;
         submitNow();
-      }, 400);
+      }, {{ filter_auto_ms|default:400 }});
     });
     el.addEventListener('keydown', function (e) {
       if (e.key !== 'Enter') return;

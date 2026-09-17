@@ -1457,29 +1457,8 @@
     flex: 0 0 auto;
     margin-bottom: 0.75rem !important;
   }
-  .jp-pb.is-route .jp-team-filter-org.jp-pb-route-filter {
-    min-width: 12.5rem;
-    flex: 1 1 14rem;
-  }
-  .jp-pb.is-route .jp-pb-route-filter .ts-wrapper.form-select,
-  .jp-pb.is-route .jp-pb-route-filter .ts-wrapper.form-select-sm {
-    min-height: 1.85rem;
-    padding: 0;
-    border: 0;
-  }
-  .jp-pb.is-route .jp-pb-route-filter .ts-control {
-    min-height: 1.85rem;
-    padding: 0.12rem 0.45rem !important;
-    border: 1px solid var(--pb-line, #e8edf3) !important;
-    border-radius: 0.45rem !important;
-    box-shadow: none !important;
-    font-size: 0.82rem;
-  }
-  body > .ts-dropdown.jp-pb-route-dd {
-    z-index: 2400 !important;
-    border: 1px solid #e8edf3 !important;
-    border-radius: 0.65rem !important;
-    box-shadow: 0 12px 28px rgba(15, 23, 42, .14) !important;
+  body > .ts-dropdown {
+    z-index: 2000;
   }
   .jp-pb.is-route .jp-pb-route {
     flex: 1 1 auto;
@@ -1524,7 +1503,7 @@
   function routeCtxTarget(ev) {
     var t = ev && ev.target;
     if (t && t.nodeType === 3) t = t.parentElement;
-    return t && t.closest ? t.closest('#lo-trinh, #jpTlCtxMenu, #jpPickTeamModal, #jpKhsxCapModal') : null;
+    return t && t.closest ? t.closest('#lo-trinh, #jpTlCtxMenu, #jpPickTeamModal, #jpAddTeamModal, #jpKhsxCapModal') : null;
   }
   function blockBrowserMenu(ev) {
     if (!routeCtxTarget(ev)) return;
@@ -1655,7 +1634,7 @@
         </div>
         {% endif %}
         {% if tab == 'route' %}
-        <div class="jp-team-filter-org jp-pb-route-filter">
+        <div class="jp-team-filter-org">
           <label class="form-label fw-bold small mb-1" for="jp-pb-filter-dept">Bộ phận</label>
           <select id="jp-pb-filter-dept" name="dept" class="form-select form-select-sm jp-pb-multi-filter"
                   multiple data-placeholder="Tất cả bộ phận">
@@ -1664,15 +1643,12 @@
             {% endfor %}
           </select>
         </div>
-        <div class="jp-team-filter-org jp-pb-route-filter">
+        <div class="jp-team-filter-org">
           <label class="form-label fw-bold small mb-1" for="jp-pb-filter-team">Tổ</label>
           <select id="jp-pb-filter-team" name="team" class="form-select form-select-sm jp-pb-multi-filter"
                   multiple data-placeholder="Tất cả tổ">
-            <option value="0"{% if "0" in route_team_filter %} selected{% endif %}>Chưa chọn tổ</option>
-            {% for wc in plan_work_centers %}
-            <option value="{{ wc.id }}"{% if wc.id|stringformat:"s" in route_team_filter %} selected{% endif %}>
-              {{ wc.name }}{% if wc.code %} ({{ wc.code }}){% endif %}
-            </option>
+            {% for wc in route_team_choices %}
+            <option value="{{ wc.id }}"{% if wc.id|stringformat:"s" in route_team_filter %} selected{% endif %}>{{ wc.name }}</option>
             {% endfor %}
           </select>
         </div>
@@ -2008,8 +1984,11 @@
         </button>
       </div>
       <div class="modal-footer flex-wrap gap-2">
-        <button type="button" class="btn btn-outline-danger me-auto" id="jpSplitTeamDaysMerge">
+        <button type="button" class="btn btn-outline-danger" id="jpSplitTeamDaysMerge">
           Gộp về 1 ngày
+        </button>
+        <button type="button" class="btn btn-outline-secondary me-auto" id="jpSplitTeamDaysAddTeam">
+          Thêm tổ
         </button>
         <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Hủy</button>
         <button type="button" class="btn btn-danger" id="jpSplitTeamDaysSave">Lưu</button>
@@ -2033,6 +2012,32 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Hủy</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="jpAddTeamModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="jpAddTeamTitle">Thêm tổ</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-muted mb-3" id="jpAddTeamHint">
+          Chọn tổ tham gia thêm và SL chuyển từ tổ hiện tại. Lịch ngày của tổ mới tách theo SL/ngày — giống công đoạn cũ.
+        </p>
+        <div class="mb-3">
+          <label class="form-label small mb-1" for="jpAddTeamQty">Số lượng chuyển</label>
+          <input type="number" min="0.01" step="0.01" class="form-control form-control-sm" id="jpAddTeamQty">
+          <div class="form-text" id="jpAddTeamQtyHint">Tối đa bằng SL tổ hiện tại.</div>
+        </div>
+        <div id="jpAddTeamList" class="jp-pick-team-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Hủy</button>
+        <button type="button" class="btn btn-danger" id="jpAddTeamSave">Thêm tổ</button>
       </div>
     </div>
   </div>
@@ -2095,7 +2100,7 @@
     var ck = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
     csrf = ck ? decodeURIComponent(ck[1]) : '';
   }
-  var state = { orderId: '', orderCode: '', teamSlug: '', teamLabel: '', targetQty: 0, bar: null };
+  var state = { orderId: '', orderCode: '', teamSlug: '', teamLabel: '', targetQty: 0, workCenterId: '', bar: null, addWcId: '' };
   var lastOpen = 0;
   var modal = null;
   var ctxMenu = document.getElementById('jpTlCtxMenu');
@@ -2106,6 +2111,12 @@
   var pickTeamTitle = document.getElementById('jpPickTeamTitle');
   var pickTeamList = document.getElementById('jpPickTeamList');
   var pickTeamModal = null;
+  var addTeamEl = document.getElementById('jpAddTeamModal');
+  var addTeamTitle = document.getElementById('jpAddTeamTitle');
+  var addTeamList = document.getElementById('jpAddTeamList');
+  var addTeamQty = document.getElementById('jpAddTeamQty');
+  var addTeamQtyHint = document.getElementById('jpAddTeamQtyHint');
+  var addTeamModal = null;
   var capEl = document.getElementById('jpKhsxCapModal');
   var capModal = null;
   var capTitle = document.getElementById('jpKhsxCapTitle');
@@ -2238,6 +2249,7 @@
     body.set('order_id', bar.getAttribute('data-order-id') || '');
     body.set('team_slug', bar.getAttribute('data-team-slug') || '');
     body.set('work_center_id', wcId || '');
+    body.set('source_work_center_id', bar.getAttribute('data-work-center-id') || '');
     var params = new URLSearchParams(window.location.search);
     body.set('mode', params.get('mode') || 'list');
     body.set('tab', params.get('tab') || 'queue');
@@ -2543,13 +2555,16 @@
     var root = rootEl();
     return !!(root && root.getAttribute('data-can-schedule') === '1');
   }
-  function collectSegments(orderId, teamSlug) {
+  function splitSel(orderId, teamSlug, wcId) {
+    var s = SPLIT_SEL + '[data-order-id="' + orderId + '"][data-team-slug="' + teamSlug + '"]';
+    if (wcId) s += '[data-work-center-id="' + wcId + '"]';
+    return s;
+  }
+  function collectSegments(orderId, teamSlug, wcId) {
     var root = rootEl();
     if (!root) return [];
     var rows = [];
-    root.querySelectorAll(
-      SPLIT_SEL + '[data-order-id="' + orderId + '"][data-team-slug="' + teamSlug + '"]'
-    ).forEach(function (bar) {
+    root.querySelectorAll(splitSel(orderId, teamSlug, wcId)).forEach(function (bar) {
       if (bar.getAttribute('data-is-split') !== '1') return;
       rows.push({
         date: bar.getAttribute('data-plan-date') || bar.getAttribute('data-start') || '',
@@ -2702,10 +2717,11 @@
       || parseNum(capacitySource(bar).getAttribute('data-planned-qty'))
       || parseNum(capacitySource(bar).getAttribute('data-team-qty'))
       || parseNum(bar.getAttribute('data-qty'));
+    state.workCenterId = bar.getAttribute('data-work-center-id') || '';
     state.bar = bar;
     if (titleEl) titleEl.textContent = 'Tách công đoạn — ' + state.teamLabel + ' · ' + state.orderCode;
     if (targetEl) targetEl.textContent = fmtNum(state.targetQty);
-    var segs = collectSegments(state.orderId, state.teamSlug);
+    var segs = collectSegments(state.orderId, state.teamSlug, state.workCenterId);
     var info = autoSplitFromBar(bar, state.targetQty);
     renderSplitHint(info);
     if (segs.length >= 2) {
@@ -2861,9 +2877,7 @@
       var bar = state.bar;
       if (!bar) {
         var root = rootEl();
-        bar = root && root.querySelector(
-          SPLIT_SEL + '[data-order-id="' + state.orderId + '"][data-team-slug="' + state.teamSlug + '"]'
-        );
+        bar = root && root.querySelector(splitSel(state.orderId, state.teamSlug, state.workCenterId));
       }
       if (!bar) return;
       var info = autoSplitFromBar(bar, state.targetQty);
@@ -2881,12 +2895,156 @@
       if (bodyEl) bodyEl.innerHTML = '';
       var firstDate = '';
       var root = rootEl();
-      var bar = root && root.querySelector(
-        SPLIT_SEL + '[data-order-id="' + state.orderId + '"][data-team-slug="' + state.teamSlug + '"]'
-      );
+      var bar = root && root.querySelector(splitSel(state.orderId, state.teamSlug, state.workCenterId));
       if (bar) firstDate = bar.getAttribute('data-plan-date') || bar.getAttribute('data-start') || '';
       addRow(firstDate, state.targetQty);
       refreshTotals();
+    });
+  }
+  function getAddTeamModal() {
+    if (addTeamModal) return addTeamModal;
+    if (!addTeamEl || typeof bootstrap === 'undefined') return null;
+    try { addTeamModal = bootstrap.Modal.getOrCreateInstance(addTeamEl); }
+    catch (err) { return null; }
+    return addTeamModal;
+  }
+  function usedWorkCenterIds(orderId, teamSlug) {
+    var root = rootEl();
+    var ids = {};
+    if (!root) return ids;
+    root.querySelectorAll(
+      SPLIT_SEL + '[data-order-id="' + orderId + '"][data-team-slug="' + teamSlug + '"][data-work-center-id]'
+    ).forEach(function (el) {
+      var id = el.getAttribute('data-work-center-id') || '';
+      if (id) ids[id] = true;
+    });
+    return ids;
+  }
+  function renderAddTeamCards(selectedId) {
+    if (!addTeamList) return;
+    addTeamList.innerHTML = '';
+    var list = loadWorkCenters();
+    var cur = state.workCenterId || '';
+    var used = usedWorkCenterIds(state.orderId, state.teamSlug);
+    var slug = state.teamSlug || '';
+    var filtered = list.filter(function (wc) {
+      if (!wc || !wc.id) return false;
+      if (String(wc.id) === String(cur)) return false;
+      if (used[String(wc.id)] && String(wc.id) !== String(selectedId)) return false;
+      if (slug && wc.slug && wc.slug !== slug) return false;
+      return true;
+    });
+    if (!filtered.length) {
+      filtered = list.filter(function (wc) {
+        return wc && wc.id && String(wc.id) !== String(cur) && !used[String(wc.id)];
+      });
+    }
+    if (!filtered.length) {
+      addTeamList.innerHTML = '<p class="small text-muted mb-0">Không còn tổ nào để thêm. Gán tổ hiện tại trước hoặc thêm tổ trên Năng lực SX.</p>';
+      return;
+    }
+    filtered.forEach(function (wc) {
+      var on = String(wc.id) === String(selectedId);
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'jp-pick-team-card' + (on ? ' is-on' : '');
+      btn.setAttribute('data-wc-id', wc.id || '');
+      var meta = [];
+      if (wc.headcount) meta.push(wc.headcount + ' người');
+      if (wc.minutes_per_day) meta.push(wc.minutes_per_day + '′/ngày');
+      btn.innerHTML =
+        '<span><strong>' + String(wc.name || wc.code || 'Tổ').replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</strong>' +
+        (meta.length ? '<span class="meta">' + meta.join(' · ') + '</span>' : '') +
+        '</span>' +
+        (on ? '<span class="mark">Đang chọn</span>' : '');
+      addTeamList.appendChild(btn);
+    });
+  }
+  function openAddTeamPopup() {
+    if (!state.workCenterId) {
+      alert('Gán tổ hiện tại trước khi thêm tổ khác.');
+      return;
+    }
+    var splitMod = getModal();
+    if (splitMod) splitMod.hide();
+    var mod = getAddTeamModal();
+    if (!mod || !addTeamList) {
+      alert('Không mở được popup thêm tổ — tải lại trang (Ctrl+F5).');
+      return;
+    }
+    state.addWcId = '';
+    if (addTeamTitle) addTeamTitle.textContent = 'Thêm tổ — ' + state.teamLabel + (state.orderCode ? ' · ' + state.orderCode : '');
+    if (addTeamQty) addTeamQty.value = '';
+    if (addTeamQtyHint) addTeamQtyHint.textContent = 'Tối đa ' + fmtNum(state.targetQty) + ' (SL tổ hiện tại).';
+    renderAddTeamCards('');
+    mod.show();
+  }
+  var addTeamBtn = document.getElementById('jpSplitTeamDaysAddTeam');
+  if (addTeamBtn) {
+    addTeamBtn.addEventListener('click', openAddTeamPopup);
+  }
+  if (addTeamList) {
+    addTeamList.addEventListener('click', function (ev) {
+      var btn = ev.target && ev.target.closest && ev.target.closest('.jp-pick-team-card');
+      if (!btn) return;
+      state.addWcId = btn.getAttribute('data-wc-id') || '';
+      renderAddTeamCards(state.addWcId);
+    });
+  }
+  var addTeamSave = document.getElementById('jpAddTeamSave');
+  if (addTeamSave) {
+    addTeamSave.addEventListener('click', function () {
+      if (!csrf) {
+        alert('Thiếu mã bảo mật — tải lại trang rồi thử lại.');
+        return;
+      }
+      if (!state.addWcId) {
+        alert('Chọn tổ cần thêm.');
+        return;
+      }
+      var qty = parseNum(addTeamQty && addTeamQty.value);
+      if (!(qty > 0)) {
+        alert('Nhập số lượng cần chuyển sang tổ thêm.');
+        return;
+      }
+      if (qty > state.targetQty + 0.01) {
+        alert('SL chuyển không được lớn hơn SL tổ hiện tại (' + fmtNum(state.targetQty) + ').');
+        return;
+      }
+      var body = new URLSearchParams();
+      body.set('action', 'add_plan_team');
+      body.set('order_id', state.orderId);
+      body.set('team_slug', state.teamSlug);
+      body.set('work_center_id', state.addWcId);
+      body.set('source_work_center_id', state.workCenterId || '');
+      body.set('qty', fmtNum(qty));
+      var params = new URLSearchParams(window.location.search);
+      body.set('mode', params.get('mode') || 'list');
+      body.set('tab', params.get('tab') || 'route');
+      body.set('csrfmiddlewaretoken', csrf);
+      var addMod = getAddTeamModal();
+      if (addMod) addMod.hide();
+      showLoading('Đang thêm tổ — ' + state.orderCode + '…');
+      fetch(window.location.pathname + window.location.search, {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json',
+          'X-CSRFToken': csrf,
+        },
+        body: body,
+        credentials: 'same-origin',
+      }).then(function (res) {
+        return res.json().then(function (data) {
+          if (!res.ok || !data.ok) {
+            throw new Error((data && data.error) || 'Không thêm được tổ.');
+          }
+          window.location.reload();
+        });
+      }).catch(function (err) {
+        hideLoading();
+        alert(err.message || 'Không thêm được tổ.');
+      });
     });
   }
   function showLoading(msg) {
@@ -2937,6 +3095,7 @@
       body.set('order_id', state.orderId);
       body.set('team_slug', state.teamSlug);
       body.set('days', JSON.stringify(days));
+      if (state.workCenterId) body.set('work_center_id', state.workCenterId);
       var params = new URLSearchParams(window.location.search);
       body.set('mode', params.get('mode') || 'list');
       body.set('tab', params.get('tab') || 'queue');
@@ -3505,7 +3664,7 @@
 
   root.addEventListener('pointerdown', function (ev) {
     if (ev.button !== 0 || !canSchedule) return;
-    if (ev.target && ev.target.closest && ev.target.closest('[data-jp-bar-more], [data-jp-stage-split], [data-jp-stage-team], [data-jp-order-drag]')) return;
+    if (ev.target && ev.target.closest && ev.target.closest('[data-jp-bar-more], [data-jp-stage-split], [data-jp-stage-team], [data-jp-order-drag], .jp-sheet-gc')) return;
     var t = pointerTarget(ev);
     var handle = t && t.closest ? t.closest('[data-jp-team-drag]') : null;
     if (!handle || !root.contains(handle)) return;
@@ -3567,6 +3726,8 @@
     body.set('team_slug', bar.getAttribute('data-team-slug') || '');
     var fromDate = bar.getAttribute('data-plan-date') || bar.getAttribute('data-start') || '';
     if (fromDate) body.set('from_date', fromDate);
+    var wcId = bar.getAttribute('data-work-center-id') || '';
+    if (wcId) body.set('work_center_id', wcId);
     body.set('mode', 'list');
     body.set('tab', 'route');
     body.set('csrfmiddlewaretoken', csrf);
@@ -3816,7 +3977,7 @@
     }
 
     if (event.target.closest('[data-jp-bar-more], [data-jp-stage-split], [data-jp-stage-team], [data-jp-stage-capacity], #jpTlCtxMenu')) return;
-    if (event.target.closest('a.jp-pb-stage-gc, a.jp-pb-stage-product-gc-link, .jp-pb-stage-gc-recv')) return;
+    if (event.target.closest('a.jp-pb-stage-gc, a.jp-pb-stage-product-gc-link, .jp-pb-stage-gc-recv, a.jp-sheet-gc')) return;
     var button = event.target.closest('[data-jp-stage-open]');
     if (!button) return;
     var root = button.closest('.jp-pb-tl');
@@ -4077,7 +4238,6 @@
       persist: false,
       placeholder: el.getAttribute('data-placeholder') || 'Chọn…',
       dropdownParent: 'body',
-      dropdownClass: 'ts-dropdown jp-pb-route-dd',
     });
     setTimeout(function () {
       ts.on('change', submitFilter);

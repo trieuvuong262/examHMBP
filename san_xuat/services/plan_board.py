@@ -737,6 +737,8 @@ def apply_default_capacity_teams(
 
 def plan_board_work_center_options() -> list[dict]:
     """Danh sách tổ Năng lực SX để chọn trên menu ⋯."""
+    from san_xuat.services.capacity_from_hrm import team_slug_for_work_center
+
     qs = SxWorkCenter.objects.filter(is_active=True)
     if hasattr(SxWorkCenter, 'is_demo'):
         qs = qs.filter(is_demo=False)
@@ -747,6 +749,7 @@ def plan_board_work_center_options() -> list[dict]:
             'id': int(wc.pk),
             'code': wc.code or '',
             'name': (wc.team_label or wc.name or wc.code or '').strip(),
+            'slug': (team_slug_for_work_center(wc) or '').strip().lower(),
             'headcount': int(wc.headcount or 0),
             'minutes_per_day': format_sx_num_input(cap) if cap > 0 else '',
         })
@@ -1326,6 +1329,14 @@ def apply_auto_team_day_splits(
         qpd = _q(row.get('qty_per_day') or 0)
         qty_n = _q(row.get('qty') or 0)
         existing = existing_map.get(slug) or []
+        primary_wc_id = int(row.get('work_center_id') or 0)
+        extras = [
+            d for d in existing
+            if int(getattr(d, 'work_center_id', 0) or 0)
+            and int(d.work_center_id or 0) != primary_wc_id
+        ]
+        extra_qty = sum((_q(d.qty) for d in extras), Decimal('0'))
+        primary_rows = [d for d in existing if d not in extras]
         skip = bool(want) and slug != want
         if skip:
             if existing:
@@ -1339,8 +1350,11 @@ def apply_auto_team_day_splits(
                 )
                 cursor = _next_working_day_after(end)
             continue
-        need = _auto_day_qty_rows(qty_n, qpd) if qpd > 0 and qty_n > 0 else []
-        if existing and not replace_existing:
+        share_qty = qty_n - extra_qty
+        if share_qty < 0:
+            share_qty = Decimal('0')
+        need = _auto_day_qty_rows(share_qty, qpd) if qpd > 0 and share_qty > 0 else []
+        if primary_rows and not replace_existing:
             cursor = _next_working_day_after(existing[-1].plan_date)
             continue
         if not need:
@@ -1351,7 +1365,13 @@ def apply_auto_team_day_splits(
         else:
             start = pinned.get(slug) or cursor
         start = next_working_day(start)
-        SxOrderTeamDayPlan.objects.filter(sales_order=order, team_slug=slug).delete()
+        extra_pks = [d.pk for d in extras]
+        if extra_pks:
+            SxOrderTeamDayPlan.objects.filter(
+                sales_order=order, team_slug=slug,
+            ).exclude(pk__in=extra_pks).delete()
+        else:
+            SxOrderTeamDayPlan.objects.filter(sales_order=order, team_slug=slug).delete()
         occupied: set[date] = set()
         assigned: list[tuple[date, Decimal]] = []
         day = start
@@ -1361,11 +1381,17 @@ def apply_auto_team_day_splits(
             occupied.add(day)
             assigned.append((day, q))
             day = add_working_days(day, 1)
+        primary_wc = None
+        if primary_wc_id:
+            primary_wc = SxWorkCenter.objects.filter(pk=primary_wc_id).first()
         SxOrderTeamDayPlan.objects.bulk_create([
-            SxOrderTeamDayPlan(sales_order=order, team_slug=slug, plan_date=d, qty=q)
+            SxOrderTeamDayPlan(
+                sales_order=order, team_slug=slug, plan_date=d, qty=q,
+                work_center=primary_wc,
+            )
             for d, q in assigned
         ])
-        existing_map[slug] = []
+        existing_map[slug] = extras
         starts_to_pin[slug] = start
         written += 1
         cursor = _next_working_day_after(assigned[-1][0])
@@ -2199,6 +2225,41 @@ def attach_subcontracts_to_plan_rows(rows: list[PlanBoardRow]) -> list[PlanBoard
     return rows
 
 
+def _mark_route_stages_gc(stage_rows: list[RouteStageRow], plan_row) -> list[RouteStageRow]:
+    """Đánh dấu hàng lộ trình theo phiếu thuê GC đã gắn trên tab Kế hoạch."""
+    hired: dict[str, list] = {}
+    for gc in getattr(plan_row, 'subcontracts', None) or []:
+        slug = (getattr(gc, 'team_slug', None) or '').strip().lower()
+        if slug:
+            hired.setdefault(slug, []).append(gc)
+    if not hired:
+        return stage_rows
+    for stage in stage_rows:
+        items = hired.get((stage.slug or '').strip().lower()) or []
+        if not items:
+            continue
+        first = items[0]
+        codes = [(item.code or '').strip() for item in items if (item.code or '').strip()]
+        vendor = (getattr(first, 'vendor_name', None) or '').strip()
+        qty_bits = []
+        for item in items:
+            q = _q(getattr(item, 'qty', 0) or 0)
+            if q > 0:
+                qty_bits.append(format_sx_num_input(q))
+        parts = ['Đã thuê gia công']
+        if codes:
+            parts.append(', '.join(codes))
+        if vendor:
+            parts.append(vendor)
+        if qty_bits:
+            parts.append('SL ' + ' + '.join(qty_bits))
+        stage.gc_hired = True
+        stage.gc_pk = int(first.pk) if getattr(first, 'pk', None) else 0
+        stage.gc_code = codes[0] if codes else ''
+        stage.gc_title = ' · '.join(parts)
+    return stage_rows
+
+
 def attach_dangling_subcontracts(*, order: SxSalesOrder, mos: list[SxProductionOrder]) -> None:
     """Sau Chuyển SX: gắn phiếu GC tạo từ hàng đợi vào LSX vừa phát hành."""
     from san_xuat.hub_models import SxSubcontractOrder
@@ -2396,6 +2457,7 @@ def assign_plan_team(
     order_id: int,
     team_slug: str,
     work_center_id: int | None,
+    source_work_center_id: int | None = None,
 ) -> tuple[SxSalesOrder, SxWorkCenter | None]:
     """Gán tổ Năng lực SX cho một cụm công đoạn trên đơn — dùng để chia thời gian."""
     from san_xuat.services.inter_step_times import _group_slug_scope, _step_team_slug
@@ -2413,6 +2475,40 @@ def assign_plan_team(
         wc = qs.first()
         if wc is None:
             raise PlanningError('Tổ không hợp lệ hoặc đã tắt.')
+    src_wc = int(source_work_center_id or 0)
+    day_qs = SxOrderTeamDayPlan.objects.filter(sales_order=order, team_slug=slug)
+    used_wcs = {
+        int(x) for x in day_qs.exclude(work_center_id__isnull=True)
+        .values_list('work_center_id', flat=True)
+        if x
+    }
+    step_wc_ids: set[int] = set()
+    with _group_slug_scope():
+        for step in order.plan_steps.all():
+            if _plan_step_team_slug(step) != slug:
+                continue
+            if step.work_center_id:
+                step_wc_ids.add(int(step.work_center_id))
+    is_extra_share = (
+        src_wc > 0
+        and src_wc in used_wcs
+        and len(used_wcs) > 1
+        and src_wc not in step_wc_ids
+    )
+    if is_extra_share:
+        extra_used = {x for x in used_wcs if x != src_wc}
+        if wc is not None and wc.pk in extra_used:
+            raise PlanningError('Tổ này đã tham gia công đoạn.')
+        mine = day_qs.filter(work_center_id=src_wc)
+        if wc is not None:
+            clash_dates = set(
+                day_qs.filter(work_center_id=wc.pk).values_list('plan_date', flat=True)
+            )
+            if clash_dates and mine.filter(plan_date__in=clash_dates).exists():
+                raise PlanningError('Tổ mới trùng ngày với tổ đã gán — đổi ngày rồi thử lại.')
+        mine.update(work_center=wc)
+        _clear_day_plan_cache(order)
+        return order, wc
     steps = _load_schedule_steps(order)
     matched: list[SxSalesOrderPlanStep] = []
     with _group_slug_scope():
@@ -2997,6 +3093,7 @@ def reschedule_order_team_start(
     start_date: date,
     team_slug: str = '',
     from_date: date | None = None,
+    work_center_id: int | None = None,
 ) -> SxSalesOrder:
     """Kéo một tổ trên lộ trình — các tổ khác giữ nguyên ngày.
 
@@ -3019,6 +3116,7 @@ def reschedule_order_team_start(
             team_slug=slug,
             from_date=from_date,
             to_date=start_date,
+            work_center_id=work_center_id,
         )
     return _move_team_start_independent(order, slug=slug, start_date=start_date)
 
@@ -3310,6 +3408,10 @@ class RouteStageRow:
     smv_seconds: Decimal = field(default_factory=lambda: Decimal('0'))
     qty_per_day: Decimal = field(default_factory=lambda: Decimal('0'))
     planned_qty: Decimal = field(default_factory=lambda: Decimal('0'))
+    gc_hired: bool = False
+    gc_pk: int = 0
+    gc_code: str = ''
+    gc_title: str = ''
 
 
 @dataclass
@@ -3617,12 +3719,12 @@ _SHEET_STAGE_ORDER = ('cat', 'inep', 'theu', 'may', 'ht', 'gh', 'kho')
 
 
 def _stage_sheet_label(slug: str, full_label: str = '') -> str:
-    text = (full_label or '').split('(')[0].strip()
-    if text:
-        return text
     key = (slug or '').strip().lower()
     if key in _SHEET_STAGE_LABELS:
         return _SHEET_STAGE_LABELS[key]
+    text = (full_label or '').split('(')[0].strip()
+    if text:
+        return text
     from san_xuat.services.progress_template import team_by_slug
 
     meta = team_by_slug(key)
@@ -3680,22 +3782,51 @@ def plan_stage_legend_items(*, queue_rows=None, route_board=None) -> list[dict]:
 
 
 def route_dept_filter_choices(board=None) -> list[tuple[str, str]]:
-    """Bộ phận trên bộ lọc lộ trình: tổ chuẩn + slug đang có trên lưới."""
-    from san_xuat.services.team_division_map import team_slug_choices
+    """Bộ phận đang có trên lưới lộ trình — cùng nhãn cột Bộ phận."""
+    from collections import OrderedDict
 
-    items = list(team_slug_choices())
-    seen = {slug for slug, _label in items}
-    if board is None:
-        return items
-    extras: list[tuple[str, str]] = []
+    by_slug: OrderedDict[str, str] = OrderedDict()
     for row in getattr(board, 'rows', None) or []:
         for stage in getattr(row, 'stage_rows', None) or []:
             slug = (getattr(stage, 'slug', '') or '').strip().lower()
-            if not slug or slug in seen:
+            if not slug or slug in {'npl', 'ops'}:
                 continue
-            extras.append((slug, getattr(stage, 'short_label', '') or getattr(stage, 'label', '') or slug))
-            seen.add(slug)
-    return items + extras
+            if slug in by_slug:
+                continue
+            by_slug[slug] = (
+                getattr(stage, 'short_label', '')
+                or _stage_sheet_label(slug, getattr(stage, 'label', ''))
+                or slug
+            )
+    ordered: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for key in _SHEET_STAGE_ORDER:
+        if key in by_slug:
+            ordered.append((key, by_slug[key]))
+            seen.add(key)
+    for slug, label in by_slug.items():
+        if slug not in seen:
+            ordered.append((slug, label))
+    return ordered
+
+
+def route_team_filter_choices(board=None) -> list[dict]:
+    """Tổ đang gán trên lưới lộ trình (cột Tổ)."""
+    by_id: dict[int, str] = {}
+    has_unassigned = False
+    for row in getattr(board, 'rows', None) or []:
+        for stage in getattr(row, 'stage_rows', None) or []:
+            wc_id = int(getattr(stage, 'work_center_id', 0) or 0)
+            if wc_id <= 0:
+                has_unassigned = True
+                continue
+            if wc_id in by_id:
+                continue
+            by_id[wc_id] = (getattr(stage, 'label', '') or '').strip() or f'Tổ #{wc_id}'
+    items = [{'id': 0, 'name': 'Chưa chọn tổ'}] if has_unassigned else []
+    for wc_id, name in sorted(by_id.items(), key=lambda item: item[1].casefold()):
+        items.append({'id': wc_id, 'name': name})
+    return items
 
 
 def filter_route_timeline(
@@ -3771,17 +3902,18 @@ def _stage_rows_from_bars(
     range_end: date,
     plan_spans: list[TeamKhsxSpan] | None = None,
 ) -> list[RouteStageRow]:
-    """Hàng bộ phận theo KHSX thực tế — không pad tổ cố định."""
+    """Hàng bộ phận theo KHSX thực tế — một slug có thể nhiều hàng tổ."""
     from collections import OrderedDict
 
-    grouped: OrderedDict[str, list[TeamTimelineBar]] = OrderedDict()
+    grouped: OrderedDict[tuple[str, int], list[TeamTimelineBar]] = OrderedDict()
     from san_xuat.services.work_calendar import is_working_day
 
     for bar in bars:
         slug = (bar.slug or '').strip().lower()
         if slug == 'npl':
             continue
-        grouped.setdefault(slug, []).append(bar)
+        wc_id = int(getattr(bar, 'work_center_id', 0) or 0)
+        grouped.setdefault((slug, wc_id), []).append(bar)
 
     plan_by_slug: OrderedDict[str, TeamKhsxSpan] = OrderedDict()
     for span in plan_spans or []:
@@ -3791,24 +3923,50 @@ def _stage_rows_from_bars(
         if slug not in plan_by_slug:
             plan_by_slug[slug] = span
 
-    ordered: list[str] = []
-    seen: set[str] = set()
+    slugs: list[str] = []
+    seen_slugs: set[str] = set()
+    grouped_slugs = {key[0] for key in grouped}
     for key in _SHEET_STAGE_ORDER:
-        if key in plan_by_slug or key in grouped:
-            ordered.append(key)
-            seen.add(key)
+        if key in plan_by_slug or key in grouped_slugs:
+            slugs.append(key)
+            seen_slugs.add(key)
     for key in plan_by_slug:
-        if key not in seen:
-            ordered.append(key)
-            seen.add(key)
-    for key in grouped:
-        if key and key not in seen:
-            ordered.append(key)
-            seen.add(key)
+        if key not in seen_slugs:
+            slugs.append(key)
+            seen_slugs.add(key)
+    for slug, _wc in grouped:
+        if slug and slug not in seen_slugs:
+            slugs.append(slug)
+            seen_slugs.add(slug)
 
+    ordered: list[tuple[str, int]] = []
+    seen_keys: set[tuple[str, int]] = set()
+    for slug in slugs:
+        plan = plan_by_slug.get(slug)
+        primary_wc = int(getattr(plan, 'work_center_id', 0) or 0) if plan is not None else 0
+        slug_keys = [(s, wc) for (s, wc) in grouped if s == slug]
+        if not slug_keys:
+            if plan is not None:
+                ordered.append((slug, primary_wc))
+            continue
+        primary_key = None
+        for key in slug_keys:
+            if key[1] == primary_wc or (primary_wc and key[1] == 0):
+                primary_key = key
+                break
+        if primary_key is None:
+            primary_key = slug_keys[0]
+        ordered.append(primary_key)
+        seen_keys.add(primary_key)
+        for key in slug_keys:
+            if key not in seen_keys:
+                ordered.append(key)
+                seen_keys.add(key)
+
+    wc_names = _work_center_label_map([wc for _slug, wc in ordered if wc])
     out: list[RouteStageRow] = []
-    for slug in ordered:
-        items = grouped.get(slug) or []
+    for slug, wc_id in ordered:
+        items = grouped.get((slug, wc_id)) or []
         sample = items[0] if items else None
         plan = plan_by_slug.get(slug)
         by_day: dict[date, TeamTimelineBar] = {}
@@ -3830,16 +3988,21 @@ def _stage_rows_from_bars(
         last_date = max(by_day) if by_day else (sample.end if sample else None)
         cap_src = sample if sample is not None else plan
         cap = _timeline_bar_capacity(cap_src) if cap_src is not None else {}
-        plan_label = (getattr(plan, 'label', None) or '').strip() if plan is not None else ''
+        dept_label = _stage_sheet_label(
+            slug,
+            (getattr(plan, 'label', None) or '').strip() if plan is not None else '',
+        )
+        wc_label = wc_names.get(wc_id, '')
         bar_label = (sample.label if sample else '') or ''
-        full_label = plan_label or bar_label or slug
+        full_label = wc_label or bar_label or dept_label or slug
         qty_total = (sample.team_qty_total if sample else '') or ''
-        if not qty_total and plan is not None:
+        if not qty_total and plan is not None and not items:
             qty_n = _q(getattr(plan, 'planned_qty', 0) or 0)
             qty_total = format_sx_num_input(qty_n) if qty_n > 0 else ''
-        wc_id = int(sample.work_center_id or 0) if sample else 0
         if not wc_id and plan is not None:
             wc_id = int(getattr(plan, 'work_center_id', 0) or 0)
+            if wc_id:
+                full_label = wc_names.get(wc_id) or full_label
         done_label = ''
         if sample is not None:
             done_label = (getattr(sample, 'done_qty_total', '') or '').strip()
@@ -3851,7 +4014,7 @@ def _stage_rows_from_bars(
         out.append(RouteStageRow(
             slug=slug,
             label=full_label,
-            short_label=_stage_sheet_label(slug, full_label),
+            short_label=dept_label or slug,
             work_center_id=wc_id,
             team_qty_total=qty_total,
             total_label=qty_total or (sample.qty_label if sample else '') or '',
@@ -3915,6 +4078,80 @@ def _next_free_workday(start: date, occupied: set[date]) -> date:
     return day
 
 
+def _day_plan_wc_id(row, fallback: int = 0) -> int:
+    return int(getattr(row, 'work_center_id', 0) or 0) or int(fallback or 0)
+
+
+def _work_center_label_map(ids) -> dict[int, str]:
+    out: dict[int, str] = {}
+    want = [int(x) for x in (ids or []) if x]
+    if not want:
+        return out
+    for wc in SxWorkCenter.objects.filter(pk__in=want):
+        out[int(wc.pk)] = (wc.team_label or wc.name or wc.code or '').strip()
+    return out
+
+
+def _capacity_for_share(span, wc: SxWorkCenter | None, qty: Decimal) -> dict:
+    """Năng lực / SL/ngày của một tổ khi cùng slug bị tách SL."""
+    dept_qty = _q(getattr(span, 'planned_qty', 0) or 0)
+    smv = _q(getattr(span, 'smv_seconds', 0) or 0, '0.0001')
+    labor = _q(getattr(span, 'labor_minutes', 0) or 0, '0.0001')
+    share = _q(qty)
+    if dept_qty > 0 and share > 0:
+        labor = _q(labor * share / dept_qty, '0.0001')
+    if wc is None:
+        cap = _timeline_bar_capacity(span)
+        cap['planned_qty'] = share
+        cap['labor_minutes'] = labor
+        return cap
+    from san_xuat.hub_models import DEFAULT_WORK_HOURS_PER_DAY
+
+    heads = int(getattr(wc, 'headcount', 0) or 0)
+    hours = _q(getattr(wc, 'work_hours_per_day', 0) or 0)
+    if hours <= 0:
+        hours = DEFAULT_WORK_HOURS_PER_DAY
+    eff = _q(getattr(wc, 'efficiency_pct', 100) or 100)
+    qpd = _daily_qty_capacity(smv, heads, hours, eff)
+    return {
+        'headcount': heads,
+        'efficiency_pct': eff,
+        'catalog_headcount': heads,
+        'catalog_efficiency_pct': eff,
+        'work_hours_per_day': hours,
+        'labor_minutes': labor,
+        'smv_seconds': smv,
+        'qty_per_day': qpd,
+        'planned_qty': share,
+    }
+
+
+def _group_day_plans_by_wc(day_rows, primary_wc_id: int = 0):
+    from collections import OrderedDict
+
+    groups: OrderedDict[int, list] = OrderedDict()
+    primary = int(primary_wc_id or 0)
+    for row in day_rows or []:
+        wc_id = _day_plan_wc_id(row, primary)
+        groups.setdefault(wc_id, []).append(row)
+    if primary in groups and list(groups.keys())[0] != primary:
+        reordered: OrderedDict[int, list] = OrderedDict()
+        reordered[primary] = groups.pop(primary)
+        reordered.update(groups)
+        return reordered
+    return groups
+
+
+def _active_work_center(pk: int | None) -> SxWorkCenter | None:
+    wid = int(pk or 0)
+    if wid <= 0:
+        return None
+    qs = SxWorkCenter.objects.filter(pk=wid, is_active=True)
+    if hasattr(SxWorkCenter, 'is_demo'):
+        qs = qs.filter(is_demo=False)
+    return qs.first()
+
+
 def _order_team_target_qty(order: SxSalesOrder, slug: str) -> Decimal:
     lines = [ln for ln in order.lines.all() if (ln.qty or 0) > 0]
     plan_rows_qty = Decimal('0')
@@ -3958,6 +4195,7 @@ def save_team_day_plans(
     order_id: int,
     team_slug: str,
     rows: list[dict],
+    work_center_id: int | None = None,
 ) -> SxSalesOrder:
     """Lưu phân bổ SL theo ngày cho một tổ. Tổng SL phải khớp kế hoạch tổ."""
     from san_xuat.services.work_calendar import next_working_day
@@ -3975,6 +4213,16 @@ def save_team_day_plans(
         raise PlanningError('Tổ này không tham gia đơn.')
 
     target_qty = _order_team_target_qty(order, slug)
+    want_wc = int(work_center_id or 0)
+    existing = list(
+        SxOrderTeamDayPlan.objects.filter(sales_order=order, team_slug=slug).order_by('plan_date', 'id')
+    )
+    others = [
+        d for d in existing
+        if want_wc and _day_plan_wc_id(d) and _day_plan_wc_id(d) != want_wc
+    ]
+    other_qty = sum((_q(d.qty) for d in others), Decimal('0'))
+    stamp_wc = _active_work_center(want_wc) if want_wc else None
 
     parsed: list[tuple[date, Decimal]] = []
     for raw in rows or []:
@@ -3990,16 +4238,28 @@ def save_team_day_plans(
         parsed.append((d, qty))
 
     if not parsed:
+        if others:
+            raise PlanningError('Nhập ngày và SL cho tổ này.')
         SxOrderTeamDayPlan.objects.filter(sales_order=order, team_slug=slug).delete()
         return order
 
     total = sum((q for _d, q in parsed), Decimal('0'))
-    if abs(total - target_qty) > Decimal('0.01'):
+    expected = target_qty - other_qty
+    if expected < 0:
+        expected = Decimal('0')
+    if abs(total - expected) > Decimal('0.01'):
         raise PlanningError(
-            f'Tổng SL tách ({format_sx_num_input(total)}) phải bằng SL tổ ({format_sx_num_input(target_qty)}).'
+            f'Tổng SL tách ({format_sx_num_input(total)}) phải bằng SL tổ '
+            f'({format_sx_num_input(expected)}).'
         )
 
-    SxOrderTeamDayPlan.objects.filter(sales_order=order, team_slug=slug).delete()
+    extra_pks = [d.pk for d in others]
+    if extra_pks:
+        SxOrderTeamDayPlan.objects.filter(
+            sales_order=order, team_slug=slug,
+        ).exclude(pk__in=extra_pks).delete()
+    else:
+        SxOrderTeamDayPlan.objects.filter(sales_order=order, team_slug=slug).delete()
     from san_xuat.services.work_calendar import add_working_days
 
     occupied: set[date] = set()
@@ -4012,10 +4272,144 @@ def save_team_day_plans(
         assigned.append((day, q))
 
     SxOrderTeamDayPlan.objects.bulk_create([
-        SxOrderTeamDayPlan(sales_order=order, team_slug=slug, plan_date=d, qty=q)
+        SxOrderTeamDayPlan(
+            sales_order=order, team_slug=slug, plan_date=d, qty=q,
+            work_center=stamp_wc,
+        )
         for d, q in assigned
     ])
-    pin = min(d for d, _qty in assigned)
+    all_dates = [d for d, _qty in assigned] + [x.plan_date for x in others if x.plan_date]
+    pin = min(all_dates)
+    starts = _pin_team_planned_date(order, slug, pin)
+    return _sync_schedule_to_mos(order, starts)
+
+
+@transaction.atomic
+def add_plan_team_share(
+    *,
+    order_id: int,
+    team_slug: str,
+    work_center_id: int,
+    qty,
+    source_work_center_id: int | None = None,
+) -> SxSalesOrder:
+    """Tách SL sang tổ thêm — tạo hàng công đoạn mới, giữ tổ cũ."""
+    from san_xuat.services.work_calendar import add_working_days, next_working_day
+
+    order = SxSalesOrder.objects.select_for_update().get(pk=order_id, is_demo=False)
+    _assert_schedule_editable(order)
+    slug = (team_slug or '').strip().lower()
+    if not slug or slug == 'npl':
+        raise PlanningError('Không thêm tổ cho công đoạn NPL.')
+    dest = _active_work_center(work_center_id)
+    if dest is None:
+        raise PlanningError('Tổ không hợp lệ hoặc đã tắt.')
+    share = _q(qty)
+    if share <= 0:
+        raise PlanningError('Nhập số lượng cần chuyển sang tổ thêm.')
+
+    steps = _load_schedule_steps(order)
+    spans = team_khsx_spans(order, plan_steps=steps)
+    span = next((s for s in spans if s.slug == slug and s.slug != 'npl'), None)
+    if span is None:
+        raise PlanningError('Tổ này không tham gia đơn.')
+
+    src_wc_id = int(source_work_center_id or 0) or int(getattr(span, 'work_center_id', 0) or 0)
+    if src_wc_id <= 0:
+        raise PlanningError('Gán tổ hiện tại trước khi thêm tổ khác.')
+    if dest.pk == src_wc_id:
+        raise PlanningError('Chọn tổ khác tổ đang đảm nhận.')
+
+    existing = list(
+        SxOrderTeamDayPlan.objects.filter(sales_order=order, team_slug=slug).order_by('plan_date', 'id')
+    )
+    if not existing:
+        apply_auto_team_day_splits(order, only_slug=slug, replace_existing=True)
+        existing = list(
+            SxOrderTeamDayPlan.objects.filter(sales_order=order, team_slug=slug).order_by('plan_date', 'id')
+        )
+    if not existing:
+        start = next_working_day(span.start or timezone.localdate())
+        SxOrderTeamDayPlan.objects.create(
+            sales_order=order,
+            team_slug=slug,
+            plan_date=start,
+            qty=_order_team_target_qty(order, slug),
+            work_center_id=src_wc_id,
+        )
+        existing = list(
+            SxOrderTeamDayPlan.objects.filter(sales_order=order, team_slug=slug).order_by('plan_date', 'id')
+        )
+
+    used = {_day_plan_wc_id(d) for d in existing if _day_plan_wc_id(d)}
+    if dest.pk in used:
+        raise PlanningError('Tổ này đã tham gia công đoạn.')
+
+    src_wc = _active_work_center(src_wc_id)
+    for row in existing:
+        if not row.work_center_id:
+            row.work_center = src_wc
+            row.save(update_fields=['work_center'])
+
+    source_rows = [
+        d for d in existing
+        if _day_plan_wc_id(d, src_wc_id) == src_wc_id
+    ]
+    if not source_rows:
+        raise PlanningError('Không tìm thấy SL của tổ hiện tại để chuyển.')
+    source_qty = sum((_q(d.qty) for d in source_rows), Decimal('0'))
+    if share > source_qty + Decimal('0.01'):
+        raise PlanningError(
+            f'SL chuyển ({format_sx_num_input(share)}) lớn hơn SL tổ hiện tại '
+            f'({format_sx_num_input(source_qty)}).'
+        )
+
+    need = share
+    source_rows.sort(key=lambda d: (d.plan_date, d.pk), reverse=True)
+    for row in source_rows:
+        if need <= 0:
+            break
+        have = _q(row.qty)
+        take = min(have, need)
+        row.qty = have - take
+        need -= take
+        if row.qty <= 0:
+            row.delete()
+        else:
+            row.save(update_fields=['qty'])
+
+    cap = _capacity_for_share(span, dest, share)
+    chunks = _auto_day_qty_rows(share, cap.get('qty_per_day') or 0)
+    if not chunks:
+        chunks = [share]
+    remaining_src = [
+        d for d in SxOrderTeamDayPlan.objects.filter(
+            sales_order=order, team_slug=slug, work_center_id=src_wc_id,
+        ).order_by('plan_date')
+    ]
+    start = remaining_src[0].plan_date if remaining_src else (span.start or timezone.localdate())
+    start = next_working_day(start)
+    occupied: set[date] = set()
+    assigned: list[tuple[date, Decimal]] = []
+    day = start
+    for q in chunks:
+        while day in occupied:
+            day = add_working_days(day, 1)
+        occupied.add(day)
+        assigned.append((day, q))
+        day = add_working_days(day, 1)
+    SxOrderTeamDayPlan.objects.bulk_create([
+        SxOrderTeamDayPlan(
+            sales_order=order, team_slug=slug, plan_date=d, qty=q,
+            work_center=dest,
+        )
+        for d, q in assigned
+    ])
+    _clear_day_plan_cache(order)
+    pin = min(
+        [row.plan_date for row in remaining_src if row.plan_date]
+        + [day for day, _qty in assigned]
+    )
     starts = _pin_team_planned_date(order, slug, pin)
     return _sync_schedule_to_mos(order, starts)
 
@@ -4091,8 +4485,9 @@ def move_team_day_plan(
     team_slug: str,
     from_date: date,
     to_date: date,
+    work_center_id: int | None = None,
 ) -> SxSalesOrder:
-    """Kéo một mảnh ngày đã tách sang ngày khác (gộp nếu trùng)."""
+    """Kéo một mảnh ngày đã tách sang ngày khác (gộp nếu trùng cùng tổ)."""
     from san_xuat.services.work_calendar import next_working_day
 
     if not isinstance(from_date, date) or not isinstance(to_date, date):
@@ -4106,17 +4501,29 @@ def move_team_day_plan(
     new_day = next_working_day(to_date)
     old_day = from_date
     qs = SxOrderTeamDayPlan.objects.filter(sales_order=order, team_slug=slug)
-    src = qs.filter(plan_date=old_day).first()
+    wc_id = int(work_center_id or 0)
+    src_qs = qs.filter(plan_date=old_day)
+    if wc_id:
+        src = src_qs.filter(work_center_id=wc_id).first() or src_qs.filter(work_center__isnull=True).first()
+    else:
+        src = src_qs.first()
     if not src:
         # Không tìm thấy mảnh — kéo cả khối (và xóa day-plans lệch nếu có)
+        if wc_id:
+            raise PlanningError('Không tìm thấy mảnh ngày của tổ này.')
         qs.delete()
         return _move_team_start_independent(order, slug=slug, start_date=new_day)
 
     if new_day == old_day:
         return order
 
-    dst = qs.filter(plan_date=new_day).first()
-    if dst:
+    dst_qs = qs.filter(plan_date=new_day)
+    src_wc = int(src.work_center_id or 0)
+    if src_wc:
+        dst = dst_qs.filter(work_center_id=src_wc).first()
+    else:
+        dst = dst_qs.filter(work_center__isnull=True).first()
+    if dst and dst.pk != src.pk:
         dst.qty = _q(dst.qty) + _q(src.qty)
         dst.save(update_fields=['qty'])
         src.delete()
@@ -4309,6 +4716,20 @@ def build_order_timeline(
     accepts_by_order = _accepted_teams_by_order_ids([r.order.pk for r in plan_rows])
     done_by_order_team = _done_qty_by_order_team([r.order.pk for r in plan_rows])
     day_plans_map = _day_plans_by_order_team([r.order.pk for r in plan_rows])
+    wc_ids = {
+        int(d.work_center_id or 0)
+        for plans in day_plans_map.values()
+        for d in plans
+        if getattr(d, 'work_center_id', None)
+    }
+    wc_map = {
+        int(w.pk): w
+        for w in SxWorkCenter.objects.filter(pk__in=wc_ids)
+    } if wc_ids else {}
+    wc_names = {
+        pk: (w.team_label or w.name or w.code or '').strip()
+        for pk, w in wc_map.items()
+    }
 
     rows: list[PlanTimelineRow] = []
     unscheduled: list = []
@@ -4398,48 +4819,74 @@ def build_order_timeline(
                 can_team_drag = can_drag and ts.slug != 'npl' and getattr(ts, 'can_drag', True)
 
                 if day_rows:
-                    planned_list = [_q(d.qty) for d in day_rows]
-                    done_parts = _fifo_allocate_done(planned_list, done_total)
+                    primary_wc = int(getattr(ts, 'work_center_id', 0) or 0)
+                    groups = _group_day_plans_by_wc(day_rows, primary_wc)
+                    # FIFO đã làm theo ngày, tổ gốc trước (cùng ngày).
+                    ordered_days: list = []
+                    for g_wc, g_rows in groups.items():
+                        rank = 0 if g_wc == primary_wc else 1
+                        for drow in g_rows:
+                            ordered_days.append((drow.plan_date, rank, g_wc, drow))
+                    ordered_days.sort(key=lambda item: (item[0], item[1], item[2], item[3].pk))
+                    done_parts = _fifo_allocate_done(
+                        [_q(item[3].qty) for item in ordered_days],
+                        done_total,
+                    )
+                    done_by_pk = {
+                        item[3].pk: done_parts[idx]
+                        for idx, item in enumerate(ordered_days)
+                    }
                     first_bar = True
-                    for di, day_row in enumerate(day_rows):
-                        d_start = day_row.plan_date
-                        d_end = day_row.plan_date
-                        placed_day = _bar_columns(d_start, d_end, start, end)
-                        if placed_day is None:
-                            continue
-                        t_col_s, t_col_e, t_len = placed_day
-                        qty_label = format_sx_num_input(day_row.qty) if _q(day_row.qty) > 0 else '0'
-                        done_part = done_parts[di] if di < len(done_parts) else Decimal('0')
-                        done_qty_label = format_sx_num_input(done_part) if done_part > 0 else '0'
-                        team_bars.append(TeamTimelineBar(
-                            slug=ts.slug,
-                            label=ts.label,
-                            start=d_start,
-                            end=d_end,
-                            col_start=t_col_s,
-                            col_end=t_col_e,
-                            vis_days=t_len,
-                            bar_text=qty_label,
-                            clips_left=False,
-                            clips_right=False,
-                            can_drag=can_team_drag,
-                            span_days=1,
-                            minutes=ts.minutes,
-                            duration_label=ts.duration_label or '',
-                            grid_row=grid_row,
-                            is_first=first_bar,
-                            placed=True,
-                            qty_label=qty_label,
-                            done_qty_label=done_qty_label,
-                            is_split=True,
-                            segment_id=int(day_row.pk),
-                            plan_date=d_start,
-                            team_qty_total=team_total_label,
-                            done_qty_total=done_total_label,
-                            work_center_id=int(getattr(ts, 'work_center_id', 0) or 0),
-                            **_timeline_bar_capacity(ts),
-                        ))
-                        first_bar = False
+                    for g_wc, g_rows in groups.items():
+                        share_qty = sum((_q(d.qty) for d in g_rows), Decimal('0'))
+                        share_done = sum(
+                            (done_by_pk.get(d.pk, Decimal('0')) for d in g_rows),
+                            Decimal('0'),
+                        )
+                        share_label = format_sx_num_input(share_qty) if share_qty > 0 else ''
+                        share_done_label = format_sx_num_input(share_done) if share_done > 0 else '0'
+                        wc_obj = wc_map.get(g_wc)
+                        bar_label = wc_names.get(g_wc) or ts.label
+                        cap = _capacity_for_share(ts, wc_obj, share_qty)
+                        for day_row in g_rows:
+                            d_start = day_row.plan_date
+                            d_end = day_row.plan_date
+                            placed_day = _bar_columns(d_start, d_end, start, end)
+                            if placed_day is None:
+                                continue
+                            t_col_s, t_col_e, t_len = placed_day
+                            qty_label = format_sx_num_input(day_row.qty) if _q(day_row.qty) > 0 else '0'
+                            done_part = done_by_pk.get(day_row.pk, Decimal('0'))
+                            done_qty_label = format_sx_num_input(done_part) if done_part > 0 else '0'
+                            team_bars.append(TeamTimelineBar(
+                                slug=ts.slug,
+                                label=bar_label,
+                                start=d_start,
+                                end=d_end,
+                                col_start=t_col_s,
+                                col_end=t_col_e,
+                                vis_days=t_len,
+                                bar_text=qty_label,
+                                clips_left=False,
+                                clips_right=False,
+                                can_drag=can_team_drag,
+                                span_days=1,
+                                minutes=ts.minutes,
+                                duration_label=ts.duration_label or '',
+                                grid_row=grid_row,
+                                is_first=first_bar,
+                                placed=True,
+                                qty_label=qty_label,
+                                done_qty_label=done_qty_label,
+                                is_split=True,
+                                segment_id=int(day_row.pk),
+                                plan_date=d_start,
+                                team_qty_total=share_label,
+                                done_qty_total=share_done_label,
+                                work_center_id=g_wc or primary_wc,
+                                **cap,
+                            ))
+                            first_bar = False
                     continue
 
                 t_col_s, t_col_e, t_len = placed_team
@@ -4508,9 +4955,12 @@ def build_order_timeline(
                 colors.append(c)
         color_label = ', '.join(colors)
         qty_label = format_sx_num_input(r.total_qty) if r.total_qty else ''
-        stage_rows = _stage_rows_from_bars(
-            team_bars, axis_days, range_start=start, range_end=end,
-            plan_spans=team_spans,
+        stage_rows = _mark_route_stages_gc(
+            _stage_rows_from_bars(
+                team_bars, axis_days, range_start=start, range_end=end,
+                plan_spans=team_spans,
+            ),
+            r,
         )
         rows.append(PlanTimelineRow(
             order=r.order,

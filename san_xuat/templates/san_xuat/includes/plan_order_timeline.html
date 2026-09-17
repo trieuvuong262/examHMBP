@@ -47,7 +47,7 @@
           <tbody class="jp-sheet-order" data-order-id="{{ row.order.pk }}">
             {% with stt=forloop.counter %}
             {% for stage in row.stage_rows %}
-            <tr class="jp-tl-orow{% if forloop.first %} is-order-start{% endif %}{% if row.is_late %} is-late{% endif %}"
+            <tr class="jp-tl-orow{% if forloop.first %} is-order-start{% endif %}{% if row.is_late %} is-late{% endif %}{% if stage.gc_hired %} is-gc{% endif %}"
                 data-order-id="{{ row.order.pk }}"
                 data-team-slug="{{ stage.slug }}">
               {% if forloop.first %}
@@ -94,7 +94,7 @@
                 <a class="jp-tl-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
               </td>
               {% endif %}
-              <td class="c-dept jp-stage-{{ stage.slug }}"
+              <td class="c-dept jp-stage-{{ stage.slug }}{% if stage.gc_hired %} is-gc{% endif %}"
                   data-jp-team-split
                   data-order-id="{{ row.order.pk }}"
                   data-order-code="{{ row.order.code }}"
@@ -115,9 +115,17 @@
                   data-smv-seconds="{{ stage.smv_seconds|sx_num_input }}"
                   data-qty-per-day="{{ stage.qty_per_day|sx_num_input }}"
                   data-planned-qty="{{ stage.planned_qty|sx_num_input }}"
-                  title="{{ stage.label }} · {{ row.order.code }}">
+                  title="{{ stage.label }} · {{ row.order.code }}{% if stage.gc_hired %} · {{ stage.gc_title }}{% endif %}">
                 <span class="jp-sheet-side">
                   <span class="jp-tl-dept-name">{{ stage.short_label }}</span>
+                  {% if stage.gc_hired %}
+                    {% if stage.gc_pk %}
+                    <a class="jp-sheet-gc" href="{% url 'san_xuat:subcontract_detail' stage.gc_pk %}"
+                       title="{{ stage.gc_title }}">GC</a>
+                    {% else %}
+                    <span class="jp-sheet-gc" title="{{ stage.gc_title }}">GC</span>
+                    {% endif %}
+                  {% endif %}
                   {% if can_schedule and stage.slug and stage.slug != 'npl' and stage.can_split %}
                   <button type="button" class="jp-sheet-split" data-jp-stage-split
                           title="Tách thủ công theo ngày / SL" aria-label="Tách thủ công {{ stage.short_label }}">

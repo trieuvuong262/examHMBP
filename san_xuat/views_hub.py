@@ -1331,11 +1331,13 @@ def plan_board(request):
         reschedule_order_team_start,
         save_plan_hops,
         assign_plan_team,
+        add_plan_team_share,
         save_plan_team_capacity,
         plan_board_work_center_options,
         plan_stage_legend_items,
         filter_route_timeline,
         route_dept_filter_choices,
+        route_team_filter_choices,
         set_plan_priority,
         set_plan_color,
         reorder_plan_orders,
@@ -1543,10 +1545,13 @@ def plan_board(request):
                 team_slug = (request.POST.get('team_slug') or '').strip().lower()
                 raw_wc = (request.POST.get('work_center_id') or '').strip()
                 wc_id = int(raw_wc) if raw_wc.isdigit() and int(raw_wc) > 0 else None
+                raw_src = (request.POST.get('source_work_center_id') or '').strip()
+                src_wc_id = int(raw_src) if raw_src.isdigit() and int(raw_src) > 0 else None
                 order, wc = assign_plan_team(
                     order_id=order_id,
                     team_slug=team_slug,
                     work_center_id=wc_id,
+                    source_work_center_id=src_wc_id,
                 )
                 wants_json = (
                     (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
@@ -1863,11 +1868,13 @@ def plan_board(request):
                     (request.POST.get('from_date') or request.POST.get('plan_date') or '').strip()
                 )
                 from_date = parse_sx_date(from_raw) if from_raw else None
+                raw_wc = (request.POST.get('work_center_id') or '').strip()
                 order = reschedule_order_team_start(
                     order_id=order_id,
                     start_date=start_date,
                     team_slug=team_slug,
                     from_date=from_date,
+                    work_center_id=int(raw_wc) if raw_wc.isdigit() and int(raw_wc) > 0 else None,
                 )
                 wants_json = (
                     (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
@@ -1945,10 +1952,12 @@ def plan_board(request):
                         raise PlanningError('Danh sách ngày tách không hợp lệ.') from exc
                 if not isinstance(parsed_rows, list):
                     raise PlanningError('Danh sách ngày tách không hợp lệ.')
+                raw_wc = (request.POST.get('work_center_id') or '').strip()
                 order = save_team_day_plans(
                     order_id=order_id,
                     team_slug=team_slug,
                     rows=parsed_rows,
+                    work_center_id=int(raw_wc) if raw_wc.isdigit() and int(raw_wc) > 0 else None,
                 )
                 wants_json = (
                     (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
@@ -1965,10 +1974,36 @@ def plan_board(request):
                     })
                 messages.success(request, f'Đã tách lịch công đoạn {team_slug} — {order.code}.')
                 return redirect(f"{reverse('san_xuat:plan_board')}?mode=list&tab=route")
+            elif action == 'add_plan_team' and can_schedule and order_id:
+                team_slug = (request.POST.get('team_slug') or '').strip().lower()
+                raw_wc = (request.POST.get('work_center_id') or '').strip()
+                raw_src = (request.POST.get('source_work_center_id') or '').strip()
+                order = add_plan_team_share(
+                    order_id=order_id,
+                    team_slug=team_slug,
+                    work_center_id=int(raw_wc) if raw_wc.isdigit() else 0,
+                    qty=request.POST.get('qty') or 0,
+                    source_work_center_id=int(raw_src) if raw_src.isdigit() and int(raw_src) > 0 else None,
+                )
+                wants_json = (
+                    (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
+                    or 'application/json' in (request.headers.get('Accept') or '')
+                )
+                if wants_json:
+                    from django.http import JsonResponse
+
+                    return JsonResponse({
+                        'ok': True,
+                        'order_id': order.pk,
+                        'code': order.code,
+                        'team_slug': team_slug,
+                    })
+                messages.success(request, f'Đã thêm tổ vào công đoạn {team_slug} — {order.code}.')
+                return redirect(f"{reverse('san_xuat:plan_board')}?mode=list&tab=route")
             else:
                 if action:
                     if (
-                        action in ('reschedule_route', 'split_team_days', 'split_team_in_two', 'assign_plan_team', 'save_plan_team_capacity', 'reorder_plan_orders')
+                        action in ('reschedule_route', 'split_team_days', 'split_team_in_two', 'assign_plan_team', 'add_plan_team', 'save_plan_team_capacity', 'reorder_plan_orders')
                         and (
                             (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
                             or 'application/json' in (request.headers.get('Accept') or '')
@@ -1983,7 +2018,7 @@ def plan_board(request):
                     messages.error(request, 'Bạn không có quyền thực hiện thao tác này.')
         except PlanningError as exc:
             if (
-                (request.POST.get('action') or '').strip() in ('reschedule_route', 'split_team_days', 'split_team_in_two', 'assign_plan_team', 'save_plan_team_capacity', 'reorder_plan_orders')
+                (request.POST.get('action') or '').strip() in ('reschedule_route', 'split_team_days', 'split_team_in_two', 'assign_plan_team', 'add_plan_team', 'save_plan_team_capacity', 'reorder_plan_orders')
                 and (
                     (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
                     or 'application/json' in (request.headers.get('Accept') or '')
@@ -1995,7 +2030,7 @@ def plan_board(request):
             messages.error(request, str(exc))
         except Exception as exc:
             if (
-                (request.POST.get('action') or '').strip() in ('reschedule_route', 'split_team_days', 'split_team_in_two', 'assign_plan_team', 'save_plan_team_capacity', 'reorder_plan_orders')
+                (request.POST.get('action') or '').strip() in ('reschedule_route', 'split_team_days', 'split_team_in_two', 'assign_plan_team', 'add_plan_team', 'save_plan_team_capacity', 'reorder_plan_orders')
                 and (
                     (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
                     or 'application/json' in (request.headers.get('Accept') or '')
@@ -2023,6 +2058,7 @@ def plan_board(request):
     filter_is_current_month = False
     route_months = 1
     route_dept_choices: list[tuple[str, str]] = []
+    route_team_choices: list[dict] = []
 
     def _apply_board_filters(rows):
         valid_priorities = {value for value, _label in SxSalesOrder.PRIORITY_CHOICES}
@@ -2147,6 +2183,7 @@ def plan_board(request):
             months=route_months,
         )
         route_dept_choices = route_dept_filter_choices(route_board)
+        route_team_choices = route_team_filter_choices(route_board)
         route_board = filter_route_timeline(
             route_board,
             dept_slugs=route_dept_filter,
@@ -2195,6 +2232,7 @@ def plan_board(request):
         'route_dept_filter': route_dept_filter,
         'route_team_filter': route_team_filter,
         'route_dept_choices': route_dept_choices,
+        'route_team_choices': route_team_choices,
         'this_month_from': today_start,
         'this_month_to': today_end_month,
         'filter_date_from': filter_date_from,
