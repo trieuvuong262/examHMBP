@@ -193,8 +193,8 @@
               <label class="form-label small text-muted mb-1">Tên bộ phận <span class="text-danger">*</span></label>
               <select name="process_stage_label" class="form-select form-select-sm" required>
                 <option value="">— Chọn bộ phận —</option>
-                {% for div in hr_divisions %}
-                <option value="{{ div.name }}">{{ div.name }}{% if div.department_id %} ({{ div.department.name }}){% endif %}</option>
+                {% for opt in department_options %}
+                <option value="{{ opt.name }}">{{ opt.name }}{% if opt.department_name %} ({{ opt.department_name }}){% endif %}</option>
                 {% endfor %}
                 {% for label in orphan_department_labels %}
                 <option value="{{ label }}">{{ label }} (cũ)</option>
@@ -265,8 +265,8 @@
               <label class="form-label small text-muted mb-1">Tên bộ phận <span class="text-danger">*</span></label>
               <select name="process_stage_label" id="ieEditGroupStage" class="form-select form-select-sm" required>
                 <option value="">— Chọn bộ phận —</option>
-                {% for div in hr_divisions %}
-                <option value="{{ div.name }}">{{ div.name }}{% if div.department_id %} ({{ div.department.name }}){% endif %}</option>
+                {% for opt in department_options %}
+                <option value="{{ opt.name }}">{{ opt.name }}{% if opt.department_name %} ({{ opt.department_name }}){% endif %}</option>
                 {% endfor %}
                 {% for label in orphan_department_labels %}
                 <option value="{{ label }}">{{ label }} (cũ)</option>
@@ -324,7 +324,19 @@
     document.getElementById('ieEditGroupPk').value = row.getAttribute('data-pk') || '';
     document.getElementById('ieEditGroupCode').value = row.getAttribute('data-code') || '';
     document.getElementById('ieEditGroupName').value = row.getAttribute('data-name') || '';
-    document.getElementById('ieEditGroupStage').value = row.getAttribute('data-stage') || '';
+    var stage = (row.getAttribute('data-stage') || '').trim();
+    // Gộp 2 tổ May nhà máy / nhãn cũ → MAY
+    var stageFold = stage.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
+    if (
+      stageFold.indexOf('may (152') >= 0 ||
+      (stageFold.indexOf('may (19') >= 0 && stageFold.indexOf('chien luoc') >= 0) ||
+      stageFold === 'may (san xuat)' ||
+      stageFold.indexOf('may (san xuat)') >= 0 ||
+      stageFold === 'may'
+    ) {
+      stage = 'MAY';
+    }
+    document.getElementById('ieEditGroupStage').value = stage;
     document.getElementById('ieEditGroupPart').value = row.getAttribute('data-part') || '';
     document.getElementById('ieEditGroupDesc').value = row.getAttribute('data-description') || '';
     document.getElementById('ieEditGroupOwner').value = row.getAttribute('data-owner') || '';

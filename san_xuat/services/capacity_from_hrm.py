@@ -30,13 +30,13 @@ LEGACY_FAKE_TEAMS = frozenset({'Tổ May 1', 'Tổ May 2', 'Tổ ĐG', 'Chuyen 1
 # Mã IE (WC-* + tổ chuẩn) → bộ phận HR phòng SẢN XUẤT (khớp tên Division đã fold).
 _IE_WC_TO_HR_KEYS: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (('wc-cut', 'wc-fusing', 'cut', 'fusing', 'cat'), ('cat', 'trai', 'trai vai')),
-    (('wc-print', 'print', 'in-ep', 'in_ep', 'in ep', 'ep logo'), ('in ep', 'in-ep')),
+    (('ep logo', 'ép logo'), ('ep logo',)),
+    (('in nhiet', 'in nhiệt', 'wc-print', 'print', 'in-ep', 'in_ep', 'in ep'), ('in nhiet', 'in ep', 'in-ep')),
     (('theu', 'wc-embroider'), ('theu',)),
-    (('wc-sew', 'sew', 'may'), ('may',)),
-    (('wc-finish', 'finish', 'ui', 'press', 'ht'), ('ui', 'gap', 'gap xep')),
-    (('wc-pack', 'pack', 'gap', 'gh'), ('giao hang', 'thanh pham', 'tp', 'gap')),
-    # QC: gắn MAY nếu không có bộ phận QC riêng
-    (('wc-qc', 'qc', 'fullcheck'), ('may',)),
+    (('may (san xuat)', 'wc-sew', 'sew', 'may'), ('may',)),
+    (('wc-finish', 'finish', 'ui', 'press', 'ht'), ('ui',)),
+    (('gap xep', 'wc-pack', 'pack', 'gap', 'gh'), ('gap xep', 'gap', 'giao hang', 'thanh pham')),
+    (('wc-qc', 'qc', 'fullcheck', 'qa'), ('qc', 'qa')),
 )
 
 # SP/người/ngày ước lượng theo loại chuyền (IE chỉnh lại sau trên UI).
@@ -151,6 +151,9 @@ def resolve_work_center_code(code: str | None, *, name_hint: str = '') -> SxWork
     if not raw and not hint:
         return None
 
+    # Chuẩn hoá nhãn IE (2 tổ May → MAY) trước khi resolve.
+    raw = normalize_ie_group_department_label(raw) or raw
+
     memo = _wc_resolve_memo()
     memo_key = (raw.casefold(), hint.casefold())
     if memo_key in memo:
@@ -189,6 +192,8 @@ def resolve_work_center_code(code: str | None, *, name_hint: str = '') -> SxWork
             folded = _fold(f'{hc.name} {hc.team_label} {hc.code}')
             if raw_fold and raw_fold == _fold(hc.code):
                 return _store(hc)
+            if raw_fold and raw_fold == _fold(hc.name):
+                return _store(hc)
             if needle and (needle == folded or needle in folded or folded in needle):
                 return _store(hc)
 
@@ -200,6 +205,64 @@ def resolve_work_center_code(code: str | None, *, name_hint: str = '') -> SxWork
         if ie:
             return _store(ie)
     return _store(None)
+
+
+def work_center_for_operation_group(group) -> SxWorkCenter | None:
+    """Bộ phận của nhóm công đoạn chuẩn = Tên bộ phận (process_stage_label)."""
+    if group is None:
+        return None
+    label = (getattr(group, 'process_stage_label', None) or '').strip()
+    if label:
+        hit = resolve_work_center_code(label, name_hint=f'{group.code} {group.name}')
+        if hit:
+            return hit
+    code = (getattr(group, 'default_work_center_code', None) or '').strip()
+    if not code and getattr(group, 'default_work_center_id', None):
+        wc = group.default_work_center
+        code = (wc.code if wc else '') or ''
+    if code:
+        return resolve_work_center_code(code, name_hint=label)
+    return None
+
+
+def sync_routing_lines_department_from_groups(*, routing_id: int | None = None) -> dict[str, int]:
+    """Gắn lại work_center dòng OB theo Tên bộ phận của nhóm công đoạn chuẩn."""
+    from san_xuat.ie_models import SxOperationGroup, SxRoutingLine
+
+    groups = {
+        (g.code or '').strip().casefold(): g
+        for g in SxOperationGroup.objects.all()
+        if (g.code or '').strip()
+    }
+    qs = SxRoutingLine.objects.select_related('work_center', 'routing')
+    if routing_id:
+        qs = qs.filter(routing_id=routing_id)
+
+    updated = 0
+    skipped = 0
+    unresolved = 0
+    for line in qs.iterator():
+        code = (line.group_code or '').strip()
+        grp = groups.get(code.casefold()) if code else None
+        if grp is None:
+            unresolved += 1
+            continue
+        label = normalize_ie_group_department_label(grp.process_stage_label or '') or (
+            grp.process_stage_label or ''
+        ).strip()
+        wc = work_center_for_operation_group(grp)
+        new_code = (label or (wc.code if wc else ''))[:40]
+        if (
+            line.work_center_id == (wc.pk if wc else None)
+            and (line.work_center_code or '') == new_code
+        ):
+            skipped += 1
+            continue
+        line.work_center = wc
+        line.work_center_code = new_code
+        line.save(update_fields=['work_center', 'work_center_code'])
+        updated += 1
+    return {'updated': updated, 'skipped': skipped, 'unresolved': unresolved}
 
 
 def remap_ie_master_to_hr() -> dict[str, int]:
@@ -290,12 +353,79 @@ def hr_divisions_for_ie_groups():
     )
 
 
+# Dropdown nhóm công đoạn: gộp 2 tổ May theo nhà máy → 1 nhãn dùng chung.
+IE_GROUP_MAY_MERGED_LABEL = 'MAY'
+IE_GROUP_MAY_SOURCE_LABELS = (
+    'MAY (152A VĨNH LỘC)',
+    'MAY (19 CHIẾN LƯỢC)',
+    'MAY (SẢN XUẤT)',  # nhãn gộp cũ
+)
+
+
+def _is_merged_may_division_label(label: str) -> bool:
+    """True nếu là 1 trong 2 tổ May theo nhà máy (cần gộp)."""
+    folded = _fold(label)
+    if not folded.startswith('may'):
+        return False
+    sources = {_fold(x) for x in IE_GROUP_MAY_SOURCE_LABELS}
+    if folded in sources:
+        return True
+    # Khớp mềm: MAY … 152… / MAY … 19 … chiến lược
+    if '152' in folded and 'vinh loc' in folded:
+        return True
+    if '19' in folded and 'chien luoc' in folded:
+        return True
+    return False
+
+
+def normalize_ie_group_department_label(label: str) -> str:
+    """Chuẩn hoá nhãn lưu/hiển thị — 2 tổ May / nhãn cũ → MAY."""
+    raw = (label or '').strip()
+    if not raw:
+        return ''
+    if _is_merged_may_division_label(raw):
+        return IE_GROUP_MAY_MERGED_LABEL
+    folded = _fold(raw)
+    if folded in {_fold(IE_GROUP_MAY_MERGED_LABEL), 'may (san xuat)', 'may san xuat'}:
+        return IE_GROUP_MAY_MERGED_LABEL
+    return raw
+
+
+def ie_group_department_options() -> list[dict]:
+    """Options dropdown Tên bộ phận (đã gộp 2 May → MAY)."""
+    options: list[dict] = []
+    may_added = False
+    for div in hr_divisions_for_ie_groups():
+        dept_name = div.department.name if div.department_id else ''
+        if _is_merged_may_division_label(div.name):
+            if may_added:
+                continue
+            may_added = True
+            # Nhãn đã chứa tên phòng — không gắn thêm (SẢN XUẤT) phía sau.
+            options.append({
+                'name': IE_GROUP_MAY_MERGED_LABEL,
+                'department_name': '',
+            })
+            continue
+        options.append({
+            'name': div.name,
+            'department_name': dept_name,
+        })
+    if not may_added:
+        # Vẫn hiện option May dù HR chưa có 2 tổ (fix cứng theo yêu cầu UI).
+        options.insert(0, {
+            'name': IE_GROUP_MAY_MERGED_LABEL,
+            'department_name': '',
+        })
+    return options
+
+
 def ie_group_department_label_choices(*, include_labels: list[str] | None = None) -> list[str]:
     """Danh sách tên bộ phận hợp lệ cho nhóm công đoạn (HR + nhãn cũ tùy chọn)."""
-    names = [d.name for d in hr_divisions_for_ie_groups()]
+    names = [opt['name'] for opt in ie_group_department_options()]
     seen = {n.casefold() for n in names}
     for raw in include_labels or []:
-        label = (raw or '').strip()
+        label = normalize_ie_group_department_label(raw)
         if label and label.casefold() not in seen:
             names.append(label)
             seen.add(label.casefold())
@@ -307,13 +437,16 @@ def is_ie_group_department_label_allowed(
     *,
     allow_existing: str = '',
 ) -> bool:
-    label = (label or '').strip()
+    label = normalize_ie_group_department_label(label)
     if not label:
         return False
     allowed = {n.casefold() for n in ie_group_department_label_choices()}
+    # Cho phép nhãn cũ đúng 2 tổ May (trước khi chuẩn hoá lưu lại).
+    allowed.update(_fold(x) for x in IE_GROUP_MAY_SOURCE_LABELS)
     if allow_existing.strip():
+        allowed.add(normalize_ie_group_department_label(allow_existing).casefold())
         allowed.add(allow_existing.strip().casefold())
-    return label.casefold() in allowed
+    return label.casefold() in allowed or _fold(label) in allowed
 
 
 def _is_team_lead_title(job_position: str) -> bool:
@@ -635,20 +768,25 @@ def sync_capacity_from_hrm(
     include_support: bool = True,
     deactivate_non_hr: bool = False,
 ) -> SyncCapacityResult:
-    """Tạo/cập nhật SxWorkCenter theo Division phòng SẢN XUẤT trên HR.
+    """Tạo/cập nhật SxWorkCenter theo Division phòng SẢN XUẤT + ĐẢM BẢO CHẤT LƯỢNG.
 
     Danh mục năng lực trên Kế hoạch SX là catalog tự khai (thêm/sửa/xóa).
     Đồng bộ HR không tắt tổ người dùng đã tạo, trừ khi ``deactivate_non_hr=True``.
     """
     result = SyncCapacityResult()
-    dept = _sx_department()
-    if not dept:
+    depts = departments_for_ie_groups()
+    if not depts:
+        sx = _sx_department()
+        depts = [sx] if sx else []
+    if not depts:
         result.skipped = 1
         return result
-    result.department = dept.name
+    result.department = ', '.join(d.name for d in depts)
 
     divisions = list(
-        Division.objects.filter(department=dept, is_active=True).order_by('sort_order', 'name')
+        Division.objects.filter(department__in=depts, is_active=True).order_by(
+            'department__sort_order', 'sort_order', 'name',
+        )
     )
     keep_codes: set[str] = set()
     today = timezone.localdate().isoformat() if hasattr(timezone, 'localdate') else date.today().isoformat()

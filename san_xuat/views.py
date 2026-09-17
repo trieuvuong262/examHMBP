@@ -1554,19 +1554,34 @@ def doc_detail(request, pk):
             routing_lines = list(
                 process_routing.lines.select_related('work_center').order_by('seq_no', 'pk')
             )
-            group_names = {
-                (g.code or '').casefold(): g.name
+            group_map = {
+                (g.code or '').casefold(): g
                 for g in SxOperationGroup.objects.filter(
                     code__in=[ln.group_code for ln in routing_lines if ln.group_code]
                 )
             }
             for line in routing_lines:
-                line.display_group_name = group_names.get((line.group_code or '').casefold(), '')
+                grp = group_map.get((line.group_code or '').casefold())
+                line.display_group_name = (grp.name if grp else '') or ''
+                line.display_department = (
+                    (grp.process_stage_label if grp else '')
+                    or (line.work_center.name if line.work_center_id else '')
+                    or (line.work_center_code or '')
+                )
         if _edit_flag:
+            from san_xuat.services.capacity_from_hrm import work_center_for_operation_group
+            from san_xuat.services.process_catalog import process_group_rows
+
             operation_groups = list(
                 SxOperationGroup.objects.filter(is_active=True).order_by('sort_order', 'code')
             )
+            # Gắn default WC id theo Tên bộ phận nhóm (cho TomSelect auto-fill).
+            for grp in operation_groups:
+                wc = work_center_for_operation_group(grp)
+                grp.default_wc_id = wc.pk if wc else ''
             work_centers = list(hr_work_centers_qs())
+            # Bổ sung context meta nhóm (nếu form khác dùng).
+            _ = process_group_rows()
 
     from san_xuat.services.products import fill_tech_doc_display_images
 
@@ -2163,9 +2178,9 @@ def process_catalog_search(request):
         if grp:
             wc_id = _hr_work_center_id(
                 work_center_code=grp.process_stage_label or '',
+                name_hint=f'{grp.process_stage_label} {grp.name} {grp.code}',
             )
-            if wc_id:
-                wc_name = grp.process_stage_label or ''
+            wc_name = (grp.process_stage_label or '').strip()
         seen[name.casefold()] = {
             'id': name,
             'name': name,

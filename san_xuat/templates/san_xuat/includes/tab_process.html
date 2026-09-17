@@ -37,7 +37,9 @@
                 data-placeholder="Gõ tìm nhóm công đoạn…">
           <option value="">— Chọn nhóm —</option>
           {% for group in operation_groups %}
-          <option value="{{ group.code }}">{{ group.name }}</option>
+          <option value="{{ group.code }}"
+                  data-default-work-center-id="{{ group.default_wc_id|default:'' }}"
+                  data-department-label="{{ group.process_stage_label|default:'' }}">{{ group.name }}</option>
           {% endfor %}
         </select>
       </div>
@@ -112,7 +114,7 @@
             </td>
             <td>{{ line.display_group_name|default:line.group_code|default:"—" }}</td>
             <td>{{ line.op_name_vi|default:"—" }}</td>
-            <td>{% if line.work_center %}{{ line.work_center.name }}{% elif line.work_center_code %}{{ line.work_center_code }}{% else %}—{% endif %}</td>
+            <td>{{ line.display_department|default:line.work_center.name|default:line.work_center_code|default:"—" }}</td>
             <td class="text-end">{% if line.library_unit_smv %}{{ line.library_unit_smv|sx_num }}{% else %}—{% endif %}</td>
             <td class="text-end">
               {% if can_update and edit_mode and process_routing %}

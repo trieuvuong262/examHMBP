@@ -253,7 +253,8 @@
 
   function initGroupPicker(sel) {
     if (!sel || sel.tomselect || typeof TomSelect === 'undefined') return;
-    new TomSelect(sel, {
+    var form = sel.closest('form');
+    var ts = new TomSelect(sel, {
       maxOptions: null,
       maxItems: 1,
       allowEmptyOption: true,
@@ -263,6 +264,42 @@
       create: false,
       sortField: { field: 'text', direction: 'asc' },
       searchField: ['text', 'value'],
+      onChange: function (value) {
+        if (!form || !value || window._ieApplyingPick) return;
+        var raw = sel.querySelector('option[value="' + String(value).replace(/"/g, '\\"') + '"]');
+        var dept = raw ? (raw.getAttribute('data-department-label') || '') : '';
+        var wcId = raw ? (raw.getAttribute('data-default-work-center-id') || '') : '';
+        if (dept) {
+          window.jpIeApplyOperationPick(form, {
+            group_code: value,
+            work_center_code: dept,
+          }, true);
+        } else if (wcId) {
+          var wcSel = form.querySelector('[name="work_center_code"]');
+          if (wcSel) {
+            var opt = wcSel.querySelector('option[value="' + wcId + '"]');
+            // dropdown value is HRD code, not pk — skip if id
+            var codeOpt = null;
+            for (var i = 0; i < wcSel.options.length; i++) {
+              if (String(wcSel.options[i].value) === String(wcId)) {
+                codeOpt = wcSel.options[i];
+                break;
+              }
+            }
+            if (codeOpt) {
+              window.jpIeApplyOperationPick(form, {
+                group_code: value,
+                work_center_code: codeOpt.value,
+              }, true);
+            }
+          }
+        }
+      },
+    });
+    Array.prototype.forEach.call(sel.options || [], function (opt) {
+      if (!opt.value || !ts.options[opt.value]) return;
+      ts.options[opt.value].department_label = opt.getAttribute('data-department-label') || '';
+      ts.options[opt.value].default_work_center_id = opt.getAttribute('data-default-work-center-id') || '';
     });
   }
 

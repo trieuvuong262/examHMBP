@@ -119,12 +119,18 @@ def operation_library_snapshot(op: SxOperation | None) -> dict:
     library_smv = op.base_smv_min or Decimal('0')
     work_center_code = ''
     if op.group_id:
-        from san_xuat.services.capacity_from_hrm import resolve_work_center_code
+        from san_xuat.services.capacity_from_hrm import (
+            normalize_ie_group_department_label,
+            resolve_work_center_code,
+            work_center_for_operation_group,
+        )
 
         grp = op.group
-        department_name = (grp.process_stage_label or '').strip()
-        wc = resolve_work_center_code(department_name)
-        work_center_code = (wc.code if wc else '')[:40]
+        department_name = normalize_ie_group_department_label(grp.process_stage_label or '') or (
+            grp.process_stage_label or ''
+        ).strip()
+        wc = work_center_for_operation_group(grp) or resolve_work_center_code(department_name)
+        work_center_code = (department_name or (wc.code if wc else ''))[:40]
     return {
         'op_rev': (op.op_rev or 'R01').strip() or 'R01',
         'name_vi': (op.name_vi or '').strip(),
@@ -1441,25 +1447,46 @@ def upsert_routing_line(
         raise IeOpsError('SL/SMV không được âm.')
 
     machine = SxMachine.objects.filter(code=(machine_code or '').strip()).first() if machine_code else None
-    from san_xuat.services.capacity_from_hrm import resolve_work_center_code
+    from san_xuat.services.capacity_from_hrm import (
+        resolve_work_center_code,
+        work_center_for_operation_group,
+    )
 
     wc_code_raw = (work_center_code or '').strip()
-    if not wc_code_raw and group_code:
+    grp = None
+    if group_code:
         from san_xuat.ie_models import SxOperationGroup
         grp = SxOperationGroup.objects.filter(code=(group_code or '').strip()).select_related(
             'default_work_center'
         ).first()
-        if grp and (grp.default_work_center_code or grp.default_work_center_id):
-            wc_code_raw = grp.default_work_center_code or (
-                grp.default_work_center.code if grp.default_work_center_id else ''
-            )
-    if not wc_code_raw and op and op.group_id:
+    if not grp and op and op.group_id:
         grp = op.group
-        if grp and (grp.default_work_center_code or grp.default_work_center_id):
+
+    # Bộ phận mặc định = Tên bộ phận trên nhóm công đoạn chuẩn (không phụ thuộc WC FK cũ).
+    if not wc_code_raw and grp is not None:
+        wc_code_raw = (grp.process_stage_label or '').strip()
+        if not wc_code_raw and (grp.default_work_center_code or grp.default_work_center_id):
             wc_code_raw = grp.default_work_center_code or (
                 grp.default_work_center.code if grp.default_work_center_id else ''
             )
-    wc = resolve_work_center_code(wc_code_raw, name_hint=f'{group_code} {name}')
+
+    wc = None
+    if grp is not None and not (work_center_code or '').strip():
+        wc = work_center_for_operation_group(grp)
+    if wc is None:
+        wc = resolve_work_center_code(wc_code_raw, name_hint=f'{group_code} {name}')
+    # Giữ nhãn bộ phận chuẩn trên dòng (MAY, ÉP LOGO…) khi có.
+    label_for_code = ''
+    if grp is not None:
+        from san_xuat.services.capacity_from_hrm import normalize_ie_group_department_label
+        label_for_code = normalize_ie_group_department_label(grp.process_stage_label or '') or (
+            grp.process_stage_label or ''
+        ).strip()
+    if not wc_code_raw and label_for_code:
+        wc_code_raw = label_for_code
+    if label_for_code and not (work_center_code or '').strip():
+        # Ưu tiên lưu mã/nhãn chuẩn của nhóm; FK HRD dùng để liên kết năng lực nếu resolve được.
+        wc_code_raw = label_for_code
 
     line = None
     old_smv = None
@@ -1493,7 +1520,22 @@ def upsert_routing_line(
     if not mc and op:
         mc = snap.get('machine_code', '')
     mc = mc[:40]
-    wc_code_final = (wc.code if wc else wc_code_raw)[:40]
+    from san_xuat.services.capacity_from_hrm import (
+        ie_group_department_label_choices,
+        normalize_ie_group_department_label,
+    )
+    posted_label = normalize_ie_group_department_label(work_center_code or '') or (work_center_code or '').strip()
+    ie_labels = {n.casefold() for n in ie_group_department_label_choices()}
+    if posted_label and posted_label.casefold() in ie_labels:
+        # Form/UI gửi đúng nhãn bộ phận chuẩn của nhóm/thư viện.
+        wc_code_final = posted_label[:40]
+        if wc is None:
+            wc = resolve_work_center_code(posted_label, name_hint=f'{group_code} {name}')
+    elif label_for_code and not (work_center_code or '').strip():
+        # Lưu nhãn bộ phận chuẩn của nhóm (MAY, ÉP LOGO…) để hiển thị đúng.
+        wc_code_final = label_for_code[:40]
+    else:
+        wc_code_final = (wc.code if wc else wc_code_raw)[:40]
     group_final = (group_code or (op.group.code if op else ''))[:30]
     notes_final = (notes or '')[:255]
     library_final = library or Decimal('0')

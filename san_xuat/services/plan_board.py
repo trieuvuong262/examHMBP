@@ -3626,10 +3626,12 @@ _SHEET_STAGE_LABELS = {
     'kho': 'Nhập kho',
 }
 _SHEET_STAGE_ORDER = ('cat', 'inep', 'theu', 'may', 'ht', 'gh', 'kho')
-_SHEET_STAGE_ALWAYS = ('cat', 'inep', 'may', 'ht', 'gh')
 
 
 def _stage_sheet_label(slug: str, full_label: str = '') -> str:
+    text = (full_label or '').split('(')[0].strip()
+    if text:
+        return text
     key = (slug or '').strip().lower()
     if key in _SHEET_STAGE_LABELS:
         return _SHEET_STAGE_LABELS[key]
@@ -3638,8 +3640,7 @@ def _stage_sheet_label(slug: str, full_label: str = '') -> str:
     meta = team_by_slug(key)
     if meta and meta.get('label'):
         return str(meta['label'])
-    text = (full_label or '').split('(')[0].strip()
-    return text or key or 'Công đoạn'
+    return key or 'Công đoạn'
 
 
 def _color_from_product_code(code: str) -> str:
@@ -3676,8 +3677,9 @@ def _stage_rows_from_bars(
     *,
     range_start: date,
     range_end: date,
+    plan_spans: list[TeamKhsxSpan] | None = None,
 ) -> list[RouteStageRow]:
-    """Gom thanh tổ thành hàng bộ phận, mỗi ngày một ô SL."""
+    """Hàng bộ phận theo KHSX thực tế — không pad tổ cố định."""
     from collections import OrderedDict
 
     grouped: OrderedDict[str, list[TeamTimelineBar]] = OrderedDict()
@@ -3689,16 +3691,34 @@ def _stage_rows_from_bars(
             continue
         grouped.setdefault(slug, []).append(bar)
 
-    ordered = list(_SHEET_STAGE_ALWAYS)
+    plan_by_slug: OrderedDict[str, TeamKhsxSpan] = OrderedDict()
+    for span in plan_spans or []:
+        slug = (getattr(span, 'slug', None) or '').strip().lower()
+        if not slug or slug == 'npl':
+            continue
+        if slug not in plan_by_slug:
+            plan_by_slug[slug] = span
+
+    ordered: list[str] = []
+    seen: set[str] = set()
     for key in _SHEET_STAGE_ORDER:
-        if key not in ordered and key in grouped:
+        if key in plan_by_slug or key in grouped:
             ordered.append(key)
-    ordered.extend(k for k in grouped if k and k not in ordered)
+            seen.add(key)
+    for key in plan_by_slug:
+        if key not in seen:
+            ordered.append(key)
+            seen.add(key)
+    for key in grouped:
+        if key and key not in seen:
+            ordered.append(key)
+            seen.add(key)
 
     out: list[RouteStageRow] = []
     for slug in ordered:
         items = grouped.get(slug) or []
         sample = items[0] if items else None
+        plan = plan_by_slug.get(slug)
         by_day: dict[date, TeamTimelineBar] = {}
         for bar in items:
             if not bar.placed:
@@ -3716,15 +3736,26 @@ def _stage_rows_from_bars(
                 by_day[cell_date] = bar
         first_date = min(by_day) if by_day else (sample.start if sample else None)
         last_date = max(by_day) if by_day else (sample.end if sample else None)
-        cap = _timeline_bar_capacity(sample) if sample else {}
+        cap_src = sample if sample is not None else plan
+        cap = _timeline_bar_capacity(cap_src) if cap_src is not None else {}
+        plan_label = (getattr(plan, 'label', None) or '').strip() if plan is not None else ''
+        bar_label = (sample.label if sample else '') or ''
+        full_label = plan_label or bar_label or slug
+        qty_total = (sample.team_qty_total if sample else '') or ''
+        if not qty_total and plan is not None:
+            qty_n = _q(getattr(plan, 'planned_qty', 0) or 0)
+            qty_total = format_sx_num_input(qty_n) if qty_n > 0 else ''
+        wc_id = int(sample.work_center_id or 0) if sample else 0
+        if not wc_id and plan is not None:
+            wc_id = int(getattr(plan, 'work_center_id', 0) or 0)
         out.append(RouteStageRow(
             slug=slug,
-            label=(sample.label if sample else '') or slug,
-            short_label=_stage_sheet_label(slug, sample.label if sample else ''),
-            work_center_id=int(sample.work_center_id or 0) if sample else 0,
-            team_qty_total=(sample.team_qty_total if sample else '') or '',
-            total_label=(sample.team_qty_total if sample else '') or (sample.qty_label if sample else '') or '',
-            can_drag=bool(sample.can_drag) if sample else False,
+            label=full_label,
+            short_label=_stage_sheet_label(slug, full_label),
+            work_center_id=wc_id,
+            team_qty_total=qty_total,
+            total_label=qty_total or (sample.qty_label if sample else '') or '',
+            can_drag=bool(sample.can_drag) if sample else bool(plan is not None and slug != 'npl'),
             can_split=bool(slug and slug != 'npl'),
             first_date=first_date,
             last_date=last_date,
@@ -4375,6 +4406,7 @@ def build_order_timeline(
         qty_label = format_sx_num_input(r.total_qty) if r.total_qty else ''
         stage_rows = _stage_rows_from_bars(
             team_bars, axis_days, range_start=start, range_end=end,
+            plan_spans=team_spans,
         )
         rows.append(PlanTimelineRow(
             order=r.order,

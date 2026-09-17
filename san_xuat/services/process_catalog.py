@@ -147,9 +147,13 @@ def process_group_rows() -> list[dict]:
             "text": f"{code} — {name}" if code and code.casefold() != key else name,
             "default_work_center_id": _hr_work_center_id(
                 work_center=grp.default_work_center,
-                work_center_code=grp.default_work_center_code or '',
+                work_center_code=(
+                    (grp.process_stage_label or '').strip()
+                    or (grp.default_work_center_code or '')
+                ),
                 name_hint=f'{grp.process_stage_label} {name} {code}',
             ),
+            "department_label": (grp.process_stage_label or '').strip(),
             "sort_order": grp.sort_order or 100,
         })
     if rows:
