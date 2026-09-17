@@ -1212,10 +1212,6 @@ def operation_detail(request, pk: int):
     current_dept = normalize_ie_group_department_label(op.process_stage_label or '') or (
         op.process_stage_label or ''
     ).strip()
-    if op.group_id and (op.group.process_stage_label or '').strip():
-        current_dept = normalize_ie_group_department_label(op.group.process_stage_label) or (
-            op.group.process_stage_label or ''
-        ).strip()
     option_names = {opt['name'] for opt in department_options}
     orphan_department_labels = (
         [current_dept] if current_dept and current_dept not in option_names else []

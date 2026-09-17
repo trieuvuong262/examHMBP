@@ -725,20 +725,19 @@ def update_operation(
         if operation.group_id != group.pk:
             changes['group'] = {'from': operation.group.code if operation.group_id else '', 'to': group.code}
             operation.group = group
-        # Khâu/bộ phận luôn theo Tên bộ phận của nhóm công đoạn chuẩn.
+        # Chỉ kế thừa bộ phận nhóm khi form không gửi giá trị (để user chọn tay vẫn lưu được).
         from san_xuat.services.capacity_from_hrm import normalize_ie_group_department_label
-        group_label = normalize_ie_group_department_label(group.process_stage_label or '') or (
-            group.process_stage_label or ''
-        ).strip()
-        if group_label:
-            process_stage_label = group_label
+        posted_dept = (process_stage_label or '').strip() if process_stage_label is not None else ''
+        if not posted_dept:
+            group_label = normalize_ie_group_department_label(group.process_stage_label or '') or (
+                group.process_stage_label or ''
+            ).strip()
+            if group_label:
+                process_stage_label = group_label
     if process_stage_label is not None:
         from san_xuat.services.capacity_from_hrm import normalize_ie_group_department_label
-        _set(
-            'process_stage_label',
-            normalize_ie_group_department_label(process_stage_label)[:100]
-            or process_stage_label.strip()[:100],
-        )
+        normalized = normalize_ie_group_department_label(process_stage_label) or process_stage_label.strip()
+        _set('process_stage_label', normalized[:100])
     _set('product_part', None if product_part is None else product_part.strip()[:120])
     _set('method_variant', None if method_variant is None else method_variant.strip())
 

@@ -312,11 +312,7 @@
   } else {
     groupSel.addEventListener('change', onGroupChange);
   }
-  // Lần đầu: ưu tiên bộ phận nhóm nếu form đang lệch
-  var fromGroup = departmentFromGroup();
-  if (fromGroup && deptSel.value !== fromGroup) {
-    applyDepartment(fromGroup);
-  }
+  // Không ghi đè bộ phận đã lưu khi mở form — chỉ điền khi user đổi nhóm.
 })();
 </script>
 {% endif %}
