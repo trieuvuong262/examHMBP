@@ -52,81 +52,35 @@ if [[ "${DEPLOY_AFTER_PUSH:-1}" == "0" || "${DEPLOY_AFTER_PUSH}" == "false" ]]; 
   exit 0
 fi
 
-if [[ -z "${VPS_HOST:-}" ]]; then
-  echo ""
-  echo "Đã push lên Git."
-  echo "Deploy VPS: GitHub Actions (push main) hoặc tạo deploy.local.env — xem docs/HUONG_DAN_AUTO_DEPLOY.md"
-  exit 0
-fi
-
+# Deploy thẳng IP public — không probe / fallback Tailscale.
+VPS_HOST="${VPS_HOST:-103.90.224.203}"
 VPS_USER="${VPS_USER:-root}"
 VPS_PORT="${VPS_PORT:-22}"
 PROJECT_DIR="${PROJECT_DIR:-/opt/portaljustplay}"
 BRANCH="${BRANCH:-main}"
-VPS_TAILSCALE_HOST="${VPS_TAILSCALE_HOST:-}"
-SSH_ID_ARGS=()
-if [[ -n "${VPS_SSH_KEY:-}" && -f "${VPS_SSH_KEY}" ]]; then
-  SSH_ID_ARGS=(-i "${VPS_SSH_KEY}" -o IdentitiesOnly=yes)
-elif [[ -f "${HOME}/.ssh/vps_portal" ]]; then
-  SSH_ID_ARGS=(-i "${HOME}/.ssh/vps_portal" -o IdentitiesOnly=yes)
-fi
+VPS_SSH_KEY="${VPS_SSH_KEY:-${HOME}/.ssh/vps_portal}"
+SSH_ID_ARGS=(-i "${VPS_SSH_KEY}" -o IdentitiesOnly=yes)
 
-ssh_port_open() {
-  local host_="$1"
-  if command -v timeout >/dev/null 2>&1; then
-    timeout 2 bash -c "echo >/dev/tcp/${host_}/${VPS_PORT}" 2>/dev/null
-  else
-    bash -c "echo >/dev/tcp/${host_}/${VPS_PORT}" 2>/dev/null
-  fi
-}
-
-CANDIDATES=()
-[[ -n "${VPS_HOST:-}" ]] && CANDIDATES+=("${VPS_HOST}")
-[[ -n "${VPS_TAILSCALE_HOST:-}" && "${VPS_TAILSCALE_HOST}" != "${VPS_HOST:-}" ]] && CANDIDATES+=("${VPS_TAILSCALE_HOST}")
-
-SSH_HOST=""
 echo ""
-echo "==> Chọn SSH host (IP public trước)"
-for h in "${CANDIDATES[@]}"; do
-  echo "    probe ${h}:${VPS_PORT} ..."
-  if ssh_port_open "$h"; then
-    SSH_HOST="$h"
-    echo "    OK: $h"
-    break
-  fi
-  echo "    timeout: $h"
-done
-[[ -z "${SSH_HOST}" ]] && SSH_HOST="${CANDIDATES[0]}"
-
-echo "==> SSH deploy ${VPS_USER}@${SSH_HOST}:${VPS_PORT}"
-ssh_deploy() {
-  ssh -p "${VPS_PORT}" -o BatchMode=yes -o ConnectTimeout=8 \
-    -o StrictHostKeyChecking=accept-new \
-    "${SSH_ID_ARGS[@]}" \
-    "${VPS_USER}@$1" \
-    "set -Eeuo pipefail; cd '${PROJECT_DIR}' && BRANCH='${BRANCH}' ./deploy.sh"
-}
-
-DEPLOY_OK=0
-SSH_RC=0
-ssh_deploy "${SSH_HOST}" || SSH_RC=$?
-if [[ "${SSH_RC}" -eq 0 ]]; then
-  DEPLOY_OK=1
-elif [[ "${SSH_RC}" -eq 255 ]]; then
-  for h in "${CANDIDATES[@]}"; do
-    [[ "$h" == "${SSH_HOST}" ]] && continue
-    echo "==> Retry SSH ${VPS_USER}@${h}:${VPS_PORT} (lỗi kết nối)"
-    if ssh_deploy "$h"; then
-      DEPLOY_OK=1
-      break
-    fi
-  done
+echo "==> SSH deploy ${VPS_USER}@${VPS_HOST}:${VPS_PORT}"
+echo "    ssh -i ${VPS_SSH_KEY} -p ${VPS_PORT} ${VPS_USER}@${VPS_HOST}"
+if [[ ! -f "${VPS_SSH_KEY}" ]]; then
+  echo "SSH key not found: ${VPS_SSH_KEY}"
+  echo "Test: ssh -i ${HOME}/.ssh/vps_portal -p ${VPS_PORT} ${VPS_USER}@${VPS_HOST}"
+  exit 1
 fi
 
-if [[ "${DEPLOY_OK}" != 1 ]]; then
+SSH_RC=0
+ssh -p "${VPS_PORT}" -o BatchMode=yes -o ConnectTimeout=8 \
+  -o StrictHostKeyChecking=accept-new \
+  "${SSH_ID_ARGS[@]}" \
+  "${VPS_USER}@${VPS_HOST}" \
+  "set -Eeuo pipefail; cd '${PROJECT_DIR}' && BRANCH='${BRANCH}' ./deploy.sh" || SSH_RC=$?
+
+if [[ "${SSH_RC}" -ne 0 ]]; then
   echo ""
-  echo "SSH deploy failed. Test: ssh ${VPS_USER}@${SSH_HOST}"
-  exit 1
+  echo "SSH deploy failed. Test: ssh -i ${HOME}/.ssh/vps_portal -p ${VPS_PORT} ${VPS_USER}@${VPS_HOST}"
+  exit "${SSH_RC}"
 fi
 
 echo ""

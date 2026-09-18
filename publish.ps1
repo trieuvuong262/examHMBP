@@ -41,43 +41,11 @@ function Invoke-Git {
     }
 }
 
-function Test-TcpPort {
-    param(
-        [Parameter(Mandatory = $true)][string]$Target,
-        [int]$Port = 22,
-        [int]$TimeoutSec = 2
-    )
-    $client = [System.Net.Sockets.TcpClient]::new()
-    try {
-        $iar = $client.BeginConnect($Target, $Port, $null, $null)
-        if (-not $iar.AsyncWaitHandle.WaitOne($TimeoutSec * 1000, $false)) {
-            return $false
-        }
-        if (-not $client.Connected) { return $false }
-        $client.EndConnect($iar) | Out-Null
-        return $true
-    } catch {
-        return $false
-    } finally {
-        $client.Dispose()
-    }
-}
-
 function Get-SshIdentity {
     param($cfg)
+    if ($env:VPS_SSH_KEY) { return $env:VPS_SSH_KEY }
     if ($cfg["VPS_SSH_KEY"]) { return $cfg["VPS_SSH_KEY"] }
-    $defaultKey = Join-Path $env:USERPROFILE ".ssh\vps_portal"
-    if (Test-Path $defaultKey) { return $defaultKey }
-    return $null
-}
-
-function Get-DeployHostCandidates {
-    param($cfg, [string]$PublicHost)
-    $list = New-Object System.Collections.Generic.List[string]
-    if ($PublicHost) { [void]$list.Add($PublicHost) }
-    $ts = $cfg["VPS_TAILSCALE_HOST"]
-    if ($ts -and $ts -ne $PublicHost) { [void]$list.Add($ts) }
-    return @($list | Select-Object -Unique)
+    return (Join-Path $env:USERPROFILE ".ssh\vps_portal")
 }
 
 function Invoke-SshDeploy {
@@ -159,64 +127,37 @@ Write-Host "==> git push"
 Invoke-Git @("push")
 
 $deployAfter = $cfg["DEPLOY_AFTER_PUSH"]
-$host_ = $cfg["VPS_HOST"]
 if ($deployAfter -eq "0" -or $deployAfter -eq "false") {
     Write-Host ""
     Write-Host "Pushed. DEPLOY_AFTER_PUSH=0 - skip SSH deploy."
     exit 0
 }
 
-if (-not $host_) {
-    Write-Host ""
-    Write-Host "Pushed to Git."
-    Write-Host "VPS deploy: GitHub Actions (push main) or create deploy.local.env - see docs/HUONG_DAN_AUTO_DEPLOY.md"
-    exit 0
-}
-
-$user = if ($cfg["VPS_USER"]) { $cfg["VPS_USER"] } else { "root" }
-$port = if ($cfg["VPS_PORT"]) { $cfg["VPS_PORT"] } else { "22" }
+# Deploy thang IP public — khong probe / fallback Tailscale.
+$host_ = if ($env:VPS_HOST) { $env:VPS_HOST } elseif ($cfg["VPS_HOST"]) { $cfg["VPS_HOST"] } else { "103.90.224.203" }
+$user = if ($env:VPS_USER) { $env:VPS_USER } elseif ($cfg["VPS_USER"]) { $cfg["VPS_USER"] } else { "root" }
+$port = if ($env:VPS_PORT) { $env:VPS_PORT } elseif ($cfg["VPS_PORT"]) { $cfg["VPS_PORT"] } else { "22" }
 $projectDir = if ($cfg["PROJECT_DIR"]) { $cfg["PROJECT_DIR"] } else { "/opt/portaljustplay" }
 $branch = if ($cfg["BRANCH"]) { $cfg["BRANCH"] } else { "main" }
 $identity = Get-SshIdentity $cfg
-$candidates = Get-DeployHostCandidates $cfg $host_
-
+$sshHost = $host_
 $remoteCmd = "set -Eeuo pipefail; cd '$projectDir' && BRANCH='$branch' ./deploy.sh"
 
-$sshHost = $null
 Write-Host ""
-Write-Host "==> Chon SSH host (IP public truoc)"
-foreach ($h in $candidates) {
-    Write-Host "    probe ${h}:${port} ..."
-    if (Test-TcpPort -Target $h -Port ([int]$port) -TimeoutSec 2) {
-        $sshHost = $h
-        Write-Host "    OK: $h"
-        break
-    }
-    Write-Host "    timeout: $h"
-}
-
-if (-not $sshHost) {
-    $sshHost = $candidates[0]
-    Write-Host "    Khong probe duoc TCP, van thu SSH: $sshHost"
-}
-
 Write-Host "==> SSH deploy ${user}@${sshHost}:${port}"
+Write-Host "    ssh -i $identity -p ${port} ${user}@${sshHost}"
 Write-Host "    $projectDir -> ./deploy.sh"
+if ($identity -and -not (Test-Path $identity)) {
+    Write-Host "SSH key not found: $identity"
+    Write-Host "Test: ssh -i `$env:USERPROFILE\.ssh\vps_portal ${user}@${sshHost}"
+    exit 1
+}
 
 $exitCode = Invoke-SshDeploy -User $user -HostName $sshHost -Port $port -RemoteCmd $remoteCmd -IdentityFile $identity
-# 255 = khong ket noi duoc. Khong retry khi deploy.sh da chay (tranh 2 tien trinh song song).
-if ($exitCode -eq 255) {
-    $fallback = @($candidates | Where-Object { $_ -ne $sshHost } | Select-Object -First 1)
-    if ($fallback) {
-        Write-Host ""
-        Write-Host "==> Retry SSH ${user}@$($fallback[0]):${port} (loi ket noi)"
-        $exitCode = Invoke-SshDeploy -User $user -HostName $fallback[0] -Port $port -RemoteCmd $remoteCmd -IdentityFile $identity
-    }
-}
 
 if ($exitCode -ne 0) {
     Write-Host ""
-    Write-Host "SSH deploy failed. Test: ssh -i `$env:USERPROFILE\.ssh\vps_portal ${user}@$sshHost"
+    Write-Host "SSH deploy failed. Test: ssh -i `$env:USERPROFILE\.ssh\vps_portal -p ${port} ${user}@${sshHost}"
     exit $exitCode
 }
 
