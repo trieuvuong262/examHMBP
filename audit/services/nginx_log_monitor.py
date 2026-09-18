@@ -20,6 +20,8 @@ _SCANNER_PATHS = (
     '/.git',
     '/wp-admin',
     '/wp-login',
+    '/wp-content',
+    '/wp-includes',
     '/xmlrpc.php',
     '/phpmyadmin',
     '/administrator',
@@ -40,7 +42,11 @@ _SCANNER_PATHS = (
     '/webfig',
     '/HNAP1',
     '/sdk',
+    '/index.php',
+    'hello.world',
+    '.php',
 )
+_SCANNER_METHODS = frozenset({'PROPFIND', 'TRACE', 'TRACK', 'CONNECT'})
 _SCANNER_UA = (
     'sqlmap',
     'nikto',
@@ -53,6 +59,13 @@ _SCANNER_UA = (
     'nessus',
     'openvas',
     'wpscan',
+)
+# Poll JS / service worker — 502/504 lúc deploy, không phải scanner hay bug trang.
+_BACKGROUND_PATHS = (
+    '/push/schedule-poll',
+    '/push/poll',
+    '/rustdesk/trang-thai',
+    '/sw.js',
 )
 _NOISE_PATHS = {
     '/favicon.ico',
@@ -95,6 +108,11 @@ def _is_scanner_ua(ua: str) -> bool:
     return any(marker in lowered for marker in _SCANNER_UA)
 
 
+def _is_background_path(path: str) -> bool:
+    lowered = path.lower()
+    return any(marker in lowered for marker in _BACKGROUND_PATHS)
+
+
 def parse_access_line(line: str) -> dict | None:
     text = (line or '').strip()
     if not text:
@@ -109,8 +127,13 @@ def parse_access_line(line: str) -> dict | None:
     except ValueError:
         return None
     ua = (match.group('ua') or '')[:180]
-    scanner = _is_scanner_path(path) or _is_scanner_ua(ua)
     method = match.group('method')
+    scanner = (
+        _is_scanner_path(path)
+        or _is_scanner_ua(ua)
+        or method in _SCANNER_METHODS
+    )
+    background = _is_background_path(path) and not scanner
     return {
         'ip': match.group('ip'),
         'time': match.group('time'),
@@ -119,6 +142,7 @@ def parse_access_line(line: str) -> dict | None:
         'status': status,
         'ua': ua,
         'scanner': scanner,
+        'background': background,
         'login_post': method == 'POST' and path.startswith('/accounts/login'),
         'noise': path.lower() in _NOISE_PATHS and status in (404, 400),
     }
@@ -138,16 +162,21 @@ def summarize_access_lines(text: str, *, hours: int = DEFAULT_HOURS) -> dict:
     interesting = [row for row in parsed if not row['noise']]
     status_4xx = sum(1 for row in interesting if 400 <= row['status'] < 500)
     status_5xx = sum(1 for row in interesting if row['status'] >= 500)
+    status_5xx_background = sum(
+        1 for row in interesting if row['background'] and row['status'] >= 500
+    )
     scanners = [row for row in interesting if row['scanner']]
     login_posts = [row for row in interesting if row['login_post']]
     errors = [
         row for row in interesting
         if row['status'] >= 400 or row['scanner'] or row['login_post']
     ]
+    # Bảng top path: bỏ poll nền 5xx để lộ 500 trang thật + scanner.
+    notable = [row for row in errors if not row['background']]
 
     path_counter: Counter[str] = Counter()
     ip_counter: Counter[str] = Counter()
-    for row in errors:
+    for row in notable:
         path_counter[f"{row['status']} {row['method']} {row['path']}"] += 1
         ip_counter[row['ip']] += 1
 
@@ -158,6 +187,7 @@ def summarize_access_lines(text: str, *, hours: int = DEFAULT_HOURS) -> dict:
         'skipped_lines': skipped,
         'count_4xx': status_4xx,
         'count_5xx': status_5xx,
+        'count_5xx_background': status_5xx_background,
         'count_scanner': len(scanners),
         'count_login_post': len(login_posts),
         'top_paths': path_counter.most_common(MAX_TOP),
@@ -176,6 +206,7 @@ def empty_nginx_watch(*, hours: int = DEFAULT_HOURS, error: str | None = None) -
         'skipped_lines': 0,
         'count_4xx': 0,
         'count_5xx': 0,
+        'count_5xx_background': 0,
         'count_scanner': 0,
         'count_login_post': 0,
         'top_paths': [],

@@ -8,6 +8,9 @@
 
     var LS_PREFIX = 'jp_sched_notified_';
     var POLL_MS = 15000;
+    var MAX_BACKOFF_MS = 120000;
+    var nextMs = POLL_MS;
+    var timer = null;
 
     function lsGet(key) {
         try {
@@ -49,14 +52,30 @@
         });
     }
 
+    function markFail() {
+        nextMs = Math.min(Math.max(nextMs, POLL_MS) * 2, MAX_BACKOFF_MS);
+    }
+
+    function markOk() {
+        nextMs = POLL_MS;
+    }
+
     function pollOnce() {
         if (!canPoll()) {
+            markOk();
             return Promise.resolve();
         }
         return fetch(cfg.schedulePollUrl, { credentials: 'same-origin' })
-            .then(function (resp) { return resp.json(); })
+            .then(function (resp) {
+                if (resp.status >= 500 || resp.status === 429) {
+                    markFail();
+                    return null;
+                }
+                markOk();
+                return resp.json();
+            })
             .then(function (data) {
-                if (!data.ok || !data.has_due || !data.fire_key) {
+                if (!data || !data.ok || !data.has_due || !data.fire_key) {
                     return;
                 }
                 var lsKey = LS_PREFIX + data.fire_key;
@@ -67,15 +86,25 @@
                     lsSet(lsKey, '1');
                 });
             })
-            .catch(function () {});
+            .catch(function () {
+                markFail();
+            });
+    }
+
+    function scheduleNext() {
+        if (timer) {
+            window.clearTimeout(timer);
+        }
+        timer = window.setTimeout(function () {
+            pollOnce().then(scheduleNext);
+        }, nextMs);
     }
 
     function startPolling() {
         if (!canPoll()) {
             return;
         }
-        pollOnce();
-        window.setInterval(pollOnce, POLL_MS);
+        pollOnce().then(scheduleNext);
     }
 
     if (document.readyState === 'loading') {

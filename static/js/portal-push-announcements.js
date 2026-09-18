@@ -9,6 +9,9 @@
     var LS_LAST_NOTIFIED = 'jp_ann_last_notified_id';
     var LS_BASELINE = 'jp_ann_push_baseline_id';
     var POLL_MS = 45000;
+    var MAX_BACKOFF_MS = 120000;
+    var nextMs = POLL_MS;
+    var timer = null;
 
     function lsGet(key) {
         try {
@@ -50,9 +53,24 @@
         });
     }
 
+    function markFail() {
+        nextMs = Math.min(Math.max(nextMs, POLL_MS) * 2, MAX_BACKOFF_MS);
+    }
+
+    function markOk() {
+        nextMs = POLL_MS;
+    }
+
     function fetchUnread() {
         return fetch(cfg.announcementPollUrl, { credentials: 'same-origin' })
-            .then(function (resp) { return resp.json(); })
+            .then(function (resp) {
+                if (resp.status >= 500 || resp.status === 429) {
+                    var err = new Error('poll ' + resp.status);
+                    err.backoff = true;
+                    throw err;
+                }
+                return resp.json();
+            })
             .then(function (data) {
                 if (!data.ok) {
                     throw new Error(data.message || 'Poll failed');
@@ -79,20 +97,38 @@
 
     function pollOnce() {
         if (!canPoll()) {
+            markOk();
             return Promise.resolve();
         }
-        return fetchUnread().then(maybeNotify).catch(function () {});
+        return fetchUnread().then(function (data) {
+            markOk();
+            return maybeNotify(data);
+        }).catch(function (err) {
+            markFail();
+        });
+    }
+
+    function scheduleNext() {
+        if (timer) {
+            window.clearTimeout(timer);
+        }
+        timer = window.setTimeout(function () {
+            pollOnce().then(scheduleNext);
+        }, nextMs);
     }
 
     function setBaselineFromServer() {
         return fetchUnread().then(function (data) {
+            markOk();
             if (data.has_new && data.announcement_id) {
                 lsSet(LS_BASELINE, String(data.announcement_id));
                 lsSet(LS_LAST_NOTIFIED, String(data.announcement_id));
             } else {
                 lsSet(LS_BASELINE, '0');
             }
-        }).catch(function () {});
+        }).catch(function () {
+            markFail();
+        });
     }
 
     window.jpResetAnnouncementPushBaseline = function () {
@@ -107,13 +143,10 @@
         }
         var baseline = lsGet(LS_BASELINE);
         if (baseline === null) {
-            setBaselineFromServer().then(function () {
-                window.setInterval(pollOnce, POLL_MS);
-            });
+            setBaselineFromServer().then(scheduleNext);
             return;
         }
-        pollOnce();
-        window.setInterval(pollOnce, POLL_MS);
+        pollOnce().then(scheduleNext);
     }
 
     if (document.readyState === 'loading') {

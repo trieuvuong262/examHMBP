@@ -189,6 +189,10 @@
     var onlineEnabled = {% if rustdesk_online_check %}true{% else %}false{% endif %};
     var liveHint = document.getElementById('jpRdLiveHint');
 
+    var nextMs = pollSec * 1000;
+    var maxBackoffMs = 120000;
+    var timer = null;
+
     function copyText(text, label, btn) {
         if (!text) return;
         navigator.clipboard.writeText(text).then(function () {
@@ -242,7 +246,14 @@
             headers: { 'X-Requested-With': 'XMLHttpRequest' },
             credentials: 'same-origin',
         })
-            .then(function (res) { return res.json(); })
+            .then(function (res) {
+                if (!res.ok) {
+                    nextMs = Math.min(Math.max(nextMs, pollSec * 1000) * 2, maxBackoffMs);
+                    throw new Error('status ' + res.status);
+                }
+                nextMs = pollSec * 1000;
+                return res.json();
+            })
             .then(function (data) {
                 if (!data || !data.online) return;
                 rows.forEach(function (row) {
@@ -256,14 +267,24 @@
                     dot.setAttribute('aria-label', online ? 'Online' : 'Offline');
                 });
             })
-            .catch(function () {})
+            .catch(function () {
+                nextMs = Math.min(Math.max(nextMs, pollSec * 1000) * 2, maxBackoffMs);
+            })
             .finally(function () {
                 if (liveHint) liveHint.classList.remove('is-refreshing');
             });
     }
 
+    function scheduleOnlinePoll() {
+        if (timer) window.clearTimeout(timer);
+        timer = window.setTimeout(function () {
+            refreshOnlineStatus();
+            scheduleOnlinePoll();
+        }, nextMs);
+    }
+
     if (onlineEnabled && pollSec > 0) {
-        setInterval(refreshOnlineStatus, pollSec * 1000);
+        scheduleOnlinePoll();
         setTimeout(refreshOnlineStatus, 1500);
     }
 

@@ -281,6 +281,14 @@ ensure_ssl_conf() {
     fi
     echo "    Injected error-pages include into ssl.conf"
   fi
+  if [[ -f "${ssl_conf}" ]] && ! grep -q 'scanner-block.conf' "${ssl_conf}"; then
+    if grep -q 'include /etc/nginx/error-pages.conf;' "${ssl_conf}"; then
+      sed -i '/include \/etc\/nginx\/error-pages.conf;/a\    include /etc/nginx/scanner-block.conf;' "${ssl_conf}"
+    else
+      sed -i '/^}/i\    include /etc/nginx/scanner-block.conf;' "${ssl_conf}"
+    fi
+    echo "    Injected scanner-block include into ssl.conf"
+  fi
 }
 
 step "1) Pull latest code"
