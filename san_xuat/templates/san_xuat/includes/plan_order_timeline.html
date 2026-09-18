@@ -117,7 +117,7 @@
                   data-planned-qty="{{ stage.planned_qty|sx_num_input }}"
                   title="{{ stage.label }} · {{ row.order.code }}{% if stage.gc_hired %} · {{ stage.gc_title }}{% endif %}">
                 <span class="jp-sheet-side">
-                  <span class="jp-tl-dept-name">{{ stage.short_label }}</span>
+                  <span class="jp-tl-dept-name">{% if stage.label %}{{ stage.label }}{% else %}{{ stage.short_label }}{% endif %}</span>
                   {% if stage.gc_hired %}
                     {% if stage.gc_pk %}
                     <a class="jp-sheet-gc" href="{% url 'san_xuat:subcontract_detail' stage.gc_pk %}"
@@ -251,8 +251,8 @@
     </div>
     {% else %}
     <div class="jp-tl-empty">
-      {% if search_query or route_dept_filter or route_team_filter %}
-        Không có đơn khớp bộ lọc. Đổi bộ phận / tổ hoặc xóa lọc để xem lại.
+      {% if search_query or route_team_filter %}
+        Không có đơn khớp bộ lọc. Đổi bộ phận hoặc xóa lọc để xem lại.
       {% else %}
         Không có đơn trong {{ route_board.month_label }}. Đổi tháng hiển thị để xem.
       {% endif %}

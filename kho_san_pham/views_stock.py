@@ -11,7 +11,12 @@ from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
 from kho_san_pham.models import Product
-from kho_san_pham.services.stock import annotate_warehouse_qtys, catalog_and_sales_warehouses
+from kho_san_pham.services.stock import catalog_and_sales_warehouses
+from kho_san_pham.services.sync_store_stock import (
+    annotate_kv_group_qtys,
+    attach_kv_branch_qtys,
+    kv_inventory_branch_groups,
+)
 from kho_san_pham.view_utils import nav_context, perm_context
 
 STATUS_CHOICES = (
@@ -76,6 +81,22 @@ def stock_list(request):
     only_stock = (request.GET.get('stock') or '').strip() in ('1', 'yes', 'nonzero')
     sort_key, sort_dir = _stock_sort(request)
 
+    groups = kv_inventory_branch_groups()
+    factory_cols = [
+        {'id': bid, 'name': name, 'group': WH_FACTORY}
+        for bid, name in groups['factory']
+    ]
+    store_cols = [
+        {'id': bid, 'name': name, 'group': WH_STORE}
+        for bid, name in groups['sales']
+    ]
+    if wh_scope == WH_FACTORY:
+        kv_columns = factory_cols
+    elif wh_scope == WH_STORE:
+        kv_columns = store_cols
+    else:
+        kv_columns = factory_cols + store_cols
+
     qs = Product.objects.all()
     if status == 'active':
         qs = qs.filter(is_active=True)
@@ -91,7 +112,7 @@ def stock_list(request):
             | Q(name__icontains=search_query)
             | Q(bar_code__icontains=search_query)
         )
-    qs = annotate_warehouse_qtys(qs, factory=factory, store=store)
+    qs = annotate_kv_group_qtys(qs)
     if only_stock:
         if wh_scope == WH_FACTORY:
             qs = qs.filter(qty_factory__gt=0)
@@ -106,7 +127,16 @@ def stock_list(request):
     qs = qs.order_by(order, 'code')
 
     page_obj, query_string = paginate_queryset(request, qs, per_page=40)
+    products = list(page_obj.object_list)
+    attach_kv_branch_qtys(products, kv_columns)
+    page_obj.object_list = products
     selected_order = f'{sort_key}:{sort_dir}'
+    factory_label = 'Xưởng (KV)'
+    store_label = 'Cửa hàng (KV)'
+    if factory_cols:
+        factory_label = factory_cols[0]['name'] if len(factory_cols) == 1 else 'Xưởng (KV)'
+    if store_cols:
+        store_label = store_cols[0]['name'] if len(store_cols) == 1 else 'Cửa hàng (KV)'
     return render(request, 'kho_san_pham/stock_list.html', {
         **nav_context('stock', user=request.user),
         **perm_context(request.user, 'stock'),
@@ -117,15 +147,16 @@ def stock_list(request):
         'status_choices': STATUS_CHOICES,
         'wh_scope': wh_scope,
         'wh_choices': (
-            (WH_ALL, 'Cả hai kho'),
-            (WH_FACTORY, factory.name if factory else 'Xưởng'),
-            (WH_STORE, store.name if store else 'Cửa hàng'),
+            (WH_ALL, 'Tất cả kho KV'),
+            (WH_FACTORY, factory_label),
+            (WH_STORE, store_label),
         ),
         'only_stock': only_stock,
         'selected_order': selected_order,
         'order_choices': STOCK_ORDER_CHOICES,
         'factory': factory,
         'store': store,
+        'kv_columns': kv_columns,
         'show_factory': wh_scope != WH_STORE,
         'show_store': wh_scope != WH_FACTORY,
         'has_filters': bool(

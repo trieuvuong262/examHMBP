@@ -410,6 +410,7 @@ def product_detail(request, pk: int):
     from san_xuat.services.products import find_tech_doc_for_product, product_sx_code
 
     from kho_san_pham.services.stock import product_stock_rows
+    from kho_san_pham.services.sync_store_stock import kv_stock_rows_for_product
 
     product = get_object_or_404(Product, pk=pk)
     tech_doc = find_tech_doc_for_product(product)
@@ -421,6 +422,7 @@ def product_detail(request, pk: int):
         **perm_context(request.user, 'products'),
         'product': product,
         'stock_rows': product_stock_rows(product),
+        'kv_stock_rows': kv_stock_rows_for_product(product),
         'type_labels': PRODUCT_TYPE_LABELS,
         'description_html': format_description_html(product.description),
         'tech_doc': tech_doc,

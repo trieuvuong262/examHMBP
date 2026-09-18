@@ -1336,7 +1336,6 @@ def plan_board(request):
         plan_board_work_center_options,
         plan_stage_legend_items,
         filter_route_timeline,
-        route_dept_filter_choices,
         route_team_filter_choices,
         build_route_stats,
         set_plan_priority,
@@ -1459,8 +1458,6 @@ def plan_board(request):
                 params['route_from'] = route_from_raw
             if route_months_raw:
                 params['route_months'] = route_months_raw
-            if route_dept_filter:
-                params['dept'] = route_dept_filter
             if route_team_filter:
                 params['team'] = route_team_filter
         params.update(extra)
@@ -2196,11 +2193,9 @@ def plan_board(request):
             range_from=route_from,
             months=route_months,
         )
-        route_dept_choices = route_dept_filter_choices(route_board)
         route_team_choices = route_team_filter_choices(route_board)
         route_board = filter_route_timeline(
             route_board,
-            dept_slugs=route_dept_filter,
             team_ids=route_team_ids,
             include_unassigned_team=route_team_unassigned,
         )

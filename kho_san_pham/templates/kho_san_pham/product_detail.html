@@ -102,6 +102,13 @@
                         <div class="col-sm-4"><span class="text-muted">Mã KiotViet</span><div class="fw-semibold">{{ product.kiotviet_code|default:"—" }}</div></div>
                         <div class="col-sm-4"><span class="text-muted">ĐVT</span><div class="fw-semibold">{{ product.unit|default:"—" }}</div></div>
                         <div class="col-sm-4"><span class="text-muted">Giá bán</span><div class="fw-semibold">{% if product.base_price %}{{ product.base_price|floatformat:0|intcomma }} ₫{% else %}—{% endif %}</div></div>
+                        {% for row in kv_stock_rows %}
+                        <div class="col-sm-4">
+                            <span class="text-muted">{{ row.name }}</span>
+                            <div class="fw-semibold">{{ row.qty|floatformat:0|intcomma }}</div>
+                            <div class="small text-muted">KiotViet</div>
+                        </div>
+                        {% empty %}
                         {% for row in stock_rows %}
                         <div class="col-sm-4">
                             <span class="text-muted">{% if row.is_catalog %}Tồn xưởng{% else %}Tồn cửa hàng{% endif %}</span>
@@ -110,6 +117,7 @@
                         </div>
                         {% empty %}
                         <div class="col-sm-4"><span class="text-muted">Tồn xưởng</span><div class="fw-semibold">0</div></div>
+                        {% endfor %}
                         {% endfor %}
                         <div class="col-sm-4"><span class="text-muted">Đồng bộ lúc</span><div class="fw-semibold">{% if product.synced_at %}{{ product.synced_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}</div></div>
                         <div class="col-12 mt-2">

@@ -4013,7 +4013,7 @@ def route_dept_filter_choices(board=None) -> list[tuple[str, str]]:
 
 
 def route_team_filter_choices(board=None) -> list[dict]:
-    """Tổ đang gán trên lưới lộ trình (cột Tổ)."""
+    """Bộ phận Ob = tổ/WC đang gán trên lưới lộ trình."""
     by_id: dict[int, str] = {}
     has_unassigned = False
     for row in getattr(board, 'rows', None) or []:
@@ -4024,8 +4024,8 @@ def route_team_filter_choices(board=None) -> list[dict]:
                 continue
             if wc_id in by_id:
                 continue
-            by_id[wc_id] = (getattr(stage, 'label', '') or '').strip() or f'Tổ #{wc_id}'
-    items = [{'id': 0, 'name': 'Chưa chọn tổ'}] if has_unassigned else []
+            by_id[wc_id] = (getattr(stage, 'label', '') or '').strip() or f'Bộ phận #{wc_id}'
+    items = [{'id': 0, 'name': 'Chưa chọn bộ phận'}] if has_unassigned else []
     for wc_id, name in sorted(by_id.items(), key=lambda item: item[1].casefold()):
         items.append({'id': wc_id, 'name': name})
     return items

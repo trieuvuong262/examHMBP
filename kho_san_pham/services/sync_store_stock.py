@@ -11,7 +11,8 @@ from dataclasses import dataclass, field
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import DecimalField, OuterRef, Subquery, Sum, Value
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from kho_san_pham.choices import (
@@ -52,8 +53,7 @@ class StoreStockSyncResult:
         )
 
 
-def kv_sales_branch_ids(*, retailer: str | None = None) -> list[tuple[int, str]]:
-    """Chi nhánh KV được cộng vào tồn cửa hàng Portal."""
+def _kv_inventory_qs(*, retailer: str | None = None):
     from kiotviet.models import KvProductInventory
     from kiotviet.sync_service import current_retailer
 
@@ -61,16 +61,131 @@ def kv_sales_branch_ids(*, retailer: str | None = None) -> list[tuple[int, str]]
     r = retailer or current_retailer()
     if r:
         qs = qs.filter(retailer=r)
+    return qs
+
+
+def kv_inventory_branch_rows(*, retailer: str | None = None) -> list[tuple[int, str]]:
+    """Mọi kho/chi nhánh đang có dòng tồn trên mirror KiotViet."""
     rows = (
-        qs.values('branch_kiotviet_id', 'branch_name')
+        _kv_inventory_qs(retailer=retailer)
+        .values('branch_kiotviet_id', 'branch_name')
         .distinct()
         .order_by('branch_kiotviet_id')
     )
+    seen: set[int] = set()
+    out: list[tuple[int, str]] = []
+    for row in rows:
+        bid = row['branch_kiotviet_id']
+        if bid is None:
+            continue
+        bid = int(bid)
+        if bid in seen:
+            continue
+        seen.add(bid)
+        name = (row['branch_name'] or '').strip() or f'Kho {bid}'
+        out.append((bid, name))
+    return out
+
+
+def kv_inventory_branch_groups(*, retailer: str | None = None) -> dict[str, list[tuple[int, str]]]:
+    factory: list[tuple[int, str]] = []
+    sales: list[tuple[int, str]] = []
+    for bid, name in kv_inventory_branch_rows(retailer=retailer):
+        if is_kv_sales_branch_name(name):
+            sales.append((bid, name))
+        else:
+            factory.append((bid, name))
+    return {'factory': factory, 'sales': sales}
+
+
+def kv_sales_branch_ids(*, retailer: str | None = None) -> list[tuple[int, str]]:
+    """Chi nhánh KV được cộng vào tồn cửa hàng Portal."""
+    return kv_inventory_branch_groups(retailer=retailer)['sales']
+
+
+def kv_factory_branch_ids(*, retailer: str | None = None) -> list[tuple[int, str]]:
+    """Chi nhánh KV thuộc xưởng / sản xuất — không đổ vào CH-TRUNG-TAM."""
+    return kv_inventory_branch_groups(retailer=retailer)['factory']
+
+
+def _kv_on_hand_subquery(branch_ids: list[int], *, retailer: str | None = None):
+    qty_field = DecimalField(max_digits=14, decimal_places=2)
+    if not branch_ids:
+        return Value(Decimal('0'), output_field=qty_field)
+    qs = _kv_inventory_qs(retailer=retailer).filter(
+        product_kiotviet_id=OuterRef('kiotviet_id'),
+        branch_kiotviet_id__in=branch_ids,
+    )
+    return Coalesce(
+        Subquery(
+            qs.values('product_kiotviet_id')
+            .annotate(total=Sum('on_hand'))
+            .values('total')[:1],
+            output_field=qty_field,
+        ),
+        Value(Decimal('0'), output_field=qty_field),
+    )
+
+
+def annotate_kv_group_qtys(qs, *, retailer: str | None = None):
+    """Gắn ``qty_factory`` / ``qty_store`` = tổng on_hand KiotViet theo nhóm kho."""
+    groups = kv_inventory_branch_groups(retailer=retailer)
+    factory_ids = [bid for bid, _name in groups['factory']]
+    sales_ids = [bid for bid, _name in groups['sales']]
+    return qs.annotate(
+        qty_factory=_kv_on_hand_subquery(factory_ids, retailer=retailer),
+        qty_store=_kv_on_hand_subquery(sales_ids, retailer=retailer),
+    )
+
+
+def attach_kv_branch_qtys(products, columns: list[dict], *, retailer: str | None = None) -> None:
+    """Gắn ``kv_branch_qtys`` (list) theo thứ tự ``columns`` cho từng SP trên trang."""
+    kids = [int(p.kiotviet_id) for p in products if p.kiotviet_id]
+    branch_ids = [col['id'] for col in columns]
+    qty_map: dict[tuple[int, int], Decimal] = {}
+    if kids and branch_ids:
+        for row in (
+            _kv_inventory_qs(retailer=retailer)
+            .filter(product_kiotviet_id__in=kids, branch_kiotviet_id__in=branch_ids)
+            .values('product_kiotviet_id', 'branch_kiotviet_id', 'on_hand')
+        ):
+            kid = row['product_kiotviet_id']
+            bid = row['branch_kiotviet_id']
+            if kid is None or bid is None:
+                continue
+            qty_map[(int(kid), int(bid))] = _qty(row['on_hand'])
+    for product in products:
+        kid = int(product.kiotviet_id) if product.kiotviet_id else None
+        product.kv_branch_qtys = [
+            qty_map.get((kid, col['id']), Decimal('0')) if kid else Decimal('0')
+            for col in columns
+        ]
+        product.kv_branch_qtys_pairs = list(zip(columns, product.kv_branch_qtys, strict=True))
+
+
+def kv_stock_rows_for_product(product, *, retailer: str | None = None) -> list[dict]:
+    """Tồn từng kho KiotViet của một SKU — dùng trên trang chi tiết."""
+    if not getattr(product, 'kiotviet_id', None):
+        return []
+    groups = kv_inventory_branch_groups(retailer=retailer)
+    columns = [
+        {'id': bid, 'name': name, 'is_sales': False}
+        for bid, name in groups['factory']
+    ] + [
+        {'id': bid, 'name': name, 'is_sales': True}
+        for bid, name in groups['sales']
+    ]
+    if not columns:
+        return []
+    attach_kv_branch_qtys([product], columns, retailer=retailer)
     return [
-        (int(row['branch_kiotviet_id']), (row['branch_name'] or '').strip())
-        for row in rows
-        if row['branch_kiotviet_id'] is not None
-        and is_kv_sales_branch_name(row['branch_name'] or '')
+        {
+            'name': col['name'],
+            'qty': qty,
+            'is_catalog': not col['is_sales'],
+            'source': 'kiotviet',
+        }
+        for col, qty in zip(columns, product.kv_branch_qtys, strict=True)
     ]
 
 

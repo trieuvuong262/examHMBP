@@ -41,7 +41,10 @@
 {% block content %}
 <div class="container jp-page jp-npl-material-catalog-page py-3 py-md-4 mb-5" data-loading-message="Đang tải tồn kho…">
     <div class="jp-npl-mat-topbar">
-        <h2 class="jp-npl-mat-topbar-title">Tồn kho</h2>
+        <div>
+            <h2 class="jp-npl-mat-topbar-title mb-0">Tồn kho</h2>
+            <div class="small text-muted">Theo chi nhánh KiotViet</div>
+        </div>
         <div class="jp-npl-mat-topbar-search d-flex flex-wrap align-items-center gap-2">
             <form method="get" class="jp-npl-mat-search-row flex-grow-1" id="ksp-stock-form">
                 <select name="wh" id="ksp-stk-wh" class="form-select form-select-sm jp-npl-mat-status-select" aria-label="Kho">
@@ -77,7 +80,7 @@
             <form method="post" action="{% url 'kho_san_pham:stock_sync_kv' %}" class="mb-0">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-outline-secondary btn-sm fw-bold text-nowrap"
-                        title="Đồng bộ tồn cửa hàng từ KiotViet. Không đụng tồn xưởng.">
+                        title="Cập nhật sổ cửa hàng Portal theo tồn KiotViet. Trang này đang hiện số KV.">
                     <i class="bi bi-arrow-repeat me-1"></i>Đồng bộ tồn KV
                 </button>
             </form>
@@ -95,12 +98,16 @@
                         <th>Tên</th>
                         <th class="d-none d-md-table-cell">Màu</th>
                         <th class="d-none d-md-table-cell">Size</th>
+                        {% for col in kv_columns %}
+                        <th class="text-end">{{ col.name }}</th>
+                        {% empty %}
                         {% if show_factory %}
                         <th class="text-end">Tồn xưởng</th>
                         {% endif %}
                         {% if show_store %}
                         <th class="text-end">Tồn cửa hàng</th>
                         {% endif %}
+                        {% endfor %}
                         <th></th>
                     </tr>
                 </thead>
@@ -129,6 +136,13 @@
                         </td>
                         <td data-label="Màu" class="d-none d-md-table-cell small">{{ product.color_label|default:product.color_code|default:"—" }}</td>
                         <td data-label="Size" class="d-none d-md-table-cell">{{ product.size_label|default:"—" }}</td>
+                        {% if kv_columns %}
+                        {% for col, qty in product.kv_branch_qtys_pairs %}
+                        <td data-label="{{ col.name }}" class="text-end {% if qty %}fw-semibold{% else %}text-muted{% endif %}">
+                            {{ qty|floatformat:0|intcomma }}
+                        </td>
+                        {% endfor %}
+                        {% else %}
                         {% if show_factory %}
                         <td data-label="Tồn xưởng" class="text-end {% if product.qty_factory %}fw-semibold{% else %}text-muted{% endif %}">
                             {{ product.qty_factory|floatformat:0|intcomma }}
@@ -138,6 +152,7 @@
                         <td data-label="Tồn CH" class="text-end {% if product.qty_store %}fw-semibold{% else %}text-muted{% endif %}">
                             {{ product.qty_store|floatformat:0|intcomma }}
                         </td>
+                        {% endif %}
                         {% endif %}
                         <td class="text-end">
                             <a href="{% url 'kho_san_pham:product_detail' product.pk %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>

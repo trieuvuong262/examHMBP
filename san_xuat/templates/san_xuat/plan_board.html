@@ -1639,18 +1639,9 @@
         {% endif %}
         {% if tab == 'route' or tab == 'stats' %}
         <div class="jp-team-filter-org">
-          <label class="form-label fw-bold small mb-1" for="jp-pb-filter-dept">Bộ phận</label>
-          <select id="jp-pb-filter-dept" name="dept" class="form-select form-select-sm jp-pb-multi-filter"
-                  multiple data-placeholder="Tất cả bộ phận">
-            {% for slug, label in route_dept_choices %}
-            <option value="{{ slug }}"{% if slug in route_dept_filter %} selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="jp-team-filter-org">
-          <label class="form-label fw-bold small mb-1" for="jp-pb-filter-team">Tổ</label>
+          <label class="form-label fw-bold small mb-1" for="jp-pb-filter-team">Bộ phận</label>
           <select id="jp-pb-filter-team" name="team" class="form-select form-select-sm jp-pb-multi-filter"
-                  multiple data-placeholder="Tất cả tổ">
+                  multiple data-placeholder="Tất cả bộ phận">
             {% for wc in route_team_choices %}
             <option value="{{ wc.id }}"{% if wc.id|stringformat:"s" in route_team_filter %} selected{% endif %}>{{ wc.name }}</option>
             {% endfor %}
@@ -1660,7 +1651,7 @@
         <input type="hidden" name="route_months" value="{{ route_months|default:1 }}">
         {% endif %}
       </div>
-      {% if search_query or priority_filter or npl_filter or tech_filter or deadline_filter or route_dept_filter or route_team_filter %}
+      {% if search_query or priority_filter or npl_filter or tech_filter or deadline_filter or route_team_filter %}
       <div class="jp-team-filter-actions">
         <a href="?mode={{ mode }}&amp;tab={{ tab }}&amp;sx_reset=1{% if tab == 'route' or tab == 'stats' %}{% if route_board %}&amp;route_from={{ route_board.range_start|date:'Y-m-d' }}&amp;route_months={{ route_months }}{% endif %}{% endif %}"
            class="btn btn-light border btn-sm" title="Xóa bộ lọc">

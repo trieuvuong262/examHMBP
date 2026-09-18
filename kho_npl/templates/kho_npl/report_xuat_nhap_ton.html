@@ -58,10 +58,10 @@
 .jp-npl-xnt-table tbody tr:hover { background: #f8fafc; }
 .jp-npl-xnt-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .jp-npl-xnt-code { white-space: nowrap; font-weight: 600; }
-.jp-npl-xnt-table tfoot td {
+.jp-npl-xnt-table tbody tr.jp-npl-xnt-sum td {
     font-weight: 700;
-    background: #f1f5f9;
-    border-top: 2px solid #cbd5e1;
+    background: #f5e6b8;
+    border-color: #ead89a;
 }
 .jp-npl-xnt-table tr.jp-npl-group-expandable { cursor: pointer; }
 .jp-npl-xnt-table tr.jp-npl-group-expandable.is-expanded { background: rgba(158, 201, 230, 0.22); }
@@ -186,6 +186,19 @@
                     </tr>
                 </thead>
                 <tbody>
+                    {% if groups %}
+                    <tr class="jp-npl-xnt-sum">
+                        <td colspan="2">SL mặt hàng : {{ sku_count }}</td>
+                        <td class="jp-npl-xnt-num">{{ totals.qty_open|npl_qty }}</td>
+                        <td class="jp-npl-xnt-num">{{ totals.val_open|npl_money }}</td>
+                        <td class="jp-npl-xnt-num">{{ totals.qty_in|npl_qty }}</td>
+                        <td class="jp-npl-xnt-num">{{ totals.val_in|npl_money }}</td>
+                        <td class="jp-npl-xnt-num">{{ totals.qty_out|npl_qty }}</td>
+                        <td class="jp-npl-xnt-num">{{ totals.val_out|npl_money }}</td>
+                        <td class="jp-npl-xnt-num">{{ totals.qty_close|npl_qty }}</td>
+                        <td class="jp-npl-xnt-num">{{ totals.val_close|npl_money }}</td>
+                    </tr>
+                    {% endif %}
                     {% for group in groups %}
                     <tr class="jp-npl-group-row{% if group.can_expand %} jp-npl-group-expandable{% endif %}{% if expand_search_hits and group.can_expand %} is-expanded{% endif %}"
                         {% if group.can_expand %}data-expand-target="{{ group.key }}"{% endif %}>
@@ -232,22 +245,6 @@
                     </tr>
                     {% endfor %}
                 </tbody>
-                {% if groups %}
-                <tfoot>
-                    <tr>
-                        <td></td>
-                        <td>Tổng cộng</td>
-                        <td class="jp-npl-xnt-num">{{ totals.qty_open|npl_qty }}</td>
-                        <td class="jp-npl-xnt-num">{{ totals.val_open|npl_money }}</td>
-                        <td class="jp-npl-xnt-num">{{ totals.qty_in|npl_qty }}</td>
-                        <td class="jp-npl-xnt-num">{{ totals.val_in|npl_money }}</td>
-                        <td class="jp-npl-xnt-num">{{ totals.qty_out|npl_qty }}</td>
-                        <td class="jp-npl-xnt-num">{{ totals.val_out|npl_money }}</td>
-                        <td class="jp-npl-xnt-num">{{ totals.qty_close|npl_qty }}</td>
-                        <td class="jp-npl-xnt-num">{{ totals.val_close|npl_money }}</td>
-                    </tr>
-                </tfoot>
-                {% endif %}
             </table>
         </div>
     </div>
