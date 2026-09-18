@@ -31,6 +31,30 @@ def _q(value, places: str = '0.0001') -> Decimal:
     return Decimal(str(value or 0)).quantize(Decimal(places), rounding=ROUND_HALF_UP)
 
 
+def related_manager_rows(manager, *, select_related=(), order_by=()):
+    """Dùng prefetch cache nếu có; ``select_related``/``order_by`` trên manager sẽ bỏ cache."""
+    instance = getattr(manager, 'instance', None)
+    cache_name = getattr(manager, 'prefetch_cache_name', None)
+    cache = getattr(instance, '_prefetched_objects_cache', None) if instance is not None else None
+    if cache is not None and cache_name and cache_name in cache:
+        rows = list(manager.all())
+        if order_by:
+            def _sort_key(obj):
+                vals = []
+                for field in order_by:
+                    vals.append(getattr(obj, field, 0) or 0)
+                return tuple(vals)
+
+            rows.sort(key=_sort_key)
+        return rows
+    qs = manager.all()
+    if select_related:
+        qs = qs.select_related(*select_related)
+    if order_by:
+        qs = qs.order_by(*order_by)
+    return list(qs)
+
+
 def user_can_edit_order_routing(user) -> bool:
     """IE hoặc Kế hoạch (Sửa) mới được điều SMV / thêm-bớt CĐ trên đơn."""
     if not getattr(user, 'is_authenticated', False):
@@ -423,7 +447,11 @@ def seed_order_routing(order: SxSalesOrder) -> int:
 def steps_dicts_from_order_line(order_line: SxSalesOrderLine) -> list[dict]:
     """Công đoạn LSX từ snapshot đơn (ưu tiên hơn routing mã hàng)."""
     out: list[dict] = []
-    lines = order_line.routing_lines.select_related('work_center', 'operation').order_by('seq_no', 'id')
+    lines = related_manager_rows(
+        order_line.routing_lines,
+        select_related=('work_center', 'operation'),
+        order_by=('seq_no', 'id'),
+    )
     for i, ln in enumerate(lines):
         name = (ln.op_name_vi or '').strip() or (ln.op_code or '').strip()
         if not name and ln.operation_id:
@@ -458,10 +486,11 @@ def sales_order_line_routing(order_line: SxSalesOrderLine):
     code = (order_line.product_code or '').strip()
     result = ProductRouting(product_code=code)
     rows: list[RoutingStep] = []
-    src_lines = list(
-        order_line.routing_lines.select_related('work_center', 'operation__group').all()
+    src_lines = related_manager_rows(
+        order_line.routing_lines,
+        select_related=('work_center', 'operation__group'),
+        order_by=('seq_no', 'id'),
     )
-    src_lines.sort(key=lambda ln: (ln.seq_no or 0, ln.pk or 0))
     for line in src_lines:
         # Snapshot đơn lưu SMV giây → phút cho lịch/công suất.
         minutes = _q((line.total_operation_smv or Decimal('0')) / Decimal('60'), '0.0001')

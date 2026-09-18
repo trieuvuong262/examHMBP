@@ -38,21 +38,53 @@ PLAN_SHIFT_MINUTES = Decimal('570')
 PLAN_SHIFT_LABEL = '9 giờ 30 phút'
 
 
+def _routing_line_has_name(line) -> bool:
+    name = (getattr(line, 'op_name_vi', None) or '').strip() or (getattr(line, 'op_code', None) or '').strip()
+    if not name:
+        op = getattr(line, 'operation', None)
+        if op is not None:
+            name = (getattr(op, 'name_vi', None) or getattr(op, 'op_code', None) or '').strip()
+    return bool(name)
+
+
 def _line_has_operations(order_line: SxSalesOrderLine, *, routing_id=None, bom=None) -> bool:
     """True nếu dòng đã có công đoạn: snapshot đơn, OB/routing, hoặc CĐ trên BOM."""
-    if steps_dicts_from_order_line(order_line):
-        return True
+    use_cache = routing_id is None and bom is None
+    if use_cache:
+        cached = getattr(order_line, '_khsx_has_ops', None)
+        if cached is not None:
+            return cached
+
+    def _store(value: bool) -> bool:
+        if use_cache:
+            order_line._khsx_has_ops = value
+        return value
+
+    prefetch = getattr(order_line, '_prefetched_objects_cache', None) or {}
+    if 'routing_lines' in prefetch:
+        if any(_routing_line_has_name(rl) for rl in prefetch['routing_lines']):
+            return _store(True)
+    elif steps_dicts_from_order_line(order_line):
+        return _store(True)
+
+    from hrm.request_cache import get_or_set
     from san_xuat.services.dispatch import steps_dicts_from_routing
 
     rid = routing_id if routing_id is not None else order_line.routing_id
-    if steps_dicts_from_routing(rid):
-        return True
+    if rid and get_or_set(
+        ('sx_routing_has_ops', int(rid)),
+        lambda: bool(steps_dicts_from_routing(rid)),
+    ):
+        return _store(True)
     src_bom = bom if bom is not None else getattr(order_line, 'bom_version', None)
     if src_bom is not None:
+        bom_prefetch = getattr(src_bom, '_prefetched_objects_cache', None) or {}
+        if 'process_steps' in bom_prefetch:
+            return _store(bool(bom_prefetch['process_steps']))
         steps = getattr(src_bom, 'process_steps', None)
         if steps is not None and steps.exists():
-            return True
-    return False
+            return _store(True)
+    return _store(False)
 
 
 def _tech_choices_for_code(product_code: str, cache: dict) -> dict:
@@ -61,7 +93,7 @@ def _tech_choices_for_code(product_code: str, cache: dict) -> dict:
 
     from django.urls import reverse
 
-    from san_xuat.services.order_routing import boms_for_product, routings_for_product
+    from san_xuat.services.order_routing import routings_for_product
     from san_xuat.services.products import find_tech_doc_for_code
 
     key = (product_code or '').strip().casefold()
@@ -94,10 +126,11 @@ def _tech_choices_for_code(product_code: str, cache: dict) -> dict:
     else:
         bom_url = create_url
         rt_url = routing_create
+    boms = list(doc.bom_versions.order_by('created_at', 'id')) if doc else []
     payload = {
         'boms': [
             {'id': b.pk, 'label': (b.version_label or '').strip() or f'#{b.pk}'}
-            for b in boms_for_product(product_code)
+            for b in boms
         ],
         'routings': [
             {'id': r.pk, 'label': (r.routing_rev or '').strip() or f'#{r.pk}'}
@@ -614,14 +647,9 @@ def format_order_duration(minutes: Decimal) -> tuple[str, int]:
 
 
 def _next_working_day_after(d: date) -> date:
-    from san_xuat.services.work_calendar import is_working_day
+    from san_xuat.services.work_calendar import next_working_day
 
-    day = d + timedelta(days=1)
-    for _ in range(800):
-        if is_working_day(day):
-            return day
-        day += timedelta(days=1)
-    return day
+    return next_working_day(d + timedelta(days=1))
 
 
 def _factory_slug_rank() -> dict[str, int]:
@@ -651,26 +679,30 @@ def _wc_has_capacity(wc: SxWorkCenter | None) -> bool:
 
 def _work_center_catalog_by_slug() -> dict[str, SxWorkCenter]:
     """Tổ Năng lực SX mặc định theo slug KHSX (cat/may/…) — ưu tiên tổ có quỹ phút."""
+    from hrm.request_cache import get_or_set
     from san_xuat.services.capacity_from_hrm import team_slug_for_work_center
 
-    ranked: dict[str, tuple[tuple[int, int], SxWorkCenter]] = {}
-    qs = SxWorkCenter.objects.filter(is_active=True)
-    if hasattr(SxWorkCenter, 'is_demo'):
-        qs = qs.filter(is_demo=False)
-    if hasattr(SxWorkCenter, 'is_subcontract'):
-        qs = qs.filter(is_subcontract=False)
-    for wc in qs.order_by('code', 'name'):
-        slug = (team_slug_for_work_center(wc) or '').strip().lower()
-        if not slug:
-            continue
-        cap = 1 if _wc_has_capacity(wc) else 0
-        code = (wc.code or '').strip().upper()
-        exact = 1 if code in {'CAT', 'IN-EP', 'THEU', 'MAY', 'HT', 'GH'} else 0
-        key = (cap, exact)
-        prev = ranked.get(slug)
-        if prev is None or key > prev[0]:
-            ranked[slug] = (key, wc)
-    return {slug: wc for slug, (_key, wc) in ranked.items()}
+    def _load() -> dict[str, SxWorkCenter]:
+        ranked: dict[str, tuple[tuple[int, int], SxWorkCenter]] = {}
+        qs = SxWorkCenter.objects.filter(is_active=True)
+        if hasattr(SxWorkCenter, 'is_demo'):
+            qs = qs.filter(is_demo=False)
+        if hasattr(SxWorkCenter, 'is_subcontract'):
+            qs = qs.filter(is_subcontract=False)
+        for wc in qs.order_by('code', 'name'):
+            slug = (team_slug_for_work_center(wc) or '').strip().lower()
+            if not slug:
+                continue
+            cap = 1 if _wc_has_capacity(wc) else 0
+            code = (wc.code or '').strip().upper()
+            exact = 1 if code in {'CAT', 'IN-EP', 'THEU', 'MAY', 'HT', 'GH'} else 0
+            key = (cap, exact)
+            prev = ranked.get(slug)
+            if prev is None or key > prev[0]:
+                ranked[slug] = (key, wc)
+        return {slug: wc for slug, (_key, wc) in ranked.items()}
+
+    return get_or_set(('sx_wc_catalog_by_slug',), _load)
 
 
 def apply_default_capacity_teams(
@@ -687,13 +719,25 @@ def apply_default_capacity_teams(
         attach_group_codes_from_routing,
     )
 
-    steps = list(steps) if steps is not None else list(
-        order.plan_steps.select_related('work_center').order_by('sequence', 'id'),
-    )
+    from san_xuat.services.order_routing import related_manager_rows
+
+    if steps is not None:
+        steps = list(steps)
+    else:
+        prefetch = getattr(order, '_prefetched_objects_cache', None) or {}
+        if 'plan_steps' in prefetch:
+            steps = list(order.plan_steps.all())
+        else:
+            steps = list(
+                order.plan_steps.select_related('work_center').order_by('sequence', 'id'),
+            )
     routing_lines = [
         rl
         for ln in order.lines.all()
-        for rl in ln.routing_lines.select_related('work_center', 'operation__group').all()
+        for rl in related_manager_rows(
+            ln.routing_lines,
+            select_related=('work_center', 'operation__group'),
+        )
     ]
     if steps:
         attach_group_codes_from_routing(steps, routing_lines)
@@ -704,7 +748,14 @@ def apply_default_capacity_teams(
     dirty_lines: list = []
     with _group_slug_scope():
         for step in steps:
-            wc = getattr(step, 'work_center', None)
+            try:
+                wc = getattr(step, 'work_center', None)
+            except Exception as exc:
+                from django.core.exceptions import ObjectDoesNotExist
+
+                if not isinstance(exc, ObjectDoesNotExist):
+                    raise
+                wc = None
             keep = bool(step.work_center_id) and (
                 _wc_has_capacity(wc) or not replace_without_capacity
             )
@@ -741,23 +792,27 @@ def apply_default_capacity_teams(
 
 def plan_board_work_center_options() -> list[dict]:
     """Danh sách tổ Năng lực SX để chọn trên menu ⋯."""
+    from hrm.request_cache import get_or_set
     from san_xuat.services.capacity_from_hrm import team_slug_for_work_center
 
-    qs = SxWorkCenter.objects.filter(is_active=True)
-    if hasattr(SxWorkCenter, 'is_demo'):
-        qs = qs.filter(is_demo=False)
-    rows: list[dict] = []
-    for wc in qs.order_by('code', 'name'):
-        cap = _q(getattr(wc, 'available_minutes_per_day', 0))
-        rows.append({
-            'id': int(wc.pk),
-            'code': wc.code or '',
-            'name': (wc.team_label or wc.name or wc.code or '').strip(),
-            'slug': (team_slug_for_work_center(wc) or '').strip().lower(),
-            'headcount': int(wc.headcount or 0),
-            'minutes_per_day': format_sx_num_input(cap) if cap > 0 else '',
-        })
-    return rows
+    def _load() -> list[dict]:
+        qs = SxWorkCenter.objects.filter(is_active=True)
+        if hasattr(SxWorkCenter, 'is_demo'):
+            qs = qs.filter(is_demo=False)
+        rows: list[dict] = []
+        for wc in qs.order_by('code', 'name'):
+            cap = _q(getattr(wc, 'available_minutes_per_day', 0))
+            rows.append({
+                'id': int(wc.pk),
+                'code': wc.code or '',
+                'name': (wc.team_label or wc.name or wc.code or '').strip(),
+                'slug': (team_slug_for_work_center(wc) or '').strip().lower(),
+                'headcount': int(wc.headcount or 0),
+                'minutes_per_day': format_sx_num_input(cap) if cap > 0 else '',
+            })
+        return rows
+
+    return get_or_set(('sx_plan_board_wc_options',), _load)
 
 
 def _khsx_available_minutes(
@@ -954,7 +1009,14 @@ def _team_loads_from_order(
             slug = _plan_step_team_slug(step)
             if not slug:
                 continue
-            wc = getattr(step, 'work_center', None)
+            try:
+                wc = getattr(step, 'work_center', None)
+            except Exception as exc:
+                from django.core.exceptions import ObjectDoesNotExist
+
+                if not isinstance(exc, ObjectDoesNotExist):
+                    raise
+                wc = None
             if wc is not None:
                 assigned[slug] = wc
                 wc_label = (wc.team_label or wc.name or '').strip()
@@ -1042,6 +1104,7 @@ def _team_loads_from_order(
 
 def _plan_step_team_slug(step) -> str:
     """Slug tổ của bước kế hoạch — group_code, rồi tên công đoạn."""
+    from san_xuat.services.capacity_from_hrm import _fold, _team_slug_from_folded
     from san_xuat.services.inter_step_times import _step_team_slug
     from san_xuat.services.progress_template import team_slug_for_process_label
 
@@ -1049,7 +1112,10 @@ def _plan_step_team_slug(step) -> str:
     if slug:
         return slug
     name = (getattr(step, 'process_name', None) or '').strip()
-    return (team_slug_for_process_label(name) or '').strip().lower()
+    slug = (team_slug_for_process_label(name) or '').strip().lower()
+    if slug:
+        return slug
+    return (_team_slug_from_folded(_fold(name)) or '').strip().lower()
 
 
 def _pinned_starts_from_steps(plan_steps) -> dict[str, date]:
@@ -1228,17 +1294,19 @@ def _clear_day_plan_cache(order: SxSalesOrder) -> None:
 
 def _workday_offset(start: date, target: date) -> int:
     """Số ngày làm việc từ start đến target (0 nếu cùng ngày / target trước start)."""
-    from san_xuat.services.work_calendar import is_working_day
-
     if not start or not target or target <= start:
         return 0
+    from san_xuat.services.work_calendar import holiday_dates, is_working_day, workdays_pattern
+
+    pattern = workdays_pattern()
+    holidays = holiday_dates(start, target)
     n = 0
     cur = start
     for _ in range(800):
         if cur >= target:
             break
         cur += timedelta(days=1)
-        if is_working_day(cur):
+        if is_working_day(cur, pattern=pattern, holidays=holidays):
             n += 1
     return n
 
@@ -1330,7 +1398,14 @@ def apply_auto_team_day_splits(
     want = (only_slug or '').strip().lower()
     written = 0
     existing_map: dict[str, list] = {}
-    for dp in SxOrderTeamDayPlan.objects.filter(sales_order_id=order.pk).order_by('plan_date', 'id'):
+    prefetch = getattr(order, '_prefetched_objects_cache', None) or {}
+    if 'team_day_plans' in prefetch:
+        day_iter = list(order.team_day_plans.all())
+    else:
+        day_iter = list(
+            SxOrderTeamDayPlan.objects.filter(sales_order_id=order.pk).order_by('plan_date', 'id')
+        )
+    for dp in day_iter:
         sk = (dp.team_slug or '').strip().lower()
         if sk:
             existing_map.setdefault(sk, []).append(dp)
@@ -1716,11 +1791,19 @@ def build_plan_board_rows(
     include_released: bool = False,
     date_from: date | None = None,
     date_to: date | None = None,
+    date_mode: str = 'queue_or_range',
+    persist_side_effects: bool = True,
 ) -> list[PlanBoardRow]:
     """Danh sách đơn trên board (MTO confirmed).
 
     ``date_from`` / ``date_to`` lọc theo neo KHSX (``plan_start_date`` hoặc
     ``request_date``) trên các tab danh sách.
+
+    ``date_mode``:
+      * ``queue_or_range`` — hàng đợi luôn hiện; đơn đã chuyển SX theo tháng.
+      * ``range`` — chỉ đơn có ngày KHSX/hạn giao chồng khoảng lọc (tab lộ trình).
+
+    ``persist_side_effects=False`` khi đọc trang: không tự tách ngày / reflow ghi DB.
     """
     qs = (
         SxSalesOrder.objects.filter(
@@ -1790,14 +1873,25 @@ def build_plan_board_rows(
     if date_from or date_to:
         qs = qs.annotate(
             _plan_anchor=Coalesce('plan_start_date', 'request_date'),
+            _plan_end=Coalesce('due_date', 'plan_start_date', 'request_date'),
         )
         date_q = Q()
         if date_from:
             date_q &= Q(_plan_anchor__gte=date_from)
         if date_to:
             date_q &= Q(_plan_anchor__lte=date_to)
-        # Hàng đợi luôn hiện; đơn đã chuyển SX lọc theo tháng KHSX.
-        qs = qs.filter(Q(plan_status__in=QUEUE_STATUSES) | date_q)
+        if date_mode == 'range':
+            overlap = Q(_plan_anchor__isnull=False)
+            if date_from:
+                overlap &= Q(_plan_end__gte=date_from) | (
+                    Q(_plan_end__isnull=True) & Q(_plan_anchor__gte=date_from)
+                )
+            if date_to:
+                overlap &= Q(_plan_anchor__lte=date_to)
+            qs = qs.filter(overlap)
+        else:
+            # Hàng đợi luôn hiện; đơn đã chuyển SX lọc theo tháng KHSX.
+            qs = qs.filter(Q(plan_status__in=QUEUE_STATUSES) | date_q)
 
     today = timezone.localdate()
     rows: list[PlanBoardRow] = []
@@ -1823,14 +1917,15 @@ def build_plan_board_rows(
                 plan_steps = apply_default_capacity_teams(
                     order, plan_steps, replace_without_capacity=True,
                 )
-        wrote = apply_auto_team_day_splits(order, replace_existing=False)
-        if wrote:
-            try:
-                _reflow_order_from(order, sync_mos=False)
-            except PlanningError:
-                pass
-        _clear_day_plan_cache(order)
-        plan_steps = list(order.plan_steps.all())
+        if persist_side_effects:
+            wrote = apply_auto_team_day_splits(order, replace_existing=False)
+            if wrote:
+                try:
+                    _reflow_order_from(order, sync_mos=False)
+                except PlanningError:
+                    pass
+                _clear_day_plan_cache(order)
+                plan_steps = list(order.plan_steps.all())
         if plan_steps:
             from san_xuat.services.inter_step_times import (
                 attach_group_codes_from_routing,
@@ -1886,7 +1981,15 @@ def build_plan_board_rows(
             pbuf = _buffer_from_flow_groups(groups)
             psmv = _q(line_order_smv_seconds(ln) / Decimal('60'), '0.0001')
             line_has_ops = _line_has_operations(ln)
-            tech = _tech_choices_for_code(code, _tech_choice_cache)
+            if ln.bom_version_id and line_has_ops:
+                tech = {
+                    'boms': [],
+                    'routings': [],
+                    'bom_create_url': '',
+                    'routing_create_url': '',
+                }
+            else:
+                tech = _tech_choices_for_code(code, _tech_choice_cache)
             bom_obj = getattr(ln, 'bom_version', None)
             rt_obj = getattr(ln, 'routing', None)
             product_flows.append(PlanProductFlow(
@@ -3702,7 +3805,7 @@ def _timeline_range(
 
 
 def _timeline_axis(start: date, end: date, today: date) -> tuple[list[TimelineDay], list[dict], int]:
-    from san_xuat.services.work_calendar import is_working_day
+    from san_xuat.services.work_calendar import holiday_dates, is_working_day, workdays_pattern
 
     span = (end - start).days + 1
     if span < 1:
@@ -3711,8 +3814,10 @@ def _timeline_axis(start: date, end: date, today: date) -> tuple[list[TimelineDa
     day_list = [start + timedelta(days=i) for i in range(span)]
     axis_days: list[TimelineDay] = []
     month_spans: list[dict] = []
+    pattern = workdays_pattern()
+    holidays = holiday_dates(start, end)
     for d in day_list:
-        off = not is_working_day(d)
+        off = not is_working_day(d, pattern=pattern, holidays=holidays)
         axis_days.append(
             TimelineDay(
                 date=d,
@@ -3861,7 +3966,7 @@ def plan_stage_legend_items(*, queue_rows=None, route_board=None) -> list[dict]:
             for stage in getattr(row, 'stage_rows', None) or []:
                 _add(
                     getattr(stage, 'slug', ''),
-                    getattr(stage, 'short_label', '') or getattr(stage, 'label', ''),
+                    getattr(stage, 'label', '') or getattr(stage, 'short_label', ''),
                 )
 
     ordered: list[dict] = []
@@ -4003,7 +4108,10 @@ def _stage_rows_from_bars(
     from collections import OrderedDict
 
     grouped: OrderedDict[tuple[str, int], list[TeamTimelineBar]] = OrderedDict()
-    from san_xuat.services.work_calendar import is_working_day
+    from san_xuat.services.work_calendar import holiday_dates, is_working_day, workdays_pattern
+
+    pattern = workdays_pattern()
+    holidays = holiday_dates(range_start, range_end)
 
     for bar in bars:
         slug = (bar.slug or '').strip().lower()
@@ -4077,7 +4185,7 @@ def _stage_rows_from_bars(
                 cell_date = range_start
             if cell_date > range_end:
                 continue
-            if not is_working_day(cell_date):
+            if not is_working_day(cell_date, pattern=pattern, holidays=holidays):
                 continue
             if cell_date not in by_day:
                 by_day[cell_date] = bar
@@ -5134,6 +5242,7 @@ def confirmed_order_qty_summary() -> dict:
 @dataclass
 class RouteStatCell:
     slug: str
+    key: str = ''
     planned: Decimal = field(default_factory=lambda: Decimal('0'))
     done: Decimal = field(default_factory=lambda: Decimal('0'))
     remaining: Decimal = field(default_factory=lambda: Decimal('0'))
@@ -5145,6 +5254,7 @@ class RouteStatCell:
 class RouteStageStat:
     slug: str
     label: str
+    key: str = ''
     planned: Decimal = field(default_factory=lambda: Decimal('0'))
     done: Decimal = field(default_factory=lambda: Decimal('0'))
     remaining: Decimal = field(default_factory=lambda: Decimal('0'))
@@ -5217,8 +5327,31 @@ def _stage_done_qty(stage) -> Decimal:
     return _qty_from_label(getattr(stage, 'done_total_label', 0) or 0)
 
 
+def _stage_stat_key(stage) -> str:
+    slug = (getattr(stage, 'slug', '') or '').strip().lower()
+    wc_id = int(getattr(stage, 'work_center_id', 0) or 0)
+    return f'{slug}:{wc_id}'
+
+
+def _stage_stat_label(stage) -> str:
+    """Nhãn bộ phận = tên trên Ob / tổ KHSX, không ép 6 khâu Cắt–May cố định."""
+    slug = (getattr(stage, 'slug', '') or '').strip().lower()
+    sheet = (_SHEET_STAGE_LABELS.get(slug) or '').strip().casefold()
+    for raw in (getattr(stage, 'label', None), getattr(stage, 'short_label', None)):
+        text = (raw or '').strip()
+        if text and text.casefold() != sheet:
+            return text
+    return _team_display_label(slug)
+
+
+def _stage_stat_rank(key: str) -> tuple[int, str]:
+    slug = (key.split(':', 1)[0] if key else '')
+    rank = {name: i for i, name in enumerate(_SHEET_STAGE_ORDER)}
+    return (rank.get(slug, 80), key)
+
+
 def build_route_stats(board) -> RouteStatsBoard:
-    """Tổng SL đã làm / chưa làm trên lưới lộ trình — theo công đoạn và theo đơn."""
+    """Tổng SL đã làm / chưa làm trên lưới lộ trình — theo bộ phận Ob và theo đơn."""
     empty = RouteStatsBoard()
     if board is None:
         return empty
@@ -5226,39 +5359,33 @@ def build_route_stats(board) -> RouteStatsBoard:
     if not rows:
         return empty
 
-    slug_labels: dict[str, str] = {}
-    seen_slugs: list[str] = []
+    key_meta: dict[str, tuple[str, str]] = {}
+    seen_keys: list[str] = []
     seen_set: set[str] = set()
 
     order_stage_qty: list[tuple[object, dict[str, tuple[Decimal, Decimal]]]] = []
     for row in rows:
-        by_slug: dict[str, list[Decimal]] = {}
+        by_key: dict[str, list[Decimal]] = {}
         for stage in list(getattr(row, 'stage_rows', None) or []):
             slug = (getattr(stage, 'slug', '') or '').strip().lower()
             if not slug or slug == 'npl':
                 continue
-            if slug not in seen_set:
-                seen_slugs.append(slug)
-                seen_set.add(slug)
-            if slug not in slug_labels:
-                slug_labels[slug] = _stage_sheet_label(
-                    slug,
-                    getattr(stage, 'short_label', '') or getattr(stage, 'label', ''),
-                )
-            bucket = by_slug.setdefault(slug, [Decimal('0'), Decimal('0')])
+            key = _stage_stat_key(stage)
+            if key not in seen_set:
+                seen_keys.append(key)
+                seen_set.add(key)
+            if key not in key_meta:
+                key_meta[key] = (slug, _stage_stat_label(stage))
+            bucket = by_key.setdefault(key, [Decimal('0'), Decimal('0')])
             bucket[0] += _stage_planned_qty(stage)
             bucket[1] += _stage_done_qty(stage)
-        packed = {slug: (_q(vals[0]), _q(vals[1])) for slug, vals in by_slug.items()}
+        packed = {key: (_q(vals[0]), _q(vals[1])) for key, vals in by_key.items()}
         order_stage_qty.append((row, packed))
 
-    stages_order = [slug for slug in _SHEET_STAGE_ORDER if slug in seen_set]
-    for slug in seen_slugs:
-        if slug not in stages_order:
-            stages_order.append(slug)
-
+    stages_order = sorted(seen_keys, key=_stage_stat_rank)
     stage_acc: dict[str, list] = {
-        slug: [Decimal('0'), Decimal('0'), 0]
-        for slug in stages_order
+        key: [Decimal('0'), Decimal('0'), 0]
+        for key in stages_order
     }
     orders: list[RouteOrderStat] = []
     total_planned = Decimal('0')
@@ -5268,15 +5395,17 @@ def build_route_stats(board) -> RouteStatsBoard:
         qty = _qty_from_label(getattr(row, 'qty_label', 0) or 0)
         cells: list[RouteStatCell] = []
         last_cell: RouteStatCell | None = None
-        for slug in stages_order:
-            pair = packed.get(slug)
+        for key in stages_order:
+            slug = key_meta.get(key, ('', ''))[0]
+            pair = packed.get(key)
             if pair is None:
-                cells.append(RouteStatCell(slug=slug))
+                cells.append(RouteStatCell(slug=slug, key=key))
                 continue
             planned, done = pair
             remaining = _stat_remaining(planned, done)
             cell = RouteStatCell(
                 slug=slug,
+                key=key,
                 planned=planned,
                 done=done,
                 remaining=remaining,
@@ -5285,7 +5414,7 @@ def build_route_stats(board) -> RouteStatsBoard:
             )
             cells.append(cell)
             last_cell = cell
-            acc = stage_acc[slug]
+            acc = stage_acc[key]
             acc[0] += planned
             acc[1] += done
             acc[2] += 1
@@ -5312,15 +5441,16 @@ def build_route_stats(board) -> RouteStatsBoard:
 
     stages = [
         RouteStageStat(
-            slug=slug,
-            label=slug_labels.get(slug) or _stage_sheet_label(slug),
+            slug=key_meta[key][0],
+            key=key,
+            label=key_meta[key][1],
             planned=_q(acc[0]),
             done=_q(acc[1]),
             remaining=_stat_remaining(acc[0], acc[1]),
             pct=_stat_pct(acc[0], acc[1]),
             order_count=int(acc[2]),
         )
-        for slug, acc in ((s, stage_acc[s]) for s in stages_order)
+        for key, acc in ((k, stage_acc[k]) for k in stages_order)
     ]
     return RouteStatsBoard(
         stages=stages,

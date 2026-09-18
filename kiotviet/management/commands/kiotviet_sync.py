@@ -107,6 +107,21 @@ class Command(BaseCommand):
                     self.stdout.write(f'  kho sản phẩm: {row["catalog"]}')
                 if row.get('store_stock'):
                     self.stdout.write(f'  tồn cửa hàng: {row["store_stock"]}')
+                on_hands = row.get('on_hands') or {}
+                if on_hands:
+                    if on_hands.get('error'):
+                        self.stderr.write(self.style.WARNING(
+                            f'  tồn chi nhánh: FAIL — {on_hands["error"]}'
+                        ))
+                    else:
+                        n_branches = on_hands.get('inventory_branches', row.get('inventory_branches', 0))
+                        self.stdout.write(
+                            f'  tồn chi nhánh: cập nhật {on_hands.get("upserted", 0)}, '
+                            f'{n_branches} kho, tổng dòng {on_hands.get("records", 0)}'
+                        )
+                backfilled = row.get('branches_backfilled') or 0
+                if backfilled:
+                    self.stdout.write(f'  bổ sung {backfilled} kho từ tồn SP (GET /branches thiếu)')
 
         if has_error:
             self.stderr.write(self.style.WARNING('Một số entity sync thất bại.'))

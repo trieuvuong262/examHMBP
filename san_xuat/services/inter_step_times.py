@@ -19,7 +19,7 @@ from datetime import date, timedelta
 from decimal import Decimal, ROUND_CEILING
 
 from san_xuat.services.sx_settings import sx_decimal, sx_int
-from san_xuat.services.work_calendar import is_working_day
+from san_xuat.services.work_calendar import holiday_dates, is_working_day, workdays_pattern
 
 _GROUP_SLUGS: ContextVar[dict[str, str] | None] = ContextVar('sx_op_group_slugs', default=None)
 
@@ -139,12 +139,14 @@ def add_working_minutes(start: date, minutes: Decimal, *, minutes_per_day: Decim
         per_day = Decimal('480')
     days_need = int((mins / per_day).to_integral_value(rounding=ROUND_CEILING))
     days_need = max(1, days_need)
+    pattern = workdays_pattern()
+    holidays = holiday_dates(start, start + timedelta(days=max(days_need * 3, 400)))
     day = start
     remaining = days_need
     # start đã là ngày làm việc (hoặc không) — bước sang ngày kế nếu cần đủ số ngày
     guard = 0
     while remaining > 0 and guard < 800:
-        if is_working_day(day):
+        if is_working_day(day, pattern=pattern, holidays=holidays):
             remaining -= 1
             if remaining == 0:
                 return day
@@ -200,21 +202,32 @@ def hops_from_steps(steps) -> list[PlanHop]:
 def _step_attr(step, name: str, default=None):
     if isinstance(step, dict):
         return step.get(name, default)
-    return getattr(step, name, default)
+    try:
+        return getattr(step, name, default)
+    except Exception as exc:
+        from django.core.exceptions import ObjectDoesNotExist
+
+        if isinstance(exc, ObjectDoesNotExist):
+            return default
+        raise
 
 
 def _load_group_slugs() -> dict[str, str]:
     """Mã nhóm thư viện → slug bộ phận theo trường Nhóm, không đoán tên công đoạn."""
+    from hrm.request_cache import get_or_set
     from san_xuat.ie_models import SxOperationGroup
     from san_xuat.services.team_personnel import _group_code_slug, _slug_for_operation_group
 
-    out: dict[str, str] = {}
-    for grp in SxOperationGroup.objects.select_related('default_work_center'):
-        slug = _slug_for_operation_group(grp) or _group_code_slug(grp.code or '')
-        code = (grp.code or '').strip()
-        if slug and code:
-            out[code.casefold()] = slug
-    return out
+    def _load() -> dict[str, str]:
+        out: dict[str, str] = {}
+        for grp in SxOperationGroup.objects.select_related('default_work_center'):
+            slug = _slug_for_operation_group(grp) or _group_code_slug(grp.code or '')
+            code = (grp.code or '').strip()
+            if slug and code:
+                out[code.casefold()] = slug
+        return out
+
+    return get_or_set(('sx_group_slugs',), _load)
 
 
 @contextmanager

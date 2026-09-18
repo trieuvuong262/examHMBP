@@ -15,6 +15,28 @@ _token_cache: str | None = None
 _token_expires_at: float = 0.0
 
 
+def flatten_query_params(params: dict | None) -> list[tuple[str, Any]] | dict[str, Any] | None:
+    """Lặp key cho list (branchIds=1&branchIds=2) — ASP.NET bind int[]."""
+    if not params:
+        return None
+    items: list[tuple[str, Any]] = []
+    has_seq = False
+    for key, value in params.items():
+        if value in (None, ''):
+            continue
+        if isinstance(value, (list, tuple)):
+            has_seq = True
+            for item in value:
+                if item in (None, ''):
+                    continue
+                items.append((key, item))
+            continue
+        items.append((key, value))
+    if not items:
+        return None
+    return items if has_seq else dict(items)
+
+
 class KiotVietAPIError(Exception):
     def __init__(self, message: str, *, status_code: int | None = None, payload: Any = None):
         super().__init__(message)
@@ -106,7 +128,7 @@ class KiotVietClient:
                 method,
                 url,
                 headers=headers,
-                params=params,
+                params=flatten_query_params(params),
                 timeout=timeout or self._api_timeout(path),
             )
         except requests.RequestException as exc:

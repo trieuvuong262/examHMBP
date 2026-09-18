@@ -39,6 +39,7 @@ def _detail_stock_branch_allowlist() -> tuple[str, ...]:
     if not raw:
         return (
             'Chi nhánh trung tâm',
+            'Kho bán hàng',
             'Xưởng sản xuất',
             'Đơn sản xuất',
         )
@@ -63,8 +64,6 @@ def _variant_branch_stocks(inventories: list[dict]) -> list[dict]:
     rows = []
     for inv in inventories:
         branch_name = inv.get('branch_name') or '—'
-        if not _branch_allowed_for_detail_stock(branch_name, allowed):
-            continue
         rows.append({
             'branch_name': branch_name,
             'on_hand': inv.get('on_hand'),
@@ -308,8 +307,6 @@ def _build_branch_stock_matrix(variants: list[dict]) -> dict:
         code = variant.get('code') or '—'
         for inv in variant.get('inventories') or []:
             branch_name = inv.get('branch_name') or '—'
-            if not _branch_allowed_for_detail_stock(branch_name, allowed_branches):
-                continue
             bucket = branch_map.setdefault(branch_name, {
                 'cells': {},
                 'on_hand': 0.0,

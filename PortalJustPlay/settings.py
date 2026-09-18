@@ -480,7 +480,7 @@ KIOTVIET_API_TIMEOUT_ORDERS = int(os.getenv('KIOTVIET_API_TIMEOUT_ORDERS', '180'
 # Chi nhánh hiển thị trong bảng tồn kho chi tiết hàng hóa (phân tách bằng dấu phẩy)
 KIOTVIET_DETAIL_STOCK_BRANCHES = os.getenv(
     'KIOTVIET_DETAIL_STOCK_BRANCHES',
-    'Chi nhánh trung tâm,Xưởng sản xuất,Đơn sản xuất',
+    'Chi nhánh trung tâm,Kho bán hàng,Xưởng sản xuất,Đơn sản xuất',
 ).strip()
 
 # Zalo OA / ZBS — OTP quên mật khẩu (docs/integrations/zalo/)

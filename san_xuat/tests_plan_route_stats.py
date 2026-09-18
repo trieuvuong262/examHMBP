@@ -9,11 +9,12 @@ from unittest import TestCase
 from san_xuat.services.plan_board import build_route_stats
 
 
-def _stage(slug, planned, done, label=''):
+def _stage(slug, planned, done, label='', work_center_id=0):
     return SimpleNamespace(
         slug=slug,
         short_label=label,
         label=label,
+        work_center_id=work_center_id,
         team_qty_total=str(planned),
         total_label=str(planned),
         done_total_label=str(done),
@@ -103,3 +104,27 @@ class BuildRouteStatsTests(TestCase):
         stats = build_route_stats(board)
         self.assertEqual([s.slug for s in stats.stages], ['cat'])
         self.assertTrue(stats.orders[0].cells[0].present)
+    def test_uses_ob_department_label_not_sheet_name(self):
+        board = SimpleNamespace(rows=[
+            _row('DH-1', 100, [
+                _stage('cat', 100, 40, 'CẮT, TRẢI VẢI', work_center_id=22),
+                _stage('inep', 100, 10, 'Ép / in thử', work_center_id=31),
+            ]),
+        ])
+        stats = build_route_stats(board)
+        self.assertEqual([s.label for s in stats.stages], ['CẮT, TRẢI VẢI', 'Ép / in thử'])
+        self.assertNotIn('In/ép', [s.label for s in stats.stages])
+
+    def test_splits_same_slug_different_ob_teams(self):
+        board = SimpleNamespace(rows=[
+            _row('DH-1', 100, [
+                _stage('may', 60, 20, 'MAY (152A)', work_center_id=25),
+                _stage('may', 40, 10, 'MAY (Vĩnh Lộc)', work_center_id=26),
+            ]),
+        ])
+        stats = build_route_stats(board)
+        self.assertEqual(len(stats.stages), 2)
+        self.assertEqual([s.label for s in stats.stages], ['MAY (152A)', 'MAY (Vĩnh Lộc)'])
+        self.assertEqual(stats.stages[0].planned, Decimal('60.00'))
+        self.assertEqual(stats.stages[1].planned, Decimal('40.00'))
+

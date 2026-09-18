@@ -2126,6 +2126,7 @@ def plan_board(request):
             include_released=True,
             date_from=filter_date_from,
             date_to=filter_date_to,
+            persist_side_effects=False,
         )
         queue_rows = _apply_board_filters(queue_rows)
         route_board = None
@@ -2176,11 +2177,20 @@ def plan_board(request):
         route_stats = None
     elif tab in {'route', 'stats'}:
         from san_xuat.list_filters import parse_sx_date
-        from san_xuat.services.plan_board import _clamp_route_months, _months_bounds
+        from san_xuat.services.plan_board import _clamp_route_months, _months_bounds, _shift_month
 
-        route_rows = build_plan_board_rows(include_released=True, search=q)
         route_from = parse_sx_date((request.GET.get('route_from') or '').strip())
         route_months = _clamp_route_months(request.GET.get('route_months'))
+        win_start, win_end = _months_bounds(route_from or timezone.localdate(), route_months)
+        pad_start, _pad_end = _months_bounds(_shift_month(win_start, -1), 1)
+        route_rows = build_plan_board_rows(
+            include_released=True,
+            search=q,
+            date_from=pad_start,
+            date_to=win_end,
+            date_mode='range',
+            persist_side_effects=False,
+        )
         route_board = build_order_timeline(
             route_rows,
             range_from=route_from,

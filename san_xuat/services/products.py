@@ -394,13 +394,21 @@ def product_lookup_codes(product_code: str) -> list[str]:
 
 def find_tech_doc_for_code(product_code: str):
     """Tìm hồ sơ SX theo mã nhập (style / SKU / mã KV)."""
+    from hrm.request_cache import get_or_set
     from san_xuat.models import ProductTechDoc
 
-    for code in product_lookup_codes(product_code):
-        doc = ProductTechDoc.objects.filter(product_code__iexact=code).first()
-        if doc:
-            return doc
-    return find_tech_doc_for_product(find_product(product_code))
+    raw = _norm(product_code)
+    if not raw:
+        return None
+
+    def _lookup():
+        for code in product_lookup_codes(raw):
+            doc = ProductTechDoc.objects.filter(product_code__iexact=code).first()
+            if doc:
+                return doc
+        return find_tech_doc_for_product(find_product(raw))
+
+    return get_or_set(('tech_doc_for_code', raw.casefold()), _lookup)
 
 
 def search_products(q: str = '', *, limit: int = 30) -> list[dict]:

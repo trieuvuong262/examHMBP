@@ -33,8 +33,27 @@ def workdays_labels(pattern: str | None = None) -> list[str]:
 
 
 def holiday_dates(date_from: date, date_to: date) -> set[date]:
+    from hrm.request_cache import get_or_set, is_active
     from san_xuat.hub_models import SxHoliday
 
+    if not date_from or not date_to or date_from > date_to:
+        return set()
+
+    def _year(year: int) -> set[date]:
+        return set(
+            SxHoliday.objects.filter(holiday_date__year=year).values_list(
+                'holiday_date', flat=True,
+            )
+        )
+
+    if is_active():
+        out: set[date] = set()
+        for year in range(date_from.year, date_to.year + 1):
+            out.update(
+                d for d in get_or_set(('sx_holidays', year), lambda y=year: _year(y))
+                if date_from <= d <= date_to
+            )
+        return out
     return set(
         SxHoliday.objects.filter(
             holiday_date__gte=date_from,
@@ -73,9 +92,11 @@ def working_day_count(date_from: date, date_to: date) -> int:
 
 def next_working_day(day: date) -> date:
     """Ngày làm việc tại ``day`` hoặc ngày LV kế tiếp."""
+    pattern = workdays_pattern()
+    holidays = holiday_dates(day, day + timedelta(days=400))
     d = day
     for _ in range(800):
-        if is_working_day(d):
+        if is_working_day(d, pattern=pattern, holidays=holidays):
             return d
         d += timedelta(days=1)
     return d
@@ -88,12 +109,15 @@ def add_working_days(start: date, days: int) -> date:
     """
     if days <= 0:
         return start
+    pattern = workdays_pattern()
+    span = max(int(days) * 3, 400)
+    holidays = holiday_dates(start, start + timedelta(days=span))
     day = start
     added = 0
     guard = 0
     while added < int(days) and guard < 800:
         day += timedelta(days=1)
-        if is_working_day(day):
+        if is_working_day(day, pattern=pattern, holidays=holidays):
             added += 1
         guard += 1
     return day

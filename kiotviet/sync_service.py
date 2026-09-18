@@ -79,6 +79,11 @@ class EntitySyncOptions:
 
 
 ENTITY_SYNC_OPTIONS: dict[str, EntitySyncOptions] = {
+    'branches': EntitySyncOptions(
+        # Public API: removedIds = chi nhánh ngừng hoạt động, không phải xóa.
+        # Kho vẫn còn tồn trên products/inventories thì không được tombstone.
+        supports_remove_ids=False,
+    ),
     'purchase_orders': EntitySyncOptions(
         supports_last_modified=False,
         supports_remove_ids=False,
@@ -117,6 +122,7 @@ ENTITY_LABELS = {
     'customer_groups': 'Nhóm khách hàng',
     'pricebooks': 'Bảng giá',
     'products': 'Sản phẩm',
+    'product_on_hands': 'Tồn kho chi nhánh',
     'customers': 'Khách hàng',
     'orders': 'Đặt hàng',
     'invoices': 'Hóa đơn',
@@ -155,6 +161,137 @@ def sync_page_size() -> int:
 
 def current_retailer() -> str:
     return (getattr(settings, 'KIOTVIET_RETAILER', '') or '').strip()
+
+
+_BRANCH_INDEX: dict[str, dict[int, str]] = {}
+
+
+def _invalidate_branch_index(retailer: str | None = None) -> None:
+    if retailer is None:
+        _BRANCH_INDEX.clear()
+    else:
+        _BRANCH_INDEX.pop(retailer, None)
+
+
+def _fetch_branch_index_from_api(client: KiotVietClient) -> dict[int, str]:
+    mapping: dict[int, str] = {}
+    current_item = 0
+    page_size = sync_page_size()
+    while True:
+        payload = client.list_branches(pageSize=page_size, currentItem=current_item)
+        rows = payload.get('data') or []
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            kid = parse_kv_int(row.get('id'))
+            if kid is None:
+                continue
+            mapping[kid] = (row.get('branchName') or '').strip()
+        if not rows or len(rows) < page_size:
+            break
+        current_item += len(rows)
+        total = int(payload.get('total') or 0)
+        if total and current_item >= total:
+            break
+    return mapping
+
+
+def load_branch_index(retailer: str, client: KiotVietClient | None = None) -> dict[int, str]:
+    """Id → tên kho/chi nhánh. Gộp ``kv_branch`` với kho chỉ xuất hiện trên tồn SP.
+
+    GET /branches của KiotViet không trả hết kho (retailer justsport: 2 chi nhánh
+    vs 5 kho trên inventories). Thiếu id kho khi gọi products/productOnHands sẽ
+    làm API chỉ trả tồn kho mặc định.
+    """
+    cached = _BRANCH_INDEX.get(retailer)
+    if cached:
+        return cached
+    mapping = {
+        int(kid): (name or '').strip()
+        for kid, name in KvBranch.objects.filter(
+            retailer=retailer, is_deleted=False,
+        ).values_list('kiotviet_id', 'branch_name')
+    }
+    for bid, name in (
+        KvProductInventory.objects.filter(retailer=retailer, is_deleted=False)
+        .values_list('branch_kiotviet_id', 'branch_name')
+        .distinct()
+    ):
+        if bid is None:
+            continue
+        bid = int(bid)
+        label = (name or '').strip()
+        if bid not in mapping or (label and not mapping[bid]):
+            mapping[bid] = label or mapping.get(bid, '')
+    if mapping:
+        _BRANCH_INDEX[retailer] = mapping
+        return mapping
+    if client is None:
+        return {}
+    try:
+        mapping = _fetch_branch_index_from_api(client)
+    except Exception:
+        logger.exception('Không lấy được danh sách chi nhánh KiotViet')
+        mapping = {}
+    _BRANCH_INDEX[retailer] = mapping
+    return mapping
+
+
+def product_inventory_list_params(
+    retailer: str,
+    client: KiotVietClient | None = None,
+) -> dict[str, Any]:
+    """Tham số tồn kho cho GET /products.
+
+    Chỉ gửi ``branchIds`` khi đã biết tập kho từ tồn (lần sync trước). Lần đầu
+    không gửi — API includeInventory đang trả đủ kho; nếu chỉ gửi 2 id từ
+    GET /branches thì mất các kho còn lại.
+    """
+    params: dict[str, Any] = {'includeInventory': 'true'}
+    known_from_stock = KvProductInventory.objects.filter(
+        retailer=retailer, is_deleted=False,
+    ).exists()
+    if not known_from_stock:
+        return params
+    branch_ids = list(load_branch_index(retailer, client).keys())
+    if branch_ids:
+        params['branchIds'] = branch_ids
+    return params
+
+
+def backfill_branches_from_inventory(retailer: str) -> int:
+    """Bổ sung kv_branch từ kho xuất hiện trên tồn SP nhưng không có trong GET /branches."""
+    existing = set(
+        KvBranch.objects.filter(retailer=retailer).values_list('kiotviet_id', flat=True)
+    )
+    created = 0
+    rows = (
+        KvProductInventory.objects.filter(retailer=retailer, is_deleted=False)
+        .values('branch_kiotviet_id', 'branch_name')
+        .distinct()
+    )
+    for row in rows:
+        bid = row['branch_kiotviet_id']
+        if bid is None or int(bid) in existing:
+            continue
+        bid = int(bid)
+        kv_update_or_create(
+            KvBranch,
+            retailer=retailer,
+            kiotviet_id=bid,
+            defaults={
+                'branch_name': (row['branch_name'] or '').strip(),
+                'is_deleted': False,
+            },
+        )
+        existing.add(bid)
+        created += 1
+    if created:
+        _invalidate_branch_index(retailer)
+        KvSyncState.objects.filter(entity_type='branches', retailer=retailer).update(
+            records_total=KvBranch.objects.filter(retailer=retailer, is_deleted=False).count(),
+        )
+    return created
 
 
 def _format_modified_cursor(dt: datetime) -> str:
@@ -439,7 +576,16 @@ def _sync_product_children(retailer: str, product_id: int, row: dict) -> None:
             },
         )
 
-    for inv in row.get('inventories') or []:
+    _upsert_product_inventories(retailer, product_id, row.get('inventories') or [])
+
+
+def _upsert_product_inventories(retailer: str, product_id: int, inventories) -> int:
+    """Ghi tồn từng chi nhánh. Giữ tên/giá vốn cũ nếu payload (productOnHands) thiếu."""
+    if not inventories:
+        return 0
+    names = load_branch_index(retailer)
+    written = 0
+    for inv in inventories:
         if not isinstance(inv, dict):
             continue
         branch_id = parse_kv_int(inv.get('branchId'))
@@ -448,20 +594,66 @@ def _sync_product_children(retailer: str, product_id: int, row: dict) -> None:
         on_hand = inv.get('onHand')
         if on_hand is None:
             on_hand = inv.get('onhand')
+        branch_name = (inv.get('branchName') or '').strip() or names.get(branch_id, '')
+        defaults: dict[str, Any] = {
+            'on_hand': parse_kv_float(on_hand),
+            'reserved': parse_kv_float(inv.get('reserved')),
+            'kv_modified_at': parse_kv_datetime(inv.get('modifiedDate')),
+            'is_deleted': False,
+        }
+        if branch_name:
+            defaults['branch_name'] = branch_name
+        cost = parse_kv_decimal(inv.get('cost'))
+        if cost is not None:
+            defaults['cost'] = cost
         kv_update_or_create(
             KvProductInventory,
             retailer=retailer,
             product_kiotviet_id=product_id,
             branch_kiotviet_id=branch_id,
-            defaults={
-                'branch_name': inv.get('branchName') or '',
-                'on_hand': parse_kv_float(on_hand),
-                'reserved': parse_kv_float(inv.get('reserved')),
-                'cost': parse_kv_decimal(inv.get('cost')),
-                'kv_modified_at': parse_kv_datetime(inv.get('modifiedDate')),
-                'is_deleted': False,
-            },
+            defaults=defaults,
         )
+        written += 1
+    return written
+
+
+def upsert_product_on_hand(retailer: str, row: dict, *, force: bool = False) -> bool:
+    kid = parse_kv_int(row.get('id'))
+    if kid is None:
+        return False
+    return _upsert_product_inventories(retailer, kid, row.get('inventories') or []) > 0
+
+
+def _sync_product_on_hands(
+    *,
+    retailer: str,
+    client: KiotVietClient,
+    full: bool = False,
+    on_progress: ProgressCallback | None = None,
+) -> dict[str, Any]:
+    """GET /productOnHands — tồn đủ chi nhánh, không phụ thuộc includeInventory."""
+    branch_ids = list(load_branch_index(retailer, client).keys())
+    base_params: dict[str, Any] = {}
+    if branch_ids:
+        base_params['branchIds'] = branch_ids
+    result = _sync_paginated(
+        entity_type='product_on_hands',
+        retailer=retailer,
+        list_fn=client.list_product_on_hand,
+        upsert_fn=_bind_upsert(upsert_product_on_hand, force=True),
+        base_params=base_params,
+        full=full,
+        on_progress=on_progress,
+        sync_options=EntitySyncOptions(
+            supports_last_modified=True,
+            supports_remove_ids=False,
+        ),
+    )
+    result['records'] = KvProductInventory.objects.filter(
+        retailer=retailer, is_deleted=False,
+    ).count()
+    result['inventory_branches'] = len(branch_ids)
+    return result
 
 
 def upsert_product(retailer: str, row: dict, *, force: bool = False) -> bool:
@@ -1061,12 +1253,15 @@ def sync_entity(
     }
     bound = lambda fn: _bind_upsert(fn, force=full)
     if entity == 'branches':
-        return _sync_paginated(
+        _invalidate_branch_index(retailer)
+        result = _sync_paginated(
             entity_type='branches',
             list_fn=api.list_branches,
             upsert_fn=bound(upsert_branch),
             **paginated_kwargs,
         )
+        _invalidate_branch_index(retailer)
+        return result
     if entity == 'categories':
         result = _sync_paginated(
             entity_type='categories',
@@ -1129,14 +1324,45 @@ def sync_entity(
             **paginated_kwargs,
         )
     if entity == 'products':
+        _invalidate_branch_index(retailer)
+        inv_params = product_inventory_list_params(retailer, api)
         result = _sync_paginated(
             entity_type='products',
             list_fn=api.list_products,
             upsert_fn=bound(upsert_product),
-            base_params={'includeInventory': 'true'},
+            base_params=inv_params,
             **paginated_kwargs,
         )
+        result['inventory_branches'] = len(inv_params.get('branchIds') or [])
         if not result.get('error'):
+            _invalidate_branch_index(retailer)
+            try:
+                backfilled = backfill_branches_from_inventory(retailer)
+                result['branches_backfilled'] = backfilled
+            except Exception:
+                logger.exception('Không bổ sung được chi nhánh từ tồn kho KiotViet')
+            try:
+                on_hands = _sync_product_on_hands(
+                    retailer=retailer,
+                    client=api,
+                    full=full,
+                    on_progress=on_progress,
+                )
+                result['on_hands'] = on_hands
+                if on_hands.get('error'):
+                    logger.warning('KiotViet productOnHands: %s', on_hands['error'])
+                else:
+                    result['records_inventory'] = on_hands.get('records')
+                    result['inventory_branches'] = on_hands.get(
+                        'inventory_branches', result.get('inventory_branches'),
+                    )
+                    _invalidate_branch_index(retailer)
+                    extra = backfill_branches_from_inventory(retailer)
+                    result['branches_backfilled'] = (
+                        int(result.get('branches_backfilled') or 0) + extra
+                    )
+            except Exception:
+                logger.exception('Không đồng bộ được tồn kho chi nhánh từ KiotViet')
             try:
                 from kho_san_pham.services.sync_from_kiotviet import sync_thanh_pham_from_kiotviet
 
