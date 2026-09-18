@@ -3773,35 +3773,9 @@
     });
   }
 
-  function clearOrderFocus() {
-    chart.classList.remove('is-order-focus');
-    chart.querySelectorAll('.is-order-on').forEach(function (el) {
-      el.classList.remove('is-order-on');
-    });
-  }
-  function focusOrder(orderId) {
-    clearOrderFocus();
-    if (!orderId) return;
-    var hits = chart.querySelectorAll('.jp-tl-orow[data-order-id="' + orderId + '"], .jp-sheet-qty[data-order-id="' + orderId + '"], .jp-tl-bar[data-order-id="' + orderId + '"]');
-    if (!hits.length) return;
-    chart.classList.add('is-order-focus');
-    hits.forEach(function (el) { el.classList.add('is-order-on'); });
-  }
-  chart.addEventListener('pointerover', function (ev) {
-    if (chart.classList.contains('is-prep-open')) return;
-    var hit = ev.target.closest('[data-order-id]');
-    if (!hit || !chart.contains(hit)) return;
-    focusOrder(hit.getAttribute('data-order-id') || '');
-  });
-  chart.addEventListener('pointerleave', function () {
-    if (chart.classList.contains('is-prep-open')) return;
-    clearOrderFocus();
-  });
-
   function syncPrepOpen() {
     var openList = chart.querySelectorAll('.jp-tl-prep[open]');
     chart.classList.toggle('is-prep-open', openList.length > 0);
-    if (openList.length) clearOrderFocus();
   }
   chart.querySelectorAll('.jp-tl-prep').forEach(function (el) {
     el.addEventListener('toggle', function () {
