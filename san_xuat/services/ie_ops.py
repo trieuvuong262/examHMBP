@@ -156,6 +156,11 @@ def operation_library_snapshot(op: SxOperation | None) -> dict:
         'applied_unit_smv': library_smv,
         'work_center_code': work_center_code,
         'work_center': work_center,
+        # Cột Mô tả trên OB: ưu tiên ghi chú thư viện, không thì mô tả phương pháp.
+        'notes': (
+            (op.notes or '').strip()
+            or (op.method_variant or '').strip()
+        )[:255],
     }
 
 
@@ -1327,7 +1332,10 @@ def _library_operation_for_line(line: SxRoutingLine) -> SxOperation | None:
 
 
 def _library_delta_for_line(line: SxRoutingLine, op: SxOperation) -> dict | None:
-    """Trả dict field cần ghi đè từ thư viện; None = thiếu SMV; {} = không đổi."""
+    """Trả dict field cần ghi đè từ thư viện; None = thiếu SMV; {} = không đổi.
+
+    So sánh SMV + tên + nhóm + bộ phận + mô tả (+ máy / bậc thợ / rev).
+    """
     snap = operation_library_snapshot(op)
     new_lib = _smv_q(snap.get('library_smv') or op.base_smv_min)
     if new_lib <= 0:
@@ -1363,6 +1371,11 @@ def _library_delta_for_line(line: SxRoutingLine, op: SxOperation) -> dict | None
     if new_wc and new_wc.casefold() != (line.work_center_code or '').strip().casefold():
         changed = True
 
+    new_notes = (snap.get('notes') or '').strip()
+    if new_notes != (line.notes or '').strip():
+        # Đồng bộ mô tả kể cả khi thư viện xóa mô tả (chuỗi rỗng).
+        changed = True
+
     new_rev = (snap.get('op_rev') or op.op_rev or '').strip()
     if new_rev and new_rev != (line.op_rev or '').strip():
         changed = True
@@ -1376,7 +1389,7 @@ def _library_delta_for_line(line: SxRoutingLine, op: SxOperation) -> dict | None
 
 
 def _apply_library_delta_to_line(clone_line: SxRoutingLine, delta: dict) -> bool:
-    """Ghi snapshot thư viện lên dòng clone. Trả True nếu đã đồng bộ SMV sản phẩm."""
+    """Ghi đầy đủ snapshot thư viện lên dòng OB (SMV, tên, nhóm, bộ phận, mô tả…)."""
     op: SxOperation = delta['op']
     snap: dict = delta['snap']
     new_lib: Decimal = delta['new_lib']
@@ -1387,16 +1400,22 @@ def _apply_library_delta_to_line(clone_line: SxRoutingLine, delta: dict) -> bool
         clone_line.op_code = op.op_code[:30]
     if snap.get('op_rev') or op.op_rev:
         clone_line.op_rev = (snap.get('op_rev') or op.op_rev or clone_line.op_rev or 'R01')[:10]
-    if snap.get('name_vi'):
-        clone_line.op_name_vi = snap['name_vi'][:200]
+
+    # Luôn ghi đè các trường hiển thị trên tab OB từ thư viện.
+    if snap.get('name_vi') is not None:
+        name = (snap.get('name_vi') or '').strip()
+        if name:
+            clone_line.op_name_vi = name[:200]
     if snap.get('group_code'):
         clone_line.group_code = snap['group_code'][:30]
-    if snap.get('machine_code'):
-        clone_line.machine_code = snap['machine_code'][:40]
-        machine = SxMachine.objects.filter(code=clone_line.machine_code).first()
-        clone_line.machine = machine
-    if snap.get('skill_level_label'):
-        clone_line.skill_level_label = snap['skill_level_label'][:60]
+    if 'machine_code' in snap:
+        clone_line.machine_code = (snap.get('machine_code') or '')[:40]
+        clone_line.machine = (
+            SxMachine.objects.filter(code=clone_line.machine_code).first()
+            if clone_line.machine_code else None
+        )
+    if 'skill_level_label' in snap:
+        clone_line.skill_level_label = (snap.get('skill_level_label') or '')[:60]
 
     clone_line.library_unit_smv = new_lib
     if sync_applied:
@@ -1413,6 +1432,12 @@ def _apply_library_delta_to_line(clone_line: SxRoutingLine, delta: dict) -> bool
         clone_line.work_center = resolve_work_center_code(
             wc_code, name_hint=f'{clone_line.group_code} {clone_line.op_name_vi}',
         )
+    else:
+        clone_line.work_center = None
+
+    # Mô tả OB ← ghi chú / mô tả phương pháp thư viện.
+    if 'notes' in snap:
+        clone_line.notes = (snap.get('notes') or '')[:255]
 
     clone_line.save()
     return sync_applied
@@ -1515,8 +1540,8 @@ def reload_ob_smv_from_library(
                 'Không khớp được công đoạn OB với thư viện (hoặc SMV thư viện = 0).'
             )
         raise IeOpsError(
-            'Thư viện không đổi so với OB hiện tại (SMV / tên / nhóm / bộ phận) — '
-            'không tạo phiên bản mới.'
+            'Thư viện không đổi so với OB hiện tại '
+            '(SMV / tên / nhóm / bộ phận / mô tả) — không tạo phiên bản mới.'
         )
 
     in_place = (

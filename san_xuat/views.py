@@ -1110,13 +1110,14 @@ def doc_detail(request, pk):
                 messages.success(
                     request,
                     f'Đã nạp từ thư viện vào OB {clone.routing_rev} — '
-                    f'{result.n_updated} công đoạn.{extra_text}',
+                    f'{result.n_updated} công đoạn (SMV, tên, bộ phận, mô tả).{extra_text}',
                 )
             else:
                 messages.success(
                     request,
-                    f'Đã tạo OB {clone.routing_rev} — nạp từ thư viện cho '
-                    f'{result.n_updated} công đoạn từ {source.routing_rev}.{extra_text}',
+                    f'Đã tạo OB {clone.routing_rev} — nạp từ thư viện '
+                    f'(SMV, tên, bộ phận, mô tả) cho {result.n_updated} công đoạn '
+                    f'từ {source.routing_rev}.{extra_text}',
                 )
             return _doc_tab_redirect(
                 request, 'process', bom=bom.pk if bom else None, routing=clone.pk,

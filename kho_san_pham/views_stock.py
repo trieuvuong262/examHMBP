@@ -1,4 +1,6 @@
-"""Tồn kho thành phẩm theo hai kho: xưởng vs cửa hàng."""
+"""Tồn kho thành phẩm — gom theo Style như danh mục SKU, số theo chi nhánh KiotViet."""
+
+from decimal import Decimal
 
 from django.contrib import messages
 from django.db.models import Q
@@ -12,11 +14,12 @@ from PortalJustPlay.pagination import paginate_queryset
 
 from kho_san_pham.models import Product
 from kho_san_pham.services.stock import catalog_and_sales_warehouses
+from kho_san_pham.services.style_groups import format_style_group, group_products_by_style
 from kho_san_pham.services.sync_store_stock import (
-    annotate_kv_group_qtys,
     attach_kv_branch_qtys,
     kv_inventory_branch_groups,
 )
+from kho_san_pham.sku_vocabulary import extract_sp_number
 from kho_san_pham.view_utils import nav_context, perm_context
 
 STATUS_CHOICES = (
@@ -30,7 +33,8 @@ STOCK_ORDER_CHOICES = (
     ('qty_factory:asc', 'Tồn xưởng ít → nhiều'),
     ('qty_store:desc', 'Tồn cửa hàng nhiều → ít'),
     ('qty_store:asc', 'Tồn cửa hàng ít → nhiều'),
-    ('code:asc', 'SKU A → Z'),
+    ('code:desc', 'Số SP lớn → nhỏ'),
+    ('code:asc', 'Số SP nhỏ → lớn'),
     ('name:asc', 'Tên A → Z'),
 )
 
@@ -68,8 +72,58 @@ def _stock_sort(request):
     if sort_key not in _SORT_FIELDS:
         sort_key = 'qty_factory'
     if sort_dir not in ('asc', 'desc'):
-        sort_dir = 'desc' if sort_key.startswith('qty_') else 'asc'
+        sort_dir = 'desc' if sort_key.startswith('qty_') or sort_key == 'code' else 'asc'
     return sort_key, sort_dir
+
+
+def _column_index(columns: list[dict]) -> dict[int, int]:
+    return {col['id']: i for i, col in enumerate(columns)}
+
+
+def _qtys_for(product, columns: list[dict], index: dict[int, int]) -> list[Decimal]:
+    source = getattr(product, 'kv_branch_qtys', None) or []
+    out: list[Decimal] = []
+    for col in columns:
+        pos = index.get(col['id'])
+        if pos is None or pos >= len(source):
+            out.append(Decimal('0'))
+        else:
+            out.append(source[pos] or Decimal('0'))
+    return out
+
+
+def _sum_qtys(qtys: list[Decimal]) -> Decimal:
+    return sum(qtys, Decimal('0'))
+
+
+def _format_stock_group(group, product_map: dict, all_columns: list[dict], display_columns: list[dict]) -> dict:
+    data = format_style_group(group)
+    index = _column_index(all_columns)
+    factory_cols = [c for c in display_columns if c['group'] == WH_FACTORY]
+    store_cols = [c for c in display_columns if c['group'] == WH_STORE]
+    group_totals = [Decimal('0')] * len(display_columns)
+    variants = []
+    for variant in data['variants']:
+        product = product_map.get(variant['id'])
+        qtys = _qtys_for(product, display_columns, index) if product else [Decimal('0')] * len(display_columns)
+        variant['kv_branch_qtys_pairs'] = list(zip(display_columns, qtys, strict=True))
+        variant['qty_factory'] = _sum_qtys(_qtys_for(product, factory_cols, index) if product else [])
+        variant['qty_store'] = _sum_qtys(_qtys_for(product, store_cols, index) if product else [])
+        for i, qty in enumerate(qtys):
+            group_totals[i] += qty
+        variants.append(variant)
+    data['variants'] = variants
+    data['kv_branch_qtys_pairs'] = list(zip(display_columns, group_totals, strict=True))
+    data['qty_factory'] = _sum_qtys([q for c, q in data['kv_branch_qtys_pairs'] if c['group'] == WH_FACTORY])
+    data['qty_store'] = _sum_qtys([q for c, q in data['kv_branch_qtys_pairs'] if c['group'] == WH_STORE])
+    return data
+
+
+def _group_code_sort_key(item: dict) -> tuple:
+    text = (item.get('style_code') or '').strip()
+    if not text or text == '—':
+        text = item.get('code') or ''
+    return (extract_sp_number(text), text.upper())
 
 
 @module_perm_required(MODULE_KHO_SAN_PHAM, 'view')
@@ -81,21 +135,22 @@ def stock_list(request):
     only_stock = (request.GET.get('stock') or '').strip() in ('1', 'yes', 'nonzero')
     sort_key, sort_dir = _stock_sort(request)
 
-    groups = kv_inventory_branch_groups()
+    groups_kv = kv_inventory_branch_groups()
     factory_cols = [
         {'id': bid, 'name': name, 'group': WH_FACTORY}
-        for bid, name in groups['factory']
+        for bid, name in groups_kv['factory']
     ]
     store_cols = [
         {'id': bid, 'name': name, 'group': WH_STORE}
-        for bid, name in groups['sales']
+        for bid, name in groups_kv['sales']
     ]
+    all_columns = factory_cols + store_cols
     if wh_scope == WH_FACTORY:
         kv_columns = factory_cols
     elif wh_scope == WH_STORE:
         kv_columns = store_cols
     else:
-        kv_columns = factory_cols + store_cols
+        kv_columns = all_columns
 
     qs = Product.objects.all()
     if status == 'active':
@@ -112,24 +167,36 @@ def stock_list(request):
             | Q(name__icontains=search_query)
             | Q(bar_code__icontains=search_query)
         )
-    qs = annotate_kv_group_qtys(qs)
+    qs = qs.order_by('style_code', 'color_code', 'size_label', 'code')
+
+    products = list(qs)
+    attach_kv_branch_qtys(products, all_columns)
+    product_map = {p.pk: p for p in products}
+    rows = [
+        _format_stock_group(group, product_map, all_columns, kv_columns)
+        for group in group_products_by_style(products)
+    ]
+
     if only_stock:
         if wh_scope == WH_FACTORY:
-            qs = qs.filter(qty_factory__gt=0)
+            rows = [row for row in rows if (row.get('qty_factory') or 0) > 0]
         elif wh_scope == WH_STORE:
-            qs = qs.filter(qty_store__gt=0)
+            rows = [row for row in rows if (row.get('qty_store') or 0) > 0]
         else:
-            qs = qs.filter(Q(qty_factory__gt=0) | Q(qty_store__gt=0))
+            rows = [
+                row for row in rows
+                if (row.get('qty_factory') or 0) > 0 or (row.get('qty_store') or 0) > 0
+            ]
 
-    order = _SORT_FIELDS[sort_key]
-    if sort_dir == 'desc':
-        order = f'-{order}'
-    qs = qs.order_by(order, 'code')
+    reverse = sort_dir == 'desc'
+    if sort_key == 'code':
+        rows.sort(key=_group_code_sort_key, reverse=reverse)
+    elif sort_key == 'name':
+        rows.sort(key=lambda row: (row.get('name') or '').casefold(), reverse=reverse)
+    else:
+        rows.sort(key=lambda row: row.get(sort_key) or 0, reverse=reverse)
 
-    page_obj, query_string = paginate_queryset(request, qs, per_page=40)
-    products = list(page_obj.object_list)
-    attach_kv_branch_qtys(products, kv_columns)
-    page_obj.object_list = products
+    page_obj, query_string = paginate_queryset(request, rows, per_page=40)
     selected_order = f'{sort_key}:{sort_dir}'
     factory_label = 'Xưởng (KV)'
     store_label = 'Cửa hàng (KV)'
@@ -157,8 +224,7 @@ def stock_list(request):
         'factory': factory,
         'store': store,
         'kv_columns': kv_columns,
-        'show_factory': wh_scope != WH_STORE,
-        'show_store': wh_scope != WH_FACTORY,
+        'expand_search_hits': bool(search_query),
         'has_filters': bool(
             search_query
             or status != 'active'

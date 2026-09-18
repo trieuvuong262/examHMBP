@@ -334,15 +334,15 @@
     <div class="jp-sx-bom-ver-actions">
       {% if process_routing %}
       <form method="post"
-            onsubmit="return confirm('Nạp SMV / bộ phận / nhóm từ thư viện công đoạn vào OB {{ process_routing.routing_rev|escapejs }}?{% if process_routing_locked or process_routing.approval_status != 'draft' %} OB đã gắn lệnh SX hoặc đã duyệt — sẽ tạo phiên bản mới; bản cũ giữ nguyên. Mở REV mới để xem SMV cập nhật.{% endif %}');"
+            onsubmit="return confirm('Nạp từ thư viện: SMV, tên công đoạn, bộ phận, nhóm, mô tả vào OB {{ process_routing.routing_rev|escapejs }}?{% if process_routing_locked or process_routing.approval_status != 'draft' %} OB đã gắn lệnh SX hoặc đã duyệt — sẽ tạo phiên bản mới; bản cũ giữ nguyên.{% endif %}');"
             data-loading-message="Đang nạp từ thư viện…">
         {% csrf_token %}
         <input type="hidden" name="action" value="load_ob_smv">
         <input type="hidden" name="routing_id" value="{{ process_routing.pk }}">
         {% if bom %}<input type="hidden" name="bom_id" value="{{ bom.pk }}">{% endif %}
         <button type="submit" class="btn btn-outline-hm btn-sm fw-bold"
-                title="{% if process_routing_locked %}OB đã gắn LSX — Load SMV tạo REV mới (không sửa đè bản này){% else %}Cập nhật SMV và snapshot đã đổi từ thư viện{% endif %}">
-          <i class="bi bi-arrow-repeat me-1"></i>Load SMV
+                title="{% if process_routing_locked %}OB đã gắn LSX — tạo REV mới và nạp SMV, tên, bộ phận, mô tả từ thư viện{% else %}Nạp SMV, tên công đoạn, bộ phận, mô tả từ thư viện{% endif %}">
+          <i class="bi bi-arrow-repeat me-1"></i>Load thư viện
         </button>
       </form>
       {% if process_routing_locked %}
