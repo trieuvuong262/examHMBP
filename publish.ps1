@@ -141,7 +141,7 @@ $projectDir = if ($cfg["PROJECT_DIR"]) { $cfg["PROJECT_DIR"] } else { "/opt/port
 $branch = if ($cfg["BRANCH"]) { $cfg["BRANCH"] } else { "main" }
 $identity = Get-SshIdentity $cfg
 $sshHost = $host_
-$remoteCmd = "set -Eeuo pipefail; cd '$projectDir' && BRANCH='$branch' ./deploy.sh"
+$remoteCmd = "set -Eeuo pipefail; cd '$projectDir' && sed -i 's/\r`$//' deploy.sh && BRANCH='$branch' bash ./deploy.sh"
 
 Write-Host ""
 Write-Host "==> SSH deploy ${user}@${sshHost}:${port}"

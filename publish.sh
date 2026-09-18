@@ -75,7 +75,7 @@ ssh -p "${VPS_PORT}" -o BatchMode=yes -o ConnectTimeout=8 \
   -o StrictHostKeyChecking=accept-new \
   "${SSH_ID_ARGS[@]}" \
   "${VPS_USER}@${VPS_HOST}" \
-  "set -Eeuo pipefail; cd '${PROJECT_DIR}' && BRANCH='${BRANCH}' ./deploy.sh" || SSH_RC=$?
+  "set -Eeuo pipefail; cd '${PROJECT_DIR}' && sed -i 's/\r$//' deploy.sh && BRANCH='${BRANCH}' bash ./deploy.sh" || SSH_RC=$?
 
 if [[ "${SSH_RC}" -ne 0 ]]; then
   echo ""
