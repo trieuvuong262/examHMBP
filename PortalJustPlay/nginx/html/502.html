@@ -12,152 +12,155 @@
         })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Không kết nối được máy chủ - Just Play Portal</title>
+    <title>Đang tải - Just Play Portal</title>
     <meta name="theme-color" content="#dc2626">
     <link rel="icon" type="image/png" sizes="32x32" href="/static/images/logo/favicon-32.png">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
         :root {
             --hm-primary: #dc2626;
-            --hm-primary-dark: #b91c1c;
-            --hm-primary-soft: rgba(220, 38, 38, 0.08);
-            --jp-text-primary: #111111;
-            --jp-text-muted: #64748b;
-            --jp-surface-bg: #ffffff;
-            --jp-surface-border: #e2e8f0;
+            --jp-text-primary: #1e293b;
+            --jp-panel-bg: #ffffff;
+            --jp-track: #f1f5f9;
         }
         [data-theme="dark"] {
-            --jp-text-primary: #f5f5f5;
-            --jp-text-muted: #a3a3a3;
-            --jp-surface-bg: #1a1a1a;
-            --jp-surface-border: #404040;
+            --jp-text-primary: #f1f5f9;
+            --jp-panel-bg: #1e293b;
+            --jp-track: #334155;
         }
         * { box-sizing: border-box; }
-        body {
-            min-height: 100vh;
+        html, body {
+            height: 100%;
             margin: 0;
+        }
+        body {
             font-family: system-ui, -apple-system, sans-serif;
-            background: linear-gradient(160deg, #f5f5f5 0%, #fff 45%, rgba(220, 38, 38, 0.08) 100%);
+            background: #f8fafc;
             color: var(--jp-text-primary);
+            overflow: hidden;
         }
         [data-theme="dark"] body { background: #111; }
-        .bar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0.85rem 1.25rem;
-            background: #dc2626;
-            color: #fff;
-        }
-        .bar img { height: 28px; width: auto; }
-        .bar a { color: #fff; text-decoration: none; font-size: 0.9rem; }
-        .jp-http-error {
-            min-height: min(68vh, 620px);
+        .jp-tool-loading {
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 1.75rem 1rem 2.5rem;
+            padding: 1.5rem;
+            background: rgba(15, 23, 42, 0.55);
+            backdrop-filter: blur(4px);
         }
-        .jp-http-error-card {
-            width: 100%;
-            max-width: 32rem;
-            text-align: center;
-            background: var(--jp-surface-bg);
-            border: 1px solid var(--jp-surface-border);
+        .jp-tool-loading-panel {
+            width: min(100%, 22rem);
+            padding: 1.5rem 1.35rem;
             border-radius: 16px;
-            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.08);
-            padding: 2.15rem 1.5rem 1.85rem;
+            background: var(--jp-panel-bg);
+            box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+            text-align: center;
         }
-        .jp-http-error-icon {
-            width: 4.25rem;
-            height: 4.25rem;
-            margin: 0 auto;
+        [data-theme="dark"] .jp-tool-loading-panel {
+            border: 1px solid #334155;
+        }
+        .jp-tool-loading-spinner {
+            width: 2.5rem;
+            height: 2.5rem;
+            margin: 0 auto 1rem;
+            border: 3px solid #fee2e2;
+            border-top-color: var(--hm-primary);
             border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--hm-primary-soft);
-            color: var(--hm-primary);
-            font-size: 1.85rem;
+            animation: jp-tool-loading-spin 0.85s linear infinite;
         }
-        .jp-http-error-code {
-            font-size: clamp(3.4rem, 9vw, 5.25rem);
-            line-height: 0.92;
-            letter-spacing: -0.04em;
-            color: var(--hm-primary);
-            margin: 0.85rem 0 0.55rem;
-            font-weight: 600;
+        @keyframes jp-tool-loading-spin {
+            to { transform: rotate(360deg); }
         }
-        .jp-http-error-title {
-            font-size: 1.35rem;
-            margin: 0 0 0.45rem;
+        .jp-tool-loading-msg {
+            font-size: 0.92rem;
+            font-weight: 400;
+            margin: 0;
+            color: var(--jp-text-primary);
         }
-        .jp-http-error-lead {
-            color: var(--jp-text-muted);
-            font-size: 0.95rem;
-            line-height: 1.55;
-            margin: 0 auto 1.35rem;
-            max-width: 26rem;
+        .jp-tool-loading-progress {
+            height: 0.55rem;
+            margin: 0.75rem 0 0.35rem;
+            border-radius: 999px;
+            background: var(--jp-track);
+            overflow: hidden;
         }
-        .jp-http-error-actions {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 0.65rem;
-        }
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.35rem;
-            min-height: 44px;
-            padding: 0.5rem 1.15rem;
-            border-radius: 6px;
-            font-size: 1rem;
-            text-decoration: none;
-            cursor: pointer;
-            border: 1.5px solid transparent;
-        }
-        .btn-hm {
+        .jp-tool-loading-bar {
+            height: 100%;
+            width: 1%;
+            border-radius: 999px;
             background: var(--hm-primary);
-            border-color: var(--hm-primary);
-            color: #fff;
         }
-        .btn-hm:hover { background: var(--hm-primary-dark); }
-        .btn-outline {
-            background: #fff;
-            border-color: #d4d4d4;
-            color: #262626;
-        }
-        [data-theme="dark"] .btn-outline {
-            background: transparent;
-            border-color: #525252;
-            color: #f5f5f5;
+        .jp-tool-loading-pct {
+            font-size: 0.82rem;
+            font-weight: 400;
+            color: var(--hm-primary);
+            font-variant-numeric: tabular-nums;
+            margin: 0;
         }
     </style>
 </head>
 <body>
-    <nav class="bar">
-        <a href="/" class="d-flex">
-            <img src="/static/images/logo/logo.png" alt="JustPlay">
-        </a>
-        <a href="/">Về trang chủ</a>
-    </nav>
-    <div class="jp-http-error">
-        <div class="jp-http-error-card">
-            <div class="jp-http-error-icon" aria-hidden="true">
-                <i class="bi bi-cloud-slash"></i>
+    <div class="jp-tool-loading" role="status" aria-live="polite" aria-busy="true">
+        <div class="jp-tool-loading-panel">
+            <div class="jp-tool-loading-spinner" aria-hidden="true"></div>
+            <p class="jp-tool-loading-msg">Đang tải dữ liệu…</p>
+            <div class="jp-tool-loading-progress">
+                <div id="jpLoadBar" class="jp-tool-loading-bar"></div>
             </div>
-            <p class="jp-http-error-code">502</p>
-            <h1 class="jp-http-error-title">Không kết nối được máy chủ</h1>
-            <p class="jp-http-error-lead">
-                Portal đang khởi động lại hoặc mất kết nối tạm thời. Thử tải lại trang sau vài giây.
-            </p>
-            <div class="jp-http-error-actions">
-                <a href="/" class="btn btn-hm"><i class="bi bi-house-door" aria-hidden="true"></i> Về trang chủ</a>
-                <button type="button" class="btn btn-outline" onclick="location.reload()"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Tải lại trang</button>
-            </div>
+            <p id="jpLoadPct" class="jp-tool-loading-pct">1%</p>
         </div>
     </div>
+    <script>
+        (function () {
+            var WAIT_MS = 2 * 60 * 1000;
+            var START_PCT = 1;
+            var END_PCT = 100;
+            var bar = document.getElementById('jpLoadBar');
+            var pct = document.getElementById('jpLoadPct');
+            var start = Date.now();
+            var done = false;
+
+            function setPct(value) {
+                var p = Math.max(START_PCT, Math.min(END_PCT, value));
+                var shown = Math.round(p);
+                if (bar) bar.style.width = shown + '%';
+                if (pct) pct.textContent = shown + '%';
+                return shown;
+            }
+
+            function reloadOnce() {
+                try {
+                    location.reload();
+                } catch (e) {
+                    location.href = location.href;
+                }
+            }
+
+            function finish() {
+                if (done) return;
+                done = true;
+                setPct(END_PCT);
+                // Preview file 502.html: dừng ở 100%, không F5 vòng. Trên portal thật mới F5.
+                if (/502\.html$/i.test(location.pathname)) return;
+                setTimeout(reloadOnce, 400);
+            }
+
+            function tick() {
+                var elapsed = Date.now() - start;
+                var p = START_PCT + (elapsed / WAIT_MS) * (END_PCT - START_PCT);
+                if (p >= END_PCT) {
+                    finish();
+                    return;
+                }
+                setPct(p);
+                requestAnimationFrame(tick);
+            }
+
+            setPct(START_PCT);
+            requestAnimationFrame(tick);
+        })();
+    </script>
 </body>
 </html>
