@@ -69,12 +69,14 @@ def report_hub(request):
         'locations': source_locations_qs().order_by('name', 'code'),
         'scope_label': location_scope_label(filters['location_id']),
         'printed_at': timezone.localtime(),
-        'rows': data['rows'],
+        'groups': data['groups'],
         'totals': data['totals'],
         'total_count': data['total_count'],
+        'sku_count': data['sku_count'],
         'displayed_count': data['displayed_count'],
         'truncated': data['truncated'],
         'display_limit': data['display_limit'],
+        'expand_search_hits': bool(filters['search']),
     })
 
 

@@ -9,8 +9,10 @@ from django.db.models import Case, DecimalField, F, Q, Sum, Value, When
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
+from kho_npl.material_search import apply_material_search
 from kho_npl.models import Material, StockLedger
 from kho_npl.services.scrap_warehouse import exclude_scrap_locations, source_locations_qs
+from kho_npl.services.variant_groups import group_xnt_rows
 
 DISPLAY_LIMIT = 2000
 
@@ -20,6 +22,7 @@ ZERO_QTY = Value(Decimal('0.000'), output_field=QTY_FIELD)
 ZERO_AMT = Value(Decimal('0.00'), output_field=AMT_FIELD)
 
 XNT_COLUMNS = [
+    ('group_name', 'Tên nhóm hàng'),
     ('code', 'Mã hàng'),
     ('name', 'Tên hàng'),
     ('qty_open', 'Tồn đầu kỳ'),
@@ -164,14 +167,14 @@ def report_xuat_nhap_ton(
         ('qty_in', 'val_in', 'qty_out', 'val_out'),
     )
 
-    materials = Material.objects.select_related('unit')
+    materials = Material.objects.select_related('unit', 'category')
     search = (search or '').strip()
     if search:
-        materials = materials.filter(Q(code__icontains=search) | Q(name__icontains=search))
+        materials = apply_material_search(materials, search)
     else:
         moved_ids = set(opening_map) | set(period_map)
         materials = materials.filter(Q(is_active=True) | Q(pk__in=moved_ids))
-    materials = list(materials.order_by('code'))
+    materials = list(materials.order_by('variant_group', 'code'))
 
     all_rows = []
     totals = _zero_totals()
@@ -185,6 +188,8 @@ def report_xuat_nhap_ton(
         qty_out = period.get('qty_out') or Decimal('0')
         val_out = period.get('val_out') or Decimal('0')
         row = {
+            'material': material,
+            'group_name': (material.variant_group or '').strip(),
             'code': material.code,
             'name': material.name,
             'qty_open': qty_open,
@@ -199,18 +204,21 @@ def report_xuat_nhap_ton(
         _add_totals(totals, row)
         all_rows.append(row)
 
-    total_count = len(all_rows)
+    all_groups = group_xnt_rows(all_rows)
+    sku_count = len(all_rows)
+    group_count = len(all_groups)
     if limit is None or limit <= 0:
-        rows = all_rows
+        groups = all_groups
     else:
-        rows = all_rows[:limit]
+        groups = all_groups[:limit]
     return {
-        'rows': rows,
+        'groups': groups,
         'all_rows': all_rows,
         'totals': totals,
-        'total_count': total_count,
-        'displayed_count': len(rows),
-        'truncated': total_count > len(rows),
+        'total_count': group_count,
+        'sku_count': sku_count,
+        'displayed_count': len(groups),
+        'truncated': group_count > len(groups),
         'display_limit': DISPLAY_LIMIT if limit is None else limit,
     }
 
@@ -238,8 +246,9 @@ def report_xuat_nhap_ton_export_rows(
     totals = data['totals']
     if export_rows:
         export_rows.append({
+            'Tên nhóm hàng': '',
             'Mã hàng': '',
             'Tên hàng': 'Tổng cộng',
-            **{label: totals[key] for key, label in XNT_COLUMNS if key not in ('code', 'name')},
+            **{label: totals[key] for key, label in XNT_COLUMNS if key not in ('group_name', 'code', 'name')},
         })
     return export_rows

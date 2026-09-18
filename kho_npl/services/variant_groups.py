@@ -190,6 +190,40 @@ def group_stock_rows(stock_rows: list[dict]) -> list[dict]:
     return groups
 
 
+_XNT_SUM_KEYS = (
+    'qty_open', 'val_open', 'qty_in', 'val_in',
+    'qty_out', 'val_out', 'qty_close', 'val_close',
+)
+
+
+def group_xnt_rows(rows: list[dict]) -> list[dict]:
+    """Gom dòng xuất nhập tồn theo nhóm biến thể — giống danh mục / tồn kho."""
+    buckets: OrderedDict[tuple, list] = OrderedDict()
+    for row in rows:
+        material = row['material']
+        buckets.setdefault(material_group_key(material), []).append(row)
+
+    groups = []
+    for key, items in buckets.items():
+        items = sorted(items, key=lambda r: ((r['code'] or '').upper(), r['material'].pk))
+        materials = [r['material'] for r in items]
+        rep = materials[0]
+        sums = {field: sum((r[field] for r in items), Decimal('0')) for field in _XNT_SUM_KEYS}
+        group_name = _group_display_name(materials)
+        can_expand = len(items) >= 2
+        groups.append({
+            'key': _safe_group_dom_key(key, rep),
+            'group_name': group_name,
+            'can_expand': can_expand,
+            'variant_count': len(items),
+            'code': group_name if can_expand else items[0]['code'],
+            'name': group_name if can_expand else items[0]['name'],
+            'rows': items,
+            **sums,
+        })
+    return groups
+
+
 def sort_catalog_groups(groups: list[dict], sort_key: str, sort_dir: str) -> list[dict]:
     reverse = sort_dir == 'desc'
 

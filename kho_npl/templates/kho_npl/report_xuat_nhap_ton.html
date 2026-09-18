@@ -63,9 +63,40 @@
     background: #f1f5f9;
     border-top: 2px solid #cbd5e1;
 }
+.jp-npl-xnt-table tr.jp-npl-group-expandable { cursor: pointer; }
+.jp-npl-xnt-table tr.jp-npl-group-expandable.is-expanded { background: rgba(158, 201, 230, 0.22); }
+.jp-npl-xnt-table .jp-npl-group-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    max-width: 100%;
+    white-space: normal;
+}
+.jp-npl-xnt-table tr.jp-npl-group-expandable td.jp-npl-xnt-code { white-space: normal; }
+.jp-npl-xnt-table .jp-npl-group-toggle .bi {
+    color: #1e3a5f;
+    font-size: 0.85rem;
+    flex: 0 0 auto;
+}
+.jp-npl-xnt-table tr.jp-npl-variant-row td { background: #f8fafc; }
+.jp-npl-xnt-table tr.jp-npl-variant-row.is-collapsed { display: none; }
+.jp-npl-xnt-table .jp-npl-variant-indent { padding-left: 1.35rem; }
+.jp-npl-xnt-table .jp-npl-variant-indent::before {
+    content: '↳';
+    margin-right: 0.35rem;
+    color: #64748b;
+}
 @media print {
     .jp-npl-xnt-toolbar, .jp-sidebar, .jp-topbar, .jp-page-header { display: none !important; }
     .jp-npl-xnt-doc { border: 0; padding: 0; }
+    .jp-npl-xnt-table tr.jp-npl-variant-row.is-collapsed { display: table-row !important; }
 }
 </style>
 {% endblock %}
@@ -128,7 +159,8 @@
 
         {% if truncated %}
         <p class="jp-npl-xnt-warn">
-            Báo cáo hiển thị {{ displayed_count|intcomma }} trên tổng số {{ total_count|intcomma }} mã hàng.
+            Báo cáo hiển thị {{ displayed_count|intcomma }} trên tổng số {{ total_count|intcomma }} nhóm hàng
+            ({{ sku_count|intcomma }} mã).
             Vui lòng sử dụng chức năng Xuất tất cả để tải toàn bộ nội dung báo cáo
         </p>
         {% endif %}
@@ -150,9 +182,34 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for row in rows %}
-                    <tr>
-                        <td class="jp-npl-xnt-code">{{ row.code }}</td>
+                    {% for group in groups %}
+                    <tr class="jp-npl-group-row{% if group.can_expand %} jp-npl-group-expandable{% endif %}{% if expand_search_hits and group.can_expand %} is-expanded{% endif %}"
+                        {% if group.can_expand %}data-expand-target="{{ group.key }}"{% endif %}>
+                        <td class="jp-npl-xnt-code">
+                            {% if group.can_expand %}
+                            <button type="button" class="jp-npl-group-toggle" aria-expanded="{% if expand_search_hits %}true{% else %}false{% endif %}" title="Mở/đóng biến thể">
+                                <i class="bi bi-caret-{% if expand_search_hits %}down{% else %}right{% endif %}-fill" aria-hidden="true"></i>
+                                <span class="fw-semibold">{{ group.group_name }}</span>
+                                <span class="badge text-bg-light border">{{ group.variant_count }}</span>
+                            </button>
+                            {% else %}
+                            {{ group.code }}
+                            {% endif %}
+                        </td>
+                        <td>{% if group.can_expand %}{{ group.group_name }} <span class="text-muted small">({{ group.variant_count }} mã)</span>{% else %}{{ group.name }}{% endif %}</td>
+                        <td class="jp-npl-xnt-num">{{ group.qty_open|npl_qty }}</td>
+                        <td class="jp-npl-xnt-num">{{ group.val_open|npl_money }}</td>
+                        <td class="jp-npl-xnt-num">{{ group.qty_in|npl_qty }}</td>
+                        <td class="jp-npl-xnt-num">{{ group.val_in|npl_money }}</td>
+                        <td class="jp-npl-xnt-num">{{ group.qty_out|npl_qty }}</td>
+                        <td class="jp-npl-xnt-num">{{ group.val_out|npl_money }}</td>
+                        <td class="jp-npl-xnt-num">{{ group.qty_close|npl_qty }}</td>
+                        <td class="jp-npl-xnt-num">{{ group.val_close|npl_money }}</td>
+                    </tr>
+                    {% if group.can_expand %}
+                    {% for row in group.rows %}
+                    <tr class="jp-npl-variant-row{% if not expand_search_hits %} is-collapsed{% endif %}" data-group-expand="{{ group.key }}">
+                        <td class="jp-npl-xnt-code jp-npl-variant-indent">{{ row.code }}</td>
                         <td>{{ row.name }}</td>
                         <td class="jp-npl-xnt-num">{{ row.qty_open|npl_qty }}</td>
                         <td class="jp-npl-xnt-num">{{ row.val_open|npl_money }}</td>
@@ -163,13 +220,15 @@
                         <td class="jp-npl-xnt-num">{{ row.qty_close|npl_qty }}</td>
                         <td class="jp-npl-xnt-num">{{ row.val_close|npl_money }}</td>
                     </tr>
+                    {% endfor %}
+                    {% endif %}
                     {% empty %}
                     <tr>
                         <td colspan="10" class="text-center text-muted py-4">Không có dữ liệu.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
-                {% if rows %}
+                {% if groups %}
                 <tfoot>
                     <tr>
                         <td></td>
@@ -193,4 +252,41 @@
 
 {% block scripts %}
 {% include 'includes/date_range_span_script.html' %}
+<script>
+(function () {
+    var table = document.querySelector('.jp-npl-xnt-table');
+    if (!table) return;
+
+    function toggleGroup(groupKey, forceOpen) {
+        if (!groupKey) return;
+        var parent = table.querySelector('tr.jp-npl-group-expandable[data-expand-target="' + CSS.escape(groupKey) + '"]');
+        if (!parent) return;
+        var isExpanded = parent.classList.contains('is-expanded');
+        var next = typeof forceOpen === 'boolean' ? forceOpen : !isExpanded;
+        parent.classList.toggle('is-expanded', next);
+        var btn = parent.querySelector('.jp-npl-group-toggle');
+        if (btn) {
+            btn.setAttribute('aria-expanded', next ? 'true' : 'false');
+            var icon = btn.querySelector('.bi');
+            if (icon) {
+                icon.classList.toggle('bi-caret-right-fill', !next);
+                icon.classList.toggle('bi-caret-down-fill', next);
+            }
+        }
+        table.querySelectorAll('tr.jp-npl-variant-row[data-group-expand="' + CSS.escape(groupKey) + '"]').forEach(function (row) {
+            row.classList.toggle('is-collapsed', !next);
+        });
+    }
+
+    table.addEventListener('click', function (e) {
+        var toggleBtn = e.target.closest('.jp-npl-group-toggle');
+        var row = e.target.closest('tr.jp-npl-group-expandable');
+        if (toggleBtn || row) {
+            e.preventDefault();
+            var target = (row || toggleBtn.closest('tr')).getAttribute('data-expand-target');
+            toggleGroup(target);
+        }
+    });
+})();
+</script>
 {% endblock %}
