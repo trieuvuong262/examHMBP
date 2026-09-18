@@ -142,6 +142,8 @@ def thank_you(request):
 @company_trip_admin_required
 def companion_search(request):
     q = (request.GET.get('q') or '').strip()
+    if len(q) < 1:
+        return JsonResponse([], safe=False)
     exclude_raw = request.GET.get('exclude') or ''
     exclude_ids = [int(x) for x in exclude_raw.split(',') if x.strip().isdigit()]
     qs = Profile.objects.filter(is_employed=True, user__is_active=True).select_related(
@@ -149,13 +151,12 @@ def companion_search(request):
     )
     if exclude_ids:
         qs = qs.exclude(pk__in=exclude_ids)
-    if q:
-        qs = qs.filter(
-            Q(full_name__icontains=q)
-            | Q(user__username__icontains=q)
-            | Q(employee_code__icontains=q)
-            | Q(job_position__icontains=q)
-        )
+    qs = qs.filter(
+        Q(full_name__icontains=q)
+        | Q(user__username__icontains=q)
+        | Q(employee_code__icontains=q)
+        | Q(job_position__icontains=q)
+    )
     results = []
     for p in qs.order_by('full_name')[:20]:
         results.append({

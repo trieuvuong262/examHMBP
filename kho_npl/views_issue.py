@@ -41,6 +41,7 @@ from kho_npl.doc_prefill import (
     parse_doc_location_id,
     parse_doc_material_id,
 )
+from kho_npl.product_codes import search_product_codes
 from kho_npl.view_utils import nav_context, perm_context
 
 

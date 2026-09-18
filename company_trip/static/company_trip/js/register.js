@@ -27,11 +27,11 @@
     const is2 = v === 'Phòng 2';
     const is3 = v === 'Phòng 3';
     wrap.classList.toggle('d-none', !is2 && !is3);
-    wrap1.classList.toggle('d-none', !is2 && !is3);
-    wrap2.classList.toggle('d-none', !is3);
+    if (wrap1) wrap1.classList.toggle('d-none', !is2 && !is3);
+    if (wrap2) wrap2.classList.toggle('d-none', !is3);
     if (hint) {
-      if (is2) hint.textContent = 'Phòng 2: hiện 2 người (bạn + 1 người cùng phòng).';
-      else if (is3) hint.textContent = 'Phòng 3: hiện 3 người (bạn + 2 người cùng phòng).';
+      if (is2) hint.textContent = 'Phòng 2: chọn thêm 1 người cùng phòng (gõ tên rồi chọn từ danh sách).';
+      else if (is3) hint.textContent = 'Phòng 3: chọn thêm 2 người cùng phòng (gõ tên rồi chọn từ danh sách).';
       else hint.textContent = '';
     }
     if (!is2 && !is3) {
@@ -51,13 +51,27 @@
     return ids.join(',');
   }
 
+  function escapeHtml(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
   function bindSearch(input, results, hidden, otherHidden) {
     if (!input || !results || !hidden) return;
     let timer = null;
+    let reqId = 0;
 
     function hide() {
       results.classList.add('d-none');
       results.innerHTML = '';
+    }
+
+    function showHint(msg) {
+      results.innerHTML = '<div class="jp-trip-suggest-empty">' + escapeHtml(msg) + '</div>';
+      results.classList.remove('d-none');
     }
 
     async function fetchList(query) {
@@ -68,14 +82,19 @@
       return Array.isArray(data) ? data : (data.results || []);
     }
 
-    function render(items) {
+    function render(items, query) {
       results.innerHTML = '';
+      if (!items.length) {
+        showHint(query ? 'Không tìm thấy nhân viên phù hợp.' : 'Gõ ít nhất 1 ký tự để tìm.');
+        return;
+      }
       items.forEach(function (item) {
         const a = document.createElement('button');
         a.type = 'button';
         a.className = 'list-group-item list-group-item-action';
         const meta = [item.code, item.position, item.department].filter(Boolean).join(' · ');
-        a.innerHTML = '<strong>' + item.name + '</strong>' + (meta ? '<div class="small text-muted">' + meta + '</div>' : '');
+        a.innerHTML = '<strong>' + escapeHtml(item.name) + '</strong>'
+          + (meta ? '<div class="small text-muted">' + escapeHtml(meta) + '</div>' : '');
         a.addEventListener('mousedown', function (e) {
           e.preventDefault();
           if (otherHidden && String(otherHidden.value) === String(item.id)) {
@@ -89,18 +108,34 @@
         });
         results.appendChild(a);
       });
-      results.classList.toggle('d-none', !items.length);
+      results.classList.remove('d-none');
+    }
+
+    function runSearch(query) {
+      const q = (query || '').trim();
+      if (!q) {
+        showHint('Gõ tên / mã NV để chọn người cùng phòng.');
+        return;
+      }
+      const myReq = ++reqId;
+      fetchList(q).then(function (items) {
+        if (myReq !== reqId) return;
+        render(items, q);
+      }).catch(function () {
+        if (myReq !== reqId) return;
+        showHint('Không tải được danh sách. Thử lại.');
+      });
     }
 
     input.addEventListener('focus', function () {
-      fetchList(input.value.trim()).then(render);
+      runSearch(input.value);
     });
     input.addEventListener('input', function () {
       input.dataset.selected = '';
       hidden.value = '';
       clearTimeout(timer);
       timer = setTimeout(function () {
-        fetchList(input.value.trim()).then(render);
+        runSearch(input.value);
       }, 200);
     });
     input.addEventListener('blur', function () {
@@ -110,7 +145,7 @@
           input.value = '';
           hidden.value = '';
         }
-      }, 200);
+      }, 180);
     });
   }
 

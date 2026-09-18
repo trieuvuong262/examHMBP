@@ -1,7 +1,10 @@
 document.addEventListener('DOMContentLoaded', function () {
   const cfg = window.JP_LUCKYSPIN || {};
   const spinBtn = document.getElementById('spinBtn');
+  const spinBtnLabel = spinBtn && spinBtn.querySelector('.jp-luckyspin-btn-label');
   const remainingEl = document.getElementById('spin-remaining');
+  const stage = document.getElementById('spinStage');
+  const statusEl = document.getElementById('spinStatus');
   const slots = [
     document.querySelector('#slot1 .jp-luckyspin-numbers'),
     document.querySelector('#slot2 .jp-luckyspin-numbers'),
@@ -14,6 +17,19 @@ document.addEventListener('DOMContentLoaded', function () {
   const spinning = [false, false, false];
   let isSpinning = false;
   let numberStr = '';
+
+  function setBtnText(text) {
+    if (spinBtnLabel) spinBtnLabel.textContent = text;
+    else spinBtn.innerText = text;
+  }
+
+  function setStatus(text) {
+    if (statusEl) statusEl.textContent = text;
+  }
+
+  function setStageSpinning(on) {
+    if (stage) stage.classList.toggle('is-spinning', !!on);
+  }
 
   function itemHeight() {
     return slots[0].parentElement.getBoundingClientRect().height || 120;
@@ -64,7 +80,9 @@ document.addEventListener('DOMContentLoaded', function () {
   async function startSpin() {
     spinBtn.disabled = true;
     isSpinning = true;
-    spinBtn.innerText = 'Dừng lại';
+    setStageSpinning(true);
+    setStatus('Đang quay…');
+    setBtnText('Dừng lại');
     slots.forEach(setNumbers);
     positions.fill(0);
     spinning[0] = spinning[1] = spinning[2] = true;
@@ -85,11 +103,14 @@ document.addEventListener('DOMContentLoaded', function () {
       }
       numberStr = numberStr.padStart(3, '0');
       spinBtn.disabled = false;
+      setStatus('Bấm dừng');
     } catch (err) {
       alert('Lỗi kết nối, thử lại!');
       stopAllSlotsImmediate();
       slots.forEach(setPlaceholder);
-      spinBtn.innerText = 'Quay Số';
+      setBtnText('Quay Số');
+      setStatus('Sẵn sàng');
+      setStageSpinning(false);
       spinBtn.disabled = false;
       isSpinning = false;
     }
@@ -97,6 +118,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function stopSpinSequence() {
     spinBtn.disabled = true;
+    setStatus('Đang dừng…');
     const hundreds = parseInt(numberStr[0], 10) || 0;
     const tens = parseInt(numberStr[1], 10) || 0;
     const ones = parseInt(numberStr[2], 10) || 0;
@@ -105,9 +127,13 @@ document.addEventListener('DOMContentLoaded', function () {
     setTimeout(function () {
       stopSlot(2, ones);
       isSpinning = false;
-      spinBtn.innerText = 'Quay Số';
+      setBtnText('Quay Số');
       spinBtn.disabled = false;
-      setTimeout(function () { showPopup(numberStr); }, 1500);
+      setTimeout(function () {
+        setStageSpinning(false);
+        setStatus('Sẵn sàng');
+        showPopup(numberStr);
+      }, 1500);
     }, 3000);
   }
 
@@ -121,6 +147,67 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
+  /* Fullscreen */
+  const fsRoot = document.getElementById('spinFullscreenRoot');
+  const fsBtn = document.getElementById('spinFullscreenBtn');
+  const fsIcon = fsBtn && fsBtn.querySelector('i');
+  const fsLabel = fsBtn && fsBtn.querySelector('.jp-luckyspin-fs-label');
+
+  function isNativeFullscreen() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement);
+  }
+
+  function isFullscreenActive() {
+    return isNativeFullscreen() || (fsRoot && fsRoot.classList.contains('is-immersive'));
+  }
+
+  function syncFullscreenUi() {
+    const on = isFullscreenActive();
+    if (fsBtn) {
+      fsBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      fsBtn.title = on ? 'Thoát toàn màn hình' : 'Toàn màn hình';
+    }
+    if (fsIcon) {
+      fsIcon.className = on ? 'bi bi-fullscreen-exit' : 'bi bi-fullscreen';
+    }
+    if (fsLabel) {
+      fsLabel.textContent = on ? 'Thoát' : 'Toàn màn hình';
+    }
+    document.body.classList.toggle('jp-luckyspin-no-scroll', !!(fsRoot && fsRoot.classList.contains('is-immersive')));
+  }
+
+  async function enterFullscreen() {
+    if (!fsRoot) return;
+    try {
+      if (fsRoot.requestFullscreen) await fsRoot.requestFullscreen();
+      else if (fsRoot.webkitRequestFullscreen) fsRoot.webkitRequestFullscreen();
+      else fsRoot.classList.add('is-immersive');
+    } catch (err) {
+      fsRoot.classList.add('is-immersive');
+    }
+    syncFullscreenUi();
+  }
+
+  async function exitFullscreen() {
+    try {
+      if (isNativeFullscreen()) {
+        if (document.exitFullscreen) await document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      }
+    } catch (err) { /* ignore */ }
+    if (fsRoot) fsRoot.classList.remove('is-immersive');
+    syncFullscreenUi();
+  }
+
+  if (fsBtn && fsRoot) {
+    fsBtn.addEventListener('click', function () {
+      if (isFullscreenActive()) exitFullscreen();
+      else enterFullscreen();
+    });
+    document.addEventListener('fullscreenchange', syncFullscreenUi);
+    document.addEventListener('webkitfullscreenchange', syncFullscreenUi);
+  }
+
   document.addEventListener('keydown', function (event) {
     const popup = document.getElementById('resultPopup');
     const open = popup && popup.classList.contains('is-open');
@@ -133,6 +220,12 @@ document.addEventListener('DOMContentLoaded', function () {
       event.preventDefault();
       closePopup();
     }
+    if ((event.key === 'f' || event.key === 'F') && !open && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      const tag = (event.target && event.target.tagName) || '';
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      event.preventDefault();
+      if (fsBtn) fsBtn.click();
+    }
   });
 });
 
@@ -144,7 +237,29 @@ function showPopup(numberStr) {
   if (window.confetti) {
     const canvas = document.getElementById('confettiCanvas');
     const fire = canvas ? confetti.create(canvas, { resize: true, useWorker: true }) : confetti;
-    fire({ particleCount: 400, spread: 160, startVelocity: 70, origin: { y: 0.6 } });
+    fire({
+      particleCount: 180,
+      spread: 70,
+      startVelocity: 45,
+      origin: { y: 0.65 },
+      colors: ['#dc2626', '#fbbf24', '#ef4444', '#fde68a', '#ffffff'],
+    });
+    setTimeout(function () {
+      fire({
+        particleCount: 120,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0, y: 0.7 },
+        colors: ['#dc2626', '#fbbf24', '#ffffff'],
+      });
+      fire({
+        particleCount: 120,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1, y: 0.7 },
+        colors: ['#dc2626', '#fbbf24', '#ffffff'],
+      });
+    }, 220);
   }
 }
 
