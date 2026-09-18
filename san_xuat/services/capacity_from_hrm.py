@@ -179,21 +179,23 @@ def resolve_work_center_code(code: str | None, *, name_hint: str = '') -> SxWork
     hr_centers = _hr_work_centers_cached()
 
     if hr_centers:
-        # Map theo bảng IE → HR
+        # Ưu tiên khớp đúng tên/mã bộ phận (vd. QC) trước map IE←hint (SEW_* dễ kéo về MAY).
+        raw_fold = _fold(raw)
+        if raw_fold:
+            for hc in hr_centers:
+                if raw_fold == _fold(hc.code) or raw_fold == _fold(hc.name) or raw_fold == _fold(hc.team_label or ''):
+                    return _store(hc)
+
+        # Map theo bảng IE → HR (dùng needle gồm hint)
         for ie_keys, hr_keys in _IE_WC_TO_HR_KEYS:
             if any(_fold(k) and _fold(k) in needle for k in ie_keys):
                 hit = _pick_hr_by_keys(hr_centers, hr_keys)
                 if hit:
                     return _store(hit)
 
-        # Khớp trực tiếp tên / mã bộ phận trong pool (HRD hoặc fallback IE)
-        raw_fold = _fold(raw)
+        # Khớp mờ tên / mã bộ phận trong pool
         for hc in hr_centers:
             folded = _fold(f'{hc.name} {hc.team_label} {hc.code}')
-            if raw_fold and raw_fold == _fold(hc.code):
-                return _store(hc)
-            if raw_fold and raw_fold == _fold(hc.name):
-                return _store(hc)
             if needle and (needle == folded or needle in folded or folded in needle):
                 return _store(hc)
 
@@ -225,8 +227,36 @@ def work_center_for_operation_group(group) -> SxWorkCenter | None:
     return None
 
 
+def department_label_for_operation(op) -> str:
+    """Tên bộ phận hiển thị/lưu: ưu tiên nhãn trên công đoạn thư viện, rồi nhóm."""
+    if op is None:
+        return ''
+    op_label = normalize_ie_group_department_label(
+        getattr(op, 'process_stage_label', None) or ''
+    ) or (getattr(op, 'process_stage_label', None) or '').strip()
+    if op_label:
+        return op_label
+    grp = getattr(op, 'group', None)
+    if grp is None:
+        return ''
+    return normalize_ie_group_department_label(grp.process_stage_label or '') or (
+        grp.process_stage_label or ''
+    ).strip()
+
+
+def work_center_for_operation(op) -> SxWorkCenter | None:
+    """Resolve HRD theo bộ phận công đoạn (override) hoặc nhóm."""
+    label = department_label_for_operation(op)
+    if label:
+        # Không kèm mã nhóm SEW_* vào hint — tránh map nhầm QC → MAY.
+        hit = resolve_work_center_code(label)
+        if hit:
+            return hit
+    return work_center_for_operation_group(getattr(op, 'group', None))
+
+
 def sync_routing_lines_department_from_groups(*, routing_id: int | None = None) -> dict[str, int]:
-    """Gắn lại work_center dòng OB theo Tên bộ phận của nhóm công đoạn chuẩn."""
+    """Gắn lại work_center dòng OB theo bộ phận thư viện (ưu tiên) / nhóm công đoạn."""
     from san_xuat.ie_models import SxOperationGroup, SxRoutingLine
 
     groups = {
@@ -234,7 +264,9 @@ def sync_routing_lines_department_from_groups(*, routing_id: int | None = None) 
         for g in SxOperationGroup.objects.all()
         if (g.code or '').strip()
     }
-    qs = SxRoutingLine.objects.select_related('work_center', 'routing')
+    qs = SxRoutingLine.objects.select_related(
+        'work_center', 'routing', 'operation', 'operation__group',
+    )
     if routing_id:
         qs = qs.filter(routing_id=routing_id)
 
@@ -242,15 +274,24 @@ def sync_routing_lines_department_from_groups(*, routing_id: int | None = None) 
     skipped = 0
     unresolved = 0
     for line in qs.iterator():
-        code = (line.group_code or '').strip()
-        grp = groups.get(code.casefold()) if code else None
+        op = line.operation
+        grp = op.group if op and op.group_id else None
         if grp is None:
+            code = (line.group_code or '').strip()
+            grp = groups.get(code.casefold()) if code else None
+        if op is None and grp is None:
             unresolved += 1
             continue
-        label = normalize_ie_group_department_label(grp.process_stage_label or '') or (
-            grp.process_stage_label or ''
-        ).strip()
-        wc = work_center_for_operation_group(grp)
+
+        if op is not None:
+            label = department_label_for_operation(op)
+            wc = work_center_for_operation(op)
+        else:
+            label = normalize_ie_group_department_label(grp.process_stage_label or '') or (
+                grp.process_stage_label or ''
+            ).strip()
+            wc = work_center_for_operation_group(grp)
+
         new_code = (label or (wc.code if wc else ''))[:40]
         if (
             line.work_center_id == (wc.pk if wc else None)

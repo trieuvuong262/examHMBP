@@ -1571,7 +1571,9 @@ def doc_detail(request, pk):
 
         if process_routing:
             routing_lines = list(
-                process_routing.lines.select_related('work_center').order_by('seq_no', 'pk')
+                process_routing.lines.select_related(
+                    'work_center', 'operation', 'operation__group',
+                ).order_by('seq_no', 'pk')
             )
             group_map = {
                 (g.code or '').casefold(): g
@@ -1579,13 +1581,25 @@ def doc_detail(request, pk):
                     code__in=[ln.group_code for ln in routing_lines if ln.group_code]
                 )
             }
+            from san_xuat.services.capacity_from_hrm import (
+                department_label_for_operation,
+                normalize_ie_group_department_label,
+            )
             for line in routing_lines:
                 grp = group_map.get((line.group_code or '').casefold())
                 line.display_group_name = (grp.name if grp else '') or ''
+                op_dept = (
+                    department_label_for_operation(line.operation)
+                    if line.operation_id else ''
+                )
+                group_dept = normalize_ie_group_department_label(
+                    (grp.process_stage_label if grp else '') or ''
+                ) or ((grp.process_stage_label if grp else '') or '').strip()
                 line.display_department = (
-                    (grp.process_stage_label if grp else '')
-                    or (line.work_center.name if line.work_center_id else '')
+                    op_dept
+                    or group_dept
                     or (line.work_center_code or '')
+                    or (line.work_center.name if line.work_center_id else '')
                 )
         if _edit_flag:
             from san_xuat.services.capacity_from_hrm import work_center_for_operation_group

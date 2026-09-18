@@ -109,7 +109,7 @@ def resolve_operation(op_code: str, op_rev: str | None = None) -> SxOperation | 
 
 
 def operation_library_snapshot(op: SxOperation | None) -> dict:
-    """Snapshot thư viện; bộ phận lấy đúng từ tên bộ phận của nhóm."""
+    """Snapshot thư viện; bộ phận ưu tiên nhãn trên công đoạn, rồi nhóm."""
     if op is None:
         return {}
     group_code = op.group.code if op.group_id else ''
@@ -119,33 +119,25 @@ def operation_library_snapshot(op: SxOperation | None) -> dict:
     library_smv = op.base_smv_min or Decimal('0')
     work_center_code = ''
     work_center = None
-    if op.group_id:
-        from san_xuat.services.capacity_from_hrm import (
-            normalize_ie_group_department_label,
-            resolve_work_center_code,
-            work_center_for_operation_group,
-        )
+    from san_xuat.services.capacity_from_hrm import (
+        department_label_for_operation,
+        resolve_work_center_code,
+        work_center_for_operation,
+        work_center_for_operation_group,
+    )
 
-        grp = op.group
-        department_name = normalize_ie_group_department_label(grp.process_stage_label or '') or (
-            grp.process_stage_label or ''
-        ).strip()
-        # Khớp upsert_routing_line: ưu tiên nhãn bộ phận nhóm, rồi default WC nhóm.
-        wc_code_raw = department_name
-        if not wc_code_raw and (grp.default_work_center_code or grp.default_work_center_id):
-            wc_code_raw = (grp.default_work_center_code or '').strip() or (
-                grp.default_work_center.code if grp.default_work_center_id else ''
-            )
-        work_center = work_center_for_operation_group(grp)
-        if work_center is None and wc_code_raw:
-            work_center = resolve_work_center_code(
-                wc_code_raw, name_hint=f'{group_code} {op.name_vi or ""}',
-            )
-        work_center_code = (
-            department_name
-            or wc_code_raw
-            or (work_center.code if work_center else '')
-        )[:40]
+    department_name = department_label_for_operation(op)
+    work_center = work_center_for_operation(op)
+    if work_center is None and department_name:
+        work_center = resolve_work_center_code(
+            department_name, name_hint=f'{group_code} {op.name_vi or ""}',
+        )
+    if work_center is None and op.group_id:
+        work_center = work_center_for_operation_group(op.group)
+    work_center_code = (
+        department_name
+        or (work_center.code if work_center else '')
+    )[:40]
     return {
         'op_rev': (op.op_rev or 'R01').strip() or 'R01',
         'name_vi': (op.name_vi or '').strip(),
