@@ -126,15 +126,7 @@ def _group_code_sort_key(item: dict) -> tuple:
     return (extract_sp_number(text), text.upper())
 
 
-@module_perm_required(MODULE_KHO_SAN_PHAM, 'view')
-def stock_list(request):
-    factory, store = catalog_and_sales_warehouses()
-    search_query = get_search_query(request)
-    status = _list_status(request)
-    wh_scope = _warehouse_scope(request)
-    only_stock = (request.GET.get('stock') or '').strip() in ('1', 'yes', 'nonzero')
-    sort_key, sort_dir = _stock_sort(request)
-
+def _kv_column_sets(wh_scope: str) -> tuple[list[dict], list[dict], list[dict], list[dict]]:
     groups_kv = kv_inventory_branch_groups()
     factory_cols = [
         {'id': bid, 'name': name, 'group': WH_FACTORY}
@@ -146,12 +138,17 @@ def stock_list(request):
     ]
     all_columns = factory_cols + store_cols
     if wh_scope == WH_FACTORY:
-        kv_columns = factory_cols
+        display = factory_cols
     elif wh_scope == WH_STORE:
-        kv_columns = store_cols
+        display = store_cols
     else:
-        kv_columns = all_columns
+        display = all_columns
+    return factory_cols, store_cols, all_columns, display
 
+
+def _stock_product_queryset(request):
+    search_query = get_search_query(request)
+    status = _list_status(request)
     qs = Product.objects.all()
     if status == 'active':
         qs = qs.filter(is_active=True)
@@ -167,8 +164,17 @@ def stock_list(request):
             | Q(name__icontains=search_query)
             | Q(bar_code__icontains=search_query)
         )
-    qs = qs.order_by('style_code', 'color_code', 'size_label', 'code')
+    return qs.order_by('style_code', 'color_code', 'size_label', 'code'), search_query, status
 
+
+def _build_stock_groups(request) -> tuple[list[dict], list[dict], dict]:
+    """Gom Style + tồn KV theo bộ lọc trang. Dùng chung list/export."""
+    wh_scope = _warehouse_scope(request)
+    only_stock = (request.GET.get('stock') or '').strip() in ('1', 'yes', 'nonzero')
+    sort_key, sort_dir = _stock_sort(request)
+    factory_cols, store_cols, all_columns, kv_columns = _kv_column_sets(wh_scope)
+
+    qs, search_query, status = _stock_product_queryset(request)
     products = list(qs)
     attach_kv_branch_qtys(products, all_columns)
     product_map = {p.pk: p for p in products}
@@ -196,43 +202,76 @@ def stock_list(request):
     else:
         rows.sort(key=lambda row: row.get(sort_key) or 0, reverse=reverse)
 
+    meta = {
+        'search_query': search_query,
+        'status': status,
+        'wh_scope': wh_scope,
+        'only_stock': only_stock,
+        'sort_key': sort_key,
+        'sort_dir': sort_dir,
+        'selected_order': f'{sort_key}:{sort_dir}',
+        'factory_cols': factory_cols,
+        'store_cols': store_cols,
+    }
+    return rows, kv_columns, meta
+
+
+@module_perm_required(MODULE_KHO_SAN_PHAM, 'view')
+def stock_list(request):
+    factory, store = catalog_and_sales_warehouses()
+    rows, kv_columns, meta = _build_stock_groups(request)
     page_obj, query_string = paginate_queryset(request, rows, per_page=40)
-    selected_order = f'{sort_key}:{sort_dir}'
     factory_label = 'Xưởng (KV)'
     store_label = 'Cửa hàng (KV)'
-    if factory_cols:
-        factory_label = factory_cols[0]['name'] if len(factory_cols) == 1 else 'Xưởng (KV)'
-    if store_cols:
-        store_label = store_cols[0]['name'] if len(store_cols) == 1 else 'Cửa hàng (KV)'
+    if meta['factory_cols']:
+        factory_label = (
+            meta['factory_cols'][0]['name']
+            if len(meta['factory_cols']) == 1
+            else 'Xưởng (KV)'
+        )
+    if meta['store_cols']:
+        store_label = (
+            meta['store_cols'][0]['name']
+            if len(meta['store_cols']) == 1
+            else 'Cửa hàng (KV)'
+        )
     return render(request, 'kho_san_pham/stock_list.html', {
         **nav_context('stock', user=request.user),
         **perm_context(request.user, 'stock'),
         'page_obj': page_obj,
         'query_string': query_string,
-        'search_query': search_query,
-        'selected_status': status,
+        'search_query': meta['search_query'],
+        'selected_status': meta['status'],
         'status_choices': STATUS_CHOICES,
-        'wh_scope': wh_scope,
+        'wh_scope': meta['wh_scope'],
         'wh_choices': (
             (WH_ALL, 'Tất cả kho KV'),
             (WH_FACTORY, factory_label),
             (WH_STORE, store_label),
         ),
-        'only_stock': only_stock,
-        'selected_order': selected_order,
+        'only_stock': meta['only_stock'],
+        'selected_order': meta['selected_order'],
         'order_choices': STOCK_ORDER_CHOICES,
         'factory': factory,
         'store': store,
         'kv_columns': kv_columns,
-        'expand_search_hits': bool(search_query),
+        'expand_search_hits': bool(meta['search_query']),
         'has_filters': bool(
-            search_query
-            or status != 'active'
-            or wh_scope
-            or only_stock
-            or selected_order != 'qty_factory:desc'
+            meta['search_query']
+            or meta['status'] != 'active'
+            or meta['wh_scope']
+            or meta['only_stock']
+            or meta['selected_order'] != 'qty_factory:desc'
         ),
     })
+
+
+@module_perm_required(MODULE_KHO_SAN_PHAM, 'export')
+def stock_export(request):
+    from kho_san_pham.services.stock_export import export_stock_xlsx
+
+    rows, kv_columns, _meta = _build_stock_groups(request)
+    return export_stock_xlsx(rows, kv_columns)
 
 
 @module_perm_required(MODULE_KHO_SAN_PHAM, 'update')

@@ -90,6 +90,12 @@ html[data-theme="dark"] .ksp-stock-table .kv-product-group-expandable.kv-expande
                 <a href="{% url 'kho_san_pham:stock_list' %}" class="btn btn-outline-secondary btn-sm fw-bold px-2" title="Xóa lọc">×</a>
                 {% endif %}
             </form>
+            {% if can_export %}
+            <a href="{% url 'kho_san_pham:stock_export' %}{% if query_string %}?{{ query_string }}{% endif %}"
+               class="btn btn-outline-secondary btn-sm fw-bold text-nowrap" title="Xuất Excel theo bộ lọc hiện tại">
+                <i class="bi bi-download me-1"></i>Xuất Excel
+            </a>
+            {% endif %}
             {% if can_update %}
             <form method="post" action="{% url 'kho_san_pham:stock_sync_kv' %}" class="mb-0">
                 {% csrf_token %}

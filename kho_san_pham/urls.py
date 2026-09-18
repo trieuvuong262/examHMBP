@@ -7,6 +7,7 @@ app_name = 'kho_san_pham'
 urlpatterns = [
     path('', views.hub_redirect, name='hub'),
     path('ton-kho/', views_stock.stock_list, name='stock_list'),
+    path('ton-kho/xuat-excel/', views_stock.stock_export, name='stock_export'),
     path('ton-kho/dong-bo-kv/', views_stock.stock_sync_kv, name='stock_sync_kv'),
     path('phieu-nhap/', views_receipt.receipt_list, name='receipt_list'),
     path('phieu-nhap/<int:pk>/', views_receipt.receipt_detail, name='receipt_detail'),
