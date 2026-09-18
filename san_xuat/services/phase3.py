@@ -235,15 +235,25 @@ def upsert_work_center(
 
     team_label = (team_label or "").strip() or name
     location = (work_location or "").strip()
-    computed = (
-        Decimal(heads) * rate * Decimal("3600") * hours * (eff / Decimal("100"))
-    ).quantize(Decimal("0.01"))
-    if capacity_per_day is None or capacity_per_day < 0:
-        capacity_per_day = computed
-    elif computed > 0:
-        capacity_per_day = computed
+    if is_subcontract:
+        heads = 0
+        rate = Decimal("0")
+        location = ""
+        capacity_per_day = (
+            Decimal("0")
+            if capacity_per_day is None or capacity_per_day < 0
+            else Decimal(str(capacity_per_day)).quantize(Decimal("0.01"))
+        )
     else:
-        capacity_per_day = Decimal(str(capacity_per_day)).quantize(Decimal("0.01"))
+        computed = (
+            Decimal(heads) * rate * Decimal("3600") * hours * (eff / Decimal("100"))
+        ).quantize(Decimal("0.01"))
+        if capacity_per_day is None or capacity_per_day < 0:
+            capacity_per_day = computed
+        elif computed > 0:
+            capacity_per_day = computed
+        else:
+            capacity_per_day = Decimal(str(capacity_per_day)).quantize(Decimal("0.01"))
 
     fields = {
         "code": code,

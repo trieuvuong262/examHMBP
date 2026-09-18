@@ -33,41 +33,53 @@
             {{ form.code }}
             {% if form.code.errors %}<div class="text-danger small">{{ form.code.errors }}</div>{% endif %}
           </div>
-          <div class="col-md-4">
+          <div class="col-12">
+            <div class="d-flex flex-wrap gap-4">
+              <div class="form-check">
+                {{ form.is_active }}
+                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
+              </div>
+              <div class="form-check">
+                {{ form.is_subcontract }}
+                <label class="form-check-label" for="{{ form.is_subcontract.id_for_label }}">{{ form.is_subcontract.label }}</label>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4" data-sx-cap-inhouse>
             <label class="form-label fw-bold small mb-1" for="{{ form.headcount.id_for_label }}">
               {{ form.headcount.label }}{{ form.headcount|sx_req_star }}
             </label>
             <div class="input-group input-group-sm">
               {{ form.headcount }}
-              <button type="button" class="btn btn-outline-secondary fw-bold" id="sx-cap-load-headcount"
+              <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" id="sx-cap-load-headcount"
                       title="Lấy số người đang làm việc từ tổ đã chọn">
                 Load
               </button>
             </div>
             {% if form.headcount.errors %}<div class="text-danger small">{{ form.headcount.errors }}</div>{% endif %}
           </div>
-          <div class="col-md-4">
+          <div class="col-md-4" data-sx-cap-inhouse>
             <label class="form-label fw-bold small mb-1" for="{{ form.throughput_per_sec.id_for_label }}">
               {{ form.throughput_per_sec.label }}
             </label>
             {{ form.throughput_per_sec }}
             {% if form.throughput_per_sec.errors %}<div class="text-danger small">{{ form.throughput_per_sec.errors }}</div>{% endif %}
           </div>
-          <div class="col-md-4">
+          <div class="col-md-4" data-sx-cap-inhouse>
             <label class="form-label fw-bold small mb-1" for="{{ form.work_hours_per_day.id_for_label }}">
               {{ form.work_hours_per_day.label }}
             </label>
             {{ form.work_hours_per_day }}
             {% if form.work_hours_per_day.errors %}<div class="text-danger small">{{ form.work_hours_per_day.errors }}</div>{% endif %}
           </div>
-          <div class="col-md-4">
+          <div class="col-md-4" data-sx-cap-inhouse>
             <label class="form-label fw-bold small mb-1" for="{{ form.efficiency_pct.id_for_label }}">
               {{ form.efficiency_pct.label }}
             </label>
             {{ form.efficiency_pct }}
             {% if form.efficiency_pct.errors %}<div class="text-danger small">{{ form.efficiency_pct.errors }}</div>{% endif %}
           </div>
-          <div class="col-md-4">
+          <div class="col-md-4" data-sx-cap-inhouse>
             <label class="form-label fw-bold small mb-1" for="{{ form.work_location.id_for_label }}">
               {{ form.work_location.label }}
             </label>
@@ -86,17 +98,12 @@
             {{ form.division }}
             {% if form.division.errors %}<div class="text-danger small">{{ form.division.errors }}</div>{% endif %}
           </div>
-          <div class="col-12">
-            <div class="d-flex flex-wrap gap-4">
-              <div class="form-check">
-                {{ form.is_active }}
-                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
-              </div>
-              <div class="form-check">
-                {{ form.is_subcontract }}
-                <label class="form-check-label" for="{{ form.is_subcontract.id_for_label }}">{{ form.is_subcontract.label }}</label>
-              </div>
-            </div>
+          <div class="col-md-4" data-sx-cap-gc hidden>
+            <label class="form-label fw-bold small mb-1" for="{{ form.capacity_per_day.id_for_label }}">
+              {{ form.capacity_per_day.label }}{{ form.capacity_per_day|sx_req_star }}
+            </label>
+            {{ form.capacity_per_day }}
+            {% if form.capacity_per_day.errors %}<div class="text-danger small">{{ form.capacity_per_day.errors }}</div>{% endif %}
           </div>
           <div class="col-12">
             <label class="form-label fw-bold small mb-1" for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>
@@ -104,7 +111,7 @@
           </div>
         </div>
 
-        <div class="alert alert-light border mt-3 mb-0 small" id="sx-cap-preview">
+        <div class="alert alert-light border mt-3 mb-0 small" id="sx-cap-preview" data-sx-cap-inhouse>
           <strong>Ước lượng:</strong>
           <span id="sx-cap-preview-text">Nhập số người, hiệu suất và giờ làm để xem sản lượng ngày.</span>
         </div>
@@ -143,6 +150,8 @@
   var hours = form.querySelector('[name="work_hours_per_day"]');
   var load = form.querySelector('[name="efficiency_pct"]');
   var division = form.querySelector('[name="division"]');
+  var gc = form.querySelector('[name="is_subcontract"]');
+  var capQty = form.querySelector('[name="capacity_per_day"]');
   var loadBtn = document.getElementById('sx-cap-load-headcount');
   var out = document.getElementById('sx-cap-preview-text');
   function num(el) {
@@ -153,10 +162,32 @@
     if (!isFinite(n)) return '0';
     return (Math.round(n * 100) / 100).toLocaleString('vi-VN');
   }
-  function refresh() {
+  function computedQty() {
     var h = num(heads), r = num(rate), hr = num(hours), ld = num(load) / 100;
-    var qty = h * r * 3600 * hr * ld;
-    out.textContent = fmt(qty) + ' SP/ngày (số lượng người × hiệu suất chung (SP/s) × 3600 × thời gian làm việc × hệ số tải).';
+    return h * r * 3600 * hr * ld;
+  }
+  function refresh() {
+    if (!out) return;
+    out.textContent = fmt(computedQty()) + ' SP/ngày (số lượng người × hiệu suất chung (SP/s) × 3600 × thời gian làm việc × hệ số tải).';
+  }
+  function isGc() {
+    return !!(gc && gc.checked);
+  }
+  function syncMode() {
+    var on = isGc();
+    form.querySelectorAll('[data-sx-cap-inhouse]').forEach(function (el) {
+      el.hidden = on;
+    });
+    form.querySelectorAll('[data-sx-cap-gc]').forEach(function (el) {
+      el.hidden = !on;
+    });
+    if (on && capQty) {
+      var current = num(capQty);
+      if (current <= 0) {
+        var qty = computedQty();
+        if (qty > 0) capQty.value = String(Math.round(qty * 100) / 100);
+      }
+    }
   }
   ['input', 'change'].forEach(function (ev) {
     [heads, rate, hours, load].forEach(function (el) {
@@ -186,8 +217,10 @@
     });
   }
   if (division) division.addEventListener('change', syncLoadBtn);
+  if (gc) gc.addEventListener('change', syncMode);
   syncLoadBtn();
   refresh();
+  syncMode();
 })();
 </script>
 {% endblock %}

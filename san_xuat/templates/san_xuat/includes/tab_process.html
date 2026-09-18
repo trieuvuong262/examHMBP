@@ -114,7 +114,7 @@
             </td>
             <td>{{ line.display_group_name|default:line.group_code|default:"—" }}</td>
             <td>{{ line.op_name_vi|default:"—" }}</td>
-            <td>{{ line.display_department|default:line.work_center.name|default:line.work_center_code|default:"—" }}</td>
+            <td>{{ line.display_department|default:line.work_center_code|default:"—" }}</td>
             <td class="text-end">{% if line.library_unit_smv %}{{ line.library_unit_smv|sx_num }}{% else %}—{% endif %}</td>
             <td class="text-end">
               {% if can_update and edit_mode and process_routing %}

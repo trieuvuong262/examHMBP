@@ -1078,13 +1078,20 @@ def doc_detail(request, pk):
             clone = result.clone
             snap = routing_snapshot(clone)
             log_ie_event(
-                action='create',
+                action='update' if result.in_place else 'create',
                 object_type='routing',
                 object_id=str(clone.pk),
                 object_repr=clone.routing_id,
                 summary=(
-                    f'Load SMV → OB {clone.routing_rev} từ {source.routing_rev} '
-                    f'— {result.n_updated} công đoạn đổi SMV'
+                    (
+                        f'Load SMV tại chỗ OB {clone.routing_rev} '
+                        f'— {result.n_updated} công đoạn'
+                    )
+                    if result.in_place
+                    else (
+                        f'Load SMV → OB {clone.routing_rev} từ {source.routing_rev} '
+                        f'— {result.n_updated} công đoạn đổi SMV'
+                    )
                 ),
                 changes={'snapshot': snap},
                 user=request.user,
@@ -1094,12 +1101,23 @@ def doc_detail(request, pk):
                 extra.append(f'đồng bộ {result.n_applied_synced} SMV sản phẩm')
             if result.n_missing:
                 extra.append(f'bỏ qua {result.n_missing} công đoạn không có SMV thư viện')
+            if bom and not result.bom_linked and bom.production_orders.exists():
+                extra.append(
+                    'BOM vẫn gắn OB này nhưng đã có lệnh SX — process step BOM không bị ghi đè'
+                )
             extra_text = f' ({"; ".join(extra)})' if extra else ''
-            messages.success(
-                request,
-                f'Đã tạo OB {clone.routing_rev} — nạp SMV thư viện cho '
-                f'{result.n_updated} công đoạn từ {source.routing_rev}.{extra_text}',
-            )
+            if result.in_place:
+                messages.success(
+                    request,
+                    f'Đã nạp từ thư viện vào OB {clone.routing_rev} — '
+                    f'{result.n_updated} công đoạn.{extra_text}',
+                )
+            else:
+                messages.success(
+                    request,
+                    f'Đã tạo OB {clone.routing_rev} — nạp từ thư viện cho '
+                    f'{result.n_updated} công đoạn từ {source.routing_rev}.{extra_text}',
+                )
             return _doc_tab_redirect(
                 request, 'process', bom=bom.pk if bom else None, routing=clone.pk,
             )
@@ -1628,9 +1646,11 @@ def doc_detail(request, pk):
         )
 
     from san_xuat.services.tech_doc_copy import read_bom_clipboard, read_ob_clipboard
+    from san_xuat.services.ie_ops import is_routing_locked
 
     bom_clip = read_bom_clipboard(request)
     ob_clip = read_ob_clipboard(request)
+    process_routing_locked = bool(process_routing and is_routing_locked(process_routing))
     ctx = {
         'doc': doc,
         'tab': tab,
@@ -1661,6 +1681,7 @@ def doc_detail(request, pk):
         'sku_size_count': sku_size_count,
         'process_routings': process_routings,
         'process_routing': process_routing,
+        'process_routing_locked': process_routing_locked,
         'ob_status_choices': SxRouting.APPROVAL_CHOICES,
         'routing_lines': routing_lines,
         'operation_groups': operation_groups,

@@ -230,6 +230,26 @@
   max-width: 100%;
 }
 
+/* sm: ô + select + nút/addon trong input-group cùng 38px */
+.jp-sx-module form .form-control.form-control-sm:not(textarea),
+.jp-sx-module form .form-select.form-select-sm,
+.jp-sx-module form .input-group-sm,
+.jp-sx-module form .input-group-sm > .form-control,
+.jp-sx-module form .input-group-sm > .form-select,
+.jp-sx-module form .input-group-sm > .btn,
+.jp-sx-module form .input-group-sm > .input-group-text {
+  min-height: var(--jp-sx-ctl-h-sm);
+  height: var(--jp-sx-ctl-h-sm);
+}
+.jp-sx-module form .input-group-sm > .btn,
+.jp-sx-module form .input-group-sm > .input-group-text {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
 /* Ngoại lệ: filter compact / width cố ý hẹp */
 .jp-sx-module .form-control.w-auto,
 .jp-sx-module .form-select.w-auto,

@@ -118,6 +118,7 @@ def operation_library_snapshot(op: SxOperation | None) -> dict:
         machine_code = (op.machine.code or '').strip()
     library_smv = op.base_smv_min or Decimal('0')
     work_center_code = ''
+    work_center = None
     if op.group_id:
         from san_xuat.services.capacity_from_hrm import (
             normalize_ie_group_department_label,
@@ -129,8 +130,22 @@ def operation_library_snapshot(op: SxOperation | None) -> dict:
         department_name = normalize_ie_group_department_label(grp.process_stage_label or '') or (
             grp.process_stage_label or ''
         ).strip()
-        wc = work_center_for_operation_group(grp) or resolve_work_center_code(department_name)
-        work_center_code = (department_name or (wc.code if wc else ''))[:40]
+        # Khớp upsert_routing_line: ưu tiên nhãn bộ phận nhóm, rồi default WC nhóm.
+        wc_code_raw = department_name
+        if not wc_code_raw and (grp.default_work_center_code or grp.default_work_center_id):
+            wc_code_raw = (grp.default_work_center_code or '').strip() or (
+                grp.default_work_center.code if grp.default_work_center_id else ''
+            )
+        work_center = work_center_for_operation_group(grp)
+        if work_center is None and wc_code_raw:
+            work_center = resolve_work_center_code(
+                wc_code_raw, name_hint=f'{group_code} {op.name_vi or ""}',
+            )
+        work_center_code = (
+            department_name
+            or wc_code_raw
+            or (work_center.code if work_center else '')
+        )[:40]
     return {
         'op_rev': (op.op_rev or 'R01').strip() or 'R01',
         'name_vi': (op.name_vi or '').strip(),
@@ -140,6 +155,7 @@ def operation_library_snapshot(op: SxOperation | None) -> dict:
         'library_smv': library_smv,
         'applied_unit_smv': library_smv,
         'work_center_code': work_center_code,
+        'work_center': work_center,
     }
 
 
@@ -272,6 +288,8 @@ class ReloadObSmvResult:
     n_unchanged: int = 0
     n_missing: int = 0
     n_applied_synced: int = 0
+    bom_linked: bool = False
+    in_place: bool = False
 
 
 def _next_routing_rev(style_code: str, preferred: str = 'R01') -> str:
@@ -1233,13 +1251,171 @@ def _smv_q(value) -> Decimal:
 
 
 def _library_operation_for_line(line: SxRoutingLine) -> SxOperation | None:
-    op = line.operation
-    if op is not None:
-        return op
+    """Khớp dòng OB → công đoạn thư viện (FK mới từ DB, rồi mã, rồi tên).
+
+    Ưu tiên bản cùng mã vừa sửa SMV (nháp) nếu FK đang trỏ tới đó; không thì bản đã duyệt mới nhất.
+    """
+    linked = None
+    if line.operation_id:
+        linked = (
+            SxOperation.objects.select_related('group', 'machine', 'group__default_work_center')
+            .filter(pk=line.operation_id)
+            .first()
+        )
+
+    code = (line.op_code or (linked.op_code if linked else '') or '').strip()
+    if code:
+        approved = (
+            SxOperation.objects.select_related('group', 'machine', 'group__default_work_center')
+            .filter(op_code=code, status=SxOperation.STATUS_APPROVED)
+            .order_by('-op_rev', '-pk')
+            .first()
+        )
+        latest = (
+            SxOperation.objects.select_related('group', 'machine', 'group__default_work_center')
+            .filter(op_code=code)
+            .order_by('-op_rev', '-pk')
+            .first()
+        )
+        # FK cùng mã: nhận SMV/nháp vừa lưu trên đúng bản ghi đó.
+        if linked is not None and (linked.op_code or '').strip() == code:
+            if linked.status != SxOperation.STATUS_APPROVED and _smv_q(linked.base_smv_min) > 0:
+                return linked
+            return approved or linked
+        if approved is not None:
+            return approved
+        if latest is not None:
+            return latest
+
+    if linked is not None:
+        return linked
+
     op = resolve_operation(line.op_code, line.op_rev)
     if op is not None:
-        return op
-    return resolve_operation(line.op_code)
+        return (
+            SxOperation.objects.select_related('group', 'machine', 'group__default_work_center')
+            .filter(pk=op.pk)
+            .first()
+            or op
+        )
+    op = resolve_operation(line.op_code)
+    if op is not None:
+        return (
+            SxOperation.objects.select_related('group', 'machine', 'group__default_work_center')
+            .filter(pk=op.pk)
+            .first()
+            or op
+        )
+
+    name = (line.op_name_vi or '').strip()
+    if not name:
+        return None
+    hit = (
+        SxOperation.objects.select_related('group', 'machine', 'group__default_work_center')
+        .filter(name_vi__iexact=name, status=SxOperation.STATUS_APPROVED)
+        .order_by('-op_rev', '-pk')
+        .first()
+    )
+    if hit is not None:
+        return hit
+    return (
+        SxOperation.objects.select_related('group', 'machine', 'group__default_work_center')
+        .filter(name_vi__iexact=name)
+        .order_by('-op_rev', '-pk')
+        .first()
+    )
+
+
+def _library_delta_for_line(line: SxRoutingLine, op: SxOperation) -> dict | None:
+    """Trả dict field cần ghi đè từ thư viện; None = thiếu SMV; {} = không đổi."""
+    snap = operation_library_snapshot(op)
+    new_lib = _smv_q(snap.get('library_smv') or op.base_smv_min)
+    if new_lib <= 0:
+        return None
+
+    old_lib = _smv_q(line.library_unit_smv)
+    old_applied = _smv_q(line.applied_unit_smv)
+    delta: dict = {'op': op, 'snap': snap, 'new_lib': new_lib, 'sync_applied': False}
+
+    changed = False
+    if new_lib != old_lib:
+        changed = True
+        if old_applied <= 0 or old_applied == old_lib:
+            delta['sync_applied'] = True
+
+    new_name = (snap.get('name_vi') or '').strip()
+    if new_name and new_name != (line.op_name_vi or '').strip():
+        changed = True
+
+    new_group = (snap.get('group_code') or '').strip()
+    if new_group and new_group.casefold() != (line.group_code or '').strip().casefold():
+        changed = True
+
+    new_machine = (snap.get('machine_code') or '').strip()
+    if new_machine and new_machine.casefold() != (line.machine_code or '').strip().casefold():
+        changed = True
+
+    new_skill = (snap.get('skill_level_label') or '').strip()
+    if new_skill and new_skill != (line.skill_level_label or '').strip():
+        changed = True
+
+    new_wc = (snap.get('work_center_code') or '').strip()
+    if new_wc and new_wc.casefold() != (line.work_center_code or '').strip().casefold():
+        changed = True
+
+    new_rev = (snap.get('op_rev') or op.op_rev or '').strip()
+    if new_rev and new_rev != (line.op_rev or '').strip():
+        changed = True
+
+    if op.pk and line.operation_id != op.pk:
+        changed = True
+
+    if not changed:
+        return {}
+    return delta
+
+
+def _apply_library_delta_to_line(clone_line: SxRoutingLine, delta: dict) -> bool:
+    """Ghi snapshot thư viện lên dòng clone. Trả True nếu đã đồng bộ SMV sản phẩm."""
+    op: SxOperation = delta['op']
+    snap: dict = delta['snap']
+    new_lib: Decimal = delta['new_lib']
+    sync_applied: bool = bool(delta.get('sync_applied'))
+
+    clone_line.operation = op
+    if op.op_code:
+        clone_line.op_code = op.op_code[:30]
+    if snap.get('op_rev') or op.op_rev:
+        clone_line.op_rev = (snap.get('op_rev') or op.op_rev or clone_line.op_rev or 'R01')[:10]
+    if snap.get('name_vi'):
+        clone_line.op_name_vi = snap['name_vi'][:200]
+    if snap.get('group_code'):
+        clone_line.group_code = snap['group_code'][:30]
+    if snap.get('machine_code'):
+        clone_line.machine_code = snap['machine_code'][:40]
+        machine = SxMachine.objects.filter(code=clone_line.machine_code).first()
+        clone_line.machine = machine
+    if snap.get('skill_level_label'):
+        clone_line.skill_level_label = snap['skill_level_label'][:60]
+
+    clone_line.library_unit_smv = new_lib
+    if sync_applied:
+        clone_line.applied_unit_smv = new_lib
+
+    wc_code = (snap.get('work_center_code') or '').strip()
+    if wc_code:
+        clone_line.work_center_code = wc_code[:40]
+    wc = snap.get('work_center')
+    if wc is not None:
+        clone_line.work_center = wc
+    elif wc_code:
+        from san_xuat.services.capacity_from_hrm import resolve_work_center_code
+        clone_line.work_center = resolve_work_center_code(
+            wc_code, name_hint=f'{clone_line.group_code} {clone_line.op_name_vi}',
+        )
+
+    clone_line.save()
+    return sync_applied
 
 
 def _sync_process_steps_after_smv_reload(
@@ -1247,9 +1423,12 @@ def _sync_process_steps_after_smv_reload(
     source: SxRouting,
     clone: SxRouting,
     target_bom: BomVersion | None,
-) -> None:
-    if target_bom is None or target_bom.production_orders.exists():
-        return
+) -> bool:
+    """Đồng bộ process steps + gắn BOM → OB mới. False nếu BOM đã có LSX (không đụng)."""
+    if target_bom is None:
+        return False
+    if target_bom.production_orders.exists():
+        return False
     if target_bom.routing_id != clone.pk:
         target_bom.routing = clone
         target_bom.save(update_fields=['routing', 'updated_at'])
@@ -1289,6 +1468,7 @@ def _sync_process_steps_after_smv_reload(
                 'notes': (new_line.notes or f'Routing {clone.routing_id}')[:255],
             },
         )
+    return True
 
 
 @transaction.atomic
@@ -1298,14 +1478,21 @@ def reload_ob_smv_from_library(
     user=None,
     target_bom: BomVersion | None = None,
 ) -> ReloadObSmvResult:
-    """Tạo REV OB mới và nạp SMV thư viện đã đổi — bản cũ giữ nguyên."""
+    """Nạp SMV + snapshot thư viện đã đổi.
+
+    - OB nháp chưa gắn LSX: cập nhật tại chỗ (cùng REV) để URL routing hiện tại thấy ngay.
+    - OB đã duyệt / đã khóa: tạo REV mới, bản cũ giữ nguyên.
+    """
     if routing is None:
         raise IeOpsError('Không tìm thấy phiên bản OB.')
-    lines = list(routing.lines.select_related('operation').order_by('seq_no', 'pk'))
+    lines = list(
+        routing.lines.select_related('operation', 'operation__group', 'work_center')
+        .order_by('seq_no', 'pk')
+    )
     if not lines:
         raise IeOpsError('OB chưa có công đoạn để nạp SMV.')
 
-    updates: dict[int, tuple[Decimal, bool, SxOperation | None]] = {}
+    updates: dict[int, dict] = {}
     n_unchanged = 0
     n_missing = 0
     for line in lines:
@@ -1313,54 +1500,71 @@ def reload_ob_smv_from_library(
         if op is None:
             n_missing += 1
             continue
-        new_lib = _smv_q(op.base_smv_min)
-        if new_lib <= 0:
+        delta = _library_delta_for_line(line, op)
+        if delta is None:
             n_missing += 1
             continue
-        old_lib = _smv_q(line.library_unit_smv)
-        old_applied = _smv_q(line.applied_unit_smv)
-        if new_lib == old_lib:
+        if not delta:
             n_unchanged += 1
             continue
-        sync_applied = old_applied <= 0 or old_applied == old_lib
-        updates[line.pk] = (new_lib, sync_applied, op)
+        updates[line.pk] = delta
 
     if not updates:
         if n_missing and n_unchanged == 0:
             raise IeOpsError(
                 'Không khớp được công đoạn OB với thư viện (hoặc SMV thư viện = 0).'
             )
-        raise IeOpsError('SMV thư viện không đổi so với OB hiện tại — không tạo phiên bản mới.')
+        raise IeOpsError(
+            'Thư viện không đổi so với OB hiện tại (SMV / tên / nhóm / bộ phận) — '
+            'không tạo phiên bản mới.'
+        )
 
-    clone = clone_routing_revision(routing=routing, user=user)
-    clone.notes = f'Load SMV từ {routing.routing_id}'[:255]
-    clone.save(update_fields=['notes', 'updated_at'])
+    in_place = (
+        routing.approval_status == SxRouting.APPROVAL_DRAFT
+        and not is_routing_locked(routing)
+    )
+    if in_place:
+        target = routing
+        target.notes = f'Load SMV tại chỗ {routing.routing_id}'[:255]
+        target.save(update_fields=['notes', 'updated_at'])
+        apply_lines = lines
+    else:
+        target = clone_routing_revision(routing=routing, user=user)
+        target.notes = f'Load SMV từ {routing.routing_id}'[:255]
+        target.save(update_fields=['notes', 'updated_at'])
+        apply_lines = list(target.lines.select_related('operation').order_by('seq_no', 'pk'))
 
     n_applied_synced = 0
-    clone_lines = list(clone.lines.select_related('operation').order_by('seq_no', 'pk'))
-    for source_line, clone_line in zip(lines, clone_lines):
-        change = updates.get(source_line.pk)
-        if change is None:
-            continue
-        new_lib, sync_applied, op = change
-        clone_line.library_unit_smv = new_lib
-        if op is not None and clone_line.operation_id != op.pk:
-            clone_line.operation = op
-            if op.op_rev:
-                clone_line.op_rev = op.op_rev
-        if sync_applied:
-            clone_line.applied_unit_smv = new_lib
-            n_applied_synced += 1
-        clone_line.save()
+    if in_place:
+        for line in apply_lines:
+            delta = updates.get(line.pk)
+            if delta is None:
+                continue
+            if _apply_library_delta_to_line(line, delta):
+                n_applied_synced += 1
+        bom_linked = _sync_process_steps_after_smv_reload(
+            source=routing, clone=target, target_bom=target_bom,
+        )
+    else:
+        for source_line, clone_line in zip(lines, apply_lines):
+            delta = updates.get(source_line.pk)
+            if delta is None:
+                continue
+            if _apply_library_delta_to_line(clone_line, delta):
+                n_applied_synced += 1
+        bom_linked = _sync_process_steps_after_smv_reload(
+            source=routing, clone=target, target_bom=target_bom,
+        )
 
-    _sync_process_steps_after_smv_reload(source=routing, clone=clone, target_bom=target_bom)
     return ReloadObSmvResult(
         source=routing,
-        clone=clone,
+        clone=target,
         n_updated=len(updates),
         n_unchanged=n_unchanged,
         n_missing=n_missing,
         n_applied_synced=n_applied_synced,
+        bom_linked=bom_linked,
+        in_place=in_place,
     )
 
 

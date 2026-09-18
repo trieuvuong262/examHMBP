@@ -2346,7 +2346,9 @@ class SxWorkCenter(DemoMarkedModel):
 
     @property
     def computed_capacity_per_day(self) -> Decimal:
-        """NL/ngày (SP) = số người × hiệu suất (SP/s) × 3600 × giờ/ngày × hệ số tải."""
+        """NL/ngày (SP). Tổ GC dùng ước lượng khai trực tiếp."""
+        if self.is_subcontract:
+            return (self.capacity_per_day or Decimal('0')).quantize(Decimal('0.01'))
         heads = Decimal(self.headcount or 0)
         hours = Decimal(str(self.work_hours_per_day or 0))
         rate = Decimal(str(self.throughput_per_sec or 0))
@@ -2354,6 +2356,8 @@ class SxWorkCenter(DemoMarkedModel):
         return (heads * rate * Decimal('3600') * hours * load).quantize(Decimal('0.01'))
 
     def apply_computed_capacity(self) -> None:
+        if self.is_subcontract:
+            return
         qty = self.computed_capacity_per_day
         if qty > 0:
             self.capacity_per_day = qty

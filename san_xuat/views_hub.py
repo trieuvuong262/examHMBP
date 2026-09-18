@@ -1338,6 +1338,7 @@ def plan_board(request):
         filter_route_timeline,
         route_dept_filter_choices,
         route_team_filter_choices,
+        build_route_stats,
         set_plan_priority,
         set_plan_color,
         reorder_plan_orders,
@@ -1377,7 +1378,7 @@ def plan_board(request):
         return redirect(f"{reverse('san_xuat:plan_board')}?{urlencode(params)}")
     if tab == 'released':
         tab = 'queue'
-    if tab not in {'queue', 'route', 'subcontract'}:
+    if tab not in {'queue', 'route', 'subcontract', 'stats'}:
         tab = 'queue'
     q = (request.GET.get('q') or request.POST.get('q') or '').strip()
     date_from_raw = (request.GET.get('date_from') or request.POST.get('date_from') or '').strip()
@@ -1451,7 +1452,7 @@ def plan_board(request):
                     params['gc_status'] = gc_status_filter
                 if gc_team_filter:
                     params['gc_team'] = gc_team_filter
-        elif tab == 'route':
+        elif tab in {'route', 'stats'}:
             route_from_raw = (request.GET.get('route_from') or request.POST.get('route_from') or '').strip()
             route_months_raw = (request.GET.get('route_months') or request.POST.get('route_months') or '').strip()
             if route_from_raw:
@@ -2059,6 +2060,7 @@ def plan_board(request):
     route_months = 1
     route_dept_choices: list[tuple[str, str]] = []
     route_team_choices: list[dict] = []
+    route_stats = None
 
     def _apply_board_filters(rows):
         valid_priorities = {value for value, _label in SxSalesOrder.PRIORITY_CHOICES}
@@ -2127,6 +2129,7 @@ def plan_board(request):
         )
         queue_rows = _apply_board_filters(queue_rows)
         route_board = None
+        route_stats = None
     elif tab == 'subcontract':
         from django.db.models import Q
         from san_xuat.list_filters import parse_sx_date
@@ -2170,7 +2173,8 @@ def plan_board(request):
         subcontract_items = list(gc_qs[:500])
         gc_team_choices = team_slug_choices()
         route_board = None
-    else:
+        route_stats = None
+    elif tab in {'route', 'stats'}:
         from san_xuat.list_filters import parse_sx_date
         from san_xuat.services.plan_board import _clamp_route_months, _months_bounds
 
@@ -2191,6 +2195,8 @@ def plan_board(request):
             include_unassigned_team=route_team_unassigned,
         )
         today_start, today_end_month = _months_bounds(timezone.localdate(), route_months)
+        if tab == 'stats':
+            route_stats = build_route_stats(route_board)
 
     from san_xuat.services.planning import npl_prep_days
     from san_xuat.services.team_stage_colors import team_stage_color_css
@@ -2228,6 +2234,7 @@ def plan_board(request):
         'priority_labels': PRIORITY_LABELS,
         'priority_choices': SxSalesOrder.PRIORITY_CHOICES,
         'route_board': route_board,
+        'route_stats': route_stats,
         'route_months': route_months,
         'route_dept_filter': route_dept_filter,
         'route_team_filter': route_team_filter,
@@ -6558,6 +6565,7 @@ def _upsert_work_center_from_form(*, form, request, center_id: int | None = None
         is_active=bool(data.get('is_active')),
         is_subcontract=bool(data.get('is_subcontract')),
         notes=data.get('notes') or '',
+        capacity_per_day=data.get('capacity_per_day'),
         center_id=center_id,
         user=request.user if not center_id else None,
     )
@@ -6788,6 +6796,7 @@ def capacity_edit(request, pk: int):
             'is_active': center.is_active,
             'is_subcontract': center.is_subcontract,
             'notes': center.notes,
+            'capacity_per_day': center.capacity_per_day,
         })
     return render(request, 'san_xuat/capacity_form.html', {
         **_perm_ctx(request),

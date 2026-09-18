@@ -221,6 +221,19 @@ class WorkCenterForm(forms.Form):
         label="Ghi chú",
         widget=forms.Textarea(attrs={"class": "form-control form-control-sm", "rows": 2}),
     )
+    capacity_per_day = forms.DecimalField(
+        required=False,
+        max_digits=14,
+        decimal_places=2,
+        min_value=Decimal("0"),
+        initial=Decimal("0"),
+        label="Ước lượng SP/ngày",
+        widget=_CompactDecimalInput(attrs={
+            "class": "form-control form-control-sm",
+            "step": "1",
+            "min": "0",
+        }),
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -267,6 +280,18 @@ class WorkCenterForm(forms.Form):
     def clean_efficiency_pct(self):
         value = self.cleaned_data.get("efficiency_pct")
         return Decimal("100") if value is None else value
+
+    def clean_capacity_per_day(self):
+        value = self.cleaned_data.get("capacity_per_day")
+        return Decimal("0") if value is None else value
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("is_subcontract"):
+            cleaned["headcount"] = 0
+            cleaned["throughput_per_sec"] = Decimal("0")
+            cleaned["work_location"] = ""
+        return cleaned
 
 
 def _division_choice_label(obj) -> str:

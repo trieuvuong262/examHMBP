@@ -804,11 +804,10 @@ def _labor_to_calendar_minutes(
     cap_min = _khsx_available_minutes(wc, headcount=headcount, efficiency_pct=efficiency_pct)
     if cap_min > 0:
         return _q(labor * PLAN_SHIFT_MINUTES / cap_min, '0.0001')
-    if wc is not None and headcount is None and efficiency_pct is None:
-        cap_qty = _q(getattr(wc, 'capacity_per_day', 0))
-        qty_n = _q(qty)
-        if cap_qty > 0 and qty_n > 0:
-            return _q(qty_n / cap_qty * PLAN_SHIFT_MINUTES, '0.0001')
+    cap_qty = _q(getattr(wc, 'capacity_per_day', 0)) if wc is not None else Decimal('0')
+    qty_n = _q(qty)
+    if cap_qty > 0 and qty_n > 0:
+        return _q(qty_n / cap_qty * PLAN_SHIFT_MINUTES, '0.0001')
     return labor
 
 
@@ -848,6 +847,16 @@ def _daily_qty_capacity(smv_seconds, headcount, hours, efficiency_pct) -> Decima
         return Decimal('0')
     per_head = (hrs * Decimal('3600') * load) / smv
     return _floor_daily_qty(per_head * Decimal(heads))
+
+
+def _qty_per_day_for_center(wc: SxWorkCenter | None, smv_seconds, headcount, hours, efficiency_pct) -> Decimal:
+    """SL/ngày theo công thức tổ nội bộ; tổ GC (hoặc không có CN) lấy ước lượng SP/ngày."""
+    qpd = _daily_qty_capacity(smv_seconds, headcount, hours, efficiency_pct)
+    if qpd > 0:
+        return qpd
+    if wc is None:
+        return Decimal('0')
+    return _q(getattr(wc, 'capacity_per_day', 0) or 0)
 
 
 def _auto_day_qty_rows(qty, qty_per_day) -> list[Decimal]:
@@ -996,7 +1005,7 @@ def _team_loads_from_order(
             hours = DEFAULT_WORK_HOURS_PER_DAY
         qty_n = _q(qty_by.get(slug, Decimal('0')))
         smv_sec = _smv_seconds_per_unit(labor, qty_n)
-        qpd = _daily_qty_capacity(smv_sec, use_h, hours, use_e)
+        qpd = _qty_per_day_for_center(wc, smv_sec, use_h, hours, use_e)
         n_days = len(_auto_day_qty_rows(qty_n, qpd)) if qpd > 0 and qty_n > 0 else 0
         if n_days > 0:
             calendar = _q(Decimal(n_days) * PLAN_SHIFT_MINUTES)
@@ -4200,7 +4209,7 @@ def _capacity_for_share(span, wc: SxWorkCenter | None, qty: Decimal) -> dict:
     if hours <= 0:
         hours = DEFAULT_WORK_HOURS_PER_DAY
     eff = _q(getattr(wc, 'efficiency_pct', 100) or 100)
-    qpd = _daily_qty_capacity(smv, heads, hours, eff)
+    qpd = _qty_per_day_for_center(wc, smv, heads, hours, eff)
     return {
         'headcount': heads,
         'efficiency_pct': eff,
@@ -5120,3 +5129,205 @@ def confirmed_order_qty_summary() -> dict:
         'order_count': qs.count(),
         'total_qty': _q(agg.get('total')),
     }
+
+
+@dataclass
+class RouteStatCell:
+    slug: str
+    planned: Decimal = field(default_factory=lambda: Decimal('0'))
+    done: Decimal = field(default_factory=lambda: Decimal('0'))
+    remaining: Decimal = field(default_factory=lambda: Decimal('0'))
+    pct: Decimal = field(default_factory=lambda: Decimal('0'))
+    present: bool = False
+
+
+@dataclass
+class RouteStageStat:
+    slug: str
+    label: str
+    planned: Decimal = field(default_factory=lambda: Decimal('0'))
+    done: Decimal = field(default_factory=lambda: Decimal('0'))
+    remaining: Decimal = field(default_factory=lambda: Decimal('0'))
+    pct: Decimal = field(default_factory=lambda: Decimal('0'))
+    order_count: int = 0
+
+
+@dataclass
+class RouteOrderStat:
+    order: SxSalesOrder
+    product_code_label: str = ''
+    product_name_label: str = ''
+    subtitle: str = ''
+    qty: Decimal = field(default_factory=lambda: Decimal('0'))
+    status_key: str = ''
+    status_label: str = ''
+    is_late: bool = False
+    cells: list[RouteStatCell] = field(default_factory=list)
+    done: Decimal = field(default_factory=lambda: Decimal('0'))
+    remaining: Decimal = field(default_factory=lambda: Decimal('0'))
+    pct: Decimal = field(default_factory=lambda: Decimal('0'))
+
+
+@dataclass
+class RouteStatsBoard:
+    stages: list[RouteStageStat] = field(default_factory=list)
+    orders: list[RouteOrderStat] = field(default_factory=list)
+    order_count: int = 0
+    planned: Decimal = field(default_factory=lambda: Decimal('0'))
+    done: Decimal = field(default_factory=lambda: Decimal('0'))
+    remaining: Decimal = field(default_factory=lambda: Decimal('0'))
+    pct: Decimal = field(default_factory=lambda: Decimal('0'))
+
+
+def _qty_from_label(raw) -> Decimal:
+    if isinstance(raw, Decimal):
+        return _q(raw)
+    text = str(raw or '').strip().replace(' ', '').replace('\u00a0', '')
+    if not text:
+        return Decimal('0')
+    return _q(text.replace(',', '.'))
+
+
+def _stat_remaining(planned: Decimal, done: Decimal) -> Decimal:
+    return max(_q(planned) - _q(done), Decimal('0'))
+
+
+def _stat_pct(planned: Decimal, done: Decimal) -> Decimal:
+    plan = _q(planned)
+    if plan <= 0:
+        return Decimal('0')
+    pct = (_q(done) / plan * Decimal('100')).quantize(Decimal('0.1'))
+    if pct < 0:
+        return Decimal('0')
+    if pct > Decimal('100'):
+        return Decimal('100')
+    return pct
+
+
+def _stage_planned_qty(stage) -> Decimal:
+    planned = _qty_from_label(
+        getattr(stage, 'team_qty_total', '') or getattr(stage, 'total_label', ''),
+    )
+    if planned > 0:
+        return planned
+    return _q(getattr(stage, 'planned_qty', 0) or 0)
+
+
+def _stage_done_qty(stage) -> Decimal:
+    return _qty_from_label(getattr(stage, 'done_total_label', 0) or 0)
+
+
+def build_route_stats(board) -> RouteStatsBoard:
+    """Tổng SL đã làm / chưa làm trên lưới lộ trình — theo công đoạn và theo đơn."""
+    empty = RouteStatsBoard()
+    if board is None:
+        return empty
+    rows = list(getattr(board, 'rows', None) or [])
+    if not rows:
+        return empty
+
+    slug_labels: dict[str, str] = {}
+    seen_slugs: list[str] = []
+    seen_set: set[str] = set()
+
+    order_stage_qty: list[tuple[object, dict[str, tuple[Decimal, Decimal]]]] = []
+    for row in rows:
+        by_slug: dict[str, list[Decimal]] = {}
+        for stage in list(getattr(row, 'stage_rows', None) or []):
+            slug = (getattr(stage, 'slug', '') or '').strip().lower()
+            if not slug or slug == 'npl':
+                continue
+            if slug not in seen_set:
+                seen_slugs.append(slug)
+                seen_set.add(slug)
+            if slug not in slug_labels:
+                slug_labels[slug] = _stage_sheet_label(
+                    slug,
+                    getattr(stage, 'short_label', '') or getattr(stage, 'label', ''),
+                )
+            bucket = by_slug.setdefault(slug, [Decimal('0'), Decimal('0')])
+            bucket[0] += _stage_planned_qty(stage)
+            bucket[1] += _stage_done_qty(stage)
+        packed = {slug: (_q(vals[0]), _q(vals[1])) for slug, vals in by_slug.items()}
+        order_stage_qty.append((row, packed))
+
+    stages_order = [slug for slug in _SHEET_STAGE_ORDER if slug in seen_set]
+    for slug in seen_slugs:
+        if slug not in stages_order:
+            stages_order.append(slug)
+
+    stage_acc: dict[str, list] = {
+        slug: [Decimal('0'), Decimal('0'), 0]
+        for slug in stages_order
+    }
+    orders: list[RouteOrderStat] = []
+    total_planned = Decimal('0')
+    total_done = Decimal('0')
+
+    for row, packed in order_stage_qty:
+        qty = _qty_from_label(getattr(row, 'qty_label', 0) or 0)
+        cells: list[RouteStatCell] = []
+        last_cell: RouteStatCell | None = None
+        for slug in stages_order:
+            pair = packed.get(slug)
+            if pair is None:
+                cells.append(RouteStatCell(slug=slug))
+                continue
+            planned, done = pair
+            remaining = _stat_remaining(planned, done)
+            cell = RouteStatCell(
+                slug=slug,
+                planned=planned,
+                done=done,
+                remaining=remaining,
+                pct=_stat_pct(planned, done),
+                present=True,
+            )
+            cells.append(cell)
+            last_cell = cell
+            acc = stage_acc[slug]
+            acc[0] += planned
+            acc[1] += done
+            acc[2] += 1
+        order_done = last_cell.done if last_cell is not None else Decimal('0')
+        if qty <= 0 and last_cell is not None:
+            qty = last_cell.planned
+        remaining = _stat_remaining(qty, order_done)
+        total_planned += qty
+        total_done += min(order_done, qty) if qty > 0 else order_done
+        orders.append(RouteOrderStat(
+            order=row.order,
+            product_code_label=getattr(row, 'product_code_label', '') or '',
+            product_name_label=getattr(row, 'product_name_label', '') or '',
+            subtitle=getattr(row, 'subtitle', '') or '',
+            qty=qty,
+            status_key=getattr(row, 'status_key', '') or '',
+            status_label=getattr(row, 'status_label', '') or '',
+            is_late=bool(getattr(row, 'is_late', False)),
+            cells=cells,
+            done=min(order_done, qty) if qty > 0 else order_done,
+            remaining=remaining,
+            pct=_stat_pct(qty, order_done),
+        ))
+
+    stages = [
+        RouteStageStat(
+            slug=slug,
+            label=slug_labels.get(slug) or _stage_sheet_label(slug),
+            planned=_q(acc[0]),
+            done=_q(acc[1]),
+            remaining=_stat_remaining(acc[0], acc[1]),
+            pct=_stat_pct(acc[0], acc[1]),
+            order_count=int(acc[2]),
+        )
+        for slug, acc in ((s, stage_acc[s]) for s in stages_order)
+    ]
+    return RouteStatsBoard(
+        stages=stages,
+        orders=orders,
+        order_count=len(orders),
+        planned=_q(total_planned),
+        done=_q(total_done),
+        remaining=_stat_remaining(total_planned, total_done),
+        pct=_stat_pct(total_planned, total_done),
+    )

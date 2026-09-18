@@ -5,7 +5,7 @@
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_plan_urgency_styles.html' %}
 {% include 'san_xuat/includes/plan_timeline_styles.html' %}
-{% if tab == 'route' %}
+{% if tab == 'route' or tab == 'stats' %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
 {% endif %}
 {% if stage_color_css %}<style id="jp-stage-color-vars">{{ stage_color_css|safe }}</style>{% endif %}
@@ -1538,8 +1538,12 @@
          aria-selected="{% if tab == 'queue' %}true{% else %}false{% endif %}">Kế hoạch</a>
       <a role="tab"
          class="btn btn-sm fw-bold {% if tab == 'route' %}btn-hm{% else %}btn-outline-secondary{% endif %}"
-         href="{% url 'san_xuat:plan_board' %}?mode=list&tab=route{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}{% if tab == 'route' and route_board %}&route_from={{ route_board.range_start|date:'Y-m-d' }}&route_months={{ route_months }}{% endif %}"
+         href="{% url 'san_xuat:plan_board' %}?mode=list&tab=route{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}{% if tab == 'route' or tab == 'stats' %}{% if route_board %}&route_from={{ route_board.range_start|date:'Y-m-d' }}&route_months={{ route_months }}{% endif %}{% endif %}"
          aria-selected="{% if tab == 'route' %}true{% else %}false{% endif %}">Lộ trình</a>
+      <a role="tab"
+         class="btn btn-sm fw-bold {% if tab == 'stats' %}btn-hm{% else %}btn-outline-secondary{% endif %}"
+         href="{% url 'san_xuat:plan_board' %}?mode=list&tab=stats{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}{% if tab == 'route' or tab == 'stats' %}{% if route_board %}&route_from={{ route_board.range_start|date:'Y-m-d' }}&route_months={{ route_months }}{% endif %}{% endif %}"
+         aria-selected="{% if tab == 'stats' %}true{% else %}false{% endif %}">Thống kê</a>
     </nav>
     {% endif %}
   </div>
@@ -1633,7 +1637,7 @@
           </select>
         </div>
         {% endif %}
-        {% if tab == 'route' %}
+        {% if tab == 'route' or tab == 'stats' %}
         <div class="jp-team-filter-org">
           <label class="form-label fw-bold small mb-1" for="jp-pb-filter-dept">Bộ phận</label>
           <select id="jp-pb-filter-dept" name="dept" class="form-select form-select-sm jp-pb-multi-filter"
@@ -1658,7 +1662,7 @@
       </div>
       {% if search_query or priority_filter or npl_filter or tech_filter or deadline_filter or route_dept_filter or route_team_filter %}
       <div class="jp-team-filter-actions">
-        <a href="?mode={{ mode }}&amp;tab={{ tab }}&amp;sx_reset=1{% if tab == 'route' and route_board %}&amp;route_from={{ route_board.range_start|date:'Y-m-d' }}&amp;route_months={{ route_months }}{% endif %}"
+        <a href="?mode={{ mode }}&amp;tab={{ tab }}&amp;sx_reset=1{% if tab == 'route' or tab == 'stats' %}{% if route_board %}&amp;route_from={{ route_board.range_start|date:'Y-m-d' }}&amp;route_months={{ route_months }}{% endif %}{% endif %}"
            class="btn btn-light border btn-sm" title="Xóa bộ lọc">
           <i class="bi bi-x-lg"></i> Xóa lọc
         </a>
@@ -1677,32 +1681,32 @@
            title="Về tháng hiện tại">Tháng này</a>
         {% endif %}
       </div>
-      {% elif tab == 'route' and route_board %}
+      {% elif tab == 'route' or tab == 'stats' %}{% if route_board %}
       <div class="jp-pb-date-shift" aria-label="Chuyển tháng">
-        <a href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}&amp;route_from={{ route_board.prev_from|date:'Y-m-d' }}&amp;route_months={{ route_months }}"
+        <a href="?mode={{ mode }}&amp;tab={{ tab }}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}&amp;route_from={{ route_board.prev_from|date:'Y-m-d' }}&amp;route_months={{ route_months }}"
            title="Tháng trước"><i class="bi bi-chevron-left"></i></a>
         <span title="{{ route_board.range_start|date:'d/m/Y' }} – {{ route_board.range_end|date:'d/m/Y' }}">{{ route_board.month_label }}</span>
-        <a href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}&amp;route_from={{ route_board.next_from|date:'Y-m-d' }}&amp;route_months={{ route_months }}"
+        <a href="?mode={{ mode }}&amp;tab={{ tab }}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}&amp;route_from={{ route_board.next_from|date:'Y-m-d' }}&amp;route_months={{ route_months }}"
            title="Tháng sau"><i class="bi bi-chevron-right"></i></a>
         <span class="jp-pb-span-switch" role="group" aria-label="Hiển thị lưới">
-          <a href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}&amp;route_from={{ route_board.range_start|date:'Y-m-d' }}&amp;route_months=1"
+          <a href="?mode={{ mode }}&amp;tab={{ tab }}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}&amp;route_from={{ route_board.range_start|date:'Y-m-d' }}&amp;route_months=1"
              class="{% if route_months == 1 %}is-on{% endif %}" title="Lưới 1 tháng">1 tháng</a>
-          <a href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}&amp;route_from={{ route_board.range_start|date:'Y-m-d' }}&amp;route_months=2"
+          <a href="?mode={{ mode }}&amp;tab={{ tab }}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}&amp;route_from={{ route_board.range_start|date:'Y-m-d' }}&amp;route_months=2"
              class="{% if route_months == 2 %}is-on{% endif %}" title="Lưới 2 tháng">2 tháng</a>
-          <a href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}&amp;route_from={{ route_board.range_start|date:'Y-m-d' }}&amp;route_months=3"
+          <a href="?mode={{ mode }}&amp;tab={{ tab }}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}&amp;route_from={{ route_board.range_start|date:'Y-m-d' }}&amp;route_months=3"
              class="{% if route_months == 3 %}is-on{% endif %}" title="Lưới 3 tháng">3 tháng</a>
         </span>
         {% if not route_board.is_current_month and this_month_from %}
         <a class="jp-pb-month-now"
-           href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}&amp;route_from={{ this_month_from|date:'Y-m-d' }}&amp;route_months={{ route_months }}"
+           href="?mode={{ mode }}&amp;tab={{ tab }}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}&amp;route_from={{ this_month_from|date:'Y-m-d' }}&amp;route_months={{ route_months }}"
            title="Về tháng hiện tại">Tháng này</a>
         {% endif %}
       </div>
-      {% endif %}
+      {% endif %}{% endif %}
     </div>
   </form>
 
-  {% if tab == 'queue' or tab == 'route' %}
+  {% if tab == 'queue' or tab == 'route' or tab == 'stats' %}
   {% include 'san_xuat/includes/plan_stage_legend.html' %}
   {% endif %}
   {% if tab == 'queue' %}
@@ -1828,6 +1832,10 @@
 
   {% if tab == 'route' %}
   {% include 'san_xuat/includes/plan_order_timeline.html' %}
+  {% endif %}
+
+  {% if tab == 'stats' %}
+  {% include 'san_xuat/includes/plan_board_route_stats.html' %}
   {% endif %}
 
   {% if tab == 'subcontract' %}
@@ -4214,7 +4222,7 @@
   });
 })();
 </script>
-{% if tab == 'route' %}
+{% if tab == 'route' or tab == 'stats' %}
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
 <script>
 (function () {

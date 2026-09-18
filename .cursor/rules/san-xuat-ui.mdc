@@ -46,6 +46,14 @@ alwaysApply: false
 
 - Title trái · tools phải (`justify-content: space-between`).
 
+## Ô nhập / select / nút cạnh ô (sm)
+
+- Chiều cao chuẩn **38px** — biến `--jp-sx-ctl-h-sm` trong `sx_ui_polish.html`.
+- Dùng `form-control-sm` / `form-select-sm` / TomSelect `form-select-sm`.
+- `input-group-sm` (ô + nút **Load**, suffix, addon) **cùng 38px** với ô bên cạnh — nút `btn btn-sm`, `inline-flex` + `align-items: center`, `padding` trên/dưới = 0.
+- **Không** chỉnh height riêng trên từng form. Thiếu thì bổ sung vào `sx_ui_polish.html`.
+- Textarea không ép 38px.
+
 ## Ô nhập ngày
 
 - Mọi `DateField` / `input type="date"` trên **form và bộ lọc** Sản xuất dùng class **`jp-date-vn`**.
