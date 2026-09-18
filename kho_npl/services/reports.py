@@ -37,12 +37,15 @@ XNT_COLUMNS = [
 
 
 def _parse_date(value: str | None, default: date | None = None) -> date | None:
-    if not value:
+    raw = (value or '').strip()
+    if not raw:
         return default
-    try:
-        return date.fromisoformat(value)
-    except ValueError:
-        return default
+    for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y', '%d/%m/%y', '%d-%m-%y'):
+        try:
+            return datetime.strptime(raw, fmt).date()
+        except ValueError:
+            continue
+    return default
 
 
 def _period_bounds(date_from: date, date_to: date) -> tuple[datetime, datetime]:

@@ -5,25 +5,48 @@
   function fmtYmd(d) {
     return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
   }
+  function fmtDmy(d) {
+    return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + d.getFullYear();
+  }
+  function parseDateVal(val) {
+    val = (val || '').trim();
+    var iso = val.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (iso) return new Date(+iso[1], +iso[2] - 1, +iso[3]);
+    var vn = val.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})$/);
+    if (vn) {
+      var y = vn[3].length === 2 ? 2000 + +vn[3] : +vn[3];
+      return new Date(y, +vn[2] - 1, +vn[1]);
+    }
+    return null;
+  }
+  function usesDmy(el) {
+    if (!el) return false;
+    if (el.type === 'date') return false;
+    if (el._flatpickr) return false;
+    var sample = (el.value || el.getAttribute('placeholder') || el.className || '');
+    return sample.indexOf('/') !== -1 || (el.className || '').indexOf('jp-npl-date-input') !== -1;
+  }
+  function fmtForInput(el, d) {
+    return usesDmy(el) ? fmtDmy(d) : fmtYmd(d);
+  }
+  function setInputDate(el, d, triggerChange) {
+    var iso = fmtYmd(d);
+    el.value = usesDmy(el) ? fmtDmy(d) : iso;
+    if (el._flatpickr) el._flatpickr.setDate(iso, !!triggerChange);
+  }
   function applySpanToFrom(form, spanDays) {
     if (!form || !spanDays) return;
     var toEl = form.querySelector('input[name="to"], input[name="date_to"], #teamRangeTo, #sc-to');
     var fromEl = form.querySelector('input[name="from"], input[name="date_from"], #teamRangeFrom, #sc-from');
     if (!toEl || !fromEl) return;
-    var toVal = (toEl.value || '').trim();
-    if (!toVal) {
-      var today = new Date();
-      toVal = fmtYmd(today);
-      toEl.value = toVal;
-      if (toEl._flatpickr) toEl._flatpickr.setDate(toVal, false);
+    var toDate = parseDateVal(toEl.value);
+    if (!toDate) {
+      toDate = new Date();
+      setInputDate(toEl, toDate, false);
     }
-    var parts = toVal.split('-').map(Number);
-    if (parts.length !== 3 || !parts[0]) return;
-    var d = new Date(parts[0], parts[1] - 1, parts[2]);
-    d.setDate(d.getDate() - (spanDays - 1));
-    var fromVal = fmtYmd(d);
-    fromEl.value = fromVal;
-    if (fromEl._flatpickr) fromEl._flatpickr.setDate(fromVal, true);
+    var fromDate = new Date(toDate.getFullYear(), toDate.getMonth(), toDate.getDate());
+    fromDate.setDate(fromDate.getDate() - (spanDays - 1));
+    setInputDate(fromEl, fromDate, true);
   }
   function bindSpan(form) {
     if (!form || form.dataset.jpSpanBound === '1') return;
