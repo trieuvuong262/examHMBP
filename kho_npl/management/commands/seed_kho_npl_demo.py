@@ -385,7 +385,11 @@ class Command(BaseCommand):
                 ))
         WarehouseLocation.objects.get_or_create(
             code=WAREHOUSE_SCRAP_CODE,
-            defaults={'name': 'Kho hủy', 'is_active': True},
+            defaults={
+                'name': 'Kho hủy',
+                'is_active': True,
+                'location_kind': WarehouseLocation.KIND_SCRAP,
+            },
         )
         return list(WarehouseLocation.objects.filter(is_active=True))
 

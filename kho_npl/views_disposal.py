@@ -28,12 +28,16 @@ from kho_npl.doc_list_columns import (
     DISPOSAL_LIST_TOTAL_COL_WEIGHT,
 )
 from kho_npl.doc_list_utils import DOC_STATUS_FILTER_CHOICES, doc_list_sort, doc_status_filter
-from kho_npl.services.scrap_warehouse import get_scrap_location
+from kho_npl.services.scrap_warehouse import ScrapWarehouseError, get_scrap_location
 from kho_npl.view_utils import nav_context, perm_context
 
 
 def _scrap_warehouse_context() -> dict:
-    return {'scrap_warehouse_label': get_scrap_location().display_label()}
+    try:
+        label = get_scrap_location().display_label()
+    except ScrapWarehouseError:
+        label = 'Kho hủy'
+    return {'scrap_warehouse_label': label}
 
 
 def _disposal_print_url(pk: int) -> str:

@@ -142,15 +142,19 @@ def thank_you(request):
 @company_trip_admin_required
 def companion_search(request):
     q = (request.GET.get('q') or '').strip()
-    exclude_id = request.GET.get('exclude') or ''
-    qs = Profile.objects.filter(is_employed=True, user__is_active=True).select_related('user', 'department')
-    if exclude_id.isdigit():
-        qs = qs.exclude(pk=int(exclude_id))
+    exclude_raw = request.GET.get('exclude') or ''
+    exclude_ids = [int(x) for x in exclude_raw.split(',') if x.strip().isdigit()]
+    qs = Profile.objects.filter(is_employed=True, user__is_active=True).select_related(
+        'user', 'department',
+    )
+    if exclude_ids:
+        qs = qs.exclude(pk__in=exclude_ids)
     if q:
         qs = qs.filter(
             Q(full_name__icontains=q)
             | Q(user__username__icontains=q)
             | Q(employee_code__icontains=q)
+            | Q(job_position__icontains=q)
         )
     results = []
     for p in qs.order_by('full_name')[:20]:
@@ -158,9 +162,10 @@ def companion_search(request):
             'id': p.pk,
             'name': p.full_name or p.user.username,
             'department': p.department.name if p.department_id else '',
+            'position': p.job_position or '',
             'code': p.employee_code or '',
         })
-    return JsonResponse({'results': results})
+    return JsonResponse(results, safe=False)
 
 
 @company_trip_admin_required
@@ -308,8 +313,14 @@ def email_manage(request):
     })
 
 
+def _ensure_spin_pool():
+    if SpinNumber.objects.count() == 0:
+        SpinNumber.objects.bulk_create([SpinNumber(number=i) for i in range(1000)])
+
+
 @company_trip_admin_required
 def spin_page(request):
+    _ensure_spin_pool()
     return render(request, 'company_trip/spin.html', {
         'settings': TripSettings.load(),
         'remaining': SpinNumber.objects.filter(shown=False).count(),
@@ -317,22 +328,44 @@ def spin_page(request):
     })
 
 
-@require_POST
+@company_trip_admin_required
+def check_lucky(request):
+    """Giống luckyspin gốc: ưu tiên số lucky chưa quay; không đánh dấu số thường."""
+    _ensure_spin_pool()
+    lucky_item = SpinNumber.objects.filter(shown=False, lucky=True).order_by('number').first()
+    if lucky_item:
+        lucky_item.shown = True
+        lucky_item.save(update_fields=['shown'])
+        return JsonResponse({
+            'has_lucky': True,
+            'number': f'{lucky_item.number:03d}',
+        })
+    random_item = SpinNumber.objects.filter(shown=False).order_by('?').first()
+    if random_item:
+        return JsonResponse({
+            'has_lucky': False,
+            'number': f'{random_item.number:03d}',
+        })
+    return JsonResponse({
+        'has_lucky': False,
+        'number': None,
+        'message': 'Đã quay hết tất cả các số.',
+    })
+
+
 @company_trip_admin_required
 def spin_api(request):
-    if SpinNumber.objects.count() == 0:
-        SpinNumber.objects.bulk_create([SpinNumber(number=i) for i in range(1000)])
-
-    lucky = SpinNumber.objects.filter(lucky=True, shown=False).order_by('number').first()
-    if lucky:
-        chosen = lucky
+    """Giống luckyspin gốc: ưu tiên lucky chưa show, rồi random; hết thì reset shown."""
+    _ensure_spin_pool()
+    lucky_numbers = SpinNumber.objects.filter(lucky=True, shown=False).order_by('number')
+    if lucky_numbers.exists():
+        chosen = lucky_numbers.first()
     else:
         available = list(SpinNumber.objects.filter(shown=False))
         if not available:
             SpinNumber.objects.all().update(shown=False)
             available = list(SpinNumber.objects.filter(shown=False))
         chosen = random.choice(available)
-
     chosen.shown = True
     chosen.save(update_fields=['shown'])
     return JsonResponse({

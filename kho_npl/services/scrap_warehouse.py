@@ -1,15 +1,40 @@
 from kho_npl.choices import WAREHOUSE_SCRAP_CODE
 from kho_npl.models import WarehouseLocation
 
+SCRAP_WAREHOUSE_NAME = 'Kho hủy'
+
 
 class ScrapWarehouseError(Exception):
     pass
 
 
+def is_scrap_location(location) -> bool:
+    return bool(location) and getattr(location, 'code', None) == WAREHOUSE_SCRAP_CODE
+
+
 def get_scrap_location() -> WarehouseLocation:
-    location = WarehouseLocation.objects.filter(code=WAREHOUSE_SCRAP_CODE, is_active=True).first()
+    """Kho hủy là vị trí hệ thống — luôn lấy theo mã, kể cả khi bị ngừng dùng."""
+    location = WarehouseLocation.objects.filter(code=WAREHOUSE_SCRAP_CODE).first()
     if not location:
-        raise ScrapWarehouseError(f'Chưa cấu hình kho hủy (mã {WAREHOUSE_SCRAP_CODE}).')
+        return WarehouseLocation.objects.create(
+            code=WAREHOUSE_SCRAP_CODE,
+            name=SCRAP_WAREHOUSE_NAME,
+            is_active=True,
+            location_kind=WarehouseLocation.KIND_SCRAP,
+        )
+
+    update_fields = []
+    if not location.is_active:
+        location.is_active = True
+        update_fields.append('is_active')
+    if location.location_kind != WarehouseLocation.KIND_SCRAP:
+        location.location_kind = WarehouseLocation.KIND_SCRAP
+        update_fields.append('location_kind')
+    if not (location.name or '').strip():
+        location.name = SCRAP_WAREHOUSE_NAME
+        update_fields.append('name')
+    if update_fields:
+        location.save(update_fields=update_fields)
     return location
 
 

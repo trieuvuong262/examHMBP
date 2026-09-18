@@ -80,7 +80,9 @@
                             <a href="{% url 'kho_npl:settings_edit' section=section.key pk=obj.pk %}" class="btn btn-link btn-sm p-0" title="Sửa"><i class="bi bi-pencil"></i></a>
                             {% endif %}
                             {% if can_delete and obj.is_active %}
+                            {% if section.key != 'vi-tri' or obj.code != 'HUY' %}
                             <a href="{% url 'kho_npl:settings_deactivate' section=section.key pk=obj.pk %}" class="btn btn-link btn-sm p-0 text-danger" title="Ngừng dùng"><i class="bi bi-slash-circle"></i></a>
+                            {% endif %}
                             {% endif %}
                         </td>
                     </tr>

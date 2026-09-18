@@ -79,12 +79,18 @@ class TripRegistrationForm(forms.ModelForm):
                 if c and c.pk == self.current_profile.pk:
                     raise forms.ValidationError('Không thể chọn chính mình làm người cùng phòng.')
 
+        if companion1 and companion2 and companion1.pk == companion2.pk:
+            raise forms.ValidationError('Hai người cùng phòng không được trùng nhau.')
+
+        # Phòng 2 = 2 người (bạn + 1); Phòng 3 = 3 người (bạn + 2).
         if room_type == ROOM_2 and not companion1:
-            raise forms.ValidationError('Phòng 2 cần chọn 1 người cùng phòng.')
+            raise forms.ValidationError('Phòng 2 cần chọn đủ 2 người cùng phòng (bạn và 1 người nữa).')
         if room_type == ROOM_3 and (not companion1 or not companion2):
-            raise forms.ValidationError('Phòng 3 cần chọn 2 người cùng phòng.')
+            raise forms.ValidationError('Phòng 3 cần chọn đủ 3 người cùng phòng (bạn và 2 người nữa).')
         if room_type == ROOM_ORGANIZER:
             companion1 = companion2 = None
+        if room_type == ROOM_2:
+            companion2 = None
 
         # Người đã có room_key khác (đã ghép phòng) không nhận thêm
         for c in (companion1, companion2):

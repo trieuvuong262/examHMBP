@@ -1,0 +1,136 @@
+.jp-luckyspin {
+  --slot-h: 120px;
+  --slot-w: 78px;
+  --slot-font: 64px;
+  --slot-gap: 10px;
+  --slot-radius: 16px;
+  text-align: center;
+  padding: 1rem 0 2rem;
+}
+@media (min-width: 576px) {
+  .jp-luckyspin {
+    --slot-h: 180px;
+    --slot-w: 120px;
+    --slot-font: 96px;
+    --slot-gap: 16px;
+    --slot-radius: 24px;
+  }
+}
+@media (min-width: 768px) {
+  .jp-luckyspin {
+    --slot-h: 240px;
+    --slot-w: 160px;
+    --slot-font: 128px;
+    --slot-gap: 20px;
+    --slot-radius: 30px;
+  }
+}
+
+.jp-luckyspin-machine {
+  background: #1a1a1a;
+  padding: 18px;
+  border-radius: 20px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  gap: var(--slot-gap);
+  width: max-content;
+  max-width: 100%;
+  margin: 0 auto;
+}
+@media (min-width: 576px) {
+  .jp-luckyspin-machine { padding: 30px; }
+}
+
+.jp-luckyspin-slot {
+  width: var(--slot-w);
+  height: var(--slot-h);
+  overflow: hidden;
+  border-radius: var(--slot-radius);
+  background: #333;
+  box-shadow: inset 0 0 15px #999;
+  position: relative;
+  color: #fff;
+  font-size: var(--slot-font);
+  font-weight: 700;
+  line-height: var(--slot-h);
+}
+
+.jp-luckyspin-numbers {
+  display: flex;
+  flex-direction: column;
+  transition: transform 1s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.jp-luckyspin-numbers div {
+  height: var(--slot-h);
+  line-height: var(--slot-h);
+  text-align: center;
+}
+
+.jp-luckyspin-btn {
+  margin-top: 1.5rem;
+  padding: 12px 32px;
+  border: none;
+  border-radius: 30px;
+  background: #007bff;
+  font-size: 1.15rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: #fff;
+  min-height: 48px;
+  min-width: 160px;
+}
+.jp-luckyspin-btn:hover { background: #0365ce; }
+.jp-luckyspin-btn:disabled { opacity: 0.7; cursor: wait; }
+
+@keyframes jpSpinBounce {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.08); }
+  60% { transform: scale(0.97); }
+  80% { transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
+.jp-luckyspin-btn.clicked {
+  animation: jpSpinBounce 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.jp-luckyspin-popup {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 1080;
+  padding: 1rem;
+}
+.jp-luckyspin-popup.is-open { display: flex; }
+.jp-luckyspin-popup-content {
+  background: #fff;
+  padding: 2rem 1.5rem;
+  border-radius: 20px;
+  text-align: center;
+  color: #333;
+  width: min(300px, 100%);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+.jp-luckyspin-popup-label {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #123357;
+}
+.jp-luckyspin-popup-number {
+  font-size: clamp(3.5rem, 18vw, 6.5rem);
+  font-weight: 900;
+  color: #007bff;
+  line-height: 1.1;
+  margin-bottom: 1rem;
+}
+.jp-luckyspin-canvas {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1070;
+}

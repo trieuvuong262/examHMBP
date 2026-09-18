@@ -13,6 +13,7 @@ from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
 from kho_npl.settings_registry import SETTINGS_SECTIONS, get_settings_section
+from kho_npl.services.scrap_warehouse import is_scrap_location
 from kho_npl.view_utils import nav_context, perm_context
 
 _MATERIAL_FORM_URL_NAMES = frozenset({'material_create', 'material_edit'})
@@ -141,6 +142,9 @@ def settings_edit(request, section, pk):
 def settings_deactivate(request, section, pk):
     config = _section_or_404(section)
     obj = get_object_or_404(config['model'], pk=pk)
+    if config.get('key') == 'vi-tri' and is_scrap_location(obj):
+        messages.error(request, 'Không thể ngừng dùng kho hủy — vị trí hệ thống của phiếu hủy.')
+        return redirect('kho_npl:settings_list', section=section)
     if request.method == 'POST':
         obj.is_active = False
         obj.save(update_fields=['is_active'])

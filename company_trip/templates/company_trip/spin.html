@@ -1,43 +1,43 @@
 {% extends 'base.html' %}
+{% load static %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'company_trip/css/spin.css' %}?v=20260918b">
+{% endblock %}
 
 {% block content %}
-<div class="container jp-page py-3 py-md-4 mb-5 text-center">
-    <h2 class="fw-bold text-hm mb-1">Lucky Spin — {{ settings.title }}</h2>
-    <p class="text-muted">Còn {{ remaining }} / {{ total }} số chưa quay</p>
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <h2 class="fw-bold text-hm mb-1 text-center">Vòng quay may mắn</h2>
+    <p class="text-muted text-center mb-3">{{ settings.title }} · còn <span id="spin-remaining">{{ remaining }}</span> / {{ total }} số</p>
 
-    <div class="display-1 fw-bold my-4" id="spin-result">---</div>
-    <button type="button" class="btn btn-hm btn-lg fw-bold px-5" id="spin-btn">
-        <i class="bi bi-arrow-repeat me-1"></i>Quay số
-    </button>
-    <p class="small text-muted mt-3" id="spin-meta"></p>
+    <div class="jp-luckyspin">
+        <div class="jp-luckyspin-machine" aria-hidden="true">
+            <div class="jp-luckyspin-slot" id="slot1"><div class="jp-luckyspin-numbers">?</div></div>
+            <div class="jp-luckyspin-slot" id="slot2"><div class="jp-luckyspin-numbers">?</div></div>
+            <div class="jp-luckyspin-slot" id="slot3"><div class="jp-luckyspin-numbers">?</div></div>
+        </div>
+        <button type="button" class="jp-luckyspin-btn" id="spinBtn">Quay Số</button>
+        <p class="small text-muted mt-3 mb-0">Bấm một lần để quay, bấm lần nữa để dừng. Phím Space tương tự.</p>
+    </div>
+</div>
+
+<canvas id="confettiCanvas" class="jp-luckyspin-canvas"></canvas>
+<div id="resultPopup" class="jp-luckyspin-popup" role="dialog" aria-modal="true">
+    <div class="jp-luckyspin-popup-content">
+        <div class="jp-luckyspin-popup-label">Chúc mừng bạn có số:</div>
+        <div class="jp-luckyspin-popup-number" id="popupNumber"></div>
+        <button type="button" class="jp-luckyspin-btn" onclick="closePopup()">Tiếp tục quay</button>
+    </div>
 </div>
 {% endblock %}
 
-{% block extra_js %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 <script>
-(function () {
-  const btn = document.getElementById("spin-btn");
-  const result = document.getElementById("spin-result");
-  const meta = document.getElementById("spin-meta");
-  const csrf = "{{ csrf_token }}";
-  btn.addEventListener("click", async () => {
-    btn.disabled = true;
-    try {
-      const res = await fetch("{% url 'company_trip_spin:spin_api' %}", {
-        method: "POST",
-        headers: { "X-CSRFToken": csrf, "X-Requested-With": "XMLHttpRequest" },
-      });
-      const data = await res.json();
-      if (data.ok) {
-        result.textContent = data.result;
-        meta.textContent = (data.lucky ? "LUCKY! " : "") + "Còn " + data.remaining + " số.";
-      } else {
-        meta.textContent = data.message || "Lỗi quay số";
-      }
-    } finally {
-      btn.disabled = false;
-    }
-  });
-})();
+window.JP_LUCKYSPIN = {
+  checkUrl: "{% url 'company_trip_spin:check_lucky' %}",
+  spinUrl: "{% url 'company_trip_spin:spin_result' %}"
+};
 </script>
+<script src="{% static 'company_trip/js/spin.js' %}?v=20260918b"></script>
 {% endblock %}

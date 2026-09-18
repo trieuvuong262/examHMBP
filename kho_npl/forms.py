@@ -50,8 +50,10 @@ from kho_npl.doc_attachment import (
     validate_doc_attachment_list,
 )
 from kho_npl.catalog_labels import color_label, spec_label, unit_label
+from kho_npl.choices import WAREHOUSE_SCRAP_CODE
 from kho_npl.services.scrap_warehouse import (
     fallback_stock_location,
+    is_scrap_location,
     material_default_location,
     source_locations_qs,
 )
@@ -1817,10 +1819,22 @@ class WarehouseLocationForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['is_active'].required = False
+        if is_scrap_location(self.instance):
+            self.fields['is_active'].disabled = True
+            self.fields['code'].disabled = True
 
     def clean_code(self):
+        if is_scrap_location(self.instance):
+            return self.instance.code
         code = (self.cleaned_data.get('code') or '').strip().upper()
         return _clean_unique_code(WarehouseLocation, 'code', code, self.instance)
+
+    def clean_is_active(self):
+        is_active = self.cleaned_data.get('is_active')
+        code = (self.cleaned_data.get('code') or getattr(self.instance, 'code', '') or '').strip().upper()
+        if code == WAREHOUSE_SCRAP_CODE:
+            return True
+        return is_active
 
 
 class SupplierQuickCreateForm(forms.ModelForm):
