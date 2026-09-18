@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">Quản lý phòng</h2>
+            <p class="text-muted mb-0">{{ settings.title }} · gán / xóa mã phòng (room key)</p>
+        </div>
+    </div>
+
+    {% if groups %}
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+            <h6 class="fw-bold">Nhóm phòng hiện có</h6>
+            <ul class="mb-0 small">
+                {% for key, names in groups.items %}
+                <li><code>{{ key }}</code>: {{ names|join:", " }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+
+    <form method="get" class="mb-3">
+        <input type="search" name="q" value="{{ search_query }}" class="form-control" placeholder="Tìm theo tên / mã phòng…">
+    </form>
+
+    <div class="table-responsive card border-0 shadow-sm">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr><th>Họ tên</th><th>Loại phòng</th><th>Mã phòng</th><th></th></tr>
+            </thead>
+            <tbody>
+                {% for r in page_obj %}
+                <tr>
+                    <td>{{ r.full_name }}<div class="small text-muted">{{ r.department_name }}</div></td>
+                    <td>{{ r.room_type }}</td>
+                    <td><code>{{ r.room_key|default:"—" }}</code></td>
+                    <td class="text-end">
+                        <form method="post" class="d-inline-flex gap-1 align-items-center">
+                            {% csrf_token %}
+                            <input type="hidden" name="registration_id" value="{{ r.pk }}">
+                            <input type="text" name="room_key" class="form-control form-control-sm" style="width:9rem" placeholder="Mã mới" value="{{ r.room_key }}">
+                            <button name="action" value="assign" class="btn btn-sm btn-hm">Gán</button>
+                            {% if r.room_key %}
+                            <button name="action" value="clear" class="btn btn-sm btn-outline-danger">Xóa</button>
+                            {% endif %}
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-4">Chưa có đăng ký.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

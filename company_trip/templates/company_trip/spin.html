@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5 text-center">
+    <h2 class="fw-bold text-hm mb-1">Lucky Spin — {{ settings.title }}</h2>
+    <p class="text-muted">Còn {{ remaining }} / {{ total }} số chưa quay</p>
+
+    <div class="display-1 fw-bold my-4" id="spin-result">---</div>
+    <button type="button" class="btn btn-hm btn-lg fw-bold px-5" id="spin-btn">
+        <i class="bi bi-arrow-repeat me-1"></i>Quay số
+    </button>
+    <p class="small text-muted mt-3" id="spin-meta"></p>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const btn = document.getElementById("spin-btn");
+  const result = document.getElementById("spin-result");
+  const meta = document.getElementById("spin-meta");
+  const csrf = "{{ csrf_token }}";
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    try {
+      const res = await fetch("{% url 'company_trip_spin:spin_api' %}", {
+        method: "POST",
+        headers: { "X-CSRFToken": csrf, "X-Requested-With": "XMLHttpRequest" },
+      });
+      const data = await res.json();
+      if (data.ok) {
+        result.textContent = data.result;
+        meta.textContent = (data.lucky ? "LUCKY! " : "") + "Còn " + data.remaining + " số.";
+      } else {
+        meta.textContent = data.message || "Lỗi quay số";
+      }
+    } finally {
+      btn.disabled = false;
+    }
+  });
+})();
+</script>
+{% endblock %}

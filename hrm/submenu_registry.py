@@ -12,6 +12,7 @@ from hrm.module_permissions import (
     MODULE_EQUIPMENT,
     MODULE_FEEDBACK,
     MODULE_SURVEYS,
+    MODULE_COMPANY_TRIP,
     MODULE_HO_TRO,
     MODULE_HRM,
     MODULE_KPI,
@@ -92,10 +93,23 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'share', 'label': 'Tạo link gửi NV', 'icon': 'bi-send'},
         {'key': 'results', 'label': 'Kết quả', 'icon': 'bi-inbox-fill'},
     ],
+    MODULE_COMPANY_TRIP: [],  # Ẩn — dùng utilities.trip_schedule / lucky_spin
     MODULE_UTILITIES: [
         {'key': 'meal_ordering', 'label': 'Đặt cơm', 'icon': 'bi-cup-hot'},
         {'key': 'salary_advance', 'label': 'Ứng lương', 'icon': 'bi-cash-coin'},
         {'key': 'schedule_reminder', 'label': 'Nhắc lịch', 'icon': 'bi-alarm'},
+        {
+            'key': 'trip_schedule',
+            'label': 'Đặt lịch',
+            'icon': 'bi-calendar2-event',
+            'perm_label': 'Đặt lịch Company Trip (admin)',
+        },
+        {
+            'key': 'lucky_spin',
+            'label': 'Vòng quay may mắn',
+            'icon': 'bi-arrow-repeat',
+            'perm_label': 'Vòng quay may mắn (admin)',
+        },
     ],
     MODULE_KHO_NPL: [
         {'key': 'materials', 'label': 'Danh mục', 'icon': 'bi-tags'},
@@ -318,6 +332,8 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/tien-ich/ung-luong', MODULE_UTILITIES, 'salary_advance'),
     ('/tien-ich/dat-com', MODULE_UTILITIES, 'meal_ordering'),
     ('/tien-ich/nhac-lich', MODULE_UTILITIES, 'schedule_reminder'),
+    ('/tien-ich/dat-lich', MODULE_UTILITIES, 'trip_schedule'),
+    ('/tien-ich/vong-quay', MODULE_UTILITIES, 'lucky_spin'),
     ('/cong-cu/nhac-lich', MODULE_UTILITIES, 'schedule_reminder'),
     # Góp ý
     ('/gop-y/danh-sach', MODULE_FEEDBACK, 'list'),

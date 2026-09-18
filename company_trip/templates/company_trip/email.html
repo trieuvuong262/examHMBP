@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">Email &amp; cấu hình</h2>
+            <p class="text-muted mb-0">{{ pending_count }} NV active chưa đăng ký</p>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="fw-bold mb-3">Cấu hình chuyến đi</h5>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="save_settings">
+                        {% for field in settings_form %}
+                        <div class="mb-3 {% if field.name == 'registration_open' %}form-check{% endif %}">
+                            {% if field.name == 'registration_open' %}
+                            {{ field }} <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {% else %}
+                            <label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {{ field }}
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                        <button class="btn btn-hm" type="submit">Lưu cấu hình</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="fw-bold mb-3">Mẫu email</h5>
+                    <p class="small text-muted">{% verbatim %}Biến: {{ fullname }}, {{ gender_prefix }}, {{ dates }}, {{ destination }}, {{ register_url }}{% endverbatim %}</p>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="save_template">
+                        {{ form.media }}
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Tiêu đề</label>
+                            {{ form.subject }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Nội dung</label>
+                            {{ form.body }}
+                        </div>
+                        <button class="btn btn-hm" type="submit">Lưu mẫu</button>
+                    </form>
+                    <hr>
+                    <form method="post" onsubmit="return confirm('Gửi email mời tới tất cả NV active chưa đăng ký?');">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="bulk_invite">
+                        <button class="btn btn-outline-hm" type="submit">
+                            <i class="bi bi-envelope me-1"></i>Gửi hàng loạt lời mời ({{ pending_count }})
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

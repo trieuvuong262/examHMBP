@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">Đăng ký {{ settings.title }}</h2>
+            <p class="text-muted mb-0">{{ settings.destination }} · {{ settings.dates_display }}</p>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body p-3 p-md-4">
+            <div class="row g-2 small text-muted">
+                <div class="col-md-4"><strong class="text-dark">Họ tên:</strong> {{ snapshot.full_name }}</div>
+                <div class="col-md-4"><strong class="text-dark">Email:</strong> {{ snapshot.email|default:"—" }}</div>
+                <div class="col-md-4"><strong class="text-dark">Phòng ban:</strong> {{ snapshot.department_name|default:"—" }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-3 p-md-4">
+            <form method="post" id="trip-register-form" novalidate>
+                {% csrf_token %}
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                {% endif %}
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold" for="{{ form.phone.id_for_label }}">Số điện thoại</label>
+                        {{ form.phone }}
+                        {% if form.phone.errors %}<div class="text-danger small">{{ form.phone.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold" for="{{ form.room_type.id_for_label }}">Loại phòng</label>
+                        {{ form.room_type }}
+                    </div>
+
+                    <div class="col-md-6" id="companion1-wrap">
+                        <label class="form-label fw-semibold">Người cùng phòng 1</label>
+                        <input type="text" class="form-control" id="companion1-search" placeholder="Gõ tên để tìm…" autocomplete="off">
+                        {{ form.companion1_id }}
+                        <div class="list-group mt-1 d-none" id="companion1-results"></div>
+                        <div class="form-text" id="companion1-label"></div>
+                    </div>
+                    <div class="col-md-6" id="companion2-wrap">
+                        <label class="form-label fw-semibold">Người cùng phòng 2</label>
+                        <input type="text" class="form-control" id="companion2-search" placeholder="Gõ tên để tìm…" autocomplete="off">
+                        {{ form.companion2_id }}
+                        <div class="list-group mt-1 d-none" id="companion2-results"></div>
+                        <div class="form-text" id="companion2-label"></div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Ăn chay</label>
+                        {{ form.vegetarian }}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Ăn sáng</label>
+                        {{ form.breakfast_choice }}
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Dị ứng / lưu ý ăn uống</label>
+                        {{ form.allergy_note }}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Điểm đón</label>
+                        {{ form.pickup_point }}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Mua sắm chợ Đầm Nại</label>
+                        {{ form.shopping }}
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Lộ trình</label>
+                        {{ form.route }}
+                        {% if form.route.errors %}<div class="text-danger small">{{ form.route.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Chi tiết lộ trình</label>
+                        {{ form.detail_route }}
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Ghi chú</label>
+                        {{ form.note }}
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-hm fw-bold mt-4">
+                    <i class="bi bi-send-fill me-1"></i>Gửi đăng ký
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const profileId = {{ profile.pk }};
+  const searchUrl = "{% url 'company_trip:companion_search' %}";
+  const roomSelect = document.getElementById("{{ form.room_type.id_for_label }}");
+  const wrap1 = document.getElementById("companion1-wrap");
+  const wrap2 = document.getElementById("companion2-wrap");
+
+  function toggleCompanions() {
+    const v = roomSelect.value || "";
+    wrap1.classList.toggle("d-none", v === "Ban tổ chức sắp xếp" || !v);
+    wrap2.classList.toggle("d-none", v !== "Phòng 3");
+    if (v === "Ban tổ chức sắp xếp") {
+      document.getElementById("id_companion1_id").value = "";
+      document.getElementById("id_companion2_id").value = "";
+    }
+    if (v !== "Phòng 3") {
+      document.getElementById("id_companion2_id").value = "";
+    }
+  }
+  roomSelect.addEventListener("change", toggleCompanions);
+  toggleCompanions();
+
+  function bindSearch(inputId, resultsId, hiddenId, labelId) {
+    const input = document.getElementById(inputId);
+    const results = document.getElementById(resultsId);
+    const hidden = document.getElementById(hiddenId);
+    const label = document.getElementById(labelId);
+    let timer = null;
+    input.addEventListener("input", function () {
+      clearTimeout(timer);
+      const q = input.value.trim();
+      if (q.length < 1) { results.classList.add("d-none"); return; }
+      timer = setTimeout(async () => {
+        const url = searchUrl + "?q=" + encodeURIComponent(q) + "&exclude=" + profileId;
+        const res = await fetch(url, { headers: { "X-Requested-With": "XMLHttpRequest" } });
+        const data = await res.json();
+        results.innerHTML = "";
+        (data.results || []).forEach(item => {
+          const a = document.createElement("button");
+          a.type = "button";
+          a.className = "list-group-item list-group-item-action";
+          a.textContent = item.name + (item.department ? " — " + item.department : "");
+          a.addEventListener("click", () => {
+            hidden.value = item.id;
+            label.textContent = "Đã chọn: " + item.name;
+            input.value = item.name;
+            results.classList.add("d-none");
+          });
+          results.appendChild(a);
+        });
+        results.classList.toggle("d-none", !(data.results || []).length);
+      }, 250);
+    });
+  }
+  bindSearch("companion1-search", "companion1-results", "id_companion1_id", "companion1-label");
+  bindSearch("companion2-search", "companion2-results", "id_companion2_id", "companion2-label");
+})();
+</script>
+{% endblock %}

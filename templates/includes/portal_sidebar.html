@@ -528,7 +528,7 @@
             </ul>
         </li>
         {% endif %}
-        {% if jp_can_utilities %}
+        {% if jp_can_utilities or jp_can_portal_admin %}
         <li class="jp-sidebar-group{% if 'tien-ich' in request.path %} is-open{% endif %}">
             <button type="button"
                     class="jp-sidebar-group-toggle"
@@ -566,6 +566,29 @@
                        class="jp-sidebar-link jp-sidebar-sublink {% if '/tien-ich/ung-luong' in request.path %}active{% endif %}">
                         <i class="bi bi-cash-coin"></i><span>Ứng lương</span>
                         {% if jp_utilities_salary_pending_count %}<span class="badge bg-danger ms-1">{{ jp_utilities_salary_pending_count }}</span>{% endif %}
+                    </a>
+                </li>
+                {% endif %}
+                {% jp_can_menu 'utilities' 'schedule_reminder' as jp_can_utilities_schedule %}
+                {% if jp_can_utilities_schedule %}
+                <li>
+                    <a href="{% url 'utilities:schedule_reminder_home' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/tien-ich/nhac-lich' in request.path %}active{% endif %}">
+                        <i class="bi bi-alarm"></i><span>Nhắc lịch</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% if jp_can_portal_admin %}
+                <li>
+                    <a href="{% url 'company_trip:manage_list' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/tien-ich/dat-lich' in request.path %}active{% endif %}">
+                        <i class="bi bi-calendar2-event"></i><span>Đặt lịch</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'company_trip_spin:spin' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/tien-ich/vong-quay' in request.path %}active{% endif %}">
+                        <i class="bi bi-arrow-repeat"></i><span>Vòng quay may mắn</span>
                     </a>
                 </li>
                 {% endif %}

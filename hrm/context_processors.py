@@ -22,6 +22,7 @@ from hrm.module_permissions import (
     MODULE_EQUIPMENT,
     MODULE_FEEDBACK,
     MODULE_SURVEYS,
+    MODULE_COMPANY_TRIP,
     MODULE_UTILITIES,
     MODULE_KIOTVIET,
     MODULE_KHO_NPL,
@@ -127,6 +128,7 @@ def portal_permissions(request):
             'jp_can_equipment': False,
             'jp_can_feedback': False,
             'jp_can_surveys': False,
+            'jp_can_company_trip': False,
             'jp_can_utilities': False,
             'jp_can_kiotviet': False,
             'jp_can_odoo': False,
@@ -261,6 +263,7 @@ def portal_permissions(request):
         'jp_can_equipment': user_can_access_module(user, MODULE_EQUIPMENT),
         'jp_can_feedback': user_can_access_module(user, MODULE_FEEDBACK),
         'jp_can_surveys': user_can_access_module(user, MODULE_SURVEYS),
+        'jp_can_company_trip': user_can_access_module(user, MODULE_COMPANY_TRIP),
         'jp_can_utilities': user_can_access_module(user, MODULE_UTILITIES),
         'jp_can_kiotviet': _jp_can_kiotviet(user),
         'jp_can_odoo': False,  # Tạm ẩn menu Odoo

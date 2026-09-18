@@ -216,6 +216,7 @@ INSTALLED_APPS = [
     'equipment.apps.EquipmentConfig',
     'feedback.apps.FeedbackConfig',
     'surveys.apps.SurveysConfig',
+    'company_trip.apps.CompanyTripConfig',
     'utilities.apps.UtilitiesConfig',
     'kiotviet.apps.KiotvietConfig',
     'zalo.apps.ZaloConfig',

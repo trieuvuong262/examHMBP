@@ -34,6 +34,7 @@ MODULE_SUPPORTS_EXPORT = frozenset({
     'kho_npl',      # Báo cáo tồn kho / sổ kho
     'kho_san_pham', # Xuất danh mục / tồn kho thành phẩm
     'utilities',    # Xuất Excel đặt cơm / ứng lương
+    'company_trip', # Xuất danh sách đăng ký Company Trip
     'san_xuat',     # Xuất Excel giá thành kế hoạch
 })
 

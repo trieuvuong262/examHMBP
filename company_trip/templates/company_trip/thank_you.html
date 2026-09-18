@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-5 text-center">
+    <div class="mb-3"><i class="bi bi-check-circle-fill text-success" style="font-size:3rem"></i></div>
+    <h2 class="fw-bold text-hm mb-2">{% if already_submitted %}Bạn đã đăng ký{% else %}Hoàn tất đăng ký{% endif %}</h2>
+    <p class="text-muted mb-2">{{ settings.title }} · {{ settings.destination }} · {{ settings.dates_display }}</p>
+    {% if registration %}
+    <p class="mb-4">Cảm ơn <strong>{{ registration.full_name }}</strong>. Thông tin đăng ký đã được ghi nhận
+        {% if registration.room_key %}— mã phòng: <code>{{ registration.room_key }}</code>{% endif %}.</p>
+    {% else %}
+    <p class="mb-4">Cảm ơn bạn đã đăng ký tham gia Company Trip.</p>
+    {% endif %}
+    <a href="{% url 'home_portal' %}" class="btn btn-outline-hm">Về trang chủ</a>
+</div>
+{% endblock %}

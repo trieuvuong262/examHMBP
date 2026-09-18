@@ -32,6 +32,7 @@ MODULE_NAS_STORAGE = 'nas_storage'
 MODULE_EQUIPMENT = 'equipment'
 MODULE_FEEDBACK = 'feedback'
 MODULE_SURVEYS = 'surveys'
+MODULE_COMPANY_TRIP = 'company_trip'
 MODULE_UTILITIES = 'utilities'
 MODULE_KIOTVIET = 'kiotviet'
 MODULE_KHO_NPL = 'kho_npl'
@@ -42,6 +43,7 @@ MODULE_ODOO = 'odoo'
 # Tạm ẩn khỏi sidebar + màn hình phân quyền — gỡ khỏi set khi bật lại.
 HIDDEN_PORTAL_MODULES = frozenset({
     MODULE_RECRUITMENT,
+    MODULE_COMPANY_TRIP,  # Đặt lịch / Lucky Spin nằm trong Tiện ích (admin only)
 })
 
 _ALL_MODULE_CHOICES = [
@@ -58,6 +60,7 @@ _ALL_MODULE_CHOICES = [
     (MODULE_EQUIPMENT, 'Quản lý thiết bị'),
     (MODULE_FEEDBACK, 'Góp ý'),
     (MODULE_SURVEYS, 'Khảo sát'),
+    (MODULE_COMPANY_TRIP, 'Company Trip'),
     (MODULE_UTILITIES, 'Tiện ích'),
     (MODULE_ODOO, 'Odoo'),
     (MODULE_SAN_XUAT, 'Sản xuất'),
@@ -209,6 +212,9 @@ EXEMPT_PATH_PREFIXES = (
     '/khao-sat/d/',
     # Web push portal — view tự kiểm tra user_portal_push_eligible (không cần module Tiện ích)
     '/tien-ich/push/',
+    # Đặt lịch Company Trip + Vòng quay — chỉ admin; view tự kiểm tra is_staff
+    '/tien-ich/dat-lich/',
+    '/tien-ich/vong-quay/',
 )
 
 # Map prefix URL → module (thứ tự quan trọng — dài/specific trước)
