@@ -175,10 +175,20 @@ def group_stock_rows(stock_rows: list[dict]) -> list[dict]:
 
         min_stock = min((m.min_stock for m in materials), default=Decimal('0'))
 
+        dept_labels = {(getattr(m, 'department', '') or '').strip() for m in materials}
+        dept_labels.discard('')
+        if len(dept_labels) == 1:
+            department = next(iter(dept_labels))
+        elif not dept_labels:
+            department = ''
+        else:
+            department = '—'
+
         groups.append({
             'key': _safe_group_dom_key(key, rep),
             'group_name': _group_display_name(materials),
             'category': rep.category,
+            'department': department,
             'unit': rep.unit,
             'package_unit': rep.package_unit,
             'package_unit_label': rep.package_unit.name if rep.package_unit else '',
@@ -268,6 +278,7 @@ def sort_stock_groups(groups: list[dict], sort_key: str, sort_dir: str) -> list[
             'code': (g['group_name'] or '').lower(),
             'name': (g['group_name'] or '').lower(),
             'category': (g['category'].name if g.get('category') else '').lower(),
+            'department': (g.get('department') or '').lower(),
             'color': '',
             'package_unit': (g.get('package_unit_label') or '').lower(),
             'unit': (g['unit'].name if g.get('unit') else '').lower(),

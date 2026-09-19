@@ -46,6 +46,12 @@
                 <div class="jp-npl-mat-filter-field jp-npl-filter-multi">
                     {% include 'kho_npl/includes/material_category_filter.html' with select_id='stk-cat' %}
                 </div>
+                <select name="department" id="stk-department" class="form-select form-select-sm jp-npl-mat-status-select" aria-label="Bộ phận">
+                    <option value="">Tất cả bộ phận</option>
+                    {% for value, label in department_choices %}
+                    <option value="{{ value }}" {% if selected_department == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
                 <div class="jp-npl-mat-filter-field jp-npl-mat-filter-loc jp-npl-filter-multi">
                     <select name="location" id="stk-loc" class="form-select form-select-sm jp-npl-multi-select" multiple
                             data-placeholder="Vị trí kho" aria-label="Vị trí kho">
@@ -166,6 +172,9 @@
                         <td class="npl-col" data-col="category" title="{{ group.category.name }}">
                             <span class="jp-npl-stock-cell-clip">{{ group.category.name }}</span>
                         </td>
+                        <td class="npl-col" data-col="department" title="{{ group.department|default:'—' }}">
+                            <span class="jp-npl-stock-cell-clip">{{ group.department|default:'—' }}</span>
+                        </td>
                         <td class="npl-col" data-col="color">
                             {% if group.can_expand %}<span class="text-muted">—</span>{% else %}{% include 'kho_npl/includes/material_color_chip.html' with color=material.color %}{% endif %}
                         </td>
@@ -204,7 +213,7 @@
                     {% for lb in single_row.location_balances %}
                     <tr class="jp-npl-stock-loc-row is-collapsed" data-loc-expand="{{ material.pk }}">
                         <td class="npl-col" data-col="image"></td>
-                        <td class="npl-col jp-npl-stock-loc-label" data-col="name" colspan="4" title="{{ lb.location.name }}">
+                        <td class="npl-col jp-npl-stock-loc-label" data-col="name" colspan="5" title="{{ lb.location.name }}">
                             <span class="jp-npl-stock-loc-name">{{ lb.location.name }}</span>
                         </td>
                         <td class="text-end npl-col jp-mat-code fw-semibold" data-col="total_qty">{{ lb.quantity|npl_qty_with_unit:material.unit }}</td>
@@ -235,6 +244,9 @@
                         </td>
                         <td class="npl-col" data-col="category" title="{{ row.material.category.name }}">
                             <span class="jp-npl-stock-cell-clip">{{ row.material.category.name }}</span>
+                        </td>
+                        <td class="npl-col" data-col="department" title="{{ row.material.department|default:'—' }}">
+                            <span class="jp-npl-stock-cell-clip">{{ row.material.department|default:'—' }}</span>
                         </td>
                         <td class="npl-col" data-col="color">{% include 'kho_npl/includes/material_color_chip.html' with color=row.material.color %}</td>
                         <td class="text-end npl-col jp-mat-code fw-semibold" data-col="total_qty" title="{{ row.total_qty|npl_qty_with_unit:row.material.unit }}">
@@ -268,7 +280,7 @@
                     {% for lb in row.location_balances %}
                     <tr class="jp-npl-stock-loc-row is-collapsed" data-loc-expand="{{ row.material.pk }}" data-group-parent="{{ group.key }}">
                         <td class="npl-col" data-col="image"></td>
-                        <td class="npl-col jp-npl-stock-loc-label jp-npl-stock-loc-label-nested" data-col="name" colspan="4" title="{{ lb.location.name }}">
+                        <td class="npl-col jp-npl-stock-loc-label jp-npl-stock-loc-label-nested" data-col="name" colspan="5" title="{{ lb.location.name }}">
                             <span class="jp-npl-stock-loc-name">{{ lb.location.name }}</span>
                         </td>
                         <td class="text-end npl-col jp-mat-code fw-semibold" data-col="total_qty">{{ lb.quantity|npl_qty_with_unit:row.material.unit }}</td>

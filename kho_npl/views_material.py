@@ -428,12 +428,18 @@ def _stock_filtered_rows(request):
     search_query = get_search_query(request)
     category_parent_id, category_ids = parse_category_cascade_filter(request)
     usage_status = _material_list_status(request, param='usage')
+    selected_department = (request.GET.get('department') or '').strip()
+    from kho_npl.material_department import normalize_material_department
+
+    selected_department = normalize_material_department(selected_department) or selected_department
     qs = (
         Material.objects
         .select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location')
         .prefetch_related('specification__levels__unit', 'balances__location')
     )
     qs = _apply_material_usage_status(qs, usage_status)
+    if selected_department:
+        qs = qs.filter(department=selected_department)
     if search_query:
         qs = apply_material_search(qs, search_query)
 
@@ -469,6 +475,7 @@ def _stock_filtered_rows(request):
         location_ids,
         status,
         usage_status,
+        selected_department,
         sort_key,
         sort_dir,
     )
@@ -532,6 +539,7 @@ def material_stock_list(request):
         location_ids,
         status,
         usage_status,
+        selected_department,
         sort_key,
         sort_dir,
     ) = _stock_filtered_rows(request)
@@ -539,6 +547,13 @@ def material_stock_list(request):
     category_tabs = _stock_category_tabs(request, value_summary, category_ids)
     category_tab_rows, stock_stat_row_cols = _split_stock_tab_rows(category_tabs)
     stock_stat_grid_mod = f'jp-team-stat-grid--{stock_stat_row_cols}'
+    from kho_npl.material_department import material_department_choices
+
+    department_choices = [
+        (value, label)
+        for value, label in material_department_choices(include_blank=False)
+        if value
+    ]
     return render(request, 'kho_npl/material_stock.html', {
         **nav_context('material_stock', user=request.user),
         **perm_context(request.user, 'material_stock'),
@@ -548,6 +563,8 @@ def material_stock_list(request):
         'category_roots': active_category_roots(),
         'locations': source_locations_qs(),
         'selected_categories': category_ids,
+        'selected_department': selected_department,
+        'department_choices': department_choices,
         'selected_locations': location_ids,
         'selected_status': status,
         'status_choices': MATERIAL_STOCK_STATUS_CHOICES,
@@ -559,7 +576,12 @@ def material_stock_list(request):
         'sort_dir': sort_dir,
         'expand_search_hits': bool(search_query),
         'has_filters': bool(
-            search_query or category_ids or location_ids or status or usage_status != 'active'
+            search_query
+            or category_ids
+            or selected_department
+            or location_ids
+            or status
+            or usage_status != 'active'
         ),
         'value_summary': value_summary,
         'category_tab_rows': category_tab_rows,
@@ -614,7 +636,7 @@ def material_stock_detail(request, pk):
 
 @module_perm_required(MODULE_KHO_NPL, 'export')
 def material_stock_export(request):
-    groups, _, _, _, _, _, _, _, _, _ = _stock_filtered_rows(request)
+    groups, _, _, _, _, _, _, _, _, _, _ = _stock_filtered_rows(request)
     data = []
     for group in groups:
         for row in group.get('rows') or []:
@@ -624,6 +646,7 @@ def material_stock_export(request):
                 'Tên NPL': mat.name,
                 'Tên nhóm hàng': getattr(mat, 'variant_group', '') or group.get('group_name', ''),
                 'Nhóm': mat.category.name if mat.category_id else '',
+                'Bộ phận': getattr(mat, 'department', '') or '',
                 'Màu': mat.color.name if mat.color_id else '',
                 'Quy cách': spec_label(mat.specification) if mat.specification_id else '',
                 'Tồn lẻ': float(row['total_qty']),
