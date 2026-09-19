@@ -343,6 +343,10 @@ def material_list(request):
     search_query = get_search_query(request)
     category_ids = parse_int_ids(request, 'category')
     status = _material_list_status(request)
+    selected_department = (request.GET.get('department') or '').strip()
+    from kho_npl.material_department import material_department_choices, normalize_material_department
+
+    selected_department = normalize_material_department(selected_department) or selected_department
     qs = (
         Material.objects
         .select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location')
@@ -351,6 +355,8 @@ def material_list(request):
     qs = _apply_material_usage_status(qs, status)
     if category_ids:
         qs = qs.filter(category_filter_q(category_ids))
+    if selected_department:
+        qs = qs.filter(department=selected_department)
     if search_query:
         qs = apply_material_search(qs, search_query)
     sort_key, sort_dir = _material_list_sort(request)
@@ -358,6 +364,11 @@ def material_list(request):
     groups = sort_catalog_groups(groups, sort_key, sort_dir)
     page_obj, query_string = paginate_queryset(request, groups, per_page=25)
     category_roots = active_category_roots()
+    department_choices = [
+        (value, label)
+        for value, label in material_department_choices(include_blank=False)
+        if value
+    ]
     return render(request, 'kho_npl/material_list.html', {
         **nav_context('materials', user=request.user),
         **perm_context(request.user, 'materials'),
@@ -366,6 +377,8 @@ def material_list(request):
         'search_query': search_query,
         'category_roots': category_roots,
         'selected_categories': category_ids,
+        'selected_department': selected_department,
+        'department_choices': department_choices,
         'selected_status': status,
         'status_choices': MATERIAL_LIST_STATUS_CHOICES,
         'list_columns': MATERIAL_LIST_COLUMNS,
@@ -373,7 +386,9 @@ def material_list(request):
         'sort_key': sort_key,
         'sort_dir': sort_dir,
         'expand_search_hits': bool(search_query),
-        'has_filters': bool(search_query or category_ids or status != 'active'),
+        'has_filters': bool(
+            search_query or category_ids or selected_department or status != 'active'
+        ),
     })
 
 
@@ -703,10 +718,16 @@ def material_export(request):
     search_query = get_search_query(request)
     category_ids = parse_int_ids(request, 'category')
     status = _material_list_status(request)
+    selected_department = (request.GET.get('department') or '').strip()
+    from kho_npl.material_department import normalize_material_department
+
+    selected_department = normalize_material_department(selected_department) or selected_department
     qs = Material.objects.select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location')
     qs = _apply_material_usage_status(qs, status)
     if category_ids:
         qs = qs.filter(category_filter_q(category_ids))
+    if selected_department:
+        qs = qs.filter(department=selected_department)
     if search_query:
         qs = apply_material_search(qs, search_query)
     return export_materials_xlsx(qs)

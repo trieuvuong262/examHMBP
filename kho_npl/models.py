@@ -232,6 +232,14 @@ class Material(models.Model):
         related_name='materials',
         verbose_name='Nhóm',
     )
+    department = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        db_index=True,
+        verbose_name='Bộ phận',
+        help_text='Bộ phận SX / QLCL theo chuẩn Nhân sự (cùng danh mục hồ sơ sản phẩm).',
+    )
     color = models.ForeignKey(
         MaterialColor,
         on_delete=models.SET_NULL,

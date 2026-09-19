@@ -14,6 +14,7 @@ EXCEL_HEADERS = [
     'Tên NPL',
     'Tên nhóm hàng',
     'Mã nhóm',
+    'Bộ phận',
     'Màu sắc',
     'Mã quy cách',
     'ĐVT lẻ',
@@ -35,6 +36,9 @@ _HEADER_ALIASES = {
     'nhom hang': 'Tên nhóm hàng',
     'ma nhom': 'Mã nhóm',
     'nhom': 'Mã nhóm',
+    'bo phan': 'Bộ phận',
+    'bộ phận': 'Bộ phận',
+    'department': 'Bộ phận',
     'mau sac': 'Màu sắc',
     'mau': 'Màu sắc',
     'quy cach': 'Quy cách',
@@ -138,6 +142,7 @@ def material_to_row(material: Material) -> dict:
         'Tên NPL': material.name,
         'Tên nhóm hàng': material.variant_group or '',
         'Mã nhóm': material.category.code,
+        'Bộ phận': material.department or '',
         'Màu sắc': material.color.name if material.color_id else '',
         'Mã quy cách': spec.code if spec else '',
         'ĐVT lẻ': base_unit.name if base_unit else '',
@@ -205,6 +210,7 @@ def sample_template_xlsx() -> HttpResponse:
         'Tên NPL': 'Vải cotton trắng',
         'Tên nhóm hàng': 'COTTON',
         'Mã nhóm': sample_category.code if sample_category else '',
+        'Bộ phận': 'CẮT, TRẢI VẢI',
         'Màu sắc': 'Trắng',
         'Mã quy cách': sample_spec.code if sample_spec else '',
         'ĐVT lẻ': base.name if base else '',
@@ -417,6 +423,20 @@ def import_materials_from_excel(file_obj) -> dict:
         }
         if has_location_col:
             defaults['primary_location'] = location
+
+        from kho_npl.material_department import (
+            default_department_for_category_code,
+            normalize_material_department,
+        )
+
+        if 'Bộ phận' in df.columns:
+            dept_raw = _parse_text(row.get('Bộ phận'))
+            defaults['department'] = (
+                normalize_material_department(dept_raw)
+                or default_department_for_category_code(category.code)
+            )
+        elif not existing:
+            defaults['department'] = default_department_for_category_code(category.code)
 
         if not defaults['variant_group'] or defaults['variant_group'].lower() in ('nan', 'none'):
             from kho_npl.variant_group import infer_variant_group_from_code

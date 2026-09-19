@@ -104,10 +104,20 @@ def group_materials(materials) -> list[dict]:
         unique_locs = {label for label in loc_labels if label}
         primary_location = next(iter(unique_locs)) if len(unique_locs) == 1 else ''
 
+        dept_labels = {(getattr(m, 'department', '') or '').strip() for m in items}
+        dept_labels.discard('')
+        if len(dept_labels) == 1:
+            department = next(iter(dept_labels))
+        elif not dept_labels:
+            department = ''
+        else:
+            department = '—'
+
         groups.append({
             'key': _safe_group_dom_key(key, rep),
             'group_name': _group_display_name(items),
             'category': rep.category,
+            'department': department,
             'unit': rep.unit,
             'package_unit': rep.package_unit,
             'package_unit_label': rep.package_unit.name if rep.package_unit else '',
@@ -233,6 +243,7 @@ def sort_catalog_groups(groups: list[dict], sort_key: str, sort_dir: str) -> lis
             'code': (g['group_name'] or '').lower(),
             'name': (g['group_name'] or '').lower(),
             'category': (g['category'].name if g.get('category') else '').lower(),
+            'department': (g.get('department') or '').lower(),
             'color': '',
             'specification': '',
             'unit': (g.get('package_unit_label') or '').lower(),

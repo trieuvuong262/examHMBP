@@ -279,6 +279,7 @@ class MaterialForm(forms.ModelForm):
             'name',
             'variant_group',
             'category',
+            'department',
             'color',
             'specification',
             'unit',
@@ -295,6 +296,7 @@ class MaterialForm(forms.ModelForm):
             'name': forms.TextInput(attrs=FORM_CONTROL),
             'variant_group': forms.Select(attrs=FORM_SELECT),
             'category': forms.Select(attrs=FORM_SELECT),
+            'department': forms.Select(attrs=FORM_SELECT),
             'color': MaterialColorSelect(attrs={
                 **FORM_SEARCH_SELECT,
                 'class': 'form-select jp-npl-search-select jp-npl-color-select',
@@ -324,6 +326,15 @@ class MaterialForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['category'].label = 'Loại NPL'
+        self.fields['department'].label = 'Bộ phận'
+        self.fields['department'].required = False
+        self.fields['department'].help_text = (
+            'Chuẩn Nhân sự: bộ phận sản xuất và đảm bảo chất lượng (như hồ sơ sản phẩm).'
+        )
+        from kho_npl.material_department import material_department_choices
+
+        current_dept = (getattr(self.instance, 'department', '') or '').strip()
+        self.fields['department'].choices = material_department_choices(current=current_dept)
         self.fields['variant_group'].label = 'Gom nhóm hàng hoá'
         self.fields['variant_group'].required = False
         self.fields['variant_group'].help_text = (
@@ -428,6 +439,11 @@ class MaterialForm(forms.ModelForm):
             return value
         return normalize_variant_group(value)
 
+    def clean_department(self):
+        from kho_npl.material_department import normalize_material_department
+
+        return normalize_material_department(self.cleaned_data.get('department') or '')
+
     def clean(self):
         cleaned_data = super().clean()
         from kho_npl.variant_group import infer_variant_group_from_code, normalize_variant_group
@@ -497,6 +513,12 @@ class MaterialForm(forms.ModelForm):
                         except UomConversionError:
                             self.add_error('specification', 'Không quy đổi được giá/tồn tối thiểu sang ĐVT lẻ mới.')
                 cleaned_data['price_qty_unit'] = new_unit.pk
+        if not (cleaned_data.get('department') or '').strip() and not self.instance.pk:
+            category = cleaned_data.get('category')
+            if category is not None:
+                from kho_npl.material_department import default_department_for_category_code
+
+                cleaned_data['department'] = default_department_for_category_code(category.code)
         return cleaned_data
 
     def save(self, commit=True):
