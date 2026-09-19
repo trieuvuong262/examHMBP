@@ -116,9 +116,36 @@
             syncListMeta();
         }
 
+        function positionMenu() {
+            const rect = toggle.getBoundingClientRect();
+            const width = Math.max(rect.width, 280);
+            const maxHeight = Math.min(320, window.innerHeight - 16);
+            const gap = 4;
+            const spaceBelow = window.innerHeight - rect.bottom - gap;
+            const openUp = spaceBelow < 200 && rect.top > spaceBelow;
+            let left = rect.left;
+            if (left + width > window.innerWidth - 8) {
+                left = Math.max(8, window.innerWidth - width - 8);
+            }
+            menu.style.position = 'fixed';
+            menu.style.left = left + 'px';
+            menu.style.right = 'auto';
+            menu.style.width = width + 'px';
+            menu.style.maxHeight = maxHeight + 'px';
+            menu.style.zIndex = '2100';
+            if (openUp) {
+                menu.style.top = 'auto';
+                menu.style.bottom = (window.innerHeight - rect.top + gap) + 'px';
+            } else {
+                menu.style.top = (rect.bottom + gap) + 'px';
+                menu.style.bottom = 'auto';
+            }
+        }
+
         function openMenu() {
             menu.hidden = false;
             toggle.setAttribute('aria-expanded', 'true');
+            positionMenu();
             if (search) {
                 search.value = '';
                 filterOptions('');
@@ -144,6 +171,12 @@
             document.addEventListener('click', function (e) {
                 if (!root.contains(e.target)) closeMenu();
             });
+            window.addEventListener('resize', function () {
+                if (!menu.hidden) positionMenu();
+            });
+            window.addEventListener('scroll', function () {
+                if (!menu.hidden) positionMenu();
+            }, true);
         }
 
         function bindOptionInputs() {
@@ -311,10 +344,8 @@
         (users || []).forEach(function (user) {
             const userId = String(user.id);
             const checked = selected.has(userId) ? ' checked' : '';
-            const metaAttrs = showOrgMeta
-                ? ' data-department-id="' + escapeHtml(user.department_id) + '"'
-                    + ' data-division-id="' + escapeHtml(user.division_id) + '"'
-                : '';
+            const metaAttrs = ' data-department-id="' + escapeHtml(user.department_id) + '"'
+                + ' data-division-id="' + escapeHtml(user.division_id) + '"';
             const orgLine = showOrgMeta && user.department_name
                 ? '<span class="d-block">'
                     + (user.division_name ? escapeHtml(user.division_name) + ' · ' : '')

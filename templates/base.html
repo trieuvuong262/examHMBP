@@ -214,7 +214,7 @@
 {% if user.is_authenticated and not jp_force_password_change %}<script src="{% static 'js/avatar.js' %}"></script>{% endif %}
 {% if user.is_authenticated and not jp_force_password_change %}<script src="{% static 'js/sidebar.js' %}?v=20260721e"></script>{% endif %}
 {% if user.is_authenticated and not jp_force_password_change %}<script src="{% static 'js/mobile.js' %}"></script>{% endif %}
-{% if user.is_authenticated and not jp_force_password_change %}<script src="{% static 'js/user-picker.js' %}"></script>{% endif %}
+{% if user.is_authenticated and not jp_force_password_change %}<script src="{% static 'js/user-picker.js' %}?v=20260919a"></script>{% endif %}
 {% if user.is_authenticated and jp_webpush_public_key and jp_portal_push_eligible %}
 <script>
 window.JP_PORTAL_PUSH = {

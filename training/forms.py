@@ -1,6 +1,60 @@
 from django import forms
-from django.contrib.auth.models import User 
+from django.contrib.auth.models import User
+from django.db.models import Q
+
 from .models import Course, Chapter, Lesson
+
+
+def assigned_users_queryset(instance=None):
+    """NV đang làm việc (+ người đã gán) để chọn vào khóa học."""
+    from hrm.user_search import exclude_hidden_hrm_users
+
+    employed = exclude_hidden_hrm_users(
+        User.objects.filter(is_active=True, profile__is_employed=True),
+    )
+    qs = employed
+    if instance is not None and getattr(instance, 'pk', None):
+        qs = User.objects.filter(
+            Q(pk__in=employed.values('pk')) | Q(pk__in=instance.assigned_users.values('pk')),
+        )
+    return qs.select_related(
+        'profile',
+        'profile__department',
+        'profile__division',
+    ).order_by('profile__full_name', 'username').distinct()
+
+
+def assignee_quick_select_context():
+    """Nhóm phòng ban / bộ phận / vị trí / vai trò cho chọn nhanh."""
+    from hrm.models import Department, Division
+    from hrm.permissions import ROLE_CHOICES
+    from hrm.user_search import distinct_job_positions_for_filter
+
+    departments = list(
+        Department.objects.filter(is_active=True, profiles__is_employed=True)
+        .distinct()
+        .order_by('sort_order', 'name')
+        .values('pk', 'name')
+    )
+    divisions = [
+        {
+            'pk': div.pk,
+            'name': div.name,
+            'department_name': div.department.name if div.department_id else '',
+        }
+        for div in (
+            Division.objects.filter(is_active=True, division_profiles__is_employed=True)
+            .select_related('department')
+            .distinct()
+            .order_by('department__sort_order', 'sort_order', 'name')
+        )
+    ]
+    return {
+        'quick_roles': ROLE_CHOICES,
+        'quick_departments': departments,
+        'quick_divisions': divisions,
+        'quick_positions': distinct_job_positions_for_filter(),
+    }
 
 
 class CourseForm(forms.ModelForm):
@@ -30,17 +84,17 @@ class CourseForm(forms.ModelForm):
             self.fields['final_exam'].help_text = ''
 
         if 'assigned_users' in self.fields:
-            self.fields['assigned_users'].queryset = User.objects.select_related('profile').all()
+            self.fields['assigned_users'].queryset = assigned_users_queryset(self.instance)
             self.fields['assigned_users'].label_from_instance = self.get_user_label
+            self.fields['assigned_users'].required = False
 
     def get_user_label(self, user):
-        """Hàm biến đổi object User thành chuỗi text đẹp mắt"""
-        if hasattr(user, 'profile'):
-            name = user.profile.full_name or user.first_name or user.username
-            pos = user.profile.position or "Nhân viên"
-            return f"{name} ({pos})"
-        
-        return f"{user.username} (Nhân viên)"
+        profile = getattr(user, 'profile', None)
+        if profile:
+            name = profile.full_name or user.get_full_name() or user.username
+            pos = (profile.job_position or '').strip()
+            return f'{name} ({pos})' if pos else name
+        return user.username
 
 
 class ChapterForm(forms.ModelForm):

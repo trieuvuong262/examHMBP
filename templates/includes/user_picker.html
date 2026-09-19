@@ -29,9 +29,9 @@
                    data-user-id="{{ user.pk }}"
                    data-role="{{ user.profile.role|default:'' }}"
                    data-position="{{ user.profile.job_position|default:'' }}"
-                   {% if show_org_meta %}data-department-id="{{ user.profile.department_id|default:'' }}"
-                   data-division-id="{{ user.profile.division_id|default:'' }}"{% endif %}
-                   data-search="{{ user.profile.full_name|default:user.username|lower }} {{ user.profile.employee_code|default:''|lower }} {{ user.username|lower }} {{ user.profile.job_position|default:''|lower }} {{ user.profile.get_role_display|default:''|lower }}{% if show_org_meta %} {{ user.profile.department.name|default:''|lower }} {{ user.profile.division.name|default:''|lower }}{% endif %}">
+                   data-department-id="{{ user.profile.department_id|default:'' }}"
+                   data-division-id="{{ user.profile.division_id|default:'' }}"
+                   data-search="{{ user.profile.full_name|default:user.username|lower }} {{ user.profile.employee_code|default:''|lower }} {{ user.username|lower }} {{ user.profile.job_position|default:''|lower }} {{ user.profile.get_role_display|default:''|lower }} {{ user.profile.department.name|default:''|lower }} {{ user.profile.division.name|default:''|lower }}">
                 {% if mode == 'single' %}
                 <input type="radio"
                        class="form-check-input mt-1 flex-shrink-0"

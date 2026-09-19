@@ -15,6 +15,7 @@
     .btn-hm:hover { background-color: var(--hm-primary-hover); color: white; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2); }
     
     .card-hm { border: none; border-radius: 5px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); overflow: hidden; }
+    .card-hm:has(.jp-user-picker) { overflow: visible; }
     .card-header-hm { background: white; border-bottom: 1px solid #f1f5f9; padding: 1.25rem; }
 
     .breadcrumb-hm { background: white; border-radius: 4px; padding: 1rem 1.5rem; border: 1px solid #f1f5f9; }
@@ -338,7 +339,10 @@
             btn.addEventListener('click', function() {
                 const position = btn.dataset.pos || '';
                 const added = window.JpUserPicker.selectByFilter(fieldName, function(opt) {
-                    return (opt.dataset.search || '').includes(position.toLowerCase());
+                    const needle = (position || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    const pos = (opt.getAttribute('data-position') || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    const search = (opt.dataset.search || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                    return !!needle && (pos === needle || pos.indexOf(needle) !== -1 || search.indexOf(needle) !== -1);
                 }, true);
                 flashButton(btn, added > 0);
             });

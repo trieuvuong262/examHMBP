@@ -1,6 +1,5 @@
 from assessment.models import ExamSubmission
 from django.contrib import messages
-from django.contrib.auth.models import User
 from django.core.paginator import Paginator
 from django.db.models import Count
 from django.http import JsonResponse
@@ -21,7 +20,7 @@ from hrm.module_permissions import (
 from PortalJustPlay.list_search import apply_term_search, get_search_query
 from PortalJustPlay.pagination import LIST_PAGE_SIZE, paginate_queryset
 
-from .forms import ChapterForm, CourseForm, LessonForm
+from .forms import ChapterForm, CourseForm, LessonForm, assignee_quick_select_context
 from .models import Chapter, Course, CourseCategory, Enrollment, Lesson, LessonProgress
 
 
@@ -230,28 +229,18 @@ def mark_lesson_complete(request, lesson_id):
 
 @module_perm_required(MODULE_TRAINING, 'create')
 def course_create(request):
-    user_positions = {}
-    users = User.objects.select_related('profile').all()
-    for u in users:
-        try:
-            if hasattr(u, 'profile'):
-                # Lưu thành mảng: [Chức danh, Vai trò]
-                user_positions[str(u.id)] = [u.profile.position, u.profile.role] 
-        except:
-            pass
-
     if request.method == 'POST':
         form = CourseForm(request.POST, request.FILES)
         if form.is_valid():
             course = form.save()
             messages.success(request, f'Đã tạo thành công khóa học: {course.title}')
-            return redirect('admin_dashboard') 
+            return redirect('admin_dashboard')
     else:
         form = CourseForm()
 
     return render(request, 'training/admin/course_form.html', {
         'form': form,
-        'user_positions_json': json.dumps(user_positions)
+        **assignee_quick_select_context(),
     })
     
 @module_perm_required(MODULE_TRAINING, 'edit')
@@ -295,15 +284,6 @@ def course_list(request):
 @module_perm_required(MODULE_TRAINING, 'update')
 def course_edit(request, course_id):
     course = get_object_or_404(Course, id=course_id)
-    user_positions = {}
-    users = User.objects.select_related('profile').all()
-    for u in users:
-        try:
-            if hasattr(u, 'profile'):
-                # Lưu thành mảng: [Chức danh, Vai trò]
-                user_positions[str(u.id)] = [u.profile.position, u.profile.role]
-        except:
-            pass
 
     if request.method == 'POST':
         form = CourseForm(request.POST, request.FILES, instance=course)
@@ -316,7 +296,7 @@ def course_edit(request, course_id):
 
     return render(request, 'training/admin/course_form.html', {
         'form': form,
-        'user_positions_json': json.dumps(user_positions)
+        **assignee_quick_select_context(),
     })
     
 @module_perm_required(MODULE_TRAINING, 'edit')
