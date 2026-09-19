@@ -79,6 +79,23 @@ class Exam(models.Model):
     end_time = models.DateTimeField(verbose_name='Thời gian kết thúc')
     duration_minutes = models.PositiveIntegerField(verbose_name='Thời gian làm bài (phút)')
     is_active = models.BooleanField(default=True, verbose_name='Đang hoạt động')
+    issue_certificate = models.BooleanField(
+        default=True,
+        verbose_name='Cấp chứng chỉ khi hoàn thành',
+    )
+    pass_score = models.FloatField(
+        default=5.0,
+        verbose_name='Điểm đạt (cấp chứng chỉ)',
+        help_text='Thí sinh đạt từ mức này trở lên mới được cấp chứng chỉ.',
+    )
+    certificate_template = models.ForeignKey(
+        'CertificateTemplate',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='exams',
+        verbose_name='Mẫu chứng chỉ',
+    )
 
     def __str__(self):
         return self.title
@@ -136,3 +153,84 @@ class UserAnswer(models.Model):
     image_answer = models.ImageField(upload_to='user_uploads/', null=True, blank=True)
     is_graded = models.BooleanField(default=False)
     graded_score = models.FloatField(default=0.0)
+
+
+class CertificateTemplate(models.Model):
+    name = models.CharField(max_length=255, verbose_name='Tên mẫu')
+    heading = models.CharField(max_length=120, default='CERTIFICATE', verbose_name='Tiêu đề lớn')
+    ribbon_text = models.CharField(max_length=80, default='OF ACHIEVEMENT', verbose_name='Dòng phụ')
+    presented_label = models.CharField(
+        max_length=160,
+        default='THIS CERTIFICATE IS PROUDLY PRESENTED TO',
+        verbose_name='Dòng giới thiệu',
+    )
+    body_text = models.TextField(
+        verbose_name='Nội dung',
+        help_text='Có thể dùng {name}, {exam_title}, {score}, {date}, {code}.',
+        default=(
+            'Chứng nhận đã hoàn thành kỳ thi «{exam_title}» với số điểm {score}. '
+            'Chứng chỉ số {code}, cấp ngày {date}.'
+        ),
+    )
+    issuer_name = models.CharField(max_length=120, default='JustPlay.vn', verbose_name='Đơn vị cấp')
+    issuer_title = models.CharField(max_length=120, default='Ban Đào tạo', verbose_name='Chức danh ký')
+    seal_text = models.CharField(max_length=40, default='JUST PLAY', verbose_name='Chữ trên huy hiệu')
+    is_default = models.BooleanField(default=False, verbose_name='Mẫu mặc định')
+    is_active = models.BooleanField(default=True, verbose_name='Đang dùng')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Mẫu chứng chỉ'
+        verbose_name_plural = 'Mẫu chứng chỉ'
+        ordering = ['-is_default', 'name']
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.is_default:
+            type(self).objects.exclude(pk=self.pk).filter(is_default=True).update(is_default=False)
+
+
+class Certificate(models.Model):
+    code = models.CharField(max_length=32, unique=True, verbose_name='Mã chứng chỉ')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='certificates')
+    exam = models.ForeignKey(Exam, on_delete=models.CASCADE, related_name='certificates')
+    submission = models.ForeignKey(
+        ExamSubmission,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='certificates',
+    )
+    template = models.ForeignKey(
+        CertificateTemplate,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='issued_certificates',
+    )
+    recipient_name = models.CharField(max_length=255, verbose_name='Họ tên trên chứng chỉ')
+    exam_title = models.CharField(max_length=255, verbose_name='Tên kỳ thi')
+    score = models.FloatField(default=0, verbose_name='Điểm')
+    body_text = models.TextField(blank=True, verbose_name='Nội dung đã điền')
+    issued_at = models.DateTimeField(auto_now_add=True, verbose_name='Ngày cấp')
+    is_revoked = models.BooleanField(default=False, verbose_name='Đã thu hồi')
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    revoked_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='revoked_certificates',
+    )
+
+    class Meta:
+        verbose_name = 'Chứng chỉ'
+        verbose_name_plural = 'Chứng chỉ'
+        ordering = ['-issued_at']
+        unique_together = ('user', 'exam')
+
+    def __str__(self):
+        return f'{self.code} — {self.recipient_name}'

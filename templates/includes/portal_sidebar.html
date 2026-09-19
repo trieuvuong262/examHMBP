@@ -196,7 +196,7 @@
                         {% if jp_can_manage_assessment %}
                         <li>
                             <a href="{% url 'admin_dashboard' %}?tab=assessment"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.GET.tab == 'assessment' or '/dashboard/exam' in request.path or '/dashboard/results' in request.path or '/dashboard/competency' in request.path %}active{% endif %}">
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.GET.tab == 'assessment' or '/dashboard/exam' in request.path or '/dashboard/results' in request.path or '/dashboard/competency' in request.path or '/dashboard/certificates' in request.path %}active{% endif %}">
                                 <i class="bi bi-ui-checks-grid"></i><span>Quản lý kiểm tra</span>
                             </a>
                         </li>

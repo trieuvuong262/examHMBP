@@ -1,11 +1,14 @@
 from django.urls import path
 from . import views
+from . import views_certificates
 from audit import views_login_security
 from hrm import views as hrm_views
 urlpatterns = [
      
     path('', views.home_portal, name='home_portal'),
     path('exams/', views.exam_list, name='exam_list'),
+    path('exams/certificates/', views_certificates.my_certificates, name='my_certificates'),
+    path('exams/certificates/<int:pk>/', views_certificates.certificate_view, name='certificate_view'),
     path('exams/<int:exam_id>/take/', views.take_exam, name='take_exam'),
     path('exams/<int:exam_id>/result/', views.exam_result, name='exam_result'),
     path('dashboard/', views.admin_dashboard, name='admin_dashboard'),
@@ -20,6 +23,13 @@ urlpatterns = [
     path('dashboard/competency/add-ajax/', views.competency_add_ajax, name='competency_add_ajax'),
     path('dashboard/competency/delete/<int:pk>/', views.competency_delete_ajax, name='competency_delete_ajax'),
     path('dashboard/results/<int:exam_id>/', views.admin_results, name='admin_results'),
+    path('dashboard/certificates/', views_certificates.admin_certificate_list, name='admin_certificate_list'),
+    path('dashboard/certificates/<int:pk>/revoke/', views_certificates.admin_certificate_revoke, name='admin_certificate_revoke'),
+    path('dashboard/certificates/<int:pk>/reissue/', views_certificates.admin_certificate_reissue, name='admin_certificate_reissue'),
+    path('dashboard/certificates/templates/', views_certificates.admin_template_list, name='admin_certificate_templates'),
+    path('dashboard/certificates/templates/add/', views_certificates.admin_template_create, name='admin_certificate_template_add'),
+    path('dashboard/certificates/templates/<int:pk>/edit/', views_certificates.admin_template_edit, name='admin_certificate_template_edit'),
+    path('dashboard/certificates/templates/<int:pk>/delete/', views_certificates.admin_template_delete, name='admin_certificate_template_delete'),
     
     path('dashboard/users/', hrm_views.user_list, name='user_list'),
     path(

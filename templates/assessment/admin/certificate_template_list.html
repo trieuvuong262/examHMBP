@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid jp-page py-3 py-md-4 px-2 px-md-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1">Mẫu chứng chỉ</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{% url 'admin_certificate_list' %}" class="text-decoration-none text-muted">Chứng chỉ</a></li>
+                    <li class="breadcrumb-item active fw-bold text-hm">Mẫu</li>
+                </ol>
+            </nav>
+        </div>
+        {% if jp_can_create_assessment %}
+        <a href="{% url 'admin_certificate_template_add' %}" class="btn btn-hm fw-bold">
+            <i class="bi bi-plus-lg me-1"></i>Thêm mẫu
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th class="ps-4">Tên mẫu</th>
+                        <th>Tiêu đề</th>
+                        <th>Đơn vị cấp</th>
+                        <th class="text-center">Mặc định</th>
+                        <th class="text-center">Trạng thái</th>
+                        <th class="text-end pe-4">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tmpl in templates %}
+                    <tr>
+                        <td class="ps-4 fw-bold">{{ tmpl.name }}</td>
+                        <td>{{ tmpl.heading }}</td>
+                        <td>{{ tmpl.issuer_name }}</td>
+                        <td class="text-center">{% if tmpl.is_default %}<span class="badge bg-primary">Mặc định</span>{% else %}—{% endif %}</td>
+                        <td class="text-center">
+                            {% if tmpl.is_active %}<span class="badge bg-success">Đang dùng</span>{% else %}<span class="badge bg-secondary">Tắt</span>{% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <div class="btn-group">
+                                {% if jp_can_update_assessment %}
+                                <a href="{% url 'admin_certificate_template_edit' tmpl.pk %}" class="btn btn-sm btn-light border"><i class="bi bi-pencil"></i></a>
+                                {% endif %}
+                                {% if jp_can_delete_assessment %}
+                                <a href="{% url 'admin_certificate_template_delete' tmpl.pk %}" class="btn btn-sm btn-light border text-danger"><i class="bi bi-trash"></i></a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center py-5 text-muted">Chưa có mẫu chứng chỉ.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

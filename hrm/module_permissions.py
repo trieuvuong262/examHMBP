@@ -226,6 +226,7 @@ PATH_MODULE_RULES = [
     ('/dashboard/exam/', MODULE_ASSESSMENT),
     ('/dashboard/results/', MODULE_ASSESSMENT),
     ('/dashboard/competency/', MODULE_ASSESSMENT),
+    ('/dashboard/certificates/', MODULE_ASSESSMENT),
     ('/announcements/', MODULE_ANNOUNCEMENTS),
     ('/hr/', MODULE_RECRUITMENT),
     ('/training/', MODULE_TRAINING),

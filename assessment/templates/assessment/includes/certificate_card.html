@@ -1,0 +1,32 @@
+{% with t=cert.template %}
+<article class="jp-cert" aria-label="Chứng chỉ {{ cert.code }}">
+    <div class="jp-cert-inner">
+        <div class="jp-cert-deco" aria-hidden="true">
+            <span class="jp-cert-deco-a"></span>
+            <span class="jp-cert-deco-b"></span>
+            <span class="jp-cert-deco-c"></span>
+        </div>
+        <div class="jp-cert-seal" aria-hidden="true">
+            <span class="jp-cert-seal-ring">{{ t.seal_text|default:"JUST PLAY" }}</span>
+        </div>
+        <header class="jp-cert-head">
+            <h1 class="jp-cert-heading">{{ t.heading|default:"CERTIFICATE" }}</h1>
+            <p class="jp-cert-ribbon">{{ t.ribbon_text|default:"OF ACHIEVEMENT" }}</p>
+        </header>
+        <p class="jp-cert-presented">{{ t.presented_label|default:"THIS CERTIFICATE IS PROUDLY PRESENTED TO" }}</p>
+        <p class="jp-cert-name">{{ cert.recipient_name }}</p>
+        <p class="jp-cert-body">{{ cert.body_text }}</p>
+        <footer class="jp-cert-foot">
+            <div class="jp-cert-signblock">
+                <span class="jp-cert-signline">{{ cert.issued_at|date:"d/m/Y" }}</span>
+                <span class="jp-cert-signlabel">DATE</span>
+            </div>
+            <div class="jp-cert-signblock">
+                <span class="jp-cert-signline">{{ t.issuer_name|default:"JustPlay.vn" }}</span>
+                <span class="jp-cert-signlabel">{{ t.issuer_title|default:"SIGNATURE" }}</span>
+            </div>
+        </footer>
+        <p class="jp-cert-code">{{ cert.code }}{% if cert.exam_title %} · {{ cert.exam_title }}{% endif %} · {{ cert.score|floatformat:1 }} điểm</p>
+    </div>
+</article>
+{% endwith %}

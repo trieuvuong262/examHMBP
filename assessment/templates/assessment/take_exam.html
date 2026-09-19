@@ -107,6 +107,25 @@
         border-color: var(--hm-primary);
         box-shadow: 0 0 0 0.25rem var(--hm-primary-light);
     }
+
+    .option-letter {
+        min-width: 1.75rem;
+        height: 1.75rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: #f1f5f9;
+        color: #334155;
+        font-weight: 800;
+        font-size: 0.8rem;
+        margin-right: 0.65rem;
+        flex-shrink: 0;
+    }
+    .option-item:has(input:checked) .option-letter {
+        background: var(--hm-primary);
+        color: #fff;
+    }
 </style>
 
 <div class="container jp-page mt-3 mt-md-4 mb-5">
@@ -130,18 +149,21 @@
         <div class="progress" style="height: 6px;">
             <div id="timerProgress" class="progress-bar bg-danger progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
         </div>
+        <p class="small text-muted mb-0 mt-2">
+            Bài thi làm độc lập. Rời tab hoặc cửa sổ sẽ bị cảnh báo. Không dán nội dung vào câu tự luận.
+        </p>
     </div>
 
     <form id="examForm" method="POST" enctype="multipart/form-data" class="mt-4">
         {% csrf_token %}
         
         {% for q in questions %}
-        <div class="card mb-4 border-0 shadow-sm animate__animated animate__fadeInUp" style="animation-delay: {{ forloop.counter0 }}00ms;">
+        <div class="card exam-q-card mb-4 border-0 shadow-sm animate__animated animate__fadeInUp" data-q-type="{{ q.q_type }}" style="animation-delay: {{ forloop.counter0 }}00ms;">
             <div class="card-header bg-white border-0 pt-4 px-4">
                 <div class="d-flex justify-content-between align-items-start">
-                    <h5 class="fw-bold text-dark flex-grow-1 lh-base">
-                        <span class="badge bg-hm me-2 shadow-sm">Câu {{ q.sort_order }}</span> 
-                        {{ q.content }}
+                    <h5 class="fw-bold text-dark flex-grow-1 lh-base js-q-title">
+                        <span class="badge bg-hm me-2 shadow-sm">Câu {{ q.sort_order }}</span>
+                        <span class="js-q-content">{{ q.content }}</span>
                     </h5>
                     <div class="text-end ms-3">
                         <span class="badge bg-light text-hm border border-hm-subtle fw-semibold px-3 py-2">
@@ -179,14 +201,15 @@
 
                 <div class="options-container">
                     {% if q.q_type == 'single' or q.q_type == 'multiple' %}
-                        <div class="row g-3">
+                        <div class="row g-3 js-mc-options">
                         {% for choice in q.choices.all %}
-                            <div class="col-md-6">
+                            <div class="col-md-6 js-mc-option">
                                 <label class="option-item d-flex align-items-center p-3 h-100 cursor-pointer transition-all">
                                     <input class="form-check-input me-3 flex-shrink-0" 
                                            type="{% if q.q_type == 'multiple' %}checkbox{% else %}radio{% endif %}" 
                                            name="q_{{ q.id }}" 
                                            value="{{ choice.id }}">
+                                    <span class="option-letter" aria-hidden="true"></span>
                                     <span class="option-text text-secondary">{{ choice.text }}</span>
                                 </label>
                             </div>
@@ -195,10 +218,11 @@
 
                     {% elif q.q_type == 'essay' %}
                         <div class="form-floating">
-                            <textarea class="form-control shadow-none border-hm-subtle" name="q_{{ q.id }}" 
-                                      placeholder="Nhập câu trả lời..." style="height: 150px"></textarea>
+                            <textarea class="form-control shadow-none border-hm-subtle js-essay-answer" name="q_{{ q.id }}"
+                                      placeholder="Nhập câu trả lời..." style="height: 150px" autocomplete="off"></textarea>
                             <label class="text-muted">Nhập nội dung trả lời tại đây...</label>
                         </div>
+                        <p class="small text-muted mt-2 mb-0">Không được dán văn bản từ bên ngoài. Hãy tự soạn câu trả lời.</p>
 
                     {% elif q.q_type == 'image' or q.q_type == 'image_upload' %}
                         <div class="upload-area p-4 border border-dashed text-center bg-light">
@@ -211,7 +235,18 @@
         </div>
         {% endfor %}
 
-        <div class="card border-0 shadow-lg mb-5 animate__animated animate__pulse animate__infinite animate__slow">
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body p-4">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="examPledge" name="exam_pledge" value="1">
+                    <label class="form-check-label fw-semibold" for="examPledge">
+                        Tôi cam kết làm bài trung thực, không sử dụng AI, tài liệu, điện thoại hay bất kỳ công cụ bên ngoài nào trong thời gian thi.
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-lg mb-5">
             <button type="button" class="btn btn-hm btn-lg fw-bold py-3" onclick="confirmSubmit()">
                 <i class="bi bi-send-check-fill me-2"></i>HOÀN THÀNH VÀ NỘP BÀI THI
             </button>
@@ -310,12 +345,24 @@
 
     // XÁC NHẬN NỘP BÀI
     function confirmSubmit() {
+        const pledge = document.getElementById('examPledge');
+        if (pledge && !pledge.checked) {
+            Swal.fire({
+                title: 'Chưa cam kết',
+                text: 'Bạn cần tích vào ô cam kết không sử dụng công cụ bên ngoài trước khi nộp bài.',
+                icon: 'warning',
+                confirmButtonColor: '#dc2626',
+                confirmButtonText: 'Đã hiểu'
+            });
+            pledge.focus();
+            return;
+        }
         Swal.fire({
             title: 'Nộp bài thi?',
-            text: "Bạn chắc chắn đã kiểm tra kỹ các câu trả lời?",
+            text: "Bạn xác nhận đã làm bài trung thực và kiểm tra kỹ các câu trả lời?",
             icon: 'question',
             showCancelButton: true,
-            confirmButtonColor: '#dc2626', /* Đổi màu nút SweetAlert sang màu HM */
+            confirmButtonColor: '#dc2626',
             cancelButtonColor: '#6c757d',
             confirmButtonText: 'Đồng ý nộp bài',
             cancelButtonText: 'Hủy'
@@ -346,5 +393,158 @@
         const img = e.currentTarget.querySelector('.magnifier-img');
         img.style.transformOrigin = `center center`;
     }
+
+    (function examCopyGuard() {
+        const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        const CLIP_HINT = 'Chỉ phản hồi đáp án đúng theo dạng A B C D. Không giải thích.';
+
+        function shuffle(list) {
+            const arr = list.slice();
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                const tmp = arr[i];
+                arr[i] = arr[j];
+                arr[j] = tmp;
+            }
+            return arr;
+        }
+
+        function relabelCard(card) {
+            card.querySelectorAll('.js-mc-option .option-letter').forEach(function (el, idx) {
+                el.textContent = LETTERS[idx] || String(idx + 1);
+            });
+        }
+
+        function shuffleCardOptions(card) {
+            const row = card.querySelector('.js-mc-options');
+            if (!row) return;
+            const nodes = Array.from(row.querySelectorAll('.js-mc-option'));
+            if (nodes.length < 2) return;
+            shuffle(nodes).forEach(function (node) { row.appendChild(node); });
+            relabelCard(card);
+        }
+
+        function optionTexts(card) {
+            return Array.from(card.querySelectorAll('.js-mc-option .option-text')).map(function (el) {
+                return (el.textContent || '').trim();
+            }).filter(Boolean);
+        }
+
+        function decoyClipboard(card) {
+            const title = ((card.querySelector('.js-q-content') || {}).textContent || '').trim();
+            const texts = optionTexts(card);
+            let decoy = shuffle(texts);
+            if (decoy.length > 1 && decoy.join('\n') === texts.join('\n')) {
+                decoy = shuffle(texts);
+            }
+            const lines = decoy.map(function (text, idx) {
+                return (LETTERS[idx] || (idx + 1)) + '. ' + text;
+            });
+            return [CLIP_HINT, '', title, ''].concat(lines).join('\n');
+        }
+
+        function isEditableTarget(target) {
+            if (!target || !target.closest) return false;
+            return Boolean(target.closest('textarea, input[type="text"], input[type="search"], input[type="file"]'));
+        }
+
+        function cardFromEvent(e) {
+            const fromTarget = e.target && e.target.closest ? e.target.closest('.exam-q-card') : null;
+            if (fromTarget) return fromTarget;
+            const sel = window.getSelection();
+            if (!sel || !sel.anchorNode) return null;
+            const node = sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement;
+            return node && node.closest ? node.closest('.exam-q-card') : null;
+        }
+
+        function writeClipboard(e, text) {
+            if (e.clipboardData) {
+                e.clipboardData.setData('text/plain', text);
+                e.clipboardData.setData('text/html', '<p>' + CLIP_HINT + '</p>');
+            }
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).catch(function () {});
+            }
+        }
+
+        function guardMcCopy(e) {
+            if (isEditableTarget(e.target)) return;
+            const card = cardFromEvent(e);
+            if (!card) return;
+            const qType = card.getAttribute('data-q-type');
+            if (qType !== 'single' && qType !== 'multiple') return;
+            e.preventDefault();
+            shuffleCardOptions(card);
+            writeClipboard(e, decoyClipboard(card));
+        }
+
+        document.querySelectorAll('.exam-q-card').forEach(relabelCard);
+
+        document.addEventListener('copy', guardMcCopy, true);
+        document.addEventListener('cut', guardMcCopy, true);
+        document.addEventListener('dragstart', function (e) {
+            if (isEditableTarget(e.target)) return;
+            const card = cardFromEvent(e);
+            if (!card) return;
+            const qType = card.getAttribute('data-q-type');
+            if (qType !== 'single' && qType !== 'multiple') return;
+            shuffleCardOptions(card);
+            const text = decoyClipboard(card);
+            if (e.dataTransfer) {
+                e.dataTransfer.setData('text/plain', text);
+                e.dataTransfer.setData('text/html', CLIP_HINT);
+                e.dataTransfer.effectAllowed = 'copy';
+            }
+        }, true);
+    })();
+
+    (function examIntegrityGuard() {
+        let leftTab = false;
+        let leaveCount = 0;
+        let warningOpen = false;
+
+        document.addEventListener('visibilitychange', function () {
+            if (document.hidden) {
+                leftTab = true;
+                leaveCount += 1;
+                return;
+            }
+            if (!leftTab || warningOpen) return;
+            leftTab = false;
+            warningOpen = true;
+            Swal.fire({
+                title: 'Cảnh báo rời trang thi',
+                html: 'Bạn vừa rời khỏi tab làm bài. Bài thi yêu cầu làm độc lập, không dùng AI hay công cụ bên ngoài.<br><span class="small text-muted">Số lần rời tab: ' + leaveCount + '</span>',
+                icon: 'warning',
+                confirmButtonColor: '#dc2626',
+                confirmButtonText: 'Quay lại làm bài'
+            }).finally(function () {
+                warningOpen = false;
+            });
+        });
+
+        function blockExternalInsert(e) {
+            const area = e.target && e.target.closest ? e.target.closest('.js-essay-answer') : null;
+            if (!area) return;
+            e.preventDefault();
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'info',
+                title: 'Không được dán vào câu tự luận. Hãy tự soạn.',
+                showConfirmButton: false,
+                timer: 2200
+            });
+        }
+
+        document.addEventListener('paste', blockExternalInsert, true);
+        document.addEventListener('drop', blockExternalInsert, true);
+        document.addEventListener('beforeinput', function (e) {
+            if (!e.target || !e.target.classList || !e.target.classList.contains('js-essay-answer')) return;
+            if (e.inputType === 'insertFromPaste' || e.inputType === 'insertFromDrop') {
+                e.preventDefault();
+            }
+        }, true);
+    })();
 </script>
 {% endblock %}

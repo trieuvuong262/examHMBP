@@ -1,0 +1,171 @@
+.jp-cert {
+    --cert-cream: #fbf6ea;
+    --cert-navy: #122b5c;
+    --cert-navy-2: #0b1f4d;
+    --cert-gold: #c9a227;
+    --cert-ink: #2c2a32;
+    position: relative;
+    width: 100%;
+    max-width: 920px;
+    margin: 0 auto;
+    background: var(--cert-cream);
+    color: var(--cert-ink);
+    box-shadow: 0 18px 40px rgba(18, 43, 92, 0.18);
+    aspect-ratio: 1.414 / 1;
+}
+.jp-cert-inner {
+    position: relative;
+    overflow: hidden;
+    height: 100%;
+    min-height: 520px;
+    padding: 2.4rem 3rem 1.6rem 3.4rem;
+    border: 1px solid var(--cert-gold);
+    outline: 8px solid var(--cert-cream);
+    outline-offset: -14px;
+}
+.jp-cert-deco { position: absolute; left: 0; bottom: 0; width: 42%; height: 58%; pointer-events: none; }
+.jp-cert-deco-a,
+.jp-cert-deco-b,
+.jp-cert-deco-c {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 0;
+    height: 0;
+    border-style: solid;
+}
+.jp-cert-deco-a {
+    border-width: 0 0 280px 240px;
+    border-color: transparent transparent var(--cert-navy-2) transparent;
+}
+.jp-cert-deco-b {
+    border-width: 0 0 210px 170px;
+    border-color: transparent transparent var(--cert-navy) transparent;
+}
+.jp-cert-deco-c {
+    left: 28px;
+    bottom: 36px;
+    width: 90px;
+    height: 90px;
+    border: 2px solid var(--cert-gold);
+    background: transparent;
+    transform: rotate(12deg);
+    box-shadow: 18px 18px 0 -16px var(--cert-gold), 36px 8px 0 -16px var(--cert-gold);
+}
+.jp-cert-seal {
+    position: absolute;
+    top: 1.6rem;
+    right: 2.2rem;
+    width: 86px;
+    height: 86px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #f6e27a, var(--cert-gold) 55%, #8a6a12);
+    color: #1a1408;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-align: center;
+    line-height: 1.15;
+    box-shadow: 0 6px 0 #3b2a08, 0 10px 16px rgba(0,0,0,.18);
+}
+.jp-cert-seal::after {
+    content: "";
+    position: absolute;
+    inset: 7px;
+    border-radius: 50%;
+    border: 1.5px dashed rgba(26, 20, 8, .45);
+}
+.jp-cert-seal-ring { position: relative; z-index: 1; max-width: 70%; }
+.jp-cert-head { text-align: center; padding-top: 0.4rem; }
+.jp-cert-heading {
+    font-family: "Playfair Display", "Times New Roman", serif;
+    font-weight: 700;
+    letter-spacing: 0.28em;
+    font-size: clamp(1.6rem, 3.4vw, 2.5rem);
+    margin: 0;
+    color: #1d1b24;
+}
+.jp-cert-ribbon {
+    display: inline-block;
+    margin: 0.45rem 0 0;
+    padding: 0.15rem 1.4rem;
+    border: 1px solid var(--cert-gold);
+    border-left: 0;
+    border-right: 0;
+    font-size: 0.72rem;
+    letter-spacing: 0.28em;
+    color: #6b6570;
+}
+.jp-cert-presented {
+    text-align: center;
+    margin: 1.6rem 0 0.35rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    color: #6b6570;
+    text-transform: uppercase;
+}
+.jp-cert-name {
+    font-family: "Great Vibes", "Segoe Script", cursive;
+    font-size: clamp(2.1rem, 5vw, 3.3rem);
+    text-align: center;
+    margin: 0 auto 0.35rem;
+    padding-bottom: 0.2rem;
+    max-width: 78%;
+    border-bottom: 1px solid #cfc6b4;
+    color: #3b3842;
+    line-height: 1.15;
+}
+.jp-cert-body {
+    text-align: center;
+    max-width: 70%;
+    margin: 1rem auto 0;
+    font-size: 0.92rem;
+    line-height: 1.55;
+    color: #5c5660;
+}
+.jp-cert-foot {
+    display: flex;
+    justify-content: center;
+    gap: 5rem;
+    margin-top: 2.2rem;
+}
+.jp-cert-signblock { min-width: 160px; text-align: center; }
+.jp-cert-signline {
+    display: block;
+    border-bottom: 1px solid #cfc6b4;
+    padding-bottom: 0.2rem;
+    font-family: "Playfair Display", serif;
+    font-size: 0.95rem;
+}
+.jp-cert-signlabel {
+    display: block;
+    margin-top: 0.35rem;
+    font-size: 0.68rem;
+    letter-spacing: 0.22em;
+    color: #7a7380;
+}
+.jp-cert-code {
+    text-align: center;
+    margin: 1.4rem 0 0;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    color: #8a8490;
+}
+.jp-cert--preview { aspect-ratio: auto; min-height: 0; }
+.jp-cert--preview .jp-cert-inner { min-height: 420px; padding: 1.6rem 1.8rem 1.2rem; }
+
+@media print {
+    @page { size: A4 landscape; margin: 8mm; }
+    .jp-sidebar, .jp-app-header, .jp-portal-header, header, .jp-cert-toolbar, .jp-page-header,
+    .jp-amis-header, .navbar { display: none !important; }
+    .jp-app-shell, .jp-app-body, .jp-app-main, .jp-main-content, body, html {
+        background: #fff !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+    }
+    .jp-cert { box-shadow: none; max-width: none; }
+}

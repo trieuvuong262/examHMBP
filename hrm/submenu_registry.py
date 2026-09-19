@@ -262,6 +262,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/dashboard/results/', MODULE_ASSESSMENT, 'manage'),
     ('/dashboard/competency/', MODULE_ASSESSMENT, 'manage'),
     ('/dashboard/submission/', MODULE_ASSESSMENT, 'manage'),
+    ('/dashboard/certificates/', MODULE_ASSESSMENT, 'manage'),
     ('/dashboard/users/tai-khoan-bi-khoa', MODULE_HRM, 'locked_accounts'),
     ('/dashboard/users/', MODULE_HRM, 'users'),
     ('/dashboard/org/', MODULE_HRM, 'users'),

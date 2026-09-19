@@ -60,6 +60,11 @@
                 <a href="{% url 'exam_result' exam.id %}" class="btn btn-hm px-4 fw-bold">
                     <i class="bi bi-eye-fill me-1"></i>Xem kết quả
                 </a>
+                {% if certificate %}
+                <a href="{% url 'certificate_view' certificate.pk %}" class="btn btn-outline-hm px-4 fw-bold">
+                    <i class="bi bi-award-fill me-1"></i>Chứng chỉ
+                </a>
+                {% endif %}
                 <a href="{% url 'exam_list' %}" class="btn btn-secondary px-4 fw-bold">Đóng cửa sổ</a>
             </div>
         </div>

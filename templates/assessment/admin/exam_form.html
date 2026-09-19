@@ -104,7 +104,7 @@
                         {% endif %}
 
                         {% for field in form %}
-                            {% if field.name != 'questions' and field.name != 'assigned_users' and field.name != 'is_active' %}
+                            {% if field.name != 'questions' and field.name != 'assigned_users' and field.name != 'is_active' and field.name != 'issue_certificate' %}
                                 <div class="mb-3">
                                     <label class="form-label fw-bold small text-muted text-uppercase">{{ field.label }}</label>
                                     <div class="input-group-custom">
@@ -115,9 +115,29 @@
                                             {% for error in field.errors %}{{ error }}{% endfor %}
                                         </div>
                                     {% endif %}
+                                    {% if field.help_text %}
+                                        <div class="form-text x-small">{{ field.help_text }}</div>
+                                    {% endif %}
                                 </div>
                             {% endif %}
                         {% endfor %}
+
+                        <div class="mt-4 p-3 bg-light border d-flex align-items-center justify-content-between">
+                            <div>
+                                <h6 class="mb-1 fw-bold text-dark">Cấp chứng chỉ</h6>
+                                <div class="small text-muted" style="font-size: 0.75rem;">Tự cấp khi thí sinh hoàn thành và đạt điểm</div>
+                            </div>
+                            <div class="form-check form-switch form-switch-hm mb-0 d-flex align-items-center">
+                                <input class="form-check-input mt-0 shadow-none" type="checkbox" role="switch" id="issueCertSwitch" name="issue_certificate" {% if exam.issue_certificate or not exam.id %}checked{% endif %}>
+                                <label class="form-check-label fw-bold ms-3 mb-0" for="issueCertSwitch" id="certStatusLabel">
+                                    {% if exam.issue_certificate or not exam.id %}
+                                        <span class="text-success">Bật</span>
+                                    {% else %}
+                                        <span class="text-secondary">Tắt</span>
+                                    {% endif %}
+                                </label>
+                            </div>
+                        </div>
 
                         <div class="mt-4 p-3 bg-light border d-flex align-items-center justify-content-between">
                             <div>
@@ -366,6 +386,15 @@
                 } else {
                     statusLabel.innerHTML = '<span class="text-secondary">Đang khóa</span>';
                 }
+            });
+        }
+        const issueCertSwitch = document.getElementById('issueCertSwitch');
+        const certStatusLabel = document.getElementById('certStatusLabel');
+        if (issueCertSwitch && certStatusLabel) {
+            issueCertSwitch.addEventListener('change', function() {
+                certStatusLabel.innerHTML = this.checked
+                    ? '<span class="text-success">Bật</span>'
+                    : '<span class="text-secondary">Tắt</span>';
             });
         }
 

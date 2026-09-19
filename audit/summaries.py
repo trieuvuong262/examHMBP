@@ -245,6 +245,24 @@ URL_DESCRIPTIONS: dict[str, dict[str, str] | str] = {
     'question_edit_detail': 'sửa câu hỏi #{question_id} (bài #{exam_id})',
     'question_remove': 'xóa câu hỏi #{question_id} (bài #{exam_id})',
     'admin_results': 'xem kết quả bài kiểm tra',
+    'admin_certificate_list': 'xem danh sách chứng chỉ',
+    'admin_certificate_revoke': {
+        'GET': 'mở xác nhận thu hồi chứng chỉ #{pk}',
+        'POST': 'thu hồi chứng chỉ #{pk}',
+    },
+    'admin_certificate_reissue': 'cấp lại chứng chỉ #{pk}',
+    'admin_certificate_templates': 'xem mẫu chứng chỉ',
+    'admin_certificate_template_add': {
+        'GET': 'mở form thêm mẫu chứng chỉ',
+        'POST': 'tạo mẫu chứng chỉ',
+    },
+    'admin_certificate_template_edit': {
+        'GET': 'mở form sửa mẫu chứng chỉ #{pk}',
+        'POST': 'cập nhật mẫu chứng chỉ #{pk}',
+    },
+    'admin_certificate_template_delete': 'xóa mẫu chứng chỉ #{pk}',
+    'my_certificates': 'xem chứng chỉ của tôi',
+    'certificate_view': 'xem chứng chỉ #{pk}',
     'grade_submission': {
         'GET': 'mở form chấm bài #{submission_id}',
         'POST': 'chấm điểm bài làm #{submission_id}',

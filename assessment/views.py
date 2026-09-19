@@ -38,10 +38,12 @@ from .models import (
     Choice, 
     ExamSubmission, 
     UserAnswer, 
-    Competency
+    Competency,
+    Certificate,
 )
 
 from .scoring import grade_mc_answer, rescore_submission
+from .certificates import maybe_issue_certificate
 
 
 @login_required
@@ -118,13 +120,24 @@ def exam_list(request):
     for s in submissions:
         submission_results[s.exam_id] = _submission_result_summary(s)
 
+    certificates_by_exam = {
+        c.exam_id: c
+        for c in Certificate.objects.filter(
+            user=request.user,
+            exam_id__in=list(completed_exam_ids),
+            is_revoked=False,
+        )
+    }
+    for exam in active_exams:
+        exam.user_certificate = certificates_by_exam.get(exam.id)
+
     return render(request, 'assessment/exam_list.html', {
         'active_exams': active_exams,
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
         'completed_exam_ids': completed_exam_ids,
-        'submission_results': submission_results 
+        'submission_results': submission_results,
     })
 @module_perm_required(MODULE_ASSESSMENT, 'view')
 def take_exam(request, exam_id):
@@ -180,6 +193,9 @@ def take_exam(request, exam_id):
             'result': _submission_result_summary(existing_submission),
             'show_result_modal': True,
             'message': 'Bạn đã hoàn tất bài thi này.',
+            'certificate': Certificate.objects.filter(
+                user=request.user, exam=exam, is_revoked=False,
+            ).first(),
         })
 
     submission, created = ExamSubmission.objects.get_or_create(
@@ -243,12 +259,14 @@ def take_exam(request, exam_id):
             submission.manual_score = 0.0
 
         submission.save()
+        certificate = maybe_issue_certificate(submission)
 
         return render(request, 'assessment/result_notice.html', {
             'submission': submission,
             'exam': exam,
             'result': _submission_result_summary(submission),
             'show_result_modal': True,
+            'certificate': certificate,
         })
 
     context = {
@@ -406,6 +424,9 @@ def exam_result(request, exam_id):
         'submission': submission,
         'result': _submission_result_summary(submission),
         'question_rows': question_rows,
+        'certificate': Certificate.objects.filter(
+            user=request.user, exam=exam, is_revoked=False,
+        ).first(),
     })
 
 
@@ -444,6 +465,7 @@ def admin_dashboard(request):
         'active_exams_count': all_exams.filter(is_active=True, end_time__gt=now).count(),
         'total_users': User.objects.count(),
         'total_submissions': ExamSubmission.objects.filter(is_completed=True).count(),
+        'total_certificates': Certificate.objects.filter(is_revoked=False).count(),
         'exams': exams_page.object_list,
         'exams_page': exams_page,
         'exams_query_string': exams_query_string,
@@ -622,8 +644,14 @@ def grade_submission(request, submission_id):
         submission.is_completed = True
         submission.save()
         rescore_submission(submission)
-        
-        messages.success(request, f"Đã cập nhật điểm tay cho thí sinh {submission.user.username}")
+        issued = maybe_issue_certificate(submission)
+        if issued:
+            messages.success(
+                request,
+                f"Đã cập nhật điểm tay cho thí sinh {submission.user.username} và cấp chứng chỉ {issued.code}.",
+            )
+        else:
+            messages.success(request, f"Đã cập nhật điểm tay cho thí sinh {submission.user.username}")
         return redirect('admin_results')
 
     return render(request, 'assessment/admin/grade_form.html', {

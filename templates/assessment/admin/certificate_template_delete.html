@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container jp-page mt-4 mt-md-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card border-danger shadow">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">Xóa mẫu chứng chỉ</h4>
+                </div>
+                <div class="card-body text-center">
+                    <p class="lead">Xóa mẫu <strong>{{ template.name }}</strong>?</p>
+                    <p class="small text-muted">Chứng chỉ đã cấp vẫn giữ nguyên nội dung đã lưu.</p>
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-center gap-3 mt-4">
+                            <a href="{% url 'admin_certificate_templates' %}" class="btn btn-secondary px-4">Hủy</a>
+                            <button type="submit" class="btn btn-danger px-4">Xóa mẫu</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

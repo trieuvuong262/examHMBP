@@ -1,5 +1,5 @@
 from django import forms
-from .models import Exam, Question, Choice, User, ExamQuestion
+from .models import Exam, Question, Choice, User, ExamQuestion, CertificateTemplate
 from django.forms import inlineformset_factory
 from django.contrib.auth.models import User
 from hrm.models import Profile
@@ -7,7 +7,10 @@ from hrm.models import Profile
 class ExamForm(forms.ModelForm):
     class Meta:
         model = Exam
-        fields = ['title', 'description', 'start_time', 'end_time', 'duration_minutes', 'is_active', 'assigned_users']
+        fields = [
+            'title', 'description', 'start_time', 'end_time', 'duration_minutes',
+            'pass_score', 'certificate_template', 'issue_certificate', 'is_active', 'assigned_users',
+        ]
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ví dụ: Đánh giá kỹ thuật tiêm tĩnh mạch'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
@@ -20,6 +23,9 @@ class ExamForm(forms.ModelForm):
                 format='%Y-%m-%dT%H:%M'
             ),
             'duration_minutes': forms.NumberInput(attrs={'class': 'form-control'}),
+            'pass_score': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.1', 'min': '0'}),
+            'certificate_template': forms.Select(attrs={'class': 'form-select'}),
+            'issue_certificate': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'assigned_users': forms.CheckboxSelectMultiple(),
         }
@@ -39,6 +45,35 @@ class ExamForm(forms.ModelForm):
         
         self.fields['start_time'].input_formats = ['%Y-%m-%dT%H:%M']
         self.fields['end_time'].input_formats = ['%Y-%m-%dT%H:%M']
+        if 'certificate_template' in self.fields:
+            self.fields['certificate_template'].queryset = CertificateTemplate.objects.filter(
+                is_active=True,
+            ).order_by('-is_default', 'name')
+            self.fields['certificate_template'].required = False
+            self.fields['certificate_template'].empty_label = '— Mẫu mặc định —'
+
+
+class CertificateTemplateForm(forms.ModelForm):
+    class Meta:
+        model = CertificateTemplate
+        fields = [
+            'name', 'heading', 'ribbon_text', 'presented_label', 'body_text',
+            'issuer_name', 'issuer_title', 'seal_text', 'is_default', 'is_active',
+        ]
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'heading': forms.TextInput(attrs={'class': 'form-control'}),
+            'ribbon_text': forms.TextInput(attrs={'class': 'form-control'}),
+            'presented_label': forms.TextInput(attrs={'class': 'form-control'}),
+            'body_text': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+            'issuer_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'issuer_title': forms.TextInput(attrs={'class': 'form-control'}),
+            'seal_text': forms.TextInput(attrs={'class': 'form-control'}),
+            'is_default': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+
 class QuestionForm(forms.ModelForm):
     sort_order = forms.IntegerField(
         min_value=1,

@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid jp-page py-3 py-md-4 px-2 px-md-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1">Quản lý chứng chỉ</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}?tab=assessment" class="text-decoration-none text-muted">Quản lý kiểm tra</a></li>
+                    <li class="breadcrumb-item active fw-bold text-hm">Chứng chỉ</li>
+                </ol>
+            </nav>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'admin_certificate_templates' %}" class="btn btn-outline-hm fw-bold bg-white">
+                <i class="bi bi-palette me-1"></i>Mẫu chứng chỉ
+            </a>
+            <a href="{% url 'admin_results' %}" class="btn btn-outline-hm fw-bold bg-white">Kết quả thi</a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm p-3 border-start border-hm border-4">
+                <small class="text-muted d-block fw-bold text-uppercase">Tổng chứng chỉ</small>
+                <span class="fs-4 fw-bold text-dark">{{ total_count }}</span>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm p-3 border-start border-success border-4">
+                <small class="text-muted d-block fw-bold text-uppercase">Còn hiệu lực</small>
+                <span class="fs-4 fw-bold text-dark">{{ active_count }}</span>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm p-3 border-start border-secondary border-4">
+                <small class="text-muted d-block fw-bold text-uppercase">Đã thu hồi</small>
+                <span class="fs-4 fw-bold text-dark">{{ revoked_count }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body p-3">
+            <form method="get" class="row g-2 align-items-end">
+                <div class="col-md-5">
+                    <label class="form-label small text-muted fw-bold mb-1">Tìm kiếm</label>
+                    <div class="input-group jp-hrm-search">
+                        {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tìm mã, tên, kỳ thi...' clear_url=request.path %}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small text-muted fw-bold mb-1">Kỳ thi</label>
+                    <select name="exam" class="form-select" onchange="this.form.submit()">
+                        <option value="">Tất cả kỳ thi</option>
+                        {% for exam in exams %}
+                        <option value="{{ exam.id }}" {% if exam_id == exam.id|stringformat:'s' %}selected{% endif %}>{{ exam.title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small text-muted fw-bold mb-1">Trạng thái</label>
+                    <select name="status" class="form-select" onchange="this.form.submit()">
+                        <option value="">Tất cả</option>
+                        <option value="active" {% if status == 'active' %}selected{% endif %}>Còn hiệu lực</option>
+                        <option value="revoked" {% if status == 'revoked' %}selected{% endif %}>Đã thu hồi</option>
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th class="ps-4">Mã</th>
+                        <th>Nhân viên</th>
+                        <th>Kỳ thi</th>
+                        <th class="text-center">Điểm</th>
+                        <th>Ngày cấp</th>
+                        <th class="text-center">Trạng thái</th>
+                        <th class="text-end pe-4">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cert in certificates %}
+                    <tr>
+                        <td class="ps-4 fw-bold">{{ cert.code }}</td>
+                        <td>
+                            <div class="fw-bold text-dark">{{ cert.recipient_name }}</div>
+                            <div class="small text-muted">{{ cert.user.username }}</div>
+                        </td>
+                        <td>{{ cert.exam_title }}</td>
+                        <td class="text-center fw-bold">{{ cert.score|floatformat:1 }}</td>
+                        <td>{{ cert.issued_at|date:"d/m/Y H:i" }}</td>
+                        <td class="text-center">
+                            {% if cert.is_revoked %}
+                            <span class="badge bg-secondary">Thu hồi</span>
+                            {% else %}
+                            <span class="badge bg-success">Hiệu lực</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <div class="btn-group">
+                                <a href="{% url 'certificate_view' cert.pk %}" class="btn btn-sm btn-light border" title="Xem"><i class="bi bi-eye"></i></a>
+                                {% if cert.is_revoked %}
+                                {% if jp_can_update_assessment %}
+                                <form method="post" action="{% url 'admin_certificate_reissue' cert.pk %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button class="btn btn-sm btn-light border" title="Cấp lại"><i class="bi bi-arrow-repeat"></i></button>
+                                </form>
+                                {% endif %}
+                                {% else %}
+                                {% if jp_can_update_assessment %}
+                                <a href="{% url 'admin_certificate_revoke' cert.pk %}" class="btn btn-sm btn-light border text-danger" title="Thu hồi"><i class="bi bi-slash-circle"></i></a>
+                                {% endif %}
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">Chưa có chứng chỉ nào được cấp.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer bg-white">
+            {% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

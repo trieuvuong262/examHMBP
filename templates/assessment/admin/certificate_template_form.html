@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_head %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'css/certificate.css' %}?v=20260919a">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid jp-page py-3 py-md-4 px-2 px-md-4 pb-5">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'admin_certificate_templates' %}">Mẫu chứng chỉ</a></li>
+            <li class="breadcrumb-item active">{{ title }}</li>
+        </ol>
+    </nav>
+    <div class="row g-4">
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h6 class="mb-0 fw-bold">{{ title }}</h6>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post">
+                        {% csrf_token %}
+                        {% for field in form %}
+                        <div class="mb-3">
+                            {% if field.field.widget.input_type == 'checkbox' %}
+                            <div class="form-check">
+                                {{ field }}
+                                <label class="form-check-label fw-bold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            </div>
+                            {% else %}
+                            <label class="form-label fw-bold small text-muted text-uppercase">{{ field.label }}</label>
+                            {{ field }}
+                            {% endif %}
+                            {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                            {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+                        </div>
+                        {% endfor %}
+                        <button type="submit" class="btn btn-hm fw-bold">Lưu mẫu</button>
+                        <a href="{% url 'admin_certificate_templates' %}" class="btn btn-light border fw-bold">Hủy</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-7">
+            <h6 class="fw-bold mb-3">Xem trước</h6>
+            {% include 'assessment/includes/certificate_card.html' with cert=preview_cert %}
+        </div>
+    </div>
+</div>
+{% endblock %}
