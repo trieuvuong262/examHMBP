@@ -1,0 +1,31 @@
+<div class="jp-cert-desc-row{% if f.DELETE.value %} is-deleted{% endif %}" {% if f.DELETE.value %}hidden{% endif %}>
+    {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+    <div class="row g-2 align-items-start">
+        <div class="col-md-6">
+            <label class="form-label small text-muted fw-bold mb-1" for="{{ f.course.id_for_label }}">Khóa học</label>
+            {{ f.course }}
+        </div>
+        <div class="col-md-6">
+            <label class="form-label small text-muted fw-bold mb-1" for="{{ f.exam.id_for_label }}">Kỳ thi</label>
+            {{ f.exam }}
+        </div>
+        <div class="col-12">
+            <label class="form-label small text-muted fw-bold mb-1" for="{{ f.description.id_for_label }}">Mô tả khóa học</label>
+            {{ f.description }}
+        </div>
+        {% if f.non_field_errors %}
+        <div class="col-12 text-danger small">{{ f.non_field_errors }}</div>
+        {% endif %}
+        {% if f.errors %}
+        <div class="col-12 text-danger small">{{ f.errors }}</div>
+        {% endif %}
+        <div class="col-12 d-flex justify-content-end">
+            {% if f.DELETE %}
+            <div class="d-none">{{ f.DELETE }}</div>
+            {% endif %}
+            <button type="button" class="btn btn-link btn-sm text-danger p-0 fw-bold" data-remove-desc title="Xóa mô tả này">
+                <i class="bi bi-trash me-1"></i>Xóa
+            </button>
+        </div>
+    </div>
+</div>

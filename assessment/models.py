@@ -26,11 +26,26 @@ class Question(models.Model):
     content = models.TextField(verbose_name="Nội dung câu hỏi")
     q_type = models.CharField(max_length=20, choices=TYPE_CHOICES, verbose_name="Loại câu hỏi")
     image_hint = models.ImageField(upload_to='question_hints/', null=True, blank=True, verbose_name="Ảnh minh họa")
-    points = models.FloatField(default=1.0, verbose_name="Điểm số")
+    points = models.FloatField(default=4.0, verbose_name="Điểm số")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"[{self.get_q_type_display()}] {self.content[:50]}"
+
+    def correct_answer_key(self) -> str:
+        if self.q_type not in ('single', 'multiple'):
+            return ''
+        letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        labels = [
+            letters[idx] if idx < len(letters) else str(idx + 1)
+            for idx, choice in enumerate(self.choices.all())
+            if choice.is_correct
+        ]
+        return ', '.join(labels)
+
+    def correct_answer_hint(self) -> str:
+        texts = [choice.text for choice in self.choices.all() if choice.is_correct]
+        return ' | '.join(texts)
 
 
 class ExamQuestion(models.Model):
@@ -84,9 +99,18 @@ class Exam(models.Model):
         verbose_name='Cấp chứng chỉ khi hoàn thành',
     )
     pass_score = models.FloatField(
-        default=5.0,
+        default=50.0,
         verbose_name='Điểm đạt (cấp chứng chỉ)',
-        help_text='Thí sinh đạt từ mức này trở lên mới được cấp chứng chỉ.',
+        help_text='Thang 100. Từ 50 điểm trở lên thì cấp chứng chỉ. Dưới 50 thì học lại và làm bài thi lại.',
+    )
+    retry_of = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='retry_exams',
+        verbose_name='Đề thi lại của',
+        help_text='Để trống nếu đây là đề chính. Đề thi lại dùng khi học viên dưới 50 điểm.',
     )
     certificate_template = models.ForeignKey(
         'CertificateTemplate',
@@ -99,6 +123,10 @@ class Exam(models.Model):
 
     def __str__(self):
         return self.title
+
+    @property
+    def source_exam(self):
+        return self.retry_of or self
 
     def next_sort_order(self) -> int:
         current = self.exam_questions.aggregate(m=Max('sort_order'))['m']
@@ -142,7 +170,8 @@ class ExamSubmission(models.Model):
     
     @property
     def total_score(self):
-        return self.auto_score + self.manual_score
+        from assessment.scoring import round_score
+        return round_score((self.auto_score or 0) + (self.manual_score or 0))
 
     class Meta:
         verbose_name = 'Kết quả bài thi'
@@ -182,16 +211,69 @@ class CertificateTemplate(models.Model):
     ribbon_text = models.CharField(max_length=80, default='OF COMPLETION', verbose_name='Dòng phụ')
     presented_label = models.CharField(
         max_length=160,
-        default='This certificate is proudly presented to',
+        default='đã hoàn thành chương trình đào tạo nội bộ',
         verbose_name='Dòng giới thiệu',
     )
     body_text = models.TextField(
-        verbose_name='Nội dung',
-        help_text='Có thể dùng {name}, {exam_title}, {score}, {date}, {code}.',
+        verbose_name='Mô tả mặc định',
+        help_text='Dùng khi khóa/kỳ thi chưa có mô tả riêng. Có thể dùng {name}, {exam_title}, {score}, {date}, {code}.',
         default=(
             'Chứng nhận đã hoàn thành chương trình «{exam_title}» với kết quả {score} điểm. '
             'Cấp tại JustPlay ngày {date}.'
         ),
+    )
+    thank_you_text = models.TextField(
+        verbose_name='Lời cảm ơn',
+        default=(
+            'JustPlay trân trọng cảm ơn Anh/Chị đã hoàn thành chương trình đào tạo '
+            'và đóng góp cho sự phát triển của công ty.'
+        ),
+    )
+    company_name = models.CharField(
+        max_length=160,
+        default='CÔNG TY TNHH JUST PLAY',
+        verbose_name='Tên công ty',
+    )
+    tax_code = models.CharField(
+        max_length=32,
+        default='0316184836',
+        verbose_name='Mã số thuế',
+    )
+    hr_signer_name = models.CharField(
+        max_length=120,
+        blank=True,
+        default='',
+        verbose_name='Tên trưởng phòng HCNS',
+    )
+    hr_signer_title = models.CharField(
+        max_length=120,
+        default='Trưởng phòng HCNS',
+        verbose_name='Chức danh HCNS',
+    )
+    hr_signature = models.ImageField(
+        upload_to='certificates/signatures/',
+        null=True,
+        blank=True,
+        verbose_name='Chữ ký PNG — Trưởng phòng HCNS',
+        help_text='Ảnh PNG nền trong suốt, chữ ký đỏ/đen.',
+    )
+    director_signer_name = models.CharField(
+        max_length=120,
+        blank=True,
+        default='',
+        verbose_name='Tên giám đốc',
+    )
+    director_signer_title = models.CharField(
+        max_length=120,
+        default='Giám đốc',
+        verbose_name='Chức danh giám đốc',
+    )
+    director_signature = models.ImageField(
+        upload_to='certificates/signatures/',
+        null=True,
+        blank=True,
+        verbose_name='Chữ ký PNG — Giám đốc',
+        help_text='Ảnh PNG nền trong suốt, chữ ký đỏ/đen.',
     )
     issuer_name = models.CharField(max_length=120, default='JustPlay.vn', verbose_name='Đơn vị cấp')
     issuer_title = models.CharField(max_length=120, default='Ban Đào tạo', verbose_name='Chức danh ký')
@@ -212,6 +294,58 @@ class CertificateTemplate(models.Model):
         super().save(*args, **kwargs)
         if self.is_default:
             type(self).objects.exclude(pk=self.pk).filter(is_default=True).update(is_default=False)
+
+
+class CertificateTemplateDescription(models.Model):
+    """Mô tả khóa học / kỳ thi gắn mẫu chứng chỉ — chọn động theo khóa hoặc đề thi."""
+
+    template = models.ForeignKey(
+        CertificateTemplate,
+        on_delete=models.CASCADE,
+        related_name='course_descriptions',
+        verbose_name='Mẫu chứng chỉ',
+    )
+    course = models.ForeignKey(
+        'training.Course',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='certificate_descriptions',
+        verbose_name='Khóa học',
+    )
+    exam = models.ForeignKey(
+        Exam,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='certificate_descriptions',
+        verbose_name='Kỳ thi',
+    )
+    description = models.TextField(
+        verbose_name='Mô tả khóa học',
+        help_text='Hiện trên chứng chỉ của khóa/kỳ thi này. Có thể dùng {name}, {exam_title}, {score}, {date}, {code}.',
+    )
+
+    class Meta:
+        verbose_name = 'Mô tả khóa trên chứng chỉ'
+        verbose_name_plural = 'Mô tả khóa trên chứng chỉ'
+        ordering = ['id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['template', 'course'],
+                condition=models.Q(course__isnull=False),
+                name='uniq_cert_desc_template_course',
+            ),
+            models.UniqueConstraint(
+                fields=['template', 'exam'],
+                condition=models.Q(exam__isnull=False),
+                name='uniq_cert_desc_template_exam',
+            ),
+        ]
+
+    def __str__(self):
+        target = getattr(self.course, 'title', None) or getattr(self.exam, 'title', None) or '—'
+        return f'{self.template_id} · {target}'
 
 
 class Certificate(models.Model):

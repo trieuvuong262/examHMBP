@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container-fluid jp-page py-3 py-md-4 px-2 px-md-4">
+<div class="container-fluid jp-page jp-assessment-page py-3 py-md-4 px-2 px-md-4" data-loading-message="Đang tải chứng chỉ…">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <div>
             <h2 class="fw-bold text-dark mb-1">Quản lý chứng chỉ</h2>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}?tab=assessment" class="text-decoration-none text-muted">Quản lý kiểm tra</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}?tab=assessment" class="text-decoration-none text-muted" data-loading-message="Đang tải quản lý kiểm tra…">Quản lý kiểm tra</a></li>
                     <li class="breadcrumb-item active fw-bold text-hm">Chứng chỉ</li>
                 </ol>
             </nav>
@@ -94,7 +94,7 @@
                             <div class="small text-muted">{{ cert.user.username }}</div>
                         </td>
                         <td>{{ cert.exam_title }}</td>
-                        <td class="text-center fw-bold">{{ cert.score|floatformat:1 }}</td>
+                        <td class="text-center fw-bold">{{ cert.score|floatformat:0 }}</td>
                         <td>{{ cert.issued_at|date:"d/m/Y H:i" }}</td>
                         <td class="text-center">
                             {% if cert.is_revoked %}

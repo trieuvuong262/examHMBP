@@ -108,7 +108,10 @@ def my_courses(request):
         has_taken_exam = False
         final_exam_id = None
         if course.final_exam:
-            final_exam_id = course.final_exam.id
+            from training.course_exam import exam_to_take_for_course
+
+            take = exam_to_take_for_course(user, course)
+            final_exam_id = take.id if take else course.final_exam.id
             if final_exam_id in submitted_exam_ids:
                 has_taken_exam = True
 
@@ -175,6 +178,8 @@ def learning_space(request, course_id, lesson_id=None):
         return_next=return_next,
         survey_ref=survey_ref if survey_read_mode else '',
     )
+    from training.course_exam import exam_to_take_for_course
+    exam_to_take = exam_to_take_for_course(request.user, course) if not survey_read_mode else None
 
     return render(request, 'training/learning_space.html', {
         'course': course,
@@ -187,6 +192,7 @@ def learning_space(request, course_id, lesson_id=None):
         'survey_ref': survey_ref if survey_read_mode else '',
         'survey_read_mode': survey_read_mode,
         'learning_query_suffix': learning_query_suffix,
+        'exam_to_take': exam_to_take,
         'title': f'Học tập: {course.title}'
     })
 
@@ -218,14 +224,17 @@ def mark_lesson_complete(request, lesson_id):
             redirect_url = return_next
         elif is_course_finished and course.final_exam_id:
             from django.urls import reverse
+            from training.course_exam import exam_to_take_for_course
 
+            take = exam_to_take_for_course(request.user, course)
+            take_id = take.id if take else course.final_exam_id
             already_submitted = ExamSubmission.objects.filter(
                 user=request.user,
-                exam_id=course.final_exam_id,
+                exam_id=take_id,
                 submitted_at__isnull=False,
             ).exists()
             if not already_submitted:
-                exam_url = reverse('take_exam', args=[course.final_exam_id])
+                exam_url = reverse('take_exam', args=[take_id])
                 redirect_url = exam_url
 
         return JsonResponse({

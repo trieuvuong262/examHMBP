@@ -1,5 +1,6 @@
 from django import forms
-from .models import Exam, Question, Choice, User, ExamQuestion, CertificateTemplate
+from django.db.models import Q
+from .models import Exam, Question, Choice, User, ExamQuestion, CertificateTemplate, CertificateTemplateDescription
 from django.forms import inlineformset_factory
 from django.contrib.auth.models import User
 from hrm.models import Profile
@@ -23,7 +24,7 @@ class ExamForm(forms.ModelForm):
                 format='%Y-%m-%dT%H:%M'
             ),
             'duration_minutes': forms.NumberInput(attrs={'class': 'form-control'}),
-            'pass_score': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.1', 'min': '0'}),
+            'pass_score': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0', 'max': '100'}),
             'certificate_template': forms.Select(attrs={'class': 'form-select'}),
             'issue_certificate': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -32,8 +33,16 @@ class ExamForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        user_qs = User.objects.all().select_related('profile')
-        self.fields['assigned_users'].queryset = user_qs
+        from hrm.user_search import exclude_hidden_hrm_users
+
+        user_filter = Q(is_active=True)
+        if self.instance.pk:
+            user_filter |= Q(pk__in=self.instance.assigned_users.values('pk'))
+        self.fields['assigned_users'].queryset = (
+            exclude_hidden_hrm_users(User.objects.filter(user_filter))
+            .select_related('profile', 'profile__department', 'profile__division')
+            .order_by('profile__full_name', 'username')
+        )
         
         def get_user_label(obj):
             try:
@@ -57,7 +66,10 @@ class CertificateTemplateForm(forms.ModelForm):
     class Meta:
         model = CertificateTemplate
         fields = [
-            'name', 'heading', 'ribbon_text', 'presented_label', 'body_text',
+            'name', 'heading', 'ribbon_text', 'presented_label', 'body_text', 'thank_you_text',
+            'company_name', 'tax_code',
+            'hr_signer_name', 'hr_signer_title', 'hr_signature',
+            'director_signer_name', 'director_signer_title', 'director_signature',
             'issuer_name', 'issuer_title', 'seal_text', 'is_default', 'is_active',
         ]
         widgets = {
@@ -66,12 +78,94 @@ class CertificateTemplateForm(forms.ModelForm):
             'ribbon_text': forms.TextInput(attrs={'class': 'form-control'}),
             'presented_label': forms.TextInput(attrs={'class': 'form-control'}),
             'body_text': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+            'thank_you_text': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'company_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'tax_code': forms.TextInput(attrs={'class': 'form-control'}),
+            'hr_signer_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'hr_signer_title': forms.TextInput(attrs={'class': 'form-control'}),
+            'hr_signature': forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'image/png,image/jpeg'}),
+            'director_signer_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'director_signer_title': forms.TextInput(attrs={'class': 'form-control'}),
+            'director_signature': forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'image/png,image/jpeg'}),
             'issuer_name': forms.TextInput(attrs={'class': 'form-control'}),
             'issuer_title': forms.TextInput(attrs={'class': 'form-control'}),
             'seal_text': forms.TextInput(attrs={'class': 'form-control'}),
             'is_default': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
+
+
+class CertificateTemplateDescriptionForm(forms.ModelForm):
+    class Meta:
+        model = CertificateTemplateDescription
+        fields = ['course', 'exam', 'description']
+        widgets = {
+            'course': forms.Select(attrs={'class': 'form-select'}),
+            'exam': forms.Select(attrs={'class': 'form-select'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Mô tả hiện trên chứng chỉ của khóa/kỳ thi này'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from training.models import Course
+
+        self.fields['course'].queryset = Course.objects.filter(is_active=True).order_by('title')
+        self.fields['course'].required = False
+        self.fields['course'].empty_label = '— Chọn khóa học —'
+        self.fields['exam'].queryset = Exam.objects.filter(is_active=True, retry_of__isnull=True).order_by('title')
+        self.fields['exam'].required = False
+        self.fields['exam'].empty_label = '— Chọn kỳ thi —'
+        self.fields['description'].required = False
+
+    def clean(self):
+        cleaned = super().clean()
+        desc = (cleaned.get('description') or '').strip()
+        course = cleaned.get('course')
+        exam = cleaned.get('exam')
+        if self.cleaned_data.get('DELETE'):
+            return cleaned
+        if not desc and not course and not exam:
+            return cleaned
+        if desc and not course and not exam:
+            raise forms.ValidationError('Chọn khóa học hoặc kỳ thi cho mô tả này.')
+        if (course or exam) and not desc:
+            raise forms.ValidationError('Nhập mô tả khóa học.')
+        cleaned['description'] = desc
+        return cleaned
+
+
+class CertificateDescriptionFormSet(forms.BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        seen_courses = set()
+        seen_exams = set()
+        for form in self.forms:
+            data = getattr(form, 'cleaned_data', None)
+            if not data or data.get('DELETE'):
+                continue
+            course = data.get('course')
+            exam = data.get('exam')
+            if course:
+                if course.pk in seen_courses:
+                    raise forms.ValidationError('Mỗi khóa học chỉ được gắn một mô tả.')
+                seen_courses.add(course.pk)
+            if exam:
+                if exam.pk in seen_exams:
+                    raise forms.ValidationError('Mỗi kỳ thi chỉ được gắn một mô tả.')
+                seen_exams.add(exam.pk)
+
+
+CertificateDescriptionFormSetFactory = inlineformset_factory(
+    CertificateTemplate,
+    CertificateTemplateDescription,
+    form=CertificateTemplateDescriptionForm,
+    formset=CertificateDescriptionFormSet,
+    extra=1,
+    can_delete=True,
+    min_num=0,
+)
 
 
 class QuestionForm(forms.ModelForm):
@@ -94,7 +188,7 @@ class QuestionForm(forms.ModelForm):
             'competency': forms.Select(attrs={'class': 'form-control'}),
             'content': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'q_type': forms.Select(attrs={'class': 'form-control', 'id': 'id_q_type'}),
-            'points': forms.NumberInput(attrs={'class': 'form-control'}),
+            'points': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '0', 'max': '100'}),
             'image_hint': forms.FileInput(attrs={'class': 'form-control'}),
         }
 

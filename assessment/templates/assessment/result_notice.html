@@ -33,14 +33,14 @@
                     <div class="col-6">
                         <div class="p-3 bg-light border">
                             <div class="small text-muted fw-bold mb-1">Trắc nghiệm</div>
-                            <h3 class="fw-bold text-primary mb-0">{{ result.mc_score|floatformat:1 }}</h3>
+                            <h3 class="fw-bold text-primary mb-0">{{ result.mc_score|floatformat:0 }}</h3>
                         </div>
                     </div>
                     <div class="col-6">
                         <div class="p-3 bg-light border">
                             <div class="small text-muted fw-bold mb-1">Tự luận</div>
                             {% if result.is_completed %}
-                            <h3 class="fw-bold text-hm mb-0">{{ result.essay_score|floatformat:1 }}</h3>
+                            <h3 class="fw-bold text-hm mb-0">{{ result.essay_score|floatformat:0 }}</h3>
                             {% else %}
                             <h3 class="small text-muted mb-0 pt-2">Đang chấm</h3>
                             {% endif %}
@@ -48,15 +48,27 @@
                     </div>
                 </div>
 
-                <div class="py-4 px-4 bg-success bg-opacity-10 border border-success border-dashed shadow-sm">
-                    <div class="small text-success fw-bold">Tổng điểm đạt được</div>
-                    <div class="display-2 fw-bold text-success">{{ result.total_score|floatformat:1 }}</div>
+                <div class="py-4 px-4 {% if must_retry %}bg-danger bg-opacity-10 border border-danger{% else %}bg-success bg-opacity-10 border border-success{% endif %} border-dashed shadow-sm">
+                    <div class="small {% if must_retry %}text-danger{% else %}text-success{% endif %} fw-bold">Tổng điểm đạt được</div>
+                    <div class="display-2 fw-bold {% if must_retry %}text-danger{% else %}text-success{% endif %}">{{ result.total_score|floatformat:0 }}</div>
                     {% if not result.is_completed %}
                     <div class="small mt-2 text-muted">⏳ Phần tự luận đang được chờ chấm...</div>
+                    {% elif must_retry %}
+                    <div class="small mt-2 text-danger fw-bold">Cần từ {{ exam.pass_score|floatformat:0 }}đ trở lên mới được cấp chứng chỉ.</div>
+                    <div class="small mt-1 text-muted">Đã xóa lịch sử khóa. Hãy học lại{% if retry_exam %} rồi làm bài <strong>{{ retry_exam.title }}</strong>{% else %} rồi thi lại{% endif %}.</div>
                     {% endif %}
                 </div>
             </div>
             <div class="modal-footer border-0 pb-4 justify-content-center gap-2 flex-wrap">
+                {% if must_retry %}
+                    {% for course in retry_courses %}
+                    <a href="{% url 'course_start' course.pk %}" class="btn btn-hm px-4 fw-bold">
+                        <i class="bi bi-journal-bookmark-fill me-1"></i>Học lại: {{ course.title }}
+                    </a>
+                    {% empty %}
+                    <a href="{% url 'exam_list' %}" class="btn btn-hm px-4 fw-bold">Thi lại</a>
+                    {% endfor %}
+                {% else %}
                 <a href="{% url 'exam_result' exam.id %}" class="btn btn-hm px-4 fw-bold">
                     <i class="bi bi-eye-fill me-1"></i>Xem kết quả
                 </a>
@@ -64,6 +76,7 @@
                 <a href="{% url 'certificate_view' certificate.pk %}" class="btn btn-outline-hm px-4 fw-bold">
                     <i class="bi bi-award-fill me-1"></i>Chứng chỉ
                 </a>
+                {% endif %}
                 {% endif %}
                 <a href="{% url 'exam_list' %}" class="btn btn-secondary px-4 fw-bold">Đóng cửa sổ</a>
             </div>

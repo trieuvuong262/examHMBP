@@ -206,6 +206,7 @@ EXEMPT_PATH_PREFIXES = (
     '/static/',
     '/media/',
     '/login-redirect/',
+    '/chung-chi/',
     '/nhat-ky/rustdesk/api/dang-ky/',
     '/thiet-bi/api/quyet-cau-hinh/',
     # Nhân viên trả lời khảo sát qua link — chỉ cần đăng nhập, không cần menu Khảo sát

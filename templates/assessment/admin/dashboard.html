@@ -120,7 +120,7 @@
         box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);
     }
 </style>
-<div class="container-fluid jp-page mt-3 mt-md-4 mb-5 px-2 px-md-3">
+<div class="container-fluid jp-page jp-assessment-page mt-3 mt-md-4 mb-5 px-2 px-md-3" data-loading-message="Đang tải quản lý kiểm tra…">
     <ul class="nav nav-pills d-none" id="dashboardTabs" role="tablist">
         <li class="nav-item shadow-none">
             <button class="nav-link active" id="recruitment-tab" data-bs-toggle="pill" data-bs-target="#recruitment" type="button" role="tab"></button>
@@ -379,15 +379,15 @@
                 <h5 class="fw-bold text-dark mb-0">Kỳ thi & Đánh giá</h5>
                 <div class="d-flex gap-2">
                     {% if jp_can_edit_assessment %}
-                    <a href="{% url 'admin_certificate_list' %}" class="btn btn-outline-hm fw-bold bg-white">
+                    <a href="{% url 'admin_certificate_list' %}" class="btn btn-outline-hm fw-bold bg-white" data-loading-message="Đang tải chứng chỉ…">
                         <i class="bi bi-award-fill me-1"></i>Chứng chỉ
                     </a>
-                    <a href="{% url 'admin_results' %}" class="btn btn-outline-hm fw-bold bg-white">
+                    <a href="{% url 'admin_results' %}" class="btn btn-outline-hm fw-bold bg-white" data-loading-message="Đang tải kết quả bài thi…">
                         <i class="bi bi-bar-chart-fill me-1"></i>Kết quả
                     </a>
                     {% endif %}
                     {% if jp_can_create_assessment %}
-                    <a href="{% url 'exam_create' %}" class="btn btn-hm"><i class="bi bi-plus-lg me-1"></i>Thêm kỳ thi</a>
+                    <a href="{% url 'exam_create' %}" class="btn btn-hm" data-loading-message="Đang mở form kỳ thi…"><i class="bi bi-plus-lg me-1"></i>Thêm kỳ thi</a>
                     {% endif %}
                 </div>
             </div>
@@ -399,7 +399,7 @@
                             <div class="d-flex justify-content-between align-items-center text-white">
                                 <div>
                                     <div class="small opacity-75 fw-bold">TỔNG KỲ THI</div>
-                                    <h2 class="fw-bold mb-0" style="color: white !important;">{{ total_exams|default:exams.count }}</h2>
+                                    <h2 class="fw-bold mb-0" style="color: white !important;">{{ total_exams }}</h2>
                                 </div>
                                 
                             </div>
@@ -476,10 +476,10 @@
                                 <td class="text-end pe-4">
                                     <div class="btn-group">
                                         {% if jp_can_update_assessment %}
-                                        <a href="{% url 'exam_edit' exam.pk %}" class="btn btn-sm btn-light border"><i class="bi bi-pencil"></i></a>
+                                        <a href="{% url 'exam_edit' exam.pk %}" class="btn btn-sm btn-light border" data-loading-message="Đang tải đề thi…"><i class="bi bi-pencil"></i></a>
                                         {% endif %}
                                         {% if jp_can_edit_assessment %}
-                                        <a href="{% url 'admin_results' %}?exam={{ exam.id }}" class="btn btn-sm btn-light border"><i class="bi bi-bar-chart"></i></a>
+                                        <a href="{% url 'admin_results' %}?exam={{ exam.id }}" class="btn btn-sm btn-light border" data-loading-message="Đang tải kết quả bài thi…"><i class="bi bi-bar-chart"></i></a>
                                         {% endif %}
                                     </div>
                                 </td>
@@ -488,7 +488,7 @@
                         </tbody>
                     </table>
                 </div>
-                {% if exams_page.has_other_pages %}
+                {% if exams_page and exams_page.has_other_pages %}
                 <div class="card-footer bg-white border-top py-3">
                     {% include 'includes/pagination.html' with page_obj=exams_page page_param='exam_page' query_string=exams_query_string %}
                 </div>

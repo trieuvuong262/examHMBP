@@ -172,7 +172,8 @@
                         {% if jp_can_assessment %}
                         <li>
                             <a href="{% url 'exam_list' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if 'exams' in request.path %}active{% endif %}">
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'exam_list' or request.resolver_match.url_name == 'take_exam' or request.resolver_match.url_name == 'exam_result' %}active{% endif %}"
+                               data-loading-message="Đang tải danh sách kỳ thi…">
                                 <span class="jp-sidebar-link-icon">
                                     <i class="bi bi-journal-check"></i>
                                     {% if jp_assessment_pending_count %}
@@ -184,6 +185,15 @@
                                 <span>Kiểm tra</span>
                             </a>
                         </li>
+                        {% if not jp_can_manage_assessment %}
+                        <li>
+                            <a href="{% url 'my_certificates' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'my_certificates' or request.resolver_match.url_name == 'certificate_view' %}active{% endif %}"
+                               data-loading-message="Đang tải chứng chỉ…">
+                                <i class="bi bi-award-fill"></i><span>Chứng chỉ</span>
+                            </a>
+                        </li>
+                        {% endif %}
                         {% endif %}
                         {% if jp_can_manage_training %}
                         <li>
@@ -196,14 +206,16 @@
                         {% if jp_can_manage_assessment %}
                         <li>
                             <a href="{% url 'admin_dashboard' %}?tab=assessment"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.GET.tab == 'assessment' or '/dashboard/exam' in request.path or '/dashboard/competency' in request.path or '/dashboard/certificates' in request.path %}active{% endif %}">
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.GET.tab == 'assessment' or '/dashboard/exam' in request.path or '/dashboard/competency' in request.path %}active{% endif %}"
+                               data-loading-message="Đang tải quản lý kiểm tra…">
                                 <i class="bi bi-ui-checks-grid"></i><span>Quản lý kiểm tra</span>
                             </a>
                         </li>
                         <li>
-                            <a href="{% url 'admin_results' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if '/dashboard/results' in request.path or '/dashboard/submission' in request.path %}active{% endif %}">
-                                <i class="bi bi-bar-chart-fill"></i><span>Kết quả bài thi</span>
+                            <a href="{% url 'admin_certificate_list' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if '/dashboard/certificates' in request.path %}active{% endif %}"
+                               data-loading-message="Đang tải chứng chỉ…">
+                                <i class="bi bi-award-fill"></i><span>Chứng chỉ</span>
                             </a>
                         </li>
                         {% endif %}

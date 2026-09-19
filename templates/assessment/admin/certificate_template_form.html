@@ -2,13 +2,15 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Great+Vibes&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{% static 'css/certificate.css' %}?v=20260919d">
+<link rel="stylesheet" href="{% static 'css/certificate.css' %}?v=20260919n">
+<style>
+.jp-cert-desc-row { border: 1px solid #e9ecef; border-radius: .75rem; padding: 1rem; background: #fafbfc; }
+.jp-cert-desc-row.is-deleted { opacity: .45; }
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid jp-page py-3 py-md-4 px-2 px-md-4 pb-5">
+<div class="container-fluid jp-page jp-assessment-page py-3 py-md-4 px-2 px-md-4 pb-5" data-loading-message="Đang tải mẫu chứng chỉ…">
     <nav aria-label="breadcrumb" class="mb-3">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{% url 'admin_certificate_templates' %}">Mẫu chứng chỉ</a></li>
@@ -22,11 +24,11 @@
                     <h6 class="mb-0 fw-bold">{{ title }}</h6>
                 </div>
                 <div class="card-body p-4">
-                    <form method="post">
+                    <form method="post" enctype="multipart/form-data" id="jp-cert-template-form">
                         {% csrf_token %}
                         {% for field in form %}
                         <div class="mb-3">
-                            {% if field.field.widget.input_type == 'checkbox' %}
+                        {% if field.field.widget.input_type == 'checkbox' %}
                             <div class="form-check">
                                 {{ field }}
                                 <label class="form-check-label fw-bold" for="{{ field.id_for_label }}">{{ field.label }}</label>
@@ -38,6 +40,26 @@
                             {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
                             {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
                         </div>
+                        {% if field.name == 'body_text' %}
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                                <label class="form-label fw-bold small text-muted text-uppercase mb-0">Mô tả theo khóa học / kỳ thi</label>
+                                <button type="button" class="btn btn-sm btn-outline-hm fw-bold" id="jp-add-desc-row">
+                                    <i class="bi bi-plus-lg me-1"></i>Thêm mô tả
+                                </button>
+                            </div>
+                            <div class="form-text mb-2">Mỗi dòng gắn một khóa học hoặc kỳ thi. Chứng chỉ sẽ lấy mô tả khớp khóa/đề thi; không khớp thì dùng mô tả mặc định. Cùng placeholder {name}, {exam_title}, {score}, {date}, {code}.</div>
+                            {{ formset.management_form }}
+                            {% if formset.non_form_errors %}
+                            <div class="text-danger small mb-2">{{ formset.non_form_errors }}</div>
+                            {% endif %}
+                            <div id="jp-desc-rows" class="d-flex flex-column gap-3">
+                                {% for f in formset.forms %}
+                                {% include 'assessment/admin/includes/certificate_desc_row.html' with f=f %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
                         {% endfor %}
                         <button type="submit" class="btn btn-hm fw-bold">Lưu mẫu</button>
                         <a href="{% url 'admin_certificate_templates' %}" class="btn btn-light border fw-bold">Hủy</a>
@@ -47,8 +69,60 @@
         </div>
         <div class="col-lg-7">
             <h6 class="fw-bold mb-3">Xem trước</h6>
+            <p class="text-muted small mb-3">Xem trước dùng mô tả mặc định. Mô tả theo khóa/kỳ thi hiện trên chứng chỉ thật.</p>
             {% include 'assessment/includes/certificate_card.html' with cert=preview_cert is_preview=True %}
         </div>
     </div>
 </div>
+<template id="jp-desc-empty">
+    {% include 'assessment/admin/includes/certificate_desc_row.html' with f=formset.empty_form %}
+</template>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    var rows = document.getElementById('jp-desc-rows');
+    var addBtn = document.getElementById('jp-add-desc-row');
+    var tpl = document.getElementById('jp-desc-empty');
+    var totalInput = document.getElementById('id_descs-TOTAL_FORMS');
+    if (!rows || !addBtn || !tpl || !totalInput) return;
+
+    function reindex(root, idx) {
+        root.querySelectorAll('[name], [id], [for]').forEach(function (el) {
+            ['name', 'id', 'for'].forEach(function (attr) {
+                var v = el.getAttribute(attr);
+                if (!v) return;
+                el.setAttribute(attr, v.replace(/__prefix__/g, String(idx)));
+            });
+        });
+    }
+
+    addBtn.addEventListener('click', function () {
+        var idx = parseInt(totalInput.value, 10) || 0;
+        var wrap = document.createElement('div');
+        wrap.innerHTML = tpl.innerHTML.trim();
+        var row = wrap.firstElementChild;
+        if (!row) return;
+        reindex(row, idx);
+        rows.appendChild(row);
+        totalInput.value = idx + 1;
+    });
+
+    rows.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-remove-desc]');
+        if (!btn) return;
+        var row = btn.closest('.jp-cert-desc-row');
+        if (!row) return;
+        var del = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
+        if (del) {
+            del.checked = true;
+            row.classList.add('is-deleted');
+            row.hidden = true;
+        } else {
+            row.remove();
+        }
+    });
+})();
+</script>
 {% endblock %}

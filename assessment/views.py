@@ -25,7 +25,7 @@ from django.contrib.auth.views import PasswordChangeView
 from django.urls import reverse_lazy, reverse
 from django.contrib import messages
 from django.contrib.auth import logout
-from django.db.models import Q
+from django.db.models import Count, Q
 from PortalJustPlay.list_search import apply_term_search, get_search_query, search_terms
 from PortalJustPlay.pagination import paginate_queryset
 from kpi.models import MonthlyKpi
@@ -42,8 +42,8 @@ from .models import (
     Certificate,
 )
 
-from .scoring import grade_mc_answer, rescore_submission
-from .certificates import maybe_issue_certificate
+from .scoring import grade_mc_answer, rescore_submission, round_score
+from .certificates import apply_exam_pass_or_retry
 
 
 @login_required
@@ -71,7 +71,7 @@ def _submission_result_summary(submission):
     mc_score = 0
     essay_score = 0
     for ans in submission.answers.select_related('question').all():
-        score_val = ans.graded_score or 0
+        score_val = round_score(ans.graded_score or 0)
         if ans.question.q_type in ['single', 'multiple']:
             mc_score += score_val
         else:
@@ -83,9 +83,9 @@ def _submission_result_summary(submission):
         duration_spent = max(1, int(diff.total_seconds() / 60))
 
     return {
-        'total_score': submission.total_score,
-        'mc_score': mc_score,
-        'essay_score': essay_score,
+        'total_score': round_score(submission.total_score),
+        'mc_score': round_score(mc_score),
+        'essay_score': round_score(essay_score),
         'is_completed': submission.is_completed,
         'submitted_at': submission.submitted_at,
         'duration_spent': duration_spent,
@@ -108,28 +108,47 @@ def exam_list(request):
     )
     page_obj, query_string = paginate_queryset(request, active_exams_qs)
     active_exams = page_obj.object_list
+    page_exam_ids = [exam.id for exam in active_exams]
 
-    submissions = ExamSubmission.objects.filter(
-        user=request.user, 
-        submitted_at__isnull=False
-    ).prefetch_related('answers__question')
-
-    completed_exam_ids = submissions.values_list('exam_id', flat=True)
-
+    submissions = (
+        ExamSubmission.objects.filter(
+            user=request.user,
+            exam_id__in=page_exam_ids,
+            submitted_at__isnull=False,
+        )
+        .only('exam_id', 'auto_score', 'manual_score', 'is_completed', 'submitted_at', 'start_at')
+        .order_by('-submitted_at')
+    )
     submission_results = {}
-    for s in submissions:
-        submission_results[s.exam_id] = _submission_result_summary(s)
+    completed_exam_ids = set()
+    for submission in submissions:
+        if submission.exam_id in completed_exam_ids:
+            continue
+        completed_exam_ids.add(submission.exam_id)
+        duration_spent = 1
+        if submission.submitted_at and submission.start_at:
+            duration_spent = max(1, int((submission.submitted_at - submission.start_at).total_seconds() / 60))
+        result = {
+            'total_score': round_score(submission.total_score),
+            'mc_score': round_score(submission.auto_score),
+            'essay_score': round_score(submission.manual_score),
+            'is_completed': submission.is_completed,
+            'submitted_at': submission.submitted_at,
+            'duration_spent': duration_spent,
+        }
+        submission_results[submission.exam_id] = result
 
     certificates_by_exam = {
-        c.exam_id: c
-        for c in Certificate.objects.filter(
+        cert.exam_id: cert
+        for cert in Certificate.objects.filter(
             user=request.user,
-            exam_id__in=list(completed_exam_ids),
+            exam_id__in=page_exam_ids,
             is_revoked=False,
-        )
+        ).only('id', 'exam_id')
     }
     for exam in active_exams:
         exam.user_certificate = certificates_by_exam.get(exam.id)
+        exam.result = submission_results.get(exam.id)
 
     return render(request, 'assessment/exam_list.html', {
         'active_exams': active_exams,
@@ -141,15 +160,22 @@ def exam_list(request):
     })
 @module_perm_required(MODULE_ASSESSMENT, 'view')
 def take_exam(request, exam_id):
-    exam = get_object_or_404(Exam, id=exam_id)
+    exam = get_object_or_404(Exam.objects.select_related('retry_of'), id=exam_id)
     now = timezone.now()
 
-    
+    if not exam.retry_of_id:
+        retry_assigned = exam.retry_exams.filter(is_active=True, assigned_users=request.user).first()
+        if retry_assigned:
+            return redirect('take_exam', exam_id=retry_assigned.id)
+
     is_assigned_directly = exam.assigned_users.filter(id=request.user.id).exists()
     
     is_assigned_via_course = Course.objects.filter(
-        final_exam=exam, 
-        assigned_users=request.user
+        Q(final_exam=exam) | Q(final_exam_id=exam.retry_of_id),
+        assigned_users=request.user,
+    ).exists() if exam.retry_of_id else Course.objects.filter(
+        final_exam=exam,
+        assigned_users=request.user,
     ).exists()
 
     if not (is_assigned_directly or is_assigned_via_course or is_portal_admin(request.user)):
@@ -259,14 +285,18 @@ def take_exam(request, exam_id):
             submission.manual_score = 0.0
 
         submission.save()
-        certificate = maybe_issue_certificate(submission)
+        result = _submission_result_summary(submission)
+        outcome = apply_exam_pass_or_retry(submission)
 
         return render(request, 'assessment/result_notice.html', {
             'submission': submission,
             'exam': exam,
-            'result': _submission_result_summary(submission),
+            'result': result,
             'show_result_modal': True,
-            'certificate': certificate,
+            'certificate': outcome['certificate'],
+            'must_retry': outcome['must_retry'],
+            'retry_courses': outcome['retry_courses'],
+            'retry_exam': outcome.get('retry_exam'),
         })
 
     context = {
@@ -433,77 +463,90 @@ def exam_result(request, exam_id):
 @dashboard_hub_required
 def admin_dashboard(request):
     now = timezone.now()
-    
-    # --- PHẦN KPI (theo tháng) ---
-    now_kpi = timezone.localdate()
-    active_kpi_periods = MonthlyKpi.objects.filter(year=now_kpi.year, month=now_kpi.month).count()
-    total_yearly_kpis = MonthlyKpi.objects.count()
-    
-    # --- PHẦN ĐÀO TẠO & THI CỬ ---
-    all_exams = Exam.objects.all().order_by('-id') 
-    all_courses = Course.objects.all().order_by('-created_at')
-    exams_page, exams_query_string = paginate_queryset(
-        request, all_exams, page_param='exam_page',
-    )
-    
-    # --- PHẦN TUYỂN DỤNG ---
-    today = timezone.localdate()
-    open_jobs_qs = JobPosting.objects.filter(is_active=True, deadline__gte=today)
-    active_jobs = open_jobs_qs.count()
-    total_candidates = Candidate.objects.count()
-    upcoming_interviews = Interview.objects.filter(interview_time__gte=now).count()
-    recent_candidates = Candidate.objects.select_related('job_posting').order_by('-applied_at')
-
+    tab = (request.GET.get('tab') or '').strip() or 'recruitment'
     context = {
-        # KPI Dashboard
-        'active_kpi_periods': active_kpi_periods,
-        'total_yearly_kpis': total_yearly_kpis, # Thay cho total_employee_kpis cũ
-        
-        # Exams & Users
-        'jobs': open_jobs_qs,
-        'total_exams': all_exams.count(),
-        'active_exams_count': all_exams.filter(is_active=True, end_time__gt=now).count(),
-        'total_users': User.objects.count(),
-        'total_submissions': ExamSubmission.objects.filter(is_completed=True).count(),
-        'total_certificates': Certificate.objects.filter(is_revoked=False).count(),
-        'exams': exams_page.object_list,
-        'exams_page': exams_page,
-        'exams_query_string': exams_query_string,
-        'recent_exams': all_exams[:5],
-        'recent_submissions': ExamSubmission.objects.filter(is_completed=True).order_by('-submitted_at')[:5],
-        
-        # Recruitment
-        'active_jobs': active_jobs,
-        'total_candidates': total_candidates,
-        'upcoming_interviews': upcoming_interviews,
-        'recent_candidates': recent_candidates[:5],
-        
-        # Training
-        'total_courses': all_courses.count(),
-        'active_learners': Enrollment.objects.filter(is_completed=False).count(),
-        'completed_learners': Enrollment.objects.filter(is_completed=True).count(),
-        'recent_courses': all_courses[:5],
+        'active_kpi_periods': 0,
+        'total_yearly_kpis': 0,
+        'jobs': [],
+        'total_exams': 0,
+        'active_exams_count': 0,
+        'total_users': 0,
+        'total_submissions': 0,
+        'total_certificates': 0,
+        'exams': [],
+        'exams_page': None,
+        'exams_query_string': '',
+        'recent_exams': [],
+        'recent_submissions': [],
+        'active_jobs': 0,
+        'total_candidates': 0,
+        'upcoming_interviews': 0,
+        'recent_candidates': [],
+        'total_courses': 0,
+        'active_learners': 0,
+        'completed_learners': 0,
+        'recent_courses': [],
     }
+
+    if tab == 'assessment':
+        exams_qs = Exam.objects.only(
+            'id', 'title', 'is_active', 'start_time', 'end_time', 'duration_minutes',
+        ).order_by('-id')
+        exams_page, exams_query_string = paginate_queryset(
+            request, exams_qs, page_param='exam_page',
+        )
+        exam_stats = Exam.objects.aggregate(
+            total=Count('id'),
+            active=Count('id', filter=Q(is_active=True, end_time__gt=now)),
+        )
+        context.update({
+            'total_exams': exam_stats['total'],
+            'active_exams_count': exam_stats['active'],
+            'total_submissions': ExamSubmission.objects.filter(is_completed=True).count(),
+            'total_certificates': Certificate.objects.filter(is_revoked=False).count(),
+            'exams': exams_page.object_list,
+            'exams_page': exams_page,
+            'exams_query_string': exams_query_string,
+        })
+    elif tab == 'training':
+        courses_qs = Course.objects.order_by('-created_at')
+        context.update({
+            'total_courses': courses_qs.count(),
+            'active_learners': Enrollment.objects.filter(is_completed=False).count(),
+            'completed_learners': Enrollment.objects.filter(is_completed=True).count(),
+            'recent_courses': list(courses_qs[:5]),
+        })
+    elif tab == 'kpi':
+        now_kpi = timezone.localdate()
+        context.update({
+            'active_kpi_periods': MonthlyKpi.objects.filter(
+                year=now_kpi.year, month=now_kpi.month,
+            ).count(),
+            'total_yearly_kpis': MonthlyKpi.objects.count(),
+        })
+    else:
+        today = timezone.localdate()
+        open_jobs_qs = JobPosting.objects.filter(is_active=True, deadline__gte=today)
+        context.update({
+            'jobs': open_jobs_qs,
+            'active_jobs': open_jobs_qs.count(),
+            'total_candidates': Candidate.objects.count(),
+            'upcoming_interviews': Interview.objects.filter(interview_time__gte=now).count(),
+            'recent_candidates': list(
+                Candidate.objects.select_related('job_posting').order_by('-applied_at')[:5]
+            ),
+            'total_users': User.objects.count(),
+        })
+
     return render(request, 'assessment/admin/dashboard.html', context)
-import json
-from django.contrib.auth.models import User
 
 @module_perm_required(MODULE_ASSESSMENT, 'create')
 def exam_create(request):
-    user_positions = {}
-    users = User.objects.select_related('profile').all()
-    for u in users:
-        try:
-            if hasattr(u, 'profile') and u.profile.position:
-                user_positions[str(u.id)] = u.profile.position
-        except:
-            pass
-
     if request.method == 'POST':
         form = ExamForm(request.POST)
         if form.is_valid():
             form.save()
-            return redirect('admin_dashboard')
+            return redirect(f"{reverse('admin_dashboard')}?tab=assessment")
         else:
             print("Lỗi Form Exam:", form.errors)
     else:
@@ -512,7 +555,6 @@ def exam_create(request):
     context = {
         'form': form, 
         'title': 'Tạo kỳ thi mới',
-        'user_positions_json': json.dumps(user_positions)  
     }
     
     return render(request, 'assessment/admin/exam_form.html', context)
@@ -524,7 +566,12 @@ def exam_edit(request, pk):
     exam_questions = exam.ordered_exam_questions()
     questions_in_exam = [link.question for link in exam_questions]
 
-    question_bank = Question.objects.exclude(id__in=[q.id for q in questions_in_exam])
+    question_bank = (
+        Question.objects.exclude(id__in=[q.id for q in questions_in_exam])
+        .select_related('competency')
+        .only('id', 'content', 'points', 'q_type', 'competency_id', 'competency__name')
+        .order_by('-id')[:200]
+    )
 
     if request.method == 'POST':
         if 'add_from_bank' in request.POST:
@@ -542,7 +589,7 @@ def exam_edit(request, pk):
         form = ExamForm(request.POST, instance=exam)
         if form.is_valid():
             form.save()
-            return redirect('admin_dashboard')
+            return redirect(f"{reverse('admin_dashboard')}?tab=assessment")
     else:
         form = ExamForm(instance=exam)
         
@@ -562,7 +609,7 @@ def exam_delete(request, pk):
     exam = get_object_or_404(Exam, pk=pk)
     if request.method == 'POST':
         exam.delete()
-        return redirect('admin_dashboard')
+        return redirect(f"{reverse('admin_dashboard')}?tab=assessment")
     return render(request, 'assessment/admin/exam_confirm_delete.html', {'exam': exam})
 
 
@@ -572,9 +619,12 @@ def admin_results(request):
     search_query = get_search_query(request)
     submissions_qs = ExamSubmission.objects.select_related(
         'user', 'user__profile', 'exam',
-    ).prefetch_related(
-        'answers__question__choices',
-        'answers__selected_choices',
+    ).only(
+        'id', 'auto_score', 'manual_score', 'is_completed', 'submitted_at',
+        'user_id', 'exam_id',
+        'user__username', 'user__first_name', 'user__last_name', 'user__email',
+        'user__profile__full_name', 'user__profile__job_position', 'user__profile__employee_code',
+        'exam__title',
     ).order_by('-submitted_at')
     if exam_id:
         submissions_qs = submissions_qs.filter(exam_id=exam_id)
@@ -600,6 +650,24 @@ def admin_results(request):
         'total_count': page_obj.paginator.count,
     })
 
+@module_perm_required(MODULE_ASSESSMENT, 'edit')
+def admin_submission_review(request, submission_id):
+    submission = get_object_or_404(
+        ExamSubmission.objects.select_related('user', 'user__profile', 'exam'),
+        pk=submission_id,
+        submitted_at__isnull=False,
+    )
+    answers = (
+        submission.answers.select_related('question')
+        .prefetch_related('question__choices', 'selected_choices')
+        .order_by('id')
+    )
+    return render(request, 'assessment/admin/submission_review.html', {
+        'submission': submission,
+        'answers': answers,
+        **_assessment_perm_context(request.user),
+    })
+
 @module_perm_required(MODULE_ASSESSMENT, 'update')
 def grade_submission(request, submission_id):
     submission = get_object_or_404(ExamSubmission, id=submission_id)
@@ -614,6 +682,18 @@ def grade_submission(request, submission_id):
         if not submission.is_completed:
             submission.is_completed = True
             submission.save(update_fields=['is_completed'])
+        outcome = apply_exam_pass_or_retry(submission, by=request.user)
+        if outcome['must_retry']:
+            messages.warning(
+                request,
+                f"Bài thi của {submission.user.username} chưa đạt {int(round_score(submission.exam.pass_score))}đ. Đã xóa lịch sử khóa, giao đề thi lại và mở lại để học lại.",
+            )
+        elif outcome['certificate']:
+            messages.info(
+                request,
+                f"Bài thi của {submission.user.username} đã được máy chấm và cấp chứng chỉ {outcome['certificate'].code}.",
+            )
+        elif not submission.is_completed:
             messages.info(request, f"Bài thi của {submission.user.username} 100% trắc nghiệm, đã được máy chấm xong.")
         else:
             messages.info(request, "Bài thi này không có nội dung cần chấm tay.")
@@ -624,12 +704,12 @@ def grade_submission(request, submission_id):
         for answer in answers:
             score_val = request.POST.get(f'score_{answer.id}', 0)
             try:
-                score = float(score_val)
+                score = round_score(score_val)
             except ValueError:
                 score = 0.0
             
             if score > answer.question.points:
-                score = answer.question.points
+                score = round_score(answer.question.points)
             
             answer.graded_score = score
             answer.is_graded = True
@@ -640,15 +720,20 @@ def grade_submission(request, submission_id):
             answer.save()
             total_manual += score
             
-        submission.manual_score = total_manual
+        submission.manual_score = round_score(total_manual)
         submission.is_completed = True
         submission.save()
         rescore_submission(submission)
-        issued = maybe_issue_certificate(submission)
-        if issued:
+        outcome = apply_exam_pass_or_retry(submission, by=request.user)
+        if outcome['certificate']:
             messages.success(
                 request,
-                f"Đã cập nhật điểm tay cho thí sinh {submission.user.username} và cấp chứng chỉ {issued.code}.",
+                f"Đã cập nhật điểm tay cho thí sinh {submission.user.username} và cấp chứng chỉ {outcome['certificate'].code}.",
+            )
+        elif outcome['must_retry']:
+            messages.warning(
+                request,
+                f"Điểm chưa đạt {int(round_score(submission.exam.pass_score))}đ. Đã xóa lịch sử khóa, giao đề thi lại để học viên học lại.",
             )
         else:
             messages.success(request, f"Đã cập nhật điểm tay cho thí sinh {submission.user.username}")

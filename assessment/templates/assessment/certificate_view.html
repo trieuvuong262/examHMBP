@@ -2,19 +2,17 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Great+Vibes&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{% static 'css/certificate.css' %}?v=20260919d">
+<link rel="stylesheet" href="{% static 'css/certificate.css' %}?v=20260919n">
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page mt-3 mt-md-4 mb-5">
+<div class="container jp-page jp-assessment-page mt-3 mt-md-4 mb-5" data-loading-message="Đang tải chứng chỉ…">
     <div class="jp-cert-toolbar d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <div>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-1">
-                    <li class="breadcrumb-item"><a href="{% url 'exam_list' %}">Kiểm tra</a></li>
-                    <li class="breadcrumb-item"><a href="{% url 'my_certificates' %}">Chứng chỉ</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'exam_list' %}" data-loading-message="Đang tải danh sách kỳ thi…">Kiểm tra</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'my_certificates' %}" data-loading-message="Đang tải chứng chỉ…">Chứng chỉ</a></li>
                     <li class="breadcrumb-item active">{{ cert.code }}</li>
                 </ol>
             </nav>
@@ -24,7 +22,7 @@
             <button type="button" class="btn btn-hm fw-bold" onclick="window.print()">
                 <i class="bi bi-printer me-1"></i>In / Lưu PDF
             </button>
-            <a href="{% url 'my_certificates' %}" class="btn btn-outline-secondary fw-bold">Danh sách</a>
+            <a href="{% url 'my_certificates' %}" class="btn btn-outline-secondary fw-bold" data-loading-message="Đang tải chứng chỉ…">Danh sách</a>
         </div>
     </div>
     {% if cert.is_revoked %}

@@ -53,6 +53,35 @@
         return isTeamListUrl(url) || isHrmListUrl(url) || isKpiUrl(url);
     }
 
+    function isAssessmentUrl(url) {
+        var path = url.pathname || '';
+        if (path === '/exams' || path.indexOf('/exams/') === 0) return true;
+        if (path.indexOf('/dashboard/exam') === 0) return true;
+        if (path.indexOf('/dashboard/results') === 0) return true;
+        if (path.indexOf('/dashboard/submission') === 0) return true;
+        if (path.indexOf('/dashboard/certificates') === 0) return true;
+        if (path === '/dashboard/' || path === '/dashboard') {
+            return (url.searchParams.get('tab') || '') === 'assessment';
+        }
+        return false;
+    }
+
+    function messageForAssessmentUrl(url, explicit) {
+        if (explicit) return explicit;
+        var path = url.pathname || '';
+        if (path.indexOf('/exams/certificates') === 0) return 'Đang tải chứng chỉ…';
+        if (/\/exams\/\d+\/take/.test(path)) return 'Đang mở bài thi…';
+        if (/\/exams\/\d+\/result/.test(path)) return 'Đang tải kết quả bài thi…';
+        if (path.indexOf('/dashboard/results') === 0) return 'Đang tải kết quả bài thi…';
+        if (path.indexOf('/dashboard/submission') === 0) return 'Đang tải chi tiết bài thi…';
+        if (path.indexOf('/dashboard/certificates') === 0) return 'Đang tải chứng chỉ…';
+        if (path.indexOf('/dashboard/exam') === 0) return 'Đang tải đề thi…';
+        if ((path === '/dashboard/' || path === '/dashboard') && url.searchParams.get('tab') === 'assessment') {
+            return 'Đang tải quản lý kiểm tra…';
+        }
+        return 'Đang tải danh sách kỳ thi…';
+    }
+
     function clearPending() {
         try {
             sessionStorage.removeItem(STORAGE_KEY);
@@ -125,6 +154,9 @@
     }
 
     function messageForLink(link, url) {
+        if (link.hasAttribute('data-loading-message')) {
+            return link.getAttribute('data-loading-message');
+        }
         if (link.hasAttribute('data-jp-team-list-nav')) {
             return link.getAttribute('data-loading-message') || 'Đang tải danh sách...';
         }
@@ -133,6 +165,9 @@
         }
         if (isKpiUrl(url)) {
             return messageForKpiUrl(url, link.getAttribute('data-loading-message'));
+        }
+        if (isAssessmentUrl(url)) {
+            return messageForAssessmentUrl(url, link.getAttribute('data-loading-message'));
         }
         if (isNavListUrl(url)) {
             if (isHrmListUrl(url)) {
@@ -172,6 +207,14 @@
             var form = e.target;
             if (!form || form.tagName !== 'FORM') return;
             if (form.getAttribute('data-skip-loading') === '1') return;
+            var assessmentPage = form.closest && form.closest('.jp-assessment-page');
+            if (assessmentPage) {
+                var assessmentMsg = form.getAttribute('data-loading-message')
+                    || assessmentPage.getAttribute('data-loading-message')
+                    || 'Đang tải…';
+                markNavigating(assessmentMsg);
+                return;
+            }
             if (!(form.closest && form.closest('.jp-kpi-page'))) return;
             var msg = form.getAttribute('data-loading-message') || 'Đang xử lý KPI…';
             markNavigating(msg);
@@ -186,7 +229,7 @@
 
     function bootListPage() {
         var page = document.querySelector(
-            '.jp-team-list-page, .jp-hrm-list-page, .jp-user-form-page, .jp-kpi-page',
+            '.jp-team-list-page, .jp-hrm-list-page, .jp-user-form-page, .jp-kpi-page, .jp-assessment-page',
         );
         if (!page) {
             if (pendingMessage()) {

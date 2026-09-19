@@ -1,13 +1,18 @@
 {% extends "base.html" %}
+{% load static %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/certificate.css' %}?v=20260919p">
+{% endblock %}
 
 {% block content %}
-<div class="container jp-page mt-3 mt-md-4 mb-5">
+<div class="container jp-page jp-assessment-page mt-3 mt-md-4 mb-5" data-loading-message="Đang tải chứng chỉ…">
     <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-center gap-2">
         <div>
             <h2 class="fw-bold text-dark mb-1 jp-page-title">Chứng chỉ của tôi</h2>
             <p class="text-muted small mb-0">Các chứng chỉ được cấp sau khi hoàn thành kỳ thi và đạt điểm.</p>
         </div>
-        <a href="{% url 'exam_list' %}" class="btn btn-outline-hm fw-bold">
+        <a href="{% url 'exam_list' %}" class="btn btn-outline-hm fw-bold" data-loading-message="Đang tải danh sách kỳ thi…">
             <i class="bi bi-journal-check me-1"></i>Danh sách kỳ thi
         </a>
     </div>
@@ -15,16 +20,18 @@
     <div class="row g-3">
         {% for cert in certificates %}
         <div class="col-md-6 col-lg-4">
-            <div class="card h-100 border-0 shadow-sm">
-                <div class="card-body p-4">
-                    <div class="small text-muted fw-bold mb-1">{{ cert.code }}</div>
-                    <h5 class="fw-bold text-dark mb-2">{{ cert.exam_title }}</h5>
-                    <div class="small text-muted mb-3">Cấp ngày {{ cert.issued_at|date:"d/m/Y" }} · {{ cert.score|floatformat:1 }} điểm</div>
-                    <a href="{% url 'certificate_view' cert.pk %}" class="btn btn-hm w-100 fw-bold">
-                        <i class="bi bi-award-fill me-1"></i>Xem chứng chỉ
-                    </a>
+            <a href="{% url 'certificate_view' cert.pk %}" class="jp-my-cert-link text-decoration-none text-reset" data-loading-message="Đang mở chứng chỉ…">
+                <div class="card h-100 border-0 shadow-sm overflow-hidden">
+                    <div class="jp-my-cert-thumb">
+                        {% include 'assessment/includes/certificate_card.html' with cert=cert is_preview=True %}
+                    </div>
+                    <div class="card-body p-3">
+                        <div class="small text-muted fw-bold mb-1">{{ cert.code }}</div>
+                        <h6 class="fw-bold text-dark mb-1 jp-text-clamp-2">{{ cert.exam_title }}</h6>
+                        <div class="small text-muted">Cấp ngày {{ cert.issued_at|date:"d/m/Y" }} · {{ cert.score|floatformat:0 }} điểm</div>
+                    </div>
                 </div>
-            </div>
+            </a>
         </div>
         {% empty %}
         <div class="col-12">

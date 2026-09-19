@@ -81,10 +81,10 @@
     .btn-hover-lift:hover { transform: translateY(-2px); }
 </style>
 
-<div class="container-fluid jp-page mt-3 mt-md-4 px-2 px-md-4 pb-5">
+<div class="container-fluid jp-page jp-assessment-page mt-3 mt-md-4 px-2 px-md-4 pb-5" data-loading-message="Đang tải đề thi…">
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb breadcrumb-hm shadow-sm">
-            <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}" class="text-decoration-none text-muted">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}?tab=assessment" class="text-decoration-none text-muted" data-loading-message="Đang tải quản lý kiểm tra…">Dashboard</a></li>
             <li class="breadcrumb-item active fw-bold text-hm">{{ title }}</li>
         </ol>
     </nav>
@@ -238,8 +238,9 @@
                             <thead class="bg-light sticky-header shadow-sm">
                                 <tr>
                                     <th class="ps-4 py-3 text-center" style="width: 3rem;">#</th>
-                                    <th class="py-3" style="width: 46%;">Nội dung câu hỏi</th>
+                                    <th class="py-3" style="width: 40%;">Nội dung câu hỏi</th>
                                     <th>Loại</th>
+                                    <th>Đáp án đúng</th>
                                     <th class="text-center">Điểm</th>
                                     <th class="text-end pe-4">Thao tác</th>
                                 </tr>
@@ -253,6 +254,15 @@
                                         <span class="badge bg-primary-soft text-hm x-small fw-bold">{{ link.question.competency.name }}</span>
                                     </td>
                                     <td><span class="badge bg-white border text-muted x-small">{{ link.question.get_q_type_display }}</span></td>
+                                    <td>
+                                        {% with key=link.question.correct_answer_key %}
+                                        {% if key %}
+                                        <span class="badge bg-success-subtle text-success fw-bold" title="{{ link.question.correct_answer_hint }}">{{ key }}</span>
+                                        {% else %}
+                                        <span class="text-muted">—</span>
+                                        {% endif %}
+                                        {% endwith %}
+                                    </td>
                                     <td class="text-center"><strong class="text-hm">{{ link.question.points }}</strong></td>
                                     <td class="text-end pe-4">
                                         {% if can_update %}
@@ -270,7 +280,7 @@
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="5" class="text-center py-5">
+                                    <td colspan="6" class="text-center py-5">
                                         
                                         <p class="text-muted mt-3 fw-bold">Đề thi chưa có câu hỏi nào.</p>
                                     </td>

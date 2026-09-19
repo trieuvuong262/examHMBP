@@ -78,7 +78,9 @@ class CourseForm(forms.ModelForm):
         if 'final_exam' in self.fields:
             from assessment.models import Exam
 
-            self.fields['final_exam'].queryset = Exam.objects.filter(is_active=True).order_by('-start_time', 'title')
+            self.fields['final_exam'].queryset = Exam.objects.filter(
+                is_active=True, retry_of__isnull=True,
+            ).order_by('-start_time', 'title')
             self.fields['final_exam'].required = False
             self.fields['final_exam'].empty_label = '— Không gắn bài thi —'
             self.fields['final_exam'].help_text = ''

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from django.contrib import messages
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -10,27 +10,55 @@ from PortalJustPlay.list_search import get_search_query, search_terms
 from PortalJustPlay.pagination import paginate_queryset
 from assessment.certificates import maybe_issue_certificate, recipient_display_name, revoke_certificate
 from assessment.decorators import module_perm_required
-from assessment.forms import CertificateTemplateForm
+from assessment.forms import CertificateDescriptionFormSetFactory, CertificateTemplateForm
 from assessment.models import Certificate, CertificateTemplate, Exam, ExamSubmission
+from training.models import Chapter, Course
 from hrm.module_permissions import MODULE_ASSESSMENT, user_can_edit_module
 from hrm.permissions import is_portal_admin
 
 
-def _preview_cert(template, user=None):
+def _certificate_queryset():
+    def course_qs():
+        return Course.objects.prefetch_related(
+            Prefetch('chapters', queryset=Chapter.objects.order_by('order', 'id')),
+        ).order_by('title')
+    return Certificate.objects.select_related(
+        'user', 'user__profile', 'exam', 'exam__retry_of', 'template',
+    ).prefetch_related(
+        'template__course_descriptions',
+        Prefetch('exam__related_courses', queryset=course_qs()),
+        Prefetch('exam__retry_of__related_courses', queryset=course_qs()),
+    )
+
+
+def _preview_cert(template, user=None, description_override=''):
     now = timezone.localtime(timezone.now())
     name = recipient_display_name(user) if user else 'Nguyễn Văn A'
+    raw = (description_override or '').strip() or (getattr(template, 'body_text', None) or '')
+    try:
+        filled = raw.format(
+            name=name,
+            exam_title='An toàn lao động JustPlay',
+            score='85',
+            date=now.strftime('%d/%m/%Y'),
+            code='JP-PREVIEW',
+        )
+    except (KeyError, IndexError, ValueError):
+        filled = raw
     return {
         'code': 'JP-PREVIEW',
         'recipient_name': name,
-        'exam_title': 'Kỳ thi mẫu',
-        'score': 8.5,
-        'body_text': (template.body_text or '').format(
-            name=name,
-            exam_title='Kỳ thi mẫu',
-            score='8.5',
-            date=now.strftime('%d/%m/%Y'),
-            code='JP-PREVIEW',
-        ),
+        'exam_title': 'An toàn lao động JustPlay',
+        'course_title': 'An toàn lao động JustPlay',
+        'score': 85,
+        'body_text': filled,
+        'description': filled,
+        'chapters': [
+            'Nội quy nhà máy',
+            'An toàn lao động',
+            'PCCC tại xưởng',
+            'Văn hóa JustPlay',
+        ],
         'issued_at': now,
         'template': template,
         'is_revoked': False,
@@ -42,9 +70,7 @@ def admin_certificate_list(request):
     search_query = get_search_query(request)
     exam_id = request.GET.get('exam', '').strip()
     status = request.GET.get('status', '').strip()
-    qs = Certificate.objects.select_related(
-        'user', 'user__profile', 'exam', 'template',
-    ).order_by('-issued_at')
+    qs = _certificate_queryset().order_by('-issued_at')
     if exam_id:
         qs = qs.filter(exam_id=exam_id)
     if status == 'active':
@@ -133,18 +159,31 @@ def admin_template_edit(request, pk):
     return _template_form(request, instance=instance, title='Sửa mẫu chứng chỉ')
 
 
+def _desc_formset(data, instance):
+    parent = instance if instance is not None else CertificateTemplate()
+    kwargs = {'instance': parent, 'prefix': 'descs'}
+    if data is not None:
+        return CertificateDescriptionFormSetFactory(data, **kwargs)
+    return CertificateDescriptionFormSetFactory(**kwargs)
+
+
 def _template_form(request, instance, title):
     if request.method == 'POST':
-        form = CertificateTemplateForm(request.POST, instance=instance)
-        if form.is_valid():
-            form.save()
+        form = CertificateTemplateForm(request.POST, request.FILES, instance=instance)
+        formset = _desc_formset(request.POST, instance)
+        if form.is_valid() and formset.is_valid():
+            obj = form.save()
+            formset.instance = obj
+            formset.save()
             messages.success(request, 'Đã lưu mẫu chứng chỉ.')
             return redirect('admin_certificate_templates')
     else:
         form = CertificateTemplateForm(instance=instance)
+        formset = _desc_formset(None, instance)
     preview = _preview_cert(form.instance, request.user)
     return render(request, 'assessment/admin/certificate_template_form.html', {
         'form': form,
+        'formset': formset,
         'title': title,
         'template': instance,
         'preview_cert': preview,
@@ -163,9 +202,9 @@ def admin_template_delete(request, pk):
 
 @module_perm_required(MODULE_ASSESSMENT, 'view')
 def my_certificates(request):
-    qs = Certificate.objects.filter(
+    qs = _certificate_queryset().filter(
         user=request.user, is_revoked=False,
-    ).select_related('exam', 'template').order_by('-issued_at')
+    ).order_by('-issued_at')
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'assessment/my_certificates.html', {
         'certificates': page_obj.object_list,
@@ -176,7 +215,7 @@ def my_certificates(request):
 
 @module_perm_required(MODULE_ASSESSMENT, 'view')
 def certificate_view(request, pk):
-    cert = get_object_or_404(Certificate.objects.select_related('template', 'exam', 'user'), pk=pk)
+    cert = get_object_or_404(_certificate_queryset(), pk=pk)
     can_manage = is_portal_admin(request.user) or user_can_edit_module(request.user, MODULE_ASSESSMENT)
     if cert.user_id != request.user.id and not can_manage:
         messages.error(request, 'Bạn không có quyền xem chứng chỉ này.')
@@ -185,3 +224,11 @@ def certificate_view(request, pk):
         messages.error(request, 'Chứng chỉ này đã bị thu hồi.')
         return redirect('my_certificates')
     return render(request, 'assessment/certificate_view.html', {'cert': cert})
+
+
+def certificate_verify(request, code):
+    cert = get_object_or_404(_certificate_queryset(), code=code)
+    return render(request, 'assessment/certificate_verify.html', {
+        'cert': cert,
+        'is_public_verify': True,
+    })
