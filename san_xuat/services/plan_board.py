@@ -5240,91 +5240,42 @@ def confirmed_order_qty_summary() -> dict:
 
 
 @dataclass
-class RouteStatCell:
-    slug: str
-    key: str = ''
-    planned: Decimal = field(default_factory=lambda: Decimal('0'))
-    done: Decimal = field(default_factory=lambda: Decimal('0'))
-    remaining: Decimal = field(default_factory=lambda: Decimal('0'))
-    pct: Decimal = field(default_factory=lambda: Decimal('0'))
-    present: bool = False
+class RouteDayStatCell:
+    date: date
+    qty: Decimal = field(default_factory=lambda: Decimal('0'))
+    qty_label: str = '0'
+    done_qty: Decimal = field(default_factory=lambda: Decimal('0'))
+    done_qty_label: str = '0'
+    is_today: bool = False
+    is_off: bool = False
+    is_weekend: bool = False
 
 
 @dataclass
-class RouteStageStat:
+class RouteDeptDayStat:
     slug: str
     label: str
     key: str = ''
-    planned: Decimal = field(default_factory=lambda: Decimal('0'))
-    done: Decimal = field(default_factory=lambda: Decimal('0'))
-    remaining: Decimal = field(default_factory=lambda: Decimal('0'))
-    pct: Decimal = field(default_factory=lambda: Decimal('0'))
-    order_count: int = 0
-
-
-@dataclass
-class RouteOrderStat:
-    order: SxSalesOrder
-    product_code_label: str = ''
-    product_name_label: str = ''
-    subtitle: str = ''
-    qty: Decimal = field(default_factory=lambda: Decimal('0'))
-    status_key: str = ''
-    status_label: str = ''
-    is_late: bool = False
-    cells: list[RouteStatCell] = field(default_factory=list)
-    done: Decimal = field(default_factory=lambda: Decimal('0'))
-    remaining: Decimal = field(default_factory=lambda: Decimal('0'))
-    pct: Decimal = field(default_factory=lambda: Decimal('0'))
+    cells: list[RouteDayStatCell] = field(default_factory=list)
+    total: Decimal = field(default_factory=lambda: Decimal('0'))
+    total_label: str = '0'
+    done_total: Decimal = field(default_factory=lambda: Decimal('0'))
+    done_total_label: str = '0'
 
 
 @dataclass
 class RouteStatsBoard:
-    stages: list[RouteStageStat] = field(default_factory=list)
-    orders: list[RouteOrderStat] = field(default_factory=list)
-    order_count: int = 0
-    planned: Decimal = field(default_factory=lambda: Decimal('0'))
-    done: Decimal = field(default_factory=lambda: Decimal('0'))
-    remaining: Decimal = field(default_factory=lambda: Decimal('0'))
-    pct: Decimal = field(default_factory=lambda: Decimal('0'))
+    stages: list[RouteDeptDayStat] = field(default_factory=list)
+    days: list = field(default_factory=list)
 
 
 def _qty_from_label(raw) -> Decimal:
     if isinstance(raw, Decimal):
         return _q(raw)
     text = str(raw or '').strip().replace(' ', '').replace('\u00a0', '')
-    if not text:
+    if not text or text in {'—', '-'}:
         return Decimal('0')
     return _q(text.replace(',', '.'))
-
-
-def _stat_remaining(planned: Decimal, done: Decimal) -> Decimal:
-    return max(_q(planned) - _q(done), Decimal('0'))
-
-
-def _stat_pct(planned: Decimal, done: Decimal) -> Decimal:
-    plan = _q(planned)
-    if plan <= 0:
-        return Decimal('0')
-    pct = (_q(done) / plan * Decimal('100')).quantize(Decimal('0.1'))
-    if pct < 0:
-        return Decimal('0')
-    if pct > Decimal('100'):
-        return Decimal('100')
-    return pct
-
-
-def _stage_planned_qty(stage) -> Decimal:
-    planned = _qty_from_label(
-        getattr(stage, 'team_qty_total', '') or getattr(stage, 'total_label', ''),
-    )
-    if planned > 0:
-        return planned
-    return _q(getattr(stage, 'planned_qty', 0) or 0)
-
-
-def _stage_done_qty(stage) -> Decimal:
-    return _qty_from_label(getattr(stage, 'done_total_label', 0) or 0)
 
 
 def _stage_stat_key(stage) -> str:
@@ -5334,13 +5285,15 @@ def _stage_stat_key(stage) -> str:
 
 
 def _stage_stat_label(stage) -> str:
-    """Nhãn bộ phận = tên trên Ob / tổ KHSX, không ép 6 khâu Cắt–May cố định."""
+    """Nhãn bộ phận = tên tổ/WC trên lưới; không ép nhãn khâu sheet cố định."""
+    text = (getattr(stage, 'label', '') or '').strip()
+    if text:
+        return text
     slug = (getattr(stage, 'slug', '') or '').strip().lower()
-    sheet = (_SHEET_STAGE_LABELS.get(slug) or '').strip().casefold()
-    for raw in (getattr(stage, 'label', None), getattr(stage, 'short_label', None)):
-        text = (raw or '').strip()
-        if text and text.casefold() != sheet:
-            return text
+    short = (getattr(stage, 'short_label', '') or '').strip()
+    sheet = (_SHEET_STAGE_LABELS.get(slug) or '').strip()
+    if short and short.casefold() != sheet.casefold():
+        return short
     return _team_display_label(slug)
 
 
@@ -5351,21 +5304,22 @@ def _stage_stat_rank(key: str) -> tuple[int, str]:
 
 
 def build_route_stats(board) -> RouteStatsBoard:
-    """Tổng SL đã làm / chưa làm trên lưới lộ trình — theo bộ phận Ob và theo đơn."""
+    """Tổng SL dự kiến / đã sản xuất theo bộ phận × ngày (footer expand)."""
     empty = RouteStatsBoard()
     if board is None:
         return empty
+    days = list(getattr(board, 'days', None) or [])
     rows = list(getattr(board, 'rows', None) or [])
-    if not rows:
-        return empty
+    if not days or not rows:
+        return RouteStatsBoard(days=days)
 
     key_meta: dict[str, tuple[str, str]] = {}
     seen_keys: list[str] = []
     seen_set: set[str] = set()
+    day_qty: dict[tuple[str, date], Decimal] = {}
+    day_done: dict[tuple[str, date], Decimal] = {}
 
-    order_stage_qty: list[tuple[object, dict[str, tuple[Decimal, Decimal]]]] = []
     for row in rows:
-        by_key: dict[str, list[Decimal]] = {}
         for stage in list(getattr(row, 'stage_rows', None) or []):
             slug = (getattr(stage, 'slug', '') or '').strip().lower()
             if not slug or slug == 'npl':
@@ -5376,88 +5330,52 @@ def build_route_stats(board) -> RouteStatsBoard:
                 seen_set.add(key)
             if key not in key_meta:
                 key_meta[key] = (slug, _stage_stat_label(stage))
-            bucket = by_key.setdefault(key, [Decimal('0'), Decimal('0')])
-            bucket[0] += _stage_planned_qty(stage)
-            bucket[1] += _stage_done_qty(stage)
-        packed = {key: (_q(vals[0]), _q(vals[1])) for key, vals in by_key.items()}
-        order_stage_qty.append((row, packed))
+            for cell in list(getattr(stage, 'cells', None) or []):
+                if getattr(cell, 'is_off', False):
+                    continue
+                bar = getattr(cell, 'bar', None)
+                if bar is None:
+                    continue
+                day = getattr(cell, 'date', None)
+                if day is None:
+                    continue
+                bucket = (key, day)
+                qty = _qty_from_label(getattr(bar, 'qty_label', 0) or 0)
+                if qty > 0:
+                    day_qty[bucket] = day_qty.get(bucket, Decimal('0')) + qty
+                done = _qty_from_label(getattr(bar, 'done_qty_label', 0) or 0)
+                if done > 0:
+                    day_done[bucket] = day_done.get(bucket, Decimal('0')) + done
 
-    stages_order = sorted(seen_keys, key=_stage_stat_rank)
-    stage_acc: dict[str, list] = {
-        key: [Decimal('0'), Decimal('0'), 0]
-        for key in stages_order
-    }
-    orders: list[RouteOrderStat] = []
-    total_planned = Decimal('0')
-    total_done = Decimal('0')
-
-    for row, packed in order_stage_qty:
-        qty = _qty_from_label(getattr(row, 'qty_label', 0) or 0)
-        cells: list[RouteStatCell] = []
-        last_cell: RouteStatCell | None = None
-        for key in stages_order:
-            slug = key_meta.get(key, ('', ''))[0]
-            pair = packed.get(key)
-            if pair is None:
-                cells.append(RouteStatCell(slug=slug, key=key))
-                continue
-            planned, done = pair
-            remaining = _stat_remaining(planned, done)
-            cell = RouteStatCell(
-                slug=slug,
-                key=key,
-                planned=planned,
-                done=done,
-                remaining=remaining,
-                pct=_stat_pct(planned, done),
-                present=True,
-            )
-            cells.append(cell)
-            last_cell = cell
-            acc = stage_acc[key]
-            acc[0] += planned
-            acc[1] += done
-            acc[2] += 1
-        order_done = last_cell.done if last_cell is not None else Decimal('0')
-        if qty <= 0 and last_cell is not None:
-            qty = last_cell.planned
-        remaining = _stat_remaining(qty, order_done)
-        total_planned += qty
-        total_done += min(order_done, qty) if qty > 0 else order_done
-        orders.append(RouteOrderStat(
-            order=row.order,
-            product_code_label=getattr(row, 'product_code_label', '') or '',
-            product_name_label=getattr(row, 'product_name_label', '') or '',
-            subtitle=getattr(row, 'subtitle', '') or '',
-            qty=qty,
-            status_key=getattr(row, 'status_key', '') or '',
-            status_label=getattr(row, 'status_label', '') or '',
-            is_late=bool(getattr(row, 'is_late', False)),
-            cells=cells,
-            done=min(order_done, qty) if qty > 0 else order_done,
-            remaining=remaining,
-            pct=_stat_pct(qty, order_done),
-        ))
-
-    stages = [
-        RouteStageStat(
-            slug=key_meta[key][0],
+    stages: list[RouteDeptDayStat] = []
+    for key in sorted(seen_keys, key=_stage_stat_rank):
+        slug, label = key_meta[key]
+        cells: list[RouteDayStatCell] = []
+        total = Decimal('0')
+        done_total = Decimal('0')
+        for day in days:
+            qty = day_qty.get((key, day.date), Decimal('0'))
+            done = day_done.get((key, day.date), Decimal('0'))
+            total += qty
+            done_total += done
+            cells.append(RouteDayStatCell(
+                date=day.date,
+                qty=_q(qty),
+                qty_label=format_sx_num_input(qty) if qty > 0 else '0',
+                done_qty=_q(done),
+                done_qty_label=format_sx_num_input(done) if done > 0 else '0',
+                is_today=bool(getattr(day, 'is_today', False)),
+                is_off=bool(getattr(day, 'is_off', False)),
+                is_weekend=bool(getattr(day, 'is_weekend', False)),
+            ))
+        stages.append(RouteDeptDayStat(
+            slug=slug,
             key=key,
-            label=key_meta[key][1],
-            planned=_q(acc[0]),
-            done=_q(acc[1]),
-            remaining=_stat_remaining(acc[0], acc[1]),
-            pct=_stat_pct(acc[0], acc[1]),
-            order_count=int(acc[2]),
-        )
-        for key, acc in ((k, stage_acc[k]) for k in stages_order)
-    ]
-    return RouteStatsBoard(
-        stages=stages,
-        orders=orders,
-        order_count=len(orders),
-        planned=_q(total_planned),
-        done=_q(total_done),
-        remaining=_stat_remaining(total_planned, total_done),
-        pct=_stat_pct(total_planned, total_done),
-    )
+            label=label,
+            cells=cells,
+            total=_q(total),
+            total_label=format_sx_num_input(total) if total > 0 else '0',
+            done_total=_q(done_total),
+            done_total_label=format_sx_num_input(done_total) if done_total > 0 else '0',
+        ))
+    return RouteStatsBoard(stages=stages, days=days)

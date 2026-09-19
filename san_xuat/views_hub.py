@@ -1365,7 +1365,7 @@ def plan_board(request):
 
     mode = (request.GET.get('mode') or request.POST.get('mode') or 'list').strip()
     tab = (request.GET.get('tab') or request.POST.get('tab') or 'queue').strip()
-    if mode == 'route' or tab in {'lo-trinh', 'timeline'}:
+    if mode == 'route' or tab in {'lo-trinh', 'timeline', 'stats'}:
         tab = 'route'
     mode = 'list'
 
@@ -1377,7 +1377,7 @@ def plan_board(request):
         return redirect(f"{reverse('san_xuat:plan_board')}?{urlencode(params)}")
     if tab == 'released':
         tab = 'queue'
-    if tab not in {'queue', 'route', 'subcontract', 'stats'}:
+    if tab not in {'queue', 'route', 'subcontract'}:
         tab = 'queue'
     q = (request.GET.get('q') or request.POST.get('q') or '').strip()
     date_from_raw = (request.GET.get('date_from') or request.POST.get('date_from') or '').strip()
@@ -1451,7 +1451,7 @@ def plan_board(request):
                     params['gc_status'] = gc_status_filter
                 if gc_team_filter:
                     params['gc_team'] = gc_team_filter
-        elif tab in {'route', 'stats'}:
+        elif tab == 'route':
             route_from_raw = (request.GET.get('route_from') or request.POST.get('route_from') or '').strip()
             route_months_raw = (request.GET.get('route_months') or request.POST.get('route_months') or '').strip()
             if route_from_raw:
@@ -2172,7 +2172,7 @@ def plan_board(request):
         gc_team_choices = team_slug_choices()
         route_board = None
         route_stats = None
-    elif tab in {'route', 'stats'}:
+    elif tab == 'route':
         from san_xuat.list_filters import parse_sx_date
         from san_xuat.services.plan_board import _clamp_route_months, _months_bounds, _shift_month
 
@@ -2200,8 +2200,7 @@ def plan_board(request):
             include_unassigned_team=route_team_unassigned,
         )
         today_start, today_end_month = _months_bounds(timezone.localdate(), route_months)
-        if tab == 'stats':
-            route_stats = build_route_stats(route_board)
+        route_stats = build_route_stats(route_board)
 
     from san_xuat.services.planning import npl_prep_days
     from san_xuat.services.team_stage_colors import team_stage_color_css

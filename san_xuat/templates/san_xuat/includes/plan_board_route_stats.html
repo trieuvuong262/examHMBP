@@ -1,312 +1,79 @@
 {% load sx_format %}
-<style>
-  .jp-rst { --rst-ink:#0f172a; --rst-muted:#64748b; --rst-line:#e8edf3; --rst-soft:#f4f7fb; }
-  .jp-rst-kpis {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0.75rem;
-    margin: 0 0 1rem;
-  }
-  @media (max-width: 900px) { .jp-rst-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  @media (max-width: 520px) { .jp-rst-kpis { grid-template-columns: 1fr; } }
-  .jp-rst-kpi {
-    border: 1px solid var(--rst-line);
-    border-radius: 1rem;
-    background: #fff;
-    padding: 0.9rem 1.05rem;
-    min-height: 5.2rem;
-  }
-  .jp-rst-kpi .lbl { color: var(--rst-muted); font-size: 0.75rem; font-weight: 700; }
-  .jp-rst-kpi .val {
-    font-size: 1.45rem; font-weight: 800; color: var(--rst-ink);
-    letter-spacing: -0.02em; line-height: 1.2; margin-top: 0.2rem;
-  }
-  .jp-rst-kpi .sub { color: var(--rst-muted); font-size: 0.75rem; font-weight: 600; margin-top: 0.15rem; }
-  .jp-rst-kpi.is-done .val { color: #15803d; }
-  .jp-rst-kpi.is-todo .val { color: #c2410c; }
-
-  .jp-rst-section {
-    margin: 0 0 1.15rem;
-  }
-  .jp-rst-section h3 {
-    margin: 0 0 0.65rem;
-    font-size: 0.92rem;
-    font-weight: 800;
-    color: var(--rst-ink);
-    letter-spacing: -0.02em;
-  }
-
-  .jp-rst-stages {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(11.5rem, 1fr));
-    gap: 0.7rem;
-  }
-  .jp-rst-stage {
-    border: 1px solid var(--rst-line);
-    border-radius: 0.95rem;
-    background: #fff;
-    overflow: hidden;
-    border-left: 4px solid var(--st-fill, #94a3b8);
-  }
-  .jp-rst-stage-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.4rem;
-    padding: 0.55rem 0.75rem 0.35rem;
-    background: var(--st-soft, var(--rst-soft));
-  }
-  .jp-rst-stage-head .nm {
-    font-weight: 800;
-    font-size: 0.82rem;
-    color: var(--st-ink, var(--rst-ink));
-  }
-  .jp-rst-stage-head .n {
-    font-size: 0.7rem;
-    font-weight: 700;
-    color: var(--rst-muted);
-  }
-  .jp-rst-stage-body { padding: 0.45rem 0.75rem 0.75rem; }
-  .jp-rst-pair {
-    display: flex;
-    align-items: baseline;
-    gap: 0.3rem;
-    font-weight: 800;
-    color: var(--rst-ink);
-    letter-spacing: -0.02em;
-  }
-  .jp-rst-pair .done { font-size: 1.15rem; }
-  .jp-rst-pair .plan { font-size: 0.8rem; color: var(--rst-muted); font-weight: 700; }
-  .jp-rst-meta {
-    display: flex;
-    justify-content: space-between;
-    gap: 0.5rem;
-    margin-top: 0.25rem;
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: var(--rst-muted);
-  }
-  .jp-rst-meta .todo { color: #c2410c; }
-  .jp-rst-meta .ok { color: #15803d; }
-  .jp-rst-bar {
-    height: 0.35rem;
-    border-radius: 999px;
-    background: #e2e8f0;
-    overflow: hidden;
-    margin-top: 0.45rem;
-  }
-  .jp-rst-bar > i {
-    display: block;
-    height: 100%;
-    border-radius: inherit;
-    background: var(--st-ink, #0369a1);
-    max-width: 100%;
-  }
-
-  .jp-rst-table-wrap {
-    overflow: auto;
-    border: 1px solid var(--rst-line);
-    border-radius: 1rem;
-    background: #fff;
-    max-height: min(70vh, 42rem);
-  }
-  .jp-rst-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    min-width: 52rem;
-  }
-  .jp-rst-table th,
-  .jp-rst-table td {
-    padding: 0.55rem 0.7rem;
-    border-bottom: 1px solid var(--rst-line);
-    vertical-align: middle;
-    font-size: 0.8rem;
-  }
-  .jp-rst-table thead th {
-    position: sticky;
-    top: 0;
-    z-index: 3;
-    background: var(--rst-soft);
-    font-size: 0.72rem;
-    font-weight: 800;
-    color: var(--rst-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    white-space: nowrap;
-    border-bottom: 1px solid #dbe2ea;
-  }
-  .jp-rst-table thead th.jp-stage-head {
-    color: var(--st-ink, var(--rst-ink));
-    background: var(--st-soft, var(--rst-soft));
-    text-align: right;
-  }
-  .jp-rst-table .jp-rst-num { text-align: right; font-variant-numeric: tabular-nums; }
-  .jp-rst-table tbody td.jp-rst-sticky,
-  .jp-rst-table thead th.jp-rst-sticky {
-    position: sticky;
-    left: 0;
-    z-index: 2;
-    background: #fff;
-    box-shadow: 1px 0 0 var(--rst-line);
-  }
-  .jp-rst-table thead th.jp-rst-sticky { z-index: 4; background: var(--rst-soft); }
-  .jp-rst-table tfoot td {
-    background: var(--rst-soft);
-    font-weight: 800;
-    border-bottom: 0;
-  }
-  .jp-rst-code {
-    font-weight: 800;
-    color: var(--rst-ink);
-    text-decoration: none;
-    letter-spacing: -0.01em;
-  }
-  .jp-rst-code:hover { color: var(--hm-primary, #dc2626); }
-  .jp-rst-sub { color: var(--rst-muted); font-size: 0.74rem; font-weight: 600; margin-top: 0.12rem; }
-  .jp-rst-status { font-size: 0.7rem; font-weight: 700; color: var(--rst-muted); }
-  .jp-rst-late .jp-rst-sticky { background: #fef2f2; }
-  .jp-rst-cell { min-width: 6.4rem; }
-  .jp-rst-cell .pair {
-    display: flex;
-    align-items: baseline;
-    justify-content: flex-end;
-    gap: 0.2rem;
-    font-weight: 800;
-    color: var(--rst-ink);
-    font-variant-numeric: tabular-nums;
-  }
-  .jp-rst-cell .pair .muted { color: var(--rst-muted); font-weight: 700; font-size: 0.74rem; }
-  .jp-rst-cell .left { font-size: 0.7rem; font-weight: 700; color: var(--rst-muted); text-align: right; margin-top: 0.08rem; }
-  .jp-rst-cell.is-done .pair { color: #15803d; }
-  .jp-rst-cell.is-todo .left { color: #c2410c; }
-  .jp-rst-cell.is-empty { color: #cbd5e1; text-align: right; font-weight: 700; }
-  .jp-rst-empty {
-    border: 1px dashed var(--rst-line);
-    border-radius: 1rem;
-    padding: 2.4rem 1rem;
-    text-align: center;
-    color: var(--rst-muted);
-    background: #fff;
-    font-weight: 600;
-  }
-</style>
-
-{% if not route_stats or not route_stats.orders %}
-<div class="jp-rst jp-rst-empty">Không có đơn trên lộ trình trong kỳ này.</div>
-{% else %}
-<div class="jp-rst">
-  <div class="jp-rst-kpis">
-    <div class="jp-rst-kpi">
-      <div class="lbl">Đơn hàng</div>
-      <div class="val">{{ route_stats.order_count }}</div>
-    </div>
-    <div class="jp-rst-kpi">
-      <div class="lbl">Tổng SL</div>
-      <div class="val">{{ route_stats.planned|sx_num }}</div>
-    </div>
-    <div class="jp-rst-kpi is-done">
-      <div class="lbl">Đã làm</div>
-      <div class="val">{{ route_stats.done|sx_num }}</div>
-      <div class="sub">{{ route_stats.pct|sx_num }}%</div>
-    </div>
-    <div class="jp-rst-kpi is-todo">
-      <div class="lbl">Chưa làm</div>
-      <div class="val">{{ route_stats.remaining|sx_num }}</div>
-    </div>
-  </div>
-
-  <section class="jp-rst-section" aria-label="Theo bộ phận">
-    <h3>Bộ phận</h3>
-    <div class="jp-rst-stages">
-      {% for stage in route_stats.stages %}
-      <article class="jp-rst-stage jp-stage-{{ stage.slug }}">
-        <header class="jp-rst-stage-head">
-          <span class="nm">{{ stage.label }}</span>
-          <span class="n">{{ stage.order_count }} đơn</span>
-        </header>
-        <div class="jp-rst-stage-body">
-          <div class="jp-rst-pair">
-            <span class="done">{{ stage.done|sx_num }}</span>
-            <span class="plan">/ {{ stage.planned|sx_num }}</span>
-          </div>
-          <div class="jp-rst-meta">
-            {% if stage.remaining %}
-            <span class="todo">Chưa làm {{ stage.remaining|sx_num }}</span>
-            {% else %}
-            <span></span>
-            {% endif %}
-            <span>{{ stage.pct|sx_num }}%</span>
-          </div>
-          <div class="jp-rst-bar" aria-hidden="true"><i style="width: {{ stage.pct }}%"></i></div>
-        </div>
-      </article>
-      {% endfor %}
-    </div>
-  </section>
-
-  <section class="jp-rst-section" aria-label="Theo đơn hàng">
-    <h3>Đơn hàng</h3>
-    <div class="jp-rst-table-wrap">
-      <table class="jp-rst-table">
-        <thead>
-          <tr>
-            <th class="jp-rst-sticky">Đơn</th>
-            <th class="jp-rst-num">SL</th>
-            {% for stage in route_stats.stages %}
-            <th class="jp-rst-num jp-stage-head jp-stage-{{ stage.slug }}">{{ stage.label }}</th>
-            {% endfor %}
-            <th class="jp-rst-num">Đã làm</th>
-            <th class="jp-rst-num">Chưa làm</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in route_stats.orders %}
-          <tr{% if row.is_late %} class="jp-rst-late"{% endif %}>
-            <td class="jp-rst-sticky">
-              <a class="jp-rst-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
-              {% if row.product_code_label %}
-              <div class="jp-rst-sub">{{ row.product_code_label }}{% if row.product_name_label %} · {{ row.product_name_label }}{% endif %}</div>
-              {% elif row.subtitle %}
-              <div class="jp-rst-sub">{{ row.subtitle }}</div>
-              {% endif %}
-              {% if row.status_label %}<div class="jp-rst-status">{{ row.status_label }}</div>{% endif %}
-            </td>
-            <td class="jp-rst-num">{{ row.qty|sx_num }}</td>
-            {% for cell in row.cells %}
-            <td class="jp-rst-cell jp-rst-num jp-stage-{{ cell.slug }} {% if not cell.present %}is-empty{% elif not cell.remaining and cell.planned %}is-done{% elif not cell.done %}is-todo{% endif %}">
-              {% if cell.present %}
-              <div class="pair">
-                <span>{{ cell.done|sx_num }}</span>
-                <span class="muted">/ {{ cell.planned|sx_num }}</span>
-              </div>
-              {% if cell.remaining %}
-              <div class="left">Còn {{ cell.remaining|sx_num }}</div>
-              {% endif %}
-              <div class="jp-rst-bar" aria-hidden="true"><i style="width: {{ cell.pct }}%; background: var(--st-ink, #0369a1);"></i></div>
-              {% else %}
-              —
-              {% endif %}
-            </td>
-            {% endfor %}
-            <td class="jp-rst-num">{{ row.done|sx_num }}</td>
-            <td class="jp-rst-num">{% if row.remaining %}<span class="todo" style="color:#c2410c;font-weight:800">{{ row.remaining|sx_num }}</span>{% else %}{{ row.remaining|sx_num }}{% endif %}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-        <tfoot>
-          <tr>
-            <td class="jp-rst-sticky">Tổng</td>
-            <td class="jp-rst-num">{{ route_stats.planned|sx_num }}</td>
-            {% for stage in route_stats.stages %}
-            <td class="jp-rst-num">{{ stage.done|sx_num }} / {{ stage.planned|sx_num }}</td>
-            {% endfor %}
-            <td class="jp-rst-num">{{ route_stats.done|sx_num }}</td>
-            <td class="jp-rst-num">{{ route_stats.remaining|sx_num }}</td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
-  </section>
-</div>
+{% if route_stats and route_stats.stages %}
+<tbody class="jp-route-sum" data-open="1" data-jp-route-sum="plan">
+  <tr class="jp-route-sum-head">
+    <td class="jp-route-sum-head-cell" colspan="7">
+      <button type="button" class="jp-route-sum-toggle" data-jp-route-sum-toggle aria-expanded="true">
+        <i class="bi bi-chevron-down" aria-hidden="true"></i>
+        Thống kê dự kiến
+      </button>
+    </td>
+    {% for day in route_board.days %}
+    <td class="jp-sheet-cell jp-route-sum-spacer{% if day.is_today %} is-today{% endif %}{% if day.is_off %} is-off{% endif %}"></td>
+    {% endfor %}
+    <td class="c-total jp-route-sum-spacer"></td>
+    <td class="c-total jp-route-sum-spacer"></td>
+  </tr>
+  {% for stage in route_stats.stages %}
+  <tr class="jp-route-sum-row jp-tl-orow" data-team-slug="{{ stage.slug }}">
+    <td class="c-stt jp-route-sum-spacer"></td>
+    <td class="c-prio jp-route-sum-spacer"></td>
+    <td class="c-img jp-route-sum-spacer"></td>
+    <td class="c-name jp-route-sum-spacer"></td>
+    <td class="c-po jp-route-sum-spacer"></td>
+    <td class="c-dept jp-stage-{{ stage.slug }}" title="{{ stage.label }}">
+      <span class="jp-tl-dept-name">{{ stage.label }}</span>
+    </td>
+    <td class="c-team jp-route-sum-spacer"></td>
+    {% for cell in stage.cells %}
+    <td class="jp-sheet-cell jp-route-sum-cell{% if cell.is_today %} is-today{% endif %}{% if cell.is_off %} is-off{% endif %}{% if cell.qty %} has-qty{% endif %}"
+        data-date="{{ cell.date|date:'Y-m-d' }}">
+      {% if not cell.is_off %}
+      <span class="jp-route-sum-qty jp-stage-{{ stage.slug }}{% if not cell.qty %} is-zero{% endif %}">{{ cell.qty_label }}</span>
+      {% endif %}
+    </td>
+    {% endfor %}
+    <td class="c-total c-total-plan">{{ stage.total_label }}</td>
+    <td class="c-total c-total-done jp-route-sum-spacer"></td>
+  </tr>
+  {% endfor %}
+</tbody>
+<tbody class="jp-route-sum is-done" data-open="1" data-jp-route-sum="done">
+  <tr class="jp-route-sum-head">
+    <td class="jp-route-sum-head-cell" colspan="7">
+      <button type="button" class="jp-route-sum-toggle" data-jp-route-sum-toggle aria-expanded="true">
+        <i class="bi bi-chevron-down" aria-hidden="true"></i>
+        Thống kê đã sản xuất
+      </button>
+    </td>
+    {% for day in route_board.days %}
+    <td class="jp-sheet-cell jp-route-sum-spacer{% if day.is_today %} is-today{% endif %}{% if day.is_off %} is-off{% endif %}"></td>
+    {% endfor %}
+    <td class="c-total jp-route-sum-spacer"></td>
+    <td class="c-total jp-route-sum-spacer"></td>
+  </tr>
+  {% for stage in route_stats.stages %}
+  <tr class="jp-route-sum-row jp-tl-orow" data-team-slug="{{ stage.slug }}">
+    <td class="c-stt jp-route-sum-spacer"></td>
+    <td class="c-prio jp-route-sum-spacer"></td>
+    <td class="c-img jp-route-sum-spacer"></td>
+    <td class="c-name jp-route-sum-spacer"></td>
+    <td class="c-po jp-route-sum-spacer"></td>
+    <td class="c-dept jp-stage-{{ stage.slug }}" title="{{ stage.label }}">
+      <span class="jp-tl-dept-name">{{ stage.label }}</span>
+    </td>
+    <td class="c-team jp-route-sum-spacer"></td>
+    {% for cell in stage.cells %}
+    <td class="jp-sheet-cell jp-route-sum-cell{% if cell.is_today %} is-today{% endif %}{% if cell.is_off %} is-off{% endif %}{% if cell.done_qty %} has-qty{% endif %}"
+        data-date="{{ cell.date|date:'Y-m-d' }}">
+      {% if not cell.is_off %}
+      <span class="jp-route-sum-qty is-done jp-stage-{{ stage.slug }}{% if not cell.done_qty %} is-zero{% endif %}">{{ cell.done_qty_label }}</span>
+      {% endif %}
+    </td>
+    {% endfor %}
+    <td class="c-total c-total-plan jp-route-sum-spacer"></td>
+    <td class="c-total c-total-done">{{ stage.done_total_label }}</td>
+  </tr>
+  {% endfor %}
+</tbody>
 {% endif %}
