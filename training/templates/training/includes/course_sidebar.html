@@ -28,7 +28,7 @@
                                 {% endif %}
                             </div>
                             <div>
-                                <div class="small fw-bold {% if current_lesson and current_lesson.id == lesson.id %}text-dark{% else %}text-secondary{% endif %}">{{ lesson.title }}</div>
+                                <div class="small fw-bold {% if current_lesson and current_lesson.id == lesson.id %}text-dark{% else %}text-secondary{% endif %}">{{ forloop.counter }}. {{ lesson.title }}</div>
                                 <div class="text-muted" style="font-size: 0.75rem;">{{ lesson.duration_estimate }} phút</div>
                             </div>
                         </div>

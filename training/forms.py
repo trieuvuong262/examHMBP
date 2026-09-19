@@ -106,6 +106,10 @@ class ChapterForm(forms.ModelForm):
             'order': forms.NumberInput(attrs={'class': 'form-control'}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['order'].required = False
+
 
 class LessonForm(forms.ModelForm):
     class Meta:
@@ -127,6 +131,16 @@ class LessonForm(forms.ModelForm):
             'order': forms.NumberInput(attrs={'class': 'form-control'}),
             'duration_estimate': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Phút'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['order'].required = False
+        self.fields['duration_estimate'].required = False
+        if not self.instance.pk:
+            if not self.initial.get('duration_estimate'):
+                self.initial['duration_estimate'] = 30
+            if not self.initial.get('lesson_type'):
+                self.initial['lesson_type'] = 'video'
 
     def clean(self):
         cleaned_data = super().clean()

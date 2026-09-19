@@ -54,7 +54,12 @@ class Lesson(models.Model):
 
     chapter = models.ForeignKey(Chapter, on_delete=models.CASCADE, related_name='lessons', verbose_name="Chương")
     title = models.CharField(max_length=255, verbose_name="Tiêu đề bài học")
-    lesson_type = models.CharField(max_length=20, choices=LESSON_TYPES, verbose_name="Loại bài học")
+    lesson_type = models.CharField(
+        max_length=20,
+        choices=LESSON_TYPES,
+        default='video',
+        verbose_name="Loại bài học",
+    )
     content = RichTextField(blank=True, null=True, verbose_name="Nội dung bài học")
     video_url = models.URLField(
         blank=True,
@@ -65,7 +70,7 @@ class Lesson(models.Model):
     attachment = models.FileField(upload_to='course_materials/', null=True, blank=True, verbose_name="Tài liệu đính kèm")
     
     order = models.PositiveIntegerField(default=0, verbose_name="Thứ tự bài học")
-    duration_estimate = models.IntegerField(default=0, verbose_name="Thời gian dự kiến (phút)")
+    duration_estimate = models.IntegerField(default=30, verbose_name="Thời gian dự kiến (phút)")
 
     class Meta:
         verbose_name = "Bài học"

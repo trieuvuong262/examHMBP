@@ -89,6 +89,19 @@
         font-weight: 600;
         font-size: 0.75rem;
     }
+
+    .chapter-header-actions {
+        background: white;
+        flex-shrink: 0;
+    }
+
+    .accordion-header-hm .accordion-button:not(.collapsed) + .chapter-header-actions {
+        background-color: #f1f5f9;
+    }
+
+    .chapter-header-actions .btn {
+        line-height: 1;
+    }
 </style>
 
 <div class="container jp-page mt-3 mt-md-4 mb-5">
@@ -114,8 +127,8 @@
     <div class="accordion course-accordion" id="courseAccordion">
         {% for chapter in chapters %}
         <div class="accordion-item">
-            <h2 class="accordion-header accordion-header-hm" id="heading-{{ chapter.id }}">
-                <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}"
+            <h2 class="accordion-header accordion-header-hm d-flex align-items-stretch" id="heading-{{ chapter.id }}">
+                <button class="accordion-button collapsed flex-grow-1"
                         type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ chapter.id }}">
                     <div class="d-flex align-items-center w-100">
                         <i class="bi bi-collection-play-fill text-hm me-3"></i>
@@ -123,8 +136,35 @@
                         <span class="badge badge-time ms-auto me-3">{{ chapter.lessons.count }} bài học</span>
                     </div>
                 </button>
+                {% if can_update or can_delete %}
+                <div class="chapter-header-actions d-flex align-items-center gap-1 px-3">
+                    {% if can_update %}
+                    <button type="button"
+                            class="btn btn-sm btn-white border btn-action"
+                            data-bs-toggle="modal"
+                            data-bs-target="#renameChapterModal"
+                            data-chapter-id="{{ chapter.id }}"
+                            data-chapter-title="{{ chapter.title }}"
+                            data-chapter-order="{{ chapter.order }}"
+                            title="Đổi tên chương">
+                        <i class="bi bi-pencil-square text-warning"></i>
+                    </button>
+                    {% endif %}
+                    {% if can_delete %}
+                    <form action="{% url 'chapter_delete' chapter.id %}" method="POST" class="d-inline m-0">
+                        {% csrf_token %}
+                        <button type="submit"
+                                class="btn btn-sm btn-white border btn-action"
+                                onclick="return confirm('Xóa chương «{{ chapter.title|escapejs }}»?\nToàn bộ bài học trong chương cũng sẽ bị xóa.');"
+                                title="Xóa chương">
+                            <i class="bi bi-trash3 text-danger"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% endif %}
             </h2>
-            <div id="collapse-{{ chapter.id }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
+            <div id="collapse-{{ chapter.id }}" class="accordion-collapse collapse"
                  data-bs-parent="#courseAccordion">
                 <div class="accordion-body p-0 border-top bg-white">
                     {% if can_create %}
@@ -143,7 +183,7 @@
                             <div class="d-flex align-items-center">
                                 
                                 <div>
-                                    <h6 class="mb-0 fw-bold text-dark">{{ lesson.title }}</h6>
+                                    <h6 class="mb-0 fw-bold text-dark">{{ forloop.counter }}. {{ lesson.title }}</h6>
                                     <div class="d-flex gap-3">
                                         <span class="text-muted x-small">{{ lesson.duration_estimate }} phút</span>
                                         <span class="text-muted x-small text-uppercase fw-bold">{{ lesson.get_lesson_type_display }}</span>
@@ -203,18 +243,37 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
-                <div class="mb-3">
+                <div class="mb-0">
                     <label class="form-label fw-bold text-muted small text-uppercase">Tên chương</label>
                     <input type="text" name="title" class="form-control py-2" required placeholder="Ví dụ: Chương 1: Giới thiệu chung">
-                </div>
-                <div class="mb-0">
-                    <label class="form-label fw-bold text-muted small text-uppercase">Thứ tự ưu tiên</label>
-                    <input type="number" name="order" class="form-control py-2" value="{{ chapters.count|add:1 }}">
                 </div>
             </div>
             <div class="modal-footer border-0 p-4 pt-0">
                 <button type="button" class="btn btn-light fw-bold px-4" data-bs-dismiss="modal">Đóng</button>
                 <button type="submit" class="btn btn-hm px-4">Lưu chương</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="renameChapterModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form id="renameChapterForm" method="POST" class="modal-content border-0 shadow-lg">
+            {% csrf_token %}
+            <div class="modal-header bg-dark text-white border-0 py-3 px-4">
+                <h5 class="modal-title fw-bold">Đổi tên chương</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-0">
+                    <label class="form-label fw-bold text-muted small text-uppercase" for="renameChapterTitle">Tên chương</label>
+                    <input type="text" name="title" id="renameChapterTitle" class="form-control py-2" required maxlength="255">
+                    <input type="hidden" name="order" id="renameChapterOrder" value="0">
+                </div>
+            </div>
+            <div class="modal-footer border-0 p-4 pt-0">
+                <button type="button" class="btn btn-light fw-bold px-4" data-bs-dismiss="modal">Đóng</button>
+                <button type="submit" class="btn btn-hm px-4">Lưu tên chương</button>
             </div>
         </form>
     </div>
@@ -237,19 +296,19 @@
                     <div class="col-md-4">
                         <label class="form-label fw-bold text-muted small text-uppercase">Loại bài học</label>
                         <select name="lesson_type" id="lesson_type_select" class="form-select py-2">
+                            <option value="video" selected>Video bài giảng</option>
                             <option value="reading">Bài viết / Văn bản</option>
-                            <option value="video">Video bài giảng</option>
                             <option value="pdf">Tài liệu PDF</option>
                         </select>
                     </div>
                 </div>
 
-                <div id="content_field" class="mt-3">
+                <div id="content_field" class="mt-3 d-none">
                     <label class="form-label fw-bold text-muted small text-uppercase">Nội dung bài viết (HTML được chấp nhận)</label>
                     <textarea name="content" class="form-control" rows="8"></textarea>
                 </div>
 
-                <div id="video_field" class="mt-3 d-none">
+                <div id="video_field" class="mt-3">
                     <label class="form-label fw-bold text-muted small text-uppercase">Đường dẫn Video (YouTube/Vimeo)</label>
                     <input type="url" name="video_url" class="form-control py-2" placeholder="https://www.youtube.com/watch?v=...">
                 </div>
@@ -259,15 +318,9 @@
                     <input type="file" name="attachment" class="form-control py-2">
                 </div>
 
-                <div class="row g-3 mt-1 border-top pt-3">
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold text-muted small text-uppercase">Thời gian dự kiến (phút)</label>
-                        <input type="number" name="duration_estimate" class="form-control py-2" value="15">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold text-muted small text-uppercase">Thứ tự hiển thị</label>
-                        <input type="number" name="order" class="form-control py-2" value="1">
-                    </div>
+                <div class="mt-3">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Thời gian dự kiến (phút)</label>
+                    <input type="number" name="duration_estimate" class="form-control py-2" value="30" min="1">
                 </div>
             </div>
             <div class="modal-footer border-0 p-4 pt-0">
@@ -290,6 +343,26 @@
                 const chapterId = button.getAttribute('data-chapter-id');
                 const form = document.getElementById('lessonForm');
                 form.action = `/training/admin/chapter/${chapterId}/lesson/add/`;
+                if (typeSelect) {
+                    typeSelect.value = 'video';
+                    toggleLessonTypeFields();
+                }
+            });
+        }
+
+        const renameChapterModal = document.getElementById('renameChapterModal');
+        if (renameChapterModal) {
+            renameChapterModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                if (!button) return;
+                const chapterId = button.getAttribute('data-chapter-id');
+                const titleInput = document.getElementById('renameChapterTitle');
+                const orderInput = document.getElementById('renameChapterOrder');
+                const form = document.getElementById('renameChapterForm');
+                form.action = "{% url 'chapter_edit' 0 %}".replace('/0/', '/' + chapterId + '/');
+                titleInput.value = button.getAttribute('data-chapter-title') || '';
+                orderInput.value = button.getAttribute('data-chapter-order') || '0';
+                setTimeout(function () { titleInput.focus(); titleInput.select(); }, 200);
             });
         }
 
@@ -298,16 +371,19 @@
         const videoField = document.getElementById('video_field');
         const fileField = document.getElementById('file_field');
 
-        if (typeSelect) {
-            typeSelect.addEventListener('change', function () {
-                contentField.classList.add('d-none');
-                videoField.classList.add('d-none');
-                fileField.classList.add('d-none');
+        function toggleLessonTypeFields() {
+            if (!typeSelect) return;
+            contentField.classList.add('d-none');
+            videoField.classList.add('d-none');
+            fileField.classList.add('d-none');
+            if (typeSelect.value === 'reading') contentField.classList.remove('d-none');
+            else if (typeSelect.value === 'video') videoField.classList.remove('d-none');
+            else if (typeSelect.value === 'pdf') fileField.classList.remove('d-none');
+        }
 
-                if (this.value === 'reading') contentField.classList.remove('d-none');
-                else if (this.value === 'video') videoField.classList.remove('d-none');
-                else if (this.value === 'pdf') fileField.classList.remove('d-none');
-            });
+        if (typeSelect) {
+            typeSelect.addEventListener('change', toggleLessonTypeFields);
+            toggleLessonTypeFields();
         }
 
         var sortables = document.querySelectorAll('.sortable-lessons');

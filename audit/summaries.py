@@ -283,6 +283,8 @@ URL_DESCRIPTIONS: dict[str, dict[str, str] | str] = {
     },
     'course_builder': 'mở trình dựng nội dung khóa #{course_id}',
     'chapter_create': 'thêm chương cho khóa #{course_id}',
+    'chapter_edit': 'đổi tên chương #{chapter_id}',
+    'chapter_delete': 'xóa chương #{chapter_id}',
     'lesson_create': 'thêm bài học vào chương #{chapter_id}',
     'lesson_edit': {
         'GET': 'mở form sửa bài học #{lesson_id}',
@@ -908,6 +910,7 @@ URL_POST_HIGHLIGHTS: dict[str, list[str]] = {
     'course_create': ['title', 'description'],
     'course_edit': ['title', 'description'],
     'lesson_edit': ['title', 'chapter_id'],
+    'chapter_edit': ['title', 'order'],
     'job_posting_create': ['title', 'department', 'status'],
     'job_posting_edit': ['title', 'department', 'status'],
     'add_candidate': ['full_name', 'phone', 'email', 'position'],

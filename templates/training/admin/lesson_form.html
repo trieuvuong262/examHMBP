@@ -68,10 +68,7 @@
                     <label class="form-label fw-bold">Thời gian dự kiến (phút)</label>
                     {{ form.duration_estimate }}
                 </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label fw-bold">Thứ tự ưu tiên</label>
-                    {{ form.order }}
-                </div>
+                {{ form.order.as_hidden }}
             </div>
 
             <div class="text-end mt-2">

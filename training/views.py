@@ -1,7 +1,7 @@
 from assessment.models import ExamSubmission
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import Count
+from django.db.models import Count, Max
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -22,6 +22,16 @@ from PortalJustPlay.pagination import LIST_PAGE_SIZE, paginate_queryset
 
 from .forms import ChapterForm, CourseForm, LessonForm, assignee_quick_select_context
 from .models import Chapter, Course, CourseCategory, Enrollment, Lesson, LessonProgress
+
+
+def _next_chapter_order(course):
+    current = course.chapters.aggregate(m=Max('order'))['m'] or 0
+    return current + 1
+
+
+def _next_lesson_order(chapter):
+    current = chapter.lessons.aggregate(m=Max('order'))['m'] or 0
+    return current + 1
 
 
 def _is_survey_read_mode(*, next_url: str = '', ref: str = '') -> bool:
@@ -316,19 +326,55 @@ def course_builder(request, course_id):
 def chapter_create(request, course_id):
     course = get_object_or_404(Course, id=course_id)
     if request.method == 'POST':
-        form = ChapterForm(request.POST)
-        if form.is_valid():
-            chapter = form.save(commit=False)
-            chapter.course = course
-            chapter.save()
+        title = (request.POST.get('title') or '').strip()
+        if not title:
+            messages.error(request, 'Tên chương không được để trống.')
             return redirect('course_builder', course_id=course.id)
+        chapter = Chapter.objects.create(
+            course=course,
+            title=title,
+            order=_next_chapter_order(course),
+        )
+        messages.success(request, f'Đã thêm chương: {chapter.title}')
+        return redirect('course_builder', course_id=course.id)
     return redirect('course_builder', course_id=course.id)
+
+
+@module_perm_required(MODULE_TRAINING, 'update')
+@require_POST
+def chapter_edit(request, chapter_id):
+    chapter = get_object_or_404(Chapter, id=chapter_id)
+    course_id = chapter.course_id
+    form = ChapterForm(request.POST, instance=chapter)
+    if form.is_valid():
+        form.save()
+        messages.success(request, f'Đã đổi tên chương: {chapter.title}')
+    else:
+        messages.error(request, 'Không đổi được tên chương. Tên chương không được để trống.')
+    return redirect('course_builder', course_id=course_id)
+
+
+@module_perm_required(MODULE_TRAINING, 'delete')
+@require_POST
+def chapter_delete(request, chapter_id):
+    chapter = get_object_or_404(Chapter, id=chapter_id)
+    course_id = chapter.course_id
+    title = chapter.title
+    lesson_count = chapter.lessons.count()
+    chapter.delete()
+    extra = f' (kèm {lesson_count} bài học)' if lesson_count else ''
+    messages.success(request, f'Đã xóa chương: {title}{extra}')
+    return redirect('course_builder', course_id=course_id)
 
 @module_perm_required(MODULE_TRAINING, 'create')
 def lesson_create(request, chapter_id):
     chapter = get_object_or_404(Chapter, id=chapter_id)
     if request.method == 'POST':
-        form = LessonForm(request.POST, request.FILES)
+        post = request.POST.copy()
+        post['order'] = _next_lesson_order(chapter)
+        if not str(post.get('duration_estimate') or '').strip():
+            post['duration_estimate'] = 30
+        form = LessonForm(post, request.FILES)
         if form.is_valid():
             lesson = form.save(commit=False)
             lesson.chapter = chapter
