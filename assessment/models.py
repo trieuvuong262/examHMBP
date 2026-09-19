@@ -144,6 +144,20 @@ class ExamSubmission(models.Model):
     def total_score(self):
         return self.auto_score + self.manual_score
 
+    class Meta:
+        verbose_name = 'Kết quả bài thi'
+        verbose_name_plural = 'Kết quả bài thi'
+        ordering = ['-submitted_at', '-id']
+
+    def __str__(self):
+        who = (
+            getattr(getattr(self.user, 'profile', None), 'full_name', None)
+            or self.user.get_full_name()
+            or self.user.username
+        )
+        exam_title = getattr(self.exam, 'title', self.exam_id)
+        return f'{who} — {exam_title}'
+
 # 6. Chi tiết từng câu trả lời
 class UserAnswer(models.Model):
     submission = models.ForeignKey(ExamSubmission, on_delete=models.CASCADE, related_name='answers')
@@ -154,22 +168,29 @@ class UserAnswer(models.Model):
     is_graded = models.BooleanField(default=False)
     graded_score = models.FloatField(default=0.0)
 
+    class Meta:
+        verbose_name = 'Câu trả lời'
+        verbose_name_plural = 'Câu trả lời'
+
+    def __str__(self):
+        return f'Câu {self.question_id} — bài {self.submission_id}'
+
 
 class CertificateTemplate(models.Model):
     name = models.CharField(max_length=255, verbose_name='Tên mẫu')
     heading = models.CharField(max_length=120, default='CERTIFICATE', verbose_name='Tiêu đề lớn')
-    ribbon_text = models.CharField(max_length=80, default='OF ACHIEVEMENT', verbose_name='Dòng phụ')
+    ribbon_text = models.CharField(max_length=80, default='OF COMPLETION', verbose_name='Dòng phụ')
     presented_label = models.CharField(
         max_length=160,
-        default='THIS CERTIFICATE IS PROUDLY PRESENTED TO',
+        default='This certificate is proudly presented to',
         verbose_name='Dòng giới thiệu',
     )
     body_text = models.TextField(
         verbose_name='Nội dung',
         help_text='Có thể dùng {name}, {exam_title}, {score}, {date}, {code}.',
         default=(
-            'Chứng nhận đã hoàn thành kỳ thi «{exam_title}» với số điểm {score}. '
-            'Chứng chỉ số {code}, cấp ngày {date}.'
+            'Chứng nhận đã hoàn thành chương trình «{exam_title}» với kết quả {score} điểm. '
+            'Cấp tại JustPlay ngày {date}.'
         ),
     )
     issuer_name = models.CharField(max_length=120, default='JustPlay.vn', verbose_name='Đơn vị cấp')

@@ -3,8 +3,8 @@
 
 {% block extra_head %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{% static 'css/certificate.css' %}?v=20260919a">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Great+Vibes&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'css/certificate.css' %}?v=20260919d">
 {% endblock %}
 
 {% block content %}
@@ -47,7 +47,7 @@
         </div>
         <div class="col-lg-7">
             <h6 class="fw-bold mb-3">Xem trước</h6>
-            {% include 'assessment/includes/certificate_card.html' with cert=preview_cert %}
+            {% include 'assessment/includes/certificate_card.html' with cert=preview_cert is_preview=True %}
         </div>
     </div>
 </div>

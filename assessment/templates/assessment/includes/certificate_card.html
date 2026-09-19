@@ -1,32 +1,57 @@
+{% load static %}
 {% with t=cert.template %}
-<article class="jp-cert" aria-label="Chứng chỉ {{ cert.code }}">
-    <div class="jp-cert-inner">
-        <div class="jp-cert-deco" aria-hidden="true">
-            <span class="jp-cert-deco-a"></span>
-            <span class="jp-cert-deco-b"></span>
-            <span class="jp-cert-deco-c"></span>
-        </div>
-        <div class="jp-cert-seal" aria-hidden="true">
-            <span class="jp-cert-seal-ring">{{ t.seal_text|default:"JUST PLAY" }}</span>
-        </div>
-        <header class="jp-cert-head">
-            <h1 class="jp-cert-heading">{{ t.heading|default:"CERTIFICATE" }}</h1>
-            <p class="jp-cert-ribbon">{{ t.ribbon_text|default:"OF ACHIEVEMENT" }}</p>
-        </header>
-        <p class="jp-cert-presented">{{ t.presented_label|default:"THIS CERTIFICATE IS PROUDLY PRESENTED TO" }}</p>
-        <p class="jp-cert-name">{{ cert.recipient_name }}</p>
-        <p class="jp-cert-body">{{ cert.body_text }}</p>
-        <footer class="jp-cert-foot">
-            <div class="jp-cert-signblock">
-                <span class="jp-cert-signline">{{ cert.issued_at|date:"d/m/Y" }}</span>
-                <span class="jp-cert-signlabel">DATE</span>
+<article class="jp-cert{% if is_preview %} jp-cert--preview{% endif %}" aria-label="Chứng chỉ {{ cert.code }}">
+    <div class="jp-cert-mat">
+        <div class="jp-cert-frame">
+            <svg class="jp-cert-defs" width="0" height="0" aria-hidden="true" focusable="false">
+                <symbol id="jp-cert-flourish" viewBox="0 0 100 100">
+                    <path d="M96 10H32C16 10 10 16 10 32v64" fill="none" stroke="currentColor" stroke-width="2"/>
+                    <path d="M96 20H38C22 20 20 22 20 38v62" fill="none" stroke="currentColor" stroke-width="0.9" opacity="0.85"/>
+                    <path d="M14 14c18-2 28 14 16 26C18 42 10 26 28 16" fill="none" stroke="currentColor" stroke-width="1.35"/>
+                    <circle cx="18" cy="18" r="3.1" fill="currentColor"/>
+                    <path d="M34 12l2.2 4.6 5 .4-3.8 3.3 1.2 4.9-4.6-2.2-4.6 2.2 1.2-4.9-3.8-3.3 5-.4z" fill="currentColor"/>
+                    <path d="M12 36c6 1 9 7 7 12" fill="none" stroke="currentColor" stroke-width="1.1"/>
+                    <path d="M36 12c1 6 7 9 12 7" fill="none" stroke="currentColor" stroke-width="1.1"/>
+                </symbol>
+            </svg>
+            <svg class="jp-cert-corner jp-cert-corner--tl" viewBox="0 0 100 100" aria-hidden="true"><use href="#jp-cert-flourish"/></svg>
+            <svg class="jp-cert-corner jp-cert-corner--tr" viewBox="0 0 100 100" aria-hidden="true"><use href="#jp-cert-flourish"/></svg>
+            <svg class="jp-cert-corner jp-cert-corner--bl" viewBox="0 0 100 100" aria-hidden="true"><use href="#jp-cert-flourish"/></svg>
+            <svg class="jp-cert-corner jp-cert-corner--br" viewBox="0 0 100 100" aria-hidden="true"><use href="#jp-cert-flourish"/></svg>
+
+            <div class="jp-cert-inner">
+                <div class="jp-cert-brand">
+                    <div class="jp-cert-logo-wrap">
+                        <img src="{% static 'images/logo/logo.png' %}" alt="JustPlay" class="jp-cert-logo">
+                    </div>
+                    <p class="jp-cert-org">JustPlay</p>
+                </div>
+
+                <header class="jp-cert-head">
+                    <h1 class="jp-cert-heading">{{ t.heading|default:"CERTIFICATE" }}</h1>
+                    <p class="jp-cert-ribbon"><span>{{ t.ribbon_text|default:"OF COMPLETION" }}</span></p>
+                </header>
+
+                <p class="jp-cert-presented">{{ t.presented_label|default:"This certificate is proudly presented to" }}</p>
+                <p class="jp-cert-name">{{ cert.recipient_name }}</p>
+                <p class="jp-cert-body">{{ cert.body_text }}</p>
+
+                <footer class="jp-cert-foot">
+                    <div class="jp-cert-signblock">
+                        <span class="jp-cert-signline">{{ cert.issued_at|date:"d/m/Y" }}</span>
+                        <span class="jp-cert-signlabel">Date</span>
+                    </div>
+                    <div class="jp-cert-medal" aria-hidden="true">
+                        <img src="{% static 'images/logo/logo.png' %}" alt="" class="jp-cert-seal-logo">
+                    </div>
+                    <div class="jp-cert-signblock">
+                        <span class="jp-cert-signline">{{ t.issuer_name|default:"JustPlay.vn" }}</span>
+                        <span class="jp-cert-signlabel">{{ t.issuer_title|default:"Ban Đào tạo" }}</span>
+                    </div>
+                </footer>
+                <p class="jp-cert-code">{{ cert.code }}{% if cert.exam_title %} · {{ cert.exam_title }}{% endif %} · {{ cert.score|floatformat:1 }} điểm</p>
             </div>
-            <div class="jp-cert-signblock">
-                <span class="jp-cert-signline">{{ t.issuer_name|default:"JustPlay.vn" }}</span>
-                <span class="jp-cert-signlabel">{{ t.issuer_title|default:"SIGNATURE" }}</span>
-            </div>
-        </footer>
-        <p class="jp-cert-code">{{ cert.code }}{% if cert.exam_title %} · {{ cert.exam_title }}{% endif %} · {{ cert.score|floatformat:1 }} điểm</p>
+        </div>
     </div>
 </article>
 {% endwith %}

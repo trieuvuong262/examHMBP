@@ -1,6 +1,8 @@
 """Thay cau hoi 4 de cuoi khoa bang bo de hon (van dung kien thuc khoa hoc)."""
 from __future__ import annotations
 
+import random
+
 from django.db import transaction
 
 from assessment.models import Choice, Competency, Question
@@ -871,10 +873,12 @@ def create_mc(comp, spec):
         q_type=spec["q_type"],
         points=spec["points"],
     )
+    pairs = list(spec["choices"])
+    random.Random(q.id).shuffle(pairs)
     Choice.objects.bulk_create(
         [
             Choice(question=q, text=text[:500], is_correct=ok, sort_order=idx)
-            for idx, (text, ok) in enumerate(spec["choices"], start=1)
+            for idx, (text, ok) in enumerate(pairs, start=1)
         ]
     )
     return q
