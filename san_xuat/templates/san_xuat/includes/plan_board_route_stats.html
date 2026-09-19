@@ -11,8 +11,7 @@
     {% for day in route_board.days %}
     <td class="jp-sheet-cell jp-route-sum-spacer{% if day.is_today %} is-today{% endif %}{% if day.is_off %} is-off{% endif %}"></td>
     {% endfor %}
-    <td class="c-total jp-route-sum-spacer"></td>
-    <td class="c-total jp-route-sum-spacer"></td>
+    <td class="c-total jp-route-sum-spacer" colspan="2"></td>
   </tr>
   {% for stage in route_stats.stages %}
   <tr class="jp-route-sum-row jp-tl-orow" data-team-slug="{{ stage.slug }}">
@@ -33,8 +32,7 @@
       {% endif %}
     </td>
     {% endfor %}
-    <td class="c-total c-total-plan">{{ stage.total_label }}</td>
-    <td class="c-total c-total-done jp-route-sum-spacer"></td>
+    <td class="c-total c-total-plan" colspan="2">{{ stage.total_label }}</td>
   </tr>
   {% endfor %}
 </tbody>
@@ -49,8 +47,7 @@
     {% for day in route_board.days %}
     <td class="jp-sheet-cell jp-route-sum-spacer{% if day.is_today %} is-today{% endif %}{% if day.is_off %} is-off{% endif %}"></td>
     {% endfor %}
-    <td class="c-total jp-route-sum-spacer"></td>
-    <td class="c-total jp-route-sum-spacer"></td>
+    <td class="c-total jp-route-sum-spacer" colspan="2"></td>
   </tr>
   {% for stage in route_stats.stages %}
   <tr class="jp-route-sum-row jp-tl-orow" data-team-slug="{{ stage.slug }}">
@@ -71,8 +68,7 @@
       {% endif %}
     </td>
     {% endfor %}
-    <td class="c-total c-total-plan jp-route-sum-spacer"></td>
-    <td class="c-total c-total-done">{{ stage.done_total_label }}</td>
+    <td class="c-total c-total-done" colspan="2">{{ stage.done_total_label }}</td>
   </tr>
   {% endfor %}
 </tbody>
