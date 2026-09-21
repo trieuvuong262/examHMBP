@@ -22,7 +22,7 @@
             <div>
                 <a href="{{ cancel_url }}" class="jp-npl-mat-detail-back">
                     <i class="bi bi-arrow-left" aria-hidden="true"></i>
-                    {% if is_edit %}Chi tiết NPL{% else %}Danh mục NPL{% endif %}
+                    {% if is_edit %}Chi tiết {{ stock_kind_label }}{% else %}Danh mục {{ stock_kind_label }}{% endif %}
                 </a>
                 <h2 class="fw-bold text-hm mb-0 mt-2 jp-page-title">
                     {% if is_edit %}Sửa nguyên phụ liệu{% else %}Thêm nguyên phụ liệu{% endif %}

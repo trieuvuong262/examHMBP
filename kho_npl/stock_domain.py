@@ -116,6 +116,11 @@ def item_label_short(domain: str | None = None) -> str:
     return ITEM_LABELS_SHORT.get(domain or domain_from_current_request(), ITEM_LABELS_SHORT[STOCK_DOMAIN_NPL])
 
 
+def kind_label(domain: str | None = None) -> str:
+    """Hậu tố menu/tiêu đề trang: NPL hoặc vật tư."""
+    return 'vật tư' if (domain or domain_from_current_request()) == STOCK_DOMAIN_VAT_TU else 'NPL'
+
+
 def location_domain_prefix(domain: str) -> str:
     return 'Vật tư' if domain == STOCK_DOMAIN_VAT_TU else 'NPL'
 

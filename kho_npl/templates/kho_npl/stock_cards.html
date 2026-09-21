@@ -326,12 +326,12 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-npl-material-catalog-page jp-npl-stock-card-page pt-md-3 pb-0" data-loading-message="Đang tải thẻ kho…">
+<div class="container jp-page jp-npl-material-catalog-page jp-npl-stock-card-page pt-md-3 pb-0" data-loading-message="Đang tải thẻ kho {{ stock_kind_label }}…">
     <div class="jp-npl-sc-shell">
     <div class="jp-npl-sc-topbar">
     <div class="jp-npl-mat-topbar">
         <h2 class="jp-npl-mat-topbar-title">
-            Thẻ kho{% if selected_material %} - <span class="text-hm">{{ selected_material.code }}</span> — <span class="jp-npl-sc-mat-name">{{ selected_material.name }}</span>{% endif %}
+            Thẻ kho {{ stock_kind_label }}{% if selected_material %} - <span class="text-hm">{{ selected_material.code }}</span> — <span class="jp-npl-sc-mat-name">{{ selected_material.name }}</span>{% endif %}
         </h2>
         <form method="get" class="jp-npl-mat-topbar-search" id="jp-stock-card-filters">
             <div class="jp-npl-mat-search-row">

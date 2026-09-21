@@ -7,10 +7,10 @@
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-npl-material-catalog-page jp-npl-stock-page py-3 py-md-4 mb-5" data-loading-message="Đang tải tồn kho…">
+<div class="container jp-page jp-npl-material-catalog-page jp-npl-stock-page py-3 py-md-4 mb-5" data-loading-message="Đang tải tồn kho {{ stock_kind_label }}…">
     <div class="jp-npl-stock-head">
         <div class="jp-npl-stock-head-row">
-            <h2 class="jp-npl-mat-topbar-title">Tồn kho</h2>
+            <h2 class="jp-npl-mat-topbar-title">Tồn kho {{ stock_kind_label }}</h2>
             <div class="jp-npl-mat-topbar-actions">
                 {% if can_export %}
                 <a href="{% url 'kho_npl:material_stock_export' %}{% if query_string %}?{{ query_string }}{% endif %}"

@@ -1,5 +1,12 @@
 from hrm.menu_permissions import menu_perm_context, user_can_access_menu
-from kho_npl.stock_domain import module_key_from_request, namespace_from_request
+from kho_npl.stock_domain import (
+    domain_from_request,
+    kind_label,
+    module_key_from_request,
+    namespace_from_request,
+)
+
+_KIND_NAV_KEYS = {'materials', 'material_stock', 'stock_cards'}
 
 NAV_ITEMS = [
     {'key': 'materials', 'url_name': 'material_list', 'label': 'Danh mục', 'icon': 'bi-tags'},
@@ -18,8 +25,13 @@ NAV_ITEMS = [
 def nav_context(active_key: str, user=None, request=None):
     ns = namespace_from_request(request)
     module = module_key_from_request(request)
+    kind = kind_label(domain_from_request(request))
     items = [
-        {**item, 'url_name': f'{ns}:{item["url_name"]}'}
+        {
+            **item,
+            'url_name': f'{ns}:{item["url_name"]}',
+            'label': f'{item["label"]} {kind}' if item['key'] in _KIND_NAV_KEYS else item['label'],
+        }
         for item in NAV_ITEMS
     ]
     if user is not None and getattr(user, 'is_authenticated', False):

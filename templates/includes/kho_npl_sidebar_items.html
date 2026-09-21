@@ -1,13 +1,13 @@
 {# Menu con Kho NPL / Kho vật tư. Truyền stock_url_ns + stock_perm_mod khi include. #}
 {% load menu_perms %}
-{% with stock_ns=stock_url_ns|default:'kho_npl' stock_mod=stock_perm_mod|default:'kho_npl' %}
+{% with stock_ns=stock_url_ns|default:'kho_npl' stock_mod=stock_perm_mod|default:'kho_npl' stock_kind=stock_kind|default:'NPL' %}
 {% jp_can_menu stock_mod 'materials' as jp_can_stock_materials %}
 {% if jp_can_stock_materials %}
 <li>
     <a href="{% url stock_ns|add:':material_list' %}"
        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.namespace == stock_ns and request.resolver_match.url_name == 'material_list' %}active{% endif %}"
-       data-jp-npl-catalog-nav data-loading-message="Đang tải danh mục…">
-        <i class="bi bi-tags"></i><span>Danh mục</span>
+       data-jp-npl-catalog-nav data-loading-message="Đang tải danh mục {{ stock_kind }}…">
+        <i class="bi bi-tags"></i><span>Danh mục {{ stock_kind }}</span>
     </a>
 </li>
 {% endif %}
@@ -16,8 +16,8 @@
 <li>
     <a href="{% url stock_ns|add:':material_stock' %}"
        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.namespace == stock_ns and request.resolver_match.url_name == 'material_stock' %}active{% endif %}"
-       data-jp-npl-catalog-nav data-loading-message="Đang tải tồn kho…">
-        <i class="bi bi-boxes"></i><span>Tồn kho</span>
+       data-jp-npl-catalog-nav data-loading-message="Đang tải tồn kho {{ stock_kind }}…">
+        <i class="bi bi-boxes"></i><span>Tồn kho {{ stock_kind }}</span>
     </a>
 </li>
 {% endif %}
@@ -26,8 +26,8 @@
 <li>
     <a href="{% url stock_ns|add:':stock_cards' %}"
        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.namespace == stock_ns and request.resolver_match.url_name == 'stock_cards' %}active{% endif %}"
-       data-jp-npl-catalog-nav data-loading-message="Đang tải thẻ kho…">
-        <i class="bi bi-grid-3x3-gap"></i><span>Thẻ kho</span>
+       data-jp-npl-catalog-nav data-loading-message="Đang tải thẻ kho {{ stock_kind }}…">
+        <i class="bi bi-grid-3x3-gap"></i><span>Thẻ kho {{ stock_kind }}</span>
     </a>
 </li>
 {% endif %}
