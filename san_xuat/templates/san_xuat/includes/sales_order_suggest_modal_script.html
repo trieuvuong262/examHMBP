@@ -29,6 +29,8 @@
   var activeQtyInput = null;
   var productTs = null;
   var expanded = false;
+  var lastSoldFrom = '';
+  var lastSoldTo = '';
 
   function num(el, fallback) {
     if (!el) return fallback;
@@ -169,6 +171,8 @@
       if (periodMeta) {
         periodMeta.textContent = 'Tốc độ tiêu thụ = tổng SL bán KiotViet trong ' + days + ' ngày gần nhất';
       }
+      lastSoldFrom = '';
+      lastSoldTo = '';
       applyStockMap({});
       applyVelocityMap({});
       return;
@@ -189,6 +193,8 @@
         });
         applyStockMap(data.found ? stockMap : {});
         applyVelocityMap(data.found ? velMap : {});
+        lastSoldFrom = data.sold_from || '';
+        lastSoldTo = data.sold_to || '';
 
         var hasNumeric = (data.sizes || []).some(function (row) {
           return /^[0-9]+$/.test(String(row.size || '').trim());
@@ -509,8 +515,64 @@
     }
   }
 
+  function buildSuggestSnapshot() {
+    var sizes = visibleSizes();
+    var coef = num(coefEl, 2);
+    var step = num(roundEl, 50);
+    var days = periodDays();
+    var stock = {};
+    var velocity = {};
+    var raw = {};
+    var suggested = {};
+    var confirm = {};
+    var ratio = {};
+    sizes.forEach(function (sz) {
+      var s = Math.max(0, num(stockInput(sz), 0));
+      var v = Math.max(0, num(velocityInput(sz), 0));
+      var r = (v * coef) - s;
+      var sug = roundUp(r, step);
+      var conf = confirmQtyOf(sz);
+      stock[sz] = Math.round(s);
+      velocity[sz] = Math.round(v);
+      raw[sz] = Math.round(r);
+      suggested[sz] = Math.round(sug);
+      confirm[sz] = conf;
+      ratio[sz] = step > 0 ? Math.round((conf / step) * 100) / 100 : 0;
+    });
+    return {
+      coef: coef,
+      round: step,
+      days: days,
+      product_code: currentStyle(),
+      product_name: productLabel(),
+      sizes: sizes,
+      stock: stock,
+      velocity: velocity,
+      raw: raw,
+      suggested: suggested,
+      confirm: confirm,
+      ratio: ratio,
+      sold_from: lastSoldFrom || '',
+      sold_to: lastSoldTo || '',
+      applied_at: new Date().toISOString(),
+    };
+  }
+
+  function writeSuggestSnapshot(row, snap) {
+    if (!row) return;
+    var host = row.nextElementSibling && row.nextElementSibling.classList.contains('jp-so-size-row')
+      ? row.nextElementSibling : row;
+    var hidden = host.querySelector('.jp-so-suggest-snapshot-json, input[name$="-suggest_snapshot"]');
+    if (!hidden) {
+      hidden = row.querySelector('.jp-so-suggest-snapshot-json, input[name$="-suggest_snapshot"]');
+    }
+    if (!hidden) return;
+    hidden.value = snap && typeof snap === 'object' ? JSON.stringify(snap) : '';
+  }
+
   function applyToForm() {
     var total = recalc();
+    var snap = buildSuggestSnapshot();
     var row = findTargetRow();
     if (!row && typeof window.jpSoAddLineRow === 'function') {
       row = window.jpSoAddLineRow();
@@ -560,6 +622,7 @@
       var hidden = sizeHost.querySelector('.jp-so-size-qtys-json, input[name$="-size_qtys"]');
       if (hidden) hidden.value = JSON.stringify(sizeMap);
     }
+    writeSuggestSnapshot(row, snap);
 
     qty.focus();
     qty.classList.add('border-success');

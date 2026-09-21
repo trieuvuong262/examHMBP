@@ -450,7 +450,7 @@
               </tr>
               <tr class="jp-so-size-row">
                 <td colspan="5">
-                  {{ f.size_qtys }}
+                  {{ f.size_qtys }}{{ f.suggest_snapshot }}
                   <div class="jp-so-size-wrap">
                     <div class="jp-so-size-groups" data-role="size-groups">
                       {% for group in order_size_groups %}
@@ -541,7 +541,7 @@
   </tr>
   <tr class="jp-so-size-row">
     <td colspan="5">
-      {{ f.size_qtys }}
+      {{ f.size_qtys }}{{ f.suggest_snapshot }}
       <div class="jp-so-size-wrap">
         <div class="jp-so-size-groups" data-role="size-groups">
           {% for group in order_size_groups %}

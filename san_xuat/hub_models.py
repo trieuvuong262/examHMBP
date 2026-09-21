@@ -231,6 +231,15 @@ class SxSalesOrderLine(models.Model):
         verbose_name='SL theo size',
         help_text='Ví dụ {"S": 100, "M": 200}',
     )
+    suggest_snapshot = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name='Snapshot đề xuất SL',
+        help_text=(
+            'Bảng công cụ đề xuất lúc Áp dụng: '
+            '{coef, round, days, sizes, stock, velocity, raw, suggested, confirm, ratio, …}.'
+        ),
+    )
     bom_version = models.ForeignKey(
         'san_xuat.BomVersion',
         on_delete=models.SET_NULL,

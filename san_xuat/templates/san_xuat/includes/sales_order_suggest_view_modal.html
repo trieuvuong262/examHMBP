@@ -1,0 +1,176 @@
+{# Modal + script xem snapshot đề xuất SL. Cần suggest_snaps_json (object map key → snapshot). #}
+<style>
+  .jp-so-suggest-eye {
+    width: 1.85rem;
+    height: 1.85rem;
+    padding: 0;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 0.45rem;
+    color: #334155;
+    border-color: #cbd5e1;
+    vertical-align: middle;
+  }
+  .jp-so-suggest-eye:hover {
+    color: var(--hm-red, #dc2626);
+    border-color: rgba(220, 38, 38, 0.45);
+    background: #fff5f5;
+  }
+  .jp-so-sg-view-sheet {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .8125rem;
+  }
+  .jp-so-sg-view-sheet th,
+  .jp-so-sg-view-sheet td {
+    border: 1px solid #94a3b8;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    padding: .28rem .35rem;
+    font-weight: 700;
+  }
+  .jp-so-sg-view-sheet .jp-so-sg-label {
+    background: #93c5fd;
+    text-align: left;
+    color: #0f172a;
+    white-space: nowrap;
+  }
+  .jp-so-sg-view-sheet .jp-so-sg-size { background: #f8fafc; color: #334155; }
+  .jp-so-sg-view-sheet .is-stock { background: #fde047; }
+  .jp-so-sg-view-sheet .is-vel { background: #fde047; }
+  .jp-so-sg-view-sheet .is-raw { background: #bbf7d0; color: #14532d; }
+  .jp-so-sg-view-sheet .is-out { background: #f9a8d4; color: #9d174d; }
+  .jp-so-sg-view-sheet .is-confirm { background: #fdba74; color: #9a3412; }
+  .jp-so-sg-view-sheet .is-ratio { background: #e9d5ff; color: #6b21a8; }
+  .jp-so-sg-view-sheet .is-total { background: #e2e8f0; }
+  .jp-so-sg-view-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .55rem 1rem;
+    font-size: .78rem;
+    color: #64748b;
+    margin-bottom: .75rem;
+  }
+  .jp-so-sg-view-meta strong { color: #0f172a; }
+</style>
+
+<div class="modal fade" id="jpSoSuggestViewModal" tabindex="-1" aria-labelledby="jpSoSuggestViewTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="jpSoSuggestViewTitle">Bảng đề xuất SL</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <div class="jp-so-sg-view-meta" id="jp-so-sg-view-meta"></div>
+        <div class="table-responsive">
+          <table class="jp-so-sg-view-sheet" id="jp-so-sg-view-sheet">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Đóng</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var SNAPSHOTS = {{ suggest_snaps_json|default:'{}'|safe }};
+  var modalEl = document.getElementById('jpSoSuggestViewModal');
+  if (!modalEl || !window.bootstrap || !bootstrap.Modal) return;
+  var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  var titleEl = document.getElementById('jpSoSuggestViewTitle');
+  var metaEl = document.getElementById('jp-so-sg-view-meta');
+  var sheet = document.getElementById('jp-so-sg-view-sheet');
+  if (!sheet) return;
+  var thead = sheet.querySelector('thead');
+  var tbody = sheet.querySelector('tbody');
+
+  function fmt(n) {
+    var v = Number(n);
+    if (!Number.isFinite(v)) return '0';
+    return String(Math.round(v));
+  }
+  function fmtRatio(n) {
+    var v = Number(n);
+    if (!Number.isFinite(v) || v === 0) return '0';
+    var r = Math.round(v * 100) / 100;
+    if (Math.abs(r - Math.round(r)) < 1e-9) return String(Math.round(r));
+    return String(r);
+  }
+  function sumMap(map, sizes) {
+    var t = 0;
+    (sizes || []).forEach(function (sz) { t += Number((map || {})[sz]) || 0; });
+    return t;
+  }
+  function rowHtml(label, cls, map, sizes, formatter) {
+    var fmtFn = formatter || fmt;
+    var cells = sizes.map(function (sz) {
+      return '<td class="' + cls + '">' + fmtFn((map || {})[sz]) + '</td>';
+    }).join('');
+    var total = formatter === fmtRatio
+      ? fmtRatio(sumMap(map, sizes))
+      : fmt(sumMap(map, sizes));
+    return '<tr><th class="jp-so-sg-label" scope="row">' + label + '</th>'
+      + cells
+      + '<td class="is-total">' + total + '</td></tr>';
+  }
+
+  function renderSnapshot(snap, orderCode) {
+    snap = snap || {};
+    var sizes = Array.isArray(snap.sizes) && snap.sizes.length
+      ? snap.sizes.slice()
+      : Object.keys(snap.confirm || snap.suggested || {}).sort();
+    var product = (snap.product_name || snap.product_code || '').trim();
+    if (titleEl) {
+      titleEl.textContent = 'Đề xuất SL'
+        + (product ? ' — ' + product : '')
+        + (orderCode ? ' · ' + orderCode : '');
+    }
+    if (metaEl) {
+      var bits = [];
+      bits.push('<span>Hệ số: <strong>' + (snap.coef != null ? snap.coef : '—') + '</strong></span>');
+      bits.push('<span>Làm tròn: <strong>' + (snap.round != null ? snap.round : '—') + '</strong></span>');
+      bits.push('<span>Thời gian: <strong>' + (snap.days != null ? snap.days + ' ngày' : '—') + '</strong></span>');
+      if (snap.sold_from && snap.sold_to) {
+        bits.push('<span>KV: <strong>' + snap.sold_from + ' → ' + snap.sold_to + '</strong></span>');
+      }
+      metaEl.innerHTML = bits.join('');
+    }
+    if (!sizes.length) {
+      thead.innerHTML = '';
+      tbody.innerHTML = '<tr><td class="text-muted small p-3 text-start">Không có dữ liệu đề xuất.</td></tr>';
+      return;
+    }
+    thead.innerHTML = '<tr><th class="jp-so-sg-label">Size</th>'
+      + sizes.map(function (sz) { return '<th class="jp-so-sg-size">' + sz + '</th>'; }).join('')
+      + '<th class="jp-so-sg-size is-total">Tổng</th></tr>';
+    tbody.innerHTML = [
+      rowHtml('Tồn kho thực tế', 'is-stock', snap.stock, sizes),
+      rowHtml('Tốc độ tiêu thụ', 'is-vel', snap.velocity, sizes),
+      rowHtml('Giá trị sau khi tính', 'is-raw', snap.raw, sizes),
+      rowHtml('Giá trị đề xuất', 'is-out', snap.suggested, sizes),
+      rowHtml('Xác nhận lên đơn', 'is-confirm', snap.confirm, sizes),
+      rowHtml('Tỷ lệ mỗi size', 'is-ratio', snap.ratio, sizes, fmtRatio),
+    ].join('');
+  }
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target && e.target.closest && e.target.closest('[data-jp-so-suggest-view]');
+    if (!btn) return;
+    e.preventDefault();
+    var key = btn.getAttribute('data-suggest-key') || '';
+    var snap = (SNAPSHOTS && key) ? SNAPSHOTS[key] : null;
+    if (!snap || typeof snap !== 'object') {
+      window.alert('Không đọc được bảng đề xuất SL.');
+      return;
+    }
+    renderSnapshot(snap, btn.getAttribute('data-order') || '');
+    modal.show();
+  });
+})();
+</script>

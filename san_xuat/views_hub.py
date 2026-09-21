@@ -420,6 +420,15 @@ def _lines_from_sales_order_formset(formset) -> list:
             size_qtys = json.loads(size_raw) if isinstance(size_raw, str) else (size_raw or {})
         except (TypeError, ValueError):
             size_qtys = {}
+        snap_raw = f.cleaned_data.get('suggest_snapshot') or ''
+        try:
+            suggest_snapshot = json.loads(snap_raw) if isinstance(snap_raw, str) and snap_raw else (
+                snap_raw if isinstance(snap_raw, dict) else {}
+            )
+        except (TypeError, ValueError):
+            suggest_snapshot = {}
+        if not isinstance(suggest_snapshot, dict):
+            suggest_snapshot = {}
         smv_raw = f.cleaned_data.get('applied_smv_json') or '[]'
         try:
             applied_smv = json.loads(smv_raw) if isinstance(smv_raw, str) else (smv_raw or [])
@@ -441,6 +450,7 @@ def _lines_from_sales_order_formset(formset) -> list:
                 qty=qty,
                 qty_scrap_rate=Decimal('0'),
                 size_qtys=size_qtys if isinstance(size_qtys, dict) else {},
+                suggest_snapshot=suggest_snapshot,
                 bom_version_id=f.cleaned_data.get('bom_version_id'),
                 routing_id=f.cleaned_data.get('routing_id'),
                 applied_smv=applied_smv,
@@ -462,6 +472,7 @@ def _sales_order_line_form_initial(order) -> list[dict]:
             'routing_id': str(ln.routing_id or ''),
             'qty': ln.qty,
             'size_qtys': ln.size_qtys or {},
+            'suggest_snapshot': ln.suggest_snapshot or {},
             'applied_smv_json': json.dumps(smv_override_dicts(ln), ensure_ascii=False),
             'applied_bom_json': json.dumps(ln.bom_line_overrides or [], ensure_ascii=False),
         })
@@ -681,6 +692,7 @@ def sales_order_confirm_list(request):
         return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'order_confirm')
 
     from san_xuat.hub_models import SxSalesOrder
+    from san_xuat.services.products import product_gallery_map
     from san_xuat.services.sales_orders import (
         PROD_STATUS_LABELS,
         production_status_summary,
@@ -697,16 +709,44 @@ def sales_order_confirm_list(request):
         qs = qs.filter(
             Q(code__icontains=q)
             | Q(customer_name__icontains=q)
-        )
+            | Q(lines__product_code__icontains=q)
+            | Q(lines__product_name__icontains=q)
+        ).distinct()
 
     orders = list(qs.order_by('request_date', 'id')[:300])
+    product_codes = [
+        ln.product_code
+        for o in orders
+        for ln in o.lines.all()
+        if (ln.product_code or '').strip()
+    ]
+    galleries = product_gallery_map(product_codes)
     rows = []
+    suggest_snaps: dict[str, dict] = {}
     for o in orders:
+        lines = list(o.lines.all())
+        products = []
+        for idx, ln in enumerate(lines):
+            code = (ln.product_code or '').strip()
+            name = (ln.product_name or '').strip() or code or '—'
+            urls = galleries.get(code.casefold()) or []
+            snap = ln.suggest_snapshot if isinstance(ln.suggest_snapshot, dict) else {}
+            snap_key = ''
+            if snap:
+                snap_key = f'{o.pk}-{ln.pk or idx}'
+                suggest_snaps[snap_key] = snap
+            products.append({
+                'code': code,
+                'name': name,
+                'image_url': urls[0] if urls else '',
+                'suggest_key': snap_key,
+            })
         st = production_status_summary(o)
         rows.append({
             'order': o,
-            'line_count': o.lines.count(),
-            'total_qty': sum((ln.qty for ln in o.lines.all()), start=Decimal('0')),
+            'line_count': len(lines),
+            'total_qty': sum((ln.qty for ln in lines), start=Decimal('0')),
+            'products': products,
             'prod_status': st,
             'prod_label': PROD_STATUS_LABELS.get(st, st),
         })
@@ -715,6 +755,7 @@ def sales_order_confirm_list(request):
         **_perm_ctx(request),
         'rows': rows,
         'search_query': q,
+        'suggest_snaps_json': json.dumps(suggest_snaps, ensure_ascii=False),
     })
 
 
@@ -930,12 +971,17 @@ def sales_order_detail(request, pk: int):
     from san_xuat.services.order_routing import boms_for_product, routings_for_product
     from san_xuat.services.products import resolve_product_ref
 
+    suggest_snaps: dict[str, dict] = {}
     for ln in order.lines.all():
         product_ref = resolve_product_ref(ln.product_code)
         ln.product_image_url = product_ref.image_url if product_ref else ''
         ln.available_routings = routings_for_product(ln.product_code) if not ln.routing_id else []
         ln.available_boms = boms_for_product(ln.product_code) if not ln.bom_version_id else []
         ln.npl_needs = needs_as_display_dicts(explode_for_sales_line(ln))
+        snap = ln.suggest_snapshot if isinstance(ln.suggest_snapshot, dict) else {}
+        ln.suggest_key = f'{order.pk}-{ln.pk}' if snap else ''
+        if snap:
+            suggest_snaps[ln.suggest_key] = snap
 
     return render(request, 'san_xuat/sales_order_detail.html', {
         **_perm_ctx(request),
@@ -955,6 +1001,7 @@ def sales_order_detail(request, pk: int):
         'prod_status': prod_status,
         'prod_label': PROD_STATUS_LABELS.get(prod_status, prod_status),
         'can_edit_order': can_edit_order,
+        'suggest_snaps_json': json.dumps(suggest_snaps, ensure_ascii=False),
     })
 
 

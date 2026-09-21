@@ -227,6 +227,7 @@
               <th>Công đoạn</th>
               <th class="text-end">Số lượng</th>
               <th>Theo size</th>
+              <th class="text-center">Đề xuất</th>
               <th>Hạn dòng</th>
             </tr>
           </thead>
@@ -279,10 +280,25 @@
                   —
                 {% endif %}
               </td>
+              <td class="text-center">
+                {% if ln.suggest_key %}
+                <button type="button"
+                        class="btn btn-outline-secondary btn-sm jp-so-suggest-eye"
+                        data-jp-so-suggest-view
+                        data-order="{{ order.code }}"
+                        data-suggest-key="{{ ln.suggest_key }}"
+                        title="Xem bảng đề xuất SL"
+                        aria-label="Xem bảng đề xuất SL {{ ln.product_code }}">
+                  <i class="bi bi-eye" aria-hidden="true"></i>
+                </button>
+                {% else %}
+                <span class="text-muted">—</span>
+                {% endif %}
+              </td>
               <td class="small">{% if ln.due_date %}{{ ln.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
             </tr>
           {% empty %}
-            <tr><td colspan="8" class="text-muted small">Chưa có dòng.</td></tr>
+            <tr><td colspan="9" class="text-muted small">Chưa có dòng.</td></tr>
           {% endfor %}
           </tbody>
         </table>
@@ -421,4 +437,8 @@
 {% endif %}
 {% include 'san_xuat/includes/product_image_gallery_modal.html' %}
 {% include 'kho_npl/includes/material_image_modal.html' %}
+{% endblock %}
+
+{% block scripts %}
+{% include 'san_xuat/includes/sales_order_suggest_view_modal.html' %}
 {% endblock %}

@@ -53,6 +53,76 @@ class LineInput:
     routing_id: int | None = None
     applied_smv: list | None = None
     applied_bom: list | None = None
+    suggest_snapshot: dict | None = None
+
+
+def normalize_suggest_snapshot(raw) -> dict:
+    """Chuẩn hóa snapshot bảng đề xuất SL (dict hoặc JSON string)."""
+    if not raw:
+        return {}
+    if isinstance(raw, str):
+        import json
+        try:
+            raw = json.loads(raw)
+        except (TypeError, ValueError):
+            return {}
+    if not isinstance(raw, dict):
+        return {}
+    sizes_raw = raw.get('sizes') or []
+    if not isinstance(sizes_raw, list):
+        sizes_raw = []
+    sizes = [str(s).strip() for s in sizes_raw if str(s or '').strip()][:40]
+
+    def _num_map(key: str) -> dict[str, float]:
+        src = raw.get(key) or {}
+        if not isinstance(src, dict):
+            return {}
+        out: dict[str, float] = {}
+        for k, v in src.items():
+            size = str(k or '').strip()
+            if not size:
+                continue
+            try:
+                out[size] = float(v)
+            except (TypeError, ValueError):
+                continue
+        return out
+
+    try:
+        coef = float(raw.get('coef') if raw.get('coef') is not None else 2)
+    except (TypeError, ValueError):
+        coef = 2.0
+    try:
+        round_step = float(raw.get('round') if raw.get('round') is not None else 50)
+    except (TypeError, ValueError):
+        round_step = 50.0
+    try:
+        days = int(raw.get('days') if raw.get('days') is not None else 30)
+    except (TypeError, ValueError):
+        days = 30
+    days = max(1, min(days, 365))
+
+    out = {
+        'coef': coef,
+        'round': round_step,
+        'days': days,
+        'product_code': str(raw.get('product_code') or '').strip()[:60],
+        'product_name': str(raw.get('product_name') or '').strip()[:255],
+        'sizes': sizes,
+        'stock': _num_map('stock'),
+        'velocity': _num_map('velocity'),
+        'raw': _num_map('raw'),
+        'suggested': _num_map('suggested'),
+        'confirm': _num_map('confirm'),
+        'ratio': _num_map('ratio'),
+        'sold_from': str(raw.get('sold_from') or '').strip()[:32],
+        'sold_to': str(raw.get('sold_to') or '').strip()[:32],
+        'applied_at': str(raw.get('applied_at') or '').strip()[:40],
+    }
+    # Snapshot rỗng / không có size → không lưu
+    if not out['sizes'] and not out['confirm'] and not out['suggested']:
+        return {}
+    return out
 
 
 def normalize_size_qtys(raw) -> dict[str, Decimal]:
@@ -370,6 +440,7 @@ def _replace_lines(order: SxSalesOrder, lines: list[LineInput]) -> None:
         if not code or qty <= 0:
             continue
         size_map = normalize_size_qtys(getattr(ln, 'size_qtys', None))
+        suggest_snap = normalize_suggest_snapshot(getattr(ln, 'suggest_snapshot', None))
         bom_id = getattr(ln, 'bom_version_id', None) or None
         routing_id = getattr(ln, 'routing_id', None) or None
         try:
@@ -390,6 +461,7 @@ def _replace_lines(order: SxSalesOrder, lines: list[LineInput]) -> None:
                 product_name=_resolve_name(code, ln.product_name),
                 qty=qty,
                 size_qtys={k: float(v) for k, v in size_map.items()},
+                suggest_snapshot=suggest_snap,
                 bom_version_id=bom_id,
                 routing_id=routing_id,
                 bom_line_overrides=bom_overrides,

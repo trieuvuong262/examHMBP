@@ -115,6 +115,11 @@ class SalesOrderLineForm(forms.Form):
         label='SL theo size',
         widget=forms.HiddenInput(attrs={'class': 'jp-so-size-qtys-json'}),
     )
+    suggest_snapshot = forms.CharField(
+        required=False,
+        label='Snapshot đề xuất SL',
+        widget=forms.HiddenInput(attrs={'class': 'jp-so-suggest-snapshot-json'}),
+    )
     applied_smv_json = forms.CharField(
         required=False,
         widget=forms.HiddenInput(attrs={'class': 'jp-so-smv-json'}),
@@ -146,6 +151,11 @@ class SalesOrderLineForm(forms.Form):
             self.initial['size_qtys'] = json.dumps(
                 self.initial['size_qtys'], ensure_ascii=False, separators=(',', ':'),
             )
+        if self.initial and isinstance(self.initial.get('suggest_snapshot'), dict):
+            import json
+            self.initial['suggest_snapshot'] = json.dumps(
+                self.initial['suggest_snapshot'], ensure_ascii=False, separators=(',', ':'),
+            )
 
     def clean_product_code(self):
         code = (self.cleaned_data.get('product_code') or '').strip()
@@ -172,6 +182,13 @@ class SalesOrderLineForm(forms.Form):
         size_map = normalize_size_qtys(raw)
         # Lưu lại dạng JSON gọn để view đọc
         return json.dumps({k: float(v) for k, v in size_map.items()}, ensure_ascii=False)
+
+    def clean_suggest_snapshot(self):
+        from san_xuat.services.sales_orders import normalize_suggest_snapshot
+        import json
+
+        snap = normalize_suggest_snapshot(self.cleaned_data.get('suggest_snapshot') or '')
+        return json.dumps(snap, ensure_ascii=False, separators=(',', ':')) if snap else ''
 
 
 def _optional_id_choices(extra_value: str = '', empty_label: str = '—') -> list[tuple[str, str]]:
