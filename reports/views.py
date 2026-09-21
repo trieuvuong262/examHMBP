@@ -2744,6 +2744,8 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         DailyWorkReport.objects.select_related(
             'employee',
             'employee__profile',
+            'employee__profile__department',
+            'employee__profile__division',
             'proxy_entered_by',
             'proxy_entered_by__profile',
         ).prefetch_related(
@@ -3157,7 +3159,12 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
 
 def _report_edit_history_core(request, pk, *, detail_url_name: str):
     report = get_object_or_404(
-        DailyWorkReport.objects.select_related('employee', 'employee__profile'),
+        DailyWorkReport.objects.select_related(
+            'employee',
+            'employee__profile',
+            'employee__profile__department',
+            'employee__profile__division',
+        ),
         pk=pk,
     )
     if not can_view_user_report(request.user, report):
@@ -3328,7 +3335,12 @@ def weekly_report_detail_vp(request, pk):
 
 def _weekly_report_detail_core(request, pk, *, detail_url_name: str):
     report = get_object_or_404(
-        WeeklyWorkReport.objects.select_related('employee', 'employee__profile').prefetch_related('attachments'),
+        WeeklyWorkReport.objects.select_related(
+            'employee',
+            'employee__profile',
+            'employee__profile__department',
+            'employee__profile__division',
+        ).prefetch_related('attachments'),
         pk=pk,
     )
     if not can_view_user_weekly_report(request.user, report):

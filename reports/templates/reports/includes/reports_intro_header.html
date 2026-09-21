@@ -9,12 +9,14 @@
                         <p class="jp-reports-intro-subtitle">{{ intro_subtitle }}</p>
                         {% endif %}
                         {% if week_label or employee_name or department_name %}
+                        {% if week_label or not employee %}
                         <div class="jp-reports-intro-meta">
                             {% if week_label %}
                             <span class="jp-reports-meta-chip is-period">
                                 <span class="jp-reports-meta-chip-text">{{ week_label }}</span>
                             </span>
                             {% endif %}
+                            {% if not employee %}
                             {% if employee_name %}
                             <span class="jp-reports-meta-chip is-person">
                                 <span class="jp-reports-meta-chip-text">{{ employee_name }}</span>
@@ -25,7 +27,12 @@
                                 <span class="jp-reports-meta-chip-text">{{ department_name }}</span>
                             </span>
                             {% endif %}
+                            {% endif %}
                         </div>
+                        {% endif %}
+                        {% endif %}
+                        {% if employee %}
+                        {% include 'includes/employee_identity.html' with employee=employee hero=True subtitle=department_name %}
                         {% endif %}
                     </div>
                 </div>

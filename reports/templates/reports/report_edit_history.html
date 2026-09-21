@@ -3,7 +3,7 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260709c">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260921c">
 {% endblock %}
 
 {% block content %}
@@ -20,7 +20,11 @@
                     <span class="{{ shift_badge_class }} fs-6 align-middle">{{ report.get_shift_display }}</span>
                     {% endif %}
                 </p>
-                <p class="jp-report-detail-name mb-0">{{ report.employee.profile.full_name|default:report.employee.username }}</p>
+                {% if report.is_production_report %}
+                {% include 'includes/employee_identity.html' with employee=report.employee hero=True subtitle=report.employee.profile.division.name %}
+                {% else %}
+                {% include 'includes/employee_identity.html' with employee=report.employee hero=True subtitle=report.employee.profile.department.name %}
+                {% endif %}
             </div>
             <div class="jp-report-detail-hero-actions d-flex flex-column gap-2 align-items-stretch">
                 <div class="d-flex gap-2 flex-wrap jp-report-detail-hero-nav-actions">

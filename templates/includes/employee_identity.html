@@ -1,6 +1,6 @@
 {% load hrm_extras %}
 {% with p=employee.profile display_name=employee.profile.full_name|default:employee.get_full_name|default:employee.username %}
-<div class="jp-emp-id{% if compact %} jp-emp-id--compact{% endif %}">
+<div class="jp-emp-id{% if hero %} jp-emp-id--hero{% elif compact %} jp-emp-id--compact{% endif %}">
     <div class="jp-emp-id-avatar flex-shrink-0">
         {% include 'includes/profile_avatar.html' with profile=p user=employee img_class='jp-emp-avatar-img rounded-circle' fallback_class='jp-emp-avatar-fallback rounded-circle' zoomable=True %}
     </div>

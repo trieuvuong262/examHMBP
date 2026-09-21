@@ -3433,6 +3433,18 @@ body.jp-tool-loading-active {
     box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
 }
 
+/* Trên backdrop (1050) và topbar (1055); thắng cả backdrop 1085 của trang SX. */
+#jpEmployeeCardModal,
+#jpAvatarZoomModal,
+.jp-overlay-modal {
+    z-index: 1120;
+}
+body:has(#jpEmployeeCardModal.show) .modal-backdrop.show,
+body:has(#jpAvatarZoomModal.show) .modal-backdrop.show,
+body:has(.jp-overlay-modal.show) .modal-backdrop.show {
+    z-index: 1110 !important;
+}
+
 .jp-emp-id {
     display: flex;
     align-items: center;
@@ -3504,6 +3516,20 @@ body.jp-tool-loading-active {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+.jp-emp-id--hero {
+    align-items: center;
+    margin-top: 0.65rem;
+}
+.jp-emp-id--hero .jp-emp-id-avatar,
+.jp-emp-id--hero .jp-emp-avatar-img,
+.jp-emp-id--hero .jp-emp-avatar-fallback {
+    width: 48px;
+    height: 48px;
+    font-size: 1.05rem;
+}
+.jp-emp-id--hero .jp-emp-id-name {
+    font-size: 1.05rem;
 }
 
 .jp-emp-card-hero {

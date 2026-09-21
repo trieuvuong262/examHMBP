@@ -45,7 +45,11 @@
                     <i class="bi bi-card-heading me-1 text-hm"></i>{{ report.title }}
                 </p>
                 {% endif %}
-                <p class="jp-report-detail-name mb-0 mt-2">{{ report.employee.profile.full_name|default:report.employee.username }}</p>
+                {% if report.is_production_report %}
+                {% include 'includes/employee_identity.html' with employee=report.employee hero=True subtitle=report.employee.profile.division.name %}
+                {% else %}
+                {% include 'includes/employee_identity.html' with employee=report.employee hero=True subtitle=report.employee.profile.department.name %}
+                {% endif %}
             </div>
             <div class="jp-report-detail-hero-actions d-flex flex-column gap-2 align-items-stretch">
                 <div class="d-flex gap-2 flex-wrap jp-report-detail-hero-nav-actions">

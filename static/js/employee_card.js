@@ -20,6 +20,25 @@
         return s;
     }
 
+    function liftOverlay(modalEl) {
+        modalEl.style.zIndex = '1120';
+        document.querySelectorAll('.modal-backdrop').forEach(function (bd) {
+            bd.style.zIndex = '1110';
+        });
+    }
+
+    function showOverlayModal(modalEl) {
+        if (!modalEl || !window.bootstrap) return;
+        if (modalEl.parentNode !== document.body) {
+            document.body.appendChild(modalEl);
+        }
+        liftOverlay(modalEl);
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        window.requestAnimationFrame(function () {
+            liftOverlay(modalEl);
+        });
+    }
+
     document.addEventListener('click', function (event) {
         var btn = event.target.closest('[data-jp-emp-card]');
         if (!btn) return;
@@ -100,6 +119,6 @@
             }
         }
 
-        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        showOverlayModal(modalEl);
     });
 })();

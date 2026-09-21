@@ -101,7 +101,8 @@ body.jp-prod-hourly-review .jp-app-footer {
     display: block !important;
 }
 
-body .modal-backdrop.show {
+/* Chỉ nâng backdrop khi modal xác nhận SX đang mở — không đè thẻ nhân viên / avatar. */
+body:has(.jp-prod-modal.show) .modal-backdrop.show {
     z-index: 1085 !important;
 }
 
