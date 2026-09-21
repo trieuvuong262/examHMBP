@@ -163,6 +163,7 @@
   body.jp-sx-focus[data-sx-area="overview"] #jp-sidebar-san-xuat-submenu > [data-sx-area="overview"],
   body.jp-sx-focus[data-sx-area="orders"] #jp-sidebar-san-xuat-submenu > [data-sx-area="orders"],
   body.jp-sx-focus[data-sx-area="docs"] #jp-sidebar-san-xuat-submenu > [data-sx-area="docs"],
+  body.jp-sx-focus[data-sx-area="equipment_sx"] #jp-sidebar-san-xuat-submenu > [data-sx-area="equipment_sx"],
   body.jp-sx-focus[data-sx-area="plan"] #jp-sidebar-san-xuat-submenu > [data-sx-area="plan"],
   body.jp-sx-focus[data-sx-area="kho_npl"] #jp-sidebar-san-xuat-submenu > [data-sx-area="kho_npl"],
   body.jp-sx-focus[data-sx-area="kho_vat_tu"] #jp-sidebar-san-xuat-submenu > [data-sx-area="kho_vat_tu"],
@@ -273,8 +274,11 @@
     { area: 'docs', test: function (p) {
       return p.indexOf('/san-xuat/ho-so') !== -1
         || p.indexOf('/san-xuat/bom') !== -1
-        || p.indexOf('/san-xuat/cong-doan') !== -1
-        || p.indexOf('/thiet-bi/san-xuat') !== -1;
+        || p.indexOf('/san-xuat/cong-doan') !== -1;
+    }},
+    { area: 'equipment_sx', test: function (p) {
+      return p.indexOf('/thiet-bi/san-xuat') !== -1
+        || document.body.getAttribute('data-eq-scope') === 'production';
     }},
     { area: 'plan', test: function (p) {
       return p.indexOf('/san-xuat/ke-hoach') !== -1

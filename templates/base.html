@@ -57,7 +57,7 @@
     <script src="{% static 'js/client-device.js' %}?v=20260813a"></script>
 </head>
 
-<body class="{% if user.is_authenticated and not jp_force_password_change %}jp-auth jp-has-sidebar jp-has-amis-header{% else %}jp-guest{% endif %}{% if '/san-xuat/' in request.path %} jp-sx-module{% endif %}">
+<body class="{% if user.is_authenticated and not jp_force_password_change %}jp-auth jp-has-sidebar jp-has-amis-header{% else %}jp-guest{% endif %}{% if '/san-xuat/' in request.path or is_production_scope %} jp-sx-module{% endif %}"{% if is_production_scope %} data-eq-scope="production"{% endif %}>
 
 {% if user.is_authenticated and not jp_force_password_change %}
 <div class="jp-app-shell">
