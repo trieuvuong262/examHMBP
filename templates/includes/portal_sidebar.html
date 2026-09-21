@@ -640,8 +640,8 @@
             </ul>
         </li>
         {% endif %}
-        {% if jp_can_san_xuat or jp_can_equipment_production %}
-        <li class="jp-sidebar-group jp-sx-group{% if 'san-xuat' in request.path or 'kho-npl' in request.path or 'kho-vat-tu' in request.path or 'kho-san-pham' in request.path or 'kiotviet' in request.path or is_production_scope %} is-open{% endif %}">
+        {% if jp_can_san_xuat %}
+        <li class="jp-sidebar-group jp-sx-group{% if 'san-xuat' in request.path or 'kho-npl' in request.path or 'kho-vat-tu' in request.path or 'kho-san-pham' in request.path or 'kiotviet' in request.path %} is-open{% endif %}">
             <button type="button"
                     class="jp-sidebar-group-toggle"
                     data-jp-sx-launcher
@@ -734,13 +734,13 @@
                 {% jp_can_menu 'san_xuat' 'ie_settings' as jp_can_san_xuat_ie_settings %}
                 {% jp_can_menu 'san_xuat' 'ie_approve' as jp_can_san_xuat_ie_approve %}
                 {% if jp_can_san_xuat_docs or jp_can_san_xuat_bom or jp_can_san_xuat_ie or jp_can_san_xuat_ie_settings or jp_can_san_xuat_ie_approve %}
-                <li class="jp-sidebar-nested-group{% if '/san-xuat/ho-so' in request.path or '/san-xuat/bom' in request.path or '/san-xuat/cong-doan' in request.path %} is-open{% endif %}"
+                <li class="jp-sidebar-nested-group{% if '/san-xuat/ho-so' in request.path or '/san-xuat/bom' in request.path or '/san-xuat/cong-doan' in request.path or '/thiet-bi/san-xuat' in request.path or is_production_scope %} is-open{% endif %}"
                     data-sx-area="docs" data-sx-icon="bi-journal-text" data-sx-label="Hồ sơ sản phẩm"
                     data-sx-href="{% if jp_can_san_xuat_docs %}{% url 'san_xuat:doc_list' %}{% elif jp_can_san_xuat_ie %}{% url 'san_xuat:ie_operation_list' %}{% elif jp_can_san_xuat_ie_approve %}{% url 'san_xuat:ie_approve_hub' %}{% elif jp_can_san_xuat_ie_settings %}{% url 'san_xuat:ie_settings_hub' %}{% else %}{% url 'san_xuat:bom_list' %}{% endif %}">
                     <button type="button"
                             class="jp-sidebar-nested-toggle"
                             data-jp-sidebar-group-toggle
-                            aria-expanded="{% if '/san-xuat/ho-so' in request.path or '/san-xuat/bom' in request.path or '/san-xuat/cong-doan' in request.path %}true{% else %}false{% endif %}"
+                            aria-expanded="{% if '/san-xuat/ho-so' in request.path or '/san-xuat/bom' in request.path or '/san-xuat/cong-doan' in request.path or '/thiet-bi/san-xuat' in request.path or is_production_scope %}true{% else %}false{% endif %}"
                             aria-controls="jp-sidebar-san-xuat-products-submenu">
                         <span class="jp-sidebar-nested-toggle-main">
                             <i class="bi bi-box"></i><span>Hồ sơ sản phẩm</span>
@@ -802,56 +802,14 @@
                             </a>
                         </li>
                         {% endif %}
-                    </ul>
-                </li>
-                {% endif %}
-
-                {# —— 2b. Thiết bị SX (URL /thiet-bi/san-xuat/ — QR & phiếu sự cố giữ nguyên) —— #}
-                {% if jp_can_equipment_production %}
-                <li class="jp-sidebar-nested-group{% if '/thiet-bi/san-xuat' in request.path or is_production_scope %} is-open{% endif %}"
-                    data-sx-area="equipment" data-sx-icon="bi-gear-wide-connected" data-sx-label="Thiết bị SX"
-                    data-sx-href="{% url 'equipment:dashboard_production' %}">
-                    <button type="button"
-                            class="jp-sidebar-nested-toggle"
-                            data-jp-sidebar-group-toggle
-                            aria-expanded="{% if '/thiet-bi/san-xuat' in request.path or is_production_scope %}true{% else %}false{% endif %}"
-                            aria-controls="jp-sidebar-san-xuat-equipment-submenu">
-                        <span class="jp-sidebar-nested-toggle-main">
-                            <i class="bi bi-gear-wide-connected"></i><span>Thiết bị SX</span>
-                        </span>
-                        <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
-                    </button>
-                    <ul class="jp-sidebar-nested-submenu" id="jp-sidebar-san-xuat-equipment-submenu">
+                        {% if jp_can_equipment_production %}
                         <li>
                             <a href="{% url 'equipment:dashboard_production' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'dashboard_production' %}active{% endif %}">
-                                <i class="bi bi-speedometer2"></i><span>Tổng quan</span>
+                               class="jp-sidebar-link jp-sidebar-sublink {% if '/thiet-bi/san-xuat' in request.path or is_production_scope %}active{% endif %}">
+                                <i class="bi bi-gear-wide-connected"></i><span>Thiết bị SX</span>
                             </a>
                         </li>
-                        <li>
-                            <a href="{% url 'equipment:device_list_production' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'device_list_production' or request.resolver_match.url_name == 'device_add_production' or request.resolver_match.url_name == 'import_export_hub_production' or request.resolver_match.url_name == 'import_devices_production' or is_production_scope and request.resolver_match.url_name == 'device_detail_manage' or is_production_scope and request.resolver_match.url_name == 'device_history' or is_production_scope and request.resolver_match.url_name == 'device_update_history' %}active{% endif %}">
-                                <i class="bi bi-hdd-stack"></i><span>Danh sách thiết bị</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{% url 'equipment:it_repair_list_production' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'it_repair_list_production' or request.resolver_match.url_name == 'it_repair_detail_production' %}active{% endif %}">
-                                <i class="bi bi-tools"></i><span>Hỗ trợ kỹ thuật</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{% url 'equipment:category_list_production' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if '/thiet-bi/san-xuat/loai-thiet-bi' in request.path %}active{% endif %}">
-                                <i class="bi bi-tags"></i><span>Loại thiết bị</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{% url 'equipment:status_list_production' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if '/thiet-bi/san-xuat/trang-thai' in request.path %}active{% endif %}">
-                                <i class="bi bi-activity"></i><span>Trạng thái</span>
-                            </a>
-                        </li>
+                        {% endif %}
                     </ul>
                 </li>
                 {% endif %}
@@ -929,7 +887,7 @@
                 {% endif %}
 
                 {# —— 4. Kho NPL (sau kế hoạch / mua NPL) —— #}
-                {% if jp_can_kho_npl and jp_can_san_xuat %}
+                {% if jp_can_kho_npl %}
                 <li class="jp-sidebar-nested-group{% if 'kho-npl' in request.path %} is-open{% endif %}"
                     data-sx-area="kho_npl" data-sx-icon="bi-boxes" data-sx-label="Kho NPL"
                     data-sx-href="{% url 'kho_npl:material_list' %}">
@@ -950,7 +908,7 @@
                 {% endif %}
 
                 {# —— 4b. Kho vật tư (cùng nhóm kho với NPL) —— #}
-                {% if jp_can_kho_vat_tu and jp_can_san_xuat %}
+                {% if jp_can_kho_vat_tu %}
                 <li class="jp-sidebar-nested-group{% if 'kho-vat-tu' in request.path %} is-open{% endif %}"
                     data-sx-area="kho_vat_tu" data-sx-icon="bi-archive" data-sx-label="Kho vật tư"
                     data-sx-href="{% url 'kho_vat_tu:material_list' %}">
@@ -1182,7 +1140,7 @@
                 {# —— 8. Đóng gói — tạm ẩn khỏi menu; URL /san-xuat/dong-goi/ vẫn mở được —— #}
 
                 {# —— 8b. Danh mục sản phẩm (sau nhập TP) —— #}
-                {% if jp_can_kho_san_pham and jp_can_san_xuat %}
+                {% if jp_can_kho_san_pham %}
                 <li class="jp-sidebar-nested-group{% if 'kho-san-pham' in request.path %} is-open{% endif %}"
                     data-sx-area="kho_sp" data-sx-icon="bi-box-seam" data-sx-label="Danh mục sản phẩm"
                     data-sx-href="{% url 'kho_san_pham:product_list' %}">
@@ -1243,7 +1201,7 @@
                 {% endif %}
 
                 {# —— 11. Tích hợp KV —— #}
-                {% if jp_can_kiotviet and jp_can_san_xuat %}
+                {% if jp_can_kiotviet %}
                 <li class="jp-sidebar-nested-group{% if 'kiotviet' in request.path %} is-open{% endif %}"
                     data-sx-area="kiotviet" data-sx-icon="bi-shop" data-sx-label="Bán hàng"
                     data-sx-href="{% url 'kiotviet:customer_lookup' %}">
