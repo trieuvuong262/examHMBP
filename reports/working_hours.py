@@ -65,6 +65,11 @@ def _monday_start(local_dt: datetime) -> datetime:
     return monday.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
+def add_working_days(start: datetime, days: int | float) -> datetime:
+    """Cộng ``days`` ngày làm việc — mỗi ngày = 24 giờ LV (trừ chiều T7 và CN)."""
+    return add_working_hours(start, float(days) * 24)
+
+
 def add_working_hours(start: datetime, hours: int | float) -> datetime:
     """Cộng ``hours`` giờ làm việc kể từ ``start`` (trừ chiều T7 và CN)."""
     remaining = timedelta(hours=float(hours))

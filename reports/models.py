@@ -878,25 +878,25 @@ class ReportsGeneralSettings(models.Model):
         default=24,
         validators=[MinValueValidator(1), MaxValueValidator(168)],
         verbose_name='Thời hạn duyệt (giờ)',
-        help_text='Sau khi nộp — hạn SLA duyệt (badge quá hạn). Quản lý vẫn duyệt được đến hạn không duyệt.',
+        help_text='Giờ làm việc sau khi nộp — hạn SLA duyệt (badge quá hạn). Không tính chiều T7 và CN.',
     )
     unapprove_deadline_days = models.PositiveSmallIntegerField(
         default=7,
         validators=[MinValueValidator(1), MaxValueValidator(90)],
-        verbose_name='Thời hạn hoàn duyệt (ngày)',
-        help_text='Số ngày sau khi duyệt mà quản lý còn được hoàn duyệt.',
+        verbose_name='Thời hạn hoàn duyệt (ngày làm việc)',
+        help_text='Ngày làm việc sau khi duyệt (mỗi ngày = 24 giờ LV, không tính chiều T7 và CN).',
     )
     auto_reject_deadline_hours = models.PositiveSmallIntegerField(
         default=24,
         validators=[MinValueValidator(1), MaxValueValidator(168)],
         verbose_name='Thời hạn không duyệt (giờ)',
-        help_text='Sau khi nộp — quá hạn tự chuyển «Không duyệt».',
+        help_text='Giờ làm việc sau khi nộp — quá hạn tự chuyển «Không duyệt». Không tính chiều T7 và CN.',
     )
     employee_edit_deadline_hours = models.PositiveSmallIntegerField(
         default=24,
         validators=[MinValueValidator(1), MaxValueValidator(168)],
-        verbose_name='Thời hạn CN sửa sau nộp (giờ làm việc)',
-        help_text='Giờ làm việc — không tính chiều thứ Bảy (từ 12:00) và Chủ nhật.',
+        verbose_name='Thời hạn CN sửa sau nộp (giờ)',
+        help_text='Giờ làm việc sau khi nộp — không tính chiều thứ Bảy (từ 12:00) và Chủ nhật.',
     )
     default_declared_work_hours = models.DecimalField(
         max_digits=5,

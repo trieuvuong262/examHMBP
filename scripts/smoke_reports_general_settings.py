@@ -279,12 +279,13 @@ try:
             ok('Sat 10:00 still within 24h LV at Mon 09:36')
 
         report.hod_reviewed = True
-        report.hod_reviewed_at = now
+        report.hod_reviewed_at = thu_10
         mgr_dl = production_manager_edit_deadline(report)
-        if not mgr_dl or abs((mgr_dl - now - timedelta(days=5)).total_seconds()) > 2:
-            fail('unapprove deadline not ~5d', str(mgr_dl))
+        want_mgr = timezone.make_aware(datetime(2026, 9, 23, 22, 0, 0), tz)  # Thu 10:00 + 5×24h LV
+        if not mgr_dl or abs((mgr_dl - want_mgr).total_seconds()) > 2:
+            fail('unapprove deadline not Thu 10:00 + 5 ngày LV', str(mgr_dl))
         else:
-            ok('unapprove deadline = reviewed + 5d')
+            ok('unapprove deadline = working days (Thu 10:00 + 5×24h LV = Wed 22:00)')
 
     # Auto-submit windows
     today = timezone.localdate()

@@ -15,10 +15,9 @@ from reports.report_settings import (
     report_approve_deadline_hours,
     report_auto_reject_deadline_hours,
     report_employee_edit_deadline_hours,
-    report_manager_edit_window,
     report_unapprove_deadline_days,
 )
-from reports.working_hours import add_working_hours, subtract_working_hours
+from reports.working_hours import add_working_days, add_working_hours, subtract_working_hours
 
 # Fallback khi chưa migrate / DB lỗi — giữ hành vi cũ.
 PRODUCTION_EDIT_WINDOW = timedelta(hours=24)
@@ -95,13 +94,13 @@ def production_employee_edit_deadline(report):
 
 
 def production_manager_edit_deadline(report):
-    """Hạn hoàn duyệt / sửa của quản lý — N ngày kể từ khi duyệt báo cáo SX."""
+    """Hạn hoàn duyệt / sửa QL — N ngày làm việc (N×24 giờ LV) kể từ lúc duyệt."""
     if not report.hod_reviewed:
         return None
     reviewed_at = getattr(report, 'hod_reviewed_at', None) or submit_anchor_at(report) or report.updated_at
     if not reviewed_at:
         return None
-    return reviewed_at + report_manager_edit_window()
+    return add_working_days(reviewed_at, report_unapprove_deadline_days())
 
 
 def is_production_employee_edit_expired(report) -> bool:
@@ -352,7 +351,8 @@ def production_edit_denied_message(report, *, viewer=None) -> str:
         if viewer and can_review_user_report(viewer, report):
             if is_production_manager_edit_expired(report):
                 return (
-                    f'Đã quá {unapprove_days} ngày kể từ khi duyệt — '
+                    f'Đã quá {unapprove_days} ngày làm việc kể từ khi duyệt '
+                    '(không tính chiều T7 và Chủ nhật) — '
                     'không thể hoàn duyệt hoặc chỉnh sửa.'
                 )
         return 'Báo cáo đã được duyệt — bạn không thể chỉnh sửa.'

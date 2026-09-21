@@ -295,7 +295,7 @@
             <section class="jp-rs-panel">
                 <div class="jp-rs-panel-head">
                     <h3>Hạn duyệt</h3>
-                    <p class="jp-rs-hint mb-0 mt-1">Giờ làm việc — không tính chiều thứ Bảy (từ 12:00) và Chủ nhật.</p>
+                    <p class="jp-rs-hint mb-0 mt-1">Cả bốn hạn đều tính giờ làm việc — không tính chiều thứ Bảy (từ 12:00) và Chủ nhật. Thời hạn hoàn duyệt: mỗi ngày = 24 giờ làm việc kể từ lúc duyệt.</p>
                 </div>
                 <div class="jp-rs-panel-body jp-rs-grid">
                     <div class="jp-rs-row">
@@ -326,7 +326,7 @@
                         <p class="jp-rs-row-label">{{ form.unapprove_deadline_days.label }}</p>
                         <div class="jp-rs-field">
                             {{ form.unapprove_deadline_days }}
-                            <span class="jp-rs-unit">ngày</span>
+                            <span class="jp-rs-unit">ngày LV</span>
                         </div>
                         {% if form.unapprove_deadline_days.errors %}<div class="text-danger small">{{ form.unapprove_deadline_days.errors }}</div>{% endif %}
                     </div>

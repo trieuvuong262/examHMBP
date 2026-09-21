@@ -89,6 +89,7 @@ def report_employee_edit_window() -> timedelta:
 
 
 def report_manager_edit_window() -> timedelta:
+    """Khoảng ngày tường. Hạn hoàn duyệt dùng add_working_days (trừ chiều T7 + CN)."""
     return timedelta(days=report_unapprove_deadline_days())
 
 

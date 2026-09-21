@@ -2854,7 +2854,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         days = report_unapprove_deadline_days()
         messages.success(
             request,
-            f'Đã duyệt báo cáo. Có thể hoàn duyệt trong vòng {days} ngày sau khi duyệt.',
+            f'Đã duyệt báo cáo. Có thể hoàn duyệt trong vòng {days} ngày làm việc sau khi duyệt (không tính chiều T7 và Chủ nhật).',
         )
         return _detail_redirect()
 
@@ -2879,7 +2879,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
             days = report_unapprove_deadline_days()
             messages.error(
                 request,
-                f'Đã quá {days} ngày kể từ khi duyệt — không thể hoàn duyệt.',
+                f'Đã quá {days} ngày làm việc kể từ khi duyệt (không tính chiều T7 và Chủ nhật) — không thể hoàn duyệt.',
             )
             return _detail_redirect()
 
