@@ -58,6 +58,7 @@ from kho_npl.services.scrap_warehouse import (
     source_locations_qs,
 )
 from kho_npl.stock_domain import (
+    STOCK_DOMAIN_VAT_TU,
     domain_from_current_request,
     item_label,
 )
@@ -300,7 +301,10 @@ class MaterialForm(forms.ModelForm):
             'name': forms.TextInput(attrs=FORM_CONTROL),
             'variant_group': forms.Select(attrs=FORM_SELECT),
             'category': forms.Select(attrs=FORM_SELECT),
-            'department': forms.Select(attrs=FORM_SELECT),
+            'department': forms.Select(attrs={
+                **FORM_SEARCH_SELECT,
+                'data-placeholder': 'Tìm bộ phận Nhân sự...',
+            }),
             'color': MaterialColorSelect(attrs={
                 **FORM_SEARCH_SELECT,
                 'class': 'form-select jp-npl-search-select jp-npl-color-select',
@@ -333,9 +337,14 @@ class MaterialForm(forms.ModelForm):
         self.fields['category'].label = f'Loại {item_label(domain)}'
         self.fields['department'].label = 'Bộ phận'
         self.fields['department'].required = False
-        self.fields['department'].help_text = (
-            'Chuẩn Nhân sự: bộ phận sản xuất và đảm bảo chất lượng (như hồ sơ sản phẩm).'
-        )
+        if domain == STOCK_DOMAIN_VAT_TU:
+            self.fields['department'].help_text = (
+                'Lấy từ bộ phận Nhân sự (toàn công ty).'
+            )
+        else:
+            self.fields['department'].help_text = (
+                'Chuẩn Nhân sự: bộ phận sản xuất và đảm bảo chất lượng (như hồ sơ sản phẩm).'
+            )
         from kho_npl.material_department import material_department_choices
 
         current_dept = (getattr(self.instance, 'department', '') or '').strip()

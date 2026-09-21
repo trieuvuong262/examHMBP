@@ -1,6 +1,8 @@
-"""Bộ phận phân loại NPL — cùng nguồn HR với hồ sơ sản phẩm (SX + QLCL)."""
+"""Bộ phận phân loại NPL / vật tư — nguồn HR (Division)."""
 
 from __future__ import annotations
+
+from django.db.models import Q
 
 # Gợi ý mặc định theo mã nhóm NPL (user kiểm tra lại sau khi gán).
 CATEGORY_DEPARTMENT_DEFAULTS: dict[str, str] = {
@@ -34,40 +36,74 @@ CATEGORY_DEPARTMENT_DEFAULTS: dict[str, str] = {
     'phulieu-xep': 'GẤP XẾP',
     # Cơ điện / vật tư
     'vattu': 'CƠ ĐIỆN',
+    'vat-tu': 'CƠ ĐIỆN',
     # Khác
     'khac': 'MAY',
 }
 
 DEFAULT_FALLBACK_DEPARTMENT = 'MAY'
+DEFAULT_VAT_TU_DEPARTMENT = 'CƠ ĐIỆN'
+
+
+def hr_division_department_options() -> list[dict]:
+    """Toàn bộ bộ phận HR đang dùng — kho vật tư (Cơ điện, IT, …)."""
+    from hrm.models import Division
+
+    options: list[dict] = []
+    seen: set[str] = set()
+    qs = (
+        Division.objects.filter(is_active=True)
+        .filter(Q(department__isnull=True) | Q(department__is_active=True))
+        .select_related('department')
+        .order_by('department__sort_order', 'department__name', 'sort_order', 'name')
+    )
+    for div in qs:
+        name = (div.name or '').strip()
+        if not name:
+            continue
+        key = name.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        dept_name = div.department.name if div.department_id else ''
+        options.append({
+            'name': name,
+            'department_name': (dept_name or '').strip(),
+        })
+    return options
 
 
 def material_department_options() -> list[dict]:
-    """Dropdown bộ phận — cùng chuẩn hồ sơ sản phẩm / nhóm công đoạn IE."""
+    """Dropdown bộ phận: NPL = SX+QLCL; kho vật tư = mọi bộ phận Nhân sự."""
+    from kho_npl.stock_domain import STOCK_DOMAIN_VAT_TU, domain_from_current_request
+
+    if domain_from_current_request() == STOCK_DOMAIN_VAT_TU:
+        return hr_division_department_options()
     from san_xuat.services.capacity_from_hrm import ie_group_department_options
 
     return ie_group_department_options()
 
 
 def material_department_choices(*, include_blank: bool = True, current: str = '') -> list[tuple[str, str]]:
-    from san_xuat.services.capacity_from_hrm import (
-        ie_group_department_label_choices,
-        normalize_ie_group_department_label,
-    )
+    from san_xuat.services.capacity_from_hrm import normalize_ie_group_department_label
 
-    labels = ie_group_department_label_choices(
-        include_labels=[current] if current else None,
-    )
     choices: list[tuple[str, str]] = []
     if include_blank:
         choices.append(('', '— Chọn bộ phận —'))
-    option_map = {opt['name']: opt for opt in material_department_options()}
-    for name in labels:
-        opt = option_map.get(name) or {}
+    seen: set[str] = set()
+    for opt in material_department_options():
+        name = (opt.get('name') or '').strip()
+        if not name:
+            continue
+        key = name.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
         dept = (opt.get('department_name') or '').strip()
         label = f'{name} ({dept})' if dept else name
         choices.append((name, label))
     current_norm = normalize_ie_group_department_label(current) or (current or '').strip()
-    if current_norm and current_norm not in {c[0] for c in choices}:
+    if current_norm and current_norm.casefold() not in seen:
         choices.append((current_norm, f'{current_norm} (cũ)'))
     return choices
 
@@ -80,7 +116,13 @@ def normalize_material_department(value: str) -> str:
 
 def default_department_for_category_code(category_code: str) -> str:
     code = (category_code or '').strip().lower()
-    return CATEGORY_DEPARTMENT_DEFAULTS.get(code, DEFAULT_FALLBACK_DEPARTMENT)
+    if code in CATEGORY_DEPARTMENT_DEFAULTS:
+        return CATEGORY_DEPARTMENT_DEFAULTS[code]
+    from kho_npl.stock_domain import STOCK_DOMAIN_VAT_TU, domain_from_current_request
+
+    if domain_from_current_request() == STOCK_DOMAIN_VAT_TU:
+        return DEFAULT_VAT_TU_DEPARTMENT
+    return DEFAULT_FALLBACK_DEPARTMENT
 
 
 def assign_default_departments(*, only_blank: bool = True, dry_run: bool = False) -> dict:
