@@ -1,4 +1,4 @@
-{% load static %}
+{% load static menu_perms %}
 {% static 'images/logo/logo.png' as site_logo %}
 {% static 'images/logo/apple-touch-icon.png' as apple_icon %}
 {% static 'images/logo/favicon-16.png' as favicon_16 %}
@@ -51,13 +51,13 @@
     <link rel="stylesheet" href="{% static 'css/gotham.css' %}?v=20260811f">
     <link rel="stylesheet" href="{% static 'css/justplay-theme.css' %}?v=20260921c">
     {% block extra_head %}{% endblock %}
-    {% if '/san-xuat/' in request.path %}
+    {% if '/san-xuat/' in request.path or is_production_scope %}
     {% include 'san_xuat/includes/sx_ui_polish.html' %}
     {% endif %}
     <script src="{% static 'js/client-device.js' %}?v=20260813a"></script>
 </head>
 
-<body class="{% if user.is_authenticated and not jp_force_password_change %}jp-auth jp-has-sidebar jp-has-amis-header{% else %}jp-guest{% endif %}{% if '/san-xuat/' in request.path %} jp-sx-module{% endif %}">
+<body class="{% if user.is_authenticated and not jp_force_password_change %}jp-auth jp-has-sidebar jp-has-amis-header{% else %}jp-guest{% endif %}{% if '/san-xuat/' in request.path or is_production_scope %} jp-sx-module{% endif %}"{% if is_production_scope %} data-sx-area="equipment"{% endif %}>
 
 {% if user.is_authenticated and not jp_force_password_change %}
 <div class="jp-app-shell">
@@ -246,10 +246,11 @@ window.JP_MEAL_PUSH = window.JP_PORTAL_PUSH;
 {% endif %}
 {% endif %}
 {% block scripts %}{% endblock %}
-{% if jp_can_san_xuat %}
+{% jp_can_menu 'equipment' 'production' as jp_can_equipment_production %}
+{% if jp_can_san_xuat or jp_can_equipment_production %}
 {% include 'includes/san_xuat_launcher.html' %}
 {% endif %}
-{% if '/san-xuat/' in request.path %}
+{% if '/san-xuat/' in request.path or is_production_scope %}
 {% include 'san_xuat/includes/sx_ui_polish_scripts.html' %}
 {% include 'san_xuat/includes/sx_date_range_filter_scripts.html' %}
 {% endif %}

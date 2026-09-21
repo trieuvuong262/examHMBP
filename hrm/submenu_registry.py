@@ -83,7 +83,7 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
     ],
     MODULE_EQUIPMENT: [
         {'key': 'it', 'label': 'IT', 'icon': 'bi-pc-display-horizontal'},
-        {'key': 'production', 'label': 'Sản xuất', 'icon': 'bi-gear-wide-connected'},
+        {'key': 'production', 'label': 'Thiết bị sản xuất', 'icon': 'bi-gear-wide-connected'},
     ],
     MODULE_FEEDBACK: [
         {'key': 'create', 'label': 'Gửi góp ý', 'icon': 'bi-plus-circle'},
