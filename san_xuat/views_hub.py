@@ -964,7 +964,7 @@ redirect_orders = sales_order_list
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def redirect_npl_stock(request):
-    return redirect('kho_npl:material_stock')
+    return redirect(reverse('kho_npl:material_stock', current_app='kho_npl'))
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')

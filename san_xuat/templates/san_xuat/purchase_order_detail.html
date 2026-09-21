@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% load sx_format %}
+{% load sx_format npl_extras %}
 {% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
 
 {% block content %}
@@ -97,7 +97,7 @@
           <ul class="list-unstyled small mb-3">
             {% for r in stock_receipts %}
             <li class="mb-1">
-              <a href="{% url 'kho_npl:receipt_detail' r.pk %}">{{ r.number }}</a>
+              <a href="{% stock_url 'receipt_detail' 'kho_npl' r.pk %}">{{ r.number }}</a>
               — {{ r.get_status_display }} · {{ r.receipt_date|date:"d/m/Y" }}
             </li>
             {% endfor %}

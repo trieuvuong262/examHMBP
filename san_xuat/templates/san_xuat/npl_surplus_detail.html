@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load sx_format %}
+{% load sx_format npl_extras %}
 
 {% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
 
@@ -37,7 +37,7 @@
               <div class="small text-muted">Phiếu ĐC kho</div>
               <div>
                 {% if item.stock_adjustment %}
-                <a href="{% url 'kho_npl:adjustment_detail' item.stock_adjustment.pk %}">{{ item.stock_adjustment.number }}</a>
+                <a href="{% stock_url 'adjustment_detail' 'kho_npl' item.stock_adjustment.pk %}">{{ item.stock_adjustment.number }}</a>
                 {% else %}—{% endif %}
               </div>
             </div>

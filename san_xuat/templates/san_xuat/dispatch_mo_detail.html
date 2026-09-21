@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load sx_format %}
+{% load sx_format npl_extras %}
 
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
@@ -489,7 +489,7 @@
                         </button>
                       </form>
                       {% elif req.stock_issue_id %}
-                      <a href="{% url 'kho_npl:issue_detail' req.stock_issue_id %}" class="btn btn-sm btn-outline-secondary">Phiếu kho</a>
+                      <a href="{% stock_url 'issue_detail' 'kho_npl' req.stock_issue_id %}" class="btn btn-sm btn-outline-secondary">Phiếu kho</a>
                       {% endif %}
                       <a href="{% url 'san_xuat:dispatch_material_issue_req_detail' req.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
                     </div>

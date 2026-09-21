@@ -1,6 +1,7 @@
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from django import template
+from django.urls import reverse as django_reverse
 
 from kho_npl.catalog_labels import color_label, spec_label, unit_label as catalog_unit_label
 from kho_npl.doc_attachment import attachment_is_image as is_image_attachment
@@ -110,3 +111,10 @@ def npl_money_exact(value):
 @register.filter
 def attachment_is_image(file_field):
     return is_image_attachment(file_field)
+
+
+@register.simple_tag
+def stock_url(view_name, ns='kho_npl', *args):
+    """URL kho theo instance cố định (kho_npl | kho_vat_tu), không bị trang hiện tại đổi sang kho kia."""
+    name = view_name if ':' in str(view_name) else f'kho_npl:{view_name}'
+    return django_reverse(name, args=args, current_app=ns or 'kho_npl')

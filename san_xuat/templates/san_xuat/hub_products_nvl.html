@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load npl_extras %}
 
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
@@ -13,7 +14,7 @@
       <h2 class="jp-npl-mat-topbar-title w-100">Sản phẩm, Nguyên phụ liệu</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
-      <a href="{% url 'kho_npl:material_list' %}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Danh mục NPL</a>
+      <a href="{% stock_url 'material_list' 'kho_npl' %}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Danh mục NPL</a>
       <a href="{% url 'kho_san_pham:product_list' %}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Kho sản phẩm</a>
     </nav>
   </div>
@@ -48,7 +49,7 @@
       <span><i class="bi bi-box-seam me-2"></i>Kho sản phẩm</span>
       <i class="bi bi-chevron-right"></i>
     </a>
-    <a href="{% url 'kho_npl:material_list' %}" class="jp-sx-hub-link">
+    <a href="{% stock_url 'material_list' 'kho_npl' %}" class="jp-sx-hub-link">
       <span><i class="bi bi-boxes me-2"></i>Nguyên phụ liệu</span>
       <i class="bi bi-chevron-right"></i>
     </a>
@@ -72,7 +73,7 @@
       <span><i class="bi bi-boxes me-2"></i>Tồn thành phẩm</span>
       <i class="bi bi-chevron-right"></i>
     </a>
-    <a href="{% url 'kho_npl:material_stock' %}" class="jp-sx-hub-link">
+    <a href="{% stock_url 'material_stock' 'kho_npl' %}" class="jp-sx-hub-link">
       <span><i class="bi bi-clipboard-data me-2"></i>Tồn NPL</span>
       <i class="bi bi-chevron-right"></i>
     </a>

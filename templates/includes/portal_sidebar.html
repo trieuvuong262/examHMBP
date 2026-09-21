@@ -1,4 +1,4 @@
-{% load static menu_perms %}
+{% load static menu_perms npl_extras %}
 <nav class="jp-sidebar-nav" aria-label="Menu chính">
     {% with profile=user.profile %}
     <div class="jp-sidebar-profile">
@@ -890,7 +890,7 @@
                 {% if jp_can_kho_npl %}
                 <li class="jp-sidebar-nested-group{% if 'kho-npl' in request.path %} is-open{% endif %}"
                     data-sx-area="kho_npl" data-sx-icon="bi-boxes" data-sx-label="Kho NPL"
-                    data-sx-href="{% url 'kho_npl:material_list' %}">
+                    data-sx-href="{% stock_url 'material_list' 'kho_npl' %}">
                     <button type="button"
                             class="jp-sidebar-nested-toggle"
                             data-jp-sidebar-group-toggle
@@ -911,7 +911,7 @@
                 {% if jp_can_kho_vat_tu %}
                 <li class="jp-sidebar-nested-group{% if 'kho-vat-tu' in request.path %} is-open{% endif %}"
                     data-sx-area="kho_vat_tu" data-sx-icon="bi-archive" data-sx-label="Kho vật tư"
-                    data-sx-href="{% url 'kho_vat_tu:material_list' %}">
+                    data-sx-href="{% stock_url 'material_list' 'kho_vat_tu' %}">
                     <button type="button"
                             class="jp-sidebar-nested-toggle"
                             data-jp-sidebar-group-toggle

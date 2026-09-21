@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load npl_extras %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
@@ -10,7 +11,7 @@
       <h2 class="jp-npl-mat-topbar-title mb-0 w-100">Vị trí chờ / kho trung gian</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
-      <a href="{% url 'kho_npl:settings_list' 'vi-tri' %}"><i class="bi bi-gear" aria-hidden="true"></i>Thiết lập vị trí kho</a>
+      <a href="{% stock_url 'settings_list' 'kho_npl' 'vi-tri' %}"><i class="bi bi-gear" aria-hidden="true"></i>Thiết lập vị trí kho</a>
     </nav>
   </div>
   <div class="card border-0 shadow-sm mb-3">

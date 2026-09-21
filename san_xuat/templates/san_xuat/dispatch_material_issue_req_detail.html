@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load sx_format %}
+{% load sx_format npl_extras %}
 
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
@@ -179,7 +179,7 @@
   {% elif req.status == 'done' and req.stock_issue %}
   <div class="alert alert-light border small mb-3 py-2">
     Đã xuất kho
-    <a href="{% url 'kho_npl:issue_detail' req.stock_issue.pk %}">{{ req.stock_issue.number }}</a>
+    <a href="{% stock_url 'issue_detail' 'kho_npl' req.stock_issue.pk %}">{{ req.stock_issue.number }}</a>
     — tồn NPL đã trừ.
   </div>
   {% elif not can_update and req.status != 'done' and req.status != 'cancelled' %}
@@ -218,7 +218,7 @@
           <div class="label">Phiếu xuất kho</div>
           <div class="value">
             {% if req.stock_issue %}
-            <a href="{% url 'kho_npl:issue_detail' req.stock_issue.pk %}">{{ req.stock_issue.number }}</a>
+            <a href="{% stock_url 'issue_detail' 'kho_npl' req.stock_issue.pk %}">{{ req.stock_issue.number }}</a>
             {% else %}—{% endif %}
           </div>
         </div>

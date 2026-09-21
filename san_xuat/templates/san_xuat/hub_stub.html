@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load npl_extras %}
 
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
@@ -34,7 +35,7 @@
         <a href="{{ related_url }}" class="btn btn-hm">Mở liên quan</a>
         {% endif %}
         <a href="{% url 'san_xuat:doc_list' %}" class="btn btn-outline-hm">Hồ sơ SX</a>
-        <a href="{% url 'kho_npl:material_stock' %}" class="btn btn-outline-secondary">Kho NPL</a>
+        <a href="{% stock_url 'material_stock' 'kho_npl' %}" class="btn btn-outline-secondary">Kho NPL</a>
     </div>
 </div>
 {% endblock %}

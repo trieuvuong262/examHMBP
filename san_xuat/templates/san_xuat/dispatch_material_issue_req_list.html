@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load npl_extras %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 
@@ -59,7 +60,7 @@
             </td>
             <td class="npl-col" data-col="issue_doc">
               {% if req.stock_issue %}
-                <a href="{% url 'kho_npl:issue_detail' req.stock_issue.pk %}">{{ req.stock_issue.number }}</a>
+                <a href="{% stock_url 'issue_detail' 'kho_npl' req.stock_issue.pk %}">{{ req.stock_issue.number }}</a>
               {% else %}—{% endif %}
             </td>
             {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=req %}
