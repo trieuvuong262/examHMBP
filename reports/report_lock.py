@@ -16,10 +16,10 @@ from reports.report_settings import (
     report_auto_reject_deadline_hours,
     report_auto_reject_window,
     report_employee_edit_deadline_hours,
-    report_employee_edit_window,
     report_manager_edit_window,
     report_unapprove_deadline_days,
 )
+from reports.working_hours import add_working_hours
 
 # Fallback khi chưa migrate / DB lỗi — giữ hành vi cũ.
 PRODUCTION_EDIT_WINDOW = timedelta(hours=24)
@@ -88,11 +88,11 @@ def is_production_auto_reject_expired(report) -> bool:
 
 
 def production_employee_edit_deadline(report):
-    """Hạn sửa của nhân viên sau khi nộp báo cáo SX."""
+    """Hạn sửa NV sau khi nộp — giờ làm việc (trừ chiều T7 và Chủ nhật)."""
     anchor = submit_anchor_at(report)
     if report.status != DailyWorkReport.STATUS_SUBMITTED or not anchor:
         return None
-    return anchor + report_employee_edit_window()
+    return add_working_hours(anchor, report_employee_edit_deadline_hours())
 
 
 def production_manager_edit_deadline(report):
@@ -322,7 +322,8 @@ def production_edit_denied_message(report, *, viewer=None) -> str:
         if deadline and timezone.now() > deadline:
             local_deadline = timezone.localtime(deadline)
             return (
-                f'Đã quá {edit_hours} giờ kể từ khi nộp — hạn sửa '
+                f'Đã quá {edit_hours} giờ làm việc kể từ khi nộp '
+                f'(không tính chiều T7 và Chủ nhật) — hạn sửa '
                 f'{local_deadline.strftime("%H:%M %d/%m/%Y")}.'
             )
     if is_report_edit_expired(report):

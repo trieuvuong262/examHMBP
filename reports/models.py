@@ -895,7 +895,8 @@ class ReportsGeneralSettings(models.Model):
     employee_edit_deadline_hours = models.PositiveSmallIntegerField(
         default=24,
         validators=[MinValueValidator(1), MaxValueValidator(168)],
-        verbose_name='Thời hạn CN sửa sau nộp (giờ)',
+        verbose_name='Thời hạn CN sửa sau nộp (giờ làm việc)',
+        help_text='Giờ làm việc — không tính chiều thứ Bảy (từ 12:00) và Chủ nhật.',
     )
     default_declared_work_hours = models.DecimalField(
         max_digits=5,

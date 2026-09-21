@@ -2868,7 +2868,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
             hours = report_employee_edit_deadline_hours()
             messages.success(
                 request,
-                f'Đã hoàn duyệt — nhân viên có thể chỉnh sửa lại nếu còn trong hạn {hours} giờ.',
+                f'Đã hoàn duyệt — nhân viên có thể chỉnh sửa lại nếu còn trong hạn {hours} giờ làm việc (không tính chiều T7 và Chủ nhật).',
             )
             return _detail_redirect()
         if unapprove_locked:

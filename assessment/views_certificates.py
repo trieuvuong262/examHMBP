@@ -202,7 +202,7 @@ def admin_template_delete(request, pk):
 
 @module_perm_required(MODULE_ASSESSMENT, 'view')
 def my_certificates(request):
-    qs = _certificate_queryset().filter(
+    qs = Certificate.objects.select_related('exam', 'template').filter(
         user=request.user, is_revoked=False,
     ).order_by('-issued_at')
     page_obj, query_string = paginate_queryset(request, qs)
@@ -210,6 +210,7 @@ def my_certificates(request):
         'certificates': page_obj.object_list,
         'page_obj': page_obj,
         'query_string': query_string,
+        'total_count': page_obj.paginator.count,
     })
 
 

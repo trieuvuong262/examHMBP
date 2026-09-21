@@ -30,7 +30,7 @@ _LABELS = {
     'approve_deadline_hours': 'Thời hạn duyệt',
     'auto_reject_deadline_hours': 'Thời hạn không duyệt',
     'unapprove_deadline_days': 'Thời hạn hoàn duyệt',
-    'employee_edit_deadline_hours': 'Thời hạn CN sửa sau nộp',
+    'employee_edit_deadline_hours': 'Thời hạn CN sửa sau nộp (giờ làm việc)',
 }
 
 

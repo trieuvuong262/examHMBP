@@ -1,0 +1,19 @@
+{% load static %}
+{% with t=cert.template %}
+<article class="jp-cert-mini" aria-hidden="true">
+    <aside class="jp-cert-mini-rail">
+        <div class="jp-cert-mini-seal">
+            <span class="jp-cert-mini-ring"></span>
+            <img src="{% static 'images/logo/logo.png' %}" alt="" class="jp-cert-mini-logo" width="40" height="40">
+        </div>
+        <p class="jp-cert-mini-company">{{ t.company_name|default:"JUST PLAY" }}</p>
+    </aside>
+    <div class="jp-cert-mini-main">
+        <p class="jp-cert-mini-kicker">{{ t.heading|default:"CERTIFICATE" }}</p>
+        <h3 class="jp-cert-mini-name">{{ cert.recipient_name }}</h3>
+        <p class="jp-cert-mini-presented">{{ t.presented_label|default:"đã hoàn thành chương trình đào tạo nội bộ" }}</p>
+        <p class="jp-cert-mini-course">{{ cert.exam_title }}</p>
+        <p class="jp-cert-mini-score">{{ cert.score|floatformat:0 }}/100</p>
+    </div>
+</article>
+{% endwith %}

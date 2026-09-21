@@ -97,6 +97,14 @@
     font-weight: 600;
     min-width: 2.25rem;
   }
+  .jp-report-settings .jp-rs-hint {
+    margin: .25rem 0 0;
+    font-size: .75rem;
+    color: var(--rs-muted);
+    font-weight: 400;
+    max-width: 22rem;
+    line-height: 1.4;
+  }
   .jp-report-settings .jp-rs-actions {
     display: flex;
     flex-wrap: wrap;
@@ -306,7 +314,10 @@
                         {% if form.auto_reject_deadline_hours.errors %}<div class="text-danger small">{{ form.auto_reject_deadline_hours.errors }}</div>{% endif %}
                     </div>
                     <div class="jp-rs-row">
-                        <p class="jp-rs-row-label">{{ form.employee_edit_deadline_hours.label }}</p>
+                        <div>
+                            <p class="jp-rs-row-label">{{ form.employee_edit_deadline_hours.label }}</p>
+                            <p class="jp-rs-hint">Không tính chiều thứ Bảy (từ 12:00) và Chủ nhật.</p>
+                        </div>
                         <div class="jp-rs-field">
                             {{ form.employee_edit_deadline_hours }}
                             <span class="jp-rs-unit">giờ</span>

@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/certificate.css' %}?v=20260919p">
+<link rel="stylesheet" href="{% static 'css/certificate.css' %}?v=20260919q">
 {% endblock %}
 
 {% block content %}
@@ -10,41 +10,45 @@
     <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-center gap-2">
         <div>
             <h2 class="fw-bold text-dark mb-1 jp-page-title">Chứng chỉ của tôi</h2>
-            <p class="text-muted small mb-0">Các chứng chỉ được cấp sau khi hoàn thành kỳ thi và đạt điểm.</p>
+            <p class="text-muted small mb-0">
+                {% if total_count %}{{ total_count }} chứng chỉ đã cấp{% else %}Chưa có chứng chỉ được cấp{% endif %}
+            </p>
         </div>
         <a href="{% url 'exam_list' %}" class="btn btn-outline-hm fw-bold" data-loading-message="Đang tải danh sách kỳ thi…">
             <i class="bi bi-journal-check me-1"></i>Danh sách kỳ thi
         </a>
     </div>
 
-    <div class="row g-3">
+    {% if certificates %}
+    <div class="row g-3 g-md-4">
         {% for cert in certificates %}
-        <div class="col-md-6 col-lg-4">
+        <div class="col-12 col-md-6 col-xl-4">
             <a href="{% url 'certificate_view' cert.pk %}" class="jp-my-cert-link text-decoration-none text-reset" data-loading-message="Đang mở chứng chỉ…">
-                <div class="card h-100 border-0 shadow-sm overflow-hidden">
-                    <div class="jp-my-cert-thumb">
-                        {% include 'assessment/includes/certificate_card.html' with cert=cert is_preview=True %}
+                <article class="jp-my-cert-card">
+                    {% include 'assessment/includes/certificate_thumb.html' with cert=cert only %}
+                    <div class="jp-my-cert-foot">
+                        <div class="min-w-0">
+                            <div class="jp-my-cert-code">{{ cert.code }}</div>
+                            <div class="jp-my-cert-date">Cấp ngày {{ cert.issued_at|date:"d/m/Y" }}</div>
+                        </div>
+                        <span class="jp-my-cert-open">Xem<i class="bi bi-arrow-right ms-1"></i></span>
                     </div>
-                    <div class="card-body p-3">
-                        <div class="small text-muted fw-bold mb-1">{{ cert.code }}</div>
-                        <h6 class="fw-bold text-dark mb-1 jp-text-clamp-2">{{ cert.exam_title }}</h6>
-                        <div class="small text-muted">Cấp ngày {{ cert.issued_at|date:"d/m/Y" }} · {{ cert.score|floatformat:0 }} điểm</div>
-                    </div>
-                </div>
+                </article>
             </a>
-        </div>
-        {% empty %}
-        <div class="col-12">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body text-center py-5 text-muted">
-                    Bạn chưa có chứng chỉ. Hoàn thành kỳ thi và đạt điểm để được cấp.
-                </div>
-            </div>
         </div>
         {% endfor %}
     </div>
+    {% else %}
+    <div class="jp-my-cert-empty">
+        <i class="bi bi-award jp-my-cert-empty-icon" aria-hidden="true"></i>
+        <p class="fw-bold text-dark mb-1">Bạn chưa có chứng chỉ</p>
+        <p class="text-muted small mb-3">Hoàn thành kỳ thi và đạt từ 50 điểm để được cấp chứng chỉ.</p>
+        <a href="{% url 'exam_list' %}" class="btn btn-hm fw-bold" data-loading-message="Đang tải danh sách kỳ thi…">Đến danh sách kỳ thi</a>
+    </div>
+    {% endif %}
+
     {% if page_obj.has_other_pages %}
-    <div class="mt-3">
+    <div class="mt-4">
         {% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}
     </div>
     {% endif %}

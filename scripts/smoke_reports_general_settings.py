@@ -31,6 +31,7 @@ from reports.report_lock import (
     production_employee_edit_deadline,
     production_manager_edit_deadline,
 )
+from reports.working_hours import add_working_hours
 from reports.report_profile import REPORT_PROFILE_PRODUCTION
 from reports.report_settings import (
     allow_edit_wrong_stage_time,
@@ -225,7 +226,6 @@ try:
         )
         approve_dl = production_approve_deadline(report)
         reject_dl = production_auto_reject_deadline(report)
-        edit_dl = production_employee_edit_deadline(report)
         if not approve_dl or abs((approve_dl - now - timedelta(hours=12)).total_seconds()) > 2:
             fail('approve deadline not ~12h', str(approve_dl))
         else:
@@ -234,10 +234,35 @@ try:
             fail('reject deadline not ~36h', str(reject_dl))
         else:
             ok('reject deadline = submitted + 36h')
-        if not edit_dl or abs((edit_dl - now - timedelta(hours=18)).total_seconds()) > 2:
-            fail('employee edit deadline not ~18h', str(edit_dl))
+
+        tz = timezone.get_current_timezone()
+        thu_10 = timezone.make_aware(datetime(2026, 9, 17, 10, 0, 0), tz)
+        report.submitted_at = thu_10
+        report.submit_clicked_at = thu_10
+        edit_dl = production_employee_edit_deadline(report)
+        want_edit = timezone.make_aware(datetime(2026, 9, 18, 4, 0, 0), tz)  # Thu 10:00 + 18h LV
+        if not edit_dl or abs((edit_dl - want_edit).total_seconds()) > 2:
+            fail('employee edit deadline not Thu 10:00 + 18h LV', str(edit_dl))
         else:
-            ok('employee edit deadline = submitted + 18h')
+            ok('employee edit deadline = working hours (Thu 10:00 + 18h = Fri 04:00)')
+
+        def _expect_wh(start, hours, year, month, day, hour, minute, label):
+            got = add_working_hours(start, hours)
+            want = timezone.make_aware(datetime(year, month, day, hour, minute, 0), tz)
+            if abs((got - want).total_seconds()) > 1:
+                fail(label, f'got {timezone.localtime(got)}, want {want}')
+            else:
+                ok(label)
+
+        fri_17 = timezone.make_aware(datetime(2026, 9, 18, 17, 0, 0), tz)
+        sat_10 = timezone.make_aware(datetime(2026, 9, 19, 10, 0, 0), tz)
+        sat_14 = timezone.make_aware(datetime(2026, 9, 19, 14, 0, 0), tz)
+        sun_10 = timezone.make_aware(datetime(2026, 9, 20, 10, 0, 0), tz)
+        _expect_wh(thu_10, 24, 2026, 9, 18, 10, 0, 'Thu 10:00 + 24h LV = Fri 10:00')
+        _expect_wh(fri_17, 24, 2026, 9, 21, 5, 0, 'Fri 17:00 + 24h LV = Mon 05:00')
+        _expect_wh(sat_10, 24, 2026, 9, 21, 22, 0, 'Sat 10:00 + 24h LV = Mon 22:00')
+        _expect_wh(sat_14, 24, 2026, 9, 22, 0, 0, 'Sat 14:00 + 24h LV = Tue 00:00')
+        _expect_wh(sun_10, 24, 2026, 9, 22, 0, 0, 'Sun 10:00 + 24h LV = Tue 00:00')
 
         report.hod_reviewed = True
         report.hod_reviewed_at = now

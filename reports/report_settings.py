@@ -84,6 +84,7 @@ def report_approve_window() -> timedelta:
 
 
 def report_employee_edit_window() -> timedelta:
+    """Khoảng giờ tường. Hạn sửa NV dùng add_working_hours (trừ chiều T7 + CN)."""
     return timedelta(hours=report_employee_edit_deadline_hours())
 
 

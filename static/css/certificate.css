@@ -320,27 +320,193 @@
     }
 }
 
-.jp-my-cert-link { display: block; cursor: pointer; }
-.jp-my-cert-link .card { pointer-events: none; }
-.jp-my-cert-link:hover .card { box-shadow: 0 12px 28px rgba(10, 10, 10, 0.14) !important; }
-.jp-my-cert-thumb {
-    position: relative;
+.jp-my-cert-link { display: block; height: 100%; cursor: pointer; }
+.jp-my-cert-link .jp-my-cert-card { pointer-events: none; }
+.jp-my-cert-card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
     overflow: hidden;
-    background: var(--cert-cream, #fbf6ea);
-    pointer-events: none;
-    border-bottom: 1px solid #eceae3;
-    height: 168px;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 8px 22px rgba(20, 20, 20, 0.08);
+    transition: transform .18s ease, box-shadow .18s ease;
 }
-.jp-my-cert-thumb .jp-cert {
-    width: 720px;
-    max-width: none;
-    height: 510px;
-    aspect-ratio: auto;
-    transform: scale(0.48);
-    transform-origin: top left;
-    box-shadow: none;
+.jp-my-cert-link:hover .jp-my-cert-card,
+.jp-my-cert-link:focus-visible .jp-my-cert-card {
+    transform: translateY(-3px);
+    box-shadow: 0 16px 32px rgba(20, 20, 20, 0.14);
 }
-.jp-my-cert-thumb .jp-cert-chapters { overflow: hidden; }
+.jp-cert-mini {
+    --cert-red: #c41e3a;
+    --cert-black: #141414;
+    --cert-cream: #fbf6ea;
+    --cert-cream-2: #f3ead4;
+    --cert-gold: #c9a227;
+    display: grid;
+    grid-template-columns: 78px minmax(0, 1fr);
+    width: 100%;
+    aspect-ratio: 1.414 / 1;
+    overflow: hidden;
+    color: #1c1917;
+    font-family: Arial, Helvetica, sans-serif;
+    background:
+        radial-gradient(circle at 88% 78%, rgba(196, 30, 58, 0.05), transparent 36%),
+        var(--cert-cream);
+    box-shadow:
+        inset 0 0 0 1px var(--cert-gold),
+        inset 0 0 0 5px var(--cert-cream),
+        inset 0 0 0 6px var(--cert-red),
+        inset 0 0 0 7px var(--cert-black);
+}
+.jp-cert-mini-rail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.45rem;
+    margin: 8px 0 8px 8px;
+    padding: 0.7rem 0.4rem 0.55rem;
+    background: var(--cert-black);
+    color: #fff;
+    text-align: center;
+}
+.jp-cert-mini-seal {
+    position: relative;
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+}
+.jp-cert-mini-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 1.5px solid var(--cert-gold);
+    box-shadow: inset 0 0 0 3px var(--cert-cream), inset 0 0 0 4.5px var(--cert-red);
+    background: var(--cert-cream);
+}
+.jp-cert-mini-logo {
+    position: relative;
+    z-index: 1;
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
+.jp-cert-mini-company {
+    margin: 0;
+    font-size: 0.48rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 1.25;
+    text-transform: uppercase;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.jp-cert-mini-main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    padding: 0.7rem 0.85rem 0.65rem;
+    text-align: center;
+}
+.jp-cert-mini-kicker {
+    margin: 0 0 0.35rem;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    color: var(--cert-red);
+}
+.jp-cert-mini-name {
+    margin: 0;
+    max-width: 100%;
+    font-size: 1.05rem;
+    font-weight: 800;
+    line-height: 1.2;
+    color: var(--cert-black);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.jp-cert-mini-presented {
+    margin: 0.28rem 0 0;
+    max-width: 100%;
+    font-size: 0.62rem;
+    color: #57534e;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.jp-cert-mini-course {
+    margin: 0.35rem 0 0;
+    max-width: 100%;
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--cert-red);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.jp-cert-mini-score {
+    margin: 0.45rem 0 0;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: #57534e;
+}
+.jp-my-cert-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem 0.95rem;
+    background: #fff;
+    border-top: 1px solid #f0eee8;
+}
+.jp-my-cert-code {
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: #141414;
+    letter-spacing: 0.02em;
+}
+.jp-my-cert-date {
+    margin-top: 0.12rem;
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+.jp-my-cert-open {
+    flex: 0 0 auto;
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: #c41e3a;
+}
+.jp-my-cert-empty {
+    text-align: center;
+    padding: 3.2rem 1.25rem;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 8px 22px rgba(20, 20, 20, 0.06);
+}
+.jp-my-cert-empty-icon {
+    display: block;
+    margin: 0 auto 0.75rem;
+    font-size: 2.2rem;
+    color: #c9a227;
+}
+@media (max-width: 575.98px) {
+    .jp-cert-mini { grid-template-columns: 64px minmax(0, 1fr); }
+    .jp-cert-mini-name { font-size: 0.95rem; }
+    .jp-cert-mini-course { font-size: 0.72rem; }
+}
 
 @media print {
     @page { size: A4 landscape; margin: 6mm; }
