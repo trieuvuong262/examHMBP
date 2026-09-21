@@ -18,6 +18,8 @@ from utilities.date_range_filter import (
 
 # Quản lý báo cáo (SX) mặc định 7 ngày — vẫn nằm trong preset chung 1/3/7/10/30.
 TEAM_PRODUCTION_DEFAULT_SPAN_DAYS = 7
+# Xuất chi tiết BC SX (mọi dòng công đoạn / khung giờ) — tránh file quá nặng.
+TEAM_DETAIL_EXPORT_MAX_DAYS = 31
 
 PERIOD_DAY = 'day'
 PERIOD_WEEK = 'week'

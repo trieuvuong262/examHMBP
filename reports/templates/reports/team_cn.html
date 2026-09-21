@@ -17,6 +17,13 @@
    title="Chọn công nhân đi làm rồi in phiếu giấy — tránh in người nghỉ">
     <i class="bi bi-printer me-1"></i>In phiếu
 </a>
+<button type="button"
+        class="btn btn-outline-success btn-sm flex-fill flex-md-grow-0"
+        data-bs-toggle="modal"
+        data-bs-target="#jpSxDetailExportModal"
+        title="Xuất chi tiết tất cả dòng báo cáo sản xuất theo khoảng ngày">
+    <i class="bi bi-file-earmark-spreadsheet me-1"></i>Xuất chi tiết BC
+</button>
 <a href="{% url 'reports:team_summary_cn' %}?{{ summary_list_query }}" class="btn btn-hm btn-sm flex-fill flex-md-grow-0">
     <i class="bi bi-table me-1"></i>Báo cáo tổng hợp
 </a>
@@ -133,4 +140,112 @@
         <i class="bi bi-printer"></i>
     </a>
 </td>
+{% endblock %}
+
+{% block team_modals %}
+<div class="modal fade" id="jpSxDetailExportModal" tabindex="-1" aria-labelledby="jpSxDetailExportTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <form method="get" action="{% url 'reports:team_detail_cn_export' %}" id="jpSxDetailExportForm" data-skip-loading="1">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold" id="jpSxDetailExportTitle">Xuất chi tiết báo cáo SX</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">
+                        Xuất tất cả dòng công đoạn và khung giờ của nhân viên sản xuất trong khoảng ngày đã chọn
+                        (không theo bộ lọc phòng ban / tìm kiếm trên danh sách).
+                        Tối đa {{ detail_export_max_days|default:31 }} ngày.
+                    </p>
+                    <div class="row g-3">
+                        <div class="col-sm-6">
+                            <label class="form-label fw-bold small mb-1" for="jpSxExportFrom">Từ ngày</label>
+                            <input type="date" name="from" id="jpSxExportFrom" class="form-control jp-export-date-vn"
+                                   value="{{ range_from|date:'Y-m-d' }}" required>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label fw-bold small mb-1" for="jpSxExportTo">Đến ngày</label>
+                            <input type="date" name="to" id="jpSxExportTo" class="form-control jp-export-date-vn"
+                                   value="{{ range_to|date:'Y-m-d' }}" required>
+                        </div>
+                    </div>
+                    {% if request.get_full_path %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    {% endif %}
+                </div>
+                <div class="modal-footer border-0 pt-0 flex-nowrap gap-2">
+                    <button type="button" class="btn btn-outline-secondary flex-grow-1" data-bs-dismiss="modal">Huỷ</button>
+                    <button type="submit" class="btn btn-success flex-grow-1">
+                        <i class="bi bi-download me-1"></i>Xuất Excel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block team_extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var form = document.getElementById('jpSxDetailExportForm');
+    var modalEl = document.getElementById('jpSxDetailExportModal');
+    if (!form) return;
+
+    var maxDays = parseInt('{{ detail_export_max_days|default:31 }}', 10) || 31;
+
+    if (window.flatpickr) {
+        flatpickr('.jp-export-date-vn', {
+            dateFormat: 'Y-m-d',
+            altInput: true,
+            altFormat: 'd/m/Y',
+            allowInput: true,
+        });
+    }
+
+    function parseIsoDate(value) {
+        if (!value) return null;
+        var parts = value.split('-').map(Number);
+        if (parts.length !== 3 || !parts[0] || !parts[1] || !parts[2]) return null;
+        return new Date(parts[0], parts[1] - 1, parts[2]);
+    }
+
+    form.addEventListener('submit', function (e) {
+        var fromEl = form.querySelector('[name="from"]');
+        var toEl = form.querySelector('[name="to"]');
+        var fromVal = fromEl ? fromEl.value : '';
+        var toVal = toEl ? toEl.value : '';
+        var fromDate = parseIsoDate(fromVal);
+        var toDate = parseIsoDate(toVal);
+        if (!fromDate || !toDate) {
+            e.preventDefault();
+            window.alert('Vui lòng chọn từ ngày và đến ngày.');
+            return;
+        }
+        if (fromDate > toDate) {
+            e.preventDefault();
+            window.alert('Từ ngày không được sau đến ngày.');
+            return;
+        }
+        var span = Math.round((toDate - fromDate) / 86400000) + 1;
+        if (span > maxDays) {
+            e.preventDefault();
+            window.alert('Khoảng xuất tối đa ' + maxDays + ' ngày. Hãy thu hẹp Từ ngày — Đến ngày.');
+            return;
+        }
+        if (modalEl && window.bootstrap) {
+            var modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) modal.hide();
+        }
+        if (window.JpTeamListLoading && typeof window.JpTeamListLoading.show === 'function') {
+            window.JpTeamListLoading.show('Đang xuất chi tiết báo cáo...');
+        }
+        window.setTimeout(function () {
+            if (window.JpTeamListLoading && typeof window.JpTeamListLoading.hide === 'function') {
+                window.JpTeamListLoading.hide(true);
+            }
+        }, 2800);
+    });
+});
+</script>
 {% endblock %}

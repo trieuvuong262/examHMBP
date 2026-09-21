@@ -71,6 +71,7 @@ from reports.period_utils import (
     team_range_query_params,
     TEAM_MANAGEMENT_DEFAULT_SPAN_DAYS,
     TEAM_PRODUCTION_DEFAULT_SPAN_DAYS,
+    TEAM_DETAIL_EXPORT_MAX_DAYS,
     TEAM_RANGE_SPAN_CHOICES,
     _parse_iso_date,
 )
@@ -160,6 +161,7 @@ from .production_team import (
     production_team_row_is_submitted,
     production_team_row_matches_filter,
     production_team_status_counts,
+    query_production_detail_export_reports,
     query_production_team_reports,
 )
 from .team_utils import (
@@ -2143,6 +2145,61 @@ def team_summary_cn_export(request):
     )
 
 
+def _redirect_team_cn_back(request):
+    nxt = (request.GET.get('next') or '').strip()
+    if nxt and url_has_allowed_host_and_scheme(
+        nxt, allowed_hosts={request.get_host()}, require_https=request.is_secure(),
+    ):
+        return redirect(nxt)
+    return redirect('reports:team_cn')
+
+
+@_reports_access_required
+def team_detail_cn_export(request):
+    """Xuất Excel chi tiết mọi dòng BC SX của nhân viên sản xuất trong khoảng ngày."""
+    from .excel_export import export_production_team_detail_xlsx
+
+    if not can_view_team_reports(request.user):
+        messages.error(request, 'Bạn không có quyền xuất chi tiết báo cáo sản xuất.')
+        return redirect('home_portal')
+
+    date_from = _parse_iso_date(request.GET.get('from'))
+    date_to = _parse_iso_date(request.GET.get('to'))
+    if not date_from or not date_to:
+        messages.error(request, 'Vui lòng chọn từ ngày và đến ngày.')
+        return _redirect_team_cn_back(request)
+    if date_from > date_to:
+        date_from, date_to = date_to, date_from
+    span_days = (date_to - date_from).days + 1
+    if span_days > TEAM_DETAIL_EXPORT_MAX_DAYS:
+        messages.error(
+            request,
+            f'Khoảng xuất tối đa {TEAM_DETAIL_EXPORT_MAX_DAYS} ngày. Hãy thu hẹp Từ ngày — Đến ngày.',
+        )
+        return _redirect_team_cn_back(request)
+
+    team = _team_queryset(request.user, '', report_profile=REPORT_PROFILE_PRODUCTION)
+    team_ids = list(team.values_list('id', flat=True))
+    if not team_ids:
+        messages.warning(request, 'Chưa có nhân viên sản xuất để xuất báo cáo.')
+        return _redirect_team_cn_back(request)
+
+    reports = [
+        report
+        for report in query_production_detail_export_reports(team_ids, date_from, date_to)
+        if daily_report_visible_to_team(report)
+    ]
+    response = export_production_team_detail_xlsx(
+        reports,
+        date_from=date_from,
+        date_to=date_to,
+    )
+    if response is None:
+        messages.warning(request, 'Không có dòng báo cáo sản xuất trong khoảng đã chọn.')
+        return _redirect_team_cn_back(request)
+    return response
+
+
 @_reports_access_required
 def report_stats_cn(request):
     """Thống kê báo cáo SX — ma trận KPI (HS / HS thời gian / sản lượng), xem toàn công ty."""
@@ -2582,6 +2639,11 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
             'reports:my_cn'
             if report_profile == REPORT_PROFILE_PRODUCTION
             else 'reports:my_vp'
+        ),
+        'detail_export_max_days': (
+            TEAM_DETAIL_EXPORT_MAX_DAYS
+            if report_profile == REPORT_PROFILE_PRODUCTION
+            else 0
         ),
     })
 

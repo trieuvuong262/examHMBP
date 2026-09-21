@@ -6,7 +6,7 @@ from collections import defaultdict
 from datetime import date, timedelta
 from decimal import Decimal
 
-from django.db.models import Exists, IntegerField, OuterRef, Subquery, Sum, Value, DecimalField
+from django.db.models import Exists, IntegerField, OuterRef, Prefetch, Subquery, Sum, Value, DecimalField
 from django.db.models.functions import Coalesce
 
 from hrm.permissions import (
@@ -1180,4 +1180,37 @@ def query_production_team_reports(team_ids, date_from, date_to):
             ),
         )
         .prefetch_related('production_products__hourly_entries')
+    )
+
+
+def query_production_detail_export_reports(team_ids, date_from, date_to):
+    """BC SX trong khoảng ngày — prefetch đủ để xuất mọi dòng công đoạn / khung giờ."""
+    if not team_ids:
+        return DailyWorkReport.objects.none()
+    return (
+        meaningful_daily_reports_qs()
+        .filter(
+            employee_id__in=team_ids,
+            report_date__gte=date_from,
+            report_date__lte=date_to,
+            report_profile=REPORT_PROFILE_PRODUCTION,
+            report_period=PERIOD_DAY,
+        )
+        .select_related(
+            'employee',
+            'employee__profile',
+            'employee__profile__department',
+            'employee__profile__division',
+        )
+        .prefetch_related(
+            Prefetch(
+                'production_products',
+                queryset=ProductionShiftProduct.objects.select_related(
+                    'updated_by',
+                    'updated_by__profile',
+                    'updated_by_2',
+                    'updated_by_2__profile',
+                ).prefetch_related('hourly_entries'),
+            )
+        )
     )

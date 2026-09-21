@@ -285,6 +285,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     # Báo cáo — SX (sản xuất)
     ('/reports/sx/thong-ke', MODULE_REPORTS, 'report_stats'),
     ('/reports/sx/thiet-lap', MODULE_REPORTS, 'general_settings'),
+    ('/reports/sx/team/xuat-chi-tiet', MODULE_REPORTS, 'daily_cn_detail'),
     ('/reports/sx/team', MODULE_REPORTS, 'daily_cn_detail'),
     ('/reports/sx/phieu-giay', MODULE_REPORTS, 'daily_cn_detail'),
     ('/reports/sx/nhap-ho', MODULE_REPORTS, 'daily_cn_detail'),

@@ -524,7 +524,12 @@ def list_production_products(report: DailyWorkReport) -> list[ProductionShiftPro
         products = list(report.production_products.all())
     else:
         products = list(
-            report.production_products.prefetch_related('hourly_entries').all()
+            report.production_products.select_related(
+                'updated_by',
+                'updated_by__profile',
+                'updated_by_2',
+                'updated_by_2__profile',
+            ).prefetch_related('hourly_entries').all()
         )
     products.sort(key=lambda product: (product.sort_order, product.id))
     return products
@@ -1727,16 +1732,7 @@ def build_work_day_timeline(report: DailyWorkReport) -> dict:
 def build_productivity_report(report: DailyWorkReport) -> dict:
     """Báo cáo năng suất theo từng khung giờ — dành cho quản lý xem."""
     shift = _shift_for_report(report)
-    products = list(
-        report.production_products.select_related(
-            'updated_by',
-            'updated_by__profile',
-            'updated_by_2',
-            'updated_by_2__profile',
-        ).prefetch_related(
-            'hourly_entries',
-        ).order_by('sort_order', 'id')
-    )
+    products = list_production_products(report)
     product_order = {product.id: index for index, product in enumerate(products)}
     hourly_rows = []
     product_summaries = []

@@ -12,7 +12,7 @@ from django.utils.html import strip_tags
 
 from reports.models import DailyWorkReport
 
-from reports.production_shift_policy import shift_display_label
+from reports.production_shift_policy import PRODUCTION_SHIFT_ORDER, shift_display_label
 from reports.office_content import normalize_spreadsheet_json, office_report_has_content
 from reports.production_hourly import build_hourly_grid, build_productivity_report
 
@@ -194,6 +194,150 @@ def export_production_team_summary_xlsx(
     else:
         prefix = f'Bao_cao_tong_hop_SX_{shift_part}_{date_span}'
     return _xlsx_response({'Tong_hop': df}, prefix)
+
+
+def _employee_identity_cells(report: DailyWorkReport) -> dict:
+    profile = getattr(report.employee, 'profile', None)
+    employee_name = profile.full_name if profile and profile.full_name else report.employee.username
+    employee_code = (profile.employee_code if profile and getattr(profile, 'employee_code', None) else '') or ''
+    department = profile.department.name if profile and profile.department_id else ''
+    division = ''
+    if profile and getattr(profile, 'division_id', None) and getattr(profile, 'division', None):
+        division = profile.division.name or ''
+    if report.hod_reviewed:
+        reviewed = 'Đã duyệt'
+    elif getattr(report, 'hod_rejected', False):
+        reviewed = 'Không duyệt'
+    else:
+        reviewed = 'Chưa duyệt'
+    return {
+        'Mã NS': employee_code,
+        'Nhân viên': employee_name,
+        'Phòng ban': department,
+        'Bộ phận': division,
+        'Ngày': report.report_date.strftime('%d/%m/%Y') if report.report_date else '',
+        'Ca': shift_display_label(report.shift) if report.shift else '',
+        'Trạng thái': report.get_status_display(),
+        'Duyệt': reviewed,
+    }
+
+
+def _blank_if_none(value):
+    return '' if value is None else value
+
+
+def export_production_team_detail_xlsx(reports, *, date_from, date_to) -> HttpResponse | None:
+    """Xuất mọi dòng công đoạn + khung giờ của tất cả BC SX trong khoảng ngày."""
+    summary_columns = [
+        'STT',
+        'Mã NS',
+        'Nhân viên',
+        'Phòng ban',
+        'Bộ phận',
+        'Ngày',
+        'Ca',
+        'Trạng thái',
+        'Duyệt',
+        'Mã hàng',
+        'Công đoạn',
+        'Bắt đầu',
+        'Kết thúc',
+        'Số lượng',
+        'Hư hỏng',
+        'Định mức',
+        'Thời gian công đoạn',
+        'Hiệu suất %',
+        'Bù hiệu suất %',
+        'Hiệu suất hỗ trợ %',
+        'Ghi chú',
+        'Cập nhật',
+    ]
+    hourly_columns = [
+        'STT',
+        'Mã NS',
+        'Nhân viên',
+        'Phòng ban',
+        'Bộ phận',
+        'Ngày',
+        'Ca',
+        'Trạng thái',
+        'Duyệt',
+        'Mã hàng',
+        'Công đoạn',
+        'Khung giờ',
+        'Số lượng',
+        'Định mức',
+        'Thời gian công đoạn',
+        'Hiệu suất %',
+        'Hư hỏng',
+        'Ghi chú',
+        'Lý do 0',
+    ]
+    shift_rank = {key: index for index, key in enumerate(PRODUCTION_SHIFT_ORDER)}
+    sorted_reports = sorted(
+        reports,
+        key=lambda report: (
+            report.report_date or date_from,
+            (
+                getattr(getattr(report.employee, 'profile', None), 'full_name', None)
+                or report.employee.username
+                or ''
+            ),
+            shift_rank.get(report.shift or '', 99),
+            report.pk or 0,
+        ),
+    )
+    summary_rows: list[dict] = []
+    hourly_rows: list[dict] = []
+    for report in sorted_reports:
+        identity = _employee_identity_cells(report)
+        productivity = build_productivity_report(report)
+        for row in productivity.get('product_summaries') or []:
+            summary_rows.append({
+                **identity,
+                'Mã hàng': row.get('product_code') or '',
+                'Công đoạn': row.get('process_name') or '',
+                'Bắt đầu': row.get('started_at_display') or '',
+                'Kết thúc': row.get('ended_at_display') or '',
+                'Số lượng': _blank_if_none(row.get('quantity')),
+                'Hư hỏng': _blank_if_none(row.get('damaged_quantity')),
+                'Định mức': _blank_if_none(row.get('norm_per_hour')),
+                'Thời gian công đoạn': row.get('hours_display') or '',
+                'Hiệu suất %': _blank_if_none(row.get('efficiency_pct')),
+                'Bù hiệu suất %': _blank_if_none(row.get('efficiency_bonus_pct')),
+                'Hiệu suất hỗ trợ %': _blank_if_none(row.get('efficiency_after_bonus_pct')),
+                'Ghi chú': row.get('note') or '',
+                'Cập nhật': row.get('updated_by_name') or '',
+            })
+        for row in productivity.get('hourly_rows') or []:
+            hourly_rows.append({
+                **identity,
+                'Mã hàng': row.get('product_code') or '',
+                'Công đoạn': row.get('process_name') or '',
+                'Khung giờ': row.get('slot_label') or '',
+                'Số lượng': _blank_if_none(row.get('quantity')),
+                'Định mức': _blank_if_none(row.get('norm_per_hour')),
+                'Thời gian công đoạn': row.get('hours_display') or '',
+                'Hiệu suất %': _blank_if_none(row.get('efficiency_pct')),
+                'Hư hỏng': _blank_if_none(row.get('damaged_quantity')),
+                'Ghi chú': row.get('note') or '',
+                'Lý do 0': row.get('zero_reason') if row.get('quantity') == 0 else '',
+            })
+
+    if not summary_rows and not hourly_rows:
+        return None
+
+    for index, row in enumerate(summary_rows, start=1):
+        row['STT'] = index
+    for index, row in enumerate(hourly_rows, start=1):
+        row['STT'] = index
+
+    sheets = {
+        'Chi_tiet_cong_doan': pd.DataFrame(summary_rows, columns=summary_columns),
+        'Chi_tiet_khung_gio': pd.DataFrame(hourly_rows, columns=hourly_columns),
+    }
+    date_span = f'{date_from.strftime("%Y%m%d")}_{date_to.strftime("%Y%m%d")}'
+    return _xlsx_response(sheets, f'Chi_tiet_bao_cao_SX_{date_span}')
 
 
 def can_export_daily_report(report: DailyWorkReport) -> bool:
