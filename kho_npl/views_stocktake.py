@@ -1,11 +1,11 @@
 from django.contrib import messages
 from django.db.models import Prefetch, Q
-from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+from django.shortcuts import get_object_or_404, render
 
 from assessment.decorators import module_perm_required, module_perm_required_methods
 from hrm.module_permissions import MODULE_KHO_NPL
 from kho_npl.material_search import apply_smart_search
+from kho_npl.http import redirect, reverse
 from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
@@ -15,6 +15,7 @@ from kho_npl.choices import (
 )
 from kho_npl.filter_utils import parse_int_ids
 from kho_npl.services.scrap_warehouse import source_locations_qs
+from kho_npl.stock_domain import domain_from_current_request
 from kho_npl.forms import StocktakeForm, StocktakeLineFormSet
 from kho_npl.models import Stocktake, StocktakeLine
 from kho_npl.doc_attachment import can_replace_doc_attachment, doc_attachments_for
@@ -60,7 +61,9 @@ def _parse_warehouse_ids(request, valid_ids: set[int]) -> list[int]:
 
 
 def _stocktake_filtered_qs(search_query, status):
-    qs = Stocktake.objects.select_related('created_by', 'location')
+    qs = Stocktake.objects.select_related('created_by', 'location').filter(
+        location__stock_domain=domain_from_current_request(),
+    )
     if status:
         qs = qs.filter(status=status)
     if search_query:
@@ -149,7 +152,9 @@ def stocktake_list_export(request):
 def stocktake_detail_export(request, pk):
     lines_qs = StocktakeLine.objects.select_related('material__unit').order_by('material__code')
     stocktake = get_object_or_404(
-        Stocktake.objects.select_related('created_by', 'location').prefetch_related(
+        Stocktake.objects.select_related('created_by', 'location').filter(
+            location__stock_domain=domain_from_current_request(),
+        ).prefetch_related(
             Prefetch('lines', queryset=lines_qs),
         ),
         pk=pk,
@@ -161,7 +166,9 @@ def stocktake_detail_export(request, pk):
 def stocktake_detail(request, pk):
     lines_qs = StocktakeLine.objects.select_related('material__unit', 'location').order_by('material__code')
     stocktake = get_object_or_404(
-        Stocktake.objects.select_related('created_by', 'location').prefetch_related(
+        Stocktake.objects.select_related('created_by', 'location').filter(
+            location__stock_domain=domain_from_current_request(),
+        ).prefetch_related(
             Prefetch('lines', queryset=lines_qs),
         ),
         pk=pk,
@@ -195,7 +202,9 @@ def stocktake_detail(request, pk):
 
 @module_perm_required_methods(MODULE_KHO_NPL, post='update')
 def stocktake_replace_attachment(request, pk):
-    stocktake = get_object_or_404(Stocktake, pk=pk)
+    stocktake = get_object_or_404(
+        Stocktake, pk=pk, location__stock_domain=domain_from_current_request(),
+    )
     if request.method != 'POST':
         return redirect('kho_npl:stocktake_detail', pk=pk)
     return handle_doc_attachment_replace_post(
@@ -237,7 +246,9 @@ def stocktake_create(request):
 
 @module_perm_required_methods(MODULE_KHO_NPL, get='update', post='update')
 def stocktake_start(request, pk):
-    stocktake = get_object_or_404(Stocktake, pk=pk)
+    stocktake = get_object_or_404(
+        Stocktake, pk=pk, location__stock_domain=domain_from_current_request(),
+    )
     if request.method == 'POST':
         try:
             start_stocktake_counting(stocktake)
@@ -254,7 +265,9 @@ def stocktake_start(request, pk):
 @module_perm_required_methods(MODULE_KHO_NPL, get='update', post='update')
 def stocktake_count(request, pk):
     stocktake = get_object_or_404(
-        Stocktake.objects.select_related('location'),
+        Stocktake.objects.select_related('location').filter(
+            location__stock_domain=domain_from_current_request(),
+        ),
         pk=pk,
     )
     if not stocktake_can_count(stocktake):
@@ -298,7 +311,9 @@ def stocktake_count(request, pk):
 
 @module_perm_required_methods(MODULE_KHO_NPL, get='update', post='update')
 def stocktake_reload(request, pk):
-    stocktake = get_object_or_404(Stocktake, pk=pk)
+    stocktake = get_object_or_404(
+        Stocktake, pk=pk, location__stock_domain=domain_from_current_request(),
+    )
     if request.method == 'POST':
         try:
             count = populate_stocktake_lines(stocktake)

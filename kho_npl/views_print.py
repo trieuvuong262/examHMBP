@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from django.http import Http404
 from django.shortcuts import get_object_or_404, render
-from django.urls import reverse
+from kho_npl.http import reverse
 from django.utils import timezone
 
 from assessment.decorators import module_perm_required
@@ -15,6 +16,7 @@ from kho_npl.models import (
     StockReceipt,
     StockTransfer,
 )
+from kho_npl.stock_domain import docs_for_domain, transfer_visible_in_domain
 from san_xuat.print_company import (
     COMPANY_ADDRESS,
     COMPANY_NAME,
@@ -91,16 +93,18 @@ def print_url(name: str, pk: int) -> str:
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def print_issue(request, pk: int):
     issue = get_object_or_404(
-        StockIssue.objects.select_related(
-            'issued_by',
-            'created_by',
-            'recipient',
-            'recipient__profile',
-        ).prefetch_related(
-            'lines__material',
-            'lines__material__unit',
-            'lines__location',
-            'lines__line_unit',
+        docs_for_domain(
+            StockIssue.objects.select_related(
+                'issued_by',
+                'created_by',
+                'recipient',
+                'recipient__profile',
+            ).prefetch_related(
+                'lines__material',
+                'lines__material__unit',
+                'lines__location',
+                'lines__line_unit',
+            )
         ),
         pk=pk,
     )
@@ -121,16 +125,18 @@ def print_issue(request, pk: int):
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def print_receipt(request, pk: int):
     receipt = get_object_or_404(
-        StockReceipt.objects.select_related(
-            'supplier',
-            'received_by',
-            'checked_by',
-            'created_by',
-        ).prefetch_related(
-            'lines__material',
-            'lines__material__unit',
-            'lines__location',
-            'lines__line_unit',
+        docs_for_domain(
+            StockReceipt.objects.select_related(
+                'supplier',
+                'received_by',
+                'checked_by',
+                'created_by',
+            ).prefetch_related(
+                'lines__material',
+                'lines__material__unit',
+                'lines__location',
+                'lines__line_unit',
+            )
         ),
         pk=pk,
     )
@@ -164,6 +170,8 @@ def print_transfer(request, pk: int):
         ),
         pk=pk,
     )
+    if not transfer_visible_in_domain(transfer):
+        raise Http404
     return render(request, 'kho_npl/print/transfer_a5.html', {
         **_print_base_ctx(
             print_title=f'In phiếu chuyển {transfer.number}',
@@ -181,14 +189,16 @@ def print_transfer(request, pk: int):
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def print_disposal(request, pk: int):
     disposal = get_object_or_404(
-        StockDisposal.objects.select_related(
-            'created_by',
-            'posted_by',
-        ).prefetch_related(
-            'lines__material',
-            'lines__material__unit',
-            'lines__location',
-            'lines__line_unit',
+        docs_for_domain(
+            StockDisposal.objects.select_related(
+                'created_by',
+                'posted_by',
+            ).prefetch_related(
+                'lines__material',
+                'lines__material__unit',
+                'lines__location',
+                'lines__line_unit',
+            )
         ),
         pk=pk,
     )
@@ -209,14 +219,16 @@ def print_disposal(request, pk: int):
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def print_adjustment(request, pk: int):
     adjustment = get_object_or_404(
-        StockAdjustment.objects.select_related(
-            'proposed_by',
-            'approved_by',
-        ).prefetch_related(
-            'lines__material',
-            'lines__material__unit',
-            'lines__location',
-            'lines__line_unit',
+        docs_for_domain(
+            StockAdjustment.objects.select_related(
+                'proposed_by',
+                'approved_by',
+            ).prefetch_related(
+                'lines__material',
+                'lines__material__unit',
+                'lines__location',
+                'lines__line_unit',
+            )
         ),
         pk=pk,
     )

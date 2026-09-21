@@ -5,6 +5,7 @@ from django.db.models import Q
 from kho_npl.choices import DEFAULT_MATERIAL_CATEGORIES
 from kho_npl.filter_utils import parse_int_ids
 from kho_npl.models import Material, MaterialCategory
+from kho_npl.stock_domain import STOCK_DOMAIN_NPL, domain_from_current_request
 
 
 def ensure_material_category_tree():
@@ -12,6 +13,7 @@ def ensure_material_category_tree():
     for code, name, sort_order in DEFAULT_MATERIAL_CATEGORIES:
         MaterialCategory.objects.get_or_create(
             code=code,
+            stock_domain=STOCK_DOMAIN_NPL,
             defaults={
                 'name': name,
                 'sort_order': sort_order,
@@ -20,9 +22,13 @@ def ensure_material_category_tree():
         )
 
 
-def active_category_roots():
-    """Tên tương thích cũ; trả toàn bộ nhóm phẳng đang dùng."""
-    return MaterialCategory.objects.filter(is_active=True).order_by('sort_order', 'name')
+def active_category_roots(domain: str | None = None):
+    """Tên tương thích cũ; trả toàn bộ nhóm phẳng đang dùng theo domain kho."""
+    domain = domain or domain_from_current_request()
+    return MaterialCategory.objects.filter(
+        is_active=True,
+        stock_domain=domain,
+    ).order_by('sort_order', 'name')
 
 
 def active_category_leaves():

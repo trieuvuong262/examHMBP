@@ -1,18 +1,19 @@
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Min, Q
-from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+from django.shortcuts import get_object_or_404, render
 
 from assessment.decorators import module_perm_required, module_perm_required_methods
 from hrm.module_permissions import MODULE_KHO_NPL
 from kho_npl.material_search import apply_smart_search
+from kho_npl.http import redirect, reverse
 from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
 from kho_npl.choices import DOC_STATUS_DRAFT, DOC_STATUS_POSTED
 from kho_npl.forms import StockDisposalForm, StockDisposalLineFormSet
 from kho_npl.models import StockDisposal
+from kho_npl.stock_domain import docs_for_domain, domain_from_current_request
 from kho_npl.doc_attachment import can_replace_doc_attachment, doc_attachments_for
 from kho_npl.views_doc_attachment import handle_doc_attachment_replace_post
 from kho_npl.services.disposals import (
@@ -88,7 +89,7 @@ def disposal_list(request):
     search_query = get_search_query(request)
     status = doc_status_filter(request, choices=DOC_STATUS_FILTER_CHOICES)
     sort_key, sort_dir, order = doc_list_sort(request, DISPOSAL_LIST_SORT_FIELDS, default_key='disposal_date')
-    qs = (
+    qs = docs_for_domain(
         StockDisposal.objects.select_related('created_by', 'posted_by')
         .annotate(source_location_sort=Min('lines__location__name'))
         .prefetch_related('lines__location')
@@ -123,8 +124,10 @@ def disposal_list(request):
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def disposal_detail(request, pk):
     disposal = get_object_or_404(
-        StockDisposal.objects.select_related('created_by', 'posted_by')
-        .prefetch_related('lines__material__unit', 'lines__location'),
+        docs_for_domain(
+            StockDisposal.objects.select_related('created_by', 'posted_by')
+            .prefetch_related('lines__material__unit', 'lines__location')
+        ),
         pk=pk,
     )
     perms = perm_context(request.user, 'disposals')
@@ -173,7 +176,7 @@ def disposal_create(request):
 
 @module_perm_required_methods(MODULE_KHO_NPL, get='update', post='update')
 def disposal_edit(request, pk):
-    disposal = get_object_or_404(StockDisposal, pk=pk)
+    disposal = get_object_or_404(StockDisposal, pk=pk, stock_domain=domain_from_current_request())
     if not disposal_is_editable(disposal):
         messages.error(request, 'Phiếu đã ghi sổ hoặc đã hủy — không thể sửa.')
         return redirect('kho_npl:disposal_detail', pk=pk)
@@ -201,7 +204,7 @@ def disposal_edit(request, pk):
 
 @module_perm_required_methods(MODULE_KHO_NPL, post='update')
 def disposal_replace_attachment(request, pk):
-    disposal = get_object_or_404(StockDisposal, pk=pk)
+    disposal = get_object_or_404(StockDisposal, pk=pk, stock_domain=domain_from_current_request())
     if request.method != 'POST':
         return redirect('kho_npl:disposal_detail', pk=pk)
     return handle_doc_attachment_replace_post(
@@ -214,7 +217,7 @@ def disposal_replace_attachment(request, pk):
 
 @module_perm_required_methods(MODULE_KHO_NPL, get='update', post='update')
 def disposal_post(request, pk):
-    disposal = get_object_or_404(StockDisposal, pk=pk)
+    disposal = get_object_or_404(StockDisposal, pk=pk, stock_domain=domain_from_current_request())
     if request.method == 'POST':
         try:
             post_stock_disposal(disposal, request.user)
@@ -226,7 +229,7 @@ def disposal_post(request, pk):
 
 @module_perm_required_methods(MODULE_KHO_NPL, get='delete', post='delete')
 def disposal_cancel(request, pk):
-    disposal = get_object_or_404(StockDisposal, pk=pk)
+    disposal = get_object_or_404(StockDisposal, pk=pk, stock_domain=domain_from_current_request())
     if request.method == 'POST':
         try:
             cancel_stock_disposal(disposal)

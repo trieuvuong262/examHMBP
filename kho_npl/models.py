@@ -21,10 +21,33 @@ from kho_npl.choices import (
     TRANSFER_STATUS_DRAFT,
     TRANSFER_STATUS_LABELS,
 )
+from kho_npl.stock_domain import (
+    STOCK_DOMAIN_CHOICES,
+    STOCK_DOMAIN_NPL,
+    apply_stock_domain_on_create,
+    location_domain_prefix,
+)
 
 
-class MaterialCategory(models.Model):
-    code = models.SlugField(max_length=40, unique=True, verbose_name='Mã nhóm')
+class StockDomainMixin(models.Model):
+    stock_domain = models.CharField(
+        max_length=20,
+        choices=STOCK_DOMAIN_CHOICES,
+        default=STOCK_DOMAIN_NPL,
+        db_index=True,
+        verbose_name='Kho nghiệp vụ',
+    )
+
+    class Meta:
+        abstract = True
+
+    def save(self, *args, **kwargs):
+        apply_stock_domain_on_create(self)
+        super().save(*args, **kwargs)
+
+
+class MaterialCategory(StockDomainMixin, models.Model):
+    code = models.SlugField(max_length=40, verbose_name='Mã nhóm')
     name = models.CharField(max_length=120, verbose_name='Tên nhóm')
     sort_order = models.PositiveIntegerField(default=0, verbose_name='Thứ tự')
     is_active = models.BooleanField(default=True, verbose_name='Đang dùng')
@@ -33,6 +56,12 @@ class MaterialCategory(models.Model):
         ordering = ['sort_order', 'name']
         verbose_name = 'Nhóm nguyên phụ liệu'
         verbose_name_plural = 'Nhóm nguyên phụ liệu'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['stock_domain', 'code'],
+                name='uniq_npl_category_domain_code',
+            ),
+        ]
 
     def __str__(self):
         return self.name
@@ -166,7 +195,7 @@ class MaterialSpecificationLevel(models.Model):
             raise ValidationError({'qty_in_next_lower': 'Hệ số cấp 1 phải bằng 1.'})
 
 
-class WarehouseLocation(models.Model):
+class WarehouseLocation(StockDomainMixin, models.Model):
     KIND_STOCK = 'stock'
     KIND_STAGING_NPL = 'staging_npl'
     KIND_STAGING_WIP = 'staging_wip'
@@ -178,7 +207,7 @@ class WarehouseLocation(models.Model):
         (KIND_SCRAP, 'Kho phế / hủy'),
     ]
 
-    code = models.CharField(max_length=40, unique=True, verbose_name='Mã vị trí')
+    code = models.CharField(max_length=40, verbose_name='Mã vị trí')
     name = models.CharField(max_length=120, verbose_name='Tên vị trí / kệ')
     location_kind = models.CharField(
         max_length=20, choices=KIND_CHOICES, default=KIND_STOCK, db_index=True, verbose_name='Loại vị trí',
@@ -189,11 +218,21 @@ class WarehouseLocation(models.Model):
         ordering = ['code']
         verbose_name = 'Vị trí kho'
         verbose_name_plural = 'Vị trí kho'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['stock_domain', 'code'],
+                name='uniq_npl_location_domain_code',
+            ),
+        ]
 
     def display_label(self) -> str:
         """Tên hiển thị ngoài Thiết lập — không kèm mã."""
         name = (self.name or '').strip()
         return name or self.code
+
+    def domain_display_label(self) -> str:
+        """Nhãn khi chọn kho gửi/nhận liên module (NPL ↔ vật tư)."""
+        return f'{location_domain_prefix(self.stock_domain)} — {self.display_label()}'
 
     def __str__(self):
         return self.display_label()
@@ -215,7 +254,7 @@ class Supplier(models.Model):
         return self.name
 
 
-class Material(models.Model):
+class Material(StockDomainMixin, models.Model):
     code = models.CharField(max_length=60, unique=True, verbose_name='Mã NPL')
     name = models.CharField(max_length=200, verbose_name='Tên nguyên phụ liệu')
     variant_group = models.CharField(
@@ -437,7 +476,7 @@ class StockBalance(models.Model):
         return f'{self.material.code} @ {self.location.code}: {self.quantity}'
 
 
-class StockReceipt(models.Model):
+class StockReceipt(StockDomainMixin, models.Model):
     number = models.CharField(max_length=30, unique=True, verbose_name='Mã phiếu nhập')
     receipt_date = models.DateField(verbose_name='Ngày nhập')
     supplier = models.ForeignKey(
@@ -570,7 +609,7 @@ class StockReceiptLine(models.Model):
         return (self.received_qty or Decimal('0')) * (self.unit_price or Decimal('0'))
 
 
-class StockIssue(models.Model):
+class StockIssue(StockDomainMixin, models.Model):
     number = models.CharField(max_length=30, unique=True, verbose_name='Mã phiếu xuất')
     issue_date = models.DateField(verbose_name='Ngày xuất')
     issue_type = models.CharField(
@@ -714,7 +753,7 @@ class StockIssueLine(models.Model):
         return (self.unit_price or Decimal('0')) * factor
 
 
-class StockDisposal(models.Model):
+class StockDisposal(StockDomainMixin, models.Model):
     number = models.CharField(max_length=30, unique=True, verbose_name='Mã phiếu hủy')
     disposal_date = models.DateField(verbose_name='Ngày hủy')
     reason = models.CharField(
@@ -934,7 +973,7 @@ class StockTransferLine(models.Model):
         verbose_name_plural = 'Chi tiết phiếu chuyển'
 
 
-class StockAdjustment(models.Model):
+class StockAdjustment(StockDomainMixin, models.Model):
     number = models.CharField(max_length=30, unique=True, verbose_name='Mã phiếu kiểm kê')
     adjust_date = models.DateField(verbose_name='Ngày kiểm kê')
     reason = models.TextField(verbose_name='Lý do')

@@ -519,6 +519,7 @@ PATH_SEGMENT_LABELS: dict[str, str] = {
     'tai-lieu': 'Tài liệu',
     'thiet-bi': 'Thiết bị',
     'kho-npl': 'Kho NPL',
+    'kho-vat-tu': 'Kho vật tư',
     'kiotviet': 'KiotViet',
     'announcements': 'Thông báo',
     'reports': 'Báo cáo',

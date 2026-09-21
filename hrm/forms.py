@@ -1078,6 +1078,7 @@ PERM_GROUP_MODULE_ICONS = {
     'kiotviet': 'bi-shop',
     'san_xuat': 'bi-clipboard2-data',
     'kho_npl': 'bi-boxes',
+    'kho_vat_tu': 'bi-archive',
     'kho_san_pham': 'bi-box-seam',
 }
 

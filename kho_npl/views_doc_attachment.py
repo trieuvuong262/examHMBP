@@ -1,7 +1,7 @@
 """Xóa chứng từ đính kèm phiếu kho NPL."""
 from django.contrib import messages
-from django.shortcuts import get_object_or_404, redirect
-from django.urls import reverse
+from django.shortcuts import get_object_or_404
+from kho_npl.http import redirect, reverse
 
 from assessment.decorators import module_perm_required_methods
 from hrm.module_permissions import MODULE_KHO_NPL
@@ -53,7 +53,7 @@ def redirect_for_doc_parent(parent):
 
 
 def _attachment_required_after_delete(parent) -> bool:
-    return isinstance(parent, (StockIssue, StockReceipt, StockTransfer))
+    return isinstance(parent, (StockIssue, StockReceipt))
 
 
 def doc_attachment_count_after_delete(parent, deleting_pk: int) -> int:

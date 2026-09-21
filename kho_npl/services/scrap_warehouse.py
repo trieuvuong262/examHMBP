@@ -1,7 +1,13 @@
 from kho_npl.choices import WAREHOUSE_SCRAP_CODE
 from kho_npl.models import WarehouseLocation
+from kho_npl.stock_domain import (
+    STOCK_DOMAIN_ALL,
+    STOCK_DOMAIN_NPL,
+    domain_from_current_request,
+)
 
 SCRAP_WAREHOUSE_NAME = 'Kho hủy'
+SCRAP_WAREHOUSE_NAME_VAT_TU = 'Kho hủy vật tư'
 
 
 class ScrapWarehouseError(Exception):
@@ -12,15 +18,21 @@ def is_scrap_location(location) -> bool:
     return bool(location) and getattr(location, 'code', None) == WAREHOUSE_SCRAP_CODE
 
 
-def get_scrap_location() -> WarehouseLocation:
-    """Kho hủy là vị trí hệ thống — luôn lấy theo mã, kể cả khi bị ngừng dùng."""
-    location = WarehouseLocation.objects.filter(code=WAREHOUSE_SCRAP_CODE).first()
+def get_scrap_location(domain: str | None = None) -> WarehouseLocation:
+    """Kho hủy là vị trí hệ thống — luôn lấy theo mã + domain, kể cả khi bị ngừng dùng."""
+    domain = domain or domain_from_current_request()
+    location = WarehouseLocation.objects.filter(
+        code=WAREHOUSE_SCRAP_CODE,
+        stock_domain=domain,
+    ).first()
+    scrap_name = SCRAP_WAREHOUSE_NAME_VAT_TU if domain != STOCK_DOMAIN_NPL else SCRAP_WAREHOUSE_NAME
     if not location:
         return WarehouseLocation.objects.create(
             code=WAREHOUSE_SCRAP_CODE,
-            name=SCRAP_WAREHOUSE_NAME,
+            name=scrap_name,
             is_active=True,
             location_kind=WarehouseLocation.KIND_SCRAP,
+            stock_domain=domain,
         )
 
     update_fields = []
@@ -31,16 +43,28 @@ def get_scrap_location() -> WarehouseLocation:
         location.location_kind = WarehouseLocation.KIND_SCRAP
         update_fields.append('location_kind')
     if not (location.name or '').strip():
-        location.name = SCRAP_WAREHOUSE_NAME
+        location.name = scrap_name
         update_fields.append('name')
+    if getattr(location, 'stock_domain', None) != domain:
+        location.stock_domain = domain
+        update_fields.append('stock_domain')
     if update_fields:
         location.save(update_fields=update_fields)
     return location
 
 
-def source_locations_qs():
-    """Kho/vị trí chứa hàng dùng được — không gồm kho hủy."""
-    return WarehouseLocation.objects.filter(is_active=True).exclude(code=WAREHOUSE_SCRAP_CODE)
+def source_locations_qs(domain: str | None = None):
+    """Kho/vị trí chứa hàng dùng được — không gồm kho hủy.
+
+    ``domain=None`` → theo request hiện tại (NPL hoặc vật tư).
+    ``domain=STOCK_DOMAIN_ALL`` → cả hai kho (phiếu chuyển liên module).
+    """
+    qs = WarehouseLocation.objects.filter(is_active=True).exclude(code=WAREHOUSE_SCRAP_CODE)
+    if domain == STOCK_DOMAIN_ALL:
+        return qs
+    if domain is None:
+        domain = domain_from_current_request()
+    return qs.filter(stock_domain=domain)
 
 
 def storage_location_filter():
@@ -61,12 +85,10 @@ def filter_storage_location_ids(location_ids: list[int] | None) -> list[int]:
     return [loc_id for loc_id in location_ids if loc_id in storage_ids]
 
 
-def fallback_stock_location() -> WarehouseLocation | None:
-    """Kho gợi ý khi NPL chưa gán vị trí mặc định — ưu tiên MAIN."""
-    return (
-        source_locations_qs().filter(code='MAIN').first()
-        or source_locations_qs().order_by('code').first()
-    )
+def fallback_stock_location(domain: str | None = None) -> WarehouseLocation | None:
+    """Kho gợi ý khi NPL chưa gán vị trí mặc định — ưu tiên MAIN của domain."""
+    qs = source_locations_qs(domain)
+    return qs.filter(code='MAIN').first() or qs.order_by('code').first()
 
 
 def is_usable_storage_location(location: WarehouseLocation | None) -> bool:
@@ -76,12 +98,13 @@ def is_usable_storage_location(location: WarehouseLocation | None) -> bool:
 
 
 def material_default_location(material) -> WarehouseLocation | None:
-    """Vị trí mặc định trên danh mục NPL; fallback MAIN nếu chưa gán."""
+    """Vị trí mặc định trên danh mục; fallback MAIN nếu chưa gán."""
     loc = getattr(material, 'primary_location', None) if material is not None else None
+    domain = getattr(material, 'stock_domain', None) if material is not None else None
     if loc is None and material is not None:
         loc_id = getattr(material, 'primary_location_id', None)
         if loc_id:
-            loc = source_locations_qs().filter(pk=loc_id).first()
+            loc = source_locations_qs(domain).filter(pk=loc_id).first()
     if is_usable_storage_location(loc):
         return loc
-    return fallback_stock_location()
+    return fallback_stock_location(domain)

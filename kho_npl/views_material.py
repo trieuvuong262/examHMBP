@@ -4,13 +4,13 @@ from decimal import Decimal
 from django.contrib import messages
 from django.db import transaction
 from django.db.models.deletion import ProtectedError
-from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+from django.http import Http404, JsonResponse
+from django.shortcuts import get_object_or_404, render
 
 from assessment.decorators import module_perm_required, module_perm_required_methods
 from hrm.module_permissions import MODULE_KHO_NPL
 from PortalJustPlay.list_search import get_search_query
+from kho_npl.http import redirect, reverse
 from kho_npl.material_search import (
     apply_material_search,
     apply_material_search_strict,
@@ -69,7 +69,19 @@ from kho_npl.category_tree import (
 )
 from kho_npl.filter_utils import parse_int_ids
 from kho_npl.doc_prefill import stock_doc_action_urls, stock_doc_prefill_location
+from kho_npl.stock_domain import (
+    domain_from_request,
+    materials_catalog_q,
+    materials_visible_q,
+)
 from kho_npl.view_utils import nav_context, perm_context
+
+
+def _material_in_module(material) -> bool:
+    domain = domain_from_request()
+    if material.stock_domain == domain:
+        return True
+    return material.balances.filter(location__stock_domain=domain, quantity__gt=0).exists()
 
 
 def _material_search_label(material: Material) -> str:
@@ -134,6 +146,8 @@ def material_search(request):
         qs = Material.objects.filter(is_active=True).select_related(
             'unit', 'color', 'specification', 'category', 'primary_location',
         ).prefetch_related('specification__levels__unit')
+        if not location_id:
+            qs = qs.filter(materials_catalog_q())
         if q:
             # Không theo kho (BOM): cùng cách tìm danh mục kho — tên, mã, nhóm hàng.
             qs = apply_material_search(qs, q) if not location_id else apply_material_search_strict(qs, q)
@@ -291,7 +305,7 @@ def _material_catalog_qs(request):
     category_parent_id, category_ids = parse_category_cascade_filter(request)
     show_inactive = request.GET.get('inactive') == '1'
     qs = (
-        Material.objects
+        Material.objects.filter(materials_catalog_q())
         .select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location')
         .prefetch_related('specification__levels__unit')
     )
@@ -348,7 +362,7 @@ def material_list(request):
 
     selected_department = normalize_material_department(selected_department) or selected_department
     qs = (
-        Material.objects
+        Material.objects.filter(materials_catalog_q())
         .select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location')
         .prefetch_related('specification__levels__unit')
     )
@@ -433,7 +447,7 @@ def _stock_filtered_rows(request):
 
     selected_department = normalize_material_department(selected_department) or selected_department
     qs = (
-        Material.objects
+        Material.objects.filter(materials_visible_q())
         .select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location')
         .prefetch_related('specification__levels__unit', 'balances__location')
     )
@@ -597,6 +611,8 @@ def material_stock_detail(request, pk):
         ),
         pk=pk,
     )
+    if not _material_in_module(material):
+        raise Http404
     location_ids = filter_storage_location_ids(parse_int_ids(request, 'location'))
     rows = material_stock_rows(
         Material.objects.filter(pk=pk).select_related('primary_location'),
@@ -681,6 +697,8 @@ def material_detail(request, pk):
         Material.objects.select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location'),
         pk=pk,
     )
+    if not _material_in_module(material):
+        raise Http404
     return render(request, 'kho_npl/material_detail.html', {
         **nav_context('materials', user=request.user),
         **perm_context(request.user, 'materials'),
@@ -720,6 +738,8 @@ def material_create(request):
 @module_perm_required_methods(MODULE_KHO_NPL, get='update', post='update')
 def material_edit(request, pk):
     material = get_object_or_404(Material, pk=pk)
+    if not _material_in_module(material):
+        raise Http404
     form = MaterialForm(request.POST or None, request.FILES or None, instance=material)
     _preselect_specification(form, request)
     if request.method == 'POST' and form.is_valid():
@@ -745,7 +765,7 @@ def material_export(request):
     from kho_npl.material_department import normalize_material_department
 
     selected_department = normalize_material_department(selected_department) or selected_department
-    qs = Material.objects.select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location')
+    qs = Material.objects.filter(materials_catalog_q()).select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location')
     qs = _apply_material_usage_status(qs, status)
     if category_ids:
         qs = qs.filter(category_filter_q(category_ids))
@@ -800,6 +820,8 @@ def material_import(request):
 @module_perm_required_methods(MODULE_KHO_NPL, get='update', post='update')
 def material_deactivate(request, pk):
     material = get_object_or_404(Material, pk=pk)
+    if not _material_in_module(material):
+        raise Http404
     if request.method == 'POST':
         material.is_active = False
         material.save(update_fields=['is_active', 'updated_at'])
@@ -837,6 +859,8 @@ def _material_delete_blockers(material: Material) -> list[str]:
 @module_perm_required_methods(MODULE_KHO_NPL, get='delete', post='delete')
 def material_delete(request, pk):
     material = get_object_or_404(Material, pk=pk)
+    if not _material_in_module(material):
+        raise Http404
     blockers = _material_delete_blockers(material)
     if request.method == 'POST':
         try:

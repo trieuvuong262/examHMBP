@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, reverse
 from django.views.generic import RedirectView
 
 from . import views
@@ -13,6 +13,20 @@ from . import views_disposal
 from . import views_doc_attachment
 from . import views_transfer
 from . import views_supplier
+
+
+class StockRedirectView(RedirectView):
+    """Giữ namespace kho_npl / kho_vat_tu khi redirect bookmark cũ."""
+
+    def get_redirect_url(self, *args, **kwargs):
+        name = self.pattern_name
+        if name and name.startswith('kho_npl:'):
+            ns = 'kho_npl'
+            if self.request.resolver_match and self.request.resolver_match.namespace:
+                ns = self.request.resolver_match.namespace
+            name = f'{ns}:{name.split(":", 1)[1]}'
+        return reverse(name, args=args, kwargs=kwargs)
+
 
 app_name = 'kho_npl'
 
@@ -87,29 +101,29 @@ urlpatterns = [
     path('kiem-ke/<int:pk>/chung-tu/', views_adjustment.adjustment_replace_attachment, name='adjustment_replace_attachment'),
     path('kiem-ke/<int:pk>/duyet/', views_adjustment.adjustment_approve, name='adjustment_approve'),
     path('kiem-ke/<int:pk>/tu-choi/', views_adjustment.adjustment_reject, name='adjustment_reject'),
-    path('dieu-chinh/', RedirectView.as_view(pattern_name='kho_npl:adjustment_list', permanent=False)),
-    path('dieu-chinh/them/', RedirectView.as_view(pattern_name='kho_npl:adjustment_create', permanent=False)),
-    path('dieu-chinh/<int:pk>/', RedirectView.as_view(pattern_name='kho_npl:adjustment_detail', permanent=False)),
+    path('dieu-chinh/', StockRedirectView.as_view(pattern_name='kho_npl:adjustment_list', permanent=False)),
+    path('dieu-chinh/them/', StockRedirectView.as_view(pattern_name='kho_npl:adjustment_create', permanent=False)),
+    path('dieu-chinh/<int:pk>/', StockRedirectView.as_view(pattern_name='kho_npl:adjustment_detail', permanent=False)),
     path(
         'dieu-chinh/<int:pk>/chung-tu/',
-        RedirectView.as_view(pattern_name='kho_npl:adjustment_replace_attachment', permanent=False),
+        StockRedirectView.as_view(pattern_name='kho_npl:adjustment_replace_attachment', permanent=False),
     ),
-    path('dieu-chinh/<int:pk>/duyet/', RedirectView.as_view(pattern_name='kho_npl:adjustment_approve', permanent=False)),
-    path('dieu-chinh/<int:pk>/tu-choi/', RedirectView.as_view(pattern_name='kho_npl:adjustment_reject', permanent=False)),
+    path('dieu-chinh/<int:pk>/duyet/', StockRedirectView.as_view(pattern_name='kho_npl:adjustment_approve', permanent=False)),
+    path('dieu-chinh/<int:pk>/tu-choi/', StockRedirectView.as_view(pattern_name='kho_npl:adjustment_reject', permanent=False)),
     path('bao-cao/', views_reports.report_hub, name='report_hub'),
     path('bao-cao/xuat-excel/', views_reports.report_export, name='report_export'),
-    path('bao-cao/ton-kho/', RedirectView.as_view(pattern_name='kho_npl:report_hub', permanent=False)),
-    path('bao-cao/ton-kho/xuat-excel/', RedirectView.as_view(pattern_name='kho_npl:report_export', permanent=False)),
-    path('bao-cao/can-bao/', RedirectView.as_view(pattern_name='kho_npl:report_hub', permanent=False)),
-    path('bao-cao/can-bao/xuat-excel/', RedirectView.as_view(pattern_name='kho_npl:report_export', permanent=False)),
-    path('bao-cao/bien-dong/', RedirectView.as_view(pattern_name='kho_npl:report_hub', permanent=False)),
-    path('bao-cao/bien-dong/xuat-excel/', RedirectView.as_view(pattern_name='kho_npl:report_export', permanent=False)),
-    path('bao-cao/xuat-lsx/', RedirectView.as_view(pattern_name='kho_npl:report_hub', permanent=False)),
-    path('bao-cao/xuat-lsx/xuat-excel/', RedirectView.as_view(pattern_name='kho_npl:report_export', permanent=False)),
-    path('bao-cao/kiem-ke/', RedirectView.as_view(pattern_name='kho_npl:report_hub', permanent=False)),
-    path('bao-cao/kiem-ke/xuat-excel/', RedirectView.as_view(pattern_name='kho_npl:report_export', permanent=False)),
-    path('bao-cao/so-kho/', RedirectView.as_view(pattern_name='kho_npl:report_hub', permanent=False)),
-    path('bao-cao/so-kho/xuat-excel/', RedirectView.as_view(pattern_name='kho_npl:report_export', permanent=False)),
+    path('bao-cao/ton-kho/', StockRedirectView.as_view(pattern_name='kho_npl:report_hub', permanent=False)),
+    path('bao-cao/ton-kho/xuat-excel/', StockRedirectView.as_view(pattern_name='kho_npl:report_export', permanent=False)),
+    path('bao-cao/can-bao/', StockRedirectView.as_view(pattern_name='kho_npl:report_hub', permanent=False)),
+    path('bao-cao/can-bao/xuat-excel/', StockRedirectView.as_view(pattern_name='kho_npl:report_export', permanent=False)),
+    path('bao-cao/bien-dong/', StockRedirectView.as_view(pattern_name='kho_npl:report_hub', permanent=False)),
+    path('bao-cao/bien-dong/xuat-excel/', StockRedirectView.as_view(pattern_name='kho_npl:report_export', permanent=False)),
+    path('bao-cao/xuat-lsx/', StockRedirectView.as_view(pattern_name='kho_npl:report_hub', permanent=False)),
+    path('bao-cao/xuat-lsx/xuat-excel/', StockRedirectView.as_view(pattern_name='kho_npl:report_export', permanent=False)),
+    path('bao-cao/kiem-ke/', StockRedirectView.as_view(pattern_name='kho_npl:report_hub', permanent=False)),
+    path('bao-cao/kiem-ke/xuat-excel/', StockRedirectView.as_view(pattern_name='kho_npl:report_export', permanent=False)),
+    path('bao-cao/so-kho/', StockRedirectView.as_view(pattern_name='kho_npl:report_hub', permanent=False)),
+    path('bao-cao/so-kho/xuat-excel/', StockRedirectView.as_view(pattern_name='kho_npl:report_export', permanent=False)),
     path('thiet-lap/', views.settings_hub, name='settings_hub'),
     path('thiet-lap/<slug:section>/', views_settings.settings_list, name='settings_list'),
     path('thiet-lap/<slug:section>/them/', views_settings.settings_create, name='settings_create'),

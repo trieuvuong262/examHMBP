@@ -784,7 +784,7 @@ def search_gc_out_items(q: str = '', *, limit: int = 40) -> list[dict]:
         from kho_npl.services.scrap_warehouse import exclude_scrap_locations
         from kho_npl.templatetags.npl_extras import format_npl_qty
 
-        qs = Material.objects.filter(is_active=True).select_related('unit')
+        qs = Material.objects.filter(is_active=True, stock_domain='npl').select_related('unit')
         if q:
             qs = apply_material_search_strict(qs, q)
         materials = list(qs.order_by('name', 'code')[:npl_cap])
@@ -850,7 +850,7 @@ def resolve_gc_out_item(raw: str) -> tuple[str, str, str]:
         from kho_npl.catalog_labels import unit_label
         from kho_npl.models import Material
 
-        material = Material.objects.filter(pk=pk, is_active=True).select_related('unit').first()
+        material = Material.objects.filter(pk=pk, is_active=True, stock_domain='npl').select_related('unit').first()
         if not material:
             raise ValueError('NPL không có trong danh mục.')
         unit = unit_label(material.unit) if material.unit_id else 'cái'
@@ -866,7 +866,7 @@ def resolve_gc_out_item(raw: str) -> tuple[str, str, str]:
     from kho_npl.catalog_labels import unit_label
     from kho_npl.models import Material
 
-    material = Material.objects.filter(code__iexact=value, is_active=True).select_related('unit').first()
+    material = Material.objects.filter(code__iexact=value, is_active=True, stock_domain='npl').select_related('unit').first()
     if material:
         unit = unit_label(material.unit) if material.unit_id else 'cái'
         return material.code, material.name, unit or 'cái'

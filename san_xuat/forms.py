@@ -339,7 +339,7 @@ class BomLineForm(forms.ModelForm):
                     Material.objects.filter(pk=int(posted), is_active=True).select_related('unit')
                 )
             else:
-                self.fields['material'].queryset = Material.objects.filter(is_active=True).select_related('unit')
+                self.fields['material'].queryset = Material.objects.filter(is_active=True, stock_domain='npl').select_related('unit')
         super().full_clean()
 
 

@@ -296,7 +296,7 @@ def _txn_row(entry: StockLedger, balance_before: Decimal, balance_after: Decimal
 
 
 def _ref_url(entry: StockLedger) -> str:
-    from django.urls import reverse
+    from kho_npl.http import reverse
 
     try:
         if entry.ref_type == StockLedger.REF_RECEIPT:

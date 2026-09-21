@@ -100,8 +100,8 @@
                     <tr class="jp-npl-catalog-row" data-href="{% url 'kho_npl:transfer_detail' transfer.pk %}">
                         <td class="npl-col jp-mat-code" data-col="number">{{ transfer.number }}</td>
                         <td class="npl-col" data-col="transfer_date">{{ transfer.transfer_date|date:'d/m/Y' }}</td>
-                        <td class="npl-col" data-col="from_location"><span class="badge jp-npl-loc-badge">{{ transfer.from_location.name }}</span></td>
-                        <td class="npl-col" data-col="to_location"><span class="badge jp-npl-loc-badge jp-npl-loc-badge--dest">{{ transfer.to_location.name }}</span></td>
+                        <td class="npl-col" data-col="from_location"><span class="badge jp-npl-loc-badge">{{ transfer.from_location.domain_display_label }}</span></td>
+                        <td class="npl-col" data-col="to_location"><span class="badge jp-npl-loc-badge jp-npl-loc-badge--dest">{{ transfer.to_location.domain_display_label }}</span></td>
                         {% if tab == 'danh-sach' %}
                         <td class="npl-col" data-col="status">{% include 'kho_npl/includes/transfer_status_badge.html' %}</td>
                         {% endif %}

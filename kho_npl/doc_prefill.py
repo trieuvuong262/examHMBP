@@ -1,6 +1,6 @@
 """Prefill phiếu xuất/chuyển từ màn tồn kho."""
 
-from django.urls import reverse
+from kho_npl.http import reverse
 
 from kho_npl.filter_utils import parse_int_ids
 from kho_npl.models import Material, WarehouseLocation

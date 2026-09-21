@@ -63,10 +63,14 @@ def _parse_date(value: str | None, default: date | None = None) -> date | None:
 
 
 def _ledger_qs(location_id: int | None = None):
+    from kho_npl.stock_domain import domain_from_current_request
+
     qs = StockLedger.objects.all()
     if location_id:
         return qs.filter(location_id=location_id)
-    return exclude_scrap_locations(qs)
+    return exclude_scrap_locations(qs).filter(
+        location__stock_domain=domain_from_current_request(),
+    )
 
 
 def _zero_bucket() -> dict:

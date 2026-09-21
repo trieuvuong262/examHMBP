@@ -17,6 +17,15 @@
         '/kho-npl/phieu-huy/': 'Đang tải phiếu hủy…',
         '/kho-npl/dieu-chinh/': 'Đang tải phiếu kiểm kê…',
         '/kho-npl/kiem-ke/': 'Đang tải phiếu kiểm kê…',
+        '/kho-vat-tu/danh-muc/': 'Đang tải danh mục…',
+        '/kho-vat-tu/ton-kho-npl/': 'Đang tải tồn kho…',
+        '/kho-vat-tu/the-kho/': 'Đang tải thẻ kho…',
+        '/kho-vat-tu/phieu-nhap/': 'Đang tải phiếu nhập…',
+        '/kho-vat-tu/phieu-xuat/': 'Đang tải phiếu xuất…',
+        '/kho-vat-tu/chuyen-kho/': 'Đang tải phiếu chuyển…',
+        '/kho-vat-tu/phieu-huy/': 'Đang tải phiếu hủy…',
+        '/kho-vat-tu/dieu-chinh/': 'Đang tải phiếu kiểm kê…',
+        '/kho-vat-tu/kiem-ke/': 'Đang tải phiếu kiểm kê…',
         '/san-xuat/ho-so/': 'Đang tải hồ sơ thiết kế…',
         '/san-xuat/ho-so/them/': 'Đang mở form thêm hồ sơ…',
         '/san-xuat/don-hang/': 'Đang tải danh sách đơn…',
@@ -27,11 +36,14 @@
     const STOCKTAKE_ROUTE_PATTERNS = [
         [/^\/kho-npl\/kiem-ke\/\d+\/$/, 'Đang tải chi tiết kiểm kê…'],
         [/^\/kho-npl\/dieu-chinh\/\d+\/$/, 'Đang tải chi tiết kiểm kê…'],
+        [/^\/kho-vat-tu\/kiem-ke\/\d+\/$/, 'Đang tải chi tiết kiểm kê…'],
+        [/^\/kho-vat-tu\/dieu-chinh\/\d+\/$/, 'Đang tải chi tiết kiểm kê…'],
     ];
 
     const SX_ROUTE_PREFIX = '/san-xuat/';
     const DOC_DETAIL_ROUTE_PATTERNS = [
         [/^\/kho-npl\/danh-muc\/\d+\/$/, 'Đang tải chi tiết NPL…'],
+        [/^\/kho-vat-tu\/danh-muc\/\d+\/$/, 'Đang tải chi tiết vật tư…'],
         [/^\/san-xuat\/ho-so\/them\/$/, 'Đang mở form thêm hồ sơ…'],
         [/^\/san-xuat\/ho-so\/\d+\/$/, 'Đang tải hồ sơ…'],
         [/^\/san-xuat\/don-hang\/them\/$/, 'Đang mở form lên đơn…'],

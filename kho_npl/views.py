@@ -1,11 +1,12 @@
 import json
 from datetime import date
 
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import get_object_or_404, render
 
 from assessment.decorators import module_perm_required
 from hrm.module_permissions import MODULE_KHO_NPL
 from PortalJustPlay.list_search import get_search_query
+from kho_npl.http import redirect
 from kho_npl.material_search import material_matches_query
 from PortalJustPlay.pagination import paginate_queryset
 

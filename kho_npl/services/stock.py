@@ -14,11 +14,15 @@ from kho_npl.material_search import apply_smart_search
 from kho_npl.services.batches import material_batch_totals
 from kho_npl.services.scrap_warehouse import exclude_scrap_locations
 from kho_npl.services.uom import package_qty
+from kho_npl.stock_domain import domain_from_current_request, materials_visible_q
 
 
 def material_total_qty(material: Material) -> Decimal:
     total = exclude_scrap_locations(
-        StockBalance.objects.filter(material=material),
+        StockBalance.objects.filter(
+            material=material,
+            location__stock_domain=domain_from_current_request(),
+        ),
     ).aggregate(total=Sum('quantity'))['total']
     return total or Decimal('0')
 
@@ -82,7 +86,7 @@ def material_stock_rows(queryset=None, location_ids: list[int] | None = None):
     from kho_npl.services.scrap_warehouse import source_locations_qs
 
     storage_ids = set(source_locations_qs().values_list('pk', flat=True))
-    qs = queryset or Material.objects.filter(is_active=True).select_related(
+    qs = queryset or Material.objects.filter(materials_visible_q(), is_active=True).select_related(
         'category', 'unit', 'supplier', 'color', 'specification', 'primary_location',
     ).prefetch_related('specification__levels__unit', 'balances__location')
     loc_set = set(location_ids or []) & storage_ids if location_ids else storage_ids
@@ -161,6 +165,7 @@ def balance_stock_rows(
     )
     if active_materials_only:
         qs = qs.filter(material__is_active=True)
+    qs = qs.filter(location__stock_domain=domain_from_current_request())
     if location_id:
         qs = qs.filter(location_id=location_id)
     if category_id:

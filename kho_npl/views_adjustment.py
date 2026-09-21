@@ -1,18 +1,19 @@
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Count, Q
-from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+from django.shortcuts import get_object_or_404, render
 
 from assessment.decorators import module_perm_required, module_perm_required_methods
 from hrm.module_permissions import MODULE_KHO_NPL
 from kho_npl.material_search import apply_smart_search
+from kho_npl.http import redirect, reverse
 from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
 from kho_npl.choices import ADJUST_STATUS_PENDING
 from kho_npl.forms import StockAdjustmentForm, StockAdjustmentLineFormSet
 from kho_npl.models import StockAdjustment
+from kho_npl.stock_domain import docs_for_domain, domain_from_current_request
 from kho_npl.doc_attachment import can_replace_doc_attachment, doc_attachments_for
 from kho_npl.views_doc_attachment import handle_doc_attachment_replace_post
 from kho_npl.services.adjustments import (
@@ -53,7 +54,7 @@ def _adjustment_print_url(pk: int) -> str:
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def adjustment_list(request):
     search_query = get_search_query(request)
-    qs = (
+    qs = docs_for_domain(
         StockAdjustment.objects
         .annotate(line_count=Count('lines'))
         .select_related('proposed_by', 'approved_by')
@@ -78,8 +79,10 @@ def adjustment_list(request):
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def adjustment_detail(request, pk):
     adjustment = get_object_or_404(
-        StockAdjustment.objects.select_related('proposed_by', 'approved_by').prefetch_related(
-            'lines__material__unit', 'lines__location',
+        docs_for_domain(
+            StockAdjustment.objects.select_related('proposed_by', 'approved_by').prefetch_related(
+                'lines__material__unit', 'lines__location',
+            )
         ),
         pk=pk,
     )
@@ -104,7 +107,7 @@ def adjustment_detail(request, pk):
 
 @module_perm_required_methods(MODULE_KHO_NPL, post='update')
 def adjustment_replace_attachment(request, pk):
-    adjustment = get_object_or_404(StockAdjustment, pk=pk)
+    adjustment = get_object_or_404(StockAdjustment, pk=pk, stock_domain=domain_from_current_request())
     if request.method != 'POST':
         return redirect('kho_npl:adjustment_detail', pk=pk)
     return handle_doc_attachment_replace_post(
@@ -146,7 +149,7 @@ def adjustment_create(request):
 
 @module_perm_required_methods(MODULE_KHO_NPL, get='update', post='update')
 def adjustment_approve(request, pk):
-    adjustment = get_object_or_404(StockAdjustment, pk=pk)
+    adjustment = get_object_or_404(StockAdjustment, pk=pk, stock_domain=domain_from_current_request())
     if request.method == 'POST':
         try:
             approve_stock_adjustment(adjustment, request.user)
@@ -158,7 +161,7 @@ def adjustment_approve(request, pk):
 
 @module_perm_required_methods(MODULE_KHO_NPL, get='update', post='update')
 def adjustment_reject(request, pk):
-    adjustment = get_object_or_404(StockAdjustment, pk=pk)
+    adjustment = get_object_or_404(StockAdjustment, pk=pk, stock_domain=domain_from_current_request())
     if request.method == 'POST':
         try:
             reject_stock_adjustment(adjustment, request.user)

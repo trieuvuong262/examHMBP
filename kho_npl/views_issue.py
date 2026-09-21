@@ -2,13 +2,13 @@ from django.contrib import messages
 from django.db import transaction
 from django.db.models import Q
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+from django.shortcuts import get_object_or_404, render
 
 from assessment.decorators import module_perm_required, module_perm_required_methods
 from hrm.module_permissions import MODULE_KHO_NPL
 from hrm.user_search import search_issue_recipients
 from kho_npl.material_search import apply_smart_search
+from kho_npl.http import redirect, reverse
 from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
@@ -42,6 +42,7 @@ from kho_npl.doc_prefill import (
     parse_doc_material_id,
 )
 from kho_npl.product_codes import search_product_codes
+from kho_npl.stock_domain import docs_for_domain, domain_from_current_request
 from kho_npl.view_utils import nav_context, perm_context
 
 
@@ -103,7 +104,9 @@ def issue_list(request):
     search_query = get_search_query(request)
     status = doc_status_filter(request, choices=ISSUE_STATUS_FILTER_CHOICES)
     sort_key, sort_dir, order = doc_list_sort(request, ISSUE_LIST_SORT_FIELDS, default_key='issue_date')
-    qs = StockIssue.objects.select_related('issued_by', 'created_by', 'recipient', 'recipient__profile')
+    qs = docs_for_domain(
+        StockIssue.objects.select_related('issued_by', 'created_by', 'recipient', 'recipient__profile')
+    )
     if status:
         qs = qs.filter(status=status)
     if search_query:
@@ -143,8 +146,10 @@ def issue_notes_editable(issue: StockIssue) -> bool:
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def issue_detail(request, pk):
     issue = get_object_or_404(
-        StockIssue.objects.select_related('issued_by', 'created_by', 'recipient', 'recipient__profile')
-        .prefetch_related('lines__material', 'lines__location'),
+        docs_for_domain(
+            StockIssue.objects.select_related('issued_by', 'created_by', 'recipient', 'recipient__profile')
+            .prefetch_related('lines__material', 'lines__location')
+        ),
         pk=pk,
     )
     perms = perm_context(request.user, 'issues')
@@ -230,7 +235,7 @@ def issue_create(request):
 
 @module_perm_required_methods(MODULE_KHO_NPL, post='update')
 def issue_update_notes(request, pk):
-    issue = get_object_or_404(StockIssue, pk=pk)
+    issue = get_object_or_404(StockIssue, pk=pk, stock_domain=domain_from_current_request())
     if request.method != 'POST':
         return redirect('kho_npl:issue_detail', pk=pk)
     if not issue_notes_editable(issue):
@@ -250,7 +255,7 @@ def issue_update_notes(request, pk):
 
 @module_perm_required_methods(MODULE_KHO_NPL, post='update')
 def issue_replace_attachment(request, pk):
-    issue = get_object_or_404(StockIssue, pk=pk)
+    issue = get_object_or_404(StockIssue, pk=pk, stock_domain=domain_from_current_request())
     if request.method != 'POST':
         return redirect('kho_npl:issue_detail', pk=pk)
     return handle_doc_attachment_replace_post(
@@ -263,7 +268,7 @@ def issue_replace_attachment(request, pk):
 
 @module_perm_required_methods(MODULE_KHO_NPL, post='update')
 def issue_update_line_notes(request, pk):
-    issue = get_object_or_404(StockIssue, pk=pk)
+    issue = get_object_or_404(StockIssue, pk=pk, stock_domain=domain_from_current_request())
     if request.method != 'POST':
         return redirect('kho_npl:issue_detail', pk=pk)
     if not issue_notes_editable(issue):
@@ -282,7 +287,7 @@ def issue_update_line_notes(request, pk):
 
 @module_perm_required_methods(MODULE_KHO_NPL, get='update', post='update')
 def issue_edit(request, pk):
-    issue = get_object_or_404(StockIssue, pk=pk)
+    issue = get_object_or_404(StockIssue, pk=pk, stock_domain=domain_from_current_request())
     if not issue_is_editable(issue):
         messages.error(request, 'Phiếu đã xuất kho hoặc đã hủy — không thể sửa.')
         return redirect('kho_npl:issue_detail', pk=pk)
@@ -309,7 +314,7 @@ def issue_edit(request, pk):
 
 @module_perm_required_methods(MODULE_KHO_NPL, get='update', post='update')
 def issue_post(request, pk):
-    issue = get_object_or_404(StockIssue, pk=pk)
+    issue = get_object_or_404(StockIssue, pk=pk, stock_domain=domain_from_current_request())
     if request.method == 'POST':
         try:
             post_stock_issue(issue, request.user)
@@ -321,7 +326,7 @@ def issue_post(request, pk):
 
 @module_perm_required_methods(MODULE_KHO_NPL, get='delete', post='delete')
 def issue_cancel(request, pk):
-    issue = get_object_or_404(StockIssue, pk=pk)
+    issue = get_object_or_404(StockIssue, pk=pk, stock_domain=domain_from_current_request())
     if request.method == 'POST':
         try:
             cancel_stock_issue(issue)

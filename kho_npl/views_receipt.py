@@ -1,13 +1,13 @@
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Q
-from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+from django.shortcuts import get_object_or_404, render
 
 from assessment.decorators import module_perm_required, module_perm_required_methods
 from hrm.menu_permissions import user_can_create_menu
 from hrm.module_permissions import MODULE_KHO_NPL
 from kho_npl.material_search import apply_smart_search
+from kho_npl.http import redirect, reverse
 from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
@@ -19,6 +19,10 @@ from kho_npl.forms import (
     StockReceiptNotesForm,
 )
 from kho_npl.models import StockReceipt
+from kho_npl.doc_attachment import can_replace_doc_attachment, doc_attachments_for
+from kho_npl.views_doc_attachment import handle_doc_attachment_replace_post
+from kho_npl.services.doc_numbers import next_receipt_number
+from kho_npl.stock_domain import docs_for_domain, domain_from_current_request, module_key_from_request
 from kho_npl.doc_attachment import can_replace_doc_attachment, doc_attachments_for
 from kho_npl.views_doc_attachment import handle_doc_attachment_replace_post
 from kho_npl.services.doc_numbers import next_receipt_number
@@ -68,7 +72,7 @@ def _receipt_form_context(request, *, form, formset, is_edit, cancel_url, receip
         'is_edit': is_edit,
         'cancel_url': cancel_url,
         'list_url': reverse('kho_npl:receipt_list'),
-        'can_create_supplier': user_can_create_menu(request.user, MODULE_KHO_NPL, 'settings'),
+        'can_create_supplier': user_can_create_menu(request.user, module_key_from_request(request), 'settings'),
         'existing_attachments': existing_attachments,
         **({'receipt': receipt} if receipt else {}),
     }
@@ -100,7 +104,7 @@ def receipt_list(request):
     search_query = get_search_query(request)
     status = doc_status_filter(request, choices=RECEIPT_STATUS_FILTER_CHOICES)
     sort_key, sort_dir, order = doc_list_sort(request, RECEIPT_LIST_SORT_FIELDS, default_key='receipt_date')
-    qs = StockReceipt.objects.select_related('supplier', 'received_by', 'created_by')
+    qs = docs_for_domain(StockReceipt.objects.select_related('supplier', 'received_by', 'created_by'))
     if status:
         qs = qs.filter(status=status)
     if search_query:
@@ -130,9 +134,11 @@ def receipt_notes_editable(receipt: StockReceipt) -> bool:
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def receipt_detail(request, pk):
     receipt = get_object_or_404(
-        StockReceipt.objects.select_related(
-            'supplier', 'received_by', 'checked_by', 'created_by',
-        ).prefetch_related('lines__material', 'lines__material__unit', 'lines__location'),
+        docs_for_domain(
+            StockReceipt.objects.select_related(
+                'supplier', 'received_by', 'checked_by', 'created_by',
+            ).prefetch_related('lines__material', 'lines__material__unit', 'lines__location')
+        ),
         pk=pk,
     )
     perms = perm_context(request.user, 'receipts')
@@ -162,7 +168,7 @@ def receipt_detail(request, pk):
 
 @module_perm_required_methods(MODULE_KHO_NPL, post='update')
 def receipt_update_notes(request, pk):
-    receipt = get_object_or_404(StockReceipt, pk=pk)
+    receipt = get_object_or_404(StockReceipt, pk=pk, stock_domain=domain_from_current_request())
     if request.method != 'POST':
         return redirect('kho_npl:receipt_detail', pk=pk)
     if not receipt_notes_editable(receipt):
@@ -182,7 +188,7 @@ def receipt_update_notes(request, pk):
 
 @module_perm_required_methods(MODULE_KHO_NPL, post='update')
 def receipt_update_line_notes(request, pk):
-    receipt = get_object_or_404(StockReceipt, pk=pk)
+    receipt = get_object_or_404(StockReceipt, pk=pk, stock_domain=domain_from_current_request())
     if request.method != 'POST':
         return redirect('kho_npl:receipt_detail', pk=pk)
     if not receipt_notes_editable(receipt):
@@ -199,7 +205,7 @@ def receipt_update_line_notes(request, pk):
 
 @module_perm_required_methods(MODULE_KHO_NPL, post='update')
 def receipt_replace_attachment(request, pk):
-    receipt = get_object_or_404(StockReceipt, pk=pk)
+    receipt = get_object_or_404(StockReceipt, pk=pk, stock_domain=domain_from_current_request())
     if request.method != 'POST':
         return redirect('kho_npl:receipt_detail', pk=pk)
     return handle_doc_attachment_replace_post(
@@ -232,7 +238,7 @@ def receipt_create(request):
 
 @module_perm_required_methods(MODULE_KHO_NPL, get='update', post='update')
 def receipt_edit(request, pk):
-    receipt = get_object_or_404(StockReceipt, pk=pk)
+    receipt = get_object_or_404(StockReceipt, pk=pk, stock_domain=domain_from_current_request())
     if not receipt_is_editable(receipt):
         messages.error(request, 'Phiếu đã nhập kho hoặc đã hủy — không thể sửa.')
         return redirect('kho_npl:receipt_detail', pk=pk)
@@ -256,7 +262,7 @@ def receipt_edit(request, pk):
 
 @module_perm_required_methods(MODULE_KHO_NPL, get='update', post='update')
 def receipt_post(request, pk):
-    receipt = get_object_or_404(StockReceipt, pk=pk)
+    receipt = get_object_or_404(StockReceipt, pk=pk, stock_domain=domain_from_current_request())
     if request.method == 'POST':
         try:
             post_stock_receipt(receipt, request.user)
@@ -268,7 +274,7 @@ def receipt_post(request, pk):
 
 @module_perm_required_methods(MODULE_KHO_NPL, get='delete', post='delete')
 def receipt_cancel(request, pk):
-    receipt = get_object_or_404(StockReceipt, pk=pk)
+    receipt = get_object_or_404(StockReceipt, pk=pk, stock_domain=domain_from_current_request())
     if request.method == 'POST':
         try:
             cancel_stock_receipt(receipt)

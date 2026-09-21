@@ -244,6 +244,7 @@ MIDDLEWARE = [
     # Memo hoá phân quyền/thiết lập trong 1 request — phải đứng ngay sau Auth
     # và trước mọi middleware kiểm tra quyền.
     'hrm.request_cache.RequestCacheMiddleware',
+    'kho_npl.middleware.StockDomainMiddleware',
     'PortalJustPlay.middleware.ZaloInAppBrowserMiddleware',
     'audit.middleware_spam.SpamIpGuardMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -270,6 +271,7 @@ TEMPLATES = [
                 'assessment.context_processors.portal_learning_menu_badges',
                 'hrm.context_processors.portal_page_title',
                 'hrm.context_processors.portal_permissions',
+                'kho_npl.context_processors.stock_module',
                 'utilities.context_processors.meal_push_context',
             ],
         },

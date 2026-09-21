@@ -32,6 +32,7 @@ MODULE_SUPPORTS_EXPORT = frozenset({
     'equipment',    # Xuất danh sách thiết bị
     'audit',        # Xuất nhật ký thao tác
     'kho_npl',      # Báo cáo tồn kho / sổ kho
+    'kho_vat_tu',   # Báo cáo tồn kho vật tư
     'kho_san_pham', # Xuất danh mục / tồn kho thành phẩm
     'utilities',    # Xuất Excel đặt cơm / ứng lương
     'company_trip', # Xuất danh sách đăng ký Company Trip
@@ -359,6 +360,7 @@ MODULE_LIST_META = {
     'kiotviet': {'icon': 'bi-shop', 'short': 'KV'},
     'odoo': {'icon': 'bi-boxes', 'short': 'ERP'},
     'kho_npl': {'icon': 'bi-boxes', 'short': 'NPL'},
+    'kho_vat_tu': {'icon': 'bi-archive', 'short': 'VT'},
     'kho_san_pham': {'icon': 'bi-box-seam', 'short': 'SP'},
 }
 

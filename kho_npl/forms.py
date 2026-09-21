@@ -57,6 +57,10 @@ from kho_npl.services.scrap_warehouse import (
     material_default_location,
     source_locations_qs,
 )
+from kho_npl.stock_domain import (
+    domain_from_current_request,
+    item_label,
+)
 from kho_npl.services.adjustments import balance_qty
 from kho_npl.services.uom import (
     UomConversionError,
@@ -325,7 +329,8 @@ class MaterialForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['category'].label = 'Loại NPL'
+        domain = domain_from_current_request()
+        self.fields['category'].label = f'Loại {item_label(domain)}'
         self.fields['department'].label = 'Bộ phận'
         self.fields['department'].required = False
         self.fields['department'].help_text = (
@@ -343,7 +348,8 @@ class MaterialForm(forms.ModelForm):
         from kho_npl.variant_group import code_base
 
         group_rows = list(
-            Material.objects.exclude(variant_group='')
+            Material.objects.filter(stock_domain=domain_from_current_request())
+            .exclude(variant_group='')
             .values('variant_group')
             .annotate(example_code=Min('code'), material_count=Count('pk'))
             .order_by('variant_group')[:200]
@@ -1299,7 +1305,7 @@ StocktakeLineFormSet = inlineformset_factory(
 
 
 class StockTransferForm(DocAttachmentsFormMixin, forms.ModelForm):
-    doc_attachments_required = True
+    doc_attachments_required = False
 
     class Meta:
         model = StockTransfer
@@ -1316,9 +1322,11 @@ class StockTransferForm(DocAttachmentsFormMixin, forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['notes'].required = False
         self._init_doc_attachments_field()
-        locations = WarehouseLocation.objects.filter(is_active=True)
+        locations = WarehouseLocation.objects.filter(is_active=True).order_by('stock_domain', 'code')
         self.fields['from_location'].queryset = locations
         self.fields['to_location'].queryset = locations
+        self.fields['from_location'].label_from_instance = lambda loc: loc.domain_display_label()
+        self.fields['to_location'].label_from_instance = lambda loc: loc.domain_display_label()
         if self.warehouse_locked and self.instance.pk:
             field = self.fields['from_location']
             field.disabled = True
@@ -1327,7 +1335,7 @@ class StockTransferForm(DocAttachmentsFormMixin, forms.ModelForm):
             self.initial.setdefault('from_location', self.instance.from_location_id)
         if not self.instance.pk:
             self.initial.setdefault('transfer_date', timezone.localdate())
-            default = locations.filter(code='MAIN').first()
+            default = source_locations_qs().filter(code='MAIN').first()
             if default:
                 self.initial.setdefault('from_location', default.pk)
 
@@ -1586,11 +1594,13 @@ StockDisposalLineFormSet = inlineformset_factory(
 )
 
 
-def _clean_unique_code(model, field_name, value, instance):
+def _clean_unique_code(model, field_name, value, instance, extra_filter=None):
     value = (value or '').strip()
     if not value:
         raise ValidationError('Mã không được để trống.')
     qs = model.objects.filter(**{f'{field_name}__iexact': value})
+    if extra_filter:
+        qs = qs.filter(**extra_filter)
     if instance.pk:
         qs = qs.exclude(pk=instance.pk)
     if qs.exists():
@@ -1615,7 +1625,10 @@ class MaterialCategoryForm(forms.ModelForm):
 
     def clean_code(self):
         code = (self.cleaned_data.get('code') or '').strip().lower()
-        return _clean_unique_code(MaterialCategory, 'code', code, self.instance)
+        domain = getattr(self.instance, 'stock_domain', None) or domain_from_current_request()
+        return _clean_unique_code(
+            MaterialCategory, 'code', code, self.instance, extra_filter={'stock_domain': domain},
+        )
 
 
 class MaterialColorForm(forms.ModelForm):
@@ -1849,7 +1862,10 @@ class WarehouseLocationForm(forms.ModelForm):
         if is_scrap_location(self.instance):
             return self.instance.code
         code = (self.cleaned_data.get('code') or '').strip().upper()
-        return _clean_unique_code(WarehouseLocation, 'code', code, self.instance)
+        domain = getattr(self.instance, 'stock_domain', None) or domain_from_current_request()
+        return _clean_unique_code(
+            WarehouseLocation, 'code', code, self.instance, extra_filter={'stock_domain': domain},
+        )
 
     def clean_is_active(self):
         is_active = self.cleaned_data.get('is_active')

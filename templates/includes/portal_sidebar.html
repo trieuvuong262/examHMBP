@@ -630,6 +630,23 @@
             </ul>
         </li>
         {% endif %}
+        {% if jp_can_kho_vat_tu and not jp_can_san_xuat %}
+        <li class="jp-sidebar-group{% if 'kho-vat-tu' in request.path %} is-open{% endif %}">
+            <button type="button"
+                    class="jp-sidebar-group-toggle"
+                    data-jp-sidebar-group-toggle
+                    aria-expanded="{% if 'kho-vat-tu' in request.path %}true{% else %}false{% endif %}"
+                    aria-controls="jp-sidebar-kho-vat-tu-submenu">
+                <span class="jp-sidebar-group-toggle-main">
+                    <i class="bi bi-archive"></i><span>Kho vật tư</span>
+                </span>
+                <i class="bi bi-chevron-down jp-sidebar-group-chevron" aria-hidden="true"></i>
+            </button>
+            <ul class="jp-sidebar-submenu" id="jp-sidebar-kho-vat-tu-submenu">
+                {% include 'includes/kho_npl_sidebar_items.html' with stock_url_ns='kho_vat_tu' stock_perm_mod='kho_vat_tu' %}
+            </ul>
+        </li>
+        {% endif %}
         {% if jp_can_kho_san_pham and not jp_can_san_xuat %}
         <li class="jp-sidebar-group{% if 'kho-san-pham' in request.path %} is-open{% endif %}">
             <button type="button"
@@ -648,7 +665,7 @@
         </li>
         {% endif %}
         {% if jp_can_san_xuat %}
-        <li class="jp-sidebar-group jp-sx-group{% if 'san-xuat' in request.path or 'kho-npl' in request.path or 'kho-san-pham' in request.path or 'kiotviet' in request.path %} is-open{% endif %}">
+        <li class="jp-sidebar-group jp-sx-group{% if 'san-xuat' in request.path or 'kho-npl' in request.path or 'kho-vat-tu' in request.path or 'kho-san-pham' in request.path or 'kiotviet' in request.path %} is-open{% endif %}">
             <button type="button"
                     class="jp-sidebar-group-toggle"
                     data-jp-sx-launcher
@@ -902,6 +919,27 @@
                     </button>
                     <ul class="jp-sidebar-nested-submenu" id="jp-sidebar-san-xuat-stock-submenu">
                         {% include 'includes/kho_npl_sidebar_items.html' %}
+                    </ul>
+                </li>
+                {% endif %}
+
+                {# —— 4b. Kho vật tư (cùng nhóm kho với NPL) —— #}
+                {% if jp_can_kho_vat_tu %}
+                <li class="jp-sidebar-nested-group{% if 'kho-vat-tu' in request.path %} is-open{% endif %}"
+                    data-sx-area="kho_vat_tu" data-sx-icon="bi-archive" data-sx-label="Kho vật tư"
+                    data-sx-href="{% url 'kho_vat_tu:material_list' %}">
+                    <button type="button"
+                            class="jp-sidebar-nested-toggle"
+                            data-jp-sidebar-group-toggle
+                            aria-expanded="{% if 'kho-vat-tu' in request.path %}true{% else %}false{% endif %}"
+                            aria-controls="jp-sidebar-san-xuat-vat-tu-submenu">
+                        <span class="jp-sidebar-nested-toggle-main">
+                            <i class="bi bi-archive"></i><span>Kho vật tư</span>
+                        </span>
+                        <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
+                    </button>
+                    <ul class="jp-sidebar-nested-submenu" id="jp-sidebar-san-xuat-vat-tu-submenu">
+                        {% include 'includes/kho_npl_sidebar_items.html' with stock_url_ns='kho_vat_tu' stock_perm_mod='kho_vat_tu' %}
                     </ul>
                 </li>
                 {% endif %}

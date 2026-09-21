@@ -1,12 +1,13 @@
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Q
-from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+from django.http import Http404
+from django.shortcuts import get_object_or_404, render
 
 from assessment.decorators import module_perm_required, module_perm_required_methods
 from hrm.module_permissions import MODULE_KHO_NPL
 from kho_npl.material_search import apply_smart_search
+from kho_npl.http import redirect, reverse
 from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
@@ -29,6 +30,7 @@ from kho_npl.forms import (
     transfer_post_has_active_lines,
 )
 from kho_npl.models import StockTransfer
+from kho_npl.stock_domain import transfer_visible_in_domain, transfers_for_domain
 from kho_npl.doc_attachment import can_replace_doc_attachment, doc_attachments_for
 from kho_npl.views_doc_attachment import handle_doc_attachment_replace_post
 from kho_npl.services.doc_numbers import next_transfer_number
@@ -130,9 +132,9 @@ def _save_transfer_form(request, transfer, *, is_create: bool):
 
 def _hub_list_context(request, tab: str):
     search_query = get_search_query(request)
-    qs = StockTransfer.objects.select_related(
+    qs = transfers_for_domain(StockTransfer.objects.select_related(
         'from_location', 'to_location', 'created_by', 'sent_by', 'received_by',
-    )
+    ))
     if tab == TRANSFER_TAB_DANH_SACH:
         list_status = _resolve_list_status(request)
         if list_status:
@@ -216,13 +218,25 @@ def transfer_hub(request):
     return render(request, 'kho_npl/transfer_hub.html', ctx)
 
 
+def _get_transfer_or_404(pk, qs=None):
+    transfer = get_object_or_404(
+        qs or StockTransfer.objects.select_related(
+            'from_location', 'to_location', 'created_by', 'sent_by', 'received_by',
+        ),
+        pk=pk,
+    )
+    if not transfer_visible_in_domain(transfer):
+        raise Http404
+    return transfer
+
+
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def transfer_detail(request, pk):
-    transfer = get_object_or_404(
+    transfer = _get_transfer_or_404(
+        pk,
         StockTransfer.objects.select_related(
             'from_location', 'to_location', 'created_by', 'sent_by', 'received_by',
         ).prefetch_related('lines__material__unit'),
-        pk=pk,
     )
     tab = _tab_for_transfer(transfer)
     list_status = transfer.status if tab == TRANSFER_TAB_DANH_SACH else TRANSFER_LIST_FILTER_ALL
@@ -288,7 +302,7 @@ def transfer_create(request):
 
 @module_perm_required_methods(MODULE_KHO_NPL, get='update', post='update')
 def transfer_edit(request, pk):
-    transfer = get_object_or_404(StockTransfer, pk=pk)
+    transfer = _get_transfer_or_404(pk)
     if not transfer_is_editable(transfer):
         messages.error(request, 'Phiếu không còn ở trạng thái nháp — không thể sửa.')
         return redirect('kho_npl:transfer_detail', pk=pk)
@@ -321,7 +335,7 @@ def transfer_edit(request, pk):
 
 @module_perm_required_methods(MODULE_KHO_NPL, post='update')
 def transfer_replace_attachment(request, pk):
-    transfer = get_object_or_404(StockTransfer, pk=pk)
+    transfer = _get_transfer_or_404(pk)
     if request.method != 'POST':
         return redirect('kho_npl:transfer_detail', pk=pk)
     return handle_doc_attachment_replace_post(
@@ -334,7 +348,7 @@ def transfer_replace_attachment(request, pk):
 
 @module_perm_required_methods(MODULE_KHO_NPL, post='update')
 def transfer_send(request, pk):
-    transfer = get_object_or_404(StockTransfer, pk=pk)
+    transfer = _get_transfer_or_404(pk)
     try:
         send_stock_transfer(transfer, request.user)
         messages.success(
@@ -349,7 +363,7 @@ def transfer_send(request, pk):
 
 @module_perm_required_methods(MODULE_KHO_NPL, post='update')
 def transfer_receive(request, pk):
-    transfer = get_object_or_404(StockTransfer, pk=pk)
+    transfer = _get_transfer_or_404(pk)
     try:
         receive_stock_transfer(transfer, request.user)
         messages.success(request, f'Đã nhập kho phiếu {transfer.number} tại {transfer.to_location.display_label()}.')
@@ -360,7 +374,7 @@ def transfer_receive(request, pk):
 
 @module_perm_required_methods(MODULE_KHO_NPL, get='delete', post='delete')
 def transfer_cancel(request, pk):
-    transfer = get_object_or_404(StockTransfer, pk=pk)
+    transfer = _get_transfer_or_404(pk)
     if request.method == 'POST':
         try:
             cancel_stock_transfer(transfer)

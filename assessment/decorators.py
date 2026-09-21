@@ -81,6 +81,16 @@ def _user_can_module_action(user, module_key: str, action: str, request=None) ->
     return bool(checker(user, module_key))
 
 
+def _resolve_stock_module_key(module_key: str, request) -> str:
+    """View kho_npl mount trên /kho-vat-tu/ dùng quyền module kho_vat_tu."""
+    from hrm.module_permissions import MODULE_KHO_NPL
+    from kho_npl.stock_domain import MODULE_KHO_VAT_TU, STOCK_DOMAIN_VAT_TU, domain_from_request
+
+    if module_key == MODULE_KHO_NPL and domain_from_request(request) == STOCK_DOMAIN_VAT_TU:
+        return MODULE_KHO_VAT_TU
+    return module_key
+
+
 def module_perm_required(module_key: str, action: str = 'edit'):
     """
     Kiểm tra quyền chi tiết theo module: view | create | update | delete | export | print | edit.
@@ -88,7 +98,8 @@ def module_perm_required(module_key: str, action: str = 'edit'):
     def decorator(view_func):
         @wraps(view_func)
         def wrapper(request, *args, **kwargs):
-            if _user_can_module_action(request.user, module_key, action, request):
+            effective = _resolve_stock_module_key(module_key, request)
+            if _user_can_module_action(request.user, effective, action, request):
                 return view_func(request, *args, **kwargs)
 
             message = portal_admin_denied_message()
@@ -113,7 +124,8 @@ def module_perm_required_methods(
         @wraps(view_func)
         def wrapper(request, *args, **kwargs):
             action = post if request.method == 'POST' else get
-            if _user_can_module_action(request.user, module_key, action, request):
+            effective = _resolve_stock_module_key(module_key, request)
+            if _user_can_module_action(request.user, effective, action, request):
                 return view_func(request, *args, **kwargs)
 
             message = portal_admin_denied_message()
