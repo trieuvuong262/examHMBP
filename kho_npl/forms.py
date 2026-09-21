@@ -277,6 +277,18 @@ class MaterialForm(forms.ModelForm):
         required=False,
         widget=forms.HiddenInput(),
     )
+    # CharField model không có choices → phải là ChoiceField thì Select mới ra option
+    # (cùng nguồn/nhãn với modal Sửa nhóm công đoạn).
+    department = forms.ChoiceField(
+        required=False,
+        label='Bộ phận',
+        choices=[('', '— Chọn bộ phận —')],
+        widget=forms.Select(attrs={
+            **FORM_SEARCH_SELECT,
+            'data-placeholder': 'Tìm bộ phận...',
+        }),
+    )
+
     class Meta:
         model = Material
         fields = [
@@ -301,10 +313,6 @@ class MaterialForm(forms.ModelForm):
             'name': forms.TextInput(attrs=FORM_CONTROL),
             'variant_group': forms.Select(attrs=FORM_SELECT),
             'category': forms.Select(attrs=FORM_SELECT),
-            'department': forms.Select(attrs={
-                **FORM_SEARCH_SELECT,
-                'data-placeholder': 'Tìm bộ phận Nhân sự...',
-            }),
             'color': MaterialColorSelect(attrs={
                 **FORM_SEARCH_SELECT,
                 'class': 'form-select jp-npl-search-select jp-npl-color-select',
@@ -339,16 +347,18 @@ class MaterialForm(forms.ModelForm):
         self.fields['department'].required = False
         if domain == STOCK_DOMAIN_VAT_TU:
             self.fields['department'].help_text = (
-                'Lấy từ bộ phận Nhân sự (toàn công ty).'
+                'Lấy từ bộ phận Nhân sự (toàn công ty), cùng cách ghi tên với nhóm công đoạn.'
             )
         else:
             self.fields['department'].help_text = (
-                'Chuẩn Nhân sự: bộ phận sản xuất và đảm bảo chất lượng (như hồ sơ sản phẩm).'
+                'Cùng danh sách Tên bộ phận khi sửa nhóm công đoạn (SX + QLCL).'
             )
         from kho_npl.material_department import material_department_choices
 
         current_dept = (getattr(self.instance, 'department', '') or '').strip()
-        self.fields['department'].choices = material_department_choices(current=current_dept)
+        dept_choices = material_department_choices(current=current_dept)
+        self.fields['department'].choices = dept_choices
+        self.fields['department'].widget.choices = dept_choices
         self.fields['variant_group'].label = 'Gom nhóm hàng hoá'
         self.fields['variant_group'].required = False
         self.fields['variant_group'].help_text = (
