@@ -1,0 +1,67 @@
+<div class="modal fade" id="jpEmployeeCardModal" tabindex="-1" aria-labelledby="jpEmployeeCardTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg jp-emp-card">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="jpEmployeeCardTitle">Thông tin nhân viên</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body pt-2 pb-4">
+                <div class="jp-emp-card-hero">
+                    <div class="jp-emp-card-avatar-wrap" id="jpEmpCardAvatarWrap">
+                        <img id="jpEmpCardAvatarImg" src="" alt="" class="jp-emp-card-avatar d-none">
+                        <span id="jpEmpCardAvatarFallback" class="jp-emp-card-avatar-fallback" aria-hidden="true">?</span>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="jp-emp-card-name mb-1" id="jpEmpCardName">—</p>
+                        <p class="jp-emp-card-meta mb-0" id="jpEmpCardMeta"></p>
+                    </div>
+                </div>
+                <dl class="jp-emp-card-dl mb-0">
+                    <div class="jp-emp-card-row" data-emp-row="code">
+                        <dt>Mã NS</dt>
+                        <dd id="jpEmpCardCode">—</dd>
+                    </div>
+                    <div class="jp-emp-card-row" data-emp-row="username">
+                        <dt>Tài khoản</dt>
+                        <dd id="jpEmpCardUsername">—</dd>
+                    </div>
+                    <div class="jp-emp-card-row" data-emp-row="phone">
+                        <dt>Điện thoại</dt>
+                        <dd id="jpEmpCardPhone">—</dd>
+                    </div>
+                    <div class="jp-emp-card-row" data-emp-row="dept">
+                        <dt>Phòng ban</dt>
+                        <dd id="jpEmpCardDept">—</dd>
+                    </div>
+                    <div class="jp-emp-card-row" data-emp-row="division">
+                        <dt>Bộ phận</dt>
+                        <dd id="jpEmpCardDivision">—</dd>
+                    </div>
+                    <div class="jp-emp-card-row" data-emp-row="job-title">
+                        <dt>Chức vụ</dt>
+                        <dd id="jpEmpCardJobTitle">—</dd>
+                    </div>
+                    <div class="jp-emp-card-row" data-emp-row="job-position">
+                        <dt>Vị trí</dt>
+                        <dd id="jpEmpCardJobPosition">—</dd>
+                    </div>
+                    <div class="jp-emp-card-row" data-emp-row="join">
+                        <dt>Ngày vào</dt>
+                        <dd id="jpEmpCardJoin">—</dd>
+                    </div>
+                    <div class="jp-emp-card-row" data-emp-row="gender">
+                        <dt>Giới tính</dt>
+                        <dd id="jpEmpCardGender">—</dd>
+                    </div>
+                    <div class="jp-emp-card-row" data-emp-row="status">
+                        <dt>Trạng thái</dt>
+                        <dd id="jpEmpCardStatus">—</dd>
+                    </div>
+                </dl>
+                <a id="jpEmpCardProfileLink" href="#" class="btn btn-outline-hm w-100 mt-3 d-none">
+                    <i class="bi bi-person-vcard me-1"></i>Xem hồ sơ nhân sự
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

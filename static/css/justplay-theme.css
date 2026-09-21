@@ -3433,6 +3433,143 @@ body.jp-tool-loading-active {
     box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
 }
 
+.jp-emp-id {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+}
+.jp-emp-id-avatar {
+    width: 36px;
+    height: 36px;
+}
+.jp-emp-id .jp-emp-avatar-img,
+.jp-emp-id .jp-emp-avatar-fallback {
+    width: 36px;
+    height: 36px;
+    object-fit: cover;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--hm-primary), var(--jp-black-800));
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.85rem;
+    box-shadow: 0 2px 6px rgba(220, 38, 38, 0.15);
+}
+.jp-emp-id .jp-avatar-zoom-btn {
+    display: block;
+    border-radius: 50%;
+}
+.jp-emp-id-text {
+    min-width: 0;
+}
+.jp-emp-id-name {
+    display: block;
+    max-width: 100%;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font-weight: 700;
+    font-size: inherit;
+    line-height: 1.25;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+}
+.jp-emp-id-name:hover,
+.jp-emp-id-name:focus-visible {
+    color: var(--hm-primary, #dc2626);
+    text-decoration: underline;
+    outline: none;
+}
+.jp-emp-id-sub {
+    margin-top: 0.1rem;
+    font-size: 0.75rem;
+    color: #64748b;
+    line-height: 1.3;
+}
+.jp-emp-id--compact .jp-emp-id-avatar,
+.jp-emp-id--compact .jp-emp-avatar-img,
+.jp-emp-id--compact .jp-emp-avatar-fallback {
+    width: 28px;
+    height: 28px;
+    font-size: 0.7rem;
+}
+.jp-emp-id--compact .jp-emp-id-name {
+    font-size: 0.8rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.jp-emp-card-hero {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    margin-bottom: 1rem;
+}
+.jp-emp-card-avatar,
+.jp-emp-card-avatar-fallback {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+.jp-emp-card-avatar-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--hm-primary), var(--jp-black-800));
+    color: #fff;
+    font-weight: 700;
+    font-size: 1.4rem;
+}
+.jp-emp-card-name {
+    font-size: 1.1rem;
+    font-weight: 800;
+    line-height: 1.25;
+    color: #0f172a;
+}
+.jp-emp-card-meta {
+    font-size: 0.8rem;
+    color: #64748b;
+}
+.jp-emp-card-dl {
+    display: grid;
+    gap: 0.35rem 0;
+}
+.jp-emp-card-row {
+    display: grid;
+    grid-template-columns: 6.5rem 1fr;
+    gap: 0.5rem;
+    padding: 0.4rem 0;
+    border-top: 1px solid #eef2f6;
+}
+.jp-emp-card-row dt {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+}
+.jp-emp-card-row dd {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+[data-theme="dark"] .jp-emp-id-sub { color: #94a3b8; }
+[data-theme="dark"] .jp-emp-card-name,
+[data-theme="dark"] .jp-emp-card-row dd { color: #f8fafc; }
+[data-theme="dark"] .jp-emp-card-meta,
+[data-theme="dark"] .jp-emp-card-row dt { color: #94a3b8; }
+[data-theme="dark"] .jp-emp-card-row { border-top-color: #334155; }
+
 @media (min-width: 768px) {
     #jpAvatarZoomModal .jp-avatar-zoom-image {
         width: 280px;

@@ -1,0 +1,32 @@
+{% load hrm_extras %}
+{% with p=employee.profile display_name=employee.profile.full_name|default:employee.get_full_name|default:employee.username %}
+<div class="jp-emp-id{% if compact %} jp-emp-id--compact{% endif %}">
+    <div class="jp-emp-id-avatar flex-shrink-0">
+        {% include 'includes/profile_avatar.html' with profile=p user=employee img_class='jp-emp-avatar-img rounded-circle' fallback_class='jp-emp-avatar-fallback rounded-circle' zoomable=True %}
+    </div>
+    <div class="jp-emp-id-text min-w-0">
+        <button type="button"
+                class="jp-emp-id-name"
+                data-jp-emp-card
+                data-name="{{ display_name }}"
+                data-code="{{ p.employee_code|default:'' }}"
+                data-username="{{ employee.username }}"
+                data-phone="{{ p.phone_display|default:'' }}"
+                data-dept="{{ p.department.name|default:'' }}"
+                data-division="{{ p.division.name|default:'' }}"
+                data-job-title="{{ p.job_title|default:'' }}"
+                data-job-position="{{ p.job_position|default:'' }}"
+                data-join="{% if p.join_date %}{{ p.join_date|date:'d/m/Y' }}{% endif %}"
+                data-gender="{{ p.get_gender_display_short|default:'' }}"
+                data-probation="{% if p.on_probation %}1{% else %}0{% endif %}"
+                data-avatar="{% if p.avatar %}{{ p.avatar.url }}{% endif %}"
+                {% if jp_can_hrm %}data-profile-url="{% url 'user_edit' employee.id %}"{% endif %}
+                title="Xem thông tin {{ display_name|display_title }}">
+            {{ display_name|display_title }}
+        </button>
+        {% if subtitle %}
+        <div class="jp-emp-id-sub">{{ subtitle }}</div>
+        {% endif %}
+    </div>
+</div>
+{% endwith %}

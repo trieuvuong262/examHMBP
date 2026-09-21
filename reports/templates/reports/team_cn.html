@@ -28,10 +28,7 @@
 
 {% block team_row_cells %}
 <td>
-    <strong>{{ row.member.profile.full_name|default:row.member.username }}</strong>
-    {% if row.member.profile.division %}
-    <div class="text-muted small">{{ row.member.profile.division.name }}</div>
-    {% endif %}
+    {% include 'includes/employee_identity.html' with employee=row.member subtitle=row.member.profile.division.name %}
 </td>
 <td>
     {% if row.report_date %}

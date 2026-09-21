@@ -262,7 +262,7 @@ def _append_production_member_rows(
 
 def _ensure_team_members_in_groups(groups: list[dict], team) -> list[dict]:
     """Đảm bảo mọi NV trong queryset team đều có trong một nhóm hiển thị."""
-    team_users = list(team.select_related('profile', 'profile__department'))
+    team_users = list(team.select_related('profile', 'profile__department', 'profile__division'))
     if not team_users:
         return groups
 

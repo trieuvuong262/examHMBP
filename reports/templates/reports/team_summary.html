@@ -49,9 +49,9 @@
         background: #fff;
     }
     .jp-summary-table th.jp-col-stt,  .jp-summary-table td.jp-col-stt  { left: 0;      min-width: 46px; }
-    .jp-summary-table th.jp-col-name, .jp-summary-table td.jp-col-name { left: 46px;   min-width: 170px; text-align: left; }
-    .jp-summary-table th.jp-col-shift, .jp-summary-table td.jp-col-shift { left: 216px; min-width: 92px; text-align: center; }
-    .jp-summary-table th.jp-col-dept, .jp-summary-table td.jp-col-dept { left: 308px;  min-width: 140px; text-align: left; box-shadow: 2px 0 4px -2px rgba(15,23,42,0.15); }
+    .jp-summary-table th.jp-col-name, .jp-summary-table td.jp-col-name { left: 46px;   min-width: 220px; text-align: left; }
+    .jp-summary-table th.jp-col-shift, .jp-summary-table td.jp-col-shift { left: 266px; min-width: 92px; text-align: center; }
+    .jp-summary-table th.jp-col-dept, .jp-summary-table td.jp-col-dept { left: 358px;  min-width: 140px; text-align: left; box-shadow: 2px 0 4px -2px rgba(15,23,42,0.15); }
     .jp-summary-table thead th.jp-col-sticky { z-index: 5; background: var(--hm-primary, #dc2626); }
     .jp-summary-table tbody td {
         border-bottom: 1px solid #eef2f6;
@@ -339,15 +339,13 @@
         .jp-summary-table th.jp-col-name,
         .jp-summary-table td.jp-col-name {
             left: 26px;
-            min-width: 88px;
-            max-width: 88px;
+            min-width: 118px;
+            max-width: 118px;
             overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
         }
         .jp-summary-table th.jp-col-shift,
         .jp-summary-table td.jp-col-shift {
-            left: 114px;
+            left: 144px;
             min-width: 64px;
             box-shadow: 2px 0 4px -2px rgba(15,23,42,0.15);
         }
@@ -552,7 +550,7 @@
                     <tr>
                         <td class="jp-col-sticky jp-col-stt text-muted">{{ m.stt }}</td>
                         <td class="jp-col-sticky jp-col-name">
-                            <strong>{{ m.name }}</strong>
+                            {% include 'includes/employee_identity.html' with employee=m.member compact=True %}
                         </td>
                         <td class="jp-col-sticky jp-col-shift">
                             <span class="{{ m.shift|production_shift_badge_class }}">{{ m.shift_label }}</span>

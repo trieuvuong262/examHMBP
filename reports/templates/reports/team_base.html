@@ -329,7 +329,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Hàng có báo cáo: bấm vào bất kỳ đâu để mở trang chi tiết.
     document.querySelectorAll('tr.jp-team-row-clickable[data-row-href]').forEach(function (row) {
         row.addEventListener('click', function (e) {
-            if (e.target.closest('a, button, input, select, textarea, label, [data-bs-toggle]')) return;
+            if (e.target.closest('a, button, input, select, textarea, label, [data-bs-toggle], [data-jp-emp-card], [data-jp-avatar-zoom]')) return;
             var href = row.getAttribute('data-row-href');
             if (href) {
                 showTeamLoading('Đang mở báo cáo...');
@@ -338,7 +338,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         row.addEventListener('keydown', function (e) {
             if (e.key !== 'Enter' && e.key !== ' ') return;
-            if (e.target.closest('a, button, input, select, textarea, label, [data-bs-toggle]')) return;
+            if (e.target.closest('a, button, input, select, textarea, label, [data-bs-toggle], [data-jp-emp-card], [data-jp-avatar-zoom]')) return;
             e.preventDefault();
             var href = row.getAttribute('data-row-href');
             if (href) {
