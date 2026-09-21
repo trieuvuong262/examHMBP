@@ -18,6 +18,8 @@ from . import views_supplier
 class StockRedirectView(RedirectView):
     """Giữ namespace kho_npl / kho_vat_tu khi redirect bookmark cũ."""
 
+    query_string = True
+
     def get_redirect_url(self, *args, **kwargs):
         name = self.pattern_name
         if name and name.startswith('kho_npl:'):
@@ -25,7 +27,12 @@ class StockRedirectView(RedirectView):
             if self.request.resolver_match and self.request.resolver_match.namespace:
                 ns = self.request.resolver_match.namespace
             name = f'{ns}:{name.split(":", 1)[1]}'
-        return reverse(name, args=args, kwargs=kwargs)
+        url = reverse(name, args=args, kwargs=kwargs)
+        if url and self.query_string:
+            qs = self.request.META.get('QUERY_STRING', '')
+            if qs:
+                url = f'{url}&{qs}' if '?' in url else f'{url}?{qs}'
+        return url
 
 
 app_name = 'kho_npl'
@@ -40,20 +47,25 @@ urlpatterns = [
     path('danh-muc/xuat-excel/', views_material.material_export, name='material_export'),
     path('danh-muc/mau-excel/', views_material.material_import_template, name='material_import_template'),
     path('danh-muc/nhap-excel/', views_material.material_import, name='material_import'),
-    path('ton-kho-npl/', views_material.material_stock_list, name='material_stock'),
-    path('ton-kho-npl/<int:pk>/', views_material.material_stock_detail, name='material_stock_detail'),
-    path('ton-kho-npl/xuat-excel/', views_material.material_stock_export, name='material_stock_export'),
+    path('ton-kho-npl/', StockRedirectView.as_view(pattern_name='kho_npl:material_stock', permanent=True)),
+    path('ton-kho-npl/xuat-excel/', StockRedirectView.as_view(pattern_name='kho_npl:material_stock_export', permanent=True)),
+    path('ton-kho-npl/<int:pk>/', StockRedirectView.as_view(pattern_name='kho_npl:material_stock_detail', permanent=True)),
+    path('ton-kho/', views_material.material_stock_list, name='material_stock'),
+    path('ton-kho/xuat-excel/', views_material.material_stock_export, name='material_stock_export'),
+    path('ton-kho/<int:pk>/', views_material.material_stock_detail, name='material_stock_detail'),
     path('danh-muc/them/', views_material.material_create, name='material_create'),
     path('danh-muc/<int:pk>/', views_material.material_detail, name='material_detail'),
     path('danh-muc/<int:pk>/sua/', views_material.material_edit, name='material_edit'),
     path('danh-muc/<int:pk>/ngung/', views_material.material_deactivate, name='material_deactivate'),
     path('danh-muc/<int:pk>/xoa/', views_material.material_delete, name='material_delete'),
-    path('api/tim-npl/', views_material.material_search, name='material_search'),
+    path('api/tim-npl/', StockRedirectView.as_view(pattern_name='kho_npl:material_search', permanent=True)),
+    path('api/tim-hang/', views_material.material_search, name='material_search'),
     path('api/tim-ma-sp/', views_issue.product_code_search, name='product_code_search'),
     path('api/tim-nhan-vien/', views_issue.recipient_search, name='recipient_search'),
     path('api/tim-ncc/', views_supplier.supplier_search, name='supplier_search'),
     path('api/them-ncc/', views_supplier.supplier_quick_create, name='supplier_quick_create'),
-    path('api/ton-npl/', views_material.balance_lookup, name='balance_lookup'),
+    path('api/ton-npl/', StockRedirectView.as_view(pattern_name='kho_npl:balance_lookup', permanent=True)),
+    path('api/ton-kho/', views_material.balance_lookup, name='balance_lookup'),
     path('api/lo-hang/', views_material.batch_lookup, name='batch_lookup'),
     path('chung-tu-file/<int:pk>/xoa/', views_doc_attachment.doc_attachment_delete, name='doc_attachment_delete'),
     path('phieu-nhap/', views_receipt.receipt_list, name='receipt_list'),

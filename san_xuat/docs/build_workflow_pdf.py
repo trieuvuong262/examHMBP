@@ -632,7 +632,7 @@ def build():
         ],
         [
             P("Kho nguyên phụ liệu", c),
-            P("/kho-npl/danh-muc/ · /kho-npl/ton-kho-npl/ · /san-xuat/kho-npl/", c),
+            P("/kho-npl/danh-muc/ · /kho-npl/ton-kho/ · /san-xuat/kho-npl/", c),
             P(
                 "Nhập / xuất / tồn NPL — module riêng. <b>Không còn màn Tổng quan</b> "
                 "(/kho-npl/tong-quan/ redirect về Tồn kho). Vào sidebar: Danh mục hoặc Tồn kho.",

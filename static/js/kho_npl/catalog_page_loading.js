@@ -9,6 +9,7 @@
 
     const ROUTE_MESSAGES = {
         '/kho-npl/danh-muc/': 'Đang tải danh mục…',
+        '/kho-npl/ton-kho/': 'Đang tải tồn kho…',
         '/kho-npl/ton-kho-npl/': 'Đang tải tồn kho…',
         '/kho-npl/the-kho/': 'Đang tải thẻ kho…',
         '/kho-npl/phieu-nhap/': 'Đang tải phiếu nhập…',
@@ -18,6 +19,7 @@
         '/kho-npl/dieu-chinh/': 'Đang tải phiếu kiểm kê…',
         '/kho-npl/kiem-ke/': 'Đang tải phiếu kiểm kê…',
         '/kho-vat-tu/danh-muc/': 'Đang tải danh mục…',
+        '/kho-vat-tu/ton-kho/': 'Đang tải tồn kho…',
         '/kho-vat-tu/ton-kho-npl/': 'Đang tải tồn kho…',
         '/kho-vat-tu/the-kho/': 'Đang tải thẻ kho…',
         '/kho-vat-tu/phieu-nhap/': 'Đang tải phiếu nhập…',
@@ -44,6 +46,8 @@
     const DOC_DETAIL_ROUTE_PATTERNS = [
         [/^\/kho-npl\/danh-muc\/\d+\/$/, 'Đang tải chi tiết NPL…'],
         [/^\/kho-vat-tu\/danh-muc\/\d+\/$/, 'Đang tải chi tiết vật tư…'],
+        [/^\/kho-npl\/ton-kho\/\d+\/$/, 'Đang tải chi tiết tồn kho…'],
+        [/^\/kho-vat-tu\/ton-kho\/\d+\/$/, 'Đang tải chi tiết tồn kho…'],
         [/^\/san-xuat\/ho-so\/them\/$/, 'Đang mở form thêm hồ sơ…'],
         [/^\/san-xuat\/ho-so\/\d+\/$/, 'Đang tải hồ sơ…'],
         [/^\/san-xuat\/don-hang\/them\/$/, 'Đang mở form lên đơn…'],
