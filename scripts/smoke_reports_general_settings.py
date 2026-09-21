@@ -31,7 +31,7 @@ from reports.report_lock import (
     production_employee_edit_deadline,
     production_manager_edit_deadline,
 )
-from reports.working_hours import add_working_hours
+from reports.working_hours import add_working_hours, subtract_working_hours
 from reports.report_profile import REPORT_PROFILE_PRODUCTION
 from reports.report_settings import (
     allow_edit_wrong_stage_time,
@@ -224,21 +224,23 @@ try:
             hod_reviewed=False,
             hod_rejected=False,
         )
-        approve_dl = production_approve_deadline(report)
-        reject_dl = production_auto_reject_deadline(report)
-        if not approve_dl or abs((approve_dl - now - timedelta(hours=12)).total_seconds()) > 2:
-            fail('approve deadline not ~12h', str(approve_dl))
-        else:
-            ok('approve deadline = submitted + 12h')
-        if not reject_dl or abs((reject_dl - now - timedelta(hours=36)).total_seconds()) > 2:
-            fail('reject deadline not ~36h', str(reject_dl))
-        else:
-            ok('reject deadline = submitted + 36h')
-
         tz = timezone.get_current_timezone()
         thu_10 = timezone.make_aware(datetime(2026, 9, 17, 10, 0, 0), tz)
         report.submitted_at = thu_10
         report.submit_clicked_at = thu_10
+        approve_dl = production_approve_deadline(report)
+        reject_dl = production_auto_reject_deadline(report)
+        want_approve = timezone.make_aware(datetime(2026, 9, 17, 22, 0, 0), tz)
+        want_reject = timezone.make_aware(datetime(2026, 9, 18, 22, 0, 0), tz)
+        if not approve_dl or abs((approve_dl - want_approve).total_seconds()) > 2:
+            fail('approve deadline not Thu 10:00 + 12h LV', str(approve_dl))
+        else:
+            ok('approve deadline = working hours (Thu 10:00 + 12h = Thu 22:00)')
+        if not reject_dl or abs((reject_dl - want_reject).total_seconds()) > 2:
+            fail('reject deadline not Thu 10:00 + 36h LV', str(reject_dl))
+        else:
+            ok('reject deadline = working hours (Thu 10:00 + 36h = Fri 22:00)')
+
         edit_dl = production_employee_edit_deadline(report)
         want_edit = timezone.make_aware(datetime(2026, 9, 18, 4, 0, 0), tz)  # Thu 10:00 + 18h LV
         if not edit_dl or abs((edit_dl - want_edit).total_seconds()) > 2:
@@ -263,6 +265,18 @@ try:
         _expect_wh(sat_10, 24, 2026, 9, 21, 22, 0, 'Sat 10:00 + 24h LV = Mon 22:00')
         _expect_wh(sat_14, 24, 2026, 9, 22, 0, 0, 'Sat 14:00 + 24h LV = Tue 00:00')
         _expect_wh(sun_10, 24, 2026, 9, 22, 0, 0, 'Sun 10:00 + 24h LV = Tue 00:00')
+
+        mon_936 = timezone.make_aware(datetime(2026, 9, 21, 9, 36, 0), tz)
+        got_cut = subtract_working_hours(mon_936, 24)
+        want_cut = timezone.make_aware(datetime(2026, 9, 18, 21, 36, 0), tz)
+        if abs((got_cut - want_cut).total_seconds()) > 1:
+            fail('Mon 09:36 - 24h LV != Fri 21:36', str(got_cut))
+        else:
+            ok('Mon 09:36 - 24h LV = Fri 21:36')
+        if sat_10 <= want_cut:
+            fail('Sat 10:00 submit should still be within 24h LV on Mon 09:36')
+        else:
+            ok('Sat 10:00 still within 24h LV at Mon 09:36')
 
         report.hod_reviewed = True
         report.hod_reviewed_at = now

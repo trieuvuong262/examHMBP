@@ -14,12 +14,11 @@ from reports.report_submit_time import submit_anchor_at
 from reports.report_settings import (
     report_approve_deadline_hours,
     report_auto_reject_deadline_hours,
-    report_auto_reject_window,
     report_employee_edit_deadline_hours,
     report_manager_edit_window,
     report_unapprove_deadline_days,
 )
-from reports.working_hours import add_working_hours
+from reports.working_hours import add_working_hours, subtract_working_hours
 
 # Fallback khi chưa migrate / DB lỗi — giữ hành vi cũ.
 PRODUCTION_EDIT_WINDOW = timedelta(hours=24)
@@ -55,11 +54,11 @@ def is_production_report(report) -> bool:
 
 
 def production_approve_deadline(report):
-    """Hạn duyệt (SLA) — X giờ kể từ khi nhân viên gửi báo cáo."""
+    """Hạn duyệt (SLA) — X giờ làm việc kể từ khi nhân viên gửi báo cáo."""
     anchor = submit_anchor_at(report)
     if report.status != DailyWorkReport.STATUS_SUBMITTED or not anchor:
         return None
-    return anchor + timedelta(hours=report_approve_deadline_hours())
+    return add_working_hours(anchor, report_approve_deadline_hours())
 
 
 def is_production_approve_overdue(report) -> bool:
@@ -73,11 +72,11 @@ def is_production_approve_overdue(report) -> bool:
 
 
 def production_auto_reject_deadline(report):
-    """Hạn «Không duyệt» — Y giờ kể từ khi nhân viên gửi báo cáo."""
+    """Hạn «Không duyệt» — Y giờ làm việc kể từ khi nhân viên gửi báo cáo."""
     anchor = submit_anchor_at(report)
     if report.status != DailyWorkReport.STATUS_SUBMITTED or not anchor:
         return None
-    return anchor + report_auto_reject_window()
+    return add_working_hours(anchor, report_auto_reject_deadline_hours())
 
 
 def is_production_auto_reject_expired(report) -> bool:
@@ -160,7 +159,7 @@ def auto_reject_expired_production_reports(
 
     now = timezone.now()
     hours = report_auto_reject_deadline_hours()
-    cutoff = now - timedelta(hours=hours)
+    cutoff = subtract_working_hours(now, hours)
     qs = (
         DailyWorkReport.objects.filter(
             report_profile=REPORT_PROFILE_PRODUCTION,
@@ -186,6 +185,45 @@ def auto_reject_expired_production_reports(
         hod_rejected_at=now,
         updated_at=now,
     )
+
+
+def reopen_auto_rejected_within_working_hours(
+    *,
+    date_from=None,
+    date_to=None,
+) -> list[int]:
+    """Mở lại báo cáo tự «Không duyệt» khi chưa hết hạn giờ làm việc.
+
+    Trả danh sách pk đã mở. Dùng sau khi chuyển hạn sang giờ làm việc (trừ chiều T7 + CN).
+    """
+    from reports.report_profile import REPORT_PROFILE_PRODUCTION
+
+    now = timezone.now()
+    hours = report_auto_reject_deadline_hours()
+    cutoff = subtract_working_hours(now, hours)
+    qs = (
+        DailyWorkReport.objects.filter(
+            report_profile=REPORT_PROFILE_PRODUCTION,
+            status=DailyWorkReport.STATUS_SUBMITTED,
+            hod_reviewed=False,
+            hod_rejected=True,
+        )
+        .annotate(submit_anchor=Coalesce('submit_clicked_at', 'submitted_at'))
+        .filter(submit_anchor__gt=cutoff)
+    )
+    if date_from is not None:
+        qs = qs.filter(report_date__gte=date_from)
+    if date_to is not None:
+        qs = qs.filter(report_date__lte=date_to)
+    ids = list(qs.values_list('pk', flat=True))
+    if not ids:
+        return []
+    DailyWorkReport.objects.filter(pk__in=ids).update(
+        hod_rejected=False,
+        hod_rejected_at=None,
+        updated_at=now,
+    )
+    return ids
 
 
 def ensure_production_report_approval_state(report) -> bool:
@@ -305,8 +343,9 @@ def production_edit_denied_message(report, *, viewer=None) -> str:
             local_deadline = timezone.localtime(deadline)
             return (
                 'Báo cáo đã chuyển sang trạng thái không duyệt — '
-                f'quá {reject_hours} giờ kể từ khi nộp '
-                f'({local_deadline.strftime("%H:%M %d/%m/%Y")}).'
+                f'quá {reject_hours} giờ làm việc kể từ khi nộp '
+                f'(không tính chiều T7 và Chủ nhật, hạn '
+                f'{local_deadline.strftime("%H:%M %d/%m/%Y")}).'
             )
         return 'Báo cáo đã chuyển sang trạng thái không duyệt — không thể chỉnh sửa.'
     if report.hod_reviewed:

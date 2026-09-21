@@ -1,4 +1,4 @@
-"""Giờ làm việc dùng cho hạn sửa báo cáo SX.
+"""Giờ làm việc dùng cho hạn sửa / hạn duyệt / hạn không duyệt báo cáo SX.
 
 Đồng hồ chạy liên tục T2 → T7 12:00; tạm dừng chiều thứ Bảy (từ 12:00)
 và cả ngày Chủ nhật. Không trừ ngày lễ.
@@ -44,10 +44,25 @@ def resume_working_moment(dt: datetime) -> datetime:
     return local
 
 
+def rewind_to_working_moment(dt: datetime) -> datetime:
+    """Nếu đang nghỉ T7 chiều / CN thì lùi về 12:00 thứ Bảy cùng tuần."""
+    local = to_local(dt)
+    weekday = local.weekday()
+    if weekday == SUNDAY or (weekday == SATURDAY and local.time() >= SATURDAY_OFF_FROM):
+        sat = local - timedelta(days=weekday - SATURDAY)
+        return sat.replace(hour=12, minute=0, second=0, microsecond=0)
+    return local
+
+
 def _saturday_noon(local_dt: datetime) -> datetime:
     """12:00 thứ Bảy của tuần chứa ``local_dt`` (T2–T7)."""
     sat = local_dt + timedelta(days=SATURDAY - local_dt.weekday())
     return sat.replace(hour=12, minute=0, second=0, microsecond=0)
+
+
+def _monday_start(local_dt: datetime) -> datetime:
+    monday = local_dt - timedelta(days=local_dt.weekday())
+    return monday.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
 def add_working_hours(start: datetime, hours: int | float) -> datetime:
@@ -67,3 +82,22 @@ def add_working_hours(start: datetime, hours: int | float) -> datetime:
         remaining -= available
         current = resume_working_moment(segment_end)
     return current + remaining
+
+
+def subtract_working_hours(end: datetime, hours: int | float) -> datetime:
+    """Lùi ``hours`` giờ làm việc trước ``end`` — mốc cutoff cho bulk quá hạn."""
+    remaining = timedelta(hours=float(hours))
+    if remaining <= timedelta(0):
+        return rewind_to_working_moment(end)
+
+    current = rewind_to_working_moment(end)
+    for _ in range(40):
+        if remaining <= timedelta(0):
+            return current
+        segment_start = _monday_start(current)
+        available = current - segment_start
+        if remaining <= available:
+            return current - remaining
+        remaining -= available
+        current = rewind_to_working_moment(segment_start - timedelta(microseconds=1))
+    return current - remaining
