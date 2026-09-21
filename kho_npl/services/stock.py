@@ -91,7 +91,11 @@ def material_stock_rows(queryset=None, location_ids: list[int] | None = None):
     ).prefetch_related('specification__levels__unit', 'balances__location')
     loc_set = set(location_ids or []) & storage_ids if location_ids else storage_ids
     rows = []
+    seen_pks: set[int] = set()
     for material in qs:
+        if material.pk in seen_pks:
+            continue
+        seen_pks.add(material.pk)
         balances = [b for b in material.balances.all() if b.location_id in storage_ids]
         if loc_set != storage_ids:
             balances = [b for b in balances if b.location_id in loc_set]
@@ -216,8 +220,12 @@ def summarize_stock_value(rows: list[dict]) -> dict:
         },
     )
     all_skus = []
+    seen_pks: set[int] = set()
     for row in rows:
         material = row['material']
+        if material.pk in seen_pks:
+            continue
+        seen_pks.add(material.pk)
         value = row.get('stock_value') or Decimal('0')
         qty = row.get('total_qty') or Decimal('0')
         total_value += value
@@ -246,7 +254,7 @@ def summarize_stock_value(rows: list[dict]) -> dict:
     return {
         'total_value': total_value.quantize(Decimal('0.01')),
         'total_qty': total_qty,
-        'sku_count': len(rows),
+        'sku_count': len(all_skus),
         'skus': sorted(all_skus, key=lambda s: ((s['name'] or '').lower(), (s['code'] or '').lower())),
         'category_count': len(categories),
         'categories': categories,

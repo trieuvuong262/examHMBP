@@ -130,12 +130,19 @@ def materials_catalog_q(domain: str | None = None) -> Q:
 
 
 def materials_visible_q(domain: str | None = None) -> Q:
-    """Danh mục của kho + mã đang có tồn tại vị trí kho này (hàng chuyển sang)."""
+    """Danh mục của kho + mã đang có tồn tại vị trí kho này (hàng chuyển sang).
+
+    Không JOIN ``balances`` trên queryset Material — OR + JOIN nhân bản dòng
+    theo số vị trí (thẻ nhóm tồn kho bị double SKU/giá trị).
+    """
     domain = domain or domain_from_current_request()
-    return Q(stock_domain=domain) | Q(
-        balances__location__stock_domain=domain,
-        balances__quantity__gt=0,
-    )
+    from kho_npl.models import StockBalance
+
+    transferred_ids = StockBalance.objects.filter(
+        location__stock_domain=domain,
+        quantity__gt=0,
+    ).values('material_id')
+    return Q(stock_domain=domain) | Q(pk__in=transferred_ids)
 
 
 def docs_for_domain(qs, domain: str | None = None):

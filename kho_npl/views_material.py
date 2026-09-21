@@ -450,6 +450,7 @@ def _stock_filtered_rows(request):
         Material.objects.filter(materials_visible_q())
         .select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location')
         .prefetch_related('specification__levels__unit', 'balances__location')
+        .distinct()
     )
     qs = _apply_material_usage_status(qs, usage_status)
     if selected_department:
