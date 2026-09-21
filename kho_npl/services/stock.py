@@ -116,10 +116,15 @@ def material_stock_rows(queryset=None, location_ids: list[int] | None = None):
                 primary_location = location_balances[0]['location'].display_label()
         can_expand = len(location_balances) >= 1
         status = stock_status_for_qty(total, material.min_stock)
-        _batch_qty, stock_value, avg_unit_price = material_batch_totals(material)
-        # Có tồn nhưng chưa có lô kèm giá — tạm tính giá trị tồn theo giá cơ bản
-        if stock_value <= 0 and total > 0 and material.base_price:
+        _batch_qty, batch_value, avg_unit_price = material_batch_totals(material)
+        if total <= 0:
+            stock_value = Decimal('0')
+        elif batch_value > 0 and _batch_qty > 0:
+            stock_value = (batch_value * total / _batch_qty).quantize(Decimal('0.01'))
+        elif material.base_price:
             stock_value = (total * material.base_price).quantize(Decimal('0.01'))
+        else:
+            stock_value = Decimal('0')
         rows.append({
             'material': material,
             'total_qty': total,

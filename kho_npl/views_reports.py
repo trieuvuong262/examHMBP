@@ -4,6 +4,7 @@ from django.utils import timezone
 
 from assessment.decorators import module_perm_required
 from hrm.module_permissions import MODULE_KHO_NPL
+from kho_npl.http import reverse
 from kho_npl.reports_registry import REPORT_XNT
 from kho_npl.services.excel_export import dataframe_to_xlsx_response
 from kho_npl.services.reports import (
@@ -61,10 +62,14 @@ def report_hub(request):
         search=filters['search'],
         limit=DISPLAY_LIMIT,
     )
+    export_url = reverse('kho_npl:report_export')
+    if request.GET:
+        export_url = f'{export_url}?{request.GET.urlencode()}'
     return render(request, 'kho_npl/report_xuat_nhap_ton.html', {
         **nav_context('reports', user=request.user),
         **perm_context(request.user, 'reports'),
         'report': REPORT_XNT,
+        'export_url': export_url,
         'filters': filters,
         'locations': source_locations_qs().order_by('name', 'code'),
         'scope_label': location_scope_label(filters['location_id']),

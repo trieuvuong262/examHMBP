@@ -65,12 +65,12 @@ def _parse_date(value: str | None, default: date | None = None) -> date | None:
 def _ledger_qs(location_id: int | None = None):
     from kho_npl.stock_domain import domain_from_current_request
 
-    qs = StockLedger.objects.all()
-    if location_id:
-        return qs.filter(location_id=location_id)
-    return exclude_scrap_locations(qs).filter(
+    qs = StockLedger.objects.filter(
         location__stock_domain=domain_from_current_request(),
     )
+    if location_id:
+        return qs.filter(location_id=location_id)
+    return exclude_scrap_locations(qs)
 
 
 def _zero_bucket() -> dict:
@@ -140,13 +140,17 @@ def report_xuat_nhap_ton(
     limit: int | None = DISPLAY_LIMIT,
 ) -> dict:
     """Tồn đầu kỳ + nhập − xuất = tồn cuối kỳ, theo ngày chứng từ và giá tồn thật."""
+    from kho_npl.stock_domain import materials_catalog_q
+
     qs = _ledger_qs(location_id)
     doc_dates = _doc_dates_for(qs)
     tz = timezone.get_current_timezone()
 
-    materials = Material.objects.select_related('unit', 'category')
     search = (search or '').strip()
     moved_ids = set(qs.values_list('material_id', flat=True).distinct())
+    materials = Material.objects.select_related('unit', 'category').filter(
+        materials_catalog_q() | Q(pk__in=moved_ids),
+    )
     if search:
         materials = apply_material_search(materials, search)
     else:
@@ -190,7 +194,10 @@ def report_xuat_nhap_ton(
     if use_live_value and materials:
         live_by_id = {
             row['material'].pk: row
-            for row in material_stock_rows(Material.objects.filter(pk__in=[m.pk for m in materials]))
+            for row in material_stock_rows(
+                Material.objects.filter(pk__in=[m.pk for m in materials]),
+                location_ids=[location_id] if location_id else None,
+            )
         }
 
     all_rows = []
@@ -212,7 +219,9 @@ def report_xuat_nhap_ton(
         val_out = bucket['val_out']
         live = live_by_id.get(material.pk)
         if live is not None:
-            val_close = live.get('stock_value') or Decimal('0')
+            live_qty = live.get('total_qty') or Decimal('0')
+            live_val = live.get('stock_value') or Decimal('0')
+            val_close = live_val if live_qty > 0 else Decimal('0')
             val_open = val_close - val_in + val_out
         else:
             val_open = bucket['val_open']

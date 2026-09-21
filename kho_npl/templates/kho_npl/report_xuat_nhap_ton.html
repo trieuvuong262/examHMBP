@@ -106,7 +106,7 @@
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <h2 class="fw-bold text-hm mb-0 jp-page-title">Báo cáo</h2>
         {% if can_export %}
-        <a href="{% url report.export_name %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"
+        <a href="{{ export_url }}"
            class="btn btn-success btn-sm fw-bold">
             <i class="bi bi-file-earmark-excel me-1"></i>Xuất tất cả
         </a>
