@@ -1,0 +1,276 @@
+{# Popup khi bộ lọc nhập text không ra kết quả — dùng chung mọi màn /san-xuat/ #}
+<style>
+.jp-sx-filter-empty-modal .modal-content {
+  border-radius: 1rem;
+}
+.jp-sx-filter-empty-icon {
+  width: 3.1rem;
+  height: 3.1rem;
+  margin: 0 auto 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #fef2f2;
+  color: #dc2626;
+  font-size: 1.45rem;
+}
+.jp-sx-filter-empty-modal .modal-title {
+  font-size: 1.05rem;
+}
+.jp-sx-filter-empty-term {
+  font-weight: 700;
+  color: #0f172a;
+  word-break: break-word;
+}
+[data-theme="dark"] .jp-sx-filter-empty-icon {
+  background: rgba(220, 38, 38, 0.16);
+}
+[data-theme="dark"] .jp-sx-filter-empty-term {
+  color: inherit;
+}
+</style>
+<div class="modal fade jp-overlay-modal jp-sx-filter-empty-modal" id="jpSxFilterEmptyModal" tabindex="-1"
+     aria-labelledby="jpSxFilterEmptyTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold" id="jpSxFilterEmptyTitle">Không tìm thấy kết quả</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body text-center pt-2 pb-2">
+        <div class="jp-sx-filter-empty-icon" aria-hidden="true"><i class="bi bi-search"></i></div>
+        <p class="mb-0" id="jpSxFilterEmptyMsg">Không có dữ liệu khớp với từ khóa đã nhập.</p>
+      </div>
+      <div class="modal-footer border-0 pt-0 justify-content-center pb-4">
+        <button type="button" class="btn btn-hm fw-bold px-4" data-bs-dismiss="modal">Đóng</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  if (!document.body || !document.body.classList.contains('jp-sx-module')) return;
+
+  var EMPTY_BLOCKS = [
+    '.jp-pb-empty',
+    '.jp-qc-empty',
+    '.jp-tl-empty',
+    '.jp-mo-empty',
+    '.jp-so-empty',
+    '.jp-tw-empty-board',
+    '.jp-ho-empty'
+  ].join(',');
+
+  var SKIP_HOST = 'script, style, nav, .alert, ul.nav, .nav-tabs, .jp-qc-tabs, .jp-ho-queues, .jp-ho-kpis, .jp-ho-hint, .jp-stage-legend, .jp-tw-meta, p.jp-tw-hint, .jp-ho-toolbar';
+
+  function isVisible(el) {
+    if (!el) return false;
+    if (el.closest('.modal') && !el.closest('.modal.show')) return false;
+    var pane = el.closest('.tab-pane');
+    if (pane && !pane.classList.contains('active') && !pane.classList.contains('show')) return false;
+    var st = window.getComputedStyle(el);
+    if (st.display === 'none' || st.visibility === 'hidden') return false;
+    return el.getClientRects().length > 0;
+  }
+
+  function tableHasData(table) {
+    if (!table || !table.tBodies.length) return false;
+    var rows = table.tBodies[0].rows;
+    for (var i = 0; i < rows.length; i++) {
+      var cell = rows[i].cells[0];
+      if (!cell) continue;
+      if (cell.hasAttribute('colspan') && cell.colSpan > 1) continue;
+      return true;
+    }
+    return false;
+  }
+
+  function hostLooksEmpty(host) {
+    if (!host || !isVisible(host)) return false;
+    var emptyBlock = host.matches(EMPTY_BLOCKS) ? host : host.querySelector(EMPTY_BLOCKS);
+    if (emptyBlock && isVisible(emptyBlock)) return true;
+
+    var tables = host.querySelectorAll('table');
+    var visibleTables = [];
+    for (var i = 0; i < tables.length; i++) {
+      if (tables[i].closest('.modal')) continue;
+      if (isVisible(tables[i])) visibleTables.push(tables[i]);
+    }
+    if (visibleTables.length) {
+      for (var t = 0; t < visibleTables.length; t++) {
+        if (tableHasData(visibleTables[t])) return false;
+      }
+      return true;
+    }
+
+    var jobs = host.querySelector('.jp-tw-jobs, .jp-ho-jobs, .jp-pb-queue, .jp-pb-list');
+    if (jobs && isVisible(jobs) && jobs.querySelector('article, .jp-tw-job, .jp-ho-job')) return false;
+
+    var listItems = host.querySelectorAll('.list-group-item');
+    if (listItems.length) {
+      for (var j = 0; j < listItems.length; j++) {
+        var li = listItems[j];
+        if (li.classList.contains('text-muted')) continue;
+        var txt = (li.textContent || '').replace(/\s+/g, ' ').trim();
+        if (txt && txt !== '—' && txt.indexOf('Chưa có') !== 0) return false;
+      }
+      return true;
+    }
+
+    var text = (host.textContent || '').replace(/\s+/g, ' ').trim();
+    if (/không (có|tìm)|chưa có dữ liệu|chưa có hồ sơ|không có mã khớp/i.test(text)) {
+      return true;
+    }
+    return false;
+  }
+
+  function isSkippable(el) {
+    if (!el || el.nodeType !== 1) return true;
+    if (el.matches(SKIP_HOST)) return true;
+    if (el.matches('.row') && el.querySelector('.fs-4, .fs-5') && !el.querySelector('table, .list-group, ' + EMPTY_BLOCKS)) {
+      return true;
+    }
+    return false;
+  }
+
+  function resultHostAfter(form) {
+    var node = form.nextElementSibling;
+    while (node) {
+      if (!isSkippable(node)) return node;
+      node = node.nextElementSibling;
+    }
+    var parent = form.parentElement;
+    if (!parent) return null;
+    node = parent.nextElementSibling;
+    while (node) {
+      if (!isSkippable(node)) return node;
+      node = node.nextElementSibling;
+    }
+    return null;
+  }
+
+  function collectTextFilters() {
+    var found = [];
+    document.querySelectorAll('form').forEach(function (form) {
+      if (form.method && String(form.method).toLowerCase() === 'post') return;
+      if (form.closest('.modal')) return;
+      if (form.hasAttribute('data-skip-empty-popup')) return;
+      var inputs = form.querySelectorAll('input[type="text"], input[type="search"]');
+      var terms = [];
+      var firstFilled = null;
+      inputs.forEach(function (input) {
+        if (!input.name) return;
+        if (input.disabled || input.readOnly) return;
+        if (input.closest('.ts-control, .ts-wrapper')) return;
+        var type = (input.type || '').toLowerCase();
+        if (type === 'hidden' || type === 'date' || type === 'month' || type === 'number') return;
+        var value = (input.value || '').trim();
+        if (!value) return;
+        terms.push(value);
+        if (!firstFilled) firstFilled = input;
+      });
+      if (!terms.length) return;
+      found.push({ form: form, terms: terms, input: firstFilled });
+    });
+    return found;
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  var lastFocus = null;
+  var modalEl = document.getElementById('jpSxFilterEmptyModal');
+  var msgEl = document.getElementById('jpSxFilterEmptyMsg');
+  var modal = null;
+
+  function ensureModal() {
+    if (modal || !modalEl || !window.bootstrap || !bootstrap.Modal) return modal;
+    modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modalEl.addEventListener('hidden.bs.modal', function () {
+      if (lastFocus && typeof lastFocus.focus === 'function') {
+        try { lastFocus.focus(); } catch (e) {}
+      }
+    });
+    return modal;
+  }
+
+  function showPopup(terms, focusEl) {
+    var inst = ensureModal();
+    if (!inst || !msgEl) return;
+    lastFocus = focusEl || null;
+    var shown = (terms || []).filter(Boolean);
+    if (shown.length) {
+      msgEl.innerHTML = 'Không có dữ liệu khớp với «<span class="jp-sx-filter-empty-term">'
+        + escapeHtml(shown.join(' / '))
+        + '</span>».';
+    } else {
+      msgEl.textContent = 'Không có dữ liệu khớp với từ khóa đã nhập.';
+    }
+    inst.show();
+  }
+
+  function checkServerFilters() {
+    var filters = collectTextFilters();
+    for (var i = 0; i < filters.length; i++) {
+      var item = filters[i];
+      var host = resultHostAfter(item.form);
+      if (!hostLooksEmpty(host)) continue;
+      showPopup(item.terms, item.input);
+      return;
+    }
+  }
+
+  function checkClientProcessFilter() {
+    var el = document.getElementById('jpTwProcessFilter');
+    if (!el) return;
+    var q = (el.value || '').trim();
+    if (!q) return;
+    var groups = document.querySelectorAll('.jp-tw-step-group');
+    if (!groups.length) return;
+    var any = false;
+    groups.forEach(function (g) {
+      if (g.style.display !== 'none' && isVisible(g)) any = true;
+    });
+    if (!any) showPopup([q], el);
+  }
+
+  function whenPageReady(fn) {
+    function run() {
+      if (document.body.classList.contains('jp-npl-catalog-loading-active')) {
+        window.setTimeout(run, 60);
+        return;
+      }
+      fn();
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', run);
+    } else {
+      run();
+    }
+  }
+
+  window.jpSxShowFilterEmptyPopup = showPopup;
+
+  whenPageReady(function () {
+    window.setTimeout(function () {
+      checkServerFilters();
+      checkClientProcessFilter();
+    }, 80);
+
+    var processEl = document.getElementById('jpTwProcessFilter');
+    if (processEl) {
+      var timer = null;
+      processEl.addEventListener('input', function () {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(checkClientProcessFilter, 450);
+      });
+    }
+  });
+})();
+</script>

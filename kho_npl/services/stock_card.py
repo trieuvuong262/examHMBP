@@ -1,4 +1,4 @@
-"""Thẻ kho — sổ biến động từng NPL (khớp StockLedger)."""
+"""Thẻ kho — sổ biến động từng NPL / vật tư (khớp StockLedger theo domain kho)."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from django.utils import timezone
 from kho_npl.models import Material, StockBalance, StockLedger, WarehouseLocation
 from kho_npl.services.scrap_warehouse import exclude_scrap_locations, source_locations_qs
 from kho_npl.services.stock import material_total_qty
+from kho_npl.stock_domain import domain_from_current_request
 
 REF_LABELS = {
     StockLedger.REF_RECEIPT: 'Nhập kho',
@@ -22,9 +23,15 @@ REF_LABELS = {
 }
 
 
+def _domain_location_qs(qs):
+    """Chỉ kệ của kho đang mở (NPL hoặc vật tư) — cùng cách tính với tồn kho / XNT."""
+    return qs.filter(location__stock_domain=domain_from_current_request())
+
+
 def _apply_location_filter(qs, location_id: int | None = None, location_ids: list[int] | None = None):
+    qs = _domain_location_qs(qs)
     if location_ids:
-        return qs.filter(location_id__in=location_ids)
+        return exclude_scrap_locations(qs.filter(location_id__in=location_ids))
     if location_id:
         return qs.filter(location_id=location_id)
     return exclude_scrap_locations(qs)
@@ -59,13 +66,14 @@ def stock_balance_total(
     location_id: int | None = None,
     location_ids: list[int] | None = None,
 ) -> Decimal:
+    qs = _domain_location_qs(StockBalance.objects.filter(material=material))
     if location_ids:
         total = exclude_scrap_locations(
-            StockBalance.objects.filter(material=material, location_id__in=location_ids),
+            qs.filter(location_id__in=location_ids),
         ).aggregate(total=Sum('quantity'))['total']
         return total or Decimal('0')
     if location_id:
-        bal = StockBalance.objects.filter(material=material, location_id=location_id).first()
+        bal = qs.filter(location_id=location_id).first()
         return bal.quantity if bal else Decimal('0')
     return material_total_qty(material)
 
@@ -222,12 +230,12 @@ def diagnose_stock_mismatch(material: Material) -> dict:
 
     ledger_loc_ids = set(
         exclude_scrap_locations(
-            StockLedger.objects.filter(material=material),
+            _domain_location_qs(StockLedger.objects.filter(material=material)),
         ).values_list('location_id', flat=True).distinct(),
     )
     balance_loc_ids = set(
         exclude_scrap_locations(
-            StockBalance.objects.filter(material=material),
+            _domain_location_qs(StockBalance.objects.filter(material=material)),
         ).exclude(quantity=0).values_list('location_id', flat=True),
     )
     loc_ids = ledger_loc_ids | balance_loc_ids
