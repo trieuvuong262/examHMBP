@@ -35,11 +35,13 @@
                             <div class="col-md-4">
                                 <label class="form-label fw-semibold small" for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
                                 {{ form.name }}
+                                {% if form.name.help_text %}<div class="form-text">{{ form.name.help_text }}</div>{% endif %}
                                 {% for e in form.name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
                             </div>
                             <div class="col-md-8">
                                 <label class="form-label fw-semibold small" for="{{ form.nas_principal.id_for_label }}">{{ form.nas_principal.label }}</label>
                                 {{ form.nas_principal }}
+                                {% if form.nas_principal.help_text %}<div class="form-text">{{ form.nas_principal.help_text }}</div>{% endif %}
                                 {% for e in form.nas_principal.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
                             </div>
                             <div class="col-12">

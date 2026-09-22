@@ -4080,14 +4080,16 @@ def dispatch_prod_stats(request):
     # Gộp không trùng — ẩn việc tổ đã chốt (công nhân không chọn đơn đó làm tiếp)
     from san_xuat.hub_models import SxTeamWorkClose
     from san_xuat.services.progress_template import team_slug_for_process_label
+    from san_xuat.services.team_division_map import team_slug_aliases
 
     merged_steps = list(managed) + list(assigned)
-    closed_pairs = set(
-        SxTeamWorkClose.objects.filter(
-            is_demo=False,
-            production_order_id__in=[s.production_order_id for s in merged_steps],
-        ).values_list('production_order_id', 'team_slug')
-    )
+    closed_pairs = set()
+    for mo_id, slug in SxTeamWorkClose.objects.filter(
+        is_demo=False,
+        production_order_id__in=[s.production_order_id for s in merged_steps],
+    ).values_list('production_order_id', 'team_slug'):
+        for key in team_slug_aliases(slug or ''):
+            closed_pairs.add((mo_id, key))
     seen: set[int] = set()
     my_steps = []
     for step in merged_steps:

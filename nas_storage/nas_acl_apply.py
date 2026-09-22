@@ -12,7 +12,12 @@ from django.utils import timezone
 
 from nas_storage.dept_nas_config import is_portal_browse_hidden_share, portal_browse_hidden_shares
 from nas_storage.models import NasFolderPermission
-from nas_storage.permission_defs import PERM_TYPE_ALLOW, has_read_access, has_write_access
+from nas_storage.permission_defs import (
+    PERM_TYPE_ALLOW,
+    has_read_access,
+    has_write_access,
+    synoacl_mask_from_flags,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -427,10 +432,12 @@ def provision_portal_folder_on_nas(folder) -> dict:
 
 
 def _synoacl_ace_for_permission(perm: NasFolderPermission) -> str | None:
-    level = _share_access_level(perm)
-    if not level or level == 'NA':
+    if perm.permission_type != PERM_TYPE_ALLOW:
         return None
-    mask = _synoacl_mask('RO' if level == 'RO' else 'RW')
+    flags = perm.permission_flags()
+    if not has_read_access(flags):
+        return None
+    mask = synoacl_mask_from_flags(flags)
     principal = perm.resolved_nas_principal()
     if perm.user_id:
         return f'user:{principal}:allow:{mask}'
@@ -439,42 +446,223 @@ def _synoacl_ace_for_permission(perm: NasFolderPermission) -> str | None:
     return None
 
 
-def apply_subfolder_permissions(folder, *, client=None) -> dict:
-    """Đồng bộ ACL thư mục con (synoacltool) theo quyền hiệu lực (kế thừa + local)."""
-    from nas_storage.folder_permissions_resolved import effective_folder_permissions
+def _synoacl_ace(kind: str, name: str, flags: dict[str, bool]) -> str | None:
+    if not name or not has_read_access(flags):
+        return None
+    mask = synoacl_mask_from_flags(flags)
+    return f'{kind}:{name}:allow:{mask}'
 
+
+def _merge_perm_flags(left: dict[str, bool] | None, right: dict[str, bool]) -> dict[str, bool]:
+    from nas_storage.permission_defs import ALL_PERM_FIELD_NAMES
+
+    base = {name: False for name in ALL_PERM_FIELD_NAMES}
+    for src in (left or {}, right):
+        for name in ALL_PERM_FIELD_NAMES:
+            base[name] = bool(base[name] or src.get(name))
+    return base
+
+
+_SYNOACL_ACE_LINE = re.compile(
+    r'^\s*\[(\d+)\]\s+(user|group|owner|everyone)(?::([^:]*))?:(allow|deny):([^:]+):(\S+)\s+\(level:(\d+)\)\s*$',
+    re.I,
+)
+
+
+def parse_synoacl_get(output: str) -> list[dict]:
+    rows: list[dict] = []
+    for line in (output or '').splitlines():
+        match = _SYNOACL_ACE_LINE.match(line.strip())
+        if not match:
+            continue
+        rows.append({
+            'index': int(match.group(1)),
+            'kind': match.group(2).lower(),
+            'name': (match.group(3) or '').strip(),
+            'action': match.group(4).lower(),
+            'perm': match.group(5),
+            'inherit': match.group(6),
+            'level': int(match.group(7)),
+        })
+    return rows
+
+
+def _desired_synoacl_aces_for_permissions(perms) -> list[str]:
+    from nas_storage.portal_access import portal_users_for_access_group
+
+    stored: dict[tuple[str, str], tuple[str, dict]] = {}
+
+    def _add(kind: str, name: str, flags: dict[str, bool]) -> None:
+        name = (name or '').strip()
+        if not name:
+            return
+        key = (kind, name.lower())
+        prev_name, prev_flags = stored.get(key, (name, None))
+        stored[key] = (prev_name or name, _merge_perm_flags(prev_flags, flags))
+
+    for perm in perms:
+        if perm.permission_type != PERM_TYPE_ALLOW:
+            continue
+        flags = perm.permission_flags()
+        if not has_read_access(flags):
+            continue
+        if perm.group_id:
+            _add('group', (perm.resolved_nas_principal() or '').lstrip('@'), flags)
+            for user in portal_users_for_access_group(perm.group):
+                _add('user', _user_nas_principal(user), flags)
+        elif perm.user_id:
+            _add('user', perm.resolved_nas_principal(), flags)
+
+    aces: list[str] = []
+    for kind, _key in stored:
+        name, flags = stored[(kind, _key)]
+        ace = _synoacl_ace(kind, name, flags)
+        if ace:
+            aces.append(ace)
+    return aces
+
+
+_SYNOACLTOL = '/usr/syno/bin/synoacltool'
+_ACE_SPEC_RE = re.compile(
+    r'^(user|group|owner|everyone):([^:]*):(allow|deny):([^:]+):(\S+)$',
+    re.I,
+)
+
+
+def _synoacl_key(kind: str, name: str) -> tuple[str, str]:
+    return (kind.lower(), (name or '').strip().lower())
+
+
+def _parse_synoacl_ace(ace: str) -> dict | None:
+    match = _ACE_SPEC_RE.match((ace or '').strip())
+    if not match:
+        return None
+    return {
+        'kind': match.group(1).lower(),
+        'name': (match.group(2) or '').strip(),
+        'action': match.group(3).lower(),
+        'perm': match.group(4),
+        'inherit': match.group(5),
+    }
+
+
+def _row_ace(row: dict) -> str:
+    return f'{row["kind"]}:{row["name"]}:{row["action"]}:{row["perm"]}:{row["inherit"]}'
+
+
+def _indices_to_delete(existing: list[dict], desired_by_key: dict, managed: set[str]) -> list[int]:
+    """Index ACE cần gỡ. Giữ ACE đã khớp desired; xóa trùng / sai mask / tên rỗng."""
+    delete_indices: list[int] = []
+    kept_match: set[tuple[str, str]] = set()
+    for row in existing:
+        if row['level'] != 0 or row['action'] != 'allow':
+            continue
+        name = row['name']
+        key = _synoacl_key(row['kind'], name)
+        if principal_group_key(name) in PRESERVED_SHARE_PRINCIPAL_KEYS:
+            continue
+        if not name:
+            delete_indices.append(row['index'])
+            continue
+        desired = desired_by_key.get(key)
+        if not desired:
+            if principal_group_key(name) in managed:
+                delete_indices.append(row['index'])
+            continue
+        if _row_ace(row) == desired and key not in kept_match:
+            kept_match.add(key)
+            continue
+        delete_indices.append(row['index'])
+    return delete_indices
+
+
+def _sync_synoacl_entries(target: str, desired_aces: list[str], *, client=None) -> dict:
+    """Đồng bộ ACE portal-managed. Mỗi -del đảo thứ tự ACL trên DSM — phải đọc lại sau mỗi lần xóa."""
+    get_cmd = f'{_SYNOACLTOL} -get "{target}"'
+    get_output = _run_ssh_commands([get_cmd], client=client)
+    desired_by_key: dict[tuple[str, str], str] = {}
+    for ace in desired_aces:
+        parsed = _parse_synoacl_ace(ace)
+        if not parsed or not parsed['name']:
+            continue
+        desired_by_key[_synoacl_key(parsed['kind'], parsed['name'])] = ace
+
+    managed = portal_managed_share_keys()
+    deleted = 0
+    while True:
+        delete_indices = _indices_to_delete(parse_synoacl_get(get_output), desired_by_key, managed)
+        if not delete_indices:
+            break
+        idx = max(delete_indices)
+        get_output = _run_ssh_commands(
+            [f'{_SYNOACLTOL} -del "{target}" {idx}'],
+            client=client,
+        )
+        deleted += 1
+        if deleted > 800:
+            logger.error('Too many synoacl deletes on %s', target)
+            break
+
+    existing_keys = {
+        _synoacl_key(row['kind'], row['name'])
+        for row in parse_synoacl_get(get_output)
+        if row['level'] == 0 and row['action'] == 'allow' and row['name']
+    }
+    add_aces = [ace for key, ace in desired_by_key.items() if key not in existing_keys]
+    added = 0
+    if add_aces:
+        script = '\n'.join(f'{_SYNOACLTOL} -add "{target}" {ace}' for ace in add_aces)
+        get_output = _run_ssh_commands([script, get_cmd], client=client, timeout=900)
+        added = len(add_aces)
+
+    changed = deleted + added
+    if not changed:
+        return {'status': 'ok', 'changed': 0, 'output': get_output[-1500:]}
+    return {'status': 'ok', 'changed': changed, 'output': get_output[-3000:]}
+
+
+def _permissions_for_synoacl(folder, *, use_effective: bool):
+    if use_effective:
+        from nas_storage.folder_permissions_resolved import effective_folder_permissions
+
+        return [item.permission for item in effective_folder_permissions(folder)]
+    return list(_active_folder_permissions(folder))
+
+
+def _sync_folder_synoacl(folder, *, client=None, use_effective: bool) -> dict:
     target = folder.resolved_volume_path()
-    effective = effective_folder_permissions(folder)
-    local_perms = list(_active_folder_permissions(folder))
-
     if not directory_exists_on_nas(target, share_name=folder.share_name, client=client):
         return {'status': 'skipped', 'reason': 'path_missing_on_nas', 'path': target}
+    perms = _permissions_for_synoacl(folder, use_effective=use_effective)
+    aces = _desired_synoacl_aces_for_permissions(perms)
+    result = _sync_synoacl_entries(target, aces, client=client)
+    result['path'] = target
+    result['aces'] = len(aces)
+    return result
 
-    commands = [f'/usr/syno/bin/synoacltool -get "{target}"']
-    applied = 0
-    for item in effective:
-        ace = _synoacl_ace_for_permission(item.permission)
-        if not ace:
-            continue
-        commands.append(f'/usr/syno/bin/synoacltool -add "{target}" {ace}')
-        applied += 1
-    commands.append(f'/usr/syno/bin/synoacltool -get "{target}"')
 
-    output = _run_ssh_commands(commands, client=client) if applied else ''
+def apply_subfolder_permissions(folder, *, client=None) -> dict:
+    """Đồng bộ ACL thư mục con (synoacltool) theo quyền hiệu lực (kế thừa + local)."""
+    local_perms = list(_active_folder_permissions(folder))
+    result = _sync_folder_synoacl(folder, client=client, use_effective=True)
+    if result.get('status') == 'skipped':
+        return result
+
     now = timezone.now()
     for perm in local_perms:
         perm.last_applied_at = now
         perm.last_apply_status = 'ok'
         perm.save(update_fields=['last_applied_at', 'last_apply_status', 'updated_at'])
 
-    if not applied:
-        return {'status': 'skipped', 'reason': 'no_effective_permissions'}
+    if not result.get('aces') and not result.get('changed'):
+        return {'status': 'skipped', 'reason': 'no_effective_permissions', 'path': result.get('path')}
 
     return {
         'status': 'ok',
-        'path': target,
-        'applied': applied,
-        'output': output[-2000:] if output else '',
+        'path': result.get('path'),
+        'applied': result.get('aces') or 0,
+        'changed': result.get('changed') or 0,
+        'output': result.get('output') or '',
     }
 
 
@@ -506,6 +694,7 @@ def apply_folder_permissions(folder, *, client=None) -> dict:
     if sync_commands:
         commands.append(f'/usr/syno/sbin/synoshare --list_acl {share}')
     output = _run_ssh_commands(commands, client=client) if sync_commands else list_output
+    acl_result = _sync_folder_synoacl(folder, client=client, use_effective=False)
 
     now = timezone.now()
     for perm in perms:
@@ -513,7 +702,7 @@ def apply_folder_permissions(folder, *, client=None) -> dict:
         perm.last_apply_status = 'ok'
         perm.save(update_fields=['last_applied_at', 'last_apply_status', 'updated_at'])
 
-    if not perms and not sync_commands:
+    if not perms and not sync_commands and not acl_result.get('changed'):
         return {'status': 'skipped', 'reason': 'no_changes'}
 
     return {
@@ -521,7 +710,8 @@ def apply_folder_permissions(folder, *, client=None) -> dict:
         'share': share,
         'removed': sum(1 for cmd in sync_commands if ' - ' in cmd),
         'added': sum(1 for cmd in sync_commands if ' + ' in cmd),
-        'output': output[-2000:],
+        'acl_changed': acl_result.get('changed') or 0,
+        'output': (output + '\n' + (acl_result.get('output') or ''))[-2000:],
     }
 
 
@@ -555,7 +745,6 @@ def revoke_user_folder_acl(grant) -> dict:
 
 
 _SYNOACL_INDEX_LINE = re.compile(r'^\s*\[(\d+)\].*\(level:(\d+)\)\s*$')
-_SYNOACLTOL = '/usr/syno/bin/synoacltool'
 _PRIVATE_FOLDER_ADMIN_ACE = 'group:administrators:allow:rwxpdDaARWc--:fd--'
 
 
@@ -685,6 +874,34 @@ def apply_all_user_folder_acls() -> dict:
     return stats
 
 
+def _new_nas_ssh_client():
+    try:
+        import paramiko
+    except ImportError as exc:
+        raise NasAclApplyError('Thiếu package paramiko trên server.') from exc
+
+    host = _ssh_host()
+    user, password = _ssh_admin_credentials()
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    client.connect(host, username=user, password=password, timeout=20)
+    return client
+
+
+def _ssh_session_dead(exc: BaseException) -> bool:
+    msg = str(exc).lower()
+    return any(
+        token in msg
+        for token in (
+            'ssh session not active',
+            'unable to open channel',
+            'socket is closed',
+            'not connected',
+            'server connection dropped',
+        )
+    )
+
+
 def apply_all_folder_permissions() -> dict:
     from nas_storage.models import NasShareFolder
 
@@ -698,37 +915,59 @@ def apply_all_folder_permissions() -> dict:
     if not nas_acl_ssh_configured():
         raise NasAclApplyError('Chưa cấu hình NAS_SSH_HOST và mật khẩu admin SSH.')
 
+    client = _new_nas_ssh_client()
     try:
-        import paramiko
-    except ImportError as exc:
-        raise NasAclApplyError('Thiếu package paramiko trên server.') from exc
-
-    host = _ssh_host()
-    user, password = _ssh_admin_credentials()
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    try:
-        client.connect(host, username=user, password=password, timeout=20)
-        for folder in folders:
+        for index, folder in enumerate(folders):
+            if index and index % 15 == 0:
+                try:
+                    client.close()
+                except Exception:
+                    pass
+                client = _new_nas_ssh_client()
             label = folder.portal_path_label()
             try:
                 result = apply_folder_permissions(folder, client=client)
-                if result.get('status') == 'ok':
-                    stats['ok'] += 1
-                else:
-                    stats['skipped'] += 1
-            except NasAclApplyError as exc:
-                stats['errors'].append(f'{label}: {exc}')
             except Exception as exc:
-                logger.exception('apply_folder_permissions failed for %s', label)
-                stats['errors'].append(f'{label}: {exc}')
+                if not _ssh_session_dead(exc):
+                    if isinstance(exc, NasAclApplyError):
+                        stats['errors'].append(f'{label}: {exc}')
+                    else:
+                        logger.exception('apply_folder_permissions failed for %s', label)
+                        stats['errors'].append(f'{label}: {exc}')
+                    continue
+                logger.warning('NAS SSH reconnect after %s: %s', label, exc)
+                try:
+                    client.close()
+                except Exception:
+                    pass
+                try:
+                    client = _new_nas_ssh_client()
+                    result = apply_folder_permissions(folder, client=client)
+                except Exception as retry_exc:
+                    stats['errors'].append(f'{label}: {retry_exc}')
+                    try:
+                        client.close()
+                    except Exception:
+                        pass
+                    try:
+                        client = _new_nas_ssh_client()
+                    except Exception as reconnect_exc:
+                        stats['errors'].append(f'{label}: reconnect {reconnect_exc}')
+                    continue
+            if result.get('status') == 'ok':
+                stats['ok'] += 1
+            else:
+                stats['skipped'] += 1
     except NasAclApplyError:
         raise
     except Exception as exc:
         logger.exception('NAS ACL batch SSH failed')
         raise NasAclApplyError(str(exc)) from exc
     finally:
-        client.close()
+        try:
+            client.close()
+        except Exception:
+            pass
     return stats
 
 

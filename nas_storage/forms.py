@@ -1,9 +1,15 @@
+import re
+
 from django import forms
 from django.core.exceptions import ValidationError
 from django.forms import BaseModelFormSet, modelformset_factory
 
 from nas_storage.models import NasUserFolderAccess, NasUserFolderAcl
 from nas_storage.nas_paths import NasPathError, normalize_rel_path, normalize_volume_path
+from nas_storage.permission_defs import PRESET_FORM_CHOICES
+
+# Tên group posixGroup trên Synology Directory Server (cn).
+_RE_LDAP_GROUP_NAME = re.compile(r'^[A-Za-z][A-Za-z0-9._-]{0,62}$')
 
 INPUT = {'class': 'form-control form-control-sm'}
 SELECT = {'class': 'form-select form-select-sm'}
@@ -107,6 +113,10 @@ class NasAccessGroupForm(forms.ModelForm):
             'portal_members': forms.SelectMultiple(attrs={'class': 'd-none jp-user-picker-native'}),
             'portal_excluded_members': forms.SelectMultiple(attrs={'class': 'd-none jp-user-picker-native'}),
         }
+        help_texts = {
+            'name': 'Trùng tên group LDAP trên NAS (vd. IT, HCNS, QA). Lưu nhóm sẽ tạo group trên Directory Server nếu chưa có.',
+            'nas_principal': 'Để trống thì Portal dùng @TênNhóm@ldap.justplay.local.',
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -137,6 +147,17 @@ class NasAccessGroupForm(forms.ModelForm):
             self.fields['portal_excluded_members'].queryset = base_qs.none()
         self.fields['portal_excluded_members'].label = 'Loại trừ khỏi nhóm'
         self.fields['portal_excluded_members'].required = False
+
+    def clean_name(self):
+        name = (self.cleaned_data.get('name') or '').strip()
+        if not name:
+            raise ValidationError('Tên nhóm không được để trống.')
+        if not _RE_LDAP_GROUP_NAME.match(name):
+            raise ValidationError(
+                'Tên nhóm phải là tên group LDAP: bắt đầu bằng chữ cái, '
+                'chỉ gồm chữ/số/dấu chấm/gạch dưới/gạch ngang (vd. IT, HCNS, QA-1).',
+            )
+        return name
 
     def clean(self):
         cleaned = super().clean()
@@ -275,12 +296,7 @@ class NasFolderPermissionForm(forms.ModelForm):
     )
     preset = forms.ChoiceField(
         required=False,
-        choices=(
-            ('read_write', 'Đọc + Ghi'),
-            ('read', 'Chỉ đọc'),
-            ('full', 'Đầy đủ (quản trị)'),
-            ('', 'Tuỳ chỉnh nâng cao'),
-        ),
+        choices=PRESET_FORM_CHOICES,
         label='Mức quyền',
         widget=forms.RadioSelect(attrs={'class': 'form-check-input'}),
     )
@@ -365,7 +381,7 @@ class NasFolderPermissionForm(forms.ModelForm):
             else:
                 self.fields['preset'].initial = preset
         else:
-            self.fields['preset'].initial = 'read_write'
+            self.fields['preset'].initial = 'read_write_no_delete'
 
         for name in (
             'perm_traverse', 'perm_list_read', 'perm_read_attr', 'perm_read_ext_attr', 'perm_read_acl',

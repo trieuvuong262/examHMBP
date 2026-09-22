@@ -62,7 +62,7 @@
                 <div class="fw-semibold mb-2">Mức quyền</div>
                 <div class="row g-2">
                     {% for radio in form.preset %}
-                    <div class="col-md-6 col-xl-3">
+                    <div class="col-md-6 col-xl-4">
                         <div class="form-check border rounded p-3 h-100 bg-light">
                             {{ radio.tag }}
                             <label class="form-check-label fw-semibold" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>

@@ -39,6 +39,9 @@ TEAM_OUTPUT_STEP: dict[str, str | None] = {
     "GIAO_HANG": "gh_tp",
 }
 
+# Chỉ Cắt bắt buộc đủ bộ. In-ép / thêu: min các CĐ đã báo cáo (không trừ CĐ chưa in).
+_SET_OUTPUT_GROUPS = frozenset({"CAT"})
+
 
 @dataclass
 class TeamHandoverCell:
@@ -136,8 +139,32 @@ def _slug_for_group(group_key: str) -> str:
     return ""
 
 
-def _required_step_keys(mo: SxProductionOrder, group_key: str) -> set[str]:
+def _output_steps_for_mo(mo: SxProductionOrder) -> list[ProgressStepDef]:
+    """CĐ tính TEAM_OUTPUT = phiếu tổ (BOM/Ob) + catalog — khớp tên TKSX cũ."""
+    from san_xuat.services.order_progress_sheet import progress_steps_for_mo
+
+    catalog = list(progress_steps())
+    seen = {(s.group, s.key) for s in catalog}
+    out = list(catalog)
+    for step in progress_steps_for_mo(mo):
+        key = (step.group, step.key)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(step)
+    return out
+
+
+def _required_step_keys(
+    mo: SxProductionOrder,
+    group_key: str,
+    mo_steps: list[ProgressStepDef] | None = None,
+) -> set[str]:
     keys: set[str] = set()
+    if mo_steps:
+        keys = {s.key for s in mo_steps if s.group == group_key}
+        if keys:
+            return keys
     rel = getattr(mo, "mo_process_steps", None)
     if rel is None:
         return keys
@@ -165,11 +192,14 @@ def _group_output(
         if designated > 0:
             return designated
     keys = [s.key for s in group_steps]
-    if required_keys:
-        need = [k for k in keys if k in required_keys]
+    if required_keys and group_key in _SET_OUTPUT_GROUPS:
+        need = [k for k in keys if k in required_keys] or list(required_keys)
         if need:
             return min(_q(step_qty.get(k)) for k in need)
-    recorded = [_q(step_qty.get(s.key)) for s in group_steps if _q(step_qty.get(s.key)) > 0]
+    pool = [k for k in (required_keys or []) if k in set(keys)] or keys
+    recorded = [_q(step_qty.get(k)) for k in pool if _q(step_qty.get(k)) > 0]
+    if not recorded:
+        recorded = [_q(step_qty.get(s.key)) for s in group_steps if _q(step_qty.get(s.key)) > 0]
     if not recorded:
         return Decimal("0")
     return min(recorded)
@@ -204,7 +234,7 @@ def _team_done_by_slug(
         if participating_slugs is not None and slug not in participating_slugs:
             continue
         g_steps = steps_by_group.get(grp.key, [])
-        required = _required_step_keys(mo, grp.key)
+        required = _required_step_keys(mo, grp.key, g_steps)
         done = Decimal("0")
         for size in size_labels:
             step_qty = {
@@ -340,14 +370,29 @@ def attach_gc_to_handover_rows(rows: list[MoHandoverRow]) -> list[MoHandoverRow]
 
 
 def _participating_slugs(mo: SxProductionOrder) -> set[str]:
+    from san_xuat.services.order_progress_sheet import progress_steps_for_mo
+    from san_xuat.services.progress_template import team_by_slug
     from san_xuat.services.qc import ob_qc_teams
+    from san_xuat.services.team_division_map import khsx_slug_for_team
 
-    return {t.slug for t in ob_qc_teams(mo=mo)}
+    slugs: set[str] = set()
+    for team in ob_qc_teams(mo=mo):
+        raw = (team.slug or "").strip().lower()
+        if not raw:
+            continue
+        slugs.add(raw)
+        stage = khsx_slug_for_team(team_by_slug(raw), raw)
+        if stage:
+            slugs.add(stage)
+    for step in progress_steps_for_mo(mo):
+        slug = _slug_for_group(step.group)
+        if slug:
+            slugs.add(slug)
+    return slugs
 
 
 def build_mo_handover_rows(mos: list[SxProductionOrder]) -> list[MoHandoverRow]:
     """Hàng tiến độ tổ (TEAM_OUTPUT) cho nhiều LSX — một query TKSX."""
-    all_steps = progress_steps()
     stats_by_mo: dict[int, list[SxProductionStat]] = {mo.pk: [] for mo in mos}
     if mos:
         for st in SxProductionStat.objects.filter(
@@ -359,13 +404,14 @@ def build_mo_handover_rows(mos: list[SxProductionOrder]) -> list[MoHandoverRow]:
     rows: list[MoHandoverRow] = []
     for mo in mos:
         sizes = _size_plans(mo)
-        acc = _accumulate_stats(stats_by_mo.get(mo.pk, []), sizes)
+        mo_steps = _output_steps_for_mo(mo)
+        acc = _accumulate_stats(stats_by_mo.get(mo.pk, []), sizes, mo_steps)
         rows.append(
             _build_row(
                 mo,
                 sizes=sizes,
                 step_size_qty=acc,
-                all_steps=all_steps,
+                all_steps=mo_steps,
                 participating_slugs=_participating_slugs(mo),
             )
         )
@@ -436,7 +482,6 @@ def done_qty_by_order_team_day(
     mos = _mos_for_sales_orders(order_ids)
     if not mos:
         return {}
-    all_steps = progress_steps()
     stats_by_mo: dict[int, list[SxProductionStat]] = {mo.pk: [] for mo in mos}
     for st in SxProductionStat.objects.filter(
         production_order_id__in=[m.pk for m in mos],
@@ -451,6 +496,7 @@ def done_qty_by_order_team_day(
         if not oid:
             continue
         sizes = _size_plans(mo)
+        mo_steps = _output_steps_for_mo(mo)
         participating = _participating_slugs(mo)
         by_date: dict[date, list[SxProductionStat]] = {}
         for st in stats_by_mo.get(mo.pk, []):
@@ -463,14 +509,14 @@ def done_qty_by_order_team_day(
         acc: dict[tuple[str, str], Decimal] = {}
         prev: dict[str, Decimal] = {}
         for day in sorted(by_date):
-            day_acc = _accumulate_stats(by_date[day], sizes)
+            day_acc = _accumulate_stats(by_date[day], sizes, mo_steps)
             for key, qty in day_acc.items():
                 acc[key] = acc.get(key, Decimal("0")) + qty
             current = _team_done_by_slug(
                 mo,
                 sizes=sizes,
                 step_size_qty=acc,
-                all_steps=all_steps,
+                all_steps=mo_steps,
                 participating_slugs=participating,
             )
             for slug, tot in current.items():
@@ -554,12 +600,20 @@ def khsx_context_by_order_team(order_ids: list[int]) -> dict[tuple[int, str], Kh
     return out
 
 
-def _accumulate_stats(stats, sizes) -> dict[tuple[str, str], Decimal]:
+def _accumulate_stats(
+    stats,
+    sizes,
+    mo_steps: list[ProgressStepDef] | None = None,
+) -> dict[tuple[str, str], Decimal]:
     size_set = {r.size_label for r in sizes}
     single_total = len(sizes) == 1 and sizes[0].size_label == "Tổng"
+    label_map = {(s.label or "").strip().casefold(): s for s in (mo_steps or []) if s.label}
     acc: dict[tuple[str, str], Decimal] = {}
     for st in stats:
-        step = step_by_label(st.process_name or "")
+        name = (st.process_name or "").strip()
+        step = label_map.get(name.casefold()) if name else None
+        if not step:
+            step = step_by_label(name)
         if not step:
             continue
         size = (st.size_label or "").strip()

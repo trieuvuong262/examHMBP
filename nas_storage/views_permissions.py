@@ -36,6 +36,7 @@ from nas_storage.nas_acl_apply import (
     revoke_user_folder_acl,
 )
 from nas_storage.portal_access import (
+    portal_users_for_access_group,
     sync_browse_all_share_permissions,
     users_auto_in_nas_group,
     users_excluded_from_nas_group,
@@ -49,6 +50,8 @@ from nas_storage.folder_permissions_resolved import (
     local_folder_permissions,
 )
 from nas_storage.folder_tree import build_folder_tree
+
+from audit.services.nas_ldap_sync import sync_nas_access_group_to_ldap
 
 logger = logging.getLogger(__name__)
 
@@ -357,6 +360,18 @@ def apply_all_user_acl(request):
 @_perm_menu_required
 def group_edit(request, pk=None):
     instance = get_object_or_404(NasAccessGroup, pk=pk) if pk else None
+    created = instance is None
+    previous_extra_ids: set[int] = set()
+    previous_excluded_ids: set[int] = set()
+    previous_member_ids: set[int] = set()
+    previous_browse_all = False
+    previous_name = ''
+    if instance:
+        previous_extra_ids = set(instance.portal_members.values_list('pk', flat=True))
+        previous_excluded_ids = set(instance.portal_excluded_members.values_list('pk', flat=True))
+        previous_member_ids = {u.pk for u in portal_users_for_access_group(instance)}
+        previous_browse_all = bool(instance.portal_browse_all)
+        previous_name = instance.name
     if request.method == 'POST':
         form = NasAccessGroupForm(request.POST, instance=instance)
         if form.is_valid():
@@ -368,7 +383,41 @@ def group_edit(request, pk=None):
                     f'Đã gán quyền đầy đủ {stats["permissions_created"] + stats["permissions_updated"]} '
                     f'cặp nhóm–thư mục cho nhóm xem tất cả.',
                 )
+            ldap_stats = sync_nas_access_group_to_ldap(
+                group,
+                created=created,
+                previous_extra_ids=previous_extra_ids,
+                previous_excluded_ids=previous_excluded_ids,
+                previous_member_ids=previous_member_ids,
+                previous_browse_all=previous_browse_all,
+                previous_name=previous_name,
+            )
             messages.success(request, 'Đã lưu nhóm quyền NAS.')
+            if ldap_stats.get('status') == 'skipped':
+                messages.info(
+                    request,
+                    'LDAP NAS chưa cấu hình — chưa tạo/đồng bộ group trên Directory Server.',
+                )
+            elif ldap_stats.get('status') == 'error':
+                messages.warning(
+                    request,
+                    f'Chưa đồng bộ được LDAP: {ldap_stats.get("error") or "lỗi không xác định"}.',
+                )
+            else:
+                if ldap_stats.get('group_created'):
+                    messages.success(request, f'Đã tạo group LDAP «{group.name}» trên NAS.')
+                ok = ldap_stats.get('ok') or 0
+                if ok:
+                    messages.success(
+                        request,
+                        f'Đã đồng bộ {ok} thành viên nhóm «{group.name}» lên LDAP NAS.',
+                    )
+                errors = ldap_stats.get('errors') or []
+                if errors:
+                    messages.warning(
+                        request,
+                        'Một số thành viên chưa đẩy LDAP: ' + '; '.join(errors[:5]),
+                    )
             return redirect('nas_storage:group_list')
     else:
         form = NasAccessGroupForm(instance=instance)

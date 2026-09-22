@@ -440,23 +440,37 @@ def is_team_job_closed(*, mo_id: int, team_slug: str = '', process_name: str = '
         slug = team_slug_for_process_label(process_name) or ''
     if not slug or not mo_id:
         return False
+    from san_xuat.services.team_division_map import team_slug_aliases
+
     return SxTeamWorkClose.objects.filter(
-        production_order_id=mo_id, team_slug=slug, is_demo=False,
+        production_order_id=mo_id,
+        team_slug__in=team_slug_aliases(slug),
+        is_demo=False,
     ).exists()
 
 
 def team_job_closes(*, slug: str, mo_ids: list[int]) -> dict[int, SxTeamWorkClose]:
     if not mo_ids:
         return {}
+    from san_xuat.services.team_division_map import team_slug_aliases
+
+    keys = team_slug_aliases(slug)
     qs = (
         SxTeamWorkClose.objects.filter(
-            team_slug=(slug or '').strip().lower(),
+            team_slug__in=keys,
             production_order_id__in=mo_ids,
             is_demo=False,
         )
         .select_related('created_by', 'created_by__profile')
+        .order_by('id')
     )
-    return {c.production_order_id: c for c in qs}
+    out: dict[int, SxTeamWorkClose] = {}
+    prefer = (slug or '').strip().lower()
+    for rec in qs:
+        prev = out.get(rec.production_order_id)
+        if prev is None or (rec.team_slug == prefer and prev.team_slug != prefer):
+            out[rec.production_order_id] = rec
+    return out
 
 
 def is_production_accepted(mo: SxProductionOrder) -> bool:
@@ -625,6 +639,14 @@ def close_team_job(*, mo_id: int, team_slug: str, user=None, notes: str = '', re
         raise PlanningError('Lệnh sản xuất chưa phát hành hoặc đã hủy.')
     if require_accept and not is_production_accepted(mo):
         raise PlanningError('Cần nhận sản xuất trước khi hoàn thành.')
+    from san_xuat.services.team_division_map import team_slug_aliases
+
+    if SxTeamWorkClose.objects.filter(
+        production_order=mo,
+        team_slug__in=team_slug_aliases(slug),
+        is_demo=False,
+    ).exists():
+        raise PlanningError('Lệnh này tổ đã hoàn thành.')
     rec, created = SxTeamWorkClose.objects.get_or_create(
         production_order=mo,
         team_slug=slug,
@@ -644,8 +666,12 @@ def reopen_team_job(*, mo_id: int, team_slug: str) -> int:
     slug = (team_slug or '').strip().lower()
     if not team_by_slug(slug):
         raise PlanningError('Tổ không hợp lệ.')
+    from san_xuat.services.team_division_map import team_slug_aliases
+
     deleted, _ = SxTeamWorkClose.objects.filter(
-        production_order_id=mo_id, team_slug=slug, is_demo=False,
+        production_order_id=mo_id,
+        team_slug__in=team_slug_aliases(slug),
+        is_demo=False,
     ).delete()
     if not deleted:
         raise PlanningError('Lệnh này tổ chưa hoàn thành.')

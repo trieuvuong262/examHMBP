@@ -317,7 +317,7 @@ DEPARTMENT_PERMISSION_TEMPLATES = [
     },
     {
         'code': 'it',
-        'department_names': ('IT',),
+        'department_names': ('IT', 'IT / CNTT', 'CNTT'),
         'employee_name': 'IT — Nhân viên',
         'manager_name': 'IT — Trưởng phòng',
         'employee': _build(

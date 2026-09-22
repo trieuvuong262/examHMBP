@@ -242,10 +242,29 @@ def primary_ldap_group_for_department(department_group: str | None) -> str:
     return DEFAULT_LDAP_GROUP
 
 
+def _escape_ldap_filter(value: str) -> str:
+    try:
+        from ldap3.utils.conv import escape_filter_chars
+    except ImportError:
+        return (
+            (value or '')
+            .replace('\\', r'\5c')
+            .replace('*', r'\2a')
+            .replace('(', r'\28')
+            .replace(')', r'\29')
+            .replace('\x00', r'\00')
+        )
+    return escape_filter_chars(value or '')
+
+
+def _cn_filter(name: str) -> str:
+    return f'(cn={_escape_ldap_filter(name)})'
+
+
 def _group_gid(conn, group_name: str) -> int:
     from ldap3 import SUBTREE
 
-    conn.search(_groups_dn(), f'(cn={group_name})', search_scope=SUBTREE, attributes=['gidNumber'])
+    conn.search(_groups_dn(), _cn_filter(group_name), search_scope=SUBTREE, attributes=['gidNumber'])
     if not conn.entries:
         raise NasLdapSyncError(f'Không tìm thấy group LDAP "{group_name}".')
     return int(conn.entries[0].gidNumber.value)
@@ -258,7 +277,7 @@ def _users_group_gid(conn) -> int:
 def _group_exists(conn, name: str) -> bool:
     from ldap3 import SUBTREE
 
-    conn.search(_groups_dn(), f'(cn={name})', search_scope=SUBTREE, attributes=['cn'])
+    conn.search(_groups_dn(), _cn_filter(name), search_scope=SUBTREE, attributes=['cn'])
     return bool(conn.entries)
 
 
@@ -272,6 +291,9 @@ def _user_exists(conn, uid: str) -> bool:
 def _ensure_group(conn, name: str, *, description: str = '') -> str:
     dn = _group_dn(name)
     if _group_exists(conn, name):
+        cached = getattr(conn, '_portal_managed_ldap_groups', None)
+        if isinstance(cached, set):
+            cached.add(name)
         return dn
 
     gid = _next_gid_number(conn)
@@ -281,17 +303,43 @@ def _ensure_group(conn, name: str, *, description: str = '') -> str:
     conn.add(dn, GROUP_OBJECT_CLASSES, attrs)
     if conn.result['result'] != 0:
         raise NasLdapSyncError(f'Không tạo được group LDAP {name}: {conn.result}')
+    cached = getattr(conn, '_portal_managed_ldap_groups', None)
+    if isinstance(cached, set):
+        cached.add(name)
     return dn
 
 
-def _ensure_department_groups_on_conn(conn) -> list[str]:
-    from ldap3 import SUBTREE
+def _portal_managed_ldap_group_names() -> frozenset[str]:
+    """Group LDAP do Portal quản lý: phòng ban cứng + NasAccessGroup đang bật."""
+    names = set(DEPARTMENT_LDAP_GROUPS)
+    try:
+        from nas_storage.models import NasAccessGroup
 
+        names.update(
+            name
+            for name in NasAccessGroup.objects.filter(is_active=True).values_list('name', flat=True)
+            if (name or '').strip()
+        )
+    except Exception:
+        logger.debug('Không đọc được NasAccessGroup khi liệt kê group LDAP', exc_info=True)
+    names.discard(DEFAULT_LDAP_GROUP)
+    return frozenset(names)
+
+
+def _managed_group_names_for_conn(conn) -> set[str]:
+    cached = getattr(conn, '_portal_managed_ldap_groups', None)
+    if not isinstance(cached, set):
+        cached = set(_portal_managed_ldap_group_names())
+        setattr(conn, '_portal_managed_ldap_groups', cached)
+    return cached
+
+
+def _ensure_department_groups_on_conn(conn) -> list[str]:
     created: list[str] = []
     _ensure_group(conn, DEFAULT_LDAP_GROUP)
-    for group_name in sorted(DEPARTMENT_LDAP_GROUPS):
+    for group_name in sorted(_managed_group_names_for_conn(conn) | set(DEPARTMENT_LDAP_GROUPS)):
         existed = _group_exists(conn, group_name)
-        _ensure_group(conn, group_name, description=f'Phòng ban {group_name}')
+        _ensure_group(conn, group_name, description=f'Nhóm NAS {group_name}')
         if not existed:
             created.append(group_name)
     return created
@@ -304,12 +352,14 @@ def ensure_department_groups() -> list[str]:
 
 
 def _set_member_uid(conn, group_name: str, uid: str, *, add: bool) -> None:
-    from ldap3 import MODIFY_ADD, MODIFY_DELETE, SUBTREE
+    from ldap3 import MODIFY_ADD, MODIFY_DELETE, BASE
 
-    if not _group_exists(conn, group_name):
+    if add:
+        _ensure_group(conn, group_name)
+    elif not _group_exists(conn, group_name):
         return
     dn = _group_dn(group_name)
-    conn.search(dn, '(objectClass=posixGroup)', search_scope=SUBTREE, attributes=['memberUid'])
+    conn.search(dn, '(objectClass=posixGroup)', search_scope=BASE, attributes=['memberUid'])
     if not conn.entries:
         return
     current = set(conn.entries[0].memberUid.values if hasattr(conn.entries[0], 'memberUid') else [])
@@ -325,15 +375,16 @@ def _set_member_uid(conn, group_name: str, uid: str, *, add: bool) -> None:
         )
 
 
-def _portal_ldap_group_names(user: User) -> set[str]:
+def _portal_ldap_group_names(user: User, *, managed_groups: set[str] | frozenset[str] | None = None) -> set[str]:
     """
     Nhóm LDAP theo quyền NAS Portal: map phòng ban + portal_members,
     trừ portal_excluded_members (cùng logic user_nas_access_groups).
     """
     from nas_storage.portal_access import user_nas_access_groups
 
+    allowed = set(managed_groups) if managed_groups is not None else set(_portal_managed_ldap_group_names())
     names = set(user_nas_access_groups(user).values_list('name', flat=True))
-    return {name for name in names if name in DEPARTMENT_LDAP_GROUPS}
+    return {name for name in names if name in allowed}
 
 
 def _primary_ldap_group_for_user(user: User, department_group: str | None) -> str:
@@ -342,7 +393,7 @@ def _primary_ldap_group_for_user(user: User, department_group: str | None) -> st
 
     browse_all = (
         user_nas_access_groups(user)
-        .filter(portal_browse_all=True, name__in=DEPARTMENT_LDAP_GROUPS)
+        .filter(portal_browse_all=True)
         .order_by('name')
         .values_list('name', flat=True)
         .first()
@@ -352,10 +403,17 @@ def _primary_ldap_group_for_user(user: User, department_group: str | None) -> st
     return primary_ldap_group_for_department(department_group)
 
 
-def _sync_group_membership(conn, uid: str, ldap_groups: set[str] | None) -> None:
+def _sync_group_membership(
+    conn,
+    uid: str,
+    ldap_groups: set[str] | None,
+    *,
+    managed_groups: set[str] | None = None,
+) -> None:
     _set_member_uid(conn, DEFAULT_LDAP_GROUP, uid, add=True)
-    targets = {g for g in (ldap_groups or set()) if g in DEPARTMENT_LDAP_GROUPS}
-    for group_name in DEPARTMENT_LDAP_GROUPS:
+    managed = managed_groups if managed_groups is not None else _managed_group_names_for_conn(conn)
+    targets = {g for g in (ldap_groups or set()) if g in managed}
+    for group_name in managed:
         _set_member_uid(conn, group_name, uid, add=(group_name in targets))
 
 
@@ -470,8 +528,9 @@ def _upsert_ldap_user(
     if profile and profile.department_id:
         dept_name = getattr(profile.department, 'name', None)
     department_group = nas_ldap_group_for_department(dept_name)
-    ldap_groups = _portal_ldap_group_names(user)
-    if department_group in DEPARTMENT_LDAP_GROUPS:
+    managed_groups = _managed_group_names_for_conn(conn)
+    ldap_groups = _portal_ldap_group_names(user, managed_groups=managed_groups)
+    if department_group in managed_groups:
         ldap_groups.add(department_group)
     primary_group = _primary_ldap_group_for_user(user, department_group)
     gid_number = _group_gid(conn, primary_group)
@@ -525,7 +584,7 @@ def _upsert_ldap_user(
         if effective_password:
             _apply_samba_account(conn, uid=uid, password=effective_password)
 
-    _sync_group_membership(conn, uid, ldap_groups)
+    _sync_group_membership(conn, uid, ldap_groups, managed_groups=managed_groups)
     return {
         'status': 'ok',
         'uid': uid,
@@ -588,6 +647,98 @@ def ensure_portal_user_in_ldap(user: User, *, password: str | None = None) -> di
         return provision_ldap_user(user, password=password)
     except NasLdapSyncError as exc:
         return {'status': 'error', 'error': str(exc)}
+
+
+def sync_nas_access_group_to_ldap(
+    group,
+    *,
+    created: bool = False,
+    previous_extra_ids: set[int] | None = None,
+    previous_excluded_ids: set[int] | None = None,
+    previous_member_ids: set[int] | None = None,
+    previous_browse_all: bool = False,
+    previous_name: str = '',
+) -> dict:
+    """
+    Khi lưu nhóm quyền Portal: tạo group LDAP (nếu chưa có) và provision
+    các user thành viên thay đổi — không quét cả phòng SX trên mỗi lần Lưu.
+    """
+    from nas_storage.portal_access import portal_users_for_access_group
+
+    stats = {
+        'status': 'ok',
+        'group': getattr(group, 'name', ''),
+        'group_created': False,
+        'ok': 0,
+        'skipped': 0,
+        'errors': [],
+    }
+    if not nas_ldap_configured():
+        stats['status'] = 'skipped'
+        stats['reason'] = 'not_configured'
+        return stats
+
+    group_name = (getattr(group, 'name', '') or '').strip()
+    if not group_name:
+        stats['status'] = 'error'
+        stats['error'] = 'Thiếu tên nhóm LDAP.'
+        return stats
+
+    previous_extra_ids = previous_extra_ids or set()
+    previous_excluded_ids = previous_excluded_ids or set()
+    previous_member_ids = previous_member_ids or set()
+
+    current_extra = set(group.portal_members.values_list('pk', flat=True))
+    current_excluded = set(group.portal_excluded_members.values_list('pk', flat=True))
+    current_members = {u.pk for u in portal_users_for_access_group(group)}
+
+    affected_ids = set()
+    affected_ids |= current_extra ^ previous_extra_ids
+    affected_ids |= current_excluded ^ previous_excluded_ids
+    if created:
+        affected_ids |= current_members
+    if bool(getattr(group, 'portal_browse_all', False)) != bool(previous_browse_all):
+        affected_ids |= current_members | previous_member_ids
+    if previous_name and previous_name != group_name:
+        affected_ids |= current_members | previous_member_ids
+
+    try:
+        with _ldap_connection() as conn:
+            existed = _group_exists(conn, group_name)
+            description = (getattr(group, 'description', '') or '').strip() or f'Nhóm NAS {group_name}'
+            _ensure_group(conn, group_name, description=description)
+            stats['group_created'] = not existed
+            _ensure_department_groups_on_conn(conn)
+
+            users = (
+                User.objects.filter(pk__in=affected_ids)
+                .select_related('profile', 'profile__department')
+                .order_by('username')
+            )
+            for user in users:
+                if not _should_sync_user(user):
+                    stats['skipped'] += 1
+                    continue
+                try:
+                    _upsert_ldap_user(conn, user)
+                    stats['ok'] += 1
+                except NasLdapSyncError as exc:
+                    stats['errors'].append(f'{user.username}: {exc}')
+                except Exception as exc:
+                    if exc.__class__.__name__ != 'LDAPException':
+                        raise
+                    stats['errors'].append(f'{user.username}: {exc}')
+    except NasLdapSyncError as exc:
+        stats['status'] = 'error'
+        stats['error'] = str(exc)
+        logger.exception('Không đồng bộ LDAP cho nhóm NAS %s', group_name)
+    except Exception as exc:
+        if exc.__class__.__name__ != 'LDAPException':
+            raise
+        stats['status'] = 'error'
+        stats['error'] = str(exc)
+        logger.exception('Không đồng bộ LDAP cho nhóm NAS %s', group_name)
+    return stats
 
 
 def notify_ldap_profile_changed(user: User) -> None:

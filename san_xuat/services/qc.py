@@ -326,11 +326,27 @@ def _qc_team_from_line(line) -> QcTeam | None:
 
 
 def _ordered_qc_teams(seen: dict[str, QcTeam]) -> list[QcTeam]:
-    from san_xuat.services.progress_template import TEAM_SLUGS
+    from san_xuat.services.progress_template import TEAM_SLUGS, team_by_slug
+    from san_xuat.services.team_division_map import khsx_slug_for_team
 
+    remapped: dict[str, QcTeam] = {}
+    for slug, team in (seen or {}).items():
+        stage = khsx_slug_for_team(team_by_slug(slug), slug) or (slug or "").strip().lower()
+        if not stage:
+            continue
+        if stage not in remapped:
+            if stage == team.slug:
+                remapped[stage] = team
+            else:
+                remapped[stage] = QcTeam(
+                    slug=stage,
+                    label=team.label,
+                    work_center_id=team.work_center_id,
+                    work_center_code=team.work_center_code,
+                )
     out: list[QcTeam] = []
     for slug, _gk, _menu, _label in TEAM_SLUGS:
-        team = seen.get(slug)
+        team = remapped.get(slug)
         if team:
             out.append(team)
     return out

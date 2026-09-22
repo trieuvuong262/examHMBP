@@ -551,9 +551,11 @@ def _assignment_stats(*, slug: str, user_ids: list[int], labels: list[str]) -> d
     if not rows:
         return stats
     mo_ids = {mo_id for _uid, mo_id in rows if mo_id}
+    from san_xuat.services.team_division_map import team_slug_aliases
+
     closed = set(
         SxTeamWorkClose.objects.filter(
-            team_slug=slug,
+            team_slug__in=team_slug_aliases(slug),
             is_demo=False,
             production_order_id__in=mo_ids,
         ).values_list('production_order_id', flat=True)
