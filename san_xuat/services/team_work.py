@@ -1,4 +1,4 @@
-"""Công việc tổ — hàng đợi CD theo bộ phận (mẫu cố định)."""
+"""Công việc tổ — hàng đợi công đoạn BOM theo bộ phận HR."""
 
 from __future__ import annotations
 
@@ -25,14 +25,11 @@ from san_xuat.hub_models import (
 from san_xuat.services.order_progress_sheet import (
     _q,
     _size_plans,
-    ensure_progress_work_centers,
     work_center_map,
 )
 from san_xuat.services.planning import PlanningError
 from san_xuat.services.progress_template import (
     ProgressStepDef,
-    step_by_label,
-    steps_for_group,
     team_by_slug,
 )
 
@@ -72,6 +69,10 @@ class TeamWorkJob:
     qc_required: bool = False
     qc_status_label: str = ''
     subcontract: object | None = None
+    khsx_start: object | None = None
+    khsx_end: object | None = None
+    khsx_team_label: str = ''
+    khsx_is_late: bool = False
 
 
 def group_team_work_jobs(rows: list[TeamWorkRow]) -> list[TeamWorkJob]:
@@ -157,36 +158,27 @@ def _batch_stats_by_mo(mo_ids: list[int]) -> dict[int, list[SxProductionStat]]:
 def _step_defs_for_mo_team(
     *,
     slug: str,
-    source_lines,
-    fallback: list[ProgressStepDef],
+    team: dict | None = None,
+    mo: SxProductionOrder | None = None,
+    source_lines=None,
+    fallback: list[ProgressStepDef] | None = None,
 ) -> list[ProgressStepDef]:
-    """CD phân công = CĐ trên Ob/Bom của đúng tổ; không lấy hết catalog 6 tổ."""
-    from san_xuat.services.qc import resolve_team_slug_from_routing_line
+    """CD phân công = CĐ BOM/Ob của đúng tổ; không lấy catalog mẫu."""
+    from san_xuat.services.order_progress_sheet import progress_steps_for_team
 
-    wanted: list[ProgressStepDef] = []
-    seen: set[str] = set()
-    for line in source_lines or []:
-        if resolve_team_slug_from_routing_line(line) != slug:
-            continue
-        name = (
-            getattr(line, 'op_name_vi', None)
-            or getattr(line, 'process_name', None)
-            or ''
-        )
-        sd = step_by_label(name)
-        if sd is None or sd.key in seen:
-            continue
-        seen.add(sd.key)
-        wanted.append(sd)
-    return wanted or list(fallback)
+    meta = team or team_by_slug(slug) or {}
+    if mo is not None:
+        steps = progress_steps_for_team(mo, meta)
+        if steps:
+            return steps
+    return list(fallback or [])
 
 
 def build_team_work_rows(*, slug: str, search: str = '') -> tuple[dict, list[TeamWorkRow]]:
     team = team_by_slug(slug)
     if not team:
         raise PlanningError('Tổ không hợp lệ.')
-    ensure_progress_work_centers()
-    step_defs = steps_for_group(team['group_key'])
+    from san_xuat.services.order_progress_sheet import progress_steps_for_team
 
     qs = (
         SxProductionOrder.objects.filter(is_demo=False)
@@ -224,21 +216,12 @@ def build_team_work_rows(*, slug: str, search: str = '') -> tuple[dict, list[Tea
     mos = list(qs[:80])
     mo_ids = [m.pk for m in mos]
     stats_by_mo = _batch_stats_by_mo(mo_ids)
-    from san_xuat.services.progress_template import progress_steps
-
-    all_step_label_map = {s.label.casefold(): s for s in progress_steps()}
-    from san_xuat.services.qc import ob_qc_teams, ob_source_lines
 
     rows: list[TeamWorkRow] = []
     for mo in mos:
-        participating = {t.slug for t in ob_qc_teams(mo=mo)}
-        if slug not in participating:
+        mo_step_defs = progress_steps_for_team(mo, team)
+        if not mo_step_defs:
             continue
-        mo_step_defs = _step_defs_for_mo_team(
-            slug=slug,
-            source_lines=ob_source_lines(mo=mo),
-            fallback=step_defs,
-        )
         sizes = _size_plans(mo)
         mo_stats = stats_by_mo.get(mo.pk, [])
         by_name: dict[str, SxMoProcessStep] = {}
@@ -247,6 +230,7 @@ def build_team_work_rows(*, slug: str, search: str = '') -> tuple[dict, list[Tea
             key = (st.process_name or '').strip().casefold()
             if key in mo_label_set and key not in by_name:
                 by_name[key] = st
+        label_map = {s.label.casefold(): s for s in mo_step_defs}
 
         for sd in mo_step_defs:
             lk = sd.label.casefold()
@@ -265,7 +249,7 @@ def build_team_work_rows(*, slug: str, search: str = '') -> tuple[dict, list[Tea
                 mo,
                 sizes=sizes,
                 stats=mo_stats,
-                label_map=all_step_label_map,
+                label_map=label_map,
                 step_key=sd.key,
             )
             rows.append(
@@ -337,17 +321,20 @@ def assign_team_work(
     assigned_by=None,
     team_slug: str | None = None,
 ) -> SxMoProcessStep:
+    from san_xuat.services.order_progress_sheet import resolve_progress_step
     from san_xuat.services.progress_template import step_by_key
     from san_xuat.services.team_division_map import assignee_candidate_ids_for_team
 
-    sd = step_by_key(process_key)
+    slug = (team_slug or '').strip().lower()
+    mo = SxProductionOrder.objects.select_for_update().get(pk=mo_id, is_demo=False)
+    sd = resolve_progress_step(mo=mo, process_key=process_key) or step_by_key(process_key)
     if not sd:
-        raise PlanningError('Công đoạn không thuộc mẫu.')
-    slug = (team_slug or '').strip().lower() or _team_slug_for_process_key(process_key)
+        raise PlanningError('Công đoạn không thuộc lệnh này.')
+    if not slug:
+        slug = _team_slug_for_process_key(process_key) or ''
     if not slug:
         raise PlanningError('Không xác định được tổ chuyền của công đoạn.')
 
-    mo = SxProductionOrder.objects.select_for_update().get(pk=mo_id, is_demo=False)
     if mo.status in (SxProductionOrder.STATUS_DRAFT, SxProductionOrder.STATUS_CANCELLED):
         raise PlanningError('Lệnh sản xuất chưa phát hành hoặc đã hủy.')
     if is_team_job_closed(mo_id=mo.pk, team_slug=slug):
@@ -556,6 +543,34 @@ def attach_team_job_closes(jobs: list[TeamWorkJob], *, slug: str) -> list[TeamWo
             due and days is not None and days < 0
             and job.mo.status != SxProductionOrder.STATUS_DONE
         )
+    from san_xuat.services.handover_status import khsx_context_by_order_team
+    from san_xuat.services.team_division_map import khsx_slug_for_team, team_slug_aliases
+
+    ctx_map = khsx_context_by_order_team(
+        [j.mo.sales_order_id for j in jobs if j.mo.sales_order_id]
+    )
+    team_meta = team_by_slug(slug) or {}
+    khsx_slug = khsx_slug_for_team(team_meta, slug)
+    lookup_slugs = team_slug_aliases(slug, team_meta)
+    for job in jobs:
+        oid = int(job.mo.sales_order_id or 0)
+        ctx = None
+        if oid:
+            for key in lookup_slugs:
+                ctx = ctx_map.get((oid, key))
+                if ctx is not None:
+                    break
+        if ctx is None:
+            continue
+        job.khsx_start = ctx.start
+        job.khsx_end = ctx.end
+        job.khsx_team_label = ctx.work_center_label
+        job.khsx_is_late = bool(
+            not job.closed
+            and job.mo.status != SxProductionOrder.STATUS_DONE
+            and ctx.end
+            and today > ctx.end
+        )
     from san_xuat.services.qc import (
         QC_STATUS_LABELS,
         QC_STATUS_SKIP,
@@ -566,9 +581,13 @@ def attach_team_job_closes(jobs: list[TeamWorkJob], *, slug: str) -> list[TeamWo
     status_map = qc_status_map_for_mos([j.mo for j in jobs])
     for job in jobs:
         required = {t.slug for t in ob_qc_teams(mo=job.mo)}
-        job.qc_required = slug in required
+        job.qc_required = khsx_slug in required or slug in required
         if job.qc_required:
-            job.qc_status = status_map.get((job.mo.pk, slug), 'idle')
+            job.qc_status = (
+                status_map.get((job.mo.pk, khsx_slug))
+                or status_map.get((job.mo.pk, slug))
+                or 'idle'
+            )
         else:
             job.qc_status = QC_STATUS_SKIP
         job.qc_status_label = QC_STATUS_LABELS.get(job.qc_status, job.qc_status)
@@ -576,7 +595,7 @@ def attach_team_job_closes(jobs: list[TeamWorkJob], *, slug: str) -> list[TeamWo
         mo_ids = [j.mo.pk for j in jobs]
         qs = (
             _subcontract_open_qs()
-            .filter(production_order_id__in=mo_ids, team_slug=slug)
+            .filter(production_order_id__in=mo_ids, team_slug__in=lookup_slugs)
             .order_by('-order_date', '-pk')
         )
         by_mo: dict[int, SxSubcontractOrder] = {}

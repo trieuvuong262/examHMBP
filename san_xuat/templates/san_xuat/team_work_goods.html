@@ -4,6 +4,7 @@
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_plan_urgency_styles.html' %}
+{% include 'san_xuat/includes/team_work_topbar_styles.html' %}
 <style>
   .jp-tw {
     --tw-ink: #0f172a;
@@ -20,7 +21,7 @@
   .jp-tw-goods-filter-form .jp-team-filter-org-search {
     flex: 1 1 100%;
     display: grid;
-    grid-template-columns: minmax(12rem, 1.4fr) repeat(4, minmax(8rem, 1fr));
+    grid-template-columns: minmax(12rem, 1.4fr) repeat(5, minmax(8rem, 1fr));
     gap: .65rem 1rem;
     align-items: end;
   }
@@ -139,6 +140,37 @@
     color: var(--tw-muted);
     font-weight: 600;
   }
+  .jp-tw-goods-team-link.is-skip,
+  .jp-tw-goods-skip {
+    color: var(--tw-muted);
+    font-weight: 600;
+    cursor: default;
+  }
+  .jp-tw-goods-so-row td {
+    background: var(--tw-soft);
+    padding: .45rem .75rem;
+    border-top: 1px solid var(--tw-line);
+  }
+  .jp-tw-goods-so-link {
+    font-size: .78rem;
+    font-weight: 800;
+    text-decoration: none;
+    color: var(--tw-ink);
+  }
+  .jp-tw-goods-so-link:hover { color: var(--tw-accent); }
+  .jp-tw-goods-khsx {
+    font-size: .74rem;
+    line-height: 1.35;
+    white-space: nowrap;
+  }
+  .jp-tw-goods-khsx.is-late { color: #dc2626; font-weight: 800; }
+  .jp-tw-goods-khsx .dim { color: var(--tw-muted); font-weight: 600; }
+  .jp-tw-goods-th-team {
+    color: inherit;
+    text-decoration: none;
+  }
+  .jp-tw-goods-th-team:hover { color: var(--tw-accent); }
+  .jp-tw-goods-table thead th.is-team.is-on { color: var(--tw-accent); }
   .jp-tw-goods-gc {
     display: inline-block;
     margin-left: .35rem;
@@ -185,6 +217,15 @@
     <div class="jp-sx-detail-title">
       <h2 class="jp-npl-mat-topbar-title w-100">Tiến độ hàng hoá</h2>
     </div>
+    <nav class="jp-sx-tools jp-tw-topbar-tools" aria-label="Công cụ">
+      {% if team %}
+      {% include 'san_xuat/includes/team_work_nav.html' with tw_section='goods' %}
+      {% endif %}
+      {% if can_view_plan_board %}
+      <a href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=route{% if board.search %}&amp;q={{ board.search|urlencode }}{% endif %}"
+         class="btn btn-sm btn-outline-secondary fw-bold">Lộ trình KHSX</a>
+      {% endif %}
+    </nav>
   </div>
 
   <form method="get" id="jpTwGoodsFilter" class="card border-0 shadow-sm mb-3 jp-team-filter-form jp-tw-goods-filter-form" role="search" aria-label="Bộ lọc tiến độ hàng hoá">
@@ -226,6 +267,15 @@
           </select>
         </div>
         <div class="jp-team-filter-org">
+          <label class="form-label fw-bold small mb-1" for="jp-tw-goods-team">Bộ phận</label>
+          <select id="jp-tw-goods-team" name="team" class="form-select form-select-sm">
+            <option value=""{% if not board.filter_team %} selected{% endif %}>Tất cả</option>
+            {% for slug, label in board.team_choices %}
+            <option value="{{ slug }}"{% if board.filter_team == slug %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="jp-team-filter-org">
           <label class="form-label fw-bold small mb-1" for="jp-tw-goods-sort">Sắp xếp theo</label>
           <select id="jp-tw-goods-sort" name="sort" class="form-select form-select-sm">
             <option value=""{% if not board.sort %} selected{% endif %}>Gấp / hạn giao</option>
@@ -252,29 +302,43 @@
     <table class="jp-tw-goods-table">
       <thead>
         <tr>
-          <th style="min-width:11rem">Đơn hàng</th>
+          <th style="min-width:11rem">Sản phẩm / lệnh</th>
           <th class="text-end">SL</th>
           <th title="Mức ưu tiên trên KHSX">Ưu tiên KHSX</th>
           <th title="Hạn giao trên KHSX">Hạn giao</th>
-          <th style="min-width:5.5rem">Tiến độ</th>
+          <th style="min-width:5.5rem" title="SL đạt lệnh / SL kế hoạch — cùng công thức KHSX">Tiến độ</th>
+          <th title="Ngày và tổ năng lực trên lộ trình KHSX">KHSX tổ</th>
           {% if board.queues %}
           {% for q in board.queues %}
-          <th class="is-team">{{ q.label }}</th>
+          <th class="is-team{% if board.filter_team == q.slug %} is-on{% endif %}">
+            <a class="jp-tw-goods-th-team" href="?team={{ q.slug|urlencode }}{% if board.search %}&amp;q={{ board.search|urlencode }}{% endif %}{% if board.filter_priority %}&amp;priority={{ board.filter_priority|urlencode }}{% endif %}{% if board.filter_status %}&amp;status={{ board.filter_status|urlencode }}{% endif %}{% if board.filter_due %}&amp;due={{ board.filter_due|urlencode }}{% endif %}{% if board.sort %}&amp;sort={{ board.sort|urlencode }}{% endif %}"
+               title="Lọc đơn đi qua {{ q.label }}">{{ q.label }}</a>
+          </th>
           {% endfor %}
           {% endif %}
         </tr>
       </thead>
       <tbody>
         {% for row in page_obj %}
+        {% if row.so_code and row.is_so_start or forloop.first and row.so_code %}
+        <tr class="jp-tw-goods-so-row">
+          <td colspan="{{ board.queues|length|add:6 }}">
+            {% if can_view_plan_board %}
+            <a class="jp-tw-goods-so-link" href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=route&amp;q={{ row.so_code|urlencode }}" title="Mở lộ trình KHSX của đơn">Đơn {{ row.so_code }}</a>
+            {% else %}
+            <span class="jp-tw-goods-so-link">Đơn {{ row.so_code }}</span>
+            {% endif %}
+            {% if row.plan_status_label %}<span class="text-muted"> · {{ row.plan_status_label }}</span>{% endif %}
+          </td>
+        </tr>
+        {% endif %}
         <tr{% if row.is_overdue %} class="is-late"{% elif row.is_hot %} class="is-hot"{% endif %}>
           <td>
-            {% with pname=row.mo.product_name|default:row.mo.product_code ocode=row.mo.sales_order.code|default:row.mo.code %}
-            <a class="jp-tw-goods-mo-link" href="{% url 'san_xuat:dispatch_mo_detail' row.mo.pk %}" title="{% if row.mo.sales_order_id %}{{ row.mo.code }}{% endif %}">
-              {% if pname %}{{ pname }} - {{ ocode }}{% else %}{{ ocode }}{% endif %}
+            <a class="jp-tw-goods-mo-link" href="{% url 'san_xuat:dispatch_mo_detail' row.mo.pk %}" title="{{ row.mo.code }}">
+              {{ row.mo.product_name|default:row.mo.product_code|default:row.mo.code }}
             </a>
-            {% endwith %}
             <div class="jp-tw-goods-mo-sub">
-              {{ row.status_label }}
+              {{ row.mo.code }} · {{ row.status_label }}
             </div>
           </td>
           <td class="text-end fw-bold">{{ row.plan|sx_num }}</td>
@@ -290,8 +354,22 @@
               <span style="width: {{ row.progress_pct }}%;"></span>
             </div>
           </td>
+          <td>
+            {% if row.khsx_start or row.khsx_team_label %}
+            <div class="jp-tw-goods-khsx{% if row.khsx_is_late %} is-late{% endif %}">
+              {% if row.khsx_start %}
+              {{ row.khsx_start|date:"d/m" }}{% if row.khsx_end and row.khsx_end != row.khsx_start %}–{{ row.khsx_end|date:"d/m" }}{% endif %}
+              {% endif %}
+              {% if row.khsx_team_label %}<div class="dim">{{ row.khsx_team_label }}</div>{% endif %}
+              {% if row.khsx_is_late %}<div>Trễ KHSX</div>{% endif %}
+            </div>
+            {% else %}—{% endif %}
+          </td>
           {% for c in row.cells %}
           <td class="jp-tw-goods-team-cell">
+            {% if c.status == 'skip' or not c.plan and not c.done %}
+            <span class="jp-tw-goods-skip">—</span>
+            {% else %}
             <a class="jp-tw-goods-team-link is-{{ c.status }}{% if c.slug == row.current_slug %} is-current{% endif %}"
                href="{% url 'san_xuat:team_work_progress' c.slug row.mo.pk %}"
                title="{{ c.label }}: {{ c.done|sx_num }}/{{ c.plan|sx_num }}{% if c.waiting %} · còn {{ c.waiting|sx_num }}{% endif %}">
@@ -300,6 +378,7 @@
             {% if c.subcontract and can_view_subcontract %}
               <a class="jp-tw-goods-gc" href="{% url 'san_xuat:subcontract_detail' c.subcontract.pk %}"
                  title="Phiếu thuê GC {{ c.subcontract.code }}">GC {{ c.subcontract.code }}</a>
+            {% endif %}
             {% endif %}
           </td>
           {% endfor %}

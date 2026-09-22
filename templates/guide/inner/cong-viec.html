@@ -1,103 +1,265 @@
 {% load static %}
-<span class="badge bg-secondary mb-3">Dành cho nhân viên</span>
-<p class="mb-3">Menu <strong>Báo cáo &amp; Công việc</strong> gồm 3 mục công việc: <strong>Giao việc cá nhân</strong>, <strong>Dự án nội bộ</strong>, <strong>Dự án liên phòng ban</strong>.</p>
+<p class="mb-3">Menu <strong>Báo cáo &amp; Công việc</strong> có 3 mục Công việc: <strong>Giao việc cá nhân</strong>, <strong>Dự án nội bộ</strong> (<a href="/cong-viec/du-an/">/cong-viec/du-an/</a>), <strong>Dự án liên phòng ban</strong> (<a href="/cong-viec/lien-phong-ban/">/cong-viec/lien-phong-ban/</a>).</p>
+<p class="mb-3">Giao việc cá nhân — 4 tab: <strong>Việc của tôi</strong>, <strong>Việc đã giao</strong>, <strong>Giao việc</strong>, <strong>Việc lặp</strong> (hai tab sau chỉ hiện với quản lý).</p>
 
+<div class="guide-tip mb-3">
+    <strong>Demo đã chạy trên Portal (hoàn thành hôm nay):</strong>
+    Quản lý giao nhân viên việc
+    <em>«setup fleetd-base trên VPS»</em> — hạn 15 ngày (07/10/2026), hoàn thành 22/09/2026.
+</div>
+
+<span class="badge bg-primary mb-3">Quản lý — tạo việc</span>
 <div class="guide-steps mb-4">
-        <div class="guide-step guide-step--illustrated">
-    <div class="guide-step-head">
-        <div class="guide-step-num">1</div>
-        <div class="guide-step-body"><div><strong>Giao việc cá nhân:</strong> mở menu → xem danh sách việc được giao. Lọc theo <em>Chưa làm / Đang làm / Hoàn thành</em> và hạn deadline.</div></div>
+    <div class="guide-step guide-step--illustrated">
+        <div class="guide-step-head">
+            <div class="guide-step-num">1</div>
+            <div class="guide-step-body"><div>Menu <strong>Báo cáo &amp; Công việc</strong> → <strong>Giao việc cá nhân</strong>. Tab <strong>Việc đã giao</strong> để theo dõi. Bấm tab <strong>+ Giao việc</strong> để tạo. Tab <strong>Việc lặp</strong> không dùng trong demo.
+                Pill: Tất cả / Chờ xác nhận / Đang làm / Chờ duyệt / Cần sửa / Hoàn thành / Từ chối.
+                Ô tìm + nút <strong>Tìm</strong> / <strong>×</strong> + nút <strong>Chi tiết</strong> trên từng dòng.
+            </div></div>
+        </div>
+        <figure class="guide-step-figure">
+            <img src="{% static 'images/guide/cong-viec-da-giao.png' %}" alt="Việc đã giao" class="guide-zoomable" loading="lazy">
+        </figure>
     </div>
-    <figure class="guide-step-figure">
-        <img src="{% static 'images/guide/cong-viec-01.png' %}" alt="Minh họa bước 1 — cong viec" class="guide-zoomable" loading="lazy">
-    </figure>
-</div>
-        <div class="guide-step guide-step--illustrated">
-    <div class="guide-step-head">
-        <div class="guide-step-num">2</div>
-        <div class="guide-step-body"><div>Bấm tên việc → đọc mô tả, file đính kèm. Cập nhật <strong>Tiến độ %</strong>, thêm <strong>Bình luận</strong> khi cần trao đổi với người giao.</div></div>
+    <div class="guide-step guide-step--illustrated">
+        <div class="guide-step-head">
+            <div class="guide-step-num">2</div>
+            <div class="guide-step-body"><div>Điền form rồi bấm <strong>Giao việc</strong> (hoặc <strong>Hủy</strong>):
+                <ul class="mt-2 mb-0">
+                    <li><strong>Tiêu đề:</strong> <code>setup fleetd-base trên VPS</code></li>
+                    <li><strong>Mô tả:</strong> cài/cấu hình fleetd-base trên VPS</li>
+                    <li><strong>Loại:</strong> Chung · <strong>Ưu tiên:</strong> Cao · <strong>Hạn:</strong> 07/10/2026</li>
+                    <li><strong>Hình ảnh / File:</strong> tuỳ chọn</li>
+                    <li><strong>Người nhận:</strong> chọn nhân viên (tìm theo họ tên / mã NS / account)</li>
+                    <li>Không tick «Không cần duyệt hoàn thành» và «Công việc lặp lại»</li>
+                </ul>
+            </div></div>
+        </div>
+        <figure class="guide-step-figure">
+            <img src="{% static 'images/guide/cong-viec-form-filled.png' %}" alt="Form giao việc đã điền" class="guide-zoomable" loading="lazy">
+        </figure>
     </div>
-    <figure class="guide-step-figure">
-        <img src="{% static 'images/guide/cong-viec-02.png' %}" alt="Minh họa bước 2 — cong viec" class="guide-zoomable" loading="lazy">
-    </figure>
-</div>
-        <div class="guide-step guide-step--illustrated">
-    <div class="guide-step-head">
-        <div class="guide-step-num">3</div>
-        <div class="guide-step-body"><div>Xong việc → đổi trạng thái <strong>Hoàn thành</strong> (hoặc bấm nút tương ứng). Việc lặp theo tuần/tháng sẽ tự sinh lại nếu quản lý đã cấu hình.</div></div>
+    <div class="guide-step guide-step--illustrated">
+        <div class="guide-step-head">
+            <div class="guide-step-num">3</div>
+            <div class="guide-step-body"><div>Chi tiết việc mới: badge <em>Chờ xác nhận</em>, nút <strong>Việc đã giao</strong>, nút <strong>Hủy công việc</strong>, cột Nhật ký. Danh sách đã giao hiện cùng trạng thái + <strong>Chi tiết</strong>.</div></div>
+        </div>
+        <figure class="guide-step-figure">
+            <img src="{% static 'images/guide/cong-viec-chi-tiet-moi.png' %}" alt="Chi tiết việc mới chờ xác nhận" class="guide-zoomable" loading="lazy">
+        </figure>
+        <figure class="guide-step-figure">
+            <img src="{% static 'images/guide/cong-viec-da-giao-cho-xac-nhan.png' %}" alt="Danh sách đã giao chờ xác nhận" class="guide-zoomable" loading="lazy">
+        </figure>
     </div>
-    <figure class="guide-step-figure">
-        <img src="{% static 'images/guide/cong-viec-03.png' %}" alt="Minh họa bước 3 — cong viec" class="guide-zoomable" loading="lazy">
-    </figure>
-</div>
-        <div class="guide-step guide-step--illustrated">
-    <div class="guide-step-head">
-        <div class="guide-step-num">4</div>
-        <div class="guide-step-body"><div><strong>Dự án nội bộ:</strong> bảng Kanban — cột <em>Chờ / Đang làm / Xong</em>. Kéo thả thẻ việc giữa cột hoặc bấm thẻ để mở chi tiết.</div></div>
-    </div>
-    <figure class="guide-step-figure">
-        <img src="{% static 'images/guide/cong-viec-04.png' %}" alt="Minh họa bước 4 — cong viec" class="guide-zoomable" loading="lazy">
-    </figure>
-</div>
-        <div class="guide-step guide-step--illustrated">
-    <div class="guide-step-head">
-        <div class="guide-step-num">5</div>
-        <div class="guide-step-body"><div><strong>Dự án liên phòng ban:</strong> tương tự Kanban nhưng có nhiều BP tham gia — lọc theo phòng ban / người phụ trách để theo dõi phần việc của team bạn.</div></div>
-    </div>
-    <figure class="guide-step-figure">
-        <img src="{% static 'images/guide/cong-viec-05.png' %}" alt="Minh họa bước 5 — cong viec" class="guide-zoomable" loading="lazy">
-    </figure>
-</div>
-        <div class="guide-step guide-step--illustrated">
-    <div class="guide-step-head">
-        <div class="guide-step-num">6</div>
-        <div class="guide-step-body"><div>Việc có <strong>phụ thuộc</strong> (bước trước chưa xong) sẽ khóa bước sau — hoàn thành đúng thứ tự trong dự án.</div></div>
-    </div>
-    <figure class="guide-step-figure">
-        <img src="{% static 'images/guide/cong-viec-06.png' %}" alt="Minh họa bước 6 — cong viec" class="guide-zoomable" loading="lazy">
-    </figure>
-</div>
 </div>
 
-{% if 'cong-viec' in guide_admin_section_ids %}
-<hr class="my-4">
-<span class="badge bg-dark mb-3">Dành cho HR / Quản trị</span>
-<div class="guide-steps">
+<span class="badge bg-secondary mb-3">Nhân viên — nhận &amp; làm</span>
+<div class="guide-steps mb-4">
     <div class="guide-step guide-step--illustrated">
-    <div class="guide-step-head">
-        <div class="guide-step-num">7</div>
-        <div class="guide-step-body"><div>Tạo <strong>dự án mới</strong> (nội bộ hoặc liên phòng ban) → đặt tên, mô tả, thêm thành viên từng phòng ban.</div></div>
+        <div class="guide-step-head">
+            <div class="guide-step-num">4</div>
+            <div class="guide-step-body"><div><strong>Giao việc cá nhân</strong> → tab <strong>Việc của tôi</strong> (nhân viên không thấy tab Giao việc / Việc lặp). Banner vàng chờ xác nhận. Pill / Tìm «fleetd» → <strong>Chi tiết</strong>.</div></div>
+        </div>
+        <figure class="guide-step-figure">
+            <img src="{% static 'images/guide/cong-viec-cua-toi.png' %}" alt="Việc của tôi" class="guide-zoomable" loading="lazy">
+        </figure>
     </div>
-    <figure class="guide-step-figure">
-        <img src="{% static 'images/guide/cong-viec-07.png' %}" alt="Minh họa bước 7 — cong viec" class="guide-zoomable" loading="lazy">
-    </figure>
-</div>
     <div class="guide-step guide-step--illustrated">
-    <div class="guide-step-head">
-        <div class="guide-step-num">8</div>
-        <div class="guide-step-body"><div>Thêm thẻ việc trên Kanban → gán <strong>người thực hiện</strong>, <strong>hạn</strong>, mức ưu tiên. Có thể gắn file hướng dẫn.</div></div>
+        <div class="guide-step-head">
+            <div class="guide-step-num">5</div>
+            <div class="guide-step-body"><div>Khối <strong>Xác nhận công việc</strong>: bấm <strong>Xác nhận nhận việc</strong>. Nút <strong>Từ chối</strong> mở ô lý do + <strong>Gửi từ chối</strong> — không dùng trong demo. Nút góc phải <strong>Việc của tôi</strong> quay danh sách.</div></div>
+        </div>
+        <figure class="guide-step-figure">
+            <img src="{% static 'images/guide/cong-viec-xac-nhan.png' %}" alt="Xác nhận nhận việc" class="guide-zoomable" loading="lazy">
+        </figure>
     </div>
-    <figure class="guide-step-figure">
-        <img src="{% static 'images/guide/cong-viec-08.png' %}" alt="Minh họa bước 8 — cong viec" class="guide-zoomable" loading="lazy">
-    </figure>
-</div>
     <div class="guide-step guide-step--illustrated">
-    <div class="guide-step-head">
-        <div class="guide-step-num">9</div>
-        <div class="guide-step-body"><div><strong>Giao việc cá nhân:</strong> tạo việc đơn lẻ không cần dự án — chọn nhân viên, deadline, tick lặp lại nếu là công việc định kỳ.</div></div>
+        <div class="guide-step-head">
+            <div class="guide-step-num">6</div>
+            <div class="guide-step-body"><div>Trạng thái <em>Đang thực hiện</em>. Trong lúc làm:
+                <ul class="mt-2 mb-0">
+                    <li><strong>Hình ảnh / File</strong> → <strong>Tải lên</strong></li>
+                    <li>Kéo <strong>Tiến độ</strong> (vd. 50) + ghi chú → <strong>Lưu tiến độ</strong></li>
+                    <li>Điền <strong>Báo cáo kết quả</strong> → <strong>Nộp chờ duyệt</strong></li>
+                </ul>
+            </div></div>
+        </div>
+        <figure class="guide-step-figure">
+            <img src="{% static 'images/guide/cong-viec-dang-lam.png' %}" alt="Đang thực hiện — các nút làm việc" class="guide-zoomable" loading="lazy">
+        </figure>
+        <figure class="guide-step-figure">
+            <img src="{% static 'images/guide/cong-viec-nop.png' %}" alt="Nộp chờ duyệt" class="guide-zoomable" loading="lazy">
+        </figure>
     </div>
-    <figure class="guide-step-figure">
-        <img src="{% static 'images/guide/cong-viec-09.png' %}" alt="Minh họa bước 9 — cong viec" class="guide-zoomable" loading="lazy">
-    </figure>
 </div>
+
+<span class="badge bg-primary mb-3">Quản lý — duyệt hoàn thành</span>
+<div class="guide-steps mb-4">
     <div class="guide-step guide-step--illustrated">
-    <div class="guide-step-head">
-        <div class="guide-step-num">10</div>
-        <div class="guide-step-body"><div>Theo dõi tiến độ qua Kanban hoặc danh sách — nhắc nhở qua bình luận khi quá hạn.</div></div>
+        <div class="guide-step-head">
+            <div class="guide-step-num">7</div>
+            <div class="guide-step-body"><div>Tab <strong>Việc đã giao</strong> → pill <em>Chờ duyệt</em> / Tìm «fleetd» → <strong>Chi tiết</strong>. Xem báo cáo và Nhật ký của nhân viên.</div></div>
+        </div>
+        <figure class="guide-step-figure">
+            <img src="{% static 'images/guide/cong-viec-da-giao-cho-duyet.png' %}" alt="Chờ duyệt trên Việc đã giao" class="guide-zoomable" loading="lazy">
+        </figure>
     </div>
-    <figure class="guide-step-figure">
-        <img src="{% static 'images/guide/cong-viec-10.png' %}" alt="Minh họa bước 10 — cong viec" class="guide-zoomable" loading="lazy">
-    </figure>
+    <div class="guide-step guide-step--illustrated">
+        <div class="guide-step-head">
+            <div class="guide-step-num">8</div>
+            <div class="guide-step-body"><div>Khối <strong>Duyệt công việc</strong>:
+                <ul class="mt-2 mb-0">
+                    <li><strong>Duyệt hoàn thành</strong> (+ ghi chú duyệt tuỳ chọn)</li>
+                    <li>hoặc <strong>Yêu cầu sửa lại</strong> (ghi chú bắt buộc)</li>
+                    <li><strong>Hủy công việc</strong> chỉ khi huỷ hẳn</li>
+                </ul>
+                Demo đã <strong>Duyệt hoàn thành trong ngày 22/09/2026</strong>.
+            </div></div>
+        </div>
+        <figure class="guide-step-figure">
+            <img src="{% static 'images/guide/cong-viec-duyet.png' %}" alt="Duyệt hoàn thành" class="guide-zoomable" loading="lazy">
+        </figure>
+        <figure class="guide-step-figure">
+            <img src="{% static 'images/guide/cong-viec-hoan-thanh.png' %}" alt="Việc hoàn thành" class="guide-zoomable" loading="lazy">
+        </figure>
+        <figure class="guide-step-figure">
+            <img src="{% static 'images/guide/cong-viec-da-giao-xong.png' %}" alt="Danh sách đã giao — Hoàn thành" class="guide-zoomable" loading="lazy">
+        </figure>
+    </div>
 </div>
+
 </div>
-{% endif %}
+
+<p class="fw-bold text-hm mt-4 mb-2">Dự án nội bộ</p>
+<p class="mb-3 small text-muted">Nhiều bước trong cùng nhóm/phòng. Nhiều bước có thể chạy song song. Trạng thái dự án: Nháp · Đang chạy · Hoàn thành · Đã hủy.</p>
+
+<span class="badge bg-secondary mb-3">Nhân viên — dự án nội bộ</span>
+<div class="guide-steps mb-4">
+    <div class="guide-step guide-step--illustrated">
+        <div class="guide-step-head">
+            <div class="guide-step-num">9</div>
+            <div class="guide-step-body"><div>Menu <strong>Dự án nội bộ</strong>. Nhân viên chỉ thấy tab <strong>Danh sách dự án</strong> (không có <strong>+ Tạo dự án</strong>). Ô tìm theo tên dự án / chủ dự án → <strong>Tìm</strong>. Khi có dự án: cột Tiến độ (số bước), Trạng thái, Hạn, nút <strong>Chi tiết</strong>.</div></div>
+        </div>
+        <figure class="guide-step-figure">
+            <img src="{% static 'images/guide/cong-viec-du-an-nv.png' %}" alt="Dự án nội bộ — nhân viên" class="guide-zoomable" loading="lazy">
+        </figure>
+    </div>
+    <div class="guide-step guide-step--illustrated">
+        <div class="guide-step-head">
+            <div class="guide-step-num">10</div>
+            <div class="guide-step-body"><div>Trong dự án, bảng <strong>Các bước công việc</strong> → <strong>Chi tiết</strong> bước mình phụ trách. Làm bước giống việc cá nhân: <strong>Xác nhận nhận việc</strong> / <strong>Từ chối</strong> → <strong>Tải lên</strong> / <strong>Lưu tiến độ</strong> → <strong>Nộp chờ duyệt</strong>.
+                Nút thêm: <strong>Về dự án</strong>, <strong>Chuyển giao bước</strong> (gửi chủ dự án duyệt). Trạng thái riêng: <em>Chờ bước trước</em> (phụ thuộc bước khác), <em>Đã chuyển giao</em>.</div></div>
+        </div>
+    </div>
+</div>
+
+<span class="badge bg-primary mb-3">Quản lý — dự án nội bộ</span>
+<div class="guide-steps mb-4">
+    <div class="guide-step guide-step--illustrated">
+        <div class="guide-step-head">
+            <div class="guide-step-num">11</div>
+            <div class="guide-step-body"><div>Tab <strong>Danh sách dự án</strong> + <strong>+ Tạo dự án</strong> (khi chưa có dự án: link <strong>Tạo dự án đầu tiên</strong>).</div></div>
+        </div>
+        <figure class="guide-step-figure">
+            <img src="{% static 'images/guide/cong-viec-du-an-list.png' %}" alt="Danh sách dự án nội bộ" class="guide-zoomable" loading="lazy">
+        </figure>
+    </div>
+    <div class="guide-step guide-step--illustrated">
+        <div class="guide-step-head">
+            <div class="guide-step-num">12</div>
+            <div class="guide-step-body"><div>Form <strong>Tạo dự án nội bộ</strong>:
+                <ul class="mt-2 mb-0">
+                    <li><strong>Tên dự án</strong>, <strong>Mô tả</strong>, <strong>Hạn dự án</strong></li>
+                    <li><strong>Thành viên dự án</strong> — chọn cấp dưới / cùng phòng (dùng @ trong comment)</li>
+                    <li><strong>Lưu dự án</strong> hoặc <strong>Hủy</strong></li>
+                </ul>
+            </div></div>
+        </div>
+        <figure class="guide-step-figure">
+            <img src="{% static 'images/guide/cong-viec-du-an-tao.png' %}" alt="Form tạo dự án nội bộ" class="guide-zoomable" loading="lazy">
+        </figure>
+    </div>
+    <div class="guide-step guide-step--illustrated">
+        <div class="guide-step-head">
+            <div class="guide-step-num">13</div>
+            <div class="guide-step-body"><div>Chi tiết dự án (chủ dự án):
+                <ul class="mt-2 mb-0">
+                    <li><strong>Hoàn thành dự án</strong> (xác nhận) khi đang chạy</li>
+                    <li>Khối <strong>Thêm bước mới</strong>: Tên bước, Ưu tiên, Mô tả, Người phụ trách, Phụ thuộc bước (tuỳ chọn), Hạn bước → <strong>Thêm bước</strong></li>
+                    <li>Bảng bước: <strong>Chi tiết</strong>; nếu bước <em>Đã từ chối</em> → <strong>Giao người khác</strong></li>
+                    <li><strong>Báo cáo chung — comment</strong> → gõ @ → <strong>Gửi comment</strong></li>
+                    <li>Chuyển giao chờ duyệt: <strong>Duyệt</strong> hoặc lý do + <strong>Từ chối</strong></li>
+                    <li>Duyệt bước xong của nhân viên: cùng nút <strong>Duyệt hoàn thành</strong> / <strong>Yêu cầu sửa lại</strong> như việc cá nhân</li>
+                </ul>
+            </div></div>
+        </div>
+    </div>
+</div>
+
+<p class="fw-bold text-hm mt-4 mb-2">Dự án liên phòng ban</p>
+<p class="mb-3 small text-muted">Điều phối nhiều phòng. Bước có thể gán <em>Hàng đợi phòng ban</em> (chờ tiếp nhận) hoặc <em>Chỉ định người</em>. Cần ít nhất 2 phòng ban khi tạo. Chỉ Giám đốc / Trưởng phòng (đủ quyền) thấy <strong>+ Tạo dự án</strong>.</p>
+
+<span class="badge bg-secondary mb-3">Nhân viên — liên phòng ban</span>
+<div class="guide-steps mb-4">
+    <div class="guide-step guide-step--illustrated">
+        <div class="guide-step-head">
+            <div class="guide-step-num">14</div>
+            <div class="guide-step-body"><div>Menu <strong>Dự án liên phòng ban</strong>. Nhân viên thấy tab <strong>Danh sách dự án</strong> và <strong>Chờ tiếp nhận</strong> (không có Tạo dự án). Ô tìm theo tên / điều phối viên / phòng ban → <strong>Tìm</strong> → <strong>Chi tiết</strong>.</div></div>
+        </div>
+        <figure class="guide-step-figure">
+            <img src="{% static 'images/guide/cong-viec-lpb-nv.png' %}" alt="Danh sách liên phòng ban — nhân viên" class="guide-zoomable" loading="lazy">
+        </figure>
+    </div>
+    <div class="guide-step guide-step--illustrated">
+        <div class="guide-step-head">
+            <div class="guide-step-num">15</div>
+            <div class="guide-step-body"><div>Tab <strong>Chờ tiếp nhận</strong> (tiêu đề trang: <em>Chờ phòng tiếp nhận</em>): cột Dự án, Bước, Phòng ban, Hạn. Nút <strong>Tiếp nhận</strong> → màn <strong>Xác nhận tiếp nhận</strong> / <strong>Quay lại</strong>. Sau khi nhận, làm bước như việc cá nhân. Trạng thái bước: <em>Chờ tiếp nhận</em>.</div></div>
+        </div>
+        <figure class="guide-step-figure">
+            <img src="{% static 'images/guide/cong-viec-lpb-cho-nv.png' %}" alt="Chờ phòng tiếp nhận" class="guide-zoomable" loading="lazy">
+        </figure>
+    </div>
+</div>
+
+<span class="badge bg-primary mb-3">Quản lý — liên phòng ban</span>
+<div class="guide-steps mb-4">
+    <div class="guide-step guide-step--illustrated">
+        <div class="guide-step-head">
+            <div class="guide-step-num">16</div>
+            <div class="guide-step-body"><div>Tab <strong>Danh sách dự án</strong> · <strong>Chờ tiếp nhận</strong> (có thể có badge số) · <strong>+ Tạo dự án</strong>. Cột thêm: Điều phối, Phòng ban. Link <strong>Tạo dự án đầu tiên</strong> khi danh sách trống.</div></div>
+        </div>
+        <figure class="guide-step-figure">
+            <img src="{% static 'images/guide/cong-viec-lpb-list.png' %}" alt="Danh sách dự án liên phòng ban" class="guide-zoomable" loading="lazy">
+        </figure>
+    </div>
+    <div class="guide-step guide-step--illustrated">
+        <div class="guide-step-head">
+            <div class="guide-step-num">17</div>
+            <div class="guide-step-body"><div>Form <strong>Tạo dự án liên phòng ban</strong>: Tên dự án, Mô tả, Hạn dự án, <strong>Phòng ban tham gia</strong> (chọn ≥ 2, giữ Ctrl/Cmd để chọn nhiều) → <strong>Lưu dự án</strong> / <strong>Hủy</strong>.</div></div>
+        </div>
+        <figure class="guide-step-figure">
+            <img src="{% static 'images/guide/cong-viec-lpb-tao.png' %}" alt="Form tạo dự án liên phòng ban" class="guide-zoomable" loading="lazy">
+        </figure>
+    </div>
+    <div class="guide-step guide-step--illustrated">
+        <div class="guide-step-head">
+            <div class="guide-step-num">18</div>
+            <div class="guide-step-body"><div>Chi tiết (điều phối): <strong>Hoàn thành dự án</strong>; <strong>Thêm bước mới</strong> gồm Phòng ban xử lý, Cách gán người (<em>Hàng đợi phòng ban</em> hoặc <em>Chỉ định người</em>) → <strong>Thêm bước</strong>.
+                Trên bước hàng đợi: nhân viên bấm <strong>Tiếp nhận</strong>. Bước đã gán: <strong>Chi tiết</strong>. Bước từ chối: <strong>Giao người khác</strong>.
+                Comment: <strong>Gửi comment</strong> (Trưởng bộ phận xem chỉ đọc thì không gửi).
+                Tab <strong>Chờ tiếp nhận</strong> của quản lý giống nhân viên khi phòng mình có hàng đợi.
+            </div></div>
+        </div>
+        <figure class="guide-step-figure">
+            <img src="{% static 'images/guide/cong-viec-lpb-cho.png' %}" alt="Chờ tiếp nhận — quản lý" class="guide-zoomable" loading="lazy">
+        </figure>
+    </div>
+</div>
+
+<div class="guide-tip mb-0">
+    <strong>Luồng nút tóm tắt:</strong><br>
+    Cá nhân: + Giao việc → Xác nhận nhận việc → Lưu tiến độ → Nộp chờ duyệt → Duyệt hoàn thành.<br>
+    Dự án nội bộ: + Tạo dự án → Lưu dự án → Thêm bước → Chi tiết bước (làm/duyệt) → Hoàn thành dự án.<br>
+    Liên phòng ban: + Tạo dự án → Thêm bước (hàng đợi/chỉ định) → Chờ tiếp nhận → Xác nhận tiếp nhận → làm/duyệt bước → Hoàn thành dự án.
+</div>

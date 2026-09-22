@@ -255,7 +255,7 @@ def library_process_groups_for_team(slug: str) -> list[TeamProcessGroup]:
     team = team_by_slug(slug)
     if not team:
         return []
-    wanted = team['slug']
+    wanted = (team.get('stage_slug') or team.get('slug') or '').strip().lower()
     from san_xuat.ie_models import SxOperation, SxOperationGroup, SxRoutingLine
 
     groups = list(

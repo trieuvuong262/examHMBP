@@ -92,6 +92,9 @@
               </td>
               <td class="c-po" rowspan="{{ row.stage_rows|length }}">
                 <a class="jp-tl-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
+                {% if can_view_team_work_goods %}
+                <a class="jp-tl-hh" href="{% url 'san_xuat:team_work_goods' %}?q={{ row.order.code|urlencode }}" title="Tiến độ hàng hoá của đơn">HH</a>
+                {% endif %}
               </td>
               {% endif %}
               <td class="c-dept jp-stage-{{ stage.slug }}{% if stage.gc_hired %} is-gc{% endif %}"
@@ -116,8 +119,13 @@
                   data-qty-per-day="{{ stage.qty_per_day|sx_num_input }}"
                   data-planned-qty="{{ stage.planned_qty|sx_num_input }}"
                   title="{{ stage.label }} · {{ row.order.code }}{% if stage.gc_hired %} · {{ stage.gc_title }}{% endif %}">
-                <span class="jp-sheet-side">
+                  <span class="jp-sheet-side">
+                  {% if stage.progress_mo_id %}
+                  <a class="jp-tl-dept-name" href="{% url 'san_xuat:team_work_progress' stage.progress_slug|default:stage.slug stage.progress_mo_id %}"
+                     title="Phiếu tiến độ {{ stage.short_label }}">{{ stage.label }}</a>
+                  {% else %}
                   <span class="jp-tl-dept-name">{% if stage.label %}{{ stage.label }}{% else %}{{ stage.short_label }}{% endif %}</span>
+                  {% endif %}
                   {% if stage.gc_hired %}
                     {% if stage.gc_pk %}
                     <a class="jp-sheet-gc" href="{% url 'san_xuat:subcontract_detail' stage.gc_pk %}"
@@ -160,9 +168,9 @@
                   data-order-id="{{ row.order.pk }}"
                   data-team-slug="{{ stage.slug }}"
                   {% if cell.is_off %}data-off="1"{% endif %}>
-                {% if cell.bar and not cell.is_off %}
+                {% if cell.bar %}{% if not cell.is_off or cell.bar.done_qty_label != '0' %}
                 <button type="button"
-                        class="jp-sheet-qty jp-stage-{{ cell.bar.slug }}{% if row.is_late %} is-late{% endif %}{% if can_schedule and cell.bar.can_drag %} is-draggable{% endif %}{% if cell.bar.gc_hired %} is-gc{% endif %}"
+                        class="jp-sheet-qty jp-stage-{{ cell.bar.slug }}{% if row.is_late %} is-late{% endif %}{% if can_schedule and cell.bar.can_drag %} is-draggable{% endif %}{% if cell.bar.gc_hired %} is-gc{% endif %}{% if cell.bar.qty_label == '0' and cell.bar.done_qty_label != '0' %} is-actual{% endif %}"
                         draggable="false"
                         oncontextmenu="event.preventDefault(); event.stopPropagation(); if (window.jpShowRouteCtx) window.jpShowRouteCtx(event); return false;"
                         data-jp-team-drag
@@ -183,11 +191,11 @@
                         data-can-drag="{% if can_schedule and cell.bar.can_drag %}1{% else %}0{% endif %}"
                         data-can-split="{% if can_schedule and cell.bar.slug and cell.bar.slug != 'npl' %}1{% else %}0{% endif %}"
                         data-work-center-id="{% if cell.bar.work_center_id %}{{ cell.bar.work_center_id }}{% endif %}"
-                        title="{{ cell.bar.label }} · {{ row.order.code }} · dự kiến {{ cell.bar.qty_label|default:'0' }} · đã làm {{ cell.bar.done_qty_label }}{% if cell.bar.gc_hired %} · {{ cell.bar.gc_title }}{% endif %}{% if can_schedule and cell.bar.can_drag %} · Kéo sang ngày khác{% endif %}">
+                        title="{{ cell.bar.label }} · {{ row.order.code }} · dự kiến {{ cell.bar.qty_label|default:'0' }} · đã làm {{ cell.bar.done_qty_label }} (phiếu tổ){% if cell.bar.gc_hired %} · {{ cell.bar.gc_title }}{% endif %}{% if can_schedule and cell.bar.can_drag %} · Kéo sang ngày khác{% endif %}">
                   <span class="jp-sheet-plan">{{ cell.bar.qty_label|default:"—" }}</span>
                   <span class="jp-sheet-done">{{ cell.bar.done_qty_label|default:"0" }}</span>
                 </button>
-                {% endif %}
+                {% endif %}{% endif %}
               </td>
               {% endfor %}
               <td class="c-total c-total-plan">{{ stage.total_label|default:"—" }}</td>
@@ -234,7 +242,7 @@
                   {% endfor %}
                 </div>
               </td>
-              <td class="c-po"><a class="jp-tl-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a></td>
+              <td class="c-po"><a class="jp-tl-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>{% if can_view_team_work_goods %} <a class="jp-tl-hh" href="{% url 'san_xuat:team_work_goods' %}?q={{ row.order.code|urlencode }}" title="Tiến độ hàng hoá">HH</a>{% endif %}</td>
               <td class="c-dept">—</td>
               <td class="c-team">—</td>
               {% for d in route_board.days %}
@@ -252,8 +260,8 @@
     </div>
     {% else %}
     <div class="jp-tl-empty">
-      {% if search_query or route_team_filter %}
-        Không có đơn khớp bộ lọc. Đổi bộ phận hoặc xóa lọc để xem lại.
+      {% if search_query or route_team_filter or priority_filter or deadline_filter %}
+        Không có đơn khớp bộ lọc. Đổi bộ phận, ưu tiên hoặc xóa lọc để xem lại.
       {% else %}
         Không có đơn trong {{ route_board.month_label }}. Đổi tháng hiển thị để xem.
       {% endif %}

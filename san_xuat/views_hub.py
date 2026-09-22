@@ -1507,6 +1507,10 @@ def plan_board(request):
                 params['route_months'] = route_months_raw
             if route_team_filter:
                 params['team'] = route_team_filter
+            if priority_filter:
+                params['priority_filter'] = priority_filter
+            if deadline_filter:
+                params['deadline'] = deadline_filter
         params.update(extra)
         from urllib.parse import urlencode
         return redirect(f"{reverse('san_xuat:plan_board')}?{urlencode(params, doseq=True)}")
@@ -2136,6 +2140,31 @@ def plan_board(request):
             rows = [row for row in rows if not row.is_overdue]
         return rows
 
+    def _apply_route_board_filters(board):
+        if board is None:
+            return board
+        rows = list(getattr(board, 'rows', None) or [])
+        valid_priorities = {value for value, _label in SxSalesOrder.PRIORITY_CHOICES}
+        if priority_filter in valid_priorities:
+            rows = [row for row in rows if row.order.plan_priority == priority_filter]
+        today = timezone.localdate()
+        if deadline_filter == 'overdue':
+            rows = [row for row in rows if row.is_late]
+        elif deadline_filter == 'due_soon':
+            kept = []
+            for row in rows:
+                due = row.order.due_date
+                if due is None:
+                    continue
+                days = (due - today).days
+                if 0 <= days <= 3:
+                    kept.append(row)
+            rows = kept
+        elif deadline_filter == 'on_time':
+            rows = [row for row in rows if not row.is_late]
+        board.rows = rows
+        return board
+
     if tab == 'queue':
         from san_xuat.list_filters import parse_sx_date
         from san_xuat.services.plan_board import (
@@ -2246,6 +2275,7 @@ def plan_board(request):
             team_ids=route_team_ids,
             include_unassigned_team=route_team_unassigned,
         )
+        route_board = _apply_route_board_filters(route_board)
         today_start, today_end_month = _months_bounds(timezone.localdate(), route_months)
         route_stats = build_route_stats(route_board)
 
@@ -2305,6 +2335,7 @@ def plan_board(request):
         'stage_legend_items': legend_items,
         'stage_color_css': team_stage_color_css([item.get('slug') for item in legend_items]),
         'npl_kit_default': npl_prep_days(),
+        'can_view_team_work_goods': _can_team_work_overview(request.user),
         'can_create_npl_pr': (
             user_can_create_menu(request.user, MODULE_SAN_XUAT, 'npl_pr')
             or bool(_perm_ctx(request).get('can_create'))
@@ -5755,6 +5786,10 @@ def _can_team_work_overview(user) -> bool:
         return True
     if user_can_access_menu(user, MODULE_SAN_XUAT, 'team_work'):
         return True
+    from san_xuat.services.team_division_map import team_work_menu_items
+
+    if team_work_menu_items(user):
+        return True
     return any(
         user_can_access_menu(user, MODULE_SAN_XUAT, menu_key)
         for _slug, _gk, menu_key, _label in TEAM_SLUGS
@@ -5764,7 +5799,11 @@ def _can_team_work_overview(user) -> bool:
 def _nav_team_for_user(user):
     """Tổ dùng cho nav Công việc / Quản lý nhân sự trên trang tổng (tiến độ hàng hoá)."""
     from san_xuat.services.progress_template import TEAM_SLUGS, team_by_slug
+    from san_xuat.services.team_division_map import team_work_menu_items
 
+    items = team_work_menu_items(user)
+    if items:
+        return team_by_slug(items[0]['slug']) or team_by_slug(TEAM_SLUGS[0][0])
     for slug, _gk, menu_key, _label in TEAM_SLUGS:
         if user_can_access_menu(user, MODULE_SAN_XUAT, menu_key):
             return team_by_slug(slug)
@@ -5776,13 +5815,13 @@ def _nav_team_for_user(user):
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def team_work_hub(request):
     """Hub Công việc tổ → tiến độ hàng hoá, không thì tổ đầu tiên user có quyền."""
-    from san_xuat.services.progress_template import TEAM_SLUGS
+    from san_xuat.services.team_division_map import team_work_menu_items
 
     if _can_team_work_overview(request.user):
         return redirect('san_xuat:team_work_goods')
-    for slug, _gk, menu_key, _label in TEAM_SLUGS:
-        if user_can_access_menu(request.user, MODULE_SAN_XUAT, menu_key):
-            return redirect('san_xuat:team_work_board', slug=slug)
+    items = team_work_menu_items(request.user)
+    if items:
+        return redirect('san_xuat:team_work_board', slug=items[0]['slug'])
     return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'team_work')
 
 
@@ -5801,6 +5840,7 @@ def team_work_goods(request):
         mo_status=(request.GET.get('status') or '').strip(),
         due=(request.GET.get('due') or '').strip(),
         sort=(request.GET.get('sort') or '').strip(),
+        team_slug=(request.GET.get('team') or '').strip(),
     )
     page_obj, query_string = paginate_queryset(request, board.rows, per_page=LIST_PAGE_SIZE)
     return render(request, 'san_xuat/team_work_goods.html', {
@@ -5812,6 +5852,10 @@ def team_work_goods(request):
         'tw_section': 'goods',
         'can_view_subcontract': user_can_access_menu(request.user, MODULE_SAN_XUAT, 'subcontract'),
         'can_create_subcontract': user_can_create_menu(request.user, MODULE_SAN_XUAT, 'subcontract'),
+        'can_view_plan_board': (
+            user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan_board')
+            or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan')
+        ),
     })
 
 
@@ -6016,6 +6060,10 @@ def team_work_board(request, slug: str):
             user_can_update_menu(request.user, MODULE_SAN_XUAT, 'subcontract')
             or can_assign
         ),
+        'can_view_plan_board': (
+            user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan_board')
+            or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan')
+        ),
     })
 
 
@@ -6146,7 +6194,7 @@ def team_work_progress(request, slug: str, mo_id: int):
     from san_xuat.services.order_progress_sheet import (
         build_progress_sheet,
         ensure_progress_work_centers,
-        progress_steps_for_mo,
+        progress_steps_for_team,
         set_progress_done_qty,
     )
     from san_xuat.services.planning import PlanningError
@@ -6198,8 +6246,7 @@ def team_work_progress(request, slug: str, mo_id: int):
         messages.error(request, 'Không tìm thấy lệnh sản xuất đang chạy.')
         return redirect('san_xuat:team_work_board', slug=slug)
 
-    group_key = team_meta['group_key']
-    team_steps = [s for s in progress_steps_for_mo(mo) if s.group == group_key]
+    team_steps = progress_steps_for_team(mo, team_meta)
     allowed_keys = {s.key for s in team_steps}
     ensure_progress_work_centers()
     job_closed = is_team_job_closed(mo_id=mo.pk, team_slug=slug)
@@ -6274,6 +6321,7 @@ def team_work_progress(request, slug: str, mo_id: int):
                     size_label=size_label,
                     qty=qty,
                     user=request.user,
+                    team_slug=slug,
                 )
             except PlanningError as exc:
                 if wants_json:
@@ -6287,7 +6335,7 @@ def team_work_progress(request, slug: str, mo_id: int):
                 return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
             if wants_json:
                 plan_qty = Decimal('0')
-                for row in build_progress_sheet(mo, group_key=group_key).done_rows:
+                for row in build_progress_sheet(mo, team=team_meta).done_rows:
                     if row['size_label'] == size_label or (
                         size_label == 'Tổng' and row['size_label'] == 'Tổng'
                     ):
@@ -6307,7 +6355,7 @@ def team_work_progress(request, slug: str, mo_id: int):
                 messages.success(request, 'Đã cập nhật SL thực hiện.')
             return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
 
-    sheet = build_progress_sheet(mo, group_key=group_key)
+    sheet = build_progress_sheet(mo, team=team_meta)
 
     return render(request, 'san_xuat/team_work_progress.html', {
         **_perm_ctx(request),

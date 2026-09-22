@@ -1097,6 +1097,31 @@
     text-decoration: none;
   }
   .jp-tl-sheet td.c-po .jp-tl-code:hover { color: var(--hm-primary-dark, #b91c1c); text-decoration: underline; }
+  .jp-tl-sheet td.c-po .jp-tl-hh {
+    display: inline-block;
+    margin-top: .15rem;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-decoration: none;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    padding: 0 .28rem;
+    line-height: 1.45;
+  }
+  .jp-tl-sheet td.c-po .jp-tl-hh:hover {
+    color: var(--hm-primary-dark, #b91c1c);
+    border-color: currentColor;
+  }
+  .jp-tl-sheet td.c-dept a.jp-tl-dept-name {
+    color: inherit;
+    text-decoration: none;
+  }
+  .jp-tl-sheet td.c-dept a.jp-tl-dept-name:hover {
+    color: var(--hm-primary-dark, #b91c1c);
+    text-decoration: underline;
+  }
   .jp-tl-sheet tbody td.c-img,
   .jp-tl-sheet tbody td.c-name {
     height: auto;
@@ -1282,6 +1307,8 @@
   .jp-tl-sheet .jp-sheet-qty[class*="jp-stage-"] .jp-sheet-plan { background: var(--st-fill, #bfdbfe); color: var(--st-ink, #1e3a8a); }
   .jp-tl-sheet .jp-sheet-qty[class*="jp-stage-"] .jp-sheet-done { color: var(--st-ink, #64748b); background: var(--st-soft, #fff); }
   .jp-tl-sheet .jp-sheet-qty.is-draggable { cursor: grab; }
+  .jp-tl-sheet .jp-sheet-qty.is-actual .jp-sheet-plan { opacity: .42; }
+  .jp-tl-sheet .jp-sheet-qty.is-actual { box-shadow: inset 0 0 0 1px var(--st-ink, #94a3b8); }
   .jp-tl-sheet .jp-sheet-qty:hover { box-shadow: inset 0 0 0 1.5px var(--sheet-brand); }
   .jp-tl-sheet .jp-sheet-qty.is-dragging { opacity: .45; }
   .jp-tl-sheet .jp-sheet-cell.is-drop-hint { background: var(--sheet-brand-soft) !important; box-shadow: inset 0 0 0 1.5px var(--sheet-brand); }

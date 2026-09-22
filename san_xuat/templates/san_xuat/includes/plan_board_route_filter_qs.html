@@ -1,1 +1,1 @@
-{% for tid in route_team_filter %}&amp;team={{ tid|urlencode }}{% endfor %}
+{% for tid in route_team_filter %}&amp;team={{ tid|urlencode }}{% endfor %}{% if priority_filter %}&amp;priority_filter={{ priority_filter|urlencode }}{% endif %}{% if deadline_filter %}&amp;deadline={{ deadline_filter|urlencode }}{% endif %}

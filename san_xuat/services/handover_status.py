@@ -6,12 +6,19 @@ Lấy từ thống kê SX đã xác nhận (ghi từ phiếu tiến độ tổ).
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import date
 from decimal import Decimal
 
 from django.db.models import Prefetch, Q
 
-from san_xuat.hub_models import SxProductionOrder, SxProductionOrderLine, SxProductionStat
+from san_xuat.hub_models import (
+    SxOrderTeamDayPlan,
+    SxProductionOrder,
+    SxProductionOrderLine,
+    SxProductionStat,
+    SxSalesOrderPlanStep,
+)
 from san_xuat.services.order_progress_sheet import _q, _size_plans
 from san_xuat.services.progress_template import (
     GROUPS,
@@ -93,6 +100,17 @@ class TeamQueue:
 
 
 @dataclass
+class KhsxTeamCtx:
+    """Lịch / tổ WC trên KHSX theo (đơn, slug bộ phận)."""
+
+    start: date | None = None
+    end: date | None = None
+    work_center_id: int = 0
+    work_center_label: str = ""
+    planned_qty: Decimal = field(default_factory=lambda: Decimal("0"))
+
+
+@dataclass
 class HandoverBoard:
     rows: list[MoHandoverRow]
     teams: list[dict]
@@ -165,31 +183,24 @@ def _cell_status(*, done: Decimal, plan: Decimal) -> str:
     return "run"
 
 
-def _build_row(
+def _team_done_by_slug(
     mo: SxProductionOrder,
     *,
     sizes: list,
     step_size_qty: dict[tuple[str, str], Decimal],
     all_steps: list[ProgressStepDef],
     participating_slugs: set[str] | None = None,
-) -> MoHandoverRow:
-    plan = sum((r.qty for r in sizes), Decimal("0")) or _q(mo.qty)
+) -> dict[str, Decimal]:
+    """TEAM_OUTPUT theo slug từ snapshot thống kê (size × công đoạn)."""
     size_labels = [r.size_label for r in sizes] or ["Tổng"]
-    size_plan = {r.size_label: r.qty for r in sizes}
-    if not size_plan:
-        size_plan = {"Tổng": plan}
-
     steps_by_group: dict[str, list[ProgressStepDef]] = {}
     for s in all_steps:
         steps_by_group.setdefault(s.group, []).append(s)
-
-    cells: list[TeamHandoverCell] = []
-    waiting_total = Decimal("0")
-    bottleneck = ""
-    bottleneck_qty = Decimal("0")
-
+    out: dict[str, Decimal] = {}
     for grp in GROUPS:
         slug = _slug_for_group(grp.key)
+        if not slug:
+            continue
         if participating_slugs is not None and slug not in participating_slugs:
             continue
         g_steps = steps_by_group.get(grp.key, [])
@@ -206,6 +217,37 @@ def _build_row(
                 group_steps=g_steps,
                 required_keys=required,
             )
+        out[slug] = done
+    return out
+
+
+def _build_row(
+    mo: SxProductionOrder,
+    *,
+    sizes: list,
+    step_size_qty: dict[tuple[str, str], Decimal],
+    all_steps: list[ProgressStepDef],
+    participating_slugs: set[str] | None = None,
+) -> MoHandoverRow:
+    plan = sum((r.qty for r in sizes), Decimal("0")) or _q(mo.qty)
+
+    done_by_slug = _team_done_by_slug(
+        mo,
+        sizes=sizes,
+        step_size_qty=step_size_qty,
+        all_steps=all_steps,
+        participating_slugs=participating_slugs,
+    )
+    cells: list[TeamHandoverCell] = []
+    waiting_total = Decimal("0")
+    bottleneck = ""
+    bottleneck_qty = Decimal("0")
+
+    for grp in GROUPS:
+        slug = _slug_for_group(grp.key)
+        if participating_slugs is not None and slug not in participating_slugs:
+            continue
+        done = done_by_slug.get(slug, Decimal("0"))
         incoming = plan
         remaining = plan - done
         if remaining < 0:
@@ -303,25 +345,213 @@ def _participating_slugs(mo: SxProductionOrder) -> set[str]:
     return {t.slug for t in ob_qc_teams(mo=mo)}
 
 
-def build_mo_handover_row(mo: SxProductionOrder) -> MoHandoverRow:
+def build_mo_handover_rows(mos: list[SxProductionOrder]) -> list[MoHandoverRow]:
+    """Hàng tiến độ tổ (TEAM_OUTPUT) cho nhiều LSX — một query TKSX."""
     all_steps = progress_steps()
-    sizes = _size_plans(mo)
-    stats = SxProductionStat.objects.filter(
-        production_order=mo,
-        is_demo=False,
-        status=SxProductionStat.STATUS_CONFIRMED,
-    ).only("process_name", "size_label", "qty_good")
-    step_size_qty = _accumulate_stats(stats, sizes)
-    row = _build_row(
-        mo,
-        sizes=sizes,
-        step_size_qty=step_size_qty,
-        all_steps=all_steps,
-        participating_slugs=_participating_slugs(mo),
-    )
+    stats_by_mo: dict[int, list[SxProductionStat]] = {mo.pk: [] for mo in mos}
+    if mos:
+        for st in SxProductionStat.objects.filter(
+            production_order_id__in=[m.pk for m in mos],
+            is_demo=False,
+            status=SxProductionStat.STATUS_CONFIRMED,
+        ).only("production_order_id", "process_name", "size_label", "qty_good", "stat_date"):
+            stats_by_mo.setdefault(st.production_order_id, []).append(st)
+    rows: list[MoHandoverRow] = []
+    for mo in mos:
+        sizes = _size_plans(mo)
+        acc = _accumulate_stats(stats_by_mo.get(mo.pk, []), sizes)
+        rows.append(
+            _build_row(
+                mo,
+                sizes=sizes,
+                step_size_qty=acc,
+                all_steps=all_steps,
+                participating_slugs=_participating_slugs(mo),
+            )
+        )
+    return rows
+
+
+def build_mo_handover_row(mo: SxProductionOrder) -> MoHandoverRow:
+    rows = build_mo_handover_rows([mo])
+    row = rows[0]
     attach_qc_to_handover_rows([row])
     attach_gc_to_handover_rows([row])
     return row
+
+
+def _mos_for_sales_orders(order_ids: list[int]) -> list[SxProductionOrder]:
+    ids = [int(x) for x in order_ids if x]
+    if not ids:
+        return []
+    return list(
+        SxProductionOrder.objects.filter(is_demo=False, sales_order_id__in=ids)
+        .exclude(status=SxProductionOrder.STATUS_CANCELLED)
+        .exclude(status=SxProductionOrder.STATUS_DRAFT)
+        .select_related("sales_order")
+        .prefetch_related(
+            Prefetch(
+                "lines",
+                queryset=SxProductionOrderLine.objects.order_by("size_label", "id"),
+            ),
+            "mo_process_steps",
+            "sales_order__lines__routing_lines__work_center",
+            "routing__lines__work_center",
+            "bom_version__process_steps__work_center",
+        )
+    )
+
+
+def done_qty_by_order_team(order_ids: list[int]) -> dict[tuple[int, str], Decimal]:
+    """SL đạt TEAM_OUTPUT theo (sales_order_id, team_slug) — cộng các LSX của đơn.
+
+    Cùng công thức tiến độ hàng hoá / bàn giao: Cắt = min CĐ bắt buộc,
+    May = may_giao, Ủi = ht_gap, GH = gh_tp.
+    """
+    mos = _mos_for_sales_orders(order_ids)
+    if not mos:
+        return {}
+    out: dict[tuple[int, str], Decimal] = {}
+    for row in build_mo_handover_rows(mos):
+        oid = int(row.mo.sales_order_id or 0)
+        if not oid:
+            continue
+        for cell in row.cells:
+            slug = (cell.slug or "").strip().lower()
+            if not slug:
+                continue
+            key = (oid, slug)
+            out[key] = out.get(key, Decimal("0")) + _q(cell.done)
+    return out
+
+
+def done_qty_by_order_team_day(
+    order_ids: list[int],
+) -> dict[tuple[int, str], dict[date, Decimal]]:
+    """Delta TEAM_OUTPUT theo ngày báo cáo TKSX — (đơn, slug) → {ngày: SL}.
+
+    Đi từng `stat_date`: TEAM_OUTPUT lũy kế đến ngày đó trừ ngày trước.
+    Cắt áo một ngày / quần ngày sau chỉ ghi SL bộ vào ngày đủ min.
+    """
+    mos = _mos_for_sales_orders(order_ids)
+    if not mos:
+        return {}
+    all_steps = progress_steps()
+    stats_by_mo: dict[int, list[SxProductionStat]] = {mo.pk: [] for mo in mos}
+    for st in SxProductionStat.objects.filter(
+        production_order_id__in=[m.pk for m in mos],
+        is_demo=False,
+        status=SxProductionStat.STATUS_CONFIRMED,
+    ).only("production_order_id", "process_name", "size_label", "qty_good", "stat_date"):
+        stats_by_mo.setdefault(st.production_order_id, []).append(st)
+
+    out: dict[tuple[int, str], dict[date, Decimal]] = {}
+    for mo in mos:
+        oid = int(mo.sales_order_id or 0)
+        if not oid:
+            continue
+        sizes = _size_plans(mo)
+        participating = _participating_slugs(mo)
+        by_date: dict[date, list[SxProductionStat]] = {}
+        for st in stats_by_mo.get(mo.pk, []):
+            day = getattr(st, "stat_date", None)
+            if not day:
+                continue
+            by_date.setdefault(day, []).append(st)
+        if not by_date:
+            continue
+        acc: dict[tuple[str, str], Decimal] = {}
+        prev: dict[str, Decimal] = {}
+        for day in sorted(by_date):
+            day_acc = _accumulate_stats(by_date[day], sizes)
+            for key, qty in day_acc.items():
+                acc[key] = acc.get(key, Decimal("0")) + qty
+            current = _team_done_by_slug(
+                mo,
+                sizes=sizes,
+                step_size_qty=acc,
+                all_steps=all_steps,
+                participating_slugs=participating,
+            )
+            for slug, tot in current.items():
+                delta = tot - prev.get(slug, Decimal("0"))
+                if delta <= 0:
+                    continue
+                slot = out.setdefault((oid, slug), {})
+                slot[day] = slot.get(day, Decimal("0")) + delta
+            prev = current
+    return out
+
+
+def _slug_from_plan_step(step) -> str:
+    from san_xuat.services.progress_template import team_by_slug, team_slug_for_process_label
+
+    code = (getattr(step, "group_code", None) or "").strip().lower()
+    if code and team_by_slug(code):
+        return code
+    return (team_slug_for_process_label(getattr(step, "process_name", "") or "") or "").strip().lower()
+
+
+def khsx_context_by_order_team(order_ids: list[int]) -> dict[tuple[int, str], KhsxTeamCtx]:
+    """Ngày KHSX + tổ WC theo (đơn, slug). Ưu tiên phân bổ ngày, fallback plan_steps."""
+    ids = [int(x) for x in order_ids if x]
+    if not ids:
+        return {}
+    out: dict[tuple[int, str], KhsxTeamCtx] = {}
+
+    def _ctx(oid: int, slug: str) -> KhsxTeamCtx:
+        key = (oid, slug)
+        row = out.get(key)
+        if row is None:
+            row = KhsxTeamCtx()
+            out[key] = row
+        return row
+
+    day_rows = (
+        SxOrderTeamDayPlan.objects.filter(sales_order_id__in=ids)
+        .select_related("work_center")
+        .order_by("plan_date", "id")
+    )
+    for dp in day_rows:
+        slug = (dp.team_slug or "").strip().lower()
+        if not slug or not dp.plan_date:
+            continue
+        ctx = _ctx(int(dp.sales_order_id), slug)
+        if ctx.start is None or dp.plan_date < ctx.start:
+            ctx.start = dp.plan_date
+        if ctx.end is None or dp.plan_date > ctx.end:
+            ctx.end = dp.plan_date
+        ctx.planned_qty += _q(dp.qty)
+        wc = dp.work_center
+        if wc and not ctx.work_center_id:
+            ctx.work_center_id = int(wc.pk)
+            ctx.work_center_label = (wc.team_label or wc.name or wc.code or "").strip()
+        elif wc and ctx.work_center_id and int(wc.pk) != ctx.work_center_id:
+            extra = (wc.team_label or wc.name or wc.code or "").strip()
+            if extra and extra not in ctx.work_center_label:
+                ctx.work_center_label = f"{ctx.work_center_label}, {extra}" if ctx.work_center_label else extra
+
+    step_rows = (
+        SxSalesOrderPlanStep.objects.filter(sales_order_id__in=ids)
+        .select_related("work_center")
+        .order_by("sequence", "id")
+    )
+    for step in step_rows:
+        slug = _slug_from_plan_step(step)
+        if not slug:
+            continue
+        ctx = _ctx(int(step.sales_order_id), slug)
+        planned = getattr(step, "planned_date", None)
+        if planned:
+            if ctx.start is None or planned < ctx.start:
+                ctx.start = planned
+            if ctx.end is None:
+                ctx.end = planned
+        wc = step.work_center
+        if wc and not ctx.work_center_id:
+            ctx.work_center_id = int(wc.pk)
+            ctx.work_center_label = (wc.team_label or wc.name or wc.code or "").strip()
+    return out
 
 
 def _accumulate_stats(stats, sizes) -> dict[tuple[str, str], Decimal]:
@@ -381,29 +611,7 @@ def build_handover_board(*, search: str = "", team_slug: str = "", limit: int = 
         )
 
     mos = list(qs[:limit])
-    all_steps = progress_steps()
-    stats_by_mo: dict[int, list[SxProductionStat]] = {mo.pk: [] for mo in mos}
-    if mos:
-        for st in SxProductionStat.objects.filter(
-            production_order_id__in=[m.pk for m in mos],
-            is_demo=False,
-            status=SxProductionStat.STATUS_CONFIRMED,
-        ).only("production_order_id", "process_name", "size_label", "qty_good"):
-            stats_by_mo.setdefault(st.production_order_id, []).append(st)
-
-    rows: list[MoHandoverRow] = []
-    for mo in mos:
-        sizes = _size_plans(mo)
-        acc = _accumulate_stats(stats_by_mo.get(mo.pk, []), sizes)
-        rows.append(
-            _build_row(
-                mo,
-                sizes=sizes,
-                step_size_qty=acc,
-                all_steps=all_steps,
-                participating_slugs=_participating_slugs(mo),
-            )
-        )
+    rows = build_mo_handover_rows(mos)
     attach_qc_to_handover_rows(rows)
 
     queues: list[TeamQueue] = []

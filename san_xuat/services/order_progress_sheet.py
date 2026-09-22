@@ -222,21 +222,68 @@ def progress_steps_for_mo(mo: SxProductionOrder) -> list[ProgressStepDef]:
             or i * 10
         )
         group = _group_for_line(line)
+        wc = getattr(line, 'work_center', None)
+        wc_code = (getattr(wc, 'code', None) or '').strip() or group.work_center_code
         tmpl = step_by_label(label)
         if tmpl and tmpl.group == group.key:
-            steps.append(tmpl)
+            if wc_code and wc_code != tmpl.work_center_code:
+                steps.append(
+                    ProgressStepDef(
+                        key=tmpl.key,
+                        label=tmpl.label,
+                        group=tmpl.group,
+                        work_center_code=wc_code,
+                        sequence=seq or tmpl.sequence,
+                    )
+                )
+            else:
+                steps.append(tmpl)
             continue
         steps.append(
             ProgressStepDef(
                 key=_process_key(seq, label),
                 label=label,
                 group=group.key,
-                work_center_code=group.work_center_code,
+                work_center_code=wc_code,
                 sequence=seq or ((len(steps) + 1) * 10),
             )
         )
     rank = {group.key: i for i, group in enumerate(GROUPS)}
     steps.sort(key=lambda item: (rank.get(item.group, 99), item.sequence, item.label))
+    return steps
+
+
+def progress_steps_for_team(mo: SxProductionOrder, team: dict) -> list[ProgressStepDef]:
+    """Công đoạn phiếu tổ = CĐ BOM/Ob của đúng bộ phận (WC HRD), không catalog 50 CĐ."""
+    steps = progress_steps_for_mo(mo)
+    if not steps:
+        return []
+    want_code = (team.get('work_center_code') or '').strip().upper()
+    div_id = int(team.get('division_id') or 0)
+    group_key = (team.get('group_key') or '').strip()
+    stage_slug = (team.get('stage_slug') or team.get('slug') or '').strip().lower()
+    if div_id:
+        from san_xuat.services.capacity_from_hrm import division_id_from_work_center_code
+
+        matched = [
+            s
+            for s in steps
+            if (s.work_center_code or '').strip().upper() == want_code
+            or division_id_from_work_center_code(s.work_center_code) == div_id
+        ]
+        if matched:
+            return matched
+        if group_key:
+            return [s for s in steps if s.group == group_key]
+        if stage_slug and not stage_slug.startswith('d'):
+            from san_xuat.services.progress_template import TEAM_SLUGS
+
+            gk = next((g for sl, g, *_rest in TEAM_SLUGS if sl == stage_slug), '')
+            if gk:
+                return [s for s in steps if s.group == gk]
+        return []
+    if group_key:
+        return [s for s in steps if s.group == group_key]
     return steps
 
 
@@ -302,13 +349,17 @@ def build_progress_sheet(
     mo: SxProductionOrder,
     *,
     group_key: str | None = None,
+    team: dict | None = None,
 ) -> ProgressSheet:
     all_steps = progress_steps_for_mo(mo)
-    gk = (group_key or '').strip().upper()
-    if gk:
-        steps = [s for s in all_steps if s.group == gk]
+    if team:
+        steps = progress_steps_for_team(mo, team)
     else:
-        steps = all_steps
+        gk = (group_key or '').strip().upper()
+        if gk:
+            steps = [s for s in all_steps if s.group == gk]
+        else:
+            steps = all_steps
     groups = progress_groups_for_steps(steps)
     sizes = _size_plans(mo)
     label_map = {s.label.casefold(): s for s in all_steps}
@@ -440,6 +491,7 @@ def record_progress_qty(
     qty: Decimal,
     stat_date: date | None = None,
     user=None,
+    team_slug: str | None = None,
 ) -> SxProductionStat:
     """Ghi SL đạt vào phiếu (TKSX confirmed) — dùng bởi planner trên màn tiến độ."""
     from san_xuat.services.dispatch import _code, _recompute_mo_progress
@@ -469,6 +521,12 @@ def record_progress_qty(
     team = ''
     if wc:
         team = (wc.team_label or wc.name or wc.code or '').strip()
+    if team_slug:
+        from san_xuat.services.progress_template import team_by_slug
+
+        meta = team_by_slug(team_slug)
+        if meta and (meta.get('label') or '').strip():
+            team = (meta.get('label') or '').strip()
 
     color_code = ''
     color_label = ''
@@ -548,6 +606,7 @@ def set_progress_done_qty(
     size_label: str,
     qty: Decimal,
     user=None,
+    team_slug: str | None = None,
 ) -> dict:
     """Đặt tổng SL thực hiện của một ô (size × công đoạn) — không cộng dồn."""
     from django.db.models import Sum
@@ -587,6 +646,7 @@ def set_progress_done_qty(
             size_label=size_label,
             qty=qty - current,
             user=user,
+            team_slug=team_slug,
         )
     else:
         need_cut = current - qty

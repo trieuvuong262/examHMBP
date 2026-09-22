@@ -48,6 +48,10 @@
       <a href="{% url 'san_xuat:dispatch_mo' %}?q={{ order.code|urlencode }}"><i class="bi bi-file-earmark-text" aria-hidden="true"></i>Lệnh sản xuất</a>
       {% endif %}
       <span class="sep" aria-hidden="true"></span>
+      <a href="{% url 'san_xuat:plan_board' %}?mode=list&tab=route{% if order %}&q={{ order.code|urlencode }}{% endif %}"><i class="bi bi-calendar3" aria-hidden="true"></i>Lộ trình</a>
+      <span class="sep" aria-hidden="true"></span>
+      <a href="{% url 'san_xuat:team_work_goods' %}{% if order %}?q={{ order.code|urlencode }}{% endif %}"><i class="bi bi-bar-chart-line" aria-hidden="true"></i>Hàng hoá</a>
+      <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:plan_board' %}?mode=list&tab=queue" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Kế hoạch</a>
     </nav>
   </div>

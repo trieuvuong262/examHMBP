@@ -3612,6 +3612,8 @@ class RouteStageRow:
     gc_pk: int = 0
     gc_code: str = ''
     gc_title: str = ''
+    progress_mo_id: int = 0
+    progress_slug: str = ''
 
 
 @dataclass
@@ -3910,11 +3912,11 @@ def _team_qty_label(slug: str, product_flows, fallback_qty: Decimal) -> str:
 
 _SHEET_STAGE_LABELS = {
     'cat': 'Cắt',
-    'inep': 'In/ép',
+    'inep': 'In - Ép',
     'theu': 'Thêu',
     'may': 'May',
-    'ht': 'Ủi',
-    'gh': 'Đóng gói',
+    'ht': 'Ủi - Gấp xếp',
+    'gh': 'Giao hàng thành phẩm',
     'kho': 'Nhập kho',
 }
 _SHEET_STAGE_ORDER = ('cat', 'inep', 'theu', 'may', 'ht', 'gh', 'kho')
@@ -4186,7 +4188,9 @@ def _stage_rows_from_bars(
             if cell_date > range_end:
                 continue
             if not is_working_day(cell_date, pattern=pattern, holidays=holidays):
-                continue
+                done_txt = (getattr(bar, 'done_qty_label', '') or '').strip()
+                if done_txt in ('', '0'):
+                    continue
             if cell_date not in by_day:
                 by_day[cell_date] = bar
         first_date = min(by_day) if by_day else (sample.start if sample else None)
@@ -4248,7 +4252,7 @@ def _day_plans_by_order_team(
 
 
 def _fifo_allocate_done(planned_qtys: list[Decimal], done_total: Decimal) -> list[Decimal]:
-    """Phân bổ SL đã làm theo FIFO trên các mảnh ngày."""
+    """Phân bổ SL đã làm theo FIFO trên các mảnh ngày (legacy — lộ trình dùng ngày TKSX)."""
     remaining = max(_q(done_total), Decimal('0'))
     allocated: list[Decimal] = []
     for planned in planned_qtys:
@@ -4256,6 +4260,103 @@ def _fifo_allocate_done(planned_qtys: list[Decimal], done_total: Decimal) -> lis
         allocated.append(take)
         remaining -= take
     return allocated
+
+
+def _make_route_day_bar(
+    *,
+    ts,
+    day: date,
+    start: date,
+    end: date,
+    grid_row: int,
+    can_drag: bool,
+    qty_label: str,
+    done_qty_label: str,
+    is_first: bool,
+    is_split: bool,
+    segment_id: int,
+    team_qty_total: str,
+    done_qty_total: str,
+    work_center_id: int,
+    cap: dict,
+    bar_label: str = '',
+) -> TeamTimelineBar | None:
+    placed = _bar_columns(day, day, start, end)
+    if placed is None:
+        return None
+    t_col_s, t_col_e, t_len = placed
+    return TeamTimelineBar(
+        slug=ts.slug,
+        label=bar_label or ts.label,
+        start=day,
+        end=day,
+        col_start=t_col_s,
+        col_end=t_col_e,
+        vis_days=t_len,
+        bar_text=qty_label,
+        clips_left=False,
+        clips_right=False,
+        can_drag=can_drag,
+        span_days=1,
+        minutes=ts.minutes,
+        duration_label=ts.duration_label or '',
+        grid_row=grid_row,
+        is_first=is_first,
+        placed=True,
+        qty_label=qty_label,
+        done_qty_label=done_qty_label,
+        is_split=is_split,
+        segment_id=int(segment_id or 0),
+        plan_date=day,
+        team_qty_total=team_qty_total,
+        done_qty_total=done_qty_total,
+        work_center_id=int(work_center_id or 0),
+        **cap,
+    )
+
+
+def _append_actual_only_bars(
+    team_bars: list[TeamTimelineBar],
+    *,
+    ts,
+    actual_by_date: dict,
+    planned_dates: set,
+    start: date,
+    end: date,
+    grid_row: int,
+    team_total_label: str,
+    done_total_label: str,
+    work_center_id: int,
+    cap: dict,
+    first_bar: bool,
+) -> bool:
+    """Ô ngày tổ báo cáo TKSX nhưng không có ô kế hoạch — KH 0, hiện SL đã làm."""
+    for day in sorted(actual_by_date or {}):
+        qty = _q(actual_by_date.get(day) or 0)
+        if qty <= 0 or day in planned_dates:
+            continue
+        bar = _make_route_day_bar(
+            ts=ts,
+            day=day,
+            start=start,
+            end=end,
+            grid_row=grid_row,
+            can_drag=False,
+            qty_label='0',
+            done_qty_label=format_sx_num_input(qty),
+            is_first=first_bar,
+            is_split=True,
+            segment_id=0,
+            team_qty_total=team_total_label,
+            done_qty_total=done_total_label,
+            work_center_id=work_center_id,
+            cap=cap,
+        )
+        if bar is None:
+            continue
+        team_bars.append(bar)
+        first_bar = False
+    return first_bar
 
 
 def _split_qty_pair(qty: Decimal) -> tuple[Decimal, Decimal]:
@@ -4745,74 +4846,19 @@ def move_team_day_plan(
 
 
 def _done_qty_by_order_team(order_ids: list[int]) -> dict[tuple[int, str], Decimal]:
-    """SL đã thực hiện (TKSX confirmed) theo (order_id, team_slug).
+    """SL đã thực hiện theo (order_id, team_slug) — cùng TEAM_OUTPUT với tiến độ hàng hoá."""
+    from san_xuat.services.handover_status import done_qty_by_order_team
 
-    Trong mỗi LSX × tổ: lấy max theo công đoạn (tránh cộng đôi áo+quần),
-    rồi cộng các LSX thuộc cùng đơn.
-    """
-    from san_xuat.services.progress_template import TEAM_SLUGS, team_slug_for_process_label
+    return done_qty_by_order_team(order_ids)
 
-    ids = [int(x) for x in order_ids if x]
-    if not ids:
-        return {}
-    label_to_slug = {
-        (lab or '').strip().casefold(): slug
-        for slug, _gk, _mk, lab in TEAM_SLUGS
-        if (lab or '').strip()
-    }
-    stats = (
-        SxProductionStat.objects.filter(
-            is_demo=False,
-            status=SxProductionStat.STATUS_CONFIRMED,
-            production_order__sales_order_id__in=ids,
-            production_order__is_demo=False,
-        )
-        .exclude(production_order__status=SxProductionOrder.STATUS_CANCELLED)
-        .values(
-            'production_order_id',
-            'production_order__sales_order_id',
-            'process_name',
-            'team_label',
-            'qty_good',
-        )
-    )
-    by_mo_proc: dict[tuple[int, str, str], Decimal] = {}
-    mo_order: dict[int, int] = {}
-    for st in stats:
-        mid = int(st['production_order_id'])
-        oid = int(st['production_order__sales_order_id'] or 0)
-        if not oid:
-            continue
-        mo_order[mid] = oid
-        slug = team_slug_for_process_label(st.get('process_name') or '')
-        if not slug:
-            tl = (st.get('team_label') or '').strip().casefold()
-            slug = label_to_slug.get(tl) or ''
-            if not slug and tl:
-                for lab, s in label_to_slug.items():
-                    if lab and (lab in tl or tl in lab):
-                        slug = s
-                        break
-        if not slug:
-            continue
-        proc = (st.get('process_name') or '').strip().casefold() or '_'
-        key = (mid, slug, proc)
-        by_mo_proc[key] = by_mo_proc.get(key, Decimal('0')) + _q(st.get('qty_good') or 0)
 
-    by_mo_team: dict[tuple[int, str], Decimal] = {}
-    for (mid, slug, _proc), qty in by_mo_proc.items():
-        k = (mid, slug)
-        cur = by_mo_team.get(k)
-        by_mo_team[k] = qty if cur is None or qty > cur else cur
+def _done_qty_by_order_team_day(
+    order_ids: list[int],
+) -> dict[tuple[int, str], dict[date, Decimal]]:
+    """SL tổ theo ngày báo cáo TKSX — cùng TEAM_OUTPUT, không FIFO lên ngày KH."""
+    from san_xuat.services.handover_status import done_qty_by_order_team_day
 
-    out: dict[tuple[int, str], Decimal] = {}
-    for (mid, slug), qty in by_mo_team.items():
-        oid = mo_order.get(mid)
-        if not oid:
-            continue
-        k = (oid, slug)
-        out[k] = out.get(k, Decimal('0')) + qty
-    return out
+    return done_qty_by_order_team_day(order_ids)
 
 
 def build_mo_timeline(
@@ -4920,6 +4966,7 @@ def build_order_timeline(
 
     accepts_by_order = _accepted_teams_by_order_ids([r.order.pk for r in plan_rows])
     done_by_order_team = _done_qty_by_order_team([r.order.pk for r in plan_rows])
+    done_by_order_team_day = _done_qty_by_order_team_day([r.order.pk for r in plan_rows])
     day_plans_map = _day_plans_by_order_team([r.order.pk for r in plan_rows])
     wc_ids = {
         int(d.work_center_id or 0)
@@ -4953,7 +5000,14 @@ def build_order_timeline(
         for ts in team_spans:
             if ts.slug == 'npl':
                 continue
+            slug_key = (ts.slug or '').strip().lower()
             placed_team = _bar_columns(ts.start, ts.end or ts.start, start, end)
+            actuals = done_by_order_team_day.get((r.order.pk, slug_key), {}) or {}
+            if placed_team is None:
+                in_range = [d for d in actuals if start <= d <= end]
+                if in_range:
+                    d0 = min(in_range)
+                    placed_team = _bar_columns(d0, d0, start, end)
             if placed_team is not None:
                 visible_spans.append((ts, placed_team))
         overall_placed = _bar_columns(bar_start, bar_end, start, end)
@@ -5023,80 +5077,83 @@ def build_order_timeline(
                 done_total_label = format_sx_num_input(done_total) if done_total > 0 else '0'
                 can_team_drag = can_drag and ts.slug != 'npl' and getattr(ts, 'can_drag', True)
 
+                actual_by_date = done_by_order_team_day.get((r.order.pk, slug_key), {}) or {}
+
                 if day_rows:
                     primary_wc = int(getattr(ts, 'work_center_id', 0) or 0)
                     groups = _group_day_plans_by_wc(day_rows, primary_wc)
-                    # FIFO đã làm theo ngày, tổ gốc trước (cùng ngày).
-                    ordered_days: list = []
-                    for g_wc, g_rows in groups.items():
-                        rank = 0 if g_wc == primary_wc else 1
-                        for drow in g_rows:
-                            ordered_days.append((drow.plan_date, rank, g_wc, drow))
-                    ordered_days.sort(key=lambda item: (item[0], item[1], item[2], item[3].pk))
-                    done_parts = _fifo_allocate_done(
-                        [_q(item[3].qty) for item in ordered_days],
-                        done_total,
-                    )
-                    done_by_pk = {
-                        item[3].pk: done_parts[idx]
-                        for idx, item in enumerate(ordered_days)
-                    }
                     first_bar = True
+                    used_actual_dates: set = set()
+                    group_wcs = list(groups.keys())
                     for g_wc, g_rows in groups.items():
                         share_qty = sum((_q(d.qty) for d in g_rows), Decimal('0'))
-                        share_done = sum(
-                            (done_by_pk.get(d.pk, Decimal('0')) for d in g_rows),
-                            Decimal('0'),
-                        )
                         share_label = format_sx_num_input(share_qty) if share_qty > 0 else ''
-                        share_done_label = format_sx_num_input(share_done) if share_done > 0 else '0'
                         wc_obj = wc_map.get(g_wc)
                         bar_label = wc_names.get(g_wc) or ts.label
                         cap = _capacity_for_share(ts, wc_obj, share_qty)
+                        is_primary = (g_wc == primary_wc) or (
+                            not primary_wc and bool(group_wcs) and g_wc == group_wcs[0]
+                        )
+                        day_done_parts: dict[int, Decimal] = {}
                         for day_row in g_rows:
-                            d_start = day_row.plan_date
-                            d_end = day_row.plan_date
-                            placed_day = _bar_columns(d_start, d_end, start, end)
-                            if placed_day is None:
-                                continue
-                            t_col_s, t_col_e, t_len = placed_day
+                            d = day_row.plan_date
+                            if is_primary or d not in used_actual_dates:
+                                part = _q(actual_by_date.get(d) or 0)
+                            else:
+                                part = Decimal('0')
+                            if part > 0:
+                                used_actual_dates.add(d)
+                            day_done_parts[day_row.pk] = part
+                        for day_row in g_rows:
+                            done_part = day_done_parts.get(day_row.pk, Decimal('0'))
                             qty_label = format_sx_num_input(day_row.qty) if _q(day_row.qty) > 0 else '0'
-                            done_part = done_by_pk.get(day_row.pk, Decimal('0'))
                             done_qty_label = format_sx_num_input(done_part) if done_part > 0 else '0'
-                            team_bars.append(TeamTimelineBar(
-                                slug=ts.slug,
-                                label=bar_label,
-                                start=d_start,
-                                end=d_end,
-                                col_start=t_col_s,
-                                col_end=t_col_e,
-                                vis_days=t_len,
-                                bar_text=qty_label,
-                                clips_left=False,
-                                clips_right=False,
-                                can_drag=can_team_drag,
-                                span_days=1,
-                                minutes=ts.minutes,
-                                duration_label=ts.duration_label or '',
+                            bar = _make_route_day_bar(
+                                ts=ts,
+                                day=day_row.plan_date,
+                                start=start,
+                                end=end,
                                 grid_row=grid_row,
-                                is_first=first_bar,
-                                placed=True,
+                                can_drag=can_team_drag,
                                 qty_label=qty_label,
                                 done_qty_label=done_qty_label,
+                                is_first=first_bar,
                                 is_split=True,
                                 segment_id=int(day_row.pk),
-                                plan_date=d_start,
                                 team_qty_total=share_label,
-                                done_qty_total=share_done_label,
+                                done_qty_total=done_total_label,
                                 work_center_id=g_wc or primary_wc,
-                                **cap,
-                            ))
+                                cap=cap,
+                                bar_label=bar_label,
+                            )
+                            if bar is None:
+                                continue
+                            team_bars.append(bar)
                             first_bar = False
+                    planned_dates = {d.plan_date for d in day_rows if d.plan_date}
+                    _append_actual_only_bars(
+                        team_bars,
+                        ts=ts,
+                        actual_by_date=actual_by_date,
+                        planned_dates=planned_dates,
+                        start=start,
+                        end=end,
+                        grid_row=grid_row,
+                        team_total_label=team_total_label,
+                        done_total_label=done_total_label,
+                        work_center_id=primary_wc,
+                        cap=_capacity_for_share(ts, wc_map.get(primary_wc), Decimal('0')),
+                        first_bar=first_bar,
+                    )
                     continue
 
                 t_col_s, t_col_e, t_len = placed_team
                 qty_label = _team_qty_label(ts.slug, r.product_flows, r.total_qty)
-                done_qty_label = format_sx_num_input(done_total) if done_total > 0 else '0'
+                if actual_by_date:
+                    day_done = _q(actual_by_date.get(ts.start) or 0)
+                    done_qty_label = format_sx_num_input(day_done) if day_done > 0 else '0'
+                else:
+                    done_qty_label = format_sx_num_input(done_total) if done_total > 0 else '0'
                 team_bars.append(TeamTimelineBar(
                     slug=ts.slug,
                     label=ts.label,
@@ -5125,6 +5182,21 @@ def build_order_timeline(
                     work_center_id=int(getattr(ts, 'work_center_id', 0) or 0),
                     **_timeline_bar_capacity(ts),
                 ))
+                if actual_by_date:
+                    _append_actual_only_bars(
+                        team_bars,
+                        ts=ts,
+                        actual_by_date=actual_by_date,
+                        planned_dates={ts.start} if ts.start else set(),
+                        start=start,
+                        end=end,
+                        grid_row=grid_row,
+                        team_total_label=team_total_label,
+                        done_total_label=done_total_label,
+                        work_center_id=int(getattr(ts, 'work_center_id', 0) or 0),
+                        cap=_timeline_bar_capacity(ts),
+                        first_bar=False,
+                    )
         else:
             qty_label = format_sx_num_input(r.total_qty) if r.total_qty else ''
             team_bars.append(TeamTimelineBar(
@@ -5167,6 +5239,24 @@ def build_order_timeline(
             ),
             r,
         )
+        mo_by_slug: dict[str, int] = {}
+        for pf in r.product_flows or []:
+            mid = int(getattr(pf, 'production_order_id', 0) or 0)
+            if mid <= 0:
+                continue
+            for group in getattr(pf, 'flow_groups', None) or []:
+                slug = (getattr(group, 'team_slug', '') or '').strip().lower()
+                if slug and slug not in mo_by_slug:
+                    mo_by_slug[slug] = mid
+        from san_xuat.services.team_division_map import board_slug_from_work_center_id
+
+        wc_board_slugs: dict[int, str] = {}
+        for stage in stage_rows:
+            stage.progress_mo_id = mo_by_slug.get((stage.slug or '').strip().lower(), 0)
+            wid = int(getattr(stage, 'work_center_id', 0) or 0)
+            if wid and wid not in wc_board_slugs:
+                wc_board_slugs[wid] = board_slug_from_work_center_id(wid)
+            stage.progress_slug = wc_board_slugs.get(wid) or (stage.slug or '').strip().lower()
         rows.append(PlanTimelineRow(
             order=r.order,
             start=bar_start,
@@ -5331,11 +5421,13 @@ def build_route_stats(board) -> RouteStatsBoard:
             if key not in key_meta:
                 key_meta[key] = (slug, _stage_stat_label(stage))
             for cell in list(getattr(stage, 'cells', None) or []):
-                if getattr(cell, 'is_off', False):
-                    continue
                 bar = getattr(cell, 'bar', None)
                 if bar is None:
                     continue
+                if getattr(cell, 'is_off', False):
+                    done_txt = (getattr(bar, 'done_qty_label', '') or '').strip()
+                    if done_txt in ('', '0'):
+                        continue
                 day = getattr(cell, 'date', None)
                 if day is None:
                     continue

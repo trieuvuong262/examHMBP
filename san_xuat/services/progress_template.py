@@ -65,8 +65,12 @@ def team_by_slug(slug: str) -> dict | None:
                 'label': label,
                 'group_label': grp.label if grp else label,
                 'work_center_code': grp.work_center_code if grp else '',
+                'division_id': 0,
+                'stage_slug': item_slug,
             }
-    return None
+    from san_xuat.services.team_division_map import team_from_hr_division_slug
+
+    return team_from_hr_division_slug(s)
 
 
 # CD chuẩn JustPlay — thứ tự theo luồng xưởng (Cắt → In-Ép → Thêu → May → HT → GH)

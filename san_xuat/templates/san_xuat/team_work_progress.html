@@ -72,7 +72,11 @@
       {% endif %}
       <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}"><i class="bi bi-file-earmark-text" aria-hidden="true"></i>Lệnh sản xuất</a>
       <span class="sep" aria-hidden="true"></span>
-      <a href="{% url 'san_xuat:team_work_goods' %}"><i class="bi bi-bar-chart-line" aria-hidden="true"></i>Tiến độ hàng hoá</a>
+      <a href="{% url 'san_xuat:team_work_goods' %}{% if mo.sales_order_id %}?q={{ mo.sales_order.code|urlencode }}{% endif %}"><i class="bi bi-bar-chart-line" aria-hidden="true"></i>Tiến độ hàng hoá</a>
+      {% if mo.sales_order_id %}
+      <span class="sep" aria-hidden="true"></span>
+      <a href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=route&amp;q={{ mo.sales_order.code|urlencode }}"><i class="bi bi-calendar3" aria-hidden="true"></i>Lộ trình</a>
+      {% endif %}
       <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:team_work_board' team.slug %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Công việc tổ</a>
     </nav>
@@ -98,6 +102,9 @@
     <span>Tổng SL <strong>{{ sheet.total_qty|sx_num }}</strong></span>
     <span>Chỉ công đoạn tổ <strong>{{ team.label }}</strong></span>
   </div>
+  {% if mo.sales_order_id %}
+  <p class="text-muted small mb-3">SL ghi hôm nay lên cột ngày đó trên <a href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=route&amp;q={{ mo.sales_order.code|urlencode }}">lộ trình KHSX</a> — cả ngày chưa có ô kế hoạch.</p>
+  {% endif %}
 
   {% if job_closed %}
   <div class="alert alert-success py-2 px-3">

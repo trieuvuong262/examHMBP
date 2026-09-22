@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import unicodedata
 
 from django.contrib.auth import get_user_model
@@ -25,6 +26,15 @@ _SLUG_HR_KEYS: dict[str, tuple[str, ...]] = {
 }
 
 VALID_TEAM_SLUGS = frozenset(item[0] for item in TEAM_SLUGS)
+_DIV_SLUG_RE = re.compile(r'^d(\d+)$')
+TEAM_MENU_ICONS = {
+    'cat': 'bi-scissors',
+    'inep': 'bi-printer',
+    'theu': 'bi-flower1',
+    'may': 'bi-grid-3x3-gap',
+    'ht': 'bi-layers',
+    'gh': 'bi-truck',
+}
 
 
 def _fold(text: str) -> str:
@@ -37,8 +47,193 @@ def team_slug_choices() -> list[tuple[str, str]]:
     return [(slug, label) for slug, _gk, _mk, label in TEAM_SLUGS]
 
 
+def division_id_from_team_slug(slug: str) -> int | None:
+    m = _DIV_SLUG_RE.match((slug or '').strip().lower())
+    if not m:
+        return None
+    return int(m.group(1))
+
+
+def team_slug_for_division_id(division_id: int) -> str:
+    return f'd{int(division_id)}'
+
+
+def _stage_slug_for_division(div, *, mapped: dict[int, str] | None = None) -> str:
+    did = int(getattr(div, 'pk', 0) or 0)
+    if mapped is not None:
+        if did in mapped:
+            return mapped[did]
+        from san_xuat.services.capacity_from_hrm import _fold, _team_slug_from_folded
+
+        return _team_slug_from_folded(_fold(getattr(div, 'name', '') or '')) or ''
+    hit = (
+        SxTeamDivisionMap.objects.filter(
+            division_id=did,
+            is_active=True,
+            is_demo=False,
+        )
+        .values_list('team_slug', flat=True)
+        .first()
+    )
+    if hit:
+        return (hit or '').strip().lower()
+    from san_xuat.services.capacity_from_hrm import _fold, _team_slug_from_folded
+
+    return _team_slug_from_folded(_fold(getattr(div, 'name', '') or '')) or ''
+
+
+def team_from_hr_division_slug(slug: str) -> dict | None:
+    """Tổ menu = bộ phận HR phòng SẢN XUẤT / ĐBCL (`d{id}`)."""
+    did = division_id_from_team_slug(slug)
+    if not did:
+        return None
+    from san_xuat.services.capacity_from_hrm import (
+        hr_divisions_for_ie_groups,
+        work_center_code_for_division,
+    )
+
+    div = hr_divisions_for_ie_groups().filter(pk=did).first()
+    if not div:
+        return None
+    stage = _stage_slug_for_division(div)
+    group_key = menu_key = ''
+    for item_slug, gk, mk, _label in TEAM_SLUGS:
+        if item_slug == stage:
+            group_key, menu_key = gk, mk
+            break
+    return {
+        'slug': team_slug_for_division_id(div.pk),
+        'division_id': int(div.pk),
+        'group_key': group_key,
+        'menu_key': menu_key or 'team_work',
+        'label': (div.name or '').strip() or f'Bộ phận {div.pk}',
+        'group_label': (
+            (div.department.name if getattr(div, 'department_id', None) else '') or ''
+        ).strip(),
+        'work_center_code': work_center_code_for_division(div.pk),
+        'stage_slug': stage,
+    }
+
+
+def team_work_menu_items(user) -> list[dict]:
+    """Menu tổ: mỗi bộ phận HR thuộc SẢN XUẤT + ĐẢM BẢO CHẤT LƯỢNG."""
+    from hrm.menu_permissions import user_can_access_menu
+    from hrm.module_permissions import MODULE_SAN_XUAT
+    from san_xuat.services.capacity_from_hrm import (
+        _fold,
+        hr_divisions_for_ie_groups,
+        work_center_code_for_division,
+    )
+
+    can_all = user_can_access_menu(user, MODULE_SAN_XUAT, 'team_work')
+    allowed_keys = {'team_work'} if can_all else set()
+    for _slug, _gk, menu_key, _label in TEAM_SLUGS:
+        if can_all or user_can_access_menu(user, MODULE_SAN_XUAT, menu_key):
+            allowed_keys.add(menu_key)
+
+    mapped: dict[int, str] = {}
+    for stage, ids in current_maps_by_slug().items():
+        for did in ids:
+            mapped[int(did)] = stage
+
+    items: list[dict] = []
+    for div in hr_divisions_for_ie_groups():
+        stage = _stage_slug_for_division(div, mapped=mapped)
+        menu_key = 'team_work'
+        for item_slug, _gk, mk, _label in TEAM_SLUGS:
+            if item_slug == stage:
+                menu_key = mk
+                break
+        if menu_key not in allowed_keys and 'team_work' not in allowed_keys:
+            continue
+        folded = _fold(div.name or '')
+        icon = TEAM_MENU_ICONS.get(stage) or (
+            'bi-clipboard-check' if 'qc' in folded or 'chat luong' in folded else 'bi-people'
+        )
+        items.append({
+            'slug': team_slug_for_division_id(div.pk),
+            'label': (div.name or '').strip() or f'Bộ phận {div.pk}',
+            'icon': icon,
+            'menu_key': menu_key,
+            'division_id': int(div.pk),
+            'work_center_code': work_center_code_for_division(div.pk),
+        })
+    if items:
+        return items
+    for slug, _gk, menu_key, label in TEAM_SLUGS:
+        if menu_key not in allowed_keys and 'team_work' not in allowed_keys:
+            continue
+        items.append({
+            'slug': slug,
+            'label': f'Tổ {label}' if not label.lower().startswith('tổ') else label,
+            'icon': TEAM_MENU_ICONS.get(slug, 'bi-people'),
+            'menu_key': menu_key,
+            'division_id': 0,
+            'work_center_code': '',
+        })
+    return items
+
+
+def khsx_slug_for_team(team: dict | None, slug: str = '') -> str:
+    """Slug KHSX (cat/may/ht…) tương ứng tổ menu HR `d{id}`."""
+    if team:
+        stage = (team.get('stage_slug') or '').strip().lower()
+        if stage:
+            return stage
+        s = (team.get('slug') or '').strip().lower()
+        if s and not division_id_from_team_slug(s):
+            return s
+    raw = (slug or '').strip().lower()
+    team = team or team_from_hr_division_slug(raw)
+    if team:
+        stage = (team.get('stage_slug') or '').strip().lower()
+        if stage:
+            return stage
+    return raw
+
+
+def team_slug_aliases(slug: str, team: dict | None = None) -> list[str]:
+    """`d25` ↔ `may` — dùng khi đọc KHSX / QC / GC."""
+    raw = (slug or '').strip().lower()
+    meta = team or (team_from_hr_division_slug(raw) if division_id_from_team_slug(raw) else None)
+    out: list[str] = []
+    if raw:
+        out.append(raw)
+    stage = khsx_slug_for_team(meta, raw)
+    if stage and stage not in out:
+        out.append(stage)
+    return out
+
+
+def board_slug_from_work_center_id(work_center_id: int) -> str:
+    """Slug menu phân công từ tổ năng lực KHSX (HRD-{division})."""
+    wid = int(work_center_id or 0)
+    if wid <= 0:
+        return ''
+    from san_xuat.hub_models import SxWorkCenter
+    from san_xuat.services.capacity_from_hrm import division_id_from_work_center_code
+
+    wc = SxWorkCenter.objects.filter(pk=wid).only('id', 'code', 'division_id').first()
+    if wc is None:
+        return ''
+    did = int(getattr(wc, 'division_id', 0) or 0) or (
+        division_id_from_work_center_code(wc.code) or 0
+    )
+    if did <= 0:
+        return ''
+    meta = team_from_hr_division_slug(team_slug_for_division_id(did))
+    return (meta or {}).get('slug') or ''
+
+
 def mapped_division_ids(slug: str) -> set[int]:
     s = (slug or '').strip().lower()
+    did = division_id_from_team_slug(s)
+    if did:
+        from san_xuat.services.capacity_from_hrm import hr_divisions_for_ie_groups
+
+        if hr_divisions_for_ie_groups().filter(pk=did).exists():
+            return {did}
+        return set()
     if s not in VALID_TEAM_SLUGS:
         return set()
     return set(
@@ -198,16 +393,13 @@ def current_maps_by_slug() -> dict[str, list[int]]:
 
 
 def sx_production_divisions():
-    """Bộ phận active thuộc phòng SẢN XUẤT (để chọn trên UI)."""
-    from san_xuat.services.capacity_from_hrm import _sx_department
+    """Bộ phận active thuộc phòng SẢN XUẤT và ĐẢM BẢO CHẤT LƯỢNG."""
+    from san_xuat.services.capacity_from_hrm import hr_divisions_for_ie_groups
 
-    dept = _sx_department()
-    if not dept:
-        return Division.objects.filter(is_active=True).order_by('sort_order', 'name')
-    return Division.objects.filter(
-        department=dept,
-        is_active=True,
-    ).order_by('sort_order', 'name')
+    qs = hr_divisions_for_ie_groups()
+    if qs.exists():
+        return qs
+    return Division.objects.filter(is_active=True).order_by('sort_order', 'name')
 
 
 @transaction.atomic

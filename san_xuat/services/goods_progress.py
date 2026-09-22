@@ -6,7 +6,7 @@ Gộp mọi lệnh đang chạy, tiến độ từng tổ (Cắt → GH) và m�
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 
@@ -16,20 +16,19 @@ from django.utils import timezone
 from san_xuat.hub_models import (
     SxProductionOrder,
     SxProductionOrderLine,
-    SxProductionStat,
     SxSalesOrder,
 )
 from san_xuat.services.handover_status import (
     TeamHandoverCell,
     TeamQueue,
-    _accumulate_stats,
-    _build_row,
     _team_meta,
     attach_gc_to_handover_rows,
     attach_qc_to_handover_rows,
+    build_mo_handover_rows,
+    khsx_context_by_order_team,
 )
-from san_xuat.services.order_progress_sheet import _q, _size_plans
-from san_xuat.services.progress_template import progress_steps
+from san_xuat.services.order_progress_sheet import _q
+from san_xuat.services.progress_template import TEAM_SLUGS
 
 PRIORITY_RANK = {
     SxSalesOrder.PRIORITY_CRITICAL: 0,
@@ -40,6 +39,7 @@ PRIORITY_RANK = {
 }
 PRIORITY_LABEL = dict(SxSalesOrder.PRIORITY_CHOICES)
 _FAR = date(9999, 12, 31)
+CLUSTER_SORTS = ("", "urgent", "due", "priority")
 
 
 @dataclass
@@ -59,6 +59,14 @@ class GoodsProgressRow:
     current_slug: str
     status: str
     status_label: str
+    so_id: int = 0
+    so_code: str = ""
+    is_so_start: bool = False
+    plan_status_label: str = ""
+    khsx_start: date | None = None
+    khsx_end: date | None = None
+    khsx_team_label: str = ""
+    khsx_is_late: bool = False
 
     @property
     def due_label(self) -> str:
@@ -77,10 +85,10 @@ class GoodsProgressRow:
 
     @property
     def progress_pct(self) -> int:
-        if not self.cells or self.plan <= 0:
+        planned = _q(self.mo.qty) or _q(self.plan)
+        if planned <= 0:
             return 0
-        last = self.cells[-1]
-        pct = int((_q(last.done) / _q(self.plan)) * 100)
+        pct = int((_q(self.mo.qty_done) / planned) * 100)
         return min(100, max(0, pct))
 
     @property
@@ -90,6 +98,7 @@ class GoodsProgressRow:
             PRIORITY_RANK.get(self.priority, 3),
             self.due or _FAR,
             0 if self.status != SxProductionOrder.STATUS_DONE else 1,
+            self.so_id or 0,
             -self.waiting_total,
             self.mo.code or "",
         )
@@ -109,9 +118,11 @@ class GoodsProgressBoard:
     filter_priority: str = ""
     filter_status: str = ""
     filter_due: str = ""
+    filter_team: str = ""
     sort: str = ""
     has_filters: bool = False
     queues: list[TeamQueue] | None = None
+    team_choices: list[tuple[str, str]] = field(default_factory=list)
 
 
 def _due_for(mo: SxProductionOrder) -> date | None:
@@ -131,15 +142,38 @@ def _current_team(cells: list[TeamHandoverCell]) -> tuple[str, str]:
         if c.status == "run":
             return c.label, c.slug
     for c in cells:
-        if c.done < c.plan:
+        if c.status != "skip" and c.plan > 0 and c.done < c.plan:
             return c.label, c.slug
-    if cells:
-        last = cells[-1]
-        return last.label, last.slug
+    for c in reversed(cells):
+        if c.status != "skip" and c.plan > 0:
+            return c.label, c.slug
     return "", ""
 
 
-def _enrich_row(handover, *, today: date) -> GoodsProgressRow:
+def _align_cells(cells: list[TeamHandoverCell], teams: list[dict]) -> list[TeamHandoverCell]:
+    by_slug = {c.slug: c for c in cells}
+    aligned: list[TeamHandoverCell] = []
+    for t in teams:
+        cell = by_slug.get(t["slug"])
+        if cell:
+            aligned.append(cell)
+            continue
+        aligned.append(
+            TeamHandoverCell(
+                group_key=t["group_key"],
+                slug=t["slug"],
+                label=t["label"],
+                plan=Decimal("0"),
+                done=Decimal("0"),
+                waiting=Decimal("0"),
+                incoming=Decimal("0"),
+                status="skip",
+            )
+        )
+    return aligned
+
+
+def _enrich_row(handover, *, today: date, teams: list[dict]) -> GoodsProgressRow:
     mo = handover.mo
     due = _due_for(mo)
     days = (due - today).days if due else None
@@ -149,11 +183,16 @@ def _enrich_row(handover, *, today: date) -> GoodsProgressRow:
         SxSalesOrder.PRIORITY_CRITICAL,
         SxSalesOrder.PRIORITY_URGENT,
     )
-    current_label, current_slug = _current_team(handover.cells)
+    cells = _align_cells(handover.cells, teams)
+    current_label, current_slug = _current_team(cells)
+    so = mo.sales_order if mo.sales_order_id else None
+    plan_status_label = ""
+    if so is not None:
+        plan_status_label = so.get_plan_status_display() or ""
     return GoodsProgressRow(
         mo=mo,
         plan=handover.plan,
-        cells=handover.cells,
+        cells=cells,
         waiting_total=handover.waiting_total,
         bottleneck=handover.bottleneck,
         priority=priority,
@@ -166,7 +205,41 @@ def _enrich_row(handover, *, today: date) -> GoodsProgressRow:
         current_slug=current_slug,
         status=mo.status,
         status_label=mo.get_status_display(),
+        so_id=int(mo.sales_order_id or 0),
+        so_code=(so.code if so else "") or "",
+        plan_status_label=plan_status_label,
     )
+
+
+def _attach_khsx(rows: list[GoodsProgressRow], *, today: date, team_filter: str) -> None:
+    order_ids = [r.so_id for r in rows if r.so_id]
+    if not order_ids:
+        return
+    ctx_map = khsx_context_by_order_team(order_ids)
+    for row in rows:
+        slug = (team_filter or row.current_slug or "").strip().lower()
+        ctx = ctx_map.get((row.so_id, slug)) if slug else None
+        if ctx is None:
+            continue
+        row.khsx_start = ctx.start
+        row.khsx_end = ctx.end
+        row.khsx_team_label = ctx.work_center_label or row.current_team
+        unfinished = row.status != SxProductionOrder.STATUS_DONE
+        row.khsx_is_late = bool(
+            unfinished and ctx.end and today > ctx.end and any(
+                c.slug == slug and c.plan > 0 and c.done < c.plan for c in row.cells
+            )
+        )
+
+
+def _mark_so_groups(rows: list[GoodsProgressRow], *, sort_key: str) -> None:
+    if sort_key not in CLUSTER_SORTS:
+        return
+    prev = None
+    for row in rows:
+        sid = row.so_id or None
+        row.is_so_start = bool(sid) and sid != prev
+        prev = sid
 
 
 def _matches_due_filter(row: GoodsProgressRow, due_key: str) -> bool:
@@ -191,6 +264,7 @@ def _apply_row_filters(
     priority: str,
     mo_status: str,
     due_key: str,
+    team_slug: str,
 ) -> list[GoodsProgressRow]:
     filtered = rows
 
@@ -209,6 +283,14 @@ def _apply_row_filters(
     due_filter = (due_key or "").strip().lower()
     if due_filter in ("overdue", "today", "week", "none"):
         filtered = [r for r in filtered if _matches_due_filter(r, due_filter)]
+
+    team_key = (team_slug or "").strip().lower()
+    if team_key:
+        filtered = [
+            r
+            for r in filtered
+            if any(c.slug == team_key and c.status != "skip" and c.plan > 0 for c in r.cells)
+        ]
 
     return filtered
 
@@ -237,9 +319,14 @@ def _sort_rows(
 
     def _by(row: GoodsProgressRow):
         if key == "due":
-            base = (row.due or _FAR, row.mo.code or "")
+            base = (row.due or _FAR, row.so_id or 0, row.mo.code or "")
         elif key == "priority":
-            base = (PRIORITY_RANK.get(row.priority, 3), row.due or _FAR, row.mo.code or "")
+            base = (
+                PRIORITY_RANK.get(row.priority, 3),
+                row.due or _FAR,
+                row.so_id or 0,
+                row.mo.code or "",
+            )
         elif key == "progress_asc":
             base = (row.progress_pct, row.mo.code or "")
         elif key == "progress_desc":
@@ -266,10 +353,13 @@ def build_goods_progress_board(
     mo_status: str = "",
     due: str = "",
     sort: str = "",
+    team_slug: str = "",
     today: date | None = None,
     limit: int | None = None,
 ) -> GoodsProgressBoard:
     today = today or timezone.localdate()
+    teams = _team_meta()
+    team_choices = [(slug, label) for slug, _gk, _mk, label in TEAM_SLUGS]
 
     qs = (
         SxProductionOrder.objects.filter(is_demo=False)
@@ -283,6 +373,8 @@ def build_goods_progress_board(
             ),
             "mo_process_steps",
             "sales_order__lines__routing_lines__work_center",
+            "routing__lines__work_center",
+            "bom_version__process_steps__work_center",
         )
         .order_by("-order_date", "-pk")
     )
@@ -296,24 +388,17 @@ def build_goods_progress_board(
         )
 
     mos = list(qs[:limit] if limit else qs)
-    all_steps = progress_steps()
-    stats_by_mo: dict[int, list[SxProductionStat]] = {mo.pk: [] for mo in mos}
-    if mos:
-        for st in SxProductionStat.objects.filter(
-            production_order_id__in=[m.pk for m in mos],
-            is_demo=False,
-            status=SxProductionStat.STATUS_CONFIRMED,
-        ).only("production_order_id", "process_name", "size_label", "qty_good"):
-            stats_by_mo.setdefault(st.production_order_id, []).append(st)
-
-    handovers = []
-    for mo in mos:
-        sizes = _size_plans(mo)
-        acc = _accumulate_stats(stats_by_mo.get(mo.pk, []), sizes)
-        handovers.append(_build_row(mo, sizes=sizes, step_size_qty=acc, all_steps=all_steps))
+    handovers = build_mo_handover_rows(mos)
     attach_qc_to_handover_rows(handovers)
     attach_gc_to_handover_rows(handovers)
-    rows: list[GoodsProgressRow] = [_enrich_row(h, today=today) for h in handovers]
+    rows: list[GoodsProgressRow] = [
+        _enrich_row(h, today=today, teams=teams) for h in handovers
+    ]
+
+    team_key = (team_slug or "").strip().lower()
+    if team_key and team_key not in {t["slug"] for t in teams}:
+        team_key = ""
+    _attach_khsx(rows, today=today, team_filter=team_key)
 
     hot_count = sum(1 for r in rows if r.is_hot)
     overdue_count = sum(1 for r in rows if r.is_overdue)
@@ -329,8 +414,6 @@ def build_goods_progress_board(
     )
     almost_done_count = sum(1 for r in rows if 80 <= r.progress_pct < 100)
     done_count = sum(1 for r in rows if r.status == SxProductionOrder.STATUS_DONE)
-
-    teams = _team_meta()
 
     queues: list[TeamQueue] = []
     for t in teams:
@@ -382,14 +465,17 @@ def build_goods_progress_board(
         priority=priority_key,
         mo_status=status_key,
         due_key=due_filter,
+        team_slug=team_key,
     )
     filtered = _sort_rows(filtered, sort_key=sort_key)
+    _mark_so_groups(filtered, sort_key=sort_key)
 
     has_filters = bool(
         term
         or priority_key
         or status_key
         or due_filter
+        or team_key
     )
 
     return GoodsProgressBoard(
@@ -405,7 +491,9 @@ def build_goods_progress_board(
         filter_priority=priority_key,
         filter_status=status_key,
         filter_due=due_filter,
+        filter_team=team_key,
         sort=sort_key,
         has_filters=has_filters,
         queues=queues,
+        team_choices=team_choices,
     )

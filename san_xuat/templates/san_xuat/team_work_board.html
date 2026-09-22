@@ -410,6 +410,9 @@
               {% if pname %}{{ pname }} - {{ ocode }}{% else %}{{ ocode }}{% endif %}
             </a>
             {% endwith %}
+            {% if can_view_plan_board and job.mo.sales_order_id %}
+            <a class="jp-tw-stat-pill" href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=route&amp;q={{ job.mo.sales_order.code|urlencode }}" title="Lộ trình KHSX">Lộ trình</a>
+            {% endif %}
             {% if not job.subcontract %}
             <span class="jp-tw-stat-pill"><strong>{{ job.step_count }}</strong> công đoạn</span>
             {% endif %}
@@ -428,6 +431,16 @@
             </span>
             {% else %}
             <span class="jp-tw-due">Hạn —</span>
+            {% endif %}
+            {% if job.khsx_start or job.khsx_team_label %}
+            <span class="jp-tw-due{% if job.khsx_is_late %} is-late{% endif %}" title="Lịch tổ trên lộ trình KHSX">
+              KHSX
+              {% if job.khsx_start %}
+              <strong>{{ job.khsx_start|date:"d/m" }}{% if job.khsx_end and job.khsx_end != job.khsx_start %}–{{ job.khsx_end|date:"d/m" }}{% endif %}</strong>
+              {% endif %}
+              {% if job.khsx_team_label %} · {{ job.khsx_team_label }}{% endif %}
+              {% if job.khsx_is_late %} · trễ kế hoạch{% endif %}
+            </span>
             {% endif %}
           </div>
         </div>
@@ -477,7 +490,7 @@
           {% else %}
           <a href="{% url 'san_xuat:team_work_progress' team.slug job.mo.pk %}"
              class="btn btn-hm btn-sm fw-bold"
-             title="Xem tiến độ tổ {{ team.label }}">Tiến độ</a>
+             title="Ghi SL tổ — lên lộ trình KHSX theo ngày báo cáo">Tiến độ</a>
           {% if can_assign %}
             <form method="post" class="d-inline">
               {% csrf_token %}
