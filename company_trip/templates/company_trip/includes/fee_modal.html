@@ -23,6 +23,7 @@ function jpTripFeeBoot() {
   var modalEl = document.getElementById('jp-trip-fee-modal');
   var body = document.getElementById('jp-trip-fee-body');
   if (!data || !modalEl || !body || !window.bootstrap) return;
+  if (modalEl.parentElement !== document.body) document.body.appendChild(modalEl);
 
   function linesFor(room) {
     var lines = [];
