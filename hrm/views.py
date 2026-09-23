@@ -1,5 +1,6 @@
 import copy
 import io
+import logging
 import pandas as pd
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
@@ -21,6 +22,8 @@ from assessment.forms import UserForm # Tạm thời Form vẫn để ở nhà c
 from audit.services.odoo_sync import ensure_portal_user_in_odoo
 from audit.services.password_sync import notify_external_password_changed, notify_external_profile_changed
 from django.utils.text import slugify
+
+logger = logging.getLogger(__name__)
 from hrm.models import (
     Profile,
     ProfileConcurrentPosition,
@@ -1581,10 +1584,12 @@ def user_password_reset(request, user_id):
         new_password = ''.join(random.choice(characters) for i in range(8))
         
         user.set_password(new_password)
-        notify_external_password_changed(user, new_password)
         user.save()
-
         Profile.require_password_change(user)
+        try:
+            notify_external_password_changed(user, new_password)
+        except Exception:
+            logger.exception('Đồng bộ mật khẩu ngoài thất bại user=%s', user.pk)
         
         # Lấy tên hiển thị
         full_name = user.first_name

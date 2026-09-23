@@ -6,7 +6,12 @@
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ survey.title }}</h2>
         </div>
-        <a href="{% url 'surveys:results' %}" class="btn btn-outline-secondary btn-sm">Danh sách khảo sát</a>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'surveys:result_export' survey.pk %}" class="btn btn-outline-success btn-sm">
+                <i class="bi bi-file-earmark-excel me-1"></i>Xuất Excel
+            </a>
+            <a href="{% url 'surveys:results' %}" class="btn btn-outline-secondary btn-sm">Danh sách khảo sát</a>
+        </div>
     </div>
 
     {% if choice_questions %}

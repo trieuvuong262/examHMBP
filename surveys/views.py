@@ -15,6 +15,7 @@ from hrm.permissions import get_profile
 from PortalJustPlay.list_search import apply_term_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
+from .excel_export import export_survey_result_xlsx
 from .forms import (
     MAX_TEXT_ANSWER,
     QUESTION_TYPE_TEXT,
@@ -240,6 +241,12 @@ def survey_result_detail(request, pk):
         'query_string': query_string,
         'search_query': search_query,
     })
+
+
+@module_perm_required(MODULE_SURVEYS, 'view')
+def survey_result_export(request, pk):
+    survey = get_object_or_404(Survey, pk=pk)
+    return export_survey_result_xlsx(survey)
 
 
 @login_required

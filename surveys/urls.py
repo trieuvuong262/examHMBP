@@ -12,5 +12,6 @@ urlpatterns = [
     path('quan-ly/<int:pk>/link-gui/', views.survey_share_detail, name='share_detail'),
     path('ket-qua/', views.survey_results, name='results'),
     path('ket-qua/<int:pk>/', views.survey_result_detail, name='result_detail'),
+    path('ket-qua/<int:pk>/xuat-excel/', views.survey_result_export, name='result_export'),
     path('d/<uuid:token>/', views.survey_fill, name='fill'),
 ]

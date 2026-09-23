@@ -624,7 +624,11 @@ def provision_ldap_user(user: User, *, password: str | None = None) -> dict:
     except NasLdapSyncError:
         raise
     except Exception as exc:
-        if exc.__class__.__name__ == 'LDAPException':
+        try:
+            from ldap3.core.exceptions import LDAPException
+        except ImportError:
+            LDAPException = ()
+        if isinstance(exc, LDAPException):
             logger.exception('NAS LDAP provision failed for user %s', user.pk)
             raise NasLdapSyncError(str(exc)) from exc
         raise
@@ -637,7 +641,7 @@ def notify_portal_password_changed(user: User, raw_password: str) -> None:
         return
     try:
         provision_ldap_user(user, password=raw_password)
-    except NasLdapSyncError:
+    except Exception:
         logger.exception('Không đồng bộ mật khẩu NAS LDAP cho user %s', user.pk)
 
 
