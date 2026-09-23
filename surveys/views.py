@@ -337,7 +337,13 @@ def _collect_choice_answers(questions, post):
     errors = []
     pairs = []
     for question in questions:
-        raw = (post.get(f'answer_{question.pk}') or '').strip()
+        raw_values = [value.strip() for value in post.getlist(f'answer_{question.pk}') if value.strip()]
+        if len(raw_values) > 1:
+            errors.append('Mỗi câu chỉ được chọn 1 đáp án.')
+            question.selected_option_id = None
+            pairs.append((question, None))
+            continue
+        raw = raw_values[0] if raw_values else ''
         option = None
         if raw.isdigit():
             option_id = int(raw)
