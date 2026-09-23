@@ -24,6 +24,7 @@ from company_trip.access import (
     trip_ui_flags,
 )
 from company_trip.decorators import trip_perm_required
+from company_trip.phones import domestic_phone
 from company_trip.email_service import (
     _companion_names_for,
     render_trip_message,
@@ -107,7 +108,7 @@ def _snapshot_from_profile(profile) -> dict:
     return {
         'full_name': profile.full_name or profile.user.get_full_name() or profile.user.username,
         'email': profile.user.email or '',
-        'phone': profile.phone or '',
+        'phone': domestic_phone(profile.phone),
         'gender': profile.gender or '',
         'department_name': profile.department.name if profile.department_id else '',
         'date_of_birth': profile.date_of_birth,
@@ -259,7 +260,7 @@ def register(request):
         valid_rooms = {value for value, _label in ROOM_CHOICES}
         room_initial = existing.room_type if existing and existing.room_type in valid_rooms else None
         initial = {
-            'phone': profile.phone or '',
+            'phone': domestic_phone(profile.phone),
             'room_type': room_initial,
             'pickup_point': DEFAULT_PICKUP_POINT,
         }
@@ -458,7 +459,7 @@ def email_manage(request):
                     profile.full_name or profile.user.username,
                     profile.gender or '',
                     request=request,
-                    phone=profile.phone or '',
+                    phone=domestic_phone(profile.phone),
                     department=profile.department.name if profile.department_id else '',
                 ):
                     sent += 1

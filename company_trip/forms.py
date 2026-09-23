@@ -11,6 +11,7 @@ from company_trip.constants import (
     STATUS_REGISTERED,
 )
 from company_trip.models import TripEmailTemplate, TripRegistration, TripSettings
+from company_trip.phones import domestic_phone
 from hrm.choices import GENDER_FORM_CHOICES
 from hrm.models import Profile
 
@@ -88,6 +89,7 @@ class TripRegistrationForm(forms.ModelForm):
     def clean(self):
         cleaned = super().clean()
         cleaned['pickup_point'] = DEFAULT_PICKUP_POINT
+        cleaned['phone'] = domestic_phone(cleaned.get('phone'))
         if not cleaned.get('room_type'):
             cleaned['companion1_obj'] = None
             cleaned['organized_committee'] = False
@@ -162,7 +164,7 @@ class TripRegistrationForm(forms.ModelForm):
         phone = (cleaned.get('relative_phone') or '').strip()
         cccd = re.sub(r'\D', '', cleaned.get('relative_cccd') or '')
         cleaned['relative_full_name'] = name
-        cleaned['relative_phone'] = phone
+        cleaned['relative_phone'] = domestic_phone(phone)
         cleaned['relative_cccd'] = cccd
         if cccd and not re.fullmatch(r'\d{12}', cccd):
             self.add_error('relative_cccd', 'Số CCCD phải gồm 12 chữ số.')

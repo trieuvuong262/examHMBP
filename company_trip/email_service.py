@@ -12,6 +12,7 @@ from django.utils.safestring import mark_safe
 
 from audit.email_smtp import email_is_configured, send_portal_mail
 from company_trip.constants import ROOM_COLLEAGUE, ROOM_RELATIVE
+from company_trip.phones import domestic_phone
 from company_trip.models import TripEmailTemplate, TripSettings
 
 INVITE_SUBJECT = 'Thư mời tham gia Kế hoạch du lịch nghỉ mát 2026 - Just Play'
@@ -226,7 +227,7 @@ def send_registration_invites(reg, request=None) -> int:
         reg.companion1_name or colleague.full_name,
         colleague.gender,
         _companion_names_for(reg, recipient='colleague'),
-        phone=getattr(colleague, 'phone', '') or '',
+        phone=domestic_phone(getattr(colleague, 'phone', '') or ''),
         department=department,
     ):
         reg.companion_email = email
@@ -247,7 +248,7 @@ def send_companion_invite(reg, to_email: str, request=None) -> bool:
     name = reg.companion1_name
     if colleague is not None:
         gender = colleague.gender or ''
-        phone = colleague.phone or ''
+        phone = domestic_phone(colleague.phone or '')
         name = name or colleague.full_name
         if colleague.department_id:
             department = colleague.department.name
