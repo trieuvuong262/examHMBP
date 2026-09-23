@@ -1,118 +1,179 @@
+import re
+
 from django import forms
 
 from company_trip.constants import (
-    BREAKFAST_CHOICES,
-    ROOM_2,
-    ROOM_3,
+    DEFAULT_PICKUP_POINT,
     ROOM_CHOICES,
+    ROOM_COLLEAGUE,
     ROOM_ORGANIZER,
-    ROUTE_CHOICES,
-    SHOPPING_CHOICES,
-    VEGETARIAN_CHOICES,
+    ROOM_RELATIVE,
+    STATUS_REGISTERED,
 )
 from company_trip.models import TripEmailTemplate, TripRegistration, TripSettings
+from hrm.choices import GENDER_FORM_CHOICES
 from hrm.models import Profile
 
 
 class TripRegistrationForm(forms.ModelForm):
     companion1_id = forms.IntegerField(required=False, widget=forms.HiddenInput)
-    companion2_id = forms.IntegerField(required=False, widget=forms.HiddenInput)
+    invite_email = forms.EmailField(
+        label='Email',
+        required=False,
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'email@congty.com',
+            'autocomplete': 'email',
+        }),
+    )
+    relative_gender = forms.ChoiceField(
+        label='Giới tính',
+        choices=GENDER_FORM_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
 
     class Meta:
         model = TripRegistration
         fields = [
             'phone',
             'room_type',
-            'vegetarian',
-            'allergy_note',
             'pickup_point',
-            'breakfast_choice',
-            'route',
-            'detail_route',
-            'shopping',
             'note',
+            'relative_full_name',
+            'relative_cccd',
+            'relative_phone',
+            'relative_gender',
+            'relative_date_of_birth',
         ]
         widgets = {
             'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Số điện thoại'}),
             'room_type': forms.Select(attrs={'class': 'form-select'}),
-            'vegetarian': forms.Select(attrs={'class': 'form-select'}),
-            'allergy_note': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
-            'pickup_point': forms.TextInput(attrs={'class': 'form-control'}),
-            'breakfast_choice': forms.Select(attrs={'class': 'form-select'}),
-            'route': forms.Select(attrs={'class': 'form-select'}),
-            'detail_route': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
-            'shopping': forms.Select(attrs={'class': 'form-select'}),
+            'pickup_point': forms.TextInput(attrs={
+                'class': 'form-control',
+                'readonly': 'readonly',
+            }),
             'note': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'relative_full_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Họ và tên'}),
+            'relative_cccd': forms.TextInput(attrs={
+                'class': 'form-control',
+                'inputmode': 'numeric',
+                'maxlength': '12',
+                'placeholder': '12 chữ số',
+                'autocomplete': 'off',
+            }),
+            'relative_phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Số điện thoại'}),
+            'relative_date_of_birth': forms.DateInput(
+                format='%Y-%m-%d',
+                attrs={'class': 'form-control', 'type': 'date'},
+            ),
         }
 
-    def __init__(self, *args, current_profile=None, **kwargs):
+    def __init__(self, *args, current_profile=None, current_registration=None, **kwargs):
         self.current_profile = current_profile
+        self.current_registration = current_registration
         super().__init__(*args, **kwargs)
         self.fields['room_type'].choices = ROOM_CHOICES
-        self.fields['vegetarian'].choices = VEGETARIAN_CHOICES
-        self.fields['breakfast_choice'].choices = BREAKFAST_CHOICES
-        self.fields['route'].choices = [('', '— Chọn lộ trình —')] + list(ROUTE_CHOICES)
-        self.fields['shopping'].choices = SHOPPING_CHOICES
-        self.fields['route'].required = True
+        self.fields['relative_date_of_birth'].required = False
+        self.fields['relative_date_of_birth'].input_formats = ['%Y-%m-%d']
+        for name in ('relative_full_name', 'relative_cccd', 'relative_phone'):
+            self.fields[name].required = False
+        self.initial['pickup_point'] = DEFAULT_PICKUP_POINT
+        self.fields['pickup_point'].initial = DEFAULT_PICKUP_POINT
+        if self.is_bound:
+            data = self.data.copy()
+            data[self.add_prefix('pickup_point')] = DEFAULT_PICKUP_POINT
+            self.data = data
 
     def clean(self):
         cleaned = super().clean()
-        room_type = cleaned.get('room_type') or ROOM_ORGANIZER
-        c1_id = cleaned.get('companion1_id') or None
-        c2_id = cleaned.get('companion2_id') or None
+        cleaned['pickup_point'] = DEFAULT_PICKUP_POINT
+        if not cleaned.get('room_type'):
+            cleaned['companion1_obj'] = None
+            cleaned['organized_committee'] = False
+            return cleaned
+        room_type = cleaned.get('room_type')
+        companion1 = None
 
-        def _load(pk):
-            if not pk:
-                return None
-            try:
-                return Profile.objects.select_related('user', 'department').get(
-                    pk=pk, is_employed=True, user__is_active=True,
-                )
-            except Profile.DoesNotExist:
-                raise forms.ValidationError('Người cùng phòng không hợp lệ hoặc đã nghỉ việc.')
-
-        companion1 = _load(c1_id)
-        companion2 = _load(c2_id)
-
-        if self.current_profile:
-            for c in (companion1, companion2):
-                if c and c.pk == self.current_profile.pk:
-                    raise forms.ValidationError('Không thể chọn chính mình làm người cùng phòng.')
-
-        if companion1 and companion2 and companion1.pk == companion2.pk:
-            raise forms.ValidationError('Hai người cùng phòng không được trùng nhau.')
-
-        # Phòng 2 = 2 người (bạn + 1); Phòng 3 = 3 người (bạn + 2).
-        if room_type == ROOM_2 and not companion1:
-            raise forms.ValidationError('Phòng 2 cần chọn đủ 2 người cùng phòng (bạn và 1 người nữa).')
-        if room_type == ROOM_3 and (not companion1 or not companion2):
-            raise forms.ValidationError('Phòng 3 cần chọn đủ 3 người cùng phòng (bạn và 2 người nữa).')
-        if room_type == ROOM_ORGANIZER:
-            companion1 = companion2 = None
-        if room_type == ROOM_2:
-            companion2 = None
-
-        # Người đã có room_key khác (đã ghép phòng) không nhận thêm
-        for c in (companion1, companion2):
-            if not c:
-                continue
-            existing = TripRegistration.objects.filter(
-                profile=c, status='registered',
-            ).exclude(room_key='').first()
-            if existing and existing.room_key:
-                # Cho phép nếu cùng nhóm sẽ gán sau — chặn nếu đã thuộc key khác của người khác
-                if self.current_profile:
-                    my_reg = TripRegistration.objects.filter(profile=self.current_profile).first()
-                    if my_reg and my_reg.room_key and existing.room_key == my_reg.room_key:
-                        continue
-                if existing.profile_id != (self.current_profile.pk if self.current_profile else None):
-                    # Chỉ cảnh báo nhẹ nếu đã đăng ký với companion khác — vẫn cho phép BTC sắp xếp sau
-                    pass
+        if room_type == ROOM_COLLEAGUE:
+            companion1 = self._load_colleague(cleaned.get('companion1_id') or None)
+            if companion1 is None and not self.errors.get('companion1_id'):
+                self.add_error('companion1_id', 'Chọn một đồng nghiệp để đăng ký chung.')
+            self._clear_relative(cleaned)
+        elif room_type == ROOM_RELATIVE:
+            self._clean_relative(cleaned)
+        else:
+            self._clear_relative(cleaned)
 
         cleaned['companion1_obj'] = companion1
-        cleaned['companion2_obj'] = companion2
         cleaned['organized_committee'] = room_type == ROOM_ORGANIZER
         return cleaned
+
+    def _load_colleague(self, pk):
+        if not pk:
+            return None
+        try:
+            profile = Profile.objects.select_related('user', 'department').get(
+                pk=pk, is_employed=True, user__is_active=True,
+            )
+        except Profile.DoesNotExist:
+            self.add_error('companion1_id', 'Đồng nghiệp không hợp lệ hoặc đã nghỉ việc.')
+            return None
+
+        if self.current_profile and profile.pk == self.current_profile.pk:
+            self.add_error('companion1_id', 'Không thể chọn chính mình.')
+            return None
+
+        if TripRegistration.objects.filter(profile=profile, status=STATUS_REGISTERED).exists():
+            self.add_error(
+                'companion1_id',
+                'Đồng nghiệp này đã tự đăng ký. Chỉ một người cần đăng ký cho cả hai.',
+            )
+            return None
+
+        invited = TripRegistration.objects.filter(
+            companion1=profile,
+            status=STATUS_REGISTERED,
+            room_type=ROOM_COLLEAGUE,
+        )
+        if self.current_registration is not None:
+            invited = invited.exclude(pk=self.current_registration.pk)
+        if invited.exists():
+            self.add_error('companion1_id', 'Đồng nghiệp này đã được người khác đăng ký.')
+            return None
+        return profile
+
+    def _clean_relative(self, cleaned):
+        required = (
+            ('relative_full_name', 'Nhập họ tên người thân.'),
+            ('relative_cccd', 'Nhập số CCCD người thân.'),
+            ('relative_phone', 'Nhập số điện thoại người thân.'),
+            ('relative_gender', 'Chọn giới tính người thân.'),
+            ('relative_date_of_birth', 'Nhập ngày sinh người thân.'),
+        )
+        for field, message in required:
+            if field in self.errors:
+                continue
+            value = cleaned.get(field)
+            if value is None or (isinstance(value, str) and not value.strip()):
+                self.add_error(field, message)
+
+        name = (cleaned.get('relative_full_name') or '').strip()
+        phone = (cleaned.get('relative_phone') or '').strip()
+        cccd = re.sub(r'\D', '', cleaned.get('relative_cccd') or '')
+        cleaned['relative_full_name'] = name
+        cleaned['relative_phone'] = phone
+        cleaned['relative_cccd'] = cccd
+        if cccd and not re.fullmatch(r'\d{12}', cccd):
+            self.add_error('relative_cccd', 'Số CCCD phải gồm 12 chữ số.')
+
+    @staticmethod
+    def _clear_relative(cleaned):
+        cleaned['relative_full_name'] = ''
+        cleaned['relative_cccd'] = ''
+        cleaned['relative_phone'] = ''
+        cleaned['relative_gender'] = ''
+        cleaned['relative_date_of_birth'] = None
 
 
 class TripSettingsForm(forms.ModelForm):
@@ -140,16 +201,3 @@ class TripEmailTemplateForm(forms.ModelForm):
             'subject': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
-
-class RoomAssignForm(forms.Form):
-    registration_id = forms.IntegerField(widget=forms.HiddenInput)
-    room_key = forms.CharField(
-        max_length=32,
-        required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Để trống = tạo mã mới'}),
-    )
-    companion_ids = forms.CharField(
-        required=False,
-        widget=forms.HiddenInput,
-        help_text='CSV profile ids',
-    )

@@ -522,7 +522,7 @@
             </ul>
         </li>
         {% endif %}
-        {% if jp_can_utilities or jp_can_portal_admin %}
+        {% if jp_can_utilities or jp_can_portal_admin or jp_can_trip_register %}
         <li class="jp-sidebar-group{% if 'tien-ich' in request.path %} is-open{% endif %}">
             <button type="button"
                     class="jp-sidebar-group-toggle"
@@ -572,17 +572,11 @@
                     </a>
                 </li>
                 {% endif %}
-                {% if jp_can_portal_admin %}
+                {% if jp_can_trip_register %}
                 <li>
-                    <a href="{% url 'company_trip:manage_list' %}"
+                    <a href="{% url 'company_trip:register' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if '/tien-ich/dat-lich' in request.path %}active{% endif %}">
-                        <i class="bi bi-calendar2-event"></i><span>Đặt lịch</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="{% url 'company_trip_spin:spin' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if '/tien-ich/vong-quay' in request.path %}active{% endif %}">
-                        <i class="bi bi-arrow-repeat"></i><span>Vòng quay may mắn</span>
+                        <i class="bi bi-airplane"></i><span>Đăng ký du lịch</span>
                     </a>
                 </li>
                 {% endif %}

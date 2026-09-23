@@ -6,11 +6,23 @@
     <h2 class="fw-bold text-hm mb-2">{% if already_submitted %}Bạn đã đăng ký{% else %}Hoàn tất đăng ký{% endif %}</h2>
     <p class="text-muted mb-2">{{ settings.title }} · {{ settings.destination }} · {{ settings.dates_display }}</p>
     {% if registration %}
-    <p class="mb-4">Cảm ơn <strong>{{ registration.full_name }}</strong>. Thông tin đăng ký đã được ghi nhận
+    <p class="mb-2">Cảm ơn <strong>{{ registration.full_name }}</strong>. Thông tin đăng ký đã được ghi nhận
         {% if registration.room_key %}— mã phòng: <code>{{ registration.room_key }}</code>{% endif %}.</p>
+    {% if registration.room_type == room_colleague %}
+    <p class="mb-4">Đồng nghiệp: <strong>{{ registration.companion1_name|default:"—" }}</strong>
+        — {% if registration.companion_confirmed %}đã xác nhận{% else %}chờ xác nhận khi họ mở trang đăng ký{% endif %}.</p>
+    {% elif registration.room_type == room_relative %}
+    <p class="mb-4">Người thân: <strong>{{ registration.relative_full_name|default:"—" }}</strong>.</p>
+    {% else %}
+    <div class="mb-4"></div>
+    {% endif %}
     {% else %}
     <p class="mb-4">Cảm ơn bạn đã đăng ký tham gia Company Trip.</p>
     {% endif %}
-    <a href="{% url 'home_portal' %}" class="btn btn-outline-hm">Về trang chủ</a>
+    <div class="d-flex justify-content-center gap-2 flex-wrap">
+        {% include 'company_trip/includes/manage_button.html' %}
+        <a href="{% url 'home_portal' %}" class="btn btn-outline-hm">Về trang chủ</a>
+    </div>
 </div>
+{% include 'company_trip/includes/bgm.html' %}
 {% endblock %}

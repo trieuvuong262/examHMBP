@@ -2,35 +2,39 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'company_trip/css/register.css' %}?v=20260918f">
+<link rel="stylesheet" href="{% static 'company_trip/css/register.css' %}?v=20260923k">
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page py-3 py-md-4">
+<div class="container jp-page py-3 py-md-4 jp-trip-page">
+    {% if can_manage %}
+    <a href="{% url 'company_trip:manage_list' %}" class="btn btn-outline-hm jp-trip-manage-corner">
+        <i class="bi bi-gear me-1"></i>Quản lý
+    </a>
+    {% endif %}
     <div class="jp-trip-reg">
         <header class="jp-trip-hero">
-            <div class="jp-trip-hero-kicker">
-                <i class="bi bi-airplane-fill" aria-hidden="true"></i>
-                Company Trip
-            </div>
-            <h1>Đăng ký {{ settings.title }}</h1>
-            <p>Điền thông tin chuyến đi — chọn phòng và người cùng phòng nếu cần.</p>
-            <div class="jp-trip-hero-meta">
-                <span class="jp-trip-chip"><i class="bi bi-geo-alt-fill" aria-hidden="true"></i>{{ settings.destination }}</span>
-                <span class="jp-trip-chip"><i class="bi bi-calendar-event" aria-hidden="true"></i>{{ settings.dates_display }}</span>
-            </div>
+            <h1>
+                ĐĂNG KÝ LỊCH TRÌNH DU LỊCH NINH THUẬN – VĨNH HY
+                <span class="jp-trip-hero-sub">CÔNG TY TNHH JUST PLAY – NĂM 2026</span>
+            </h1>
         </header>
+
+        <form method="post" id="trip-register-form" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+            {% endif %}
 
         <section class="jp-trip-panel">
             <div class="jp-trip-panel-hd">
                 <span class="jp-trip-step">1</span>
                 <div>
                     <h2>Thông tin của bạn</h2>
-                    <p>Lấy từ hồ sơ portal</p>
                 </div>
             </div>
             <div class="jp-trip-panel-bd">
-                <div class="jp-trip-profile">
+                <div class="jp-trip-profile mb-3">
                     <div class="jp-trip-profile-item">
                         <span>Họ tên</span>
                         <strong>{{ snapshot.full_name }}</strong>
@@ -44,102 +48,80 @@
                         <strong>{{ snapshot.department_name|default:"—" }}</strong>
                     </div>
                 </div>
+                <label class="form-label" for="{{ form.phone.id_for_label }}">Số điện thoại</label>
+                {{ form.phone }}
+                {% if form.phone.errors %}<div class="text-danger small mt-1">{{ form.phone.errors }}</div>{% endif %}
             </div>
         </section>
-
-        <form method="post" id="trip-register-form" novalidate>
-            {% csrf_token %}
-            {% if form.non_field_errors %}
-            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
-            {% endif %}
 
             <section class="jp-trip-panel">
                 <div class="jp-trip-panel-hd">
                     <span class="jp-trip-step">2</span>
                     <div>
-                        <h2>Liên hệ &amp; phòng</h2>
-                        <p>Phòng 2 = 2 người · Phòng 3 = 3 người</p>
+                        <h2>Thông tin phòng</h2>
                     </div>
                 </div>
                 <div class="jp-trip-panel-bd">
                     <div class="row g-3">
-                        <div class="col-12 col-md-6">
-                            <label class="form-label" for="{{ form.phone.id_for_label }}">Số điện thoại</label>
-                            {{ form.phone }}
-                            {% if form.phone.errors %}<div class="text-danger small mt-1">{{ form.phone.errors }}</div>{% endif %}
+                        {% if not snapshot.email %}
+                        <div class="col-12">
+                            <label class="form-label" for="{{ form.invite_email.id_for_label }}">Email <span class="text-muted fw-normal">(không bắt buộc)</span></label>
+                            {{ form.invite_email }}
+                            <div class="form-text">Để nhận thư mời và lưu vào hồ sơ nhân sự.</div>
+                            {% if form.invite_email.errors %}<div class="text-danger small mt-1">{{ form.invite_email.errors }}</div>{% endif %}
                         </div>
-                        <div class="col-12 col-md-6">
+                        {% endif %}
+                        <div class="col-12">
                             <label class="form-label" for="{{ form.room_type.id_for_label }}">Loại phòng</label>
                             {{ form.room_type }}
                         </div>
 
-                        <div class="col-12 d-none" id="roommates-wrap">
+                        <div class="col-12 d-none" id="colleague-wrap">
                             <div class="jp-trip-roommates">
-                                <label class="form-label mb-0">Người cùng phòng</label>
-                                <p class="form-text mt-1 mb-0" id="roommates-hint"></p>
-
-                                <div class="jp-trip-occupant is-you" id="self-occupant">
-                                    <span class="jp-trip-occupant-tag">Người 1 · Bạn</span>
-                                    <input type="text" class="form-control" value="{{ snapshot.full_name }}" readonly>
-                                </div>
-
-                                <div class="jp-trip-occupant" id="companion1-wrap">
-                                    <span class="jp-trip-occupant-tag">Người 2</span>
-                                    <input type="text" class="form-control" id="companion1-search" placeholder="Gõ tên để chọn…" autocomplete="off" inputmode="search">
+                                <label class="form-label mb-0">Đồng nghiệp</label>
+                                <p class="form-text mt-1 mb-0">Gõ tên rồi chọn trong danh sách. Người được chọn không cần điền form — khi mở trang đăng ký họ chỉ xem thông tin và xác nhận.</p>
+                                <div class="jp-trip-occupant">
+                                    <span class="jp-trip-occupant-tag">Đồng nghiệp</span>
+                                    <input type="text" class="form-control" id="companion1-search" placeholder="Gõ tên để chọn…" autocomplete="off" inputmode="search" value="{{ companion_prefill_name }}">
                                     {{ form.companion1_id }}
                                     <div class="list-group mt-1 d-none jp-trip-suggest" id="companion1-results"></div>
                                 </div>
-
-                                <div class="jp-trip-occupant" id="companion2-wrap">
-                                    <span class="jp-trip-occupant-tag">Người 3</span>
-                                    <input type="text" class="form-control" id="companion2-search" placeholder="Gõ tên để chọn…" autocomplete="off" inputmode="search">
-                                    {{ form.companion2_id }}
-                                    <div class="list-group mt-1 d-none jp-trip-suggest" id="companion2-results"></div>
-                                </div>
+                                {% if form.companion1_id.errors %}<div class="text-danger small mt-1">{{ form.companion1_id.errors }}</div>{% endif %}
                             </div>
                         </div>
-                    </div>
-                </div>
-            </section>
 
-            <section class="jp-trip-panel">
-                <div class="jp-trip-panel-hd">
-                    <span class="jp-trip-step">3</span>
-                    <div>
-                        <h2>Ăn uống &amp; lịch trình</h2>
-                        <p>Giúp BTC sắp xếp bữa ăn và tour</p>
-                    </div>
-                </div>
-                <div class="jp-trip-panel-bd">
-                    <div class="row g-3">
-                        <div class="col-12 col-md-6">
-                            <label class="form-label">Ăn chay</label>
-                            {{ form.vegetarian }}
-                        </div>
-                        <div class="col-12 col-md-6">
-                            <label class="form-label">Ăn sáng</label>
-                            {{ form.breakfast_choice }}
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label">Dị ứng / lưu ý ăn uống</label>
-                            {{ form.allergy_note }}
-                        </div>
-                        <div class="col-12 col-md-6">
-                            <label class="form-label">Điểm đón</label>
-                            {{ form.pickup_point }}
-                        </div>
-                        <div class="col-12 col-md-6">
-                            <label class="form-label">Mua sắm chợ Đầm Nại</label>
-                            {{ form.shopping }}
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label">Lộ trình</label>
-                            {{ form.route }}
-                            {% if form.route.errors %}<div class="text-danger small mt-1">{{ form.route.errors }}</div>{% endif %}
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label">Chi tiết lộ trình</label>
-                            {{ form.detail_route }}
+                        <div class="col-12 d-none" id="relative-wrap">
+                            <div class="jp-trip-roommates">
+                                <label class="form-label mb-0">Người thân</label>
+                                <p class="form-text mt-1 mb-2">Điền thông tin người thân đi cùng.</p>
+                                <div class="row g-3">
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label" for="{{ form.relative_full_name.id_for_label }}">Họ tên</label>
+                                        {{ form.relative_full_name }}
+                                        {% if form.relative_full_name.errors %}<div class="text-danger small mt-1">{{ form.relative_full_name.errors }}</div>{% endif %}
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label" for="{{ form.relative_cccd.id_for_label }}">Số CCCD</label>
+                                        {{ form.relative_cccd }}
+                                        {% if form.relative_cccd.errors %}<div class="text-danger small mt-1">{{ form.relative_cccd.errors }}</div>{% endif %}
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label" for="{{ form.relative_phone.id_for_label }}">Số điện thoại</label>
+                                        {{ form.relative_phone }}
+                                        {% if form.relative_phone.errors %}<div class="text-danger small mt-1">{{ form.relative_phone.errors }}</div>{% endif %}
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label" for="{{ form.relative_gender.id_for_label }}">Giới tính</label>
+                                        {{ form.relative_gender }}
+                                        {% if form.relative_gender.errors %}<div class="text-danger small mt-1">{{ form.relative_gender.errors }}</div>{% endif %}
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label" for="{{ form.relative_date_of_birth.id_for_label }}">Ngày sinh</label>
+                                        {{ form.relative_date_of_birth }}
+                                        {% if form.relative_date_of_birth.errors %}<div class="text-danger small mt-1">{{ form.relative_date_of_birth.errors }}</div>{% endif %}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <div class="col-12">
                             <label class="form-label">Ghi chú</label>
@@ -149,14 +131,81 @@
                 </div>
             </section>
 
+            <section class="jp-trip-panel">
+                <div class="jp-trip-panel-hd">
+                    <span class="jp-trip-step">3</span>
+                    <div>
+                    <h2>Chi tiết chuyến đi</h2>
+                    </div>
+                </div>
+                <div class="jp-trip-panel-bd">
+                    <div class="jp-trip-profile jp-trip-facts">
+                        <div class="jp-trip-profile-item">
+                            <span>Thời gian</span>
+                            <strong>{{ settings.dates_display }}</strong>
+                        </div>
+                        <div class="jp-trip-profile-item">
+                            <span>Thời gian tập trung</span>
+                            <strong>2 giờ sáng</strong>
+                        </div>
+                        <div class="jp-trip-profile-item">
+                            <span>Địa điểm</span>
+                            <strong>Ninh Thuận – Vịnh Vĩnh Hy</strong>
+                        </div>
+                        <div class="jp-trip-profile-item">
+                            <span>Resort</span>
+                            <strong>TTC Resort</strong>
+                        </div>
+                        <div class="jp-trip-profile-item">
+                            <span>Điểm đón</span>
+                            <strong>19 Chiến Lược</strong>
+                        </div>
+                    </div>
+                    {{ form.pickup_point.as_hidden }}
+                </div>
+            </section>
+
+            <section class="jp-trip-itinerary">
+                <button type="button" class="jp-trip-itinerary-toggle" data-bs-toggle="collapse" data-bs-target="#trip-itinerary" aria-expanded="false" aria-controls="trip-itinerary">
+                    <span><i class="bi bi-signpost-split me-2" aria-hidden="true"></i>Lịch trình</span>
+                    <i class="bi bi-chevron-down" aria-hidden="true"></i>
+                </button>
+                <div class="collapse" id="trip-itinerary">
+                    <div class="jp-trip-itinerary-bd">
+                        <div class="jp-trip-day">
+                            <h3>Ngày 22/11/2026 <span>Chủ nhật · TP.HCM – Vĩnh Hy – TTC Resort</span></h3>
+                            <div class="jp-trip-slot"><span>Trước 02 giờ</span><p>Tập trung tại Xưởng Just Play – 19 Chiến Lược, Bình Trị Đông.</p></div>
+                            <div class="jp-trip-slot"><span>02 giờ 30</span><p>Khởi hành đi Ninh Thuận.</p></div>
+                            <div class="jp-trip-slot"><span>07 giờ</span><p>Dùng bữa sáng tại nhà hàng.</p></div>
+                            <div class="jp-trip-slot"><span>08 giờ</span><p>Tham quan Vịnh Vĩnh Hy bằng tàu đáy kính; trải nghiệm tắm biển, lặn ngắm san hô.</p></div>
+                            <div class="jp-trip-slot"><span>Buổi trưa</span><p>Dùng cơm trưa tại nhà hàng bè nổi; chụp ảnh tại cung đường biển Vĩnh Hy.</p></div>
+                            <div class="jp-trip-slot"><span>14–15 giờ</span><p>Nhận phòng tại TTC Resort Ninh Thuận. Tự do vui chơi công viên nước, tắm biển và nghỉ ngơi.</p></div>
+                            <div class="jp-trip-slot"><span>Buổi tối</span><p>Dùng bữa tối tại nhà hàng. Nước suối, trà đá không giới hạn. Bia và nước ngọt: mỗi bàn 1 thùng bia + ½ thùng Coca.</p></div>
+                            <div class="jp-trip-slot"><span>20 giờ</span><p>Tham gia lửa trại bãi biển, giao lưu tập thể, trò chơi và thưởng thức pháo hoa nghệ thuật.</p></div>
+                        </div>
+                        <div class="jp-trip-day">
+                            <h3>Ngày 23/11/2026 <span>Thứ Hai · Ninh Thuận – TP.HCM</span></h3>
+                            <div class="jp-trip-slot"><span>Buổi sáng</span><p>Ăn sáng tại resort; tự do nghỉ ngơi, vui chơi. Làm thủ tục trả phòng.</p></div>
+                            <div class="jp-trip-slot"><span>09 giờ</span><p>Xe đón đoàn tham quan Trùng Sơn Cổ Tự. Cán bộ nhân viên không đi có thể ở lại resort và trả phòng trước 11 giờ.</p></div>
+                            <div class="jp-trip-slot"><span>11 giờ</span><p>Xe đưa đoàn dùng cơm trưa tại nhà hàng. Khởi hành về TP.HCM.</p></div>
+                            <div class="jp-trip-slot"><span>Buổi chiều</span><p>Tham quan vườn nho Ninh Thuận, thưởng thức và mua sắm đặc sản; lên xe trở về TP.HCM, kết thúc chuyến đi.</p></div>
+                        </div>
+                        <p class="jp-trip-itinerary-note">Thời gian và thứ tự các điểm tham quan có thể điều chỉnh theo tình hình thực tế. Các chi phí mua sắm, ăn uống ngoài chương trình do cá nhân tự chi trả.</p>
+                    </div>
+                </div>
+            </section>
+
+            {% if can_create %}
             <div class="jp-trip-actions">
                 <button type="submit" class="btn btn-hm w-100">
                     <i class="bi bi-send-fill me-1"></i>Gửi đăng ký
                 </button>
             </div>
+            {% endif %}
         </form>
     </div>
 </div>
+{% include 'company_trip/includes/bgm.html' %}
 {% endblock %}
 
 {% block scripts %}
@@ -164,8 +213,10 @@
 window.JP_TRIP_REGISTER = {
   profileId: {{ profile.pk|default:"null" }},
   searchUrl: "{% url 'company_trip:companion_search' %}",
-  roomSelectId: "{{ form.room_type.id_for_label }}"
+  roomSelectId: "{{ form.room_type.id_for_label }}",
+  roomColleague: "{{ room_colleague|escapejs }}",
+  roomRelative: "{{ room_relative|escapejs }}"
 };
 </script>
-<script src="{% static 'company_trip/js/register.js' %}?v=20260918f"></script>
+<script src="{% static 'company_trip/js/register.js' %}?v=20260923a"></script>
 {% endblock %}

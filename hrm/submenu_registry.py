@@ -94,22 +94,16 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'share', 'label': 'Tạo link gửi NV', 'icon': 'bi-send'},
         {'key': 'results', 'label': 'Kết quả', 'icon': 'bi-inbox-fill'},
     ],
-    MODULE_COMPANY_TRIP: [],  # Ẩn — dùng utilities.trip_schedule / lucky_spin
+    MODULE_COMPANY_TRIP: [],  # Ẩn — dùng utilities.trip_schedule
     MODULE_UTILITIES: [
         {'key': 'meal_ordering', 'label': 'Đặt cơm', 'icon': 'bi-cup-hot'},
         {'key': 'salary_advance', 'label': 'Ứng lương', 'icon': 'bi-cash-coin'},
         {'key': 'schedule_reminder', 'label': 'Nhắc lịch', 'icon': 'bi-alarm'},
         {
             'key': 'trip_schedule',
-            'label': 'Đặt lịch',
-            'icon': 'bi-calendar2-event',
-            'perm_label': 'Đặt lịch Company Trip (admin)',
-        },
-        {
-            'key': 'lucky_spin',
-            'label': 'Vòng quay may mắn',
-            'icon': 'bi-arrow-repeat',
-            'perm_label': 'Vòng quay may mắn (admin)',
+            'label': 'Đăng ký du lịch',
+            'icon': 'bi-airplane',
+            'perm_label': 'Đăng ký du lịch',
         },
     ],
     MODULE_KHO_NPL: [
@@ -348,7 +342,6 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/tien-ich/dat-com', MODULE_UTILITIES, 'meal_ordering'),
     ('/tien-ich/nhac-lich', MODULE_UTILITIES, 'schedule_reminder'),
     ('/tien-ich/dat-lich', MODULE_UTILITIES, 'trip_schedule'),
-    ('/tien-ich/vong-quay', MODULE_UTILITIES, 'lucky_spin'),
     ('/cong-cu/nhac-lich', MODULE_UTILITIES, 'schedule_reminder'),
     # Góp ý
     ('/gop-y/danh-sach', MODULE_FEEDBACK, 'list'),
@@ -624,6 +617,8 @@ def submenu_supported_actions(module_key: str, menu_key: str) -> frozenset[str]:
     """Tập hành động có endpoint/chức năng thật cho một menu."""
     if module_key == MODULE_SAN_XUAT:
         return _SAN_XUAT_MENU_ACTIONS.get(menu_key, frozenset({'view'}))
+    if module_key == MODULE_UTILITIES and menu_key == 'trip_schedule':
+        return frozenset({'view', 'create', 'update', 'delete', 'export'})
     return frozenset({'view', 'create', 'update', 'delete', 'export', 'print'})
 
 

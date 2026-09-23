@@ -44,7 +44,7 @@ MODULE_ODOO = 'odoo'
 # Tạm ẩn khỏi sidebar + màn hình phân quyền — gỡ khỏi set khi bật lại.
 HIDDEN_PORTAL_MODULES = frozenset({
     MODULE_RECRUITMENT,
-    MODULE_COMPANY_TRIP,  # Đặt lịch / Lucky Spin nằm trong Tiện ích (admin only)
+    MODULE_COMPANY_TRIP,  # Đặt lịch nằm trong Tiện ích (admin only)
 })
 
 _ALL_MODULE_CHOICES = [
@@ -216,9 +216,8 @@ EXEMPT_PATH_PREFIXES = (
     '/khao-sat/d/',
     # Web push portal — view tự kiểm tra user_portal_push_eligible (không cần module Tiện ích)
     '/tien-ich/push/',
-    # Đặt lịch Company Trip + Vòng quay — chỉ admin; view tự kiểm tra is_staff
+    # Đăng ký du lịch — view tự kiểm tra quyền menu (thêm / sửa / xóa / xuất)
     '/tien-ich/dat-lich/',
-    '/tien-ich/vong-quay/',
 )
 
 # Map prefix URL → module (thứ tự quan trọng — dài/specific trước)

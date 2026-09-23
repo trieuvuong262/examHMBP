@@ -37,7 +37,6 @@ urlpatterns = [
     path('gop-y/', include('feedback.urls')),
     path('khao-sat/', include('surveys.urls')),
     path('tien-ich/dat-lich/', include('company_trip.urls')),
-    path('tien-ich/vong-quay/', include('company_trip.spin_urls')),
     path('tien-ich/', include('utilities.urls')),
     path('change-password/', MyPasswordChangeView.as_view(template_name='registration/password_change_form.html'), name='password_change'),
     path('change-password/done/', auth_views.PasswordChangeDoneView.as_view(template_name='registration/password_change_done.html'), name='password_change_done'),

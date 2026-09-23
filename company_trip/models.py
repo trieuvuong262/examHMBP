@@ -92,6 +92,16 @@ class TripRegistration(models.Model):
     )
     companion1_name = models.CharField(max_length=255, blank=True)
     companion2_name = models.CharField(max_length=255, blank=True)
+    companion_confirmed = models.BooleanField(default=False, verbose_name='Đồng nghiệp đã xác nhận')
+    companion_confirmed_at = models.DateTimeField(null=True, blank=True, verbose_name='Thời điểm xác nhận')
+    companion_email = models.EmailField(blank=True, verbose_name='Email đồng nghiệp')
+
+    relative_full_name = models.CharField(max_length=255, blank=True, verbose_name='Họ tên người thân')
+    relative_cccd = models.CharField(max_length=20, blank=True, verbose_name='Số CCCD người thân')
+    relative_phone = models.CharField(max_length=32, blank=True, verbose_name='SĐT người thân')
+    relative_gender = models.CharField(max_length=10, blank=True, verbose_name='Giới tính người thân')
+    relative_date_of_birth = models.DateField(null=True, blank=True, verbose_name='Ngày sinh người thân')
+
     room_key = models.CharField(max_length=32, blank=True, db_index=True, verbose_name='Mã phòng')
 
     vegetarian = models.CharField(
@@ -142,16 +152,50 @@ class TripRegistration(models.Model):
         return f'{self.full_name or self.profile_id} ({self.status})'
 
 
+DEFAULT_TRIP_EMAIL_SUBJECT = 'Thư mời tham gia Kế hoạch du lịch nghỉ mát {{ year }} - Just Play'
+DEFAULT_TRIP_EMAIL_BODY = """
+<p>Kính gửi {{ gender_prefix }} <strong>{{ fullname }}</strong>,</p>
+<p>Sau những tháng ngày làm việc đầy nhiệt huyết, Ban Giám Đốc trân trọng gửi đến {{ gender_prefix }} lời mời đặc biệt tham gia chương trình <strong>Company Trip {{ year }}</strong> — một chuyến đi bùng nổ hứa hẹn sẽ "refresh" năng lượng, gắn kết tình đồng đội và tạo nên những kỷ niệm khó quên!</p>
+<p>Chuyến đi lần này được thiết kế riêng với vô vàn hoạt động độc đáo và hấp dẫn đang chờ đón {{ gender_prefix }}:</p>
+<ul>
+<li><strong>Teambuilding bãi biển sôi động:</strong> Cùng nhau vượt qua các thử thách, "phá đảo" bờ cát trắng và xây dựng tinh thần đồng đội vững chắc.</li>
+<li><strong>Gala Dinner &amp; minigame tưng bừng:</strong> Một đêm tiệc ấm cúng, sang trọng nhưng không kém phần vui nhộn, nơi chúng ta có thể giao lưu, "cháy" hết mình và nhận về những phần quà bất ngờ.</li>
+<li><strong>Khám phá danh lam thắng cảnh:</strong> Đắm mình vào vẻ đẹp thiên nhiên hùng vĩ và trải nghiệm văn hóa độc đáo tại những điểm đến hấp dẫn.</li>
+</ul>
+<p>Và còn rất nhiều bất ngờ khác đang chờ đón {{ gender_prefix }} khám phá!</p>
+<p>Sự hiện diện của {{ gender_prefix }} chính là yếu tố quan trọng nhất, là niềm vui và động lực to lớn để Company Trip {{ year }} thành công rực rỡ!</p>
+<p><strong>Thông tin chuyến đi cơ bản của {{ gender_prefix }}:</strong></p>
+<ul>
+<li><strong>Địa điểm đón:</strong> {{ pickup }}</li>
+<li><strong>Thời gian tập trung:</strong> {{ gather_time }}</li>
+<li><strong>Thời gian:</strong> {{ dates }}</li>
+<li><strong>Địa điểm:</strong> {{ location }}</li>
+<li><strong>Resort:</strong> {{ resort }}</li>
+<li><strong>Loại phòng nghỉ:</strong> {{ room_type }}</li>
+<li><strong>Đồng hành cùng:</strong> {{ companions }}</li>
+</ul>
+{{ itinerary }}
+<p>{{ gender_prefix }} vui lòng đăng ký tại: <a href="{{ register_url }}">{{ register_url }}</a></p>
+<p>Hãy cùng chuẩn bị tinh thần cho một chuyến đi thật đáng nhớ, {{ gender_prefix }} nhé!</p>
+<p>Trân trọng,<br>Phòng Hành chính Nhân sự</p>
+""".strip()
+
+
 class TripEmailTemplate(models.Model):
     subject = models.CharField(
         max_length=255,
-        default='Thư mời {{ gender_prefix }} {{ fullname }} tham gia Company Trip 2026 — Vĩnh Hy',
+        default=DEFAULT_TRIP_EMAIL_SUBJECT,
         verbose_name='Tiêu đề',
     )
     body = RichTextField(
         blank=True,
         verbose_name='Nội dung HTML',
-        help_text='Biến: {{ fullname }}, {{ gender_prefix }}, {{ dates }}, {{ destination }}, {{ register_url }}',
+        help_text=(
+            'Biến: {{ fullname }}, {{ gender_prefix }}, {{ dates }}, {{ destination }}, '
+            '{{ location }}, {{ resort }}, {{ pickup }}, {{ gather_time }}, {{ itinerary }}, '
+            '{{ register_url }}, {{ title }}, {{ year }}, {{ room_type }}, {{ companions }}, '
+            '{{ phone }}, {{ department }}'
+        ),
     )
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -166,26 +210,7 @@ class TripEmailTemplate(models.Model):
     def load(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         if not (obj.body or '').strip():
-            obj.body = (
-                '<p>Kính gửi {{ gender_prefix }} <strong>{{ fullname }}</strong>,</p>'
-                '<p>Ban Tổ chức trân trọng mời bạn tham gia <strong>Company Trip 2026</strong> '
-                'tại <strong>{{ destination }}</strong> ngày <strong>{{ dates }}</strong>.</p>'
-                '<p>Vui lòng đăng ký tại: <a href="{{ register_url }}">{{ register_url }}</a></p>'
-                '<p>Trân trọng,<br>Ban Tổ chức</p>'
-            )
-            obj.save(update_fields=['body', 'updated_at'])
+            obj.subject = DEFAULT_TRIP_EMAIL_SUBJECT
+            obj.body = DEFAULT_TRIP_EMAIL_BODY
+            obj.save(update_fields=['subject', 'body', 'updated_at'])
         return obj
-
-
-class SpinNumber(models.Model):
-    number = models.PositiveIntegerField(unique=True, verbose_name='Số')
-    lucky = models.BooleanField(default=False, verbose_name='Lucky')
-    shown = models.BooleanField(default=False, verbose_name='Đã quay')
-
-    class Meta:
-        ordering = ['number']
-        verbose_name = 'Số quay thưởng'
-        verbose_name_plural = 'Số quay thưởng'
-
-    def __str__(self):
-        return f'{self.number:03d} lucky={self.lucky} shown={self.shown}'

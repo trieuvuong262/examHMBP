@@ -131,6 +131,7 @@ def portal_permissions(request):
             'jp_can_surveys': False,
             'jp_can_company_trip': False,
             'jp_can_utilities': False,
+            'jp_can_trip_register': False,
             'jp_can_kiotviet': False,
             'jp_can_odoo': False,
             'jp_can_kho_npl': False,
@@ -267,6 +268,7 @@ def portal_permissions(request):
         'jp_can_surveys': user_can_access_module(user, MODULE_SURVEYS),
         'jp_can_company_trip': user_can_access_module(user, MODULE_COMPANY_TRIP),
         'jp_can_utilities': user_can_access_module(user, MODULE_UTILITIES),
+        'jp_can_trip_register': _jp_can_trip_register(user),
         'jp_can_kiotviet': _jp_can_kiotviet(user),
         'jp_can_odoo': False,  # Tạm ẩn menu Odoo
         'jp_can_kho_npl': user_can_access_module(user, MODULE_KHO_NPL),
@@ -390,6 +392,14 @@ def portal_permissions(request):
         base.setdefault('raidrive_share_url', '')
         base.setdefault('raidrive_file_name', '')
     return base
+
+
+def _jp_can_trip_register(user) -> bool:
+    try:
+        from company_trip.access import trip_can_open
+        return trip_can_open(user)
+    except Exception:
+        return False
 
 
 def _jp_can_kiotviet(user) -> bool:

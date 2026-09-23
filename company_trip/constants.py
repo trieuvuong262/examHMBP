@@ -8,14 +8,15 @@ TRIP_DESTINATION = 'Vịnh Vĩnh Hy'
 TRIP_START = date(2026, 11, 22)
 TRIP_END = date(2026, 11, 23)
 TRIP_DATES_DISPLAY = '22–23/11/2026'
+DEFAULT_PICKUP_POINT = '19 Chiến Lược'
 
-ROOM_ORGANIZER = 'Ban tổ chức sắp xếp'
-ROOM_2 = 'Phòng 2'
-ROOM_3 = 'Phòng 3'
+ROOM_ORGANIZER = 'Ban tổ chức tự sắp xếp'
+ROOM_RELATIVE = 'Đăng ký chung với người thân'
+ROOM_COLLEAGUE = 'Đăng ký với đồng nghiệp'
 ROOM_CHOICES = [
     (ROOM_ORGANIZER, ROOM_ORGANIZER),
-    (ROOM_2, ROOM_2),
-    (ROOM_3, ROOM_3),
+    (ROOM_RELATIVE, ROOM_RELATIVE),
+    (ROOM_COLLEAGUE, ROOM_COLLEAGUE),
 ]
 
 VEGETARIAN_CHOICES = [

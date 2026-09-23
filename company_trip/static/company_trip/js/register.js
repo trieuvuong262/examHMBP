@@ -3,51 +3,51 @@
   const profileId = cfg.profileId;
   const searchUrl = cfg.searchUrl;
   const roomSelect = document.getElementById(cfg.roomSelectId);
-  const wrap = document.getElementById('roommates-wrap');
-  const wrap1 = document.getElementById('companion1-wrap');
-  const wrap2 = document.getElementById('companion2-wrap');
-  const hint = document.getElementById('roommates-hint');
+  const colleagueWrap = document.getElementById('colleague-wrap');
+  const relativeWrap = document.getElementById('relative-wrap');
   const hidden1 = document.getElementById('id_companion1_id');
-  const hidden2 = document.getElementById('id_companion2_id');
   const input1 = document.getElementById('companion1-search');
-  const input2 = document.getElementById('companion2-search');
 
-  if (!roomSelect || !wrap) return;
+  if (!roomSelect || !colleagueWrap || !relativeWrap) return;
 
-  function clearCompanion(hidden, input) {
-    if (hidden) hidden.value = '';
-    if (input) {
-      input.value = '';
-      input.dataset.selected = '';
+  function clearCompanion() {
+    if (hidden1) hidden1.value = '';
+    if (input1) {
+      input1.value = '';
+      input1.dataset.selected = '';
     }
   }
 
-  function toggleCompanions() {
+  function clearRelative() {
+    relativeWrap.querySelectorAll('input, select, textarea').forEach(function (el) {
+      if (el.type === 'checkbox' || el.type === 'radio') {
+        el.checked = false;
+        return;
+      }
+      el.value = '';
+    });
+  }
+
+  function toggleRoom() {
     const v = (roomSelect.value || '').trim();
-    const is2 = v === 'Phòng 2';
-    const is3 = v === 'Phòng 3';
-    wrap.classList.toggle('d-none', !is2 && !is3);
-    if (wrap1) wrap1.classList.toggle('d-none', !is2 && !is3);
-    if (wrap2) wrap2.classList.toggle('d-none', !is3);
-    if (hint) {
-      if (is2) hint.textContent = 'Phòng 2: chọn thêm 1 người cùng phòng (gõ tên rồi chọn từ danh sách).';
-      else if (is3) hint.textContent = 'Phòng 3: chọn thêm 2 người cùng phòng (gõ tên rồi chọn từ danh sách).';
-      else hint.textContent = '';
-    }
-    if (!is2 && !is3) {
-      clearCompanion(hidden1, input1);
-      clearCompanion(hidden2, input2);
-    }
-    if (is2) clearCompanion(hidden2, input2);
+    const isColleague = v === cfg.roomColleague;
+    const isRelative = v === cfg.roomRelative;
+    colleagueWrap.classList.toggle('d-none', !isColleague);
+    relativeWrap.classList.toggle('d-none', !isRelative);
+    if (!isColleague) clearCompanion();
+    if (!isRelative) clearRelative();
   }
 
-  roomSelect.addEventListener('change', toggleCompanions);
-  toggleCompanions();
+  roomSelect.addEventListener('change', toggleRoom);
+  toggleRoom();
 
-  function excludeIds(otherHidden) {
+  if (hidden1 && hidden1.value && input1 && input1.value.trim()) {
+    input1.dataset.selected = 'true';
+  }
+
+  function excludeIds() {
     const ids = [];
     if (profileId) ids.push(profileId);
-    if (otherHidden && otherHidden.value) ids.push(otherHidden.value);
     return ids.join(',');
   }
 
@@ -59,7 +59,7 @@
       .replace(/"/g, '&quot;');
   }
 
-  function bindSearch(input, results, hidden, otherHidden) {
+  function bindSearch(input, results, hidden) {
     if (!input || !results || !hidden) return;
     let timer = null;
     let reqId = 0;
@@ -75,7 +75,7 @@
     }
 
     async function fetchList(query) {
-      const url = searchUrl + '?q=' + encodeURIComponent(query) + '&exclude=' + encodeURIComponent(excludeIds(otherHidden));
+      const url = searchUrl + '?q=' + encodeURIComponent(query) + '&exclude=' + encodeURIComponent(excludeIds());
       const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
       if (!res.ok) return [];
       const data = await res.json();
@@ -92,15 +92,13 @@
         const a = document.createElement('button');
         a.type = 'button';
         a.className = 'list-group-item list-group-item-action';
-        const meta = [item.code, item.position, item.department].filter(Boolean).join(' · ');
+        if (item.unavailable) a.disabled = true;
+        const meta = [item.code, item.position, item.department, item.reason].filter(Boolean).join(' · ');
         a.innerHTML = '<strong>' + escapeHtml(item.name) + '</strong>'
           + (meta ? '<div class="small text-muted">' + escapeHtml(meta) + '</div>' : '');
         a.addEventListener('mousedown', function (e) {
           e.preventDefault();
-          if (otherHidden && String(otherHidden.value) === String(item.id)) {
-            alert('Hai người cùng phòng không được trùng nhau.');
-            return;
-          }
+          if (item.unavailable) return;
           hidden.value = item.id;
           input.value = item.name;
           input.dataset.selected = 'true';
@@ -114,7 +112,7 @@
     function runSearch(query) {
       const q = (query || '').trim();
       if (!q) {
-        showHint('Gõ tên / mã NV để chọn người cùng phòng.');
+        showHint('Gõ tên / mã NV để chọn đồng nghiệp.');
         return;
       }
       const myReq = ++reqId;
@@ -149,6 +147,5 @@
     });
   }
 
-  bindSearch(input1, document.getElementById('companion1-results'), hidden1, hidden2);
-  bindSearch(input2, document.getElementById('companion2-results'), hidden2, hidden1);
+  bindSearch(input1, document.getElementById('companion1-results'), hidden1);
 })();

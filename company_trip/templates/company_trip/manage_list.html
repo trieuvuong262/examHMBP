@@ -4,16 +4,19 @@
 <div class="container jp-page py-3 py-md-4 mb-5">
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
-            <h2 class="fw-bold text-hm mb-1 jp-page-title">Đăng ký Company Trip</h2>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">Quản lý đăng ký du lịch</h2>
             <p class="text-muted mb-0">{{ settings.destination }} · {{ settings.dates_display }} · {{ total }} người đã đăng ký</p>
         </div>
         <div class="d-flex gap-2 flex-wrap">
-            <a href="{% url 'company_trip:register' %}" class="btn btn-outline-hm">Đăng ký thử</a>
-            <a href="{% url 'company_trip:rooms' %}" class="btn btn-outline-hm">Phòng</a>
+            <a href="{% url 'company_trip:register' %}" class="btn btn-outline-hm">Đăng ký</a>
+            {% if can_update %}
             <a href="{% url 'company_trip:email' %}" class="btn btn-outline-hm">Email</a>
+            {% endif %}
+            {% if can_export %}
             <a href="{% url 'company_trip:manage_export' %}" class="btn btn-outline-hm fw-bold">
                 <i class="bi bi-file-earmark-excel me-1"></i>Xuất Excel
             </a>
+            {% endif %}
         </div>
     </div>
 
@@ -41,7 +44,7 @@
                     <th>Phòng ban</th>
                     <th>Loại phòng</th>
                     <th>Mã phòng</th>
-                    <th>Lộ trình</th>
+                    <th>Điểm đón</th>
                     <th></th>
                 </tr>
             </thead>
@@ -53,11 +56,18 @@
                         <div class="small text-muted">{{ r.email }} · {{ r.phone }}</div>
                     </td>
                     <td>{{ r.department_name|default:"—" }}</td>
-                    <td>{{ r.room_type }}</td>
+                    <td>
+                        {{ r.room_type }}
+                        {% if r.room_type == room_colleague %}
+                        <div class="small text-muted">{{ r.companion1_name|default:"—" }} · {% if r.companion_confirmed %}Đã xác nhận{% else %}Chờ xác nhận{% endif %}</div>
+                        {% elif r.room_type == room_relative %}
+                        <div class="small text-muted">{{ r.relative_full_name|default:"—" }} · người thân</div>
+                        {% endif %}
+                    </td>
                     <td><code>{{ r.room_key|default:"—" }}</code></td>
-                    <td class="small">{{ r.route|default:"—" }}</td>
+                    <td class="small">{{ r.pickup_point|default:"—" }}</td>
                     <td class="text-end">
-                        {% if r.status == 'registered' %}
+                        {% if r.status == 'registered' and can_delete %}
                         <form method="post" action="{% url 'company_trip:manage_cancel' r.pk %}" onsubmit="return confirm('Hủy đăng ký của {{ r.full_name }}?');">
                             {% csrf_token %}
                             <button class="btn btn-sm btn-outline-danger" type="submit">Hủy</button>

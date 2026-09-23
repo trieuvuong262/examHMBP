@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from company_trip.models import SpinNumber, TripEmailTemplate, TripRegistration, TripSettings
+from company_trip.models import TripEmailTemplate, TripRegistration, TripSettings
 
 
 @admin.register(TripSettings)
@@ -11,10 +11,11 @@ class TripSettingsAdmin(admin.ModelAdmin):
 @admin.register(TripRegistration)
 class TripRegistrationAdmin(admin.ModelAdmin):
     list_display = (
-        'full_name', 'department_name', 'room_type', 'room_key',
+        'full_name', 'department_name', 'room_type', 'companion1_name',
+        'companion_confirmed', 'relative_full_name', 'room_key',
         'status', 'created_at',
     )
-    list_filter = ('status', 'room_type', 'vegetarian')
+    list_filter = ('status', 'room_type')
     search_fields = ('full_name', 'email', 'phone', 'room_key')
     raw_id_fields = ('profile', 'user', 'companion1', 'companion2')
 
@@ -22,10 +23,3 @@ class TripRegistrationAdmin(admin.ModelAdmin):
 @admin.register(TripEmailTemplate)
 class TripEmailTemplateAdmin(admin.ModelAdmin):
     list_display = ('subject', 'updated_at')
-
-
-@admin.register(SpinNumber)
-class SpinNumberAdmin(admin.ModelAdmin):
-    list_display = ('number', 'lucky', 'shown')
-    list_filter = ('lucky', 'shown')
-    search_fields = ('number',)

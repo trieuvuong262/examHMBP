@@ -7,7 +7,7 @@ import string
 
 from django.db import transaction
 
-from company_trip.constants import ROOM_2, ROOM_3, ROOM_ORGANIZER, STATUS_REGISTERED
+from company_trip.constants import ROOM_COLLEAGUE, ROOM_ORGANIZER, ROOM_RELATIVE
 from company_trip.models import TripRegistration
 
 
@@ -33,54 +33,61 @@ def clear_room_key(reg: TripRegistration) -> int:
     return TripRegistration.objects.filter(room_key=key).update(room_key='')
 
 
+_ROOM_SYNC_FIELDS = [
+    'room_key', 'companion1', 'companion2',
+    'companion1_name', 'companion2_name',
+    'companion_confirmed', 'companion_confirmed_at', 'companion_email',
+    'relative_full_name', 'relative_cccd', 'relative_phone',
+    'relative_gender', 'relative_date_of_birth',
+    'organized_committee', 'updated_at',
+]
+
+
+def _clear_relative(reg: TripRegistration) -> None:
+    reg.relative_full_name = ''
+    reg.relative_cccd = ''
+    reg.relative_phone = ''
+    reg.relative_gender = ''
+    reg.relative_date_of_birth = None
+
+
+def _clear_colleague(reg: TripRegistration) -> None:
+    reg.companion1 = None
+    reg.companion2 = None
+    reg.companion1_name = ''
+    reg.companion2_name = ''
+    reg.companion_confirmed = False
+    reg.companion_confirmed_at = None
+    reg.companion_email = ''
+
+
 def apply_companions_on_register(reg: TripRegistration) -> None:
-    """Sau khi lưu đăng ký: gán room_key; chỉ sync key cho companion đã đăng ký sẵn."""
+    """Chuẩn hóa người đi cùng và mã phòng theo loại đăng ký."""
     if reg.room_type == ROOM_ORGANIZER:
         reg.room_key = ''
-        reg.companion1 = None
-        reg.companion2 = None
-        reg.companion1_name = ''
-        reg.companion2_name = ''
+        _clear_colleague(reg)
+        _clear_relative(reg)
         reg.organized_committee = True
-        reg.save(update_fields=[
-            'room_key', 'companion1', 'companion2',
-            'companion1_name', 'companion2_name', 'organized_committee', 'updated_at',
-        ])
+        reg.save(update_fields=_ROOM_SYNC_FIELDS)
         return
 
-    companions = []
-    if reg.companion1_id:
-        companions.append(reg.companion1)
-        reg.companion1_name = reg.companion1.full_name or reg.companion1.user.username
-    if reg.companion2_id and reg.room_type == ROOM_3:
-        companions.append(reg.companion2)
-        reg.companion2_name = reg.companion2.full_name or reg.companion2.user.username
-    elif reg.room_type == ROOM_2:
+    if reg.room_type == ROOM_RELATIVE:
+        _clear_colleague(reg)
+        reg.organized_committee = False
+        if not (reg.room_key or '').strip():
+            reg.room_key = generate_room_key()
+        reg.save(update_fields=_ROOM_SYNC_FIELDS)
+        return
+
+    if reg.room_type == ROOM_COLLEAGUE:
+        _clear_relative(reg)
         reg.companion2 = None
         reg.companion2_name = ''
-
-    reg.organized_committee = False
-
-    existing_keys = set()
-    if reg.room_key:
-        existing_keys.add(reg.room_key)
-    companion_regs = []
-    for c in companions:
-        other = TripRegistration.objects.filter(profile=c, status=STATUS_REGISTERED).first()
-        if other:
-            companion_regs.append(other)
-            if other.room_key:
-                existing_keys.add(other.room_key)
-
-    key = next(iter(existing_keys)) if len(existing_keys) == 1 else generate_room_key()
-    reg.room_key = key
-    reg.save(update_fields=[
-        'room_key', 'companion1', 'companion2',
-        'companion1_name', 'companion2_name', 'organized_committee', 'updated_at',
-    ])
-
-    for other in companion_regs:
-        if other.pk == reg.pk:
-            continue
-        other.room_key = key
-        other.save(update_fields=['room_key', 'updated_at'])
+        if reg.companion1_id:
+            reg.companion1_name = reg.companion1.full_name or reg.companion1.user.username
+        else:
+            reg.companion1_name = ''
+        reg.organized_committee = False
+        if not (reg.room_key or '').strip():
+            reg.room_key = generate_room_key()
+        reg.save(update_fields=_ROOM_SYNC_FIELDS)

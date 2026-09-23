@@ -7,11 +7,12 @@
             <h2 class="fw-bold text-hm mb-1 jp-page-title">Email &amp; cấu hình</h2>
             <p class="text-muted mb-0">{{ pending_count }} NV active chưa đăng ký</p>
         </div>
+        <a href="{% url 'company_trip:manage_list' %}" class="btn btn-outline-hm">Danh sách đăng ký</a>
     </div>
 
     <div class="row g-3">
         <div class="col-lg-5">
-            <div class="card border-0 shadow-sm">
+            <div class="card border-0 shadow-sm mb-3">
                 <div class="card-body">
                     <h5 class="fw-bold mb-3">Cấu hình chuyến đi</h5>
                     <form method="post">
@@ -31,12 +32,35 @@
                     </form>
                 </div>
             </div>
-        </div>
-        <div class="col-lg-7">
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
+                    <h5 class="fw-bold mb-2">Biến có thể chèn</h5>
+                    <p class="small text-muted">Gõ đúng cụm trong tiêu đề hoặc nội dung. Dữ liệu trống thì biến để trống.</p>
+                    <ul class="small mb-0">
+                        <li><code>{% verbatim %}{{ fullname }}{% endverbatim %}</code> họ tên</li>
+                        <li><code>{% verbatim %}{{ gender_prefix }}{% endverbatim %}</code> Anh, Chị hoặc Anh/Chị</li>
+                        <li><code>{% verbatim %}{{ phone }}{% endverbatim %}</code> số điện thoại</li>
+                        <li><code>{% verbatim %}{{ department }}{% endverbatim %}</code> phòng ban</li>
+                        <li><code>{% verbatim %}{{ dates }}{% endverbatim %}</code> thời gian chuyến đi</li>
+                        <li><code>{% verbatim %}{{ gather_time }}{% endverbatim %}</code> thời gian tập trung</li>
+                        <li><code>{% verbatim %}{{ pickup }}{% endverbatim %}</code> điểm đón</li>
+                        <li><code>{% verbatim %}{{ location }}{% endverbatim %}</code> Ninh Thuận – Vịnh Vĩnh Hy</li>
+                        <li><code>{% verbatim %}{{ destination }}{% endverbatim %}</code> điểm đến trong cấu hình</li>
+                        <li><code>{% verbatim %}{{ resort }}{% endverbatim %}</code> TTC Resort</li>
+                        <li><code>{% verbatim %}{{ itinerary }}{% endverbatim %}</code> lịch trình chi tiết</li>
+                        <li><code>{% verbatim %}{{ room_type }}{% endverbatim %}</code> loại phòng, khi gửi lại cho người đã đăng ký</li>
+                        <li><code>{% verbatim %}{{ companions }}{% endverbatim %}</code> người đồng hành, khi gửi lại cho người đã đăng ký</li>
+                        <li><code>{% verbatim %}{{ register_url }}{% endverbatim %}</code> link đăng ký</li>
+                        <li><code>{% verbatim %}{{ title }}{% endverbatim %}</code> tiêu đề chuyến đi</li>
+                        <li><code>{% verbatim %}{{ year }}{% endverbatim %}</code> 2026</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
                     <h5 class="fw-bold mb-3">Mẫu email</h5>
-                    <p class="small text-muted">{% verbatim %}Biến: {{ fullname }}, {{ gender_prefix }}, {{ dates }}, {{ destination }}, {{ register_url }}{% endverbatim %}</p>
                     <form method="post">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="save_template">
@@ -52,13 +76,28 @@
                         <button class="btn btn-hm" type="submit">Lưu mẫu</button>
                     </form>
                     <hr>
-                    <form method="post" onsubmit="return confirm('Gửi email mời tới tất cả NV active chưa đăng ký?');">
+                    <form method="post" class="mb-2" onsubmit="return confirm('Gửi email mời tới tất cả NV active chưa đăng ký?');">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="bulk_invite">
                         <button class="btn btn-outline-hm" type="submit">
                             <i class="bi bi-envelope me-1"></i>Gửi hàng loạt lời mời ({{ pending_count }})
                         </button>
                     </form>
+                    <form method="post" onsubmit="return confirm('Gửi lại mẫu đang lưu cho người đã đăng ký?');">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="resend_registered">
+                        <button class="btn btn-outline-hm" type="submit">
+                            <i class="bi bi-arrow-repeat me-1"></i>Gửi lại cho người đã đăng ký
+                        </button>
+                    </form>
+                </div>
+            </div>
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="fw-bold mb-1">Xem trước mẫu đang lưu</h5>
+                    <p class="small text-muted mb-2">Mẫu với Anh Nguyễn Văn A. Loại phòng và người đồng hành chỉ có khi gửi cho người đã đăng ký.</p>
+                    <p class="fw-semibold mb-2">{{ preview_subject }}</p>
+                    <div class="border rounded p-3 bg-white">{{ preview_html|safe }}</div>
                 </div>
             </div>
         </div>

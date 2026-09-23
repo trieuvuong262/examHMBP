@@ -1,0 +1,23 @@
+<p>Kính gửi {{ gender_prefix }} <strong>{{ fullname }}</strong>,</p>
+<p>Sau những tháng ngày làm việc đầy nhiệt huyết, Ban Giám Đốc trân trọng gửi đến {{ gender_prefix }} lời mời đặc biệt tham gia chương trình <strong>Company Trip 2026</strong> — một chuyến đi bùng nổ hứa hẹn sẽ "refresh" năng lượng, gắn kết tình đồng đội và tạo nên những kỷ niệm khó quên!</p>
+<p>Chuyến đi lần này được thiết kế riêng với vô vàn hoạt động độc đáo và hấp dẫn đang chờ đón {{ gender_prefix }}:</p>
+<ul>
+  <li><strong>Teambuilding bãi biển sôi động:</strong> Cùng nhau vượt qua các thử thách, "phá đảo" bờ cát trắng và xây dựng tinh thần đồng đội vững chắc.</li>
+  <li><strong>Gala Dinner &amp; minigame tưng bừng:</strong> Một đêm tiệc ấm cúng, sang trọng nhưng không kém phần vui nhộn, nơi chúng ta có thể giao lưu, "cháy" hết mình và nhận về những phần quà bất ngờ.</li>
+  <li><strong>Khám phá danh lam thắng cảnh:</strong> Đắm mình vào vẻ đẹp thiên nhiên hùng vĩ và trải nghiệm văn hóa độc đáo tại những điểm đến hấp dẫn.</li>
+</ul>
+<p>Và còn rất nhiều bất ngờ khác đang chờ đón {{ gender_prefix }} khám phá!</p>
+<p>Sự hiện diện của {{ gender_prefix }} chính là yếu tố quan trọng nhất, là niềm vui và động lực to lớn để Company Trip 2026 thành công rực rỡ!</p>
+<p><strong>Thông tin chuyến đi cơ bản của {{ gender_prefix }}:</strong></p>
+<ul>
+  <li><strong>Địa điểm đón dự kiến:</strong> {{ pickup }}</li>
+  <li><strong>Thời gian:</strong> {{ dates }}</li>
+  <li><strong>Điểm đến:</strong> {{ destination }}</li>
+  <li><strong>Loại phòng nghỉ:</strong> {{ room_type }}</li>
+  {% if companions %}
+  <li><strong>Đồng hành cùng:</strong><br>{% for name in companions %}{{ name }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</li>
+  {% endif %}
+</ul>
+{% include "company_trip/includes/itinerary_email.html" %}
+<p>Hãy cùng chuẩn bị tinh thần cho một chuyến đi thật đáng nhớ, {{ gender_prefix }} nhé!</p>
+<p>Trân trọng,<br>Phòng Hành chính Nhân sự</p>
