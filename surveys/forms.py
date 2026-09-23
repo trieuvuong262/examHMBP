@@ -6,6 +6,9 @@ from .models import Survey, SurveyResponse
 MAX_SURVEY_QUESTIONS = 30
 MAX_OPTIONS_PER_QUESTION = 20
 MAX_QUESTION_LENGTH = 2000
+MAX_TEXT_ANSWER = 4000
+QUESTION_TYPE_CHOICE = 'choice'
+QUESTION_TYPE_TEXT = 'text'
 
 
 class SurveyCreateForm(forms.ModelForm):
@@ -116,30 +119,42 @@ def parse_survey_question_payload(post):
     for index in range(count):
         content = (post.get(f'q_{index}_content') or '').strip()[:MAX_QUESTION_LENGTH]
         is_required = (post.get(f'q_{index}_required') or '0') == '1'
+        q_type = (post.get(f'q_{index}_type') or QUESTION_TYPE_CHOICE).strip()
+        if q_type not in (QUESTION_TYPE_CHOICE, QUESTION_TYPE_TEXT):
+            q_type = QUESTION_TYPE_CHOICE
         options = []
         for opt_index in range(MAX_OPTIONS_PER_QUESTION):
             key = f'q_{index}_opt_{opt_index}'
             if key not in post:
                 break
             options.append((post.get(key) or '').strip()[:500])
-        if not content and not any(options):
+        if q_type != QUESTION_TYPE_TEXT and not content and not any(options):
             continue
         blocks.append({
             'content': content,
             'is_required': is_required,
+            'q_type': q_type,
             'options': options,
         })
 
     if not blocks:
-        return [{'content': '', 'is_required': True, 'options': ['', '']}], [
-            'Cần ít nhất một câu hỏi, mỗi câu có từ 2 đáp án.',
+        return [{
+            'content': '',
+            'is_required': True,
+            'q_type': QUESTION_TYPE_CHOICE,
+            'options': ['', ''],
+        }], [
+            'Cần ít nhất một câu hỏi.',
         ]
 
     errors = []
     for number, block in enumerate(blocks, start=1):
-        filled = [label for label in block['options'] if label]
         if not block['content']:
             errors.append(f'Câu {number}: chưa nhập nội dung câu hỏi.')
+        if block['q_type'] == QUESTION_TYPE_TEXT:
+            block['options_to_save'] = []
+            continue
+        filled = [label for label in block['options'] if label]
         if len(filled) < 2:
             errors.append(f'Câu {number}: cần ít nhất 2 đáp án.')
         seen = set()
@@ -157,5 +172,8 @@ def format_survey_answers(pairs):
     lines = []
     for index, (question, option) in enumerate(pairs, start=1):
         lines.append(f'{index}. {question.content}')
-        lines.append(f'→ {option.label if option else "—"}')
+        if question.q_type == QUESTION_TYPE_TEXT:
+            lines.append(f'→ {getattr(question, "answer_text", "") or "—"}')
+        else:
+            lines.append(f'→ {option.label if option else "—"}')
     return '\n'.join(lines)

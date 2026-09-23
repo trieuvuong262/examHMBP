@@ -16,11 +16,15 @@
             {% for question in choice_questions %}
             <div class="mb-3">
                 <div class="fw-semibold">{{ forloop.counter }}. {{ question.content }}</div>
+                {% if question.q_type == 'text' %}
+                <div class="small text-muted mt-1">Câu nhập text. Nội dung nằm ở cột câu trả lời.</div>
+                {% else %}
                 <ul class="mb-0 mt-1">
                     {% for option in question.options.all %}
                     <li>{{ option.label }} — <strong>{{ option.selection_count }}</strong></li>
                     {% endfor %}
                 </ul>
+                {% endif %}
             </div>
             {% endfor %}
         </div>

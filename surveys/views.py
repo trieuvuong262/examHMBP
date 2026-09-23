@@ -16,6 +16,8 @@ from PortalJustPlay.list_search import apply_term_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
 from .forms import (
+    MAX_TEXT_ANSWER,
+    QUESTION_TYPE_TEXT,
     SurveyCreateForm,
     SurveyReferenceForm,
     SurveyResponseForm,
@@ -79,17 +81,19 @@ def survey_create(request):
                     question = SurveyQuestion.objects.create(
                         survey=survey,
                         content=item['content'],
+                        q_type=item['q_type'],
                         is_required=item['is_required'],
                         sort_order=index,
                     )
-                    SurveyOption.objects.bulk_create([
-                        SurveyOption(
-                            question=question,
-                            label=label,
-                            sort_order=opt_index,
-                        )
-                        for opt_index, label in enumerate(item['options_to_save'], start=1)
-                    ])
+                    if item['q_type'] != QUESTION_TYPE_TEXT:
+                        SurveyOption.objects.bulk_create([
+                            SurveyOption(
+                                question=question,
+                                label=label,
+                                sort_order=opt_index,
+                            )
+                            for opt_index, label in enumerate(item['options_to_save'], start=1)
+                        ])
             messages.success(request, 'Đã tạo khảo sát. Sao chép link gửi nhân viên tại mục Tạo link gửi NV.')
             return redirect('surveys:share_detail', pk=survey.pk)
     else:
@@ -283,9 +287,15 @@ def survey_fill(request, token):
                             department_name=profile_snapshot['department_name'],
                         )
                         SurveyAnswer.objects.bulk_create([
-                            SurveyAnswer(response=response, question=question, option=option)
+                            SurveyAnswer(
+                                response=response,
+                                question=question,
+                                option=None if question.q_type == QUESTION_TYPE_TEXT else option,
+                                text_value=question.answer_text if question.q_type == QUESTION_TYPE_TEXT else '',
+                            )
                             for question, option in pairs
-                            if option is not None
+                            if (question.q_type == QUESTION_TYPE_TEXT and question.answer_text)
+                            or (question.q_type != QUESTION_TYPE_TEXT and option is not None)
                         ])
                 except IntegrityError:
                     existing = SurveyResponse.objects.filter(survey=survey, user=request.user).first()
@@ -337,6 +347,14 @@ def _collect_choice_answers(questions, post):
     errors = []
     pairs = []
     for question in questions:
+        if question.q_type == QUESTION_TYPE_TEXT:
+            question.answer_text = (post.get(f'text_{question.pk}') or '').strip()[:MAX_TEXT_ANSWER]
+            question.selected_option_id = None
+            if question.is_required and not question.answer_text:
+                errors.append('Vui lòng nhập nội dung cho các câu bắt buộc.')
+            pairs.append((question, None))
+            continue
+        question.answer_text = ''
         raw_values = [value.strip() for value in post.getlist(f'answer_{question.pk}') if value.strip()]
         if len(raw_values) > 1:
             errors.append('Mỗi câu chỉ được chọn 1 đáp án.')

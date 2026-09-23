@@ -71,6 +71,9 @@
                             {{ question.content }}
                             {% if question.is_required %}<span class="text-danger">*</span>{% endif %}
                         </legend>
+                        {% if question.q_type == 'text' %}
+                        <textarea class="form-control" name="text_{{ question.pk }}" rows="3" maxlength="4000" placeholder="Nhập nội dung trả lời">{{ question.answer_text }}</textarea>
+                        {% else %}
                         <div class="form-text mb-2">Chỉ được chọn 1 đáp án.</div>
                         <div class="d-flex flex-column gap-2">
                             {% for option in question.options.all %}
@@ -80,6 +83,7 @@
                             </label>
                             {% endfor %}
                         </div>
+                        {% endif %}
                     </fieldset>
                     {% endfor %}
                 {% else %}

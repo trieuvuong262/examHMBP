@@ -10,7 +10,7 @@
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title">Đặt câu hỏi khảo sát</h2>
-            <p class="text-muted mb-0">Tạo nhiều câu hỏi, mỗi câu có nhiều đáp án để nhân viên chọn một phương án. Mã NV, Họ tên, Bộ phận tự điền khi mở link.</p>
+            <p class="text-muted mb-0">Tạo nhiều câu hỏi: chọn 1 đáp án hoặc nhập text. Mã NV, Họ tên, Bộ phận tự điền khi mở link.</p>
         </div>
     </div>
 
@@ -36,10 +36,13 @@
                     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
                         <label class="form-label fw-semibold mb-0">Câu hỏi và đáp án</label>
                         <button type="button" class="btn btn-outline-hm btn-sm" id="addSurveyQuestion">
-                            <i class="bi bi-plus-lg me-1"></i>Thêm câu hỏi
+                            <i class="bi bi-plus-lg me-1"></i>Thêm câu chọn đáp án
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="addSurveyTextQuestion">
+                            <i class="bi bi-input-cursor-text me-1"></i>Thêm câu nhập text
                         </button>
                     </div>
-                    <div class="form-text mb-2">Mỗi câu có nhiều đáp án, nhưng nhân viên chỉ được chọn đúng 1 đáp án. Đánh dấu bắt buộc nếu phải trả lời.</div>
+                    <div class="form-text mb-2">Câu chọn đáp án: nhân viên chỉ được chọn đúng 1 đáp án. Câu nhập text: nhân viên tự gõ nội dung. Đánh dấu bắt buộc nếu phải trả lời.</div>
                     <div id="surveyQuestionList"></div>
                 </div>
                 <div class="mb-3">
@@ -94,7 +97,7 @@
         try { seed = JSON.parse(seedNode.textContent); } catch (err) { seed = []; }
     }
     if (!seed.length) {
-        seed = [{ content: '', is_required: true, options: ['', ''] }];
+        seed = [{ content: '', is_required: true, q_type: 'choice', options: ['', ''] }];
     }
 
     function optionRow(value) {
@@ -119,18 +122,26 @@
                     '<div class="fw-bold text-hm q-title">Câu hỏi</div>' +
                     '<button type="button" class="btn btn-sm btn-outline-danger q-remove">Xóa câu hỏi</button>' +
                 '</div>' +
+                '<label class="form-label small fw-semibold mb-1">Loại câu hỏi</label>' +
+                '<select class="form-select form-select-sm q-type mb-2">' +
+                    '<option value="choice">Chọn 1 đáp án</option>' +
+                    '<option value="text">Nhập text</option>' +
+                '</select>' +
                 '<textarea class="form-control q-content mb-2" rows="2" maxlength="2000"></textarea>' +
                 '<div class="form-check mb-2">' +
                     '<input type="hidden" class="q-required-flag" value="0">' +
                     '<input class="form-check-input q-required" type="checkbox" value="1" id="' + requiredId + '">' +
                     '<label class="form-check-label" for="' + requiredId + '">Bắt buộc trả lời <span class="text-danger">*</span></label>' +
                 '</div>' +
-                '<div class="fw-semibold small mb-2">Đáp án</div>' +
-                '<div class="q-opt-list"></div>' +
-                '<button type="button" class="btn btn-sm btn-outline-secondary q-add-opt">' +
-                    '<i class="bi bi-plus-lg me-1"></i>Thêm đáp án' +
-                '</button>' +
+                '<div class="q-choice-fields">' +
+                    '<div class="fw-semibold small mb-2">Đáp án — nhân viên chỉ chọn 1</div>' +
+                    '<div class="q-opt-list"></div>' +
+                    '<button type="button" class="btn btn-sm btn-outline-secondary q-add-opt">' +
+                        '<i class="bi bi-plus-lg me-1"></i>Thêm đáp án' +
+                    '</button>' +
+                '</div>' +
             '</div>';
+        block.querySelector('.q-type').value = data.q_type === 'text' ? 'text' : 'choice';
         block.querySelector('.q-content').value = data.content || '';
         block.querySelector('.q-required').checked = data.is_required !== false;
         var options = (data.options && data.options.length) ? data.options : ['', ''];
@@ -147,9 +158,15 @@
         blocks.forEach(function (block, i) {
             block.querySelector('.q-title').textContent = 'Câu hỏi ' + (i + 1);
             block.querySelector('.q-remove').disabled = blocks.length <= 1;
+            var typeInput = block.querySelector('.q-type');
+            typeInput.name = 'q_' + i + '_type';
+            var isText = typeInput.value === 'text';
+            block.querySelector('.q-choice-fields').classList.toggle('d-none', isText);
             var content = block.querySelector('.q-content');
             content.name = 'q_' + i + '_content';
-            content.placeholder = questionPlaceholders[i] || 'Nhập nội dung câu hỏi';
+            content.placeholder = isText
+                ? 'VD: Anh/chị muốn bổ sung thêm ý kiến gì?'
+                : (questionPlaceholders[i] || 'Nhập nội dung câu hỏi');
             var requiredName = 'q_' + i + '_required';
             block.querySelector('.q-required-flag').name = requiredName;
             block.querySelector('.q-required').name = requiredName;
@@ -164,7 +181,15 @@
             var addOpt = block.querySelector('.q-add-opt');
             addOpt.disabled = rows.length >= 20;
         });
-        document.getElementById('addSurveyQuestion').disabled = blocks.length >= 30;
+        var atLimit = blocks.length >= 30;
+        document.getElementById('addSurveyQuestion').disabled = atLimit;
+        document.getElementById('addSurveyTextQuestion').disabled = atLimit;
+    }
+
+    function addQuestion(data) {
+        if (list.querySelectorAll('.jp-survey-q-card').length >= 30) return;
+        list.appendChild(questionBlock(data));
+        syncNames();
     }
 
     seed.forEach(function (item) {
@@ -173,9 +198,17 @@
     syncNames();
 
     document.getElementById('addSurveyQuestion').addEventListener('click', function () {
-        if (list.querySelectorAll('.jp-survey-q-card').length >= 30) return;
-        list.appendChild(questionBlock({ content: '', is_required: true, options: ['', ''] }));
-        syncNames();
+        addQuestion({ content: '', is_required: true, q_type: 'choice', options: ['', ''] });
+    });
+
+    document.getElementById('addSurveyTextQuestion').addEventListener('click', function () {
+        addQuestion({ content: '', is_required: true, q_type: 'text', options: ['', ''] });
+    });
+
+    list.addEventListener('change', function (event) {
+        if (event.target.classList.contains('q-type')) {
+            syncNames();
+        }
     });
 
     list.addEventListener('click', function (event) {

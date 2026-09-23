@@ -17,8 +17,8 @@ class SurveyOptionInline(admin.TabularInline):
 
 @admin.register(SurveyQuestion)
 class SurveyQuestionAdmin(admin.ModelAdmin):
-    list_display = ('survey', 'sort_order', 'is_required', 'content')
-    list_filter = ('survey', 'is_required')
+    list_display = ('survey', 'sort_order', 'q_type', 'is_required', 'content')
+    list_filter = ('survey', 'q_type', 'is_required')
     inlines = (SurveyOptionInline,)
 
 
@@ -26,6 +26,7 @@ class SurveyAnswerInline(admin.TabularInline):
     model = SurveyAnswer
     extra = 0
     raw_id_fields = ('question', 'option')
+    fields = ('question', 'option', 'text_value')
 
 
 @admin.register(SurveyResponse)

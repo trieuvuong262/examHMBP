@@ -32,11 +32,15 @@
             {% for question in survey.questions.all %}
             <div class="mb-3">
                 <div class="fw-semibold">{{ forloop.counter }}. {{ question.content }}{% if question.is_required %} <span class="text-danger">*</span>{% endif %}</div>
+                {% if question.q_type == 'text' %}
+                <div class="small text-muted mt-1">Nhân viên nhập text</div>
+                {% else %}
                 <ul class="mb-0 mt-1">
                     {% for option in question.options.all %}
                     <li>{{ option.label }}</li>
                     {% endfor %}
                 </ul>
+                {% endif %}
             </div>
             {% endfor %}
             {% else %}

@@ -136,6 +136,13 @@ class SurveyView(models.Model):
 
 
 class SurveyQuestion(models.Model):
+    TYPE_CHOICE = 'choice'
+    TYPE_TEXT = 'text'
+    TYPE_CHOICES = (
+        (TYPE_CHOICE, 'Chọn 1 đáp án'),
+        (TYPE_TEXT, 'Nhập text'),
+    )
+
     survey = models.ForeignKey(
         Survey,
         on_delete=models.CASCADE,
@@ -143,6 +150,12 @@ class SurveyQuestion(models.Model):
         verbose_name='Khảo sát',
     )
     content = models.TextField('Nội dung câu hỏi')
+    q_type = models.CharField(
+        'Loại câu hỏi',
+        max_length=20,
+        choices=TYPE_CHOICES,
+        default=TYPE_CHOICE,
+    )
     is_required = models.BooleanField('Bắt buộc', default=True)
     sort_order = models.PositiveIntegerField('Thứ tự', default=0)
 
@@ -191,8 +204,11 @@ class SurveyAnswer(models.Model):
         SurveyOption,
         on_delete=models.CASCADE,
         related_name='selections',
+        null=True,
+        blank=True,
         verbose_name='Đáp án đã chọn',
     )
+    text_value = models.TextField('Nội dung nhập', blank=True)
 
     class Meta:
         ordering = ['question__sort_order', 'pk']
@@ -206,4 +222,6 @@ class SurveyAnswer(models.Model):
         ]
 
     def __str__(self):
+        if self.text_value:
+            return f'{self.question_id}: {self.text_value[:40]}'
         return f'{self.question_id}: {self.option_id}'
