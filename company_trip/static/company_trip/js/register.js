@@ -1,5 +1,35 @@
 (function () {
   const cfg = window.JP_TRIP_REGISTER || {};
+  const form = document.getElementById('trip-register-form');
+  if (form) {
+    form.addEventListener('submit', function () {
+      if (form.dataset.loading === '1') return;
+      form.dataset.loading = '1';
+      const overlay = document.createElement('div');
+      overlay.id = 'jp-trip-submit-loading';
+      overlay.className = 'jp-tool-loading';
+      overlay.setAttribute('role', 'status');
+      overlay.setAttribute('aria-live', 'polite');
+      overlay.setAttribute('aria-busy', 'true');
+      overlay.innerHTML = '<div class="jp-tool-loading-panel">'
+        + '<div class="jp-tool-loading-spinner" aria-hidden="true"></div>'
+        + '<p class="jp-tool-loading-msg mb-0">Đang gửi đăng ký…</p>'
+        + '</div>';
+      document.body.appendChild(overlay);
+      document.body.classList.add('jp-tool-loading-active');
+      const btn = form.querySelector('[type="submit"]');
+      if (btn) btn.disabled = true;
+    });
+    window.addEventListener('pageshow', function () {
+      const overlay = document.getElementById('jp-trip-submit-loading');
+      if (overlay) overlay.remove();
+      document.body.classList.remove('jp-tool-loading-active');
+      form.dataset.loading = '';
+      const btn = form.querySelector('[type="submit"]');
+      if (btn) btn.disabled = false;
+    });
+  }
+
   const profileId = cfg.profileId;
   const searchUrl = cfg.searchUrl;
   const roomSelect = document.getElementById(cfg.roomSelectId);
