@@ -25,6 +25,7 @@ from company_trip.access import (
 )
 from company_trip.decorators import trip_perm_required
 from company_trip.phones import domestic_phone
+from company_trip.relatives import replace_registration_relatives
 from company_trip.email_service import (
     _companion_names_for,
     render_trip_message,
@@ -243,15 +244,19 @@ def register(request):
                 else:
                     reg.email = typed_email
             if not form.errors:
-                reg.relative_full_name = form.cleaned_data.get('relative_full_name') or ''
-                reg.relative_cccd = form.cleaned_data.get('relative_cccd') or ''
-                reg.relative_phone = form.cleaned_data.get('relative_phone') or ''
-                reg.relative_gender = form.cleaned_data.get('relative_gender') or ''
-                reg.relative_date_of_birth = form.cleaned_data.get('relative_date_of_birth')
+                people = form.cleaned_data.get('relatives') or []
+                first = people[0] if people else {}
+                reg.relative_full_name = first.get('full_name') or ''
+                reg.relative_cccd = first.get('cccd') or ''
+                reg.relative_phone = first.get('phone') or ''
+                reg.relative_gender = first.get('gender') or ''
+                reg.relative_date_of_birth = first.get('date_of_birth')
                 reg.organized_committee = form.cleaned_data.get('organized_committee', False)
                 reg.status = STATUS_REGISTERED
                 reg.save()
                 apply_companions_on_register(reg)
+                if reg.room_type == ROOM_RELATIVE:
+                    replace_registration_relatives(reg, people)
 
                 send_registration_invites(reg, request=request)
                 messages.success(request, 'Đăng ký Company Trip thành công.')
@@ -265,13 +270,26 @@ def register(request):
             'pickup_point': DEFAULT_PICKUP_POINT,
         }
         if existing and existing.room_type == ROOM_RELATIVE:
-            initial.update({
-                'relative_full_name': existing.relative_full_name,
-                'relative_cccd': existing.relative_cccd,
-                'relative_phone': existing.relative_phone,
-                'relative_gender': existing.relative_gender,
-                'relative_date_of_birth': existing.relative_date_of_birth,
-            })
+            stored = list(existing.relatives.all())
+            if stored:
+                initial['relatives'] = [
+                    {
+                        'full_name': item.full_name,
+                        'cccd': item.cccd,
+                        'phone': item.phone,
+                        'gender': item.gender,
+                        'date_of_birth': item.date_of_birth,
+                    }
+                    for item in stored
+                ]
+            elif existing.relative_full_name:
+                initial['relatives'] = [{
+                    'full_name': existing.relative_full_name,
+                    'cccd': existing.relative_cccd,
+                    'phone': existing.relative_phone,
+                    'gender': existing.relative_gender,
+                    'date_of_birth': existing.relative_date_of_birth,
+                }]
         if existing and existing.room_type == ROOM_COLLEAGUE and existing.companion1_id:
             initial['companion1_id'] = existing.companion1_id
         form = TripRegistrationForm(
@@ -372,7 +390,9 @@ def companion_search(request):
 def manage_list(request):
     search_query = get_search_query(request)
     status = request.GET.get('status') or STATUS_REGISTERED
-    qs = TripRegistration.objects.select_related('profile', 'companion1', 'companion2')
+    qs = TripRegistration.objects.select_related(
+        'profile', 'companion1', 'companion2',
+    ).prefetch_related('relatives')
     if status != 'all':
         qs = qs.filter(status=status)
     qs = apply_term_search(qs, search_query, ('full_name', 'email', 'phone', 'department_name', 'room_key'))

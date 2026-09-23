@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 
 from django import forms
 
@@ -12,7 +13,7 @@ from company_trip.constants import (
 )
 from company_trip.models import TripEmailTemplate, TripRegistration, TripSettings
 from company_trip.phones import domestic_phone
-from hrm.choices import GENDER_FORM_CHOICES
+from company_trip.relatives import MAX_RELATIVES
 from hrm.models import Profile
 
 
@@ -27,13 +28,6 @@ class TripRegistrationForm(forms.ModelForm):
             'autocomplete': 'email',
         }),
     )
-    relative_gender = forms.ChoiceField(
-        label='Giới tính',
-        choices=GENDER_FORM_CHOICES,
-        required=False,
-        widget=forms.Select(attrs={'class': 'form-select'}),
-    )
-
     class Meta:
         model = TripRegistration
         fields = [
@@ -41,11 +35,6 @@ class TripRegistrationForm(forms.ModelForm):
             'room_type',
             'pickup_point',
             'note',
-            'relative_full_name',
-            'relative_cccd',
-            'relative_phone',
-            'relative_gender',
-            'relative_date_of_birth',
         ]
         widgets = {
             'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Số điện thoại'}),
@@ -55,19 +44,6 @@ class TripRegistrationForm(forms.ModelForm):
                 'readonly': 'readonly',
             }),
             'note': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
-            'relative_full_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Họ và tên'}),
-            'relative_cccd': forms.TextInput(attrs={
-                'class': 'form-control',
-                'inputmode': 'numeric',
-                'maxlength': '12',
-                'placeholder': '12 chữ số',
-                'autocomplete': 'off',
-            }),
-            'relative_phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Số điện thoại'}),
-            'relative_date_of_birth': forms.DateInput(
-                format='%Y-%m-%d',
-                attrs={'class': 'form-control', 'type': 'date'},
-            ),
         }
 
     def __init__(self, *args, current_profile=None, current_registration=None, **kwargs):
@@ -75,10 +51,7 @@ class TripRegistrationForm(forms.ModelForm):
         self.current_registration = current_registration
         super().__init__(*args, **kwargs)
         self.fields['room_type'].choices = ROOM_CHOICES
-        self.fields['relative_date_of_birth'].required = False
-        self.fields['relative_date_of_birth'].input_formats = ['%Y-%m-%d']
-        for name in ('relative_full_name', 'relative_cccd', 'relative_phone'):
-            self.fields[name].required = False
+        self.relative_slots = self._posted_relative_slots() if self.is_bound else self._initial_relative_slots()
         self.initial['pickup_point'] = DEFAULT_PICKUP_POINT
         self.fields['pickup_point'].initial = DEFAULT_PICKUP_POINT
         if self.is_bound:
@@ -101,11 +74,11 @@ class TripRegistrationForm(forms.ModelForm):
             companion1 = self._load_colleague(cleaned.get('companion1_id') or None)
             if companion1 is None and not self.errors.get('companion1_id'):
                 self.add_error('companion1_id', 'Chọn một đồng nghiệp để đăng ký chung.')
-            self._clear_relative(cleaned)
+            cleaned['relatives'] = []
         elif room_type == ROOM_RELATIVE:
-            self._clean_relative(cleaned)
+            cleaned['relatives'] = self._clean_relatives()
         else:
-            self._clear_relative(cleaned)
+            cleaned['relatives'] = []
 
         cleaned['companion1_obj'] = companion1
         cleaned['organized_committee'] = room_type == ROOM_ORGANIZER
@@ -145,37 +118,106 @@ class TripRegistrationForm(forms.ModelForm):
             return None
         return profile
 
-    def _clean_relative(self, cleaned):
-        required = (
-            ('relative_full_name', 'Nhập họ tên người thân.'),
-            ('relative_cccd', 'Nhập số CCCD người thân.'),
-            ('relative_phone', 'Nhập số điện thoại người thân.'),
-            ('relative_gender', 'Chọn giới tính người thân.'),
-            ('relative_date_of_birth', 'Nhập ngày sinh người thân.'),
-        )
-        for field, message in required:
-            if field in self.errors:
+    def _blank_relative_slot(self, index, **values):
+        slot = {
+            'index': index,
+            'full_name': '',
+            'cccd': '',
+            'phone': '',
+            'gender': '',
+            'date_of_birth': '',
+            'errors': {},
+            'visible': index == 1,
+        }
+        slot.update(values)
+        return slot
+
+    def _slot_filled(self, slot) -> bool:
+        return any(slot[key] for key in ('full_name', 'cccd', 'phone', 'gender', 'date_of_birth'))
+
+    def _initial_relative_slots(self):
+        people = list(self.initial.get('relatives') or [])
+        slots = []
+        for index in range(1, MAX_RELATIVES + 1):
+            person = people[index - 1] if index - 1 < len(people) else {}
+            dob = person.get('date_of_birth') or ''
+            if hasattr(dob, 'isoformat'):
+                dob = dob.isoformat()
+            slot = self._blank_relative_slot(
+                index,
+                full_name=(person.get('full_name') or '').strip(),
+                cccd=(person.get('cccd') or '').strip(),
+                phone=(person.get('phone') or '').strip(),
+                gender=(person.get('gender') or '').strip(),
+                date_of_birth=dob,
+            )
+            slot['visible'] = index == 1 or self._slot_filled(slot)
+            slots.append(slot)
+        return slots
+
+    def _posted_relative_slots(self):
+        slots = []
+        for index in range(1, MAX_RELATIVES + 1):
+            prefix = f'relative_{index}_'
+            slot = self._blank_relative_slot(
+                index,
+                full_name=(self.data.get(prefix + 'full_name') or '').strip(),
+                cccd=re.sub(r'\D', '', self.data.get(prefix + 'cccd') or ''),
+                phone=domestic_phone(self.data.get(prefix + 'phone') or ''),
+                gender=(self.data.get(prefix + 'gender') or '').strip(),
+                date_of_birth=(self.data.get(prefix + 'date_of_birth') or '').strip(),
+            )
+            slot['visible'] = index == 1 or self._slot_filled(slot)
+            slots.append(slot)
+        return slots
+
+    def _clean_relatives(self):
+        slots = self._posted_relative_slots()
+        people = []
+        seen_cccd = set()
+        has_error = False
+        for slot in slots:
+            if slot['index'] != 1 and not self._slot_filled(slot):
+                slot['visible'] = False
                 continue
-            value = cleaned.get(field)
-            if value is None or (isinstance(value, str) and not value.strip()):
-                self.add_error(field, message)
-
-        name = (cleaned.get('relative_full_name') or '').strip()
-        phone = (cleaned.get('relative_phone') or '').strip()
-        cccd = re.sub(r'\D', '', cleaned.get('relative_cccd') or '')
-        cleaned['relative_full_name'] = name
-        cleaned['relative_phone'] = domestic_phone(phone)
-        cleaned['relative_cccd'] = cccd
-        if cccd and not re.fullmatch(r'\d{12}', cccd):
-            self.add_error('relative_cccd', 'Số CCCD phải gồm 12 chữ số.')
-
-    @staticmethod
-    def _clear_relative(cleaned):
-        cleaned['relative_full_name'] = ''
-        cleaned['relative_cccd'] = ''
-        cleaned['relative_phone'] = ''
-        cleaned['relative_gender'] = ''
-        cleaned['relative_date_of_birth'] = None
+            slot['visible'] = True
+            errors = {}
+            if not slot['full_name']:
+                errors['full_name'] = 'Nhập họ tên người thân.'
+            if not re.fullmatch(r'\d{12}', slot['cccd'] or ''):
+                errors['cccd'] = 'Số CCCD phải gồm 12 chữ số.'
+            elif slot['cccd'] in seen_cccd:
+                errors['cccd'] = 'Số CCCD trùng người thân khác.'
+            else:
+                seen_cccd.add(slot['cccd'])
+            if not slot['phone']:
+                errors['phone'] = 'Nhập số điện thoại người thân.'
+            if slot['gender'] not in {'M', 'F'}:
+                errors['gender'] = 'Chọn giới tính người thân.'
+            dob = None
+            if not slot['date_of_birth']:
+                errors['date_of_birth'] = 'Nhập ngày sinh người thân.'
+            else:
+                try:
+                    dob = datetime.strptime(slot['date_of_birth'], '%Y-%m-%d').date()
+                except ValueError:
+                    errors['date_of_birth'] = 'Ngày sinh không hợp lệ.'
+            slot['errors'] = errors
+            if errors:
+                has_error = True
+                continue
+            people.append({
+                'full_name': slot['full_name'],
+                'cccd': slot['cccd'],
+                'phone': slot['phone'],
+                'gender': slot['gender'],
+                'date_of_birth': dob,
+            })
+        self.relative_slots = slots
+        if has_error or not people:
+            self.add_error(None, 'Điền đủ thông tin người thân. Tối đa 3 người.')
+            return []
+        return people
 
 
 class TripSettingsForm(forms.ModelForm):

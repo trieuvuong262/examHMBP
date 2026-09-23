@@ -151,6 +151,44 @@ class TripRegistration(models.Model):
     def __str__(self):
         return f'{self.full_name or self.profile_id} ({self.status})'
 
+    @property
+    def relative_names_display(self) -> str:
+        names = [item.full_name for item in self.relatives.all() if item.full_name]
+        if not names and self.relative_full_name:
+            return self.relative_full_name
+        return ', '.join(names)
+
+
+class TripRelative(models.Model):
+    """Người thân đi cùng — tối đa 3 người trên một đăng ký."""
+
+    registration = models.ForeignKey(
+        TripRegistration,
+        on_delete=models.CASCADE,
+        related_name='relatives',
+        verbose_name='Đăng ký',
+    )
+    position = models.PositiveSmallIntegerField(verbose_name='Thứ tự')
+    full_name = models.CharField(max_length=255, verbose_name='Họ tên')
+    cccd = models.CharField(max_length=20, verbose_name='Số CCCD')
+    phone = models.CharField(max_length=32, verbose_name='Số điện thoại')
+    gender = models.CharField(max_length=10, verbose_name='Giới tính')
+    date_of_birth = models.DateField(verbose_name='Ngày sinh')
+
+    class Meta:
+        ordering = ['position']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['registration', 'position'],
+                name='uniq_trip_relative_position',
+            ),
+        ]
+        verbose_name = 'Người thân'
+        verbose_name_plural = 'Người thân'
+
+    def __str__(self):
+        return self.full_name
+
 
 DEFAULT_TRIP_EMAIL_SUBJECT = 'Thư mời tham gia Kế hoạch du lịch nghỉ mát {{ year }} - Just Play'
 DEFAULT_TRIP_EMAIL_BODY = """

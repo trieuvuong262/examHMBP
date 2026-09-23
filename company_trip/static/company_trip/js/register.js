@@ -48,15 +48,46 @@
     }
   }
 
+  function refreshRelativeAdd() {
+    const addBtn = document.getElementById('relative-add');
+    if (!addBtn) return;
+    const hidden = relativeWrap.querySelector('[data-relative-card].d-none');
+    addBtn.classList.toggle('d-none', !hidden);
+  }
+
   function clearRelative() {
-    relativeWrap.querySelectorAll('input, select, textarea').forEach(function (el) {
-      if (el.type === 'checkbox' || el.type === 'radio') {
-        el.checked = false;
-        return;
-      }
-      el.value = '';
+    relativeWrap.querySelectorAll('[data-relative-card]').forEach(function (card, index) {
+      card.querySelectorAll('input, select, textarea').forEach(function (el) {
+        el.value = '';
+      });
+      card.classList.toggle('d-none', index > 0);
+    });
+    refreshRelativeAdd();
+  }
+
+  const relativeAdd = document.getElementById('relative-add');
+  if (relativeAdd) {
+    relativeAdd.addEventListener('click', function () {
+      const next = relativeWrap.querySelector('[data-relative-card].d-none');
+      if (!next) return;
+      next.classList.remove('d-none');
+      const first = next.querySelector('input, select');
+      if (first) first.focus();
+      refreshRelativeAdd();
     });
   }
+  relativeWrap.querySelectorAll('[data-relative-remove]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const card = btn.closest('[data-relative-card]');
+      if (!card) return;
+      card.querySelectorAll('input, select, textarea').forEach(function (el) {
+        el.value = '';
+      });
+      card.classList.add('d-none');
+      refreshRelativeAdd();
+    });
+  });
+  refreshRelativeAdd();
 
   function toggleRoom() {
     const v = (roomSelect.value || '').trim();

@@ -148,8 +148,11 @@ def _companion_names_for(reg, *, recipient: str) -> list[str]:
         if recipient == 'owner':
             return [reg.companion1_name] if reg.companion1_name else []
         return [reg.full_name] if reg.full_name else []
-    if reg.room_type == ROOM_RELATIVE and recipient == 'owner' and reg.relative_full_name:
-        return [reg.relative_full_name]
+    if reg.room_type == ROOM_RELATIVE and recipient == 'owner':
+        names = [item.full_name for item in reg.relatives.all() if item.full_name]
+        if not names and reg.relative_full_name:
+            names = [reg.relative_full_name]
+        return names
     return []
 
 

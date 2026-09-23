@@ -259,6 +259,22 @@
 .jp-trip-roommates > .form-label {
   margin-bottom: 0.25rem;
 }
+.jp-trip-relative {
+  margin-top: 0.7rem;
+  padding: 0.7rem 0.75rem;
+  border-radius: var(--trip-radius);
+  background: var(--bs-body-bg, #fff);
+  border: 1px solid var(--trip-border);
+}
+.jp-trip-relative-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.55rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #991b1b;
+}
 .jp-trip-occupant {
   display: flex;
   flex-direction: column;

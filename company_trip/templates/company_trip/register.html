@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'company_trip/css/register.css' %}?v=20260923k">
+<link rel="stylesheet" href="{% static 'company_trip/css/register.css' %}?v=20260923m">
 {% endblock %}
 
 {% block content %}
@@ -93,34 +93,51 @@
                         <div class="col-12 d-none" id="relative-wrap">
                             <div class="jp-trip-roommates">
                                 <label class="form-label mb-0">Người thân</label>
-                                <p class="form-text mt-1 mb-2">Điền thông tin người thân đi cùng.</p>
-                                <div class="row g-3">
-                                    <div class="col-12 col-md-6">
-                                        <label class="form-label" for="{{ form.relative_full_name.id_for_label }}">Họ tên</label>
-                                        {{ form.relative_full_name }}
-                                        {% if form.relative_full_name.errors %}<div class="text-danger small mt-1">{{ form.relative_full_name.errors }}</div>{% endif %}
+                                <p class="form-text mt-1 mb-2">Điền thông tin người thân đi cùng. Bấm Thêm để đăng ký thêm, tối đa 3 người.</p>
+                                {% for slot in form.relative_slots %}
+                                <div class="jp-trip-relative{% if not slot.visible %} d-none{% endif %}" data-relative-card>
+                                    <div class="jp-trip-relative-hd">
+                                        <span>Người thân {{ slot.index }}</span>
+                                        {% if slot.index > 1 %}
+                                        <button type="button" class="btn btn-link btn-sm text-danger p-0" data-relative-remove>Bỏ</button>
+                                        {% endif %}
                                     </div>
-                                    <div class="col-12 col-md-6">
-                                        <label class="form-label" for="{{ form.relative_cccd.id_for_label }}">Số CCCD</label>
-                                        {{ form.relative_cccd }}
-                                        {% if form.relative_cccd.errors %}<div class="text-danger small mt-1">{{ form.relative_cccd.errors }}</div>{% endif %}
-                                    </div>
-                                    <div class="col-12 col-md-6">
-                                        <label class="form-label" for="{{ form.relative_phone.id_for_label }}">Số điện thoại</label>
-                                        {{ form.relative_phone }}
-                                        {% if form.relative_phone.errors %}<div class="text-danger small mt-1">{{ form.relative_phone.errors }}</div>{% endif %}
-                                    </div>
-                                    <div class="col-12 col-md-6">
-                                        <label class="form-label" for="{{ form.relative_gender.id_for_label }}">Giới tính</label>
-                                        {{ form.relative_gender }}
-                                        {% if form.relative_gender.errors %}<div class="text-danger small mt-1">{{ form.relative_gender.errors }}</div>{% endif %}
-                                    </div>
-                                    <div class="col-12 col-md-6">
-                                        <label class="form-label" for="{{ form.relative_date_of_birth.id_for_label }}">Ngày sinh</label>
-                                        {{ form.relative_date_of_birth }}
-                                        {% if form.relative_date_of_birth.errors %}<div class="text-danger small mt-1">{{ form.relative_date_of_birth.errors }}</div>{% endif %}
+                                    <div class="row g-3">
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label" for="relative-{{ slot.index }}-name">Họ tên</label>
+                                            <input type="text" class="form-control" id="relative-{{ slot.index }}-name" name="relative_{{ slot.index }}_full_name" value="{{ slot.full_name }}" placeholder="Họ và tên" autocomplete="name">
+                                            {% if slot.errors.full_name %}<div class="text-danger small mt-1">{{ slot.errors.full_name }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label" for="relative-{{ slot.index }}-cccd">Số CCCD</label>
+                                            <input type="text" class="form-control" id="relative-{{ slot.index }}-cccd" name="relative_{{ slot.index }}_cccd" value="{{ slot.cccd }}" inputmode="numeric" maxlength="12" placeholder="12 chữ số" autocomplete="off">
+                                            {% if slot.errors.cccd %}<div class="text-danger small mt-1">{{ slot.errors.cccd }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label" for="relative-{{ slot.index }}-phone">Số điện thoại</label>
+                                            <input type="text" class="form-control" id="relative-{{ slot.index }}-phone" name="relative_{{ slot.index }}_phone" value="{{ slot.phone }}" placeholder="Số điện thoại" autocomplete="tel">
+                                            {% if slot.errors.phone %}<div class="text-danger small mt-1">{{ slot.errors.phone }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label" for="relative-{{ slot.index }}-gender">Giới tính</label>
+                                            <select class="form-select" id="relative-{{ slot.index }}-gender" name="relative_{{ slot.index }}_gender">
+                                                <option value="">-- Chọn giới tính --</option>
+                                                <option value="M"{% if slot.gender == 'M' %} selected{% endif %}>Nam</option>
+                                                <option value="F"{% if slot.gender == 'F' %} selected{% endif %}>Nữ</option>
+                                            </select>
+                                            {% if slot.errors.gender %}<div class="text-danger small mt-1">{{ slot.errors.gender }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label" for="relative-{{ slot.index }}-dob">Ngày sinh</label>
+                                            <input type="date" class="form-control" id="relative-{{ slot.index }}-dob" name="relative_{{ slot.index }}_date_of_birth" value="{{ slot.date_of_birth }}">
+                                            {% if slot.errors.date_of_birth %}<div class="text-danger small mt-1">{{ slot.errors.date_of_birth }}</div>{% endif %}
+                                        </div>
                                     </div>
                                 </div>
+                                {% endfor %}
+                                <button type="button" class="btn btn-outline-hm w-100 mt-2" id="relative-add">
+                                    <i class="bi bi-plus-lg me-1"></i>Thêm
+                                </button>
                             </div>
                         </div>
                         <div class="col-12">
@@ -219,5 +236,5 @@ window.JP_TRIP_REGISTER = {
   roomRelative: "{{ room_relative|escapejs }}"
 };
 </script>
-<script src="{% static 'company_trip/js/register.js' %}?v=20260923l"></script>
+<script src="{% static 'company_trip/js/register.js' %}?v=20260923m"></script>
 {% endblock %}

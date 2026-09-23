@@ -49,6 +49,8 @@ def _clear_relative(reg: TripRegistration) -> None:
     reg.relative_phone = ''
     reg.relative_gender = ''
     reg.relative_date_of_birth = None
+    if reg.pk:
+        reg.relatives.all().delete()
 
 
 def _clear_colleague(reg: TripRegistration) -> None:

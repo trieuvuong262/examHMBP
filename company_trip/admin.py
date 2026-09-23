@@ -1,6 +1,12 @@
 from django.contrib import admin
 
-from company_trip.models import TripEmailTemplate, TripRegistration, TripSettings
+from company_trip.models import TripEmailTemplate, TripRegistration, TripRelative, TripSettings
+
+
+class TripRelativeInline(admin.TabularInline):
+    model = TripRelative
+    extra = 0
+    max_num = 3
 
 
 @admin.register(TripSettings)
@@ -18,6 +24,7 @@ class TripRegistrationAdmin(admin.ModelAdmin):
     list_filter = ('status', 'room_type')
     search_fields = ('full_name', 'email', 'phone', 'room_key')
     raw_id_fields = ('profile', 'user', 'companion1', 'companion2')
+    inlines = [TripRelativeInline]
 
 
 @admin.register(TripEmailTemplate)

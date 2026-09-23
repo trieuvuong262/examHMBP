@@ -12,7 +12,7 @@
     <p class="mb-4">Đồng nghiệp: <strong>{{ registration.companion1_name|default:"—" }}</strong>
         — {% if registration.companion_confirmed %}đã xác nhận{% else %}chờ xác nhận khi họ mở trang đăng ký{% endif %}.</p>
     {% elif registration.room_type == room_relative %}
-    <p class="mb-4">Người thân: <strong>{{ registration.relative_full_name|default:"—" }}</strong>.</p>
+    <p class="mb-4">Người thân: <strong>{{ registration.relative_names_display|default:"—" }}</strong>.</p>
     {% else %}
     <div class="mb-4"></div>
     {% endif %}
