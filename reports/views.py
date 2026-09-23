@@ -3555,6 +3555,60 @@ def daily_attachment_delete(request, pk):
 
 
 @_reports_access_required
+@require_POST
+def daily_attachment_delete_selected(request):
+    raw_ids = [int(pk) for pk in request.POST.getlist('attachment_ids') if str(pk).isdigit()]
+    if not raw_ids:
+        messages.error(request, 'Chưa chọn file hoặc ảnh để xóa.')
+        return redirect('reports:today_vp')
+
+    attachments = list(
+        DailyWorkReportAttachment.objects.select_related('report__employee').filter(
+            pk__in=raw_ids,
+            report__report_profile=REPORT_PROFILE_OFFICE,
+        )
+    )
+    if not attachments:
+        messages.error(request, 'Không tìm thấy file đã chọn.')
+        return redirect('reports:today_vp')
+
+    can_submit = can_submit_daily_report(request.user)
+    editable = {}
+    allowed_by_report = {}
+    for att in attachments:
+        report = att.report
+        if report.pk not in editable:
+            editable[report.pk] = can_edit_own_daily_report(
+                request.user, report, can_submit=can_submit,
+            )
+        if not editable[report.pk]:
+            continue
+        bucket = allowed_by_report.setdefault(report.pk, {'report': report, 'ids': []})
+        bucket['ids'].append(att.pk)
+
+    if not allowed_by_report:
+        messages.error(request, report_edit_denied_message(attachments[0].report))
+        return _office_today_redirect(attachments[0].report)
+
+    deleted = 0
+    last_report = attachments[0].report
+    try:
+        for bucket in allowed_by_report.values():
+            last_report = bucket['report']
+            deleted += _delete_daily_attachments(last_report, bucket['ids'])
+    except OSError:
+        logger.exception('Daily report bulk attachment delete failed')
+        messages.error(request, 'Không xóa được file đã chọn. Vui lòng thử lại.')
+        return _office_today_redirect(last_report)
+
+    if deleted:
+        messages.success(request, f'Đã xóa {deleted} file/ảnh.')
+    else:
+        messages.error(request, 'Không xóa được file đã chọn.')
+    return _office_today_redirect(last_report)
+
+
+@_reports_access_required
 @xframe_options_sameorigin
 def daily_attachment_serve(request, pk):
     import mimetypes

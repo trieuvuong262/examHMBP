@@ -1,4 +1,19 @@
 <div class="jp-office-unified-attachments">
+    {% if can_edit and files or can_edit and images %}
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <label class="form-check mb-0">
+            <input type="checkbox" class="form-check-input" id="jpAttachSelectAll">
+            <span class="form-check-label">Chọn tất cả</span>
+        </label>
+        <button type="submit"
+                form="office-attachment-delete-form"
+                formaction="{% url 'reports:daily_attachment_delete_selected' %}"
+                class="btn btn-sm btn-outline-danger"
+                id="jpAttachDeleteSelected">
+            <i class="bi bi-trash me-1"></i>Xóa đã chọn
+        </button>
+    </div>
+    {% endif %}
     <div class="row g-3">
         <div class="col-12 col-md-6">
             <div class="jp-office-attach-block">
@@ -8,17 +23,16 @@
                     <div class="small fw-bold text-muted mb-1">File đã tải</div>
                     {% for att in files %}
                     <div class="jp-weekly-existing-item">
+                        {% if can_edit %}
+                        <input type="checkbox"
+                               name="attachment_ids"
+                               value="{{ att.pk }}"
+                               class="form-check-input jp-attach-pick flex-shrink-0"
+                               form="office-attachment-delete-form"
+                               aria-label="Chọn {{ att.display_name }}">
+                        {% endif %}
                         <a href="{{ att.file_url }}" target="_blank" rel="noopener"
                            class="text-decoration-none flex-grow-1 text-break">{{ att.display_name }}</a>
-                        {% if can_edit %}
-                        <button type="submit"
-                                form="office-attachment-delete-form"
-                                formaction="{% url 'reports:daily_attachment_delete' att.pk %}"
-                                class="btn btn-sm btn-outline-danger flex-shrink-0"
-                                onclick="return confirm('Xóa file “{{ att.display_name|escapejs }}”?');">
-                            <i class="bi bi-trash me-1"></i>Xóa
-                        </button>
-                        {% endif %}
                     </div>
                     {% endfor %}
                 </div>
@@ -40,13 +54,15 @@
                                     <img src="{{ att.file_url }}" alt="{{ att.display_name }}" loading="lazy">
                                 </a>
                                 {% if can_edit %}
-                                <button type="submit"
-                                        form="office-attachment-delete-form"
-                                        formaction="{% url 'reports:daily_attachment_delete' att.pk %}"
-                                        class="jp-weekly-thumb-delete jp-office-attachment-delete"
-                                        onclick="return confirm('Xóa ảnh “{{ att.display_name|escapejs }}”?');">
-                                    <i class="bi bi-trash"></i><span>Xóa</span>
-                                </button>
+                                <label class="jp-weekly-thumb-delete">
+                                    <input type="checkbox"
+                                           name="attachment_ids"
+                                           value="{{ att.pk }}"
+                                           class="form-check-input jp-attach-pick"
+                                           form="office-attachment-delete-form"
+                                           aria-label="Chọn {{ att.display_name }}">
+                                    <span>Chọn</span>
+                                </label>
                                 {% endif %}
                             </div>
                         </div>
@@ -59,3 +75,48 @@
         </div>
     </div>
 </div>
+{% if can_edit and files or can_edit and images %}
+<script>
+(function () {
+    var selectAll = document.getElementById('jpAttachSelectAll');
+    var deleteBtn = document.getElementById('jpAttachDeleteSelected');
+    if (!selectAll || !deleteBtn) return;
+
+    function picks() {
+        return document.querySelectorAll('.jp-attach-pick');
+    }
+
+    function syncSelectAll() {
+        var boxes = picks();
+        var checked = document.querySelectorAll('.jp-attach-pick:checked');
+        selectAll.checked = boxes.length > 0 && checked.length === boxes.length;
+        selectAll.indeterminate = checked.length > 0 && checked.length < boxes.length;
+    }
+
+    selectAll.addEventListener('change', function () {
+        picks().forEach(function (box) {
+            box.checked = selectAll.checked;
+        });
+        selectAll.indeterminate = false;
+    });
+
+    document.addEventListener('change', function (event) {
+        if (event.target.classList && event.target.classList.contains('jp-attach-pick')) {
+            syncSelectAll();
+        }
+    });
+
+    deleteBtn.addEventListener('click', function (event) {
+        var count = document.querySelectorAll('.jp-attach-pick:checked').length;
+        if (!count) {
+            event.preventDefault();
+            window.alert('Chưa chọn file hoặc ảnh để xóa.');
+            return;
+        }
+        if (!window.confirm('Xóa ' + count + ' file/ảnh đã chọn?')) {
+            event.preventDefault();
+        }
+    });
+})();
+</script>
+{% endif %}
