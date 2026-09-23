@@ -69,13 +69,16 @@ def _colleague_invite(profile):
     )
 
 
-def _save_profile_email_if_empty(profile, email: str) -> str:
-    """Ghi email vào tài khoản nhân sự khi hồ sơ chưa có email. Trả về lỗi nếu không ghi được."""
+def _save_profile_email_if_empty(profile, email: str, *, overwrite: bool = False) -> str:
+    """Ghi email vào tài khoản nhân sự. Trả về lỗi nếu không ghi được."""
     email = (email or '').strip()
     if not email or not profile or not getattr(profile, 'user_id', None):
         return ''
     user = profile.user
-    if (user.email or '').strip():
+    current = (user.email or '').strip()
+    if current and not overwrite:
+        return ''
+    if current.lower() == email.lower():
         return ''
     User = user.__class__
     if User.objects.filter(email__iexact=email).exclude(pk=user.pk).exists():
@@ -146,30 +149,42 @@ def register(request):
                 messages.error(request, 'Bạn không có quyền đăng ký du lịch.')
                 return redirect('company_trip:register')
             invite_email_value = (request.POST.get('invite_email') or '').strip()
-            if not snapshot['email'] and invite_email_value:
+            profile_email = (snapshot['email'] or '').strip()
+            if invite_email_value:
                 try:
                     validate_email(invite_email_value)
                 except ValidationError:
                     email_error = 'Email không hợp lệ.'
-                if not email_error:
-                    email_error = _save_profile_email_if_empty(profile, invite_email_value)
-            if not email_error and not invite.companion_confirmed:
-                previous = (invite.companion_email or '').strip()
-                target = invite_email_value or snapshot['email']
-                if invite_email_value:
-                    invite.companion_email = invite_email_value
-                elif snapshot['email'] and not previous:
-                    invite.companion_email = snapshot['email']
-                invite.companion_confirmed = True
-                invite.companion_confirmed_at = timezone.now()
-                invite.save(update_fields=[
-                    'companion_email', 'companion_confirmed', 'companion_confirmed_at', 'updated_at',
-                ])
-                if target and target.lower() != previous.lower():
-                    send_companion_invite(invite, target, request=request)
-                messages.success(request, 'Đã xác nhận đăng ký cùng đồng nghiệp.')
+                if not email_error and invite_email_value.lower() != profile_email.lower():
+                    email_error = _save_profile_email_if_empty(
+                        profile, invite_email_value, overwrite=bool(profile_email),
+                    )
+                    if not email_error:
+                        snapshot['email'] = invite_email_value
+                        profile_email = invite_email_value
+            mailed = False
             if not email_error:
+                if not invite.companion_confirmed:
+                    invite.companion_confirmed = True
+                    invite.companion_confirmed_at = timezone.now()
+                    invite.save(update_fields=[
+                        'companion_confirmed', 'companion_confirmed_at', 'updated_at',
+                    ])
+                target = invite_email_value or profile_email
+                previous = (invite.companion_email or '').strip()
+                if target and target.lower() != previous.lower():
+                    mailed = send_companion_invite(invite, target, request=request)
+                    if not mailed:
+                        email_error = (
+                            'Không gửi được thư tới email này. '
+                            'Hộp thư có thể không tồn tại — hãy nhập email khác.'
+                        )
+                else:
+                    mailed = True
+            if not email_error and mailed:
+                messages.success(request, 'Đã xác nhận đăng ký cùng đồng nghiệp.')
                 return redirect('company_trip:register')
+            invite.refresh_from_db()
         return render(request, 'company_trip/confirm_companion.html', {
             'settings': settings_obj,
             'registration': invite,

@@ -64,18 +64,18 @@
 
         <div class="d-flex justify-content-end mb-3">{% include 'company_trip/includes/manage_button.html' %}</div>
         <div class="jp-trip-actions">
-            {% if registration.companion_confirmed %}
+            {% if registration.companion_confirmed and registration.companion_email %}
             <div class="alert alert-success mb-3">Bạn đã xác nhận đăng ký này.</div>
             <a href="{% url 'home_portal' %}" class="btn btn-outline-hm w-100">Về trang chủ</a>
             {% else %}
             <form method="post">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="confirm_companion">
-                {% if not snapshot.email %}
+                {% if not registration.companion_email %}
                 <div class="text-start mb-3">
-                    <label class="form-label" for="invite-email">Email <span class="text-muted fw-normal">(không bắt buộc)</span></label>
-                    <input type="email" class="form-control" id="invite-email" name="invite_email" value="{{ invite_email_value|default:'' }}" placeholder="email@congty.com" autocomplete="email">
-                    <div class="form-text">Để nhận thư mời và lưu vào hồ sơ nhân sự.</div>
+                    <label class="form-label" for="invite-email">Email nhận thư mời</label>
+                    <input type="email" class="form-control" id="invite-email" name="invite_email" value="{{ invite_email_value|default:snapshot.email }}" placeholder="email@congty.com" autocomplete="email">
+                    <div class="form-text">Nhập email đang dùng. Nếu hộp thư trên hồ sơ không nhận được thư, hãy đổi email khác.</div>
                     {% if email_error %}<div class="text-danger small mt-1">{{ email_error }}</div>{% endif %}
                 </div>
                 {% endif %}
