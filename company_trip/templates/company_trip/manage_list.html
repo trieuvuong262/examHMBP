@@ -61,7 +61,17 @@
                         {% if r.room_type == room_colleague %}
                         <div class="small text-muted">{{ r.companion1_name|default:"—" }} · {% if r.companion_confirmed %}Đã xác nhận{% else %}Chờ xác nhận{% endif %}</div>
                         {% elif r.room_type == room_relative %}
-                        <div class="small text-muted">{{ r.relative_names_display|default:"—" }} · người thân</div>
+                        {% for item in r.relatives.all %}
+                        <div class="small text-muted">
+                            {{ forloop.counter }}. {{ item.full_name }}
+                            · {{ item.cccd }}
+                            · {{ item.phone }}
+                            · {% if item.gender == 'M' %}Nam{% elif item.gender == 'F' %}Nữ{% else %}—{% endif %}
+                            · {{ item.date_of_birth|date:"d/m/Y" }}
+                        </div>
+                        {% empty %}
+                        <div class="small text-muted">{{ r.relative_full_name|default:"—" }} · người thân</div>
+                        {% endfor %}
                         {% endif %}
                     </td>
                     <td><code>{{ r.room_key|default:"—" }}</code></td>
