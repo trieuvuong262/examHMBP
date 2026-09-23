@@ -10,7 +10,8 @@ class Survey(models.Model):
     title = models.CharField('Tiêu đề khảo sát', max_length=255)
     question = models.TextField(
         'Nội dung câu hỏi',
-        help_text='Câu hỏi nhân viên cần trả lời.',
+        blank=True,
+        help_text='Tóm tắt các câu hỏi. Khảo sát cũ dùng ô này làm câu hỏi tự luận.',
     )
     reference_url = models.URLField(
         'Link tham khảo',
@@ -132,3 +133,77 @@ class SurveyView(models.Model):
 
     def __str__(self):
         return f'{self.full_name or self.user_id} đã xem {self.survey.title}'
+
+
+class SurveyQuestion(models.Model):
+    survey = models.ForeignKey(
+        Survey,
+        on_delete=models.CASCADE,
+        related_name='questions',
+        verbose_name='Khảo sát',
+    )
+    content = models.TextField('Nội dung câu hỏi')
+    is_required = models.BooleanField('Bắt buộc', default=True)
+    sort_order = models.PositiveIntegerField('Thứ tự', default=0)
+
+    class Meta:
+        ordering = ['sort_order', 'pk']
+        verbose_name = 'Câu hỏi khảo sát'
+        verbose_name_plural = 'Câu hỏi khảo sát'
+
+    def __str__(self):
+        return self.content[:80]
+
+
+class SurveyOption(models.Model):
+    question = models.ForeignKey(
+        SurveyQuestion,
+        on_delete=models.CASCADE,
+        related_name='options',
+        verbose_name='Câu hỏi',
+    )
+    label = models.CharField('Đáp án', max_length=500)
+    sort_order = models.PositiveIntegerField('Thứ tự', default=0)
+
+    class Meta:
+        ordering = ['sort_order', 'pk']
+        verbose_name = 'Đáp án'
+        verbose_name_plural = 'Đáp án'
+
+    def __str__(self):
+        return self.label
+
+
+class SurveyAnswer(models.Model):
+    response = models.ForeignKey(
+        SurveyResponse,
+        on_delete=models.CASCADE,
+        related_name='answers',
+        verbose_name='Phản hồi',
+    )
+    question = models.ForeignKey(
+        SurveyQuestion,
+        on_delete=models.CASCADE,
+        related_name='answers',
+        verbose_name='Câu hỏi',
+    )
+    option = models.ForeignKey(
+        SurveyOption,
+        on_delete=models.CASCADE,
+        related_name='selections',
+        verbose_name='Đáp án đã chọn',
+    )
+
+    class Meta:
+        ordering = ['question__sort_order', 'pk']
+        verbose_name = 'Lựa chọn đáp án'
+        verbose_name_plural = 'Lựa chọn đáp án'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['response', 'question'],
+                name='surveys_unique_answer_per_question',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.question_id}: {self.option_id}'

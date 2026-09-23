@@ -1,6 +1,8 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db import IntegrityError, transaction
+from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -13,8 +15,14 @@ from hrm.permissions import get_profile
 from PortalJustPlay.list_search import apply_term_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
-from .forms import SurveyCreateForm, SurveyReferenceForm, SurveyResponseForm
-from .models import Survey, SurveyResponse, SurveyView
+from .forms import (
+    SurveyCreateForm,
+    SurveyReferenceForm,
+    SurveyResponseForm,
+    format_survey_answers,
+    parse_survey_question_payload,
+)
+from .models import Survey, SurveyAnswer, SurveyOption, SurveyQuestion, SurveyResponse, SurveyView
 
 
 def _profile_department_label(profile):
@@ -54,17 +62,43 @@ def survey_hub(request):
 
 @module_perm_required(MODULE_SURVEYS, 'create')
 def survey_create(request):
+    posted_questions = []
+    question_errors = []
     if request.method == 'POST':
         form = SurveyCreateForm(request.POST)
-        if form.is_valid():
-            survey = form.save(commit=False)
-            survey.created_by = request.user
-            survey.save()
+        posted_questions, question_errors = parse_survey_question_payload(request.POST)
+        if form.is_valid() and not question_errors:
+            with transaction.atomic():
+                survey = form.save(commit=False)
+                survey.question = '\n'.join(
+                    item['content'] for item in posted_questions if item['content']
+                )
+                survey.created_by = request.user
+                survey.save()
+                for index, item in enumerate(posted_questions, start=1):
+                    question = SurveyQuestion.objects.create(
+                        survey=survey,
+                        content=item['content'],
+                        is_required=item['is_required'],
+                        sort_order=index,
+                    )
+                    SurveyOption.objects.bulk_create([
+                        SurveyOption(
+                            question=question,
+                            label=label,
+                            sort_order=opt_index,
+                        )
+                        for opt_index, label in enumerate(item['options_to_save'], start=1)
+                    ])
             messages.success(request, 'Đã tạo khảo sát. Sao chép link gửi nhân viên tại mục Tạo link gửi NV.')
             return redirect('surveys:share_detail', pk=survey.pk)
     else:
         form = SurveyCreateForm()
-    return render(request, 'surveys/create.html', {'form': form})
+    return render(request, 'surveys/create.html', {
+        'form': form,
+        'posted_questions': posted_questions,
+        'question_errors': question_errors,
+    })
 
 
 @module_perm_required(MODULE_SURVEYS, 'view')
@@ -100,7 +134,10 @@ def survey_reference_edit(request, pk):
 
 @module_perm_required(MODULE_SURVEYS, 'view')
 def survey_share_detail(request, pk):
-    survey = get_object_or_404(Survey, pk=pk)
+    survey = get_object_or_404(
+        Survey.objects.prefetch_related('questions__options'),
+        pk=pk,
+    )
     share_url = _build_share_url(request, survey)
     return render(request, 'surveys/share_detail.html', {
         'survey': survey,
@@ -121,9 +158,28 @@ def survey_results(request):
     })
 
 
+def _load_choice_questions(survey):
+    questions = list(survey.questions.prefetch_related('options'))
+    if not questions:
+        return questions
+    counts = {
+        row['option_id']: row['total']
+        for row in (
+            SurveyAnswer.objects.filter(question__survey=survey)
+            .values('option_id')
+            .annotate(total=Count('id'))
+        )
+    }
+    for question in questions:
+        for option in question.options.all():
+            option.selection_count = counts.get(option.pk, 0)
+    return questions
+
+
 @module_perm_required(MODULE_SURVEYS, 'view')
 def survey_result_detail(request, pk):
     survey = get_object_or_404(Survey, pk=pk)
+    choice_questions = _load_choice_questions(survey)
     search_query = get_search_query(request)
     response_by_user = {
         row.user_id: row
@@ -175,6 +231,7 @@ def survey_result_detail(request, pk):
     query_string = params.urlencode()
     return render(request, 'surveys/result_detail.html', {
         'survey': survey,
+        'choice_questions': choice_questions,
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
@@ -207,7 +264,43 @@ def survey_fill(request, token):
             'already_submitted': True,
         })
 
-    if request.method == 'POST':
+    choice_questions = list(survey.questions.prefetch_related('options'))
+    form = None
+    answer_errors = []
+
+    if choice_questions:
+        if request.method == 'POST':
+            pairs, answer_errors = _collect_choice_answers(choice_questions, request.POST)
+            if not answer_errors:
+                try:
+                    with transaction.atomic():
+                        response = SurveyResponse.objects.create(
+                            survey=survey,
+                            user=request.user,
+                            answer=format_survey_answers(pairs),
+                            employee_code=profile_snapshot['employee_code'],
+                            full_name=profile_snapshot['full_name'],
+                            department_name=profile_snapshot['department_name'],
+                        )
+                        SurveyAnswer.objects.bulk_create([
+                            SurveyAnswer(response=response, question=question, option=option)
+                            for question, option in pairs
+                            if option is not None
+                        ])
+                except IntegrityError:
+                    existing = SurveyResponse.objects.filter(survey=survey, user=request.user).first()
+                    return render(request, 'surveys/fill_done.html', {
+                        'survey': survey,
+                        'response': existing,
+                        'already_submitted': True,
+                    })
+                messages.success(request, 'Đã gửi phản hồi. Cảm ơn bạn!')
+                return render(request, 'surveys/fill_done.html', {
+                    'survey': survey,
+                    'response': response,
+                    'already_submitted': False,
+                })
+    elif request.method == 'POST':
         form = SurveyResponseForm(request.POST)
         if form.is_valid():
             response = form.save(commit=False)
@@ -235,4 +328,26 @@ def survey_fill(request, token):
         'form': form,
         'profile': profile_snapshot,
         'learning_url': learning_url,
+        'choice_questions': choice_questions,
+        'answer_errors': answer_errors,
     })
+
+
+def _collect_choice_answers(questions, post):
+    errors = []
+    pairs = []
+    for question in questions:
+        raw = (post.get(f'answer_{question.pk}') or '').strip()
+        option = None
+        if raw.isdigit():
+            option_id = int(raw)
+            option = next((item for item in question.options.all() if item.pk == option_id), None)
+        if raw and option is None:
+            errors.append('Có đáp án không thuộc câu hỏi.')
+        elif option is None and question.is_required:
+            errors.append('Vui lòng chọn đáp án cho các câu bắt buộc.')
+        question.selected_option_id = option.pk if option else None
+        pairs.append((question, option))
+    if errors:
+        return pairs, list(dict.fromkeys(errors))
+    return pairs, []

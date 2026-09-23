@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Survey, SurveyResponse, SurveyView
+from .models import Survey, SurveyAnswer, SurveyOption, SurveyQuestion, SurveyResponse, SurveyView
 
 
 @admin.register(Survey)
@@ -10,11 +10,30 @@ class SurveyAdmin(admin.ModelAdmin):
     readonly_fields = ('token', 'created_at', 'updated_at')
 
 
+class SurveyOptionInline(admin.TabularInline):
+    model = SurveyOption
+    extra = 0
+
+
+@admin.register(SurveyQuestion)
+class SurveyQuestionAdmin(admin.ModelAdmin):
+    list_display = ('survey', 'sort_order', 'is_required', 'content')
+    list_filter = ('survey', 'is_required')
+    inlines = (SurveyOptionInline,)
+
+
+class SurveyAnswerInline(admin.TabularInline):
+    model = SurveyAnswer
+    extra = 0
+    raw_id_fields = ('question', 'option')
+
+
 @admin.register(SurveyResponse)
 class SurveyResponseAdmin(admin.ModelAdmin):
     list_display = ('survey', 'full_name', 'employee_code', 'department_name', 'submitted_at')
     search_fields = ('full_name', 'employee_code', 'answer')
     list_filter = ('survey',)
+    inlines = (SurveyAnswerInline,)
 
 
 @admin.register(SurveyView)

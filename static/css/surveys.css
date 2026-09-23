@@ -78,6 +78,66 @@
     min-height: 3rem;
 }
 
+.jp-survey-q-card {
+    border-radius: 0.85rem !important;
+    background: #fff;
+}
+
+.jp-survey-choice {
+    border: 0;
+    padding: 0;
+    margin: 0;
+    min-width: 0;
+}
+
+.jp-survey-choice-legend {
+    float: none;
+    width: auto;
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.45;
+    color: #0f172a;
+    margin-bottom: 0.65rem;
+    padding: 0;
+}
+
+.jp-survey-choice-index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5rem;
+    height: 1.5rem;
+    margin-right: 0.35rem;
+    border-radius: 999px;
+    background: #fff1f2;
+    color: #b91c1c;
+    font-size: 0.8rem;
+    font-weight: 800;
+}
+
+.jp-survey-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.7rem;
+    margin: 0;
+    padding: 0.75rem 0.9rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    background: #fff;
+    cursor: pointer;
+}
+
+.jp-survey-option:has(input:checked) {
+    border-color: var(--hm-primary, #dc2626);
+    background: #fff7f8;
+}
+
+.jp-survey-option input {
+    margin-top: 0.2rem;
+    accent-color: var(--hm-primary, #dc2626);
+    flex: 0 0 auto;
+}
+
 .jp-survey-fill-page textarea.form-control {
     min-height: 6.25rem;
     font-size: 0.93rem;

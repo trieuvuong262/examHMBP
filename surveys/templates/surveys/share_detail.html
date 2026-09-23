@@ -17,7 +17,9 @@
                 </button>
             </div>
             <div class="form-text mt-2">
-                Gửi link này cho nhân viên. Khi bấm vào, họ đăng nhập Portal rồi chỉ cần nhập câu trả lời và bấm <strong>Hoàn tất</strong>.
+                Gửi link này cho nhân viên. Khi bấm vào, họ đăng nhập Portal rồi
+                {% if survey.questions.all %}chọn đáp án cho từng câu hỏi{% else %}nhập câu trả lời{% endif %}
+                và bấm <strong>Hoàn tất</strong>.
                 Mã NV, Họ tên, Bộ phận tự điền theo tài khoản.
             </div>
         </div>
@@ -26,7 +28,20 @@
     <div class="card border-0 shadow-sm">
         <div class="card-body p-3 p-md-4">
             <h6 class="fw-bold mb-2">Nội dung câu hỏi</h6>
+            {% if survey.questions.all %}
+            {% for question in survey.questions.all %}
+            <div class="mb-3">
+                <div class="fw-semibold">{{ forloop.counter }}. {{ question.content }}{% if question.is_required %} <span class="text-danger">*</span>{% endif %}</div>
+                <ul class="mb-0 mt-1">
+                    {% for option in question.options.all %}
+                    <li>{{ option.label }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endfor %}
+            {% else %}
             <p class="mb-2">{{ survey.question|linebreaksbr }}</p>
+            {% endif %}
             {% if survey.reference_url %}
             <p class="mb-0">
                 <span class="text-muted">Link tham khảo:</span>
