@@ -1,0 +1,66 @@
+{{ fee_notice|json_script:"jp-trip-fee-data" }}
+<div class="modal fade" id="jp-trip-fee-modal" tabindex="-1" aria-labelledby="jp-trip-fee-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="jp-trip-fee-title">Chi phí chuyến đi</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <div id="jp-trip-fee-body"></div>
+                <p class="mb-0 mt-3"><strong>Vui lòng liên hệ Phòng HCNS — Ms. Vân Anh.</strong></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-hm" data-bs-dismiss="modal">Đã hiểu</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+function jpTripFeeBoot() {
+  var raw = document.getElementById('jp-trip-fee-data');
+  var data = raw ? JSON.parse(raw.textContent) : null;
+  var modalEl = document.getElementById('jp-trip-fee-modal');
+  var body = document.getElementById('jp-trip-fee-body');
+  if (!data || !modalEl || !body || !window.bootstrap) return;
+
+  function linesFor(room) {
+    var lines = [];
+    var colleague = room === data.roomColleague;
+    var relative = room === data.roomRelative;
+    var organizer = room === data.roomOrganizer;
+    if ((organizer || colleague || data.showOnLoad) && data.employeeCharge && data.employeeMessage) {
+      lines.push(data.employeeMessage);
+    }
+    if (relative && data.relativeCharge && data.relativeMessage) {
+      if (data.employeeCharge && data.employeeMessage) lines.push(data.employeeMessage);
+      lines.push(data.relativeMessage);
+    }
+    return lines;
+  }
+
+  function show(lines) {
+    if (!lines.length) return;
+    body.innerHTML = lines.map(function (text) {
+      return '<p class="mb-2">' + text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</p>';
+    }).join('');
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+  }
+
+  if (data.showOnLoad) {
+    show(linesFor(''));
+    return;
+  }
+
+  var roomSelect = document.getElementById(data.roomSelectId || '');
+  if (!roomSelect) return;
+  roomSelect.addEventListener('change', function () {
+    show(linesFor((roomSelect.value || '').trim()));
+  });
+  if ((roomSelect.value || '').trim()) {
+    show(linesFor(roomSelect.value.trim()));
+  }
+}
+if (document.readyState === 'complete') jpTripFeeBoot();
+else window.addEventListener('load', jpTripFeeBoot);
+</script>

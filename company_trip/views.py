@@ -11,10 +11,12 @@ from company_trip.constants import (
     DEFAULT_PICKUP_POINT,
     ROOM_CHOICES,
     ROOM_COLLEAGUE,
+    ROOM_ORGANIZER,
     ROOM_RELATIVE,
     STATUS_CANCELLED,
     STATUS_REGISTERED,
 )
+from company_trip.fees import assess_trip_fee
 from company_trip.access import (
     TRIP_MANAGE_ACTIONS,
     TRIP_OPEN_ACTIONS,
@@ -81,6 +83,21 @@ def _save_profile_email_if_empty(profile, email: str) -> str:
     user.email = email
     user.save(update_fields=['email'])
     return ''
+
+
+def _fee_notice(profile, *, show_on_load=False, room_select_id='') -> dict:
+    assessed = assess_trip_fee(getattr(profile, 'join_date', None) if profile else None)
+    return {
+        'showOnLoad': show_on_load,
+        'roomSelectId': room_select_id,
+        'roomColleague': ROOM_COLLEAGUE,
+        'roomRelative': ROOM_RELATIVE,
+        'roomOrganizer': ROOM_ORGANIZER,
+        'employeeCharge': assessed['employee_charge'],
+        'employeeMessage': assessed['employee_message'],
+        'relativeCharge': assessed['relative_charge'],
+        'relativeMessage': assessed['relative_message'],
+    }
 
 
 def _snapshot_from_profile(profile) -> dict:
@@ -159,6 +176,7 @@ def register(request):
             'snapshot': snapshot,
             'invite_email_value': invite_email_value,
             'email_error': email_error,
+            'fee_notice': _fee_notice(profile, show_on_load=True),
             **trip_ui_flags(request.user),
         })
 
@@ -267,6 +285,7 @@ def register(request):
         'room_colleague': ROOM_COLLEAGUE,
         'room_relative': ROOM_RELATIVE,
         'companion_prefill_name': companion_prefill_name,
+        'fee_notice': _fee_notice(profile, room_select_id=form['room_type'].id_for_label),
         **trip_ui_flags(request.user),
     })
 
