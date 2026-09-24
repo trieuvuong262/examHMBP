@@ -68,7 +68,7 @@ def default_read_write_flags() -> dict[str, bool]:
 
 
 def default_read_write_no_delete_flags() -> dict[str, bool]:
-    """Đọc + tạo/ghi tệp thư mục — không xóa, không Administration."""
+    """Đọc + tạo/ghi — không xóa và không di chuyển (SMB cần quyền xóa để cắt/đổi tên)."""
     flags = {name: False for name in ALL_PERM_FIELD_NAMES}
     for name, _ in READ_FIELDS:
         flags[name] = True
@@ -102,15 +102,15 @@ def has_read_access(flags: dict[str, bool]) -> bool:
 
 PRESET_LABELS = {
     'read': 'Chỉ đọc',
-    'read_write_no_delete': 'Đọc + Ghi (không xóa)',
-    'read_write': 'Đọc + Ghi (gồm xóa)',
+    'read_write_no_delete': 'Đọc + Ghi (không xóa, không di chuyển)',
+    'read_write': 'Đọc + Ghi (được di chuyển)',
     'full': 'Đầy đủ',
     'custom': 'Tuỳ chỉnh',
 }
 
 PRESET_FORM_CHOICES = (
-    ('read_write_no_delete', 'Đọc + Ghi (không xóa)'),
-    ('read_write', 'Đọc + Ghi (gồm xóa)'),
+    ('read_write', 'Đọc + Ghi (được di chuyển)'),
+    ('read_write_no_delete', 'Đọc + Ghi (không xóa, không di chuyển)'),
     ('read', 'Chỉ đọc'),
     ('full', 'Đầy đủ (quản trị)'),
     ('', 'Tuỳ chỉnh nâng cao'),
@@ -163,13 +163,29 @@ def access_level_label(flags: dict[str, bool]) -> str:
 
 
 def convert_read_write_permissions_to_no_delete() -> int:
-    """Đổi mọi bản ghi Portal đang «Đọc + Ghi (gồm xóa)» sang không xóa. Giữ full / chỉ đọc."""
+    """Đổi mọi bản ghi Portal đang «Đọc + Ghi (được di chuyển)» sang không xóa. Giữ full / chỉ đọc."""
     from nas_storage.models import NasFolderPermission
 
     flags = default_read_write_no_delete_flags()
     updated = 0
     for perm in NasFolderPermission.objects.iterator():
         if detect_preset_from_flags(perm.permission_flags()) != 'read_write':
+            continue
+        for name, value in flags.items():
+            setattr(perm, name, value)
+        perm.save(update_fields=[*ALL_PERM_FIELD_NAMES, 'updated_at'])
+        updated += 1
+    return updated
+
+
+def convert_no_delete_permissions_to_read_write() -> int:
+    """Đổi «không xóa» sang đọc+ghi có xóa — SMB mới di chuyển/đổi tên được. Giữ full / chỉ đọc."""
+    from nas_storage.models import NasFolderPermission
+
+    flags = default_read_write_flags()
+    updated = 0
+    for perm in NasFolderPermission.objects.iterator():
+        if detect_preset_from_flags(perm.permission_flags()) != 'read_write_no_delete':
             continue
         for name, value in flags.items():
             setattr(perm, name, value)

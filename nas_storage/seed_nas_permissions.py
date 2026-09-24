@@ -10,7 +10,7 @@ from nas_storage.dept_nas_config import (
     nas_principal_for_group,
 )
 from nas_storage.models import NasAccessGroup, NasFolderPermission, NasShareFolder
-from nas_storage.permission_defs import default_read_write_no_delete_flags
+from nas_storage.permission_defs import default_read_write_flags
 
 
 def seed_nas_permissions(*, dry_run: bool = False) -> dict:
@@ -72,7 +72,7 @@ def seed_nas_permissions(*, dry_run: bool = False) -> dict:
             perm_defaults = {
                 'permission_type': 'allow',
                 'apply_to': 'all',
-                **default_read_write_no_delete_flags(),
+                **default_read_write_flags(),
             }
             perm, perm_created = NasFolderPermission.objects.update_or_create(
                 folder=folder,
@@ -109,7 +109,7 @@ def seed_nas_permissions(*, dry_run: bool = False) -> dict:
             perm_defaults = {
                 'permission_type': 'allow',
                 'apply_to': 'all',
-                **default_read_write_no_delete_flags(),
+                **default_read_write_flags(),
             }
             _, perm_created = NasFolderPermission.objects.update_or_create(
                 folder=folder,

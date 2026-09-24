@@ -381,7 +381,7 @@ class NasFolderPermissionForm(forms.ModelForm):
             else:
                 self.fields['preset'].initial = preset
         else:
-            self.fields['preset'].initial = 'read_write_no_delete'
+            self.fields['preset'].initial = 'read_write'
 
         for name in (
             'perm_traverse', 'perm_list_read', 'perm_read_attr', 'perm_read_ext_attr', 'perm_read_acl',
