@@ -2,12 +2,11 @@
 
 from django.conf import settings
 
-from hrm.menu_permissions import user_can_access_menu, user_can_create_menu
-from hrm.module_permissions import MODULE_ANNOUNCEMENTS, MODULE_UTILITIES, user_can_access_module
+from hrm.menu_permissions import user_can_create_menu
+from hrm.module_permissions import MODULE_UTILITIES
 from hrm.permissions import is_director
 from reports.report_profile import is_production_report_user
 from utilities.meal_rules import user_is_meal_order_eligible
-from utilities.push_service import webpush_configured
 
 
 def user_meal_push_eligible(user) -> bool:
@@ -23,14 +22,8 @@ def user_schedule_reminder_push_eligible(user) -> bool:
 
 
 def user_portal_push_eligible(user) -> bool:
-    """NV cần push: sản xuất (đặt cơm), nhắc lịch, hoặc có quyền xem Thông báo."""
-    if not webpush_configured():
-        return False
-    if user_meal_push_eligible(user):
-        return True
-    if user_schedule_reminder_push_eligible(user):
-        return True
-    return user_can_access_module(user, MODULE_ANNOUNCEMENTS)
+    """Tắt vĩnh viễn hộp «Bật thông báo» và mọi đăng ký push trên portal."""
+    return False
 
 
 def user_portal_push_debug(user) -> bool:
