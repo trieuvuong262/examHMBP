@@ -16,7 +16,7 @@ OBJECT_LABELS = {
     'SxOverallPlan': 'Kế hoạch tổng thể',
     'SxDetailPlan': 'Kế hoạch chi tiết',
     'SxMaterialPlan': 'Kế hoạch NPL',
-    'SxNplPurchaseRequest': 'Yêu cầu mua NPL',
+    'SxNplPurchaseRequest': 'Đơn đặt hàng',
     'SxPurchaseOrder': 'Đơn mua hàng',
     'SxProductStockPolicy': 'Chính sách tồn TP',
     'SxSalesOrder': 'Đơn đặt hàng',

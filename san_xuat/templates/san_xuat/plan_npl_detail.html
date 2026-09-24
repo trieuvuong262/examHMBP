@@ -55,7 +55,7 @@
     <div class="col-md-3 d-flex align-items-center flex-wrap gap-2">
       {% if shortfall_total > 0 %}
       {% if mat_plan.sales_order_id or mat_plan.status == 'confirmed' %}
-      <a href="{% url 'san_xuat:npl_purchase_request_create' %}?plan={{ mat_plan.pk }}" class="btn btn-hm btn-sm">Tạo yêu cầu mua nguyên phụ liệu từ shortfall</a>
+      <a href="{% url 'san_xuat:npl_purchase_request_create' %}?plan={{ mat_plan.pk }}" class="btn btn-hm btn-sm">Tạo đơn đặt hàng từ số thiếu</a>
       {% endif %}
       {% endif %}
       {% if can_update %}
@@ -132,7 +132,7 @@
   {% if purchase_requests %}
   <div class="card border-0 shadow-sm mt-3">
     <div class="card-body">
-      <div class="small text-muted mb-2">Yêu cầu mua nguyên phụ liệu liên quan (P3)</div>
+      <div class="small text-muted mb-2">Đơn đặt hàng liên quan</div>
       <ul class="mb-0">
       {% for pr in purchase_requests %}
         <li><a href="{% url 'san_xuat:npl_purchase_request_detail' pr.pk %}">{{ pr.code }}</a> — {{ pr.get_status_display }}</li>

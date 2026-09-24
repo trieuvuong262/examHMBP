@@ -377,7 +377,7 @@ class NplPurchaseRequestCreateForm(forms.Form):
     code = forms.CharField(
         max_length=40,
         required=False,
-        label="Mã YCM",
+        label="Mã đơn đặt hàng",
         widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
     )
     due_date = forms.DateField(
@@ -455,7 +455,7 @@ class DetailPlanExplodeForm(forms.Form):
 class PurchaseOrderCreateForm(forms.Form):
     purchase_request = forms.ModelChoiceField(
         queryset=None,
-        label="YCM nguồn",
+        label="Đơn đặt hàng nguồn",
         widget=forms.Select(attrs={"class": "form-select form-select-sm"}),
     )
     supplier = forms.ModelChoiceField(

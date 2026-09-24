@@ -1,130 +1,109 @@
 {% extends 'base.html' %}
 {% load sx_format %}
 
-{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+<style>
+.jp-ycm-meta { display: flex; flex-wrap: wrap; gap: 0.75rem 1.5rem; }
+.jp-ycm-meta .lbl { font-size: 0.75rem; color: #6b7484; }
+.jp-ycm-thumb,
+.jp-ycm-thumb-empty {
+  width: 2.6rem; height: 2.6rem; flex: 0 0 2.6rem;
+  border: 1px solid #e1e6ee; border-radius: 0.4rem; object-fit: cover; background: #fff;
+}
+.jp-ycm-thumb-empty { display: grid; place-items: center; color: #9aa3b1; }
+.jp-ycm-name { display: flex; align-items: center; gap: 0.55rem; min-width: 0; }
+.jp-ycm-grid thead th,
+.jp-ycm-grid tbody td { vertical-align: middle; }
+.jp-ycm-grid thead th.text-end,
+.jp-ycm-grid tbody td.text-end { text-align: right; }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
-      <h2 class="jp-npl-mat-topbar-title w-100">Yêu cầu mua nguyên phụ liệu {{ pr.code }}</h2>
+      <h2 class="jp-npl-mat-topbar-title w-100">Đơn đặt hàng {{ pr.code }}</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
+      {% if can_print %}<a href="{% url 'san_xuat:print_npl_pr' pr.pk %}?autoprint=1" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i>In A5</a>{% endif %}
       <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:npl_purchase_request' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
     </nav>
   </div>
 
-  <div class="row g-3 mb-4">
-    <div class="col-12 col-lg-7">
-      <div class="card border-0 shadow-sm">
-        <div class="card-body">
-          <div class="row g-3 mb-3">
-            <div class="col-6">
-              <div class="small text-muted">Ngày yêu cầu</div>
-              <div>{% if pr.request_date %}{{ pr.request_date|date:"d/m/Y" }}{% else %}—{% endif %}</div>
-            </div>
-            <div class="col-6">
-              <div class="small text-muted">Hạn mua</div>
-              <div>{% if pr.due_date %}{{ pr.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</div>
-            </div>
-            <div class="col-12">
-              <div class="small text-muted">Đơn KHSX</div>
-              <div>
-                {% if pr.sales_order %}
-                <a href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=queue&amp;q={{ pr.sales_order.code|urlencode }}&amp;npl={{ pr.sales_order.pk }}">{{ pr.sales_order.code }}</a>
-                {% else %}—{% endif %}
-              </div>
-            </div>
-            <div class="col-12">
-              <div class="small text-muted">Kế hoạch NPL</div>
-              <div>
-                {% if pr.material_plan %}
-                <a href="{% url 'san_xuat:plan_npl_detail' pr.material_plan.pk %}">{{ pr.material_plan.code }}</a>
-                {% else %}—{% endif %}
-              </div>
-            </div>
-            <div class="col-12">
-              <div class="small text-muted">Ghi chú</div>
-              <div>{{ pr.notes|default:"—" }}</div>
+  <div class="jp-sx-page-body">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <div class="jp-ycm-meta mb-3">
+          <div>
+            <div class="lbl">Trạng thái</div>
+            <div class="fw-semibold">{{ pr.get_status_display }}</div>
+          </div>
+          <div>
+            <div class="lbl">Ngày yêu cầu</div>
+            <div>{% if pr.request_date %}{{ pr.request_date|date:"d/m/Y" }}{% else %}—{% endif %}</div>
+          </div>
+          <div>
+            <div class="lbl">Hạn mua</div>
+            <div>{% if pr.due_date %}{{ pr.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</div>
+          </div>
+          <div>
+            <div class="lbl">Đơn KHSX</div>
+            <div>
+              {% if pr.sales_order %}
+              <a href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=queue&amp;q={{ pr.sales_order.code|urlencode }}&amp;npl={{ pr.sales_order.pk }}">{{ pr.sales_order.code }}</a>
+              {% else %}—{% endif %}
             </div>
           </div>
-
-          <div class="table-responsive">
-            <table class="table table-sm table-hover mb-0 align-middle">
-              <thead class="table-light">
-                <tr>
-                  <th>Nguyên phụ liệu</th>
-                  <th>Nhà cung cấp</th>
-                  <th>Ngày cần</th>
-                  <th class="text-end">SL yêu cầu mua</th>
-                  <th class="text-end">Đơn giá</th>
-                </tr>
-              </thead>
-              <tbody>
-              {% for line in pr.lines.all %}
-                <tr>
-                  <td>
-                    <div class="fw-semibold small">{{ line.material_code }}</div>
-                    <div class="text-muted small">{{ line.material_name|default:"—" }}</div>
-                  </td>
-                  <td class="small">{{ line.supplier.name|default:"—" }}</td>
-                  <td class="small">{% if line.need_date %}{{ line.need_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
-                  <td class="text-end">{{ line.qty|sx_num }}</td>
-                  <td class="text-end">{{ line.unit_price|sx_num:0 }}</td>
-                </tr>
-              {% empty %}
-                <tr><td colspan="5" class="text-muted small">Chưa có dòng nguyên vật liệu.</td></tr>
-              {% endfor %}
-              </tbody>
-            </table>
+          {% if pr.notes %}
+          <div>
+            <div class="lbl">Ghi chú</div>
+            <div>{{ pr.notes }}</div>
           </div>
+          {% endif %}
         </div>
-      </div>
-    </div>
 
-    <div class="col-12 col-lg-5">
-      <div class="card border-0 shadow-sm">
-        <div class="card-body">
-          <div class="small text-muted mb-3">Hành động</div>
-          {% if can_update and pr.status == 'draft' %}
-          <form method="post" class="mb-3">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="submit">
-            <button type="submit" class="btn btn-hm btn-sm">Gửi duyệt</button>
-          </form>
-          {% elif can_update and pr.status == 'submitted' %}
-          <form method="post" class="mb-3">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="approve">
-            <button type="submit" class="btn btn-success btn-sm">Duyệt yêu cầu mua</button>
-          </form>
-          <form method="post">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="reject">
-            <div class="mb-2">
-              <label class="form-label small text-muted" for="reject_notes">Lý do từ chối</label>
-              <textarea name="reject_notes" id="reject_notes" class="form-control form-control-sm" rows="2"></textarea>
-            </div>
-            <button type="submit" class="btn btn-outline-danger btn-sm">Từ chối</button>
-          </form>
-          {% elif pr.status == 'approved' %}
-          {% if not purchase_orders %}
-          <a href="{% url 'san_xuat:purchase_order_create' %}?pr={{ pr.pk }}" class="btn btn-hm mb-3 btn-sm">Tạo đơn mua hàng</a>
-          {% endif %}
-          {% if purchase_orders %}
-          <div class="small text-muted mb-2">Đơn mua hàng liên quan</div>
-          <ul class="mb-0">
-          {% for po in purchase_orders %}
-            <li><a href="{% url 'san_xuat:purchase_order_detail' po.pk %}">{{ po.code }}</a> — {{ po.get_status_display }}</li>
-          {% endfor %}
-          </ul>
-          {% else %}
-          <div class="text-muted small">Chưa có Đơn mua hàng từ Yêu cầu mua nguyên phụ liệu này.</div>
-          {% endif %}
-          {% else %}
-          <div class="text-muted small">Yêu cầu mua nguyên phụ liệu đã xử lý hoặc bạn không có quyền cập nhật.</div>
-          {% endif %}
+        <div class="table-responsive">
+          <table class="table table-sm table-hover mb-0 jp-ycm-grid">
+            <thead class="table-light">
+              <tr>
+                <th>Nguyên phụ liệu</th>
+                <th>Nhà cung cấp</th>
+                <th>Ngày cần</th>
+                <th class="text-end">Số lượng</th>
+                <th class="text-end">Đơn giá</th>
+                <th class="text-end">Thành tiền</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for row in line_rows %}
+              <tr>
+                <td>
+                  <div class="jp-ycm-name">
+                    {% if row.image_url %}
+                    <img src="{{ row.image_url }}" alt="" class="jp-ycm-thumb" loading="lazy">
+                    {% else %}
+                    <span class="jp-ycm-thumb-empty" aria-hidden="true"><i class="bi bi-image"></i></span>
+                    {% endif %}
+                    <div class="min-w-0">
+                      <div class="fw-semibold small">{{ row.line.material_name|default:row.line.material_code }}</div>
+                      <div class="text-muted small">{{ row.line.material_code }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="small">{{ row.line.supplier.name|default:"—" }}</td>
+                <td class="small">{% if row.line.need_date %}{{ row.line.need_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+                <td class="text-end">{{ row.line.qty|sx_num }}</td>
+                <td class="text-end">{{ row.line.unit_price|sx_num:0 }}</td>
+                <td class="text-end">{{ row.amount|sx_num:0 }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="6" class="text-muted small">Chưa có dòng nguyên vật liệu.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

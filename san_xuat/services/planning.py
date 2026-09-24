@@ -461,13 +461,13 @@ def build_pr_from_material_plan(
         .get(pk=material_plan_id)
     )
     if mat_plan.status != SxOverallPlan.STATUS_CONFIRMED and not mat_plan.sales_order_id:
-        raise PlanningError("KHNVL phải đã xác nhận trước khi sinh YCM.")
+        raise PlanningError("KHNVL phải đã xác nhận trước khi sinh đơn đặt hàng.")
 
     lines_qs = mat_plan.lines.all()
     if only_shortfall:
         lines_qs = lines_qs.filter(qty_shortfall__gt=0)
     if not lines_qs.exists():
-        raise PlanningError("Không có dòng shortfall để tạo YCM.")
+        raise PlanningError("Không có dòng thiếu để tạo đơn đặt hàng.")
 
     # Hạn YCM = ngày cần sớm nhất trong các dòng đưa vào yêu cầu (time-phased)
     need_dates = [ln.need_date for ln in lines_qs if ln.need_date]
@@ -520,7 +520,7 @@ def build_pr_from_material_plan(
         action="create",
         obj=pr,
         summary=(
-            f"Tạo YCM từ {mat_plan.code}: {len(create_lines)} mã"
+            f"Tạo đơn đặt hàng từ {mat_plan.code}: {len(create_lines)} mã"
             + (f", hạn {resolved_due:%d/%m/%Y}" if resolved_due else "")
         ),
         changes={
@@ -538,9 +538,9 @@ def build_pr_from_material_plan(
 def submit_npl_purchase_request(*, request_id: int) -> SxNplPurchaseRequest:
     pr = SxNplPurchaseRequest.objects.select_for_update().prefetch_related("lines").get(pk=request_id)
     if pr.status != SxNplPurchaseRequest.STATUS_DRAFT:
-        raise PlanningError("Chỉ gửi YCM ở trạng thái nháp.")
+        raise PlanningError("Chỉ gửi đơn đặt hàng ở trạng thái nháp.")
     if not pr.lines.exists():
-        raise PlanningError("YCM phải có ít nhất một dòng NVL.")
+        raise PlanningError("Đơn đặt hàng phải có ít nhất một dòng NVL.")
     pr.status = SxNplPurchaseRequest.STATUS_SUBMITTED
     pr.save(update_fields=["status"])
     return pr
@@ -550,7 +550,7 @@ def submit_npl_purchase_request(*, request_id: int) -> SxNplPurchaseRequest:
 def approve_npl_purchase_request(*, request_id: int) -> SxNplPurchaseRequest:
     pr = SxNplPurchaseRequest.objects.select_for_update().get(pk=request_id)
     if pr.status != SxNplPurchaseRequest.STATUS_SUBMITTED:
-        raise PlanningError("Chỉ duyệt YCM đã gửi.")
+        raise PlanningError("Chỉ duyệt đơn đặt hàng đã gửi.")
     pr.status = SxNplPurchaseRequest.STATUS_APPROVED
     pr.save(update_fields=["status"])
     from san_xuat.services.npl_shortage_order import split_purchase_orders_from_request
@@ -563,7 +563,7 @@ def approve_npl_purchase_request(*, request_id: int) -> SxNplPurchaseRequest:
 def reject_npl_purchase_request(*, request_id: int, notes: str = "") -> SxNplPurchaseRequest:
     pr = SxNplPurchaseRequest.objects.select_for_update().get(pk=request_id)
     if pr.status != SxNplPurchaseRequest.STATUS_SUBMITTED:
-        raise PlanningError("Chỉ từ chối YCM đã gửi.")
+        raise PlanningError("Chỉ từ chối đơn đặt hàng đã gửi.")
     pr.status = SxNplPurchaseRequest.STATUS_REJECTED
     if notes:
         pr.notes = notes
@@ -692,6 +692,32 @@ def _expected_inbound_qty(material_code: str) -> Decimal:
         remaining = ordered - received
         if remaining > 0:
             total += remaining
+    return total.quantize(Decimal("0.0001"))
+
+
+def _pending_pr_inbound_qty(material_code: str) -> Decimal:
+    """SL trên YCM nháp/đã gửi chưa thành đơn mua — tính như hàng đang về."""
+    total = Decimal("0")
+    lines = SxNplPurchaseRequestLine.objects.filter(
+        material_code__iexact=material_code,
+        request__is_demo=False,
+        request__status__in=(
+            SxNplPurchaseRequest.STATUS_DRAFT,
+            SxNplPurchaseRequest.STATUS_SUBMITTED,
+        ),
+    )
+    covered = set(
+        SxPurchaseOrder.objects.filter(
+            purchase_request_id__in=lines.values_list("request_id", flat=True),
+            is_demo=False,
+        ).values_list("purchase_request_id", flat=True)
+    )
+    for line in lines:
+        if line.request_id in covered:
+            continue
+        qty = line.qty or Decimal("0")
+        if qty > 0:
+            total += qty
     return total.quantize(Decimal("0.0001"))
 
 
@@ -1038,9 +1064,9 @@ def build_po_from_purchase_request(
         .get(pk=purchase_request_id)
     )
     if pr.status != SxNplPurchaseRequest.STATUS_APPROVED:
-        raise PlanningError("Chỉ tạo DMH từ YCM đã duyệt.")
+        raise PlanningError("Chỉ tạo đơn mua từ đơn đặt hàng đã duyệt.")
     if not pr.lines.exists():
-        raise PlanningError("YCM không có dòng NVL.")
+        raise PlanningError("Đơn đặt hàng không có dòng NVL.")
 
     po = (
         SxPurchaseOrder.objects.filter(
@@ -1092,7 +1118,7 @@ def build_po_from_purchase_request(
         if line.qty > 0
     ]
     if not create_lines:
-        raise PlanningError("YCM không có SL mua > 0.")
+        raise PlanningError("Đơn đặt hàng không có số lượng mua lớn hơn 0.")
     SxPurchaseOrderLine.objects.bulk_create(create_lines)
     log_plan_action(
         action="create",

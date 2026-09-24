@@ -127,31 +127,6 @@
         </div>
       </div>
 
-      <div class="card border-0 shadow-sm mb-3">
-        <div class="card-body">
-          <div class="small text-muted mb-2">Phiếu nhập KiotViet</div>
-          {% if po.kv_purchase_kiotviet_id %}
-          <a href="{% url 'kiotviet:purchase_detail' po.kv_purchase_kiotviet_id %}" class="fw-semibold">
-            {{ po.kv_purchase_code|default:po.kv_purchase_kiotviet_id }}
-          </a>
-          {% elif can_update %}
-          <form method="post">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="link_kv">
-            {% for field in link_form %}
-            <div class="mb-2">
-              <label class="form-label small text-muted" for="{{ field.id_for_label }}">{{ field.label }}{{ field|sx_req_star }}</label>
-              {{ field }}
-            </div>
-            {% endfor %}
-            <button type="submit" class="btn btn-outline-hm btn-sm">Liên kết phiếu nhập</button>
-          </form>
-{% else %}
-          <div class="text-muted small">Chưa liên kết phiếu nhập.</div>
-          {% endif %}
-        </div>
-      </div>
-
       {% if po.status == 'received' %}
       <div class="card border-0 shadow-sm">
         <div class="card-body">

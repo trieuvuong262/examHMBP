@@ -7,6 +7,7 @@ from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from kho_npl.models import Material, StockReservation
@@ -26,7 +27,13 @@ from san_xuat.hub_models import (
 )
 from san_xuat.services.bom_need import explode_for_sales_line
 from san_xuat.services.plan_audit import log_plan_action
-from san_xuat.services.planning import PlanningError, _code, _expected_inbound_qty, npl_prep_days
+from san_xuat.services.planning import (
+    PlanningError,
+    _code,
+    _expected_inbound_qty,
+    _pending_pr_inbound_qty,
+    npl_prep_days,
+)
 from san_xuat.services.work_calendar import add_working_days
 
 _Q4 = Decimal('0.0001')
@@ -249,7 +256,7 @@ def explode_order_npl_rows(order: SxSalesOrder) -> list[ExplodedNpl]:
                 exclude_ref_code=order.code,
             ) if mat else 0
         )
-        inbound = _q(_expected_inbound_qty(rec['code']))
+        inbound = _q(_expected_inbound_qty(rec['code'])) + _q(_pending_pr_inbound_qty(rec['code']))
         from kho_npl.catalog_labels import unit_label
 
         if mat and mat.unit_id:
@@ -557,10 +564,10 @@ def build_pr_from_order(*, order_id: int, user=None) -> SxNplPurchaseRequest:
     order = sync_order_npl(order_id=order_id)
     shorts = [ln for ln in order.npl_lines.all() if ln.qty_shortfall > 0]
     if not shorts:
-        raise PlanningError('Đơn không thiếu NPL — không tạo yêu cầu mua.')
+        raise PlanningError('Đơn không thiếu NPL — không tạo đơn đặt hàng.')
     plan = upsert_material_plan_from_order(order, user=user)
     if plan is None:
-        raise PlanningError('Chưa có dòng NPL trên đơn để tạo YCM.')
+        raise PlanningError('Chưa có dòng NPL trên đơn để tạo đơn đặt hàng.')
     return build_pr_from_material_plan(
         material_plan_id=plan.pk,
         only_shortfall=True,
@@ -579,3 +586,26 @@ def npl_span_for_order(order: SxSalesOrder, *, today: date | None = None):
     if end < start:
         return None
     return start, end
+
+
+def reload_khsx_stock_for_codes(codes) -> int:
+    """Load lại tồn / hàng về trên mọi đơn KHSX còn dòng các mã NPL này."""
+    keys = [(c or '').strip() for c in (codes or []) if (c or '').strip()]
+    if not keys:
+        return 0
+    q = Q()
+    for code in keys:
+        q |= Q(material_code__iexact=code)
+    order_ids = list(
+        SxOrderNplLine.objects.filter(q, order__is_demo=False)
+        .values_list('order_id', flat=True)
+        .distinct()
+    )
+    updated = 0
+    for oid in order_ids:
+        try:
+            sync_order_npl(order_id=oid, refresh_stock=True, reset_allocated=False)
+            updated += 1
+        except PlanningError:
+            continue
+    return updated

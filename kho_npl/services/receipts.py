@@ -24,14 +24,14 @@ def receipt_is_editable(receipt: StockReceipt) -> bool:
 
 
 @transaction.atomic
-def post_stock_receipt(receipt: StockReceipt, user) -> StockReceipt:
+def post_stock_receipt(receipt: StockReceipt, user, *, require_attachment: bool = True) -> StockReceipt:
     receipt = StockReceipt.objects.select_for_update().get(pk=receipt.pk)
     if receipt.status != DOC_STATUS_DRAFT:
         raise ReceiptWorkflowError('Chỉ phiếu đã tạo mới được nhập kho.')
     lines = list(receipt.lines.select_related('material', 'location').all())
     if not lines:
         raise ReceiptWorkflowError('Phiếu nhập chưa có dòng chi tiết.')
-    if not receipt.attachment:
+    if not receipt.attachment and require_attachment:
         raise ReceiptWorkflowError('Vui lòng đính kèm chứng từ trước khi nhập kho.')
     for line in lines:
         if line.received_qty <= Decimal('0'):
@@ -87,7 +87,17 @@ def post_stock_receipt(receipt: StockReceipt, user) -> StockReceipt:
     receipt.status = DOC_STATUS_POSTED
     receipt.posted_at = timezone.now()
     receipt.save(update_fields=['status', 'posted_at'])
+    _reload_khsx_after_receipt(receipt)
     return receipt
+
+
+def _reload_khsx_after_receipt(receipt: StockReceipt) -> None:
+    try:
+        from san_xuat.services.po_receipt import on_npl_receipt_posted
+
+        on_npl_receipt_posted(receipt)
+    except Exception:
+        return
 
 
 @transaction.atomic

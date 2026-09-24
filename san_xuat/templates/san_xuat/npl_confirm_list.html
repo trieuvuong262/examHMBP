@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+{% load sx_format %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+<style>
+.jp-npl-confirm-dh {
+  border: 1px solid #e6eaf0;
+  border-radius: 0.85rem;
+  overflow: hidden;
+}
+.jp-npl-confirm-dh-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  background: #f7f9fc;
+  border-bottom: 1px solid #eef1f5;
+}
+.jp-npl-confirm-dh-main { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem; min-width: 0; flex: 1 1 16rem; }
+.jp-npl-confirm-code { color: #172033; font-size: 0.95rem; font-weight: 750; text-decoration: none; }
+.jp-npl-confirm-code:hover { color: var(--hm-red, #dc2626); }
+.jp-npl-confirm-products { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 0.85rem; min-width: 0; }
+.jp-npl-confirm-product { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.jp-npl-confirm-thumb,
+.jp-npl-confirm-thumb-empty {
+  width: 3.2rem; height: 3.2rem; flex: 0 0 3.2rem;
+  border: 1px solid #dbe2ea; border-radius: 0.55rem; background: #fff; object-fit: cover;
+}
+.jp-npl-confirm-thumb-empty { display: grid; place-items: center; color: #94a3b8; }
+.jp-npl-confirm-grid { width: 100%; }
+.jp-npl-confirm-grid thead th,
+.jp-npl-confirm-grid tbody td { vertical-align: middle; }
+.jp-npl-confirm-grid thead th { font-size: 0.69rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #6b7484; }
+.jp-npl-confirm-grid thead th.text-end,
+.jp-npl-confirm-grid tbody td.text-end { text-align: right; }
+.jp-npl-confirm-items { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.75rem; }
+.jp-npl-confirm-item { display: flex; align-items: center; gap: 0.4rem; min-width: 0; }
+.jp-npl-confirm-item img,
+.jp-npl-confirm-item-empty {
+  width: 2rem; height: 2rem; flex: 0 0 2rem;
+  border: 1px solid #e1e6ee; border-radius: 0.4rem; object-fit: cover; background: #fff;
+}
+.jp-npl-confirm-item-empty { display: grid; place-items: center; color: #9aa3b1; font-size: 0.75rem; }
+.jp-npl-confirm-actions { display: inline-flex; align-items: center; }
+.jp-npl-confirm-actions .btn { display: inline-flex; align-items: center; justify-content: center; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">{{ page_title }}</h2>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      {% if list_mode == 'pending' %}
+      <a href="{% url 'san_xuat:plan_npl_confirmed' %}{% if focus_order_id %}?dh={{ focus_order_id }}{% endif %}"><i class="bi bi-box-arrow-in-down" aria-hidden="true"></i>Đã xác nhận</a>
+      {% else %}
+      <a href="{% url 'san_xuat:plan_npl' %}{% if focus_order_id %}?dh={{ focus_order_id }}{% endif %}"><i class="bi bi-boxes" aria-hidden="true"></i>Chờ xác nhận</a>
+      {% endif %}
+      {% if focus_order_id %}
+      <a href="{% if list_mode == 'confirmed' %}{% url 'san_xuat:plan_npl_confirmed' %}{% else %}{% url 'san_xuat:plan_npl' %}{% endif %}"><i class="bi bi-list-ul" aria-hidden="true"></i>Tất cả đơn</a>
+      {% endif %}
+    </nav>
+  </div>
+
+  <div class="jp-sx-page-body">
+    {% for group in groups %}
+    <div class="card border-0 shadow-sm jp-npl-confirm-dh mb-3">
+      <div class="jp-npl-confirm-dh-head">
+        <div class="jp-npl-confirm-dh-main">
+          <div>
+            {% if group.order %}
+            <a class="jp-npl-confirm-code" href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=queue&amp;q={{ group.order.code|urlencode }}&amp;npl={{ group.order.pk }}">{{ group.order_code }}</a>
+            {% else %}
+            <span class="jp-npl-confirm-code">{{ group.order_code }}</span>
+            {% endif %}
+            <div class="small text-muted">
+              {{ group.customer_name|default:"—" }}
+              {% if group.due_date %} · hạn {{ group.due_date|date:"d/m/Y" }}{% endif %}
+            </div>
+          </div>
+          {% if group.products %}
+          <div class="jp-npl-confirm-products" aria-label="Sản phẩm đơn hàng">
+            {% for p in group.products %}
+            <div class="jp-npl-confirm-product">
+              {% if p.image_url %}
+              <button type="button" class="sx-doc-thumb" data-sx-gallery
+                      data-sx-gallery-title="{{ p.name|default:p.code }}"
+                      data-sx-gallery-images="{{ p.image_urls_json }}"
+                      aria-label="{{ p.name }}">
+                <img src="{{ p.image_url }}" alt="" class="jp-npl-confirm-thumb" loading="lazy">
+              </button>
+              {% else %}
+              <span class="jp-npl-confirm-thumb-empty" aria-hidden="true"><i class="bi bi-image"></i></span>
+              {% endif %}
+              <div class="min-w-0">
+                <div class="fw-semibold small text-truncate" title="{{ p.name }}">{{ p.name }}</div>
+                <div class="small text-muted text-truncate">{{ p.code }} · {{ p.qty|sx_num }}{% if p.size_label %} · {{ p.size_label }}{% endif %}</div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0 jp-npl-confirm-grid">
+          <thead class="table-light">
+            <tr>
+              <th>Phiếu</th>
+              <th>Nhà cung cấp</th>
+              <th>NPL</th>
+              <th class="text-end">SL</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for ticket in group.tickets %}
+            <tr>
+              <td><a class="fw-semibold" href="{% url 'san_xuat:npl_purchase_request_detail' ticket.id %}">{{ ticket.code }}</a></td>
+              <td class="small">{{ ticket.supplier_name|default:"—" }}</td>
+              <td>
+                <div class="jp-npl-confirm-items">
+                  {% for item in ticket.items %}
+                  <div class="jp-npl-confirm-item" title="{{ item.material_name }}">
+                    {% if item.image_url %}
+                    <img src="{{ item.image_url }}" alt="" loading="lazy">
+                    {% else %}
+                    <span class="jp-npl-confirm-item-empty" aria-hidden="true"><i class="bi bi-image"></i></span>
+                    {% endif %}
+                    <span class="small">{{ item.material_name }} <span class="text-muted">{{ item.qty|sx_num }}</span></span>
+                  </div>
+                  {% endfor %}
+                </div>
+              </td>
+              <td class="text-end fw-semibold">{{ ticket.qty|sx_num }}</td>
+              <td class="text-end">
+                {% if can_confirm and ticket.can_confirm %}
+                <form method="post" class="jp-npl-confirm-actions">
+                  {% csrf_token %}
+                  {% if focus_order_id %}<input type="hidden" name="dh" value="{{ focus_order_id }}">{% endif %}
+                  <input type="hidden" name="action" value="confirm">
+                  <input type="hidden" name="request_id" value="{{ ticket.id }}">
+                  <button type="submit" class="btn btn-hm btn-sm">Xác nhận</button>
+                </form>
+                {% elif ticket.receipt_id %}
+                <a class="btn btn-hm btn-sm" href="{% url 'kho_npl:receipt_detail' ticket.receipt_id %}">{% if ticket.receipt_open %}Nhập kho{% else %}{{ ticket.receipt_number }}{% endif %}</a>
+                {% elif can_confirm and ticket.po_id %}
+                <form method="post" class="jp-npl-confirm-actions">
+                  {% csrf_token %}
+                  {% if focus_order_id %}<input type="hidden" name="dh" value="{{ focus_order_id }}">{% endif %}
+                  <input type="hidden" name="action" value="open_receipt">
+                  <input type="hidden" name="po_id" value="{{ ticket.po_id }}">
+                  <button type="submit" class="btn btn-hm btn-sm">Nhập kho</button>
+                </form>
+                {% else %}
+                <span class="small text-muted">{{ ticket.status_label }}</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% empty %}
+    <div class="card border-0 shadow-sm">
+      <div class="card-body text-muted small">{{ empty_text }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% include 'san_xuat/includes/product_image_gallery_modal.html' %}
+{% endblock %}

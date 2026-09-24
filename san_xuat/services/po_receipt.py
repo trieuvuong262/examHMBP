@@ -62,6 +62,7 @@ def create_receipt_from_po(
     receipt_date=None,
     location=None,
     notes: str = '',
+    auto_post: bool = True,
 ) -> StockReceipt:
     po = SxPurchaseOrder.objects.select_for_update().prefetch_related('lines').get(pk=order_id)
     if po.status == SxPurchaseOrder.STATUS_DRAFT:
@@ -142,7 +143,43 @@ def create_receipt_from_po(
         changes={'receipt': receipt.number, 'lines': len(receipt_lines)},
         user=user,
     )
+    if auto_post:
+        try:
+            from kho_npl.services.receipts import ReceiptWorkflowError, post_stock_receipt
+
+            receipt = post_stock_receipt(receipt, user, require_attachment=False)
+            sync_po_received_from_po_receipts(order_id=po.pk, user=user)
+        except ReceiptWorkflowError:
+            from san_xuat.services.plan_order_npl import reload_khsx_stock_for_codes
+
+            reload_khsx_stock_for_codes([ln.material_code for ln in po.lines.all()])
     return receipt
+
+
+def ensure_draft_receipts(orders, *, user=None) -> list[StockReceipt]:
+    """Phiếu nhập kho của các đơn mua: mở phiếu đang có, hoặc lập nháp mới."""
+    found: list[StockReceipt] = []
+    seen: set[int] = set()
+    for po in orders or []:
+        existing = (
+            po_receipts(po)
+            .exclude(status=DOC_STATUS_CANCELLED)
+            .order_by('-id')
+            .first()
+        )
+        if existing is not None:
+            if existing.pk not in seen:
+                seen.add(existing.pk)
+                found.append(existing)
+            continue
+        fresh = SxPurchaseOrder.objects.prefetch_related('lines').filter(pk=po.pk).first()
+        if fresh is None or not po_remaining_lines(fresh):
+            continue
+        receipt = create_receipt_from_po(order_id=fresh.pk, user=user, auto_post=False)
+        if receipt.pk not in seen:
+            seen.add(receipt.pk)
+            found.append(receipt)
+    return found
 
 
 @transaction.atomic
@@ -192,3 +229,20 @@ def sync_po_received_from_po_receipts(*, order_id: int, user=None) -> dict:
         'receipts': posted.count(),
         'status_changed': status_changed,
     }
+
+
+def on_npl_receipt_posted(receipt) -> None:
+    """Sau ghi sổ phiếu nhập NPL: cập nhật DMH và load tồn các mã trên KHSX."""
+    codes = [
+        (line.material.code or '').strip()
+        for line in receipt.lines.select_related('material').all()
+        if getattr(line.material, 'code', None)
+    ]
+    po_number = (getattr(receipt, 'po_number', None) or '').strip()
+    if po_number:
+        po = SxPurchaseOrder.objects.filter(code=po_number, is_demo=False).first()
+        if po:
+            sync_po_received_from_po_receipts(order_id=po.pk)
+    from san_xuat.services.plan_order_npl import reload_khsx_stock_for_codes
+
+    reload_khsx_stock_for_codes(codes)

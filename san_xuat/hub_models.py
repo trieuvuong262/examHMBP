@@ -941,7 +941,7 @@ class SxNplPurchaseRequest(DemoMarkedModel):
         (STATUS_REJECTED, 'Từ chối'),
     ]
 
-    code = models.CharField(max_length=40, unique=True, verbose_name='Mã YCM')
+    code = models.CharField(max_length=40, unique=True, verbose_name='Mã đơn đặt hàng')
     material_plan = models.ForeignKey(
         SxMaterialPlan, on_delete=models.SET_NULL, null=True, blank=True, related_name='purchase_requests',
     )
@@ -977,8 +977,8 @@ class SxNplPurchaseRequest(DemoMarkedModel):
 
     class Meta:
         ordering = ['-created_at']
-        verbose_name = 'Yêu cầu mua NPL'
-        verbose_name_plural = 'Yêu cầu mua NPL'
+        verbose_name = 'Đơn đặt hàng'
+        verbose_name_plural = 'Đơn đặt hàng'
 
     def __str__(self):
         return self.code
@@ -3494,7 +3494,7 @@ class SxGeneralSettings(models.Model):
     prefix_plan_overall = models.CharField(max_length=16, default='KHTT', verbose_name='Prefix KH tổng thể')
     prefix_plan_npl = models.CharField(max_length=16, default='KHNVL', verbose_name='Prefix KH NPL')
     prefix_plan_detail = models.CharField(max_length=16, default='KHCT', verbose_name='Prefix KH chi tiết')
-    prefix_npl_pr = models.CharField(max_length=16, default='YCM', verbose_name='Prefix YC mua NPL')
+    prefix_npl_pr = models.CharField(max_length=16, default='DDH', verbose_name='Prefix đơn đặt hàng')
     prefix_po = models.CharField(max_length=16, default='DMH', verbose_name='Prefix đơn mua hàng')
     prefix_cost_std = models.CharField(max_length=16, default='GTDM', verbose_name='Prefix GT định mức')
     prefix_cost_order = models.CharField(max_length=16, default='GTDH', verbose_name='Prefix GT theo ĐH')

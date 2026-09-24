@@ -14,6 +14,7 @@ from san_xuat.hub_models import (
     SxFgReceiptRequest,
     SxMaterialIssueRequest,
     SxNcrCase,
+    SxNplPurchaseRequest,
     SxPackingRecord,
     SxProductionOrder,
     SxPurchaseOrder,
@@ -28,6 +29,14 @@ from san_xuat.print_company import (
     COMPANY_TAX_CODE,
     SIGNATURES,
 )
+
+
+def _person_name(user) -> str:
+    if not getattr(user, 'pk', None):
+        return ''
+    profile = getattr(user, 'profile', None)
+    name = (getattr(profile, 'full_name', '') or '').strip()
+    return name or (user.get_full_name() or '').strip() or user.get_username()
 
 
 def _print_base_ctx(*, print_title: str, back_url: str, signature_key: str, doc_date, request, doc_code: str = ''):
@@ -367,4 +376,127 @@ def print_po(request, pk: int):
         ),
         'supplier_address': supplier.address if supplier else '',
         'supplier_tax': supplier.tax_code if supplier else '',
+        'sheets': [{
+            'supplier_name': (supplier.name if supplier else '') or po.supplier_name,
+            'supplier_contact': (
+                ' — '.join(bit for bit in [
+                    (supplier.contact_name if supplier else ''),
+                    (supplier.phone if supplier else ''),
+                ] if bit)
+            ),
+            'supplier_address': supplier.address if supplier else '',
+            'supplier_tax': supplier.tax_code if supplier else '',
+            'doc_code': po.code,
+            'doc_date': po.order_date or (po.created_at.date() if po.created_at else timezone.localdate()),
+            'rows': rows,
+            'total_qty': total_qty,
+            'total_amount': total_amount,
+            'payment_label': pay,
+            'expected_date': po.expected_date,
+            'notes': po.notes,
+            'preparer_name': _person_name(po.created_by),
+        }],
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'print')
+def print_npl_pr(request, pk: int):
+    """In A5 ngang đơn đặt hàng theo mẫu Excel, một trang mỗi nhà cung cấp."""
+    from collections import defaultdict
+    from decimal import Decimal
+
+    from kho_npl.models import Material
+
+    pr = get_object_or_404(
+        SxNplPurchaseRequest.objects.select_related('created_by').prefetch_related('lines__supplier'),
+        pk=pk,
+        is_demo=False,
+    )
+    lines = list(pr.lines.all())
+    materials = {
+        m.code.casefold(): m
+        for m in Material.objects.filter(
+            code__in=[ln.material_code for ln in lines],
+        ).select_related('color', 'specification', 'unit')
+    }
+    pay_labels = dict(SxNplPurchaseRequest.PAYMENT_CHOICES)
+    grouped: dict[int, list] = defaultdict(list)
+    for ln in lines:
+        grouped[ln.supplier_id or 0].append(ln)
+    if not grouped:
+        grouped[0] = []
+
+    sheets = []
+    for bucket in grouped.values():
+        supplier = bucket[0].supplier if bucket and bucket[0].supplier_id else None
+        rows = []
+        total_qty = Decimal('0')
+        total_amount = Decimal('0')
+        expected = None
+        pay_key = ''
+        for ln in bucket:
+            mat = materials.get((ln.material_code or '').strip().casefold())
+            spec = []
+            image_url = ''
+            unit = ''
+            if mat:
+                if mat.specification_id:
+                    spec.append(mat.specification.name)
+                if mat.color_id:
+                    spec.append(mat.color.name)
+                unit = mat.unit.name if mat.unit_id else ''
+                if mat.image:
+                    try:
+                        image_url = request.build_absolute_uri(mat.image.url)
+                    except (ValueError, OSError):
+                        image_url = ''
+            qty = ln.qty or Decimal('0')
+            price = ln.unit_price or Decimal('0')
+            amount = qty * price
+            total_qty += qty
+            total_amount += amount
+            if ln.expected_date and (expected is None or ln.expected_date > expected):
+                expected = ln.expected_date
+            if ln.payment_method:
+                pay_key = ln.payment_method
+            rows.append({
+                'name': ln.material_name or (mat.name if mat else ln.material_code),
+                'image_url': image_url,
+                'spec': ' / '.join(spec),
+                'unit': unit,
+                'qty': qty,
+                'price': price,
+                'amount': amount,
+                'note': ln.notes,
+            })
+        sheets.append({
+            'supplier_name': supplier.name if supplier else '',
+            'supplier_contact': ' — '.join(
+                bit for bit in [
+                    supplier.contact_name if supplier else '',
+                    supplier.phone if supplier else '',
+                ] if bit
+            ),
+            'supplier_address': supplier.address if supplier else '',
+            'supplier_tax': supplier.tax_code if supplier else '',
+            'doc_code': pr.code,
+            'doc_date': pr.request_date or (pr.created_at.date() if pr.created_at else timezone.localdate()),
+            'rows': rows,
+            'total_qty': total_qty,
+            'total_amount': total_amount,
+            'payment_label': pay_labels.get(pay_key or pr.payment_method, ''),
+            'expected_date': expected or pr.due_date,
+            'notes': pr.notes,
+            'preparer_name': _person_name(pr.created_by),
+        })
+    return render(request, 'san_xuat/print/po_a4.html', {
+        **_print_base_ctx(
+            print_title=f'Đơn đặt hàng {pr.code}',
+            back_url=reverse('san_xuat:npl_purchase_request_detail', args=[pr.pk]),
+            signature_key='po',
+            doc_code=pr.code,
+            doc_date=pr.request_date or timezone.localdate(),
+            request=request,
+        ),
+        'sheets': sheets,
     })

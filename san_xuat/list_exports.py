@@ -279,7 +279,7 @@ def _export_purchase_order(request):
         row_fn=lambda o: {
             'Mã': o.code,
             'NCC': o.supplier_name or '',
-            'YCM': getattr(o.purchase_request, 'code', '') if o.purchase_request_id else '',
+            'Đơn đặt hàng': getattr(o.purchase_request, 'code', '') if o.purchase_request_id else '',
             'Trạng thái': _status(o),
         },
     )
