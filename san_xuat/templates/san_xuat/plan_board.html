@@ -1221,7 +1221,14 @@
     text-align: left;
   }
   .jp-pb-npl-toolbar > .btn { margin-left: auto; }
-  .jp-pb-npl-toolbar > .jp-pb-npl-actions { margin-left: auto; display: inline-flex; gap: 0.35rem; }
+  .jp-pb-npl-toolbar > .jp-pb-npl-actions {
+    margin-left: auto;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.35rem;
+    max-width: 100%;
+  }
   .jp-pb-npl-toolbar > .jp-pb-npl-actions > .btn { margin-left: 0; }
   .jp-pb-reload-form { margin: 0; display: inline-flex; }
   .jp-pb-npl-table-wrap { overflow-x: auto; }

@@ -17,9 +17,11 @@
              {% if not can_schedule or not row.can_edit_npl %}readonly{% endif %}>
     </label>
     <span class="jp-pb-npl-actions">
-      {% if can_schedule and row.can_edit_npl %}
+      {% if can_schedule and row.in_queue %}
       <button type="submit" name="action" value="refresh_npl" class="btn btn-outline-secondary btn-sm fw-bold"
               title="Làm mới tồn kho và điền lại cột Đặt (nhu cầu, tối đa bằng tồn).">Load tồn</button>
+      {% endif %}
+      {% if can_schedule and row.can_edit_npl %}
       <button type="submit" name="action" value="apply_npl" class="btn btn-hm btn-sm fw-bold">Lưu</button>
       {% endif %}
       {% if can_create_npl_pr and row.npl_short_count %}
