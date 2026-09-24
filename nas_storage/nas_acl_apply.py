@@ -488,8 +488,11 @@ def parse_synoacl_get(output: str) -> list[dict]:
 
 
 def _desired_synoacl_aces_for_permissions(perms) -> list[str]:
-    from nas_storage.portal_access import portal_users_for_access_group
+    """ACE Windows theo nhóm LDAP / user được cấp riêng — không bung từng thành viên.
 
+    File Station/NAS quản lý theo group (Read, Read & Write, Full Control). Bung user
+    làm trùng ACE, gộp OR thành Full Control, và lệch với quyền DSM.
+    """
     stored: dict[tuple[str, str], tuple[str, dict]] = {}
 
     def _add(kind: str, name: str, flags: dict[str, bool]) -> None:
@@ -508,8 +511,6 @@ def _desired_synoacl_aces_for_permissions(perms) -> list[str]:
             continue
         if perm.group_id:
             _add('group', (perm.resolved_nas_principal() or '').lstrip('@'), flags)
-            for user in portal_users_for_access_group(perm.group):
-                _add('user', _user_nas_principal(user), flags)
         elif perm.user_id:
             _add('user', perm.resolved_nas_principal(), flags)
 
@@ -642,9 +643,9 @@ def _sync_folder_synoacl(folder, *, client=None, use_effective: bool) -> dict:
 
 
 def apply_subfolder_permissions(folder, *, client=None) -> dict:
-    """Đồng bộ ACL thư mục con (synoacltool) theo quyền hiệu lực (kế thừa + local)."""
+    """Đồng bộ ACE local trên thư mục con. Quyền nhóm từ cha để NAS kế thừa (không copy từng user)."""
     local_perms = list(_active_folder_permissions(folder))
-    result = _sync_folder_synoacl(folder, client=client, use_effective=True)
+    result = _sync_folder_synoacl(folder, client=client, use_effective=False)
     if result.get('status') == 'skipped':
         return result
 

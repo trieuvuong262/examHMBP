@@ -60,7 +60,7 @@
 
             <div class="mb-4">
                 <div class="fw-semibold mb-2">Mức quyền</div>
-                <p class="text-muted small mb-2">SMB/Windows cần quyền xóa ở thư mục nguồn để cắt, dán hoặc đổi tên file. Mức «không xóa» cũng chặn di chuyển.</p>
+                <p class="text-muted small mb-2">Xóa trên NAS là chuyển vào <code>#recycle</code> (chỉ admin xem/khôi phục) — không chặn riêng thao tác này được vì SMB dùng cùng quyền với di chuyển. Quyền file theo nhóm NAS: Chỉ đọc, Đọc + Ghi (được di chuyển), Đầy đủ.</p>
                 <div class="row g-2">
                     {% for radio in form.preset %}
                     <div class="col-md-6 col-xl-4">
