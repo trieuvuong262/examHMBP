@@ -41,7 +41,7 @@ from nas_storage.portal_access import (
     users_auto_in_nas_group,
     users_excluded_from_nas_group,
 )
-from nas_storage.permission_defs import ADMIN_FIELDS, READ_FIELDS, WRITE_FIELDS
+from nas_storage.permission_defs import ADMIN_FIELDS, READ_FIELDS, WRITE_FIELDS, preset_flags_map
 from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 from nas_storage.dept_nas_config import DEPT_NAS_SPECS, nas_group_for_portal_department
@@ -613,6 +613,7 @@ def permission_edit(request, folder_pk, pk=None):
             'read_form_fields': _form_fields_by_defs(form, READ_FIELDS),
             'write_form_fields': _form_fields_by_defs(form, WRITE_FIELDS),
             'admin_form_fields': _form_fields_by_defs(form, ADMIN_FIELDS),
+            'preset_flags': preset_flags_map(),
             'ssh_configured': nas_acl_ssh_configured(),
             'breadcrumbs': _perm_breadcrumbs(
                 ('NAS', hub_url),

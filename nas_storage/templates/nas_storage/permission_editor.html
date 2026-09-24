@@ -4,6 +4,7 @@
 {% block nas_loading_message %}Đang tải quyền…{% endblock %}
 
 {% block nas_content %}
+{{ preset_flags|json_script:"jp-nas-preset-flags" }}
 <div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
     <div class="jp-page-header mb-3 mb-md-4">
         <div class="jp-page-header-main">
@@ -49,18 +50,17 @@
                     {% for e in form.user.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label fw-semibold" for="{{ form.permission_type.id_for_label }}">Hành động</label>
+                    <label class="form-label fw-semibold" for="{{ form.permission_type.id_for_label }}">{{ form.permission_type.label }}</label>
                     {{ form.permission_type }}
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label fw-semibold" for="{{ form.apply_to.id_for_label }}">Phạm vi áp dụng</label>
+                    <label class="form-label fw-semibold" for="{{ form.apply_to.id_for_label }}">{{ form.apply_to.label }}</label>
                     {{ form.apply_to }}
                 </div>
             </div>
 
             <div class="mb-4">
-                <div class="fw-semibold mb-2">Mức quyền</div>
-                <p class="text-muted small mb-2">Xóa trên NAS là chuyển vào <code>#recycle</code> (chỉ admin xem/khôi phục) — không chặn riêng thao tác này được vì SMB dùng cùng quyền với di chuyển. Quyền file theo nhóm NAS: Chỉ đọc, Đọc + Ghi (được di chuyển), Đầy đủ.</p>
+                <div class="fw-semibold mb-2">Permission</div>
                 <div class="row g-2">
                     {% for radio in form.preset %}
                     <div class="col-md-6 col-xl-4">
@@ -75,55 +75,40 @@
 
             <div class="form-check mb-4">
                 {{ form.inherit_from_parent }}
-                <label class="form-check-label" for="{{ form.inherit_from_parent.id_for_label }}">Kế thừa từ thư mục cha</label>
+                <label class="form-check-label" for="{{ form.inherit_from_parent.id_for_label }}">{{ form.inherit_from_parent.label }}</label>
             </div>
 
-            <div id="jp-nas-advanced-perms-wrap" class="d-none">
-            <div class="accordion" id="jp-nas-advanced-perms">
-                <div class="accordion-item border-0 shadow-sm">
-                    <h2 class="accordion-header">
-                        <button class="accordion-button collapsed fw-semibold" type="button"
-                                data-bs-toggle="collapse" data-bs-target="#jp-nas-advanced-body"
-                                aria-expanded="false" aria-controls="jp-nas-advanced-body">
-                            Tuỳ chỉnh nâng cao (Synology DSM)
-                        </button>
-                    </h2>
-                    <div id="jp-nas-advanced-body" class="accordion-collapse collapse" data-bs-parent="#jp-nas-advanced-perms">
-                        <div class="accordion-body">
-                            <p class="text-muted small">Chỉ cần khi mức quyền chuẩn không đủ. Chọn <strong>Tuỳ chỉnh nâng cao</strong> ở trên rồi bật từng quyền chi tiết.</p>
-                            <div class="row g-4">
-                                <div class="col-lg-4">
-                                    <div class="fw-semibold mb-2">Đọc</div>
-                                    {% for item in read_form_fields %}
-                                    <div class="form-check mb-1">
-                                        {{ item.field }}
-                                        <label class="form-check-label" for="id_{{ item.name }}">{{ item.label }}</label>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                                <div class="col-lg-4">
-                                    <div class="fw-semibold mb-2">Ghi</div>
-                                    {% for item in write_form_fields %}
-                                    <div class="form-check mb-1">
-                                        {{ item.field }}
-                                        <label class="form-check-label" for="id_{{ item.name }}">{{ item.label }}</label>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                                <div class="col-lg-4">
-                                    <div class="fw-semibold mb-2">Quản trị</div>
-                                    {% for item in admin_form_fields %}
-                                    <div class="form-check mb-1">
-                                        {{ item.field }}
-                                        <label class="form-check-label" for="id_{{ item.name }}">{{ item.label }}</label>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                            </div>
+            <div id="jp-nas-dsm-perms" class="border rounded overflow-hidden">
+                <div class="bg-light border-bottom px-3 py-2 fw-semibold">Custom</div>
+                <div class="row g-0">
+                    <div class="col-lg-4 p-3 border-end">
+                        <div class="fw-semibold mb-2">Administration</div>
+                        {% for item in admin_form_fields %}
+                        <div class="form-check mb-2">
+                            {{ item.field }}
+                            <label class="form-check-label" for="id_{{ item.name }}">{{ item.label }}</label>
                         </div>
+                        {% endfor %}
+                    </div>
+                    <div class="col-lg-4 p-3 border-end">
+                        <div class="fw-semibold mb-2">Read</div>
+                        {% for item in read_form_fields %}
+                        <div class="form-check mb-2">
+                            {{ item.field }}
+                            <label class="form-check-label" for="id_{{ item.name }}">{{ item.label }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="col-lg-4 p-3">
+                        <div class="fw-semibold mb-2">Write</div>
+                        {% for item in write_form_fields %}
+                        <div class="form-check mb-2">
+                            {{ item.field }}
+                            <label class="form-check-label" for="id_{{ item.name }}">{{ item.label }}</label>
+                        </div>
+                        {% endfor %}
                     </div>
                 </div>
-            </div>
             </div>
         </div>
         <div class="card-footer bg-white border-top py-3 d-flex gap-2">
@@ -138,9 +123,14 @@
     const typeInputs = document.querySelectorAll('input[name="assignee_type"]');
     const groupWrap = document.getElementById('jp-nas-perm-group-wrap');
     const userWrap = document.getElementById('jp-nas-perm-user-wrap');
-    const advancedWrap = document.getElementById('jp-nas-advanced-perms-wrap');
     const presetInputs = document.querySelectorAll('input[name="preset"]');
-    const advancedBody = document.getElementById('jp-nas-advanced-body');
+    const permBox = document.getElementById('jp-nas-dsm-perms');
+    const flagsEl = document.getElementById('jp-nas-preset-flags');
+    const presetFlags = flagsEl ? JSON.parse(flagsEl.textContent) : {};
+
+    function permCheckboxes() {
+        return permBox ? permBox.querySelectorAll('input[type="checkbox"]') : [];
+    }
 
     function syncAssigneeFields() {
         if (!typeInputs.length || !groupWrap || !userWrap) return;
@@ -159,28 +149,61 @@
         }
     }
 
-    function syncAdvancedPanel() {
-        if (!advancedWrap) return;
-        const selected = document.querySelector('input[name="preset"]:checked');
-        const isCustom = selected && selected.value === '';
-        advancedWrap.classList.toggle('d-none', !isCustom);
-        if (!isCustom && advancedBody && window.bootstrap && window.bootstrap.Collapse) {
-            const collapse = window.bootstrap.Collapse.getOrCreateInstance(advancedBody, { toggle: false });
-            collapse.hide();
-        }
-        advancedWrap.querySelectorAll('input[type="checkbox"]').forEach(function (input) {
-            input.disabled = !isCustom;
+    function applyPresetFlags(preset) {
+        const flags = presetFlags[preset];
+        if (!flags) return;
+        permCheckboxes().forEach(function (input) {
+            if (Object.prototype.hasOwnProperty.call(flags, input.name)) {
+                input.checked = !!flags[input.name];
+            }
         });
+    }
+
+    function flagsEqual(left, right) {
+        if (!left || !right) return false;
+        const names = Object.keys(right);
+        for (let i = 0; i < names.length; i += 1) {
+            const name = names[i];
+            if (!!left[name] !== !!right[name]) return false;
+        }
+        return true;
+    }
+
+    function currentFlags() {
+        const flags = {};
+        permCheckboxes().forEach(function (input) {
+            flags[input.name] = input.checked;
+        });
+        return flags;
+    }
+
+    function selectMatchingPreset() {
+        const current = currentFlags();
+        let match = '';
+        Object.keys(presetFlags).forEach(function (key) {
+            if (flagsEqual(current, presetFlags[key])) match = key;
+        });
+        presetInputs.forEach(function (el) {
+            el.checked = el.value === match;
+        });
+        const custom = document.querySelector('input[name="preset"][value=""]');
+        if (custom && !match) custom.checked = true;
     }
 
     typeInputs.forEach(function (el) {
         el.addEventListener('change', syncAssigneeFields);
     });
     presetInputs.forEach(function (el) {
-        el.addEventListener('change', syncAdvancedPanel);
+        el.addEventListener('change', function () {
+            if (el.value) applyPresetFlags(el.value);
+        });
+    });
+    permCheckboxes().forEach(function (el) {
+        el.addEventListener('change', selectMatchingPreset);
     });
     syncAssigneeFields();
-    syncAdvancedPanel();
+    const selected = document.querySelector('input[name="preset"]:checked');
+    if (selected && selected.value) applyPresetFlags(selected.value);
 })();
 </script>
 {% endblock %}

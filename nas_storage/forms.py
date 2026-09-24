@@ -328,8 +328,8 @@ class NasFolderPermissionForm(forms.ModelForm):
         labels = {
             'group': 'Nhóm',
             'user': 'Nhân viên',
-            'permission_type': 'Hành động',
-            'apply_to': 'Phạm vi áp dụng',
+            'permission_type': 'Type',
+            'apply_to': 'Apply to',
             'inherit_from_parent': 'Kế thừa từ thư mục cha',
         }
         widgets = {
@@ -347,7 +347,7 @@ class NasFolderPermissionForm(forms.ModelForm):
 
         from hrm.user_search import exclude_hidden_hrm_users
         from nas_storage.models import NasAccessGroup, NasFolderPermission
-        from nas_storage.permission_defs import detect_preset_from_flags
+        from nas_storage.permission_defs import APPLY_TO_CHOICES, PERM_TYPE_CHOICES, detect_preset_from_flags
 
         group_qs = NasAccessGroup.objects.filter(is_active=True).order_by('sort_order', 'name')
         user_qs = exclude_hidden_hrm_users(
@@ -369,6 +369,8 @@ class NasFolderPermissionForm(forms.ModelForm):
         self.fields['user'].queryset = user_qs
         self.fields['user'].required = False
         self.fields['user'].label_from_instance = self._user_label
+        self.fields['permission_type'].choices = PERM_TYPE_CHOICES
+        self.fields['apply_to'].choices = APPLY_TO_CHOICES
 
         if self.instance and self.instance.pk:
             if self.instance.user_id:

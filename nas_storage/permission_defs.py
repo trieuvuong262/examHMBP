@@ -3,8 +3,8 @@
 PERM_TYPE_ALLOW = 'allow'
 PERM_TYPE_DENY = 'deny'
 PERM_TYPE_CHOICES = (
-    (PERM_TYPE_ALLOW, 'Cho phép'),
-    (PERM_TYPE_DENY, 'Từ chối'),
+    (PERM_TYPE_ALLOW, 'Allow'),
+    (PERM_TYPE_DENY, 'Deny'),
 )
 
 APPLY_ALL = 'all'
@@ -12,32 +12,32 @@ APPLY_FOLDER = 'folder'
 APPLY_SUBFOLDERS = 'subfolders'
 APPLY_FILES = 'files'
 APPLY_TO_CHOICES = (
-    (APPLY_ALL, 'Tất cả'),
-    (APPLY_FOLDER, 'Chỉ thư mục này'),
-    (APPLY_SUBFOLDERS, 'Chỉ thư mục con'),
-    (APPLY_FILES, 'Chỉ tệp'),
+    (APPLY_ALL, 'This folder, sub-folders and files'),
+    (APPLY_FOLDER, 'This folder'),
+    (APPLY_SUBFOLDERS, 'Sub-folders'),
+    (APPLY_FILES, 'Files'),
 )
 
 READ_FIELDS = (
-    ('perm_traverse', 'Duyệt thư mục / Thực thi tệp'),
-    ('perm_list_read', 'Liệt kê thư mục / Đọc dữ liệu'),
-    ('perm_read_attr', 'Đọc thuộc tính'),
-    ('perm_read_ext_attr', 'Đọc thuộc tính mở rộng'),
-    ('perm_read_acl', 'Đọc quyền'),
+    ('perm_traverse', 'Traverse folders/Execute files'),
+    ('perm_list_read', 'List folders/Read data'),
+    ('perm_read_attr', 'Read attributes'),
+    ('perm_read_ext_attr', 'Read extended attributes'),
+    ('perm_read_acl', 'Read permissions'),
 )
 
 WRITE_FIELDS = (
-    ('perm_create_files', 'Tạo tệp / Ghi dữ liệu'),
-    ('perm_create_folders', 'Tạo thư mục / Ghi thêm dữ liệu'),
-    ('perm_write_attr', 'Ghi thuộc tính'),
-    ('perm_write_ext_attr', 'Ghi thuộc tính mở rộng'),
-    ('perm_delete_children', 'Xóa thư mục con và tệp'),
-    ('perm_delete', 'Xóa'),
+    ('perm_create_files', 'Create files/Write data'),
+    ('perm_create_folders', 'Create folders/Append data'),
+    ('perm_write_attr', 'Write attributes'),
+    ('perm_write_ext_attr', 'Write extended attributes'),
+    ('perm_delete_children', 'Delete subfolders and files'),
+    ('perm_delete', 'Delete'),
 )
 
 ADMIN_FIELDS = (
-    ('perm_change_acl', 'Thay đổi quyền'),
-    ('perm_take_ownership', 'Chiếm quyền sở hữu'),
+    ('perm_change_acl', 'Change permissions'),
+    ('perm_take_ownership', 'Take ownership'),
 )
 
 ALL_PERM_FIELD_NAMES = tuple(
@@ -101,20 +101,30 @@ def has_read_access(flags: dict[str, bool]) -> bool:
 
 
 PRESET_LABELS = {
-    'read': 'Chỉ đọc',
-    'read_write_no_delete': 'Đọc + Ghi (không xóa, không di chuyển)',
-    'read_write': 'Đọc + Ghi (được di chuyển)',
-    'full': 'Đầy đủ',
-    'custom': 'Tuỳ chỉnh',
+    'read': 'Read',
+    'read_write_no_delete': 'Read & Write (no Delete)',
+    'read_write': 'Read & Write',
+    'full': 'Full Control',
+    'custom': 'Custom',
 }
 
 PRESET_FORM_CHOICES = (
-    ('read_write', 'Đọc + Ghi (được di chuyển)'),
-    ('read_write_no_delete', 'Đọc + Ghi (không xóa, không di chuyển)'),
-    ('read', 'Chỉ đọc'),
-    ('full', 'Đầy đủ (quản trị)'),
-    ('', 'Tuỳ chỉnh nâng cao'),
+    ('read', 'Read'),
+    ('read_write', 'Read & Write'),
+    ('full', 'Full Control'),
+    ('read_write_no_delete', 'Read & Write (no Delete)'),
+    ('', 'Custom'),
 )
+
+
+def preset_flags_map() -> dict[str, dict[str, bool]]:
+    return {
+        'read': flags_from_preset('read'),
+        'read_write': flags_from_preset('read_write'),
+        'read_write_no_delete': flags_from_preset('read_write_no_delete'),
+        'full': flags_from_preset('full'),
+    }
+
 
 # synoacltool ACL Perm: rwxpdDaARWcCo
 SYNOACL_PERM_BITS = (
