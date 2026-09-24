@@ -223,6 +223,7 @@ def register(request):
             phone = form.cleaned_data.get('phone') or snap['phone']
             reg.phone = phone
             reg.room_type = form.cleaned_data['room_type']
+            reg.bed_type = form.cleaned_data.get('bed_type') or ''
             reg.pickup_point = DEFAULT_PICKUP_POINT
             reg.note = form.cleaned_data.get('note') or ''
             reg.vegetarian = 'Không ăn chay'
@@ -267,6 +268,7 @@ def register(request):
         initial = {
             'phone': domestic_phone(profile.phone),
             'room_type': room_initial,
+            'bed_type': existing.bed_type if existing else '',
             'pickup_point': DEFAULT_PICKUP_POINT,
         }
         if existing and existing.room_type == ROOM_RELATIVE:
@@ -498,7 +500,7 @@ def email_manage(request):
                     skipped += 1
                     continue
                 extra = {
-                    'room_type': reg.room_type or '',
+                    'room_type': reg.bed_type or reg.room_type or '',
                     'companions': _companion_names_for(reg, recipient='owner'),
                     'phone': reg.phone or '',
                     'department': reg.department_name or '',
@@ -523,7 +525,7 @@ def email_manage(request):
         'Nguyễn Văn A',
         'M',
         request=request,
-        room_type='Ban tổ chức tự sắp xếp',
+        room_type='Phòng giường đôi (double)',
         companions='Trần Văn B',
         phone='0901234567',
         department='Hành chính',

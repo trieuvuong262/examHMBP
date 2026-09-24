@@ -29,7 +29,7 @@
                 <span class="jp-trip-step">1</span>
                 <div>
                     <h2>Thông tin đã đăng ký</h2>
-                    <p>{{ registration.room_type }}</p>
+                    <p>{{ registration.room_type }}{% if registration.bed_type %} · {{ registration.bed_type }}{% endif %}</p>
                 </div>
             </div>
             <div class="jp-trip-panel-bd">

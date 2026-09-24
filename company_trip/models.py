@@ -3,6 +3,7 @@ from django.db import models
 from ckeditor.fields import RichTextField
 
 from company_trip.constants import (
+    BED_CHOICES,
     BREAKFAST_CHOICES,
     ROOM_CHOICES,
     ROOM_ORGANIZER,
@@ -72,6 +73,12 @@ class TripRegistration(models.Model):
         max_length=64,
         choices=ROOM_CHOICES,
         default=ROOM_ORGANIZER,
+        verbose_name='Đăng ký với',
+    )
+    bed_type = models.CharField(
+        max_length=64,
+        choices=BED_CHOICES,
+        blank=True,
         verbose_name='Loại phòng',
     )
     companion1 = models.ForeignKey(

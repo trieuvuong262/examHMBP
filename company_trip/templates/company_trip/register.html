@@ -72,8 +72,14 @@
                         </div>
                         {% endif %}
                         <div class="col-12">
-                            <label class="form-label" for="{{ form.room_type.id_for_label }}">Loại phòng</label>
+                            <label class="form-label" for="{{ form.room_type.id_for_label }}">Đăng ký với</label>
                             {{ form.room_type }}
+                            {% if form.room_type.errors %}<div class="text-danger small mt-1">{{ form.room_type.errors }}</div>{% endif %}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="{{ form.bed_type.id_for_label }}">Loại phòng</label>
+                            {{ form.bed_type }}
+                            {% if form.bed_type.errors %}<div class="text-danger small mt-1">{{ form.bed_type.errors }}</div>{% endif %}
                         </div>
 
                         <div class="col-12 d-none" id="colleague-wrap">

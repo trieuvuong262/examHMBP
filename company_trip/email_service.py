@@ -168,7 +168,7 @@ def _send_saved_template(
 ) -> bool:
     """Một thư theo mẫu đang lưu trên trang Email, gửi từ it@justplay.vn."""
     extra = {
-        'room_type': reg.room_type or '',
+        'room_type': reg.bed_type or reg.room_type or '',
         'companions': companions,
         'phone': phone or '',
         'department': department or '',

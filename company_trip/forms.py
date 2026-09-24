@@ -4,6 +4,7 @@ from datetime import datetime
 from django import forms
 
 from company_trip.constants import (
+    BED_CHOICES,
     DEFAULT_PICKUP_POINT,
     ROOM_CHOICES,
     ROOM_COLLEAGUE,
@@ -33,12 +34,14 @@ class TripRegistrationForm(forms.ModelForm):
         fields = [
             'phone',
             'room_type',
+            'bed_type',
             'pickup_point',
             'note',
         ]
         widgets = {
             'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Số điện thoại'}),
             'room_type': forms.Select(attrs={'class': 'form-select'}),
+            'bed_type': forms.Select(attrs={'class': 'form-select'}),
             'pickup_point': forms.TextInput(attrs={
                 'class': 'form-control',
                 'readonly': 'readonly',
@@ -51,6 +54,10 @@ class TripRegistrationForm(forms.ModelForm):
         self.current_registration = current_registration
         super().__init__(*args, **kwargs)
         self.fields['room_type'].choices = ROOM_CHOICES
+        self.fields['room_type'].label = 'Đăng ký với'
+        self.fields['bed_type'].choices = [('', '-- Chọn loại phòng --'), *BED_CHOICES]
+        self.fields['bed_type'].required = True
+        self.fields['bed_type'].label = 'Loại phòng'
         self.relative_slots = self._posted_relative_slots() if self.is_bound else self._initial_relative_slots()
         self.initial['pickup_point'] = DEFAULT_PICKUP_POINT
         self.fields['pickup_point'].initial = DEFAULT_PICKUP_POINT

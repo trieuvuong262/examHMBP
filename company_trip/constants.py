@@ -19,6 +19,13 @@ ROOM_CHOICES = [
     (ROOM_COLLEAGUE, ROOM_COLLEAGUE),
 ]
 
+BED_DOUBLE = 'Phòng giường đôi (double)'
+BED_TWIN = 'Phòng giường đơn (twin)'
+BED_CHOICES = [
+    (BED_DOUBLE, BED_DOUBLE),
+    (BED_TWIN, BED_TWIN),
+]
+
 VEGETARIAN_CHOICES = [
     ('Ăn chay', 'Ăn chay'),
     ('Không ăn chay', 'Không ăn chay'),

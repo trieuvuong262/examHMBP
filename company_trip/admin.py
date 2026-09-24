@@ -17,7 +17,7 @@ class TripSettingsAdmin(admin.ModelAdmin):
 @admin.register(TripRegistration)
 class TripRegistrationAdmin(admin.ModelAdmin):
     list_display = (
-        'full_name', 'department_name', 'room_type', 'companion1_name',
+        'full_name', 'department_name', 'room_type', 'bed_type', 'companion1_name',
         'companion_confirmed', 'relative_full_name', 'room_key',
         'status', 'created_at',
     )

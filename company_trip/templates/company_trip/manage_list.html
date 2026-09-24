@@ -42,7 +42,7 @@
                 <tr>
                     <th>Họ tên</th>
                     <th>Phòng ban</th>
-                    <th>Loại phòng</th>
+                    <th>Đăng ký</th>
                     <th>Mã phòng</th>
                     <th>Điểm đón</th>
                     <th></th>
@@ -58,6 +58,7 @@
                     <td>{{ r.department_name|default:"—" }}</td>
                     <td>
                         {{ r.room_type }}
+                        {% if r.bed_type %}<div class="small text-muted">{{ r.bed_type }}</div>{% endif %}
                         {% if r.room_type == room_colleague %}
                         <div class="small text-muted">{{ r.companion1_name|default:"—" }} · {% if r.companion_confirmed %}Đã xác nhận{% else %}Chờ xác nhận{% endif %}</div>
                         {% elif r.room_type == room_relative %}
