@@ -61,6 +61,7 @@
 
             <div class="mb-4">
                 <div class="fw-semibold mb-2">Permission</div>
+                <p class="text-muted small mb-2"><strong>Read &amp; Write (no Delete)</strong> vẫn có bit Delete trên NAS để cắt–dán/đổi tên. Bấm Delete thì file vào <code>#recycle</code> (chỉ admin khôi phục), không mất vĩnh viễn.</p>
                 <div class="row g-2">
                     {% for radio in form.preset %}
                     <div class="col-md-6 col-xl-4">
@@ -132,18 +133,21 @@
         return permBox ? permBox.querySelectorAll('input[type="checkbox"]') : [];
     }
 
+    function setWrapFieldsEnabled(wrap, enabled) {
+        if (!wrap) return;
+        wrap.querySelectorAll('input[type="radio"][name], input[type="checkbox"][name], select[name]').forEach(function (el) {
+            el.disabled = !enabled;
+        });
+    }
+
     function syncAssigneeFields() {
         if (!typeInputs.length || !groupWrap || !userWrap) return;
         const selected = document.querySelector('input[name="assignee_type"]:checked');
         const isUser = selected && selected.value === 'user';
         groupWrap.classList.toggle('d-none', isUser);
         userWrap.classList.toggle('d-none', !isUser);
-        groupWrap.querySelectorAll('input[name="{{ form.group.html_name }}"]').forEach(function (input) {
-            input.disabled = isUser;
-        });
-        userWrap.querySelectorAll('input[name="{{ form.user.html_name }}"]').forEach(function (input) {
-            input.disabled = !isUser;
-        });
+        setWrapFieldsEnabled(groupWrap, !isUser);
+        setWrapFieldsEnabled(userWrap, isUser);
         if (window.JpUserPicker && typeof window.JpUserPicker.initAll === 'function') {
             window.JpUserPicker.initAll(true);
         }

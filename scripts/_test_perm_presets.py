@@ -6,18 +6,18 @@ from nas_storage.permission_defs import (
 )
 
 
-def test_no_delete_mask_omits_d_and_D():
+def test_no_delete_allows_move_via_delete_bits():
     flags = flags_from_preset('read_write_no_delete')
     assert detect_preset_from_flags(flags) == 'read_write_no_delete'
-    assert synoacl_mask_from_flags(flags) == 'rwxp--aARWc--:fd--'
+    assert synoacl_mask_from_flags(flags) == 'rwxpdDaARWc--:fd--'
     assert flags['perm_create_files'] is True
-    assert flags['perm_delete'] is False
-    assert flags['perm_delete_children'] is False
+    assert flags['perm_delete'] is True
+    assert flags['perm_delete_children'] is True
 
 
 def test_read_write_still_includes_delete():
     flags = flags_from_preset('read_write')
-    assert detect_preset_from_flags(flags) == 'read_write'
+    assert detect_preset_from_flags(flags) == 'read_write_no_delete'
     assert synoacl_mask_from_flags(flags) == 'rwxpdDaARWc--:fd--'
 
 
@@ -62,7 +62,7 @@ def test_parse_synoacl_ace():
 
 
 if __name__ == '__main__':
-    test_no_delete_mask_omits_d_and_D()
+    test_no_delete_allows_move_via_delete_bits()
     test_read_write_still_includes_delete()
     test_full_and_read()
     test_parse_synoacl_get()

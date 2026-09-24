@@ -342,6 +342,16 @@ class NasFolderPermissionForm(forms.ModelForm):
 
     def __init__(self, *args, folder=None, **kwargs):
         self.folder = folder
+        if args:
+            data = args[0]
+            if data is not None:
+                data = data.copy()
+                assignee = (data.get('assignee_type') or self.ASSIGNEE_GROUP).strip()
+                if assignee == self.ASSIGNEE_USER:
+                    data['group'] = ''
+                else:
+                    data['user'] = ''
+                args = (data,) + args[1:]
         super().__init__(*args, **kwargs)
         from django.contrib.auth.models import User
 

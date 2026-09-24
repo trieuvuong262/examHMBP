@@ -68,13 +68,8 @@ def default_read_write_flags() -> dict[str, bool]:
 
 
 def default_read_write_no_delete_flags() -> dict[str, bool]:
-    """Đọc + tạo/ghi — không xóa và không di chuyển (SMB cần quyền xóa để cắt/đổi tên)."""
-    flags = {name: False for name in ALL_PERM_FIELD_NAMES}
-    for name, _ in READ_FIELDS:
-        flags[name] = True
-    for name in WRITE_NO_DELETE_FIELD_NAMES:
-        flags[name] = True
-    return flags
+    """Read & Write: có Delete trên ACL để SMB di chuyển được; xóa file vào #recycle."""
+    return default_read_write_flags()
 
 
 def flags_from_preset(preset: str) -> dict[str, bool]:
@@ -152,12 +147,12 @@ def synoacl_mask_from_flags(flags: dict[str, bool], *, inherit: str = 'fd--') ->
 def detect_preset_from_flags(flags: dict[str, bool]) -> str:
     if all(flags.get(name) for name in ALL_PERM_FIELD_NAMES):
         return 'full'
-    rw = default_read_write_flags()
-    if all(flags.get(name) == value for name, value in rw.items()):
-        return 'read_write'
     no_delete = default_read_write_no_delete_flags()
     if all(flags.get(name) == value for name, value in no_delete.items()):
         return 'read_write_no_delete'
+    rw = default_read_write_flags()
+    if all(flags.get(name) == value for name, value in rw.items()):
+        return 'read_write'
     read_only = (
         all(flags.get(name) for name, _ in READ_FIELDS)
         and not any(flags.get(name) for name, _ in WRITE_FIELDS)
@@ -188,17 +183,34 @@ def convert_read_write_permissions_to_no_delete() -> int:
     return updated
 
 
-def convert_no_delete_permissions_to_read_write() -> int:
-    """Đổi «không xóa» sang đọc+ghi có xóa — SMB mới di chuyển/đổi tên được. Giữ full / chỉ đọc."""
-    from nas_storage.models import NasFolderPermission
+def convert_no_delete_except_tgd() -> dict[str, int]:
+    """Mọi quyền ghi → Read & Write (no Delete). Nhóm TGD giữ Full Control. Giữ Chỉ đọc."""
+    from nas_storage.models import NasAccessGroup, NasFolderPermission
 
-    flags = default_read_write_flags()
-    updated = 0
-    for perm in NasFolderPermission.objects.iterator():
-        if detect_preset_from_flags(perm.permission_flags()) != 'read_write_no_delete':
+    tgd_ids = set(
+        NasAccessGroup.objects.filter(name__iexact='TGD').values_list('pk', flat=True)
+    )
+    no_delete = default_read_write_no_delete_flags()
+    full = flags_from_preset('full')
+    stats = {'tgd_full': 0, 'no_delete': 0, 'read_kept': 0, 'skipped': 0}
+    for perm in NasFolderPermission.objects.select_related('group').iterator():
+        if perm.permission_type != PERM_TYPE_ALLOW:
+            stats['skipped'] += 1
             continue
-        for name, value in flags.items():
-            setattr(perm, name, value)
-        perm.save(update_fields=[*ALL_PERM_FIELD_NAMES, 'updated_at'])
-        updated += 1
-    return updated
+        if perm.group_id and perm.group_id in tgd_ids:
+            if detect_preset_from_flags(perm.permission_flags()) != 'full':
+                for name, value in full.items():
+                    setattr(perm, name, value)
+                perm.save(update_fields=[*ALL_PERM_FIELD_NAMES, 'updated_at'])
+            stats['tgd_full'] += 1
+            continue
+        preset = detect_preset_from_flags(perm.permission_flags())
+        if preset == 'read':
+            stats['read_kept'] += 1
+            continue
+        if preset != 'read_write_no_delete':
+            for name, value in no_delete.items():
+                setattr(perm, name, value)
+            perm.save(update_fields=[*ALL_PERM_FIELD_NAMES, 'updated_at'])
+        stats['no_delete'] += 1
+    return stats
