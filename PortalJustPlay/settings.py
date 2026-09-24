@@ -577,6 +577,14 @@ NAS_BACKGROUND_SYNC_DEFAULT = env_bool('NAS_BACKGROUND_SYNC_DEFAULT', False)
 NAS_BACKUP_RCLONE_REMOTE = os.getenv('NAS_BACKUP_RCLONE_REMOTE', 'synology:backup').strip()
 NAS_BACKUP_REL_PATH = os.getenv('NAS_BACKUP_REL_PATH', '').strip()
 NAS_BACKUP_RETENTION_DAYS = int(os.getenv('NAS_BACKUP_RETENTION_DAYS', '30'))
+# Upload backup qua SSH (cổng 22) thay vì SMB. FortiGate reset phiên SMB lúc 00:00.
+# smb = rclone SMB; ssh = bắt buộc SSH; auto = SSH khi có file key.
+NAS_BACKUP_TRANSPORT = os.getenv('NAS_BACKUP_TRANSPORT', 'auto').strip().lower() or 'auto'
+NAS_BACKUP_SSH_HOST = os.getenv('NAS_BACKUP_SSH_HOST', '192.168.40.252').strip()
+NAS_BACKUP_SSH_USER = os.getenv('NAS_BACKUP_SSH_USER', 'tailscale-justplay').strip()
+NAS_BACKUP_SSH_DIR = os.getenv('NAS_BACKUP_SSH_DIR', '/volume1/backup').strip() or '/volume1/backup'
+NAS_BACKUP_SSH_KEY = os.getenv('NAS_BACKUP_SSH_KEY', '/root/.config/rclone/nas-backup.key').strip()
+NAS_BACKUP_SSH_BIN = os.getenv('NAS_BACKUP_SSH_BIN', '').strip()
 # Giám sát VPS (mount /host/proc, /host/root, docker.sock vào container web)
 VPS_HOST_PROC = os.getenv('VPS_HOST_PROC', '/host/proc')
 VPS_HOST_ROOT = os.getenv('VPS_HOST_ROOT', '/host/root')

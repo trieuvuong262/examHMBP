@@ -5,6 +5,7 @@ from __future__ import annotations
 import gzip
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import tarfile
@@ -147,7 +148,119 @@ def create_database_dump(dest_gz: Path) -> None:
         gz.write(sanitize_pg_dump_sql(proc.stdout))
 
 
+def _backup_ssh_enabled() -> bool:
+    mode = (getattr(settings, 'NAS_BACKUP_TRANSPORT', 'auto') or 'auto').strip().lower()
+    if mode == 'smb':
+        return False
+    if mode == 'ssh':
+        return True
+    # Trên VPS: binary SSH của host được mount vào container và đã có credential NAS.
+    return os.path.isfile('/host/root/usr/bin/ssh') and os.path.isfile('/root/.nas-cred')
+
+
+def _nas_ssh_password() -> str:
+    cred = (getattr(settings, 'NAS_DSM_CRED_FILE', '') or '/root/.nas-cred').strip()
+    if cred and os.path.isfile(cred):
+        for line in open(cred, encoding='utf-8', errors='replace'):
+            if line.startswith('password='):
+                return line.split('=', 1)[1].strip()
+    return (getattr(settings, 'NAS_DSM_PASSWORD', '') or '').strip()
+
+
+def _ssh_bin() -> str:
+    explicit = (getattr(settings, 'NAS_BACKUP_SSH_BIN', '') or '').strip()
+    if explicit and os.path.isfile(explicit):
+        return explicit
+    for cand in ('/usr/bin/ssh', '/host/root/usr/bin/ssh'):
+        if os.path.isfile(cand):
+            return cand
+    return 'ssh'
+
+
+def _backup_fs_path(remote_target: str) -> str:
+    """synology:backup/2026-09-24/run/file → /volume1/backup/2026-09-24/run/file."""
+    base = backup_rclone_base().rstrip('/')
+    rel = remote_target
+    if rel.startswith(base):
+        rel = rel[len(base):]
+    elif ':' in rel:
+        rel = rel.split(':', 1)[1]
+        share = base.split(':', 1)[-1].strip('/')
+        if share and rel.startswith(share):
+            rel = rel[len(share):]
+    rel = rel.lstrip('/')
+    if not rel or rel.startswith('..') or '/../' in f'/{rel}/':
+        raise PortalBackupError(f'Đường backup không hợp lệ: {remote_target}')
+    root = (getattr(settings, 'NAS_BACKUP_SSH_DIR', '/volume1/backup') or '/volume1/backup').rstrip('/')
+    return f'{root}/{rel}'
+
+
+def _ssh_cmd(remote_shell: str) -> tuple[list[str], dict]:
+    host = (getattr(settings, 'NAS_BACKUP_SSH_HOST', '') or '192.168.40.252').strip()
+    user = (getattr(settings, 'NAS_BACKUP_SSH_USER', '') or 'tailscale-justplay').strip()
+    if not host or not user:
+        raise PortalBackupError('Chưa cấu hình NAS_BACKUP_SSH_HOST / USER.')
+    env = os.environ.copy()
+    cmd = [
+        _ssh_bin(),
+        '-o', 'PreferredAuthentications=password',
+        '-o', 'PubkeyAuthentication=no',
+        '-o', 'NumberOfPasswordPrompts=1',
+        '-o', 'StrictHostKeyChecking=accept-new',
+        '-o', 'UserKnownHostsFile=/tmp/nas-backup-known_hosts',
+        '-o', 'ConnectTimeout=15',
+        f'{user}@{host}',
+        remote_shell,
+    ]
+    password = _nas_ssh_password()
+    if not password:
+        raise PortalBackupError('Không có mật khẩu SSH NAS (NAS_DSM_CRED_FILE).')
+    askpass = '/tmp/nas-backup-askpass.sh'
+    with open(askpass, 'w', encoding='utf-8') as fh:
+        fh.write('#!/bin/sh\nprintf \'%s\\n\' "$NAS_BACKUP_SSH_PW"\n')
+    os.chmod(askpass, 0o700)
+    env['NAS_BACKUP_SSH_PW'] = password
+    env['SSH_ASKPASS'] = askpass
+    env['SSH_ASKPASS_REQUIRE'] = 'force'
+    env['DISPLAY'] = env.get('DISPLAY') or 'none'
+    return cmd, env
+
+
+def _ssh_run(remote_shell: str, *, stdin_path: Path | None = None, timeout: int = 7200) -> subprocess.CompletedProcess:
+    cmd, env = _ssh_cmd(remote_shell)
+    stdin_fh = stdin_path.open('rb') if stdin_path else None
+    try:
+        return subprocess.run(
+            cmd,
+            stdin=stdin_fh,
+            capture_output=True,
+            timeout=timeout,
+            check=False,
+            env=env,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise PortalBackupError(f'Không upload được lên NAS qua SSH: {exc}') from exc
+    finally:
+        if stdin_fh:
+            stdin_fh.close()
+
+
+def ssh_copy_file(local_path: Path, remote_target: str) -> None:
+    dest = _backup_fs_path(remote_target)
+    parent = dest.rsplit('/', 1)[0]
+    proc = _ssh_run(
+        f'mkdir -p {shlex.quote(parent)} && cat > {shlex.quote(dest)}',
+        stdin_path=local_path,
+    )
+    if proc.returncode != 0:
+        err = (proc.stderr or proc.stdout or b'').decode('utf-8', errors='replace').strip()
+        raise PortalBackupError(err or 'SSH upload thất bại.')
+
+
 def rclone_copy_file(local_path: Path, remote_target: str) -> None:
+    if _backup_ssh_enabled():
+        ssh_copy_file(local_path, remote_target)
+        return
     if not rclone_listing_available():
         raise PortalBackupError('rclone chưa cấu hình trên server.')
     try:
@@ -169,7 +282,21 @@ def rclone_copy_file(local_path: Path, remote_target: str) -> None:
 def prune_old_remote_backups() -> int:
     """Xóa backup NAS cũ hơn NAS_BACKUP_RETENTION_DAYS (chỉ dưới backup_rclone_base)."""
     days = int(getattr(settings, 'NAS_BACKUP_RETENTION_DAYS', 30))
-    if days <= 0 or not rclone_listing_available():
+    if days <= 0:
+        return 0
+    if _backup_ssh_enabled():
+        root = (getattr(settings, 'NAS_BACKUP_SSH_DIR', '/volume1/backup') or '/volume1/backup').rstrip('/')
+        # Chỉ file nằm trong thư mục ngày /volume1/backup/YYYY-MM-DD/...
+        script = (
+            f'find {shlex.quote(root)} -mindepth 2 -type f -mtime +{int(days)} -delete; '
+            f'find {shlex.quote(root)} -mindepth 1 -type d -empty -delete'
+        )
+        try:
+            proc = _ssh_run(script, timeout=3600)
+        except PortalBackupError:
+            return 0
+        return 0 if proc.returncode != 0 else 1
+    if not rclone_listing_available():
         return 0
     target = backup_rclone_base()
     try:

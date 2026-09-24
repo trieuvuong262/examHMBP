@@ -65,7 +65,7 @@ def sub_url(m):
 text, n_url = re.subn(
     r'^(NAS_DSM_URL=https?://)[^/:\s]+(.*)$', sub_url, text, flags=re.M,
 )
-for key in ('NAS_LDAP_HOST', 'NAS_SSH_HOST', 'NAS_SMB_HOST'):
+for key in ('NAS_LDAP_HOST', 'NAS_SSH_HOST', 'NAS_SMB_HOST', 'NAS_BACKUP_SSH_HOST'):
     text, n = re.subn(rf'^{key}=.*$', f'{key}={host}', text, flags=re.M)
     if n == 0 and key != 'NAS_SMB_HOST':
         text = text.rstrip() + f'\n{key}={host}\n'
