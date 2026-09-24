@@ -2846,7 +2846,7 @@ def plan_npl(request):
         'groups': groups,
         'can_confirm': can_confirm,
         'focus_order_id': focus_order_id,
-        'page_title': 'Xác nhận nguyên phụ liệu',
+        'page_title': 'Xác nhận đơn đặt hàng',
         'empty_text': 'Chưa có phiếu chờ xác nhận.',
         'list_mode': 'pending',
     })
@@ -3060,6 +3060,28 @@ def plan_npl_detail(request, pk: int):
     })
 
 
+def redirect_legacy_purchase_request(request):
+    target = reverse('san_xuat:npl_purchase_request')
+    query = request.GET.urlencode()
+    return redirect(f'{target}?{query}' if query else target)
+
+
+def redirect_legacy_purchase_request_create(request):
+    target = reverse('san_xuat:npl_purchase_request_create')
+    query = request.GET.urlencode()
+    return redirect(f'{target}?{query}' if query else target)
+
+
+def redirect_legacy_purchase_request_detail(request, pk: int):
+    return redirect('san_xuat:npl_purchase_request_detail', pk=pk)
+
+
+def redirect_legacy_purchase_request_print(request, pk: int):
+    target = reverse('san_xuat:print_npl_pr', args=[pk])
+    query = request.GET.urlencode()
+    return redirect(f'{target}?{query}' if query else target)
+
+
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def npl_purchase_request(request):
     base_qs = (
@@ -3130,6 +3152,20 @@ def npl_purchase_request_detail(request, pk: int):
         pk=pk,
     )
     can_update = _perm_ctx(request).get('can_update')
+    can_edit = bool(can_update) and pr.status in (
+        SxNplPurchaseRequest.STATUS_DRAFT,
+        SxNplPurchaseRequest.STATUS_SUBMITTED,
+    )
+    if request.method == 'POST' and can_edit and (request.POST.get('action') or '').strip() == 'save':
+        from san_xuat.services.npl_shortage_order import update_open_purchase_request
+
+        try:
+            pr = update_open_purchase_request(request_id=pr.pk, post=request.POST, user=request.user)
+        except PlanningError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, f'Đã lưu đơn đặt hàng {pr.code}.')
+            return redirect('san_xuat:plan_npl')
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
         if action == 'submit' and can_update and pr.status == SxNplPurchaseRequest.STATUS_DRAFT:
@@ -3159,7 +3195,7 @@ def npl_purchase_request_detail(request, pk: int):
             else:
                 messages.success(request, f'Đơn đặt hàng {pr.code} đã từ chối.')
                 return redirect('san_xuat:npl_purchase_request_detail', pk=pr.pk)
-    from kho_npl.models import Material
+    from kho_npl.models import Material, Supplier
 
     lines = list(pr.lines.all())
     materials = {
@@ -3184,8 +3220,20 @@ def npl_purchase_request_detail(request, pk: int):
         **_perm_ctx(request),
         'pr': pr,
         'can_update': can_update,
+        'can_edit': can_edit,
         'line_rows': line_rows,
+        'suppliers': list(Supplier.objects.filter(is_active=True).order_by('name')) if can_edit else [],
+        'edit_supplier': next((ln.supplier for ln in lines if ln.supplier_id), None),
+        'edit_pay': next((ln.payment_method for ln in lines if ln.payment_method), pr.payment_method),
+        'edit_date': next((ln.expected_date for ln in lines if ln.expected_date), pr.due_date),
+        'payment_choices': SxNplPurchaseRequest.PAYMENT_CHOICES,
     })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def npl_purchase_request_edit(request, pk: int):
+    """Sửa nằm trên màn đơn đặt hàng."""
+    return redirect('san_xuat:npl_purchase_request_detail', pk=pk)
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')

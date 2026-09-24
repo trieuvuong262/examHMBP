@@ -64,16 +64,23 @@
     th { text-align: center; font-size: 7.5pt; background: #f3f3f3; }
     td.num, th.num { text-align: right; }
     td.mid { text-align: center; }
-    img.thumb { width: 28px; height: 28px; object-fit: cover; display: block; margin: 0 auto; }
     .foot { margin-top: 3px; font-size: 8.5pt; }
     .sign { display: grid; grid-template-columns: 1fr 1fr 1fr; margin-top: auto; padding-top: 8px; text-align: center; font-size: 8.5pt; }
     .sign .role { font-weight: 700; }
     .sign .who { margin-top: 16px; min-height: 14px; font-size: 8.5pt; font-weight: 700; }
-    @page { size: A5 landscape; margin: 0; }
+    @page { size: 210mm 148mm; margin: 0; }
     @media print {
-      html, body { background: #fff; }
+      html, body { background: #fff; width: 210mm; height: 148mm; }
       .no-print { display: none !important; }
-      .sheet { width: auto; min-height: auto; margin: 0; border: 2pt solid #111; box-shadow: none; }
+      .sheet {
+        width: 210mm;
+        height: 148mm;
+        min-height: 148mm;
+        margin: 0;
+        box-shadow: none;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
     }
   </style>
 </head>
@@ -110,15 +117,14 @@
     <table>
       <thead>
         <tr>
-          <th style="width:4%">STT</th>
+          <th style="width:5%">STT</th>
           <th>Tên hàng</th>
-          <th style="width:8%">Hình ảnh</th>
-          <th style="width:14%">Quy cách / màu sắc</th>
-          <th style="width:7%">ĐVT</th>
-          <th class="num" style="width:9%">Số lượng</th>
-          <th class="num" style="width:11%">Đơn giá (VND)</th>
-          <th class="num" style="width:12%">Thành tiền</th>
-          <th style="width:12%">Ghi chú</th>
+          <th style="width:16%">Quy cách / màu sắc</th>
+          <th style="width:8%">ĐVT</th>
+          <th class="num" style="width:10%">Số lượng</th>
+          <th class="num" style="width:12%">Đơn giá (VND)</th>
+          <th class="num" style="width:13%">Thành tiền</th>
+          <th style="width:14%">Ghi chú</th>
         </tr>
       </thead>
       <tbody>
@@ -126,7 +132,6 @@
         <tr>
           <td class="mid">{{ forloop.counter }}</td>
           <td>{{ row.name }}</td>
-          <td class="mid">{% if row.image_url %}<img class="thumb" src="{{ row.image_url }}" alt="">{% endif %}</td>
           <td>{{ row.spec }}</td>
           <td class="mid">{{ row.unit }}</td>
           <td class="num">{{ row.qty|sx_num }}</td>
@@ -136,7 +141,7 @@
         </tr>
         {% endfor %}
         <tr>
-          <td colspan="5"><strong>Tổng</strong></td>
+          <td colspan="4"><strong>Tổng</strong></td>
           <td class="num"><strong>{{ sheet.total_qty|sx_num }}</strong></td>
           <td></td>
           <td class="num"><strong>{{ sheet.total_amount|sx_num:0 }}</strong></td>

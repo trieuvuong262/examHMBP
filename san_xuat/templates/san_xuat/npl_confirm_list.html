@@ -43,7 +43,7 @@
   border: 1px solid #e1e6ee; border-radius: 0.4rem; object-fit: cover; background: #fff;
 }
 .jp-npl-confirm-item-empty { display: grid; place-items: center; color: #9aa3b1; font-size: 0.75rem; }
-.jp-npl-confirm-actions { display: inline-flex; align-items: center; }
+.jp-npl-confirm-actions { display: inline-flex; align-items: center; gap: 0.35rem; }
 .jp-npl-confirm-actions .btn { display: inline-flex; align-items: center; justify-content: center; }
 </style>
 {% endblock %}
@@ -140,13 +140,16 @@
               <td class="text-end fw-semibold">{{ ticket.qty|sx_num }}</td>
               <td class="text-end">
                 {% if can_confirm and ticket.can_confirm %}
-                <form method="post" class="jp-npl-confirm-actions">
-                  {% csrf_token %}
-                  {% if focus_order_id %}<input type="hidden" name="dh" value="{{ focus_order_id }}">{% endif %}
-                  <input type="hidden" name="action" value="confirm">
-                  <input type="hidden" name="request_id" value="{{ ticket.id }}">
-                  <button type="submit" class="btn btn-hm btn-sm">Xác nhận</button>
-                </form>
+                <span class="jp-npl-confirm-actions">
+                  <a class="btn btn-outline-secondary btn-sm" href="{% url 'san_xuat:npl_purchase_request_detail' ticket.id %}">Sửa</a>
+                  <form method="post" class="jp-npl-confirm-actions">
+                    {% csrf_token %}
+                    {% if focus_order_id %}<input type="hidden" name="dh" value="{{ focus_order_id }}">{% endif %}
+                    <input type="hidden" name="action" value="confirm">
+                    <input type="hidden" name="request_id" value="{{ ticket.id }}">
+                    <button type="submit" class="btn btn-hm btn-sm">Xác nhận</button>
+                  </form>
+                </span>
                 {% elif ticket.receipt_id %}
                 <a class="btn btn-hm btn-sm" href="{% url 'kho_npl:receipt_detail' ticket.receipt_id %}">{% if ticket.receipt_open %}Nhập kho{% else %}{{ ticket.receipt_number }}{% endif %}</a>
                 {% elif can_confirm and ticket.po_id %}

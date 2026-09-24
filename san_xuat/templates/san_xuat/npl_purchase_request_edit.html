@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+{% load sx_format %}
+
+{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Sửa đơn đặt hàng — {{ pr.code }}</h2>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <button type="submit" form="order-edit" class="btn btn-hm btn-sm fw-bold">Lưu</button>
+      <span class="sep" aria-hidden="true"></span>
+      <a href="{{ back }}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+    </nav>
+  </div>
+
+  <div class="jp-sx-page-body">
+    <form id="order-edit" method="post" class="card border-0 shadow-sm">
+      {% csrf_token %}
+      <div class="card-body">
+        <div class="row g-2 mb-3">
+          <div class="col-12 col-md-4">
+            <label class="form-label small text-muted" for="supplier">Nhà cung cấp</label>
+            <select id="supplier" name="supplier" class="form-select form-select-sm" required>
+              <option value="">Chọn</option>
+              {% for sup in suppliers %}
+              <option value="{{ sup.pk }}"
+                      data-contact="{{ sup.contact_name }}"
+                      data-phone="{{ sup.phone }}"
+                      data-address="{{ sup.address }}"
+                      data-tax="{{ sup.tax_code }}"
+                      {% if supplier and supplier.pk == sup.pk %}selected{% endif %}>{{ sup.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label small text-muted" for="contact">Liên hệ</label>
+            <input id="contact" name="contact" class="form-control form-control-sm" value="{{ supplier.contact_name|default:'' }}">
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label small text-muted" for="phone">Điện thoại</label>
+            <input id="phone" name="phone" class="form-control form-control-sm" value="{{ supplier.phone|default:'' }}">
+          </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label small text-muted" for="address">Địa chỉ</label>
+            <input id="address" name="address" class="form-control form-control-sm" value="{{ supplier.address|default:'' }}">
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label small text-muted" for="tax">MST</label>
+            <input id="tax" name="tax" class="form-control form-control-sm" value="{{ supplier.tax_code|default:'' }}">
+          </div>
+          <div class="col-6 col-md-3">
+            <label class="form-label small text-muted" for="pay">Thanh toán</label>
+            <select id="pay" name="pay" class="form-select form-select-sm">
+              {% for value, label in payment_choices %}
+              <option value="{{ value }}" {% if payment_method == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-6 col-md-3">
+            <label class="form-label small text-muted" for="date">Thời gian giao</label>
+            <input type="date" id="date" name="date" class="form-control form-control-sm jp-date-vn"
+                   value="{% if expected_date %}{{ expected_date|date:'Y-m-d' }}{% endif %}">
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Tên hàng</th>
+                <th>Hình</th>
+                <th>Quy cách / màu</th>
+                <th>ĐVT</th>
+                <th class="text-end">Số lượng</th>
+                <th class="text-end">Đơn giá</th>
+                <th>Ghi chú</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in rows %}
+              <tr>
+                <td class="small fw-semibold">{{ row.line.material_name|default:row.line.material_code }}</td>
+                <td>
+                  {% if row.image_url %}
+                  <img src="{{ row.image_url }}" alt="" width="42" height="42" class="rounded border" style="object-fit:cover">
+                  {% else %}—{% endif %}
+                </td>
+                <td class="small">{{ row.spec|default:"—" }}</td>
+                <td class="small">{{ row.unit|default:"—" }}</td>
+                <td class="text-end" style="width:8rem">
+                  <input type="number" name="qty__{{ row.line.pk }}" min="0" step="any" class="form-control form-control-sm text-end" value="{{ row.line.qty|sx_num_input }}">
+                </td>
+                <td class="text-end" style="width:8rem">
+                  <input type="number" name="price__{{ row.line.pk }}" min="0" step="any" class="form-control form-control-sm text-end" value="{{ row.line.unit_price|sx_num_input }}">
+                </td>
+                <td style="min-width:10rem">
+                  <input type="text" name="note__{{ row.line.pk }}" class="form-control form-control-sm" value="{{ row.line.notes }}" maxlength="255">
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <button type="submit" class="btn btn-hm btn-sm fw-bold mt-3">Lưu</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+(function () {
+  var select = document.getElementById('supplier');
+  if (!select) return;
+  select.addEventListener('change', function () {
+    var opt = select.options[select.selectedIndex];
+    if (!opt) return;
+    document.getElementById('contact').value = opt.getAttribute('data-contact') || '';
+    document.getElementById('phone').value = opt.getAttribute('data-phone') || '';
+    document.getElementById('address').value = opt.getAttribute('data-address') || '';
+    document.getElementById('tax').value = opt.getAttribute('data-tax') || '';
+  });
+})();
+</script>
+{% endblock %}

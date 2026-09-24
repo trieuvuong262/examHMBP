@@ -454,6 +454,65 @@ def place_shortage_requests_from_post(*, order_id: int, post, user=None) -> list
 
 
 @transaction.atomic
+def update_open_purchase_request(*, request_id: int, post, user=None) -> SxNplPurchaseRequest:
+    """Sửa đơn đặt hàng khi chưa xác nhận."""
+    pr = (
+        SxNplPurchaseRequest.objects.select_for_update()
+        .prefetch_related('lines')
+        .get(pk=request_id, is_demo=False)
+    )
+    if pr.status not in (
+        SxNplPurchaseRequest.STATUS_DRAFT,
+        SxNplPurchaseRequest.STATUS_SUBMITTED,
+    ):
+        raise PlanningError('Đơn đã xác nhận — không sửa được.')
+    lines = list(pr.lines.all())
+    if not lines:
+        raise PlanningError('Đơn không có dòng hàng.')
+    raw_supplier = (post.get('supplier') or '').strip()
+    supplier_id = int(raw_supplier) if raw_supplier.isdigit() else 0
+    supplier = Supplier.objects.filter(pk=supplier_id, is_active=True).first() if supplier_id else None
+    if supplier is None:
+        raise PlanningError('Chọn nhà cung cấp.')
+    pay = (post.get('pay') or '').strip()
+    if pay not in _PAYMENTS:
+        pay = SxNplPurchaseRequest.PAYMENT_TRANSFER
+    expected = _parse_date(post.get('date'))
+    supplier.contact_name = (post.get('contact') or '').strip()[:120]
+    supplier.phone = (post.get('phone') or '').strip()[:40]
+    supplier.address = (post.get('address') or '').strip()[:255]
+    supplier.tax_code = (post.get('tax') or '').strip()[:32]
+    supplier.save(update_fields=['contact_name', 'phone', 'address', 'tax_code'])
+    kept = 0
+    for ln in lines:
+        qty = _parse_qty(post.get(f'qty__{ln.pk}'))
+        if qty <= 0:
+            ln.delete()
+            continue
+        price = _parse_qty(post.get(f'price__{ln.pk}'))
+        if price < 0:
+            raise PlanningError('Đơn giá không được âm.')
+        ln.qty = qty
+        ln.unit_price = price
+        ln.notes = (post.get(f'note__{ln.pk}') or '').strip()[:255]
+        ln.supplier = supplier
+        ln.expected_date = expected
+        ln.payment_method = pay
+        ln.save(update_fields=[
+            'qty', 'unit_price', 'notes', 'supplier', 'expected_date', 'payment_method',
+        ])
+        kept += 1
+    if not kept:
+        raise PlanningError('Nhập số lượng đặt lớn hơn 0.')
+    pr.due_date = expected
+    pr.payment_method = pay
+    pr.save(update_fields=['due_date', 'payment_method'])
+    if pr.sales_order_id:
+        sync_order_npl(order_id=pr.sales_order_id)
+    return pr
+
+
+@transaction.atomic
 def split_purchase_orders_from_request(*, request_id: int, user=None) -> list[SxPurchaseOrder]:
     """Một đơn mua nháp cho mỗi nhà cung cấp trên YCM đã duyệt."""
     pr = (
