@@ -456,6 +456,11 @@ def task_detail(request, pk):
     is_assigner = can_manage_assigned_task(request.user, task)
     can_review = can_review_assigned_task(request.user, task)
     can_cancel_task = can_cancel_assigned_task(request.user, task)
+    can_withdraw_assignment = (
+        not is_project_step
+        and is_assigner
+        and task.status == WorkTask.STATUS_PENDING_ACK
+    )
 
     progress_form = WorkTaskProgressForm(
         initial={'progress_percent': task.progress_percent, 'result_note': task.result_note},
@@ -573,13 +578,17 @@ def task_detail(request, pk):
                 return _redirect_task_detail(task)
             messages.error(request, 'Vui lòng nhập ghi chú khi yêu cầu sửa.')
 
-        if action == 'cancel' and can_cancel_task and task.status not in {
+        if action == 'cancel' and task.status not in {
             WorkTask.STATUS_COMPLETED, WorkTask.STATUS_CANCELLED, WorkTask.STATUS_REASSIGNED,
-        }:
+        } and (can_withdraw_assignment or can_cancel_task):
             task.status = WorkTask.STATUS_CANCELLED
             task.save(update_fields=['status', 'updated_at'])
-            log_task_action(task, request.user, WorkTaskLog.ACTION_CANCEL, 'Hủy công việc')
-            messages.info(request, 'Đã hủy công việc.')
+            if can_withdraw_assignment:
+                log_task_action(task, request.user, WorkTaskLog.ACTION_CANCEL, 'Hủy giao việc — chưa xác nhận')
+                messages.info(request, 'Đã hủy giao việc.')
+            else:
+                log_task_action(task, request.user, WorkTaskLog.ACTION_CANCEL, 'Hủy công việc')
+                messages.info(request, 'Đã hủy công việc.')
             if is_project_step:
                 return redirect(_project_detail_route(task.project), pk=task.project_id)
             return redirect('tasks:assigned')
@@ -623,6 +632,7 @@ def task_detail(request, pk):
         'is_assigner': is_assigner,
         'can_review': can_review,
         'can_cancel_task': can_cancel_task,
+        'can_withdraw_assignment': can_withdraw_assignment,
         'can_assign': can_assign_tasks(request.user),
         'can_create': can_create_internal_project(request.user),
         'can_receive': can_receive_assigned_tasks(request.user),

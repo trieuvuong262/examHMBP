@@ -10,20 +10,17 @@
       <h2 class="jp-npl-mat-topbar-title w-100">Đặt hàng thiếu — {{ order.code }}</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
-      {% if can_place and groups %}
-      <button type="submit" form="shortage-order" class="btn btn-hm btn-sm fw-bold">Lưu</button>
-      {% endif %}
+      <a href="{% url 'san_xuat:plan_npl' %}?dh={{ order.pk }}"><i class="bi bi-boxes" aria-hidden="true"></i>Xác nhận đơn đặt hàng</a>
       <span class="sep" aria-hidden="true"></span>
-      <a href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=queue&amp;q={{ order.code|urlencode }}&amp;npl={{ order.pk }}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+      <a href="{% url 'san_xuat:npl_purchase_request' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Đơn đặt hàng</a>
     </nav>
   </div>
 
   <div class="jp-sx-page-body">
   {% if groups %}
-    <form id="shortage-order" method="post">
-      {% csrf_token %}
       {% for group in groups %}
-      <div class="card border-0 shadow-sm mb-3" data-supplier-group="{{ group.key }}">
+      <form method="post" class="card border-0 shadow-sm mb-3" data-supplier-group="{{ group.key }}">
+      {% csrf_token %}
         <div class="card-body">
           <div class="row g-2 mb-3">
             <div class="col-12 col-md-4">
@@ -108,13 +105,12 @@
               </tbody>
             </table>
           </div>
+          {% if can_place %}
+          <button type="submit" class="btn btn-hm btn-sm fw-bold mt-3">Lưu</button>
+          {% endif %}
         </div>
-      </div>
+      </form>
       {% endfor %}
-      {% if can_place %}
-      <button type="submit" class="btn btn-hm btn-sm fw-bold">Lưu</button>
-      {% endif %}
-    </form>
     {{ supplier_contacts|json_script:"supplier-contacts" }}
     <script>
     (function () {

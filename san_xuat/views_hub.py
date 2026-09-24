@@ -2352,7 +2352,7 @@ def plan_board(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def plan_shortage_order(request, order_id: int):
-    """Nhập NCC và thông tin đặt hàng thiếu. Lưu rồi sang xác nhận nguyên phụ liệu."""
+    """Nhập NCC và thông tin đặt hàng thiếu. Mỗi nhà cung cấp lưu riêng."""
     from kho_npl.models import Supplier
     from san_xuat.hub_models import SxSalesOrder
     from san_xuat.services.npl_shortage_order import (
@@ -2363,7 +2363,7 @@ def plan_shortage_order(request, order_id: int):
     from san_xuat.services.plan_order_npl import sync_order_npl
     from san_xuat.services.planning import PlanningError
 
-    menu_key = 'plan_board'
+    menu_key = 'npl_pr'
     if not (
         user_can_access_menu(request.user, MODULE_SAN_XUAT, menu_key)
         or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan')
@@ -2394,7 +2394,9 @@ def plan_shortage_order(request, order_id: int):
         else:
             codes = ', '.join(pr.code for pr in created)
             messages.success(request, f'Đã lưu đơn đặt hàng {codes}.')
-            return redirect(f"{reverse('san_xuat:plan_npl')}?dh={order.pk}")
+            order = sync_order_npl(order_id=order.pk)
+            if not build_shortage_preview(order):
+                return redirect(f"{reverse('san_xuat:plan_npl')}?dh={order.pk}")
 
     try:
         order = sync_order_npl(order_id=order.pk)

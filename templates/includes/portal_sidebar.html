@@ -870,7 +870,7 @@
                         {% if jp_can_san_xuat_npl_pr or jp_can_san_xuat_plan %}
                         <li>
                             <a href="{% url 'san_xuat:npl_purchase_request' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if 'npl_purchase_request' in request.resolver_match.url_name %}active{% endif %}">
+                               class="jp-sidebar-link jp-sidebar-sublink {% if 'npl_purchase_request' in request.resolver_match.url_name or request.resolver_match.url_name == 'plan_shortage_order' %}active{% endif %}">
                                 <i class="bi bi-cart-plus"></i><span>Đơn đặt hàng</span>
                             </a>
                         </li>

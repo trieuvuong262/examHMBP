@@ -406,6 +406,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/san-xuat/ke-hoach/de-xuat-bu-ton', MODULE_SAN_XUAT, 'restock'),
     ('/san-xuat/ke-hoach/npl', MODULE_SAN_XUAT, 'plan_npl'),
     ('/san-xuat/ke-hoach/don-dat-hang', MODULE_SAN_XUAT, 'npl_pr'),
+    ('/san-xuat/ke-hoach/dat-hang-thieu', MODULE_SAN_XUAT, 'npl_pr'),
     ('/san-xuat/ke-hoach/yeu-cau-mua-npl', MODULE_SAN_XUAT, 'npl_pr'),
     ('/san-xuat/ke-hoach/don-mua-hang', MODULE_SAN_XUAT, 'purchase_order'),
     ('/san-xuat/ke-hoach/nhat-ky', MODULE_SAN_XUAT, 'plan_audit'),

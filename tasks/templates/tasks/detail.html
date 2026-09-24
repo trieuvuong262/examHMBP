@@ -54,6 +54,13 @@
                 {% if task.status == 'pending_ack' %}Đổi người nhận{% else %}Giao lại{% endif %}
             </a>
             {% endif %}
+            {% if can_withdraw_assignment %}
+            <form method="post" class="d-inline" onsubmit="return confirm('Hủy giao việc này? Người nhận sẽ không còn việc.');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="cancel">
+                <button type="submit" class="btn btn-outline-danger btn-sm">Hủy giao việc</button>
+            </form>
+            {% endif %}
             {% endif %}
             {% if can_claim %}
             <a href="{% url 'tasks:cross_dept_claim' task.pk %}" class="btn btn-hm btn-sm">Tiếp nhận bước</a>
@@ -260,7 +267,7 @@
             </div>
             {% endif %}
 
-            {% if can_cancel_task and task.status != 'completed' and task.status != 'cancelled' and task.status != 'reassigned' %}
+            {% if can_cancel_task and not can_withdraw_assignment and task.status != 'completed' and task.status != 'cancelled' and task.status != 'reassigned' %}
             <form method="post" onsubmit="return confirm('Hủy công việc này?');">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="cancel">
