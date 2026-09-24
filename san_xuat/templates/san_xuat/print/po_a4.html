@@ -65,9 +65,18 @@
     td.num, th.num { text-align: right; }
     td.mid { text-align: center; }
     .foot { margin-top: 3px; font-size: 8.5pt; }
-    .sign { display: grid; grid-template-columns: 1fr 1fr 1fr; margin-top: auto; padding-top: 8px; text-align: center; font-size: 8.5pt; }
+    .sign {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10mm;
+      margin-top: auto;
+      margin-bottom: 10mm;
+      padding: 0 6mm;
+      text-align: center;
+      font-size: 9pt;
+    }
     .sign .role { font-weight: 700; }
-    .sign .who { margin-top: 16px; min-height: 14px; font-size: 8.5pt; font-weight: 700; }
+    .sign .who { margin-top: 16mm; font-size: 9pt; font-weight: 700; }
     @page { size: 210mm 148mm; margin: 0; }
     @media print {
       html, body { background: #fff; width: 210mm; height: 148mm; }
@@ -156,12 +165,11 @@
       {% if sheet.notes %}<div>Ghi chú thêm: {{ sheet.notes }}</div>{% endif %}
     </div>
     <div class="sign">
-      <div>
+      <div class="slot">
         <div class="role">Người lập phiếu</div>
         <div class="who">{{ sheet.preparer_name }}</div>
       </div>
-      <div></div>
-      <div>
+      <div class="slot">
         <div class="role">Trưởng bộ phận</div>
         <div class="who"></div>
       </div>
