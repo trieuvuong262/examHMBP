@@ -439,7 +439,7 @@ def build():
         ('Banner chờ duyệt / từ chối', 'Cảnh báo số việc cần xử lý'),
         ('Pill / Tìm / ×', 'Lọc &amp; tìm người nhận / tiêu đề'),
         ('Chi tiết', 'Xem / duyệt / huỷ'),
-        ('Giao lại', 'Chỉ khi trạng thái Từ chối'),
+        ('Đổi người nhận / Giao lại', 'Đổi người khi Chờ xác nhận; Giao lại khi Từ chối'),
     ], st))
     story.append(P('G.3. Form Giao việc', 'h2', st))
     story.extend(button_table([

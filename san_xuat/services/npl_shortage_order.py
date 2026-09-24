@@ -213,9 +213,15 @@ def build_shortage_preview(order: SxSalesOrder) -> list[ShortageOrderGroup]:
 
 
 @transaction.atomic
-def save_shortage_request(*, order_id: int, post, user=None) -> SxNplPurchaseRequest:
+def save_shortage_request(*, order_id: int, post, user=None, group_key: str = '') -> SxNplPurchaseRequest:
     order = sync_order_npl(order_id=order_id)
     preview = {ln.npl_line_id: ln for group in build_shortage_preview(order) for ln in group.lines}
+    key = (group_key or '').strip()
+    if key:
+        preview = {
+            line_id: src for line_id, src in preview.items()
+            if str(src.supplier_id or 0) == key
+        }
     if not preview:
         raise PlanningError('Không còn NPL thiếu để đặt.')
 

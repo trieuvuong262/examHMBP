@@ -10,8 +10,15 @@
 
     {% include 'tasks/includes/personal_subnav.html' %}
 
-    {% if pending_review_count or rejected_count %}
+    {% if pending_review_count or rejected_count or pending_ack_count %}
     <div class="row g-3 mb-3">
+        {% if pending_ack_count %}
+        <div class="col-md-6">
+            <div class="alert alert-warning border-0 shadow-sm mb-0">
+                <strong>{{ pending_ack_count }}</strong> việc chờ xác nhận — có thể đổi người nhận
+            </div>
+        </div>
+        {% endif %}
         {% if pending_review_count %}
         <div class="col-md-6">
             <div class="alert alert-primary border-0 shadow-sm mb-0">
@@ -83,8 +90,10 @@
                         <td><span class="badge {{ task.status_badge_class }}">{{ task.get_status_display }}</span></td>
                         <td class="text-end">
                             <a href="{% url 'tasks:detail' task.pk %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
-                            {% if task.status == 'rejected' %}
-                            <a href="{% url 'tasks:reassign' task.pk %}" class="btn btn-sm btn-hm">Giao lại</a>
+                            {% if task.status == 'pending_ack' or task.status == 'rejected' %}
+                            <a href="{% url 'tasks:reassign' task.pk %}" class="btn btn-sm btn-hm">
+                                {% if task.status == 'pending_ack' %}Đổi người nhận{% else %}Giao lại{% endif %}
+                            </a>
                             {% endif %}
                         </td>
                     </tr>

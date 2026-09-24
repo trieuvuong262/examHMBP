@@ -48,8 +48,12 @@
             {% endif %}
             {% if is_project_step and is_assigner and task.status == 'rejected' %}
             <a href="{% if is_cross_dept %}{% url 'tasks:cross_dept_reassign' task.pk %}{% else %}{% url 'tasks:project_reassign' task.pk %}{% endif %}" class="btn btn-hm btn-sm">Giao người khác</a>
-            {% elif not is_project_step and is_assigner and task.status == 'rejected' %}
-            <a href="{% url 'tasks:reassign' task.pk %}" class="btn btn-hm btn-sm">Giao lại</a>
+            {% elif not is_project_step and is_assigner %}
+            {% if task.status == 'pending_ack' or task.status == 'rejected' %}
+            <a href="{% url 'tasks:reassign' task.pk %}" class="btn btn-hm btn-sm">
+                {% if task.status == 'pending_ack' %}Đổi người nhận{% else %}Giao lại{% endif %}
+            </a>
+            {% endif %}
             {% endif %}
             {% if can_claim %}
             <a href="{% url 'tasks:cross_dept_claim' task.pk %}" class="btn btn-hm btn-sm">Tiếp nhận bước</a>
@@ -118,9 +122,14 @@
                     {% endif %}
                     {% if task.reassigned_from %}
                     <div class="alert alert-light border-0 mb-0">
-                        <strong>Bước thay thế</strong> cho công việc #{{ task.reassigned_from_id }}
+                        <strong>{% if is_project_step %}Bước thay thế{% else %}Việc thay thế{% endif %}</strong>
+                        cho công việc #{{ task.reassigned_from_id }}
                         {% if task.reassigned_from.assignee %}
+                        {% if task.reassigned_from.reject_reason %}
                         — từ chối bởi {{ task.reassigned_from.assignee.profile.full_name|default:task.reassigned_from.assignee.username }}
+                        {% else %}
+                        — trước đó giao cho {{ task.reassigned_from.assignee.profile.full_name|default:task.reassigned_from.assignee.username }} (chưa xác nhận)
+                        {% endif %}
                         {% endif %}
                         {% if task.reassigned_from.reject_reason %}
                         <div class="small mt-1 mb-0"><strong>Lý do từ chối:</strong> {{ task.reassigned_from.reject_reason|linebreaksbr }}</div>

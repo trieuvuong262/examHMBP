@@ -81,6 +81,12 @@ class WorkTask(models.Model):
         STATUS_REJECTED,
     }
 
+    # Việc cá nhân: đổi người nhận khi chưa xác nhận, hoặc giao lại khi đã từ chối
+    PERSONAL_REASSIGN_STATUSES = {
+        STATUS_PENDING_ACK,
+        STATUS_REJECTED,
+    }
+
     assignment_batch = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True)
     title = models.CharField(max_length=200, verbose_name='Tiêu đề')
     description = models.TextField(blank=True, verbose_name='Mô tả')

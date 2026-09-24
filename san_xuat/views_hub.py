@@ -2371,18 +2371,23 @@ def plan_shortage_order(request, order_id: int):
             messages.error(request, 'Không có quyền tạo yêu cầu mua NPL.')
             return redirect('san_xuat:plan_shortage_order', order_id=order.pk)
         try:
-            pr = save_shortage_request(order_id=order.pk, post=request.POST, user=request.user)
+            pr = save_shortage_request(
+                order_id=order.pk,
+                post=request.POST,
+                user=request.user,
+                group_key=(request.POST.get('group_key') or '').strip(),
+            )
             pr = submit_npl_purchase_request(request_id=pr.pk)
             pr = approve_npl_purchase_request(request_id=pr.pk)
         except PlanningError as exc:
             messages.error(request, str(exc))
         else:
-            pos = list(pr.purchase_orders.filter(is_demo=False).order_by('pk'))
-            if len(pos) == 1:
-                messages.success(request, f'Đã tạo đơn đặt hàng {pos[0].code}.')
-                return redirect('san_xuat:purchase_order_detail', pk=pos[0].pk)
-            messages.success(request, f'Đã tạo {len(pos)} đơn đặt hàng từ {pr.code}.')
-            return redirect('san_xuat:npl_purchase_request_detail', pk=pr.pk)
+            po = pr.purchase_orders.filter(is_demo=False).order_by('-pk').first()
+            if po:
+                messages.success(request, f'Đã tạo đơn đặt hàng {po.code}.')
+            else:
+                messages.success(request, f'Đã lập yêu cầu mua {pr.code}.')
+            return redirect('san_xuat:plan_shortage_order', order_id=order.pk)
     else:
         try:
             order = sync_order_npl(order_id=order.pk)

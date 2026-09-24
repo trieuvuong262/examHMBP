@@ -17,10 +17,10 @@
 
   <div class="jp-sx-page-body">
   {% if groups %}
-  <form method="post">
-    {% csrf_token %}
     {% for group in groups %}
-    <div class="card border-0 shadow-sm mb-3">
+    <form method="post" class="card border-0 shadow-sm mb-3">
+      {% csrf_token %}
+      <input type="hidden" name="group_key" value="{{ group.key }}">
       <div class="card-body">
         <div class="row g-2 mb-3">
           <div class="col-12 col-md-4">
@@ -105,13 +105,14 @@
             </tbody>
           </table>
         </div>
+        {% if can_place %}
+        <div class="mt-3">
+          <button type="submit" class="btn btn-hm btn-sm fw-bold">Lập phiếu</button>
+        </div>
+        {% endif %}
       </div>
-    </div>
+    </form>
     {% endfor %}
-    {% if can_place %}
-    <button type="submit" class="btn btn-hm btn-sm fw-bold">Lập đơn đặt hàng</button>
-    {% endif %}
-  </form>
   {% else %}
   <div class="card border-0 shadow-sm">
     <div class="card-body text-muted">Không còn NPL thiếu để đặt.</div>

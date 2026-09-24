@@ -4,6 +4,7 @@ from functools import wraps
 
 from django.contrib import messages
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -205,6 +206,9 @@ def assigned_tasks(request):
         ).count(),
         'rejected_count': _personal_tasks_qs(
             assigner=request.user, status=WorkTask.STATUS_REJECTED,
+        ).count(),
+        'pending_ack_count': _personal_tasks_qs(
+            assigner=request.user, status=WorkTask.STATUS_PENDING_ACK,
         ).count(),
     })
 
@@ -640,8 +644,11 @@ def reassign_task(request, pk):
         assigner=request.user,
         project__isnull=True,
     )
-    if old_task.status != WorkTask.STATUS_REJECTED:
-        messages.error(request, 'Chỉ giao lại được khi nhân viên đã từ chối việc.')
+    if old_task.status not in WorkTask.PERSONAL_REASSIGN_STATUSES:
+        messages.error(
+            request,
+            'Chỉ đổi người nhận khi việc còn chờ xác nhận, hoặc giao lại khi nhân viên đã từ chối.',
+        )
         return redirect('tasks:detail', pk=pk)
 
     if request.method == 'POST':
@@ -650,41 +657,63 @@ def reassign_task(request, pk):
             assigner=request.user,
             exclude_user=old_task.assignee,
         )
+        if old_task.status == WorkTask.STATUS_PENDING_ACK:
+            form.fields['assignee'].label = 'Người nhận mới'
         if form.is_valid():
             new_assignee = form.cleaned_data['assignee']
-            new_task = WorkTask.objects.create(
-                assignment_batch=old_task.assignment_batch,
-                title=old_task.title,
-                description=old_task.description,
-                task_type=old_task.task_type,
-                priority=old_task.priority,
-                due_date=old_task.due_date,
-                skip_completion_review=old_task.skip_completion_review,
-                assigner=request.user,
-                assignee=new_assignee,
-                reassigned_from=old_task,
-            )
-            copy_task_attachments(
-                old_task,
-                new_task,
-                stages=[WorkTaskAttachment.STAGE_ASSIGN],
-                uploaded_by=request.user,
-            )
-            old_task.status = WorkTask.STATUS_REASSIGNED
-            old_task.replaced_by = new_task
-            old_task.save(update_fields=['status', 'replaced_by', 'updated_at'])
-            log_task_action(
-                old_task, request.user, WorkTaskLog.ACTION_REASSIGN,
-                f'Giao lại cho {new_assignee.username}',
-            )
-            log_task_action(new_task, request.user, WorkTaskLog.ACTION_ASSIGNED, f'Giao lại từ #{old_task.pk}')
-            messages.success(request, f'Đã giao lại cho {new_assignee.profile.full_name or new_assignee.username}.')
+            with transaction.atomic():
+                locked = WorkTask.objects.select_for_update().get(pk=old_task.pk)
+                if locked.status not in WorkTask.PERSONAL_REASSIGN_STATUSES:
+                    messages.error(
+                        request,
+                        'Không đổi được người nhận — nhân viên đã xác nhận hoặc việc không còn cho phép giao lại.',
+                    )
+                    return redirect('tasks:detail', pk=pk)
+                was_pending = locked.status == WorkTask.STATUS_PENDING_ACK
+                previous_name = locked.assignee.username
+                new_task = WorkTask.objects.create(
+                    assignment_batch=locked.assignment_batch,
+                    title=locked.title,
+                    description=locked.description,
+                    task_type=locked.task_type,
+                    priority=locked.priority,
+                    due_date=locked.due_date,
+                    skip_completion_review=locked.skip_completion_review,
+                    recurrence=locked.recurrence,
+                    assigner=request.user,
+                    assignee=new_assignee,
+                    reassigned_from=locked,
+                )
+                copy_task_attachments(
+                    locked,
+                    new_task,
+                    stages=[WorkTaskAttachment.STAGE_ASSIGN],
+                    uploaded_by=request.user,
+                )
+                locked.status = WorkTask.STATUS_REASSIGNED
+                locked.replaced_by = new_task
+                locked.save(update_fields=['status', 'replaced_by', 'updated_at'])
+                if was_pending:
+                    old_note = f'Gỡ {previous_name} (chưa xác nhận) — giao cho {new_assignee.username}'
+                    new_note = f'Giao lại từ #{locked.pk} — người trước chưa xác nhận'
+                else:
+                    old_note = f'Giao lại cho {new_assignee.username}'
+                    new_note = f'Giao lại từ #{locked.pk}'
+                log_task_action(locked, request.user, WorkTaskLog.ACTION_REASSIGN, old_note)
+                log_task_action(new_task, request.user, WorkTaskLog.ACTION_ASSIGNED, new_note)
+            assignee_label = new_assignee.profile.full_name or new_assignee.username
+            if was_pending:
+                messages.success(request, f'Đã gỡ người nhận cũ và giao cho {assignee_label}.')
+            else:
+                messages.success(request, f'Đã giao lại cho {assignee_label}.')
             return redirect('tasks:detail', pk=new_task.pk)
     else:
         form = WorkTaskReassignForm(
             assigner=request.user,
             exclude_user=old_task.assignee,
         )
+        if old_task.status == WorkTask.STATUS_PENDING_ACK:
+            form.fields['assignee'].label = 'Người nhận mới'
 
     return render(request, 'tasks/reassign.html', {
         'form': form,
