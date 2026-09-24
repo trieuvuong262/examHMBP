@@ -57,6 +57,7 @@ _MENU_DEFER_PATH_PATTERNS = (
 )
 
 _MENU_REGEX_RULES: list[tuple[re.Pattern, str, str]] = [
+    (re.compile(r'^/san-xuat/don-hang/\d+/sua/?'), 'san_xuat', 'order_create'),
     (re.compile(r'^/gop-y/\d+/?$'), 'feedback', 'list'),
     (re.compile(r'^/reports/sx/weekly/\d+/?'), 'reports', 'weekly_cn_detail'),
     (re.compile(r'^/reports/vp/weekly/\d+/?'), 'reports', 'weekly_vp_detail'),
