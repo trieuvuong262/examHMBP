@@ -16,13 +16,19 @@
              value="{% if row.order.npl_kit_days is not None %}{{ row.order.npl_kit_days }}{% else %}{{ npl_kit_default }}{% endif %}"
              {% if not can_schedule or not row.can_edit_npl %}readonly{% endif %}>
     </label>
-    {% if can_schedule and row.can_edit_npl %}
     <span class="jp-pb-npl-actions">
+      {% if can_schedule and row.can_edit_npl %}
       <button type="submit" name="action" value="refresh_npl" class="btn btn-outline-secondary btn-sm fw-bold"
               title="Làm mới tồn kho và điền lại cột Đặt (nhu cầu, tối đa bằng tồn).">Load tồn</button>
       <button type="submit" name="action" value="apply_npl" class="btn btn-hm btn-sm fw-bold">Lưu</button>
+      {% endif %}
+      {% if can_create_npl_pr and row.npl_short_count %}
+      <a class="btn btn-outline-secondary btn-sm fw-bold" href="{% url 'san_xuat:plan_shortage_order' row.order.pk %}">Đặt hàng thiếu</a>
+      {% endif %}
+      {% if row.npl_pr_id %}
+      <a class="btn btn-outline-secondary btn-sm" href="{% url 'san_xuat:npl_purchase_request_detail' row.npl_pr_id %}">{{ row.npl_pr_code }}</a>
+      {% endif %}
     </span>
-    {% endif %}
   </div>
 
   {% if row.order.npl_lines.all %}

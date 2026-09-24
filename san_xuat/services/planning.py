@@ -553,6 +553,9 @@ def approve_npl_purchase_request(*, request_id: int) -> SxNplPurchaseRequest:
         raise PlanningError("Chỉ duyệt YCM đã gửi.")
     pr.status = SxNplPurchaseRequest.STATUS_APPROVED
     pr.save(update_fields=["status"])
+    from san_xuat.services.npl_shortage_order import split_purchase_orders_from_request
+
+    split_purchase_orders_from_request(request_id=pr.pk, user=None)
     return pr
 
 

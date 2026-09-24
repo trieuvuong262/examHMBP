@@ -55,8 +55,10 @@
               <thead class="table-light">
                 <tr>
                   <th>Nguyên phụ liệu</th>
+                  <th>Nhà cung cấp</th>
                   <th>Ngày cần</th>
                   <th class="text-end">SL yêu cầu mua</th>
+                  <th class="text-end">Đơn giá</th>
                 </tr>
               </thead>
               <tbody>
@@ -66,11 +68,13 @@
                     <div class="fw-semibold small">{{ line.material_code }}</div>
                     <div class="text-muted small">{{ line.material_name|default:"—" }}</div>
                   </td>
+                  <td class="small">{{ line.supplier.name|default:"—" }}</td>
                   <td class="small">{% if line.need_date %}{{ line.need_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
                   <td class="text-end">{{ line.qty|sx_num }}</td>
+                  <td class="text-end">{{ line.unit_price|sx_num:0 }}</td>
                 </tr>
               {% empty %}
-                <tr><td colspan="3" class="text-muted small">Chưa có dòng nguyên vật liệu.</td></tr>
+                <tr><td colspan="5" class="text-muted small">Chưa có dòng nguyên vật liệu.</td></tr>
               {% endfor %}
               </tbody>
             </table>
@@ -105,7 +109,9 @@
             <button type="submit" class="btn btn-outline-danger btn-sm">Từ chối</button>
           </form>
           {% elif pr.status == 'approved' %}
-          <a href="{% url 'san_xuat:purchase_order_create' %}?pr={{ pr.pk }}" class="btn btn-hm mb-3 btn-sm">Tạo đơn mua hàng (P5)</a>
+          {% if not purchase_orders %}
+          <a href="{% url 'san_xuat:purchase_order_create' %}?pr={{ pr.pk }}" class="btn btn-hm mb-3 btn-sm">Tạo đơn mua hàng</a>
+          {% endif %}
           {% if purchase_orders %}
           <div class="small text-muted mb-2">Đơn mua hàng liên quan</div>
           <ul class="mb-0">

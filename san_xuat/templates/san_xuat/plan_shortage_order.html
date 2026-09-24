@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% load sx_format %}
+
+{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Đặt hàng thiếu — {{ order.code }}</h2>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <span class="sep" aria-hidden="true"></span>
+      <a href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=queue&amp;q={{ order.code|urlencode }}&amp;npl={{ order.pk }}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+    </nav>
+  </div>
+
+  <div class="jp-sx-page-body">
+  {% if groups %}
+  <form method="post">
+    {% csrf_token %}
+    {% for group in groups %}
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body">
+        <div class="row g-2 mb-3">
+          <div class="col-12 col-md-4">
+            <label class="form-label small text-muted" for="supplier-{{ group.key }}">Nhà cung cấp</label>
+            <select id="supplier-{{ group.key }}" name="supplier__{{ group.key }}" class="form-select form-select-sm" {% if not can_place %}disabled{% endif %} required>
+              <option value="">Chọn</option>
+              {% for sup in suppliers %}
+              <option value="{{ sup.pk }}" {% if group.supplier_id == sup.pk %}selected{% endif %}>{{ sup.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label small text-muted" for="contact-{{ group.key }}">Liên hệ</label>
+            <input id="contact-{{ group.key }}" name="contact__{{ group.key }}" class="form-control form-control-sm" value="{{ group.contact_name }}" {% if not can_place %}readonly{% endif %}>
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label small text-muted" for="phone-{{ group.key }}">Điện thoại</label>
+            <input id="phone-{{ group.key }}" name="phone__{{ group.key }}" class="form-control form-control-sm" value="{{ group.phone }}" {% if not can_place %}readonly{% endif %}>
+          </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label small text-muted" for="address-{{ group.key }}">Địa chỉ</label>
+            <input id="address-{{ group.key }}" name="address__{{ group.key }}" class="form-control form-control-sm" value="{{ group.address }}" {% if not can_place %}readonly{% endif %}>
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label small text-muted" for="tax-{{ group.key }}">MST</label>
+            <input id="tax-{{ group.key }}" name="tax__{{ group.key }}" class="form-control form-control-sm" value="{{ group.tax_code }}" {% if not can_place %}readonly{% endif %}>
+          </div>
+          <div class="col-6 col-md-3">
+            <label class="form-label small text-muted" for="pay-{{ group.key }}">Thanh toán</label>
+            <select id="pay-{{ group.key }}" name="pay__{{ group.key }}" class="form-select form-select-sm" {% if not can_place %}disabled{% endif %}>
+              {% for value, label in payment_choices %}
+              <option value="{{ value }}" {% if group.payment_method == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-6 col-md-3">
+            <label class="form-label small text-muted" for="date-{{ group.key }}">Thời gian giao</label>
+            <input type="date" id="date-{{ group.key }}" name="date__{{ group.key }}" class="form-control form-control-sm jp-date-vn"
+                   value="{{ group.expected_date|date:'Y-m-d' }}" {% if not can_place %}readonly{% endif %}>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Tên hàng</th>
+                <th>Hình</th>
+                <th>Quy cách / màu</th>
+                <th>ĐVT</th>
+                <th class="text-end">Thiếu</th>
+                <th class="text-end">Số lượng</th>
+                <th class="text-end">Đơn giá</th>
+                <th>Ghi chú</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for ln in group.lines %}
+              <tr>
+                <td class="small fw-semibold">{{ ln.material_name|default:ln.material_code }}</td>
+                <td>
+                  {% if ln.image_url %}
+                  <img src="{{ ln.image_url }}" alt="" width="42" height="42" class="rounded border" style="object-fit:cover">
+                  {% else %}—{% endif %}
+                </td>
+                <td class="small">{{ ln.spec_label|default:"—" }}</td>
+                <td class="small">{{ ln.unit|default:"—" }}</td>
+                <td class="text-end small">{{ ln.shortfall|sx_num }}</td>
+                <td class="text-end" style="width:8rem">
+                  <input type="number" name="qty__{{ ln.npl_line_id }}" min="0" step="any" class="form-control form-control-sm text-end"
+                         value="{{ ln.qty|sx_num_input }}" {% if not can_place %}readonly{% endif %}>
+                </td>
+                <td class="text-end" style="width:8rem">
+                  <input type="number" name="price__{{ ln.npl_line_id }}" min="0" step="any" class="form-control form-control-sm text-end"
+                         value="{{ ln.unit_price|sx_num_input }}" {% if not can_place %}readonly{% endif %}>
+                </td>
+                <td style="min-width:10rem">
+                  <input type="text" name="note__{{ ln.npl_line_id }}" class="form-control form-control-sm" value="{{ ln.note }}" maxlength="255" {% if not can_place %}readonly{% endif %}>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    {% if can_place %}
+    <button type="submit" class="btn btn-hm btn-sm fw-bold">Lập đơn đặt hàng</button>
+    {% endif %}
+  </form>
+  {% else %}
+  <div class="card border-0 shadow-sm">
+    <div class="card-body text-muted">Không còn NPL thiếu để đặt.</div>
+  </div>
+  {% endif %}
+  </div>
+</div>
+{% endblock %}

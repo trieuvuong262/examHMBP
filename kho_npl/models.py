@@ -241,7 +241,10 @@ class WarehouseLocation(StockDomainMixin, models.Model):
 class Supplier(models.Model):
     code = models.CharField(max_length=40, unique=True, verbose_name='Mã NCC')
     name = models.CharField(max_length=200, verbose_name='Tên nhà cung cấp')
+    contact_name = models.CharField(max_length=120, blank=True, default='', verbose_name='Người liên hệ')
     phone = models.CharField(max_length=40, blank=True, verbose_name='Điện thoại')
+    address = models.CharField(max_length=255, blank=True, default='', verbose_name='Địa chỉ')
+    tax_code = models.CharField(max_length=32, blank=True, default='', verbose_name='Mã số thuế')
     notes = models.TextField(blank=True, verbose_name='Ghi chú')
     is_active = models.BooleanField(default=True, verbose_name='Đang dùng')
 

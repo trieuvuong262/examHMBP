@@ -956,7 +956,23 @@ class SxNplPurchaseRequest(DemoMarkedModel):
     request_date = models.DateField(null=True, blank=True, verbose_name='Ngày YC')
     due_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True)
+    PAYMENT_TRANSFER = 'transfer'
+    PAYMENT_CASH = 'cash'
+    PAYMENT_CREDIT = 'credit'
+    PAYMENT_CHOICES = [
+        (PAYMENT_TRANSFER, 'Chuyển khoản'),
+        (PAYMENT_CASH, 'Tiền mặt'),
+        (PAYMENT_CREDIT, 'Công nợ'),
+    ]
+
     notes = models.TextField(blank=True, default='')
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PAYMENT_CHOICES,
+        blank=True,
+        default='',
+        verbose_name='Hình thức thanh toán',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -974,6 +990,24 @@ class SxNplPurchaseRequestLine(models.Model):
     material_name = models.CharField(max_length=255, blank=True, default='')
     qty = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal('0'))
     need_date = models.DateField(null=True, blank=True, verbose_name='Ngày cần')
+    supplier = models.ForeignKey(
+        'kho_npl.Supplier',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='npl_purchase_request_lines',
+        verbose_name='Nhà cung cấp',
+    )
+    unit_price = models.DecimalField(
+        max_digits=18,
+        decimal_places=6,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Đơn giá',
+    )
+    expected_date = models.DateField(null=True, blank=True, verbose_name='Ngày giao')
+    payment_method = models.CharField(max_length=20, blank=True, default='', verbose_name='Thanh toán')
+    notes = models.CharField(max_length=255, blank=True, default='', verbose_name='Ghi chú')
 
     class Meta:
         ordering = ['id']
@@ -1016,6 +1050,14 @@ class SxPurchaseOrder(DemoMarkedModel):
     kv_purchase_kiotviet_id = models.BigIntegerField(null=True, blank=True, verbose_name='KV purchase id')
     kv_purchase_code = models.CharField(max_length=64, blank=True, default='', verbose_name='Mã phiếu nhập KV')
     notes = models.TextField(blank=True, default='')
+    payment_method = models.CharField(
+        max_length=20,
+        choices=SxNplPurchaseRequest.PAYMENT_CHOICES,
+        blank=True,
+        default='',
+        verbose_name='Hình thức thanh toán',
+    )
+    order_date = models.DateField(null=True, blank=True, verbose_name='Ngày đặt')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -1041,6 +1083,7 @@ class SxPurchaseOrderLine(models.Model):
         verbose_name='Đơn giá mua',
     )
     need_date = models.DateField(null=True, blank=True, verbose_name='Ngày cần')
+    notes = models.CharField(max_length=255, blank=True, default='', verbose_name='Ghi chú')
 
     class Meta:
         ordering = ['id']

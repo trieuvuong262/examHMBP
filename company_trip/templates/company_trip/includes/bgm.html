@@ -1,5 +1,5 @@
 {% load static %}
-<audio id="jp-trip-bgm" src="{% static 'company_trip/audio/di-de-tro-ve.mp3' %}" loop preload="auto"></audio>
+<audio id="jp-trip-bgm" src="{% static 'company_trip/audio/video-project-3.mp3' %}" loop preload="auto"></audio>
 <button type="button" class="jp-trip-bgm-btn" id="jp-trip-bgm-btn" aria-pressed="false" aria-label="Bật nhạc nền">
     <i class="bi bi-volume-mute-fill" aria-hidden="true"></i>
 </button>
@@ -30,7 +30,7 @@ body.jp-has-sidebar .jp-trip-bgm-btn { bottom: 1rem; }
   var btn = document.getElementById('jp-trip-bgm-btn');
   if (!audio || !btn) return;
   var icon = btn.querySelector('i');
-  audio.volume = 0.5;
+  audio.volume = 1;
   function paint(on) {
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
     btn.setAttribute('aria-label', on ? 'Tắt nhạc nền' : 'Bật nhạc nền');

@@ -10,6 +10,9 @@
       <h2 class="jp-npl-mat-topbar-title w-100">{{ po.code }}</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
+      {% if can_print %}
+      <a href="{% url 'san_xuat:print_po' po.pk %}?autoprint=1" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i>In</a>
+      {% endif %}
       <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:purchase_order' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
     </nav>
@@ -106,29 +109,12 @@
           <div class="text-muted small mb-3">Chưa có phiếu nhập kho nào.</div>
           {% endif %}
 
-          {% if can_update and po.status != 'draft' and remaining_qty %}
-          <form method="post" class="row g-2 align-items-end mb-2">
+          {% if can_update and po.status != 'received' and remaining_qty %}
+          <form method="post" class="mb-2">
             {% csrf_token %}
             <input type="hidden" name="action" value="create_receipt">
-            {% for field in receipt_form %}
-            <div class="col-12">
-              <label class="form-label small text-muted mb-1" for="{{ field.id_for_label }}">{{ field.label }}</label>
-              {{ field }}
-            </div>
-            {% endfor %}
-            <div class="col-12">
-              <button type="submit" class="btn btn-hm btn-sm">Tạo phiếu nhập kho</button>
-            </div>
+            <button type="submit" class="btn btn-hm btn-sm">Nhập kho</button>
           </form>
-          <div class="text-muted small mb-2">
-            Phiếu tạo ra ở trạng thái nháp — vào Kho NPL đính kèm chứng từ rồi ghi sổ để cộng tồn.
-          </div>
-          {% if lines_without_price %}
-          <div class="alert alert-warning border-0 py-2 small mb-0" role="status">
-            {{ lines_without_price|length }} mã chưa có đơn giá ({{ lines_without_price|join:", "|truncatechars:60 }}) —
-            kho phải nhập đơn giá trên phiếu nhập trước khi ghi sổ.
-          </div>
-          {% endif %}
           {% endif %}
 
           {% if can_update and stock_receipts %}
@@ -166,27 +152,13 @@
         </div>
       </div>
 
+      {% if po.status == 'received' %}
       <div class="card border-0 shadow-sm">
         <div class="card-body">
-          <div class="small text-muted mb-3">Hành động</div>
-          {% if can_update and po.status == 'draft' %}
-          <form method="post">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="confirm">
-            <button type="submit" class="btn btn-hm btn-sm">Xác nhận đơn mua hàng</button>
-          </form>
-          {% elif po.status == 'confirmed' and can_update %}
-          <div class="text-muted small">
-            Đơn mua hàng đã xác nhận — tạo phiếu nhập kho NPL (khuyến nghị) hoặc
-            liên kết phiếu nhập KiotViet để ghi nhận hàng về.
-          </div>
-          {% elif po.status == 'received' %}
-          <div class="text-success small">Đơn mua hàng đã nhập đủ.</div>
-          {% else %}
-          <div class="text-muted small">Đơn mua hàng đã xử lý hoặc bạn không có quyền cập nhật.</div>
-          {% endif %}
+          <div class="text-success small mb-0">Đơn mua hàng đã nhập đủ.</div>
         </div>
       </div>
+      {% endif %}
     </div>
   </div>
 </div>

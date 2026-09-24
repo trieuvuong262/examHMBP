@@ -1,0 +1,162 @@
+{% load static sx_format %}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <title>{{ print_title }}</title>
+  <style>
+    :root { --ink: #111; --line: #222; }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Times New Roman", "Liberation Serif", serif;
+      font-size: 9pt;
+      line-height: 1.25;
+      background: #e8e8e8;
+    }
+    .no-print {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      gap: .5rem;
+      align-items: center;
+      justify-content: center;
+      padding: .65rem;
+      background: #1f2937;
+      color: #fff;
+      font-family: system-ui, sans-serif;
+      font-size: 13px;
+    }
+    .no-print button, .no-print a {
+      border: 0;
+      border-radius: 4px;
+      padding: .4rem .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      color: #111;
+      background: #f8fafc;
+    }
+    .sheet {
+      width: 210mm;
+      min-height: 148mm;
+      margin: 12px auto;
+      padding: 4mm 5mm;
+      background: #fff;
+      border: 2pt solid #111;
+      box-shadow: 0 2px 12px rgba(0,0,0,.18);
+    }
+    .brand { display: flex; align-items: center; gap: 8px; }
+    .brand .logo { height: 16mm; width: auto; flex: 0 0 auto; }
+    .brand .co-block { flex: 1; min-width: 0; }
+    .co { text-align: center; font-weight: 700; font-size: 11pt; text-transform: uppercase; }
+    .co-meta { text-align: center; font-size: 8pt; }
+    h1 { margin: 2px 0 3px; text-align: center; font-size: 13pt; letter-spacing: .06em; }
+    .head { display: flex; justify-content: space-between; gap: 8px; font-size: 8.5pt; }
+    .head .party { flex: 1; }
+    table { width: 100%; border-collapse: collapse; margin: 3px 0; }
+    th, td { border: 1pt solid var(--line); padding: 2px 3px; vertical-align: middle; }
+    th { text-align: center; font-size: 7.5pt; background: #f3f3f3; }
+    td.num, th.num { text-align: right; }
+    td.mid { text-align: center; }
+    img.thumb { width: 28px; height: 28px; object-fit: cover; display: block; margin: 0 auto; }
+    .foot { margin-top: 3px; font-size: 8.5pt; }
+    .sign { display: grid; grid-template-columns: 1fr 1fr 1fr; margin-top: 6px; text-align: center; font-size: 8.5pt; }
+    .sign .role { font-weight: 700; }
+    .sign .who { margin-top: 28px; font-size: 8pt; }
+    @page { size: A5 landscape; margin: 0; }
+    @media print {
+      html, body { background: #fff; }
+      .no-print { display: none !important; }
+      .sheet { width: auto; min-height: auto; margin: 0; border: 2pt solid #111; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="no-print">
+    <button type="button" onclick="window.print()">In giấy A5 ngang</button>
+    <a href="{{ back_url }}">Đóng</a>
+  </div>
+  <article class="sheet">
+    <div class="brand">
+      <img class="logo" src="{% static 'images/logo/po_excel_logo.png' %}" alt="Just Play">
+      <div class="co-block">
+        <div class="co">{{ company_name }}</div>
+        <div class="co-meta">Địa chỉ: {{ company_address }}</div>
+        <div class="co-meta">MST: {{ company_tax_code }}</div>
+      </div>
+    </div>
+    <h1>ĐƠN ĐẶT HÀNG</h1>
+    <div class="head">
+      <div class="party">
+        <div>Nhà cung cấp: <strong>{{ supplier_name|default:"—" }}</strong></div>
+        <div>Liên hệ: {{ supplier_contact|default:"—" }}</div>
+        <div>Địa chỉ: {{ supplier_address|default:"—" }}</div>
+        <div>MST: {{ supplier_tax|default:"—" }}</div>
+      </div>
+      <div>
+        <div>Ngày: <strong>{{ doc_date|date:"d/m/Y" }}</strong></div>
+        <div>Số: <strong>{{ doc_code }}</strong></div>
+      </div>
+    </div>
+    <p style="margin:3px 0;font-size:8.5pt">Công Ty TNHH JUST PLAY có nhu cầu đặt hàng Quý công ty theo nội dung đơn hàng sau:</p>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:4%">STT</th>
+          <th>Tên hàng</th>
+          <th style="width:8%">Hình ảnh</th>
+          <th style="width:14%">Quy cách / màu sắc</th>
+          <th style="width:7%">ĐVT</th>
+          <th class="num" style="width:9%">Số lượng</th>
+          <th class="num" style="width:11%">Đơn giá (VND)</th>
+          <th class="num" style="width:12%">Thành tiền</th>
+          <th style="width:12%">Ghi chú</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td class="mid">{{ forloop.counter }}</td>
+          <td>{{ row.name }}</td>
+          <td class="mid">{% if row.image_url %}<img class="thumb" src="{{ row.image_url }}" alt="">{% endif %}</td>
+          <td>{{ row.spec }}</td>
+          <td class="mid">{{ row.unit }}</td>
+          <td class="num">{{ row.qty|sx_num }}</td>
+          <td class="num">{{ row.price|sx_num:0 }}</td>
+          <td class="num">{{ row.amount|sx_num:0 }}</td>
+          <td>{{ row.note }}</td>
+        </tr>
+        {% endfor %}
+        <tr>
+          <td colspan="5"><strong>Tổng</strong></td>
+          <td class="num"><strong>{{ total_qty|sx_num }}</strong></td>
+          <td></td>
+          <td class="num"><strong>{{ total_amount|sx_num:0 }}</strong></td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="foot">
+      <div>Thời gian giao hàng: {% if po.expected_date %}{{ po.expected_date|date:"d/m/Y" }}{% else %}—{% endif %}</div>
+      <div>Nơi nhận hàng: {{ company_address }}</div>
+      <div>Hình thức thanh toán: {{ payment_label|default:"—" }}</div>
+      {% if po.notes %}<div>Ghi chú thêm: {{ po.notes }}</div>{% endif %}
+    </div>
+    <div class="sign">
+      <div>
+        <div class="role">Người lập phiếu</div>
+        <div class="who">(Họ và tên)</div>
+      </div>
+      <div></div>
+      <div>
+        <div class="role">Trưởng bộ phận</div>
+        <div class="who">(Họ và tên)</div>
+      </div>
+    </div>
+  </article>
+  {% if autoprint %}<script>window.addEventListener('load', function () { window.print(); });</script>{% endif %}
+</body>
+</html>

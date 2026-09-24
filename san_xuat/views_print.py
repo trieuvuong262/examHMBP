@@ -16,6 +16,7 @@ from san_xuat.hub_models import (
     SxNcrCase,
     SxPackingRecord,
     SxProductionOrder,
+    SxPurchaseOrder,
     SxQcAlert,
     SxQcInspection,
     SxSubcontractOrder,
@@ -293,4 +294,77 @@ def print_qc_alert(request, pk: int):
         ),
         'alert': alert,
         'mo': alert.production_order,
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'print')
+def print_po(request, pk: int):
+    from kho_npl.models import Material
+
+    po = get_object_or_404(
+        SxPurchaseOrder.objects.select_related('supplier', 'purchase_request').prefetch_related('lines'),
+        pk=pk,
+    )
+    codes = [ln.material_code for ln in po.lines.all()]
+    materials = {
+        m.code.casefold(): m
+        for m in Material.objects.filter(code__in=codes).select_related('color', 'specification', 'unit')
+    }
+    rows = []
+    total_qty = 0
+    total_amount = 0
+    for ln in po.lines.all():
+        mat = materials.get((ln.material_code or '').strip().casefold())
+        spec = []
+        image_url = ''
+        unit = ''
+        if mat:
+            if mat.specification_id:
+                spec.append(mat.specification.name)
+            if mat.color_id:
+                spec.append(mat.color.name)
+            unit = mat.unit.name if mat.unit_id else ''
+            if mat.image:
+                try:
+                    image_url = request.build_absolute_uri(mat.image.url)
+                except (ValueError, OSError):
+                    image_url = ''
+        amount = ln.amount
+        total_qty += ln.qty_ordered or 0
+        total_amount += amount
+        rows.append({
+            'name': ln.material_name or (mat.name if mat else ln.material_code),
+            'image_url': image_url,
+            'spec': ' / '.join(spec),
+            'unit': unit,
+            'qty': ln.qty_ordered,
+            'price': ln.unit_price,
+            'amount': amount,
+            'note': ln.notes,
+        })
+    pay = dict(po._meta.get_field('payment_method').choices).get(po.payment_method, '')
+    supplier = po.supplier
+    return render(request, 'san_xuat/print/po_a4.html', {
+        **_print_base_ctx(
+            print_title=f'Đơn đặt hàng {po.code}',
+            back_url=reverse('san_xuat:purchase_order_detail', args=[po.pk]),
+            signature_key='po',
+            doc_code=po.code,
+            doc_date=po.order_date or (po.created_at.date() if po.created_at else timezone.localdate()),
+            request=request,
+        ),
+        'po': po,
+        'rows': rows,
+        'total_qty': total_qty,
+        'total_amount': total_amount,
+        'payment_label': pay,
+        'supplier_name': (supplier.name if supplier else '') or po.supplier_name,
+        'supplier_contact': (
+            ' — '.join(bit for bit in [
+                (supplier.contact_name if supplier else ''),
+                (supplier.phone if supplier else ''),
+            ] if bit)
+        ),
+        'supplier_address': supplier.address if supplier else '',
+        'supplier_tax': supplier.tax_code if supplier else '',
     })

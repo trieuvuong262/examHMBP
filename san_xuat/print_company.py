@@ -60,4 +60,8 @@ SIGNATURES = {
         'Tổ trưởng',
         'Điều phối SX',
     ),
+    'po': (
+        'Người lập phiếu',
+        'Trưởng bộ phận',
+    ),
 }

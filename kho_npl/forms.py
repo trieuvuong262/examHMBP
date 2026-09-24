@@ -1920,18 +1920,24 @@ class SupplierQuickCreateForm(forms.ModelForm):
 class SupplierForm(forms.ModelForm):
     class Meta:
         model = Supplier
-        fields = ['code', 'name', 'phone', 'notes', 'is_active']
+        fields = ['code', 'name', 'contact_name', 'phone', 'address', 'tax_code', 'notes', 'is_active']
         widgets = {
             'code': forms.TextInput(attrs=FORM_CONTROL),
             'name': forms.TextInput(attrs=FORM_CONTROL),
+            'contact_name': forms.TextInput(attrs=FORM_CONTROL),
             'phone': forms.TextInput(attrs=FORM_CONTROL),
+            'address': forms.TextInput(attrs=FORM_CONTROL),
+            'tax_code': forms.TextInput(attrs=FORM_CONTROL),
             'notes': forms.Textarea(attrs=FORM_TEXTAREA),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['contact_name'].required = False
         self.fields['phone'].required = False
+        self.fields['address'].required = False
+        self.fields['tax_code'].required = False
         self.fields['notes'].required = False
         self.fields['is_active'].required = False
 

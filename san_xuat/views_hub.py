@@ -2344,6 +2344,63 @@ def plan_board(request):
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
+def plan_shortage_order(request, order_id: int):
+    """Đặt phần NPL thiếu trên thẻ KHSX — một nhóm một nhà cung cấp."""
+    from kho_npl.models import Supplier
+
+    from san_xuat.hub_models import SxNplPurchaseRequest, SxSalesOrder
+    from san_xuat.services.npl_shortage_order import build_shortage_preview, save_shortage_request
+    from san_xuat.services.plan_order_npl import sync_order_npl
+    from san_xuat.services.planning import PlanningError
+
+    menu_key = 'plan_board'
+    if not (
+        user_can_access_menu(request.user, MODULE_SAN_XUAT, menu_key)
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan')
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'npl_pr')
+    ):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, menu_key)
+
+    can_place = (
+        user_can_create_menu(request.user, MODULE_SAN_XUAT, 'npl_pr')
+        or bool(_perm_ctx(request).get('can_create'))
+    )
+    order = get_object_or_404(SxSalesOrder, pk=order_id, is_demo=False)
+    if request.method == 'POST':
+        if not can_place:
+            messages.error(request, 'Không có quyền tạo yêu cầu mua NPL.')
+            return redirect('san_xuat:plan_shortage_order', order_id=order.pk)
+        try:
+            pr = save_shortage_request(order_id=order.pk, post=request.POST, user=request.user)
+            pr = submit_npl_purchase_request(request_id=pr.pk)
+            pr = approve_npl_purchase_request(request_id=pr.pk)
+        except PlanningError as exc:
+            messages.error(request, str(exc))
+        else:
+            pos = list(pr.purchase_orders.filter(is_demo=False).order_by('pk'))
+            if len(pos) == 1:
+                messages.success(request, f'Đã tạo đơn đặt hàng {pos[0].code}.')
+                return redirect('san_xuat:purchase_order_detail', pk=pos[0].pk)
+            messages.success(request, f'Đã tạo {len(pos)} đơn đặt hàng từ {pr.code}.')
+            return redirect('san_xuat:npl_purchase_request_detail', pk=pr.pk)
+    else:
+        try:
+            order = sync_order_npl(order_id=order.pk)
+        except PlanningError as exc:
+            messages.error(request, str(exc))
+            return redirect(f"{reverse('san_xuat:plan_board')}?mode=list&tab=queue&q={order.code}&npl={order.pk}")
+
+    return render(request, 'san_xuat/plan_shortage_order.html', {
+        **_perm_ctx(request),
+        'order': order,
+        'groups': build_shortage_preview(order),
+        'suppliers': list(Supplier.objects.filter(is_active=True).order_by('name')),
+        'payment_choices': SxNplPurchaseRequest.PAYMENT_CHOICES,
+        'can_place': can_place,
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
 def plan_inter_step(request):
     """Thiết lập phút kiểm đếm / vận chuyển mặc định theo cặp bộ phận."""
     from decimal import Decimal, InvalidOperation
@@ -2941,7 +2998,7 @@ def npl_purchase_request_detail(request, pk: int):
         SxNplPurchaseRequest.objects.select_related(
             'material_plan', 'material_plan__overall_plan', 'sales_order',
         )
-        .prefetch_related('lines', 'purchase_orders'),
+        .prefetch_related('lines__supplier', 'purchase_orders'),
         pk=pk,
     )
     can_update = _perm_ctx(request).get('can_update')
@@ -3068,27 +3125,13 @@ def purchase_order_detail(request, pk: int):
                 messages.success(request, f'Đơn mua hàng {po.code} đã xác nhận.')
                 return redirect('san_xuat:purchase_order_detail', pk=po.pk)
         elif action == 'create_receipt' and can_update:
-            receipt_form = PoReceiptForm(request.POST)
-            if receipt_form.is_valid():
-                try:
-                    receipt = create_receipt_from_po(
-                        order_id=po.pk,
-                        user=request.user,
-                        receipt_date=receipt_form.cleaned_data.get('receipt_date'),
-                        location=receipt_form.cleaned_data.get('location'),
-                        notes=receipt_form.cleaned_data.get('notes') or '',
-                    )
-                except PlanningError as exc:
-                    messages.error(request, str(exc))
-                else:
-                    messages.success(
-                        request,
-                        f'Đã tạo phiếu nhập kho {receipt.number}. '
-                        'Vào Kho NPL đính kèm chứng từ rồi ghi sổ để cộng tồn.',
-                    )
-                    return redirect('san_xuat:purchase_order_detail', pk=po.pk)
+            try:
+                receipt = create_receipt_from_po(order_id=po.pk, user=request.user)
+            except PlanningError as exc:
+                messages.error(request, str(exc))
             else:
-                messages.error(request, 'Không tạo được phiếu nhập — kiểm tra lại thông tin.')
+                messages.success(request, f'Đã tạo phiếu nhập kho {receipt.number}.')
+                return redirect('kho_npl:receipt_detail', pk=receipt.pk)
         elif action == 'sync_receipt' and can_update:
             result = sync_po_received_from_po_receipts(order_id=po.pk, user=request.user)
             if result['receipts'] == 0:

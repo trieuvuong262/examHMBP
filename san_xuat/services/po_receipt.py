@@ -65,7 +65,10 @@ def create_receipt_from_po(
 ) -> StockReceipt:
     po = SxPurchaseOrder.objects.select_for_update().prefetch_related('lines').get(pk=order_id)
     if po.status == SxPurchaseOrder.STATUS_DRAFT:
-        raise PlanningError('Xác nhận đơn mua hàng trước khi tạo phiếu nhập kho.')
+        from san_xuat.services.planning import confirm_purchase_order
+
+        po = confirm_purchase_order(order_id=po.pk, user=user)
+        po = SxPurchaseOrder.objects.select_for_update().prefetch_related('lines').get(pk=po.pk)
 
     existing = po_receipts(po).exclude(status=DOC_STATUS_CANCELLED).first()
     if existing and existing.status != DOC_STATUS_POSTED:
