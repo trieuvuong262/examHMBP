@@ -39,6 +39,42 @@ def _person_name(user) -> str:
     return name or (user.get_full_name() or '').strip() or user.get_username()
 
 
+def _is_portal_dh_code(value: str) -> bool:
+    text = (value or '').strip()
+    if not text:
+        return False
+    upper = text.upper()
+    if not upper.startswith('DH-'):
+        return False
+    parts = upper.split('-')
+    return len(parts) == 3 and parts[1].isdigit() and parts[2].isdigit()
+
+
+def _khsx_code(order) -> str:
+    """Mã hiện trên bảng KHSX (vd. 005176), không phải mã DH portal tự sinh."""
+    if order is None:
+        return ''
+    code = (getattr(order, 'code', None) or '').strip()
+    kv = (getattr(order, 'kv_order_code', None) or '').strip()
+    for value in (code, kv):
+        if value and not _is_portal_dh_code(value):
+            return value
+    return ''
+
+
+def _notes_without_order_ref(notes, order) -> str:
+    text = (notes or '').strip()
+    if not text:
+        return ''
+    codes = {
+        (getattr(order, 'code', None) or '').strip(),
+        (getattr(order, 'kv_order_code', None) or '').strip(),
+    }
+    if text in codes:
+        return ''
+    return notes or ''
+
+
 def _print_base_ctx(*, print_title: str, back_url: str, signature_key: str, doc_date, request, doc_code: str = ''):
     return {
         'print_title': print_title,
@@ -317,8 +353,10 @@ def print_po(request, pk: int):
         pk=pk,
     )
     order_code = ''
-    if po.purchase_request_id and po.purchase_request and po.purchase_request.sales_order_id:
-        order_code = po.purchase_request.sales_order.code or ''
+    sales_order = None
+    if po.purchase_request_id and po.purchase_request:
+        sales_order = po.purchase_request.sales_order
+        order_code = _khsx_code(sales_order)
     codes = [ln.material_code for ln in po.lines.all()]
     materials = {
         m.code.casefold(): m
@@ -354,13 +392,11 @@ def print_po(request, pk: int):
             'qty': ln.qty_ordered,
             'price': ln.unit_price,
             'amount': amount,
-            'note': '' if order_code and (ln.notes or '').strip() == order_code else (ln.notes or ''),
+            'note': _notes_without_order_ref(ln.notes, sales_order),
         })
     pay = dict(po._meta.get_field('payment_method').choices).get(po.payment_method, '')
     supplier = po.supplier
-    po_notes = po.notes or ''
-    if order_code and po_notes.strip() == order_code:
-        po_notes = ''
+    po_notes = _notes_without_order_ref(po.notes, sales_order)
     return render(request, 'san_xuat/print/po_a4.html', {
         **_print_base_ctx(
             print_title=f'Đơn đặt hàng {po.code}',
@@ -476,7 +512,7 @@ def print_npl_pr(request, pk: int):
                 'qty': qty,
                 'price': price,
                 'amount': amount,
-                'note': '' if (ln.notes or '').strip() == (getattr(pr.sales_order, 'code', None) or '') else (ln.notes or ''),
+                'note': _notes_without_order_ref(ln.notes, pr.sales_order),
             })
         sheets.append({
             'supplier_name': supplier.name if supplier else '',
@@ -495,8 +531,8 @@ def print_npl_pr(request, pk: int):
             'total_amount': total_amount,
             'payment_label': pay_labels.get(pay_key or pr.payment_method, ''),
             'expected_date': expected or pr.due_date,
-            'notes': '' if (pr.notes or '').strip() == (getattr(pr.sales_order, 'code', None) or '') else pr.notes,
-            'order_code': getattr(pr.sales_order, 'code', '') or '',
+            'notes': _notes_without_order_ref(pr.notes, pr.sales_order),
+            'order_code': _khsx_code(pr.sales_order),
             'preparer_name': _person_name(pr.created_by),
         })
     return render(request, 'san_xuat/print/po_a4.html', {
