@@ -2,11 +2,27 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/surveys.css' %}?v=20260925e">
+<link rel="stylesheet" href="{% static 'css/surveys.css' %}?v=20260925f">
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-ksk-page py-3 pb-4">
+<div class="container jp-page jp-ksk-page py-3 pb-4{% if show_manage %} jp-ksk-page--manage{% endif %}">
+    {% if can_manage %}
+    <div class="jp-ksk-manage-bar">
+        {% if show_manage %}
+        <a class="btn btn-outline-secondary btn-sm" href="{% url 'surveys:ksk_update' %}">Đóng quản lý</a>
+        {% else %}
+        <a class="btn btn-hm btn-sm" href="{% url 'surveys:ksk_update' %}?quan-ly=1">Quản lý</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% if notice %}
+    <section class="jp-ksk-empty mb-3">
+        <h2 class="text-hm jp-page-title">Cập nhật thông tin</h2>
+        <p>{{ notice }}.</p>
+    </section>
+    {% endif %}
+    {% if person %}
     <form method="post" id="ksk-form" class="jp-ksk-sheet" novalidate>
         {% csrf_token %}
         <header class="jp-ksk-head">
@@ -58,6 +74,10 @@
         </div>
         {% endif %}
     </form>
+    {% endif %}
+    {% if show_manage %}
+    {% include 'surveys/ksk_results.html' %}
+    {% endif %}
 </div>
 <script>
 (function () {

@@ -12,11 +12,14 @@ from django.views.decorators.http import require_POST
 from openpyxl.styles import Font
 
 from assessment.decorators import module_perm_required
+from hrm.group_permissions import module_perm_allows_view
+from hrm.menu_permissions import get_effective_menu_perm
 from hrm.module_permissions import MODULE_SURVEYS
 from hrm.permissions import get_profile
 
 from .ksk import (
     FIELD_SPECS,
+    KSK_MANAGE_SLUGS,
     NOT_IN_LIST_MESSAGE,
     OUTSIDE_WINDOW_MESSAGE,
     current_campaign,
@@ -60,6 +63,59 @@ def _form_context(*, campaign, person, values, errors, submitted):
     }
 
 
+def can_manage_ksk(user):
+    """Chỉ HCNS - NV và HCNS - TP (nhóm được cấp menu Quản lý KSK)."""
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    profile = get_profile(user)
+    group = getattr(profile, 'permission_group', None) if profile else None
+    slug = ((group.slug or '') if group else '').strip()
+    if slug in KSK_MANAGE_SLUGS:
+        return True
+    perm = get_effective_menu_perm(user, MODULE_SURVEYS, 'ksk_manage')
+    return module_perm_allows_view(perm)
+
+
+def _manage_context(request, campaign):
+    status = (request.GET.get('trang-thai') or '').strip()
+    if status not in {'confirmed', 'pending'}:
+        status = ''
+    people = []
+    confirmed_count = 0
+    total_count = 0
+    if campaign is not None:
+        latest = HealthCheckSubmission.objects.filter(
+            campaign=campaign,
+            person_id=OuterRef('pk'),
+        )
+        people_qs = campaign.people.annotate(
+            submitted_name=Subquery(latest.values('full_name')[:1]),
+            submitted_id=Subquery(latest.values('id_number')[:1]),
+            submitted_phone=Subquery(latest.values('phone')[:1]),
+            submitted_street=Subquery(latest.values('street')[:1]),
+            submitted_ward=Subquery(latest.values('ward')[:1]),
+            submitted_province=Subquery(latest.values('province')[:1]),
+            submitted_at=Subquery(latest.values('updated_at')[:1]),
+        ).order_by('sort_order')
+        confirmed_count = campaign.submissions.count()
+        total_count = campaign.people.count()
+        if status == 'confirmed':
+            people_qs = people_qs.filter(submitted_at__isnull=False)
+        elif status == 'pending':
+            people_qs = people_qs.filter(submitted_at__isnull=True)
+        people = list(people_qs)
+    opens_value, closes_value = _window_inputs(campaign)
+    return {
+        'people': people,
+        'status': status,
+        'confirmed_count': confirmed_count,
+        'total_count': total_count,
+        'opens_value': opens_value,
+        'closes_value': closes_value,
+        'window_open': campaign.allows_update() if campaign else False,
+    }
+
+
 def _window_inputs(campaign):
     def _value(moment):
         if not moment:
@@ -71,21 +127,35 @@ def _window_inputs(campaign):
     return _value(campaign.opens_at), _value(campaign.closes_at)
 
 
+def _attach_manage(request, context, campaign):
+    context['can_manage'] = can_manage_ksk(request.user)
+    context['show_manage'] = context['can_manage'] and request.GET.get('quan-ly') == '1'
+    if context['show_manage']:
+        context.update(_manage_context(request, campaign))
+    return context
+
+
 @login_required
 def health_check_update(request):
     campaign = current_campaign()
-    if campaign is None or not campaign.allows_update():
-        return render(request, 'surveys/ksk_not_in_list.html', {
-            'message': OUTSIDE_WINDOW_MESSAGE,
-            'campaign': campaign,
-        })
     profile = get_profile(request.user)
-    person = person_for_profile(campaign, profile)
-    if person is None:
-        return render(request, 'surveys/ksk_not_in_list.html', {
-            'message': NOT_IN_LIST_MESSAGE,
+    allowed = campaign is not None and campaign.allows_update()
+    person = person_for_profile(campaign, profile) if allowed else None
+    if not allowed or person is None:
+        message = OUTSIDE_WINDOW_MESSAGE if not allowed else NOT_IN_LIST_MESSAGE
+        if not can_manage_ksk(request.user):
+            return render(request, 'surveys/ksk_not_in_list.html', {
+                'message': message,
+                'campaign': campaign,
+            })
+        return render(request, 'surveys/ksk_update.html', _attach_manage(request, {
             'campaign': campaign,
-        })
+            'person': None,
+            'sections': [],
+            'notice': message,
+            'submitted': False,
+            'can_edit': False,
+        }, campaign))
 
     submission = HealthCheckSubmission.objects.filter(
         campaign=campaign,
@@ -116,75 +186,46 @@ def health_check_update(request):
                 return redirect('surveys:ksk_update')
         baseline = values
 
-    return render(request, 'surveys/ksk_update.html', _form_context(
+    return render(request, 'surveys/ksk_update.html', _attach_manage(request, _form_context(
         campaign=campaign,
         person=person,
         values=baseline,
         errors=errors,
         submitted=submission is not None and not errors,
-    ))
+    ), campaign))
 
 
 @module_perm_required(MODULE_SURVEYS, 'view')
 def health_check_results(request):
-    campaign = current_campaign()
-    status = (request.GET.get('trang-thai') or '').strip()
-    if status not in {'confirmed', 'pending'}:
-        status = ''
-    people = []
-    confirmed_count = 0
-    if campaign is not None:
-        latest = HealthCheckSubmission.objects.filter(
-            campaign=campaign,
-            person_id=OuterRef('pk'),
-        )
-        people_qs = campaign.people.annotate(
-            submitted_name=Subquery(latest.values('full_name')[:1]),
-            submitted_id=Subquery(latest.values('id_number')[:1]),
-            submitted_phone=Subquery(latest.values('phone')[:1]),
-            submitted_street=Subquery(latest.values('street')[:1]),
-            submitted_ward=Subquery(latest.values('ward')[:1]),
-            submitted_province=Subquery(latest.values('province')[:1]),
-            submitted_at=Subquery(latest.values('updated_at')[:1]),
-        ).order_by('sort_order')
-        confirmed_count = campaign.submissions.count()
-        if status == 'confirmed':
-            people_qs = people_qs.filter(submitted_at__isnull=False)
-        elif status == 'pending':
-            people_qs = people_qs.filter(submitted_at__isnull=True)
-        people = list(people_qs)
-    return render(request, 'surveys/ksk_results.html', {
-        'campaign': campaign,
-        'people': people,
-        'status': status,
-        'confirmed_count': confirmed_count,
-        'total_count': campaign.people.count() if campaign else 0,
-        'opens_value': _window_inputs(campaign)[0],
-        'closes_value': _window_inputs(campaign)[1],
-        'window_open': campaign.allows_update() if campaign else False,
-    })
+    if not can_manage_ksk(request.user):
+        messages.error(request, 'Bạn không có quyền quản lý cập nhật thông tin.')
+        return redirect('surveys:ksk_update')
+    return redirect('/khao-sat/cap-nhat-thong-tin/?quan-ly=1')
 
 
 @module_perm_required(MODULE_SURVEYS, 'update')
 @require_POST
 def health_check_schedule(request):
+    if not can_manage_ksk(request.user):
+        messages.error(request, 'Bạn không có quyền quản lý cập nhật thông tin.')
+        return redirect('surveys:ksk_update')
     campaign = current_campaign()
     if campaign is None:
         messages.error(request, 'Chưa có danh sách khám sức khỏe.')
-        return redirect('surveys:ksk_results')
+        return redirect('surveys:ksk_update')
     opens_at = _parse_local_datetime(request.POST.get('opens_at'))
     closes_at = _parse_local_datetime(request.POST.get('closes_at'))
     if opens_at is None or closes_at is None:
         messages.error(request, 'Nhập đủ thời gian bắt đầu và kết thúc.')
-        return redirect('surveys:ksk_results')
+        return redirect('/khao-sat/cap-nhat-thong-tin/?quan-ly=1')
     if closes_at <= opens_at:
         messages.error(request, 'Thời gian kết thúc phải sau thời gian bắt đầu.')
-        return redirect('surveys:ksk_results')
+        return redirect('/khao-sat/cap-nhat-thong-tin/?quan-ly=1')
     campaign.opens_at = opens_at
     campaign.closes_at = closes_at
     campaign.save(update_fields=['opens_at', 'closes_at'])
     messages.success(request, 'Đã lưu thời gian được phép cập nhật.')
-    return redirect('surveys:ksk_results')
+    return redirect('/khao-sat/cap-nhat-thong-tin/?quan-ly=1')
 
 
 def _parse_local_datetime(raw):
@@ -202,6 +243,9 @@ def _parse_local_datetime(raw):
 
 @module_perm_required(MODULE_SURVEYS, 'view')
 def health_check_export(request):
+    if not can_manage_ksk(request.user):
+        messages.error(request, 'Bạn không có quyền quản lý cập nhật thông tin.')
+        return redirect('surveys:ksk_update')
     campaign = current_campaign()
     rows = []
     if campaign is not None:

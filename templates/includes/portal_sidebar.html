@@ -527,15 +527,6 @@
                     </a>
                 </li>
                 {% endif %}
-                {% jp_can_menu 'surveys' 'ksk_manage' as jp_can_ksk_manage %}
-                {% if jp_can_ksk_manage %}
-                <li>
-                    <a href="{% url 'surveys:ksk_results' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'ksk_results' %}active{% endif %}">
-                        <i class="bi bi-heart-pulse"></i><span>Quản lý KSK</span>
-                    </a>
-                </li>
-                {% endif %}
             </ul>
         </li>
         {% endif %}

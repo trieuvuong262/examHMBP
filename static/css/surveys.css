@@ -161,6 +161,31 @@
     max-width: 28.5rem;
 }
 
+.jp-ksk-manage-bar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 0.75rem;
+}
+
+.jp-ksk-manage {
+    margin-top: 1rem;
+}
+
+.jp-ksk-manage-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+}
+
+.jp-ksk-manage-title {
+    margin: 0;
+    color: #b91c1c;
+    font-size: 1.25rem;
+}
+
 .jp-ksk-head {
     text-align: center;
     margin-bottom: 0.9rem;
@@ -245,6 +270,10 @@
 @media (min-width: 992px) {
     .jp-ksk-page {
         max-width: 760px;
+    }
+
+    .jp-ksk-page--manage {
+        max-width: 1100px;
     }
 
     .jp-ksk-sheet {

@@ -15,6 +15,7 @@ NOT_IN_LIST_MESSAGE = (
     'không cần thực hiện thao tác xác minh'
 )
 OUTSIDE_WINDOW_MESSAGE = 'Bạn không được phép sử dụng tính năng này'
+KSK_MANAGE_SLUGS = frozenset({'hcns-nhan-vien', 'hcns-truong-phong'})
 
 ID_NUMBER_RE = re.compile(r'^\d{9}$|^\d{12}$')
 # key, label, inputmode, autocomplete, placeholder
