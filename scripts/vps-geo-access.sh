@@ -86,8 +86,9 @@ load_bypass_set() {
     [[ "$token" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || continue
     ipset add "$SET_BYPASS" "${token}/32" -exist
   done
-  # Phiên SSH đang dùng để bật rule — mất kết nối mới vẫn vào lại được.
-  local ssh_ip="${SSH_CONNECTION%% *}"
+  # Phiên SSH đang dùng để bật rule — portal/nsenter không có biến này.
+  local ssh_conn="${SSH_CONNECTION:-}"
+  local ssh_ip="${ssh_conn%% *}"
   if [[ "$ssh_ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     ipset add "$SET_BYPASS" "${ssh_ip}/32" -exist
   fi

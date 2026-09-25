@@ -97,18 +97,22 @@ def geo_access_status() -> dict:
     }
 
 
-def apply_geo_access(*, enabled: bool, countries: list[str], admin_user=None) -> dict:
+def apply_geo_access(*, enabled: bool, countries: list[str], admin_user=None, client_ip: str | None = None) -> dict:
     codes = normalize_countries(countries)
     if not docker_available():
         raise VpsMonitorError('Docker socket không khả dụng — chỉ áp dụng được trên VPS.')
     action = 'apply' if enabled else 'disable'
     args = [action, ','.join(codes)] if enabled else [action]
+    bypass = bypass_ips()
+    extra = (client_ip or '').strip()
+    if extra and extra not in bypass:
+        bypass.append(extra)
     result = docker_run_host_script(
         _script_path(),
         *args,
         timeout=180.0,
         env={
-            'GEO_BYPASS_IPS': ','.join(bypass_ips()),
+            'GEO_BYPASS_IPS': ','.join(bypass),
             'GEO_WAN_IF': 'eth0',
             'HOST_PROJECT_DIR': (
                 getattr(settings, 'HOST_PROJECT_DIR', None) or os.getenv('HOST_PROJECT_DIR') or '/opt/portaljustplay'

@@ -212,6 +212,7 @@ def save_login_security_config_view(request):
 def save_geo_region_view(request):
     from audit.services.geo_access import COUNTRIES, apply_geo_access, normalize_countries
     from audit.services.vps_monitor import VpsMonitorError
+    from audit.utils import get_client_ip
 
     if request.POST.get('confirm') != 'on':
         messages.error(request, 'Hãy xác nhận trước khi đổi chặn theo quốc gia.')
@@ -220,7 +221,12 @@ def save_geo_region_view(request):
     enabled = request.POST.get('enabled') == 'on'
     countries = normalize_countries(request.POST.getlist('countries'))
     try:
-        apply_geo_access(enabled=enabled, countries=countries, admin_user=request.user)
+        apply_geo_access(
+            enabled=enabled,
+            countries=countries,
+            admin_user=request.user,
+            client_ip=get_client_ip(request),
+        )
     except VpsMonitorError as exc:
         messages.error(request, str(exc))
         return redirect(reverse('audit:login_security') + '?tab=region')
