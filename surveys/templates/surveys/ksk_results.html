@@ -71,13 +71,12 @@
                     {% for person in people %}
                     <tr>
                         <td>{{ person.sort_order }}</td>
-                        <td{% if status != 'confirmed' %} style="min-width: 11rem;"{% endif %}>
-                            {% if status == 'confirmed' %}
+                        <td{% if not status %} style="min-width: 11rem;"{% endif %}>
+                            {% if status %}
                             {{ person.employee_code|default:"—" }}
                             {% else %}
                             <form method="post" action="{% url 'surveys:ksk_set_code' person.pk %}" class="d-flex gap-1 align-items-center">
                                 {% csrf_token %}
-                                {% if status %}<input type="hidden" name="trang-thai" value="{{ status }}">{% endif %}
                                 <input class="form-control form-control-sm" name="employee_code" value="{{ person.employee_code }}" maxlength="50" placeholder="Mã NV" autocomplete="off">
                                 <button type="submit" class="btn btn-outline-hm btn-sm flex-shrink-0">Lưu</button>
                             </form>
