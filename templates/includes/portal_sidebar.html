@@ -723,14 +723,15 @@
 
                 {# —— 2. Hồ sơ sản phẩm (master) — ẩn SP/NVL landing & quy trình read-only (vào từ hồ sơ) —— #}
                 {% jp_can_menu 'san_xuat' 'docs' as jp_can_san_xuat_docs %}
+                {% jp_can_menu 'san_xuat' 'docs_cost_stats' as jp_can_san_xuat_docs_cost_stats %}
                 {% jp_can_menu 'san_xuat' 'bom' as jp_can_san_xuat_bom %}
                 {% jp_can_menu 'san_xuat' 'ie' as jp_can_san_xuat_ie %}
                 {% jp_can_menu 'san_xuat' 'ie_settings' as jp_can_san_xuat_ie_settings %}
                 {% jp_can_menu 'san_xuat' 'ie_approve' as jp_can_san_xuat_ie_approve %}
-                {% if jp_can_san_xuat_docs or jp_can_san_xuat_bom or jp_can_san_xuat_ie or jp_can_san_xuat_ie_settings or jp_can_san_xuat_ie_approve %}
+                {% if jp_can_san_xuat_docs or jp_can_san_xuat_docs_cost_stats or jp_can_san_xuat_bom or jp_can_san_xuat_ie or jp_can_san_xuat_ie_settings or jp_can_san_xuat_ie_approve %}
                 <li class="jp-sidebar-nested-group{% if '/san-xuat/ho-so' in request.path or '/san-xuat/bom' in request.path or '/san-xuat/cong-doan' in request.path %} is-open{% endif %}"
                     data-sx-area="docs" data-sx-icon="bi-journal-text" data-sx-label="Hồ sơ sản phẩm"
-                    data-sx-href="{% if jp_can_san_xuat_docs %}{% url 'san_xuat:doc_list' %}{% elif jp_can_san_xuat_ie %}{% url 'san_xuat:ie_operation_list' %}{% elif jp_can_san_xuat_ie_approve %}{% url 'san_xuat:ie_approve_hub' %}{% elif jp_can_san_xuat_ie_settings %}{% url 'san_xuat:ie_settings_hub' %}{% else %}{% url 'san_xuat:bom_list' %}{% endif %}">
+                    data-sx-href="{% if jp_can_san_xuat_docs %}{% url 'san_xuat:doc_list' %}{% elif jp_can_san_xuat_docs_cost_stats %}{% url 'san_xuat:docs_cost_stats' %}{% elif jp_can_san_xuat_ie %}{% url 'san_xuat:ie_operation_list' %}{% elif jp_can_san_xuat_ie_approve %}{% url 'san_xuat:ie_approve_hub' %}{% elif jp_can_san_xuat_ie_settings %}{% url 'san_xuat:ie_settings_hub' %}{% else %}{% url 'san_xuat:bom_list' %}{% endif %}">
                     <button type="button"
                             class="jp-sidebar-nested-toggle"
                             data-jp-sidebar-group-toggle
@@ -749,6 +750,15 @@
                                data-jp-npl-catalog-nav
                                data-loading-message="Đang tải hồ sơ thiết kế…">
                                 <i class="bi bi-journal-text"></i><span>Hồ sơ thiết kế sản phẩm</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if jp_can_san_xuat_docs_cost_stats %}
+                        <li>
+                            <a href="{% url 'san_xuat:docs_cost_stats' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'docs_cost_stats' or request.resolver_match.url_name == 'docs_cost_stats_export' %}active{% endif %}"
+                               data-loading-message="Đang tải thống kê chi phí…">
+                                <i class="bi bi-table"></i><span>Thống kê chi phí</span>
                             </a>
                         </li>
                         {% endif %}
@@ -803,15 +813,16 @@
                 {# —— 3. Kế hoạch —— #}
                 {% jp_can_menu 'san_xuat' 'plan' as jp_can_san_xuat_plan %}
                 {% jp_can_menu 'san_xuat' 'plan_board' as jp_can_san_xuat_plan_board %}
+                {% jp_can_menu 'san_xuat' 'sx_cancel_approve' as jp_can_san_xuat_cancel_approve %}
                 {% jp_can_menu 'san_xuat' 'capacity' as jp_can_san_xuat_capacity %}
                 {% jp_can_menu 'san_xuat' 'plan_inter_step' as jp_can_san_xuat_plan_inter %}
                 {% jp_can_menu 'san_xuat' 'plan_npl' as jp_can_san_xuat_plan_npl %}
                 {% jp_can_menu 'san_xuat' 'npl_pr' as jp_can_san_xuat_npl_pr %}
                 {% jp_can_menu 'san_xuat' 'purchase_order' as jp_can_san_xuat_purchase_order %}
-                {% if jp_can_san_xuat_plan or jp_can_san_xuat_plan_board or jp_can_san_xuat_capacity or jp_can_san_xuat_plan_inter or jp_can_san_xuat_plan_npl or jp_can_san_xuat_npl_pr or jp_can_san_xuat_purchase_order %}
+                {% if jp_can_san_xuat_plan or jp_can_san_xuat_plan_board or jp_can_san_xuat_cancel_approve or jp_can_san_xuat_capacity or jp_can_san_xuat_plan_inter or jp_can_san_xuat_plan_npl or jp_can_san_xuat_npl_pr or jp_can_san_xuat_purchase_order %}
                 <li class="jp-sidebar-nested-group{% if '/san-xuat/ke-hoach' in request.path or '/san-xuat/nang-luc' in request.path or 'thue-gia-cong' in request.path %} is-open{% endif %}"
                     data-sx-area="plan" data-sx-icon="bi-calendar3" data-sx-label="Kế hoạch SX"
-                    data-sx-href="{% if jp_can_san_xuat_plan_board or jp_can_san_xuat_plan %}{% url 'san_xuat:plan_board' %}{% elif jp_can_san_xuat_capacity %}{% url 'san_xuat:capacity_list' %}{% elif jp_can_san_xuat_plan_npl %}{% url 'san_xuat:plan_npl' %}{% else %}{% url 'san_xuat:npl_purchase_request' %}{% endif %}">
+                    data-sx-href="{% if jp_can_san_xuat_plan_board or jp_can_san_xuat_plan %}{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=queue{% elif jp_can_san_xuat_cancel_approve %}{% url 'san_xuat:sx_cancel_approve' %}{% elif jp_can_san_xuat_capacity %}{% url 'san_xuat:capacity_list' %}{% elif jp_can_san_xuat_plan_npl %}{% url 'san_xuat:plan_npl' %}{% else %}{% url 'san_xuat:npl_purchase_request' %}{% endif %}">
                     <button type="button"
                             class="jp-sidebar-nested-toggle"
                             data-jp-sidebar-group-toggle
@@ -825,11 +836,21 @@
                     <ul class="jp-sidebar-nested-submenu" id="jp-sidebar-san-xuat-plan-submenu">
                         {% if jp_can_san_xuat_plan_board or jp_can_san_xuat_plan %}
                         <li>
-                            <a href="{% url 'san_xuat:plan_board' %}"
+                            <a href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=queue"
                                class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'plan_stub' or request.resolver_match.url_name == 'plan_progress_monitor' or request.resolver_match.url_name == 'order_progress_sheet' or request.resolver_match.url_name == 'order_progress_order' or 'plan_overall' in request.resolver_match.url_name or 'plan_detail' in request.resolver_match.url_name or request.resolver_match.url_name == 'plan_board' and request.GET.tab != 'subcontract' %}active{% endif %}">
                                 <i class="bi bi-kanban"></i><span>Kế hoạch sản xuất</span>
                             </a>
                         </li>
+                        {% endif %}
+                        {% if jp_can_san_xuat_cancel_approve %}
+                        <li>
+                            <a href="{% url 'san_xuat:sx_cancel_approve' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'sx_cancel_approve' %}active{% endif %}">
+                                <i class="bi bi-x-circle"></i><span>Duyệt hủy sản xuất</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if jp_can_san_xuat_plan_board or jp_can_san_xuat_plan %}
                         <li>
                             <a href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=subcontract"
                                class="jp-sidebar-link jp-sidebar-sublink {% if request.GET.tab == 'subcontract' or 'thue-gia-cong' in request.path %}active{% endif %}">

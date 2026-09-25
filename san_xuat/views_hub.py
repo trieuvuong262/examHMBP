@@ -16,6 +16,7 @@ from django.utils import timezone
 from assessment.decorators import module_perm_required
 from hrm.menu_permissions import (
     handle_menu_access_denied,
+    menu_perm_context,
     user_can_access_menu,
     user_can_create_menu,
     user_can_delete_menu,
@@ -1393,10 +1394,13 @@ def plan_board(request):
     from san_xuat.services.planning import PlanningError
 
     menu_key = 'plan_board'
-    if not (
+    tab_peek = (request.GET.get('tab') or request.POST.get('tab') or '').strip()
+    can_open_cancel = user_can_access_menu(request.user, MODULE_SAN_XUAT, 'sx_cancel_approve')
+    can_open_plan = (
         user_can_access_menu(request.user, MODULE_SAN_XUAT, menu_key)
         or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan')
-    ):
+    )
+    if not can_open_plan and not (tab_peek == 'cancel' and can_open_cancel):
         return handle_menu_access_denied(request, MODULE_SAN_XUAT, menu_key)
 
     can_schedule = (
@@ -1423,8 +1427,10 @@ def plan_board(request):
         return redirect(f"{reverse('san_xuat:plan_board')}?{urlencode(params)}")
     if tab == 'released':
         tab = 'queue'
-    if tab not in {'queue', 'route', 'subcontract'}:
+    if tab not in {'queue', 'route', 'subcontract', 'cancel'}:
         tab = 'queue'
+    if tab == 'cancel':
+        return redirect('san_xuat:sx_cancel_approve')
     q = (request.GET.get('q') or request.POST.get('q') or '').strip()
     date_from_raw = (request.GET.get('date_from') or request.POST.get('date_from') or '').strip()
     date_to_raw = (request.GET.get('date_to') or request.POST.get('date_to') or '').strip()
@@ -1836,6 +1842,47 @@ def plan_board(request):
                     'BOM / OB / NPL trên KHSX đã khoá.',
                 )
                 return redirect(f"{reverse('san_xuat:plan_board')}?mode=list&tab=queue")
+            elif action in ('approve_cancel', 'reject_cancel') and user_can_update_menu(
+                request.user, MODULE_SAN_XUAT, 'sx_cancel_approve',
+            ):
+                from san_xuat.services.cancel_request import CancelError, approve_cancel, reject_cancel
+
+                raw_id = (request.POST.get('request_id') or '').strip()
+                if not raw_id.isdigit():
+                    messages.error(request, 'Thiếu yêu cầu hủy.')
+                else:
+                    try:
+                        if action == 'approve_cancel':
+                            approve_cancel(request_id=int(raw_id), user=request.user)
+                            messages.success(request, 'Đã duyệt hủy.')
+                        else:
+                            reject_cancel(request_id=int(raw_id), user=request.user)
+                            messages.success(request, 'Đã từ chối yêu cầu hủy.')
+                    except CancelError as exc:
+                        messages.error(request, str(exc))
+                return redirect(f"{reverse('san_xuat:plan_board')}?mode=list&tab=cancel")
+            elif action == 'request_cancel_plan' and (can_schedule or can_release) and order_id:
+                from san_xuat.services.cancel_request import CancelError, submit_plan_cancel
+
+                order = SxSalesOrder.objects.filter(pk=order_id, is_demo=False).first()
+                if not order:
+                    messages.error(request, 'Không tìm thấy kế hoạch.')
+                else:
+                    try:
+                        submit_plan_cancel(
+                            order=order,
+                            reason=request.POST.get('cancel_reason') or '',
+                            user=request.user,
+                        )
+                    except CancelError as exc:
+                        messages.error(request, str(exc))
+                    else:
+                        messages.success(
+                            request,
+                            f'Đã gửi yêu cầu hủy kế hoạch {order.code}. Chỉ hủy khi được duyệt.',
+                        )
+                        return redirect('san_xuat:sx_cancel_approve')
+                return _board_redirect()
             elif action == 'unrelease' and can_release and order_id:
                 order, n = unrelease_order_from_production(order_id=order_id)
                 messages.success(
@@ -2113,6 +2160,7 @@ def plan_board(request):
     filter_month_label = ''
     filter_is_current_month = False
     route_months = 1
+    route_board = None
     route_dept_choices: list[tuple[str, str]] = []
     route_team_choices: list[dict] = []
     route_stats = None
@@ -2286,6 +2334,8 @@ def plan_board(request):
         today_start, today_end_month = _months_bounds(timezone.localdate(), route_months)
         route_stats = build_route_stats(route_board)
 
+    from san_xuat.hub_models import SxProductionCancelRequest
+    from san_xuat.services.cancel_request import pending_plan_order_ids
     from san_xuat.services.planning import npl_prep_days
     from san_xuat.services.team_stage_colors import team_stage_color_css
 
@@ -2310,6 +2360,16 @@ def plan_board(request):
         'can_schedule': can_schedule,
         'plan_work_centers': plan_board_work_center_options(),
         'can_release': can_release,
+        'can_request_plan_cancel': can_schedule or can_release,
+        'can_approve_cancel': can_open_cancel,
+        'pending_cancel_order_ids': pending_plan_order_ids(),
+        'cancel_rows': list(
+            SxProductionCancelRequest.objects.filter(
+                status=SxProductionCancelRequest.STATUS_PENDING,
+            )
+            .select_related('production_order', 'sales_order', 'requested_by')
+            .order_by('requested_at', 'pk')[:100]
+        ) if tab == 'cancel' else [],
         'can_view_subcontract': True,
         'can_create_subcontract': can_release,
         'can_receive_gc': can_schedule,
@@ -3476,6 +3536,53 @@ def run_order_wizard(request, mo_id: int | None = None):
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
+def sx_cancel_approve(request):
+    """Màn riêng: duyệt hủy lệnh hoặc kế hoạch. Cùng nhóm chức năng Kế hoạch SX."""
+    menu_key = 'sx_cancel_approve'
+    if not user_can_access_menu(request.user, MODULE_SAN_XUAT, menu_key):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, menu_key)
+    can_approve = user_can_update_menu(request.user, MODULE_SAN_XUAT, menu_key)
+    if request.method == 'POST':
+        if not can_approve:
+            messages.error(request, 'Bạn không có quyền sửa trên màn duyệt hủy.')
+            return redirect('san_xuat:sx_cancel_approve')
+        from san_xuat.services.cancel_request import CancelError, approve_cancel, reject_cancel
+
+        action = (request.POST.get('action') or '').strip()
+        raw_id = (request.POST.get('request_id') or '').strip()
+        if not raw_id.isdigit():
+            messages.error(request, 'Thiếu yêu cầu hủy.')
+            return redirect('san_xuat:sx_cancel_approve')
+        try:
+            if action == 'approve':
+                approve_cancel(request_id=int(raw_id), user=request.user)
+                messages.success(request, 'Đã duyệt hủy.')
+            elif action == 'reject':
+                reject_cancel(request_id=int(raw_id), user=request.user)
+                messages.success(request, 'Đã từ chối yêu cầu hủy.')
+            else:
+                messages.error(request, 'Thao tác không hợp lệ.')
+        except CancelError as exc:
+            messages.error(request, str(exc))
+        return redirect('san_xuat:sx_cancel_approve')
+
+    from san_xuat.hub_models import SxProductionCancelRequest
+
+    rows = list(
+        SxProductionCancelRequest.objects.filter(
+            status=SxProductionCancelRequest.STATUS_PENDING,
+        )
+        .select_related('production_order', 'sales_order', 'requested_by')
+        .order_by('requested_at', 'pk')[:100]
+    )
+    return render(request, 'san_xuat/sx_cancel_approve.html', {
+        **menu_perm_context(request.user, MODULE_SAN_XUAT, menu_key),
+        'rows': rows,
+        'can_approve': can_approve,
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
 def dispatch_mo_detail(request, pk: int):
     mo = get_object_or_404(
         SxProductionOrder.objects.select_related(
@@ -3559,6 +3666,24 @@ def dispatch_mo_detail(request, pk: int):
                     messages.success(request, f'Đã bỏ khoá lệnh {mo.code} — hủy hoàn thành.')
             except DispatchError as exc:
                 messages.error(request, str(exc))
+            return redirect('san_xuat:dispatch_mo_detail', pk=mo.pk)
+
+        elif action == 'request_cancel' and can_update:
+            from san_xuat.services.cancel_request import CancelError, submit_mo_cancel
+
+            if mo.status == SxProductionOrder.STATUS_CANCELLED:
+                messages.error(request, 'Lệnh đã hủy.')
+            else:
+                try:
+                    submit_mo_cancel(
+                        mo=mo,
+                        reason=request.POST.get('cancel_reason') or '',
+                        user=request.user,
+                    )
+                except CancelError as exc:
+                    messages.error(request, str(exc))
+                else:
+                    messages.success(request, 'Đã gửi yêu cầu hủy. Lệnh chỉ hủy khi được duyệt.')
             return redirect('san_xuat:dispatch_mo_detail', pk=mo.pk)
 
         elif action == 'receive_gc':
@@ -3719,9 +3844,12 @@ def dispatch_mo_detail(request, pk: int):
         .select_related('production_stat')
         .order_by('-request_date', '-pk')[:20]
     )
-    from san_xuat.services.handover_status import build_mo_handover_row
+    from san_xuat.services.cancel_request import pending_for_mo, warnings_for_mo
+    from san_xuat.services.handover_status import build_mo_route_stat_days
 
-    handover_row = build_mo_handover_row(mo)
+    route_stat_days = build_mo_route_stat_days(mo)
+    cancel_request = pending_for_mo(mo.pk)
+    can_approve_cancel = user_can_update_menu(request.user, MODULE_SAN_XUAT, 'sx_cancel_approve')
 
     so_line = None
     if mo.sales_order_id:
@@ -3875,7 +4003,10 @@ def dispatch_mo_detail(request, pk: int):
         'qc_request_list': qc_request_list,
         'open_qc_alerts': open_qc_alerts,
         'fg_receipt_list': fg_receipt_list,
-        'handover_row': handover_row,
+        'route_stat_days': route_stat_days,
+        'cancel_request': cancel_request,
+        'cancel_warnings': warnings_for_mo(mo) if mo.status != SxProductionOrder.STATUS_CANCELLED else [],
+        'can_approve_cancel': can_approve_cancel,
         'bom_lines': bom_lines,
         'display_bom': display_bom,
         'ob_lines': ob_lines,

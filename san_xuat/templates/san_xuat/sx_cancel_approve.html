@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h2 class="h4 mb-0">Duyệt hủy sản xuất</h2>
+  </div>
+  {% if rows %}
+  <div class="table-responsive">
+    <table class="table table-sm align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Loại</th>
+          <th>Đối tượng</th>
+          <th>Lý do</th>
+          <th>Cảnh báo</th>
+          <th>Người gửi</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for row in rows %}
+        <tr>
+          <td class="small">{{ row.get_target_type_display }}</td>
+          <td class="small">
+            {% if row.target_type == 'mo' and row.production_order %}
+            <a href="{% url 'san_xuat:dispatch_mo_detail' row.production_order.pk %}">{{ row.production_order.code }}</a>
+            {% elif row.sales_order %}
+            {{ row.sales_order.code }}
+            {% else %}—{% endif %}
+          </td>
+          <td class="small">{{ row.reason }}</td>
+          <td class="small text-warning-emphasis">{{ row.warning_text|default:"—"|linebreaksbr }}</td>
+          <td class="small text-nowrap">{{ row.requested_by.get_full_name|default:row.requested_by.username }}<br>{{ row.requested_at|date:"d/m/Y H:i" }}</td>
+          <td class="text-end text-nowrap">
+            {% if can_approve %}
+            <form method="post" class="d-inline">
+              {% csrf_token %}
+              <input type="hidden" name="request_id" value="{{ row.pk }}">
+              <button type="submit" name="action" value="approve" class="btn btn-sm btn-danger fw-bold">Duyệt</button>
+              <button type="submit" name="action" value="reject" class="btn btn-sm btn-outline-secondary">Từ chối</button>
+            </form>
+            {% else %}
+            <span class="small text-muted">Chỉ xem</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-muted mb-0">Không có yêu cầu hủy đang chờ.</p>
+  {% endif %}
+</div>
+{% endblock %}

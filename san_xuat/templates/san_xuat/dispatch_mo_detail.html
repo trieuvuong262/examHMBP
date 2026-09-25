@@ -33,10 +33,49 @@
       <a href="{% url 'san_xuat:subcontract_detail' mo_subcontract.pk %}"><i class="bi bi-building" aria-hidden="true"></i>Phiếu GC</a>
       {% endif %}
       <a href="{% url 'san_xuat:traceability' %}?query={{ mo.code }}&gaps=1"><i class="bi bi-signpost-split" aria-hidden="true"></i>Truy vết</a>
+      {% if can_approve_cancel %}
+      <a href="{% url 'san_xuat:sx_cancel_approve' %}"><i class="bi bi-x-circle" aria-hidden="true"></i>Duyệt hủy</a>
+      {% endif %}
       <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:dispatch_mo' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
     </nav>
   </div>
+
+  {% if mo.status != 'cancelled' %}
+  <div class="card jp-mo-panel mb-3">
+    <div class="card-body">
+      <p class="title mb-2 fw-semibold">Hủy lệnh sản xuất</p>
+      {% if cancel_request %}
+      <div class="small mb-2">Đang chờ duyệt. Lý do: {{ cancel_request.reason }}</div>
+      {% if cancel_request.warning_text %}
+      <div class="alert alert-warning py-2 px-3 small mb-2">{{ cancel_request.warning_text|linebreaksbr }}</div>
+      {% endif %}
+      {% if can_approve_cancel %}
+      <form method="post" class="d-inline">
+        {% csrf_token %}
+        <input type="hidden" name="request_id" value="{{ cancel_request.pk }}">
+        <button type="submit" class="btn btn-sm btn-outline-danger fw-bold" formaction="{% url 'san_xuat:sx_cancel_approve' %}" name="action" value="approve">Duyệt hủy</button>
+      </form>
+      {% endif %}
+      {% elif can_update %}
+      {% if cancel_warnings %}
+      <div class="alert alert-warning py-2 px-3 small mb-2">
+        {% for note in cancel_warnings %}<div>{{ note }}</div>{% endfor %}
+      </div>
+      {% endif %}
+      <form method="post" class="d-flex flex-wrap gap-2 align-items-end">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="request_cancel">
+        <div class="flex-grow-1">
+          <label class="form-label small mb-1" for="jp-mo-cancel-reason">Lý do hủy</label>
+          <input id="jp-mo-cancel-reason" name="cancel_reason" class="form-control form-control-sm" required maxlength="2000">
+        </div>
+        <button type="submit" class="btn btn-sm btn-outline-danger fw-bold">Gửi yêu cầu hủy</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
 
   {# —— Tóm tắt lệnh —— #}
   <div class="jp-mo-hero">
@@ -632,38 +671,36 @@
         <div class="card-body">
           <div class="jp-mo-section-head">
             <div>
-              <p class="title">Tồn bán thành phẩm</p>
-              <div class="count">theo tiến độ tổ{% if handover_row.waiting_total %} · chờ {{ handover_row.waiting_total|sx_num }}{% endif %}</div>
-            </div>
-            <div class="d-flex flex-wrap gap-1">
-              <a href="{% url 'san_xuat:dispatch_handover_status' %}?q={{ mo.code|urlencode }}" class="btn btn-sm btn-outline-secondary">Danh sách</a>
-              {% if mo.status != 'draft' and mo.status != 'cancelled' and mo.status != 'done' %}
-              <a href="{% url 'san_xuat:dispatch_wip_handover_create' %}?mo={{ mo.pk }}" class="btn btn-sm btn-hm">Tạo</a>
-              {% endif %}
+              <p class="title">Thống kê sản xuất</p>
             </div>
           </div>
-          {% if handover_row.cells %}
-          <div class="table-responsive mb-3">
+          {% if route_stat_days %}
+          <div class="table-responsive mb-0">
             <table class="table table-sm mb-0">
-              <thead class="table-light"><tr><th>Tổ</th><th class="text-end">Đã xong</th><th class="text-end">Chờ nhận</th><th class="text-end"></th></tr></thead>
-              <tbody>
-              {% for c in handover_row.cells %}
+              <thead class="table-light">
                 <tr>
-                  <td class="small">{{ c.label }}</td>
-                  <td class="text-end fw-semibold small">{{ c.done|sx_num }}</td>
-                  <td class="text-end small">{% if forloop.first %}—{% else %}{{ c.waiting|sx_num }}{% endif %}</td>
-                  <td class="text-end">
-                    {% if c.slug %}
-                    <a href="{% url 'san_xuat:team_work_progress' c.slug mo.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
-                    {% endif %}
-                  </td>
+                  <th>Ngày</th>
+                  <th>Tổ</th>
+                  <th class="text-end">Kế hoạch</th>
+                  <th class="text-end">Đã thống kê</th>
+                  <th class="text-end">%</th>
+                </tr>
+              </thead>
+              <tbody>
+              {% for row in route_stat_days %}
+                <tr>
+                  <td class="small text-nowrap">{{ row.plan_date|date:"d/m/Y" }}</td>
+                  <td class="small">{{ row.label }}</td>
+                  <td class="text-end small">{{ row.planned_qty|sx_num }}</td>
+                  <td class="text-end fw-semibold small">{{ row.done_qty|sx_num }}</td>
+                  <td class="text-end small">{% if row.pct != None %}{{ row.pct }}%{% else %}—{% endif %}</td>
                 </tr>
               {% endfor %}
               </tbody>
             </table>
           </div>
           {% else %}
-          <div class="text-muted small mb-0">Chưa có tiến độ tổ.</div>
+          <div class="text-muted small mb-0">Chưa có ngày trên lộ trình KHSX.</div>
           {% endif %}
         </div>
       </div>

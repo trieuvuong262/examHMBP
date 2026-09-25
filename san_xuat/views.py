@@ -1745,6 +1745,45 @@ def doc_costing_export(request, pk):
     )
 
 
+DOCS_COST_STATS_MENU = 'docs_cost_stats'
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def docs_cost_stats(request):
+    """Bảng tổng hợp chi phí NVL định mức theo nhóm NPL × sản phẩm (BOM active)."""
+    from hrm.menu_permissions import (
+        handle_menu_access_denied,
+        menu_perm_context,
+        user_can_access_menu,
+    )
+    from san_xuat.services.cost_stats import build_nvl_cost_matrix
+
+    if not user_can_access_menu(request.user, MODULE_SAN_XUAT, DOCS_COST_STATS_MENU):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, DOCS_COST_STATS_MENU)
+
+    matrix = build_nvl_cost_matrix()
+    return render(request, 'san_xuat/docs_cost_stats.html', {
+        'matrix': matrix,
+        'product_count': len(matrix.products),
+        'category_count': len(matrix.categories),
+        **menu_perm_context(request.user, MODULE_SAN_XUAT, DOCS_COST_STATS_MENU),
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'export')
+@require_GET
+def docs_cost_stats_export(request):
+    from hrm.menu_permissions import (
+        handle_menu_access_denied,
+        user_can_export_menu,
+    )
+    from san_xuat.services.cost_stats import export_nvl_cost_matrix_xlsx
+
+    if not user_can_export_menu(request.user, MODULE_SAN_XUAT, DOCS_COST_STATS_MENU):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, DOCS_COST_STATS_MENU)
+    return export_nvl_cost_matrix_xlsx()
+
+
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 @require_GET
 @xframe_options_sameorigin

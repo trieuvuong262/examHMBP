@@ -1,0 +1,187 @@
+{% extends 'base.html' %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+<style>
+.jp-cost-stats-wrap {
+  overflow: auto;
+  max-height: calc(100vh - 220px);
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  background: #fff;
+}
+.jp-cost-stats-table {
+  margin: 0;
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 100%;
+  font-size: 0.9rem;
+}
+.jp-cost-stats-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.jp-cost-stats-table thead tr.jp-cost-stats-sub th {
+  top: 2.35rem;
+  z-index: 3;
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+.jp-cost-stats-table .jp-sticky-l,
+.jp-cost-stats-table .jp-sticky-l2 {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: #fff;
+}
+.jp-cost-stats-table thead .jp-sticky-l,
+.jp-cost-stats-table thead .jp-sticky-l2 {
+  z-index: 4;
+  background: #f8fafc;
+}
+.jp-cost-stats-table .jp-sticky-l2 {
+  left: 3.25rem;
+  min-width: 12rem;
+  max-width: 18rem;
+}
+.jp-cost-stats-table .jp-sticky-l {
+  min-width: 3.25rem;
+  width: 3.25rem;
+  text-align: center;
+}
+.jp-cost-stats-table tbody tr.jp-section td {
+  background: #e2e8f0;
+  font-weight: 700;
+}
+.jp-cost-stats-table tbody tr.jp-total td {
+  background: #fef3c7;
+  font-weight: 700;
+}
+.jp-cost-stats-table tbody tr.jp-total .jp-sticky-l,
+.jp-cost-stats-table tbody tr.jp-total .jp-sticky-l2,
+.jp-cost-stats-table tbody tr.jp-section .jp-sticky-l,
+.jp-cost-stats-table tbody tr.jp-section .jp-sticky-l2 {
+  background: inherit;
+}
+.jp-cost-stats-table td.num,
+.jp-cost-stats-table th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.jp-cost-stats-table td.prod-col,
+.jp-cost-stats-table th.prod-col {
+  min-width: 7.5rem;
+}
+.jp-cost-stats-meta {
+  color: #64748b;
+  font-size: 0.85rem;
+}
+</style>
+{% endblock %}
+{% load sx_format %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-sx-page py-3 py-md-4 mb-5 px-3 px-md-4">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Thống kê chi phí</h2>
+      <p class="jp-cost-stats-meta mb-0 mt-1">
+        Tổng hợp chi phí NVL định mức theo nhóm nguyên phụ liệu · chỉ hồ sơ có BOM đang áp dụng
+        · {{ product_count }} mã hàng · {{ category_count }} nhóm NPL
+      </p>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      {% if can_export %}
+      <a href="{% url 'san_xuat:docs_cost_stats_export' %}"
+         class="btn btn-sx-export btn-sm fw-bold" title="Xuất Excel">
+        <i class="bi bi-download me-1"></i>Xuất Excel
+      </a>
+      {% endif %}
+      <a href="{% url 'san_xuat:doc_list' %}">
+        <i class="bi bi-journal-text" aria-hidden="true"></i>Hồ sơ thiết kế
+      </a>
+    </nav>
+  </div>
+
+  <div class="jp-cost-stats-wrap mt-3">
+    <table class="table table-sm align-middle jp-cost-stats-table">
+      <thead>
+        <tr>
+          <th class="jp-sticky-l" rowspan="2">STT</th>
+          <th class="jp-sticky-l2" rowspan="2">Tên chi phí</th>
+          <th class="text-center" colspan="{{ matrix.products|length|default:1 }}">Mã hàng</th>
+          <th class="num" rowspan="2">Tổng</th>
+        </tr>
+        <tr class="jp-cost-stats-sub">
+          {% for prod in matrix.products %}
+          <th class="prod-col text-center" title="{{ prod.product_code }} · BOM {{ prod.bom_label }}">
+            <a href="{% url 'san_xuat:doc_detail' prod.doc_pk %}?tab=costing&amp;bom={{ prod.bom_pk }}"
+               class="text-decoration-none text-dark">{{ prod.product_name }}</a>
+          </th>
+          {% empty %}
+          <th class="text-muted text-center">—</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="jp-section">
+          <td class="jp-sticky-l">I</td>
+          <td class="jp-sticky-l2">Chi phí NVL trực tiếp</td>
+          {% for prod in matrix.products %}
+          <td class="prod-col"></td>
+          {% empty %}
+          <td></td>
+          {% endfor %}
+          <td></td>
+        </tr>
+        {% for cat in matrix.categories %}
+        <tr>
+          <td class="jp-sticky-l">{{ forloop.counter }}</td>
+          <td class="jp-sticky-l2">{{ cat.category_name }}</td>
+          {% for amount in cat.amounts %}
+          <td class="num prod-col">{% if amount %}{{ amount|sx_num }}{% else %}—{% endif %}</td>
+          {% empty %}
+          <td class="num text-muted">—</td>
+          {% endfor %}
+          <td class="num fw-semibold">{% if cat.row_total %}{{ cat.row_total|sx_num }}{% else %}—{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td class="jp-sticky-l"></td>
+          <td class="jp-sticky-l2 text-muted">
+            {% if not matrix.products %}
+              Chưa có hồ sơ nào có BOM đang áp dụng.
+              <a href="{% url 'san_xuat:doc_list' %}">Mở hồ sơ thiết kế</a>.
+            {% else %}
+              Các BOM active chưa có dòng NPL.
+            {% endif %}
+          </td>
+          {% for prod in matrix.products %}
+          <td></td>
+          {% empty %}
+          <td></td>
+          {% endfor %}
+          <td></td>
+        </tr>
+        {% endfor %}
+        <tr class="jp-total">
+          <td class="jp-sticky-l">C</td>
+          <td class="jp-sticky-l2">Cộng</td>
+          {% for total in matrix.column_totals %}
+          <td class="num prod-col">{{ total|sx_num }}</td>
+          {% empty %}
+          <td class="num">—</td>
+          {% endfor %}
+          <td class="num">{{ matrix.grand_total|sx_num }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

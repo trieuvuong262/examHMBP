@@ -104,6 +104,7 @@ class SxSalesOrder(DemoMarkedModel):
     PLAN_IN_PROGRESS = 'in_progress'
     PLAN_DONE = 'done'
     PLAN_ON_HOLD = 'on_hold'
+    PLAN_CANCELLED = 'cancelled'
     PLAN_STATUS_CHOICES = [
         (PLAN_QUEUED, 'Chờ xếp'),
         (PLAN_RANKED, 'Chờ xếp'),  # legacy — không còn dùng; hiển thị như chờ xếp
@@ -111,6 +112,7 @@ class SxSalesOrder(DemoMarkedModel):
         (PLAN_IN_PROGRESS, 'Đang sản xuất'),
         (PLAN_DONE, 'Hoàn thành'),
         (PLAN_ON_HOLD, 'Tạm giữ'),
+        (PLAN_CANCELLED, 'Đã hủy'),
     ]
     PRIORITY_CRITICAL = 'critical'  # Rất gấp
     PRIORITY_URGENT = 'urgent'      # Gấp
@@ -1290,6 +1292,80 @@ class SxMoProcessStep(models.Model):
         if not wc:
             return ''
         return (wc.team_label or wc.name or '').strip()
+
+
+class SxProductionCancelRequest(models.Model):
+    """Yêu cầu hủy lệnh hoặc kế hoạch sản xuất — chỉ hủy sau khi được duyệt."""
+
+    TARGET_MO = 'mo'
+    TARGET_PLAN = 'plan'
+    TARGET_CHOICES = [
+        (TARGET_MO, 'Lệnh sản xuất'),
+        (TARGET_PLAN, 'Kế hoạch sản xuất'),
+    ]
+    STATUS_PENDING = 'pending'
+    STATUS_APPROVED = 'approved'
+    STATUS_REJECTED = 'rejected'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Chờ duyệt'),
+        (STATUS_APPROVED, 'Đã duyệt'),
+        (STATUS_REJECTED, 'Từ chối'),
+    ]
+
+    target_type = models.CharField(max_length=12, choices=TARGET_CHOICES, db_index=True)
+    production_order = models.ForeignKey(
+        SxProductionOrder,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='cancel_requests',
+    )
+    sales_order = models.ForeignKey(
+        SxSalesOrder,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='cancel_requests',
+    )
+    reason = models.TextField(verbose_name='Lý do hủy')
+    warning_text = models.TextField(blank=True, default='', verbose_name='Cảnh báo lúc gửi')
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True,
+    )
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='sx_cancel_requests',
+    )
+    requested_at = models.DateTimeField(auto_now_add=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sx_cancel_reviews',
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-requested_at', '-pk']
+        verbose_name = 'Yêu cầu hủy sản xuất'
+        verbose_name_plural = 'Yêu cầu hủy sản xuất'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['production_order'],
+                condition=models.Q(status='pending', target_type='mo'),
+                name='sx_cancel_req_mo_pending',
+            ),
+            models.UniqueConstraint(
+                fields=['sales_order'],
+                condition=models.Q(status='pending', target_type='plan'),
+                name='sx_cancel_req_plan_pending',
+            ),
+        ]
+
+    def __str__(self):
+        return f'Hủy {self.get_target_type_display()} #{self.pk}'
 
 
 class SxMoProcessAssignee(models.Model):

@@ -1834,6 +1834,16 @@
             {% endif %}
             <a href="{% url 'san_xuat:dispatch_mo' %}?q={{ row.order.code|urlencode }}" class="btn btn-outline-secondary btn-sm">Lệnh SX</a>
             {% endif %}
+            {% if can_request_plan_cancel %}
+              {% if row.order.pk in pending_cancel_order_ids %}
+              <span class="btn btn-sm btn-outline-secondary disabled">Chờ duyệt hủy</span>
+              {% else %}
+              <button type="button" class="btn btn-outline-danger btn-sm"
+                      data-jp-cancel-plan-open
+                      data-order-id="{{ row.order.pk }}"
+                      data-order-code="{{ row.order.code }}">Hủy kế hoạch</button>
+              {% endif %}
+            {% endif %}
           </div>
           {% endif %}
         </div>
@@ -2115,9 +2125,74 @@
   </div>
 </div>
 
+<div class="modal fade" id="jpCancelPlanModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" class="modal-content" id="jpCancelPlanForm" action="{% url 'san_xuat:plan_board' %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="request_cancel_plan">
+      <input type="hidden" name="order_id" id="jpCancelPlanOrderId" value="">
+      <input type="hidden" name="mode" value="list">
+      <input type="hidden" name="tab" value="{{ tab }}">
+      <div class="modal-header">
+        <h5 class="modal-title">Hủy kế hoạch</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-muted mb-2" id="jpCancelPlanCode"></p>
+        <label class="form-label" for="jpCancelPlanReason">Lý do hủy</label>
+        <textarea id="jpCancelPlanReason" name="cancel_reason" class="form-control" maxlength="2000" rows="3" placeholder="Nhập lý do hủy kế hoạch"></textarea>
+        <p class="text-danger small mb-0 mt-2" id="jpCancelPlanReasonError" hidden>Vui lòng nhập đầy đủ lý do.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Đóng</button>
+        <button type="submit" class="btn btn-danger fw-bold">Gửi</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
+<script>
+(function () {
+  var modalEl = document.getElementById('jpCancelPlanModal');
+  var form = document.getElementById('jpCancelPlanForm');
+  if (!modalEl || !form || !window.bootstrap) return;
+  var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  var orderInput = document.getElementById('jpCancelPlanOrderId');
+  var reasonInput = document.getElementById('jpCancelPlanReason');
+  var reasonError = document.getElementById('jpCancelPlanReasonError');
+  var codeEl = document.getElementById('jpCancelPlanCode');
+  function hideReasonError() {
+    if (reasonError) reasonError.hidden = true;
+  }
+  document.querySelectorAll('[data-jp-cancel-plan-open]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      orderInput.value = btn.getAttribute('data-order-id') || '';
+      var code = btn.getAttribute('data-order-code') || '';
+      codeEl.textContent = code ? ('Đơn ' + code) : '';
+      reasonInput.value = '';
+      hideReasonError();
+      modal.show();
+    });
+  });
+  modalEl.addEventListener('shown.bs.modal', function () {
+    reasonInput.focus();
+  });
+  form.addEventListener('submit', function (event) {
+    var text = (reasonInput.value || '').trim();
+    reasonInput.value = text;
+    if (text.length < 100) {
+      event.preventDefault();
+      if (reasonError) reasonError.hidden = false;
+      reasonInput.focus();
+      return;
+    }
+    hideReasonError();
+  });
+})();
+</script>
 <script>
 (function () {
   var modalEl = document.getElementById('jpSplitTeamDaysModal');

@@ -529,6 +529,86 @@ def done_qty_by_order_team_day(
     return out
 
 
+@dataclass
+class MoRouteStatDay:
+    """Một ngày tổ trên lộ trình KHSX, kèm SL thống kê đã ghi ngày đó."""
+
+    plan_date: date
+    slug: str
+    label: str
+    planned_qty: Decimal
+    done_qty: Decimal
+
+    @property
+    def pct(self) -> int | None:
+        planned = self.planned_qty or Decimal("0")
+        if planned <= 0:
+            return None
+        return int(round(100 * (self.done_qty or Decimal("0")) / planned))
+
+
+def build_mo_route_stat_days(mo: SxProductionOrder) -> list[MoRouteStatDay]:
+    """Ngày trên lộ trình đơn (và ngày đã thống kê dù chưa có ô kế hoạch)."""
+    from san_xuat.services.progress_template import team_by_slug
+
+    oid = int(mo.sales_order_id or 0)
+    if not oid:
+        return []
+
+    slug_order = {slug: idx for idx, (slug, *_rest) in enumerate(TEAM_SLUGS)}
+    grouped: dict[tuple[date, str], dict] = {}
+
+    day_rows = (
+        SxOrderTeamDayPlan.objects.filter(sales_order_id=oid)
+        .select_related("work_center")
+        .order_by("plan_date", "id")
+    )
+    for dp in day_rows:
+        slug = (dp.team_slug or "").strip().lower()
+        if not slug or not dp.plan_date:
+            continue
+        slot = grouped.setdefault((dp.plan_date, slug), {
+            "planned": Decimal("0"),
+            "labels": [],
+        })
+        slot["planned"] += _q(dp.qty)
+        wc = dp.work_center
+        wc_label = ""
+        if wc is not None:
+            wc_label = (wc.team_label or wc.name or wc.code or "").strip()
+        if wc_label and wc_label not in slot["labels"]:
+            slot["labels"].append(wc_label)
+
+    done_by_slug = done_qty_by_order_team_day([oid])
+    for (order_id, slug), by_day in done_by_slug.items():
+        if int(order_id) != oid:
+            continue
+        for day, qty in (by_day or {}).items():
+            if not day or _q(qty) <= 0:
+                continue
+            slot = grouped.setdefault((day, slug), {
+                "planned": Decimal("0"),
+                "labels": [],
+            })
+            slot["done"] = _q(qty)
+
+    rows: list[MoRouteStatDay] = []
+    for (day, slug), slot in grouped.items():
+        meta = team_by_slug(slug) or {}
+        team_label = (meta.get("label") or slug).strip()
+        extra = ", ".join(slot["labels"])
+        label = f"{team_label} · {extra}" if extra and extra != team_label else (extra or team_label)
+        rows.append(MoRouteStatDay(
+            plan_date=day,
+            slug=slug,
+            label=label,
+            planned_qty=_q(slot.get("planned")),
+            done_qty=_q(slot.get("done")),
+        ))
+    rows.sort(key=lambda r: (r.plan_date, slug_order.get(r.slug, 99), r.label))
+    return rows
+
+
 def _slug_from_plan_step(step) -> str:
     from san_xuat.services.progress_template import team_by_slug, team_slug_for_process_label
 

@@ -1,4 +1,5 @@
 from django.urls import path
+from django.views.generic import RedirectView
 
 from san_xuat import views, views_hub, views_ie, views_kv_embed, views_ops, views_print, views_export
 
@@ -18,6 +19,11 @@ urlpatterns = [
     path('san-pham-nvl/', views_hub.products_nvl, name='products_nvl'),
     path('ke-hoach/', views_hub.plan_stub, name='plan_stub'),
     path('ke-hoach/bang/', views_hub.plan_board, name='plan_board'),
+    path('ke-hoach/duyet-huy/', views_hub.sx_cancel_approve, name='sx_cancel_approve'),
+    path(
+        'duyet-huy/',
+        RedirectView.as_view(pattern_name='san_xuat:sx_cancel_approve', query_string=True),
+    ),
     path('ke-hoach/dat-hang-thieu/<int:order_id>/', views_hub.plan_shortage_order, name='plan_shortage_order'),
     path('ke-hoach/don-mua-hang/<int:pk>/in/', views_print.print_po, name='print_po'),
     path('ke-hoach/lo-trinh/', views_hub.plan_route, name='plan_route'),
@@ -176,6 +182,12 @@ urlpatterns = [
     path('thue-gia-cong/<int:pk>/', views_hub.subcontract_detail, name='subcontract_detail'),
     path('thue-gia-cong/<int:pk>/in/', views_print.print_subcontract, name='print_subcontract'),
     path('ho-so/', views.doc_list, name='doc_list'),
+    path('ho-so/thong-ke-chi-phi/', views.docs_cost_stats, name='docs_cost_stats'),
+    path(
+        'ho-so/thong-ke-chi-phi.xlsx',
+        views.docs_cost_stats_export,
+        name='docs_cost_stats_export',
+    ),
     path('ho-so/them/', views.doc_create, name='doc_create'),
     path('ho-so/<int:pk>/', views.doc_detail, name='doc_detail'),
     path('ho-so/<int:pk>/costing.xlsx', views.doc_costing_export, name='doc_costing_export'),

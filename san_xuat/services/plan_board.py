@@ -500,6 +500,8 @@ def enqueue_on_confirm(order: SxSalesOrder) -> None:
 
 
 def derive_plan_status(order: SxSalesOrder, mos: list[SxProductionOrder] | None = None) -> str:
+    if order.plan_status == SxSalesOrder.PLAN_CANCELLED:
+        return SxSalesOrder.PLAN_CANCELLED
     if order.plan_status == SxSalesOrder.PLAN_ON_HOLD:
         return SxSalesOrder.PLAN_ON_HOLD
     if mos is None:
@@ -522,7 +524,7 @@ def derive_plan_status(order: SxSalesOrder, mos: list[SxProductionOrder] | None 
 
 def sync_plan_status(order: SxSalesOrder) -> str:
     """Đồng bộ plan_status từ LSX (không đè on_hold). Gộp ranked cũ → chờ xếp."""
-    if order.plan_status == SxSalesOrder.PLAN_ON_HOLD:
+    if order.plan_status in (SxSalesOrder.PLAN_ON_HOLD, SxSalesOrder.PLAN_CANCELLED):
         return order.plan_status
     derived = derive_plan_status(order)
     if derived != order.plan_status:
@@ -2822,6 +2824,8 @@ def hold_plan_order(*, order_id: int, reason: str = '') -> SxSalesOrder:
     order = SxSalesOrder.objects.select_for_update().get(pk=order_id, is_demo=False)
     if order.confirm_status != SxSalesOrder.CONFIRM_CONFIRMED:
         raise PlanningError('Chỉ giữ đơn đã xác nhận.')
+    if order.plan_status == SxSalesOrder.PLAN_CANCELLED:
+        raise PlanningError('Kế hoạch đã hủy.')
     if order.production_orders.filter(is_demo=False).exclude(
         status=SxProductionOrder.STATUS_CANCELLED,
     ).exists():
@@ -3082,6 +3086,8 @@ def release_order_to_production(
     )
     if order.confirm_status != SxSalesOrder.CONFIRM_CONFIRMED:
         raise PlanningError('Chỉ chuyển đơn đã xác nhận.')
+    if order.plan_status == SxSalesOrder.PLAN_CANCELLED:
+        raise PlanningError('Kế hoạch đã hủy.')
     if order.plan_status == SxSalesOrder.PLAN_ON_HOLD:
         raise PlanningError('Đơn đang tạm giữ — bỏ giữ trước khi chuyển SX.')
     if order.plan_status == SxSalesOrder.PLAN_DONE:
@@ -3233,6 +3239,8 @@ def unrelease_order_from_production(*, order_id: int) -> tuple[SxSalesOrder, int
     order = SxSalesOrder.objects.select_for_update().get(pk=order_id, is_demo=False)
     if order.confirm_status != SxSalesOrder.CONFIRM_CONFIRMED:
         raise PlanningError('Chỉ hủy chuyển đơn đã xác nhận.')
+    if order.plan_status == SxSalesOrder.PLAN_CANCELLED:
+        raise PlanningError('Kế hoạch đã hủy.')
     if order.plan_status == SxSalesOrder.PLAN_ON_HOLD:
         raise PlanningError('Đơn đang tạm giữ.')
     if order.plan_status == SxSalesOrder.PLAN_DONE:
@@ -3320,6 +3328,8 @@ def reschedule_order_team_start(
 def _assert_schedule_editable(order: SxSalesOrder) -> None:
     if order.confirm_status != SxSalesOrder.CONFIRM_CONFIRMED:
         raise PlanningError('Chỉ xếp lịch đơn đã xác nhận.')
+    if order.plan_status == SxSalesOrder.PLAN_CANCELLED:
+        raise PlanningError('Kế hoạch đã hủy — không chỉnh lộ trình.')
     if order.plan_status == SxSalesOrder.PLAN_DONE:
         raise PlanningError('Đơn đã hoàn thành — không chỉnh lộ trình.')
     if order.plan_status == SxSalesOrder.PLAN_ON_HOLD:
