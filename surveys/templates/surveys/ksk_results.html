@@ -59,6 +59,11 @@
                         <th>CCCD</th>
                         <th>SĐT</th>
                         <th>Địa chỉ</th>
+                        {% if status == 'confirmed' %}
+                        <th>CCCD mới</th>
+                        <th>SĐT mới</th>
+                        <th>Địa chỉ mới</th>
+                        {% endif %}
                         <th>Thời gian</th>
                     </tr>
                 </thead>
@@ -101,10 +106,15 @@
                             {% if person.submitted_ward or person.ward %}<br>{{ person.submitted_ward|default:person.ward }}{% endif %}
                             {% if person.submitted_province or person.province %}<br>{{ person.submitted_province|default:person.province }}{% endif %}
                         </td>
+                        {% if status == 'confirmed' %}
+                        <td>{{ person.new_id }}</td>
+                        <td>{{ person.new_phone }}</td>
+                        <td class="small">{{ person.new_address|linebreaksbr }}</td>
+                        {% endif %}
                         <td class="text-nowrap small">{% if person.submitted_at %}{{ person.submitted_at|date:"H:i d/m/Y" }}{% else %}—{% endif %}</td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="8" class="text-center text-muted py-4">Không có dòng nào.</td></tr>
+                    <tr><td colspan="{% if status == 'confirmed' %}11{% else %}8{% endif %}" class="text-center text-muted py-4">Không có dòng nào.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

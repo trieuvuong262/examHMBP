@@ -24,6 +24,8 @@ from .ksk import (
     KSK_MANAGE_SLUGS,
     NOT_IN_LIST_MESSAGE,
     OUTSIDE_WINDOW_MESSAGE,
+    changed_address_or_dash,
+    changed_or_dash,
     current_campaign,
     parse_posted,
     person_for_profile,
@@ -114,6 +116,18 @@ def _manage_context(request, campaign):
         for person in people:
             typed = (person.employee_code or '').strip().lower()
             person.hr_code = known.get(typed, '')
+            if person.submitted_at:
+                person.new_id = changed_or_dash(person.id_number, person.submitted_id, kind='id')
+                person.new_phone = changed_or_dash(person.phone, person.submitted_phone, kind='phone')
+                person.new_address = changed_address_or_dash(
+                    person.street, person.ward, person.province,
+                    person.submitted_street, person.submitted_ward, person.submitted_province,
+                    sep='\n',
+                )
+            else:
+                person.new_id = '-'
+                person.new_phone = '-'
+                person.new_address = '-'
     opens_value, closes_value = _window_inputs(campaign)
     return {
         'people': people,
@@ -306,6 +320,15 @@ def health_check_export(request):
         }
         for person in campaign.people.order_by('sort_order'):
             saved = submissions.get(person.pk)
+            if saved:
+                new_id = changed_or_dash(person.id_number, saved.id_number, kind='id')
+                new_phone = changed_or_dash(person.phone, saved.phone, kind='phone')
+                new_address = changed_address_or_dash(
+                    person.street, person.ward, person.province,
+                    saved.street, saved.ward, saved.province,
+                )
+            else:
+                new_id = new_phone = new_address = '-'
             rows.append({
                 'STT': person.sort_order,
                 'MÃ NHÂN VIÊN': person.employee_code,
@@ -315,6 +338,9 @@ def health_check_export(request):
                 'ĐỊA CHỈ: SỐ NHÀ, ĐƯỜNG, ẤP… SAU SÁP NHẬP': saved.street if saved else person.street,
                 'ĐẠI CHỈ: PHƯỜNG/XÃ SAU SÁP NHẬP': saved.ward if saved else person.ward,
                 'TỈNH/THÀNH PHỐ': saved.province if saved else person.province,
+                'CCCD MỚI': new_id,
+                'SĐT MỚI': new_phone,
+                'ĐỊA CHỈ MỚI': new_address,
             })
     if not rows:
         rows = [{'STT': '', 'MÃ NHÂN VIÊN': '', 'HỌ VÀ TÊN': ''}]

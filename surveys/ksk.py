@@ -58,6 +58,62 @@ def person_for_profile(campaign, profile):
     )
 
 
+UNCHANGED = '-'
+
+
+def _compact(value) -> str:
+    return ' '.join(str(value or '').split())
+
+
+def _same_text(left, right) -> bool:
+    return _compact(left).casefold() == _compact(right).casefold()
+
+
+def _same_id(left, right) -> bool:
+    digits_left = re.sub(r'\D', '', str(left or ''))
+    digits_right = re.sub(r'\D', '', str(right or ''))
+    if digits_left or digits_right:
+        return digits_left == digits_right
+    return _same_text(left, right)
+
+
+def _same_phone(left, right) -> bool:
+    left_key = normalize_phone(left)
+    right_key = normalize_phone(right)
+    if left_key or right_key:
+        return left_key == right_key
+    return _same_text(left, right)
+
+
+def changed_or_dash(original, submitted, *, kind='text') -> str:
+    """Giá trị mới nếu khác danh sách gốc, ngược lại dấu gạch."""
+    if kind == 'phone':
+        same = _same_phone(original, submitted)
+        shown = display_phone(submitted)
+    elif kind == 'id':
+        same = _same_id(original, submitted)
+        shown = _compact(submitted)
+    else:
+        same = _same_text(original, submitted)
+        shown = _compact(submitted)
+    if same:
+        return UNCHANGED
+    return shown or UNCHANGED
+
+
+def changed_address_or_dash(original_street, original_ward, original_province, street, ward, province, *, sep=', ') -> str:
+    same = (
+        _same_text(original_street, street)
+        and _same_text(original_ward, ward)
+        and _same_text(original_province, province)
+    )
+    if same:
+        return UNCHANGED
+    parts = [_compact(street), _compact(ward), _compact(province)]
+    text = sep.join(part for part in parts if part)
+    return text or UNCHANGED
+
+
 def display_phone(value: str) -> str:
     raw = (value or '').strip()
     if not raw:
