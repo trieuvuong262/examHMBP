@@ -35,7 +35,12 @@
       {% endif %}{% endif %}
     </td>
     {% endfor %}
-    <td class="c-total jp-route-sum-spacer"></td>
+    <td class="c-total" title="Dự kiến {{ stage.total_label }} · Thực hiện {{ stage.done_total_label }}">
+      <span class="jp-total-stack{% if stage.slug %} jp-stage-{{ stage.slug }}{% endif %}">
+        <span class="jp-sheet-plan">{{ stage.total_label }}</span>
+        <span class="jp-sheet-done">{{ stage.done_total_label }}</span>
+      </span>
+    </td>
   </tr>
   {% endfor %}
 </tbody>
