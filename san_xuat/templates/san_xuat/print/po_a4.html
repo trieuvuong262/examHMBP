@@ -56,7 +56,6 @@
     .brand .co-block { flex: 1; min-width: 0; }
     .co { text-align: center; font-weight: 700; font-size: 11pt; text-transform: uppercase; }
     .co-meta { text-align: center; font-size: 8pt; }
-    .co-khsx { text-align: center; font-size: 10pt; font-weight: 700; }
     h1 { margin: 2px 0 3px; text-align: center; font-size: 13pt; letter-spacing: .06em; }
     .head { display: flex; justify-content: space-between; gap: 8px; font-size: 8.5pt; }
     .head .party { flex: 1; }
@@ -106,7 +105,6 @@
       <div class="co-block">
         <div class="co">{{ company_name }}</div>
         <div class="co-meta">Địa chỉ: {{ company_address }}</div>
-        {% if sheet.order_code %}<div class="co-khsx">Mã KHSX: {{ sheet.order_code }}</div>{% endif %}
         <div class="co-meta">Liên hệ:</div>
         <div class="co-meta">MST: {{ company_tax_code }}</div>
       </div>
@@ -116,11 +114,11 @@
       <div class="party">
         <div>Nhà cung cấp: <strong>{{ sheet.supplier_name|default:"—" }}</strong></div>
         <div>Địa chỉ: {{ sheet.supplier_address|default:"—" }}</div>
+        {% if sheet.order_code %}<div>Mã KHSX: <strong>{{ sheet.order_code }}</strong></div>{% endif %}
       </div>
       <div>
         <div>Ngày: <strong>{{ sheet.doc_date|date:"d/m/Y" }}</strong></div>
         <div>Số: <strong>{{ sheet.doc_code }}</strong></div>
-        {% if sheet.order_code %}<div>Mã KHSX: <strong>{{ sheet.order_code }}</strong></div>{% endif %}
         <div>Liên hệ: {{ sheet.supplier_contact|default:"—" }}</div>
         <div>MST: {{ sheet.supplier_tax|default:"—" }}</div>
       </div>
