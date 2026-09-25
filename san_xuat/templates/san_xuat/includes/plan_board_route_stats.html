@@ -1,18 +1,16 @@
-{% load sx_format %}
 {% if route_stats and route_stats.stages %}
-<tbody class="jp-route-sum" data-open="1" data-jp-route-sum="plan">
+<tbody class="jp-route-sum" data-open="0" data-jp-route-sum="both">
   <tr class="jp-route-sum-head">
     <td class="jp-route-sum-head-cell" colspan="7">
-      <button type="button" class="jp-route-sum-toggle" data-jp-route-sum-toggle aria-expanded="true">
+      <button type="button" class="jp-route-sum-toggle" data-jp-route-sum-toggle aria-expanded="false">
         <i class="bi bi-chevron-down" aria-hidden="true"></i>
-        Thống kê dự kiến
+        Thống kê
       </button>
     </td>
     {% for day in route_board.days %}
     <td class="jp-sheet-cell jp-route-sum-spacer{% if day.is_today %} is-today{% endif %}{% if day.is_off %} is-off{% endif %}"></td>
     {% endfor %}
-    <td class="c-total c-total-plan jp-route-sum-spacer"></td>
-    <td class="c-total c-total-done jp-route-sum-spacer"></td>
+    <td class="c-total jp-route-sum-spacer"></td>
   </tr>
   {% for stage in route_stats.stages %}
   <tr class="jp-route-sum-row jp-tl-orow" data-team-slug="{{ stage.slug }}">
@@ -26,53 +24,18 @@
     </td>
     <td class="c-team jp-route-sum-spacer"></td>
     {% for cell in stage.cells %}
-    <td class="jp-sheet-cell jp-route-sum-cell{% if cell.is_today %} is-today{% endif %}{% if cell.is_off %} is-off{% endif %}{% if cell.qty %} has-qty{% endif %}"
-        data-date="{{ cell.date|date:'Y-m-d' }}">
-      {% if not cell.is_off %}
-      <span class="jp-route-sum-qty jp-stage-{{ stage.slug }}{% if not cell.qty %} is-zero{% endif %}">{{ cell.qty_label }}</span>
-      {% endif %}
+    <td class="jp-sheet-cell jp-route-sum-cell{% if cell.is_today %} is-today{% endif %}{% if cell.is_off %} is-off{% endif %}{% if cell.qty or cell.done_qty %} has-qty{% endif %}"
+        data-date="{{ cell.date|date:'Y-m-d' }}"
+        {% if cell.qty or cell.done_qty %}title="Dự kiến {{ cell.qty_label }} · Thực hiện {{ cell.done_qty_label }}"{% endif %}>
+      {% if cell.qty or cell.done_qty %}{% if not cell.is_off or cell.done_qty_label != '0' %}
+      <span class="jp-sheet-qty{% if stage.slug %} jp-stage-{{ stage.slug }}{% endif %}{% if cell.qty_label == '0' and cell.done_qty_label != '0' %} is-actual{% endif %}">
+        <span class="jp-sheet-plan">{{ cell.qty_label }}</span>
+        <span class="jp-sheet-done">{{ cell.done_qty_label }}</span>
+      </span>
+      {% endif %}{% endif %}
     </td>
     {% endfor %}
-    <td class="c-total c-total-plan">{{ stage.total_label }}</td>
-    <td class="c-total c-total-done jp-route-sum-spacer"></td>
-  </tr>
-  {% endfor %}
-</tbody>
-<tbody class="jp-route-sum is-done" data-open="1" data-jp-route-sum="done">
-  <tr class="jp-route-sum-head">
-    <td class="jp-route-sum-head-cell" colspan="7">
-      <button type="button" class="jp-route-sum-toggle" data-jp-route-sum-toggle aria-expanded="true">
-        <i class="bi bi-chevron-down" aria-hidden="true"></i>
-        Thống kê đã sản xuất
-      </button>
-    </td>
-    {% for day in route_board.days %}
-    <td class="jp-sheet-cell jp-route-sum-spacer{% if day.is_today %} is-today{% endif %}{% if day.is_off %} is-off{% endif %}"></td>
-    {% endfor %}
-    <td class="c-total c-total-plan jp-route-sum-spacer"></td>
-    <td class="c-total c-total-done jp-route-sum-spacer"></td>
-  </tr>
-  {% for stage in route_stats.stages %}
-  <tr class="jp-route-sum-row jp-tl-orow" data-team-slug="{{ stage.slug }}">
-    <td class="c-stt jp-route-sum-spacer"></td>
-    <td class="c-prio jp-route-sum-spacer"></td>
-    <td class="c-img jp-route-sum-spacer"></td>
-    <td class="c-name jp-route-sum-spacer"></td>
-    <td class="c-po jp-route-sum-spacer"></td>
-    <td class="c-dept jp-stage-{{ stage.slug }}" title="{{ stage.label }}">
-      <span class="jp-tl-dept-name">{{ stage.label }}</span>
-    </td>
-    <td class="c-team jp-route-sum-spacer"></td>
-    {% for cell in stage.cells %}
-    <td class="jp-sheet-cell jp-route-sum-cell{% if cell.is_today %} is-today{% endif %}{% if cell.is_off %} is-off{% endif %}{% if cell.done_qty %} has-qty{% endif %}"
-        data-date="{{ cell.date|date:'Y-m-d' }}">
-      {% if not cell.is_off %}
-      <span class="jp-route-sum-qty is-done jp-stage-{{ stage.slug }}{% if not cell.done_qty %} is-zero{% endif %}">{{ cell.done_qty_label }}</span>
-      {% endif %}
-    </td>
-    {% endfor %}
-    <td class="c-total c-total-plan jp-route-sum-spacer"></td>
-    <td class="c-total c-total-done">{{ stage.done_total_label }}</td>
+    <td class="c-total jp-route-sum-spacer"></td>
   </tr>
   {% endfor %}
 </tbody>

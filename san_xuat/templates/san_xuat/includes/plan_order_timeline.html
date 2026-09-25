@@ -22,8 +22,7 @@
           {% for d in route_board.days %}
           <col class="jp-sheet-day{% if d.is_off %} is-off{% endif %}">
           {% endfor %}
-          <col class="c-total c-total-plan">
-          <col class="c-total c-total-done">
+          <col class="c-total">
         </colgroup>
         <thead>
           <tr>
@@ -39,8 +38,7 @@
                 data-date="{{ d.date|date:'Y-m-d' }}"
                 title="{{ d.date|date:'d/m/Y' }} · {{ d.weekday }}{% if d.is_off %} · nghỉ{% endif %}">{{ d.date|date:'d-m' }}</th>
             {% endfor %}
-            <th class="c-total c-total-plan" title="Tổng số lượng dự kiến">Tổng dự kiến</th>
-            <th class="c-total c-total-done" title="Tổng số lượng đã thực hiện">Tổng thực hiện</th>
+            <th class="c-total" title="Trên: tổng số lượng dự kiến. Dưới: tổng số lượng đã thực hiện">Tổng</th>
           </tr>
         </thead>
           {% for row in route_board.rows %}
@@ -198,8 +196,12 @@
                 {% endif %}{% endif %}
               </td>
               {% endfor %}
-              <td class="c-total c-total-plan">{{ stage.total_label|default:"—" }}</td>
-              <td class="c-total c-total-done">{{ stage.done_total_label|default:"0" }}</td>
+              <td class="c-total" title="Dự kiến {{ stage.total_label|default:'—' }} · Thực hiện {{ stage.done_total_label|default:'0' }}">
+                <span class="jp-total-stack{% if stage.slug %} jp-stage-{{ stage.slug }}{% endif %}">
+                  <span class="jp-sheet-plan">{{ stage.total_label|default:"—" }}</span>
+                  <span class="jp-sheet-done">{{ stage.done_total_label|default:"0" }}</span>
+                </span>
+              </td>
             </tr>
             {% empty %}
             <tr class="jp-tl-orow is-order-start" data-order-id="{{ row.order.pk }}">
@@ -248,8 +250,12 @@
               {% for d in route_board.days %}
               <td class="jp-sheet-cell{% if d.is_off %} is-off{% endif %}" data-date="{{ d.date|date:'Y-m-d' }}" data-order-id="{{ row.order.pk }}"{% if d.is_off %} data-off="1"{% endif %}></td>
               {% endfor %}
-              <td class="c-total c-total-plan">—</td>
-              <td class="c-total c-total-done">—</td>
+              <td class="c-total">
+                <span class="jp-total-stack">
+                  <span class="jp-sheet-plan">—</span>
+                  <span class="jp-sheet-done">—</span>
+                </span>
+              </td>
             </tr>
             {% endfor %}
             {% endwith %}

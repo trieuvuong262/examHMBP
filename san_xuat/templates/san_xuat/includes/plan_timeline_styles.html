@@ -927,9 +927,7 @@
   .jp-tl-sheet col.c-dept { width: 148px; }
   .jp-tl-sheet col.c-team { width: 88px; }
   .jp-tl-sheet col.jp-sheet-day { width: 54px; }
-  .jp-tl-sheet col.c-total { width: 72px; }
-  .jp-tl-sheet col.c-total-plan,
-  .jp-tl-sheet col.c-total-done { width: 72px; }
+  .jp-tl-sheet col.c-total { width: 84px; }
   .jp-tl-sheet th,
   .jp-tl-sheet td {
     display: table-cell !important;
@@ -1171,46 +1169,34 @@
   .jp-tl-sheet thead th.c-total,
   .jp-tl-sheet tbody td.c-total {
     position: sticky;
-    width: 72px;
-    min-width: 72px;
-    max-width: 72px;
+    right: 0;
+    width: 84px;
+    min-width: 84px;
+    max-width: 84px;
     font-variant-numeric: tabular-nums;
     white-space: normal;
     line-height: 1.15;
-  }
-  .jp-tl-sheet thead th.c-total-done,
-  .jp-tl-sheet tbody td.c-total-done {
-    right: 0;
-  }
-  .jp-tl-sheet thead th.c-total-plan,
-  .jp-tl-sheet tbody td.c-total-plan {
-    right: 72px;
+    box-shadow: -6px 0 10px -8px rgba(15, 23, 42, .22);
   }
   .jp-tl-sheet thead th.c-total {
     z-index: 7;
     background: var(--sheet-brand-soft);
     color: #0f172a;
-    height: auto;
-    min-height: 32px;
-    padding: 4px 5px;
-  }
-  .jp-tl-sheet thead th.c-total-plan {
-    box-shadow: -6px 0 10px -8px rgba(15, 23, 42, .22);
   }
   .jp-tl-sheet tbody td.c-total {
     z-index: 3;
-    font-weight: 700;
-    box-shadow: none;
-  }
-  .jp-tl-sheet tbody td.c-total-plan {
-    background: #fff8f8;
-    color: var(--sheet-brand);
-    box-shadow: -6px 0 10px -8px rgba(15, 23, 42, .22);
-  }
-  .jp-tl-sheet tbody td.c-total-done {
+    padding: 0;
     background: #fff;
-    color: #64748b;
-    font-weight: 600;
+    font-weight: 500;
+  }
+  .jp-tl-sheet td.c-total .jp-total-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    width: 100%;
+    height: 100%;
+    min-height: 38px;
+    overflow: hidden;
   }
   .jp-tl-sheet .jp-sheet-day {
     width: 54px;
@@ -1304,8 +1290,10 @@
     color: #64748b;
     box-shadow: none;
   }
-  .jp-tl-sheet .jp-sheet-qty[class*="jp-stage-"] .jp-sheet-plan { background: var(--st-fill, #bfdbfe); color: var(--st-ink, #1e3a8a); }
-  .jp-tl-sheet .jp-sheet-qty[class*="jp-stage-"] .jp-sheet-done { color: var(--st-ink, #64748b); background: var(--st-soft, #fff); }
+  .jp-tl-sheet .jp-sheet-qty[class*="jp-stage-"] .jp-sheet-plan,
+  .jp-tl-sheet .jp-total-stack[class*="jp-stage-"] .jp-sheet-plan { background: var(--st-fill, #bfdbfe); color: var(--st-ink, #1e3a8a); }
+  .jp-tl-sheet .jp-sheet-qty[class*="jp-stage-"] .jp-sheet-done,
+  .jp-tl-sheet .jp-total-stack[class*="jp-stage-"] .jp-sheet-done { color: var(--st-ink, #64748b); background: var(--st-soft, #fff); }
   .jp-tl-sheet .jp-sheet-qty.is-draggable { cursor: grab; }
   .jp-tl-sheet .jp-sheet-qty.is-actual .jp-sheet-plan { opacity: .42; }
   .jp-tl-sheet .jp-sheet-qty.is-actual { box-shadow: inset 0 0 0 1px var(--st-ink, #94a3b8); }
@@ -1357,39 +1345,21 @@
   .jp-route-sum-row .jp-route-sum-spacer {
     background: #f8fafc !important;
   }
-  .jp-route-sum-qty {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-    min-height: 38px;
-    font: 700 11px/1 "Segoe UI", system-ui, sans-serif;
-    font-variant-numeric: tabular-nums;
-    background: var(--st-fill, #e2e8f0);
-    color: var(--st-ink, #334155);
-  }
-  .jp-route-sum-qty.is-zero {
-    background: transparent;
-    color: #94a3b8;
-    font-weight: 600;
-  }
-  .jp-route-sum.is-done .jp-route-sum-qty:not(.is-zero) {
-    background: color-mix(in srgb, var(--st-fill, #e2e8f0) 55%, #fff);
-    color: var(--st-ink, #334155);
-    font-weight: 700;
-  }
   .jp-route-sum-cell.has-qty { padding: 0; }
-  .jp-route-sum-row .c-total-plan,
-  .jp-route-sum-row .c-total-done {
-    font-weight: 800;
-    background: #f8fafc;
+  .jp-tl-sheet .jp-route-sum-cell .jp-sheet-qty,
+  .jp-tl-sheet .jp-route-sum-cell .jp-sheet-qty:hover {
+    cursor: default;
+    box-shadow: none;
   }
-  .jp-route-sum-row .c-total.jp-route-sum-spacer {
-    font-weight: 600;
+  .jp-route-sum-row td.c-total {
+    padding: 0;
+    background: #fff;
+  }
+  .jp-route-sum-head td.c-total,
+  .jp-route-sum-row td.c-total.jp-route-sum-spacer {
+    padding: 3px 7px;
+    background: #f8fafc !important;
     color: transparent;
-  }
-  .jp-route-sum.is-done {
-    border-top: 1px solid #e2e8f0;
+    font-weight: 600;
   }
 </style>
