@@ -1,4 +1,4 @@
-"""Tổng hợp chi phí NVL định mức theo nhóm NPL × mã hàng (BOM active)."""
+"""Tổng hợp chi phí NVL định mức theo nhóm NPL × mã hàng (hồ sơ đang dùng)."""
 
 from __future__ import annotations
 
@@ -14,7 +14,6 @@ from openpyxl.utils import get_column_letter
 
 from kho_npl.services.batches import material_avg_price
 from san_xuat.models import BomVersion, ProductTechDoc
-from san_xuat.services.bom import get_active_bom
 from san_xuat.services.costing import _d
 
 ZERO = Decimal('0')
@@ -26,8 +25,9 @@ class CostStatsProduct:
     doc_pk: int
     product_code: str
     product_name: str
-    bom_pk: int
+    bom_pk: int | None
     bom_label: str
+    bom_status: str = ''
 
 
 @dataclass
@@ -77,37 +77,29 @@ def _unique_column_labels(docs: list[ProductTechDoc]) -> list[str]:
 
 
 def build_nvl_cost_matrix() -> NvlCostMatrix:
-    """Ma trận: hàng = mọi nhóm NPL đang dùng, cột = SP có BOM active."""
+    """Ma trận: hàng = mọi nhóm NPL đang dùng, cột = mọi hồ sơ đang dùng."""
     from kho_npl.models import MaterialCategory
     from kho_npl.stock_domain import STOCK_DOMAIN_NPL
+    from san_xuat.services.bom import get_working_bom
 
-    docs_qs = (
-        ProductTechDoc.objects.filter(is_active=True)
-        .order_by('product_code')
+    docs = list(
+        ProductTechDoc.objects.filter(is_active=True).order_by('product_code'),
     )
-    docs: list[ProductTechDoc] = []
-    bom_by_idx: list[BomVersion] = []
-    for doc in docs_qs:
-        bom = get_active_bom(doc)
-        if not bom or bom.status != BomVersion.STATUS_ACTIVE:
-            continue
-        docs.append(doc)
-        bom_by_idx.append(bom)
-
+    bom_by_idx: list[BomVersion | None] = [get_working_bom(doc) for doc in docs]
     labels = _unique_column_labels(docs)
     products: list[CostStatsProduct] = [
         CostStatsProduct(
             doc_pk=doc.pk,
             product_code=doc.product_code or '',
             product_name=label,
-            bom_pk=bom.pk,
-            bom_label=bom.version_label or '',
+            bom_pk=bom.pk if bom else None,
+            bom_label=(bom.version_label or '') if bom else '',
+            bom_status=bom.status if bom else '',
         )
         for doc, bom, label in zip(docs, bom_by_idx, labels)
     ]
 
     n_prod = len(products)
-    # Luôn liệt kê mọi nhóm NPL active; giữ thêm nhóm inactive nếu BOM còn tham chiếu.
     amounts_by_cat: dict[int, list[Decimal]] = {}
     cat_meta: dict[int, tuple[str, str, int]] = {}
 
@@ -119,6 +111,8 @@ def build_nvl_cost_matrix() -> NvlCostMatrix:
         cat_meta[cat.pk] = (cat.code or '', cat.name or '', int(cat.sort_order or 0))
 
     for idx, bom in enumerate(bom_by_idx):
+        if bom is None:
+            continue
         lines = bom.lines.select_related(
             'material', 'material__category', 'material__unit',
         ).all()
@@ -137,22 +131,19 @@ def build_nvl_cost_matrix() -> NvlCostMatrix:
             amount = (line.qty_with_scrap * unit_price).quantize(MONEY)
             amounts_by_cat[cat_id][idx] += amount
 
-    categories: list[CostStatsCategory] = []
-    for cat_id, amounts in amounts_by_cat.items():
-        code, name, sort_order = cat_meta[cat_id]
-        categories.append(
-            CostStatsCategory(
-                category_id=cat_id,
-                category_code=code,
-                category_name=name,
-                sort_order=sort_order,
-                amounts=[_d(a).quantize(MONEY) for a in amounts],
-            ),
+    categories: list[CostStatsCategory] = [
+        CostStatsCategory(
+            category_id=cat_id,
+            category_code=cat_meta[cat_id][0],
+            category_name=cat_meta[cat_id][1],
+            sort_order=cat_meta[cat_id][2],
+            amounts=[_d(a).quantize(MONEY) for a in amounts],
         )
+        for cat_id, amounts in amounts_by_cat.items()
+    ]
     categories.sort(key=lambda c: (c.sort_order, c.category_name.casefold(), c.category_id))
 
-    n = len(products)
-    column_totals = [ZERO] * n
+    column_totals = [ZERO] * n_prod
     for cat in categories:
         for i, amount in enumerate(cat.amounts):
             column_totals[i] += amount
@@ -220,7 +211,11 @@ def export_nvl_cost_matrix_xlsx(matrix: NvlCostMatrix | None = None) -> HttpResp
         ws.cell(2, 3).fill = header_fill
         ws.cell(2, 3).alignment = center
         for i, prod in enumerate(products):
-            cell = ws.cell(3, 3 + i, prod.product_name)
+            header = prod.product_name
+            code = (prod.product_code or '').strip()
+            if code and code not in header:
+                header = f'{prod.product_name}\n{code}'
+            cell = ws.cell(3, 3 + i, header)
             cell.font = bold
             cell.fill = header_fill
             cell.alignment = center
