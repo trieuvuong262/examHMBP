@@ -625,15 +625,19 @@
                     {% endfor %}
                     <div class="form-text">Trước mắt chỉ có Việt Nam. Nước khác bị từ chối kết nối mới (SSH, HTTPS, RustDesk).</div>
                 </div>
-                <div class="col-lg-6">
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" name="enabled" value="on" id="geo-enabled"
+                <div class="col-12">
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" role="switch"
+                               id="geo-enabled" name="enabled" value="on"
+                               style="width:3rem;height:1.5rem;"
                                {% if geo.saved_enabled %}checked{% endif %}>
-                        <label class="form-check-label fw-bold" for="geo-enabled">Bật chặn quốc gia khác</label>
+                        <label class="form-check-label fw-bold ms-2" for="geo-enabled">Bật chặn quốc gia khác</label>
                     </div>
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="confirm" value="on" id="geo-confirm" required>
-                        <label class="form-check-label" for="geo-confirm">
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" role="switch"
+                               id="geo-confirm" name="confirm" value="on" required
+                               style="width:3rem;height:1.5rem;">
+                        <label class="form-check-label fw-bold ms-2" for="geo-confirm">
                             Tôi hiểu máy ngoài Việt Nam sẽ không vào được VPS, trừ IP whitelist.
                         </label>
                     </div>

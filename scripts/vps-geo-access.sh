@@ -92,6 +92,10 @@ load_bypass_set() {
   if [[ "$ssh_ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     ipset add "$SET_BYPASS" "${ssh_ip}/32" -exist
   fi
+  # Gói IPsec sau giải mã vẫn có thể vào eth0 với IP LAN.
+  ipset add "$SET_BYPASS" 10.0.0.0/8 -exist
+  ipset add "$SET_BYPASS" 172.16.0.0/12 -exist
+  ipset add "$SET_BYPASS" 192.168.0.0/16 -exist
 }
 
 write_before_rules() {
@@ -173,6 +177,31 @@ cmd_status() {
   fi
 }
 
+install_docker_forward() {
+  # Portal 80/443 bị DNAT vào container, đi chuỗi FORWARD chứ không qua ufw INPUT.
+  ipset add "$SET_BYPASS" 10.0.0.0/8 -exist 2>/dev/null || true
+  ipset add "$SET_BYPASS" 172.16.0.0/12 -exist 2>/dev/null || true
+  ipset add "$SET_BYPASS" 192.168.0.0/16 -exist 2>/dev/null || true
+  iptables -N DOCKER-USER 2>/dev/null || true
+  iptables -N JP-GEO-FWD 2>/dev/null || true
+  iptables -F JP-GEO-FWD
+  iptables -A JP-GEO-FWD -m set --match-set "$SET_BYPASS" src -j RETURN
+  iptables -A JP-GEO-FWD -m set --match-set "$SET_ALLOW" src -j RETURN
+  iptables -A JP-GEO-FWD -p tcp --dport 80 -j RETURN
+  iptables -A JP-GEO-FWD -m conntrack --ctstate NEW -j DROP
+  iptables -A JP-GEO-FWD -j RETURN
+  if ! iptables -C DOCKER-USER -i "$WAN_IF" -j JP-GEO-FWD 2>/dev/null; then
+    iptables -I DOCKER-USER 1 -i "$WAN_IF" -j JP-GEO-FWD
+  fi
+  log "    đã chặn FORWARD ${WAN_IF} (cổng portal trong Docker)"
+}
+
+remove_docker_forward() {
+  iptables -D DOCKER-USER -i "$WAN_IF" -j JP-GEO-FWD 2>/dev/null || true
+  iptables -F JP-GEO-FWD 2>/dev/null || true
+  iptables -X JP-GEO-FWD 2>/dev/null || true
+}
+
 cmd_apply() {
   need_root
   [[ -f "$UFW_BEFORE" ]] || { echo "ERROR: không thấy ${UFW_BEFORE}"; exit 1; }
@@ -202,11 +231,13 @@ cmd_apply() {
   write_before_rules
   write_state 1 "${COUNTRIES^^}" "$total" "$WAN_IF"
   ufw reload >/dev/null
+  install_docker_forward
   log "Đã bật chặn quốc gia trên ${WAN_IF}: cho ${COUNTRIES^^} (${total} prefix). TCP/80 vẫn mở để gia hạn chứng chỉ."
 }
 
 cmd_disable() {
   need_root
+  remove_docker_forward
   if [[ -f "$UFW_BEFORE" ]]; then
     strip_before_rules
     ufw reload >/dev/null || true
@@ -220,10 +251,22 @@ cmd_disable() {
   log "Đã tắt chặn theo quốc gia."
 }
 
+cmd_restore_forward() {
+  need_root
+  if [[ ! -f "$STATE_FILE" ]] || ! grep -q '^enabled=1$' "$STATE_FILE"; then
+    echo "geo đang tắt — không gắn FORWARD"
+    exit 0
+  fi
+  ipset list "$SET_ALLOW" >/dev/null 2>&1 || { echo "ERROR: chưa có ipset ${SET_ALLOW}"; exit 1; }
+  ipset list "$SET_BYPASS" >/dev/null 2>&1 || { echo "ERROR: chưa có ipset ${SET_BYPASS}"; exit 1; }
+  install_docker_forward
+}
+
 case "$ACTION" in
   status) cmd_status ;;
   apply) cmd_apply ;;
   disable) cmd_disable ;;
+  restore-forward) cmd_restore_forward ;;
   *)
     echo "ERROR: lệnh không hợp lệ (status|apply|disable)"
     exit 1
