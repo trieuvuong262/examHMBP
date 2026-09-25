@@ -66,7 +66,21 @@
                     {% for person in people %}
                     <tr>
                         <td>{{ person.sort_order }}</td>
-                        <td>{{ person.employee_code|default:"—" }}</td>
+                        <td style="min-width: 11rem;">
+                            <form method="post" action="{% url 'surveys:ksk_set_code' person.pk %}" class="d-flex gap-1 align-items-center">
+                                {% csrf_token %}
+                                {% if status %}<input type="hidden" name="trang-thai" value="{{ status }}">{% endif %}
+                                <input class="form-control form-control-sm" name="employee_code" value="{{ person.employee_code }}" maxlength="50" placeholder="Mã NV" autocomplete="off">
+                                <button type="submit" class="btn btn-outline-hm btn-sm flex-shrink-0">Lưu</button>
+                            </form>
+                            {% if person.employee_code and person.hr_code %}
+                            <div class="small text-success mt-1">Khớp nhân sự</div>
+                            {% elif person.employee_code %}
+                            <div class="small text-danger mt-1">Chưa có trong nhân sự</div>
+                            {% else %}
+                            <div class="small text-muted mt-1">Chưa có mã</div>
+                            {% endif %}
+                        </td>
                         <td>
                             <div class="fw-semibold">{{ person.submitted_name|default:person.full_name }}</div>
                             {% if person.submitted_name and person.submitted_name != person.full_name %}

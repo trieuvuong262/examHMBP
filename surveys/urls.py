@@ -14,6 +14,7 @@ urlpatterns = [
     path('quan-ly-ksk/', ksk_views.health_check_results, name='ksk_results'),
     path('quan-ly-ksk/xuat-excel/', ksk_views.health_check_export, name='ksk_export'),
     path('quan-ly-ksk/thoi-gian/', ksk_views.health_check_schedule, name='ksk_schedule'),
+    path('quan-ly-ksk/ma-nv/<int:pk>/', ksk_views.health_check_set_code, name='ksk_set_code'),
     path('ket-qua/', views.survey_results, name='results'),
     path('ket-qua/<int:pk>/', views.survey_result_detail, name='result_detail'),
     path('ket-qua/<int:pk>/xuat-excel/', views.survey_result_export, name='result_export'),

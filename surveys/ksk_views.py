@@ -4,6 +4,7 @@ from datetime import datetime
 import pandas as pd
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import IntegrityError
 from django.db.models import OuterRef, Subquery
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
@@ -15,6 +16,7 @@ from assessment.decorators import module_perm_required
 from hrm.group_permissions import module_perm_allows_view
 from hrm.menu_permissions import get_effective_menu_perm
 from hrm.module_permissions import MODULE_SURVEYS
+from hrm.models import Profile
 from hrm.permissions import get_profile
 
 from .ksk import (
@@ -30,7 +32,7 @@ from .ksk import (
     values_from_person,
     values_from_submission,
 )
-from .models import HealthCheckSubmission
+from .models import HealthCheckPerson, HealthCheckSubmission
 
 
 def _form_context(*, campaign, person, values, errors, submitted):
@@ -104,6 +106,14 @@ def _manage_context(request, campaign):
         elif status == 'pending':
             people_qs = people_qs.filter(submitted_at__isnull=True)
         people = list(people_qs)
+        known = {
+            code.lower(): code
+            for code in Profile.objects.exclude(employee_code='').exclude(employee_code__isnull=True).values_list('employee_code', flat=True)
+            if code
+        }
+        for person in people:
+            typed = (person.employee_code or '').strip().lower()
+            person.hr_code = known.get(typed, '')
     opens_value, closes_value = _window_inputs(campaign)
     return {
         'people': people,
@@ -201,6 +211,47 @@ def health_check_results(request):
         messages.error(request, 'Bạn không có quyền quản lý cập nhật thông tin.')
         return redirect('surveys:ksk_update')
     return redirect('/khao-sat/cap-nhat-thong-tin/?quan-ly=1')
+
+
+def _manage_redirect(request):
+    status = (request.POST.get('trang-thai') or '').strip()
+    if status in {'confirmed', 'pending'}:
+        return redirect(f'/khao-sat/cap-nhat-thong-tin/?quan-ly=1&trang-thai={status}')
+    return redirect('/khao-sat/cap-nhat-thong-tin/?quan-ly=1')
+
+
+@module_perm_required(MODULE_SURVEYS, 'update')
+@require_POST
+def health_check_set_code(request, pk):
+    if not can_manage_ksk(request.user):
+        messages.error(request, 'Bạn không có quyền quản lý cập nhật thông tin.')
+        return redirect('surveys:ksk_update')
+    campaign = current_campaign()
+    person = HealthCheckPerson.objects.filter(pk=pk, campaign=campaign).first() if campaign else None
+    if person is None:
+        messages.error(request, 'Không tìm thấy dòng trong danh sách.')
+        return _manage_redirect(request)
+    raw = (request.POST.get('employee_code') or '').strip()
+    if raw:
+        canonical = Profile.objects.filter(employee_code__iexact=raw).values_list('employee_code', flat=True).first()
+        person.employee_code = canonical or raw
+    else:
+        person.employee_code = ''
+    try:
+        person.save(update_fields=['employee_code'])
+    except IntegrityError:
+        messages.error(request, 'Mã nhân viên này đã gắn cho người khác trong danh sách.')
+        return _manage_redirect(request)
+    matched = bool(person.employee_code) and Profile.objects.filter(
+        employee_code__iexact=person.employee_code,
+    ).exists()
+    if matched:
+        messages.success(request, f'Đã gắn mã {person.employee_code} khớp hồ sơ nhân sự.')
+    elif person.employee_code:
+        messages.success(request, f'Đã lưu mã {person.employee_code}. Mã này chưa có trong hồ sơ nhân sự.')
+    else:
+        messages.success(request, 'Đã xóa mã nhân viên trên dòng này.')
+    return _manage_redirect(request)
 
 
 @module_perm_required(MODULE_SURVEYS, 'update')
