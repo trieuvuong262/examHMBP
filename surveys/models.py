@@ -225,3 +225,108 @@ class SurveyAnswer(models.Model):
         if self.text_value:
             return f'{self.question_id}: {self.text_value[:40]}'
         return f'{self.question_id}: {self.option_id}'
+
+
+class HealthCheckCampaign(models.Model):
+    """Một đợt xác minh thông tin khám sức khỏe."""
+
+    code = models.SlugField('Mã đợt', max_length=40, unique=True)
+    title = models.CharField('Tiêu đề', max_length=255)
+    is_open = models.BooleanField('Đang mở', default=True, db_index=True)
+    opens_at = models.DateTimeField('Được cập nhật từ', null=True, blank=True)
+    closes_at = models.DateTimeField('Được cập nhật đến', null=True, blank=True)
+    closed_at = models.DateTimeField('Thời điểm đóng', null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def allows_update(self, now=None):
+        if not self.opens_at or not self.closes_at:
+            return False
+        moment = now or timezone.now()
+        return self.opens_at <= moment <= self.closes_at
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Đợt khám sức khỏe'
+        verbose_name_plural = 'Đợt khám sức khỏe'
+
+    def __str__(self):
+        return self.title
+
+
+class HealthCheckPerson(models.Model):
+    """Một dòng trong danh sách khám sức khỏe."""
+
+    campaign = models.ForeignKey(
+        HealthCheckCampaign,
+        on_delete=models.CASCADE,
+        related_name='people',
+        verbose_name='Đợt',
+    )
+    sort_order = models.PositiveIntegerField('STT', default=0)
+    employee_code = models.CharField('Mã NV', max_length=50, blank=True, db_index=True)
+    full_name = models.CharField('Họ và tên', max_length=255)
+    id_number = models.CharField('Số CMND/CCCD', max_length=20, blank=True)
+    phone = models.CharField('Số điện thoại', max_length=20, blank=True)
+    street = models.CharField('Số nhà, đường, ấp', max_length=255, blank=True)
+    ward = models.CharField('Phường/xã', max_length=255, blank=True)
+    province = models.CharField('Tỉnh/thành phố', max_length=255, blank=True)
+
+    class Meta:
+        ordering = ['sort_order', 'pk']
+        verbose_name = 'Người trong danh sách KSK'
+        verbose_name_plural = 'Người trong danh sách KSK'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['campaign', 'employee_code'],
+                condition=~models.Q(employee_code=''),
+                name='surveys_ksk_unique_code',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.employee_code or "—"} {self.full_name}'
+
+
+class HealthCheckSubmission(models.Model):
+    """Thông tin nhân viên đã xác nhận hoặc sửa cho một đợt."""
+
+    campaign = models.ForeignKey(
+        HealthCheckCampaign,
+        on_delete=models.CASCADE,
+        related_name='submissions',
+        verbose_name='Đợt',
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='health_check_submissions',
+        verbose_name='Nhân viên',
+    )
+    person = models.ForeignKey(
+        HealthCheckPerson,
+        on_delete=models.CASCADE,
+        related_name='submissions',
+        verbose_name='Dòng danh sách',
+    )
+    full_name = models.CharField('Họ và tên', max_length=255)
+    id_number = models.CharField('Số CMND/CCCD', max_length=20)
+    phone = models.CharField('Số điện thoại', max_length=20)
+    street = models.CharField('Số nhà, đường, ấp', max_length=255)
+    ward = models.CharField('Phường/xã', max_length=255)
+    province = models.CharField('Tỉnh/thành phố', max_length=255)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+        verbose_name = 'Xác nhận thông tin KSK'
+        verbose_name_plural = 'Xác nhận thông tin KSK'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['campaign', 'user'],
+                name='surveys_ksk_unique_submission',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.full_name} — {self.campaign.code}'

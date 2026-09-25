@@ -93,6 +93,7 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'create', 'label': 'Đặt câu hỏi', 'icon': 'bi-plus-circle'},
         {'key': 'share', 'label': 'Tạo link gửi NV', 'icon': 'bi-send'},
         {'key': 'results', 'label': 'Kết quả', 'icon': 'bi-inbox-fill'},
+        {'key': 'ksk_manage', 'label': 'Quản lý KSK', 'icon': 'bi-heart-pulse'},
     ],
     MODULE_COMPANY_TRIP: [],  # Ẩn — dùng utilities.trip_schedule
     MODULE_UTILITIES: [
@@ -359,6 +360,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/khao-sat/quan-ly/tao', MODULE_SURVEYS, 'create'),
     ('/link-gui', MODULE_SURVEYS, 'share'),
     ('/khao-sat/quan-ly/', MODULE_SURVEYS, 'share'),
+    ('/khao-sat/quan-ly-ksk', MODULE_SURVEYS, 'ksk_manage'),
     ('/khao-sat/ket-qua', MODULE_SURVEYS, 'results'),
     # Kho NPL
     ('/kho-npl/thiet-lap', MODULE_KHO_NPL, 'settings'),

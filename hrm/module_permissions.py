@@ -130,6 +130,7 @@ SURVEY_PERM_MATRIX_SUBMENUS = (
     (MODULE_SURVEYS, 'create'),
     (MODULE_SURVEYS, 'share'),
     (MODULE_SURVEYS, 'results'),
+    (MODULE_SURVEYS, 'ksk_manage'),
 )
 
 
@@ -214,6 +215,8 @@ EXEMPT_PATH_PREFIXES = (
     '/thiet-bi/api/quyet-cau-hinh/',
     # Nhân viên trả lời khảo sát qua link — chỉ cần đăng nhập, không cần menu Khảo sát
     '/khao-sat/d/',
+    # Xác minh thông tin KSK — mọi nhân viên đăng nhập, không cần quyền menu Khảo sát
+    '/khao-sat/cap-nhat-thong-tin',
     # Web push portal — view tự kiểm tra user_portal_push_eligible (không cần module Tiện ích)
     '/tien-ich/push/',
     # Đăng ký du lịch — view tự kiểm tra quyền menu (thêm / sửa / xóa / xuất)

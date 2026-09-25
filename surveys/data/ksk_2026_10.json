@@ -1,0 +1,1506 @@
+{
+  "code": "ksk-2026-10",
+  "title": "Cập nhật thông tin khám sức khỏe 10.2026",
+  "people": [
+    {
+      "sort_order": 1,
+      "employee_code": "NV0055",
+      "full_name": "Trần Bình Thuận",
+      "id_number": "060095006845",
+      "phone": "0364527986",
+      "street": "Chung cư Ruby Celadon",
+      "ward": "Phường Tân Sơn Nhì",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 2,
+      "employee_code": "NV0016",
+      "full_name": "Trần Văn Tuấn",
+      "id_number": "075097022052",
+      "phone": "0986919697",
+      "street": "122/42 Bình Trị Đông",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 3,
+      "employee_code": "NV0390",
+      "full_name": "Mạc Chí Quang",
+      "id_number": "079086004202",
+      "phone": "0908274963",
+      "street": "530/2/14 Tỉnh Lộ 10",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 4,
+      "employee_code": "NV0365",
+      "full_name": "Dương Gia Quý",
+      "id_number": "094209000381",
+      "phone": "0889621187",
+      "street": "16 đường số 5",
+      "ward": "Phường Tân Tạo",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 5,
+      "employee_code": "NV0353",
+      "full_name": "Huỳnh Lép",
+      "id_number": "094207008794",
+      "phone": "0374958107",
+      "street": "184/23 Lê Đình Cẩn",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 6,
+      "employee_code": "NV0347",
+      "full_name": "Lâm Bửu Phú",
+      "id_number": "087098011545",
+      "phone": "0979731402",
+      "street": "574/104/5 Sinco",
+      "ward": "Phường An Lạc",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 7,
+      "employee_code": "NV0338",
+      "full_name": "Phan Thành Hưng",
+      "id_number": "087099001143",
+      "phone": "0707471748",
+      "street": "42 đường số 2",
+      "ward": "Phường Bình Hưng Hòa",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 8,
+      "employee_code": "NV0333",
+      "full_name": "Đặng Đình Nhu",
+      "id_number": "094209009549",
+      "phone": "0822499181",
+      "street": "Đường số 5",
+      "ward": "Phường Tân Tạo",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 9,
+      "employee_code": "NV0332",
+      "full_name": "Tằng Minh Khang",
+      "id_number": "075204007568",
+      "phone": "0333534616",
+      "street": "122/42 Bình Trị Đông",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 10,
+      "employee_code": "NV0232",
+      "full_name": "Vui Minh Thuận",
+      "id_number": "079098013432",
+      "phone": "0703196593",
+      "street": "f9/56/1 đường Vĩnh Lộc",
+      "ward": "Xã Tân Vĩnh Lộc",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 11,
+      "employee_code": "NV0395",
+      "full_name": "Trương Gia Bảo",
+      "id_number": "094207012486",
+      "phone": "0703905376",
+      "street": "21/6 Chiến Lược",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 12,
+      "employee_code": "NV0021",
+      "full_name": "Thị Nhi",
+      "id_number": "091300015450",
+      "phone": "0766831155",
+      "street": "28/10 đường 18B",
+      "ward": "Phường Bình Hưng Hòa",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 13,
+      "employee_code": "NV0392",
+      "full_name": "Lê Thị Như Ý",
+      "id_number": "089306021679",
+      "phone": "0862407152",
+      "street": "38 Nguyễn Văn Yến",
+      "ward": "Phường Phú Thạnh",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 14,
+      "employee_code": "NV0389",
+      "full_name": "Đặng Phụng Nhi",
+      "id_number": "079192002830",
+      "phone": "0766162807",
+      "street": "67/16 đình nghi xuân",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 15,
+      "employee_code": "NV0384",
+      "full_name": "Nguyễn Thị Thu Trang",
+      "id_number": "079193010025",
+      "phone": "0902939012",
+      "street": "51/11 Ông Ich Khiêm",
+      "ward": "Phường Bình Thới",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 16,
+      "employee_code": "NV0383",
+      "full_name": "Lê Thanh Trúc",
+      "id_number": "079302018797",
+      "phone": "0702987519",
+      "street": "436A/2 Nguyễn văn luông",
+      "ward": "Phường Phú Lâm",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 17,
+      "employee_code": "NV0378",
+      "full_name": "Nông Tú Văn",
+      "id_number": "079301000563",
+      "phone": "0909615872",
+      "street": "310/2/21C bình trị đông",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 18,
+      "employee_code": "NV0393",
+      "full_name": "Nguyễn Thụy Thanh Nhã",
+      "id_number": "079188001758",
+      "phone": "0335637640",
+      "street": "218/2 nguyễn văn luông",
+      "ward": "Phường Bình Phú",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 19,
+      "employee_code": "NV0345",
+      "full_name": "Nguyễn Ngọc Thiên Tạo",
+      "id_number": "079205022902",
+      "phone": "0705063895",
+      "street": "29 Hồ Văn Long",
+      "ward": "Phường Tân Tạo",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 20,
+      "employee_code": "NV0340",
+      "full_name": "Trịnh Thế Kiệt",
+      "id_number": "094206006326",
+      "phone": "0333239038",
+      "street": "Đường số5 nhà số 16",
+      "ward": "Phường Tân Tạo",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 21,
+      "employee_code": "NV0315",
+      "full_name": "Đặng Thị Ngọc",
+      "id_number": "094190011067",
+      "phone": "0399206529",
+      "street": "Số 16, đường số 5",
+      "ward": "Phường Tân Tạo",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 22,
+      "employee_code": "NV0314",
+      "full_name": "Hồ Văn Khoẻ",
+      "id_number": "094208001391",
+      "phone": "0384685340",
+      "street": "Số 16, đường số 5",
+      "ward": "Phường Tân Tạo",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 23,
+      "employee_code": "NV0311",
+      "full_name": "Phạm Thị Duyên",
+      "id_number": "060198010211",
+      "phone": "0325560447",
+      "street": "473/102 Tân Hoà Đông",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 24,
+      "employee_code": "NV0294",
+      "full_name": "Nguyễn Văn Nhật Hào",
+      "id_number": "087099007855",
+      "phone": "0819662881",
+      "street": "29/5 đường số 10",
+      "ward": "Phường Bình Hưng Hòa",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 25,
+      "employee_code": "NV0287",
+      "full_name": "Nguyễn Hoàng Hải",
+      "id_number": "079098012268",
+      "phone": "0938767815",
+      "street": "43 đường D6",
+      "ward": "Phường Tân Thuận",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 26,
+      "employee_code": "NV0285",
+      "full_name": "Trần Hải Mi",
+      "id_number": "079194001227",
+      "phone": "0703066398",
+      "street": "Ấp Đồng Tâm",
+      "ward": "Xã Rạch Kiến",
+      "province": "Tỉnh Tây Ninh"
+    },
+    {
+      "sort_order": 27,
+      "employee_code": "NV0251",
+      "full_name": "Trần Thuý Doanh",
+      "id_number": "079183020691",
+      "phone": "0767785672",
+      "street": "80/6 Lê Hồng Phong",
+      "ward": "Phường Chợ Quán",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 28,
+      "employee_code": "NV0216",
+      "full_name": "Nguyễn Thị Loan",
+      "id_number": "079185023431",
+      "phone": "0973123315",
+      "street": "394/31 Chiến Lược",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 29,
+      "employee_code": "NV0098",
+      "full_name": "Trịnh Cẩm Tuấn",
+      "id_number": "077205000563",
+      "phone": "0786685787",
+      "street": "29/5 đường số 10",
+      "ward": "Phường Bình Hưng Hòa",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 30,
+      "employee_code": "NV0058",
+      "full_name": "Danh Tú",
+      "id_number": "091205014452",
+      "phone": "0939325030",
+      "street": "28/10 đường 18B",
+      "ward": "Phường Bình Hưng Hòa",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 31,
+      "employee_code": "NV0398",
+      "full_name": "Đặng Thị Kim Chi",
+      "id_number": "094187001144",
+      "phone": "0948790936",
+      "street": "16 đường số 5, khu phố 3",
+      "ward": "Phường Tân Tạo",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 32,
+      "employee_code": "NV0067",
+      "full_name": "Hồ Diễm My",
+      "id_number": "046194016472",
+      "phone": "0386043924",
+      "street": "67 miếu gò xoài",
+      "ward": "Phường Bình Hưng Hòa",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 33,
+      "employee_code": "NV0304",
+      "full_name": "Lê Thị Ngọc Yến",
+      "id_number": "051198000172",
+      "phone": "0384163311",
+      "street": "B5/21 đường Trần Đại Nghĩa, Ấp 2",
+      "ward": "Xã Tân Kiên",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 34,
+      "employee_code": "NV0298",
+      "full_name": "Nguyễn Thị Mộng Nghi",
+      "id_number": "095198005719",
+      "phone": "0916213135",
+      "street": "41 liên khu 1-6",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 35,
+      "employee_code": "NV0260",
+      "full_name": "Phan Kim Phụng",
+      "id_number": "079300035333",
+      "phone": "0909105826",
+      "street": "43 đường D6",
+      "ward": "Phường Tân Thuận",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 36,
+      "employee_code": "NV0394",
+      "full_name": "Nguyễn Thị Ngọc Bích",
+      "id_number": "079302022039",
+      "phone": "0707837638",
+      "street": "60/14 Tân Thuận Tây",
+      "ward": "Phường Tân Thuận",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 37,
+      "employee_code": "NV0343",
+      "full_name": "Đặng Thúy Kiều",
+      "id_number": "094199003521",
+      "phone": "0944019238",
+      "street": "16 đường số 5",
+      "ward": "Phường Tân Tạo",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 38,
+      "employee_code": "NV0339",
+      "full_name": "Trương Huệ Trân",
+      "id_number": "089183016092",
+      "phone": "0888718398",
+      "street": "1133/52 đường 3 tháng 2",
+      "ward": "Phường Minh Phụng",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 39,
+      "employee_code": "NV0335",
+      "full_name": "Trương Hồng Hân",
+      "id_number": "079302003072",
+      "phone": "0785855434",
+      "street": "149/31/1A Lũy Bán Bích",
+      "ward": "Phường Tân Thới Hòa",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 40,
+      "employee_code": "NV0283",
+      "full_name": "Nguyễn Đặng Thuyền Ngọc",
+      "id_number": "079303030263",
+      "phone": "0865043429",
+      "street": "D4/2EA",
+      "ward": "Xã Vĩnh Lộc",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 41,
+      "employee_code": "NV0110",
+      "full_name": "Huỳnh Thị Cẩm Tú",
+      "id_number": "051300004551",
+      "phone": "0349653598",
+      "street": "198A Mã Lò",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 42,
+      "employee_code": "NV0164",
+      "full_name": "Phạm Thị Bích Phượng",
+      "id_number": "079190012732",
+      "phone": "0938675848",
+      "street": "6/17/16 Tân Hoá",
+      "ward": "Phường Minh Phụng",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 43,
+      "employee_code": "NV0400",
+      "full_name": "Đặng Thanh Hiền",
+      "id_number": "079196026117",
+      "phone": "0927932732",
+      "street": "1007/3A Lò Gốm",
+      "ward": "Phường Bình Tiên",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 44,
+      "employee_code": "NV0399",
+      "full_name": "Lai Thị Ngọc Bích",
+      "id_number": "075301019544",
+      "phone": "0772161844",
+      "street": "243/27/68/2 Mã Lò, KP 41",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 45,
+      "employee_code": "NV0404",
+      "full_name": "Nguyễn Minh Sơn",
+      "id_number": "079201021040",
+      "phone": "0395338371",
+      "street": "21/1Y Đông Lân 1",
+      "ward": "Xã Bà Điểm",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 46,
+      "employee_code": "NV0324",
+      "full_name": "Hồ Văn Tràng",
+      "id_number": "094085015710",
+      "phone": "0397361650",
+      "street": "Số 16, đường số 5",
+      "ward": "Phường Tân Tạo",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 47,
+      "employee_code": "NV0253",
+      "full_name": "Lê Văn Thạch",
+      "id_number": "095094003174",
+      "phone": "0906620955",
+      "street": "127/19/2, Lê Thúc Hoạch",
+      "ward": "Phường Phú Thọ Hòa",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 48,
+      "employee_code": "NV0243",
+      "full_name": "Trần Hải Mai",
+      "id_number": "079195003572",
+      "phone": "0938106216",
+      "street": "Ấp Đồng Tâm",
+      "ward": "Xã Rạch Kiến",
+      "province": "Tỉnh Tây Ninh"
+    },
+    {
+      "sort_order": 49,
+      "employee_code": "NV0097",
+      "full_name": "Dương Huệ Trực",
+      "id_number": "079200000622",
+      "phone": "0347746570",
+      "street": "690/2D8 Nguyễn Duy",
+      "ward": "Phường Phú Định",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 50,
+      "employee_code": "NV0052",
+      "full_name": "Hồ Xuân Nam",
+      "id_number": "075200012865",
+      "phone": "0375386266",
+      "street": "50C Ấp Chiến Lược",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 51,
+      "employee_code": "NV0011",
+      "full_name": "Lưu Thị Kim Chi",
+      "id_number": "091301008207",
+      "phone": "0916047325",
+      "street": "2/3 Cây Keo",
+      "ward": "Phường Phú Thạnh",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 52,
+      "employee_code": "NV0237",
+      "full_name": "Nguyễn Phước Thiện",
+      "id_number": "087098003746",
+      "phone": "0704778124",
+      "street": "111/37H Lê Đình Cẩn",
+      "ward": "Phường Tân Tạo",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 53,
+      "employee_code": "NV0199",
+      "full_name": "Võ Hoàng Trương Ngọc Tài",
+      "id_number": "084201006834",
+      "phone": "0345627680",
+      "street": "45/12 Đình Nghi Xuân",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 54,
+      "employee_code": "NV0234",
+      "full_name": "Trần Thị Hồng Phấn",
+      "id_number": "091304011050",
+      "phone": "0772802549",
+      "street": "122/1 Bình Trị Đông",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 55,
+      "employee_code": "NV0341",
+      "full_name": "Đỗ Thị Ngọc Yến",
+      "id_number": "079186005269",
+      "phone": "0328680979",
+      "street": "2E Mễ Cốc",
+      "ward": "Phường Phú Định",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 56,
+      "employee_code": "NV0200",
+      "full_name": "Phạm Thị Kim Nguyên",
+      "id_number": "075189009062",
+      "phone": "0939722413",
+      "street": "114/8/31 Chiến Lược",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 57,
+      "employee_code": "NV0385",
+      "full_name": "Phan Thị Cẩm Giang",
+      "id_number": "080193002252",
+      "phone": "0363265233",
+      "street": "737/53 lạc long quân",
+      "ward": "Phường Bảy Hiền",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 58,
+      "employee_code": "NV0382",
+      "full_name": "Nguyễn Thị Thanh Trúc",
+      "id_number": "083193004871",
+      "phone": "0376447787",
+      "street": "98/3 mã lò",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 59,
+      "employee_code": "NV0377",
+      "full_name": "Trần Hoàng Vũ",
+      "id_number": "084074009857",
+      "phone": "0908088073",
+      "street": "29/32 đường số 8",
+      "ward": "Phường Bình Hưng Hòa",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 60,
+      "employee_code": "NV0376",
+      "full_name": "Nguyễn Hoàng Thiên Phú",
+      "id_number": "079202027367",
+      "phone": "0865742667",
+      "street": "37/5m Ấp Xuân Thới Đông",
+      "ward": "Xã Xuân Thới Sơn",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 61,
+      "employee_code": "NV0368",
+      "full_name": "Sơn Triệu Mẫn Nghi",
+      "id_number": "094310010053",
+      "phone": "0353836094",
+      "street": "21 đường Chiến Lược",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 62,
+      "employee_code": "NV0367",
+      "full_name": "Trần Anh Thư",
+      "id_number": "095300006032",
+      "phone": "0334537348",
+      "street": "38 Lô Q, đường số 15, ấp 26",
+      "ward": "Phường Tân Nhựt",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 63,
+      "employee_code": "NV0366",
+      "full_name": "Đặng Bảo Ngọc",
+      "id_number": "079308005439",
+      "phone": "0792914977",
+      "street": "168/25/8b Lê Thị Bạch Cát",
+      "ward": "Phường Phú Thọ",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 64,
+      "employee_code": "NV0357",
+      "full_name": "Lâm Thị Hoa",
+      "id_number": "094308012937",
+      "phone": "0339348469",
+      "street": "hẻm 184 22/3 Lê Đình Cẩn",
+      "ward": "Phường Tân Tạo",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 65,
+      "employee_code": "NV0342",
+      "full_name": "Y Choang",
+      "id_number": "062310002025",
+      "phone": "0348386410",
+      "street": "379 Lê Đức Anh, Khu phố 8",
+      "ward": "Phường Bình Hưng Hòa",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 66,
+      "employee_code": "NV0336",
+      "full_name": "Tạ Ngọc Bích",
+      "id_number": "080183006765",
+      "phone": "0384811507",
+      "street": "1274/6 Tỉnh Lộ 10",
+      "ward": "Phường Tân Tạo",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 67,
+      "employee_code": "NV0312",
+      "full_name": "Trần Thị Thanh Vân",
+      "id_number": "079193032978",
+      "phone": "0937552911",
+      "street": "428/26 đường Chiến Lược",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 68,
+      "employee_code": "NV0293",
+      "full_name": "Nguyễn Thị Kim Liên",
+      "id_number": "072179006641",
+      "phone": "0766371250",
+      "street": "914/11 Tỉnh Lộ 10",
+      "ward": "Phường Tân Tạo",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 69,
+      "employee_code": "NV0280",
+      "full_name": "Lê Yến Nhi",
+      "id_number": "096302012066",
+      "phone": "0981584821",
+      "street": "147/2/3 Lê Đình Cẩn",
+      "ward": "Phường Tân Tạo",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 70,
+      "employee_code": "NV0228",
+      "full_name": "Nay H' Ban",
+      "id_number": "064199006825",
+      "phone": "0339852213",
+      "street": "121 Lê Đình Cẩn, KP 18",
+      "ward": "Phường Tân Tạo",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 71,
+      "employee_code": "NV0190",
+      "full_name": "Y Chăm",
+      "id_number": "062301003813",
+      "phone": "0373482902",
+      "street": "379 Lê Đức Anh, Khu phố 8",
+      "ward": "Phường Bình Hưng Hòa",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 72,
+      "employee_code": "NV0'036",
+      "full_name": "Hồ Thị Hạnh Em",
+      "id_number": "083192011558",
+      "phone": "0366334924",
+      "street": "26/26 đường số 1",
+      "ward": "Phường Bình Hưng Hòa",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 73,
+      "employee_code": "NV0444",
+      "full_name": "Võ Thị Hồng Đào",
+      "id_number": "087187006701",
+      "phone": "0368215145",
+      "street": "Trục tổ8-9 ấp 6A",
+      "ward": "Xã Tân Vĩnh Lộc",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 74,
+      "employee_code": "NV0445",
+      "full_name": "Liêu Hồng Nhung",
+      "id_number": "079302015447",
+      "phone": "0377417709",
+      "street": "35/11/5A Cao Lỗ",
+      "ward": "Phường Chánh Hưng",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 75,
+      "employee_code": "NV0446",
+      "full_name": "Nguyễn Thị Bé Duyên",
+      "id_number": "093302000040",
+      "phone": "0962035010",
+      "street": "F4/12 ấp 61",
+      "ward": "Xã Tân Vĩnh Lộc",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 76,
+      "employee_code": "NV0447",
+      "full_name": "Đoàn Thị Trúc Phương",
+      "id_number": "051186015436",
+      "phone": "0908943169",
+      "street": "Đường Nguyễn Thị Trọn, ấp 37",
+      "ward": "Xã Vĩnh Lộc",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 77,
+      "employee_code": "NV0448",
+      "full_name": "Lê Thị Thu Liễu",
+      "id_number": "089184017114",
+      "phone": "0989839418",
+      "street": "F5/2, Tổ 13, đường 6A",
+      "ward": "Xã Tân Vĩnh Lộc",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 78,
+      "employee_code": "NV0450",
+      "full_name": "Hồ Lê Bảo Ngọc",
+      "id_number": "079188013639",
+      "phone": "0909851433",
+      "street": "366/68A Nguyễn Duy",
+      "ward": "Phường Chánh Hưng",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 79,
+      "employee_code": "NV0452",
+      "full_name": "Nguyễn Thị Kim Tuyền",
+      "id_number": "089306005129",
+      "phone": "0764769925",
+      "street": "",
+      "ward": "",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 80,
+      "employee_code": "NV0462",
+      "full_name": "Phạm Hồng Vân",
+      "id_number": "089192019582",
+      "phone": "0828668345",
+      "street": "179, ấp 6A, đường 6A",
+      "ward": "Xã Tân Vĩnh Lộc",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 81,
+      "employee_code": "NV0456",
+      "full_name": "Huỳnh Thị Kim Chi",
+      "id_number": "082186011426",
+      "phone": "0903184098",
+      "street": "đường 6 ấp nhân dân 15",
+      "ward": "Xã Tân Vĩnh Lộc",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 82,
+      "employee_code": "NV0457",
+      "full_name": "Thạch Thị Hồng Hạnh",
+      "id_number": "086192013080",
+      "phone": "0383837787",
+      "street": "Tổ 13 Ấp 6, F5/10 tổ 13 ấp 62",
+      "ward": "Xã Tân Vĩnh Lộc",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 83,
+      "employee_code": "NV0458",
+      "full_name": "Nguyễn Hoàng Kim Tuyền",
+      "id_number": "086195001495",
+      "phone": "0901470848",
+      "street": "",
+      "ward": "",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 84,
+      "employee_code": "NV0459",
+      "full_name": "Nguyễn Ngọc Giàu",
+      "id_number": "083191000589",
+      "phone": "0962202275",
+      "street": "E15/24 Ấp 5",
+      "ward": "Xã Tân Vĩnh Lộc",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 85,
+      "employee_code": "NV0460",
+      "full_name": "Vũ Thị Thuỷ",
+      "id_number": "035194008314",
+      "phone": "0368829440",
+      "street": "",
+      "ward": "",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 86,
+      "employee_code": "NV0101",
+      "full_name": "Đỗ Trần Kim Phượng",
+      "id_number": "054196010175",
+      "phone": "0363171735",
+      "street": "122/42 Bình Trị Đông",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 87,
+      "employee_code": "NV0300",
+      "full_name": "Lâm Quốc Huy",
+      "id_number": "079206022293",
+      "phone": "0356281304",
+      "street": "428/43/10b Chiến Lược",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 88,
+      "employee_code": "NV0009",
+      "full_name": "Trần Hữu Chung",
+      "id_number": "060096015341",
+      "phone": "0328755723",
+      "street": "77/12 Chiến Lược",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 89,
+      "employee_code": "NV0173",
+      "full_name": "Vương Thúy Quỳnh",
+      "id_number": "0902502311",
+      "phone": "0902502311",
+      "street": "54/45 Đình Nghi Xuân",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 90,
+      "employee_code": "NV0203",
+      "full_name": "Kiều Nguyễn Bảo Nhi",
+      "id_number": "079302033746",
+      "phone": "0703882578",
+      "street": "350/23 Chiến Lược",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 91,
+      "employee_code": "NV0246",
+      "full_name": "Nguyễn Kim Hằng",
+      "id_number": "060300012216",
+      "phone": "0337222782",
+      "street": "91 đường 18D",
+      "ward": "Phường Bình Hưng Hòa",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 92,
+      "employee_code": "NV0308",
+      "full_name": "Nguyễn Thị Thanh Ngân",
+      "id_number": "089301009294",
+      "phone": "0898124029",
+      "street": "435A/17, Tổ 17, Ấp 1",
+      "ward": "Xã An Phú Tây",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 93,
+      "employee_code": "NV0380",
+      "full_name": "Võ Ngọc Thảo Nhi",
+      "id_number": "079199029011",
+      "phone": "09341887794",
+      "street": "80/49/4 Hoàng Ngân",
+      "ward": "Phường Phú Định",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 94,
+      "employee_code": "NV0397",
+      "full_name": "Trần Quốc Huy",
+      "id_number": "079098031043",
+      "phone": "0775908099",
+      "street": "19 Tổng Lung",
+      "ward": "Phường Phú Thọ",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 95,
+      "employee_code": "NV0387",
+      "full_name": "Huỳnh Hữu An",
+      "id_number": "079095023179",
+      "phone": "0968465341",
+      "street": "24/10 Trương Phước Phan",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 96,
+      "employee_code": "NV0292",
+      "full_name": "Lý Phước Duy",
+      "id_number": "079098033641",
+      "phone": "0367556714",
+      "street": "186/19 Nguyễn Sơn",
+      "ward": "Phường Phú Thọ Hòa",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 97,
+      "employee_code": "NV0249",
+      "full_name": "Nguyễn Văn Sơn",
+      "id_number": "079099022538",
+      "phone": "0901401117",
+      "street": "8k1/3c bến Bình Đông",
+      "ward": "Phường Phú Định",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 98,
+      "employee_code": "NV0204",
+      "full_name": "Nguyễn Thị Thùy Nhung",
+      "id_number": "079196020399",
+      "phone": "0359406969",
+      "street": "350/23 Chiến Lược",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 99,
+      "employee_code": "NV0402",
+      "full_name": "Nguyễn Thái Minh Thư",
+      "id_number": "093302000133",
+      "phone": "0931471683",
+      "street": "92/22 Đ.Số 29",
+      "ward": "Phường An Lạc",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 100,
+      "employee_code": "NV0352",
+      "full_name": "Tạ Quang Thanh",
+      "id_number": "087084017496",
+      "phone": "0395595119",
+      "street": "365/41/16 Lê Văn Quới",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 101,
+      "employee_code": "NV0317",
+      "full_name": "Phạm Hoàng Hạnh",
+      "id_number": "036196015923",
+      "phone": "0815812366",
+      "street": "175/3/54/15 Hồ Văn Long, Khu phố 2",
+      "ward": "Phường Bình Tân",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 102,
+      "employee_code": "NV0316",
+      "full_name": "Trần Thị Lộc",
+      "id_number": "049199003145",
+      "phone": "0394800363",
+      "street": "769/28/33 Phạm Thế Hiể",
+      "ward": "Phường Chánh Hưng",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 103,
+      "employee_code": "NV0370",
+      "full_name": "Phan Kha Liêm",
+      "id_number": "087204015955",
+      "phone": "0378081371",
+      "street": "1396 Quang Trung",
+      "ward": "Phường An Hội Tây",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 104,
+      "employee_code": "NV0369",
+      "full_name": "Phạm Thị Tú Uyên",
+      "id_number": "060303004447",
+      "phone": "0829697278",
+      "street": "4/11 Huỳnh Văn Gấm",
+      "ward": "Phường Tây Thạnh",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 105,
+      "employee_code": "NV0355",
+      "full_name": "Hứa Đình Giang",
+      "id_number": "079202007420",
+      "phone": "0909873926",
+      "street": "136/36V Hậu Giang",
+      "ward": "Phường Bình Tây",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 106,
+      "employee_code": "NV0354",
+      "full_name": "Lê Vũ Anh Thư",
+      "id_number": "094303001769",
+      "phone": "0372161726",
+      "street": "220/8C Nguyễn Phúc Nguyên",
+      "ward": "Phường Nhiêu Lộc",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 107,
+      "employee_code": "NV0337",
+      "full_name": "Phạm Thị Nhi",
+      "id_number": "045302006627",
+      "phone": "0326308440",
+      "street": "93 Trần Thanh Mại",
+      "ward": "Phường Tân Tạo",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 108,
+      "employee_code": "NV0329",
+      "full_name": "Nguyễn Đăng Khoa",
+      "id_number": "060201007509",
+      "phone": "0967757163",
+      "street": "48/40/28 Trịnh Định Trọng",
+      "ward": "Phường Tân Phú",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 109,
+      "employee_code": "NV403",
+      "full_name": "Phạm Thị Thanh Thọ",
+      "id_number": "083191002410",
+      "phone": "0902217760",
+      "street": "124/7/3 Đường Bùi Văn Ngữ",
+      "ward": "Phường Tân Thới Hiệp",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 110,
+      "employee_code": "NV0327",
+      "full_name": "Phạm Thị Vân Anh",
+      "id_number": "060303005051",
+      "phone": "0368262381",
+      "street": "345/37 Tân Kỳ Tân Quý",
+      "ward": "Phường Tân Quý",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 111,
+      "employee_code": "NV0045",
+      "full_name": "Nguyễn Thị Rẩy",
+      "id_number": "083196009083",
+      "phone": "0398073733",
+      "street": "A7/21 đường 1c, ấp a1",
+      "ward": "Xã Tân Vĩnh Lộc",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 112,
+      "employee_code": "NV0326",
+      "full_name": "Nguyễn Ngọc Lan Hương",
+      "id_number": "079193000478",
+      "phone": "0965699602",
+      "street": "206/1 Đường số 8",
+      "ward": "Phường Bình Hưng Hòa",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 113,
+      "employee_code": "NV0356",
+      "full_name": "Nguyễn Ngọc Thùy Trang",
+      "id_number": "049301000203",
+      "phone": "0378527264",
+      "street": "135/23 Gò Xoài",
+      "ward": "Phường Bình Hưng Hòa",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 114,
+      "employee_code": "",
+      "full_name": "Lê Tuấn Phương",
+      "id_number": "079063018211",
+      "phone": "0378966988",
+      "street": "135 *** ĐỊA CHỈ THIẾU TÊN ĐƯỜNG***",
+      "ward": "Phường Bình Hưng Hòa",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 115,
+      "employee_code": "",
+      "full_name": "Nguyễn Văn Ty",
+      "id_number": "086063001726",
+      "phone": "0773115278",
+      "street": "",
+      "ward": "",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 116,
+      "employee_code": "",
+      "full_name": "Phạm Văn Lộc",
+      "id_number": "079069022536",
+      "phone": "0327118863",
+      "street": "635 Bình Trị Đông",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 117,
+      "employee_code": "",
+      "full_name": "Lê Văn Lực",
+      "id_number": "079082032707",
+      "phone": "0327373746",
+      "street": "D6/198 Tổ 6 Ấp 4 Tân Nhựt",
+      "ward": "Xã Tân Nhựt",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 118,
+      "employee_code": "",
+      "full_name": "Nguyễn Minh Tuấn",
+      "id_number": "083086014862",
+      "phone": "0982558813",
+      "street": "1104/7A khu phô11 tỉnh lô 10",
+      "ward": "Phường Tân Tạo",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 119,
+      "employee_code": "",
+      "full_name": "Hoàng Thị Liên",
+      "id_number": "040166000177",
+      "phone": "0355574327",
+      "street": "551 Bến Phú Lâm",
+      "ward": "Phường Bình Tây",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 120,
+      "employee_code": "NV0484",
+      "full_name": "Nguyễn Thị Thu Hồng",
+      "id_number": "079193004585",
+      "phone": "0964833860",
+      "street": "F5/4, Ấp 62",
+      "ward": "Xã Tân Vĩnh Lộc",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 121,
+      "employee_code": "NV0437",
+      "full_name": "Dương Tiểu Huệ",
+      "id_number": "079301021124",
+      "phone": "0766573638",
+      "street": "Số 370/46 Nguyễn Trãi, khu phố 20",
+      "ward": "Phường An Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 122,
+      "employee_code": "NV0435",
+      "full_name": "Hồ Thị Kim Dung",
+      "id_number": "087192018468",
+      "phone": "0983540643",
+      "street": "91B Chiến Lược",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 123,
+      "employee_code": "NV0440",
+      "full_name": "Lê Nguyễn Triều Vương",
+      "id_number": "083097001654",
+      "phone": "0981867435",
+      "street": "153A Đường số 10, Bình Hưng Hòa",
+      "ward": "Phường Bình Hưng Hòa",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 124,
+      "employee_code": "NV0464",
+      "full_name": "Lang Bội Quân",
+      "id_number": "079307034040",
+      "phone": "0931317947",
+      "street": "33/19A, Đường 16A - Bình Hưng Hoà",
+      "ward": "Phường Bình Hưng Hòa",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 125,
+      "employee_code": "NV0465",
+      "full_name": "Thạch Ngọc Mai",
+      "id_number": "079176021226",
+      "phone": "0942447189",
+      "street": "C30 ấp Mỹ Hòa 2",
+      "ward": "Xã Xuân Thới Sơn",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 126,
+      "employee_code": "NV0466",
+      "full_name": "Phạm Thị Hiêp",
+      "id_number": "038191022974",
+      "phone": "0375443117",
+      "street": "ấp 30",
+      "ward": "Xã Tân Vĩnh Lộc",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 127,
+      "employee_code": "NV0467",
+      "full_name": "Phan Thị Kim Giàu",
+      "id_number": "079193022633",
+      "phone": "0988931121",
+      "street": "19 đường Lại Hùng Cường",
+      "ward": "Xã Tân Vĩnh Lộc",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 128,
+      "employee_code": "NV0468",
+      "full_name": "Lại Thị Trường Giang",
+      "id_number": "079300015642",
+      "phone": "0866087786",
+      "street": "A3/21A Ấp 3",
+      "ward": "Xã Tân Vĩnh Lộc",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 129,
+      "employee_code": "NV0469",
+      "full_name": "Nguyễn Thị Loan",
+      "id_number": "083175001328",
+      "phone": "0374401052",
+      "street": "",
+      "ward": "",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 130,
+      "employee_code": "NV0470",
+      "full_name": "Phạm Thị Bích",
+      "id_number": "082188022736",
+      "phone": "0896430926",
+      "street": "B11/28 Tổ 1, Ấp 2A",
+      "ward": "Xã Tân Vĩnh Lộc",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 131,
+      "employee_code": "NV0443",
+      "full_name": "Lý Phước An",
+      "id_number": "079099014084",
+      "phone": "0867763361",
+      "street": "186/19 Nguyễn Thọ Hòa",
+      "ward": "Phường Tân Sơn Nhì",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 132,
+      "employee_code": "NV0471",
+      "full_name": "Hồ Thanh Hậu",
+      "id_number": "072207000431",
+      "phone": "0358741430",
+      "street": "16/83 liên khu 10-11",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 133,
+      "employee_code": "NV0475",
+      "full_name": "Dương Thị Xuân Hương",
+      "id_number": "049180011434",
+      "phone": "0973697876",
+      "street": "B8/7T4/3, Ấp 2",
+      "ward": "Xã Tân Vĩnh Lộc",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 134,
+      "employee_code": "NV0476",
+      "full_name": "Nguyễn Trần Thanh Hưng",
+      "id_number": "079093020935",
+      "phone": "0903053867",
+      "street": "1158 Phạm Thế Hiển",
+      "ward": "Phường Chánh Hưng",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 135,
+      "employee_code": "NV0479",
+      "full_name": "Kim Thị Đà Ry",
+      "id_number": "094189002703",
+      "phone": "0393024029",
+      "street": "",
+      "ward": "",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 136,
+      "employee_code": "NV0480",
+      "full_name": "Lưu Thị Thu Huyền",
+      "id_number": "046302010580",
+      "phone": "0396517105",
+      "street": "F4/99A4 ấp 6",
+      "ward": "Xã Tân Vĩnh Lộc",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 137,
+      "employee_code": "NV0481",
+      "full_name": "Lưu Ni Na",
+      "id_number": "046307009796",
+      "phone": "0362158783",
+      "street": "F4,1 tổ 14 quách điêu",
+      "ward": "Xã Vĩnh Lộc",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 138,
+      "employee_code": "NV0483",
+      "full_name": "Mai Trung Hiếu",
+      "id_number": "079077016416",
+      "phone": "0918044575",
+      "street": "378 Liên khu 4-5",
+      "ward": "Phường Bình Hưng Hòa",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 139,
+      "employee_code": "NV0486",
+      "full_name": "Nguyễn Ngọc Thanh",
+      "id_number": "079169020745",
+      "phone": "0934115426",
+      "street": "206/20 Lạc Long Quân",
+      "ward": "Phường Bình Thới",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 140,
+      "employee_code": "NV0487",
+      "full_name": "Lê Thị Mỹ Tiên",
+      "id_number": "079303009888",
+      "phone": "0962979130",
+      "street": "93/23 Lũy Bán Bích",
+      "ward": "Phường Phú Thạnh",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 141,
+      "employee_code": "NV0488",
+      "full_name": "Lê Thị Lệ Quyên",
+      "id_number": "089196013511",
+      "phone": "0396487046",
+      "street": "986/8 Hương Lộ 2",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 142,
+      "employee_code": "NV0489",
+      "full_name": "Nguyễn Thị Hồng Đào",
+      "id_number": "079189003008",
+      "phone": "0368193175",
+      "street": "317 Lô G Chung Cư Ngô Gia Tự",
+      "ward": "Phường Vườn Lài",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 143,
+      "employee_code": "NV0491",
+      "full_name": "Nguyễn Phúc Khang",
+      "id_number": "086208002010",
+      "phone": "0365852949",
+      "street": "",
+      "ward": "",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 144,
+      "employee_code": "NV0493",
+      "full_name": "Phùng Nhuận Châu",
+      "id_number": "079171013940",
+      "phone": "0937103181",
+      "street": "48/7B Nguyễn Biểu",
+      "ward": "Phường Chợ Quán",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 145,
+      "employee_code": "NV0495",
+      "full_name": "Nguyễn Thị Kim Thu",
+      "id_number": "079176030383",
+      "phone": "0798763685",
+      "street": "67/9C Đường 100 Bình Thới",
+      "ward": "Phường Hòa Bình",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 146,
+      "employee_code": "NV0500",
+      "full_name": "Nguyễn Thị Rô Sa",
+      "id_number": "051191014641",
+      "phone": "0933823719",
+      "street": "92/5 Nguyễn Sơn",
+      "ward": "Phường Phú Thọ Hòa",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 147,
+      "employee_code": "NV0502",
+      "full_name": "Nguyễn Thị Mỹ Hạnh",
+      "id_number": "096304001727",
+      "phone": "0896590038",
+      "street": "1075/21 tinh lộ 10",
+      "ward": "Phường Tân Tạo",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 148,
+      "employee_code": "NV0504",
+      "full_name": "Nguyễn Thị Lệ",
+      "id_number": "079172019502",
+      "phone": "0782804650",
+      "street": "119B/18 Tân Hòa Đông",
+      "ward": "Phường Phú Lâm",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 149,
+      "employee_code": "NV0505",
+      "full_name": "Nguyễn Thị Huệ Phương",
+      "id_number": "083181001953",
+      "phone": "0934444915",
+      "street": "4,04 lô A3, c/c312 Lạc Long Quân",
+      "ward": "Phường Hòa Bình",
+      "province": "Thành Phố Hồ Chí Minh"
+    },
+    {
+      "sort_order": 150,
+      "employee_code": "NV0506",
+      "full_name": "Liêu Thị Si Pho",
+      "id_number": "094197002855",
+      "phone": "0797710824",
+      "street": "168/61 Bình Trị Đông",
+      "ward": "Phường Bình Trị Đông",
+      "province": "Thành Phố Hồ Chí Minh"
+    }
+  ]
+}

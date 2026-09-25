@@ -146,9 +146,236 @@
     padding: 0.55rem 0.65rem;
 }
 
-.jp-survey-fill-page textarea.form-control:focus {
+.jp-survey-fill-page textarea.form-control:focus,
+.jp-survey-fill-page input.form-control:focus {
     border-color: var(--hm-primary);
     box-shadow: 0 0 0 3px var(--hm-primary-subtle);
+}
+
+.jp-survey-fill-page input.form-control {
+    border-radius: 0.65rem;
+    min-height: 2.75rem;
+}
+
+.jp-ksk-page {
+    max-width: 28.5rem;
+}
+
+.jp-ksk-head {
+    text-align: center;
+    margin-bottom: 0.9rem;
+}
+
+.jp-ksk-code {
+    display: inline-flex;
+    align-items: center;
+    margin-bottom: 0.45rem;
+    padding: 0.28rem 0.7rem;
+    border-radius: 999px;
+    background: #fff1f2;
+    color: #b91c1c;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+}
+
+.jp-ksk-status {
+    margin: 0.45rem 0 0;
+    color: #64748b;
+    font-size: 0.84rem;
+    line-height: 1.4;
+}
+
+.jp-ksk-status--closed {
+    color: #92400e;
+}
+
+.jp-ksk-section {
+    margin-bottom: 0.75rem;
+    padding: 0.85rem 0.85rem 0.2rem;
+    border: 1px solid var(--jp-surface-border, #e2e8f0);
+    border-radius: 1rem;
+    background: var(--jp-surface-bg, #fff);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+}
+
+.jp-ksk-section h3 {
+    margin: 0 0 0.7rem;
+    color: #b91c1c;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.jp-ksk-field {
+    margin-bottom: 0.75rem;
+}
+
+.jp-ksk-field label {
+    display: block;
+    margin-bottom: 0.28rem;
+    color: var(--jp-text-secondary, #64748b);
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.jp-ksk-page input.form-control {
+    min-height: 3rem;
+    padding: 0.65rem 0.8rem;
+    border-radius: 0.75rem;
+    font-size: 16px;
+    line-height: 1.35;
+}
+
+.jp-ksk-page input.form-control:focus {
+    border-color: var(--hm-primary, #dc2626);
+    box-shadow: 0 0 0 3px var(--hm-primary-subtle, rgba(220, 38, 38, 0.15));
+}
+
+.jp-ksk-dock {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    margin: 0 -0.15rem;
+    padding: 0.85rem 0.15rem calc(0.35rem + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(180deg, transparent 0%, var(--jp-page-bg, #f8fafc) 34%);
+}
+
+@media (min-width: 992px) {
+    .jp-ksk-page {
+        max-width: 1040px;
+    }
+
+    .jp-ksk-head {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+        text-align: left;
+        margin-bottom: 1.1rem;
+    }
+
+    .jp-ksk-head-text {
+        min-width: 0;
+    }
+
+    .jp-ksk-code {
+        margin-bottom: 0.2rem;
+    }
+
+    .jp-ksk-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 1rem;
+        align-items: stretch;
+    }
+
+    .jp-ksk-section {
+        margin-bottom: 0;
+        padding: 1.1rem 1.15rem 0.35rem;
+    }
+
+    .jp-ksk-dock {
+        position: static;
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 1rem;
+        padding: 0;
+        background: none;
+    }
+
+    .jp-ksk-submit {
+        width: 16rem;
+    }
+
+    .jp-ksk-page:has(.jp-ksk-empty) {
+        max-width: 36rem;
+    }
+}
+
+.jp-ksk-submit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-height: 3.15rem;
+    border-radius: 0.9rem;
+    font-size: 1.02rem;
+    font-weight: 800;
+    box-shadow: 0 10px 22px rgba(220, 38, 38, 0.22);
+}
+
+.jp-ksk-empty {
+    padding: 1.6rem 1.1rem 1.4rem;
+    border: 1px solid var(--jp-surface-border, #e2e8f0);
+    border-radius: 1rem;
+    background: var(--jp-surface-bg, #fff);
+    text-align: center;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+}
+
+.jp-ksk-empty-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.2rem;
+    height: 3.2rem;
+    margin-bottom: 0.75rem;
+    border-radius: 999px;
+    background: #fff1f2;
+    color: #b91c1c;
+    font-size: 1.45rem;
+}
+
+.jp-ksk-empty p {
+    margin: 0.7rem 0 0;
+    color: var(--jp-text-secondary, #475569);
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.jp-ksk-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.jp-ksk-person {
+    padding: 0.85rem 0.9rem;
+    border: 1px solid var(--jp-surface-border, #e2e8f0);
+    border-radius: 0.9rem;
+    background: var(--jp-surface-bg, #fff);
+}
+
+.jp-ksk-person-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    align-items: flex-start;
+    margin-bottom: 0.35rem;
+}
+
+.jp-ksk-person-name {
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.jp-ksk-person-meta,
+.jp-ksk-person-address {
+    color: var(--jp-text-secondary, #64748b);
+    font-size: 0.82rem;
+    line-height: 1.4;
+}
+
+[data-theme="dark"] .jp-ksk-code,
+[data-theme="dark"] .jp-ksk-empty-icon {
+    background: rgba(220, 38, 38, 0.16);
+    color: #fecaca;
+}
+
+[data-theme="dark"] .jp-ksk-section h3 {
+    color: #fecaca;
 }
 
 .jp-survey-state-page {

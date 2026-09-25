@@ -1,6 +1,16 @@
 from django.contrib import admin
 
-from .models import Survey, SurveyAnswer, SurveyOption, SurveyQuestion, SurveyResponse, SurveyView
+from .models import (
+    HealthCheckCampaign,
+    HealthCheckPerson,
+    HealthCheckSubmission,
+    Survey,
+    SurveyAnswer,
+    SurveyOption,
+    SurveyQuestion,
+    SurveyResponse,
+    SurveyView,
+)
 
 
 @admin.register(Survey)
@@ -42,3 +52,21 @@ class SurveyViewAdmin(admin.ModelAdmin):
     list_display = ('survey', 'full_name', 'employee_code', 'department_name', 'last_viewed_at')
     search_fields = ('full_name', 'employee_code')
     list_filter = ('survey',)
+
+
+class HealthCheckPersonInline(admin.TabularInline):
+    model = HealthCheckPerson
+    extra = 0
+    fields = ('sort_order', 'employee_code', 'full_name', 'id_number', 'phone', 'street', 'ward', 'province')
+
+
+@admin.register(HealthCheckCampaign)
+class HealthCheckCampaignAdmin(admin.ModelAdmin):
+    list_display = ('title', 'code', 'is_open', 'closed_at')
+    inlines = (HealthCheckPersonInline,)
+
+
+@admin.register(HealthCheckSubmission)
+class HealthCheckSubmissionAdmin(admin.ModelAdmin):
+    list_display = ('full_name', 'campaign', 'phone', 'updated_at')
+    search_fields = ('full_name', 'id_number', 'phone')

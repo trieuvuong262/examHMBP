@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/surveys.css' %}?v=20260925d">
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-ksk-page py-3">
+    <section class="jp-ksk-empty">
+        <div class="jp-ksk-empty-icon" aria-hidden="true"><i class="bi bi-person-x"></i></div>
+        <h2 class="text-hm jp-page-title">Cập nhật thông tin</h2>
+        <p>{{ message }}.</p>
+    </section>
+</div>
+{% endblock %}

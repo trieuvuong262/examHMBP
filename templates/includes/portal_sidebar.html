@@ -461,7 +461,7 @@
             </a>
         </li>
         {% endif %}
-        {% if jp_can_feedback or jp_can_surveys %}
+        {% if jp_can_feedback or jp_can_surveys or jp_can_ksk_confirm %}
         <li class="jp-sidebar-group{% if 'gop-y' in request.path or 'khao-sat' in request.path or 'link-gui' in request.path %} is-open{% endif %}">
             <button type="button"
                     class="jp-sidebar-group-toggle"
@@ -510,12 +510,29 @@
                     </a>
                 </li>
                 {% endif %}
+                {% if jp_can_ksk_confirm %}
+                <li>
+                    <a href="{% url 'surveys:ksk_update' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'ksk_update' %}active{% endif %}">
+                        <i class="bi bi-person-vcard"></i><span>Cập nhật thông tin</span>
+                    </a>
+                </li>
+                {% endif %}
                 {% jp_can_menu 'surveys' 'results' as jp_can_surveys_results %}
                 {% if jp_can_surveys_results %}
                 <li>
                     <a href="{% url 'surveys:results' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'results' or request.resolver_match.url_name == 'result_detail' %}active{% endif %}">
                         <i class="bi bi-inbox-fill"></i><span>Kết quả</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% jp_can_menu 'surveys' 'ksk_manage' as jp_can_ksk_manage %}
+                {% if jp_can_ksk_manage %}
+                <li>
+                    <a href="{% url 'surveys:ksk_results' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'ksk_results' %}active{% endif %}">
+                        <i class="bi bi-heart-pulse"></i><span>Quản lý KSK</span>
                     </a>
                 </li>
                 {% endif %}

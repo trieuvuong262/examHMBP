@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/surveys.css' %}?v=20260925c">
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+        <div>
+            <h2 class="text-hm mb-1 jp-page-title">Quản lý KSK</h2>
+            {% if campaign %}
+            <p class="jp-page-subtitle">{{ confirmed_count }}/{{ total_count }} đã xác nhận · {% if window_open %}Đang trong giờ cập nhật{% else %}Ngoài giờ cập nhật{% endif %}</p>
+            {% endif %}
+        </div>
+        {% if campaign %}
+        <a href="{% url 'surveys:ksk_export' %}" class="btn btn-outline-success btn-sm">Xuất Excel</a>
+        {% endif %}
+    </div>
+
+    {% if campaign %}
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+            <h3 class="h6 fw-bold mb-3">Thời gian được phép cập nhật</h3>
+            <form method="post" action="{% url 'surveys:ksk_schedule' %}" class="row g-2 align-items-end">
+                {% csrf_token %}
+                <div class="col-12 col-md-4">
+                    <label class="form-label" for="ksk-opens">Từ</label>
+                    <input class="form-control" type="datetime-local" id="ksk-opens" name="opens_at" value="{{ opens_value }}" required>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label" for="ksk-closes">Đến</label>
+                    <input class="form-control" type="datetime-local" id="ksk-closes" name="closes_at" value="{{ closes_value }}" required>
+                </div>
+                <div class="col-12 col-md-4">
+                    <button type="submit" class="btn btn-hm w-100">Lưu thời gian</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if not campaign %}
+    <div class="alert alert-secondary">Chưa có danh sách khám sức khỏe.</div>
+    {% else %}
+    <ul class="nav nav-pills jp-portal-pills gap-2 mb-3">
+        <li class="nav-item">
+            <a class="nav-link rounded-pill fw-bold{% if not status %} active{% endif %}" href="{% url 'surveys:ksk_results' %}">Tất cả</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link rounded-pill fw-bold{% if status == 'confirmed' %} active{% endif %}" href="?trang-thai=confirmed">Đã xác nhận</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link rounded-pill fw-bold{% if status == 'pending' %} active{% endif %}" href="?trang-thai=pending">Chưa xác nhận</a>
+        </li>
+    </ul>
+    <div class="jp-ksk-cards d-md-none">
+        {% for person in people %}
+        <article class="jp-ksk-person">
+            <div class="jp-ksk-person-top">
+                <div class="jp-ksk-person-name">{{ person.submitted_name|default:person.full_name }}</div>
+                {% if person.submitted_at %}
+                <span class="badge text-bg-success">Đã xác nhận</span>
+                {% else %}
+                <span class="badge text-bg-secondary">Chưa xác nhận</span>
+                {% endif %}
+            </div>
+            <div class="jp-ksk-person-meta">{{ person.employee_code|default:"Chưa có mã" }} · {{ person.submitted_phone|default:person.phone|default:"—" }}</div>
+            <div class="jp-ksk-person-meta">CCCD {{ person.submitted_id|default:person.id_number|default:"—" }}</div>
+            <div class="jp-ksk-person-address">
+                {{ person.submitted_street|default:person.street }}
+                {% if person.submitted_ward or person.ward %}· {{ person.submitted_ward|default:person.ward }}{% endif %}
+                {% if person.submitted_province or person.province %}· {{ person.submitted_province|default:person.province }}{% endif %}
+            </div>
+        </article>
+        {% empty %}
+        <p class="text-center text-muted py-4 mb-0">Không có dòng nào.</p>
+        {% endfor %}
+    </div>
+    <div class="card border-0 shadow-sm d-none d-md-block">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>STT</th>
+                            <th>Mã NV</th>
+                            <th>Họ và tên</th>
+                            <th>Trạng thái</th>
+                            <th>CCCD đã xác nhận</th>
+                            <th>SĐT</th>
+                            <th>Địa chỉ</th>
+                            <th>Thời gian</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for person in people %}
+                        <tr>
+                            <td>{{ person.sort_order }}</td>
+                            <td>{{ person.employee_code|default:"—" }}</td>
+                            <td>
+                                <div class="fw-semibold">{{ person.submitted_name|default:person.full_name }}</div>
+                                {% if person.submitted_name and person.submitted_name != person.full_name %}
+                                <div class="small text-muted">Danh sách: {{ person.full_name }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if person.submitted_at %}
+                                <span class="text-success">Đã xác nhận</span>
+                                {% else %}
+                                <span class="text-muted">Chưa xác nhận</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ person.submitted_id|default:person.id_number }}</td>
+                            <td>{{ person.submitted_phone|default:person.phone }}</td>
+                            <td class="small">
+                                {{ person.submitted_street|default:person.street }}<br>
+                                {{ person.submitted_ward|default:person.ward }}{% if person.submitted_province or person.province %}, {{ person.submitted_province|default:person.province }}{% endif %}
+                            </td>
+                            <td class="text-nowrap small">{% if person.submitted_at %}{{ person.submitted_at|date:"H:i d/m/Y" }}{% else %}—{% endif %}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="8" class="text-center text-muted py-4">Không có dòng nào.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
