@@ -2,51 +2,54 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/surveys.css' %}?v=20260925d">
+<link rel="stylesheet" href="{% static 'css/surveys.css' %}?v=20260925e">
 {% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-ksk-page py-3 pb-4">
-    <header class="jp-ksk-head">
-        <div class="jp-ksk-head-text">
-            <h2 class="text-hm jp-page-title">Cập nhật thông tin</h2>
-            {% if not can_edit %}
-            <p class="jp-ksk-status jp-ksk-status--closed">Đợt đã đóng, không sửa được nữa</p>
-            {% elif submitted %}
-            <p class="jp-ksk-status">Đã xác nhận. Có thể sửa lại khi đợt còn mở.</p>
-            {% endif %}
-        </div>
-        <div class="jp-ksk-code">Mã NV {{ person.employee_code }}</div>
-    </header>
-
-            <form method="post" id="ksk-form" novalidate>
-                {% csrf_token %}
-                <div class="jp-ksk-grid">
-                {% for section in sections %}
-        <section class="jp-ksk-section" aria-labelledby="ksk-{{ section.id }}">
-            <h3 id="ksk-{{ section.id }}">{{ section.title }}</h3>
-            {% for field in section.fields %}
-            <div class="jp-ksk-field">
-                <label for="ksk-{{ field.key }}">{{ field.label }}</label>
-                <input
-                    type="text"
-                    class="form-control{% if field.error %} is-invalid{% endif %}"
-                    id="ksk-{{ field.key }}"
-                    name="{{ field.key }}"
-                    value="{{ field.value }}"
-                    placeholder="{{ field.placeholder }}"
-                    inputmode="{{ field.inputmode }}"
-                    autocomplete="{{ field.autocomplete }}"
-                    {% if field.key == 'id_number' %}maxlength="12"{% endif %}
-                    {% if not can_edit %}disabled{% endif %}
-                >
-                {% if field.error %}<div class="invalid-feedback">{{ field.error }}</div>{% endif %}
+    <form method="post" id="ksk-form" class="jp-ksk-sheet" novalidate>
+        {% csrf_token %}
+        <header class="jp-ksk-head">
+            <div class="jp-ksk-head-text">
+                <h2 class="text-hm jp-page-title">Cập nhật thông tin</h2>
+                {% if not can_edit %}
+                <p class="jp-ksk-status jp-ksk-status--closed">Đợt đã đóng, không sửa được nữa</p>
+                {% elif submitted %}
+                <p class="jp-ksk-status">Đã xác nhận. Có thể sửa lại khi đợt còn mở.</p>
+                {% endif %}
             </div>
-            {% endfor %}
-        </section>
-                {% endfor %}
+            <div class="jp-ksk-code">Mã NV {{ person.employee_code }}</div>
+        </header>
+
+        <div class="jp-ksk-grid">
+            {% for section in sections %}
+            <section class="jp-ksk-section" aria-labelledby="ksk-{{ section.id }}">
+                <h3 id="ksk-{{ section.id }}">{{ section.title }}</h3>
+                <div class="jp-ksk-fields">
+                    {% for field in section.fields %}
+                    <div class="jp-ksk-field{% if field.key == 'full_name' or field.key == 'street' %} jp-ksk-field--wide{% endif %}">
+                        <label for="ksk-{{ field.key }}">{{ field.label }}</label>
+                        <input
+                            type="text"
+                            class="form-control{% if field.error %} is-invalid{% endif %}"
+                            id="ksk-{{ field.key }}"
+                            name="{{ field.key }}"
+                            value="{{ field.value }}"
+                            placeholder="{{ field.placeholder }}"
+                            inputmode="{{ field.inputmode }}"
+                            autocomplete="{{ field.autocomplete }}"
+                            {% if field.key == 'id_number' %}maxlength="12"{% endif %}
+                            {% if not can_edit %}disabled{% endif %}
+                        >
+                        {% if field.error %}<div class="invalid-feedback">{{ field.error }}</div>{% endif %}
+                    </div>
+                    {% endfor %}
                 </div>
-                {% if can_edit %}
+            </section>
+            {% endfor %}
+        </div>
+
+        {% if can_edit %}
         <div class="jp-ksk-dock">
             <button type="submit" class="btn btn-hm w-100 jp-ksk-submit" id="ksk-submit">
                 <i class="bi bi-check2-circle" aria-hidden="true"></i>
