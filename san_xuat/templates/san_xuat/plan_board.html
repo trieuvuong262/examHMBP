@@ -1439,9 +1439,15 @@
   .jp-pb-route {
     margin-top: 1.5rem;
   }
+  .jp-main-content:has(.jp-pb.is-route) {
+    overflow-x: hidden;
+  }
   .jp-pb.is-route {
     display: flex;
     flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     height: calc(100dvh - var(--jp-topbar-h));
     max-height: calc(100dvh - var(--jp-topbar-h));
     margin-bottom: 0 !important;
@@ -1457,6 +1463,8 @@
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
+    min-width: 0;
+    max-width: 100%;
     min-height: 0;
     overflow: hidden;
   }
@@ -1471,13 +1479,19 @@
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
+    min-width: 0;
+    max-width: 100%;
     min-height: 0;
     margin-top: 0;
   }
   .jp-pb.is-route .jp-tl-wrap {
     flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
     min-height: 0;
     height: 100%;
+    overflow: auto;
   }
   .jp-pb.is-route .jp-tl-empty {
     min-height: 100%;

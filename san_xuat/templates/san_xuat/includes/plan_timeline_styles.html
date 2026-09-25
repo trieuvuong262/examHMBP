@@ -973,27 +973,21 @@
   .jp-tl-sheet .c-team { width: 88px; min-width: 88px; max-width: 88px; padding: 2px 4px; }
   .jp-tl-sheet tbody td.c-dept,
   .jp-tl-sheet tbody td.c-team { text-align: left; }
-  .jp-tl-sheet thead th.c-stt, .jp-tl-sheet tbody td.c-stt { position: sticky; left: 0; }
-  .jp-tl-sheet thead th.c-prio, .jp-tl-sheet tbody td.c-prio { position: sticky; left: 44px; }
-  .jp-tl-sheet thead th.c-img, .jp-tl-sheet tbody td.c-img { position: sticky; left: 132px; }
-  .jp-tl-sheet thead th.c-name, .jp-tl-sheet tbody td.c-name { position: sticky; left: 180px; }
-  .jp-tl-sheet thead th.c-po, .jp-tl-sheet tbody td.c-po { position: sticky; left: 336px; }
-  .jp-tl-sheet thead th.c-dept, .jp-tl-sheet tbody td.c-dept { position: sticky; left: 454px; }
-  .jp-tl-sheet thead th.c-team, .jp-tl-sheet tbody td.c-team { position: sticky; left: 602px; box-shadow: 6px 0 10px -8px rgba(15, 23, 42, .22); }
+  .jp-tl-sheet thead th.c-po,
+  .jp-tl-sheet tbody td.c-po { position: sticky; left: 0; overflow: visible; }
+  .jp-tl-sheet thead th.c-dept,
+  .jp-tl-sheet tbody td.c-dept { position: sticky; left: 118px; overflow: visible; box-shadow: 6px 0 10px -8px rgba(15, 23, 42, .22); }
   .jp-tl-sheet tbody td.c-stt,
   .jp-tl-sheet tbody td.c-prio,
   .jp-tl-sheet tbody td.c-img,
   .jp-tl-sheet tbody td.c-name,
   .jp-tl-sheet tbody td.c-po,
-  .jp-tl-sheet tbody td.c-team { background: #fff; z-index: 2; }
-  .jp-tl-sheet tbody td.c-dept { z-index: 2; background: var(--st-fill, #e2e8f0); color: var(--st-ink, #334155); }
-  .jp-tl-sheet thead th.c-stt,
-  .jp-tl-sheet thead th.c-prio,
-  .jp-tl-sheet thead th.c-img,
-  .jp-tl-sheet thead th.c-name,
+  .jp-tl-sheet tbody td.c-team { background: #fff; }
+  .jp-tl-sheet tbody td.c-po,
+  .jp-tl-sheet tbody td.c-dept { z-index: 3; }
+  .jp-tl-sheet tbody td.c-dept { background: var(--st-fill, #e2e8f0); color: var(--st-ink, #334155); }
   .jp-tl-sheet thead th.c-po,
-  .jp-tl-sheet thead th.c-dept,
-  .jp-tl-sheet thead th.c-team { z-index: 6; background: var(--sheet-brand-soft); color: #0f172a; }
+  .jp-tl-sheet thead th.c-dept { z-index: 6; background: var(--sheet-brand-soft); color: #0f172a; }
   .jp-tl-sheet .jp-sheet-side {
     display: flex;
     align-items: center;
@@ -1176,6 +1170,7 @@
     font-variant-numeric: tabular-nums;
     white-space: normal;
     line-height: 1.15;
+    overflow: visible;
     box-shadow: -6px 0 10px -8px rgba(15, 23, 42, .22);
   }
   .jp-tl-sheet thead th.c-total {
@@ -1313,10 +1308,6 @@
     padding: 0 !important;
     height: auto !important;
     text-align: left !important;
-    position: sticky;
-    left: 0;
-    z-index: 3;
-    box-shadow: 6px 0 10px -8px rgba(15, 23, 42, .22);
   }
   .jp-route-sum-toggle {
     display: inline-flex;
