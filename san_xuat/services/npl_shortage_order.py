@@ -168,7 +168,7 @@ def build_shortage_preview(order: SxSalesOrder) -> list[ShortageOrderGroup]:
             except (ValueError, OSError):
                 image_url = ''
         price = _q(saved.unit_price) if saved and saved.unit_price else _q(mat.base_price if mat else 0)
-        note = (saved.notes if saved else '') or order.code
+        note = (saved.notes if saved else '')
         lead = int(ln.buy_lead_days or 0)
         expected = saved.expected_date if saved and saved.expected_date else (
             timezone.localdate() + timedelta(days=lead)
@@ -282,7 +282,7 @@ def save_shortage_request(*, order_id: int, post, user=None, group_key: str = ''
         pr.lines.all().delete()
         pr.due_date = due or pr.due_date
         pr.payment_method = header_pay
-        pr.notes = pr.notes or order.code
+        pr.notes = pr.notes or ''
         pr.request_date = timezone.localdate()
         pr.save(update_fields=['due_date', 'payment_method', 'notes', 'request_date'])
     else:
@@ -296,7 +296,7 @@ def save_shortage_request(*, order_id: int, post, user=None, group_key: str = ''
             request_date=timezone.localdate(),
             due_date=due,
             status=SxNplPurchaseRequest.STATUS_DRAFT,
-            notes=order.code,
+            notes='',
             payment_method=header_pay,
             is_demo=False,
             created_by=user if getattr(user, 'pk', None) else None,
@@ -428,7 +428,7 @@ def place_shortage_requests_from_post(*, order_id: int, post, user=None) -> list
             request_date=order_day,
             due_date=expected,
             status=SxNplPurchaseRequest.STATUS_SUBMITTED,
-            notes=order.code,
+            notes='',
             payment_method=pay,
             is_demo=False,
             created_by=user if getattr(user, 'pk', None) else None,
@@ -631,7 +631,7 @@ def create_shortage_requests_from_order(
             request_date=timezone.localdate(),
             due_date=due,
             status=SxNplPurchaseRequest.STATUS_SUBMITTED,
-            notes=order.code,
+            notes='',
             payment_method=group.payment_method or SxNplPurchaseRequest.PAYMENT_TRANSFER,
             is_demo=False,
             created_by=user if getattr(user, 'pk', None) else None,

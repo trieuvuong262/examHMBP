@@ -60,7 +60,7 @@
               {% else %}—{% endif %}
             </div>
           </div>
-          {% if pr.notes %}
+          {% if pr.notes and not pr.sales_order or pr.notes and pr.sales_order and pr.notes != pr.sales_order.code %}
           <div>
             <div class="lbl">Ghi chú</div>
             <div>{{ pr.notes }}</div>

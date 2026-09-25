@@ -311,9 +311,14 @@ def print_po(request, pk: int):
     from kho_npl.models import Material
 
     po = get_object_or_404(
-        SxPurchaseOrder.objects.select_related('supplier', 'purchase_request').prefetch_related('lines'),
+        SxPurchaseOrder.objects.select_related(
+            'supplier', 'purchase_request', 'purchase_request__sales_order',
+        ).prefetch_related('lines'),
         pk=pk,
     )
+    order_code = ''
+    if po.purchase_request_id and po.purchase_request and po.purchase_request.sales_order_id:
+        order_code = po.purchase_request.sales_order.code or ''
     codes = [ln.material_code for ln in po.lines.all()]
     materials = {
         m.code.casefold(): m
@@ -349,10 +354,13 @@ def print_po(request, pk: int):
             'qty': ln.qty_ordered,
             'price': ln.unit_price,
             'amount': amount,
-            'note': ln.notes,
+            'note': '' if order_code and (ln.notes or '').strip() == order_code else (ln.notes or ''),
         })
     pay = dict(po._meta.get_field('payment_method').choices).get(po.payment_method, '')
     supplier = po.supplier
+    po_notes = po.notes or ''
+    if order_code and po_notes.strip() == order_code:
+        po_notes = ''
     return render(request, 'san_xuat/print/po_a4.html', {
         **_print_base_ctx(
             print_title=f'Đơn đặt hàng {po.code}',
@@ -393,7 +401,8 @@ def print_po(request, pk: int):
             'total_amount': total_amount,
             'payment_label': pay,
             'expected_date': po.expected_date,
-            'notes': po.notes,
+            'notes': po_notes,
+            'order_code': order_code,
             'preparer_name': _person_name(po.created_by),
         }],
     })
@@ -408,7 +417,7 @@ def print_npl_pr(request, pk: int):
     from kho_npl.models import Material
 
     pr = get_object_or_404(
-        SxNplPurchaseRequest.objects.select_related('created_by').prefetch_related('lines__supplier'),
+        SxNplPurchaseRequest.objects.select_related('created_by', 'sales_order').prefetch_related('lines__supplier'),
         pk=pk,
         is_demo=False,
     )
@@ -467,7 +476,7 @@ def print_npl_pr(request, pk: int):
                 'qty': qty,
                 'price': price,
                 'amount': amount,
-                'note': ln.notes,
+                'note': '' if (ln.notes or '').strip() == (getattr(pr.sales_order, 'code', None) or '') else (ln.notes or ''),
             })
         sheets.append({
             'supplier_name': supplier.name if supplier else '',
@@ -486,7 +495,8 @@ def print_npl_pr(request, pk: int):
             'total_amount': total_amount,
             'payment_label': pay_labels.get(pay_key or pr.payment_method, ''),
             'expected_date': expected or pr.due_date,
-            'notes': pr.notes,
+            'notes': '' if (pr.notes or '').strip() == (getattr(pr.sales_order, 'code', None) or '') else pr.notes,
+            'order_code': getattr(pr.sales_order, 'code', '') or '',
             'preparer_name': _person_name(pr.created_by),
         })
     return render(request, 'san_xuat/print/po_a4.html', {

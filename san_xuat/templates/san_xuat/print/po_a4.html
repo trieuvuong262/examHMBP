@@ -105,6 +105,7 @@
       <div class="co-block">
         <div class="co">{{ company_name }}</div>
         <div class="co-meta">Địa chỉ: {{ company_address }}</div>
+        {% if sheet.order_code %}<div class="co-meta">Mã đơn hàng: {{ sheet.order_code }}</div>{% endif %}
         <div class="co-meta">Liên hệ:</div>
         <div class="co-meta">MST: {{ company_tax_code }}</div>
       </div>
