@@ -159,6 +159,16 @@ class LoginSecurityConfig(models.Model):
 
     wan_whitelist_ips = models.JSONField(default=list, blank=True)
     ip_blacklist = models.JSONField(default=list, blank=True)
+    geo_enabled = models.BooleanField(
+        default=False,
+        verbose_name='Chặn kết nối ngoài quốc gia cho phép',
+    )
+    allowed_countries = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name='Quốc gia được kết nối',
+        help_text='Mã ISO (VN). Để trống nghĩa là chỉ Việt Nam khi bật chặn.',
+    )
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

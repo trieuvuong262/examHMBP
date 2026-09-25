@@ -40,7 +40,7 @@ def login_security_page(request):
     tab = request.GET.get('tab', 'bots')
     if tab == 'accounts':
         return redirect('locked_accounts')
-    if tab not in ('bots', 'config', 'filescan', 'nginx'):
+    if tab not in ('bots', 'config', 'filescan', 'nginx', 'region'):
         tab = 'bots'
 
     blocked_ips = (
@@ -100,6 +100,11 @@ def login_security_page(request):
         from audit.services.remote_access import remote_access_status
 
         ctx['remote_access'] = remote_access_status()
+
+    if tab == 'region':
+        from audit.services.geo_access import geo_access_status
+
+        ctx['geo'] = geo_access_status()
 
     return render(request, 'audit/login_security.html', ctx)
 
@@ -200,6 +205,35 @@ def save_login_security_config_view(request):
     if not invalid_wan and not invalid_blacklist:
         messages.success(request, 'Đã lưu cấu hình whitelist / blacklist IP.')
     return redirect(reverse('audit:login_security') + '?tab=config')
+
+
+@module_perm_required(MODULE_AUDIT, 'export')
+@require_POST
+def save_geo_region_view(request):
+    from audit.services.geo_access import COUNTRIES, apply_geo_access, normalize_countries
+    from audit.services.vps_monitor import VpsMonitorError
+
+    if request.POST.get('confirm') != 'on':
+        messages.error(request, 'Hãy xác nhận trước khi đổi chặn theo quốc gia.')
+        return redirect(reverse('audit:login_security') + '?tab=region')
+
+    enabled = request.POST.get('enabled') == 'on'
+    countries = normalize_countries(request.POST.getlist('countries'))
+    try:
+        apply_geo_access(enabled=enabled, countries=countries, admin_user=request.user)
+    except VpsMonitorError as exc:
+        messages.error(request, str(exc))
+        return redirect(reverse('audit:login_security') + '?tab=region')
+
+    if enabled:
+        labels = ', '.join(COUNTRIES[code] for code in countries)
+        messages.success(
+            request,
+            f'Đã chặn kết nối mới ngoài {labels}. TCP/80 vẫn mở để gia hạn chứng chỉ.',
+        )
+    else:
+        messages.success(request, 'Đã tắt chặn theo quốc gia. Mọi nơi kết nối lại được như ufw đang cho phép.')
+    return redirect(reverse('audit:login_security') + '?tab=region')
 
 
 @module_perm_required(MODULE_AUDIT, 'export')

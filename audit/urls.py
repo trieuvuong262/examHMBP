@@ -28,6 +28,11 @@ urlpatterns = [
         name='login_security_save_config',
     ),
     path(
+        'bao-mat-dang-nhap/khu-vuc/',
+        views_login_security.save_geo_region_view,
+        name='geo_region_save',
+    ),
+    path(
         'bao-mat-dang-nhap/duong-ssh/',
         views_login_security.save_remote_access_mode_view,
         name='remote_access_save_mode',

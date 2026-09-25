@@ -715,6 +715,9 @@ NAMESPACE_URL_DESCRIPTIONS: dict[str, dict[str, str] | str] = {
     'audit:login_security_save_config': {
         'POST': 'lưu cấu hình whitelist / blacklist IP đăng nhập',
     },
+    'audit:geo_region_save': {
+        'POST': 'bật hoặc tắt chặn kết nối VPS theo quốc gia',
+    },
     'audit:remote_access_save_mode': {
         'POST': 'đổi đường NAS Portal (Fortinet IPsec / Tailscale)',
     },

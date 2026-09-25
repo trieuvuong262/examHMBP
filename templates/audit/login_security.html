@@ -9,7 +9,7 @@
                 Bảo mật đăng nhập
             </h2>
             <p class="text-muted small mb-0">
-                Chặn IP bot quét exploit / blacklist thủ công / theo dõi nginx log
+                Chặn IP bot, theo dõi nginx, và chỉ cho Việt Nam kết nối VPS
             </p>
         </div>
     </div>
@@ -40,6 +40,12 @@
             <a class="nav-link fw-bold {% if tab == 'filescan' %}active{% endif %}"
                href="{% url 'audit:login_security' %}?tab=filescan">
                 <i class="bi bi-shield-check me-1"></i>Quét virus file
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link fw-bold {% if tab == 'region' %}active{% endif %}"
+               href="{% url 'audit:login_security' %}?tab=region">
+                <i class="bi bi-globe-asia-australia me-1"></i>Khu vực
             </a>
         </li>
     </ul>
@@ -557,6 +563,89 @@
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    {% elif tab == 'region' %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h5 class="mb-0 fw-bold">Khu vực được kết nối VPS</h5>
+            <p class="small text-muted mb-0 mt-1">
+                Kết nối mới vào cổng WAN <code>{{ geo.wan_if }}</code> chỉ từ quốc gia bên dưới.
+                SSH Tailscale, mạng Docker và IPsec không đi qua cổng này.
+            </p>
+        </div>
+        <div class="card-body">
+            {% if geo.mismatch %}
+            <div class="alert alert-warning small">Cấu hình đã lưu và firewall trên VPS đang lệch. Bấm áp dụng lại.</div>
+            {% endif %}
+            {% if not geo.host_ok or not geo.docker_ok %}
+            <div class="alert alert-warning small">Chỉ áp dụng được khi portal chạy trên VPS (Docker socket + thư mục host).</div>
+            {% endif %}
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="border rounded p-3 h-100">
+                        <div class="small text-muted mb-1">Firewall</div>
+                        {% if geo.host_enabled %}
+                        <span class="badge bg-success-subtle text-success fw-bold">Đang chặn ngoài danh sách</span>
+                        {% else %}
+                        <span class="badge bg-secondary-subtle text-secondary fw-bold">Đang tắt</span>
+                        {% endif %}
+                        {% if geo.applied_at %}
+                        <div class="small text-muted mt-1">Áp dụng {{ geo.applied_at }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="border rounded p-3 h-100">
+                        <div class="small text-muted mb-1">Prefix đang nạp</div>
+                        <div class="fs-4 fw-bold">{{ geo.prefixes }}</div>
+                        <div class="small text-muted">dải IPv4 {{ geo.country_labels|join:", " }}</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="border rounded p-3 h-100">
+                        <div class="small text-muted mb-1">Luôn cho qua</div>
+                        <div class="small">Whitelist WAN ({{ geo.bypass_ips|length }} IP), phiên SSH lúc bật, TCP/80 (gia hạn Let's Encrypt).</div>
+                    </div>
+                </div>
+            </div>
+
+            {% if can_unlock %}
+            <form method="post" action="{% url 'audit:geo_region_save' %}" class="row g-3">
+                {% csrf_token %}
+                <div class="col-lg-6">
+                    <label class="form-label fw-bold">Quốc gia được vào</label>
+                    {% for item in geo.catalog %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="countries" value="{{ item.code }}"
+                               id="geo-{{ item.code }}" checked>
+                        <label class="form-check-label" for="geo-{{ item.code }}">{{ item.label }} <span class="text-muted">({{ item.code }})</span></label>
+                    </div>
+                    {% endfor %}
+                    <div class="form-text">Trước mắt chỉ có Việt Nam. Nước khác bị từ chối kết nối mới (SSH, HTTPS, RustDesk).</div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="enabled" value="on" id="geo-enabled"
+                               {% if geo.saved_enabled %}checked{% endif %}>
+                        <label class="form-check-label fw-bold" for="geo-enabled">Bật chặn quốc gia khác</label>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="confirm" value="on" id="geo-confirm" required>
+                        <label class="form-check-label" for="geo-confirm">
+                            Tôi hiểu máy ngoài Việt Nam sẽ không vào được VPS, trừ IP whitelist.
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-hm text-white fw-bold"
+                            {% if not geo.host_ok or not geo.docker_ok %}disabled{% endif %}>
+                        Áp dụng
+                    </button>
+                </div>
+            </form>
+            {% else %}
+            <p class="small text-muted mb-0">Bạn chỉ được xem. Cần quyền xuất nhật ký để bật hoặc tắt.</p>
+            {% endif %}
         </div>
     </div>
 
