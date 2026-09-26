@@ -457,6 +457,16 @@ def print_npl_pr(request, pk: int):
         pk=pk,
         is_demo=False,
     )
+    official = (request.GET.get('official') or '').strip() == '1'
+    priced = pr.status in (
+        SxNplPurchaseRequest.STATUS_PRICED,
+        SxNplPurchaseRequest.STATUS_SUBMITTED,
+        SxNplPurchaseRequest.STATUS_APPROVED,
+    )
+    if official and not priced:
+        from django.contrib import messages
+        messages.error(request, 'Chỉ in bản gửi nhà cung cấp sau khi đơn đã duyệt giá.')
+        return redirect('san_xuat:npl_purchase_request_detail', pk=pk)
     lines = list(pr.lines.all())
     materials = {
         m.code.casefold(): m
@@ -545,4 +555,5 @@ def print_npl_pr(request, pk: int):
             request=request,
         ),
         'sheets': sheets,
+        'is_draft_print': not official,
     })

@@ -70,12 +70,19 @@ def _user_can_module_action(user, module_key: str, action: str, request=None) ->
     if not user.is_authenticated:
         return False
     if request is not None:
-        from hrm.menu_permissions import resolve_menu_from_request, user_can_menu_action
+        from hrm.menu_permissions import (
+            resolve_menu_from_request,
+            user_can_access_resolved_menu,
+            user_can_menu_action,
+        )
         resolved_module, menu_key = resolve_menu_from_request(
             request.path,
             request.GET.get('tab'),
         )
         if menu_key and resolved_module == module_key:
+            # Xem: cho phép menu alias (vd. KHSX vào /duyet-gia/ rồi view redirect).
+            if action == 'view':
+                return user_can_access_resolved_menu(user, module_key, menu_key)
             return user_can_menu_action(user, module_key, menu_key, action)
     checker = _MODULE_ACTION_CHECKS.get(action, user_can_edit_module)
     return bool(checker(user, module_key))

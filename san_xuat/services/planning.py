@@ -549,8 +549,11 @@ def submit_npl_purchase_request(*, request_id: int) -> SxNplPurchaseRequest:
 @transaction.atomic
 def approve_npl_purchase_request(*, request_id: int) -> SxNplPurchaseRequest:
     pr = SxNplPurchaseRequest.objects.select_for_update().get(pk=request_id)
-    if pr.status != SxNplPurchaseRequest.STATUS_SUBMITTED:
-        raise PlanningError("Chỉ duyệt đơn đặt hàng đã gửi.")
+    if pr.status not in (
+        SxNplPurchaseRequest.STATUS_SUBMITTED,
+        SxNplPurchaseRequest.STATUS_PRICED,
+    ):
+        raise PlanningError("Chỉ xác nhận đơn đã duyệt giá.")
     pr.status = SxNplPurchaseRequest.STATUS_APPROVED
     pr.save(update_fields=["status"])
     from san_xuat.services.npl_shortage_order import split_purchase_orders_from_request

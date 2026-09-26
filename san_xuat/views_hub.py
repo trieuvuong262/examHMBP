@@ -3214,10 +3214,7 @@ def npl_purchase_request_detail(request, pk: int):
         pk=pk,
     )
     can_update = _perm_ctx(request).get('can_update')
-    can_edit = bool(can_update) and pr.status in (
-        SxNplPurchaseRequest.STATUS_DRAFT,
-        SxNplPurchaseRequest.STATUS_SUBMITTED,
-    )
+    can_edit = bool(can_update) and pr.status == SxNplPurchaseRequest.STATUS_DRAFT
     if request.method == 'POST' and can_edit and (request.POST.get('action') or '').strip() == 'save':
         from san_xuat.services.npl_shortage_order import update_open_purchase_request
 
@@ -3230,6 +3227,15 @@ def npl_purchase_request_detail(request, pk: int):
             return redirect('san_xuat:plan_npl')
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
+        if action == 'submit_price' and can_update and pr.status == SxNplPurchaseRequest.STATUS_DRAFT:
+            from san_xuat.services.price_approval import submit_price_review
+            try:
+                pr = submit_price_review(request_id=pr.pk)
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'{pr.code} đã gửi duyệt giá.')
+                return redirect('san_xuat:npl_purchase_request_detail', pk=pr.pk)
         if action == 'submit' and can_update and pr.status == SxNplPurchaseRequest.STATUS_DRAFT:
             try:
                 pr = submit_npl_purchase_request(request_id=pr.pk)
@@ -3257,7 +3263,8 @@ def npl_purchase_request_detail(request, pk: int):
             else:
                 messages.success(request, f'Đơn đặt hàng {pr.code} đã từ chối.')
                 return redirect('san_xuat:npl_purchase_request_detail', pk=pr.pk)
-    from kho_npl.models import Material, Supplier
+    from kho_npl.models import Material
+    from san_xuat.services.price_approval import chosen_offers_for_code
 
     lines = list(pr.lines.all())
     materials = {
@@ -3277,6 +3284,7 @@ def npl_purchase_request_detail(request, pk: int):
             'line': ln,
             'image_url': image_url,
             'amount': (ln.qty or 0) * (ln.unit_price or 0),
+            'quotes': list(chosen_offers_for_code(ln.material_code)) if can_edit else [],
         })
     return render(request, 'san_xuat/npl_purchase_request_detail.html', {
         **_perm_ctx(request),
@@ -3284,7 +3292,11 @@ def npl_purchase_request_detail(request, pk: int):
         'can_update': can_update,
         'can_edit': can_edit,
         'line_rows': line_rows,
-        'suppliers': list(Supplier.objects.filter(is_active=True).order_by('name')) if can_edit else [],
+        'can_official_print': pr.status in (
+            SxNplPurchaseRequest.STATUS_PRICED,
+            SxNplPurchaseRequest.STATUS_SUBMITTED,
+            SxNplPurchaseRequest.STATUS_APPROVED,
+        ),
         'edit_supplier': next((ln.supplier for ln in lines if ln.supplier_id), None),
         'edit_pay': next((ln.payment_method for ln in lines if ln.payment_method), pr.payment_method),
         'edit_date': next((ln.expected_date for ln in lines if ln.expected_date), pr.due_date),

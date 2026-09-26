@@ -933,11 +933,15 @@ class SxMaterialPlanLine(models.Model):
 
 class SxNplPurchaseRequest(DemoMarkedModel):
     STATUS_DRAFT = 'draft'
+    STATUS_PRICE_REVIEW = 'price_review'
+    STATUS_PRICED = 'priced'
     STATUS_SUBMITTED = 'submitted'
     STATUS_APPROVED = 'approved'
     STATUS_REJECTED = 'rejected'
     STATUS_CHOICES = [
         (STATUS_DRAFT, 'Nháp'),
+        (STATUS_PRICE_REVIEW, 'Chờ duyệt giá'),
+        (STATUS_PRICED, 'Đã duyệt giá'),
         (STATUS_SUBMITTED, 'Đã gửi'),
         (STATUS_APPROVED, 'Đã duyệt'),
         (STATUS_REJECTED, 'Từ chối'),
@@ -968,6 +972,18 @@ class SxNplPurchaseRequest(DemoMarkedModel):
     ]
 
     notes = models.TextField(blank=True, default='')
+    price_return_note = models.CharField(
+        max_length=500, blank=True, default='', verbose_name='Lý do trả duyệt giá',
+    )
+    price_approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sx_npl_price_approved',
+        verbose_name='Người duyệt giá',
+    )
+    price_approved_at = models.DateTimeField(null=True, blank=True, verbose_name='Duyệt giá lúc')
     payment_method = models.CharField(
         max_length=20,
         choices=PAYMENT_CHOICES,
@@ -1010,9 +1026,105 @@ class SxNplPurchaseRequestLine(models.Model):
     expected_date = models.DateField(null=True, blank=True, verbose_name='Ngày giao')
     payment_method = models.CharField(max_length=20, blank=True, default='', verbose_name='Thanh toán')
     notes = models.CharField(max_length=255, blank=True, default='', verbose_name='Ghi chú')
+    quote_offer = models.ForeignKey(
+        'san_xuat.SxNplQuoteOffer',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='purchase_lines',
+        verbose_name='Báo giá đã chốt',
+    )
 
     class Meta:
         ordering = ['id']
+
+
+class SxNplQuoteSheet(DemoMarkedModel):
+    """Bảng so giá NPL trước khi lên đơn đặt hàng."""
+
+    STATUS_DRAFT = 'draft'
+    STATUS_SUBMITTED = 'submitted'
+    STATUS_DECIDED = 'decided'
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, 'Nháp'),
+        (STATUS_SUBMITTED, 'Chờ chốt giá'),
+        (STATUS_DECIDED, 'Đã chốt giá'),
+    ]
+
+    code = models.CharField(max_length=40, unique=True, verbose_name='Mã bảng so giá')
+    sales_order = models.ForeignKey(
+        'san_xuat.SxSalesOrder',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='npl_quote_sheets',
+        verbose_name='Đơn KHSX',
+    )
+    title = models.CharField(max_length=200, blank=True, default='', verbose_name='Tiêu đề')
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True,
+    )
+    notes = models.TextField(blank=True, default='')
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sx_npl_quotes_decided',
+        verbose_name='Người chốt giá',
+    )
+    decided_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Bảng so giá NPL'
+        verbose_name_plural = 'Bảng so giá NPL'
+
+    def __str__(self):
+        return self.code
+
+
+class SxNplQuoteOffer(models.Model):
+    """Một báo giá: một NPL từ một nhà cung cấp."""
+
+    sheet = models.ForeignKey(SxNplQuoteSheet, on_delete=models.CASCADE, related_name='offers')
+    material = models.ForeignKey(
+        'kho_npl.Material',
+        on_delete=models.PROTECT,
+        related_name='npl_quote_offers',
+        verbose_name='NPL (kho)',
+    )
+    material_code = models.CharField(max_length=60, db_index=True, verbose_name='Mã NPL')
+    material_name = models.CharField(max_length=255, blank=True, default='', verbose_name='Tên NPL')
+    supplier = models.ForeignKey(
+        'kho_npl.Supplier',
+        on_delete=models.PROTECT,
+        related_name='npl_quote_offers',
+        verbose_name='Nhà cung cấp',
+    )
+    unit_price = models.DecimalField(
+        max_digits=18, decimal_places=6, default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Đơn giá',
+    )
+    quality_note = models.CharField(max_length=255, blank=True, default='', verbose_name='Chất lượng')
+    capacity_note = models.CharField(max_length=255, blank=True, default='', verbose_name='Năng lực')
+    is_chosen = models.BooleanField(default=False, db_index=True, verbose_name='Sếp đã chọn')
+
+    class Meta:
+        ordering = ['material_code', 'id']
+        verbose_name = 'Báo giá NPL'
+        verbose_name_plural = 'Báo giá NPL'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['sheet', 'material_code', 'supplier'],
+                name='sx_npl_quote_offer_sheet_mat_sup',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.material_code} · {self.supplier_id}'
 
 
 class SxPurchaseOrder(DemoMarkedModel):

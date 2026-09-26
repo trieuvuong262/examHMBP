@@ -1,7 +1,7 @@
 from django.urls import path
 from django.views.generic import RedirectView
 
-from san_xuat import views, views_hub, views_ie, views_kv_embed, views_ops, views_print, views_export
+from san_xuat import views, views_hub, views_ie, views_kv_embed, views_ops, views_price, views_print, views_export
 
 
 app_name = 'san_xuat'
@@ -43,6 +43,12 @@ urlpatterns = [
     path('ke-hoach/npl/da-xac-nhan/', views_hub.plan_npl_confirmed, name='plan_npl_confirmed'),
     path('ke-hoach/npl/them/', views_hub.plan_npl_create, name='plan_npl_create'),
     path('ke-hoach/npl/<int:pk>/', views_hub.plan_npl_detail, name='plan_npl_detail'),
+    path('duyet-gia/', views_price.price_home, name='price_approve_home'),
+    path('duyet-gia/so-gia/', views_price.price_quote_list, name='price_quote_list'),
+    path('duyet-gia/so-gia/them/', views_price.price_quote_create, name='price_quote_create'),
+    path('duyet-gia/so-gia/<int:pk>/', views_price.price_quote_detail, name='price_quote_detail'),
+    path('duyet-gia/don/<int:pk>/', views_price.price_review_action, name='price_review_action'),
+    path('duyet-gia/api/tim-npl/', views_price.price_material_search, name='price_material_search'),
     path('ke-hoach/don-dat-hang/', views_hub.npl_purchase_request, name='npl_purchase_request'),
     path('ke-hoach/don-dat-hang/them/', views_hub.npl_purchase_request_create, name='npl_purchase_request_create'),
     path('ke-hoach/don-dat-hang/<int:pk>/sua/', views_hub.npl_purchase_request_edit, name='npl_purchase_request_edit'),

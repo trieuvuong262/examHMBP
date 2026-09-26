@@ -25,6 +25,7 @@ _PREFIX_DEFAULTS = {
     'plan_npl': 'KHNVL',
     'plan_detail': 'KHCT',
     'npl_pr': 'DDH',
+    'npl_quote': 'BG',
     'po': 'DMH',
     'cost_std': 'GTDM',
     'cost_order': 'GTDH',

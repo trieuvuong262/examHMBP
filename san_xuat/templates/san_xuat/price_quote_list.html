@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+<style>
+.jp-price-grid thead th {
+  font-size: 0.69rem; font-weight: 700; letter-spacing: 0.04em;
+  text-transform: uppercase; color: #6b7484; white-space: nowrap;
+}
+.jp-price-code { color: #172033; font-weight: 700; text-decoration: none; }
+.jp-price-code:hover { color: var(--hm-red, #dc2626); }
+.jp-price-badge {
+  display: inline-block; font-size: 0.72rem; font-weight: 600;
+  padding: 0.15rem 0.5rem; border-radius: 999px; border: 1px solid #e2e8f0;
+  color: #475569; background: #f8fafc; white-space: nowrap;
+}
+.jp-price-badge.is-draft { border-color: #e2e8f0; }
+.jp-price-badge.is-submitted { border-color: #fcd34d; background: #fffbeb; color: #92400e; }
+.jp-price-badge.is-decided { border-color: #86efac; background: #ecfdf5; color: #166534; }
+.jp-price-empty { padding: 1.25rem 1rem; text-align: center; color: #94a3b8; font-size: 0.875rem; }
+.jp-npl-catalog-row { cursor: pointer; }
+.jp-npl-catalog-row:hover td { background: #f8fafc; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Bảng so giá</h2>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      {% if can_create %}
+      <a href="{% url 'san_xuat:price_quote_create' %}" class="btn btn-hm btn-sm fw-bold">
+        <i class="bi bi-plus-lg" aria-hidden="true"></i> Bảng so giá mới
+      </a>
+      {% endif %}
+    </nav>
+  </div>
+
+  <div class="jp-sx-page-body">
+    <div class="card border-0 shadow-sm overflow-hidden">
+      {% if sheets %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 jp-price-grid">
+          <thead class="table-light">
+            <tr>
+              <th>Mã bảng</th>
+              <th>Tiêu đề</th>
+              <th>Đơn KHSX</th>
+              <th>Trạng thái</th>
+              <th>NPL</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for sheet in sheets %}
+            <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:price_quote_detail' sheet.pk %}">
+              <td><a class="jp-price-code" href="{% url 'san_xuat:price_quote_detail' sheet.pk %}">{{ sheet.code }}</a></td>
+              <td class="small">{{ sheet.title|default:"—" }}</td>
+              <td class="small">{{ sheet.sales_order.code|default:"—" }}</td>
+              <td>
+                <span class="jp-price-badge {% if sheet.status == 'draft' %}is-draft{% elif sheet.status == 'submitted' %}is-submitted{% elif sheet.status == 'decided' %}is-decided{% endif %}">
+                  {{ sheet.get_status_display }}
+                </span>
+              </td>
+              <td class="small text-muted">{{ sheet.offers.count }} báo giá</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="jp-price-empty">Chưa có bảng so giá. Bấm <strong>Bảng so giá mới</strong> để bắt đầu.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  document.querySelectorAll('.jp-npl-catalog-row[data-href]').forEach(function (row) {
+    row.addEventListener('click', function (e) {
+      if (e.target.closest('a, button, input, select, label, form')) return;
+      window.location.href = row.getAttribute('data-href');
+    });
+  });
+})();
+</script>
+{% endblock %}

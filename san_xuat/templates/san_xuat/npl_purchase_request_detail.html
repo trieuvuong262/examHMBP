@@ -28,9 +28,13 @@
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       {% if can_edit %}
-      <button type="submit" form="order-edit" class="btn btn-hm btn-sm fw-bold">Lưu</button>
+      <button type="submit" form="order-edit" name="action" value="save" class="btn btn-hm btn-sm fw-bold">Lưu</button>
       {% endif %}
-      {% if can_print %}<a href="{% url 'san_xuat:print_npl_pr' pr.pk %}?autoprint=1" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i>In A5</a>{% endif %}
+      {% if can_print %}<a href="{% url 'san_xuat:print_npl_pr' pr.pk %}" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i>In nháp</a>{% endif %}
+      {% if can_print and can_official_print %}<a href="{% url 'san_xuat:print_npl_pr' pr.pk %}?official=1&amp;autoprint=1" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i>In gửi NCC</a>{% endif %}
+      {% if can_edit %}
+      <button type="submit" form="order-edit" name="action" value="submit_price" class="btn btn-outline-dark btn-sm">Gửi duyệt giá</button>
+      {% endif %}
       <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:npl_purchase_request' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
     </nav>
@@ -71,17 +75,7 @@
         {% if can_edit %}
         <form id="order-edit" method="post">
           {% csrf_token %}
-          <input type="hidden" name="action" value="save">
           <div class="row g-2 mb-3">
-            <div class="col-12 col-md-4">
-              <label class="form-label small text-muted" for="supplier">Nhà cung cấp</label>
-              <select id="supplier" name="supplier" class="form-select form-select-sm" required>
-                <option value="">Chọn</option>
-                {% for sup in suppliers %}
-                <option value="{{ sup.pk }}" {% if edit_supplier and edit_supplier.pk == sup.pk %}selected{% endif %}>{{ sup.name }}</option>
-                {% endfor %}
-              </select>
-            </div>
             <div class="col-6 col-md-2">
               <label class="form-label small text-muted" for="contact">Liên hệ</label>
               <input id="contact" name="contact" class="form-control form-control-sm" value="{{ edit_supplier.contact_name|default:'' }}">
@@ -140,10 +134,19 @@
                     </div>
                   </div>
                 </td>
-                <td class="small">{{ row.line.supplier.name|default:"—" }}</td>
+                <td class="small">
+                  {% if can_edit %}
+                  <select name="quote__{{ row.line.pk }}" class="form-select form-select-sm" required>
+                    <option value="">Giá đã chốt</option>
+                    {% for offer in row.quotes %}
+                    <option value="{{ offer.pk }}" {% if row.line.quote_offer_id == offer.pk %}selected{% endif %}>{{ offer.supplier.name }} · {{ offer.unit_price|sx_num:0 }}</option>
+                    {% endfor %}
+                  </select>
+                  {% else %}{{ row.line.supplier.name|default:"—" }}{% endif %}
+                </td>
                 <td class="small">{% if row.line.need_date %}{{ row.line.need_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
                 <td class="text-end">{% if can_edit %}<input type="number" name="qty__{{ row.line.pk }}" min="0" step="any" class="form-control form-control-sm text-end" value="{{ row.line.qty|sx_num_input }}">{% else %}{{ row.line.qty|sx_num }}{% endif %}</td>
-                <td class="text-end">{% if can_edit %}<input type="number" name="price__{{ row.line.pk }}" min="0" step="any" class="form-control form-control-sm text-end" value="{{ row.line.unit_price|sx_num_input }}">{% else %}{{ row.line.unit_price|sx_num:0 }}{% endif %}</td>
+                <td class="text-end">{{ row.line.unit_price|sx_num:0 }}</td>
                 <td class="text-end">{{ row.amount|sx_num:0 }}{% if can_edit %}<input type="hidden" name="note__{{ row.line.pk }}" value="{{ row.line.notes }}">{% endif %}</td>
               </tr>
             {% empty %}

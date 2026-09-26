@@ -461,45 +461,40 @@ def update_open_purchase_request(*, request_id: int, post, user=None) -> SxNplPu
         .prefetch_related('lines')
         .get(pk=request_id, is_demo=False)
     )
-    if pr.status not in (
-        SxNplPurchaseRequest.STATUS_DRAFT,
-        SxNplPurchaseRequest.STATUS_SUBMITTED,
-    ):
-        raise PlanningError('Đơn đã xác nhận — không sửa được.')
+    if pr.status != SxNplPurchaseRequest.STATUS_DRAFT:
+        raise PlanningError('Đơn đã gửi duyệt giá — chỉ sửa khi được trả về nháp.')
     lines = list(pr.lines.all())
     if not lines:
         raise PlanningError('Đơn không có dòng hàng.')
-    raw_supplier = (post.get('supplier') or '').strip()
-    supplier_id = int(raw_supplier) if raw_supplier.isdigit() else 0
-    supplier = Supplier.objects.filter(pk=supplier_id, is_active=True).first() if supplier_id else None
-    if supplier is None:
-        raise PlanningError('Chọn nhà cung cấp.')
+    from san_xuat.hub_models import SxNplQuoteOffer
+    from san_xuat.services.price_approval import assert_line_uses_chosen_quote
+
     pay = (post.get('pay') or '').strip()
     if pay not in _PAYMENTS:
         pay = SxNplPurchaseRequest.PAYMENT_TRANSFER
     expected = _parse_date(post.get('date'))
-    supplier.contact_name = (post.get('contact') or '').strip()[:120]
-    supplier.phone = (post.get('phone') or '').strip()[:40]
-    supplier.address = (post.get('address') or '').strip()[:255]
-    supplier.tax_code = (post.get('tax') or '').strip()[:32]
-    supplier.save(update_fields=['contact_name', 'phone', 'address', 'tax_code'])
     kept = 0
     for ln in lines:
         qty = _parse_qty(post.get(f'qty__{ln.pk}'))
         if qty <= 0:
             ln.delete()
             continue
-        price = _parse_qty(post.get(f'price__{ln.pk}'))
-        if price < 0:
-            raise PlanningError('Đơn giá không được âm.')
+        raw_quote = (post.get(f'quote__{ln.pk}') or '').strip()
+        quote_id = int(raw_quote) if raw_quote.isdigit() else 0
+        offer = (
+            SxNplQuoteOffer.objects.select_related('supplier', 'sheet').filter(pk=quote_id).first()
+            if quote_id else None
+        )
+        assert_line_uses_chosen_quote(material_code=ln.material_code, offer=offer)
         ln.qty = qty
-        ln.unit_price = price
+        ln.unit_price = offer.unit_price
         ln.notes = (post.get(f'note__{ln.pk}') or '').strip()[:255]
-        ln.supplier = supplier
+        ln.supplier = offer.supplier
+        ln.quote_offer = offer
         ln.expected_date = expected
         ln.payment_method = pay
         ln.save(update_fields=[
-            'qty', 'unit_price', 'notes', 'supplier', 'expected_date', 'payment_method',
+            'qty', 'unit_price', 'notes', 'supplier', 'quote_offer', 'expected_date', 'payment_method',
         ])
         kept += 1
     if not kept:
@@ -630,7 +625,7 @@ def create_shortage_requests_from_order(
             sales_order=order,
             request_date=timezone.localdate(),
             due_date=due,
-            status=SxNplPurchaseRequest.STATUS_SUBMITTED,
+            status=SxNplPurchaseRequest.STATUS_DRAFT,
             notes='',
             payment_method=group.payment_method or SxNplPurchaseRequest.PAYMENT_TRANSFER,
             is_demo=False,
@@ -663,7 +658,7 @@ def create_shortage_requests_from_order(
 @transaction.atomic
 def confirm_purchase_requests(*, request_ids: list[int], user=None) -> list[SxPurchaseOrder]:
     """Duyệt YCM chờ xác nhận → tách đơn mua hàng theo NCC."""
-    from san_xuat.services.planning import approve_npl_purchase_request, submit_npl_purchase_request
+    from san_xuat.services.planning import approve_npl_purchase_request
 
     pos: list[SxPurchaseOrder] = []
     seen: set[int] = set()
@@ -680,7 +675,12 @@ def confirm_purchase_requests(*, request_ids: list[int], user=None) -> list[SxPu
         if pr is None:
             continue
         if pr.status == SxNplPurchaseRequest.STATUS_DRAFT:
-            pr = submit_npl_purchase_request(request_id=pr.pk)
+            raise PlanningError(f'{pr.code} còn nháp — gửi duyệt giá trước khi xác nhận.')
+        if pr.status == SxNplPurchaseRequest.STATUS_PRICE_REVIEW:
+            raise PlanningError(f'{pr.code} đang chờ duyệt giá.')
+        if pr.status == SxNplPurchaseRequest.STATUS_PRICED:
+            pr.status = SxNplPurchaseRequest.STATUS_SUBMITTED
+            pr.save(update_fields=['status'])
         if pr.status == SxNplPurchaseRequest.STATUS_SUBMITTED:
             pr = approve_npl_purchase_request(request_id=pr.pk)
         for po in pr.purchase_orders.filter(is_demo=False).order_by('pk'):
@@ -701,7 +701,7 @@ def list_npl_confirm_groups(*, order_id: int | None = None, stage: str = 'pendin
     from san_xuat.templatetags.sx_format import format_sx_num
 
     pending = (
-        SxNplPurchaseRequest.STATUS_DRAFT,
+        SxNplPurchaseRequest.STATUS_PRICED,
         SxNplPurchaseRequest.STATUS_SUBMITTED,
     )
     qs = (

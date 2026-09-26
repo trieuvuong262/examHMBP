@@ -1,0 +1,584 @@
+{% extends 'base.html' %}
+{% load sx_format %}
+
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
+<style>
+.jp-quote-rule {
+  border: 1px solid #e1e6ee; border-radius: 0.5rem; padding: 0.75rem 1rem;
+  background: #f8fafc; font-size: 0.875rem;
+}
+.jp-quote-rule.is-ok { border-color: #86efac; background: #f0fdf4; }
+.jp-quote-rule.is-bad { border-color: #fcd34d; background: #fffbeb; }
+.jp-quote-mat {
+  border: 1px solid #e1e6ee; border-radius: 0.5rem; margin-bottom: 1rem; overflow: hidden;
+}
+.jp-quote-mat-head {
+  display: flex; flex-wrap: wrap; gap: 0.5rem 1rem;
+  align-items: center; justify-content: space-between;
+  padding: 0.65rem 0.85rem; background: #f8fafc; border-bottom: 1px solid #e1e6ee;
+}
+.jp-quote-mat-head .title { font-weight: 600; }
+.jp-quote-mat-pick { flex: 1 1 16rem; min-width: 12rem; max-width: 28rem; }
+.jp-quote-badge {
+  display: inline-block; font-size: 0.75rem; padding: 0.15rem 0.5rem;
+  border-radius: 999px; border: 1px solid #d0d7e2; color: #475569;
+}
+.jp-quote-badge.is-ok { border-color: #86efac; background: #dcfce7; color: #166534; }
+.jp-quote-badge.is-bad { border-color: #fcd34d; background: #fef3c7; color: #92400e; }
+.jp-quote-mat table { margin: 0; }
+.jp-quote-mat td, .jp-quote-mat th { vertical-align: middle; }
+.jp-quote-low { color: #166534; font-weight: 600; }
+.jp-quote-chosen { background: #ecfdf5; }
+.jp-quote-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.jp-quote-meta { display: flex; flex-wrap: wrap; gap: 0.75rem 1.5rem; margin-bottom: 1rem; }
+.jp-quote-meta .lbl { font-size: 0.75rem; color: #6b7484; }
+.jp-quote-code-link { font-weight: 700; color: #172033; text-decoration: none; }
+.jp-quote-code-link:hover { color: var(--hm-red, #dc2626); }
+.jp-npl-material-option, .jp-npl-material-item {
+  display: flex; align-items: center; gap: 0.5rem; min-width: 0;
+}
+.jp-npl-material-opt-img {
+  width: 32px; height: 32px; flex: 0 0 32px; border-radius: 0.35rem;
+  object-fit: cover; border: 1px solid #e2e8f0; background: #fff;
+}
+.jp-npl-material-opt-img.is-empty {
+  display: grid; place-items: center; color: #94a3b8; font-size: 0.85rem;
+}
+.jp-npl-material-option-name, .jp-npl-material-item-name {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.jp-npl-material-option-meta { flex: 0 0 auto; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5"
+     data-material-search-url="{% url 'san_xuat:price_material_search' %}">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">
+        Bảng so giá {{ sheet.code }}
+        {% if sheet.title %} · {{ sheet.title }}{% endif %}
+      </h2>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      {% if can_edit %}
+      <button type="submit" form="quote-form" name="action" value="save" class="btn btn-hm btn-sm fw-bold">Lưu</button>
+      <button type="submit" form="quote-form" name="action" value="submit" class="btn btn-dark btn-sm">Gửi Sếp chốt</button>
+      {% endif %}
+      {% if can_return %}
+      <button type="submit" form="quote-form" name="action" value="return_draft" class="btn btn-outline-secondary btn-sm">Trả về nháp</button>
+      {% endif %}
+      {% if can_decide and is_waiting %}
+      <button type="submit" form="quote-form" name="action" value="decide" class="btn btn-dark btn-sm">Chốt giá đã chọn</button>
+      {% endif %}
+      <span class="sep" aria-hidden="true"></span>
+      {% if approve_home %}
+      <a href="{% url 'san_xuat:price_approve_home' %}" class="is-back"><i class="bi bi-shield-check" aria-hidden="true"></i>Duyệt giá</a>
+      {% endif %}
+      <a href="{% url 'san_xuat:price_quote_list' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Bảng so giá</a>
+    </nav>
+  </div>
+
+  <div class="jp-sx-page-body">
+    <div class="jp-quote-meta">
+      <div>
+        <div class="lbl">Trạng thái</div>
+        <div class="fw-semibold">{{ sheet.get_status_display }}</div>
+      </div>
+      <div>
+        <div class="lbl">Đơn KHSX</div>
+        <div>{% if sheet.sales_order %}{{ sheet.sales_order.code }}{% else %}—{% endif %}</div>
+      </div>
+      <div>
+        <div class="lbl">Người tạo</div>
+        <div>
+          {% if sheet.created_by %}
+            {{ sheet.created_by.get_full_name|default:sheet.created_by.username }}
+          {% else %}—{% endif %}
+        </div>
+      </div>
+      {% if is_decided %}
+      <div>
+        <div class="lbl">Người chốt</div>
+        <div>
+          {% if sheet.decided_by %}
+            {{ sheet.decided_by.get_full_name|default:sheet.decided_by.username }}
+          {% else %}—{% endif %}
+        </div>
+      </div>
+      <div>
+        <div class="lbl">Chốt lúc</div>
+        <div>{% if sheet.decided_at %}{{ sheet.decided_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}</div>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="jp-quote-rule mb-3 {% if rule_ok %}is-ok{% else %}is-bad{% endif %}" id="quote-rule-box">
+      <strong>Rule so giá:</strong>
+      NPL phải chọn từ <strong>danh mục kho NPL</strong>.
+      Ít nhất <strong>một NPL</strong> so từ <strong>≥ 3 nhà cung cấp</strong>
+      (giá / chất lượng / năng lực). Mỗi báo giá bắt buộc đơn giá &gt; 0 + ghi chú chất lượng, năng lực.
+      {% if rule_ok %}
+      <div class="mt-1 text-success">Đã đủ điều kiện gửi Sếp.</div>
+      {% else %}
+      <div class="mt-1 text-warning-emphasis">Chưa đủ — bổ sung NCC cho ít nhất một mã NPL.</div>
+      {% endif %}
+    </div>
+
+    <form method="post" id="quote-form">
+      {% csrf_token %}
+
+      {% if can_edit %}
+      <div class="row g-2 mb-3">
+        <div class="col-md-6">
+          <label class="form-label small text-muted" for="title">Tiêu đề bảng</label>
+          <input id="title" name="title" class="form-control form-control-sm" value="{{ sheet.title }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small text-muted" for="notes">Ghi chú gửi Sếp</label>
+          <input id="notes" name="notes" class="form-control form-control-sm" value="{{ sheet.notes }}" placeholder="Tổng hợp đề xuất…">
+        </div>
+      </div>
+
+      <div id="quote-materials">
+        {% for group in groups %}
+        <div class="jp-quote-mat" data-mat-block
+             data-material-id="{{ group.material_id|default:'' }}"
+             data-material-code="{{ group.material_code }}"
+             data-material-name="{{ group.material_name }}">
+          <div class="jp-quote-mat-head">
+            <div class="d-flex flex-wrap gap-2 align-items-center flex-grow-1">
+              <span class="title">NPL kho</span>
+              <div class="jp-quote-mat-pick">
+                <select class="form-select form-select-sm" data-material-select
+                        data-placeholder="Gõ mã / tên NPL trong kho…">
+                  {% if group.material_id %}
+                  <option value="{{ group.material_id }}" selected>{{ group.material_name }}</option>
+                  {% endif %}
+                </select>
+              </div>
+              <span class="small text-muted" data-mat-code-label>{{ group.material_code }}</span>
+              {% if group.specification %}
+              <span class="jp-quote-badge" title="Quy cách">{{ group.specification }}</span>
+              {% endif %}
+              {% if group.color %}
+              <span class="small text-muted">{{ group.color }}</span>
+              {% endif %}
+              {% if group.unit %}
+              <span class="small text-muted">· {{ group.unit }}</span>
+              {% endif %}
+              <span class="jp-quote-badge {% if group.meets_rule %}is-ok{% else %}is-bad{% endif %}" data-rule-badge>
+                {{ group.supplier_count }}/3 NCC
+              </span>
+            </div>
+            <div class="jp-quote-actions">
+              <button type="button" class="btn btn-sm btn-outline-dark" data-add-offer>Thêm NCC</button>
+              <button type="button" class="btn btn-sm btn-outline-danger" data-remove-mat title="Xóa NPL">×</button>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th style="min-width:10rem">Nhà cung cấp</th>
+                  <th class="text-end" style="width:7rem">Đơn giá *</th>
+                  <th>Chất lượng *</th>
+                  <th>Năng lực *</th>
+                  <th style="width:2.5rem"></th>
+                </tr>
+              </thead>
+              <tbody data-offer-body>
+                {% for offer in group.offers %}
+                <tr data-offer-row>
+                  <td>
+                    <input type="hidden" data-f="mid" value="{{ group.material_id }}">
+                    <input type="hidden" data-f="mat" value="{{ group.material_code }}">
+                    <input type="hidden" data-f="name" value="{{ group.material_name }}">
+                    <select data-f="sup" class="form-select form-select-sm" required>
+                      <option value="">Chọn NCC</option>
+                      {% for sup in suppliers %}
+                      <option value="{{ sup.pk }}" {% if offer.supplier_id == sup.pk %}selected{% endif %}>{{ sup.name }}</option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                  <td><input data-f="price" type="number" min="0" step="any" class="form-control form-control-sm text-end" value="{{ offer.unit_price|sx_num_input }}" required></td>
+                  <td><input data-f="quality" class="form-control form-control-sm" value="{{ offer.quality_note }}" required></td>
+                  <td><input data-f="capacity" class="form-control form-control-sm" value="{{ offer.capacity_note }}" required></td>
+                  <td class="text-center"><button type="button" class="btn btn-sm btn-link text-danger p-0" data-remove-offer>×</button></td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="jp-quote-actions mb-3">
+        <button type="button" class="btn btn-sm btn-outline-dark" id="btn-add-mat">+ Thêm NPL từ kho</button>
+      </div>
+
+      {% else %}
+      {% if sheet.notes %}
+      <p class="small mb-3"><span class="text-muted">Ghi chú gửi Sếp:</span> {{ sheet.notes }}</p>
+      {% endif %}
+
+      {% for group in groups %}
+      <div class="jp-quote-mat">
+        <div class="jp-quote-mat-head">
+          <div>
+            {% if group.material_id %}
+            <a class="jp-quote-code-link" href="{% url 'kho_npl:material_detail' group.material_id %}" target="_blank" rel="noopener">{{ group.material_code }}</a>
+            {% else %}
+            <span class="title">{{ group.material_code }}</span>
+            {% endif %}
+            <span class="text-muted small ms-1">{{ group.material_name }}</span>
+            {% if group.specification %}<span class="jp-quote-badge ms-1" title="Quy cách">{{ group.specification }}</span>{% endif %}
+            {% if group.color %}<span class="small text-muted ms-1">{{ group.color }}</span>{% endif %}
+            {% if group.unit %}<span class="small text-muted">· {{ group.unit }}</span>{% endif %}
+            <span class="jp-quote-badge {% if group.meets_rule %}is-ok{% else %}is-bad{% endif %} ms-2">
+              {{ group.supplier_count }} NCC{% if group.meets_rule %} · đủ rule{% endif %}
+            </span>
+          </div>
+          {% if group.chosen %}
+          <div class="small">Đã chốt: <strong>{{ group.chosen.supplier.name }}</strong> · {{ group.chosen.unit_price|sx_num:0 }}</div>
+          {% elif is_waiting and can_decide %}
+          <div class="small text-muted">Chọn một NCC bên dưới</div>
+          {% endif %}
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm mb-0">
+            <thead class="table-light">
+              <tr>
+                {% if is_waiting and can_decide %}<th style="width:3rem">Chọn</th>{% endif %}
+                <th>Nhà cung cấp</th>
+                <th class="text-end">Đơn giá</th>
+                <th>Chất lượng</th>
+                <th>Năng lực</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for offer in group.offers %}
+              <tr class="{% if offer.is_chosen %}jp-quote-chosen{% endif %}">
+                {% if is_waiting and can_decide %}
+                <td class="text-center">
+                  <input type="radio" name="chosen__{{ group.material_code }}" value="{{ offer.pk }}" required
+                         {% if offer.is_chosen %}checked{% endif %}>
+                </td>
+                {% endif %}
+                <td>
+                  {{ offer.supplier.name }}
+                  {% if offer.is_chosen %}<span class="jp-quote-badge is-ok ms-1">Đã chọn</span>{% endif %}
+                </td>
+                <td class="text-end {% if group.min_price is not None and offer.unit_price == group.min_price %}jp-quote-low{% endif %}">
+                  {{ offer.unit_price|sx_num:0 }}{% if group.min_price is not None and offer.unit_price == group.min_price %} <span class="small">(thấp nhất)</span>{% endif %}
+                </td>
+                <td class="small">{{ offer.quality_note|default:"—" }}</td>
+                <td class="small">{{ offer.capacity_note|default:"—" }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% empty %}
+      <p class="text-muted small">Chưa có báo giá.</p>
+      {% endfor %}
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+{% if can_edit %}
+<template id="tpl-offer-row">
+  <tr data-offer-row>
+    <td>
+      <input type="hidden" data-f="mid" value="">
+      <input type="hidden" data-f="mat" value="">
+      <input type="hidden" data-f="name" value="">
+      <select data-f="sup" class="form-select form-select-sm" required>
+        <option value="">Chọn NCC</option>
+        {% for sup in suppliers %}
+        <option value="{{ sup.pk }}">{{ sup.name }}</option>
+        {% endfor %}
+      </select>
+    </td>
+    <td><input data-f="price" type="number" min="0" step="any" class="form-control form-control-sm text-end" placeholder="0" required></td>
+    <td><input data-f="quality" class="form-control form-control-sm" placeholder="Chất lượng" required></td>
+    <td><input data-f="capacity" class="form-control form-control-sm" placeholder="Năng lực" required></td>
+    <td class="text-center"><button type="button" class="btn btn-sm btn-link text-danger p-0" data-remove-offer>×</button></td>
+  </tr>
+</template>
+
+<template id="tpl-mat-block">
+  <div class="jp-quote-mat" data-mat-block data-material-id="" data-material-code="" data-material-name="">
+    <div class="jp-quote-mat-head">
+      <div class="d-flex flex-wrap gap-2 align-items-center flex-grow-1">
+        <span class="title">NPL kho</span>
+        <div class="jp-quote-mat-pick">
+          <select class="form-select form-select-sm" data-material-select data-placeholder="Gõ mã / tên NPL trong kho…"></select>
+        </div>
+        <span class="small text-muted" data-mat-code-label></span>
+        <span class="jp-quote-badge is-bad" data-rule-badge>0/3 NCC</span>
+      </div>
+      <div class="jp-quote-actions">
+        <button type="button" class="btn btn-sm btn-outline-dark" data-add-offer>Thêm NCC</button>
+        <button type="button" class="btn btn-sm btn-outline-danger" data-remove-mat title="Xóa NPL">×</button>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="min-width:10rem">Nhà cung cấp</th>
+            <th class="text-end" style="width:7rem">Đơn giá *</th>
+            <th>Chất lượng *</th>
+            <th>Năng lực *</th>
+            <th style="width:2.5rem"></th>
+          </tr>
+        </thead>
+        <tbody data-offer-body></tbody>
+      </table>
+    </div>
+  </div>
+</template>
+
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
+<script>
+(function () {
+  var page = document.querySelector('[data-material-search-url]');
+  var root = document.getElementById('quote-materials');
+  var form = document.getElementById('quote-form');
+  var tplRow = document.getElementById('tpl-offer-row');
+  var tplMat = document.getElementById('tpl-mat-block');
+  if (!page || !root || !form || !tplRow || !tplMat || typeof TomSelect === 'undefined') return;
+  var SEARCH_URL = page.getAttribute('data-material-search-url');
+  var seq = 0;
+
+  function normalizeText(v) {
+    return String(v || '').toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
+  }
+
+  function nplThumbHtml(data, escape) {
+    var url = String((data && data.image_url) || '').trim();
+    if (url) {
+      return '<img class="jp-npl-material-opt-img" src="' + escape(url) + '" alt="" width="32" height="32" loading="lazy">';
+    }
+    return '<span class="jp-npl-material-opt-img is-empty" aria-hidden="true"><i class="bi bi-image"></i></span>';
+  }
+
+  function renderOption(data, escape) {
+    var name = escape(data.name || data.text || '');
+    var code = escape(data.code || '');
+    var spec = escape(data.specification || data.specification_name || '');
+    var meta = code + (spec ? ' · ' + spec : '');
+    return '<div class="jp-npl-material-option is-with-image" title="' + code + ' — ' + name + (spec ? ' · ' + spec : '') + '">'
+      + nplThumbHtml(data, escape)
+      + '<span class="jp-npl-material-option-name">' + name + '</span>'
+      + '<span class="jp-npl-material-option-meta text-muted small">' + meta + '</span>'
+      + '</div>';
+  }
+
+  function renderItem(data, escape) {
+    return '<div class="jp-npl-material-item">'
+      + nplThumbHtml(data, escape)
+      + '<span class="jp-npl-material-item-name">' + escape(data.name || data.text || '') + '</span></div>';
+  }
+
+  function scoreFactory(query) {
+    var terms = normalizeText(query).split(/\s+/).filter(Boolean);
+    return function (data) {
+      if (!terms.length) return 1;
+      var name = normalizeText(data.name || '');
+      var code = normalizeText(data.code || '');
+      var group = normalizeText(data.variant_group || '');
+      var anyMatch = terms.some(function (t) {
+        return name.indexOf(t) !== -1 || code.indexOf(t) !== -1 || group.indexOf(t) !== -1;
+      });
+      if (!anyMatch) return 0;
+      var q = normalizeText(query).trim();
+      if (name === q || code === q) return 4;
+      if (name.indexOf(q) === 0 || code.indexOf(q) === 0) return 3;
+      if (code.indexOf(q) !== -1) return 2;
+      return 1;
+    };
+  }
+
+  function syncBlock(block) {
+    var mid = block.getAttribute('data-material-id') || '';
+    var code = block.getAttribute('data-material-code') || '';
+    var name = block.getAttribute('data-material-name') || '';
+    var label = block.querySelector('[data-mat-code-label]');
+    if (label) label.textContent = code;
+    block.querySelectorAll('[data-offer-row]').forEach(function (row) {
+      var midEl = row.querySelector('[data-f="mid"]');
+      var m = row.querySelector('[data-f="mat"]');
+      var n = row.querySelector('[data-f="name"]');
+      if (midEl) midEl.value = mid;
+      if (m) m.value = code;
+      if (n) n.value = name;
+    });
+    var selected = {};
+    var count = 0;
+    block.querySelectorAll('[data-f="sup"]').forEach(function (sel) {
+      var v = sel.value;
+      if (v && !selected[v]) { selected[v] = true; count += 1; }
+    });
+    var badge = block.querySelector('[data-rule-badge]');
+    if (badge) {
+      badge.textContent = count + '/3 NCC';
+      badge.classList.toggle('is-ok', count >= 3);
+      badge.classList.toggle('is-bad', count < 3);
+    }
+    refreshRule();
+  }
+
+  function refreshRule() {
+    var ok = false;
+    root.querySelectorAll('[data-mat-block]').forEach(function (block) {
+      if (!(block.getAttribute('data-material-id') || '')) return;
+      var selected = {};
+      var count = 0;
+      block.querySelectorAll('[data-f="sup"]').forEach(function (sel) {
+        var v = sel.value;
+        if (v && !selected[v]) { selected[v] = true; count += 1; }
+      });
+      if (count >= 3) ok = true;
+    });
+    var box = document.getElementById('quote-rule-box');
+    if (box) {
+      box.classList.toggle('is-ok', ok);
+      box.classList.toggle('is-bad', !ok);
+    }
+  }
+
+  function initMaterialSelect(block) {
+    var select = block.querySelector('[data-material-select]');
+    if (!select || select.tomselect) return;
+    var preId = block.getAttribute('data-material-id') || '';
+    var preCode = block.getAttribute('data-material-code') || '';
+    var preName = block.getAttribute('data-material-name') || '';
+    var ts = new TomSelect(select, {
+      maxOptions: null,
+      maxItems: 1,
+      valueField: 'id',
+      labelField: 'name',
+      searchField: [],
+      placeholder: select.dataset.placeholder || 'Gõ mã / tên NPL…',
+      dropdownParent: 'body',
+      openOnFocus: true,
+      preload: 'focus',
+      loadThrottle: 220,
+      load: function (query, callback) {
+        var url = SEARCH_URL + '?q=' + encodeURIComponent(query || '') + '&limit=40';
+        fetch(url, { headers: { 'Accept': 'application/json' } })
+          .then(function (r) { return r.json(); })
+          .then(function (data) { callback(data.results || []); })
+          .catch(function () { callback(); });
+      },
+      score: function (query) { return scoreFactory(query); },
+      sortField: [{ field: '$score', direction: 'desc' }],
+      render: {
+        option: renderOption,
+        item: renderItem,
+        no_results: function () {
+          return '<div class="px-2 py-2 text-muted small">Không tìm thấy NPL trong kho</div>';
+        },
+        loading: function () {
+          return '<div class="px-2 py-2 text-muted small">Đang tải...</div>';
+        },
+      },
+      onChange: function (value) {
+        var opt = value ? this.options[value] : null;
+        block.setAttribute('data-material-id', value || '');
+        block.setAttribute('data-material-code', opt ? (opt.code || '') : '');
+        block.setAttribute('data-material-name', opt ? (opt.name || '') : '');
+        syncBlock(block);
+      },
+    });
+    if (preId) {
+      ts.addOption({ id: preId, code: preCode, name: preName, text: preName });
+      ts.setValue(preId, true);
+    }
+  }
+
+  function addOffer(block) {
+    var body = block.querySelector('[data-offer-body]');
+    if (!body) return;
+    body.appendChild(tplRow.content.firstElementChild.cloneNode(true));
+    syncBlock(block);
+  }
+
+  function addMaterial(prefillRows) {
+    var block = tplMat.content.firstElementChild.cloneNode(true);
+    root.appendChild(block);
+    initMaterialSelect(block);
+    var n = prefillRows || 3;
+    for (var i = 0; i < n; i++) addOffer(block);
+    syncBlock(block);
+  }
+
+  function reindex() {
+    seq = 0;
+    root.querySelectorAll('[data-offer-row]').forEach(function (row) {
+      seq += 1;
+      var idx = String(seq);
+      row.querySelectorAll('[data-f]').forEach(function (el) {
+        var f = el.getAttribute('data-f');
+        var map = {
+          mid: 'mid__', mat: 'mat__', name: 'name__',
+          sup: 'sup__', price: 'price__', quality: 'quality__', capacity: 'capacity__'
+        };
+        if (map[f]) el.setAttribute('name', map[f] + idx);
+      });
+    });
+  }
+
+  root.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-add-offer],[data-remove-offer],[data-remove-mat]');
+    if (!t) return;
+    var block = t.closest('[data-mat-block]');
+    if (t.hasAttribute('data-add-offer') && block) addOffer(block);
+    if (t.hasAttribute('data-remove-offer')) {
+      var row = t.closest('[data-offer-row]');
+      if (row) row.remove();
+      if (block) syncBlock(block);
+    }
+    if (t.hasAttribute('data-remove-mat') && block) {
+      var sel = block.querySelector('[data-material-select]');
+      if (sel && sel.tomselect) sel.tomselect.destroy();
+      block.remove();
+      refreshRule();
+    }
+  });
+
+  root.addEventListener('change', function (e) {
+    var block = e.target.closest('[data-mat-block]');
+    if (block && e.target.matches('[data-f="sup"]')) syncBlock(block);
+  });
+
+  document.getElementById('btn-add-mat').addEventListener('click', function () {
+    addMaterial(3);
+  });
+
+  form.addEventListener('submit', function () {
+    root.querySelectorAll('[data-mat-block]').forEach(syncBlock);
+    reindex();
+  });
+
+  if (!root.querySelector('[data-mat-block]')) {
+    addMaterial(3);
+  } else {
+    root.querySelectorAll('[data-mat-block]').forEach(function (block) {
+      initMaterialSelect(block);
+      syncBlock(block);
+    });
+  }
+})();
+</script>
+{% endif %}
+{% endblock %}

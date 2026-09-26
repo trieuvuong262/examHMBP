@@ -165,6 +165,11 @@
   body.jp-sx-focus[data-sx-area="docs"] #jp-sidebar-san-xuat-submenu > [data-sx-area="docs"],
   body.jp-sx-focus[data-sx-area="equipment_sx"] #jp-sidebar-san-xuat-submenu > [data-sx-area="equipment_sx"],
   body.jp-sx-focus[data-sx-area="plan"] #jp-sidebar-san-xuat-submenu > [data-sx-area="plan"],
+  /* Duyệt giá (Sếp) + Đặt hàng NPL luôn hiện cùng nhau */
+  body.jp-sx-focus[data-sx-area="price"] #jp-sidebar-san-xuat-submenu > [data-sx-area="price"],
+  body.jp-sx-focus[data-sx-area="price"] #jp-sidebar-san-xuat-submenu > [data-sx-area="npl_order"],
+  body.jp-sx-focus[data-sx-area="npl_order"] #jp-sidebar-san-xuat-submenu > [data-sx-area="price"],
+  body.jp-sx-focus[data-sx-area="npl_order"] #jp-sidebar-san-xuat-submenu > [data-sx-area="npl_order"],
   body.jp-sx-focus[data-sx-area="kho_npl"] #jp-sidebar-san-xuat-submenu > [data-sx-area="kho_npl"],
   body.jp-sx-focus[data-sx-area="kho_vat_tu"] #jp-sidebar-san-xuat-submenu > [data-sx-area="kho_vat_tu"],
   body.jp-sx-focus[data-sx-area="dispatch"] #jp-sidebar-san-xuat-submenu > [data-sx-area="dispatch"],
@@ -185,6 +190,22 @@
     margin: 0 !important;
     padding: 0 !important;
     border: 0 !important;
+  }
+  /* Duyệt giá + Đặt hàng NPL: giữ tiêu đề nhóm + thụt lề như sidebar thường */
+  body.jp-sx-focus[data-sx-area="price"] #jp-sidebar-san-xuat-submenu > [data-sx-area="price"] > .jp-sidebar-nested-toggle,
+  body.jp-sx-focus[data-sx-area="price"] #jp-sidebar-san-xuat-submenu > [data-sx-area="npl_order"] > .jp-sidebar-nested-toggle,
+  body.jp-sx-focus[data-sx-area="npl_order"] #jp-sidebar-san-xuat-submenu > [data-sx-area="price"] > .jp-sidebar-nested-toggle,
+  body.jp-sx-focus[data-sx-area="npl_order"] #jp-sidebar-san-xuat-submenu > [data-sx-area="npl_order"] > .jp-sidebar-nested-toggle {
+    display: flex !important;
+  }
+  body.jp-sx-focus[data-sx-area="price"] #jp-sidebar-san-xuat-submenu > [data-sx-area="price"] > .jp-sidebar-nested-submenu,
+  body.jp-sx-focus[data-sx-area="price"] #jp-sidebar-san-xuat-submenu > [data-sx-area="npl_order"] > .jp-sidebar-nested-submenu,
+  body.jp-sx-focus[data-sx-area="npl_order"] #jp-sidebar-san-xuat-submenu > [data-sx-area="price"] > .jp-sidebar-nested-submenu,
+  body.jp-sx-focus[data-sx-area="npl_order"] #jp-sidebar-san-xuat-submenu > [data-sx-area="npl_order"] > .jp-sidebar-nested-submenu {
+    display: flex !important;
+    margin: 0.05rem 0 0.15rem 0.65rem !important;
+    padding: 0.1rem 0 0.05rem 0.5rem !important;
+    border-left: 1px solid rgba(255, 255, 255, 0.14) !important;
   }
   /* Focus SX: ẩn hết menu portal khác — chỉ còn nhóm Sản xuất + submenu area */
   body.jp-sx-focus .jp-sidebar-menu > li:not(.jp-sx-group) {
@@ -280,7 +301,25 @@
       return p.indexOf('/thiet-bi/san-xuat') !== -1
         || document.body.getAttribute('data-eq-scope') === 'production';
     }},
+    { area: 'price', test: function (p) {
+      return p === '/san-xuat/duyet-gia'
+        || p.indexOf('/san-xuat/duyet-gia/') === 0
+          && p.indexOf('/san-xuat/duyet-gia/so-gia') === -1;
+    }},
+    { area: 'npl_order', test: function (p) {
+      return p.indexOf('/san-xuat/duyet-gia/so-gia') !== -1
+        || p.indexOf('/san-xuat/ke-hoach/don-dat-hang') !== -1
+        || p.indexOf('/san-xuat/ke-hoach/npl') !== -1
+        || p.indexOf('/san-xuat/ke-hoach/dat-hang-thieu') !== -1
+        || p.indexOf('/san-xuat/ke-hoach/yeu-cau-mua-npl') !== -1;
+    }},
     { area: 'plan', test: function (p) {
+      if (p.indexOf('/san-xuat/ke-hoach/don-dat-hang') !== -1
+          || p.indexOf('/san-xuat/ke-hoach/npl') !== -1
+          || p.indexOf('/san-xuat/ke-hoach/dat-hang-thieu') !== -1
+          || p.indexOf('/san-xuat/ke-hoach/yeu-cau-mua-npl') !== -1) {
+        return false;
+      }
       return p.indexOf('/san-xuat/ke-hoach') !== -1
         || p.indexOf('/san-xuat/thue-gia-cong') !== -1
         || p.indexOf('/san-xuat/nang-luc') !== -1;
@@ -430,6 +469,11 @@
       }
       var active = root.querySelector(':scope > [data-sx-area="' + area + '"]');
       if (active) active.classList.add('is-open');
+      // Cặp Duyệt giá / Đặt hàng NPL: mở cả hai khi đang ở một trong hai
+      if (area === 'price' || area === 'npl_order') {
+        var pair = root.querySelector(':scope > [data-sx-area="npl_order"]');
+        if (pair) pair.classList.add('is-open');
+      }
     });
     if (leaf) {
       setCollapsed(true);

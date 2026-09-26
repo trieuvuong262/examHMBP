@@ -165,6 +165,18 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'plan_progress', 'label': 'Tiến độ', 'icon': 'bi-clipboard-data'},
         {'key': 'plan_overall', 'label': 'Kế hoạch tổng thể', 'icon': 'bi-calendar-range'},
         {'key': 'plan_detail', 'label': 'Kế hoạch chi tiết', 'icon': 'bi-list-columns'},
+        {
+            'key': 'sx_price_approve',
+            'label': 'Duyệt giá',
+            'perm_label': 'Duyệt giá NPL (Sếp — cần Sửa để chốt/duyệt)',
+            'icon': 'bi-shield-check',
+        },
+        {
+            'key': 'sx_price_quote',
+            'label': 'Bảng so giá',
+            'perm_label': 'Bảng so giá NPL (KHSX)',
+            'icon': 'bi-tags',
+        },
         {'key': 'npl_pr', 'label': 'Danh sách đơn đặt hàng', 'icon': 'bi-cart-plus'},
         {'key': 'plan_npl', 'label': 'Xác nhận đơn đặt hàng', 'icon': 'bi-boxes'},
         {'key': 'purchase_order', 'label': 'Đơn mua hàng', 'icon': 'bi-receipt'},
@@ -416,6 +428,8 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/san-xuat/ke-hoach/chinh-sach-ton', MODULE_SAN_XUAT, 'stock_policy'),
     ('/san-xuat/ke-hoach/de-xuat-bu-ton', MODULE_SAN_XUAT, 'restock'),
     ('/san-xuat/ke-hoach/npl', MODULE_SAN_XUAT, 'plan_npl'),
+    ('/san-xuat/duyet-gia/so-gia', MODULE_SAN_XUAT, 'sx_price_quote'),
+    ('/san-xuat/duyet-gia', MODULE_SAN_XUAT, 'sx_price_approve'),
     ('/san-xuat/ke-hoach/don-dat-hang', MODULE_SAN_XUAT, 'npl_pr'),
     ('/san-xuat/ke-hoach/dat-hang-thieu', MODULE_SAN_XUAT, 'npl_pr'),
     ('/san-xuat/ke-hoach/yeu-cau-mua-npl', MODULE_SAN_XUAT, 'npl_pr'),
@@ -540,6 +554,9 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
 MENU_PATH_ACCESS_ALIASES: dict[tuple[str, str], tuple[str, ...]] = {
     (MODULE_SAN_XUAT, 'subcontract'): ('plan_board', 'plan'),
     (MODULE_SAN_XUAT, 'capacity'): ('plan', 'plan_board'),
+    # KHSX có bảng so giá vẫn đi được URL /duyet-gia/ (middleware);
+    # view sẽ redirect sang so-gia, không mở hàng chờ Sếp.
+    (MODULE_SAN_XUAT, 'sx_price_approve'): ('sx_price_quote',),
 }
 
 MENU_FIELD_SEP = '__'
@@ -565,6 +582,8 @@ _SAN_XUAT_MENU_ACTIONS: dict[str, frozenset[str]] = {
     'plan': frozenset({'view', 'create', 'update'}),
     'plan_board': frozenset({'view', 'create', 'update', 'delete', 'print'}),
     'sx_cancel_approve': frozenset({'view', 'update'}),
+    'sx_price_approve': frozenset({'view', 'update'}),
+    'sx_price_quote': frozenset({'view', 'create', 'update', 'delete', 'export'}),
     'plan_route': frozenset({'view', 'update'}),
     'plan_inter_step': frozenset({'view', 'update'}),
     'plan_progress': frozenset({'view'}),

@@ -109,7 +109,7 @@
         <div class="co-meta">MST: {{ company_tax_code }}</div>
       </div>
     </div>
-    <h1>ĐƠN ĐẶT HÀNG</h1>
+    <h1>ĐƠN ĐẶT HÀNG{% if is_draft_print %} — NHÁP{% endif %}</h1>
     <div class="head">
       <div class="party">
         <div>Nhà cung cấp: <strong>{{ sheet.supplier_name|default:"—" }}</strong></div>
