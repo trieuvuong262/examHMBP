@@ -165,7 +165,6 @@
   body.jp-sx-focus[data-sx-area="docs"] #jp-sidebar-san-xuat-submenu > [data-sx-area="docs"],
   body.jp-sx-focus[data-sx-area="equipment_sx"] #jp-sidebar-san-xuat-submenu > [data-sx-area="equipment_sx"],
   body.jp-sx-focus[data-sx-area="plan"] #jp-sidebar-san-xuat-submenu > [data-sx-area="plan"],
-  body.jp-sx-focus[data-sx-area="npl_order"] #jp-sidebar-san-xuat-submenu > [data-sx-area="npl_order"],
   body.jp-sx-focus[data-sx-area="kho_npl"] #jp-sidebar-san-xuat-submenu > [data-sx-area="kho_npl"],
   body.jp-sx-focus[data-sx-area="kho_vat_tu"] #jp-sidebar-san-xuat-submenu > [data-sx-area="kho_vat_tu"],
   body.jp-sx-focus[data-sx-area="dispatch"] #jp-sidebar-san-xuat-submenu > [data-sx-area="dispatch"],
@@ -281,21 +280,9 @@
       return p.indexOf('/thiet-bi/san-xuat') !== -1
         || document.body.getAttribute('data-eq-scope') === 'production';
     }},
-    { area: 'npl_order', test: function (p) {
-      return p.indexOf('/san-xuat/duyet-gia') !== -1
-        || p.indexOf('/san-xuat/ke-hoach/don-dat-hang') !== -1
-        || p.indexOf('/san-xuat/ke-hoach/npl') !== -1
-        || p.indexOf('/san-xuat/ke-hoach/dat-hang-thieu') !== -1
-        || p.indexOf('/san-xuat/ke-hoach/yeu-cau-mua-npl') !== -1;
-    }},
     { area: 'plan', test: function (p) {
-      if (p.indexOf('/san-xuat/ke-hoach/don-dat-hang') !== -1
-          || p.indexOf('/san-xuat/ke-hoach/npl') !== -1
-          || p.indexOf('/san-xuat/ke-hoach/dat-hang-thieu') !== -1
-          || p.indexOf('/san-xuat/ke-hoach/yeu-cau-mua-npl') !== -1) {
-        return false;
-      }
       return p.indexOf('/san-xuat/ke-hoach') !== -1
+        || p.indexOf('/san-xuat/duyet-gia') !== -1
         || p.indexOf('/san-xuat/thue-gia-cong') !== -1
         || p.indexOf('/san-xuat/nang-luc') !== -1;
     } },
