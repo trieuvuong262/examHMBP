@@ -888,39 +888,14 @@
 
                 {% jp_can_menu 'san_xuat' 'sx_price_approve' as jp_can_sx_price %}
                 {% jp_can_menu 'san_xuat' 'sx_price_quote' as jp_can_sx_price_quote %}
-                {% if jp_can_sx_price %}
-                <li class="jp-sidebar-nested-group{% if '/san-xuat/duyet-gia' in request.path and '/san-xuat/duyet-gia/so-gia' not in request.path %} is-open{% endif %}"
-                    data-sx-area="price" data-sx-icon="bi-shield-check" data-sx-label="Duyệt giá"
-                    data-sx-href="{% url 'san_xuat:price_approve_home' %}">
-                    <button type="button"
-                            class="jp-sidebar-nested-toggle"
-                            data-jp-sidebar-group-toggle
-                            aria-expanded="{% if '/san-xuat/duyet-gia' in request.path and '/san-xuat/duyet-gia/so-gia' not in request.path %}true{% else %}false{% endif %}"
-                            aria-controls="jp-sidebar-san-xuat-price-submenu">
-                        <span class="jp-sidebar-nested-toggle-main">
-                            <i class="bi bi-shield-check"></i><span>Duyệt giá</span>
-                        </span>
-                        <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
-                    </button>
-                    <ul class="jp-sidebar-nested-submenu" id="jp-sidebar-san-xuat-price-submenu">
-                        <li>
-                            <a href="{% url 'san_xuat:price_approve_home' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'price_approve_home' or request.resolver_match.url_name == 'price_review_action' %}active{% endif %}">
-                                <i class="bi bi-shield-check"></i><span>Hàng chờ duyệt</span>
-                            </a>
-                        </li>
-                    </ul>
-                </li>
-                {% endif %}
-
-                {% if jp_can_sx_price_quote or jp_can_san_xuat_npl_pr or jp_can_san_xuat_plan_npl or jp_can_san_xuat_plan %}
-                <li class="jp-sidebar-nested-group{% if '/san-xuat/duyet-gia/so-gia' in request.path or '/don-dat-hang' in request.path or '/ke-hoach/npl' in request.path or '/dat-hang-thieu' in request.path or '/yeu-cau-mua-npl' in request.path %} is-open{% endif %}"
+                {% if jp_can_sx_price_quote or jp_can_sx_price or jp_can_san_xuat_npl_pr or jp_can_san_xuat_plan_npl or jp_can_san_xuat_plan %}
+                <li class="jp-sidebar-nested-group{% if '/san-xuat/duyet-gia' in request.path or '/don-dat-hang' in request.path or '/ke-hoach/npl' in request.path or '/dat-hang-thieu' in request.path or '/yeu-cau-mua-npl' in request.path %} is-open{% endif %}"
                     data-sx-area="npl_order" data-sx-icon="bi-cart-plus" data-sx-label="Đặt hàng NPL"
-                    data-sx-href="{% if jp_can_sx_price_quote %}{% url 'san_xuat:price_quote_list' %}{% elif jp_can_san_xuat_npl_pr or jp_can_san_xuat_plan %}{% url 'san_xuat:npl_purchase_request' %}{% else %}{% url 'san_xuat:plan_npl' %}{% endif %}">
+                    data-sx-href="{% if jp_can_sx_price_quote %}{% url 'san_xuat:price_quote_list' %}{% elif jp_can_sx_price %}{% url 'san_xuat:price_approve_home' %}{% elif jp_can_san_xuat_npl_pr or jp_can_san_xuat_plan %}{% url 'san_xuat:npl_purchase_request' %}{% else %}{% url 'san_xuat:plan_npl' %}{% endif %}">
                     <button type="button"
                             class="jp-sidebar-nested-toggle"
                             data-jp-sidebar-group-toggle
-                            aria-expanded="{% if '/san-xuat/duyet-gia/so-gia' in request.path or '/don-dat-hang' in request.path or '/ke-hoach/npl' in request.path or '/dat-hang-thieu' in request.path or '/yeu-cau-mua-npl' in request.path %}true{% else %}false{% endif %}"
+                            aria-expanded="{% if '/san-xuat/duyet-gia' in request.path or '/don-dat-hang' in request.path or '/ke-hoach/npl' in request.path or '/dat-hang-thieu' in request.path or '/yeu-cau-mua-npl' in request.path %}true{% else %}false{% endif %}"
                             aria-controls="jp-sidebar-san-xuat-npl-order-submenu">
                         <span class="jp-sidebar-nested-toggle-main">
                             <i class="bi bi-cart-plus"></i><span>Đặt hàng NPL</span>
@@ -933,6 +908,14 @@
                             <a href="{% url 'san_xuat:price_quote_list' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name and 'price_quote' in request.resolver_match.url_name %}active{% endif %}">
                                 <i class="bi bi-tags"></i><span>Bảng so giá</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if jp_can_sx_price %}
+                        <li>
+                            <a href="{% url 'san_xuat:price_approve_home' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'price_approve_home' or request.resolver_match.url_name == 'price_review_action' %}active{% endif %}">
+                                <i class="bi bi-shield-check"></i><span>Duyệt giá</span>
                             </a>
                         </li>
                         {% endif %}

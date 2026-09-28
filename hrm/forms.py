@@ -1088,8 +1088,7 @@ SAN_XUAT_PERMISSION_SECTIONS = (
     ('Đơn đặt hàng', ('orders', 'order_create', 'order_confirm')),
     ('Hồ sơ sản phẩm', ('docs', 'docs_cost_stats', 'ie', 'ie_approve', 'ie_settings')),
     ('Kế hoạch SX', ('plan', 'plan_board', 'sx_cancel_approve', 'capacity', 'plan_inter_step', 'subcontract')),
-    ('Duyệt giá (Sếp — chốt bảng & duyệt đơn)', ('sx_price_approve',)),
-    ('Đặt hàng NPL', ('sx_price_quote', 'npl_pr', 'plan_npl')),
+    ('Đặt hàng NPL', ('sx_price_quote', 'sx_price_approve', 'npl_pr', 'plan_npl')),
     (
         'Điều phối',
         ('dispatch', 'mo', 'material_issue_req', 'handover_status', 'fg_receipt_req'),

@@ -41,7 +41,8 @@
   <div class="jp-sx-page-body">
     <p class="jp-price-create-hint">
       <strong>Rule:</strong> nhập báo giá theo từng NPL (đơn giá, chất lượng, năng lực).
-      Ít nhất <strong>một mã NPL</strong> phải so từ <strong>≥ 3 nhà cung cấp</strong> trước khi gửi Sếp chốt.
+      Mỗi mã NPL phải so từ <strong>≥ 3 nhà cung cấp</strong> trước khi gửi Sếp chốt.
+      Giá chốt chỉ dùng cho đơn KHSX đã chọn.
     </p>
 
     <div class="card border-0 shadow-sm jp-price-create-card">
@@ -54,8 +55,8 @@
           </div>
           <div class="mb-3">
             <label class="form-label" for="sales_order">Đơn KHSX</label>
-            <select id="sales_order" name="sales_order" class="form-select">
-              <option value="">Không gắn đơn</option>
+            <select id="sales_order" name="sales_order" class="form-select" required>
+              <option value="">Chọn đơn KHSX</option>
               {% for order in orders %}
               <option value="{{ order.pk }}">{{ order.code }}</option>
               {% endfor %}

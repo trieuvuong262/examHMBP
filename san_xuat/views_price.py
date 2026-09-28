@@ -219,6 +219,10 @@ def price_quote_create(request):
     if request.method == 'POST':
         raw = (request.POST.get('sales_order') or '').strip()
         order_id = int(raw) if raw.isdigit() else None
+        if not order_id:
+            messages.error(request, 'Chọn đơn KHSX. Giá chốt chỉ dùng cho đúng đơn đó.')
+            orders = SxSalesOrder.objects.filter(is_demo=False).order_by('-id')[:80]
+            return render(request, 'san_xuat/price_quote_create.html', {'orders': orders})
         sheet = create_quote_sheet(
             title=request.POST.get('title') or '',
             sales_order_id=order_id,
@@ -263,6 +267,16 @@ def price_quote_detail(request, pk: int):
             if action in ('save', 'submit'):
                 if not staff_edit:
                     raise PlanningError('Không có quyền sửa bảng so giá.')
+                raw_order = (request.POST.get('sales_order') or '').strip()
+                order_id = int(raw_order) if raw_order.isdigit() else None
+                if not order_id:
+                    raise PlanningError('Chọn đơn KHSX. Giá chốt chỉ dùng cho đúng đơn đó.')
+                order = SxSalesOrder.objects.filter(pk=order_id, is_demo=False).first()
+                if order is None:
+                    raise PlanningError('Đơn KHSX không còn.')
+                if sheet.sales_order_id != order.pk:
+                    sheet.sales_order = order
+                    sheet.save(update_fields=['sales_order'])
                 save_quote_offers(
                     sheet_id=sheet.pk,
                     rows=_offer_rows(request.POST),
@@ -304,6 +318,11 @@ def price_quote_detail(request, pk: int):
 
     groups = quote_sheet_groups(sheet)
     rule_ok = sheet_has_three_suppliers(sheet)
+    orders = []
+    if staff_edit:
+        orders = list(SxSalesOrder.objects.filter(is_demo=False).order_by('-id')[:80])
+        if sheet.sales_order_id and all(o.pk != sheet.sales_order_id for o in orders):
+            orders.insert(0, sheet.sales_order)
     return render(request, 'san_xuat/price_quote_detail.html', {
         'sheet': sheet,
         'groups': groups,
@@ -321,6 +340,7 @@ def price_quote_detail(request, pk: int):
         'is_waiting': sheet.status == SxNplQuoteSheet.STATUS_SUBMITTED,
         'is_decided': sheet.status == SxNplQuoteSheet.STATUS_DECIDED,
         'approve_home': user_can_access_menu(request.user, MODULE_SAN_XUAT, MENU_APPROVE),
+        'orders': orders,
     })
 
 

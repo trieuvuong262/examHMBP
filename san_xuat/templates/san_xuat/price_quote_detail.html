@@ -90,7 +90,16 @@
       </div>
       <div>
         <div class="lbl">Đơn KHSX</div>
-        <div>{% if sheet.sales_order %}{{ sheet.sales_order.code }}{% else %}—{% endif %}</div>
+        <div>
+          {% if can_edit %}
+          <select name="sales_order" form="quote-form" class="form-select form-select-sm" required>
+            <option value="">Chọn đơn</option>
+            {% for order in orders %}
+            <option value="{{ order.pk }}" {% if sheet.sales_order_id == order.pk %}selected{% endif %}>{{ order.code }}</option>
+            {% endfor %}
+          </select>
+          {% elif sheet.sales_order %}{{ sheet.sales_order.code }}{% else %}—{% endif %}
+        </div>
       </div>
       <div>
         <div class="lbl">Người tạo</div>
@@ -119,13 +128,11 @@
     <div class="jp-quote-rule mb-3 {% if rule_ok %}is-ok{% else %}is-bad{% endif %}" id="quote-rule-box">
       <strong>Rule so giá:</strong>
       NPL phải chọn từ <strong>danh mục kho NPL</strong>.
-      Ít nhất <strong>một NPL</strong> so từ <strong>≥ 3 nhà cung cấp</strong>
+      Mỗi mã NPL so từ <strong>≥ 3 nhà cung cấp</strong>
       (giá / chất lượng / năng lực). Mỗi báo giá bắt buộc đơn giá &gt; 0 + ghi chú chất lượng, năng lực.
-      {% if rule_ok %}
-      <div class="mt-1 text-success">Đã đủ điều kiện gửi Sếp.</div>
-      {% else %}
-      <div class="mt-1 text-warning-emphasis">Chưa đủ — bổ sung NCC cho ít nhất một mã NPL.</div>
-      {% endif %}
+      <div class="mt-1 {% if rule_ok %}text-success{% else %}text-warning-emphasis{% endif %}" data-rule-note>
+        {% if rule_ok %}Đã đủ điều kiện gửi Sếp.{% else %}Chưa đủ — mỗi mã NPL cần ít nhất 3 NCC.{% endif %}
+      </div>
     </div>
 
     <form method="post" id="quote-form">
@@ -438,21 +445,32 @@
   }
 
   function refreshRule() {
-    var ok = false;
+    var seen = 0;
+    var ok = true;
     root.querySelectorAll('[data-mat-block]').forEach(function (block) {
       if (!(block.getAttribute('data-material-id') || '')) return;
+      seen += 1;
       var selected = {};
       var count = 0;
       block.querySelectorAll('[data-f="sup"]').forEach(function (sel) {
         var v = sel.value;
         if (v && !selected[v]) { selected[v] = true; count += 1; }
       });
-      if (count >= 3) ok = true;
+      if (count < 3) ok = false;
     });
+    if (!seen) ok = false;
     var box = document.getElementById('quote-rule-box');
     if (box) {
       box.classList.toggle('is-ok', ok);
       box.classList.toggle('is-bad', !ok);
+      var note = box.querySelector('[data-rule-note]');
+      if (note) {
+        note.textContent = ok
+          ? 'Đã đủ điều kiện gửi Sếp.'
+          : 'Chưa đủ — mỗi mã NPL cần ít nhất 3 NCC.';
+        note.classList.toggle('text-success', ok);
+        note.classList.toggle('text-warning-emphasis', !ok);
+      }
     }
   }
 

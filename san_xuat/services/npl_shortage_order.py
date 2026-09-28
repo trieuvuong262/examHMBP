@@ -43,6 +43,17 @@ def _parse_qty(raw) -> Decimal:
         raise PlanningError('Số lượng hoặc đơn giá không hợp lệ.')
 
 
+def _reject_qty_above_open(src: ShortageOrderLine, qty: Decimal) -> None:
+    """Không đặt thêm phần đã nằm trên đơn chờ duyệt giá hoặc đã duyệt giá."""
+    if qty <= src.orderable:
+        return
+    left = f'{src.orderable:.4f}'.rstrip('0').rstrip('.')
+    raise PlanningError(
+        f'{src.material_code}: số lượng vượt phần còn đặt được ({left}). '
+        'Đơn đang chờ duyệt giá hoặc đã duyệt giá đã giữ phần còn lại.'
+    )
+
+
 def _parse_date(raw) -> date | None:
     text = str(raw or '').strip()
     if not text:
@@ -65,6 +76,7 @@ class ShortageOrderLine:
     unit_price: Decimal
     note: str
     shortfall: Decimal
+    orderable: Decimal
     supplier_id: int
 
 
@@ -94,40 +106,8 @@ def _draft_pr(order: SxSalesOrder) -> SxNplPurchaseRequest | None:
     )
 
 
-def _pending_qty_by_code(order: SxSalesOrder, *, exclude_pr_id: int | None) -> dict[str, Decimal]:
-    """SL đang nằm trên YCM nháp/đã gửi của đơn này, chưa thành đơn mua."""
-    qs = SxNplPurchaseRequestLine.objects.filter(
-        request__sales_order=order,
-        request__is_demo=False,
-        request__status__in=(
-            SxNplPurchaseRequest.STATUS_DRAFT,
-            SxNplPurchaseRequest.STATUS_SUBMITTED,
-        ),
-    )
-    if exclude_pr_id:
-        qs = qs.exclude(request_id=exclude_pr_id)
-    covered = set(
-        SxPurchaseOrderLine.objects.filter(
-            order__purchase_request_id__in=qs.values('request_id'),
-            order__is_demo=False,
-            order__status__in=(
-                SxPurchaseOrder.STATUS_DRAFT,
-                SxPurchaseOrder.STATUS_CONFIRMED,
-            ),
-        ).values_list('order__purchase_request_id', 'material_code')
-    )
-    out: dict[str, Decimal] = defaultdict(lambda: Decimal('0'))
-    for ln in qs.only('request_id', 'material_code', 'qty'):
-        key = (ln.material_code or '').strip().casefold()
-        if (ln.request_id, ln.material_code) in covered:
-            continue
-        out[key] += _q(ln.qty)
-    return out
-
-
 def build_shortage_preview(order: SxSalesOrder) -> list[ShortageOrderGroup]:
     draft = _draft_pr(order)
-    pending = _pending_qty_by_code(order, exclude_pr_id=draft.pk if draft else None)
     draft_lines = {}
     if draft:
         for ln in draft.lines.all():
@@ -148,14 +128,10 @@ def build_shortage_preview(order: SxSalesOrder) -> list[ShortageOrderGroup]:
         saved = draft_lines.get(code_key)
         supplier_id = saved.supplier_id if saved and saved.supplier_id else (supplier.pk if supplier else 0)
         shortfall = _q(ln.qty_shortfall)
-        orderable = shortfall - _q(pending.get(code_key))
-        if orderable < 0:
-            orderable = Decimal('0')
-        qty = _q(saved.qty) if saved and saved.qty else orderable
-        if qty <= 0 and orderable <= 0:
+        orderable = shortfall if shortfall > 0 else Decimal('0')
+        if orderable <= 0:
             continue
-        if qty <= 0:
-            qty = orderable
+        qty = orderable
         spec_bits = []
         if mat and mat.specification_id:
             spec_bits.append(mat.specification.name)
@@ -207,6 +183,7 @@ def build_shortage_preview(order: SxSalesOrder) -> list[ShortageOrderGroup]:
             unit_price=price,
             note=note,
             shortfall=shortfall,
+            orderable=orderable,
             supplier_id=supplier_id or 0,
         ))
     return list(buckets.values())
@@ -230,6 +207,7 @@ def save_shortage_request(*, order_id: int, post, user=None, group_key: str = ''
         qty = _parse_qty(post.get(f'qty__{line_id}'))
         if qty <= 0:
             continue
+        _reject_qty_above_open(src, qty)
         price = _parse_qty(post.get(f'price__{line_id}'))
         if price < 0:
             raise PlanningError('Đơn giá không được âm.')
@@ -383,6 +361,7 @@ def place_shortage_requests_from_post(*, order_id: int, post, user=None) -> list
         qty = _parse_qty(post.get(f'qty__{line_id}'))
         if qty <= 0:
             continue
+        _reject_qty_above_open(src, qty)
         price = _parse_qty(post.get(f'price__{line_id}'))
         if price < 0:
             raise PlanningError('Đơn giá không được âm.')
@@ -485,7 +464,11 @@ def update_open_purchase_request(*, request_id: int, post, user=None) -> SxNplPu
             SxNplQuoteOffer.objects.select_related('supplier', 'sheet').filter(pk=quote_id).first()
             if quote_id else None
         )
-        assert_line_uses_chosen_quote(material_code=ln.material_code, offer=offer)
+        assert_line_uses_chosen_quote(
+            material_code=ln.material_code,
+            offer=offer,
+            sales_order_id=pr.sales_order_id,
+        )
         ln.qty = qty
         ln.unit_price = offer.unit_price
         ln.notes = (post.get(f'note__{ln.pk}') or '').strip()[:255]

@@ -18,6 +18,18 @@ from san_xuat.hub_models import (
 from san_xuat.services.planning import PlanningError, _code
 
 
+def _refresh_sales_order_npl(sales_order_id: int | None) -> None:
+    """Cập nhật số thiếu trên đơn KHSX sau khi đơn đặt đổi trạng thái giá."""
+    if not sales_order_id:
+        return
+    from san_xuat.services.plan_order_npl import sync_order_npl
+
+    try:
+        sync_order_npl(order_id=sales_order_id)
+    except PlanningError:
+        return
+
+
 def _q(value) -> Decimal:
     try:
         return Decimal(str(value or '0'))
@@ -58,11 +70,15 @@ def chosen_offers():
     )
 
 
-def chosen_offers_for_code(material_code: str):
+def chosen_offers_for_code(material_code: str, *, sales_order_id: int | None = None):
+    """Giá đã chốt của đúng đơn KHSX. Không lấy báo giá đơn khác hay bảng không gắn đơn."""
     code = (material_code or '').strip()
-    if not code:
+    if not code or not sales_order_id:
         return SxNplQuoteOffer.objects.none()
-    return chosen_offers().filter(material_code__iexact=code)
+    return chosen_offers().filter(
+        material_code__iexact=code,
+        sheet__sales_order_id=sales_order_id,
+    )
 
 
 @transaction.atomic
@@ -90,12 +106,29 @@ def _offers_by_material(sheet: SxNplQuoteSheet) -> dict[str, list[SxNplQuoteOffe
     return buckets
 
 
-def sheet_has_three_suppliers(sheet: SxNplQuoteSheet) -> bool:
+def _codes_under_three_suppliers(sheet: SxNplQuoteSheet) -> list[str]:
+    short: list[str] = []
     for offers in _offers_by_material(sheet).values():
         suppliers = {o.supplier_id for o in offers if o.supplier_id}
-        if len(suppliers) >= 3:
-            return True
-    return False
+        if len(suppliers) < 3:
+            short.append((offers[0].material_code or '').strip() or 'NPL')
+    return short
+
+
+def sheet_has_three_suppliers(sheet: SxNplQuoteSheet) -> bool:
+    buckets = _offers_by_material(sheet)
+    if not buckets:
+        return False
+    return not _codes_under_three_suppliers(sheet)
+
+
+def _require_three_suppliers_each(sheet: SxNplQuoteSheet) -> None:
+    short = _codes_under_three_suppliers(sheet)
+    if not _offers_by_material(sheet) or short:
+        detail = ', '.join(short) if short else 'chưa có mã NPL'
+        raise PlanningError(
+            'Mỗi mã NPL phải có báo giá từ 3 nhà cung cấp trở lên. Chưa đủ: ' + detail
+        )
 
 
 def quote_sheet_groups(sheet: SxNplQuoteSheet) -> list[dict]:
@@ -221,16 +254,14 @@ def submit_quote_sheet(*, sheet_id: int) -> SxNplQuoteSheet:
         raise PlanningError('Bảng đã chốt giá.')
     if sheet.status == SxNplQuoteSheet.STATUS_SUBMITTED:
         raise PlanningError('Bảng đã gửi chờ chốt giá.')
+    if not sheet.sales_order_id:
+        raise PlanningError('Gắn đơn KHSX trước khi gửi. Giá chốt chỉ dùng cho đúng đơn đó.')
     offers = list(sheet.offers.all())
     if not offers:
         raise PlanningError('Nhập ít nhất một báo giá.')
     for offer in offers:
         _assert_offer_complete(offer)
-    if not sheet_has_three_suppliers(sheet):
-        raise PlanningError(
-            'Rule so giá: ít nhất một NPL phải có báo giá từ 3 nhà cung cấp trở lên '
-            '(để so giá / chất lượng / năng lực).'
-        )
+    _require_three_suppliers_each(sheet)
     sheet.status = SxNplQuoteSheet.STATUS_SUBMITTED
     sheet.save(update_fields=['status'])
     return sheet
@@ -257,8 +288,9 @@ def decide_quote_sheet(*, sheet_id: int, chosen_ids: list[int], user=None) -> Sx
     )
     if sheet.status != SxNplQuoteSheet.STATUS_SUBMITTED:
         raise PlanningError('Chỉ chốt khi bảng đang chờ chốt giá.')
-    if not sheet_has_three_suppliers(sheet):
-        raise PlanningError('Ít nhất một NPL phải có báo giá từ 3 nhà cung cấp trở lên.')
+    if not sheet.sales_order_id:
+        raise PlanningError('Bảng chưa gắn đơn KHSX — không chốt được.')
+    _require_three_suppliers_each(sheet)
     ids = []
     for raw in chosen_ids or []:
         try:
@@ -300,7 +332,12 @@ def decide_quote_sheet(*, sheet_id: int, chosen_ids: list[int], user=None) -> Sx
     return sheet
 
 
-def assert_line_uses_chosen_quote(*, material_code: str, offer: SxNplQuoteOffer | None):
+def assert_line_uses_chosen_quote(
+    *,
+    material_code: str,
+    offer: SxNplQuoteOffer | None,
+    sales_order_id: int | None = None,
+):
     if offer is None:
         raise PlanningError(
             f'{material_code}: chọn giá sếp đã chốt. Chưa có báo giá được chọn cho mã này.'
@@ -309,11 +346,15 @@ def assert_line_uses_chosen_quote(*, material_code: str, offer: SxNplQuoteOffer 
         raise PlanningError(f'{material_code}: báo giá chưa được chốt.')
     if (offer.material_code or '').strip().casefold() != (material_code or '').strip().casefold():
         raise PlanningError(f'{material_code}: báo giá không đúng mã NPL.')
+    if not sales_order_id or offer.sheet.sales_order_id != sales_order_id:
+        raise PlanningError(f'{material_code}: giá đã chốt không thuộc đơn KHSX này.')
 
 
 @transaction.atomic
 def submit_price_review(*, request_id: int) -> SxNplPurchaseRequest:
-    pr = SxNplPurchaseRequest.objects.select_for_update().prefetch_related('lines__quote_offer').get(
+    pr = SxNplPurchaseRequest.objects.select_for_update().prefetch_related(
+        'lines__quote_offer__sheet',
+    ).get(
         pk=request_id, is_demo=False,
     )
     if pr.status != SxNplPurchaseRequest.STATUS_DRAFT:
@@ -324,7 +365,11 @@ def submit_price_review(*, request_id: int) -> SxNplPurchaseRequest:
     for ln in lines:
         if _q(ln.qty) <= 0:
             raise PlanningError(f'{ln.material_code}: số lượng phải lớn hơn 0.')
-        assert_line_uses_chosen_quote(material_code=ln.material_code, offer=ln.quote_offer)
+        assert_line_uses_chosen_quote(
+            material_code=ln.material_code,
+            offer=ln.quote_offer,
+            sales_order_id=pr.sales_order_id,
+        )
         if ln.supplier_id != ln.quote_offer.supplier_id:
             raise PlanningError(f'{ln.material_code}: nhà cung cấp không khớp giá đã chốt.')
         if _q(ln.unit_price) != _q(ln.quote_offer.unit_price):
@@ -332,6 +377,7 @@ def submit_price_review(*, request_id: int) -> SxNplPurchaseRequest:
     pr.status = SxNplPurchaseRequest.STATUS_PRICE_REVIEW
     pr.price_return_note = ''
     pr.save(update_fields=['status', 'price_return_note'])
+    _refresh_sales_order_npl(pr.sales_order_id)
     return pr
 
 
@@ -345,6 +391,7 @@ def approve_price_review(*, request_id: int, user=None) -> SxNplPurchaseRequest:
     pr.price_approved_at = timezone.now()
     pr.price_return_note = ''
     pr.save(update_fields=['status', 'price_approved_by', 'price_approved_at', 'price_return_note'])
+    _refresh_sales_order_npl(pr.sales_order_id)
     return pr
 
 
@@ -358,4 +405,5 @@ def return_price_review(*, request_id: int, note: str = '') -> SxNplPurchaseRequ
     pr.price_approved_by = None
     pr.price_approved_at = None
     pr.save(update_fields=['status', 'price_return_note', 'price_approved_by', 'price_approved_at'])
+    _refresh_sales_order_npl(pr.sales_order_id)
     return pr

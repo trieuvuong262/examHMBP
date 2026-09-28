@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% block title %}Duyệt giá - Sản xuất - Just Play Portal{% endblock %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 <style>
@@ -10,7 +11,6 @@
 .jp-price-section-head h3 {
   margin: 0; font-size: 0.95rem; font-weight: 700; color: #172033;
 }
-.jp-price-section-head .hint { font-size: 0.78rem; color: #6b7484; }
 .jp-price-count {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 1.35rem; height: 1.35rem; padding: 0 0.4rem;
@@ -39,14 +39,6 @@
 .jp-price-empty {
   padding: 1.25rem 1rem; text-align: center; color: #94a3b8; font-size: 0.875rem;
 }
-.jp-price-flow {
-  display: flex; flex-wrap: wrap; gap: 0.35rem 0.55rem; margin: 0 0 1rem;
-  font-size: 0.78rem; color: #64748b;
-}
-.jp-price-flow span {
-  display: inline-flex; align-items: center; gap: 0.3rem;
-  padding: 0.2rem 0.55rem; border-radius: 999px; background: #f1f5f9;
-}
 .jp-npl-catalog-row { cursor: pointer; }
 .jp-npl-catalog-row:hover td { background: #f8fafc; }
 </style>
@@ -61,12 +53,6 @@
   </div>
 
   <div class="jp-sx-page-body">
-    <div class="jp-price-flow" aria-label="Việc của Sếp">
-      <span><i class="bi bi-1-circle" aria-hidden="true"></i>Chốt bảng so giá</span>
-      <span><i class="bi bi-2-circle" aria-hidden="true"></i>Duyệt giá đơn đặt</span>
-      <span><i class="bi bi-3-circle" aria-hidden="true"></i>NV in gửi NCC</span>
-    </div>
-
     {% if not can_decide %}
     <div class="alert alert-warning py-2 small mb-3">
       Bạn đang xem hàng chờ. Chỉ tài khoản có quyền <strong>Sửa</strong> trên menu
@@ -80,7 +66,6 @@
         <h3>Bảng so giá chờ chốt
           <span class="jp-price-count {% if waiting_quotes %}is-hot{% endif %}">{{ waiting_quotes|length }}</span>
         </h3>
-        <span class="hint">Chọn 1 NCC + giá cho mỗi mã NPL</span>
       </div>
       <div class="card border-0 shadow-sm overflow-hidden">
         {% if waiting_quotes %}
@@ -123,7 +108,6 @@
         <h3>Đơn chờ duyệt giá
           <span class="jp-price-count {% if waiting %}is-hot{% endif %}">{{ waiting|length }}</span>
         </h3>
-        <span class="hint">Sau khi NV lên đơn theo giá đã chốt</span>
       </div>
       <div class="card border-0 shadow-sm overflow-hidden">
         {% if waiting %}

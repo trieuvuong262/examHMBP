@@ -699,13 +699,18 @@ def _expected_inbound_qty(material_code: str) -> Decimal:
 
 
 def _pending_pr_inbound_qty(material_code: str) -> Decimal:
-    """SL trên YCM nháp/đã gửi chưa thành đơn mua — tính như hàng đang về."""
+    """SL trên đơn chưa thành đơn mua — tính một lần như hàng đang về.
+
+    Gồm nháp, chờ duyệt giá, đã duyệt giá và đã gửi. Không cộng lại ở màn đặt hàng thiếu.
+    """
     total = Decimal("0")
     lines = SxNplPurchaseRequestLine.objects.filter(
         material_code__iexact=material_code,
         request__is_demo=False,
         request__status__in=(
             SxNplPurchaseRequest.STATUS_DRAFT,
+            SxNplPurchaseRequest.STATUS_PRICE_REVIEW,
+            SxNplPurchaseRequest.STATUS_PRICED,
             SxNplPurchaseRequest.STATUS_SUBMITTED,
         ),
     )

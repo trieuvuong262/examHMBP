@@ -3284,7 +3284,9 @@ def npl_purchase_request_detail(request, pk: int):
             'line': ln,
             'image_url': image_url,
             'amount': (ln.qty or 0) * (ln.unit_price or 0),
-            'quotes': list(chosen_offers_for_code(ln.material_code)) if can_edit else [],
+            'quotes': list(chosen_offers_for_code(
+                ln.material_code, sales_order_id=pr.sales_order_id,
+            )) if can_edit else [],
         })
     return render(request, 'san_xuat/npl_purchase_request_detail.html', {
         **_perm_ctx(request),
