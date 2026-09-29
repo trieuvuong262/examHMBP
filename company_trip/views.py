@@ -397,7 +397,19 @@ def manage_list(request):
     ).prefetch_related('relatives')
     if status != 'all':
         qs = qs.filter(status=status)
-    qs = apply_term_search(qs, search_query, ('full_name', 'email', 'phone', 'department_name', 'room_key'))
+    qs = apply_term_search(
+        qs,
+        search_query,
+        'full_name__icontains',
+        'email__icontains',
+        'phone__icontains',
+        'department_name__icontains',
+        'room_key__icontains',
+        'companion1_name__icontains',
+        'companion2_name__icontains',
+        'relative_full_name__icontains',
+        'relatives__full_name__icontains',
+    )
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'company_trip/manage_list.html', {
         'page_obj': page_obj,
