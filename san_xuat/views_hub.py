@@ -6253,10 +6253,9 @@ def team_work_board(request, slug: str):
         return redirect('san_xuat:team_work_hub')
 
     menu_key = team_meta['menu_key']
-    if not (
-        user_can_access_menu(request.user, MODULE_SAN_XUAT, menu_key)
-        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'team_work')
-    ):
+    from san_xuat.services.team_division_map import user_can_open_team_work_slug
+
+    if not user_can_open_team_work_slug(request.user, slug):
         return handle_menu_access_denied(request, MODULE_SAN_XUAT, menu_key)
 
     can_assign = (
@@ -6455,10 +6454,9 @@ def team_work_personnel(request, slug: str):
         return redirect('san_xuat:team_work_hub')
 
     menu_key = team_meta['menu_key']
-    if not (
-        user_can_access_menu(request.user, MODULE_SAN_XUAT, menu_key)
-        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'team_work')
-    ):
+    from san_xuat.services.team_division_map import user_can_open_team_work_slug
+
+    if not user_can_open_team_work_slug(request.user, slug):
         return handle_menu_access_denied(request, MODULE_SAN_XUAT, menu_key)
 
     can_edit = can_edit_team_personnel(request.user, slug)
@@ -6585,10 +6583,9 @@ def team_work_progress(request, slug: str, mo_id: int):
         return redirect('san_xuat:team_work_hub')
 
     menu_key = team_meta['menu_key']
-    if not (
-        user_can_access_menu(request.user, MODULE_SAN_XUAT, menu_key)
-        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'team_work')
-    ):
+    from san_xuat.services.team_division_map import user_can_open_team_work_slug
+
+    if not user_can_open_team_work_slug(request.user, slug):
         return handle_menu_access_denied(request, MODULE_SAN_XUAT, menu_key)
 
     can_update = (

@@ -27,6 +27,8 @@ _SLUG_HR_KEYS: dict[str, tuple[str, ...]] = {
 
 VALID_TEAM_SLUGS = frozenset(item[0] for item in TEAM_SLUGS)
 _DIV_SLUG_RE = re.compile(r'^d(\d+)$')
+# Submenu tổ: admin / ductn xem hết; tổ trưởng chỉ thấy bộ phận mình.
+TEAM_WORK_ALL_TEAMS_USERNAMES = frozenset({'admin', 'ductn'})
 TEAM_MENU_ICONS = {
     'cat': 'bi-scissors',
     'inep': 'bi-printer',
@@ -115,53 +117,100 @@ def team_from_hr_division_slug(slug: str) -> dict | None:
     }
 
 
-def team_work_menu_items(user) -> list[dict]:
-    """Menu tổ: mỗi bộ phận HR thuộc SẢN XUẤT + ĐẢM BẢO CHẤT LƯỢNG."""
-    from hrm.menu_permissions import user_can_access_menu
-    from hrm.module_permissions import MODULE_SAN_XUAT
-    from san_xuat.services.capacity_from_hrm import (
-        _fold,
-        hr_divisions_for_ie_groups,
-        work_center_code_for_division,
+def can_see_all_team_work_teams(user) -> bool:
+    """admin / ductn / superuser — submenu hiện mọi tổ."""
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    if getattr(user, 'is_superuser', False):
+        return True
+    name = (getattr(user, 'username', '') or '').strip().lower()
+    return name in TEAM_WORK_ALL_TEAMS_USERNAMES
+
+
+def _is_to_truong_title(job_position: str) -> bool:
+    return 'to truong' in _fold(job_position or '')
+
+
+def user_led_team_division_ids(user) -> set[int]:
+    """Bộ phận HR mà user là tổ trưởng (vị trí chính + kiêm nhiệm)."""
+    from hrm.models import ProfileConcurrentPosition
+    from hrm.permissions import ROLE_TEAM_LEADER, get_profile
+
+    profile = get_profile(user)
+    if not profile or not profile.is_employed:
+        return set()
+    ids: set[int] = set()
+    if profile.division_id and (
+        profile.role == ROLE_TEAM_LEADER or _is_to_truong_title(profile.job_position)
+    ):
+        ids.add(int(profile.division_id))
+    for cp in ProfileConcurrentPosition.objects.filter(profile=profile, is_active=True):
+        if not cp.division_id:
+            continue
+        if cp.role == ROLE_TEAM_LEADER or _is_to_truong_title(cp.job_position):
+            ids.add(int(cp.division_id))
+    return ids
+
+
+def _fallback_led_stage_slugs(led_ids: set[int], mapped: dict[int, str]) -> set[str]:
+    if not led_ids:
+        return set()
+    from hrm.models import Division
+
+    slugs: set[str] = set()
+    for div in Division.objects.filter(pk__in=led_ids):
+        stage = (_stage_slug_for_division(div, mapped=mapped) or '').strip().lower()
+        if stage:
+            slugs.add(stage)
+    return slugs
+
+
+def _team_item_dict(div, *, stage: str, menu_key: str) -> dict:
+    from san_xuat.services.capacity_from_hrm import _fold, work_center_code_for_division
+
+    folded = _fold(div.name or '')
+    icon = TEAM_MENU_ICONS.get(stage) or (
+        'bi-clipboard-check' if 'qc' in folded or 'chat luong' in folded else 'bi-people'
     )
+    return {
+        'slug': team_slug_for_division_id(div.pk),
+        'label': (div.name or '').strip() or f'Bộ phận {div.pk}',
+        'icon': icon,
+        'menu_key': menu_key,
+        'division_id': int(div.pk),
+        'work_center_code': work_center_code_for_division(div.pk),
+    }
 
-    can_all = user_can_access_menu(user, MODULE_SAN_XUAT, 'team_work')
-    allowed_keys = {'team_work'} if can_all else set()
-    for _slug, _gk, menu_key, _label in TEAM_SLUGS:
-        if can_all or user_can_access_menu(user, MODULE_SAN_XUAT, menu_key):
-            allowed_keys.add(menu_key)
 
+def team_work_menu_items(user) -> list[dict]:
+    """Menu tổ: tổ trưởng chỉ thấy bộ phận mình; admin/ductn thấy hết."""
+    from san_xuat.services.capacity_from_hrm import hr_divisions_for_ie_groups
+
+    see_all = can_see_all_team_work_teams(user)
     mapped: dict[int, str] = {}
     for stage, ids in current_maps_by_slug().items():
         for did in ids:
             mapped[int(did)] = stage
 
+    led_ids = set() if see_all else user_led_team_division_ids(user)
+    hr_divs = list(hr_divisions_for_ie_groups())
     items: list[dict] = []
-    for div in hr_divisions_for_ie_groups():
-        stage = _stage_slug_for_division(div, mapped=mapped)
-        menu_key = 'team_work'
-        for item_slug, _gk, mk, _label in TEAM_SLUGS:
-            if item_slug == stage:
-                menu_key = mk
-                break
-        if menu_key not in allowed_keys and 'team_work' not in allowed_keys:
-            continue
-        folded = _fold(div.name or '')
-        icon = TEAM_MENU_ICONS.get(stage) or (
-            'bi-clipboard-check' if 'qc' in folded or 'chat luong' in folded else 'bi-people'
-        )
-        items.append({
-            'slug': team_slug_for_division_id(div.pk),
-            'label': (div.name or '').strip() or f'Bộ phận {div.pk}',
-            'icon': icon,
-            'menu_key': menu_key,
-            'division_id': int(div.pk),
-            'work_center_code': work_center_code_for_division(div.pk),
-        })
-    if items:
+    if hr_divs:
+        for div in hr_divs:
+            if not see_all and int(div.pk) not in led_ids:
+                continue
+            stage = _stage_slug_for_division(div, mapped=mapped)
+            menu_key = 'team_work'
+            for item_slug, _gk, mk, _label in TEAM_SLUGS:
+                if item_slug == stage:
+                    menu_key = mk
+                    break
+            items.append(_team_item_dict(div, stage=stage, menu_key=menu_key))
         return items
+
+    led_stages = set() if see_all else _fallback_led_stage_slugs(led_ids, mapped)
     for slug, _gk, menu_key, label in TEAM_SLUGS:
-        if menu_key not in allowed_keys and 'team_work' not in allowed_keys:
+        if not see_all and slug not in led_stages:
             continue
         items.append({
             'slug': slug,
@@ -172,6 +221,18 @@ def team_work_menu_items(user) -> list[dict]:
             'work_center_code': '',
         })
     return items
+
+
+def user_can_open_team_work_slug(user, slug: str) -> bool:
+    """Vào board / nhân sự / tiến độ tổ — cùng phạm vi submenu."""
+    raw = (slug or '').strip().lower()
+    if not raw:
+        return False
+    if can_see_all_team_work_teams(user):
+        from san_xuat.services.progress_template import team_by_slug
+
+        return team_by_slug(raw) is not None
+    return any(item['slug'] == raw for item in team_work_menu_items(user))
 
 
 def khsx_slug_for_team(team: dict | None, slug: str = '') -> str:
