@@ -3,11 +3,14 @@ services:
   nginx:
     ports:
       - "443:443"
+      - "8443:8443"
     volumes:
       - ./PortalJustPlay/nginx/ssl.conf:/etc/nginx/conf.d/ssl.conf:ro
+      - ./PortalJustPlay/nginx/ip-ssl.conf:/etc/nginx/conf.d/ip-ssl.conf:ro
       - ./PortalJustPlay/nginx/erp-ssl.conf:/etc/nginx/conf.d/erp-ssl.conf:ro
       - ./PortalJustPlay/nginx/portfolio-ssl.conf:/etc/nginx/conf.d/portfolio-ssl.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /etc/portaljustplay/ip-certs:/etc/nginx/ip-certs:ro
       - certbot_webroot:/var/www/certbot
 
 volumes:

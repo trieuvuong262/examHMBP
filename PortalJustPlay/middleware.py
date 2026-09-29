@@ -1,6 +1,13 @@
+from django.conf import settings
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
+
+# Host vào bằng HTTP (IP) — cookie Secure=True sẽ bị trình duyệt bỏ.
+HTTP_IP_HOSTS = frozenset({
+    '103.90.224.203',
+    '100.79.206.125',
+})
 
 from audit.zalo_webview import is_zalo_in_app_browser, open_in_browser_context
 from PortalJustPlay.pwa import ZALO_DOMAIN_VERIFIER_FILENAME
@@ -12,6 +19,23 @@ def _ajax_password_change_required(request):
         or request.headers.get('X-CSRFToken')
         or 'application/json' in (request.headers.get('Accept') or '')
     )
+
+
+class RelaxSecureCookiesOnHttpIpMiddleware:
+    """Session/CSRF trên http://IP khi DNS hoặc FortiGate chặn HTTPS theo IP."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        host = (request.get_host() or '').split(':')[0]
+        if host in HTTP_IP_HOSTS and not request.is_secure():
+            for attr in ('SESSION_COOKIE_NAME', 'CSRF_COOKIE_NAME'):
+                name = getattr(settings, attr, None)
+                if name and name in response.cookies:
+                    response.cookies[name]['secure'] = False
+        return response
 
 
 class ZaloInAppBrowserMiddleware:

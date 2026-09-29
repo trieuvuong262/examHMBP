@@ -236,6 +236,8 @@ SILENCED_SYSTEM_CHECKS = ['ckeditor.W001']
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # Sau Session trên chiều response — gỡ cờ Secure khi vào bằng http://IP.
+    'PortalJustPlay.middleware.RelaxSecureCookiesOnHttpIpMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'san_xuat.middleware.SxListFilterPersistMiddleware',
     'django.middleware.common.CommonMiddleware',
