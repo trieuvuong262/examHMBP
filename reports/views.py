@@ -793,7 +793,7 @@ def proxy_report_entry(request):
         )
         report = _ensure_daily_report_saved(report)
         lock_session_times = employee_self_submitted_production_report(report)
-        # Nháp trống: nhập hộ đầy đủ (nộp). Nháp có anomaly: chỉ sửa công đoạn sai, giữ DRAFT.
+        # Nháp trống: nhập hộ đầy đủ (nộp). Nháp có anomaly: sửa mọi công đoạn, giữ DRAFT.
         preserve_draft = (
             not lock_session_times
             and report.status != DailyWorkReport.STATUS_SUBMITTED
@@ -979,7 +979,7 @@ def proxy_report_entry(request):
             ),
             'has_anomaly': has_anomaly,
             'anomaly_fix_mode': has_anomaly and not lock_session_times,
-            'allow_session_delete': not has_anomaly or lock_session_times,
+            'allow_session_delete': True,
             'can_manager_edit': (
                 lock_session_times
                 or not report.pk

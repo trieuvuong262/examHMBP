@@ -3023,24 +3023,29 @@ def build_proxy_shift_sessions(report: DailyWorkReport) -> dict:
 
 
 def enrich_proxy_shift_sessions_for_anomaly_fix(data: dict, report: DailyWorkReport) -> dict:
-    """Đánh dấu công đoạn đúng (khóa) / sai (cho sửa) trên form sửa báo cáo chưa nộp."""
-    from reports.report_settings import allow_edit_wrong_stage_time
+    """Đánh dấu công đoạn sai; mọi công đoạn đều sửa được. Giờ công đoạn theo thiết lập chung."""
+    from reports.report_settings import (
+        allow_edit_wrong_stage_time,
+        managers_may_edit_stage_time,
+    )
 
     if not report or not report.pk or report.status == DailyWorkReport.STATUS_SUBMITTED:
         return data
     anomaly_ids = anomaly_product_ids_for_report(report)
     if not anomaly_ids:
         return data
+    managers_may_times = managers_may_edit_stage_time()
     may_edit_wrong_times = allow_edit_wrong_stage_time()
     sessions = []
     for sess in data.get('sessions') or []:
         product_id = sess.get('product_id')
         is_anomaly = product_id in anomaly_ids
+        may_change_times = managers_may_times or (is_anomaly and may_edit_wrong_times)
         sessions.append({
             **sess,
             'is_anomaly': is_anomaly,
-            'session_locked': not is_anomaly,
-            'lock_stage_times': bool(is_anomaly and not may_edit_wrong_times),
+            'session_locked': False,
+            'lock_stage_times': not may_change_times,
         })
     return {**data, 'sessions': sessions, 'anomaly_fix_mode': True}
 
@@ -3097,53 +3102,43 @@ def _resolve_proxy_session_interval(
 
 
 def _normalize_anomaly_fix_sessions(report: DailyWorkReport, sessions: list[dict]) -> list[dict]:
-    """Chỉ cho sửa công đoạn sai — công đoạn đúng giữ nguyên từ DB."""
-    from reports.report_settings import allow_edit_wrong_stage_time
+    """Mọi công đoạn đều sửa được. Giờ bắt đầu/kết thúc theo thiết lập chung."""
+    from reports.report_settings import (
+        allow_edit_wrong_stage_time,
+        managers_may_edit_stage_time,
+    )
 
     products = list(
         report.production_products.prefetch_related('hourly_entries').order_by('sort_order', 'id')
     )
     if not products:
         raise ValueError('Báo cáo không có công đoạn để lưu.')
-    anomaly_ids = anomaly_product_ids_for_report(report)
-    if not anomaly_ids:
-        raise ValueError('Báo cáo không còn công đoạn cần sửa.')
 
-    locked_forms = {
+    anomaly_ids = anomaly_product_ids_for_report(report)
+    existing = {
         product.id: _proxy_session_dict_from_product(product)
         for product in products
     }
-    submitted_by_id: dict[int, dict] = {}
-    for raw_sess in sessions:
-        product_id = parse_int(raw_sess.get('product_id'), -1)
-        if product_id < 0:
-            raise ValueError(
-                'Không được thêm công đoạn mới — chỉ sửa các công đoạn sai hiệu suất hoặc thời gian.'
-            )
-        if product_id not in locked_forms:
-            raise ValueError('Công đoạn không hợp lệ.')
-        submitted_by_id[product_id] = dict(raw_sess)
-
-    if set(submitted_by_id) != set(locked_forms):
-        raise ValueError(
-            'Phải giữ nguyên các công đoạn đúng — không được xóa công đoạn đã khóa.'
-        )
-
+    managers_may_times = managers_may_edit_stage_time()
     may_edit_wrong_times = allow_edit_wrong_stage_time()
     normalized: list[dict] = []
-    for product in products:
-        if product.id in anomaly_ids:
-            sess = submitted_by_id[product.id]
-            if not may_edit_wrong_times:
-                locked = locked_forms[product.id]
-                sess = {
-                    **sess,
-                    'start_time': locked.get('start_time') or '',
-                    'end_time': locked.get('end_time') or '',
-                }
-            normalized.append(sess)
-        else:
-            normalized.append(locked_forms[product.id])
+    seen: set[int] = set()
+    for raw_sess in sessions:
+        sess = dict(raw_sess)
+        product_id = parse_int(sess.get('product_id'), -1)
+        if product_id >= 0:
+            if product_id not in existing:
+                raise ValueError('Công đoạn không hợp lệ.')
+            if product_id in seen:
+                raise ValueError('Công đoạn bị trùng.')
+            seen.add(product_id)
+            is_anomaly = product_id in anomaly_ids
+            may_change_times = managers_may_times or (is_anomaly and may_edit_wrong_times)
+            if not may_change_times:
+                locked = existing[product_id]
+                sess['start_time'] = locked.get('start_time') or ''
+                sess['end_time'] = locked.get('end_time') or ''
+        normalized.append(sess)
     return normalized
 
 
@@ -3339,8 +3334,8 @@ def save_proxy_shift_sessions(
     {product_id?, code, process, norm, start_time, end_time, total, damaged, note} (HH:MM).
     Tổng SL chia theo tỷ lệ thời gian giao với từng khung giờ ca.
 
-    preserve_draft: quản lý sửa báo cáo chưa nộp (sai số liệu) — giữ trạng thái draft,
-    ghi cột «Cập nhật» và lịch sử, không tự nộp báo cáo.
+    preserve_draft: quản lý sửa báo cáo chưa nộp (sai số liệu) — sửa mọi công đoạn,
+    giữ trạng thái draft, ghi cột «Cập nhật» và lịch sử, không tự nộp báo cáo.
     """
     if not report.pk:
         report.report_profile = REPORT_PROFILE_PRODUCTION

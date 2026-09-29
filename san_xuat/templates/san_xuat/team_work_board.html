@@ -73,7 +73,30 @@
     border-bottom: 1px solid var(--tw-line);
   }
   .jp-tw-job-title {
-    display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem .7rem;
+    display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .7rem;
+  }
+  .jp-tw-job-image,
+  .jp-tw-job-image-placeholder {
+    width: 2.6rem;
+    height: 2.6rem;
+    flex: 0 0 2.6rem;
+    border: 1px solid var(--tw-line);
+    border-radius: .45rem;
+    background: #fff;
+  }
+  .jp-tw-job-product {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    min-width: 0;
+  }
+  .jp-tw-job-title .sx-doc-thumb { flex: 0 0 auto; }
+  .jp-tw-job-image { display: block; object-fit: cover; }
+  .jp-tw-job-image-placeholder {
+    display: grid;
+    place-items: center;
+    color: #94a3b8;
+    font-size: .9rem;
   }
   .jp-tw-mo-code {
     font-size: 1.05rem; font-weight: 800; color: var(--tw-ink);
@@ -464,6 +487,7 @@
   </div>
 </div>
 {% endif %}
+{% include 'san_xuat/includes/product_image_gallery_modal.html' %}
 {% endblock %}
 
 {% block scripts %}

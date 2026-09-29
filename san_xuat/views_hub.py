@@ -6240,6 +6240,7 @@ def team_work_board(request, slug: str):
         active_subcontract_for_team,
         assignee_candidate_options,
         assign_team_work,
+        attach_job_product_images,
         attach_team_job_closes,
         build_team_work_rows,
         close_team_job,
@@ -6408,6 +6409,7 @@ def team_work_board(request, slug: str):
                     seen.add(a['id'])
 
     jobs = attach_team_job_closes(group_team_work_jobs(rows), slug=slug)
+    attach_job_product_images(jobs)
     closed_count = sum(1 for j in jobs if j.closed)
     open_count = len(jobs) - closed_count
     visible = [j for j in jobs if j.closed] if show_closed else [j for j in jobs if not j.closed]

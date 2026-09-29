@@ -57,6 +57,8 @@ class TeamHandoverCell:
     qc_required: bool = False
     qc_inspection_id: int | None = None
     subcontract: object | None = None
+    khsx_start: date | None = None
+    khsx_end: date | None = None
 
     @property
     def qc_status_label(self) -> str:
@@ -231,7 +233,7 @@ def _team_done_by_slug(
         slug = _slug_for_group(grp.key)
         if not slug:
             continue
-        if participating_slugs is not None and slug not in participating_slugs:
+        if participating_slugs and slug not in participating_slugs:
             continue
         g_steps = steps_by_group.get(grp.key, [])
         required = _required_step_keys(mo, grp.key, g_steps)
@@ -275,7 +277,7 @@ def _build_row(
 
     for grp in GROUPS:
         slug = _slug_for_group(grp.key)
-        if participating_slugs is not None and slug not in participating_slugs:
+        if participating_slugs and slug not in participating_slugs:
             continue
         done = done_by_slug.get(slug, Decimal("0"))
         incoming = plan

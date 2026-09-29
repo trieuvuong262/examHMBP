@@ -6,10 +6,12 @@ from django.urls import reverse
 from django.utils import timezone
 
 from san_xuat.hub_models import (
+    SxMoProcessStep,
     SxProductionOrder,
     SxProductionOrderLine,
     SxProductionStat,
     SxSalesOrder,
+    SxSalesOrderPlanStep,
 )
 from san_xuat.services.goods_progress import build_goods_progress_board
 
@@ -73,22 +75,32 @@ class GoodsProgressBoardTests(TestCase):
         self.assertEqual(board.overdue_count, 1)
 
     def test_shows_other_teams_and_current_location(self):
-        mo = self._mo('LSX-GP-FLOW', qty=20)
+        so = self._so('DH-GP-FLOW')
+        mo = self._mo('LSX-GP-FLOW', qty=20, so=so)
         SxProductionOrderLine.objects.create(
             production_order=mo, size_label='M', color_code='NVY', qty=Decimal('20'),
         )
-        self._stat(mo, 'Áo TT + TS + Tay', 12)
+        SxMoProcessStep.objects.create(
+            production_order=mo, sequence=10, process_name='Áo TT + TS + Tay',
+        )
+        SxSalesOrderPlanStep.objects.create(
+            sales_order=so, sequence=10, process_name='Áo TT + TS + Tay', group_code='CAT',
+        )
+        SxSalesOrderPlanStep.objects.create(
+            sales_order=so, sequence=20, process_name='Lá cổ', group_code='IN_EP',
+        )
+        for name in ('Áo TT + TS + Tay', 'Quần', 'Phối quần'):
+            self._stat(mo, name, 12)
 
         board = build_goods_progress_board()
         row = next(r for r in board.rows if r.mo.code == 'LSX-GP-FLOW')
-        labels = [c.label for c in row.cells]
-        self.assertGreaterEqual(len(labels), 6)
+        self.assertEqual([c.slug for c in row.cells], ['cat', 'inep'])
         by_slug = {c.slug: c for c in row.cells}
         self.assertEqual(by_slug['cat'].done, Decimal('12'))
-        self.assertEqual(by_slug['inep'].waiting, Decimal('12'))
         self.assertEqual(row.current_slug, 'cat')
 
-        self._stat(mo, 'Áo TT + TS + Tay', 8)
+        for name in ('Áo TT + TS + Tay', 'Quần', 'Phối quần'):
+            self._stat(mo, name, 8)
         board2 = build_goods_progress_board()
         row2 = next(r for r in board2.rows if r.mo.code == 'LSX-GP-FLOW')
         self.assertEqual(row2.current_slug, 'inep')

@@ -73,6 +73,8 @@ class TeamWorkJob:
     khsx_end: object | None = None
     khsx_team_label: str = ''
     khsx_is_late: bool = False
+    product_image_url: str = ''
+    product_image_urls_json: str = '[]'
 
     @property
     def unassigned_count(self) -> int:
@@ -681,6 +683,19 @@ def reopen_team_job(*, mo_id: int, team_slug: str) -> int:
     if not deleted:
         raise PlanningError('Lệnh này tổ chưa hoàn thành.')
     return int(deleted)
+
+
+def attach_job_product_images(jobs: list[TeamWorkJob]) -> None:
+    """Gắn ảnh SP (kho / hồ sơ) lên phiếu công việc tổ — một lần query."""
+    import json
+
+    from san_xuat.services.products import product_gallery_map
+
+    gallery = product_gallery_map(job.mo.product_code for job in jobs)
+    for job in jobs:
+        urls = gallery.get((job.mo.product_code or '').casefold(), [])
+        job.product_image_url = urls[0] if urls else ''
+        job.product_image_urls_json = json.dumps(urls, ensure_ascii=False)
 
 
 def assignee_candidate_options(*, slug: str = '', assigner=None, limit: int = 300) -> list[dict]:

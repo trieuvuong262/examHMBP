@@ -13,6 +13,10 @@
     --tw-soft: #f4f7fb;
     --tw-accent: #dc2626;
     --tw-accent-soft: #fff1f2;
+    --tw-done: #0f766e;
+    --tw-done-soft: #ccfbf1;
+    --tw-run: #e11d48;
+    --tw-idle: #cbd5e1;
   }
 
   .jp-tw-goods-filter-form .jp-team-filter-body {
@@ -36,54 +40,157 @@
     }
   }
 
-  .jp-tw-goods-table-wrap {
+  .jp-tw-goods-pulse {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .45rem;
+    margin: 0 0 .85rem;
+  }
+  .jp-tw-goods-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .28rem .7rem;
+    border-radius: 999px;
+    border: 1px solid var(--tw-line);
+    background: #fff;
+    color: var(--tw-ink);
+    font-size: .78rem;
+    font-weight: 700;
+    text-decoration: none;
+    line-height: 1.3;
+  }
+  .jp-tw-goods-chip strong { font-weight: 800; font-variant-numeric: tabular-nums; }
+  .jp-tw-goods-chip:hover { border-color: #fecaca; color: var(--tw-accent); }
+  .jp-tw-goods-chip.is-late { border-color: #fecaca; color: #b91c1c; background: #fff1f2; }
+  .jp-tw-goods-chip.is-hot { border-color: #fed7aa; color: #c2410c; background: #fff7ed; }
+  .jp-tw-goods-chip.is-on { border-color: #fecaca; background: var(--tw-accent-soft); color: var(--tw-accent); }
+
+  .jp-tw-pipe {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
     border: 1px solid var(--tw-line);
     border-radius: 1rem;
     background: #fff;
-    overflow: auto;
-    -webkit-overflow-scrolling: touch;
+    margin: 0 0 1rem;
+    padding: .35rem;
   }
-  .jp-tw-goods-table {
-    width: 100%;
-    margin: 0;
-    border-collapse: collapse;
-    min-width: 68rem;
-    font-size: .84rem;
+  .jp-tw-pipe-item {
+    flex: 1 1 0;
+    min-width: 7.2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: .12rem;
+    padding: .65rem .8rem;
+    border-radius: .75rem;
+    text-decoration: none;
+    color: inherit;
+    position: relative;
   }
-  .jp-tw-goods-table thead th {
-    text-align: left;
-    font-size: .7rem;
+  .jp-tw-pipe-item:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    top: 1.05rem;
+    right: -.12rem;
+    width: .24rem;
+    height: .24rem;
+    border-top: 2px solid #cbd5e1;
+    border-right: 2px solid #cbd5e1;
+    transform: rotate(45deg);
+    z-index: 1;
+  }
+  .jp-tw-pipe-item:hover { background: var(--tw-soft); }
+  .jp-tw-pipe-item.is-on { background: var(--tw-accent-soft); }
+  .jp-tw-pipe-name {
+    font-size: .72rem;
     font-weight: 800;
-    color: var(--tw-muted);
-    letter-spacing: .02em;
-    text-transform: uppercase;
-    padding: .7rem .75rem;
-    background: var(--tw-soft);
-    border-bottom: 1px solid var(--tw-line);
-    white-space: nowrap;
-    vertical-align: middle;
+    color: var(--tw-ink);
+    letter-spacing: -.01em;
   }
-  .jp-tw-goods-table thead th.is-team {
-    text-align: center;
-    min-width: 5.5rem;
-    padding-left: .45rem;
-    padding-right: .45rem;
+  .jp-tw-pipe-stat {
+    font-size: .78rem;
+    font-weight: 800;
+    color: var(--tw-ink);
+    font-variant-numeric: tabular-nums;
   }
-  .jp-tw-goods-table tbody td {
-    padding: .65rem .75rem;
-    border-top: 1px solid #eef2f7;
-    vertical-align: middle;
+  .jp-tw-pipe-stat .dim { color: var(--tw-muted); font-weight: 600; }
+  .jp-tw-pipe-wait {
+    font-size: .7rem;
+    font-weight: 700;
+    color: #b91c1c;
+  }
+
+  .jp-tw-goods-list { display: flex; flex-direction: column; gap: .85rem; }
+
+  .jp-tw-goods-so {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: .35rem .65rem;
+    padding: .15rem .15rem 0;
+    font-size: .78rem;
+    font-weight: 800;
+  }
+  .jp-tw-goods-so-link {
+    text-decoration: none;
     color: var(--tw-ink);
   }
-  .jp-tw-goods-table tbody tr:hover { background: #fafbfc; }
-  .jp-tw-goods-table tbody tr.is-late { box-shadow: inset 3px 0 0 #dc2626; }
-  .jp-tw-goods-table tbody tr.is-hot { box-shadow: inset 3px 0 0 #ea580c; }
+  .jp-tw-goods-so-link:hover { color: var(--tw-accent); }
+  .jp-tw-goods-so .dim { color: var(--tw-muted); font-weight: 600; }
 
+  .jp-tw-goods-card {
+    border: 1px solid var(--tw-line);
+    border-radius: 1rem;
+    background: #fff;
+    overflow: hidden;
+  }
+  .jp-tw-goods-card.is-late { box-shadow: inset 3px 0 0 #dc2626; }
+  .jp-tw-goods-card.is-hot:not(.is-late) { box-shadow: inset 3px 0 0 #ea580c; }
+
+  .jp-tw-goods-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .65rem 1.1rem;
+    padding: .85rem 1.05rem .7rem;
+    background: var(--tw-soft);
+    border-bottom: 1px solid var(--tw-line);
+  }
+  .jp-tw-goods-product {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    min-width: 0;
+  }
+  .jp-tw-goods-head .sx-doc-thumb { flex: 0 0 auto; }
+  .jp-tw-goods-image,
+  .jp-tw-goods-image-placeholder {
+    width: 2.7rem;
+    height: 2.7rem;
+    flex: 0 0 2.7rem;
+    border: 1px solid var(--tw-line);
+    border-radius: .45rem;
+    background: #fff;
+  }
+  .jp-tw-goods-image { display: block; object-fit: cover; }
+  .jp-tw-goods-image-placeholder {
+    display: grid;
+    place-items: center;
+    color: #94a3b8;
+    font-size: .95rem;
+  }
   .jp-tw-goods-mo-link {
     font-weight: 800;
+    font-size: 1.02rem;
     color: var(--tw-ink);
     text-decoration: none;
     line-height: 1.35;
+    letter-spacing: -.01em;
   }
   .jp-tw-goods-mo-link:hover { color: var(--tw-accent); }
   .jp-tw-goods-mo-sub {
@@ -91,96 +198,147 @@
     font-size: .74rem;
     margin-top: .15rem;
   }
-  .jp-tw-goods-bar {
-    height: 5px;
-    border-radius: 999px;
-    background: #eef2f6;
-    overflow: hidden;
-    min-width: 4.5rem;
+  .jp-tw-goods-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: .4rem .55rem;
+    max-width: 36rem;
   }
-  .jp-tw-goods-bar > span {
-    display: block;
-    height: 100%;
+  .jp-tw-goods-here {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    padding: .18rem .55rem;
     border-radius: 999px;
-    background: linear-gradient(90deg, #fda4af, var(--tw-accent));
-  }
-  .jp-tw-goods-bar.is-late > span { background: linear-gradient(90deg, #fca5a5, #dc2626); }
-  .jp-tw-goods-bar.is-warn > span { background: linear-gradient(90deg, #fcd34d, #d97706); }
-  .jp-tw-goods-pct {
+    background: #fff;
+    border: 1px solid #fecaca;
+    color: #be123c;
     font-size: .72rem;
     font-weight: 800;
-    color: var(--tw-muted);
-    margin-bottom: .2rem;
   }
-
-  .jp-tw-goods-team-cell {
-    text-align: center;
-    padding: .5rem .45rem !important;
-    white-space: nowrap;
+  .jp-tw-goods-here.is-done {
+    border-color: #99f6e4;
+    background: var(--tw-done-soft);
+    color: #0f766e;
   }
-  .jp-tw-goods-team-link {
-    display: inline-block;
-    white-space: nowrap;
-    min-width: 4.75rem;
-    padding: .2rem 0;
-    border: 0;
-    background: transparent;
-    text-decoration: none;
-    color: var(--tw-ink);
+  .jp-tw-goods-qty {
     font-size: .78rem;
     font-weight: 800;
-    line-height: 1.25;
     font-variant-numeric: tabular-nums;
   }
-  .jp-tw-goods-team-link:hover { color: var(--tw-accent); }
-  .jp-tw-goods-team-link.is-done { color: #be123c; }
-  .jp-tw-goods-team-link.is-run { color: #e11d48; }
-  .jp-tw-goods-team-link.is-current { color: #be123c; }
-  .jp-tw-goods-team-link .dim {
-    color: var(--tw-muted);
-    font-weight: 600;
+
+  .jp-tw-tl-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: .95rem 1.05rem 1.05rem;
   }
-  .jp-tw-goods-team-link.is-skip,
-  .jp-tw-goods-skip {
-    color: var(--tw-muted);
-    font-weight: 600;
-    cursor: default;
+  .jp-tw-tl {
+    list-style: none;
+    display: flex;
+    align-items: flex-start;
+    margin: 0;
+    padding: 0;
+    min-width: max-content;
   }
-  .jp-tw-goods-so-row td {
-    background: var(--tw-soft);
-    padding: .45rem .75rem;
-    border-top: 1px solid var(--tw-line);
+  .jp-tw-tl-step {
+    flex: 1 1 0;
+    min-width: 5.6rem;
+    position: relative;
+    text-align: center;
+    padding: 0 .2rem;
   }
-  .jp-tw-goods-so-link {
-    font-size: .78rem;
-    font-weight: 800;
+  .jp-tw-tl-step:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    top: .72rem;
+    left: calc(50% + .85rem);
+    right: calc(-50% + .85rem);
+    height: 2px;
+    background: #e2e8f0;
+    z-index: 0;
+  }
+  .jp-tw-tl-link,
+  .jp-tw-tl-skip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .28rem;
     text-decoration: none;
-    color: var(--tw-ink);
-  }
-  .jp-tw-goods-so-link:hover { color: var(--tw-accent); }
-  .jp-tw-goods-khsx {
-    font-size: .74rem;
-    line-height: 1.35;
-    white-space: nowrap;
-  }
-  .jp-tw-goods-khsx.is-late { color: #dc2626; font-weight: 800; }
-  .jp-tw-goods-khsx .dim { color: var(--tw-muted); font-weight: 600; }
-  .jp-tw-goods-th-team {
     color: inherit;
-    text-decoration: none;
+    position: relative;
+    z-index: 1;
   }
-  .jp-tw-goods-th-team:hover { color: var(--tw-accent); }
-  .jp-tw-goods-table thead th.is-team.is-on { color: var(--tw-accent); }
-  .jp-tw-goods-gc {
-    display: inline-block;
-    margin-left: .35rem;
+  .jp-tw-tl-link:hover .jp-tw-tl-name { color: var(--tw-accent); }
+  .jp-tw-tl-dot {
+    width: 1.45rem;
+    height: 1.45rem;
+    border-radius: 999px;
+    border: 2px solid var(--tw-idle);
+    background: #fff;
+    display: grid;
+    place-items: center;
+    font-size: .72rem;
+    line-height: 1;
+    color: #fff;
+  }
+  .jp-tw-tl-step.is-done .jp-tw-tl-dot {
+    border-color: var(--tw-done);
+    background: var(--tw-done);
+  }
+  .jp-tw-tl-step.is-run .jp-tw-tl-dot,
+  .jp-tw-tl-step.is-here .jp-tw-tl-dot {
+    border-color: var(--tw-run);
+    background: var(--tw-run);
+    box-shadow: 0 0 0 4px #ffe4e6;
+  }
+  .jp-tw-tl-step.is-idle .jp-tw-tl-dot { border-color: #94a3b8; }
+  .jp-tw-tl-step.is-skip .jp-tw-tl-dot {
+    border-color: #e2e8f0;
+    background: #f8fafc;
+  }
+  .jp-tw-tl-step.is-focus .jp-tw-tl-name { color: var(--tw-accent); }
+  .jp-tw-tl-name {
+    font-size: .68rem;
+    font-weight: 800;
+    color: var(--tw-ink);
+    line-height: 1.25;
+    max-width: 6.4rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .jp-tw-tl-step.is-skip .jp-tw-tl-name { color: #94a3b8; font-weight: 600; }
+  .jp-tw-tl-qty {
+    font-size: .72rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--tw-ink);
+    line-height: 1.2;
+  }
+  .jp-tw-tl-qty .dim { color: var(--tw-muted); font-weight: 600; }
+  .jp-tw-tl-step.is-skip .jp-tw-tl-qty { color: #94a3b8; font-weight: 600; }
+  .jp-tw-tl-wait {
     font-size: .65rem;
     font-weight: 800;
-    text-decoration: none;
-    color: var(--tw-muted);
-    vertical-align: middle;
+    color: #be123c;
   }
-  .jp-tw-goods-gc:hover { color: var(--tw-accent); }
+  .jp-tw-tl-when {
+    font-size: .62rem;
+    font-weight: 700;
+    color: var(--tw-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .jp-tw-tl-step.is-late .jp-tw-tl-when { color: #dc2626; font-weight: 800; }
+  .jp-tw-tl-gc {
+    font-size: .62rem;
+    font-weight: 800;
+    color: var(--tw-muted);
+    text-decoration: none;
+  }
+  .jp-tw-tl-gc:hover { color: var(--tw-accent); }
 
   .jp-tw-empty-board {
     border: 1px dashed var(--tw-line);
@@ -205,8 +363,8 @@
     .jp-tw-goods-filter-form .jp-team-filter-org-search {
       grid-template-columns: 1fr;
     }
-    .jp-tw-goods-table { font-size: .8rem; }
-    .jp-tw-goods-team-link { min-width: 4.25rem; padding: .35rem .45rem; }
+    .jp-tw-goods-meta { justify-content: flex-start; max-width: none; }
+    .jp-tw-pipe-item { min-width: 6.4rem; }
   }
 </style>
 {% endblock %}
@@ -297,95 +455,112 @@
     </div>
   </form>
 
+  <div class="jp-tw-goods-pulse" aria-label="Tóm tắt xưởng">
+    <a class="jp-tw-goods-chip is-late{% if board.filter_due == 'overdue' %} is-on{% endif %}"
+       href="?due=overdue{% if board.search %}&amp;q={{ board.search|urlencode }}{% endif %}{% if board.filter_priority %}&amp;priority={{ board.filter_priority|urlencode }}{% endif %}{% if board.filter_status %}&amp;status={{ board.filter_status|urlencode }}{% endif %}{% if board.filter_team %}&amp;team={{ board.filter_team|urlencode }}{% endif %}{% if board.sort %}&amp;sort={{ board.sort|urlencode }}{% endif %}"
+       title="Lọc lệnh đã trễ hạn">Trễ hạn <strong>{{ board.overdue_count }}</strong></a>
+    <span class="jp-tw-goods-chip is-hot">Gấp <strong>{{ board.hot_count }}</strong></span>
+    <span class="jp-tw-goods-chip">Đang chạy <strong>{{ board.running_count }}</strong></span>
+  </div>
+
+  {% if board.queues %}
+  <nav class="jp-tw-pipe" aria-label="Lệnh còn việc tại từng tổ — làm độc lập, không chờ tổ trước">
+    {% for q in board.queues %}
+    <a class="jp-tw-pipe-item{% if board.filter_team == q.slug %} is-on{% endif %}"
+       href="{% if board.filter_team == q.slug %}?{% if board.search %}q={{ board.search|urlencode }}&amp;{% endif %}{% if board.filter_priority %}priority={{ board.filter_priority|urlencode }}&amp;{% endif %}{% if board.filter_status %}status={{ board.filter_status|urlencode }}&amp;{% endif %}{% if board.filter_due %}due={{ board.filter_due|urlencode }}&amp;{% endif %}{% if board.sort %}sort={{ board.sort|urlencode }}{% endif %}{% else %}?team={{ q.slug|urlencode }}{% if board.search %}&amp;q={{ board.search|urlencode }}{% endif %}{% if board.filter_priority %}&amp;priority={{ board.filter_priority|urlencode }}{% endif %}{% if board.filter_status %}&amp;status={{ board.filter_status|urlencode }}{% endif %}{% if board.filter_due %}&amp;due={{ board.filter_due|urlencode }}{% endif %}{% if board.sort %}&amp;sort={{ board.sort|urlencode }}{% endif %}{% endif %}"
+       title="{% if board.filter_team == q.slug %}Bỏ lọc {{ q.label }}{% else %}Lọc lệnh còn việc tại {{ q.label }}{% endif %}">
+      <span class="jp-tw-pipe-name">{{ q.label }}</span>
+      <span class="jp-tw-pipe-stat">{{ q.mo_count }} <span class="dim">lệnh</span></span>
+      {% if q.waiting %}<span class="jp-tw-pipe-wait">chờ {{ q.waiting|sx_num }}</span>{% endif %}
+    </a>
+    {% endfor %}
+  </nav>
+  {% endif %}
+
   {% if page_obj.paginator.count %}
-  <div class="jp-tw-goods-table-wrap">
-    <table class="jp-tw-goods-table">
-      <thead>
-        <tr>
-          <th style="min-width:11rem">Sản phẩm / lệnh</th>
-          <th class="text-end">SL</th>
-          <th title="Mức ưu tiên trên KHSX">Ưu tiên KHSX</th>
-          <th title="Hạn giao trên KHSX">Hạn giao</th>
-          <th style="min-width:5.5rem" title="SL đạt lệnh / SL kế hoạch — cùng công thức KHSX">Tiến độ</th>
-          <th title="Ngày và tổ năng lực trên lộ trình KHSX">KHSX tổ</th>
-          {% if board.queues %}
-          {% for q in board.queues %}
-          <th class="is-team{% if board.filter_team == q.slug %} is-on{% endif %}">
-            <a class="jp-tw-goods-th-team" href="?team={{ q.slug|urlencode }}{% if board.search %}&amp;q={{ board.search|urlencode }}{% endif %}{% if board.filter_priority %}&amp;priority={{ board.filter_priority|urlencode }}{% endif %}{% if board.filter_status %}&amp;status={{ board.filter_status|urlencode }}{% endif %}{% if board.filter_due %}&amp;due={{ board.filter_due|urlencode }}{% endif %}{% if board.sort %}&amp;sort={{ board.sort|urlencode }}{% endif %}"
-               title="Lọc đơn đi qua {{ q.label }}">{{ q.label }}</a>
-          </th>
-          {% endfor %}
+  <div class="jp-tw-goods-list">
+    {% for row in page_obj %}
+    {% if row.so_code and row.is_so_start or forloop.first and row.so_code %}
+    <div class="jp-tw-goods-so">
+      {% if can_view_plan_board %}
+      <a class="jp-tw-goods-so-link" href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=route&amp;q={{ row.so_code|urlencode }}" title="Mở lộ trình KHSX của đơn">Đơn {{ row.so_code }}</a>
+      {% else %}
+      <span class="jp-tw-goods-so-link">Đơn {{ row.so_code }}</span>
+      {% endif %}
+      {% if row.plan_status_label %}<span class="dim">· {{ row.plan_status_label }}</span>{% endif %}
+    </div>
+    {% endif %}
+    <article class="jp-tw-goods-card{% if row.is_overdue %} is-late{% elif row.is_hot %} is-hot{% endif %}">
+      <header class="jp-tw-goods-head">
+        <div class="jp-tw-goods-product">
+          {% with pname=row.mo.product_name|default:row.mo.product_code|default:row.mo.code %}
+          {% if row.product_image_url %}
+          <button type="button" class="sx-doc-thumb" data-sx-gallery
+                  data-sx-gallery-title="{{ pname }}"
+                  data-sx-gallery-images="{{ row.product_image_urls_json }}"
+                  aria-label="Phóng to ảnh {{ pname }}">
+            <img src="{{ row.product_image_url }}" alt="" class="jp-tw-goods-image" loading="lazy">
+          </button>
+          {% else %}
+          <span class="jp-tw-goods-image-placeholder" title="Sản phẩm chưa có ảnh" aria-hidden="true">
+            <i class="bi bi-image"></i>
+          </span>
           {% endif %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in page_obj %}
-        {% if row.so_code and row.is_so_start or forloop.first and row.so_code %}
-        <tr class="jp-tw-goods-so-row">
-          <td colspan="{{ board.queues|length|add:6 }}">
-            {% if can_view_plan_board %}
-            <a class="jp-tw-goods-so-link" href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=route&amp;q={{ row.so_code|urlencode }}" title="Mở lộ trình KHSX của đơn">Đơn {{ row.so_code }}</a>
-            {% else %}
-            <span class="jp-tw-goods-so-link">Đơn {{ row.so_code }}</span>
-            {% endif %}
-            {% if row.plan_status_label %}<span class="text-muted"> · {{ row.plan_status_label }}</span>{% endif %}
-          </td>
-        </tr>
-        {% endif %}
-        <tr{% if row.is_overdue %} class="is-late"{% elif row.is_hot %} class="is-hot"{% endif %}>
-          <td>
+          <div>
             <a class="jp-tw-goods-mo-link" href="{% url 'san_xuat:dispatch_mo_detail' row.mo.pk %}" title="{{ row.mo.code }}">
-              {{ row.mo.product_name|default:row.mo.product_code|default:row.mo.code }}
+              {{ pname }}
             </a>
-            <div class="jp-tw-goods-mo-sub">
-              {{ row.mo.code }} · {{ row.status_label }}
-            </div>
-          </td>
-          <td class="text-end fw-bold">{{ row.plan|sx_num }}</td>
-          <td><span class="jp-pb-urgency is-{{ row.priority }}">{{ row.priority_label }}</span></td>
-          <td{% if row.is_overdue %} class="text-danger fw-bold"{% endif %}>
-            {% if row.due %}
-            {{ row.due_label }}<span class="text-muted"> · {{ row.due|date:"d/m" }}</span>
-            {% else %}—{% endif %}
-          </td>
-          <td>
-            <div class="jp-tw-goods-pct">{{ row.progress_pct }}%</div>
-            <div class="jp-tw-goods-bar{% if row.is_overdue %} is-late{% elif row.is_hot %} is-warn{% endif %}">
-              <span style="width: {{ row.progress_pct }}%;"></span>
-            </div>
-          </td>
-          <td>
-            {% if row.khsx_start or row.khsx_team_label %}
-            <div class="jp-tw-goods-khsx{% if row.khsx_is_late %} is-late{% endif %}">
-              {% if row.khsx_start %}
-              {{ row.khsx_start|date:"d/m" }}{% if row.khsx_end and row.khsx_end != row.khsx_start %}–{{ row.khsx_end|date:"d/m" }}{% endif %}
-              {% endif %}
-              {% if row.khsx_team_label %}<div class="dim">{{ row.khsx_team_label }}</div>{% endif %}
-              {% if row.khsx_is_late %}<div>Trễ KHSX</div>{% endif %}
-            </div>
-            {% else %}—{% endif %}
-          </td>
-          {% for c in row.cells %}
-          <td class="jp-tw-goods-team-cell">
-            {% if c.status == 'skip' or not c.plan and not c.done %}
-            <span class="jp-tw-goods-skip">—</span>
-            {% else %}
-            <a class="jp-tw-goods-team-link is-{{ c.status }}{% if c.slug == row.current_slug %} is-current{% endif %}"
-               href="{% url 'san_xuat:team_work_progress' c.slug row.mo.pk %}"
-               title="{{ c.label }}: {{ c.done|sx_num }}/{{ c.plan|sx_num }}{% if c.waiting %} · còn {{ c.waiting|sx_num }}{% endif %}">
-              {{ c.done|sx_num }}<span class="dim">/{{ c.plan|sx_num }}</span>
-            </a>
-            {% if c.subcontract and can_view_subcontract %}
-              <a class="jp-tw-goods-gc" href="{% url 'san_xuat:subcontract_detail' c.subcontract.pk %}"
-                 title="Phiếu thuê GC {{ c.subcontract.code }}">GC {{ c.subcontract.code }}</a>
+            <div class="jp-tw-goods-mo-sub">{{ row.mo.code }} · {{ row.status_label }}</div>
+          </div>
+          {% endwith %}
+        </div>
+        <div class="jp-tw-goods-meta">
+          {% if row.status == 'done' %}
+          <span class="jp-tw-goods-here is-done"><i class="bi bi-check-circle"></i>Đã xong</span>
+          {% elif row.active_labels %}
+          <span class="jp-tw-goods-here"><i class="bi bi-play-fill"></i>Đang làm {{ row.active_labels|join:", " }}</span>
+          {% elif row.open_labels %}
+          <span class="jp-tw-goods-here"><i class="bi bi-circle"></i>Còn việc {{ row.open_labels|join:", " }}</span>
+          {% endif %}
+          <span class="jp-pb-urgency is-{{ row.priority }}">{{ row.priority_label }}</span>
+          <span class="jp-tw-goods-qty">SL {{ row.plan|sx_num }}</span>
+        </div>
+      </header>
+      <ol class="jp-tw-tl-scroll jp-tw-tl" aria-label="Công đoạn KHSX — làm độc lập">
+        {% for c in row.cells %}
+        <li class="jp-tw-tl-step is-{{ c.status }}{% if c.status == 'run' and row.status != 'done' %} is-here{% endif %}{% if board.filter_team == c.slug %} is-focus{% endif %}{% if c.khsx_end and c.plan > 0 and c.done < c.plan and row.khsx_is_late %} is-late{% endif %}">
+          {% if c.status == 'skip' or not c.plan and not c.done %}
+          <span class="jp-tw-tl-skip">
+            <span class="jp-tw-tl-dot" aria-hidden="true"></span>
+            <span class="jp-tw-tl-name">{{ c.label }}</span>
+            <span class="jp-tw-tl-qty">—</span>
+            {% if c.khsx_start %}
+            <span class="jp-tw-tl-when">{{ c.khsx_start|date:"d/m" }}{% if c.khsx_end and c.khsx_end != c.khsx_start %}–{{ c.khsx_end|date:"d/m" }}{% endif %}</span>
             {% endif %}
+          </span>
+          {% else %}
+          <a class="jp-tw-tl-link" href="{% url 'san_xuat:team_work_progress' c.slug row.mo.pk %}"
+             title="{{ c.label }}: {{ c.done|sx_num }}/{{ c.plan|sx_num }}{% if c.waiting %} · còn {{ c.waiting|sx_num }} — làm khi có hàng, không chờ tổ khác{% endif %}">
+            <span class="jp-tw-tl-dot" aria-hidden="true">{% if c.status == 'done' %}<i class="bi bi-check"></i>{% elif c.status == 'run' %}<i class="bi bi-play-fill"></i>{% endif %}</span>
+            <span class="jp-tw-tl-name">{{ c.label }}</span>
+            <span class="jp-tw-tl-qty">{{ c.done|sx_num }}<span class="dim">/{{ c.plan|sx_num }}</span></span>
+            {% if c.khsx_start %}
+            <span class="jp-tw-tl-when">{{ c.khsx_start|date:"d/m" }}{% if c.khsx_end and c.khsx_end != c.khsx_start %}–{{ c.khsx_end|date:"d/m" }}{% endif %}</span>
             {% endif %}
-          </td>
-          {% endfor %}
-        </tr>
+            {% if c.waiting and c.status != 'done' and row.status != 'done' %}
+            <span class="jp-tw-tl-wait">còn {{ c.waiting|sx_num }}</span>
+            {% endif %}
+          </a>
+          {% if c.subcontract and can_view_subcontract %}
+          <a class="jp-tw-tl-gc" href="{% url 'san_xuat:subcontract_detail' c.subcontract.pk %}"
+             title="Phiếu thuê GC {{ c.subcontract.code }}">GC {{ c.subcontract.code }}</a>
+          {% endif %}
+          {% endif %}
+        </li>
         {% endfor %}
-      </tbody>
-    </table>
+      </ol>
+    </article>
+    {% endfor %}
   </div>
   {% include 'san_xuat/includes/ie_pagination.html' %}
   {% else %}
@@ -399,4 +574,5 @@
   {% endif %}
 </div>
 {% include 'san_xuat/includes/ie_list_filter_scripts.html' with form_id='jpTwGoodsFilter' %}
+{% include 'san_xuat/includes/product_image_gallery_modal.html' %}
 {% endblock %}

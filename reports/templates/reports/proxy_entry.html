@@ -103,20 +103,12 @@
                 </div>
                 {% endif %}
 
-                {% if tab.anomaly_fix_mode %}
-                <div class="jp-proxy-info-note">
-                    <i class="bi bi-info-circle me-1"></i>
-                    Chỉ được sửa các <strong>công đoạn sai</strong> (hiệu suất hoặc thời gian không hợp lệ). Công đoạn đúng đã khóa.
-                </div>
-                {% endif %}
-
                 <form method="post" class="jp-proxy-form" data-shift="{{ tab.shift }}"
                       data-report-date="{{ report_date|date:'Y-m-d' }}"
                       data-slot-windows="{{ tab.data.slot_windows_json|escape }}"
                       data-shift-start="{{ tab.data.shift_window_start }}"
                       data-shift-end="{{ tab.data.shift_window_end }}"
-                      data-lock-session-times="{% if tab.lock_session_times %}1{% else %}0{% endif %}"
-                      data-anomaly-fix-mode="{% if tab.anomaly_fix_mode %}1{% else %}0{% endif %}">
+                      data-lock-session-times="{% if tab.lock_session_times %}1{% else %}0{% endif %}">
                     {% csrf_token %}
                     <input type="hidden" name="shift" value="{{ tab.shift }}">
                     <input type="hidden" name="for_user" value="{{ subject.pk }}">
@@ -159,17 +151,13 @@
                     </fieldset>
 
                     {% if not tab.is_locked and tab.can_manager_edit %}
-                    {% if not tab.anomaly_fix_mode %}
                     <template class="jp-proxy-session-tpl">
                         {% include 'reports/includes/proxy_session_row.html' with sess=empty_session content_edit_only=False allow_delete=True %}
                     </template>
-                    {% endif %}
                     <div class="jp-proxy-form-actions">
-                        {% if not tab.anomaly_fix_mode %}
                         <button type="button" class="btn btn-outline-hm btn-sm add-session">
                             <i class="bi bi-plus-lg me-1"></i>Thêm công đoạn
                         </button>
-                        {% endif %}
                         <button type="submit" class="btn btn-hm fw-bold">
                             <i class="bi bi-save me-1"></i>{% if tab.lock_session_times or tab.anomaly_fix_mode %}Lưu chỉnh sửa{% else %}Lưu {{ tab.label }}{% endif %}
                         </button>
@@ -343,17 +331,16 @@
     function initForm(form) {
         var container = form.querySelector('.jp-proxy-sessions');
         var tpl = form.querySelector('.jp-proxy-session-tpl');
-        var anomalyFix = form.getAttribute('data-anomaly-fix-mode') === '1';
         if (!container) return;
 
         container.querySelectorAll('.jp-proxy-session').forEach(bindSession);
 
-        if (tpl && !container.querySelector('.jp-proxy-session') && !anomalyFix) {
+        if (tpl && !container.querySelector('.jp-proxy-session')) {
             addRow(container, tpl);
         }
 
         var addBtn = form.querySelector('.add-session');
-        if (addBtn && tpl && !anomalyFix) {
+        if (addBtn && tpl) {
             addBtn.addEventListener('click', function () { addRow(container, tpl); });
         }
 
