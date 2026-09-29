@@ -6411,11 +6411,19 @@ def team_work_board(request, slug: str):
     closed_count = sum(1 for j in jobs if j.closed)
     open_count = len(jobs) - closed_count
     visible = [j for j in jobs if j.closed] if show_closed else [j for j in jobs if not j.closed]
+    if show_closed:
+        jobs_assigned = visible
+        jobs_pending = []
+    else:
+        jobs_pending = [j for j in visible if j.needs_assign]
+        jobs_assigned = [j for j in visible if not j.needs_assign]
 
     return render(request, 'san_xuat/team_work_board.html', {
         **_perm_ctx(request),
         'team': team,
         'jobs': visible,
+        'jobs_assigned': jobs_assigned,
+        'jobs_pending': jobs_pending,
         'search_query': q,
         'show_closed': show_closed,
         'open_count': open_count,

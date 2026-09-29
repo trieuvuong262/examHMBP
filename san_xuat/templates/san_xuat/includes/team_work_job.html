@@ -1,0 +1,158 @@
+{% load sx_format %}
+<article class="jp-tw-job{% if job.closed %} is-closed{% endif %}{% if job.is_overdue %} is-late{% elif job.priority == 'critical' or job.priority == 'urgent' %} is-hot{% endif %}">
+  <header class="jp-tw-job-head">
+    <div>
+      <div class="jp-tw-job-title">
+        {% with pname=job.mo.product_name|default:job.mo.product_code ocode=job.mo.sales_order.code|default:job.mo.code %}
+        <a class="jp-tw-mo-code" href="{% url 'san_xuat:dispatch_mo_detail' job.mo.pk %}" title="{{ ocode }}{% if job.mo.sales_order_id %} · {{ job.mo.code }}{% endif %}">
+          {% if pname %}{{ pname }} - {{ ocode }}{% else %}{{ ocode }}{% endif %}
+        </a>
+        {% endwith %}
+        {% if can_view_plan_board and job.mo.sales_order_id %}
+        <a class="jp-tw-stat-pill" href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=route&amp;q={{ job.mo.sales_order.code|urlencode }}" title="Lộ trình KHSX">Lộ trình</a>
+        {% endif %}
+        {% if not job.subcontract %}
+        <span class="jp-tw-stat-pill"><strong>{{ job.step_count }}</strong> công đoạn</span>
+        {% endif %}
+        {% if job.closed %}<span class="jp-tw-status is-done"><i class="bi bi-check-circle"></i>Hoàn thành</span>{% endif %}
+      </div>
+      <div class="jp-tw-job-khsx" title="Ưu tiên và hạn giao trên KHSX">
+        <span class="jp-pb-urgency is-{{ job.priority }}">{{ job.priority_label }}</span>
+        {% if job.due %}
+        <span class="jp-tw-due{% if job.is_overdue %} is-late{% endif %}">
+          Hạn <strong>{{ job.due|date:"d/m/Y" }}</strong>
+          {% if job.days_to_due is not None %}
+            {% if job.is_overdue %}· trễ {{ job.days_to_due|stringformat:"d"|cut:"-" }} ngày
+            {% elif job.days_to_due == 0 %}· hôm nay
+            {% else %}· còn {{ job.days_to_due }} ngày{% endif %}
+          {% endif %}
+        </span>
+        {% else %}
+        <span class="jp-tw-due">Hạn —</span>
+        {% endif %}
+        {% if job.khsx_start or job.khsx_team_label %}
+        <span class="jp-tw-due{% if job.khsx_is_late %} is-late{% endif %}" title="Lịch tổ trên lộ trình KHSX">
+          KHSX
+          {% if job.khsx_start %}
+          <strong>{{ job.khsx_start|date:"d/m" }}{% if job.khsx_end and job.khsx_end != job.khsx_start %}–{{ job.khsx_end|date:"d/m" }}{% endif %}</strong>
+          {% endif %}
+          {% if job.khsx_team_label %} · {{ job.khsx_team_label }}{% endif %}
+          {% if job.khsx_is_late %} · trễ kế hoạch{% endif %}
+        </span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="jp-tw-job-actions">
+      {% if job.closed %}
+        {% if can_assign %}
+        <form method="post" class="d-inline">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="reopen">
+          <input type="hidden" name="mo_id" value="{{ job.mo.pk }}">
+          <input type="hidden" name="q" value="{{ search_query }}">
+          <input type="hidden" name="show" value="closed">
+          <button type="submit" class="btn btn-outline-secondary btn-sm"
+                  title="{% if job.subcontract %}Huỷ nhận hàng GC và mở lại tổ{% else %}Mở lại công việc tổ{% endif %}">Mở lại</button>
+        </form>
+        {% endif %}
+      {% elif job.subcontract %}
+        {% if can_receive_gc and job.subcontract.status != 'done' and job.subcontract.status != 'received' and job.subcontract.status != 'cancelled' %}
+        <form method="post" class="d-inline"
+              onsubmit="return confirm('Nhận hàng gia công {{ job.subcontract.code }} — tổ {{ team.label }}?');">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="receive_gc">
+          <input type="hidden" name="mo_id" value="{{ job.mo.pk }}">
+          <input type="hidden" name="q" value="{{ search_query }}">
+          <button type="submit" class="btn btn-hm btn-sm fw-bold">Nhận hàng GC</button>
+        </form>
+        {% endif %}
+        {% if can_view_subcontract %}
+        <a href="{% url 'san_xuat:subcontract_detail' job.subcontract.pk %}"
+           class="btn btn-outline-secondary btn-sm fw-bold"
+           title="Phiếu thuê GC tổ {{ team.label }}">Phiếu GC</a>
+        {% else %}
+        <span class="jp-tw-status is-wait"><i class="bi bi-building"></i>Thuê gia công</span>
+        {% endif %}
+      {% elif not job.accepted %}
+        {% if can_assign %}
+        <form method="post" class="d-inline" onsubmit="return confirm('Nhận sản xuất {{ job.mo.sales_order.code|default:job.mo.code }}?\nTrạng thái KHSX sẽ chuyển sang Đang sản xuất.');">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="accept">
+          <input type="hidden" name="mo_id" value="{{ job.mo.pk }}">
+          <input type="hidden" name="q" value="{{ search_query }}">
+          <button type="submit" class="btn btn-hm btn-sm fw-bold" title="Nhận phiếu — KHSX sang Đang sản xuất">Nhận sản xuất</button>
+        </form>
+        {% else %}
+        <span class="jp-tw-status is-wait"><i class="bi bi-hourglass-split"></i>Chờ nhận SX</span>
+        {% endif %}
+      {% else %}
+      <a href="{% url 'san_xuat:team_work_progress' team.slug job.mo.pk %}"
+         class="btn btn-hm btn-sm fw-bold"
+         title="Ghi SL tổ — lên lộ trình KHSX theo ngày báo cáo">Tiến độ</a>
+      {% if can_assign %}
+        <form method="post" class="d-inline">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="complete">
+          <input type="hidden" name="mo_id" value="{{ job.mo.pk }}">
+          <input type="hidden" name="q" value="{{ search_query }}">
+          <button type="submit" class="btn btn-outline-hm btn-sm fw-bold">Hoàn thành</button>
+        </form>
+      {% endif %}
+      {% endif %}
+      {% if not job.subcontract and not job.closed %}
+      {% if job.run_count %}<span class="jp-tw-stat-pill">Đang làm <strong>{{ job.run_count }}</strong></span>{% endif %}
+      {% endif %}
+    </div>
+  </header>
+  {% if not job.subcontract %}
+  <ul class="jp-tw-steps" aria-label="Công đoạn {% with pname=job.mo.product_name|default:job.mo.product_code ocode=job.mo.sales_order.code|default:job.mo.code %}{% if pname %}{{ pname }} - {{ ocode }}{% else %}{{ ocode }}{% endif %}{% endwith %}">
+    {% for row in job.rows %}
+    {% with pname=row.mo.product_name|default:row.mo.product_code ocode=row.mo.sales_order.code|default:row.mo.code %}
+    <li class="jp-tw-step"
+        data-mo-id="{{ row.mo.pk }}"
+        data-mo-code="{{ ocode }}"
+        data-mo-title="{% if pname %}{{ pname }} - {{ ocode }}{% else %}{{ ocode }}{% endif %}"
+        data-process-key="{{ row.step_def.key }}"
+        data-process-label="{{ row.step_def.label }}"
+        data-plan-qty="{{ row.plan_qty|sx_num }}"
+        data-done-qty="{{ row.done_qty|sx_num }}"
+        data-remain-qty="{{ row.remain_qty|sx_num }}"
+        data-assignee-ids="{% for a in row.assignees %}{{ a.id }}{% if not forloop.last %},{% endif %}{% endfor %}">
+      <div class="jp-tw-step-name">{{ row.step_def.label }}</div>
+      <div class="jp-tw-step-qty" title="Đã {{ row.done_qty|sx_num }} / Kế hoạch {{ row.plan_qty|sx_num }}">
+        <span class="jp-tw-step-qty-need">Cần <strong>{{ row.remain_qty|sx_num }}</strong></span>
+        <span class="jp-tw-step-qty-track">{{ row.done_qty|sx_num }}<span class="dim">/{{ row.plan_qty|sx_num }}</span></span>
+      </div>
+      <div class="jp-tw-status-wrap">
+        {% if row.mo_step %}
+          {% if row.status == 'done' %}
+            <span class="jp-tw-status is-done"><i class="bi bi-check-circle"></i>Xong</span>
+          {% elif row.status == 'in_progress' %}
+            <span class="jp-tw-status is-run"><i class="bi bi-play-circle"></i>Đang làm</span>
+          {% else %}
+            <span class="jp-tw-status is-wait"><i class="bi bi-hourglass-split"></i>Chờ</span>
+          {% endif %}
+        {% else %}
+          <span class="jp-tw-status is-none"><i class="bi bi-plus-circle"></i>Chưa gắn</span>
+        {% endif %}
+      </div>
+      <div class="jp-tw-people">
+        {% for a in row.assignees %}
+          <span class="jp-tw-chip"><i class="bi bi-person"></i>{{ a.label }}</span>
+        {% empty %}
+          <span class="jp-tw-empty">Chưa phân công</span>
+        {% endfor %}
+      </div>
+      {% if can_assign and not job.closed %}
+      <button type="button"
+              class="btn btn-sm jp-tw-step-action {% if row.assignees %}btn-hm{% else %}btn-outline-hm{% endif %} fw-bold"
+              data-jp-tw-assign>
+        {% if row.assignees %}Đổi{% else %}Phân công{% endif %}
+      </button>
+      {% endif %}
+    </li>
+    {% endwith %}
+    {% endfor %}
+  </ul>
+  {% endif %}
+</article>
