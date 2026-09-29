@@ -36,41 +36,29 @@
   }
   .jp-tw-meta { color: var(--tw-muted); font-size: .82rem; margin: 0 0 1rem; }
   .jp-tw-jobs { display: flex; flex-direction: column; gap: .85rem; }
-  .jp-tw-fold {
-    border: 1px solid var(--tw-line);
-    border-radius: 1rem;
+  .jp-tw-steps-fold {
+    border-top: 1px solid #eef2f7;
     background: #fff;
-    margin: 0 0 1rem;
   }
-  .jp-tw-fold + .jp-tw-jobs,
-  .jp-tw-jobs + .jp-tw-fold { margin-top: .85rem; }
-  .jp-tw-fold > summary {
+  .jp-tw-steps-fold > summary {
     list-style: none;
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: .5rem;
-    padding: .75rem 1rem;
-    font-size: .86rem;
+    gap: .45rem;
+    padding: .65rem 1.1rem;
+    font-size: .8rem;
     font-weight: 800;
-    color: var(--tw-ink);
+    color: var(--tw-muted);
     user-select: none;
   }
-  .jp-tw-fold > summary::-webkit-details-marker { display: none; }
-  .jp-tw-fold > summary .bi-chevron-down {
-    font-size: .75rem;
-    color: var(--tw-muted);
+  .jp-tw-steps-fold > summary::-webkit-details-marker { display: none; }
+  .jp-tw-steps-fold > summary .bi-chevron-down {
+    font-size: .72rem;
     transition: transform .15s ease;
   }
-  .jp-tw-fold[open] > summary .bi-chevron-down { transform: rotate(180deg); }
-  .jp-tw-fold > summary .jp-tw-count {
-    margin-left: .15rem;
-    font-size: .72rem;
-    font-weight: 800;
-    color: var(--tw-muted);
-  }
-  .jp-tw-fold[open] > summary { border-bottom: 1px solid var(--tw-line); }
-  .jp-tw-fold .jp-tw-jobs { padding: .85rem; }
+  .jp-tw-steps-fold[open] > summary .bi-chevron-down { transform: rotate(180deg); }
+  .jp-tw-steps-fold > summary .jp-tw-count { font-weight: 800; color: var(--tw-ink); }
   .jp-tw-job {
     border: 1px solid var(--tw-line);
     border-radius: 1rem;
@@ -434,27 +422,11 @@
   </form>
 
   {% if jobs %}
-  {% if jobs_assigned %}
   <div class="jp-tw-jobs{% if can_assign and not show_closed %} is-assignable{% endif %}">
-    {% for job in jobs_assigned %}
+    {% for job in jobs %}
     {% include 'san_xuat/includes/team_work_job.html' %}
     {% endfor %}
   </div>
-  {% endif %}
-  {% if jobs_pending %}
-  <details class="jp-tw-fold">
-    <summary>
-      <i class="bi bi-chevron-down" aria-hidden="true"></i>
-      Chờ phân công
-      <span class="jp-tw-count">{{ jobs_pending|length }}</span>
-    </summary>
-    <div class="jp-tw-jobs{% if can_assign %} is-assignable{% endif %}">
-      {% for job in jobs_pending %}
-      {% include 'san_xuat/includes/team_work_job.html' %}
-      {% endfor %}
-    </div>
-  </details>
-  {% endif %}
   {% else %}
   <div class="jp-tw-empty-board">
     {% if show_closed %}Chưa có lệnh nào tổ này đã hoàn thành.{% else %}Chưa có lệnh sản xuất đang chạy cho tổ này.{% endif %}

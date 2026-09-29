@@ -75,9 +75,9 @@ class TeamWorkJob:
     khsx_is_late: bool = False
 
     @property
-    def needs_assign(self) -> bool:
-        """Chưa gán NV — nhóm Chờ phân công trên board tổ."""
-        return not self.closed and self.subcontract is None and self.assigned_count == 0
+    def unassigned_count(self) -> int:
+        n = self.step_count - self.assigned_count
+        return n if n > 0 else 0
 
 
 def group_team_work_jobs(rows: list[TeamWorkRow]) -> list[TeamWorkJob]:
