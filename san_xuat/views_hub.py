@@ -3858,12 +3858,11 @@ def dispatch_mo_detail(request, pk: int):
         .select_related('production_stat')
         .order_by('-request_date', '-pk')[:20]
     )
-    from san_xuat.services.cancel_request import pending_for_mo, warnings_for_mo
+    from san_xuat.services.cancel_request import pending_for_mo
     from san_xuat.services.handover_status import build_mo_route_stat_days
 
     route_stat_days = build_mo_route_stat_days(mo)
     cancel_request = pending_for_mo(mo.pk)
-    can_approve_cancel = user_can_update_menu(request.user, MODULE_SAN_XUAT, 'sx_cancel_approve')
 
     so_line = None
     if mo.sales_order_id:
@@ -4019,8 +4018,6 @@ def dispatch_mo_detail(request, pk: int):
         'fg_receipt_list': fg_receipt_list,
         'route_stat_days': route_stat_days,
         'cancel_request': cancel_request,
-        'cancel_warnings': warnings_for_mo(mo) if mo.status != SxProductionOrder.STATUS_CANCELLED else [],
-        'can_approve_cancel': can_approve_cancel,
         'bom_lines': bom_lines,
         'display_bom': display_bom,
         'ob_lines': ob_lines,

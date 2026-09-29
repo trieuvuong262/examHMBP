@@ -33,49 +33,17 @@
       <a href="{% url 'san_xuat:subcontract_detail' mo_subcontract.pk %}"><i class="bi bi-building" aria-hidden="true"></i>Phiếu GC</a>
       {% endif %}
       <a href="{% url 'san_xuat:traceability' %}?query={{ mo.code }}&gaps=1"><i class="bi bi-signpost-split" aria-hidden="true"></i>Truy vết</a>
-      {% if can_approve_cancel %}
-      <a href="{% url 'san_xuat:sx_cancel_approve' %}"><i class="bi bi-x-circle" aria-hidden="true"></i>Duyệt hủy</a>
+      {% if mo.status != 'cancelled' %}
+        {% if cancel_request %}
+        <span class="text-muted small px-2">Chờ duyệt hủy</span>
+        {% elif can_update %}
+        <a href="#jpCancelMoModal" class="is-accent" data-bs-toggle="modal" data-bs-target="#jpCancelMoModal"><i class="bi bi-x-circle" aria-hidden="true"></i>Huỷ lệnh SX</a>
+        {% endif %}
       {% endif %}
       <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:dispatch_mo' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
     </nav>
   </div>
-
-  {% if mo.status != 'cancelled' %}
-  <div class="card jp-mo-panel mb-3">
-    <div class="card-body">
-      <p class="title mb-2 fw-semibold">Hủy lệnh sản xuất</p>
-      {% if cancel_request %}
-      <div class="small mb-2">Đang chờ duyệt. Lý do: {{ cancel_request.reason }}</div>
-      {% if cancel_request.warning_text %}
-      <div class="alert alert-warning py-2 px-3 small mb-2">{{ cancel_request.warning_text|linebreaksbr }}</div>
-      {% endif %}
-      {% if can_approve_cancel %}
-      <form method="post" class="d-inline">
-        {% csrf_token %}
-        <input type="hidden" name="request_id" value="{{ cancel_request.pk }}">
-        <button type="submit" class="btn btn-sm btn-outline-danger fw-bold" formaction="{% url 'san_xuat:sx_cancel_approve' %}" name="action" value="approve">Duyệt hủy</button>
-      </form>
-      {% endif %}
-      {% elif can_update %}
-      {% if cancel_warnings %}
-      <div class="alert alert-warning py-2 px-3 small mb-2">
-        {% for note in cancel_warnings %}<div>{{ note }}</div>{% endfor %}
-      </div>
-      {% endif %}
-      <form method="post" class="d-flex flex-wrap gap-2 align-items-end">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="request_cancel">
-        <div class="flex-grow-1">
-          <label class="form-label small mb-1" for="jp-mo-cancel-reason">Lý do hủy</label>
-          <input id="jp-mo-cancel-reason" name="cancel_reason" class="form-control form-control-sm" required maxlength="2000">
-        </div>
-        <button type="submit" class="btn btn-sm btn-outline-danger fw-bold">Gửi yêu cầu hủy</button>
-      </form>
-      {% endif %}
-    </div>
-  </div>
-  {% endif %}
 
   {# —— Tóm tắt lệnh —— #}
   <div class="jp-mo-hero">
@@ -712,5 +680,62 @@
 {% include 'kho_npl/includes/material_image_modal.html' %}
 {% if mo.status == 'draft' and can_update %}
 {% include 'san_xuat/includes/sx_mo_matrix_script.html' %}
+{% endif %}
+{% if mo.status != 'cancelled' and can_update and not cancel_request %}
+<div class="modal fade" id="jpCancelMoModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" class="modal-content" id="jpCancelMoForm">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="request_cancel">
+      <div class="modal-header">
+        <h5 class="modal-title">Huỷ lệnh SX</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-muted mb-2">{{ mo.code }}</p>
+        <label class="form-label" for="jpCancelMoReason">Lý do hủy</label>
+        <textarea id="jpCancelMoReason" name="cancel_reason" class="form-control" maxlength="2000" rows="4" placeholder="Nhập lý do hủy lệnh sản xuất (tối thiểu 100 ký tự)"></textarea>
+        <p class="text-danger small mb-0 mt-2" id="jpCancelMoReasonError" hidden>Vui lòng nhập đầy đủ lý do (tối thiểu 100 ký tự).</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Đóng</button>
+        <button type="submit" class="btn btn-danger fw-bold">Gửi</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if mo.status != 'cancelled' and can_update and not cancel_request %}
+<script>
+(function () {
+  var modalEl = document.getElementById('jpCancelMoModal');
+  var form = document.getElementById('jpCancelMoForm');
+  var reasonInput = document.getElementById('jpCancelMoReason');
+  var reasonError = document.getElementById('jpCancelMoReasonError');
+  if (!modalEl || !form || !reasonInput) return;
+  function hideReasonError() {
+    if (reasonError) reasonError.hidden = true;
+  }
+  modalEl.addEventListener('show.bs.modal', function () {
+    reasonInput.value = '';
+    hideReasonError();
+  });
+  modalEl.addEventListener('shown.bs.modal', function () {
+    reasonInput.focus();
+  });
+  form.addEventListener('submit', function (event) {
+    var text = (reasonInput.value || '').trim();
+    reasonInput.value = text;
+    if (text.length < 100) {
+      event.preventDefault();
+      if (reasonError) reasonError.hidden = false;
+      reasonInput.focus();
+    }
+  });
+})();
+</script>
 {% endif %}
 {% endblock %}
