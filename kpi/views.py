@@ -1052,6 +1052,77 @@ def _resolve_edit_board(request, scope: str):
     return board
 
 
+def _save_manual_kpi_items(board: MonthlyKpi, data) -> int:
+    """Cập nhật tiêu chí từ form sửa — giữ điểm/đánh giá của tiêu chí còn giữ lại."""
+    ids = data.getlist('item_id')
+    groups = data.getlist('work_group')
+    weights = data.getlist('weightage')
+    indicators = data.getlist('indicator')
+    fails = data.getlist('level_fail')
+    passes = data.getlist('level_pass')
+    exceeds = data.getlist('level_exceed')
+    n = len(indicators)
+    if not all(len(lst) == n for lst in (ids, groups, weights, fails, passes, exceeds)):
+        raise KpiImportError('Dữ liệu tiêu chí không hợp lệ. Vui lòng tải lại trang.')
+
+    rows = []
+    for i in range(n):
+        indicator = indicators[i].strip()
+        group = groups[i].strip()
+        weight_raw = weights[i].strip().replace('%', '').replace(',', '.')
+        level_fail, level_pass, level_exceed = fails[i].strip(), passes[i].strip(), exceeds[i].strip()
+        if not any((indicator, group, weight_raw, level_fail, level_pass, level_exceed)):
+            continue
+        row_no = len(rows) + 1
+        if not indicator:
+            raise KpiImportError(f'Dòng {row_no}: Tiêu chí đo lường không được để trống.')
+        try:
+            weightage = float(weight_raw)
+        except ValueError as exc:
+            raise KpiImportError(f'Dòng {row_no}: Trọng số không hợp lệ ({weights[i]!r}).') from exc
+        if weightage < 0:
+            raise KpiImportError(f'Dòng {row_no}: Trọng số không được âm.')
+        try:
+            item_id = int(ids[i]) if ids[i].strip() else None
+        except ValueError:
+            item_id = None
+        rows.append({
+            'id': item_id,
+            'sort_order': row_no,
+            'work_group': group,
+            'weightage': weightage,
+            'indicator': indicator,
+            'level_fail': level_fail,
+            'level_pass': level_pass,
+            'level_exceed': level_exceed,
+        })
+    if not rows:
+        raise KpiImportError('Bảng KPI cần ít nhất một tiêu chí.')
+
+    existing = {item.pk: item for item in board.items.all()}
+    fields = ['sort_order', 'work_group', 'weightage', 'indicator', 'level_fail', 'level_pass', 'level_exceed']
+    keep_ids = set()
+    to_update, to_create = [], []
+    for row in rows:
+        item = existing.get(row['id'])
+        if item is not None and item.pk not in keep_ids:
+            keep_ids.add(item.pk)
+            for field in fields:
+                setattr(item, field, row[field])
+            to_update.append(item)
+        else:
+            to_create.append(MonthlyKpiItem(monthly_kpi=board, **{f: row[f] for f in fields}))
+
+    with transaction.atomic():
+        board.items.exclude(pk__in=keep_ids).delete()
+        if to_update:
+            MonthlyKpiItem.objects.bulk_update(to_update, fields)
+        if to_create:
+            MonthlyKpiItem.objects.bulk_create(to_create)
+        board.save(update_fields=['updated_at'])
+    return len(rows)
+
+
 @module_perm_required(MODULE_KPI, 'create')
 def kpi_import_excel(request):
     profile = get_profile(request.user)
@@ -1154,6 +1225,19 @@ def kpi_import_excel(request):
         if edit_board:
             redirect_qs += f"&edit={edit_board.pk}"
 
+        if edit_board and not excel_file:
+            try:
+                count = _save_manual_kpi_items(edit_board, request.POST)
+            except KpiImportError as exc:
+                messages.error(request, str(exc))
+                return redirect(f"{reverse('kpi_import_excel')}?{redirect_qs}")
+            messages.success(
+                request,
+                f'Đã cập nhật KPI tháng {month:02d}/{year} cho {employee.get_username()} '
+                f'({count} tiêu chí).',
+            )
+            return redirect('kpi_detail', kpi_id=edit_board.pk)
+
         if not excel_file or not excel_file.name.lower().endswith(('.xlsx', '.xlsm')):
             messages.error(request, 'Vui lòng chọn file Excel .xlsx.')
             return redirect(f"{reverse('kpi_import_excel')}?{redirect_qs}")
@@ -1203,6 +1287,7 @@ def kpi_import_excel(request):
     return render(request, 'kpi/kpi_import.html', {
         'scope': scope,
         'edit_board': edit_board,
+        'edit_items': list(edit_board.items.order_by('sort_order', 'id')) if edit_board else [],
         'target_employees': target_employees,
         'fixed_employee': (
             edit_board.employee if edit_board

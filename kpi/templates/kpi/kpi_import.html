@@ -6,7 +6,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-kpi-page py-3 py-md-4 px-3 mb-5" style="max-width: 720px;"
+<div class="container jp-page jp-kpi-page py-3 py-md-4 px-3 mb-5" style="max-width: {% if edit_board %}1280px{% else %}720px{% endif %};"
      data-loading-message="Đang mở trang giao KPI…">
     <div class="jp-page-header mb-3 mb-md-4">
         <div class="jp-page-header-main">
@@ -91,19 +91,149 @@
                     </select>
                     {% endif %}
                 </div>
+                {% if edit_board %}
+                <div class="col-12">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                        <label class="form-label small fw-bold text-muted mb-0">Tiêu chí KPI</label>
+                        <span class="small text-muted">
+                            Tổng trọng số: <strong id="kpiWeightTotal" class="text-dark">0</strong>
+                        </span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle mb-2" id="kpiEditTable">
+                            <thead class="table-light small">
+                                <tr>
+                                    <th class="text-center" style="width: 44px;">STT</th>
+                                    <th style="min-width: 140px;">Nhóm công việc</th>
+                                    <th style="width: 90px;">Trọng số</th>
+                                    <th style="min-width: 220px;">Tiêu chí đo lường</th>
+                                    <th style="min-width: 160px;">Mức chưa đạt</th>
+                                    <th style="min-width: 160px;">Mức đạt</th>
+                                    <th style="min-width: 160px;">Mức vượt</th>
+                                    <th style="width: 44px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in edit_items %}
+                                <tr class="kpi-edit-row">
+                                    <td class="text-center small fw-bold kpi-edit-stt">{{ forloop.counter }}</td>
+                                    <td>
+                                        <input type="hidden" name="item_id" value="{{ item.id }}">
+                                        <textarea name="work_group" class="form-control form-control-sm" rows="2">{{ item.work_group }}</textarea>
+                                    </td>
+                                    <td><input type="text" name="weightage" class="form-control form-control-sm kpi-edit-weight" value="{{ item.weightage|floatformat:'-2' }}" inputmode="decimal"></td>
+                                    <td><textarea name="indicator" class="form-control form-control-sm" rows="3">{{ item.indicator }}</textarea></td>
+                                    <td><textarea name="level_fail" class="form-control form-control-sm" rows="3">{{ item.level_fail }}</textarea></td>
+                                    <td><textarea name="level_pass" class="form-control form-control-sm" rows="3">{{ item.level_pass }}</textarea></td>
+                                    <td><textarea name="level_exceed" class="form-control form-control-sm" rows="3">{{ item.level_exceed }}</textarea></td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-outline-danger kpi-edit-remove" title="Xóa tiêu chí">
+                                            <i class="bi bi-trash3"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <template id="kpiEditRowTemplate">
+                        <tr class="kpi-edit-row">
+                            <td class="text-center small fw-bold kpi-edit-stt"></td>
+                            <td>
+                                <input type="hidden" name="item_id" value="">
+                                <textarea name="work_group" class="form-control form-control-sm" rows="2"></textarea>
+                            </td>
+                            <td><input type="text" name="weightage" class="form-control form-control-sm kpi-edit-weight" value="" inputmode="decimal"></td>
+                            <td><textarea name="indicator" class="form-control form-control-sm" rows="3"></textarea></td>
+                            <td><textarea name="level_fail" class="form-control form-control-sm" rows="3"></textarea></td>
+                            <td><textarea name="level_pass" class="form-control form-control-sm" rows="3"></textarea></td>
+                            <td><textarea name="level_exceed" class="form-control form-control-sm" rows="3"></textarea></td>
+                            <td class="text-center">
+                                <button type="button" class="btn btn-sm btn-outline-danger kpi-edit-remove" title="Xóa tiêu chí">
+                                    <i class="bi bi-trash3"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    </template>
+                    <button type="button" class="btn btn-outline-hm btn-sm fw-bold" id="kpiEditAddRow">
+                        <i class="bi bi-plus-lg me-1"></i>Thêm tiêu chí
+                    </button>
+                    <div class="small text-muted mt-2">
+                        Tiêu chí giữ lại vẫn giữ điểm và đánh giá đã chấm. Tiêu chí bị xóa sẽ mất điểm.
+                    </div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label small fw-bold text-muted mb-1">Hoặc thay toàn bộ bằng file Excel (.xlsx) — không bắt buộc</label>
+                    <input type="file" name="excel_file" class="form-control" accept=".xlsx,.xlsm">
+                    <div class="small text-muted mt-1">Nếu chọn file, bảng tiêu chí bên trên bị bỏ qua và toàn bộ điểm đã chấm sẽ mất.</div>
+                </div>
+                {% else %}
                 <div class="col-12">
                     <label class="form-label small fw-bold text-muted mb-1">File Excel (.xlsx)</label>
                     <input type="file" name="excel_file" class="form-control" accept=".xlsx,.xlsm" required>
                 </div>
+                {% endif %}
                 <div class="col-12 d-flex flex-wrap gap-2 justify-content-end pt-1">
                     <a href="{% url 'kpi_list' %}?month={{ default_month }}&year={{ default_year }}" class="btn btn-light fw-bold">Hủy</a>
                     <button type="submit" class="btn btn-hm text-white fw-bold">
-                        <i class="bi bi-upload me-1"></i>
-                        {% if edit_board %}Cập nhật KPI{% else %}Import &amp; giao KPI{% endif %}
+                        {% if edit_board %}
+                        <i class="bi bi-check-lg me-1"></i>Lưu KPI
+                        {% else %}
+                        <i class="bi bi-upload me-1"></i>Import &amp; giao KPI
+                        {% endif %}
                     </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{% if edit_board %}
+<script>
+(function () {
+    const table = document.getElementById('kpiEditTable');
+    if (!table) return;
+    const tbody = table.querySelector('tbody');
+    const totalEl = document.getElementById('kpiWeightTotal');
+    const tpl = document.getElementById('kpiEditRowTemplate');
+
+    function refresh() {
+        let total = 0;
+        tbody.querySelectorAll('.kpi-edit-row').forEach(function (row, idx) {
+            row.querySelector('.kpi-edit-stt').textContent = idx + 1;
+            const v = parseFloat((row.querySelector('.kpi-edit-weight').value || '').replace(',', '.').replace('%', ''));
+            if (!isNaN(v)) total += v;
+        });
+        totalEl.textContent = Math.round(total * 100) / 100;
+        totalEl.classList.toggle('text-danger', Math.abs(total - 100) > 0.001);
+        totalEl.classList.toggle('text-dark', Math.abs(total - 100) <= 0.001);
+    }
+
+    document.getElementById('kpiEditAddRow').addEventListener('click', function () {
+        tbody.appendChild(tpl.content.cloneNode(true));
+        refresh();
+        const rows = tbody.querySelectorAll('.kpi-edit-row');
+        rows[rows.length - 1].querySelector('textarea[name="work_group"]').focus();
+    });
+
+    tbody.addEventListener('click', function (e) {
+        const btn = e.target.closest('.kpi-edit-remove');
+        if (!btn) return;
+        const row = btn.closest('.kpi-edit-row');
+        const hasScore = row.querySelector('input[name="item_id"]').value;
+        if (hasScore && !confirm('Xóa tiêu chí này? Điểm đã chấm của tiêu chí sẽ mất khi lưu.')) return;
+        row.remove();
+        refresh();
+    });
+
+    tbody.addEventListener('input', function (e) {
+        if (e.target.classList.contains('kpi-edit-weight')) refresh();
+    });
+
+    refresh();
+})();
+</script>
+{% endif %}
 {% endblock %}
