@@ -551,6 +551,13 @@ else
   echo "    WARNING: scripts/setup-production-report-reminder-cron.sh not found"
 fi
 
+step "12d) Cron watchdog VPN site-to-site NAS (mỗi phút)"
+if [[ -f scripts/setup-nas-tunnel-watchdog-cron.sh ]]; then
+  bash scripts/setup-nas-tunnel-watchdog-cron.sh || echo "    WARNING: setup-nas-tunnel-watchdog-cron.sh failed"
+else
+  echo "    WARNING: scripts/setup-nas-tunnel-watchdog-cron.sh not found"
+fi
+
 # Đồng bộ container ClamAV với công tắc trong DB (Nhật ký → Bảo mật đăng nhập →
 # Quét virus file). Nhờ vậy IT bật/tắt trên portal, không cần SSH sửa .env.
 # Bật  → tạo/khởi động container (không chờ healthy: freshclam lần đầu tải ~250MB).
