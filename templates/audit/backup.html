@@ -58,39 +58,11 @@
 
     {% if can_run_backup %}
     <div class="card border-0 shadow-sm mb-4">
-        <div class="card-body py-3 small">
-            <div class="fw-bold text-dark mb-1">Khôi phục từ backup</div>
-            {% if active_job and active_job.kind == 'restore' %}
-            <span class="text-primary">
-                Đang khôi phục
-                {% if active_job.scope %}{{ active_job.get_scope_display|lower }}{% endif %}
-                — vui lòng tải lại trang sau vài phút.
-            </span>
-            {% elif restore_job %}
-            <span class="{% if restore_job.status == 'success' %}text-success{% elif restore_job.status == 'failed' %}text-danger{% else %}text-muted{% endif %}">
-                Lần cuối: {{ restore_job.get_status_display }}
-                {% if restore_job.scope %}· {{ restore_job.get_scope_display }}{% endif %}
-                {% if restore_job.started_at %}· {{ restore_job.started_at|date:"d/m/Y H:i" }}{% endif %}
-                {% if restore_job.duration_display != '—' %}· {{ restore_job.duration_display }}{% endif %}
-            </span>
-            {% if restore_job.remote_path %}
-            <div class="text-muted font-monospace mt-1">{{ restore_job.remote_path }}</div>
-            {% endif %}
-            {% if restore_job.message %}
-            <div class="mt-1">{{ restore_job.message }}</div>
-            {% endif %}
-            {% else %}
-            <span class="text-muted">Chưa khôi phục lần nào. Chọn một ngày backup bên dưới.</span>
-            {% endif %}
-            {% if backup_list_warning %}
-            <div class="text-warning mt-2">Không đọc được NAS ({{ backup_list_warning }}). Danh sách dưới đây lấy từ các lần backup đã ghi nhận.</div>
-            {% endif %}
-        </div>
-    </div>
-
-    <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
             <div class="fw-bold text-dark mb-3">File backup trên NAS</div>
+            {% if backup_list_warning %}
+            <div class="small text-warning mb-3">Không đọc được NAS ({{ backup_list_warning }}). Danh sách dưới đây lấy từ các lần backup đã ghi nhận.</div>
+            {% endif %}
             {% if backup_snapshots %}
             <div class="table-responsive">
                 <table class="table table-sm align-middle mb-0">

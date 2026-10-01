@@ -31,7 +31,6 @@ from .portal_backup import (
     PortalBackupError,
     SCOPE_LABELS,
     latest_backup_job,
-    latest_restore_job,
     list_backup_snapshots,
     snapshots_from_jobs,
     start_backup_async,
@@ -115,7 +114,6 @@ def _backup_page_context(user):
     return {
         'can_run_backup': can_run_backup,
         'backup_job': backup_job,
-        'restore_job': latest_restore_job(),
         'active_job': active_job,
         'backup_running': active_job is not None,
         'backup_snapshots': snapshots,
