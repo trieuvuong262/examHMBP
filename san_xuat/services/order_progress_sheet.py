@@ -434,9 +434,15 @@ def build_progress_sheet(
         cells = matrix.get(row.size_label, {})
         done_vals = [cells[s.key].done if s.key in cells else Decimal('0') for s in steps]
         rem_vals = [cells[s.key].remaining if s.key in cells else row.qty for s in steps]
+        total_done = min(done_vals) if done_vals else Decimal('0')
+        total_remain = row.qty - total_done
+        if total_remain < 0:
+            total_remain = Decimal('0')
         done_rows.append({
             'size_label': row.size_label,
             'qty': row.qty,
+            'total_done': total_done,
+            'total_remain': total_remain,
             'values': done_vals,
             'cells': [
                 {
@@ -462,6 +468,7 @@ def build_progress_sheet(
                     'stat_date': dr.stat_date,
                     'size_label': row.size_label,
                     'values': vals,
+                    'total': min(vals) if vals else Decimal('0'),
                 })
 
     return ProgressSheet(
@@ -669,6 +676,39 @@ def set_progress_done_qty(
         .get('t')
     )
     return {'done': done, 'changed': True}
+
+
+@transaction.atomic
+def set_team_total_done_qty(
+    *,
+    mo_id: int,
+    process_keys: list[str],
+    size_label: str,
+    qty: Decimal,
+    user=None,
+    team_slug: str | None = None,
+) -> dict:
+    """Đặt cùng một SL tổng cho mọi công đoạn của tổ trên một size.
+
+    KHSX tính SL tổ theo bộ (min các công đoạn) nên ghi đều mỗi CĐ = SL tổng.
+    """
+    keys = [k for k in process_keys if k]
+    if not keys:
+        raise PlanningError('Tổ này chưa có công đoạn trên lệnh.')
+    changed = False
+    dones: list[Decimal] = []
+    for key in keys:
+        res = set_progress_done_qty(
+            mo_id=mo_id,
+            process_key=key,
+            size_label=size_label,
+            qty=qty,
+            user=user,
+            team_slug=team_slug,
+        )
+        changed = changed or bool(res['changed'])
+        dones.append(_q(res['done']))
+    return {'done': min(dones), 'changed': changed}
 
 
 def seed_order_plan_steps_from_template(order) -> list:

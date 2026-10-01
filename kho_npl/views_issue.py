@@ -41,7 +41,7 @@ from kho_npl.doc_prefill import (
     parse_doc_location_id,
     parse_doc_material_id,
 )
-from kho_npl.product_codes import search_product_codes
+from kho_npl.product_codes import product_code_display, search_product_codes
 from kho_npl.stock_domain import docs_for_domain, domain_from_current_request
 from kho_npl.view_utils import nav_context, perm_context
 
@@ -115,6 +115,7 @@ def issue_list(request):
             search_query,
             (
                 'number',
+                'product_code',
                 'recipient_name',
                 'recipient__username',
                 'recipient__profile__full_name',
@@ -166,6 +167,7 @@ def issue_detail(request, pk):
         **nav_context('issues', user=request.user),
         **perms,
         'issue': issue,
+        'issue_product': product_code_display(issue.product_code),
         'is_editable': is_editable,
         'can_edit_notes': can_edit_notes,
         'can_replace_attachment': can_replace_attachment,

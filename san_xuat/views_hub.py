@@ -6564,6 +6564,7 @@ def team_work_progress(request, slug: str, mo_id: int):
         ensure_progress_work_centers,
         progress_steps_for_team,
         set_progress_done_qty,
+        set_team_total_done_qty,
     )
     from san_xuat.services.planning import PlanningError
     from san_xuat.services.progress_template import team_by_slug
@@ -6656,7 +6657,7 @@ def team_work_progress(request, slug: str, mo_id: int):
             except PlanningError as exc:
                 messages.error(request, str(exc))
             return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
-        if action in ('record', 'set_done'):
+        if action in ('record', 'set_done', 'set_total'):
             if not accepted:
                 msg = 'Cần nhận sản xuất trước khi ghi tiến độ.'
                 if wants_json:
@@ -6675,21 +6676,31 @@ def team_work_progress(request, slug: str, mo_id: int):
                 qty = Decimal(str(request.POST.get('qty') or '0').replace(',', '').strip() or '0')
             except (InvalidOperation, ValueError):
                 qty = Decimal('0')
-            if process_key not in allowed_keys:
+            if action != 'set_total' and process_key not in allowed_keys:
                 msg = 'Công đoạn không thuộc tổ này.'
                 if wants_json:
                     return JsonResponse({'ok': False, 'error': msg}, status=400)
                 messages.error(request, msg)
                 return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
             try:
-                result = set_progress_done_qty(
-                    mo_id=mo.pk,
-                    process_key=process_key,
-                    size_label=size_label,
-                    qty=qty,
-                    user=request.user,
-                    team_slug=slug,
-                )
+                if action == 'set_total':
+                    result = set_team_total_done_qty(
+                        mo_id=mo.pk,
+                        process_keys=[s.key for s in team_steps],
+                        size_label=size_label,
+                        qty=qty,
+                        user=request.user,
+                        team_slug=slug,
+                    )
+                else:
+                    result = set_progress_done_qty(
+                        mo_id=mo.pk,
+                        process_key=process_key,
+                        size_label=size_label,
+                        qty=qty,
+                        user=request.user,
+                        team_slug=slug,
+                    )
             except PlanningError as exc:
                 if wants_json:
                     return JsonResponse({'ok': False, 'error': str(exc)}, status=400)

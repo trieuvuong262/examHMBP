@@ -111,6 +111,11 @@ ISSUE_EMPLOYEE_SELECT = {
     'data-placeholder': 'Gõ tên hoặc mã nhân viên...',
 }
 DOC_EMPLOYEE_SELECT = ISSUE_EMPLOYEE_SELECT
+ISSUE_PRODUCT_CODE_SELECT = {
+    **FORM_SEARCH_SELECT,
+    'class': 'form-select jp-npl-search-select jp-npl-product-code-select',
+    'data-placeholder': 'Gõ mã hoặc tên sản phẩm...',
+}
 SUPPLIER_SELECT = {
     **FORM_SEARCH_SELECT,
     'class': 'form-select jp-npl-search-select jp-npl-supplier-select',
@@ -885,12 +890,14 @@ class StockIssueForm(DocAttachmentsFormMixin, forms.ModelForm):
         fields = [
             'issue_date',
             'issue_type',
+            'product_code',
             'issued_by',
             'recipient_name',
             'notes',
         ]
         widgets = {
             'issue_date': forms.DateInput(attrs=DOC_DATE_INPUT, format=DOC_DATE_DISPLAY_FORMAT),
+            'product_code': forms.Select(attrs=ISSUE_PRODUCT_CODE_SELECT),
             'issue_type': forms.TextInput(attrs={
                 **FORM_CONTROL,
                 'placeholder': 'VD: Xuất cho sản xuất, làm mẫu...',
@@ -939,8 +946,27 @@ class StockIssueForm(DocAttachmentsFormMixin, forms.ModelForm):
             required=True,
         )
         self.fields['issue_type'].required = True
+        self._init_product_code_choices()
         self._init_doc_attachments_field()
         self.fields['issue_date'].input_formats = DOC_DATE_INPUT_FORMATS
+
+    def _init_product_code_choices(self):
+        from kho_npl.product_codes import product_code_display
+
+        if self.is_bound:
+            code = (self.data.get(self.add_prefix('product_code')) or '').strip()
+        else:
+            code = (self.initial.get('product_code') or self.instance.product_code or '').strip()
+        choices = [('', '')]
+        if code:
+            row = product_code_display(code)
+            choices.append((code, row.get('text') or code))
+            self.fields['product_code'].widget.attrs['data-initial-image'] = row.get('image_url') or ''
+            self.fields['product_code'].widget.attrs['data-initial-name'] = row.get('name') or ''
+        self.fields['product_code'].widget.choices = choices
+
+    def clean_product_code(self):
+        return (self.cleaned_data.get('product_code') or '').strip()
 
     def clean_issue_type(self):
         value = (self.cleaned_data.get('issue_type') or '').strip()

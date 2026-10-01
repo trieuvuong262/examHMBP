@@ -18,7 +18,7 @@
   <div><span class="label">Lệnh SX:</span> {{ issue.production_order }}</div>
   {% endif %}
   {% if issue.product_code %}
-  <div><span class="label">Mã SP:</span> {{ issue.product_code }}</div>
+  <div class="full"><span class="label">Sản phẩm:</span> {{ issue.product_code }}{% if issue_product.name %} — {{ issue_product.name }}{% endif %}</div>
   {% endif %}
 </div>
 

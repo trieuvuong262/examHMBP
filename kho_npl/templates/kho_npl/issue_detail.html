@@ -47,6 +47,24 @@
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
             <dl class="row mb-0">
+                <dt class="col-sm-3 text-muted">Sản phẩm (mẫu)</dt>
+                <dd class="col-sm-9">
+                    {% if issue_product %}
+                    <div class="d-flex align-items-center gap-2">
+                        {% if issue_product.image_url %}
+                        <a href="{{ issue_product.image_url }}" target="_blank" rel="noopener">
+                            <img src="{{ issue_product.image_url }}" alt="{{ issue_product.code }}" style="width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid #e9ecef">
+                        </a>
+                        {% endif %}
+                        <div>
+                            <div class="fw-semibold">{{ issue_product.code }}</div>
+                            {% if issue_product.name %}<div class="text-muted small">{{ issue_product.name }}</div>{% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    —
+                    {% endif %}
+                </dd>
                 <dt class="col-sm-3 text-muted">Người nhận</dt>
                 <dd class="col-sm-9">
                     {% if issue.display_recipient_name %}

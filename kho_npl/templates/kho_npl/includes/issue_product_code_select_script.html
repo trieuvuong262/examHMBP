@@ -1,3 +1,17 @@
+<style>
+.jp-npl-product-code-option,
+.jp-npl-product-code-item { display: flex; align-items: center; gap: .6rem; min-width: 0; }
+.jp-npl-product-code-thumb {
+    width: 44px; height: 44px; flex: 0 0 44px; border-radius: 6px; object-fit: cover;
+    background: #f1f3f5; border: 1px solid #e9ecef; display: inline-flex; align-items: center;
+    justify-content: center; color: #adb5bd; font-size: 1.1rem;
+}
+.jp-npl-product-code-item .jp-npl-product-code-thumb { width: 28px; height: 28px; flex-basis: 28px; font-size: .85rem; }
+.jp-npl-product-code-text { min-width: 0; line-height: 1.25; }
+.jp-npl-product-code-text .code { font-weight: 600; }
+.jp-npl-product-code-text .name { display: block; color: #6c757d; font-size: .85em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jp-npl-product-code-item .jp-npl-product-code-text .name { display: inline; margin-left: .35rem; }
+</style>
 <script>
 (function () {
     if (typeof TomSelect === 'undefined') return;
@@ -11,6 +25,23 @@
         ? select.options[select.selectedIndex].textContent.trim()
         : initialValue;
 
+    function thumb(data, escape) {
+        const url = (data.image_url || '').trim();
+        if (url) {
+            return '<img class="jp-npl-product-code-thumb" src="' + escape(url) + '" alt="" loading="lazy">';
+        }
+        return '<span class="jp-npl-product-code-thumb"><i class="bi bi-image"></i></span>';
+    }
+
+    function body(data, escape) {
+        const code = escape(data.code || data.id || '');
+        const name = (data.name || '').trim();
+        let html = '<span class="jp-npl-product-code-text"><span class="code">' + code + '</span>';
+        if (name) html += '<span class="name">' + escape(name) + '</span>';
+        if (data.color) html += '<span class="name">Màu: ' + escape(data.color) + '</span>';
+        return html + '</span>';
+    }
+
     new TomSelect(select, {
         maxOptions: 40,
         maxItems: 1,
@@ -18,8 +49,10 @@
         labelField: 'text',
         searchField: ['text', 'code', 'name'],
         placeholder: select.dataset.placeholder || 'Gõ mã hoặc tên sản phẩm...',
+        allowEmptyOption: true,
         dropdownParent: 'body',
         openOnFocus: true,
+        preload: 'focus',
         loadThrottle: 220,
         load: function (query, callback) {
             if (!searchUrl) {
@@ -35,20 +68,29 @@
         },
         render: {
             option: function (data, escape) {
-                return '<div class="jp-npl-product-code-option">' + escape(data.text || data.code || '') + '</div>';
+                return '<div class="jp-npl-product-code-option">' + thumb(data, escape) + body(data, escape) + '</div>';
             },
             item: function (data, escape) {
-                return '<div>' + escape(data.code || data.text || '') + '</div>';
+                const name = (data.name || '').trim();
+                return '<div class="jp-npl-product-code-item">' + thumb(data, escape)
+                    + '<span class="jp-npl-product-code-text"><span class="code">' + escape(data.code || data.id || '') + '</span>'
+                    + (name ? '<span class="name">— ' + escape(name) + '</span>' : '')
+                    + '</span></div>';
             },
         },
         onInitialize: function () {
             if (!initialValue) return;
-            if (!this.options[initialValue]) {
-                this.addOption({
-                    id: initialValue,
-                    code: initialValue,
-                    text: initialLabel || initialValue,
-                });
+            const option = {
+                id: initialValue,
+                code: initialValue,
+                name: select.dataset.initialName || '',
+                image_url: select.dataset.initialImage || '',
+                text: initialLabel || initialValue,
+            };
+            if (this.options[initialValue]) {
+                this.updateOption(initialValue, option);
+            } else {
+                this.addOption(option);
             }
             this.setValue(initialValue, true);
         },

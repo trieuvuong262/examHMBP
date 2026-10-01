@@ -16,6 +16,7 @@ from kho_npl.models import (
     StockReceipt,
     StockTransfer,
 )
+from kho_npl.product_codes import product_code_display
 from kho_npl.stock_domain import docs_for_domain, transfer_visible_in_domain
 from san_xuat.print_company import (
     COMPANY_ADDRESS,
@@ -118,6 +119,7 @@ def print_issue(request, pk: int):
             signature_key='issue',
         ),
         'issue': issue,
+        'issue_product': product_code_display(issue.product_code),
         'lines': list(issue.lines.all()),
     })
 

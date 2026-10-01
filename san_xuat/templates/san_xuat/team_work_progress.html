@@ -118,9 +118,14 @@
   {% elif not sheet.sizes %}
   <div class="alert alert-warning">Lệnh sản xuất chưa có dòng size. Nhập ma trận màu×size trên lệnh sản xuất trước.</div>
   {% else %}
+  <p class="jp-ops-hint">
+    Công đoạn tổ ({{ flat_steps|length }}):
+    {% for s in flat_steps %}<strong>{{ s.label }}</strong>{% if not forloop.last %}, {% endif %}{% endfor %}.
+    SL thực hiện là SL tổng cho cả tổ — ghi đều cho mọi công đoạn trên và lên lộ trình KHSX.
+  </p>
   {% if can_update %}
   {% csrf_token %}
-  <p class="jp-ops-hint">Sửa số ở hàng <strong>SL thực hiện</strong> rồi rời ô — hệ thống lưu ngay và cập nhật SL còn thiếu.</p>
+  <p class="jp-ops-hint">Sửa số ở cột <strong>SL thực hiện</strong> rồi rời ô — hệ thống lưu ngay và cập nhật SL còn thiếu.</p>
   {% endif %}
   <div class="jp-ops-wrap mb-3">
     <table class="jp-ops-table" id="jpOpsTable"
@@ -128,63 +133,40 @@
            data-can-update="{% if can_update %}1{% else %}0{% endif %}">
       <thead>
         <tr class="group">
-          <th class="sticky-col" rowspan="2">Size</th>
-          <th rowspan="2">SL KH</th>
-          {% for group, steps in sheet.groups %}
-          {% if steps %}<th colspan="{{ steps|length }}">{{ group.label }}</th>{% endif %}
-          {% endfor %}
-        </tr>
-        <tr class="steps">
-          {% for group, steps in sheet.groups %}
-          {% for s in steps %}
-          <th title="{{ s.label }}">{{ s.label }}</th>
-          {% endfor %}
-          {% endfor %}
+          <th class="sticky-col">Size</th>
+          <th>SL KH</th>
+          <th>SL thực hiện</th>
+          <th>SL còn thiếu</th>
         </tr>
       </thead>
       <tbody>
-        <tr class="sec-label"><td class="sticky-col" colspan="{{ sheet.step_count|add:2 }}">SL thực hiện</td></tr>
         {% for row in sheet.done_rows %}
         <tr data-size="{{ row.size_label }}" data-plan="{{ row.qty }}">
           <td class="sticky-col">{{ row.size_label }}</td>
           <td class="qty-plan">{{ row.qty|sx_num }}</td>
-          {% for cell in row.cells %}
-          <td class="done" data-remain-for="{{ row.size_label }}__{{ cell.key }}">
+          <td class="done">
             {% if can_update %}
             <input type="number" class="jp-ops-qty" min="0" step="any"
-                   value="{% if cell.done %}{{ cell.done|sx_num }}{% else %}0{% endif %}"
+                   value="{% if row.total_done %}{{ row.total_done|sx_num }}{% else %}0{% endif %}"
                    data-size="{{ row.size_label }}"
-                   data-key="{{ cell.key }}"
-                   data-orig="{% if cell.done %}{{ cell.done|sx_num }}{% else %}0{% endif %}"
+                   data-orig="{% if row.total_done %}{{ row.total_done|sx_num }}{% else %}0{% endif %}"
                    inputmode="decimal">
             {% else %}
-            {% if cell.done %}{{ cell.done|sx_num }}{% else %}0{% endif %}
+            {% if row.total_done %}{{ row.total_done|sx_num }}{% else %}0{% endif %}
             {% endif %}
           </td>
-          {% endfor %}
-        </tr>
-        {% endfor %}
-
-        <tr class="sec-label"><td class="sticky-col" colspan="{{ sheet.step_count|add:2 }}">SL còn thiếu</td></tr>
-        {% for row in sheet.remain_rows %}
-        <tr data-remain-size="{{ row.size_label }}">
-          <td class="sticky-col">{{ row.size_label }}</td>
-          <td class="qty-plan">{{ row.qty|sx_num }}</td>
-          {% for v in row.values %}
-          <td class="remain">{% if v %}{{ v|sx_num }}{% else %}0{% endif %}</td>
-          {% endfor %}
+          <td class="remain">{% if row.total_remain %}{{ row.total_remain|sx_num }}{% else %}0{% endif %}</td>
         </tr>
         {% endfor %}
 
         {% if sheet.daily_display %}
-        <tr class="sec-label"><td class="sticky-col" colspan="{{ sheet.step_count|add:2 }}">Theo ngày (tổ {{ team.label }})</td></tr>
+        <tr class="sec-label"><td class="sticky-col" colspan="4">Theo ngày (tổ {{ team.label }})</td></tr>
         {% for row in sheet.daily_display %}
         <tr class="daily">
           <td class="sticky-col">{{ row.stat_date|date:"d/m/Y" }} · {{ row.size_label }}</td>
           <td class="qty-plan">—</td>
-          {% for v in row.values %}
-          <td>{% if v %}{{ v|sx_num }}{% else %}0{% endif %}</td>
-          {% endfor %}
+          <td>{% if row.total %}{{ row.total|sx_num }}{% else %}0{% endif %}</td>
+          <td></td>
         </tr>
         {% endfor %}
         {% endif %}
@@ -205,21 +187,11 @@
   var csrf = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value
     || (document.cookie.match(/csrftoken=([^;]+)/) || [])[1]
     || '';
-  var stepKeys = [{% for s in flat_steps %}"{{ s.key }}"{% if not forloop.last %},{% endif %}{% endfor %}];
-
   function fmt(n) {
     var x = Number(n);
     if (!isFinite(x)) return '0';
     if (Math.abs(x - Math.round(x)) < 1e-9) return String(Math.round(x));
     return String(x);
-  }
-
-  function remainCell(size, key) {
-    var idx = stepKeys.indexOf(key);
-    if (idx < 0) return null;
-    var row = table.querySelector('tr[data-remain-size="' + CSS.escape(size) + '"]');
-    if (!row) return null;
-    return row.querySelectorAll('td.remain')[idx] || null;
   }
 
   function save(input) {
@@ -232,8 +204,7 @@
     td.classList.add('is-saving');
     td.classList.remove('is-error');
     var body = new URLSearchParams({
-      action: 'set_done',
-      process_key: input.getAttribute('data-key') || '',
+      action: 'set_total',
       size_label: input.getAttribute('data-size') || '',
       qty: String(qty),
       csrfmiddlewaretoken: csrf
@@ -260,7 +231,7 @@
         var remain = fmt(res.j.remain);
         input.value = done;
         input.setAttribute('data-orig', done);
-        var rem = remainCell(input.getAttribute('data-size'), input.getAttribute('data-key'));
+        var rem = input.closest('tr').querySelector('td.remain');
         if (rem) rem.textContent = remain;
       })
       .catch(function () {
