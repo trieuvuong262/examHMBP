@@ -310,6 +310,34 @@ def resolve_progress_step(*, mo: SxProductionOrder, process_key: str) -> Progres
     return None
 
 
+def _size_plans_from_sales_order(
+    mo: SxProductionOrder, color_labels: list[str]
+) -> list[SizePlanRow]:
+    """Size × SL theo dòng ĐĐH lúc lên đơn, quy về SL lệnh nếu lệnh khác tổng đơn."""
+    from san_xuat.services.bom_need import sales_line_for_mo
+    from san_xuat.services.sales_orders import normalize_size_qtys
+
+    so_line = sales_line_for_mo(mo)
+    if so_line is None:
+        return []
+    sizes = normalize_size_qtys(so_line.size_qtys)
+    if not sizes:
+        return []
+    so_total = sum(sizes.values(), Decimal('0'))
+    target = _q(mo.qty)
+    if target > 0 and so_total > 0 and target != so_total:
+        raw = {s: q * target / so_total for s, q in sizes.items()}
+        scaled = {s: Decimal(int(v)) for s, v in raw.items()}
+        leftover = int(target - sum(scaled.values(), Decimal('0')))
+        for s in sorted(raw, key=lambda k: raw[k] - scaled[k], reverse=True)[:max(leftover, 0)]:
+            scaled[s] += 1
+        sizes = {s: q for s, q in scaled.items() if q > 0}
+    return [
+        SizePlanRow(size_label=s, qty=q, color_labels=list(color_labels))
+        for s, q in sizes.items()
+    ]
+
+
 def _size_plans(mo: SxProductionOrder) -> list[SizePlanRow]:
     lines = list(
         SxProductionOrderLine.objects.filter(production_order=mo).order_by('size_label', 'id')
@@ -328,6 +356,14 @@ def _size_plans(mo: SxProductionOrder) -> list[SizePlanRow]:
         color = (ln.color_label or ln.color_code or '').strip()
         if color and color not in row.color_labels:
             row.color_labels.append(color)
+    if by_size and set(by_size) == {'—'}:
+        so_rows = _size_plans_from_sales_order(mo, by_size['—'].color_labels)
+        if so_rows:
+            by_size = {r.size_label: r for r in so_rows}
+    elif not by_size:
+        so_rows = _size_plans_from_sales_order(mo, [])
+        if so_rows:
+            by_size = {r.size_label: r for r in so_rows}
     if by_size:
         # Thứ tự size gần Excel: S M L XL 2XL …
         order = ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '6XL']
