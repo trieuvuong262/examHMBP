@@ -3510,7 +3510,7 @@ def inline_image_serve(request, relpath):
 @_reports_access_required
 @xframe_options_sameorigin
 def daily_attachment_preview(request, pk):
-    from nas_storage.file_preview import serve_preview_response
+    from nas_storage.file_preview import preview_unavailable_html, serve_preview_response
 
     att = get_object_or_404(
         DailyWorkReportAttachment.objects.select_related('report__employee'),
@@ -3524,7 +3524,13 @@ def daily_attachment_preview(request, pk):
 
     path = daily_attachment_abs_path(att)
     if not path:
-        raise Http404
+        logger.warning('Daily attachment %s not reachable on NAS: %s', att.pk, att.file.name)
+        response = preview_unavailable_html(
+            'Không lấy được file từ NAS (mất kết nối hoặc chưa cấu hình DSM/rclone). '
+            'Vui lòng thử lại sau.'
+        )
+        response.status_code = 503
+        return response
     return serve_preview_response(path, att.display_name)
 
 
