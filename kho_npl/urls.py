@@ -124,6 +124,18 @@ urlpatterns = [
     path('dieu-chinh/<int:pk>/tu-choi/', StockRedirectView.as_view(pattern_name='kho_npl:adjustment_reject', permanent=False)),
     path('bao-cao/', views_reports.report_hub, name='report_hub'),
     path('bao-cao/xuat-excel/', views_reports.report_export, name='report_export'),
+    path('bao-cao/chi-tiet-xuat/', views_reports.report_issue_detail_view, name='report_issue_detail'),
+    path(
+        'bao-cao/chi-tiet-xuat/xuat-excel/',
+        views_reports.report_issue_detail_export,
+        name='report_issue_detail_export',
+    ),
+    path('bao-cao/chi-tiet-nhap/', views_reports.report_receipt_detail_view, name='report_receipt_detail'),
+    path(
+        'bao-cao/chi-tiet-nhap/xuat-excel/',
+        views_reports.report_receipt_detail_export,
+        name='report_receipt_detail_export',
+    ),
     path('bao-cao/ton-kho/', StockRedirectView.as_view(pattern_name='kho_npl:report_hub', permanent=False)),
     path('bao-cao/ton-kho/xuat-excel/', StockRedirectView.as_view(pattern_name='kho_npl:report_export', permanent=False)),
     path('bao-cao/can-bao/', StockRedirectView.as_view(pattern_name='kho_npl:report_hub', permanent=False)),

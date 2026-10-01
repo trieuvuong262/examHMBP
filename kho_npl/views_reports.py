@@ -5,8 +5,27 @@ from django.utils import timezone
 from assessment.decorators import module_perm_required
 from hrm.module_permissions import MODULE_KHO_NPL
 from kho_npl.http import reverse
-from kho_npl.reports_registry import REPORT_XNT
+from kho_npl.reports_registry import (
+    REPORT_ISSUE_DETAIL,
+    REPORT_RECEIPT_DETAIL,
+    REPORT_TABS,
+    REPORT_XNT,
+)
 from kho_npl.services.excel_export import dataframe_to_xlsx_response
+from kho_npl.services.issue_detail_report import (
+    ISSUE_DETAIL_EXPORT_COLUMNS,
+    ISSUE_DETAIL_STATUS_CHOICES,
+    normalize_issue_detail_status,
+    report_issue_detail,
+    report_issue_detail_export_rows,
+)
+from kho_npl.services.receipt_detail_report import (
+    RECEIPT_DETAIL_EXPORT_COLUMNS,
+    RECEIPT_DETAIL_STATUS_CHOICES,
+    normalize_receipt_detail_status,
+    report_receipt_detail,
+    report_receipt_detail_export_rows,
+)
 from kho_npl.services.reports import (
     DISPLAY_LIMIT,
     _parse_date,
@@ -52,6 +71,15 @@ def _filter_params(request):
     }
 
 
+def _report_tabs(active: dict) -> dict:
+    return {
+        'report_tabs': [
+            {**tab, 'url': reverse(tab['view_name']), 'active': tab['key'] == active['key']}
+            for tab in REPORT_TABS
+        ],
+    }
+
+
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def report_hub(request):
     filters = _filter_params(request)
@@ -68,6 +96,7 @@ def report_hub(request):
     return render(request, 'kho_npl/report_xuat_nhap_ton.html', {
         **nav_context('reports', user=request.user),
         **perm_context(request.user, 'reports'),
+        **_report_tabs(REPORT_XNT),
         'report': REPORT_XNT,
         'export_url': export_url,
         'filters': filters,
@@ -96,3 +125,97 @@ def report_export(request):
     )
     df = pd.DataFrame(rows)
     return dataframe_to_xlsx_response(df, 'Xuat_nhap_ton', 'Xuat_nhap_ton')
+
+
+def _issue_detail_filters(request):
+    filters = _filter_params(request)
+    filters['status'] = normalize_issue_detail_status(request.GET.get('status'))
+    filters['product_code'] = (request.GET.get('product') or '').strip()
+    return filters
+
+
+def _issue_detail_kwargs(filters) -> dict:
+    return {
+        'status': filters['status'],
+        'search': filters['search'],
+        'product_code': filters['product_code'],
+    }
+
+
+@module_perm_required(MODULE_KHO_NPL, 'view')
+def report_issue_detail_view(request):
+    filters = _issue_detail_filters(request)
+    data = report_issue_detail(filters['date_from'], filters['date_to'], **_issue_detail_kwargs(filters))
+    export_url = reverse('kho_npl:report_issue_detail_export')
+    if request.GET:
+        export_url = f'{export_url}?{request.GET.urlencode()}'
+    return render(request, 'kho_npl/report_issue_detail.html', {
+        **nav_context('reports', user=request.user),
+        **perm_context(request.user, 'reports'),
+        **_report_tabs(REPORT_ISSUE_DETAIL),
+        'report': REPORT_ISSUE_DETAIL,
+        'export_url': export_url,
+        'filters': filters,
+        'status_choices': ISSUE_DETAIL_STATUS_CHOICES,
+        'printed_at': timezone.localtime(),
+        'groups': data['groups'],
+        'totals': data['totals'],
+        'expand_all': bool(filters['search'] or filters['product_code']),
+    })
+
+
+@module_perm_required(MODULE_KHO_NPL, 'export')
+def report_issue_detail_export(request):
+    filters = _issue_detail_filters(request)
+    rows = report_issue_detail_export_rows(
+        filters['date_from'], filters['date_to'], **_issue_detail_kwargs(filters),
+    )
+    df = pd.DataFrame(rows, columns=[label for _, label in ISSUE_DETAIL_EXPORT_COLUMNS])
+    return dataframe_to_xlsx_response(df, 'Chi_tiet_xuat', 'Chi_tiet_xuat')
+
+
+def _receipt_detail_filters(request):
+    filters = _filter_params(request)
+    filters['status'] = normalize_receipt_detail_status(request.GET.get('status'))
+    filters['supplier'] = (request.GET.get('supplier') or '').strip()
+    return filters
+
+
+def _receipt_detail_kwargs(filters) -> dict:
+    return {
+        'status': filters['status'],
+        'search': filters['search'],
+        'supplier': filters['supplier'],
+    }
+
+
+@module_perm_required(MODULE_KHO_NPL, 'view')
+def report_receipt_detail_view(request):
+    filters = _receipt_detail_filters(request)
+    data = report_receipt_detail(filters['date_from'], filters['date_to'], **_receipt_detail_kwargs(filters))
+    export_url = reverse('kho_npl:report_receipt_detail_export')
+    if request.GET:
+        export_url = f'{export_url}?{request.GET.urlencode()}'
+    return render(request, 'kho_npl/report_receipt_detail.html', {
+        **nav_context('reports', user=request.user),
+        **perm_context(request.user, 'reports'),
+        **_report_tabs(REPORT_RECEIPT_DETAIL),
+        'report': REPORT_RECEIPT_DETAIL,
+        'export_url': export_url,
+        'filters': filters,
+        'status_choices': RECEIPT_DETAIL_STATUS_CHOICES,
+        'printed_at': timezone.localtime(),
+        'groups': data['groups'],
+        'totals': data['totals'],
+        'expand_all': bool(filters['search'] or filters['supplier']),
+    })
+
+
+@module_perm_required(MODULE_KHO_NPL, 'export')
+def report_receipt_detail_export(request):
+    filters = _receipt_detail_filters(request)
+    rows = report_receipt_detail_export_rows(
+        filters['date_from'], filters['date_to'], **_receipt_detail_kwargs(filters),
+    )
+    df = pd.DataFrame(rows, columns=[label for _, label in RECEIPT_DETAIL_EXPORT_COLUMNS])
+    return dataframe_to_xlsx_response(df, 'Chi_tiet_nhap', 'Chi_tiet_nhap')

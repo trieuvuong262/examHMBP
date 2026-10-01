@@ -1,0 +1,10 @@
+<ul class="nav nav-tabs mb-3 jp-npl-report-tabs" role="tablist">
+    {% for tab in report_tabs %}
+    <li class="nav-item" role="presentation">
+        <a href="{{ tab.url }}" class="nav-link fw-semibold{% if tab.active %} active{% endif %}"
+           {% if tab.active %}aria-current="page"{% endif %} role="tab">
+            <i class="bi {{ tab.icon }} me-1" aria-hidden="true"></i>{{ tab.title }}
+        </a>
+    </li>
+    {% endfor %}
+</ul>

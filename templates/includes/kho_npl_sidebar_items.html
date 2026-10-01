@@ -85,7 +85,7 @@
 {% if jp_can_stock_reports %}
 <li>
     <a href="{% stock_url 'report_hub' stock_ns %}"
-       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.namespace == stock_ns and request.resolver_match.url_name == 'report_hub' %}active{% endif %}">
+       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.namespace == stock_ns and request.resolver_match.url_name in 'report_hub,report_issue_detail,report_receipt_detail' %}active{% endif %}">
         <i class="bi bi-file-earmark-bar-graph"></i><span>Báo cáo</span>
     </a>
 </li>
