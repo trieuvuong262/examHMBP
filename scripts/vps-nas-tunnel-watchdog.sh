@@ -11,9 +11,11 @@
 #   1. NAS không vào được (3 lần thử) → gỡ CHILD_SA trùng không nhận dữ liệu;
 #      vẫn hỏng thì down/up cả kết nối IPsec.
 #   2. NAS vào được nhưng mount /mnt/nas-portal trên host kẹt → nếu NAS có hơn
-#      một CHILD_SA thì down/up IPsec trước, rồi restart rclone-nas + recreate
-#      web/worker để nhận mount mới.
-#   3. Chỉ container web không đọc được mount → recreate web/worker.
+#      một CHILD_SA thì down/up IPsec trước, rồi restart rclone-nas. Web/worker
+#      bind /mnt với rslave nên tự thấy mount mới.
+#   3. Container web vẫn không đọc được mount → recreate web/worker, tối đa
+#      một lần mỗi RECREATE_COOLDOWN_SECONDS (portal vẫn tải file qua rclone
+#      khi mount hỏng, recreate thì gián đoạn người dùng).
 #
 # Usage: bash scripts/vps-nas-tunnel-watchdog.sh
 set -uo pipefail
@@ -24,8 +26,10 @@ IPSEC_CONN="${IPSEC_CONN:-vps-to-fortigate}"
 MOUNT_POINT="${NAS_MOUNT_ROOT:-/mnt/nas-portal}"
 MOUNT_UNIT="${NAS_MOUNT_UNIT:-rclone-nas.service}"
 COOLDOWN_SECONDS="${WATCHDOG_COOLDOWN_SECONDS:-300}"
+RECREATE_COOLDOWN_SECONDS="${WATCHDOG_RECREATE_COOLDOWN_SECONDS:-1800}"
 STATE_DIR="/var/lib/portaljustplay"
 LAST_ACTION_FILE="${STATE_DIR}/nas-watchdog.last"
+LAST_RECREATE_FILE="${STATE_DIR}/nas-watchdog.recreate"
 LOCK_FILE="/run/portaljustplay-nas-watchdog.lock"
 
 exec 9>"$LOCK_FILE"
@@ -111,6 +115,19 @@ recreate_app() {
   log "web ${status:-unknown}, nginx reloaded"
 }
 
+ensure_web_mount() {
+  mount_ok_web && return 0
+  if [[ -f "$LAST_RECREATE_FILE" ]] \
+    && (( $(date +%s) - $(cat "$LAST_RECREATE_FILE" 2>/dev/null || echo 0) < RECREATE_COOLDOWN_SECONDS )); then
+    log "container web chưa đọc được ${MOUNT_POINT} — đã recreate gần đây, bỏ qua"
+    return 1
+  fi
+  mkdir -p "$STATE_DIR"
+  date +%s > "$LAST_RECREATE_FILE"
+  log "container web không đọc được ${MOUNT_POINT}"
+  recreate_app
+}
+
 repair_mount() {
   log "mount ${MOUNT_POINT} kẹt — restart ${MOUNT_UNIT}"
   systemctl restart "$MOUNT_UNIT"
@@ -119,7 +136,8 @@ repair_mount() {
     log "mount host vẫn lỗi sau restart"
     return 1
   fi
-  recreate_app
+  sleep 2
+  ensure_web_mount
 }
 
 repair_tunnel() {
@@ -159,8 +177,7 @@ if nas_reachable; then
     fi
     repair_mount
   else
-    log "container web không đọc được ${MOUNT_POINT}"
-    recreate_app
+    ensure_web_mount
   fi
   exit 0
 fi
@@ -169,6 +186,9 @@ in_cooldown && exit 0
 mark_action
 log "NAS ${NAS_HOST} không vào được (445/5556)"
 if repair_tunnel; then
-  mount_ok_host || repair_mount
-  mount_ok_web || recreate_app
+  if mount_ok_host; then
+    ensure_web_mount
+  else
+    repair_mount
+  fi
 fi

@@ -118,7 +118,9 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       # Mã nguồn trên VPS (git pull) — đặt HOST_PROJECT_DIR=/opt/portaljustplay trong .env
       - ${HOST_PROJECT_DIR:-.}:/backup-source:ro
-      - /mnt/nas-portal:/mnt/nas-portal
+      # Bind thư mục cha + rslave: rclone-nas restart trên host là container thấy
+      # mount mới ngay, không phải recreate web.
+      - /mnt:/mnt:rslave
       - /root/.config/rclone:/root/.config/rclone:ro
       - /root/.nas-cred:/root/.nas-cred:ro
     environment:
@@ -159,7 +161,7 @@ services:
       - ./static/equipment:/app/static/equipment:ro
       # Ghi được: khôi phục mã nguồn ghi lại đúng thư mục project trên VPS.
       - ${HOST_PROJECT_DIR:-.}:/backup-source
-      - /mnt/nas-portal:/mnt/nas-portal
+      - /mnt:/mnt:rslave
       - /root/.config/rclone:/root/.config/rclone:ro
       - /root/.nas-cred:/root/.nas-cred:ro
       - /:/host/root:ro
