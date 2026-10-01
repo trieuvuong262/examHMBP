@@ -4,11 +4,16 @@
 # Sự cố đã gặp: tunnel IPsec vẫn ESTABLISHED nhưng có nhiều CHILD_SA trùng cho
 # NAS; VPS gửi qua SA Fortigate đã bỏ → NAS timeout, mount rclone kẹt I/O error.
 #
+# CHILD_SA trùng sinh ra khi VPS và Fortigate cùng khởi tạo → 2 IKE_SA song song.
+# Lúc đó TCP mới vẫn bắt tay được nhưng phiên SMB dài của rclone mount bị treo.
+#
 # Mỗi lượt:
 #   1. NAS không vào được (3 lần thử) → gỡ CHILD_SA trùng không nhận dữ liệu;
 #      vẫn hỏng thì down/up cả kết nối IPsec.
-#   2. NAS vào được nhưng mount /mnt/nas-portal kẹt (host hoặc container web)
-#      → restart rclone-nas + recreate web/worker để nhận mount mới.
+#   2. NAS vào được nhưng mount /mnt/nas-portal trên host kẹt → nếu NAS có hơn
+#      một CHILD_SA thì down/up IPsec trước, rồi restart rclone-nas + recreate
+#      web/worker để nhận mount mới.
+#   3. Chỉ container web không đọc được mount → recreate web/worker.
 #
 # Usage: bash scripts/vps-nas-tunnel-watchdog.sh
 set -uo pipefail
@@ -70,6 +75,18 @@ stale_nas_children() {
     }'
 }
 
+nas_child_count() {
+  ipsec statusall 2>/dev/null | grep -cE "${IPSEC_CONN}\{[0-9]+\}:.*=== ${NAS_HOST//./\\.}/32[[:space:]]*$"
+}
+
+reset_ipsec() {
+  log "kết nối lại IPsec ${IPSEC_CONN}"
+  ipsec down "$IPSEC_CONN" >/dev/null 2>&1 || true
+  sleep 2
+  ipsec up "$IPSEC_CONN" >/dev/null 2>&1 || true
+  sleep 5
+}
+
 mount_ok_host() {
   timeout 10 ls "$MOUNT_POINT" >/dev/null 2>&1
 }
@@ -119,11 +136,7 @@ repair_tunnel() {
       return 0
     fi
   fi
-  log "kết nối lại IPsec ${IPSEC_CONN}"
-  ipsec down "$IPSEC_CONN" >/dev/null 2>&1 || true
-  sleep 2
-  ipsec up "$IPSEC_CONN" >/dev/null 2>&1 || true
-  sleep 5
+  reset_ipsec
   if nas_reachable; then
     log "NAS thông lại sau khi kết nối lại IPsec"
     return 0
@@ -139,6 +152,11 @@ if nas_reachable; then
   in_cooldown && exit 0
   mark_action
   if ! mount_ok_host; then
+    children="$(nas_child_count)"
+    if (( children > 1 )); then
+      log "NAS có ${children} CHILD_SA trùng"
+      reset_ipsec
+    fi
     repair_mount
   else
     log "container web không đọc được ${MOUNT_POINT}"
