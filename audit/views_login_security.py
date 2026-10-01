@@ -40,7 +40,7 @@ def login_security_page(request):
     tab = request.GET.get('tab', 'bots')
     if tab == 'accounts':
         return redirect('locked_accounts')
-    if tab not in ('bots', 'config', 'filescan', 'nginx', 'region'):
+    if tab not in ('bots', 'config', 'filescan', 'nginx', 'region', 'response'):
         tab = 'bots'
 
     blocked_ips = (
@@ -105,6 +105,20 @@ def login_security_page(request):
         from audit.services.geo_access import geo_access_status
 
         ctx['geo'] = geo_access_status()
+
+    if tab == 'response':
+        from audit.services.response_stats import (
+            monthly_response_report,
+            parse_month,
+            refresh_response_stats,
+            top_slow_queries,
+        )
+
+        year, month = parse_month(request.GET.get('month'))
+        if request.GET.get('refresh') == '1' or not request.GET.get('month'):
+            refresh_response_stats()
+        ctx['resp'] = monthly_response_report(year, month)
+        ctx['slow_queries'] = top_slow_queries()
 
     return render(request, 'audit/login_security.html', ctx)
 

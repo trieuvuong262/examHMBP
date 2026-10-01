@@ -48,6 +48,12 @@
                 <i class="bi bi-globe-asia-australia me-1"></i>Khu vực
             </a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link fw-bold {% if tab == 'response' %}active{% endif %}"
+               href="{% url 'audit:login_security' %}?tab=response">
+                <i class="bi bi-speedometer2 me-1"></i>Phản hồi
+            </a>
+        </li>
     </ul>
 
     {% if tab == 'filescan' %}
@@ -563,6 +569,207 @@
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    {% elif tab == 'response' %}
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <p class="small text-muted mb-0">
+            Thời gian xử lý request của người dùng đã đăng nhập (từ nhật ký thao tác) và truy vấn Postgres
+            (<code>pg_stat_statements</code>). Tổng hợp theo ngày, tự cập nhật mỗi giờ.
+        </p>
+        <div class="d-flex flex-wrap align-items-center gap-1">
+            <a class="btn btn-sm btn-outline-secondary"
+               href="{% url 'audit:login_security' %}?tab=response&month={{ resp.prev_month }}" title="Tháng trước">
+                <i class="bi bi-chevron-left"></i>
+            </a>
+            <form method="get" class="d-inline-flex">
+                <input type="hidden" name="tab" value="response">
+                <input type="month" name="month" value="{{ resp.month_value }}" class="form-control form-control-sm"
+                       onchange="this.form.submit()">
+            </form>
+            {% if resp.next_month %}
+            <a class="btn btn-sm btn-outline-secondary"
+               href="{% url 'audit:login_security' %}?tab=response&month={{ resp.next_month }}" title="Tháng sau">
+                <i class="bi bi-chevron-right"></i>
+            </a>
+            {% endif %}
+            <a class="btn btn-sm btn-outline-secondary"
+               href="{% url 'audit:login_security' %}?tab=response&month={{ resp.month_value }}&refresh=1" title="Cập nhật ngay">
+                <i class="bi bi-arrow-clockwise"></i>
+            </a>
+        </div>
+    </div>
+
+    <h6 class="fw-bold mb-2">Tháng {{ resp.month|stringformat:"02d" }}/{{ resp.year }}
+        <span class="small text-muted fw-normal">· có số liệu {{ resp.day_count }}/{{ resp.days_in_month }} ngày</span>
+    </h6>
+    <div class="row g-3 mb-4">
+        <div class="col-md-2 col-6">
+            <div class="border rounded p-3 h-100">
+                <div class="small text-muted mb-1">Số request</div>
+                <div class="fs-4 fw-bold">{{ resp.request_count|intcomma }}</div>
+            </div>
+        </div>
+        <div class="col-md-2 col-6">
+            <div class="border rounded p-3 h-100">
+                <div class="small text-muted mb-1">Trung bình</div>
+                <div class="fs-4 fw-bold">{% if resp.avg_ms is not None %}{{ resp.avg_ms|intcomma }} ms{% else %}—{% endif %}</div>
+            </div>
+        </div>
+        <div class="col-md-2 col-6">
+            <div class="border rounded p-3 h-100">
+                <div class="small text-muted mb-1">P95 (TB theo ngày)</div>
+                <div class="fs-4 fw-bold {% if resp.p95_weighted_ms is not None %}{% if resp.p95_ok %}text-success{% else %}text-danger{% endif %}{% endif %}">
+                    {% if resp.p95_weighted_ms is not None %}{{ resp.p95_weighted_ms|intcomma }} ms{% else %}—{% endif %}
+                </div>
+                <div class="small text-muted">Mục tiêu ≤ {{ resp.target_p95_ms|intcomma }} ms</div>
+            </div>
+        </div>
+        <div class="col-md-2 col-6">
+            <div class="border rounded p-3 h-100">
+                <div class="small text-muted mb-1">Request ≤ 1 giây</div>
+                <div class="fs-4 fw-bold {% if resp.le_1s_pct is not None %}{% if resp.le_1s_ok %}text-success{% else %}text-danger{% endif %}{% endif %}">
+                    {% if resp.le_1s_pct is not None %}{{ resp.le_1s_pct }}%{% else %}—{% endif %}
+                </div>
+                <div class="small text-muted">Mục tiêu ≥ {{ resp.target_le_1s_pct|floatformat:0 }}% · &gt; 3s: {% if resp.gt_3s_pct is not None %}{{ resp.gt_3s_pct }}%{% else %}—{% endif %}</div>
+            </div>
+        </div>
+        <div class="col-md-2 col-6">
+            <div class="border rounded p-3 h-100">
+                <div class="small text-muted mb-1">Truy vấn DB trung bình</div>
+                <div class="fs-4 fw-bold">{% if resp.db_avg_ms is not None %}{{ resp.db_avg_ms }} ms{% else %}—{% endif %}</div>
+                <div class="small text-muted">{% if resp.db_has_data %}{{ resp.db_calls|intcomma }} lượt{% else %}Chưa đủ 2 ảnh chụp{% endif %}</div>
+            </div>
+        </div>
+        <div class="col-md-2 col-6">
+            <div class="border rounded p-3 h-100">
+                <div class="small text-muted mb-1">Truy vấn chậm (&gt; {{ resp.slow_query_ms }} ms)</div>
+                <div class="fs-4 fw-bold {% if resp.db_slow_query_count %}text-danger{% elif resp.db_slow_query_count is not None %}text-success{% endif %}">
+                    {% if resp.db_slow_query_count is not None %}{{ resp.db_slow_query_count }}{% else %}—{% endif %}
+                </div>
+                <div class="small text-muted">Theo TB mỗi câu truy vấn</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm overflow-hidden mb-4">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h6 class="mb-0 fw-bold">Theo ngày</h6>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Ngày</th>
+                        <th class="text-end">Request</th>
+                        <th class="text-end">TB</th>
+                        <th class="text-end">P50</th>
+                        <th class="text-end">P95</th>
+                        <th style="min-width:9rem"></th>
+                        <th class="text-end">Max</th>
+                        <th class="text-end">≤ 1s</th>
+                        <th class="text-end">&gt; 3s</th>
+                        <th class="text-end">DB lượt</th>
+                        <th class="text-end">DB TB</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in resp.days %}
+                    <tr>
+                        <td class="text-nowrap">{{ d.day|date:"D d/m" }}</td>
+                        <td class="text-end font-monospace">{{ d.n|intcomma }}</td>
+                        <td class="text-end font-monospace">{{ d.avg_ms|intcomma }}</td>
+                        <td class="text-end font-monospace">{{ d.p50_ms|intcomma }}</td>
+                        <td class="text-end font-monospace fw-bold {% if d.p95_ok %}text-success{% else %}text-danger{% endif %}">{{ d.p95_ms|intcomma }}</td>
+                        <td>
+                            <div class="progress" style="height:6px">
+                                <div class="progress-bar {% if d.p95_ok %}bg-success{% else %}bg-danger{% endif %}" style="width: {{ d.bar_pct }}%"></div>
+                            </div>
+                        </td>
+                        <td class="text-end font-monospace text-muted">{{ d.max_ms|intcomma }}</td>
+                        <td class="text-end font-monospace">{% if d.le_1s_pct is not None %}{{ d.le_1s_pct }}%{% endif %}</td>
+                        <td class="text-end font-monospace">{% if d.gt_3s_pct is not None %}{{ d.gt_3s_pct }}%{% endif %}</td>
+                        <td class="text-end font-monospace">{% if d.db.calls %}{{ d.db.calls|intcomma }}{% else %}—{% endif %}</td>
+                        <td class="text-end font-monospace">{% if d.db.avg_ms is not None %}{{ d.db.avg_ms }}{% else %}—{% endif %}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="11" class="text-center text-muted py-4">Chưa có số liệu cho tháng này.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer bg-white small text-muted">
+            Đơn vị: ms. P95 = 95% request nhanh hơn mức này. Không tính request khách chưa đăng nhập và poll nền.
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm overflow-hidden h-100">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h6 class="mb-0 fw-bold">Trang chậm nhất trong tháng</h6>
+                    <p class="small text-muted mb-0 mt-1">Theo P95, chỉ tính trang có từ 10 request.</p>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Trang (url name)</th>
+                                <th class="text-end">Request</th>
+                                <th class="text-end">TB</th>
+                                <th class="text-end">P95</th>
+                                <th class="text-end">Max</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for u in resp.slow_urls %}
+                            <tr>
+                                <td class="small font-monospace">{{ u.url_name }}</td>
+                                <td class="text-end font-monospace">{{ u.n|intcomma }}</td>
+                                <td class="text-end font-monospace">{{ u.avg_ms|intcomma }}</td>
+                                <td class="text-end font-monospace fw-bold {% if u.p95_ms > resp.target_p95_ms %}text-danger{% endif %}">{{ u.p95_ms|intcomma }}</td>
+                                <td class="text-end font-monospace text-muted">{{ u.max_ms|intcomma }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="5" class="text-center text-muted py-3">—</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm overflow-hidden h-100">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h6 class="mb-0 fw-bold">Truy vấn DB chậm nhất (hiện tại)</h6>
+                    <p class="small text-muted mb-0 mt-1">Cộng dồn từ lần reset <code>pg_stat_statements</code> gần nhất, chỉ tính câu có từ 5 lượt.</p>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Câu truy vấn</th>
+                                <th class="text-end">Lượt</th>
+                                <th class="text-end">TB ms</th>
+                                <th class="text-end">Max ms</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for q in slow_queries %}
+                            <tr>
+                                <td class="small font-monospace text-truncate" style="max-width:24rem" title="{{ q.query }}">{{ q.query }}</td>
+                                <td class="text-end font-monospace">{{ q.calls|intcomma }}</td>
+                                <td class="text-end font-monospace fw-bold {% if q.mean_ms > resp.slow_query_ms %}text-danger{% endif %}">{{ q.mean_ms }}</td>
+                                <td class="text-end font-monospace text-muted">{{ q.max_ms|intcomma }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center text-muted py-3">Không đọc được pg_stat_statements.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 

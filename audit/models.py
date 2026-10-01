@@ -118,6 +118,48 @@ class UserActivityLog(models.Model):
         return ' · '.join(parts) if parts else '—'
 
 
+class ResponseTimeDaily(models.Model):
+    """Tổng hợp thời gian phản hồi request theo ngày — giữ lâu hơn nhật ký thao tác (7 ngày)."""
+
+    day = models.DateField(unique=True)
+    request_count = models.PositiveIntegerField(default=0)
+    total_ms = models.BigIntegerField(default=0)
+    p50_ms = models.PositiveIntegerField(default=0)
+    p95_ms = models.PositiveIntegerField(default=0)
+    max_ms = models.PositiveIntegerField(default=0)
+    le_1s_count = models.PositiveIntegerField(default=0)
+    gt_3s_count = models.PositiveIntegerField(default=0)
+    # [{"url_name", "n", "total_ms", "p95_ms", "max_ms"}, ...]
+    by_url = models.JSONField(default=list, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-day']
+        verbose_name = 'Thời gian phản hồi theo ngày'
+        verbose_name_plural = 'Thời gian phản hồi theo ngày'
+
+    def __str__(self):
+        return f'{self.day} · {self.request_count} req · P95 {self.p95_ms}ms'
+
+
+class DbQuerySnapshot(models.Model):
+    """Ảnh chụp cộng dồn pg_stat_statements cuối mỗi ngày — lấy hiệu giữa 2 ngày ra số trong ngày."""
+
+    day = models.DateField(unique=True)
+    calls = models.BigIntegerField(default=0)
+    total_exec_ms = models.FloatField(default=0)
+    slow_query_count = models.PositiveIntegerField(default=0)
+    taken_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-day']
+        verbose_name = 'Ảnh chụp truy vấn DB'
+        verbose_name_plural = 'Ảnh chụp truy vấn DB'
+
+    def __str__(self):
+        return f'{self.day} · {self.calls} calls'
+
+
 class UserLoginLock(models.Model):
     """Khóa tài khoản sau quá nhiều lần nhập sai mật khẩu."""
 

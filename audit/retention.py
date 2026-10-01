@@ -56,6 +56,13 @@ def maybe_purge_old_activity_logs() -> int:
         return 0
     _last_purge_at = now
     try:
+        from PortalJustPlay.background import enqueue
+        from audit.services.response_stats import refresh_response_stats
+
+        enqueue(refresh_response_stats, timeout=300, description='refresh_response_stats')
+    except Exception:
+        pass
+    try:
         return purge_old_activity_logs()
     except Exception:
         return 0
