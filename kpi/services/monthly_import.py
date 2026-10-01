@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import html
 import io
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -261,6 +263,96 @@ def _add_scoring_guide_sheet(wb) -> None:
     for r in range(1, 29):
         for c in range(1, 5):
             ws.cell(r, c).border = _THIN
+
+
+def _html_to_text(value: str) -> str:
+    """Đánh giá thực tế lưu HTML (có ảnh) — Excel chỉ giữ chữ, ảnh ghi [Ảnh]."""
+    if not value:
+        return ''
+    text = re.sub(r'<img\b[^>]*>', '[Ảnh]', value, flags=re.I)
+    text = re.sub(r'<br\s*/?>', '\n', text, flags=re.I)
+    text = re.sub(r'</(p|div|li)>', '\n', text, flags=re.I)
+    text = re.sub(r'<li\b[^>]*>', '- ', text, flags=re.I)
+    text = re.sub(r'<[^>]+>', '', text)
+    text = html.unescape(text)
+    return re.sub(r'\n{3,}', '\n\n', text).strip()
+
+
+_EXPORT_HEADERS = _HEADERS + [
+    'Đánh giá thực tế (NV)',
+    'Điểm NV',
+    'Đánh giá thực tế (QL)',
+    'Điểm QL',
+    'Điểm thành phần',
+]
+
+
+def build_monthly_kpi_export_xlsx(board, *, employee_label: str, manager_label: str, division_label: str) -> bytes:
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = f'KPI {board.month:02d}-{board.year}'
+    ncols = len(_EXPORT_HEADERS)
+    last_col = get_column_letter(ncols)
+
+    ws['A1'] = f'BẢNG ĐÁNH GIÁ KPI THÁNG {board.month:02d}/{board.year}'
+    ws['A1'].font = Font(bold=True, size=14)
+    ws['A1'].alignment = Alignment(horizontal='center', vertical='center')
+    ws.merge_cells(f'A1:{last_col}1')
+    ws['A2'] = f'Nhân viên: {employee_label}    Bộ phận: {division_label}    Quản lý: {manager_label}'
+    ws.merge_cells(f'A2:{last_col}2')
+
+    header_row = 4
+    for col, title in enumerate(_EXPORT_HEADERS, start=1):
+        cell = ws.cell(header_row, col, title)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(wrap_text=True, vertical='center', horizontal='center')
+
+    items = list(board.items.order_by('sort_order', 'id'))
+    row = header_row
+    for item in items:
+        row += 1
+        values = [
+            item.sort_order,
+            item.work_group,
+            item.weightage,
+            item.indicator,
+            item.level_fail,
+            item.level_pass,
+            item.level_exceed,
+            _html_to_text(item.self_actual),
+            item.self_score,
+            _html_to_text(item.mgr_actual),
+            item.mgr_score,
+            round(item.component_score(), 2) if item.component_score() is not None else None,
+        ]
+        for col, val in enumerate(values, start=1):
+            cell = ws.cell(row, col, val)
+            cell.alignment = Alignment(wrap_text=True, vertical='center')
+
+    data_end = row
+    _merge_same_work_groups(ws, header_row + 1, data_end, group_col=2)
+
+    row += 1
+    total = board.total_score()
+    ws.cell(row, 1, 'TỔNG').font = Font(bold=True)
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
+    ws.cell(row, 3, sum(float(i.weightage or 0) for i in items)).font = Font(bold=True)
+    ws.cell(row, ncols - 1, board.result_label()).font = Font(bold=True)
+    total_cell = ws.cell(row, ncols, total)
+    total_cell.font = Font(bold=True, color='B91C1C')
+    _apply_border_range(ws, header_row, row, 1, ncols)
+
+    widths = [6, 20, 9, 40, 26, 26, 26, 40, 8, 40, 8, 11]
+    for i, w in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+    ws.row_dimensions[header_row].height = 36
+    ws.freeze_panes = ws.cell(header_row + 1, 1)
+
+    _add_scoring_guide_sheet(wb)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
 
 
 def build_monthly_kpi_sample_xlsx() -> bytes:

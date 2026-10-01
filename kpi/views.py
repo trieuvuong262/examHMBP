@@ -50,6 +50,7 @@ from .services.inline_images import (
 )
 from .services.monthly_import import (
     KpiImportError,
+    build_monthly_kpi_export_xlsx,
     build_monthly_kpi_sample_xlsx,
     parse_monthly_kpi_workbook,
 )
@@ -946,6 +947,50 @@ def kpi_detail_view(request, kpi_id):
         'kpi_image_upload_url': reverse('kpi_inline_upload', kwargs={'kpi_id': kpi_board.pk}),
         **perm,
     })
+
+
+@module_perm_required(MODULE_KPI, 'view')
+def kpi_export_excel(request, kpi_id):
+    kpi_board = get_object_or_404(
+        MonthlyKpi.objects.select_related(
+            'employee__profile',
+            'employee__profile__division',
+            'direct_manager__profile',
+        ),
+        pk=kpi_id,
+    )
+    _, _, can_view_board = _kpi_detail_roles(request.user, kpi_board)
+    if not can_view_board:
+        messages.error(request, 'Bạn không có quyền xem bảng KPI này.')
+        return redirect('kpi_list')
+
+    employee = kpi_board.employee
+    profile = get_profile(employee)
+    employee_label = profile.full_name if profile and profile.full_name else employee.username
+    if profile and profile.employee_code:
+        employee_label += f' ({profile.employee_code})'
+    division = getattr(profile, 'division', None) if profile else None
+    manager_label = format_direct_managers_label(employee)
+    if not manager_label and kpi_board.direct_manager_id:
+        mgr_profile = get_profile(kpi_board.direct_manager)
+        manager_label = (
+            mgr_profile.full_name if mgr_profile and mgr_profile.full_name
+            else kpi_board.direct_manager.username
+        )
+
+    content = build_monthly_kpi_export_xlsx(
+        kpi_board,
+        employee_label=employee_label,
+        manager_label=manager_label or '—',
+        division_label=division.name if division else '—',
+    )
+    response = HttpResponse(
+        content,
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    filename = f'KPI_{employee.username}_{kpi_board.month:02d}_{kpi_board.year}.xlsx'
+    response['Content-Disposition'] = f'attachment; filename={filename}'
+    return response
 
 
 def _kpi_upload_error(message: str, *, status: int = 400) -> JsonResponse:

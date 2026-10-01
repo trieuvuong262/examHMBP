@@ -8,11 +8,15 @@
 {% block content %}
 <div class="container-fluid jp-page jp-kpi-page jp-kpi-detail py-3 py-md-4 px-2 px-md-4 mb-5"
      data-loading-message="Đang tải bảng đánh giá KPI…">
-    <div class="mb-3">
+    <div class="mb-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
         <a href="{% url 'kpi_list' %}?month={{ kpi.month }}&year={{ kpi.year }}"
            class="text-decoration-none small text-muted fw-semibold"
            data-loading-message="Đang tải danh sách KPI…">
             <i class="bi bi-arrow-left"></i> Danh sách KPI
+        </a>
+        <a href="{% url 'kpi_export_excel' kpi.id %}" class="btn btn-sm btn-outline-success fw-bold"
+           data-no-loading download title="Tải bảng KPI (tiêu chí, đánh giá, điểm) về Excel">
+            <i class="bi bi-file-earmark-excel me-1"></i>Xuất Excel
         </a>
     </div>
 
