@@ -474,11 +474,16 @@ def build_progress_sheet(
         total_remain = row.qty - total_done
         if total_remain < 0:
             total_remain = Decimal('0')
+        total_pct = (
+            (total_done * Decimal('100') / row.qty).quantize(Decimal('0.1'))
+            if row.qty > 0 else Decimal('0')
+        )
         done_rows.append({
             'size_label': row.size_label,
             'qty': row.qty,
             'total_done': total_done,
             'total_remain': total_remain,
+            'total_pct': total_pct,
             'values': done_vals,
             'cells': [
                 {

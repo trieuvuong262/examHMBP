@@ -125,7 +125,7 @@
   </p>
   {% if can_update %}
   {% csrf_token %}
-  <p class="jp-ops-hint">Sửa số ở cột <strong>SL thực hiện</strong> rồi rời ô — hệ thống lưu ngay và cập nhật SL còn thiếu.</p>
+  <p class="jp-ops-hint">Sửa số ở cột <strong>SL thực hiện</strong> hoặc <strong>%</strong> (tự quy đổi theo SL KH) rồi rời ô — hệ thống lưu ngay và cập nhật SL còn thiếu.</p>
   {% endif %}
   <div class="jp-ops-wrap mb-3">
     <table class="jp-ops-table" id="jpOpsTable"
@@ -136,6 +136,7 @@
           <th class="sticky-col">Size</th>
           <th>SL KH</th>
           <th>SL thực hiện</th>
+          <th>%</th>
           <th>SL còn thiếu</th>
         </tr>
       </thead>
@@ -155,17 +156,28 @@
             {% if row.total_done %}{{ row.total_done|sx_num }}{% else %}0{% endif %}
             {% endif %}
           </td>
+          <td class="done">
+            {% if can_update %}
+            <input type="number" class="jp-ops-qty jp-ops-pct" min="0" max="100" step="any"
+                   value="{{ row.total_pct|sx_num_input:1 }}"
+                   data-size="{{ row.size_label }}"
+                   inputmode="decimal">
+            {% else %}
+            {{ row.total_pct|sx_num }}%
+            {% endif %}
+          </td>
           <td class="remain">{% if row.total_remain %}{{ row.total_remain|sx_num }}{% else %}0{% endif %}</td>
         </tr>
         {% endfor %}
 
         {% if sheet.daily_display %}
-        <tr class="sec-label"><td class="sticky-col" colspan="4">Theo ngày (tổ {{ team.label }})</td></tr>
+        <tr class="sec-label"><td class="sticky-col" colspan="5">Theo ngày (tổ {{ team.label }})</td></tr>
         {% for row in sheet.daily_display %}
         <tr class="daily">
           <td class="sticky-col">{{ row.stat_date|date:"d/m/Y" }} · {{ row.size_label }}</td>
           <td class="qty-plan">—</td>
           <td>{% if row.total %}{{ row.total|sx_num }}{% else %}0{% endif %}</td>
+          <td></td>
           <td></td>
         </tr>
         {% endfor %}
@@ -224,6 +236,7 @@
         if (!res.ok || !res.j || !res.j.ok) {
           td.classList.add('is-error');
           input.value = input.getAttribute('data-orig') || '0';
+          syncPct(input);
           alert((res.j && res.j.error) || 'Không lưu được SL.');
           return;
         }
@@ -231,6 +244,7 @@
         var remain = fmt(res.j.remain);
         input.value = done;
         input.setAttribute('data-orig', done);
+        syncPct(input);
         var rem = input.closest('tr').querySelector('td.remain');
         if (rem) rem.textContent = remain;
       })
@@ -238,12 +252,51 @@
         td.classList.remove('is-saving');
         td.classList.add('is-error');
         input.value = input.getAttribute('data-orig') || '0';
+        syncPct(input);
         alert('Không lưu được SL.');
       });
   }
 
+  function num(v) {
+    var x = Number(String(v == null ? '' : v).replace(',', '.').trim());
+    return isFinite(x) ? x : 0;
+  }
+
+  function planOf(el) {
+    return num(el.closest('tr').getAttribute('data-plan'));
+  }
+
+  function qtyInput(tr) { return tr.querySelector('.jp-ops-qty:not(.jp-ops-pct)'); }
+  function pctInput(tr) { return tr.querySelector('.jp-ops-pct'); }
+
+  function syncPct(qtyEl) {
+    var pctEl = pctInput(qtyEl.closest('tr'));
+    if (!pctEl) return;
+    var plan = planOf(qtyEl);
+    pctEl.value = plan > 0 ? fmt(Math.round(num(qtyEl.value) * 1000 / plan) / 10) : '0';
+  }
+
+  function syncQty(pctEl) {
+    var qtyEl = qtyInput(pctEl.closest('tr'));
+    if (!qtyEl) return null;
+    var pct = Math.max(0, num(pctEl.value));
+    qtyEl.value = fmt(Math.round(planOf(pctEl) * pct / 100));
+    return qtyEl;
+  }
+
   table.querySelectorAll('.jp-ops-qty').forEach(function (el) {
-    el.addEventListener('change', function () { save(el); });
+    var isPct = el.classList.contains('jp-ops-pct');
+    el.addEventListener('input', function () {
+      if (isPct) syncQty(el); else syncPct(el);
+    });
+    el.addEventListener('change', function () {
+      if (isPct) {
+        var qtyEl = syncQty(el);
+        if (qtyEl) save(qtyEl);
+      } else {
+        save(el);
+      }
+    });
     el.addEventListener('keydown', function (e) {
       if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
     });
