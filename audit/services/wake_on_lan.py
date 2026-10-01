@@ -73,7 +73,7 @@ def send_wake_via_relay(
     ip_address: str | None = None,
     broadcast: str | None = None,
 ) -> str:
-    """Gọi HTTP relay trên NAS (cùng LAN / Tailscale) để gửi magic packet."""
+    """Gọi HTTP relay trên NAS (LAN qua VPN site-to-site) để gửi magic packet."""
     url = (getattr(settings, 'RUSTDESK_WOL_RELAY_URL', '') or '').strip()
     if not url:
         raise ValueError('Chưa cấu hình RUSTDESK_WOL_RELAY_URL')

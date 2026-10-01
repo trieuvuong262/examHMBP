@@ -128,7 +128,7 @@ def nas_raidrive_download(request):
 
     # Ưu tiên bản đã lưu sẵn trên đĩa local — installer không đổi nên chỉ cần
     # lấy từ NAS một lần. Trước đây mỗi lần tải đều đọc trọn file từ NAS
-    # (mount qua rclone/Tailscale) vào RAM: 8 lần tải = 250 giây/lần, giữ
+    # (mount qua rclone/VPN site-to-site) vào RAM: 8 lần tải = 250 giây/lần, giữ
     # nguyên một gunicorn worker suốt 4 phút.
     cached = _cached_raidrive_installer()
     if cached is not None:

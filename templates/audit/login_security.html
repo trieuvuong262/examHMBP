@@ -779,7 +779,7 @@
             <h5 class="mb-0 fw-bold">Khu vực được kết nối VPS</h5>
             <p class="small text-muted mb-0 mt-1">
                 Kết nối mới vào cổng WAN <code>{{ geo.wan_if }}</code> chỉ từ quốc gia bên dưới.
-                SSH Tailscale, mạng Docker và IPsec không đi qua cổng này.
+                Mạng Docker và tunnel IPsec site-to-site không đi qua cổng này.
             </p>
         </div>
         <div class="card-body">
@@ -863,38 +863,40 @@
     {% else %}
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-white py-3 border-bottom">
-            <h5 class="mb-0 fw-bold">Đường NAS — Fortinet / Tailscale</h5>
+            <h5 class="mb-0 fw-bold">Đường NAS — VPN site-to-site</h5>
             <p class="small text-muted mb-0 mt-1">
-                Swap DSM / rclone / LDAP giữa IPsec Fortigate (<code>{{ remote_access.nas_lan_host }}</code>)
-                và Tailscale (<code>{{ remote_access.nas_ts_host }}</code>).
-                <strong>Không tắt Tailscale</strong> — SSH 100.x vẫn dự phòng.
+                DSM / rclone / LDAP / SSH backup đi qua tunnel IPsec Fortigate tới IP LAN
+                <code>{{ remote_access.nas_lan_host }}</code>.
             </p>
         </div>
         <div class="card-body">
-            {% if remote_access.mismatch %}
-            <div class="alert alert-warning small">File mode và <code>NAS_DSM_URL</code> lệch nhau — bấm lại chế độ muốn dùng.</div>
+            {% if not remote_access.dsm_on_lan %}
+            <div class="alert alert-warning small">
+                <code>NAS_DSM_URL</code> đang trỏ <code>{{ remote_access.nas_dsm_host|default:"(trống)" }}</code>,
+                không phải IP LAN NAS. Bấm «Áp dụng» để đưa .env và rclone về IP LAN.
+            </div>
             {% endif %}
             {% if not remote_access.nas_lan_ok %}
             <div class="alert alert-warning small">
-                NAS LAN <code>{{ remote_access.nas_lan_host }}</code> chưa thông qua IPsec
-                (445/5556). Không swap được sang Fortinet. Tailscale giữ nguyên.
+                NAS LAN <code>{{ remote_access.nas_lan_host }}</code> chưa thông qua VPN site-to-site
+                (445/5556). Kiểm tra tunnel IPsec trên Fortigate và VPS.
             </div>
             {% endif %}
             <div class="row g-3 mb-3">
                 <div class="col-md-4">
-                    <div class="small text-muted mb-1">NAS đang đi</div>
-                    {% if remote_access.nas_on_tailscale %}
-                    <span class="badge bg-secondary-subtle text-secondary fw-bold">Tailscale</span>
+                    <div class="small text-muted mb-1">Tunnel tới NAS</div>
+                    {% if remote_access.nas_lan_ok %}
+                    <span class="badge bg-success-subtle text-success fw-bold">Thông</span>
                     {% else %}
-                    <span class="badge bg-success-subtle text-success fw-bold">Fortinet IPsec (LAN)</span>
+                    <span class="badge bg-danger-subtle text-danger fw-bold">Không thông</span>
                     {% endif %}
                 </div>
                 <div class="col-md-4">
-                    <div class="small text-muted mb-1">Tailscale daemon</div>
+                    <div class="small text-muted mb-1">Tailscale trên VPS</div>
                     {% if remote_access.tailscale_on %}
-                    <span class="badge bg-success-subtle text-success">Đang chạy (dự phòng SSH)</span>
+                    <span class="badge bg-warning text-dark">Còn chạy — nên tắt</span>
                     {% else %}
-                    <span class="badge bg-warning text-dark">Đang tắt</span>
+                    <span class="badge bg-secondary-subtle text-secondary">Đã tắt</span>
                     {% endif %}
                 </div>
                 <div class="col-md-4">
@@ -906,39 +908,33 @@
             <form method="post" action="{% url 'audit:remote_access_save_mode' %}" class="row g-3 align-items-end">
                 {% csrf_token %}
                 <div class="col-lg-6">
-                    <label class="form-label fw-bold">Chuyển NAS sang</label>
-                    <div class="d-flex flex-wrap gap-2">
-                        <button type="submit" name="mode" value="fortinet"
-                                class="btn {% if not remote_access.nas_on_tailscale %}btn-hm text-white{% else %}btn-outline-hm{% endif %} fw-bold"
-                                {% if not remote_access.nas_on_tailscale or not remote_access.nas_lan_ok %}disabled{% endif %}>
-                            Fortinet
-                        </button>
-                        <button type="submit" name="mode" value="tailscale"
-                                class="btn {% if remote_access.nas_on_tailscale %}btn-hm text-white{% else %}btn-outline-secondary{% endif %} fw-bold"
-                                {% if remote_access.nas_on_tailscale %}disabled{% endif %}>
-                            Tailscale
-                        </button>
+                    {% if remote_access.tailscale_on %}
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="disable_tailscale" value="on" id="jp-remote-access-disable-ts" checked>
+                        <label class="form-check-label" for="jp-remote-access-disable-ts">
+                            Tắt hẳn Tailscale trên VPS (SSH qua 100.x sẽ mất, dùng IP public).
+                        </label>
                     </div>
-                    <div class="form-text">
-                        Fortinet: <code>NAS_DSM_URL</code> / rclone / LDAP →
-                        <code>{{ remote_access.nas_lan_host }}</code>. Tailscale không tắt.
-                    </div>
-                </div>
-                <div class="col-lg-6">
+                    {% endif %}
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" name="confirm" value="on" id="jp-remote-access-confirm" required>
                         <label class="form-check-label" for="jp-remote-access-confirm">
-                            Xác nhận swap đường NAS. SSH Tailscale
-                            (<code>ssh portal-vps</code>) vẫn dùng được.
+                            Xác nhận ghi lại host NAS trong .env / rclone và khởi động lại web + worker.
                         </label>
                     </div>
                 </div>
+                <div class="col-lg-6">
+                    <button type="submit" class="btn btn-hm text-white fw-bold"
+                            {% if not remote_access.nas_lan_ok or not remote_access.host_ok or not remote_access.docker_ok %}disabled{% endif %}>
+                        Áp dụng
+                    </button>
+                </div>
             </form>
             {% else %}
-            <p class="text-muted small mb-0">Chỉ IT có quyền export mới đổi được công tắc.</p>
+            <p class="text-muted small mb-0">Chỉ IT có quyền export mới áp dụng được.</p>
             {% endif %}
             {% if not remote_access.host_ok %}
-            <p class="small text-muted mt-3 mb-0">Máy dev không mount host VPS — công tắc chỉ chạy được trên production.</p>
+            <p class="small text-muted mt-3 mb-0">Máy dev không mount host VPS — chỉ áp dụng được trên production.</p>
             {% endif %}
         </div>
     </div>

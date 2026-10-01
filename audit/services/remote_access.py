@@ -1,11 +1,11 @@
-"""Công tắc đường NAS Portal: Fortinet IPsec (LAN) <-> Tailscale.
+"""Đường NAS Portal: VPN site-to-site (IPsec Fortigate VPS <-> văn phòng).
 
-Tailscale daemon không tắt. Trạng thái đọc từ host; đổi mode chạy script trên PID 1.
+DSM / rclone / LDAP / SSH backup đều trỏ IP LAN của NAS. Trạng thái đọc từ host;
+áp dụng lại cấu hình chạy script trên PID 1.
 """
 
 from __future__ import annotations
 
-import ipaddress
 import os
 import socket
 from pathlib import Path
@@ -19,10 +19,7 @@ from audit.services.vps_monitor import (
     docker_run_host_script,
 )
 
-MODES = ('fortinet', 'tailscale')
-TAILSCALE_CIDR = '100.64.0.0/10'
 NAS_LAN_HOST_DEFAULT = '192.168.40.252'
-NAS_TS_HOST_DEFAULT = '100.90.91.74'
 
 
 def fortigate_wan_ip() -> str:
@@ -31,10 +28,6 @@ def fortigate_wan_ip() -> str:
 
 def nas_lan_host() -> str:
     return (getattr(settings, 'NAS_LAN_HOST', None) or os.getenv('NAS_LAN_HOST') or NAS_LAN_HOST_DEFAULT).strip()
-
-
-def nas_ts_host() -> str:
-    return (getattr(settings, 'NAS_TS_HOST', None) or os.getenv('NAS_TS_HOST') or NAS_TS_HOST_DEFAULT).strip()
 
 
 def _host_root() -> Path:
@@ -47,7 +40,7 @@ def _host_proc() -> Path:
 
 def _script_path() -> str:
     root = (getattr(settings, 'HOST_PROJECT_DIR', None) or os.getenv('HOST_PROJECT_DIR') or '/opt/portaljustplay').rstrip('/')
-    return f'{root}/scripts/vps-remote-access-mode.sh'
+    return f'{root}/scripts/vps-nas-site-to-site.sh'
 
 
 def _tailscaled_running() -> bool:
@@ -68,30 +61,8 @@ def _tailscaled_running() -> bool:
     return False
 
 
-def _mode_file() -> str:
-    path = _host_root() / 'etc/portaljustplay/remote-access.mode'
-    if not path.is_file():
-        return ''
-    try:
-        return path.read_text(encoding='utf-8', errors='replace').strip().lower()
-    except OSError:
-        return ''
-
-
-def infer_mode(*, file_mode: str, nas_on_tailscale: bool) -> str:
-    if file_mode in MODES:
-        return file_mode
-    return 'tailscale' if nas_on_tailscale else 'fortinet'
-
-
-def _nas_host_on_tailscale() -> bool:
-    host = (urlparse(getattr(settings, 'NAS_DSM_URL', '') or '').hostname or '').strip()
-    if not host:
-        return False
-    try:
-        return ipaddress.ip_address(host) in ipaddress.ip_network(TAILSCALE_CIDR)
-    except ValueError:
-        return host.endswith('.ts.net') or host.startswith('100.')
+def nas_dsm_host() -> str:
+    return (urlparse(getattr(settings, 'NAS_DSM_URL', '') or '').hostname or '').strip()
 
 
 def _tcp_ok(host: str, port: int, timeout: float = 3.0) -> bool:
@@ -107,62 +78,38 @@ def _tcp_ok(host: str, port: int, timeout: float = 3.0) -> bool:
 
 
 def remote_access_status() -> dict:
-    wan = fortigate_wan_ip()
     lan = nas_lan_host()
-    ts_host = nas_ts_host()
-    ts_on = _tailscaled_running()
-    file_mode = _mode_file()
-    nas_on_ts = _nas_host_on_tailscale()
-    mode = infer_mode(file_mode=file_mode, nas_on_tailscale=nas_on_ts)
-    mismatch = (file_mode == 'fortinet' and nas_on_ts) or (file_mode == 'tailscale' and not nas_on_ts)
+    dsm_host = nas_dsm_host()
     host_ok = _host_root().is_dir() and (_host_root() / 'etc').is_dir()
-    lan_ok = _tcp_ok(lan, 5556) or _tcp_ok(lan, 445)
     return {
-        'mode': mode,
-        'mode_file': file_mode or None,
-        'tailscale_on': ts_on,
-        'mismatch': mismatch,
-        'fortigate_wan': wan,
-        'tailscale_cidr': TAILSCALE_CIDR,
+        'fortigate_wan': fortigate_wan_ip(),
+        'nas_lan_host': lan,
+        'nas_lan_url': f'https://{lan}:5556',
+        'nas_lan_ok': _tcp_ok(lan, 5556) or _tcp_ok(lan, 445),
+        'nas_dsm_host': dsm_host,
+        'dsm_on_lan': dsm_host == lan,
+        'tailscale_on': _tailscaled_running(),
         'host_ok': host_ok,
         'docker_ok': docker_available(),
         'script': _script_path(),
-        'nas_on_tailscale': nas_on_ts,
-        'nas_lan_host': lan,
-        'nas_ts_host': ts_host,
-        'nas_lan_url': f'https://{lan}:5556',
-        'nas_lan_ok': lan_ok,
     }
 
 
-def apply_remote_access_mode(mode: str) -> dict:
-    mode = (mode or '').strip().lower()
-    if mode not in MODES:
-        raise VpsMonitorError('Chế độ không hợp lệ. Chọn fortinet hoặc tailscale.')
+def apply_site_to_site(*, disable_tailscale: bool = False) -> dict:
     current = remote_access_status()
-    already = (
-        (mode == 'fortinet' and not current['nas_on_tailscale'] and current['mode_file'] == 'fortinet')
-        or (mode == 'tailscale' and current['nas_on_tailscale'] and current['mode'] == 'tailscale')
-    )
-    if already:
-        return {
-            'mode': mode,
-            'unchanged': True,
-            'output': 'Đang ở chế độ này rồi.',
-        }
-    if mode == 'fortinet' and not current['nas_lan_ok']:
+    if not current['nas_lan_ok']:
         raise VpsMonitorError(
-            f'NAS LAN {current["nas_lan_host"]} chưa thông qua IPsec. '
-            'Không swap. Tailscale giữ nguyên.'
+            f'NAS LAN {current["nas_lan_host"]} chưa thông qua VPN site-to-site (445/5556). '
+            'Kiểm tra tunnel IPsec trên Fortigate và VPS.'
         )
     result = docker_run_host_script(
         _script_path(),
-        mode,
+        'apply',
         timeout=180.0,
         env={
             'FORTIGATE_WAN_IP': fortigate_wan_ip(),
             'NAS_LAN_HOST': nas_lan_host(),
-            'NAS_TS_HOST': nas_ts_host(),
+            'DISABLE_TAILSCALE': '1' if disable_tailscale else '0',
             'HOST_PROJECT_DIR': (
                 getattr(settings, 'HOST_PROJECT_DIR', None) or os.getenv('HOST_PROJECT_DIR') or '/opt/portaljustplay'
             ),
@@ -170,9 +117,7 @@ def apply_remote_access_mode(mode: str) -> dict:
     )
     after = remote_access_status()
     return {
-        'mode': after['mode'],
-        'unchanged': False,
         'output': result.get('output') or '',
         'tailscale_on': after['tailscale_on'],
-        'nas_on_tailscale': after['nas_on_tailscale'],
+        'dsm_on_lan': after['dsm_on_lan'],
     }

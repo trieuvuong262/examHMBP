@@ -719,7 +719,7 @@ NAMESPACE_URL_DESCRIPTIONS: dict[str, dict[str, str] | str] = {
         'POST': 'bật hoặc tắt chặn kết nối VPS theo quốc gia',
     },
     'audit:remote_access_save_mode': {
-        'POST': 'đổi đường NAS Portal (Fortinet IPsec / Tailscale)',
+        'POST': 'áp dụng đường NAS Portal qua VPN site-to-site',
     },
     'audit:unlock_user_login': 'mở khóa đăng nhập tài khoản #{pk}',
     'audit:unlock_ip_login': 'bỏ chặn IP đăng nhập #{pk}',

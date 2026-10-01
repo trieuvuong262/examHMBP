@@ -410,7 +410,7 @@ compose exec -T web python manage.py kho_sp_seed_warehouses --apply
 
 # Bước verify NAS chỉ để cảnh báo — không được kéo dài deploy.
 # rclone mặc định --contimeout 1m --timeout 5m --retries 3 --low-level-retries 10,
-# nên khi NAS/Tailscale không thông một lệnh `rclone lsd` có thể treo hàng chục phút.
+# nên khi NAS/VPN site-to-site không thông một lệnh `rclone lsd` có thể treo hàng chục phút.
 # Ép flag ngắn + bọc `timeout` để luôn có giới hạn trên.
 NAS_VERIFY_TIMEOUT="${NAS_VERIFY_TIMEOUT:-25}"
 RCLONE_VERIFY_FLAGS=(--contimeout 5s --timeout 10s --retries 1 --low-level-retries 2)
@@ -441,7 +441,7 @@ verify_nas_rclone() {
     echo "    NAS rclone OK (synology: — user tailscale-justplay)"
   else
     if [[ "${rc}" -eq 124 ]]; then
-      echo "    WARNING: rclone quá ${NAS_VERIFY_TIMEOUT}s không phản hồi (NAS/Tailscale không thông?)."
+      echo "    WARNING: rclone quá ${NAS_VERIFY_TIMEOUT}s không phản hồi (VPN site-to-site tới NAS không thông?)."
     else
       echo "    WARNING: rclone không kết nối được NAS trong container (exit ${rc})."
     fi
@@ -481,8 +481,8 @@ if m.get('cpu', {}).get('percent') is None and not m.get('processes'):
   else
     echo "    WARNING: DSM API chưa kết nối được (CPU/RAM/tiến trình)."
     echo "             rclone SMB có thể OK trong khi cổng HTTPS DSM bị chặn."
-    echo "             Synology: Login Portal → Web Services (cổng HTTPS), Firewall → mở cổng cho Tailscale."
-    echo "             Test: docker compose exec web curl -k \"\${NAS_DSM_URL:-https://100.90.91.74:5556}/webapi/entry.cgi?api=SYNO.API.Info&version=1&method=query\""
+    echo "             Synology: Login Portal → Web Services (cổng HTTPS), Firewall → mở cổng cho dải VPS qua VPN site-to-site."
+    echo "             Test: docker compose exec web curl -k \"\${NAS_DSM_URL:-https://192.168.40.252:5556}/webapi/entry.cgi?api=SYNO.API.Info&version=1&method=query\""
   fi
 }
 

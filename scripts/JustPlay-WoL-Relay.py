@@ -17,8 +17,7 @@ Portal (.env trên VPS):
   RUSTDESK_WOL_RELAY_URL=http://<IP-NAS>:39280/wake
   RUSTDESK_WOL_RELAY_SECRET=your-long-secret
 
-IP NAS: dùng IP LAN (192.168.x.x) chỉ khi VPS cùng mạng/VPN.
-Nếu VPS ở internet: cài Tailscale trên NAS + VPS, dùng IP 100.x.x.x của NAS.
+IP NAS: dùng IP LAN (192.168.x.x) — VPS tới được qua VPN site-to-site.
 
 Kiểm tra từ máy khác:
   curl -sS -X POST http://<NAS>:39280/wake \\

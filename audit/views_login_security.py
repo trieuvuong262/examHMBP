@@ -259,27 +259,22 @@ def save_geo_region_view(request):
 @module_perm_required(MODULE_AUDIT, 'export')
 @require_POST
 def save_remote_access_mode_view(request):
-    from audit.services.remote_access import apply_remote_access_mode
+    from audit.services.remote_access import apply_site_to_site
     from audit.services.vps_monitor import VpsMonitorError
 
-    mode = (request.POST.get('mode') or '').strip().lower()
     if request.POST.get('confirm') != 'on':
-        messages.error(request, 'Hãy xác nhận trước khi đổi đường NAS.')
+        messages.error(request, 'Hãy xác nhận trước khi áp dụng đường NAS.')
         return redirect(reverse('audit:login_security') + '?tab=config')
+    disable_tailscale = request.POST.get('disable_tailscale') == 'on'
     try:
-        result = apply_remote_access_mode(mode)
+        apply_site_to_site(disable_tailscale=disable_tailscale)
     except VpsMonitorError as exc:
         messages.error(request, str(exc))
         return redirect(reverse('audit:login_security') + '?tab=config')
-    if result.get('unchanged'):
-        messages.info(request, result.get('output') or 'Đang ở chế độ này rồi.')
-    elif mode == 'fortinet':
-        messages.success(
-            request,
-            'Đã swap NAS sang Fortinet IPsec (LAN). Tailscale vẫn chạy — SSH 100.x còn.',
-        )
-    else:
-        messages.success(request, 'Đã swap NAS về Tailscale. Daemon Tailscale vẫn chạy.')
+    msg = 'Đã áp dụng đường NAS qua VPN site-to-site (IP LAN).'
+    if disable_tailscale:
+        msg += ' Đã tắt Tailscale trên VPS.'
+    messages.success(request, msg)
     return redirect(reverse('audit:login_security') + '?tab=config')
 
 

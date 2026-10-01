@@ -151,7 +151,7 @@ RUSTDESK_WOL_ENABLED = os.getenv("RUSTDESK_WOL_ENABLED", "true").lower() in (
 )
 RUSTDESK_WOL_PORT = int(os.getenv("RUSTDESK_WOL_PORT", "9"))
 RUSTDESK_WOL_BROADCAST = os.getenv("RUSTDESK_WOL_BROADCAST", "").strip()
-# WoL qua NAS trong LAN — VPS gọi URL này (nên dùng IP Tailscale/LAN của NAS)
+# WoL qua NAS trong LAN — VPS gọi URL này (IP LAN của NAS qua VPN site-to-site)
 RUSTDESK_WOL_RELAY_URL = os.getenv("RUSTDESK_WOL_RELAY_URL", "").strip()
 RUSTDESK_WOL_RELAY_SECRET = os.getenv("RUSTDESK_WOL_RELAY_SECRET", "").strip()
 RUSTDESK_WOL_RELAY_TIMEOUT = float(os.getenv("RUSTDESK_WOL_RELAY_TIMEOUT", "5"))
@@ -552,7 +552,7 @@ ODOO_ADMIN_USERNAMES = frozenset(
 ODOO_SSO_SECRET = os.getenv('ODOO_SSO_SECRET', '').strip()
 ODOO_SSO_TTL_SECONDS = int(os.getenv('ODOO_SSO_TTL_SECONDS', '120') or '120')
 
-# NAS (Synology qua Tailscale + rclone mount trên VPS)
+# NAS (Synology qua VPN site-to-site + rclone mount trên VPS)
 NAS_MOUNT_ROOT = os.getenv('NAS_MOUNT_ROOT', '/mnt/nas-portal')
 NAS_RCLONE_REMOTE = os.getenv('NAS_RCLONE_REMOTE', 'synology:')
 NAS_RCLONE_CONFIG = os.getenv('NAS_RCLONE_CONFIG', '/root/.config/rclone/rclone.conf')
@@ -592,8 +592,9 @@ VPS_HOST_PROC = os.getenv('VPS_HOST_PROC', '/host/proc')
 VPS_HOST_ROOT = os.getenv('VPS_HOST_ROOT', '/host/root')
 VPS_DOCKER_SOCKET = os.getenv('VPS_DOCKER_SOCKET', '/var/run/docker.sock')
 HOST_PROJECT_DIR = os.getenv('HOST_PROJECT_DIR', '/opt/portaljustplay').strip() or '/opt/portaljustplay'
-# WAN Fortigate (văn phòng) — công tắc SSH Fortinet vs Tailscale
+# WAN Fortigate (văn phòng) — đầu VPN site-to-site VPS <-> NAS
 FORTIGATE_WAN_IP = os.getenv('FORTIGATE_WAN_IP', '14.161.25.119').strip() or '14.161.25.119'
+NAS_LAN_HOST = os.getenv('NAS_LAN_HOST', '192.168.40.252').strip() or '192.168.40.252'
 # Giám sát NAS Synology (DSM Web API — CPU/RAM/tiến trình realtime)
 NAS_DSM_URL = os.getenv('NAS_DSM_URL', 'https://192.168.40.252:5556').strip()
 NAS_DSM_ACCOUNT = os.getenv('NAS_DSM_ACCOUNT', 'tailscale-justplay').strip()

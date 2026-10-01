@@ -65,8 +65,8 @@ remount_nas() {
   echo "==> Remount $MOUNT_POINT"
   cat > /etc/systemd/system/rclone-nas.service <<UNIT
 [Unit]
-Description=Rclone mount NAS (tailscale-justplay)
-After=network-online.target tailscaled.service
+Description=Rclone mount NAS (VPN site-to-site)
+After=network-online.target
 Wants=network-online.target
 
 [Service]

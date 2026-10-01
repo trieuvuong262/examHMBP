@@ -20,8 +20,7 @@ NAS_PASS=$(grep '^password=' /root/.nas-cred | cut -d= -f2-)
 OBSCURED=$("$RCLONE_BIN" obscure "$NAS_PASS")
 
 # Host SMB lấy từ NAS_SMB_HOST, nếu không có thì suy ra từ NAS_DSM_URL trong .env.
-# Trước đây IP bị hardcode nên khi IP Tailscale của NAS đổi thì rclone trỏ vào
-# địa chỉ chết và treo trọn --contimeout (1 phút) × retries ở mỗi lệnh.
+# NAS đi qua VPN site-to-site nên host là IP LAN của NAS (vd. 192.168.40.252).
 ENV_FILE="${ENV_FILE:-/opt/portaljustplay/.env}"
 NAS_SMB_HOST="${NAS_SMB_HOST:-}"
 if [[ -z "$NAS_SMB_HOST" && -f "$ENV_FILE" ]]; then
@@ -33,7 +32,7 @@ if [[ -z "$NAS_SMB_HOST" && -f "$ENV_FILE" ]]; then
 fi
 if [[ -z "$NAS_SMB_HOST" ]]; then
   echo "ERROR: khong xac dinh duoc host NAS." >&2
-  echo "       Dat NAS_SMB_HOST=<ip-tailscale> hoac NAS_DSM_URL trong ${ENV_FILE}" >&2
+  echo "       Dat NAS_SMB_HOST=<ip-lan-nas> hoac NAS_DSM_URL trong ${ENV_FILE}" >&2
   exit 1
 fi
 echo "=== NAS SMB host: ${NAS_SMB_HOST} ==="
@@ -41,8 +40,8 @@ echo "=== NAS SMB host: ${NAS_SMB_HOST} ==="
 # Kiem tra ket noi truoc khi cau hinh — that bai som thay vi treo o rclone
 if ! timeout 10 bash -c "cat < /dev/null > /dev/tcp/${NAS_SMB_HOST}/445" 2>/dev/null; then
   echo "ERROR: khong mo duoc cong SMB 445 tren ${NAS_SMB_HOST} (10s)." >&2
-  echo "       Kiem tra: tailscale status | grep ${NAS_SMB_HOST}" >&2
-  echo "       IP Tailscale cua NAS co the da doi — cap nhat NAS_DSM_URL trong .env." >&2
+  echo "       Kiem tra tunnel VPN site-to-site: ip xfrm state / ipsec status" >&2
+  echo "       NAS_DSM_URL trong .env phai tro IP LAN cua NAS." >&2
   exit 1
 fi
 echo "    SMB 445 OK"
@@ -68,8 +67,8 @@ ls -la /mnt/nas-portal
 
 cat > /etc/systemd/system/rclone-nas.service << UNIT
 [Unit]
-Description=Rclone mount NAS (tailscale-justplay)
-After=network-online.target tailscaled.service
+Description=Rclone mount NAS (VPN site-to-site)
+After=network-online.target
 Wants=network-online.target
 
 [Service]

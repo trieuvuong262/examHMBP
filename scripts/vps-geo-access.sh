@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Chặn kết nối mới vào VPS từ quốc gia ngoài danh sách cho phép.
 # Đặt rule trong ufw-before-input, chỉ trên NIC WAN (mặc định eth0).
-# Không đụng Tailscale, Docker bridge, loopback, IPsec đã giải mã.
+# Không đụng Docker bridge, loopback, IPsec site-to-site đã giải mã.
 #
 #   bash scripts/vps-geo-access.sh status
 #   GEO_BYPASS_IPS=1.2.3.4,5.6.7.8 bash scripts/vps-geo-access.sh apply VN

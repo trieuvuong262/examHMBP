@@ -189,8 +189,8 @@ def _ldap_connection():
     if _ldap_use_ssl():
         tls = Tls(validate=ssl.CERT_REQUIRED if _ldap_verify_ssl() else ssl.CERT_NONE)
 
-    # QUAN TRỌNG: ldap3 mặc định KHÔNG có timeout. NAS đi qua Tailscale nên khi
-    # NAS/Tailscale rớt, `auto_bind=True` treo vô hạn — mà luồng này nằm ngay
+    # QUAN TRỌNG: ldap3 mặc định KHÔNG có timeout. NAS đi qua VPN site-to-site nên khi
+    # tunnel rớt, `auto_bind=True` treo vô hạn — mà luồng này nằm ngay
     # trong request lưu nhân viên / đổi mật khẩu, đủ để cạn gunicorn worker.
     server = Server(
         _ldap_host(),

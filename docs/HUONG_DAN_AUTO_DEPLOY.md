@@ -71,7 +71,6 @@ Tạo `deploy.local.env`:
 
 ```env
 VPS_HOST=103.90.224.203
-VPS_TAILSCALE_HOST=100.79.206.125
 VPS_USER=root
 VPS_PORT=22
 PROJECT_DIR=/opt/portaljustplay
@@ -79,7 +78,7 @@ BRANCH=main
 DEPLOY_AFTER_PUSH=1
 ```
 
-Chạy `publish.ps1` / `update.cmd` → push xong → probe Tailscale trước (~2s), nếu không được mới thử IP public, rồi SSH chạy `deploy.sh`.
+Chạy `publish.ps1` / `update.cmd` → push xong → SSH thẳng IP public chạy `deploy.sh`.
 
 ### B) GitHub Actions (không cần `deploy.local.env`)
 

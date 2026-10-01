@@ -149,7 +149,7 @@ def _dsm_request(api: str, method: str, *, version: int = 1, params: dict | None
     global _dsm_sid, _dsm_sid_expires_at
 
     if not dsm_configured():
-        raise NasMonitorError('Chưa cấu hình DSM (NAS_DSM_URL hoặc mật khẩu tailscale-justplay).')
+        raise NasMonitorError('Chưa cấu hình DSM (NAS_DSM_URL hoặc NAS_DSM_PASSWORD).')
 
     account, password = _dsm_credentials()
     now = time.time()

@@ -1,4 +1,4 @@
-"""Lưu đính kèm báo cáo tuần trên NAS (Synology qua user tailscale-justplay), không dùng media VPS."""
+"""Lưu đính kèm báo cáo tuần trên NAS (Synology qua VPN site-to-site), không dùng media VPS."""
 
 from __future__ import annotations
 
