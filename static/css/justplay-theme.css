@@ -7675,6 +7675,41 @@ body.jp-has-sidebar .jp-main-content .table-responsive {
     word-break: break-all;
 }
 
+.jp-qa-bubble.jp-qa-md {
+    white-space: normal;
+}
+
+.jp-qa-md p,
+.jp-qa-md ul,
+.jp-qa-md ol {
+    margin: 0 0 0.5rem;
+}
+
+.jp-qa-md ul,
+.jp-qa-md ol {
+    padding-left: 1.25rem;
+}
+
+.jp-qa-md li + li {
+    margin-top: 0.2rem;
+}
+
+.jp-qa-md > :last-child {
+    margin-bottom: 0;
+}
+
+.jp-qa-md .jp-qa-md-heading {
+    font-weight: 700;
+    margin: 0.6rem 0 0.35rem;
+}
+
+.jp-qa-md code {
+    background: rgba(148, 163, 184, 0.18);
+    padding: 0 0.3rem;
+    border-radius: 4px;
+    font-size: 0.875em;
+}
+
 .jp-qa-msg-user .jp-qa-bubble a {
     color: #fff;
     text-decoration: underline;

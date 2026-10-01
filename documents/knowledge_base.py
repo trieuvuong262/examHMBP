@@ -1,17 +1,18 @@
 """Xây dựng ngữ cảnh hỏi đáp theo quyền truy cập của user."""
 
-import re
-import unicodedata
+import logging
 
 from django.conf import settings
-from django.urls import reverse
+from django.urls import NoReverseMatch, reverse
 from django.utils.html import strip_tags
 
 from announcements.models import Announcement
-from documents.models import Document, DocumentCategory
+from documents.models import DocumentCategory
 from hrm.models import UserGuide
 from hrm.module_permissions import ALL_MODULE_KEYS, MODULE_LABELS, user_can_access_module
 from hrm.permissions import get_profile, role_display
+
+logger = logging.getLogger(__name__)
 
 
 def _clip(text: str, limit: int = 1800) -> str:
@@ -35,10 +36,14 @@ def _absolute_url(path: str, request=None) -> str:
 
 
 def _document_url(category, document, request=None) -> str:
-    path = reverse(
-        'documents:browse_document',
-        kwargs={'category_slug': category.slug, 'doc_slug': document.slug},
-    )
+    try:
+        path = reverse(
+            'documents:browse_document',
+            kwargs={'category_slug': category.slug, 'doc_slug': document.slug},
+        )
+    except NoReverseMatch:
+        # Slug có dấu (slugify allow_unicode) không khớp pattern URL ASCII.
+        path = reverse('documents:browse')
     return _absolute_url(path, request)
 
 
@@ -68,49 +73,6 @@ def build_user_context(user) -> str:
     return '\n'.join(lines)
 
 
-def build_documents_context(request=None) -> str:
-    categories = DocumentCategory.objects.filter(is_active=True).prefetch_related('documents')
-    library_url = _absolute_url(reverse('documents:browse'), request)
-    qa_url = _absolute_url(reverse('documents:qa'), request)
-
-    parts = [
-        '=== TÀI LIỆU NỘI BỘ (công khai trong portal) ===',
-        f'Trang Thư viện — Tài liệu: {library_url}',
-        f'Trang Hỏi đáp: {qa_url}',
-        'Mỗi tài liệu bên dưới có Link URL — khi user hỏi, hãy đưa link đầy đủ để mở nhanh.',
-    ]
-    doc_count = 0
-    for category in categories:
-        active_docs = [d for d in category.documents.all() if d.is_active]
-        if not active_docs:
-            continue
-        category_url = _absolute_url(
-            reverse('documents:browse_category', kwargs={'category_slug': category.slug}),
-            request,
-        )
-        parts.append(f'\n## Nhóm: {category.name}')
-        parts.append(f'Link nhóm: {category_url}')
-        if category.description:
-            parts.append(_clip(category.description, 300))
-        for doc in active_docs[:12]:
-            doc_count += 1
-            if doc_count > 40:
-                break
-            parts.append(f'\n### {doc.title}')
-            parts.append(f'Link: {_document_url(category, doc, request)}')
-            if doc.summary:
-                parts.append(f'Tóm tắt: {_clip(doc.summary, 400)}')
-            if doc.content_type == Document.TYPE_TEXT and doc.body:
-                parts.append(_clip(strip_tags(doc.body), 1200))
-            elif doc.content_type == Document.TYPE_PDF:
-                parts.append('(Nội dung dạng PDF — mở link trên để xem/tải file)')
-        if doc_count > 40:
-            break
-    if doc_count == 0:
-        parts.append('Chưa có tài liệu nào được xuất bản.')
-    return '\n'.join(parts)
-
-
 def build_documents_index(request=None) -> list[dict]:
     """Chỉ mục tài liệu gọn — dùng cho gợi ý câu hỏi thông minh."""
     categories = DocumentCategory.objects.filter(is_active=True).prefetch_related('documents')
@@ -129,69 +91,6 @@ def build_documents_index(request=None) -> list[dict]:
                 'url': _document_url(category, doc, request),
             })
     return index
-
-
-def _strip_accents(text: str) -> str:
-    normalized = unicodedata.normalize('NFD', text or '')
-    return ''.join(ch for ch in normalized if unicodedata.category(ch) != 'Mn')
-
-
-def _question_tokens(question: str) -> set[str]:
-    text = _strip_accents((question or '').lower())
-    text = re.sub(r'[^\w\s]', ' ', text)
-    stop = {
-        'toi', 'ban', 'la', 'gi', 'co', 'khong', 'duoc', 'the', 'nao', 'va', 'cua',
-        'trong', 'tren', 'portal', 'justplay', 'xin', 'cho', 'hay', 've', 'mot', 'cac',
-        'giup', 'gui', 'link', 'cho', 'xin',
-    }
-    return {t for t in text.split() if len(t) > 1 and t not in stop}
-
-
-def _rank_documents_for_question(index: list[dict], question: str, limit: int = 8) -> list[dict]:
-    q_tokens = _question_tokens(question)
-    if not q_tokens:
-        return index[:limit]
-
-    scored = []
-    for doc in index:
-        haystack = _strip_accents(
-            f"{doc['title']} {doc.get('category', '')} {doc.get('summary', '')}".lower()
-        )
-        title_key = _strip_accents(doc['title'].lower())
-        score = sum(1 for t in q_tokens if t in haystack)
-        if title_key and title_key in _strip_accents((question or '').lower()):
-            score += 5
-        scored.append((score, doc))
-
-    scored.sort(key=lambda x: (-x[0], x[1]['title']))
-    matched = [doc for score, doc in scored if score > 0]
-    if matched:
-        return matched[:limit]
-    return index[:limit]
-
-
-def build_documents_context_compact(request=None, question: str = '') -> str:
-    """Chỉ mục gọn — title + link + tóm tắt, ưu tiên tài liệu liên quan câu hỏi."""
-    index = build_documents_index(request)
-    library_url = _absolute_url(reverse('documents:browse'), request)
-    selected = _rank_documents_for_question(index, question, limit=10)
-
-    parts = [
-        '=== TÀI LIỆU NỘI BỘ ===',
-        f'Trang Thư viện: {library_url}',
-        'Mỗi tài liệu có Link — luôn đưa URL đầy đủ khi user hỏi.',
-    ]
-    if not selected:
-        parts.append('Chưa có tài liệu nào được xuất bản.')
-        return '\n'.join(parts)
-
-    for doc in selected:
-        parts.append(
-            f"\n• {doc['title']} ({doc['category']})\n"
-            f"  Link: {doc['url']}"
-            + (f"\n  Tóm tắt: {doc['summary']}" if doc.get('summary') else '')
-        )
-    return '\n'.join(parts)
 
 
 def build_guide_context(user, request=None) -> str:
@@ -233,12 +132,91 @@ def build_announcements_context(user, request=None) -> str:
     return '\n'.join(parts)
 
 
-def build_portal_knowledge(user, request=None, question: str = '') -> str:
-    """Ngữ cảnh cho trợ lý QA — gọn, ưu tiên tài liệu liên quan."""
+PASSAGE_CHAR_BUDGET = 28_000
+DOC_INDEX_LIMIT = 200
+
+
+def build_menu_map_context(user) -> str:
+    """Menu con user thực sự mở được — để AI chỉ đường đúng tên trên sidebar."""
+    from hrm.menu_permissions import user_can_access_menu
+    from hrm.module_permissions import is_portal_module_visible
+    from hrm.submenu_registry import get_module_submenus
+
+    lines = ['=== SƠ ĐỒ MENU NGƯỜI HỎI ĐƯỢC DÙNG (sidebar bên trái) ===']
+    for key in sorted(ALL_MODULE_KEYS, key=lambda k: MODULE_LABELS.get(k, k)):
+        if not is_portal_module_visible(key) or not user_can_access_module(user, key):
+            continue
+        menus = []
+        for menu in get_module_submenus(key):
+            try:
+                if user_can_access_menu(user, key, menu['key']):
+                    menus.append(menu['label'])
+            except Exception:
+                continue
+        label = MODULE_LABELS.get(key, key)
+        lines.append(f'- {label}' + (f': {", ".join(menus)}' if menus else ''))
+    return '\n'.join(lines) if len(lines) > 1 else ''
+
+
+def _active_documents(request=None) -> list[tuple]:
+    out = []
+    categories = DocumentCategory.objects.filter(is_active=True).prefetch_related('documents')
+    for category in categories:
+        for doc in category.documents.all():
+            if doc.is_active:
+                out.append((doc, category.name, _document_url(category, doc, request)))
+    return out
+
+
+def build_documents_index_context(docs, request=None) -> str:
+    library_url = _absolute_url(reverse('documents:browse'), request)
+    parts = [
+        '=== DANH MỤC TÀI LIỆU NỘI BỘ ===',
+        f'Trang Thư viện: {library_url}',
+    ]
+    if not docs:
+        parts.append('Chưa có tài liệu nào được xuất bản.')
+    for doc, category_name, url in docs[:DOC_INDEX_LIMIT]:
+        line = f'• {doc.title} ({category_name}) — {url}'
+        if doc.summary:
+            line += f' — {_clip(doc.summary, 140)}'
+        parts.append(line)
+    return '\n'.join(parts)
+
+
+def build_retrieved_passages_context(user, docs, request=None, query: str = '') -> str:
+    from documents import qa_retrieval
+
+    from hrm.module_permissions import MODULE_GUIDE
+
+    passages = qa_retrieval.document_passages(docs)
+    if request is not None and user_can_access_module(user, MODULE_GUIDE):
+        try:
+            passages += qa_retrieval.guide_passages(request, _absolute_url(reverse('user_guide'), request))
+        except Exception:
+            logger.warning('QA guide passages failed', exc_info=True)
+
+    picked = qa_retrieval.rank_passages(passages, query, char_budget=PASSAGE_CHAR_BUDGET)
+    if not picked:
+        return ''
+    parts = [
+        '=== TRÍCH ĐOẠN LIÊN QUAN CÂU HỎI (nguồn chính để trả lời — trích từ nội dung thật) ===',
+    ]
+    for i, p in enumerate(picked, 1):
+        parts.append(f'\n[Nguồn {i}] {p.source}\nLink: {p.url}\n{p.text}')
+    return '\n'.join(parts)
+
+
+def build_portal_knowledge(user, request=None, question: str = '', retrieval_query: str = '') -> str:
+    """Ngữ cảnh cho trợ lý QA — quyền user, menu, danh mục tài liệu và trích đoạn liên quan."""
+    docs = _active_documents(request)
     sections = [
         build_user_context(user),
-        build_documents_context_compact(request, question=question),
-        build_guide_context(user, request),
+        build_menu_map_context(user),
+        build_retrieved_passages_context(user, docs, request, query=retrieval_query or question),
+        build_documents_index_context(docs, request),
         build_announcements_context(user, request),
     ]
-    return '\n\n'.join(part for part in sections if part.strip())
+    if request is None:
+        sections.append(build_guide_context(user, request))
+    return '\n\n'.join(part for part in sections if part and part.strip())

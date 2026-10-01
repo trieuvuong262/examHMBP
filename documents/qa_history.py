@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 
 from .models import LibraryQAChatMessage
 
-QA_HISTORY_CONTEXT_LIMIT = 12
+QA_HISTORY_CONTEXT_LIMIT = 16
 QA_HISTORY_DISPLAY_LIMIT = 500
 
 
