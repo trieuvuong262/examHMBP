@@ -42,7 +42,7 @@
     </div>
     <div class="col-6 col-md-2">
       <div class="border rounded-3 p-2 h-100">
-        <div class="text-muted small">Lệnh sản xuất mở / xong</div>
+        <div class="text-muted small">Lệnh trong kỳ mở / xong</div>
         <div class="fw-semibold">{{ report.mo_open }} / {{ report.mo_done }}</div>
       </div>
     </div>
@@ -66,7 +66,9 @@
     </div>
   </div>
 
-  <ul class="nav nav-tabs mb-3" id="opsTabs" role="tablist">
+  <p class="small text-muted mb-3">Sản lượng lấy từ thống kê đã xác nhận trong kỳ. Lệnh gồm phiếu có ngày đặt, hạn, kế hoạch hoặc thống kê nằm trong kỳ. Cảnh báo QC, giao việc và thuê gia công là phiếu đang mở.</p>
+
+  <ul class="nav nav-tabs mb-3 flex-nowrap overflow-auto" id="opsTabs" role="tablist">
     <li class="nav-item" role="presentation">
       <button class="nav-link {% if active_tab == 'danh-sach' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#pane-danh-sach" type="button" role="tab" data-ops-tab="danh-sach">Danh sách BC</button>
     </li>
@@ -77,7 +79,13 @@
       <button class="nav-link {% if active_tab == 'theo-sp' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#pane-theo-sp" type="button" role="tab" data-ops-tab="theo-sp">Theo SP</button>
     </li>
     <li class="nav-item" role="presentation">
+      <button class="nav-link {% if active_tab == 'theo-sku' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#pane-theo-sku" type="button" role="tab" data-ops-tab="theo-sku">Theo SKU</button>
+    </li>
+    <li class="nav-item" role="presentation">
       <button class="nav-link {% if active_tab == 'theo-to' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#pane-theo-to" type="button" role="tab" data-ops-tab="theo-to">Theo tổ / CĐ</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link {% if active_tab == 'chi-tiet' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#pane-chi-tiet" type="button" role="tab" data-ops-tab="chi-tiet">Chi tiết SL</button>
     </li>
     <li class="nav-item" role="presentation">
       <button class="nav-link {% if active_tab == 'lenh-sx' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#pane-lenh-sx" type="button" role="tab" data-ops-tab="lenh-sx">Lệnh sản xuất</button>
@@ -128,20 +136,19 @@
         <div class="table-responsive">
           <table class="table table-hover table-sm mb-0 align-middle">
             <thead class="table-light">
-              <tr><th>Ngày</th><th class="text-end">Đạt</th><th class="text-end">Lỗi</th><th class="text-end">Tổng</th></tr>
+              <tr><th>Ngày</th><th class="text-end">Đạt</th><th class="text-end">Lỗi</th><th class="text-end">Tổng</th><th class="text-end">% lỗi</th></tr>
             </thead>
             <tbody>
             {% for row in report.production_by_day %}
-              {% if row.qty_good or row.qty_defect %}
               <tr>
                 <td>{{ row.label }}</td>
                 <td class="text-end text-success">{{ row.qty_good|sx_num }}</td>
                 <td class="text-end text-danger">{{ row.qty_defect|sx_num }}</td>
-                <td class="text-end fw-semibold">{{ row.qty_good|add:row.qty_defect|sx_num }}</td>
+                <td class="text-end fw-semibold">{{ row.qty_total|sx_num }}</td>
+                <td class="text-end">{{ row.defect_rate|sx_num:1 }}%</td>
               </tr>
-              {% endif %}
             {% empty %}
-              <tr><td colspan="4" class="text-muted text-center py-3">Chưa có thống kê trong kỳ.</td></tr>
+              <tr><td colspan="5" class="text-muted text-center py-3">Chưa có thống kê trong kỳ.</td></tr>
             {% endfor %}
             </tbody>
           </table>
@@ -167,6 +174,42 @@
               </tr>
             {% empty %}
               <tr><td colspan="5" class="text-muted text-center py-3">Chưa có dữ liệu.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane fade {% if active_tab == 'theo-sku' %}show active{% endif %}" id="pane-theo-sku" role="tabpanel">
+      {% if report.sku_total > report.sku_output|length %}
+      <p class="small text-muted mb-2">Hiển thị {{ report.sku_output|length }} / {{ report.sku_total }} SKU có sản lượng cao nhất.</p>
+      {% endif %}
+      <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="table-responsive">
+          <table class="table table-hover table-sm mb-0 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Mã SP</th><th>SKU</th><th>Màu</th><th>Size</th>
+                <th class="text-end">Đạt</th><th class="text-end">Lỗi</th><th class="text-end">% lỗi</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for row in report.sku_output %}
+              <tr>
+                <td>
+                  <div class="fw-semibold">{{ row.product_code }}</div>
+                  <div class="text-muted small">{{ row.product_name|default:"" }}</div>
+                </td>
+                <td class="small">{{ row.sku_code }}</td>
+                <td class="small">{{ row.color_label }}</td>
+                <td class="small">{{ row.size_label }}</td>
+                <td class="text-end">{{ row.qty_good|sx_num }}</td>
+                <td class="text-end text-danger">{{ row.qty_defect|sx_num }}</td>
+                <td class="text-end">{{ row.defect_rate|sx_num:1 }}%</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="7" class="text-muted text-center py-3">Chưa có thống kê theo SKU trong kỳ.</td></tr>
             {% endfor %}
             </tbody>
           </table>
@@ -227,6 +270,50 @@
       </div>
     </div>
 
+    <div class="tab-pane fade {% if active_tab == 'chi-tiet' %}show active{% endif %}" id="pane-chi-tiet" role="tabpanel">
+      {% if report.stat_total > report.stat_rows|length %}
+      <p class="small text-muted mb-2">Hiển thị {{ report.stat_rows|length }} / {{ report.stat_total }} dòng mới nhất.</p>
+      {% else %}
+      <p class="small text-muted mb-2">{{ report.stat_total }} dòng thống kê đã xác nhận.</p>
+      {% endif %}
+      <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="table-responsive">
+          <table class="table table-hover table-sm mb-0 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Ngày</th><th>Mã</th><th>Lệnh</th><th>Sản phẩm</th>
+                <th>SKU</th><th>Màu</th><th>Size</th><th>Công đoạn</th><th>Tổ</th>
+                <th class="text-end">Đạt</th><th class="text-end">Lỗi</th><th class="text-end">%</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for row in report.stat_rows %}
+              <tr>
+                <td class="small text-nowrap">{{ row.stat_date|date:"d/m/Y" }}</td>
+                <td><a href="{% url 'san_xuat:dispatch_prod_stats_detail' row.pk %}" class="text-decoration-none fw-semibold">{{ row.code }}</a></td>
+                <td class="small"><a href="{% url 'san_xuat:dispatch_mo_detail' row.mo_pk %}" class="text-decoration-none">{{ row.mo_code }}</a></td>
+                <td>
+                  <div class="small">{{ row.product_code }}</div>
+                  <div class="text-muted small">{{ row.product_name|default:"" }}</div>
+                </td>
+                <td class="small">{{ row.sku_code|default:"—" }}</td>
+                <td class="small">{{ row.color_label|default:"—" }}</td>
+                <td class="small">{{ row.size_label|default:"—" }}</td>
+                <td class="small">{{ row.process_name|default:"—" }}</td>
+                <td class="small">{{ row.team_label|default:"—" }}</td>
+                <td class="text-end">{{ row.qty_good|sx_num }}</td>
+                <td class="text-end text-danger">{{ row.qty_defect|sx_num }}</td>
+                <td class="text-end">{{ row.defect_rate|sx_num:1 }}%</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="12" class="text-muted text-center py-3">Chưa có thống kê đã xác nhận trong kỳ.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <div class="tab-pane fade {% if active_tab == 'lenh-sx' %}show active{% endif %}" id="pane-lenh-sx" role="tabpanel">
       <div class="card border-0 shadow-sm overflow-hidden mb-3">
         <div class="px-3 py-2 border-bottom fw-semibold">Lệnh theo trạng thái</div>
@@ -244,7 +331,7 @@
           <table class="table table-hover table-sm mb-0 align-middle">
             <thead class="table-light">
               <tr>
-                <th>Mã</th><th>Sản phẩm</th><th>Tổ</th>
+                <th>Mã</th><th>Sản phẩm</th><th>Công đoạn</th><th>Tổ</th><th>Hạn</th>
                 <th class="text-end">Kế hoạch</th><th class="text-end">Đã làm</th>
                 <th class="text-end">%</th><th>Trạng thái</th>
               </tr>
@@ -257,14 +344,16 @@
                   <div class="small">{{ mo.product_code }}</div>
                   <div class="text-muted small">{{ mo.product_name|default:"" }}</div>
                 </td>
+                <td class="small">{{ mo.process_name|default:"—" }}</td>
                 <td class="small">{{ mo.team_label|default:"—" }}</td>
+                <td class="small text-nowrap">{{ mo.due_date|date:"d/m/Y"|default:"—" }}</td>
                 <td class="text-end">{{ mo.qty|sx_num }}</td>
                 <td class="text-end">{{ mo.qty_done|sx_num }}</td>
                 <td class="text-end small">{% if mo.qty %}{% widthratio mo.qty_done mo.qty 100 %}%{% else %}—{% endif %}</td>
                 <td><span class="badge bg-secondary-subtle text-secondary border">{{ mo.get_status_display }}</span></td>
               </tr>
             {% empty %}
-              <tr><td colspan="7" class="text-muted text-center py-3">Không có lệnh sản xuất.</td></tr>
+              <tr><td colspan="9" class="text-muted text-center py-3">Không có lệnh sản xuất trong kỳ.</td></tr>
             {% endfor %}
             </tbody>
           </table>
@@ -277,19 +366,22 @@
         <div class="table-responsive">
           <table class="table table-hover table-sm mb-0 align-middle">
             <thead class="table-light">
-              <tr><th>Mã</th><th>Lệnh sản xuất</th><th>Ngày</th><th class="text-end">SL</th><th>Lô</th></tr>
+              <tr><th>Mã</th><th>Lệnh sản xuất</th><th>Sản phẩm</th><th>Tổ</th><th>Ngày</th><th class="text-end">SL</th><th class="text-end">Thùng</th><th>Lô</th></tr>
             </thead>
             <tbody>
             {% for p in report.packing_rows %}
               <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:packing_detail' p.pk %}">
                 <td><a href="{% url 'san_xuat:packing_detail' p.pk %}" class="text-decoration-none fw-semibold">{{ p.code }}</a></td>
                 <td class="small">{{ p.production_order.code }}</td>
+                <td class="small">{{ p.production_order.product_code }}</td>
+                <td class="small">{{ p.production_order.team_label|default:"—" }}</td>
                 <td class="small">{{ p.pack_date|date:"d/m/Y" }}</td>
                 <td class="text-end">{{ p.qty|sx_num }}</td>
+                <td class="text-end">{{ p.carton_count }}</td>
                 <td class="small">{{ p.lot_code|default:"—" }}</td>
               </tr>
             {% empty %}
-              <tr><td colspan="5" class="text-muted text-center py-3">Không có đóng gói trong kỳ.</td></tr>
+              <tr><td colspan="8" class="text-muted text-center py-3">Không có đóng gói trong kỳ.</td></tr>
             {% endfor %}
             </tbody>
           </table>
@@ -298,7 +390,8 @@
     </div>
 
     <div class="tab-pane fade {% if active_tab == 'dung-chuyen' %}show active{% endif %}" id="pane-dung-chuyen" role="tabpanel">
-      <div class="card border-0 shadow-sm overflow-hidden">
+      <div class="card border-0 shadow-sm overflow-hidden mb-3">
+        <div class="px-3 py-2 border-bottom fw-semibold">Theo lý do</div>
         <div class="table-responsive">
           <table class="table table-hover table-sm mb-0 align-middle">
             <thead class="table-light">
@@ -319,6 +412,38 @@
           </table>
         </div>
       </div>
+      {% if report.downtime_event_total > report.downtime_rows|length %}
+      <p class="small text-muted mb-2">Hiển thị {{ report.downtime_rows|length }} / {{ report.downtime_event_total }} lần dừng gần nhất.</p>
+      {% endif %}
+      <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="px-3 py-2 border-bottom fw-semibold">Từng lần dừng</div>
+        <div class="table-responsive">
+          <table class="table table-hover table-sm mb-0 align-middle">
+            <thead class="table-light">
+              <tr><th>Ngày</th><th>Mã</th><th>Lý do</th><th>Tổ</th><th>Lệnh</th><th class="text-end">Phút</th><th>Ghi chú</th></tr>
+            </thead>
+            <tbody>
+            {% for ev in report.downtime_rows %}
+              <tr>
+                <td class="small text-nowrap">{{ ev.event_date|date:"d/m/Y" }}</td>
+                <td class="fw-semibold">{{ ev.code }}</td>
+                <td class="small">{{ ev.reason }}</td>
+                <td class="small">{{ ev.team_label|default:"—" }}</td>
+                <td class="small">
+                  {% if ev.production_order_id %}
+                  <a href="{% url 'san_xuat:dispatch_mo_detail' ev.production_order_id %}" class="text-decoration-none">{{ ev.production_order.code }}</a>
+                  {% else %}—{% endif %}
+                </td>
+                <td class="text-end">{{ ev.minutes|intcomma }}</td>
+                <td class="small text-muted">{{ ev.notes|truncatechars:80|default:"—" }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="7" class="text-muted text-center py-3">Chưa ghi nhận dừng chuyền.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <div class="tab-pane fade {% if active_tab == 'kho' %}show active{% endif %}" id="pane-kho" role="tabpanel">
@@ -334,12 +459,16 @@
               <td class="text-end fw-semibold"><a href="{% url 'san_xuat:dispatch_fg_receipt_req' %}">{{ report.ycntp_count }}</a></td>
             </tr>
             <tr>
+              <td>Bàn giao bán thành phẩm trong kỳ</td>
+              <td class="text-end fw-semibold"><a href="{% url 'san_xuat:dispatch_wip_handover' %}">{{ report.wip_count }}</a> · {{ report.wip_qty|sx_num }}</td>
+            </tr>
+            <tr>
               <td>Giao việc đang mở</td>
-              <td class="text-end fw-semibold">{{ report.work_open }}</td>
+              <td class="text-end fw-semibold"><a href="{% url 'san_xuat:work_assignment_list' %}">{{ report.work_open }}</a></td>
             </tr>
             <tr>
               <td>Thuê gia công đang mở</td>
-              <td class="text-end fw-semibold">{{ report.subcontract_open }}</td>
+              <td class="text-end fw-semibold"><a href="{% url 'san_xuat:subcontract_list' %}">{{ report.subcontract_open }}</a></td>
             </tr>
             <tr>
               <td>Cảnh báo QC đang mở</td>
@@ -354,6 +483,169 @@
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <div class="card border-0 shadow-sm overflow-hidden mt-3">
+        <div class="px-3 py-2 border-bottom fw-semibold">Yêu cầu xuất NVL</div>
+        <div class="table-responsive">
+          <table class="table table-hover table-sm mb-0 align-middle">
+            <thead class="table-light">
+              <tr><th>Mã</th><th>Ngày</th><th>Lệnh</th><th>Sản phẩm</th><th class="text-end">SL yêu cầu</th><th>Trạng thái</th></tr>
+            </thead>
+            <tbody>
+            {% for req in report.ycx_rows %}
+              <tr>
+                <td><a href="{% url 'san_xuat:dispatch_material_issue_req_detail' req.pk %}" class="text-decoration-none fw-semibold">{{ req.code }}</a></td>
+                <td class="small">{{ req.request_date|date:"d/m/Y" }}</td>
+                <td class="small"><a href="{% url 'san_xuat:dispatch_mo_detail' req.production_order_id %}" class="text-decoration-none">{{ req.production_order.code }}</a></td>
+                <td class="small">{{ req.production_order.product_code }}</td>
+                <td class="text-end">{{ req.line_qty|sx_num }}</td>
+                <td class="small">
+                  {% if req.status == 'draft' %}Nháp
+                  {% elif req.status == 'submitted' %}Đã gửi
+                  {% elif req.status == 'approved' %}Đã duyệt
+                  {% elif req.status == 'partial' %}Xuất một phần
+                  {% elif req.status == 'done' %}Hoàn thành
+                  {% elif req.status == 'cancelled' %}Hủy
+                  {% else %}{{ req.status }}{% endif %}
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="6" class="text-muted text-center py-3">Không có yêu cầu xuất trong kỳ.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm overflow-hidden mt-3">
+        <div class="px-3 py-2 border-bottom fw-semibold">Yêu cầu nhập thành phẩm</div>
+        <div class="table-responsive">
+          <table class="table table-hover table-sm mb-0 align-middle">
+            <thead class="table-light">
+              <tr><th>Mã</th><th>Ngày</th><th>Lệnh</th><th>Sản phẩm</th><th class="text-end">SL</th><th>Trạng thái</th></tr>
+            </thead>
+            <tbody>
+            {% for req in report.ycntp_rows %}
+              <tr>
+                <td><a href="{% url 'san_xuat:dispatch_fg_receipt_req_detail' req.pk %}" class="text-decoration-none fw-semibold">{{ req.code }}</a></td>
+                <td class="small">{{ req.request_date|date:"d/m/Y" }}</td>
+                <td class="small"><a href="{% url 'san_xuat:dispatch_mo_detail' req.production_order_id %}" class="text-decoration-none">{{ req.production_order.code }}</a></td>
+                <td class="small">{{ req.production_order.product_code }}</td>
+                <td class="text-end">{{ req.qty|sx_num }}</td>
+                <td class="small">{{ req.get_status_display }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="6" class="text-muted text-center py-3">Không có yêu cầu nhập thành phẩm trong kỳ.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm overflow-hidden mt-3">
+        <div class="px-3 py-2 border-bottom fw-semibold">Bàn giao bán thành phẩm</div>
+        <div class="table-responsive">
+          <table class="table table-hover table-sm mb-0 align-middle">
+            <thead class="table-light">
+              <tr><th>Mã</th><th>Ngày</th><th>Lệnh</th><th>Từ</th><th>Đến</th><th class="text-end">SL</th><th>Trạng thái</th></tr>
+            </thead>
+            <tbody>
+            {% for row in report.wip_rows %}
+              <tr>
+                <td><a href="{% url 'san_xuat:dispatch_wip_handover_detail' row.pk %}" class="text-decoration-none fw-semibold">{{ row.code }}</a></td>
+                <td class="small">{{ row.handover_date|date:"d/m/Y" }}</td>
+                <td class="small"><a href="{% url 'san_xuat:dispatch_mo_detail' row.production_order_id %}" class="text-decoration-none">{{ row.production_order.code }}</a></td>
+                <td class="small">{{ row.from_process|default:"—" }}</td>
+                <td class="small">{{ row.to_process|default:"—" }}</td>
+                <td class="text-end">{{ row.qty|sx_num }}</td>
+                <td class="small">{{ row.get_status_display }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="7" class="text-muted text-center py-3">Không có bàn giao trong kỳ.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm overflow-hidden mt-3">
+        <div class="px-3 py-2 border-bottom fw-semibold">Cảnh báo QC đang mở</div>
+        <div class="table-responsive">
+          <table class="table table-hover table-sm mb-0 align-middle">
+            <thead class="table-light">
+              <tr><th>Mã</th><th>Loại</th><th>Lệnh</th><th>Công đoạn</th><th class="text-end">% lỗi</th><th class="text-end">Đạt</th><th class="text-end">Lỗi</th></tr>
+            </thead>
+            <tbody>
+            {% for alert in report.alert_rows %}
+              <tr>
+                <td><a href="{% url 'san_xuat:qc_alert_detail' alert.pk %}" class="text-decoration-none fw-semibold">{{ alert.code }}</a></td>
+                <td class="small">{{ alert.get_alert_type_display }}</td>
+                <td class="small"><a href="{% url 'san_xuat:dispatch_mo_detail' alert.production_order_id %}" class="text-decoration-none">{{ alert.production_order.code }}</a></td>
+                <td class="small">{{ alert.process_name|default:"—" }}</td>
+                <td class="text-end">{{ alert.defect_rate|sx_num:1 }}%</td>
+                <td class="text-end">{{ alert.qty_good|sx_num }}</td>
+                <td class="text-end text-danger">{{ alert.qty_defect|sx_num }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="7" class="text-muted text-center py-3">Không có cảnh báo đang mở.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="row g-3 mt-0">
+        <div class="col-lg-6">
+          <div class="card border-0 shadow-sm overflow-hidden">
+            <div class="px-3 py-2 border-bottom fw-semibold">Giao việc đang mở</div>
+            <div class="table-responsive">
+              <table class="table table-hover table-sm mb-0 align-middle">
+                <thead class="table-light">
+                  <tr><th>Mã</th><th>Việc</th><th>Lệnh</th><th>Người nhận</th><th>Hạn</th></tr>
+                </thead>
+                <tbody>
+                {% for row in report.work_rows %}
+                  <tr>
+                    <td class="fw-semibold">{{ row.code }}</td>
+                    <td class="small">{{ row.title }}</td>
+                    <td class="small"><a href="{% url 'san_xuat:dispatch_mo_detail' row.production_order_id %}" class="text-decoration-none">{{ row.production_order.code }}</a></td>
+                    <td class="small">{{ row.assignee_label|default:row.assignee|default:"—" }}</td>
+                    <td class="small text-nowrap">{{ row.due_date|date:"d/m/Y"|default:"—" }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="5" class="text-muted text-center py-3">Không có giao việc đang mở.</td></tr>
+                {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="card border-0 shadow-sm overflow-hidden">
+            <div class="px-3 py-2 border-bottom fw-semibold">Thuê gia công đang mở</div>
+            <div class="table-responsive">
+              <table class="table table-hover table-sm mb-0 align-middle">
+                <thead class="table-light">
+                  <tr><th>Mã</th><th>Đơn vị</th><th>SP</th><th class="text-end">SL</th><th>Trạng thái</th></tr>
+                </thead>
+                <tbody>
+                {% for row in report.subcontract_rows %}
+                  <tr>
+                    <td><a href="{% url 'san_xuat:subcontract_detail' row.pk %}" class="text-decoration-none fw-semibold">{{ row.code }}</a></td>
+                    <td class="small">{{ row.vendor_name }}</td>
+                    <td class="small">{{ row.product_code }}</td>
+                    <td class="text-end">{{ row.qty|sx_num }}</td>
+                    <td class="small">{{ row.get_status_display }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="5" class="text-muted text-center py-3">Không có thuê gia công đang mở.</td></tr>
+                {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>

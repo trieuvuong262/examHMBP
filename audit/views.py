@@ -27,7 +27,16 @@ from utilities.date_range_filter import (
 )
 
 from .models import PortalBackupJob, UserActivityLog
-from .portal_backup import PortalBackupError, latest_backup_job, start_backup_async
+from .portal_backup import (
+    PortalBackupError,
+    SCOPE_LABELS,
+    latest_backup_job,
+    latest_restore_job,
+    list_backup_snapshots,
+    snapshots_from_jobs,
+    start_backup_async,
+    start_restore_async,
+)
 
 
 def _activity_log_queryset_from_request(request):
@@ -86,14 +95,31 @@ def _activity_log_queryset_from_request(request):
 
 
 def _backup_page_context(user):
+    can_run_backup = user_can_export_menu(user, MODULE_AUDIT, 'backup')
     backup_job = latest_backup_job()
-    backup_running = PortalBackupJob.objects.filter(
-        status__in=(PortalBackupJob.STATUS_PENDING, PortalBackupJob.STATUS_RUNNING),
-    ).exists()
+    active_job = (
+        PortalBackupJob.objects.filter(
+            status__in=(PortalBackupJob.STATUS_PENDING, PortalBackupJob.STATUS_RUNNING),
+        )
+        .order_by('-created_at')
+        .first()
+    )
+    snapshots = []
+    list_warning = ''
+    if can_run_backup:
+        try:
+            snapshots = list_backup_snapshots()
+        except PortalBackupError as exc:
+            list_warning = str(exc)
+            snapshots = snapshots_from_jobs()
     return {
-        'can_run_backup': user_can_export_menu(user, MODULE_AUDIT, 'backup'),
+        'can_run_backup': can_run_backup,
         'backup_job': backup_job,
-        'backup_running': backup_running,
+        'restore_job': latest_restore_job(),
+        'active_job': active_job,
+        'backup_running': active_job is not None,
+        'backup_snapshots': snapshots,
+        'backup_list_warning': list_warning,
     }
 
 
@@ -198,6 +224,28 @@ def backup_run(request):
     messages.success(
         request,
         f'Đã bắt đầu backup lên NAS (job #{job.pk}). Tải lại trang sau vài phút để xem kết quả.',
+    )
+    return redirect('audit:backup_page')
+
+
+@module_perm_required(MODULE_AUDIT, 'export')
+@require_POST
+def backup_restore(request):
+    if request.POST.get('confirm_restore') != '1':
+        messages.error(request, 'Cần xác nhận trước khi khôi phục.')
+        return redirect('audit:backup_page')
+    day = (request.POST.get('day') or '').strip()
+    run_id = (request.POST.get('run_id') or '').strip()
+    scope = (request.POST.get('scope') or '').strip()
+    try:
+        job = start_restore_async(day=day, run_id=run_id, scope=scope, user=request.user)
+    except PortalBackupError as exc:
+        messages.error(request, str(exc))
+        return redirect('audit:backup_page')
+    label = SCOPE_LABELS.get(scope, 'backup')
+    messages.success(
+        request,
+        f'Đã bắt đầu khôi phục {label} từ backup {day} (job #{job.pk}). Tải lại trang sau vài phút để xem kết quả.',
     )
     return redirect('audit:backup_page')
 

@@ -53,6 +53,7 @@ urlpatterns = [
     path('xuat-excel/', views.log_export_excel, name='log_export_excel'),
     path('backup/', views.backup_page, name='backup_page'),
     path('backup/run/', views.backup_run, name='backup_run'),
+    path('backup/restore/', views.backup_restore, name='backup_restore'),
     path('kiotviet-sync/', kiotviet_sync_views.kiotviet_sync_page, name='kiotviet_sync'),
     path('kiotviet-sync/save/', kiotviet_sync_views.kiotviet_sync_save, name='kiotviet_sync_save'),
     path('kiotviet-sync/run/', kiotviet_sync_views.kiotviet_sync_run, name='kiotviet_sync_run'),

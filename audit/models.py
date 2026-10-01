@@ -362,6 +362,22 @@ class PortalBackupJob(models.Model):
         (TRIGGER_SCHEDULED, 'Tự động'),
     ]
 
+    KIND_BACKUP = 'backup'
+    KIND_RESTORE = 'restore'
+    KIND_CHOICES = [
+        (KIND_BACKUP, 'Backup'),
+        (KIND_RESTORE, 'Khôi phục'),
+    ]
+
+    SCOPE_CODE = 'code'
+    SCOPE_DATA = 'data'
+    SCOPE_ALL = 'all'
+    SCOPE_CHOICES = [
+        (SCOPE_CODE, 'Mã nguồn'),
+        (SCOPE_DATA, 'Dữ liệu'),
+        (SCOPE_ALL, 'Toàn bộ'),
+    ]
+
     STATUS_PENDING = 'pending'
     STATUS_RUNNING = 'running'
     STATUS_SUCCESS = 'success'
@@ -374,6 +390,8 @@ class PortalBackupJob(models.Model):
     ]
 
     trigger = models.CharField(max_length=16, choices=TRIGGER_CHOICES, default=TRIGGER_SCHEDULED)
+    kind = models.CharField(max_length=16, choices=KIND_CHOICES, default=KIND_BACKUP, db_index=True)
+    scope = models.CharField(max_length=16, choices=SCOPE_CHOICES, blank=True, default='')
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
     started_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

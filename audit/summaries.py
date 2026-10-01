@@ -725,6 +725,7 @@ NAMESPACE_URL_DESCRIPTIONS: dict[str, dict[str, str] | str] = {
     'audit:unlock_ip_login': 'bỏ chặn IP đăng nhập #{pk}',
     'audit:backup_page': 'xem trang backup Portal lên NAS',
     'audit:backup_run': 'bấm chạy backup Portal lên NAS',
+    'audit:backup_restore': 'bấm khôi phục portal từ file backup trên NAS',
     'audit:vps_monitor': 'xem trang giám sát VPS',
     'audit:vps_monitor_metrics': 'tải số liệu RAM/CPU/SSD VPS',
     'audit:vps_monitor_optimize': {
@@ -960,6 +961,7 @@ URL_POST_HIGHLIGHTS: dict[str, list[str]] = {
     'permission_group_add': ['name'],
     'permission_group_edit': ['name'],
     'backup_run': [],
+    'backup_restore': ['day', 'run_id', 'scope'],
     'assign': ['title', 'assigned_to', 'due_date'],
     'create': ['title', 'subject', 'description'],
     'catalog_create': ['name', 'code'],

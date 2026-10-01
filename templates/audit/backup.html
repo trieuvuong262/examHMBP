@@ -10,6 +10,7 @@
             </h2>
             <p class="text-muted small mb-0 mt-1">
                 Sao lưu database, mã nguồn và media portal lên thư mục <code>backup</code> trên NAS.
+                Có thể khôi phục lại theo ngày: mã nguồn, dữ liệu, hoặc toàn bộ.
             </p>
         </div>
         {% if can_run_backup %}
@@ -22,15 +23,20 @@
                     <i class="bi bi-cloud-arrow-up me-1"></i>Chạy backup ngay
                 </button>
             </form>
+            <button type="button" class="btn btn-outline-danger fw-bold"
+                    data-bs-toggle="modal" data-bs-target="#restoreBackupModal"
+                    {% if backup_running or not backup_snapshots %}disabled{% endif %}>
+                <i class="bi bi-arrow-counterclockwise me-1"></i>Khôi phục
+            </button>
         </div>
         {% endif %}
     </div>
 
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body py-3 small">
-            <div class="fw-bold text-dark mb-1"> Backup Portal → NAS</div>
-            {% if backup_running %}
-            <span class="text-primary"> Đang chạy backup — vui lòng tải lại trang sau vài phút.</span>
+            <div class="fw-bold text-dark mb-1">Backup Portal → NAS</div>
+            {% if active_job and active_job.kind == 'backup' %}
+            <span class="text-primary">Đang chạy backup — vui lòng tải lại trang sau vài phút.</span>
             {% elif backup_job %}
             <span class="{% if backup_job.status == 'success' %}text-success{% elif backup_job.status == 'failed' %}text-danger{% else %}text-muted{% endif %}">
                 Lần cuối: {{ backup_job.get_status_display }}
@@ -50,10 +56,203 @@
         </div>
     </div>
 
+    {% if can_run_backup %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body py-3 small">
+            <div class="fw-bold text-dark mb-1">Khôi phục từ backup</div>
+            {% if active_job and active_job.kind == 'restore' %}
+            <span class="text-primary">
+                Đang khôi phục
+                {% if active_job.scope %}{{ active_job.get_scope_display|lower }}{% endif %}
+                — vui lòng tải lại trang sau vài phút.
+            </span>
+            {% elif restore_job %}
+            <span class="{% if restore_job.status == 'success' %}text-success{% elif restore_job.status == 'failed' %}text-danger{% else %}text-muted{% endif %}">
+                Lần cuối: {{ restore_job.get_status_display }}
+                {% if restore_job.scope %}· {{ restore_job.get_scope_display }}{% endif %}
+                {% if restore_job.started_at %}· {{ restore_job.started_at|date:"d/m/Y H:i" }}{% endif %}
+                {% if restore_job.duration_display != '—' %}· {{ restore_job.duration_display }}{% endif %}
+            </span>
+            {% if restore_job.remote_path %}
+            <div class="text-muted font-monospace mt-1">{{ restore_job.remote_path }}</div>
+            {% endif %}
+            {% if restore_job.message %}
+            <div class="mt-1">{{ restore_job.message }}</div>
+            {% endif %}
+            {% else %}
+            <span class="text-muted">Chưa khôi phục lần nào. Chọn một ngày backup bên dưới.</span>
+            {% endif %}
+            {% if backup_list_warning %}
+            <div class="text-warning mt-2">Không đọc được NAS ({{ backup_list_warning }}). Danh sách dưới đây lấy từ các lần backup đã ghi nhận.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="fw-bold text-dark mb-3">File backup trên NAS</div>
+            {% if backup_snapshots %}
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr class="text-muted small">
+                            <th>Ngày</th>
+                            <th>Giờ</th>
+                            <th>Loại</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for day in backup_snapshots %}
+                            {% for run in day.runs %}
+                            <tr>
+                                <td>{{ day.label }}</td>
+                                <td>{{ run.time }}</td>
+                                <td>{{ run.kind }}</td>
+                                <td class="text-end">
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-danger js-restore-open"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#restoreBackupModal"
+                                            data-day="{{ day.day }}"
+                                            data-run="{{ run.run_id }}"
+                                            {% if backup_running %}disabled{% endif %}>
+                                        Khôi phục
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted small mb-0">Chưa thấy file backup trên NAS.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="modal fade" id="restoreBackupModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form method="post" action="{% url 'audit:backup_restore' %}" id="restoreBackupForm">
+                    {% csrf_token %}
+                    <div class="modal-header">
+                        <h5 class="modal-title">Khôi phục từ backup</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                    </div>
+                    <div class="modal-body">
+                        <label class="form-label fw-bold" for="restoreDay">Ngày backup</label>
+                        <select class="form-select mb-3" name="day" id="restoreDay" required>
+                            {% for day in backup_snapshots %}
+                            <option value="{{ day.day }}">{{ day.label }}</option>
+                            {% endfor %}
+                        </select>
+
+                        <label class="form-label fw-bold" for="restoreRun">File trong ngày</label>
+                        <select class="form-select mb-3" name="run_id" id="restoreRun" required></select>
+
+                        <div class="fw-bold mb-2">Phạm vi</div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="scope" id="scopeCode" value="code" required>
+                            <label class="form-check-label" for="scopeCode">Mã nguồn</label>
+                            <div class="form-text">Ghi đè code trên VPS. Không đụng <code>.env</code> và <code>.git</code>. Cần deploy thì portal mới chạy code này.</div>
+                        </div>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="radio" name="scope" id="scopeData" value="data">
+                            <label class="form-check-label" for="scopeData">Dữ liệu</label>
+                            <div class="form-text">Thay database và media hiện tại. Có hiệu lực ngay, không hoàn tác.</div>
+                        </div>
+                        <div class="form-check mt-2 mb-3">
+                            <input class="form-check-input" type="radio" name="scope" id="scopeAll" value="all" checked>
+                            <label class="form-check-label" for="scopeAll">Toàn bộ</label>
+                            <div class="form-text">Thay database, media và mã nguồn theo đúng ngày đã chọn. Cần deploy ngay sau đó; trước khi deploy portal có thể lỗi.</div>
+                        </div>
+
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="confirm_restore" id="confirmRestore" value="1" required>
+                            <label class="form-check-label" for="confirmRestore">Tôi hiểu dữ liệu hiện tại sẽ bị ghi đè.</label>
+                        </div>
+                        <p class="small text-danger mt-3 mb-0" id="restoreSummary"></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-danger" {% if backup_running %}disabled{% endif %}>Khôi phục</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {{ backup_snapshots|json_script:"backup-snapshots" }}
+    {% endif %}
+
     {% if not can_run_backup %}
     <div class="alert alert-warning border-0 shadow-sm">
-        Bạn chỉ có quyền xem. Cần quyền <strong>xuất Excel / quản trị Nhật ký</strong> để chạy backup thủ công.
+        Bạn chỉ có quyền xem. Cần quyền <strong>xuất Excel / quản trị Nhật ký</strong> để chạy backup hoặc khôi phục.
     </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+{% if can_run_backup and backup_snapshots %}
+<script>
+(function () {
+    const snapshots = JSON.parse(document.getElementById('backup-snapshots').textContent || '[]');
+    const daySelect = document.getElementById('restoreDay');
+    const runSelect = document.getElementById('restoreRun');
+    const summary = document.getElementById('restoreSummary');
+    const form = document.getElementById('restoreBackupForm');
+    if (!daySelect || !runSelect || !snapshots.length) return;
+
+    const scopeLabels = {code: 'mã nguồn', data: 'dữ liệu', all: 'toàn bộ'};
+
+    function runsFor(day) {
+        const found = snapshots.find((item) => item.day === day);
+        return found ? found.runs : [];
+    }
+
+    function fillRuns(day, selectedRun) {
+        const runs = runsFor(day);
+        runSelect.innerHTML = '';
+        runs.forEach((run) => {
+            const option = document.createElement('option');
+            option.value = run.run_id;
+            option.textContent = run.label;
+            if (run.run_id === selectedRun) option.selected = true;
+            runSelect.appendChild(option);
+        });
+        updateSummary();
+    }
+
+    function updateSummary() {
+        const scope = form.querySelector('input[name="scope"]:checked');
+        const dayLabel = daySelect.selectedOptions[0] ? daySelect.selectedOptions[0].textContent : '';
+        const runLabel = runSelect.selectedOptions[0] ? runSelect.selectedOptions[0].textContent : '';
+        const scopeLabel = scope ? (scopeLabels[scope.value] || scope.value) : 'toàn bộ';
+        summary.textContent = 'Sẽ khôi phục ' + scopeLabel + ' từ backup ' + dayLabel + ' ' + runLabel + '.';
+    }
+
+    daySelect.addEventListener('change', () => fillRuns(daySelect.value, ''));
+    runSelect.addEventListener('change', updateSummary);
+    form.querySelectorAll('input[name="scope"]').forEach((input) => {
+        input.addEventListener('change', updateSummary);
+    });
+    document.querySelectorAll('.js-restore-open').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            if (!btn.dataset.day) return;
+            daySelect.value = btn.dataset.day;
+            fillRuns(btn.dataset.day, btn.dataset.run || '');
+        });
+    });
+    form.addEventListener('submit', (event) => {
+        const text = summary.textContent || 'Khôi phục backup này?';
+        if (!window.confirm(text + '\nThao tác ghi đè dữ liệu hiện tại và không hoàn tác.')) {
+            event.preventDefault();
+        }
+    });
+    fillRuns(daySelect.value, runSelect.value);
+})();
+</script>
+{% endif %}
 {% endblock %}

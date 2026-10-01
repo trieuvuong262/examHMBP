@@ -108,8 +108,8 @@ class UserActivityLogAdmin(admin.ModelAdmin):
 
 @admin.register(PortalBackupJob)
 class PortalBackupJobAdmin(admin.ModelAdmin):
-    list_display = ('created_at', 'trigger', 'status', 'started_by', 'remote_path', 'finished_at')
-    list_filter = ('status', 'trigger')
+    list_display = ('created_at', 'kind', 'scope', 'trigger', 'status', 'started_by', 'remote_path', 'finished_at')
+    list_filter = ('kind', 'status', 'trigger', 'scope')
     readonly_fields = ('artifacts', 'message', 'remote_path', 'created_at', 'started_at', 'finished_at')
     search_fields = ('remote_path', 'message', 'started_by__username')
 

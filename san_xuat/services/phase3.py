@@ -26,6 +26,7 @@ from san_xuat.hub_models import (
     SxSalesOrder,
     SxSubcontractMaterialLine,
     SxSubcontractOrder,
+    SxWipHandover,
     SxWorkAssignment,
     SxWorkCenter,
     DEFAULT_SHIFT_MINUTES,
@@ -1652,6 +1653,30 @@ def trace_production(*, query: str) -> TraceResult:
 
 # --- Báo cáo vận hành ---
 
+OPS_STAT_ROW_LIMIT = 200
+OPS_DOC_ROW_LIMIT = 80
+OPS_TOP_ROW_LIMIT = 30
+
+_YCX_STATUS_LABELS = {
+    "draft": "Nháp",
+    "submitted": "Đã gửi",
+    "approved": "Đã duyệt",
+    "partial": "Xuất một phần",
+    "done": "Hoàn thành",
+    "cancelled": "Hủy",
+}
+
+
+def _ops_pct(good, defect) -> float:
+    good_f = float(good or 0)
+    defect_f = float(defect or 0)
+    total = good_f + defect_f
+    return round(defect_f / total * 100, 1) if total else 0.0
+
+
+def ycx_status_label(status: str) -> str:
+    return _YCX_STATUS_LABELS.get((status or "").strip(), status or "—")
+
 
 @dataclass
 class OpsReport:
@@ -1681,6 +1706,20 @@ class OpsReport:
     packing_rows: list = field(default_factory=list)
     defect_rate: float = 0.0
     report_catalog: list = field(default_factory=list)
+    stat_rows: list = field(default_factory=list)
+    stat_total: int = 0
+    sku_output: list = field(default_factory=list)
+    sku_total: int = 0
+    downtime_rows: list = field(default_factory=list)
+    downtime_event_total: int = 0
+    alert_rows: list = field(default_factory=list)
+    ycx_rows: list = field(default_factory=list)
+    ycntp_rows: list = field(default_factory=list)
+    wip_rows: list = field(default_factory=list)
+    wip_count: int = 0
+    wip_qty: Decimal = field(default_factory=lambda: Decimal("0"))
+    work_rows: list = field(default_factory=list)
+    subcontract_rows: list = field(default_factory=list)
 
 
 def build_ops_report(
@@ -1691,8 +1730,6 @@ def build_ops_report(
     process_name: str = "",
     team_label: str = "",
 ) -> OpsReport:
-    from datetime import timedelta
-
     product_code = (product_code or "").strip()
     process_name = (process_name or "").strip()
     team_label = (team_label or "").strip()
@@ -1702,31 +1739,6 @@ def build_ops_report(
         product_code=product_code,
         process_name=process_name,
         team_label=team_label,
-    )
-
-    mo_qs = SxProductionOrder.objects.filter(is_demo=False)
-    if product_code:
-        mo_qs = mo_qs.filter(product_code__icontains=product_code)
-    if team_label:
-        mo_qs = mo_qs.filter(team_label__icontains=team_label)
-
-    open_statuses = [
-        SxProductionOrder.STATUS_DRAFT,
-        SxProductionOrder.STATUS_RELEASED,
-        SxProductionOrder.STATUS_IN_PROGRESS,
-    ]
-    report.mo_open = mo_qs.filter(status__in=open_statuses).count()
-    report.mo_done = mo_qs.filter(status=SxProductionOrder.STATUS_DONE).count()
-
-    labels = dict(SxProductionOrder.STATUS_CHOICES)
-    counts = {r["status"]: r["c"] for r in mo_qs.values("status").annotate(c=Count("id"))}
-    report.mo_by_status = [
-        {"status": k, "label": labels.get(k, k), "count": counts.get(k, 0)}
-        for k, _ in SxProductionOrder.STATUS_CHOICES
-    ]
-    report.mo_rows = list(
-        mo_qs.exclude(status=SxProductionOrder.STATUS_CANCELLED)
-        .order_by("-order_date", "-pk")[:80]
     )
 
     stats = SxProductionStat.objects.filter(
@@ -1742,6 +1754,46 @@ def build_ops_report(
     if team_label:
         stats = stats.filter(team_label__icontains=team_label)
 
+    stat_mo_ids = stats.values("production_order_id")
+    mo_qs = SxProductionOrder.objects.filter(is_demo=False)
+    if product_code:
+        mo_qs = mo_qs.filter(product_code__icontains=product_code)
+    period_q = (
+        Q(order_date__gte=date_from, order_date__lte=date_to)
+        | Q(due_date__gte=date_from, due_date__lte=date_to)
+        | Q(planned_start__gte=date_from, planned_start__lte=date_to)
+        | Q(planned_end__gte=date_from, planned_end__lte=date_to)
+        | Q(planned_start__lte=date_to, planned_end__gte=date_from)
+        | Q(pk__in=stat_mo_ids)
+    )
+    mo_qs = mo_qs.filter(period_q)
+    if process_name:
+        mo_qs = mo_qs.filter(
+            Q(process_name__icontains=process_name) | Q(pk__in=stat_mo_ids)
+        )
+    if team_label:
+        mo_qs = mo_qs.filter(
+            Q(team_label__icontains=team_label) | Q(pk__in=stat_mo_ids)
+        )
+
+    open_statuses = [
+        SxProductionOrder.STATUS_DRAFT,
+        SxProductionOrder.STATUS_RELEASED,
+        SxProductionOrder.STATUS_IN_PROGRESS,
+    ]
+    report.mo_open = mo_qs.filter(status__in=open_statuses).count()
+    report.mo_done = mo_qs.filter(status=SxProductionOrder.STATUS_DONE).count()
+    labels = dict(SxProductionOrder.STATUS_CHOICES)
+    counts = {r["status"]: r["c"] for r in mo_qs.values("status").annotate(c=Count("id"))}
+    report.mo_by_status = [
+        {"status": k, "label": labels.get(k, k), "count": counts.get(k, 0)}
+        for k, _ in SxProductionOrder.STATUS_CHOICES
+    ]
+    report.mo_rows = list(
+        mo_qs.exclude(status=SxProductionOrder.STATUS_CANCELLED)
+        .order_by("-order_date", "-pk")[:OPS_DOC_ROW_LIMIT]
+    )
+
     agg = stats.aggregate(
         good=Coalesce(Sum("qty_good"), Decimal("0")),
         defect=Coalesce(Sum("qty_defect"), Decimal("0")),
@@ -1749,9 +1801,35 @@ def build_ops_report(
     report.qty_good = Decimal(str(agg["good"] or 0))
     report.qty_defect = Decimal(str(agg["defect"] or 0))
     total = report.qty_good + report.qty_defect
-    report.defect_rate = float(report.qty_defect / total * 100) if total else 0.0
+    report.defect_rate = _ops_pct(report.qty_good, report.qty_defect)
 
-    # Sản lượng theo ngày
+    report.stat_total = stats.count()
+    report.stat_rows = []
+    for row in (
+        stats.select_related("production_order")
+        .order_by("-stat_date", "-pk")[:OPS_STAT_ROW_LIMIT]
+    ):
+        mo = row.production_order
+        report.stat_rows.append({
+            "pk": row.pk,
+            "code": row.code,
+            "stat_date": row.stat_date,
+            "mo_pk": mo.pk,
+            "mo_code": mo.code,
+            "product_code": mo.product_code,
+            "product_name": mo.product_name,
+            "sku_code": row.sku_code,
+            "color_label": row.color_label or row.color_code,
+            "size_label": row.size_label,
+            "process_name": row.process_name,
+            "team_label": row.team_label,
+            "qty_good": float(row.qty_good or 0),
+            "qty_defect": float(row.qty_defect or 0),
+            "defect_rate": _ops_pct(row.qty_good, row.qty_defect),
+            "notes": row.notes,
+        })
+
+    # Sản lượng theo ngày — chỉ ngày có phát sinh
     day_map = {
         row["day"]: (
             Decimal(str(row["good"] or 0)),
@@ -1767,32 +1845,33 @@ def build_ops_report(
         )
         if row["day"]
     }
-    span_days = (date_to - date_from).days + 1
-    if span_days <= 62:
-        cursor = date_from
-        while cursor <= date_to:
-            good, defect = day_map.get(cursor, (Decimal("0"), Decimal("0")))
-            report.production_by_day.append({
-                "date": cursor.isoformat(),
-                "label": cursor.strftime("%d/%m"),
-                "qty_good": float(good),
-                "qty_defect": float(defect),
-            })
-            cursor += timedelta(days=1)
-    else:
-        for day in sorted(day_map.keys()):
-            good, defect = day_map[day]
-            report.production_by_day.append({
-                "date": day.isoformat(),
-                "label": day.strftime("%d/%m"),
-                "qty_good": float(good),
-                "qty_defect": float(defect),
-            })
+    for day in sorted(day_map.keys()):
+        good, defect = day_map[day]
+        if not good and not defect:
+            continue
+        report.production_by_day.append({
+            "date": day.isoformat(),
+            "label": day.strftime("%d/%m/%Y"),
+            "qty_good": float(good),
+            "qty_defect": float(defect),
+            "qty_total": float(good + defect),
+            "defect_rate": _ops_pct(good, defect),
+        })
 
     alert_qs = SxQcAlert.objects.filter(is_demo=False, status=SxQcAlert.STATUS_OPEN)
     if product_code:
         alert_qs = alert_qs.filter(production_order__product_code__icontains=product_code)
+    if process_name:
+        alert_qs = alert_qs.filter(
+            Q(process_name__icontains=process_name)
+            | Q(production_order__process_name__icontains=process_name)
+        )
+    if team_label:
+        alert_qs = alert_qs.filter(production_order__team_label__icontains=team_label)
     report.open_alerts = alert_qs.count()
+    report.alert_rows = list(
+        alert_qs.select_related("production_order").order_by("-created_at")[:OPS_DOC_ROW_LIMIT]
+    )
 
     pack_qs = SxPackingRecord.objects.filter(
         is_demo=False,
@@ -1802,21 +1881,50 @@ def build_ops_report(
     )
     if product_code:
         pack_qs = pack_qs.filter(production_order__product_code__icontains=product_code)
+    if process_name:
+        pack_qs = pack_qs.filter(production_order__process_name__icontains=process_name)
+    if team_label:
+        pack_qs = pack_qs.filter(production_order__team_label__icontains=team_label)
     pack_agg = pack_qs.aggregate(q=Coalesce(Sum("qty"), Decimal("0")))
     report.packing_qty = Decimal(str(pack_agg["q"] or 0))
-    report.packing_rows = list(pack_qs.select_related("production_order").order_by("-pack_date")[:40])
+    report.packing_rows = list(
+        pack_qs.select_related("production_order").order_by("-pack_date", "-pk")[:OPS_DOC_ROW_LIMIT]
+    )
 
-    report.subcontract_open = SxSubcontractOrder.objects.filter(
-        is_demo=False,
-        status__in=[
-            SxSubcontractOrder.STATUS_DRAFT,
-            SxSubcontractOrder.STATUS_SENT,
-            SxSubcontractOrder.STATUS_RECEIVED,
-        ],
-    ).count()
-    report.work_open = SxWorkAssignment.objects.filter(
+    sub_open = [
+        SxSubcontractOrder.STATUS_DRAFT,
+        SxSubcontractOrder.STATUS_SENT,
+        SxSubcontractOrder.STATUS_RECEIVED,
+    ]
+    sub_qs = SxSubcontractOrder.objects.filter(is_demo=False, status__in=sub_open)
+    if product_code:
+        sub_qs = sub_qs.filter(product_code__icontains=product_code)
+    if process_name:
+        sub_qs = sub_qs.filter(process_name__icontains=process_name)
+    if team_label:
+        sub_qs = sub_qs.filter(production_order__team_label__icontains=team_label)
+    report.subcontract_open = sub_qs.count()
+    report.subcontract_rows = list(
+        sub_qs.select_related("production_order").order_by("-order_date", "-pk")[:OPS_DOC_ROW_LIMIT]
+    )
+
+    work_qs = SxWorkAssignment.objects.filter(
         is_demo=False, status=SxWorkAssignment.STATUS_OPEN,
-    ).count()
+    )
+    if product_code:
+        work_qs = work_qs.filter(production_order__product_code__icontains=product_code)
+    if process_name:
+        work_qs = work_qs.filter(
+            Q(process_name__icontains=process_name)
+            | Q(production_order__process_name__icontains=process_name)
+        )
+    if team_label:
+        work_qs = work_qs.filter(production_order__team_label__icontains=team_label)
+    report.work_open = work_qs.count()
+    report.work_rows = list(
+        work_qs.select_related("production_order", "assignee")
+        .order_by("-created_at")[:OPS_DOC_ROW_LIMIT]
+    )
 
     ycx_qs = SxMaterialIssueRequest.objects.filter(
         is_demo=False,
@@ -1825,7 +1933,16 @@ def build_ops_report(
     )
     if product_code:
         ycx_qs = ycx_qs.filter(production_order__product_code__icontains=product_code)
+    if process_name:
+        ycx_qs = ycx_qs.filter(production_order__process_name__icontains=process_name)
+    if team_label:
+        ycx_qs = ycx_qs.filter(production_order__team_label__icontains=team_label)
     report.ycx_count = ycx_qs.count()
+    report.ycx_rows = list(
+        ycx_qs.select_related("production_order")
+        .annotate(line_qty=Coalesce(Sum("lines__qty_requested"), Decimal("0")))
+        .order_by("-request_date", "-pk")[:OPS_DOC_ROW_LIMIT]
+    )
 
     ycntp_qs = SxFgReceiptRequest.objects.filter(
         is_demo=False,
@@ -1834,7 +1951,36 @@ def build_ops_report(
     )
     if product_code:
         ycntp_qs = ycntp_qs.filter(production_order__product_code__icontains=product_code)
+    if process_name:
+        ycntp_qs = ycntp_qs.filter(production_order__process_name__icontains=process_name)
+    if team_label:
+        ycntp_qs = ycntp_qs.filter(production_order__team_label__icontains=team_label)
     report.ycntp_count = ycntp_qs.count()
+    report.ycntp_rows = list(
+        ycntp_qs.select_related("production_order").order_by("-request_date", "-pk")[:OPS_DOC_ROW_LIMIT]
+    )
+
+    wip_qs = SxWipHandover.objects.filter(
+        is_demo=False,
+        handover_date__gte=date_from,
+        handover_date__lte=date_to,
+    )
+    if product_code:
+        wip_qs = wip_qs.filter(production_order__product_code__icontains=product_code)
+    if process_name:
+        wip_qs = wip_qs.filter(
+            Q(from_process__icontains=process_name)
+            | Q(to_process__icontains=process_name)
+            | Q(production_order__process_name__icontains=process_name)
+        )
+    if team_label:
+        wip_qs = wip_qs.filter(production_order__team_label__icontains=team_label)
+    report.wip_count = wip_qs.count()
+    wip_agg = wip_qs.aggregate(q=Coalesce(Sum("qty"), Decimal("0")))
+    report.wip_qty = Decimal(str(wip_agg["q"] or 0))
+    report.wip_rows = list(
+        wip_qs.select_related("production_order").order_by("-handover_date", "-pk")[:OPS_DOC_ROW_LIMIT]
+    )
 
     report.team_output = []
     for row in (
@@ -1844,16 +1990,15 @@ def build_ops_report(
             good=Coalesce(Sum("qty_good"), Decimal("0")),
             defect=Coalesce(Sum("qty_defect"), Decimal("0")),
         )
-        .order_by("-good")[:15]
+        .order_by("-good")[:OPS_TOP_ROW_LIMIT]
     ):
         good = float(row["good"] or 0)
         defect = float(row["defect"] or 0)
-        tot = good + defect
         report.team_output.append({
             "team_label": row["team_label"] or "—",
             "qty_good": good,
             "qty_defect": defect,
-            "defect_rate": round(defect / tot * 100, 1) if tot else 0.0,
+            "defect_rate": _ops_pct(good, defect),
         })
 
     report.process_output = []
@@ -1864,16 +2009,15 @@ def build_ops_report(
             good=Coalesce(Sum("qty_good"), Decimal("0")),
             defect=Coalesce(Sum("qty_defect"), Decimal("0")),
         )
-        .order_by("-good")[:15]
+        .order_by("-good")[:OPS_TOP_ROW_LIMIT]
     ):
         good = float(row["good"] or 0)
         defect = float(row["defect"] or 0)
-        tot = good + defect
         report.process_output.append({
             "process_name": row["process_name"],
             "qty_good": good,
             "qty_defect": defect,
-            "defect_rate": round(defect / tot * 100, 1) if tot else 0.0,
+            "defect_rate": _ops_pct(good, defect),
         })
 
     report.product_output = []
@@ -1886,17 +2030,47 @@ def build_ops_report(
             good=Coalesce(Sum("qty_good"), Decimal("0")),
             defect=Coalesce(Sum("qty_defect"), Decimal("0")),
         )
-        .order_by("-good")[:15]
+        .order_by("-good")[:OPS_TOP_ROW_LIMIT]
     ):
         good = float(row["good"] or 0)
         defect = float(row["defect"] or 0)
-        tot = good + defect
         report.product_output.append({
             "product_code": row["product_code"] or "—",
             "product_name": row["product_name"] or "",
             "qty_good": good,
             "qty_defect": defect,
-            "defect_rate": round(defect / tot * 100, 1) if tot else 0.0,
+            "defect_rate": _ops_pct(good, defect),
+        })
+
+    sku_qs = (
+        stats.exclude(sku_code="")
+        .values(
+            "sku_code",
+            "color_label",
+            "color_code",
+            "size_label",
+            product_code=F("production_order__product_code"),
+            product_name=F("production_order__product_name"),
+        )
+        .annotate(
+            good=Coalesce(Sum("qty_good"), Decimal("0")),
+            defect=Coalesce(Sum("qty_defect"), Decimal("0")),
+        )
+    )
+    report.sku_total = sku_qs.count()
+    report.sku_output = []
+    for row in sku_qs.order_by("-good")[:OPS_TOP_ROW_LIMIT]:
+        good = float(row["good"] or 0)
+        defect = float(row["defect"] or 0)
+        report.sku_output.append({
+            "product_code": row["product_code"] or "—",
+            "product_name": row["product_name"] or "",
+            "sku_code": row["sku_code"],
+            "color_label": row["color_label"] or row["color_code"] or "—",
+            "size_label": row["size_label"] or "—",
+            "qty_good": good,
+            "qty_defect": defect,
+            "defect_rate": _ops_pct(good, defect),
         })
 
     dt_qs = SxDowntimeEvent.objects.filter(
@@ -1908,6 +2082,9 @@ def build_ops_report(
         dt_qs = dt_qs.filter(team_label__icontains=team_label)
     if product_code:
         dt_qs = dt_qs.filter(production_order__product_code__icontains=product_code)
+    if process_name:
+        dt_qs = dt_qs.filter(production_order__process_name__icontains=process_name)
+    report.downtime_event_total = dt_qs.count()
     report.downtime_minutes = int(
         dt_qs.aggregate(m=Coalesce(Sum("minutes"), 0))["m"] or 0
     )
@@ -1924,6 +2101,10 @@ def build_ops_report(
             "events": row["events"],
             "pct": round(mins / report.downtime_minutes * 100, 1) if report.downtime_minutes else 0.0,
         })
+    report.downtime_rows = list(
+        dt_qs.select_related("production_order", "work_center")
+        .order_by("-event_date", "-pk")[:OPS_DOC_ROW_LIMIT]
+    )
 
     # Danh mục báo cáo kiểu AMIS reportlist
     report.report_catalog = [
@@ -1956,6 +2137,20 @@ def build_ops_report(
             "metric": f"{len(report.process_output)} CĐ",
         },
         {
+            "code": "SL-SKU",
+            "name": "Sản lượng theo SKU / màu / size",
+            "group": "Sản xuất",
+            "tab": "theo-sku",
+            "metric": f"{report.sku_total} SKU",
+        },
+        {
+            "code": "SL-CT",
+            "name": "Chi tiết thống kê sản xuất",
+            "group": "Sản xuất",
+            "tab": "chi-tiet",
+            "metric": f"{report.stat_total} dòng",
+        },
+        {
             "code": "LSX-TT",
             "name": "Lệnh sản xuất theo trạng thái",
             "group": "Điều phối",
@@ -1983,6 +2178,20 @@ def build_ops_report(
             "tab": "kho",
             "metric": f"Yêu cầu xuất {report.ycx_count} · Yêu cầu nhập thành phẩm {report.ycntp_count}",
         },
+        {
+            "code": "BTP-KY",
+            "name": "Bàn giao bán thành phẩm trong kỳ",
+            "group": "Điều phối",
+            "tab": "kho",
+            "metric": f"{report.wip_count} phiếu",
+        },
+        {
+            "code": "QC-MO",
+            "name": "Cảnh báo QC đang mở",
+            "group": "Chất lượng",
+            "tab": "kho",
+            "metric": f"{report.open_alerts} mở",
+        },
     ]
     return report
 
@@ -2007,11 +2216,15 @@ def export_ops_report_csv(*, report: OpsReport) -> HttpResponse:
     writer.writerow(["Giao việc mở", report.work_open])
     writer.writerow(["Yêu cầu xuất trong kỳ", report.ycx_count])
     writer.writerow(["Yêu cầu nhập thành phẩm trong kỳ", report.ycntp_count])
+    writer.writerow(["Bàn giao BTP trong kỳ", report.wip_count])
+    writer.writerow(["SL bàn giao BTP", report.wip_qty])
+    writer.writerow(["Dòng thống kê", report.stat_total])
     writer.writerow(["Dừng chuyền (phút)", report.downtime_minutes])
+    writer.writerow(["Số lần dừng", report.downtime_event_total])
     writer.writerow([])
-    writer.writerow(["Ngày", "Đạt", "Lỗi"])
+    writer.writerow(["Ngày", "Đạt", "Lỗi", "% lỗi"])
     for row in report.production_by_day:
-        writer.writerow([row["label"], row["qty_good"], row["qty_defect"]])
+        writer.writerow([row["label"], row["qty_good"], row["qty_defect"], row.get("defect_rate", "")])
     writer.writerow([])
     writer.writerow(["Tổ", "SL đạt", "SL lỗi", "% lỗi"])
     for row in report.team_output:
@@ -2028,9 +2241,82 @@ def export_ops_report_csv(*, report: OpsReport) -> HttpResponse:
             row["qty_good"], row["qty_defect"], row["defect_rate"],
         ])
     writer.writerow([])
-    writer.writerow(["Lệnh sản xuất", "Sản phẩm", "Số lượng", "Đã làm", "Trạng thái"])
+    writer.writerow(["Mã SP", "Tên", "SKU", "Màu", "Size", "Đạt", "Lỗi", "% lỗi"])
+    for row in report.sku_output:
+        writer.writerow([
+            row["product_code"], row["product_name"], row["sku_code"],
+            row["color_label"], row["size_label"],
+            row["qty_good"], row["qty_defect"], row["defect_rate"],
+        ])
+    writer.writerow([])
+    writer.writerow([
+        "Ngày TK", "Mã TK", "Lệnh", "Mã SP", "SKU", "Màu", "Size",
+        "Công đoạn", "Tổ", "Đạt", "Lỗi", "% lỗi", "Ghi chú",
+    ])
+    for row in report.stat_rows:
+        writer.writerow([
+            row["stat_date"], row["code"], row["mo_code"], row["product_code"],
+            row["sku_code"], row["color_label"], row["size_label"],
+            row["process_name"], row["team_label"],
+            row["qty_good"], row["qty_defect"], row["defect_rate"], row["notes"],
+        ])
+    if report.stat_total > len(report.stat_rows):
+        writer.writerow([f"… hiển thị {len(report.stat_rows)} / {report.stat_total} dòng"])
+    writer.writerow([])
+    writer.writerow(["Lệnh sản xuất", "Sản phẩm", "Tên", "Công đoạn", "Tổ", "Ngày đặt", "Hạn", "Kế hoạch", "Đã làm", "Trạng thái"])
     for mo in report.mo_rows:
-        writer.writerow([mo.code, mo.product_code, mo.qty, mo.qty_done, mo.get_status_display()])
+        writer.writerow([
+            mo.code, mo.product_code, mo.product_name, mo.process_name, mo.team_label,
+            mo.order_date, mo.due_date or "", mo.qty, mo.qty_done, mo.get_status_display(),
+        ])
+    writer.writerow([])
+    writer.writerow(["Đóng gói", "Lệnh", "Sản phẩm", "Tổ", "Ngày", "SL", "Thùng", "Lô"])
+    for p in report.packing_rows:
+        writer.writerow([
+            p.code, p.production_order.code, p.production_order.product_code,
+            p.production_order.team_label, p.pack_date, p.qty, p.carton_count, p.lot_code,
+        ])
+    writer.writerow([])
+    writer.writerow(["Lý do dừng", "Phút", "%", "Số lần"])
+    for row in report.downtime_by_reason:
+        writer.writerow([row["reason"], row["minutes"], row["pct"], row["events"]])
+    writer.writerow([])
+    writer.writerow(["Ngày dừng", "Mã", "Lý do", "Phút", "Tổ", "Lệnh", "Ghi chú"])
+    for ev in report.downtime_rows:
+        writer.writerow([
+            ev.event_date, ev.code, ev.reason, ev.minutes, ev.team_label,
+            ev.production_order.code if ev.production_order_id else "",
+            ev.notes,
+        ])
+    writer.writerow([])
+    writer.writerow(["Yêu cầu xuất", "Ngày", "Lệnh", "Sản phẩm", "SL yêu cầu", "Trạng thái"])
+    for req in report.ycx_rows:
+        writer.writerow([
+            req.code, req.request_date, req.production_order.code,
+            req.production_order.product_code, req.line_qty, ycx_status_label(req.status),
+        ])
+    writer.writerow([])
+    writer.writerow(["Yêu cầu nhập TP", "Ngày", "Lệnh", "Sản phẩm", "SL", "Trạng thái"])
+    for req in report.ycntp_rows:
+        writer.writerow([
+            req.code, req.request_date, req.production_order.code,
+            req.production_order.product_code, req.qty, req.get_status_display(),
+        ])
+    writer.writerow([])
+    writer.writerow(["Bàn giao BTP", "Ngày", "Lệnh", "Từ CĐ", "Đến CĐ", "SL", "Trạng thái"])
+    for row in report.wip_rows:
+        writer.writerow([
+            row.code, row.handover_date, row.production_order.code,
+            row.from_process, row.to_process, row.qty, row.get_status_display(),
+        ])
+    writer.writerow([])
+    writer.writerow(["Cảnh báo QC", "Loại", "Lệnh", "Công đoạn", "% lỗi", "Đạt", "Lỗi", "Trạng thái"])
+    for alert in report.alert_rows:
+        writer.writerow([
+            alert.code, alert.get_alert_type_display(), alert.production_order.code,
+            alert.process_name, alert.defect_rate, alert.qty_good, alert.qty_defect,
+            alert.get_status_display(),
+        ])
 
     return HttpResponse(
         "\ufeff" + buf.getvalue(),

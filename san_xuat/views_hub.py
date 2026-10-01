@@ -7285,8 +7285,8 @@ def ops_report(request):
     team_label = (request.GET.get('team_label') or '').strip()
     active_tab = (request.GET.get('tab') or 'danh-sach').strip().lower()
     allowed_tabs = {
-        'danh-sach', 'theo-ngay', 'theo-sp', 'theo-to',
-        'lenh-sx', 'dong-goi', 'dung-chuyen', 'kho',
+        'danh-sach', 'theo-ngay', 'theo-sp', 'theo-sku', 'theo-to',
+        'chi-tiet', 'lenh-sx', 'dong-goi', 'dung-chuyen', 'kho',
     }
     if active_tab not in allowed_tabs:
         active_tab = 'danh-sach'

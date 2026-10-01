@@ -157,7 +157,8 @@ services:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
       - ./static/equipment:/app/static/equipment:ro
-      - ${HOST_PROJECT_DIR:-.}:/backup-source:ro
+      # Ghi được: khôi phục mã nguồn ghi lại đúng thư mục project trên VPS.
+      - ${HOST_PROJECT_DIR:-.}:/backup-source
       - /mnt/nas-portal:/mnt/nas-portal
       - /root/.config/rclone:/root/.config/rclone:ro
       - /root/.nas-cred:/root/.nas-cred:ro

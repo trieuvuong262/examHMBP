@@ -700,6 +700,8 @@ NAS_DESIGN_DOC_REL_PATH = os.getenv(
     '06_RnD_THIET_KE_SAN_PHAM/0.Portal',
 ).strip('/')
 PORTAL_BACKUP_SOURCE_DIRS = os.getenv('PORTAL_BACKUP_SOURCE_DIRS', '/app,/backup-source')
+# Thư mục project trên VPS. Worker phải gắn thư mục này ở chế độ ghi thì khôi phục mã nguồn mới ghi được.
+PORTAL_RESTORE_CODE_DIR = os.getenv('PORTAL_RESTORE_CODE_DIR', '/backup-source')
 PORTAL_BACKUP_INCLUDE_MEDIA = os.getenv('PORTAL_BACKUP_INCLUDE_MEDIA', '1').lower() in ('1', 'true', 'yes', 'on')
 GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash')
 
