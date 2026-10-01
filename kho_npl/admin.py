@@ -6,6 +6,7 @@ from kho_npl.models import (
     MaterialCategory,
     MaterialColor,
     MaterialSpecification,
+    MaterialSpecificationLevel,
     StockAdjustment,
     StockAdjustmentLine,
     StockBalance,
@@ -80,11 +81,17 @@ class MaterialColorAdmin(admin.ModelAdmin):
     search_fields = ('code', 'name')
 
 
+class MaterialSpecificationLevelInline(admin.TabularInline):
+    model = MaterialSpecificationLevel
+    extra = 0
+
+
 @admin.register(MaterialSpecification)
 class MaterialSpecificationAdmin(admin.ModelAdmin):
     list_display = ('code', 'name', 'conversion_formula', 'level_count', 'sort_order', 'is_active')
     list_filter = ('is_active',)
     search_fields = ('code', 'name')
+    inlines = [MaterialSpecificationLevelInline]
 
 
 @admin.register(Material)

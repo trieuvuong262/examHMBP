@@ -1,4 +1,5 @@
 from django.contrib import admin, messages
+from django.contrib.admin.models import LogEntry
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
 
@@ -112,6 +113,24 @@ class PortalBackupJobAdmin(admin.ModelAdmin):
     list_filter = ('kind', 'status', 'trigger', 'scope')
     readonly_fields = ('artifacts', 'message', 'remote_path', 'created_at', 'started_at', 'finished_at')
     search_fields = ('remote_path', 'message', 'started_by__username')
+
+
+@admin.register(LogEntry)
+class LogEntryAdmin(admin.ModelAdmin):
+    list_display = ('action_time', 'user', 'content_type', 'object_repr', 'action_flag', 'change_message')
+    list_filter = ('action_flag', 'content_type__app_label')
+    search_fields = ('object_repr', 'change_message', 'user__username')
+    list_select_related = ('user', 'content_type')
+    date_hierarchy = 'action_time'
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(RustDeskHost)

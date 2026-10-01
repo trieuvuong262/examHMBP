@@ -14,6 +14,10 @@ from PortalJustPlay.pwa import (
     zalo_domain_verifier,
 )
 from audit.views_login import PortalLoginView
+from PortalJustPlay.admin_auto import register_remaining
+
+# Phải chạy sau admin autodiscover để ModelAdmin viết tay trong <app>/admin.py được ưu tiên.
+register_remaining()
 
 urlpatterns = [
     path('sw.js', portal_service_worker, name='portal_service_worker'),
