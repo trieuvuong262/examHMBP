@@ -6,6 +6,7 @@
   --kpi-ql: #fff5f5;
   --kpi-ql-border: #fecdd3;
   --kpi-fail: #b91c1c;
+  --kpi-improve: #b45309;
   --kpi-pass: #15803d;
   --kpi-exceed: #1d4ed8;
   --kpi-pending: #64748b;
@@ -95,6 +96,7 @@
 }
 
 .jp-kpi-result-fail { color: var(--kpi-fail) !important; }
+.jp-kpi-result-improve { color: var(--kpi-improve) !important; }
 .jp-kpi-result-pass { color: var(--kpi-pass) !important; }
 .jp-kpi-result-exceed { color: var(--kpi-exceed) !important; }
 .jp-kpi-result-pending { color: var(--kpi-pending) !important; }
@@ -111,6 +113,7 @@
   border: 1px solid transparent;
 }
 .jp-kpi-badge--fail { color: var(--kpi-fail); background: #fef2f2; border-color: #fecaca; }
+.jp-kpi-badge--improve { color: var(--kpi-improve); background: #fffbeb; border-color: #fde68a; }
 .jp-kpi-badge--pass { color: var(--kpi-pass); background: #f0fdf4; border-color: #bbf7d0; }
 .jp-kpi-badge--exceed { color: var(--kpi-exceed); background: #eff6ff; border-color: #bfdbfe; }
 .jp-kpi-badge--pending { color: var(--kpi-pending); background: #f8fafc; border-color: #e2e8f0; }
@@ -238,7 +241,7 @@
 .jp-kpi-table {
   margin: 0;
   width: max-content;
-  min-width: 2200px;
+  min-width: 2420px;
   table-layout: fixed;
   border-collapse: collapse;
   border-spacing: 0;
@@ -556,6 +559,7 @@
 }
 .jp-kpi-stat--exceed .jp-kpi-stat__value { color: var(--kpi-exceed); }
 .jp-kpi-stat--pass .jp-kpi-stat__value { color: var(--kpi-pass); }
+.jp-kpi-stat--improve .jp-kpi-stat__value { color: var(--kpi-improve); }
 .jp-kpi-stat--fail .jp-kpi-stat__value { color: var(--kpi-fail); }
 .jp-kpi-stat--pending .jp-kpi-stat__value { color: var(--kpi-pending); }
 

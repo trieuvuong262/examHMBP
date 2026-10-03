@@ -107,8 +107,9 @@
                                     <th style="min-width: 140px;">Nhóm công việc</th>
                                     <th style="width: 90px;">Trọng số</th>
                                     <th style="min-width: 220px;">Tiêu chí đo lường</th>
-                                    <th style="min-width: 160px;">Mức chưa đạt</th>
-                                    <th style="min-width: 160px;">Mức đạt</th>
+                                    <th style="min-width: 160px;">Mức chưa đạt (&lt;70%)</th>
+                                    <th style="min-width: 160px;">Mức cần cải thiện (70% – &lt;90%)</th>
+                                    <th style="min-width: 160px;">Mức đạt (90% – 100%)</th>
                                     <th style="min-width: 160px;">Mức vượt</th>
                                     <th style="width: 44px;"></th>
                                 </tr>
@@ -124,6 +125,7 @@
                                     <td><input type="text" name="weightage" class="form-control form-control-sm kpi-edit-weight" value="{{ item.weightage|floatformat:'-2' }}" inputmode="decimal"></td>
                                     <td><textarea name="indicator" class="form-control form-control-sm" rows="3">{{ item.indicator }}</textarea></td>
                                     <td><textarea name="level_fail" class="form-control form-control-sm" rows="3">{{ item.level_fail }}</textarea></td>
+                                    <td><textarea name="level_improve" class="form-control form-control-sm" rows="3">{{ item.level_improve }}</textarea></td>
                                     <td><textarea name="level_pass" class="form-control form-control-sm" rows="3">{{ item.level_pass }}</textarea></td>
                                     <td><textarea name="level_exceed" class="form-control form-control-sm" rows="3">{{ item.level_exceed }}</textarea></td>
                                     <td class="text-center">
@@ -146,6 +148,7 @@
                             <td><input type="text" name="weightage" class="form-control form-control-sm kpi-edit-weight" value="" inputmode="decimal"></td>
                             <td><textarea name="indicator" class="form-control form-control-sm" rows="3"></textarea></td>
                             <td><textarea name="level_fail" class="form-control form-control-sm" rows="3"></textarea></td>
+                            <td><textarea name="level_improve" class="form-control form-control-sm" rows="3"></textarea></td>
                             <td><textarea name="level_pass" class="form-control form-control-sm" rows="3"></textarea></td>
                             <td><textarea name="level_exceed" class="form-control form-control-sm" rows="3"></textarea></td>
                             <td class="text-center">

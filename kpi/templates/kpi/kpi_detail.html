@@ -2,7 +2,7 @@
 {% load static kpi_extras l10n %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/kpi-monthly.css' %}?v=20260904m">
+<link rel="stylesheet" href="{% static 'css/kpi-monthly.css' %}?v=20261003a">
 {% endblock %}
 
 {% block content %}
@@ -51,7 +51,7 @@
         <strong>Quy tắc:</strong>
         Điểm TP = (Điểm / 10) × Trọng số ·
         Tổng ưu tiên điểm <strong>Quản lý</strong> (chưa có thì dùng điểm NV) ·
-        0–89 Không đạt · 90–100 Đạt · ≥101 Vượt ·
+        Dưới 70 Chưa đạt · 70 – dưới 90 Cần cải thiện · 90–100 Đạt · Trên 100 Vượt ·
         Thang điểm tiêu chí thường 0–10 (có thể &gt;10 khi vượt).
         Ô đánh giá thực tế hỗ trợ <strong>dán / chèn ảnh</strong> (lưu như báo cáo).
         {% if can_edit_self and not can_edit_manager %}
@@ -80,8 +80,9 @@
                         <th class="jp-kpi-col-group"><span class="jp-kpi-th-label">Nhóm công việc</span></th>
                         <th class="jp-kpi-col-weight"><span class="jp-kpi-th-label">Trọng số</span></th>
                         <th class="jp-kpi-col-indicator"><span class="jp-kpi-th-label">Tiêu chí đo lường (KPI)</span></th>
-                        <th class="jp-kpi-col-level"><span class="jp-kpi-th-label">Mức chưa đạt (&lt;100%)</span></th>
-                        <th class="jp-kpi-col-level"><span class="jp-kpi-th-label">Mức đạt (100%)</span></th>
+                        <th class="jp-kpi-col-level"><span class="jp-kpi-th-label">Mức chưa đạt (&lt;70%)</span></th>
+                        <th class="jp-kpi-col-level"><span class="jp-kpi-th-label">Mức cần cải thiện (70% – &lt;90%)</span></th>
+                        <th class="jp-kpi-col-level"><span class="jp-kpi-th-label">Mức đạt (90% – 100%)</span></th>
                         <th class="jp-kpi-col-level"><span class="jp-kpi-th-label">Mức vượt (&gt;100%)</span></th>
                         <th class="jp-kpi-col-nv jp-kpi-actual"><span class="jp-kpi-th-label">Đánh giá thực tế (NV)</span></th>
                         <th class="jp-kpi-col-nv jp-kpi-col-score"><span class="jp-kpi-th-label">Điểm NV</span></th>
@@ -100,6 +101,7 @@
                         <td class="jp-kpi-col-weight fw-bold" data-kpi-weight="{{ item.weightage|unlocalize }}">{{ item.weightage }}</td>
                         <td class="jp-kpi-indicator">{{ item.indicator }}</td>
                         <td class="jp-kpi-level">{{ item.level_fail }}</td>
+                        <td class="jp-kpi-level">{{ item.level_improve }}</td>
                         <td class="jp-kpi-level">{{ item.level_pass }}</td>
                         <td class="jp-kpi-level">{{ item.level_exceed }}</td>
                         <td class="jp-kpi-col-nv jp-kpi-actual">
@@ -178,7 +180,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="12" class="text-center text-muted py-5">Chưa có tiêu chí. Import Excel để giao KPI.</td>
+                        <td colspan="13" class="text-center text-muted py-5">Chưa có tiêu chí. Import Excel để giao KPI.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -205,7 +207,7 @@
 
 <script src="{% static 'js/kpi-actual-rich.js' %}?v=20260904d"></script>
 {% if can_edit_self or can_edit_manager %}
-<script src="{% static 'js/kpi-detail.js' %}?v=20260904b"></script>
+<script src="{% static 'js/kpi-detail.js' %}?v=20261003a"></script>
 {% else %}
 <script>
 (function () {

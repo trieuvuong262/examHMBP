@@ -29,7 +29,7 @@
                                 <div class="guide-step guide-step--illustrated">
     <div class="guide-step-head">
         <div class="guide-step-num">3</div>
-        <div class="guide-step-body"><div>Bấm <strong>Lưu đánh giá</strong>. Điểm thành phần = (Điểm / 10) × Trọng số.</div></div>
+        <div class="guide-step-body"><div>Bấm <strong>Lưu đánh giá</strong>. Điểm thành phần = (Điểm / 10) × Trọng số. Tổng điểm được xếp loại theo 4 mức: <strong>dưới 70</strong> Chưa đạt · <strong>70 – dưới 90</strong> Cần cải thiện · <strong>90 – 100</strong> Đạt · <strong>trên 100</strong> Vượt.</div></div>
     </div>
     <figure class="guide-step-figure">
         <img src="{% static 'images/guide/kpi-03.png' %}" alt="Minh họa bước 3 — kpi" class="guide-zoomable" loading="lazy">
@@ -41,5 +41,6 @@
                             <hr class="my-4">
                             <span class="badge bg-primary mb-3">Quản lý</span>
                             <p class="small">Vào KPI → <strong>Import / Giao KPI</strong>: chọn nhân viên + tháng, upload Excel theo mẫu. Sau đó mở bảng team để điền cột đánh giá / điểm quản lý.</p>
-                            <p class="small mb-0">Xếp loại tổng: 0–89 Không đạt · 90–100 Đạt · ≥101 Vượt (ưu tiên điểm quản lý).</p>
+                            <p class="small">File mẫu Excel mô tả mỗi tiêu chí theo 4 mức: <strong>Mức Chưa đạt</strong> (&lt;70%) · <strong>Mức Cần cải thiện</strong> (70% – &lt;90%) · <strong>Mức Đạt</strong> (90% – 100%) · <strong>Mức Vượt</strong> (&gt;100%). File mẫu cũ (chưa có cột Cần cải thiện) vẫn import được; nên tải file mẫu mới để điền đủ 4 mức.</p>
+                            <p class="small mb-0">Xếp loại tổng (ưu tiên điểm quản lý): dưới 70 Chưa đạt · 70 – dưới 90 Cần cải thiện · 90 – 100 Đạt · trên 100 Vượt.</p>
                             {% endif %}

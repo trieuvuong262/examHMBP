@@ -178,21 +178,9 @@ def _apply_board_scores(board: MonthlyKpi) -> None:
         has_any = True
         total += part
     board.display_total = round(total, 2) if has_any else None
-    if board.display_total is None:
-        code = MonthlyKpi.RESULT_PENDING
-    elif board.display_total < 90:
-        code = MonthlyKpi.RESULT_FAIL
-    elif board.display_total <= 100:
-        code = MonthlyKpi.RESULT_PASS
-    else:
-        code = MonthlyKpi.RESULT_EXCEED
+    code = MonthlyKpi.classify_score(board.display_total)
     board.display_result_code = code
-    board.display_result = {
-        MonthlyKpi.RESULT_FAIL: 'Không đạt',
-        MonthlyKpi.RESULT_PASS: 'Đạt',
-        MonthlyKpi.RESULT_EXCEED: 'Vượt',
-        MonthlyKpi.RESULT_PENDING: 'Chưa chấm',
-    }.get(code, 'Chưa chấm')
+    board.display_result = MonthlyKpi.RESULT_LABELS.get(code, 'Chưa chấm')
     board.has_self = has_self
     board.has_mgr = has_mgr
 
@@ -826,6 +814,7 @@ def kpi_summary_view(request):
         'total': len(all_boards),
         'pending': 0,
         'fail': 0,
+        'improve': 0,
         'pass': 0,
         'exceed': 0,
         'self_done': 0,
@@ -1104,10 +1093,11 @@ def _save_manual_kpi_items(board: MonthlyKpi, data) -> int:
     weights = data.getlist('weightage')
     indicators = data.getlist('indicator')
     fails = data.getlist('level_fail')
+    improves = data.getlist('level_improve')
     passes = data.getlist('level_pass')
     exceeds = data.getlist('level_exceed')
     n = len(indicators)
-    if not all(len(lst) == n for lst in (ids, groups, weights, fails, passes, exceeds)):
+    if not all(len(lst) == n for lst in (ids, groups, weights, fails, improves, passes, exceeds)):
         raise KpiImportError('Dữ liệu tiêu chí không hợp lệ. Vui lòng tải lại trang.')
 
     rows = []
@@ -1115,8 +1105,9 @@ def _save_manual_kpi_items(board: MonthlyKpi, data) -> int:
         indicator = indicators[i].strip()
         group = groups[i].strip()
         weight_raw = weights[i].strip().replace('%', '').replace(',', '.')
-        level_fail, level_pass, level_exceed = fails[i].strip(), passes[i].strip(), exceeds[i].strip()
-        if not any((indicator, group, weight_raw, level_fail, level_pass, level_exceed)):
+        level_fail, level_improve = fails[i].strip(), improves[i].strip()
+        level_pass, level_exceed = passes[i].strip(), exceeds[i].strip()
+        if not any((indicator, group, weight_raw, level_fail, level_improve, level_pass, level_exceed)):
             continue
         row_no = len(rows) + 1
         if not indicator:
@@ -1138,6 +1129,7 @@ def _save_manual_kpi_items(board: MonthlyKpi, data) -> int:
             'weightage': weightage,
             'indicator': indicator,
             'level_fail': level_fail,
+            'level_improve': level_improve,
             'level_pass': level_pass,
             'level_exceed': level_exceed,
         })
@@ -1145,7 +1137,10 @@ def _save_manual_kpi_items(board: MonthlyKpi, data) -> int:
         raise KpiImportError('Bảng KPI cần ít nhất một tiêu chí.')
 
     existing = {item.pk: item for item in board.items.all()}
-    fields = ['sort_order', 'work_group', 'weightage', 'indicator', 'level_fail', 'level_pass', 'level_exceed']
+    fields = [
+        'sort_order', 'work_group', 'weightage', 'indicator',
+        'level_fail', 'level_improve', 'level_pass', 'level_exceed',
+    ]
     keep_ids = set()
     to_update, to_create = [], []
     for row in rows:
@@ -1315,6 +1310,7 @@ def kpi_import_excel(request):
                     weightage=row.weightage,
                     indicator=row.indicator,
                     level_fail=row.level_fail,
+                    level_improve=row.level_improve,
                     level_pass=row.level_pass,
                     level_exceed=row.level_exceed,
                 )

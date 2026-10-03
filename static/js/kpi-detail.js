@@ -29,7 +29,8 @@
 
   function resultOf(total) {
     if (total === null) return { code: 'pending', label: 'Chưa chấm' };
-    if (total < 90) return { code: 'fail', label: 'Không đạt' };
+    if (total < 70) return { code: 'fail', label: 'Chưa đạt' };
+    if (total < 90) return { code: 'improve', label: 'Cần cải thiện' };
     if (total <= 100) return { code: 'pass', label: 'Đạt' };
     return { code: 'exceed', label: 'Vượt' };
   }

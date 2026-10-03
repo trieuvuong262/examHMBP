@@ -15,9 +15,23 @@ class MonthlyKpi(models.Model):
     """Bảng KPI theo tháng — một nhân viên / một tháng."""
 
     RESULT_FAIL = 'fail'
+    RESULT_IMPROVE = 'improve'
     RESULT_PASS = 'pass'
     RESULT_EXCEED = 'exceed'
     RESULT_PENDING = 'pending'
+
+    # Ngưỡng xếp loại tổng điểm: <70 Chưa đạt · 70–<90 Cần cải thiện · 90–100 Đạt · >100 Vượt
+    THRESHOLD_IMPROVE = 70
+    THRESHOLD_PASS = 90
+    THRESHOLD_EXCEED = 100
+
+    RESULT_LABELS = {
+        RESULT_FAIL: 'Chưa đạt',
+        RESULT_IMPROVE: 'Cần cải thiện',
+        RESULT_PASS: 'Đạt',
+        RESULT_EXCEED: 'Vượt',
+        RESULT_PENDING: 'Chưa chấm',
+    }
 
     employee = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -80,23 +94,23 @@ class MonthlyKpi(models.Model):
             total += part
         return round(total, 2) if has_any else None
 
-    def result_code(self) -> str:
-        score = self.total_score()
+    @classmethod
+    def classify_score(cls, score: float | None) -> str:
         if score is None:
-            return self.RESULT_PENDING
-        if score < 90:
-            return self.RESULT_FAIL
-        if score <= 100:
-            return self.RESULT_PASS
-        return self.RESULT_EXCEED
+            return cls.RESULT_PENDING
+        if score < cls.THRESHOLD_IMPROVE:
+            return cls.RESULT_FAIL
+        if score < cls.THRESHOLD_PASS:
+            return cls.RESULT_IMPROVE
+        if score <= cls.THRESHOLD_EXCEED:
+            return cls.RESULT_PASS
+        return cls.RESULT_EXCEED
+
+    def result_code(self) -> str:
+        return self.classify_score(self.total_score())
 
     def result_label(self) -> str:
-        return {
-            self.RESULT_FAIL: 'Không đạt',
-            self.RESULT_PASS: 'Đạt',
-            self.RESULT_EXCEED: 'Vượt',
-            self.RESULT_PENDING: 'Chưa chấm',
-        }.get(self.result_code(), 'Chưa chấm')
+        return self.RESULT_LABELS.get(self.result_code(), 'Chưa chấm')
 
     def self_scored(self) -> bool:
         cache = getattr(self, '_prefetched_objects_cache', None)
@@ -124,6 +138,7 @@ class MonthlyKpiItem(models.Model):
     weightage = models.FloatField(default=0.0, verbose_name='Trọng số')
     indicator = models.TextField(verbose_name='Tiêu chí đo lường')
     level_fail = models.TextField(blank=True, default='', verbose_name='Mức chưa đạt')
+    level_improve = models.TextField(blank=True, default='', verbose_name='Mức cần cải thiện')
     level_pass = models.TextField(blank=True, default='', verbose_name='Mức đạt')
     level_exceed = models.TextField(blank=True, default='', verbose_name='Mức vượt')
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import html
 import io
 import re
+import unicodedata
 from dataclasses import dataclass
 from typing import Any
 
@@ -24,6 +25,7 @@ class ParsedKpiRow:
     weightage: float
     indicator: str
     level_fail: str
+    level_improve: str
     level_pass: str
     level_exceed: str
 
@@ -48,8 +50,9 @@ _HEADERS = [
     'Nhóm công việc',
     'Trọng số',
     'Tiêu chí đo lường (KPI)',
-    'Mức Chưa đạt (<100%)',
-    'Mức Đạt (100%)',
+    'Mức Chưa đạt (<70%)',
+    'Mức Cần cải thiện (70% - <90%)',
+    'Mức Đạt (90% - 100%)',
     'Mức Vượt (>100%)',
 ]
 
@@ -60,11 +63,13 @@ Quản lý đánh giá vào cột Đánh giá thực tế (QL) và Điểm QL.
 Tổng điểm trên Portal ưu tiên điểm Quản lý; chưa có thì dùng điểm Nhân viên.
 
 1. Thang điểm đánh giá
-Mỗi tiêu chí sẽ được chấm trên thang điểm 10, tương ứng với mức độ hoàn thành công việc:
+Mỗi tiêu chí sẽ được chấm trên thang điểm 10, tương ứng với mức độ hoàn thành công việc (chấm linh hoạt theo tỷ lệ thực tế, ví dụ hoàn thành 80% công việc thì chấm 8 điểm):
 
-Từ 0 - 9 điểm (Mức Chưa đạt): Hoàn thành dưới 100% yêu cầu. Chấm điểm linh hoạt dựa trên tỷ lệ thực tế (ví dụ: hoàn thành 80% công việc thì chấm 8 điểm).
+Dưới 7 điểm (Mức Chưa đạt): Hoàn thành dưới 70% yêu cầu.
 
-10 điểm (Mức Đạt): Hoàn thành đúng 100% yêu cầu công việc, đúng deadline và đạt chất lượng đề ra.
+Từ 7 đến dưới 9 điểm (Mức Cần cải thiện): Hoàn thành từ 70% đến dưới 90% yêu cầu.
+
+Từ 9 đến 10 điểm (Mức Đạt): Hoàn thành từ 90% đến 100% yêu cầu công việc, đúng deadline và đạt chất lượng đề ra.
 
 > 10 điểm (Mức Vượt - Điểm thưởng): nếu nhân sự hoàn thành vượt mức xuất sắc, mang lại giá trị lớn (tiết kiệm chi phí, vượt tiến độ), có thể chấm 11 hoặc 12 điểm cho tiêu chí đó.
 
@@ -73,9 +78,10 @@ Từ 0 - 9 điểm (Mức Chưa đạt): Hoàn thành dưới 100% yêu cầu. C
 - Tổng điểm KPI = Tổng các Điểm thành phần
 
 3. Tiêu chí đánh giá tổng điểm
- - Nếu tổng điểm từ 0 - 89 điểm: Không đạt KPI
- - Nếu tổng điểm từ 90 - 100 điểm: Đạt KPI
- - Nếu tổng điểm từ 101 trở lên: Vượt KPI
+ - Nếu tổng điểm dưới 70 điểm: Chưa đạt KPI
+ - Nếu tổng điểm từ 70 đến dưới 90 điểm: Cần cải thiện
+ - Nếu tổng điểm từ 90 đến 100 điểm: Đạt KPI
+ - Nếu tổng điểm trên 100 điểm: Vượt KPI
 
 4. Đánh giá thực tế
 - Là nơi ghi nhận kết quả thực tế bằng các con số, sự việc hoặc bằng chứng cụ thể mà nhân sự đã đạt được trong tháng, nhằm đối chiếu trực tiếp với các «Tiêu chí đo lường (KPI)» đã đặt ra ban đầu.
@@ -109,8 +115,59 @@ def _find_header_row(ws) -> int:
             return r
     raise KpiImportError(
         'Không tìm thấy dòng tiêu đề. Cần các cột: STT, Nhóm công việc, Trọng số, '
-        'Tiêu chí đo lường, Mức Chưa đạt, Mức Đạt, Mức Vượt.'
+        'Tiêu chí đo lường, Mức Chưa đạt, Mức Cần cải thiện, Mức Đạt, Mức Vượt.'
     )
+
+
+_COLUMN_LABELS = {
+    'stt': 'STT',
+    'group': 'Nhóm công việc',
+    'weight': 'Trọng số',
+    'indicator': 'Tiêu chí đo lường',
+    'fail': 'Mức Chưa đạt',
+    'improve': 'Mức Cần cải thiện',
+    'pass': 'Mức Đạt',
+    'exceed': 'Mức Vượt',
+}
+
+# File mẫu cũ (trước khi có mức Cần cải thiện) vẫn import được — cột này để trống.
+_OPTIONAL_COLUMNS = {'improve'}
+
+
+def _header_key(text: str) -> str | None:
+    """Nhận diện cột theo tiêu đề. Thứ tự kiểm tra quan trọng: «chưa đạt» / «vượt» đều chứa «đạt»."""
+    t = unicodedata.normalize('NFC', text).lower()
+    if not t:
+        return None
+    if t == 'stt' or t.startswith('stt '):
+        return 'stt'
+    if 'nhóm' in t:
+        return 'group'
+    if 'trọng số' in t or 'trong so' in t:
+        return 'weight'
+    if 'tiêu chí' in t:
+        return 'indicator'
+    if 'cải thiện' in t:
+        return 'improve'
+    if 'chưa đạt' in t or 'không đạt' in t:
+        return 'fail'
+    if 'vượt' in t:
+        return 'exceed'
+    if 'đạt' in t:
+        return 'pass'
+    return None
+
+
+def _map_columns(ws, header_row: int) -> dict[str, int]:
+    columns: dict[str, int] = {}
+    for c in range(1, min(ws.max_column, 30) + 1):
+        key = _header_key(_cell_str(ws.cell(header_row, c).value))
+        if key and key not in columns:
+            columns[key] = c
+    missing = [label for key, label in _COLUMN_LABELS.items() if key not in columns and key not in _OPTIONAL_COLUMNS]
+    if missing:
+        raise KpiImportError(f'Dòng tiêu đề thiếu cột: {", ".join(missing)}.')
+    return columns
 
 
 def _merged_top_left_map(ws) -> dict[tuple[int, int], Any]:
@@ -139,25 +196,33 @@ def parse_monthly_kpi_workbook(file_obj) -> ParsedKpiSheet:
 
     ws = wb.active
     header_row = _find_header_row(ws)
+    columns = _map_columns(ws, header_row)
+    has_improve_col = 'improve' in columns
     merge_map = _merged_top_left_map(ws)
+
+    def col(r: int, key: str):
+        if key not in columns:
+            return None
+        return _cell_value(ws, r, columns[key], merge_map)
 
     rows: list[ParsedKpiRow] = []
     errors: list[str] = []
     auto_stt = 0
 
     for r in range(header_row + 1, ws.max_row + 1):
-        stt_raw = _cell_value(ws, r, 1, merge_map)
-        group = _cell_str(_cell_value(ws, r, 2, merge_map))
-        weight_raw = _cell_value(ws, r, 3, merge_map)
-        indicator = _cell_str(_cell_value(ws, r, 4, merge_map))
-        level_fail = _cell_str(_cell_value(ws, r, 5, merge_map))
-        level_pass = _cell_str(_cell_value(ws, r, 6, merge_map))
-        level_exceed = _cell_str(_cell_value(ws, r, 7, merge_map))
+        stt_raw = col(r, 'stt')
+        group = _cell_str(col(r, 'group'))
+        weight_raw = col(r, 'weight')
+        indicator = _cell_str(col(r, 'indicator'))
+        level_fail = _cell_str(col(r, 'fail'))
+        level_improve = _cell_str(col(r, 'improve'))
+        level_pass = _cell_str(col(r, 'pass'))
+        level_exceed = _cell_str(col(r, 'exceed'))
 
         # Bỏ dòng trống hoàn toàn
         if not any([
             _cell_str(stt_raw), group, _cell_str(weight_raw),
-            indicator, level_fail, level_pass, level_exceed,
+            indicator, level_fail, level_improve, level_pass, level_exceed,
         ]):
             continue
 
@@ -174,6 +239,8 @@ def parse_monthly_kpi_workbook(file_obj) -> ParsedKpiSheet:
             missing.append('Tiêu chí đo lường')
         if not level_fail:
             missing.append('Mức Chưa đạt')
+        if has_improve_col and not level_improve:
+            missing.append('Mức Cần cải thiện')
         if not level_pass:
             missing.append('Mức Đạt')
         if not level_exceed:
@@ -200,6 +267,7 @@ def parse_monthly_kpi_workbook(file_obj) -> ParsedKpiSheet:
             weightage=weightage,
             indicator=indicator,
             level_fail=level_fail,
+            level_improve=level_improve,
             level_pass=level_pass,
             level_exceed=level_exceed,
         ))
@@ -317,6 +385,7 @@ def build_monthly_kpi_export_xlsx(board, *, employee_label: str, manager_label: 
             item.weightage,
             item.indicator,
             item.level_fail,
+            item.level_improve,
             item.level_pass,
             item.level_exceed,
             _html_to_text(item.self_actual),
@@ -342,7 +411,7 @@ def build_monthly_kpi_export_xlsx(board, *, employee_label: str, manager_label: 
     total_cell.font = Font(bold=True, color='B91C1C')
     _apply_border_range(ws, header_row, row, 1, ncols)
 
-    widths = [6, 20, 9, 40, 26, 26, 26, 40, 8, 40, 8, 11]
+    widths = [6, 20, 9, 40, 26, 26, 26, 26, 40, 8, 40, 8, 11]
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
     ws.row_dimensions[header_row].height = 36
@@ -370,9 +439,9 @@ def build_monthly_kpi_sample_xlsx() -> bytes:
 
     # Nhóm giống nhau ghi đủ trên mỗi dòng trước khi merge
     sample = [
-        (1, 'Nhóm A (50%)', 25, '1. Tiêu chí mẫu 1', 'Chưa đạt mô tả', 'Đạt mô tả', 'Vượt mô tả'),
-        (2, 'Nhóm A (50%)', 25, '2. Tiêu chí mẫu 2', 'Chưa đạt mô tả', 'Đạt mô tả', 'Vượt mô tả'),
-        (3, 'Nhóm B (50%)', 50, '3. Tiêu chí mẫu 3', 'Chưa đạt mô tả', 'Đạt mô tả', 'Vượt mô tả'),
+        (1, 'Nhóm A (50%)', 25, '1. Tiêu chí mẫu 1', 'Chưa đạt mô tả', 'Cần cải thiện mô tả', 'Đạt mô tả', 'Vượt mô tả'),
+        (2, 'Nhóm A (50%)', 25, '2. Tiêu chí mẫu 2', 'Chưa đạt mô tả', 'Cần cải thiện mô tả', 'Đạt mô tả', 'Vượt mô tả'),
+        (3, 'Nhóm B (50%)', 50, '3. Tiêu chí mẫu 3', 'Chưa đạt mô tả', 'Cần cải thiện mô tả', 'Đạt mô tả', 'Vượt mô tả'),
     ]
     for i, row in enumerate(sample, start=2):
         for col, val in enumerate(row, start=1):
@@ -383,7 +452,7 @@ def build_monthly_kpi_sample_xlsx() -> bytes:
     _merge_same_work_groups(ws, 2, data_end, group_col=2)
     _apply_border_range(ws, 1, data_end, 1, len(_HEADERS))
 
-    widths = [6, 22, 10, 42, 28, 28, 28]
+    widths = [6, 22, 10, 42, 28, 28, 28, 28]
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
     ws.row_dimensions[1].height = 36

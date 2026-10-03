@@ -2,7 +2,7 @@
 {% load static kpi_extras %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/kpi-monthly.css' %}?v=20260904b">
+<link rel="stylesheet" href="{% static 'css/kpi-monthly.css' %}?v=20261003a">
 {% endblock %}
 
 {% block content %}
@@ -88,8 +88,14 @@
             </div>
         </div>
         <div class="col-6 col-md-3 col-xl">
+            <div class="jp-kpi-stat jp-kpi-stat--improve">
+                <div class="jp-kpi-stat__label">Cần cải thiện</div>
+                <div class="jp-kpi-stat__value">{{ counts.improve }}</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 col-xl">
             <div class="jp-kpi-stat jp-kpi-stat--fail">
-                <div class="jp-kpi-stat__label">Không đạt</div>
+                <div class="jp-kpi-stat__label">Chưa đạt</div>
                 <div class="jp-kpi-stat__value">{{ counts.fail }}</div>
             </div>
         </div>
