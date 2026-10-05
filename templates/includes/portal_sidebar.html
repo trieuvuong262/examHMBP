@@ -503,6 +503,13 @@
             </ul>
         </li>
         {% endif %}
+        {% if jp_can_xay_dung %}
+        <li>
+            <a href="{% url 'xay_dung:list' %}" class="jp-sidebar-link {% if '/xay-dung/' in request.path %}active{% endif %}">
+                <i class="bi bi-buildings"></i><span>Xây Dựng</span>
+            </a>
+        </li>
+        {% endif %}
         {% if jp_can_utilities or jp_can_portal_admin or jp_can_trip_register %}
         <li class="jp-sidebar-group{% if 'tien-ich' in request.path %} is-open{% endif %}">
             <button type="button"

@@ -28,6 +28,7 @@ from hrm.module_permissions import (
     MODULE_KHO_NPL,
     MODULE_KHO_VAT_TU,
     MODULE_TRAINING,
+    MODULE_XAY_DUNG,
     bypass_department_modules,
 )
 from hrm.permissions import (
@@ -66,6 +67,7 @@ def default_role_permissions() -> dict:
         MODULE_KIOTVIET: _perm(True, False),
         MODULE_KHO_NPL: _perm(True, False),
         MODULE_KHO_VAT_TU: _perm(True, False),
+        MODULE_XAY_DUNG: _perm(True, False),
         MODULE_PERMISSIONS: _perm(False, False),
         MODULE_AUDIT: _perm(False, False),
         MODULE_RECRUITMENT: _perm(False, False),
@@ -85,6 +87,7 @@ def default_role_permissions() -> dict:
         MODULE_KIOTVIET: _perm(True, True),
         MODULE_KHO_NPL: _perm(True, True),
         MODULE_KHO_VAT_TU: _perm(True, True),
+        MODULE_XAY_DUNG: _perm(True, True),
     }
     team_leader = {**employee_modules, **manager_extra}
     division_head = {

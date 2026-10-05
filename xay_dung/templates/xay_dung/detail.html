@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block extra_head %}
+<style>
+    .jp-xd-viewer { position: relative; width: 100%; height: calc(100vh - 220px); min-height: 480px; background: #0f172a; border-radius: .5rem; overflow: hidden; }
+    .jp-xd-viewer iframe { width: 100%; height: 100%; border: 0; display: block; }
+    .jp-xd-viewer:fullscreen { border-radius: 0; height: 100vh; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ item.title }}</h2>
+            <div class="small text-muted">
+                {{ item.uploader_display }} · {{ item.created_at|date:"d/m/Y H:i" }}
+                {% if item.original_name %} · {{ item.original_name }}{% endif %}
+            </div>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'xay_dung:list' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i>Danh sách
+            </a>
+            <button type="button" class="btn btn-outline-hm" id="jp-xd-fullscreen">
+                <i class="bi bi-arrows-fullscreen me-1"></i>Toàn màn hình
+            </button>
+            {% if can_update %}
+            <a href="{% url 'xay_dung:update' item.pk %}" class="btn btn-outline-hm">
+                <i class="bi bi-pencil-square me-1"></i>Sửa
+            </a>
+            {% endif %}
+            {% if can_delete %}
+            <form method="post" action="{% url 'xay_dung:delete' item.pk %}" class="d-inline"
+                  onsubmit="return confirm('Xoá mô hình «{{ item.title|escapejs }}»?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-danger">
+                    <i class="bi bi-trash me-1"></i>Xoá
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if item.description %}
+    <p class="text-muted mb-3" style="white-space: pre-line;">{{ item.description }}</p>
+    {% endif %}
+
+    <div class="jp-xd-viewer shadow-sm" id="jp-xd-viewer">
+        {# sandbox không có allow-same-origin: trang 3D không truy cập được phiên đăng nhập portal #}
+        <iframe src="{% url 'xay_dung:raw' item.pk %}"
+                title="Mô hình 3D: {{ item.title }}"
+                sandbox="allow-scripts allow-downloads allow-pointer-lock allow-modals"
+                allow="fullscreen"
+                allowfullscreen
+                referrerpolicy="no-referrer"
+                loading="lazy"></iframe>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    var btn = document.getElementById('jp-xd-fullscreen');
+    var box = document.getElementById('jp-xd-viewer');
+    if (!btn || !box || !box.requestFullscreen) { if (btn) btn.hidden = true; return; }
+    btn.addEventListener('click', function () {
+        if (document.fullscreenElement) { document.exitFullscreen(); }
+        else { box.requestFullscreen(); }
+    });
+})();
+</script>
+{% endblock %}

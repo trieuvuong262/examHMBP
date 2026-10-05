@@ -41,6 +41,7 @@ MODULE_KHO_SAN_PHAM = 'kho_san_pham'
 MODULE_SAN_XUAT = 'san_xuat'
 MODULE_ODOO = 'odoo'
 MODULE_TIEN_DO = 'tien_do'
+MODULE_XAY_DUNG = 'xay_dung'
 
 # Tạm ẩn khỏi sidebar + màn hình phân quyền — gỡ khỏi set khi bật lại.
 HIDDEN_PORTAL_MODULES = frozenset({
@@ -66,6 +67,7 @@ _ALL_MODULE_CHOICES = [
     (MODULE_UTILITIES, 'Tiện ích'),
     (MODULE_ODOO, 'Odoo'),
     (MODULE_TIEN_DO, 'Tiến độ'),
+    (MODULE_XAY_DUNG, 'Xây Dựng'),
     (MODULE_SAN_XUAT, 'Sản xuất'),
     (MODULE_KHO_NPL, 'Kho Nguyên Phụ Liệu'),
     (MODULE_KHO_VAT_TU, 'Kho vật tư'),
@@ -205,6 +207,10 @@ DEPARTMENT_MENU_SECTIONS = [
         'modules': _visible_module_list([MODULE_TIEN_DO]),
     },
     {
+        'label': 'Xây Dựng',
+        'modules': _visible_module_list([MODULE_XAY_DUNG]),
+    },
+    {
         'label': 'Thư viện',
         'modules': _visible_module_list([MODULE_DOCUMENTS, MODULE_GUIDE]),
     },
@@ -271,6 +277,7 @@ PATH_MODULE_RULES = [
     ('/kiotviet/', MODULE_KIOTVIET),
     ('/odoo/', MODULE_ODOO),
     ('/tien-do/', MODULE_TIEN_DO),
+    ('/xay-dung/', MODULE_XAY_DUNG),
     ('/kho-npl/', MODULE_KHO_NPL),
     ('/kho-vat-tu/', MODULE_KHO_VAT_TU),
     ('/kho-san-pham/', MODULE_KHO_SAN_PHAM),

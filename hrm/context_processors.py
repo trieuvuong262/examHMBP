@@ -32,6 +32,7 @@ from hrm.module_permissions import (
     MODULE_ODOO,
     MODULE_TIEN_DO,
     MODULE_TRAINING,
+    MODULE_XAY_DUNG,
     bypass_department_modules,
     get_user_enabled_modules,
     user_can_access_module,
@@ -276,6 +277,7 @@ def portal_permissions(request):
         'jp_can_kiotviet': _jp_can_kiotviet(user),
         'jp_can_odoo': False,  # Tạm ẩn menu Odoo
         'jp_can_tien_do': user_can_access_module(user, MODULE_TIEN_DO),
+        'jp_can_xay_dung': user_can_access_module(user, MODULE_XAY_DUNG),
         'jp_can_kho_npl': user_can_access_module(user, MODULE_KHO_NPL),
         'jp_can_kho_vat_tu': user_can_access_module(user, MODULE_KHO_VAT_TU),
         'jp_can_kho_san_pham': user_can_access_module(user, MODULE_KHO_SAN_PHAM),
