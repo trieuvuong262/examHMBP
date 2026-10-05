@@ -20,6 +20,7 @@ from .flow import (
 )
 from .forms import (
     DivisionHeadApproveForm,
+    GeneralProposalForm,
     ItRepairCompleteForm,
     ItRepairCreateForm,
     LineItemFormSet,
@@ -29,6 +30,7 @@ from .forms import (
     RequesterConfirmForm,
     ServiceRequestCreateForm,
     StepActionForm,
+    SubtypeSelectForm,
 )
 from .models import (
     RecurringItemCatalog,
@@ -69,6 +71,10 @@ from tasks.attachment_utils import read_separate_uploads
 from .workflow_it import (
     create_it_repair_request,
     get_it_repair_request_type,
+)
+from .workflow_general import (
+    create_general_request_with_steps,
+    get_general_request_type,
 )
 
 
@@ -325,8 +331,24 @@ def involved_requests(request, flow_tab=None):
     return render(request, 'service_requests/involved_list.html', ctx)
 
 
+def _resolve_create_subtype(request):
+    """Loại đề xuất đang chọn — POST > GET > mặc định mua hàng."""
+    raw = (request.POST.get('request_subtype') or request.GET.get('request_subtype') or '').strip()
+    valid = {code for code, _ in ServiceRequest.SUBTYPE_CHOICES}
+    if raw in valid:
+        return raw
+    return ServiceRequest.SUBTYPE_PURCHASE
+
+
 @module_perm_required(MODULE_DE_XUAT, 'create')
 def create_request(request):
+    subtype = _resolve_create_subtype(request)
+    if subtype == ServiceRequest.SUBTYPE_PURCHASE:
+        return _create_purchase_request(request, subtype)
+    return _create_general_request(request, subtype)
+
+
+def _create_purchase_request(request, subtype):
     request_type = get_active_request_type()
     if not request_type:
         messages.warning(request, 'Chưa cấu hình loại yêu cầu. Liên hệ quản trị viên.')
@@ -381,6 +403,60 @@ def create_request(request):
         'form': form,
         'line_formset': line_formset,
         'request_type': request_type,
+        'subtype_form': SubtypeSelectForm(initial={'request_subtype': subtype}),
+        'current_subtype': subtype,
+        **_subnav_context(request, flow_tab=FLOW_DE_XUAT),
+    })
+
+
+def _create_general_request(request, subtype):
+    request_type = get_general_request_type()
+    if not request_type:
+        messages.warning(request, 'Chưa cấu hình loại yêu cầu. Liên hệ quản trị viên.')
+        return redirect('service_requests:de_xuat_my')
+
+    if request.method == 'POST':
+        form = GeneralProposalForm(request.POST, subtype=subtype)
+        if form.is_valid():
+            try:
+                service_request = create_general_request_with_steps(
+                    requester=request.user,
+                    request_type=request_type,
+                    subtype=subtype,
+                    title=form.cleaned_data['title'],
+                    description=form.cleaned_data['description'],
+                    payment_amount=form.cleaned_data.get('payment_amount'),
+                    extra_data=form.extra_data(),
+                )
+                prepared = read_separate_uploads(
+                    request.FILES.getlist('images'),
+                    request.FILES.getlist('files'),
+                )
+                if prepared:
+                    _save_attachments(
+                        service_request,
+                        prepared,
+                        uploaded_by=request.user,
+                        stage=ServiceRequestAttachment.STAGE_REQUEST,
+                    )
+                    log_action(
+                        service_request,
+                        actor=request.user,
+                        action='attachment',
+                        message=f'Đính kèm {len(prepared)} file',
+                    )
+                messages.success(request, 'Đã gửi đề xuất — đang chờ xử lý theo quy trình.')
+                return redirect(_detail_url(service_request))
+            except ValueError as exc:
+                messages.error(request, str(exc))
+    else:
+        form = GeneralProposalForm(subtype=subtype)
+
+    return render(request, 'service_requests/form.html', {
+        'general_form': form,
+        'request_type': request_type,
+        'subtype_form': SubtypeSelectForm(initial={'request_subtype': subtype}),
+        'current_subtype': subtype,
         **_subnav_context(request, flow_tab=FLOW_DE_XUAT),
     })
 

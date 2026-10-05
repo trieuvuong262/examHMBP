@@ -34,6 +34,21 @@
                 <div class="card-header bg-white fw-bold">Nội dung yêu cầu</div>
                 <div class="card-body">
                     <p class="mb-0" style="white-space: pre-wrap;">{{ service_request.description }}</p>
+                    {% if service_request.extra_data or service_request.payment_amount %}
+                    <hr>
+                    <dl class="row mb-0 small">
+                        <dt class="col-sm-4">Loại đề xuất</dt>
+                        <dd class="col-sm-8">{{ service_request.subtype_label }}</dd>
+                        {% if service_request.payment_amount %}
+                        <dt class="col-sm-4">Số tiền</dt>
+                        <dd class="col-sm-8">{{ service_request.payment_amount|floatformat:0 }} VNĐ</dd>
+                        {% endif %}
+                        {% for label, value in service_request.extra_items %}
+                        <dt class="col-sm-4">{{ label }}</dt>
+                        <dd class="col-sm-8">{{ value }}</dd>
+                        {% endfor %}
+                    </dl>
+                    {% endif %}
                     {% if service_request.is_it_repair %}
                     <hr>
                     <dl class="row mb-0 small">

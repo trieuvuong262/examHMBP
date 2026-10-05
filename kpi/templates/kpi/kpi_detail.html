@@ -41,11 +41,24 @@
             <div class="jp-kpi-sheet-banner__total-value" data-kpi-total>
                 {% if total_score is not None %}{{ total_score }}{% else %}—{% endif %}
             </div>
-            <div class="mt-1">
+            <div class="mt-1 d-flex flex-wrap gap-1 justify-content-end align-items-center">
                 <span class="jp-kpi-badge jp-kpi-badge--{{ result_code }}" data-kpi-result>{{ result_label }}</span>
+                <span class="jp-kpi-badge jp-kpi-badge--{{ kpi_status_badge }}">
+                    {% if kpi_status == 'approved' %}<i class="bi bi-lock-fill me-1"></i>{% endif %}{{ kpi_status_label }}
+                </span>
             </div>
         </div>
     </div>
+
+    {% if kpi.status == 'approved' %}
+    <div class="alert alert-success d-flex align-items-center gap-2 py-2 px-3 mb-3" role="alert">
+        <i class="bi bi-shield-check fs-5"></i>
+        <div>
+            KPI đã được <strong>{% if kpi.approved_by %}{{ kpi.approved_by|display_name }}{% else %}giám đốc{% endif %}</strong> phê duyệt
+            {% if kpi.approved_at %}lúc {{ kpi.approved_at|date:"H:i d/m/Y" }}{% endif %} · bảng đã khoá, không thể chỉnh sửa.
+        </div>
+    </div>
+    {% endif %}
 
     <div class="jp-kpi-rules mb-3">
         <strong>Quy tắc:</strong>
@@ -54,6 +67,8 @@
         Dưới 70 Chưa đạt · 70 – dưới 90 Cần cải thiện · 90–100 Đạt · Trên 100 Vượt ·
         Thang điểm tiêu chí thường 0–10 (có thể &gt;10 khi vượt).
         Ô đánh giá thực tế hỗ trợ <strong>dán / chèn ảnh</strong> (lưu như báo cáo).
+        <br>
+        <strong>Quy trình:</strong> NV tự đánh giá &amp; nộp → Quản lý/TBP chấm &amp; trình → Giám đốc phê duyệt (khoá).
         {% if can_edit_self and not can_edit_manager %}
         <span class="ms-1">Bạn đang chấm cột <strong>Nhân viên</strong>.</span>
         {% elif can_edit_manager and not can_edit_self %}
@@ -79,12 +94,12 @@
                         <th class="jp-kpi-col-stt"><span class="jp-kpi-th-label">STT</span></th>
                         <th class="jp-kpi-col-group"><span class="jp-kpi-th-label">Nhóm công việc</span></th>
                         <th class="jp-kpi-col-weight"><span class="jp-kpi-th-label">Trọng số</span></th>
+                        <th class="jp-kpi-col-indicator"><span class="jp-kpi-th-label">Tiêu chí đo lường (KPI)</span></th>
                         <th class="jp-kpi-col-nv jp-kpi-actual"><span class="jp-kpi-th-label">Đánh giá thực tế (NV)</span></th>
                         <th class="jp-kpi-col-nv jp-kpi-col-score"><span class="jp-kpi-th-label">Điểm NV</span></th>
                         <th class="jp-kpi-col-ql jp-kpi-actual"><span class="jp-kpi-th-label">Đánh giá thực tế (QL)</span></th>
                         <th class="jp-kpi-col-ql jp-kpi-col-score"><span class="jp-kpi-th-label">Điểm QL</span></th>
                         <th class="jp-kpi-col-tp"><span class="jp-kpi-th-label">Điểm TP</span></th>
-                        <th class="jp-kpi-col-indicator"><span class="jp-kpi-th-label">Tiêu chí đo lường (KPI)</span></th>
                         <th class="jp-kpi-col-level"><span class="jp-kpi-th-label">Mức chưa đạt (&lt;70%)</span></th>
                         <th class="jp-kpi-col-level"><span class="jp-kpi-th-label">Mức cần cải thiện (70% – &lt;90%)</span></th>
                         <th class="jp-kpi-col-level"><span class="jp-kpi-th-label">Mức đạt (90% – 100%)</span></th>
@@ -98,7 +113,16 @@
                         {% if item.group_rowspan %}
                         <td class="jp-kpi-group" rowspan="{{ item.group_rowspan }}">{{ item.work_group|default:"—" }}</td>
                         {% endif %}
-                        <td class="jp-kpi-col-weight fw-bold" data-kpi-weight="{{ item.weightage|unlocalize }}">{{ item.weightage }}</td>
+                        <td class="jp-kpi-col-weight fw-bold" data-kpi-weight="{{ item.weightage|unlocalize }}">{{ item.weightage|floatformat:"-2" }}</td>
+                        <td class="jp-kpi-indicator">
+                            <div class="jp-kpi-clamp" data-kpi-clamp>
+                                <div class="jp-kpi-clamp__body" data-kpi-clamp-body>{{ item.indicator }}</div>
+                                <button type="button" class="jp-kpi-clamp__toggle" data-kpi-clamp-toggle
+                                        hidden aria-expanded="false" title="Mở rộng" aria-label="Mở rộng">
+                                    <i class="bi bi-chevron-down"></i>
+                                </button>
+                            </div>
+                        </td>
                         <td class="jp-kpi-col-nv jp-kpi-actual">
                             {% if can_edit_self %}
                             <div class="jp-kpi-rich jp-kpi-clamp jp-kpi-clamp--rich" data-kpi-rich data-kpi-clamp>
@@ -192,15 +216,6 @@
                         <td class="jp-kpi-tp jp-kpi-col-tp" data-kpi-tp>
                             {% if item.display_component is not None %}{{ item.display_component|floatformat:2 }}{% else %}—{% endif %}
                         </td>
-                        <td class="jp-kpi-indicator">
-                            <div class="jp-kpi-clamp" data-kpi-clamp>
-                                <div class="jp-kpi-clamp__body" data-kpi-clamp-body>{{ item.indicator }}</div>
-                                <button type="button" class="jp-kpi-clamp__toggle" data-kpi-clamp-toggle
-                                        hidden aria-expanded="false" title="Mở rộng" aria-label="Mở rộng">
-                                    <i class="bi bi-chevron-down"></i>
-                                </button>
-                            </div>
-                        </td>
                         <td class="jp-kpi-level">
                             <div class="jp-kpi-clamp" data-kpi-clamp>
                                 <div class="jp-kpi-clamp__body" data-kpi-clamp-body>{{ item.level_fail }}</div>
@@ -248,21 +263,71 @@
             </div>
         </div>
 
-        {% if can_edit_self or can_edit_manager %}
+        {% if can_edit_self or can_edit_manager or can_submit_self or can_submit_manager or can_approve or can_reopen %}
         <div class="jp-kpi-sticky-actions d-flex flex-wrap justify-content-between align-items-center gap-2">
             <div class="small text-muted">
                 Tổng tạm tính: <strong class="text-dark" data-kpi-total-foot>{% if total_score is not None %}{{ total_score }}{% else %}—{% endif %}</strong>
                 · <span data-kpi-result-foot class="jp-kpi-result-{{ result_code }} fw-semibold">{{ result_label }}</span>
+                <span class="mx-1">·</span>
+                Trạng thái: <strong class="text-dark">{{ kpi_status_label }}</strong>
             </div>
-            <div class="d-flex gap-2">
+            <div class="d-flex flex-wrap gap-2 align-items-center">
                 <a href="{% url 'kpi_list' %}?month={{ kpi.month }}&year={{ kpi.year }}" class="btn btn-light fw-bold">Hủy</a>
+                {% if can_edit_self or can_edit_manager %}
                 <button type="submit" class="btn btn-hm text-white fw-bold px-4">
                     <i class="bi bi-save me-1"></i>Lưu đánh giá
                 </button>
+                {% endif %}
             </div>
         </div>
         {% endif %}
     </form>
+
+    {# Hành động quy trình duyệt — form riêng, POST sang kpi_workflow_action #}
+    {% if can_submit_self or can_submit_manager or can_approve or can_reopen %}
+    <div class="jp-kpi-workflow-actions d-flex flex-wrap justify-content-end align-items-center gap-2 mt-3">
+        {% if can_reopen %}
+        <form method="post" action="{% url 'kpi_workflow_action' kpi.id %}" class="d-inline"
+              onsubmit="return confirm('Trả lại KPI về bước trước để chỉnh sửa?');">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="reopen">
+            <button type="submit" class="btn btn-outline-secondary fw-bold">
+                <i class="bi bi-arrow-counterclockwise me-1"></i>Trả lại chỉnh sửa
+            </button>
+        </form>
+        {% endif %}
+        {% if can_submit_self %}
+        <form method="post" action="{% url 'kpi_workflow_action' kpi.id %}" class="d-inline"
+              onsubmit="return confirm('Nộp bản tự đánh giá? Sau khi nộp bạn không sửa được cột Nhân viên nữa.');">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="submit_self">
+            <button type="submit" class="btn btn-primary fw-bold px-4">
+                <i class="bi bi-send me-1"></i>Nộp tự đánh giá
+            </button>
+        </form>
+        {% endif %}
+        {% if can_submit_manager %}
+        <form method="post" action="{% url 'kpi_workflow_action' kpi.id %}" class="d-inline"
+              onsubmit="return confirm('Trình giám đốc phê duyệt KPI này?');">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="submit_manager">
+            <button type="submit" class="btn btn-primary fw-bold px-4">
+                <i class="bi bi-send-check me-1"></i>Trình phê duyệt
+            </button>
+        </form>
+        {% endif %}
+        {% if can_approve %}
+        <form method="post" action="{% url 'kpi_workflow_action' kpi.id %}" class="d-inline"
+              onsubmit="return confirm('Phê duyệt KPI? Bảng sẽ bị khoá, không ai chỉnh sửa được nữa.');">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="approve">
+            <button type="submit" class="btn btn-success fw-bold px-4">
+                <i class="bi bi-check2-circle me-1"></i>Phê duyệt &amp; khoá
+            </button>
+        </form>
+        {% endif %}
+    </div>
+    {% endif %}
 </div>
 
 <script src="{% static 'js/kpi-actual-rich.js' %}?v=20260904d"></script>

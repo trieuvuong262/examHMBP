@@ -624,3 +624,139 @@ class ItRepairWorkflowTests(TestCase):
         pending = pending_steps_for_user(self.it_staff)
         self.assertEqual(pending.count(), 0)
 
+
+
+@override_settings(PROCUREMENT_STAFF_USERNAMES='tm_test')
+class GeneralProposalTests(TestCase):
+    def setUp(self):
+        self.dept_prod = Department.objects.create(name='Sản xuất', sort_order=0)
+        self.dept_accounting = Department.objects.create(name='Kế toán', sort_order=1)
+        self.dept_it = Department.objects.create(name='Phòng IT', sort_order=2)
+        self.dept_hr = Department.objects.create(name='Hành chính nhân sự', sort_order=3)
+
+        for dept in (self.dept_prod, self.dept_accounting, self.dept_it, self.dept_hr):
+            DepartmentMenuPermission.objects.create(
+                department=dept,
+                modules=['de_xuat', 'ho_tro', 'tasks'],
+            )
+
+        perms = {
+            'de_xuat': {'view': True, 'edit': True},
+            'ho_tro': {'view': True, 'edit': True},
+            'tasks': {'view': True, 'edit': True},
+        }
+        for role in (ROLE_EMPLOYEE, ROLE_TEAM_LEADER, ROLE_DIVISION_HEAD, ROLE_DIRECTOR):
+            RoleModulePermission.objects.update_or_create(
+                role=role,
+                defaults={'module_permissions': perms},
+            )
+
+        self.team_leader = self._user('tt_gen', ROLE_TEAM_LEADER, self.dept_prod)
+        self.div_head = self._user('tbp_gen', ROLE_DIVISION_HEAD, self.dept_prod)
+        self.employee = self._user('nv_gen', ROLE_EMPLOYEE, self.dept_prod)
+        self.director = self._user('gd_gen', ROLE_DIRECTOR, self.dept_prod)
+        self.team_leader.profile.subordinates.set([self.employee])
+        self.div_head.profile.subordinates.set([self.employee, self.team_leader])
+
+        RequestType.objects.get_or_create(
+            code=RequestType.CODE_GENERAL_PROPOSAL,
+            defaults={'name': 'Đề xuất chung', 'is_active': True},
+        )
+        self.client = Client()
+
+    def _user(self, username, role, dept):
+        user = User.objects.create_user(username=username, password='testpass123')
+        Profile.objects.filter(user=user).update(
+            department=dept, role=role, full_name=username, is_employed=True,
+        )
+        user.refresh_from_db()
+        return user
+
+    def test_create_page_renders_each_subtype(self):
+        self.client.force_login(self.employee)
+        for subtype in ('purchase', 'payment', 'hr', 'repair', 'account'):
+            resp = self.client.get(reverse('service_requests:create') + f'?request_subtype={subtype}')
+            self.assertEqual(resp.status_code, 200, subtype)
+
+    def test_payment_proposal_creates_request_with_amount_and_steps(self):
+        self.client.force_login(self.employee)
+        resp = self.client.post(reverse('service_requests:create'), {
+            'request_subtype': 'payment',
+            'title': 'Thanh toán tiền điện',
+            'description': 'Hoá đơn tháng 5',
+            'payment_kind': 'payment',
+            'payment_amount': '3000000',
+            'payee': 'EVN',
+        })
+        self.assertEqual(resp.status_code, 302)
+        req = ServiceRequest.objects.get(requester=self.employee)
+        self.assertEqual(req.request_subtype, ServiceRequest.SUBTYPE_PAYMENT)
+        self.assertEqual(req.payment_amount, Decimal('3000000'))
+        self.assertEqual(req.extra_data.get('payment_kind'), 'Thanh toán')
+        self.assertEqual(req.extra_data.get('payee'), 'EVN')
+        # Có bước duyệt (NV thuộc phòng có TT → bắt đầu ở Tổ trưởng).
+        first = req.steps.order_by('step_order').first()
+        self.assertEqual(first.step_code, ServiceRequestStep.STEP_TEAM_LEADER)
+        # 3M (>=2M, <10M) → có bước Kế toán duyệt chi phí.
+        self.assertEqual(req.approval_tier, ServiceRequest.TIER_ACCOUNTANT)
+        self.assertTrue(req.steps.filter(step_code=ServiceRequestStep.STEP_ACCOUNTANT).exists())
+
+    def test_payment_requires_amount(self):
+        self.client.force_login(self.employee)
+        resp = self.client.post(reverse('service_requests:create'), {
+            'request_subtype': 'payment',
+            'title': 'Thiếu số tiền',
+            'description': 'Test',
+            'payment_kind': 'payment',
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(ServiceRequest.objects.count(), 0)
+
+    def test_repair_proposal_routes_to_technical_department(self):
+        self.client.force_login(self.employee)
+        resp = self.client.post(reverse('service_requests:create'), {
+            'request_subtype': 'repair',
+            'title': 'Máy tính hỏng',
+            'description': 'Không lên nguồn',
+            'incident_category': 'hw',
+            'priority': ServiceRequest.PRIORITY_HIGH,
+            'location_text': 'Văn phòng',
+            'equipment_label': 'PC Dell',
+        })
+        self.assertEqual(resp.status_code, 302)
+        req = ServiceRequest.objects.get(requester=self.employee)
+        self.assertEqual(req.request_subtype, ServiceRequest.SUBTYPE_REPAIR)
+        final = req.steps.order_by('step_order').last()
+        self.assertEqual(final.step_code, ServiceRequestStep.STEP_IT_REPAIR)
+        self.assertEqual(final.target_department_id, self.dept_it.id)
+
+    def test_account_proposal_creates_request(self):
+        self.client.force_login(self.employee)
+        resp = self.client.post(reverse('service_requests:create'), {
+            'request_subtype': 'account',
+            'title': 'Cấp email nhân viên mới',
+            'description': 'Nhân viên vào làm 01/06',
+            'account_kind': 'email',
+            'target_user': 'Nguyễn Văn A',
+        })
+        self.assertEqual(resp.status_code, 302)
+        req = ServiceRequest.objects.get(requester=self.employee)
+        self.assertEqual(req.request_subtype, ServiceRequest.SUBTYPE_ACCOUNT)
+        self.assertEqual(req.extra_data.get('account_kind'), 'Email')
+
+    def test_hr_proposal_creates_request(self):
+        self.client.force_login(self.employee)
+        resp = self.client.post(reverse('service_requests:create'), {
+            'request_subtype': 'hr',
+            'title': 'Tuyển công nhân may',
+            'description': 'Bổ sung nhân lực chuyền 2',
+            'hr_kind': 'recruit',
+            'position': 'Công nhân may',
+            'target_department': 'Sản xuất',
+            'headcount': '3',
+        })
+        self.assertEqual(resp.status_code, 302)
+        req = ServiceRequest.objects.get(requester=self.employee)
+        self.assertEqual(req.request_subtype, ServiceRequest.SUBTYPE_HR)
+        self.assertEqual(req.extra_data.get('headcount'), 3)
+        self.assertEqual(req.extra_data.get('hr_kind'), 'Tuyển dụng')

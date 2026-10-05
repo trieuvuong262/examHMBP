@@ -436,15 +436,8 @@
                             </a>
                         </li>
                         {% endif %}
-                        {% jp_can_menu 'ho_tro' 'create' as jp_can_ho_tro_create %}
-                        {% if jp_can_ho_tro_create %}
-                        <li>
-                            <a href="{% url 'service_requests:create_it_repair' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'create_it_repair' or request.resolver_match.url_name == 'create_it_repair_it' or request.resolver_match.url_name == 'create_it_repair_production' %}active{% endif %}">
-                                <i class="bi bi-plus-circle"></i><span>Gửi yêu cầu hỗ trợ</span>
-                            </a>
-                        </li>
-                        {% endif %}
+                        {# Gộp vào loại "Sửa chữa máy móc, IT, CSVC" ở màn hình Gửi đề xuất —
+                           ẩn link tạo riêng để tránh trùng. Yêu cầu cũ vẫn xem/ xử lý được. #}
                     </ul>
                 </li>
                 {% endif %}

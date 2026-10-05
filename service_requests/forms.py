@@ -7,6 +7,16 @@ from django.forms import formset_factory
 from .models import RecurringItemCatalog, ServiceRequest
 
 
+class SubtypeSelectForm(forms.Form):
+    """Chọn loại đề xuất ở đầu màn hình tạo."""
+
+    request_subtype = forms.ChoiceField(
+        choices=ServiceRequest.SUBTYPE_CHOICES,
+        label='Loại đề xuất',
+        widget=forms.Select(attrs={'class': 'form-select', 'id': 'id_request_subtype'}),
+    )
+
+
 class ServiceRequestCreateForm(forms.ModelForm):
     recurring_item = forms.ModelChoiceField(
         queryset=RecurringItemCatalog.objects.filter(is_active=True),
@@ -80,6 +90,166 @@ class LineItemForm(forms.Form):
 
 
 LineItemFormSet = formset_factory(LineItemForm, extra=2, max_num=20, validate_max=True)
+
+
+class GeneralProposalForm(forms.Form):
+    """Form cho các loại đề xuất phi mua-hàng (thanh toán, nhân sự, sửa chữa, cấp phát).
+
+    Tất cả field riêng theo loại đều optional ở mức field; việc bắt buộc theo loại
+    được xử lý trong clean() dựa trên subtype.
+    """
+
+    PAYMENT_KIND_CHOICES = [
+        ('payment', 'Thanh toán'),
+        ('advance', 'Tạm ứng'),
+        ('reimbursement', 'Hoàn ứng'),
+    ]
+    HR_KIND_CHOICES = [
+        ('recruit', 'Tuyển dụng'),
+        ('transfer', 'Điều chuyển'),
+    ]
+    ACCOUNT_KIND_CHOICES = [
+        ('account', 'Tài khoản hệ thống'),
+        ('computer', 'Máy tính'),
+        ('email', 'Email'),
+        ('other', 'Khác'),
+    ]
+    REPAIR_INCIDENT_CHOICES = [
+        ('hw', 'Phần cứng'),
+        ('sw', 'Phần mềm'),
+        ('network', 'Mạng / Internet'),
+        ('account', 'Tài khoản / quyền truy cập'),
+        ('machine', 'Máy móc / thiết bị sản xuất'),
+        ('facility', 'Cơ sở vật chất'),
+        ('other', 'Khác'),
+    ]
+    PRIORITY_CHOICES = ServiceRequest.PRIORITY_CHOICES
+
+    title = forms.CharField(
+        label='Tiêu đề',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Tóm tắt ngắn gọn nội dung đề xuất'}),
+    )
+    description = forms.CharField(
+        label='Nội dung chi tiết',
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Mô tả chi tiết nhu cầu, lý do...'}),
+    )
+
+    # --- Thanh toán / tạm ứng / hoàn ứng ---
+    payment_kind = forms.ChoiceField(
+        choices=PAYMENT_KIND_CHOICES, required=False, label='Hình thức',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+    payment_amount = forms.DecimalField(
+        required=False, min_value=Decimal('0'), label='Số tiền (VNĐ)',
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'placeholder': 'VD: 5000000'}),
+    )
+    payee = forms.CharField(
+        required=False, label='Người/đơn vị thụ hưởng',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Tên người/đơn vị nhận tiền'}),
+    )
+    due_date = forms.DateField(
+        required=False, label='Ngày cần chi',
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+    )
+
+    # --- Tuyển dụng / điều chuyển ---
+    hr_kind = forms.ChoiceField(
+        choices=HR_KIND_CHOICES, required=False, label='Loại yêu cầu',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+    position = forms.CharField(
+        required=False, label='Vị trí / chức danh',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'VD: Công nhân may, Nhân viên kho'}),
+    )
+    target_department = forms.CharField(
+        required=False, label='Phòng ban',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Phòng ban cần nhân sự'}),
+    )
+    headcount = forms.IntegerField(
+        required=False, min_value=1, label='Số lượng',
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'placeholder': 'VD: 2'}),
+    )
+    desired_date = forms.DateField(
+        required=False, label='Ngày mong muốn',
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+    )
+
+    # --- Sửa chữa máy móc / IT / CSVC ---
+    incident_category = forms.ChoiceField(
+        choices=REPAIR_INCIDENT_CHOICES, required=False, label='Loại sự cố',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+    priority = forms.ChoiceField(
+        choices=PRIORITY_CHOICES, required=False, label='Mức độ ưu tiên',
+        initial=ServiceRequest.PRIORITY_NORMAL,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+    location_text = forms.CharField(
+        required=False, label='Vị trí',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'VD: Xưởng may — Line 2'}),
+    )
+    equipment_label = forms.CharField(
+        required=False, label='Thiết bị',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Tên hoặc mã thiết bị (tuỳ chọn)'}),
+    )
+    equipment_serial = forms.CharField(
+        required=False, label='Serial',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Serial (tuỳ chọn)'}),
+    )
+
+    # --- Cấp phát tài khoản / máy tính / email ---
+    account_kind = forms.ChoiceField(
+        choices=ACCOUNT_KIND_CHOICES, required=False, label='Loại cấp phát',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+    target_user = forms.CharField(
+        required=False, label='Cấp cho',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Tên nhân viên được cấp'}),
+    )
+
+    # Khai báo field bắt buộc theo từng loại.
+    REQUIRED_BY_SUBTYPE = {
+        ServiceRequest.SUBTYPE_PAYMENT: ['payment_kind', 'payment_amount'],
+        ServiceRequest.SUBTYPE_HR: ['hr_kind', 'position'],
+        ServiceRequest.SUBTYPE_REPAIR: ['incident_category', 'priority', 'location_text'],
+        ServiceRequest.SUBTYPE_ACCOUNT: ['account_kind', 'target_user'],
+    }
+    # Field thuộc extra_data theo từng loại.
+    EXTRA_BY_SUBTYPE = {
+        ServiceRequest.SUBTYPE_PAYMENT: ['payment_kind', 'payee', 'due_date'],
+        ServiceRequest.SUBTYPE_HR: ['hr_kind', 'position', 'target_department', 'headcount', 'desired_date'],
+        ServiceRequest.SUBTYPE_REPAIR: ['incident_category', 'priority', 'location_text', 'equipment_label', 'equipment_serial'],
+        ServiceRequest.SUBTYPE_ACCOUNT: ['account_kind', 'target_user'],
+    }
+
+    def __init__(self, *args, subtype=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.subtype = subtype
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.subtype not in self.REQUIRED_BY_SUBTYPE:
+            raise forms.ValidationError('Loại đề xuất không hợp lệ.')
+        for name in self.REQUIRED_BY_SUBTYPE[self.subtype]:
+            if cleaned.get(name) in (None, ''):
+                self.add_error(name, 'Trường này là bắt buộc.')
+        return cleaned
+
+    def extra_data(self):
+        """Gom các field riêng theo loại thành dict để lưu vào extra_data (JSON-safe)."""
+        data = {}
+        for name in self.EXTRA_BY_SUBTYPE.get(self.subtype, []):
+            value = self.cleaned_data.get(name)
+            if value in (None, ''):
+                continue
+            # Chuyển choice sang nhãn hiển thị để trang chi tiết đọc được ngay.
+            field = self.fields[name]
+            if isinstance(field, forms.ChoiceField):
+                value = dict(field.choices).get(value, value)
+            elif hasattr(value, 'isoformat'):
+                value = value.isoformat()
+            data[name] = value
+        return data
 
 
 class StepActionForm(forms.Form):

@@ -8,6 +8,7 @@ from django.db import models
 class RequestType(models.Model):
     CODE_ASSET_PURCHASE = 'asset_purchase'
     CODE_IT_REPAIR = 'it_repair'
+    CODE_GENERAL_PROPOSAL = 'general_proposal'
 
     code = models.CharField(max_length=50, unique=True, verbose_name='Mã loại')
     name = models.CharField(max_length=200, verbose_name='Tên loại')
@@ -122,6 +123,20 @@ class ServiceRequest(models.Model):
         (TIER_DIRECTOR, 'Giám đốc'),
     ]
 
+    # Phân loại đề xuất — chọn ở màn hình tạo, quyết định bộ trường hiển thị.
+    SUBTYPE_PURCHASE = 'purchase'
+    SUBTYPE_PAYMENT = 'payment'
+    SUBTYPE_HR = 'hr'
+    SUBTYPE_REPAIR = 'repair'
+    SUBTYPE_ACCOUNT = 'account'
+    SUBTYPE_CHOICES = [
+        (SUBTYPE_PURCHASE, 'Mua vật tư, thiết bị, văn phòng phẩm'),
+        (SUBTYPE_PAYMENT, 'Thanh toán, tạm ứng, hoàn ứng'),
+        (SUBTYPE_HR, 'Tuyển dụng và điều chuyển nhân sự'),
+        (SUBTYPE_REPAIR, 'Sửa chữa máy móc, IT, cơ sở vật chất'),
+        (SUBTYPE_ACCOUNT, 'Cấp phát tài khoản, máy tính, email'),
+    ]
+
     requester = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -134,8 +149,21 @@ class ServiceRequest(models.Model):
         related_name='requests',
         verbose_name='Loại yêu cầu',
     )
+    request_subtype = models.CharField(
+        max_length=20,
+        choices=SUBTYPE_CHOICES,
+        default=SUBTYPE_PURCHASE,
+        db_index=True,
+        verbose_name='Loại đề xuất',
+    )
     title = models.CharField(max_length=200, verbose_name='Tiêu đề')
     description = models.TextField(verbose_name='Nội dung')
+    payment_amount = models.DecimalField(
+        max_digits=14, decimal_places=0, null=True, blank=True, verbose_name='Số tiền (VNĐ)',
+    )
+    extra_data = models.JSONField(
+        default=dict, blank=True, verbose_name='Dữ liệu bổ sung theo loại',
+    )
     estimated_cost = models.DecimalField(
         max_digits=14, decimal_places=0, null=True, blank=True, verbose_name='Dự toán (VNĐ)',
     )
@@ -273,7 +301,21 @@ class ServiceRequest(models.Model):
 
     @property
     def is_procurement(self):
-        return self.request_type.code == RequestType.CODE_ASSET_PURCHASE
+        return self.request_subtype == self.SUBTYPE_PURCHASE
+
+    @property
+    def subtype_label(self):
+        return dict(self.SUBTYPE_CHOICES).get(self.request_subtype, '')
+
+    def extra_items(self):
+        """Danh sách (nhãn, giá trị) của extra_data — dùng để hiển thị ở trang chi tiết."""
+        labels = EXTRA_FIELD_LABELS.get(self.request_subtype, {})
+        items = []
+        for key, value in (self.extra_data or {}).items():
+            if value in (None, '', []):
+                continue
+            items.append((labels.get(key, key), value))
+        return items
 
     @property
     def is_open(self):
@@ -299,6 +341,34 @@ def incident_category_choices_for_repair_scope(repair_equipment_scope):
 
 def valid_incident_category_codes_for_repair_scope(repair_equipment_scope):
     return {code for code, _ in incident_category_choices_for_repair_scope(repair_equipment_scope)}
+
+
+# Nhãn hiển thị cho các khoá trong ServiceRequest.extra_data, theo từng loại đề xuất.
+EXTRA_FIELD_LABELS = {
+    ServiceRequest.SUBTYPE_PAYMENT: {
+        'payment_kind': 'Hình thức',
+        'payee': 'Người/đơn vị thụ hưởng',
+        'due_date': 'Ngày cần chi',
+    },
+    ServiceRequest.SUBTYPE_HR: {
+        'hr_kind': 'Loại yêu cầu',
+        'position': 'Vị trí / chức danh',
+        'target_department': 'Phòng ban',
+        'headcount': 'Số lượng',
+        'desired_date': 'Ngày mong muốn',
+    },
+    ServiceRequest.SUBTYPE_REPAIR: {
+        'incident_category': 'Loại sự cố',
+        'priority': 'Mức độ ưu tiên',
+        'location_text': 'Vị trí',
+        'equipment_label': 'Thiết bị',
+        'equipment_serial': 'Serial',
+    },
+    ServiceRequest.SUBTYPE_ACCOUNT: {
+        'account_kind': 'Loại cấp phát',
+        'target_user': 'Cấp cho',
+    },
+}
 
 
 class ProcurementLineItem(models.Model):

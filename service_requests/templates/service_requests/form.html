@@ -10,6 +10,14 @@
 
     <div class="card border-0 shadow-sm">
         <div class="card-body p-3 p-md-4">
+
+            <div class="mb-4">
+                <label class="form-label fw-bold">{{ subtype_form.request_subtype.label }} <span class="text-danger">*</span></label>
+                {{ subtype_form.request_subtype }}
+                <div class="form-text">Chọn loại đề xuất để hiển thị các thông tin phù hợp.</div>
+            </div>
+
+            {% if current_subtype == 'purchase' %}
             <div class="alert alert-light border mb-4">
                 <strong>Quy trình:</strong>
                 <ol class="mb-0 mt-2 ps-3 small">
@@ -20,9 +28,23 @@
                     <li>Tạm ứng (nếu chọn) → Thu mua đặt hàng → Xác nhận nhận hàng</li>
                 </ol>
             </div>
+            {% else %}
+            <div class="alert alert-light border mb-4">
+                <strong>Quy trình:</strong>
+                <ol class="mb-0 mt-2 ps-3 small">
+                    <li>Tổ trưởng duyệt (nếu phòng có Tổ trưởng và bạn là nhân viên)</li>
+                    <li>Trưởng bộ phận / Trưởng phòng duyệt</li>
+                    <li>Kế toán / Giám đốc duyệt (nếu có số tiền lớn)</li>
+                    <li>Bộ phận phụ trách tiếp nhận &amp; xử lý</li>
+                </ol>
+            </div>
+            {% endif %}
 
+            {% if current_subtype == 'purchase' %}
+            {# ---------- Mua vật tư, thiết bị, VPP ---------- #}
             <form method="post" enctype="multipart/form-data" novalidate id="request-create-form">
                 {% csrf_token %}
+                <input type="hidden" name="request_subtype" value="purchase">
                 {% if form.non_field_errors %}
                 <div class="alert alert-danger">{{ form.non_field_errors }}</div>
                 {% endif %}
@@ -59,11 +81,11 @@
                             </thead>
                             <tbody id="line-items-body">
                                 {{ line_formset.management_form }}
-                                {% for form in line_formset %}
+                                {% for lform in line_formset %}
                                 <tr class="line-item-row">
-                                    <td>{{ form.description }}{% if form.description.errors %}<div class="text-danger small">{{ form.description.errors }}</div>{% endif %}</td>
-                                    <td>{{ form.quantity }}</td>
-                                    <td>{{ form.unit }}</td>
+                                    <td>{{ lform.description }}{% if lform.description.errors %}<div class="text-danger small">{{ lform.description.errors }}</div>{% endif %}</td>
+                                    <td>{{ lform.quantity }}</td>
+                                    <td>{{ lform.unit }}</td>
                                     <td><button type="button" class="btn btn-sm btn-outline-danger remove-line-btn" title="Xóa dòng">&times;</button></td>
                                 </tr>
                                 {% endfor %}
@@ -95,6 +117,123 @@
                     <a href="{% url 'service_requests:de_xuat_my' %}" class="btn btn-outline-secondary">Hủy</a>
                 </div>
             </form>
+
+            {% else %}
+            {# ---------- Các loại đề xuất chung ---------- #}
+            <form method="post" enctype="multipart/form-data" novalidate id="general-create-form">
+                {% csrf_token %}
+                <input type="hidden" name="request_subtype" value="{{ current_subtype }}">
+                {% if general_form.non_field_errors %}
+                <div class="alert alert-danger">{{ general_form.non_field_errors }}</div>
+                {% endif %}
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">{{ general_form.title.label }} <span class="text-danger">*</span></label>
+                    {{ general_form.title }}
+                    {% if general_form.title.errors %}<div class="text-danger small">{{ general_form.title.errors }}</div>{% endif %}
+                </div>
+
+                {% if current_subtype == 'payment' %}
+                <div class="row g-3">
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label fw-bold">{{ general_form.payment_kind.label }} <span class="text-danger">*</span></label>
+                        {{ general_form.payment_kind }}
+                        {% if general_form.payment_kind.errors %}<div class="text-danger small">{{ general_form.payment_kind.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label fw-bold">{{ general_form.payment_amount.label }} <span class="text-danger">*</span></label>
+                        {{ general_form.payment_amount }}
+                        {% if general_form.payment_amount.errors %}<div class="text-danger small">{{ general_form.payment_amount.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label fw-bold">{{ general_form.due_date.label }}</label>
+                        {{ general_form.due_date }}
+                    </div>
+                    <div class="col-12 mb-2">
+                        <label class="form-label fw-bold">{{ general_form.payee.label }}</label>
+                        {{ general_form.payee }}
+                    </div>
+                </div>
+                {% elif current_subtype == 'hr' %}
+                <div class="row g-3">
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label fw-bold">{{ general_form.hr_kind.label }} <span class="text-danger">*</span></label>
+                        {{ general_form.hr_kind }}
+                        {% if general_form.hr_kind.errors %}<div class="text-danger small">{{ general_form.hr_kind.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-8 mb-2">
+                        <label class="form-label fw-bold">{{ general_form.position.label }} <span class="text-danger">*</span></label>
+                        {{ general_form.position }}
+                        {% if general_form.position.errors %}<div class="text-danger small">{{ general_form.position.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-5 mb-2">
+                        <label class="form-label fw-bold">{{ general_form.target_department.label }}</label>
+                        {{ general_form.target_department }}
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <label class="form-label fw-bold">{{ general_form.headcount.label }}</label>
+                        {{ general_form.headcount }}
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="form-label fw-bold">{{ general_form.desired_date.label }}</label>
+                        {{ general_form.desired_date }}
+                    </div>
+                </div>
+                {% elif current_subtype == 'repair' %}
+                <div class="row g-3">
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label fw-bold">{{ general_form.incident_category.label }} <span class="text-danger">*</span></label>
+                        {{ general_form.incident_category }}
+                        {% if general_form.incident_category.errors %}<div class="text-danger small">{{ general_form.incident_category.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label fw-bold">{{ general_form.priority.label }} <span class="text-danger">*</span></label>
+                        {{ general_form.priority }}
+                        {% if general_form.priority.errors %}<div class="text-danger small">{{ general_form.priority.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-12 mb-2">
+                        <label class="form-label fw-bold">{{ general_form.location_text.label }} <span class="text-danger">*</span></label>
+                        {{ general_form.location_text }}
+                        {% if general_form.location_text.errors %}<div class="text-danger small">{{ general_form.location_text.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label fw-bold">{{ general_form.equipment_label.label }}</label>
+                        {{ general_form.equipment_label }}
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label fw-bold">{{ general_form.equipment_serial.label }}</label>
+                        {{ general_form.equipment_serial }}
+                    </div>
+                </div>
+                {% elif current_subtype == 'account' %}
+                <div class="row g-3">
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label fw-bold">{{ general_form.account_kind.label }} <span class="text-danger">*</span></label>
+                        {{ general_form.account_kind }}
+                        {% if general_form.account_kind.errors %}<div class="text-danger small">{{ general_form.account_kind.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label fw-bold">{{ general_form.target_user.label }} <span class="text-danger">*</span></label>
+                        {{ general_form.target_user }}
+                        {% if general_form.target_user.errors %}<div class="text-danger small">{{ general_form.target_user.errors }}</div>{% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="mb-3 mt-2">
+                    <label class="form-label fw-bold">{{ general_form.description.label }} <span class="text-danger">*</span></label>
+                    {{ general_form.description }}
+                    {% if general_form.description.errors %}<div class="text-danger small">{{ general_form.description.errors }}</div>{% endif %}
+                </div>
+
+                {% include 'tasks/includes/upload_fields.html' %}
+
+                <div class="d-flex flex-wrap gap-2 mt-4">
+                    <button type="submit" class="btn btn-hm">Gửi đề xuất</button>
+                    <a href="{% url 'service_requests:de_xuat_my' %}" class="btn btn-outline-secondary">Hủy</a>
+                </div>
+            </form>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -112,7 +251,20 @@
 {% block scripts %}
 <script>
 (function () {
+    // Chuyển loại đề xuất → tải lại trang với loại mới (giữ server render đúng bộ trường).
+    const subtypeSelect = document.getElementById('id_request_subtype');
+    if (subtypeSelect) {
+        subtypeSelect.addEventListener('change', function () {
+            const url = new URL(window.location.href);
+            url.searchParams.set('request_subtype', this.value);
+            window.location.href = url.toString();
+        });
+    }
+
+    // Phần dưới chỉ áp dụng cho form mua hàng.
     const body = document.getElementById('line-items-body');
+    if (!body) return;
+
     const totalInput = document.querySelector('#id_lines-TOTAL_FORMS');
     const template = document.getElementById('line-item-row-template');
     const addBtn = document.getElementById('add-line-btn');
@@ -120,10 +272,13 @@
     const advanceWrap = document.getElementById('advance-amount-wrap');
 
     function toggleAdvance() {
+        if (!needsAdvance || !advanceWrap) return;
         advanceWrap.style.display = needsAdvance.checked ? '' : 'none';
     }
-    needsAdvance.addEventListener('change', toggleAdvance);
-    toggleAdvance();
+    if (needsAdvance) {
+        needsAdvance.addEventListener('change', toggleAdvance);
+        toggleAdvance();
+    }
 
     function reindexRows() {
         const rows = body.querySelectorAll('.line-item-row');

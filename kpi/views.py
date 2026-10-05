@@ -881,15 +881,45 @@ def kpi_detail_view(request, kpi_id):
 
     perm = _kpi_perm_context(request.user)
     can_update = perm['can_update']
-    # Owner luôn được tự chấm (đã qua quyền view module); QL / giám đốc chấm cột QL.
-    can_edit_self = is_owner
-    can_edit_manager = is_manager
-    if (request.user.is_superuser or ROLE_DIRECTOR in effective_roles(request.user)) and not is_owner:
-        can_edit_manager = True
+    is_director = request.user.is_superuser or ROLE_DIRECTOR in effective_roles(request.user)
+
+    # Quyền chấm theo vai trò (nhân sự) VÀ theo trạng thái quy trình.
+    # - NV (owner): sửa cột NV khi còn ở bước tự đánh giá (draft).
+    # - QL / TBP: chấm cột QL khi NV đã nộp (self_submitted / mgr_reviewed).
+    # - GĐ: chấm cột QL như QL. Khi đã phê duyệt (approved) thì khoá tất cả.
+    role_can_edit_self = is_owner
+    role_can_edit_manager = is_manager or (is_director and not is_owner)
+
+    can_edit_self = role_can_edit_self and kpi_board.can_self_edit()
+    can_edit_manager = role_can_edit_manager and kpi_board.can_manager_edit()
+
+    # Hành động chuyển trạng thái
+    can_submit_self = (
+        is_owner and kpi_board.status == MonthlyKpi.STATUS_DRAFT and kpi_board.self_scored()
+    )
+    can_submit_manager = (
+        role_can_edit_manager
+        and kpi_board.status == MonthlyKpi.STATUS_SELF_SUBMITTED
+        and kpi_board.manager_scored()
+    )
+    can_approve = is_director and kpi_board.status == MonthlyKpi.STATUS_MGR_REVIEWED
+    can_reopen = is_director and kpi_board.status in (
+        MonthlyKpi.STATUS_SELF_SUBMITTED,
+        MonthlyKpi.STATUS_MGR_REVIEWED,
+        MonthlyKpi.STATUS_APPROVED,
+    )
 
     if request.method == 'POST':
+        if kpi_board.is_locked:
+            messages.error(request, 'KPI đã được phê duyệt — không thể chỉnh sửa.')
+            return redirect('kpi_detail', kpi_id=kpi_id)
         if not can_edit_self and not can_edit_manager:
-            messages.error(request, 'Bạn không có quyền sửa / chấm điểm KPI.')
+            if role_can_edit_self and not kpi_board.can_self_edit():
+                messages.error(request, 'Bạn đã nộp KPI — không thể sửa cột Nhân viên nữa.')
+            elif role_can_edit_manager and not kpi_board.can_manager_edit():
+                messages.error(request, 'Chưa thể chấm — nhân viên chưa nộp bản tự đánh giá.')
+            else:
+                messages.error(request, 'Bạn không có quyền sửa / chấm điểm KPI.')
             return redirect('kpi_detail', kpi_id=kpi_id)
 
         for item in items:
@@ -926,9 +956,17 @@ def kpi_detail_view(request, kpi_id):
         'items': items,
         'is_owner': is_owner,
         'is_manager': is_manager,
+        'is_director': is_director,
         'can_update': can_update,
         'can_edit_self': can_edit_self,
         'can_edit_manager': can_edit_manager,
+        'can_submit_self': can_submit_self,
+        'can_submit_manager': can_submit_manager,
+        'can_approve': can_approve,
+        'can_reopen': can_reopen,
+        'kpi_status': kpi_board.status,
+        'kpi_status_label': kpi_board.status_label,
+        'kpi_status_badge': kpi_board.status_badge_code,
         'total_score': total,
         'result_label': kpi_board.result_label(),
         'result_code': kpi_board.result_code(),
@@ -936,6 +974,90 @@ def kpi_detail_view(request, kpi_id):
         'kpi_image_upload_url': reverse('kpi_inline_upload', kwargs={'kpi_id': kpi_board.pk}),
         **perm,
     })
+
+
+@require_POST
+@module_perm_required(MODULE_KPI, 'view')
+def kpi_workflow_action(request, kpi_id):
+    """Chuyển trạng thái quy trình duyệt KPI: nộp / trình / phê duyệt / trả lại."""
+    kpi_board = get_object_or_404(
+        MonthlyKpi.objects.select_related('employee'),
+        pk=kpi_id,
+    )
+    _sync_board_direct_manager(kpi_board)
+    is_owner, is_manager, can_view_board = _kpi_detail_roles(request.user, kpi_board)
+    if not can_view_board:
+        messages.error(request, 'Bạn không có quyền thao tác KPI này.')
+        return redirect('kpi_list')
+
+    is_director = request.user.is_superuser or ROLE_DIRECTOR in effective_roles(request.user)
+    role_can_manager = is_manager or (is_director and not is_owner)
+    action = (request.POST.get('action') or '').strip().lower()
+    now = timezone.now()
+    S = MonthlyKpi
+
+    if action == 'submit_self':
+        if not (is_owner and kpi_board.status == S.STATUS_DRAFT):
+            messages.error(request, 'Không thể nộp KPI ở trạng thái hiện tại.')
+        elif not kpi_board.self_scored():
+            messages.error(request, 'Hãy chấm điểm tự đánh giá trước khi nộp.')
+        else:
+            kpi_board.status = S.STATUS_SELF_SUBMITTED
+            kpi_board.self_submitted_at = now
+            kpi_board.save(update_fields=['status', 'self_submitted_at', 'updated_at'])
+            messages.success(request, 'Đã nộp bản tự đánh giá. Chờ quản lý chấm.')
+
+    elif action == 'submit_manager':
+        if not (role_can_manager and kpi_board.status == S.STATUS_SELF_SUBMITTED):
+            messages.error(request, 'Không thể trình phê duyệt ở trạng thái hiện tại.')
+        elif not kpi_board.manager_scored():
+            messages.error(request, 'Hãy chấm cột Quản lý trước khi trình phê duyệt.')
+        else:
+            kpi_board.status = S.STATUS_MGR_REVIEWED
+            kpi_board.mgr_reviewed_at = now
+            kpi_board.save(update_fields=['status', 'mgr_reviewed_at', 'updated_at'])
+            messages.success(request, 'Đã trình giám đốc phê duyệt.')
+
+    elif action == 'approve':
+        if not (is_director and kpi_board.status == S.STATUS_MGR_REVIEWED):
+            messages.error(request, 'Chỉ giám đốc phê duyệt khi KPI đã được quản lý chấm.')
+        else:
+            kpi_board.status = S.STATUS_APPROVED
+            kpi_board.approved_by = request.user
+            kpi_board.approved_at = now
+            kpi_board.save(update_fields=['status', 'approved_by', 'approved_at', 'updated_at'])
+            messages.success(request, 'Đã phê duyệt KPI. Bảng KPI đã được khoá.')
+
+    elif action == 'reopen':
+        if not is_director:
+            messages.error(request, 'Chỉ giám đốc được trả lại KPI để chỉnh sửa.')
+        elif kpi_board.status == S.STATUS_DRAFT:
+            messages.info(request, 'KPI đang ở bước tự đánh giá.')
+        else:
+            # Trả lại một bước: approved → mgr_reviewed → self_submitted → draft
+            prev = {
+                S.STATUS_APPROVED: S.STATUS_MGR_REVIEWED,
+                S.STATUS_MGR_REVIEWED: S.STATUS_SELF_SUBMITTED,
+                S.STATUS_SELF_SUBMITTED: S.STATUS_DRAFT,
+            }[kpi_board.status]
+            fields = ['status', 'updated_at']
+            kpi_board.status = prev
+            if prev == S.STATUS_MGR_REVIEWED:
+                kpi_board.approved_by = None
+                kpi_board.approved_at = None
+                fields += ['approved_by', 'approved_at']
+            elif prev == S.STATUS_SELF_SUBMITTED:
+                kpi_board.mgr_reviewed_at = None
+                fields += ['mgr_reviewed_at']
+            elif prev == S.STATUS_DRAFT:
+                kpi_board.self_submitted_at = None
+                fields += ['self_submitted_at']
+            kpi_board.save(update_fields=fields)
+            messages.success(request, f'Đã trả lại KPI về bước «{kpi_board.status_label}».')
+    else:
+        messages.error(request, 'Hành động không hợp lệ.')
+
+    return redirect('kpi_detail', kpi_id=kpi_id)
 
 
 @module_perm_required(MODULE_KPI, 'view')
@@ -1003,10 +1125,11 @@ def kpi_inline_upload(request, kpi_id):
     is_owner, is_manager, can_view_board = _kpi_detail_roles(request.user, kpi_board)
     if not can_view_board:
         return _kpi_upload_error('Không có quyền.', status=403)
-    can_edit_self = is_owner
-    can_edit_manager = is_manager
-    if (request.user.is_superuser or ROLE_DIRECTOR in effective_roles(request.user)) and not is_owner:
-        can_edit_manager = True
+    if kpi_board.is_locked:
+        return _kpi_upload_error('KPI đã phê duyệt — không thể chỉnh sửa.', status=403)
+    is_director = request.user.is_superuser or ROLE_DIRECTOR in effective_roles(request.user)
+    can_edit_self = is_owner and kpi_board.can_self_edit()
+    can_edit_manager = (is_manager or (is_director and not is_owner)) and kpi_board.can_manager_edit()
     if not can_edit_self and not can_edit_manager:
         return _kpi_upload_error('Không có quyền chèn ảnh.', status=403)
 

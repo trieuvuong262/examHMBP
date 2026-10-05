@@ -20,6 +20,27 @@ class MonthlyKpi(models.Model):
     RESULT_EXCEED = 'exceed'
     RESULT_PENDING = 'pending'
 
+    # Trạng thái quy trình duyệt KPI
+    STATUS_DRAFT = 'draft'              # NV đang tự đánh giá
+    STATUS_SELF_SUBMITTED = 'self_submitted'  # NV đã nộp → chờ QL chấm
+    STATUS_MGR_REVIEWED = 'mgr_reviewed'      # QL đã chấm → chờ GĐ phê duyệt
+    STATUS_APPROVED = 'approved'       # GĐ đã phê duyệt → khoá
+
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, 'NV đang tự đánh giá'),
+        (STATUS_SELF_SUBMITTED, 'Chờ quản lý chấm'),
+        (STATUS_MGR_REVIEWED, 'Chờ giám đốc phê duyệt'),
+        (STATUS_APPROVED, 'Đã phê duyệt'),
+    ]
+    STATUS_LABELS = dict(STATUS_CHOICES)
+    # Badge màu theo trạng thái (dùng lại class jp-kpi-badge--*)
+    STATUS_BADGE = {
+        STATUS_DRAFT: 'pending',
+        STATUS_SELF_SUBMITTED: 'improve',
+        STATUS_MGR_REVIEWED: 'improve',
+        STATUS_APPROVED: 'pass',
+    }
+
     # Ngưỡng xếp loại tổng điểm: <70 Chưa đạt · 70–<90 Cần cải thiện · 90–100 Đạt · >100 Vượt
     THRESHOLD_IMPROVE = 70
     THRESHOLD_PASS = 90
@@ -57,6 +78,25 @@ class MonthlyKpi(models.Model):
         related_name='imported_monthly_kpis',
     )
     imported_at = models.DateTimeField(null=True, blank=True)
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_DRAFT,
+        verbose_name='Trạng thái duyệt',
+    )
+    self_submitted_at = models.DateTimeField(null=True, blank=True, verbose_name='NV nộp lúc')
+    mgr_reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name='QL chấm lúc')
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='approved_monthly_kpis',
+        verbose_name='Người phê duyệt',
+    )
+    approved_at = models.DateTimeField(null=True, blank=True, verbose_name='Phê duyệt lúc')
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -123,6 +163,32 @@ class MonthlyKpi(models.Model):
         if cache is not None and 'items' in cache:
             return any(item.mgr_score is not None for item in cache['items'])
         return self.items.exclude(mgr_score__isnull=True).exists()
+
+    # ----- Quy trình duyệt -----
+    @property
+    def status_label(self) -> str:
+        return self.STATUS_LABELS.get(self.status, self.STATUS_LABELS[self.STATUS_DRAFT])
+
+    @property
+    def status_badge_code(self) -> str:
+        return self.STATUS_BADGE.get(self.status, 'pending')
+
+    @property
+    def is_approved(self) -> bool:
+        return self.status == self.STATUS_APPROVED
+
+    @property
+    def is_locked(self) -> bool:
+        """Đã phê duyệt thì khoá, không ai chấm/sửa được nữa."""
+        return self.status == self.STATUS_APPROVED
+
+    def can_self_edit(self) -> bool:
+        """NV chỉ sửa cột của mình khi bảng còn ở bước tự đánh giá."""
+        return self.status == self.STATUS_DRAFT
+
+    def can_manager_edit(self) -> bool:
+        """QL chấm cột QL khi NV đã nộp (và chưa phê duyệt)."""
+        return self.status in (self.STATUS_SELF_SUBMITTED, self.STATUS_MGR_REVIEWED)
 
 
 class MonthlyKpiItem(models.Model):
