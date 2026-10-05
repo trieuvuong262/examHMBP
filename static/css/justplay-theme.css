@@ -13043,3 +13043,14 @@ body:not([data-theme="dark"]) .jp-topbar-badge {
 body:not([data-theme="dark"]) .jp-topbar-profile-status {
     border-color: var(--jp-black-900);
 }
+
+/* ---------- MENU / SUBMENU: VIẾT HOA ---------- */
+.jp-sidebar-link,
+.jp-sidebar-sublink,
+.jp-sidebar-group-toggle,
+.jp-sidebar-group-toggle-main,
+.jp-sidebar-nested-toggle,
+.jp-sidebar-nested-toggle-main {
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
