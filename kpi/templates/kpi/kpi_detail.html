@@ -2,7 +2,7 @@
 {% load static kpi_extras l10n %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/kpi-monthly.css' %}?v=20261003a">
+<link rel="stylesheet" href="{% static 'css/kpi-monthly.css' %}?v=20261005c">
 {% endblock %}
 
 {% block content %}
@@ -79,16 +79,16 @@
                         <th class="jp-kpi-col-stt"><span class="jp-kpi-th-label">STT</span></th>
                         <th class="jp-kpi-col-group"><span class="jp-kpi-th-label">Nhóm công việc</span></th>
                         <th class="jp-kpi-col-weight"><span class="jp-kpi-th-label">Trọng số</span></th>
-                        <th class="jp-kpi-col-indicator"><span class="jp-kpi-th-label">Tiêu chí đo lường (KPI)</span></th>
-                        <th class="jp-kpi-col-level"><span class="jp-kpi-th-label">Mức chưa đạt (&lt;70%)</span></th>
-                        <th class="jp-kpi-col-level"><span class="jp-kpi-th-label">Mức cần cải thiện (70% – &lt;90%)</span></th>
-                        <th class="jp-kpi-col-level"><span class="jp-kpi-th-label">Mức đạt (90% – 100%)</span></th>
-                        <th class="jp-kpi-col-level"><span class="jp-kpi-th-label">Mức vượt (&gt;100%)</span></th>
                         <th class="jp-kpi-col-nv jp-kpi-actual"><span class="jp-kpi-th-label">Đánh giá thực tế (NV)</span></th>
                         <th class="jp-kpi-col-nv jp-kpi-col-score"><span class="jp-kpi-th-label">Điểm NV</span></th>
                         <th class="jp-kpi-col-ql jp-kpi-actual"><span class="jp-kpi-th-label">Đánh giá thực tế (QL)</span></th>
                         <th class="jp-kpi-col-ql jp-kpi-col-score"><span class="jp-kpi-th-label">Điểm QL</span></th>
                         <th class="jp-kpi-col-tp"><span class="jp-kpi-th-label">Điểm TP</span></th>
+                        <th class="jp-kpi-col-indicator"><span class="jp-kpi-th-label">Tiêu chí đo lường (KPI)</span></th>
+                        <th class="jp-kpi-col-level"><span class="jp-kpi-th-label">Mức chưa đạt (&lt;70%)</span></th>
+                        <th class="jp-kpi-col-level"><span class="jp-kpi-th-label">Mức cần cải thiện (70% – &lt;90%)</span></th>
+                        <th class="jp-kpi-col-level"><span class="jp-kpi-th-label">Mức đạt (90% – 100%)</span></th>
+                        <th class="jp-kpi-col-level"><span class="jp-kpi-th-label">Mức vượt (&gt;100%)</span></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -99,28 +99,33 @@
                         <td class="jp-kpi-group" rowspan="{{ item.group_rowspan }}">{{ item.work_group|default:"—" }}</td>
                         {% endif %}
                         <td class="jp-kpi-col-weight fw-bold" data-kpi-weight="{{ item.weightage|unlocalize }}">{{ item.weightage }}</td>
-                        <td class="jp-kpi-indicator">{{ item.indicator }}</td>
-                        <td class="jp-kpi-level">{{ item.level_fail }}</td>
-                        <td class="jp-kpi-level">{{ item.level_improve }}</td>
-                        <td class="jp-kpi-level">{{ item.level_pass }}</td>
-                        <td class="jp-kpi-level">{{ item.level_exceed }}</td>
                         <td class="jp-kpi-col-nv jp-kpi-actual">
                             {% if can_edit_self %}
-                            <div class="jp-kpi-rich" data-kpi-rich>
+                            <div class="jp-kpi-rich jp-kpi-clamp jp-kpi-clamp--rich" data-kpi-rich data-kpi-clamp>
                                 <div class="jp-kpi-rich__frame">
                                     <div class="jp-kpi-rich__editor" contenteditable="true"
-                                         data-kpi-rich-editor
+                                         data-kpi-rich-editor data-kpi-clamp-body
                                          data-placeholder="Kết quả / bằng chứng…">{{ item.self_actual|kpi_actual_edit }}</div>
                                     <label class="jp-kpi-rich__btn" title="Chèn ảnh">
                                         <i class="bi bi-image"></i>
                                         <span>Ảnh</span>
                                         <input type="file" accept="image/*" hidden data-kpi-rich-file>
                                     </label>
+                                    <button type="button" class="jp-kpi-clamp__toggle" data-kpi-clamp-toggle
+                                            hidden aria-expanded="false" title="Mở rộng" aria-label="Mở rộng">
+                                        <i class="bi bi-chevron-down"></i>
+                                    </button>
                                 </div>
                                 <textarea name="item_{{ item.id }}_self_actual" class="d-none" data-kpi-rich-input>{{ item.self_actual }}</textarea>
                             </div>
                             {% else %}
-                            <div class="jp-kpi-actual-text">{{ item.self_actual|kpi_actual }}</div>
+                            <div class="jp-kpi-actual-text jp-kpi-clamp" data-kpi-clamp>
+                                <div class="jp-kpi-clamp__body" data-kpi-clamp-body>{{ item.self_actual|kpi_actual }}</div>
+                                <button type="button" class="jp-kpi-clamp__toggle" data-kpi-clamp-toggle
+                                        hidden aria-expanded="false" title="Mở rộng" aria-label="Mở rộng">
+                                    <i class="bi bi-chevron-down"></i>
+                                </button>
+                            </div>
                             {% endif %}
                         </td>
                         <td class="jp-kpi-col-nv jp-kpi-col-score text-center">
@@ -141,21 +146,31 @@
                         </td>
                         <td class="jp-kpi-col-ql jp-kpi-actual">
                             {% if can_edit_manager %}
-                            <div class="jp-kpi-rich" data-kpi-rich>
+                            <div class="jp-kpi-rich jp-kpi-clamp jp-kpi-clamp--rich" data-kpi-rich data-kpi-clamp>
                                 <div class="jp-kpi-rich__frame">
                                     <div class="jp-kpi-rich__editor" contenteditable="true"
-                                         data-kpi-rich-editor
+                                         data-kpi-rich-editor data-kpi-clamp-body
                                          data-placeholder="Kết quả / bằng chứng…">{{ item.mgr_actual|kpi_actual_edit }}</div>
                                     <label class="jp-kpi-rich__btn" title="Chèn ảnh">
                                         <i class="bi bi-image"></i>
                                         <span>Ảnh</span>
                                         <input type="file" accept="image/*" hidden data-kpi-rich-file>
                                     </label>
+                                    <button type="button" class="jp-kpi-clamp__toggle" data-kpi-clamp-toggle
+                                            hidden aria-expanded="false" title="Mở rộng" aria-label="Mở rộng">
+                                        <i class="bi bi-chevron-down"></i>
+                                    </button>
                                 </div>
                                 <textarea name="item_{{ item.id }}_mgr_actual" class="d-none" data-kpi-rich-input>{{ item.mgr_actual }}</textarea>
                             </div>
                             {% else %}
-                            <div class="jp-kpi-actual-text">{{ item.mgr_actual|kpi_actual }}</div>
+                            <div class="jp-kpi-actual-text jp-kpi-clamp" data-kpi-clamp>
+                                <div class="jp-kpi-clamp__body" data-kpi-clamp-body>{{ item.mgr_actual|kpi_actual }}</div>
+                                <button type="button" class="jp-kpi-clamp__toggle" data-kpi-clamp-toggle
+                                        hidden aria-expanded="false" title="Mở rộng" aria-label="Mở rộng">
+                                    <i class="bi bi-chevron-down"></i>
+                                </button>
+                            </div>
                             {% endif %}
                         </td>
                         <td class="jp-kpi-col-ql jp-kpi-col-score text-center">
@@ -176,6 +191,51 @@
                         </td>
                         <td class="jp-kpi-tp jp-kpi-col-tp" data-kpi-tp>
                             {% if item.display_component is not None %}{{ item.display_component|floatformat:2 }}{% else %}—{% endif %}
+                        </td>
+                        <td class="jp-kpi-indicator">
+                            <div class="jp-kpi-clamp" data-kpi-clamp>
+                                <div class="jp-kpi-clamp__body" data-kpi-clamp-body>{{ item.indicator }}</div>
+                                <button type="button" class="jp-kpi-clamp__toggle" data-kpi-clamp-toggle
+                                        hidden aria-expanded="false" title="Mở rộng" aria-label="Mở rộng">
+                                    <i class="bi bi-chevron-down"></i>
+                                </button>
+                            </div>
+                        </td>
+                        <td class="jp-kpi-level">
+                            <div class="jp-kpi-clamp" data-kpi-clamp>
+                                <div class="jp-kpi-clamp__body" data-kpi-clamp-body>{{ item.level_fail }}</div>
+                                <button type="button" class="jp-kpi-clamp__toggle" data-kpi-clamp-toggle
+                                        hidden aria-expanded="false" title="Mở rộng" aria-label="Mở rộng">
+                                    <i class="bi bi-chevron-down"></i>
+                                </button>
+                            </div>
+                        </td>
+                        <td class="jp-kpi-level">
+                            <div class="jp-kpi-clamp" data-kpi-clamp>
+                                <div class="jp-kpi-clamp__body" data-kpi-clamp-body>{{ item.level_improve }}</div>
+                                <button type="button" class="jp-kpi-clamp__toggle" data-kpi-clamp-toggle
+                                        hidden aria-expanded="false" title="Mở rộng" aria-label="Mở rộng">
+                                    <i class="bi bi-chevron-down"></i>
+                                </button>
+                            </div>
+                        </td>
+                        <td class="jp-kpi-level">
+                            <div class="jp-kpi-clamp" data-kpi-clamp>
+                                <div class="jp-kpi-clamp__body" data-kpi-clamp-body>{{ item.level_pass }}</div>
+                                <button type="button" class="jp-kpi-clamp__toggle" data-kpi-clamp-toggle
+                                        hidden aria-expanded="false" title="Mở rộng" aria-label="Mở rộng">
+                                    <i class="bi bi-chevron-down"></i>
+                                </button>
+                            </div>
+                        </td>
+                        <td class="jp-kpi-level">
+                            <div class="jp-kpi-clamp" data-kpi-clamp>
+                                <div class="jp-kpi-clamp__body" data-kpi-clamp-body>{{ item.level_exceed }}</div>
+                                <button type="button" class="jp-kpi-clamp__toggle" data-kpi-clamp-toggle
+                                        hidden aria-expanded="false" title="Mở rộng" aria-label="Mở rộng">
+                                    <i class="bi bi-chevron-down"></i>
+                                </button>
+                            </div>
                         </td>
                     </tr>
                     {% empty %}
@@ -206,6 +266,7 @@
 </div>
 
 <script src="{% static 'js/kpi-actual-rich.js' %}?v=20260904d"></script>
+<script src="{% static 'js/kpi-cell-clamp.js' %}?v=20261005a"></script>
 {% if can_edit_self or can_edit_manager %}
 <script src="{% static 'js/kpi-detail.js' %}?v=20261003a"></script>
 {% else %}

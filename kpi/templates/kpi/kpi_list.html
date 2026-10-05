@@ -25,11 +25,12 @@
 
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body py-3">
-            <form method="get" class="row g-2 g-md-3 align-items-end" data-loading-message="Đang lọc KPI…">
+            <form method="get" class="row g-2 g-md-3 align-items-end"
+                  data-kpi-filter data-loading-message="Đang lọc KPI…">
                 <input type="hidden" name="tab" value="{{ active_tab }}">
                 <div class="col-6 col-md-2">
                     <label class="form-label small fw-bold text-muted mb-1">Tháng</label>
-                    <select name="month" class="form-select">
+                    <select name="month" class="form-select" data-kpi-filter-auto>
                         {% for m in month_choices %}
                         <option value="{{ m }}" {% if m == filter_month %}selected{% endif %}>Tháng {{ m }}</option>
                         {% endfor %}
@@ -37,7 +38,7 @@
                 </div>
                 <div class="col-6 col-md-2">
                     <label class="form-label small fw-bold text-muted mb-1">Năm</label>
-                    <select name="year" class="form-select">
+                    <select name="year" class="form-select" data-kpi-filter-auto>
                         {% for y in year_choices %}
                         <option value="{{ y }}" {% if y == filter_year %}selected{% endif %}>{{ y }}</option>
                         {% endfor %}
@@ -46,7 +47,7 @@
                 {% if division_choices %}
                 <div class="col-6 col-md-2">
                     <label class="form-label small fw-bold text-muted mb-1">Bộ phận</label>
-                    <select name="division" class="form-select">
+                    <select name="division" class="form-select" data-kpi-filter-auto>
                         <option value="">Tất cả</option>
                         {% for div_id, div_name in division_choices %}
                         <option value="{{ div_id }}" {% if filter_division == div_id %}selected{% endif %}>{{ div_name }}</option>
@@ -57,10 +58,12 @@
                 <div class="col-12 {% if division_choices %}col-md-4{% else %}col-md-6{% endif %}">
                     <label class="form-label small fw-bold text-muted mb-1">Tìm kiếm</label>
                     <input type="search" name="q" value="{{ search_query }}" class="form-control"
+                           data-kpi-filter-search
                            placeholder="Tên, mã NS, username, bộ phận…">
                 </div>
                 <div class="col-12 col-md-2 d-flex gap-2">
-                    <button type="submit" class="btn btn-hm text-white fw-bold flex-grow-1">
+                    {# Tự động lọc khi đổi — nút chỉ là phương án dự phòng khi tắt JS #}
+                    <button type="submit" class="btn btn-hm text-white fw-bold flex-grow-1" data-kpi-filter-submit>
                         <i class="bi bi-funnel me-1"></i>Lọc
                     </button>
                     <a href="{% url 'kpi_list' %}?tab={{ active_tab }}" class="btn btn-light fw-bold" title="Xóa lọc">
@@ -98,7 +101,8 @@
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
             <h5 class="fw-bold text-dark mb-0">KPI của tôi · {{ filter_month|stringformat:"02d" }}/{{ filter_year }}</h5>
             {% if can_create_self_kpi %}
-            <a href="{% url 'kpi_import_excel' %}?scope=self&month={{ filter_month }}&year={{ filter_year }}"
+            {# KPI cá nhân luôn mặc định tháng hiện tại (view tự quyết) #}
+            <a href="{% url 'kpi_import_excel' %}?scope=self"
                class="btn btn-hm text-white fw-bold btn-sm"
                data-loading-message="Đang mở tạo KPI…">
                 <i class="bi bi-file-earmark-excel-fill me-1"></i>Tạo KPI cho bản thân
@@ -287,4 +291,8 @@
     </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/kpi-filter-auto.js' %}?v=20261005a"></script>
 {% endblock %}

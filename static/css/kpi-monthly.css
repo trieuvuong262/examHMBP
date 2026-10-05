@@ -497,6 +497,77 @@
   word-break: break-word;
   line-height: 1.45;
 }
+/* ===== Ô nội dung cao tối đa 3 dòng + nút mở rộng ===== */
+.jp-kpi-table .jp-kpi-clamp {
+  position: relative;
+}
+.jp-kpi-table .jp-kpi-clamp__body {
+  line-height: 1.45;
+  max-height: calc(1.45em * 3);
+  overflow: hidden;
+}
+.jp-kpi-table .jp-kpi-clamp.is-expanded > .jp-kpi-clamp__body {
+  max-height: none;
+  overflow: visible;
+}
+.jp-kpi-clamp__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .25rem;
+  width: 100%;
+  margin-top: .15rem;
+  padding: 0;
+  height: 1.1rem;
+  border: 0;
+  border-top: 1px dashed var(--jp-surface-border, #cbd5e1);
+  border-radius: 0;
+  background: transparent;
+  color: #64748b;
+  font-size: .68rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.jp-kpi-clamp__toggle:hover {
+  color: var(--hm-primary, #0d6efd);
+  border-top-color: currentColor;
+}
+.jp-kpi-clamp__toggle[hidden] {
+  display: none;
+}
+.jp-kpi-clamp__toggle .bi {
+  transition: transform .15s ease;
+}
+.jp-kpi-clamp.is-expanded .jp-kpi-clamp__toggle .bi {
+  transform: rotate(180deg);
+}
+
+/* Ô rich text (đang chấm): dùng chung kiểu nút dải ngang như ô Mức */
+.jp-kpi-clamp--rich .jp-kpi-rich__editor {
+  max-height: calc(1.45em * 3 + 2.4rem);
+  overflow: hidden;
+}
+/* Khi bị cắt bớt, editor không giãn thêm để chừa chỗ cho dải mở rộng */
+.jp-kpi-clamp--rich.is-clamped:not(.is-expanded) .jp-kpi-rich__editor {
+  flex: 0 1 auto;
+}
+.jp-kpi-clamp--rich.is-expanded .jp-kpi-rich__editor,
+.jp-kpi-clamp--rich:focus-within .jp-kpi-rich__editor {
+  max-height: none;
+  overflow: auto;
+}
+/* Nút nằm trong frame, ngay dưới editor (frame là flex-column) */
+.jp-kpi-clamp--rich .jp-kpi-clamp__toggle {
+  flex: 0 0 auto;
+  margin-top: 0;
+  background: #fff;
+}
+/* Khi có dải mở rộng, dời nút «Ảnh» lên trên dải để không chồng nhau */
+.jp-kpi-clamp--rich.is-clamped .jp-kpi-rich__btn,
+.jp-kpi-clamp--rich.is-expanded .jp-kpi-rich__btn {
+  bottom: 1.45rem;
+}
+
 .jp-kpi-table textarea.form-control {
   min-height: 4.25rem;
   width: 100%;

@@ -1198,6 +1198,9 @@ def kpi_import_excel(request):
     year_choices = list(range(now.year + 1, now.year - 5, -1))
     if edit_board:
         default_year, default_month = edit_board.year, edit_board.month
+    elif scope == 'self':
+        # Tạo KPI cho bản thân luôn mặc định tháng hiện tại
+        default_year, default_month = now.year, now.month
     else:
         default_year, default_month = _parse_month_year(request)
 
