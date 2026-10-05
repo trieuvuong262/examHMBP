@@ -26,7 +26,7 @@
     <title>{% block title %}{{ jp_page_title|default:"Just Play Portal" }}{% endblock %}</title>
     <meta name="description"
         content="{% block meta_description %}{{ jp_page_title|default:"Just Play Portal" }}{% endblock %}">
-    <meta name="theme-color" content="#dc2626">
+    <meta name="theme-color" content="#111111">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="JustPlay">
@@ -49,7 +49,7 @@
         integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="{% static 'css/gotham.css' %}?v=20260811f">
-    <link rel="stylesheet" href="{% static 'css/justplay-theme.css' %}?v=20260921c">
+    <link rel="stylesheet" href="{% static 'css/justplay-theme.css' %}?v=20261005a">
     {% block extra_head %}{% endblock %}
     {% if '/san-xuat/' in request.path %}
     {% include 'san_xuat/includes/sx_ui_polish.html' %}
