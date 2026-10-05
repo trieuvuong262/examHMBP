@@ -1,5 +1,9 @@
+
 /**
- * Dark mode — lưu preference localStorage, sidebar chuyển sang nền đỏ.
+ * Chuyển kiểu giao diện khung (shell):
+ *  - "modern" (mặc định): header đen, menu trắng xám, nền trắng.
+ *  - "classic": header đỏ, menu đen, nền trắng (bộ màu cũ).
+ * Lưu preference vào localStorage. Nút toggle giữ nhãn "Giao diện tối"/"Giao diện sáng".
  */
 (function () {
     'use strict';
@@ -7,69 +11,74 @@
     var STORAGE_KEY = 'jp_theme';
     var root = document.documentElement;
 
-    function getTheme() {
+    // Giá trị cũ 'dark' được coi như 'classic' để không mất preference người dùng.
+    function getShell() {
         try {
-            return localStorage.getItem(STORAGE_KEY) === 'dark' ? 'dark' : 'light';
+            var v = localStorage.getItem(STORAGE_KEY);
+            return (v === 'classic' || v === 'dark') ? 'classic' : 'modern';
         } catch (err) {
-            return 'light';
+            return 'modern';
         }
     }
 
-    function updateMeta(theme) {
+    function updateMeta(shell) {
         var meta = document.querySelector('meta[name="theme-color"]');
         if (!meta) return;
-        meta.setAttribute('content', theme === 'dark' ? '#450a0a' : '#dc2626');
+        // classic = header đỏ, modern = header đen
+        meta.setAttribute('content', shell === 'classic' ? '#dc2626' : '#111111');
     }
 
-    function updateToggleButtons(theme) {
+    function updateToggleButtons(shell) {
         document.querySelectorAll('[data-jp-theme-toggle]').forEach(function (btn) {
             var iconDark = btn.querySelector('.jp-theme-icon-dark');
             var iconLight = btn.querySelector('.jp-theme-icon-light');
-            var isDark = theme === 'dark';
-            if (iconDark) iconDark.classList.toggle('d-none', isDark);
-            if (iconLight) iconLight.classList.toggle('d-none', !isDark);
-            btn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+            var isClassic = shell === 'classic';
+            if (iconDark) iconDark.classList.toggle('d-none', isClassic);
+            if (iconLight) iconLight.classList.toggle('d-none', !isClassic);
+            btn.setAttribute('aria-pressed', isClassic ? 'true' : 'false');
             btn.setAttribute(
                 'aria-label',
-                isDark ? 'Bật giao diện sáng' : 'Bật giao diện tối'
+                isClassic ? 'Bật giao diện sáng' : 'Bật giao diện tối'
             );
-            btn.setAttribute('title', isDark ? 'Giao diện sáng' : 'Giao diện tối');
+            btn.setAttribute('title', isClassic ? 'Giao diện sáng' : 'Giao diện tối');
             var label = btn.querySelector('.jp-theme-toggle-label');
             if (label) {
-                label.textContent = isDark ? 'Giao diện sáng' : 'Giao diện tối';
+                label.textContent = isClassic ? 'Giao diện sáng' : 'Giao diện tối';
             }
         });
     }
 
-    function applyTheme(theme, persist) {
-        if (theme === 'dark') {
-            root.setAttribute('data-theme', 'dark');
+    function applyShell(shell, persist) {
+        if (shell === 'classic') {
+            root.setAttribute('data-shell', 'classic');
         } else {
-            root.removeAttribute('data-theme');
-            theme = 'light';
+            root.removeAttribute('data-shell');
+            shell = 'modern';
         }
-        updateMeta(theme);
-        updateToggleButtons(theme);
+        // Đảm bảo không còn dark theme nền-đen cũ.
+        root.removeAttribute('data-theme');
+        updateMeta(shell);
+        updateToggleButtons(shell);
         if (persist) {
             try {
-                localStorage.setItem(STORAGE_KEY, theme);
+                localStorage.setItem(STORAGE_KEY, shell);
             } catch (err) {
                 /* ignore */
             }
         }
     }
 
-    function toggleTheme() {
-        applyTheme(getTheme() === 'dark' ? 'light' : 'dark', true);
+    function toggleShell() {
+        applyShell(getShell() === 'classic' ? 'modern' : 'classic', true);
     }
 
     document.addEventListener('click', function (event) {
         var btn = event.target.closest('[data-jp-theme-toggle]');
         if (btn) {
             event.preventDefault();
-            toggleTheme();
+            toggleShell();
         }
     });
 
-    applyTheme(getTheme(), false);
+    applyShell(getShell(), false);
 })();

@@ -12841,11 +12841,11 @@ b, strong,
 }
 
 /* ============================================================
-   LIGHT SHELL THEME — sidebar trắng xám / chữ đen, topbar đen
+   MODERN SHELL (mặc định) — sidebar trắng xám / chữ đen, topbar đen.
    Đỏ chỉ dùng cho điểm nhấn (active, badge, cảnh báo).
-   Chỉ áp dụng ở chế độ sáng; dark mode giữ nguyên.
+   Áp dụng khi KHÔNG bật shell "classic".
    ============================================================ */
-:root:not([data-theme="dark"]) {
+:root:not([data-shell="classic"]) {
     /* Sidebar sáng: nền trắng xám, chữ đen */
     --jp-sidebar-surface: #f4f5f7;
     --jp-sidebar-surface-2: #eceef1;
@@ -12864,185 +12864,208 @@ b, strong,
 }
 
 /* ---------- SIDEBAR ---------- */
-body:not([data-theme="dark"]) .jp-sidebar {
+html:not([data-shell="classic"]) .jp-sidebar {
     color: var(--jp-sidebar-text);
     border-right: 1px solid var(--jp-sidebar-border);
 }
 
-body:not([data-theme="dark"]).jp-has-amis-header aside.jp-sidebar .jp-sidebar-footer {
+html:not([data-shell="classic"]) body.jp-has-amis-header aside.jp-sidebar .jp-sidebar-footer {
     background: var(--jp-sidebar-gradient);
     border-top: 1px solid var(--jp-sidebar-border);
 }
 
 /* Links / nhóm / submenu — chữ đen, hover xám nhạt */
-body:not([data-theme="dark"]) .jp-sidebar-link,
-body:not([data-theme="dark"]) .jp-sidebar-group-toggle,
-body:not([data-theme="dark"]) .jp-sidebar-nested-toggle,
-body:not([data-theme="dark"]) .jp-sidebar-brand-link {
+html:not([data-shell="classic"]) .jp-sidebar-link,
+html:not([data-shell="classic"]) .jp-sidebar-group-toggle,
+html:not([data-shell="classic"]) .jp-sidebar-nested-toggle,
+html:not([data-shell="classic"]) .jp-sidebar-brand-link {
     color: var(--jp-sidebar-text);
 }
 
-body:not([data-theme="dark"]) .jp-sidebar-link:hover,
-body:not([data-theme="dark"]) .jp-sidebar-group-toggle:hover,
-body:not([data-theme="dark"]) .jp-sidebar-nested-toggle:hover {
+html:not([data-shell="classic"]) .jp-sidebar-link:hover,
+html:not([data-shell="classic"]) .jp-sidebar-group-toggle:hover,
+html:not([data-shell="classic"]) .jp-sidebar-nested-toggle:hover {
     background: var(--jp-sidebar-hover-bg);
     color: var(--jp-black-900);
 }
 
-body:not([data-theme="dark"]) .jp-sidebar-group.is-open .jp-sidebar-group-toggle,
-body:not([data-theme="dark"]) .jp-sidebar-nested-group.is-open .jp-sidebar-nested-toggle {
+html:not([data-shell="classic"]) .jp-sidebar-group.is-open .jp-sidebar-group-toggle,
+html:not([data-shell="classic"]) .jp-sidebar-nested-group.is-open .jp-sidebar-nested-toggle {
     color: var(--jp-black-900);
 }
 
 /* Active — giữ đỏ làm điểm nhấn */
-body:not([data-theme="dark"]) .jp-sidebar-link.active {
+html:not([data-shell="classic"]) .jp-sidebar-link.active {
     background: var(--hm-primary);
     color: #fff;
     box-shadow: 0 3px 10px rgba(220, 38, 38, 0.28);
 }
 
 /* Rail / viền / nhãn mục — chuyển sang tông tối nhạt */
-body:not([data-theme="dark"]) .jp-sidebar-section,
-body:not([data-theme="dark"]) .jp-sidebar-footer {
+html:not([data-shell="classic"]) .jp-sidebar-section,
+html:not([data-shell="classic"]) .jp-sidebar-footer {
     border-top-color: var(--jp-sidebar-border);
 }
 
-body:not([data-theme="dark"]) .jp-sidebar-brand {
+html:not([data-shell="classic"]) .jp-sidebar-brand {
     border-bottom-color: var(--jp-sidebar-border);
 }
 
-body:not([data-theme="dark"]) .jp-sidebar-section-label {
+html:not([data-shell="classic"]) .jp-sidebar-section-label {
     color: var(--jp-sidebar-text-muted);
     opacity: 1;
 }
 
-body:not([data-theme="dark"]) .jp-sidebar-nested-submenu {
+html:not([data-shell="classic"]) .jp-sidebar-nested-submenu {
     border-left-color: var(--jp-sidebar-border);
 }
 
-body:not([data-theme="dark"]) .jp-sidebar-nested-submenu--depth2 {
+html:not([data-shell="classic"]) .jp-sidebar-nested-submenu--depth2 {
     border-left-color: #d5d9df;
 }
 
 /* Logo sidebar: bỏ invert để hiện logo gốc trên nền sáng */
-body:not([data-theme="dark"]) .jp-sidebar-logo {
+html:not([data-shell="classic"]) .jp-sidebar-logo {
     filter: none;
 }
 
 /* Nút thu gọn + toggle theme trong sidebar sáng */
-body:not([data-theme="dark"]) .jp-sidebar-collapse-btn,
-body:not([data-theme="dark"]) .jp-sidebar-theme-toggle {
+html:not([data-shell="classic"]) .jp-sidebar-collapse-btn,
+html:not([data-shell="classic"]) .jp-sidebar-theme-toggle {
     background: rgba(17, 17, 17, 0.05);
     border-color: var(--jp-sidebar-border);
     color: var(--jp-sidebar-text);
 }
 
-body:not([data-theme="dark"]) .jp-sidebar-collapse-btn:hover,
-body:not([data-theme="dark"]) .jp-sidebar-collapse-btn:focus-visible,
-body:not([data-theme="dark"]) .jp-sidebar-theme-toggle:hover {
+html:not([data-shell="classic"]) .jp-sidebar-collapse-btn:hover,
+html:not([data-shell="classic"]) .jp-sidebar-collapse-btn:focus-visible,
+html:not([data-shell="classic"]) .jp-sidebar-theme-toggle:hover {
     background: rgba(17, 17, 17, 0.1);
     border-color: #c9ccd3;
     color: var(--jp-black-900);
 }
 
 /* Thẻ hồ sơ trong sidebar sáng */
-body:not([data-theme="dark"]) .jp-sidebar-profile-card {
+html:not([data-shell="classic"]) .jp-sidebar-profile-card {
     background: #ffffff;
     border: 1px solid var(--jp-sidebar-border);
     box-shadow: 0 1px 2px rgba(17, 17, 17, 0.05);
 }
 
-body:not([data-theme="dark"]) .jp-sidebar-profile-name {
+html:not([data-shell="classic"]) .jp-sidebar-profile-name {
     color: var(--jp-black-900);
 }
 
-body:not([data-theme="dark"]) .jp-sidebar-profile-dept {
+html:not([data-shell="classic"]) .jp-sidebar-profile-dept {
     color: var(--jp-sidebar-text-muted);
 }
 
-body:not([data-theme="dark"]) .jp-sidebar-profile-code {
+html:not([data-shell="classic"]) .jp-sidebar-profile-code {
     color: #9ca3af;
 }
 
-body:not([data-theme="dark"]) .jp-sidebar-profile-role {
+html:not([data-shell="classic"]) .jp-sidebar-profile-role {
     color: var(--hm-primary-dark);
     background: var(--hm-primary-light);
     border-color: rgba(220, 38, 38, 0.22);
 }
 
 /* Badge trong sidebar: nền đỏ nhạt chữ đỏ */
-body:not([data-theme="dark"]) .jp-sidebar-badge {
+html:not([data-shell="classic"]) .jp-sidebar-badge {
     background: var(--hm-primary-light);
     color: var(--hm-primary-dark);
 }
 
 /* Nút đăng xuất: viền xám, hover đỏ nhạt */
-body:not([data-theme="dark"]) .jp-sidebar-logout-btn {
+html:not([data-shell="classic"]) .jp-sidebar-logout-btn {
     background: #ffffff;
     border: 1px solid var(--jp-sidebar-border);
     color: var(--jp-sidebar-text);
 }
 
-body:not([data-theme="dark"]) .jp-sidebar-logout-btn:hover,
-body:not([data-theme="dark"]) .jp-sidebar-logout-btn:focus-visible {
+html:not([data-shell="classic"]) .jp-sidebar-logout-btn:hover,
+html:not([data-shell="classic"]) .jp-sidebar-logout-btn:focus-visible {
     background: var(--hm-primary-light);
     border-color: rgba(220, 38, 38, 0.4);
     color: var(--hm-primary-dark);
 }
 
 /* Flyout menu khi sidebar thu gọn — nền sáng */
-body:not([data-theme="dark"]) html.jp-sidebar-collapsed .jp-sidebar-group .jp-sidebar-submenu,
-html.jp-sidebar-collapsed body:not([data-theme="dark"]) .jp-sidebar-group .jp-sidebar-submenu {
+html:not([data-shell="classic"]).jp-sidebar-collapsed .jp-sidebar-group .jp-sidebar-submenu {
     background: #ffffff;
     border: 1px solid var(--jp-sidebar-border);
     box-shadow: 0 12px 32px rgba(17, 17, 17, 0.14);
 }
 
 /* ---------- TOPBAR ĐEN ---------- */
-body:not([data-theme="dark"]) .jp-topbar--amis {
+html:not([data-shell="classic"]) .jp-topbar--amis {
     background: var(--jp-black-900);
     border-bottom: 3px solid #000;
 }
 
 /* Hover trên nền đen cần sáng (trắng mờ) thay vì đen mờ */
-body:not([data-theme="dark"]) .jp-topbar--amis .jp-topbar-menu-btn:hover,
-body:not([data-theme="dark"]) .jp-topbar--amis .jp-topbar-icon-btn:hover,
-body:not([data-theme="dark"]) .jp-topbar--amis .jp-topbar-icon-btn:focus-visible,
-body:not([data-theme="dark"]) .jp-topbar--amis .jp-theme-toggle:hover,
-body:not([data-theme="dark"]) .jp-topbar--amis .jp-theme-toggle:focus-visible,
-body:not([data-theme="dark"]) .jp-topbar--amis .jp-topbar-profile-btn:hover,
-body:not([data-theme="dark"]) .jp-topbar--amis .jp-topbar-profile-btn:focus-visible,
-body:not([data-theme="dark"]) .jp-topbar--amis .jp-topbar-profile-btn.show {
+html:not([data-shell="classic"]) .jp-topbar--amis .jp-topbar-menu-btn:hover,
+html:not([data-shell="classic"]) .jp-topbar--amis .jp-topbar-icon-btn:hover,
+html:not([data-shell="classic"]) .jp-topbar--amis .jp-topbar-icon-btn:focus-visible,
+html:not([data-shell="classic"]) .jp-topbar--amis .jp-theme-toggle:hover,
+html:not([data-shell="classic"]) .jp-topbar--amis .jp-theme-toggle:focus-visible,
+html:not([data-shell="classic"]) .jp-topbar--amis .jp-topbar-profile-btn:hover,
+html:not([data-shell="classic"]) .jp-topbar--amis .jp-topbar-profile-btn:focus-visible,
+html:not([data-shell="classic"]) .jp-topbar--amis .jp-topbar-profile-btn.show {
     background: rgba(255, 255, 255, 0.12);
     color: #fff;
 }
 
-body:not([data-theme="dark"]) .jp-topbar--amis .jp-topbar-user-btn {
+html:not([data-shell="classic"]) .jp-topbar--amis .jp-topbar-user-btn {
     background: rgba(255, 255, 255, 0.08);
     border-color: rgba(255, 255, 255, 0.28);
 }
 
-body:not([data-theme="dark"]) .jp-topbar--amis .jp-topbar-user-btn:hover,
-body:not([data-theme="dark"]) .jp-topbar--amis .jp-topbar-user-btn:focus-visible,
-body:not([data-theme="dark"]) .jp-topbar--amis .jp-topbar-user-btn.show {
+html:not([data-shell="classic"]) .jp-topbar--amis .jp-topbar-user-btn:hover,
+html:not([data-shell="classic"]) .jp-topbar--amis .jp-topbar-user-btn:focus-visible,
+html:not([data-shell="classic"]) .jp-topbar--amis .jp-topbar-user-btn.show {
     background: rgba(255, 255, 255, 0.16);
     border-color: rgba(255, 255, 255, 0.4);
 }
 
-body:not([data-theme="dark"]) .jp-topbar--amis .jp-topbar-profile-avatar {
+html:not([data-shell="classic"]) .jp-topbar--amis .jp-topbar-profile-avatar {
     background: rgba(255, 255, 255, 0.12);
 }
 
 /* Badge thông báo trên topbar đen: nền đỏ, viền sáng — nổi bật */
-body:not([data-theme="dark"]) .jp-topbar-badge {
+html:not([data-shell="classic"]) .jp-topbar-badge {
     background: var(--hm-primary);
     border-color: #fff;
 }
 
 /* Chấm trạng thái online viền đen cho hợp nền tối */
-body:not([data-theme="dark"]) .jp-topbar-profile-status {
+html:not([data-shell="classic"]) .jp-topbar-profile-status {
     border-color: var(--jp-black-900);
 }
+
+/* ============================================================
+   CLASSIC SHELL — bộ màu cũ: header ĐỎ, menu ĐEN, nền trắng.
+   Kích hoạt khi bấm nút "giao diện tối" (data-shell="classic").
+   Chỉ đổi khung; nền trang vẫn trắng như bình thường.
+   Base rules (.jp-sidebar dùng --jp-sidebar-gradient đen, .jp-topbar--amis
+   nền đỏ) đã lo phần lớn — khối này chỉ cần set lại biến + chấm nhỏ.
+   ============================================================ */
+:root[data-shell="classic"] {
+    /* Trả sidebar về gradient đen gốc */
+    --jp-sidebar-gradient: linear-gradient(180deg, var(--jp-black-900) 0%, var(--jp-black-800) 100%);
+    --jp-sidebar-drawer-bg: var(--jp-black-900);
+    --jp-sidebar-status-ring: var(--jp-black-900);
+    --jp-sidebar-scroll-thumb: rgba(255, 255, 255, 0.14);
+    --jp-sidebar-scroll-thumb-hover: rgba(255, 255, 255, 0.3);
+    --jp-sidebar-scroll-thumb-active: rgba(220, 38, 38, 0.42);
+}
+
+/* Logo sidebar trở lại trắng (đảo màu) trên nền đen */
+html[data-shell="classic"] .jp-sidebar-logo {
+    filter: brightness(0) invert(1);
+}
+
+/* PWA meta màu đỏ do JS set; nền trang vẫn giữ --jp-page-bg trắng mặc định. */
 
 /* ---------- MENU / SUBMENU: VIẾT HOA ---------- */
 .jp-sidebar-link,
