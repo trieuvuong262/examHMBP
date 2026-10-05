@@ -483,20 +483,32 @@ def _target_employees_for(user, *, scope: str = 'team'):
     return User.objects.none()
 
 
-def _parse_month_year(request, *, default_now=True):
+def _default_view_month_year():
+    """Mặc định cho màn hình xem KPI: tháng liền trước (KPI tháng N chốt ở tháng N+1)."""
+    today = timezone.localdate()
+    if today.month == 1:
+        return today.year - 1, 12
+    return today.year, today.month - 1
+
+
+def _parse_month_year(request, *, default_now=True, default_previous_month=False):
     now = timezone.localdate()
+    if default_previous_month:
+        default_year, default_month = _default_view_month_year()
+    else:
+        default_year, default_month = now.year, now.month
     try:
-        year = int(request.GET.get('year') or request.POST.get('year') or (now.year if default_now else 0))
+        year = int(request.GET.get('year') or request.POST.get('year') or (default_year if default_now else 0))
     except (TypeError, ValueError):
-        year = now.year if default_now else 0
+        year = default_year if default_now else 0
     try:
-        month = int(request.GET.get('month') or request.POST.get('month') or (now.month if default_now else 0))
+        month = int(request.GET.get('month') or request.POST.get('month') or (default_month if default_now else 0))
     except (TypeError, ValueError):
-        month = now.month if default_now else 0
+        month = default_month if default_now else 0
     if year < 2000 or year > 2100:
-        year = now.year
+        year = default_year
     if month < 1 or month > 12:
-        month = now.month
+        month = default_month
     return year, month
 
 
@@ -587,7 +599,7 @@ def _visible_boards_qs(user, year: int, month: int):
 @module_perm_required(MODULE_KPI, 'view')
 def kpi_list_view(request):
     search_query = get_search_query(request)
-    year, month = _parse_month_year(request)
+    year, month = _parse_month_year(request, default_previous_month=True)
     filter_division = _parse_division_filter(request)
     division_choices = _kpi_division_choices(request.user)
     allowed_division_ids = {pk for pk, _ in division_choices}
@@ -605,11 +617,12 @@ def kpi_list_view(request):
         request.user, MODULE_KPI,
     )
 
-    tab = (request.GET.get('tab') or 'mine').strip().lower()
-    if tab not in ('mine', 'team', 'division'):
-        tab = 'mine'
-    if tab == 'team' and not show_subordinate_kpi:
-        tab = 'mine'
+    # Tab mặc định: Bộ phận (nếu có quyền) đứng trước, rồi mới tới Của tôi.
+    # Tab "Cấp dưới" (team) đã bỏ khỏi giao diện.
+    default_tab = 'division' if show_division_kpi else 'mine'
+    tab = (request.GET.get('tab') or default_tab).strip().lower()
+    if tab not in ('mine', 'division'):
+        tab = default_tab
     if tab == 'division' and not show_division_kpi:
         tab = 'mine'
 
@@ -672,30 +685,6 @@ def kpi_list_view(request):
                 division_member_ids=division_id_set,
                 subordinate_ids=subordinate_id_set,
             )
-    elif tab == 'team':
-        superior_ids = _superior_user_ids(request.user)
-        if is_company_wide:
-            team_kpis_qs = base.exclude(employee=request.user).order_by(
-                'employee__profile__full_name', 'employee__username',
-            )
-        elif effective_roles(request.user) & SUBORDINATE_MANAGER_ROLES:
-            subordinate_ids = list(get_report_team_users(request.user).values_list('pk', flat=True))
-            # Chỉ cấp dưới theo Nhân sự — không tin field direct_manager trên board
-            team_kpis_qs = base.filter(
-                employee_id__in=subordinate_ids,
-            ).exclude(
-                employee_id__in=superior_ids,
-            ).order_by(
-                'employee__profile__full_name', 'employee__username',
-            )
-        else:
-            team_kpis_qs = MonthlyKpi.objects.none()
-        team_kpis_qs = _kpi_search(team_kpis_qs)
-        team_page, team_query_string = paginate_queryset(
-            request, team_kpis_qs, page_param='team_page',
-        )
-        # Tab cấp dưới không hiện nhãn QL / nút sửa
-        team_list = _annotate_boards(list(team_page.object_list), with_managers=False)
     else:  # division
         if not division_id_set:
             division_id_set = set(_division_member_user_ids(request.user))

@@ -86,7 +86,11 @@ def _filter_by_flow(qs, flow_tab):
     if flow_tab == FLOW_HO_TRO:
         return qs.filter(request_type__code=RequestType.CODE_IT_REPAIR)
     if flow_tab == FLOW_DE_XUAT:
-        return qs.filter(request_type__code=RequestType.CODE_ASSET_PURCHASE)
+        # Tab "Đề xuất" gồm cả mua hàng và các đề xuất chung (thanh toán, nhân sự...).
+        return qs.filter(request_type__code__in=[
+            RequestType.CODE_ASSET_PURCHASE,
+            RequestType.CODE_GENERAL_PROPOSAL,
+        ])
     return qs
 
 

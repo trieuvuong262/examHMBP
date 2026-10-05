@@ -662,6 +662,10 @@ class GeneralProposalTests(TestCase):
             code=RequestType.CODE_GENERAL_PROPOSAL,
             defaults={'name': 'Đề xuất chung', 'is_active': True},
         )
+        RequestType.objects.get_or_create(
+            code=RequestType.CODE_ASSET_PURCHASE,
+            defaults={'name': 'Đề xuất mua hàng', 'is_active': True},
+        )
         self.client = Client()
 
     def _user(self, username, role, dept):
@@ -760,3 +764,16 @@ class GeneralProposalTests(TestCase):
         self.assertEqual(req.request_subtype, ServiceRequest.SUBTYPE_HR)
         self.assertEqual(req.extra_data.get('headcount'), 3)
         self.assertEqual(req.extra_data.get('hr_kind'), 'Tuyển dụng')
+
+    def test_general_proposal_appears_in_de_xuat_my_list(self):
+        self.client.force_login(self.employee)
+        self.client.post(reverse('service_requests:create'), {
+            'request_subtype': 'account',
+            'title': 'Cấp máy tính',
+            'description': 'Máy mới',
+            'account_kind': 'computer',
+            'target_user': 'B',
+        })
+        resp = self.client.get(reverse('service_requests:de_xuat_my'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Cấp máy tính')

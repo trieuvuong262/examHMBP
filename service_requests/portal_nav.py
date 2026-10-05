@@ -19,7 +19,10 @@ def pending_count_for_flow(user, flow_tab: str) -> int:
         qs = pending_steps_for_user(user)
         if flow_tab == FLOW_HO_TRO:
             return qs.filter(request__request_type__code=RequestType.CODE_IT_REPAIR).count()
-        return qs.filter(request__request_type__code=RequestType.CODE_ASSET_PURCHASE).count()
+        return qs.filter(request__request_type__code__in=[
+            RequestType.CODE_ASSET_PURCHASE,
+            RequestType.CODE_GENERAL_PROPOSAL,
+        ]).count()
     except _DB_ERRORS as exc:
         logger.warning('pending_count_for_flow failed: %s', exc)
         return 0

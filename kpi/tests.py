@@ -175,3 +175,57 @@ class MonthlyKpiImportTests(TestCase):
         self.assertContains(response, '08/2026')
         self.assertNotContains(response, '01/2026')
 
+
+@override_settings(ALLOWED_HOSTS=['testserver', 'localhost', '127.0.0.1'])
+@skip_if_kpi_hidden
+class KpiListDefaultsTests(TestCase):
+    def setUp(self):
+        from hrm.permissions import ROLE_DEPARTMENT_HEAD
+
+        self.dept = Department.objects.create(name='KPI Defaults Dept', sort_order=5)
+        DepartmentMenuPermission.objects.create(department=self.dept, modules=['kpi'])
+
+        self.employee = User.objects.create_user(username='kpi_def_emp', password='pass12345')
+        _profile(self.employee, full_name='NV Default', department=self.dept, role=ROLE_EMPLOYEE, is_employed=True)
+
+        self.dept_head = User.objects.create_user(username='kpi_def_tp', password='pass12345')
+        _profile(
+            self.dept_head, full_name='TP Default', department=self.dept,
+            role=ROLE_DEPARTMENT_HEAD, is_employed=True,
+        )
+        self.client = Client(HTTP_HOST='testserver')
+
+    def test_default_month_is_previous_month(self):
+        from kpi.views import _default_view_month_year
+
+        exp_year, exp_month = _default_view_month_year()
+        self.client.login(username='kpi_def_emp', password='pass12345')
+        response = self.client.get(reverse('kpi_list'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['filter_month'], exp_month)
+        self.assertEqual(response.context['filter_year'], exp_year)
+
+    def test_explicit_month_year_still_respected(self):
+        self.client.login(username='kpi_def_emp', password='pass12345')
+        response = self.client.get(reverse('kpi_list'), {'month': 9, 'year': 2026})
+        self.assertEqual(response.context['filter_month'], 9)
+        self.assertEqual(response.context['filter_year'], 2026)
+
+    def test_department_head_defaults_to_division_tab(self):
+        self.client.login(username='kpi_def_tp', password='pass12345')
+        response = self.client.get(reverse('kpi_list'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['active_tab'], 'division')
+
+    def test_plain_employee_defaults_to_mine_tab(self):
+        self.client.login(username='kpi_def_emp', password='pass12345')
+        response = self.client.get(reverse('kpi_list'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['active_tab'], 'mine')
+
+    def test_team_tab_falls_back_to_default(self):
+        # Tab "Cấp dưới" đã bỏ — yêu cầu tab=team phải rơi về tab mặc định.
+        self.client.login(username='kpi_def_tp', password='pass12345')
+        response = self.client.get(reverse('kpi_list'), {'tab': 'team'})
+        self.assertEqual(response.context['active_tab'], 'division')
+
