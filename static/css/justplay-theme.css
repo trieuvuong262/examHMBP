@@ -12846,16 +12846,16 @@ b, strong,
    Áp dụng khi KHÔNG bật shell "classic".
    ============================================================ */
 :root:not([data-shell="classic"]) {
-    /* Sidebar sáng: nền trắng xám, chữ đen */
-    --jp-sidebar-surface: #f4f5f7;
-    --jp-sidebar-surface-2: #eceef1;
-    --jp-sidebar-gradient: linear-gradient(180deg, #f6f7f9 0%, #eef0f3 100%);
-    --jp-sidebar-drawer-bg: #f4f5f7;
-    --jp-sidebar-status-ring: #f4f5f7;
+    /* Sidebar: nền hồng xám #D8C6C9, chữ đen */
+    --jp-sidebar-surface: #d8c6c9;
+    --jp-sidebar-surface-2: #cdb8bc;
+    --jp-sidebar-gradient: linear-gradient(180deg, #ddccce 0%, #d2bec1 100%);
+    --jp-sidebar-drawer-bg: #d8c6c9;
+    --jp-sidebar-status-ring: #d8c6c9;
     --jp-sidebar-text: var(--jp-black-800);
-    --jp-sidebar-text-muted: #6b7280;
-    --jp-sidebar-border: #e2e5ea;
-    --jp-sidebar-hover-bg: rgba(17, 17, 17, 0.055);
+    --jp-sidebar-text-muted: #6b5c5f;
+    --jp-sidebar-border: #c6b1b5;
+    --jp-sidebar-hover-bg: rgba(17, 17, 17, 0.07);
 
     /* Scrollbar sidebar dịu */
     --jp-sidebar-scroll-thumb: rgba(17, 17, 17, 0.16);
@@ -12947,9 +12947,9 @@ html:not([data-shell="classic"]) .jp-sidebar-theme-toggle:hover {
 
 /* Thẻ hồ sơ trong sidebar sáng */
 html:not([data-shell="classic"]) .jp-sidebar-profile-card {
-    background: #ffffff;
+    background: rgba(255, 255, 255, 0.55);
     border: 1px solid var(--jp-sidebar-border);
-    box-shadow: 0 1px 2px rgba(17, 17, 17, 0.05);
+    box-shadow: 0 1px 2px rgba(17, 17, 17, 0.06);
 }
 
 html:not([data-shell="classic"]) .jp-sidebar-profile-name {
@@ -12978,7 +12978,7 @@ html:not([data-shell="classic"]) .jp-sidebar-badge {
 
 /* Nút đăng xuất: viền xám, hover đỏ nhạt */
 html:not([data-shell="classic"]) .jp-sidebar-logout-btn {
-    background: #ffffff;
+    background: rgba(255, 255, 255, 0.5);
     border: 1px solid var(--jp-sidebar-border);
     color: var(--jp-sidebar-text);
 }

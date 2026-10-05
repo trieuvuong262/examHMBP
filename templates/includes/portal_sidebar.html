@@ -446,7 +446,8 @@
         {% endif %}
         {% jp_can_menu 'equipment' 'it' as jp_can_equipment_it %}
         {% jp_can_menu 'equipment' 'production' as jp_can_equipment_production %}
-        {% if jp_can_equipment and jp_can_equipment_it %}
+        {# Ẩn menu "Quản lý thiết bị" (IT) — /thiet-bi/it/. Đổi "False and" -> "" để hiện lại. #}
+        {% if False and jp_can_equipment and jp_can_equipment_it %}
         <li>
             <a href="{% url 'equipment:dashboard_it' %}"
                class="jp-sidebar-link {% if '/thiet-bi/it' in request.path or is_it_scope %}active{% endif %}">
@@ -517,6 +518,40 @@
                     <a href="{% url 'surveys:results' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'results' or request.resolver_match.url_name == 'result_detail' %}active{% endif %}">
                         <i class="bi bi-inbox-fill"></i><span>Kết quả</span>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </li>
+        {% endif %}
+        {% if jp_can_tien_do %}
+        <li class="jp-sidebar-group{% if '/tien-do/' in request.path %} is-open{% endif %}">
+            <button type="button"
+                    class="jp-sidebar-group-toggle"
+                    data-jp-sidebar-group-toggle
+                    aria-expanded="{% if '/tien-do/' in request.path %}true{% else %}false{% endif %}"
+                    aria-controls="jp-sidebar-tien-do-submenu">
+                <span class="jp-sidebar-group-toggle-main">
+                    <i class="bi bi-clipboard-data"></i><span>Tiến độ</span>
+                </span>
+                <i class="bi bi-chevron-down jp-sidebar-group-chevron" aria-hidden="true"></i>
+            </button>
+            <ul class="jp-sidebar-submenu" id="jp-sidebar-tien-do-submenu">
+                {% jp_can_menu 'tien_do' 'portal' as jp_can_tien_do_portal %}
+                {% if jp_can_tien_do_portal %}
+                <li>
+                    <a href="{% url 'tien_do:portal' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'portal' or request.resolver_match.url_name == 'portal_alt' %}active{% endif %}">
+                        <i class="bi bi-pc-display"></i><span>Tiến độ Portal</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% jp_can_menu 'tien_do' 'wholesale_retail' as jp_can_tien_do_wr %}
+                {% if jp_can_tien_do_wr %}
+                <li>
+                    <a href="{% url 'tien_do:wholesale_retail' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'wholesale_retail' %}active{% endif %}">
+                        <i class="bi bi-shop"></i><span>Tiến độ Website sỉ/lẻ</span>
                     </a>
                 </li>
                 {% endif %}

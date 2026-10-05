@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/tien-do.css' %}?v=20261005a">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid jp-page py-3 py-md-4 px-2 px-md-4 mb-5" id="jp-tien-do"
+     data-cell-update-base="/tien-do/"
+     data-image-upload-url="{% if can_upload_image %}{{ image_upload_url }}{% endif %}"
+     data-can-edit-it="{{ can_edit_it|yesno:'1,0' }}"
+     data-can-edit-tester="{{ can_edit_tester|yesno:'1,0' }}">
+    {% csrf_token %}
+    <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
+        <div class="jp-page-header-main">
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ platform_label }}</h2>
+        </div>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <form method="get" class="d-flex gap-2">
+                <input type="text" name="q" value="{{ search_query }}" class="form-control form-control-sm"
+                       placeholder="Tìm theo Tính năng / Mô tả" style="min-width:220px">
+                <button type="submit" class="btn btn-outline-hm btn-sm"><i class="bi bi-search"></i></button>
+            </form>
+            {% if can_create %}
+            <form method="post" action="{% url 'tien_do:item_create' platform %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-hm fw-bold btn-sm">
+                    <i class="bi bi-plus-circle-fill me-1"></i>Thêm dòng
+                </button>
+            </form>
+            {% else %}
+            <button type="button" class="btn btn-hm fw-bold btn-sm disabled" disabled
+                    title="Bạn không có quyền thêm dòng">
+                <i class="bi bi-plus-circle-fill me-1"></i>Thêm dòng
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-bordered align-middle jp-tien-do-table">
+            <thead class="table-light">
+                <tr>
+                    {% for col, label in column_headers %}
+                    <th style="min-width:200px">{{ label }}</th>
+                    {% endfor %}
+                    <th style="width:90px" class="text-center {% if not can_edit_tester %}jp-col-dim{% endif %}">Đã test</th>
+                    <th style="width:60px" class="text-center {% if not can_delete %}jp-col-dim{% endif %}">Xóa</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr data-item-id="{{ row.item.id }}">
+                    {% for cell in row.cells %}
+                    <td class="jp-cell {% if cell.can_edit %}jp-cell-editable{% else %}jp-cell-readonly{% endif %}"
+                        data-column="{{ cell.column }}" data-rich="{{ cell.is_rich|yesno:'1,0' }}">
+                        {% if cell.can_edit %}
+                        <div class="jp-cell-frame {% if not cell.is_rich %}jp-cell-frame--plain{% endif %}">
+                            <div class="jp-cell-editor" contenteditable="true" data-td-editor
+                                 data-placeholder="{{ cell.label }}…">{{ cell.html }}</div>
+                            {% if cell.is_rich and can_upload_image %}
+                            <label class="jp-cell-imgbtn" title="Chèn ảnh">
+                                <i class="bi bi-image"></i>
+                                <span>Ảnh</span>
+                                <input type="file" accept="image/*" hidden data-td-file>
+                            </label>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        <div class="jp-cell-view" title="Bạn không có quyền sửa cột này">{{ cell.html }}</div>
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                    <td class="text-center {% if not can_edit_tester %}jp-cell-locked{% endif %}"
+                        {% if not can_edit_tester %}title="Bạn không có quyền sửa cột này"{% endif %}>
+                        <input type="checkbox" class="form-check-input jp-tested-toggle"
+                               {% if row.item.is_tested %}checked{% endif %}
+                               {% if not can_edit_tester %}disabled{% endif %}>
+                    </td>
+                    <td class="text-center {% if not can_delete %}jp-cell-locked{% endif %}"
+                        {% if not can_delete %}title="Bạn không có quyền xóa"{% endif %}>
+                        {% if can_delete %}
+                        <form method="post" action="{% url 'tien_do:item_delete' row.item.id %}"
+                              onsubmit="return confirm('Xóa dòng tiến độ này?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-link text-danger p-0"><i class="bi bi-trash3"></i></button>
+                        </form>
+                        {% else %}
+                        <button type="button" class="btn btn-link text-danger p-0 disabled" disabled>
+                            <i class="bi bi-trash3"></i>
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="{{ column_headers|length|add:2 }}" class="text-center text-muted py-4">
+                        Chưa có dòng tiến độ nào.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% include 'includes/pagination.html' %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/tien-do-board.js' %}?v=20261005a"></script>
+{% endblock %}

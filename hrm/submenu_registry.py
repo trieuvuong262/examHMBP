@@ -12,6 +12,7 @@ from hrm.module_permissions import (
     MODULE_EQUIPMENT,
     MODULE_FEEDBACK,
     MODULE_SURVEYS,
+    MODULE_TIEN_DO,
     MODULE_COMPANY_TRIP,
     MODULE_HO_TRO,
     MODULE_HRM,
@@ -94,6 +95,10 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'share', 'label': 'Tạo link gửi NV', 'icon': 'bi-send'},
         {'key': 'results', 'label': 'Kết quả', 'icon': 'bi-inbox-fill'},
         {'key': 'ksk_manage', 'label': 'Quản lý KSK', 'icon': 'bi-heart-pulse'},
+    ],
+    MODULE_TIEN_DO: [
+        {'key': 'portal', 'label': 'Tiến độ Portal', 'icon': 'bi-pc-display'},
+        {'key': 'wholesale_retail', 'label': 'Tiến độ Website sỉ/lẻ', 'icon': 'bi-shop'},
     ],
     MODULE_COMPANY_TRIP: [],  # Ẩn — dùng utilities.trip_schedule
     MODULE_UTILITIES: [
@@ -517,6 +522,10 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/kiotviet/hoa-don', MODULE_KIOTVIET, 'invoices'),
     ('/kiotviet/don-dat-hang', MODULE_KIOTVIET, 'orders'),
     ('/kiotviet/khach-hang', MODULE_KIOTVIET, 'customers'),
+    # Tiến độ
+    ('/tien-do/website-si-le', MODULE_TIEN_DO, 'wholesale_retail'),
+    ('/tien-do/portal', MODULE_TIEN_DO, 'portal'),
+    ('/tien-do/', MODULE_TIEN_DO, 'portal'),
     # NAS
     ('/thu-muc-nas/phan-quyen', MODULE_NAS_STORAGE, 'permissions'),
     ('/thu-muc-nas/cai-dat', MODULE_DOCUMENTS, 'nas_download'),

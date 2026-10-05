@@ -1251,6 +1251,8 @@ class PermissionGroupPermissionForm(forms.Form):
             HRM_PERM_MATRIX_SUBMENUS,
             SURVEY_PERM_MATRIX_MODULES,
             SURVEY_PERM_MATRIX_SUBMENUS,
+            TIEN_DO_PERM_MATRIX_MODULES,
+            TIEN_DO_PERM_MATRIX_SUBMENUS,
             WORK_PERM_MATRIX_MODULES,
             WORK_PERM_MATRIX_SUBMENUS,
         )
@@ -1261,6 +1263,7 @@ class PermissionGroupPermissionForm(forms.Form):
             (HRM_PERM_MATRIX_MODULES, HRM_PERM_MATRIX_SUBMENUS, 'hrm_hub', 'Nhân sự', 'bi-people-fill'),
             (WORK_PERM_MATRIX_MODULES, WORK_PERM_MATRIX_SUBMENUS, 'work_hub', 'Báo cáo & Công việc', 'bi-clipboard-check-fill'),
             (SURVEY_PERM_MATRIX_MODULES, SURVEY_PERM_MATRIX_SUBMENUS, 'survey_hub', 'Khảo sát', 'bi-ui-radios'),
+            (TIEN_DO_PERM_MATRIX_MODULES, TIEN_DO_PERM_MATRIX_SUBMENUS, 'tien_do_hub', 'Tiến độ', 'bi-clipboard-data'),
         )
         for modules, _subs, _hub, _label, _icon in hub_module_sets:
             for row in all_rows:

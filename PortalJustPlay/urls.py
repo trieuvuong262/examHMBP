@@ -40,6 +40,7 @@ urlpatterns = [
     path('thiet-bi/', include('equipment.urls')),
     path('gop-y/', include('feedback.urls')),
     path('khao-sat/', include('surveys.urls')),
+    path('tien-do/', include('tien_do.urls')),
     path('tien-ich/dat-lich/', include('company_trip.urls')),
     path('tien-ich/', include('utilities.urls')),
     path('change-password/', MyPasswordChangeView.as_view(template_name='registration/password_change_form.html'), name='password_change'),

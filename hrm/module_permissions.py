@@ -40,6 +40,7 @@ MODULE_KHO_VAT_TU = 'kho_vat_tu'
 MODULE_KHO_SAN_PHAM = 'kho_san_pham'
 MODULE_SAN_XUAT = 'san_xuat'
 MODULE_ODOO = 'odoo'
+MODULE_TIEN_DO = 'tien_do'
 
 # Tạm ẩn khỏi sidebar + màn hình phân quyền — gỡ khỏi set khi bật lại.
 HIDDEN_PORTAL_MODULES = frozenset({
@@ -64,6 +65,7 @@ _ALL_MODULE_CHOICES = [
     (MODULE_COMPANY_TRIP, 'Company Trip'),
     (MODULE_UTILITIES, 'Tiện ích'),
     (MODULE_ODOO, 'Odoo'),
+    (MODULE_TIEN_DO, 'Tiến độ'),
     (MODULE_SAN_XUAT, 'Sản xuất'),
     (MODULE_KHO_NPL, 'Kho Nguyên Phụ Liệu'),
     (MODULE_KHO_VAT_TU, 'Kho vật tư'),
@@ -133,6 +135,13 @@ SURVEY_PERM_MATRIX_SUBMENUS = (
     (MODULE_SURVEYS, 'ksk_manage'),
 )
 
+# Tiến độ — một nhóm sidebar «Tiến độ» với 2 menu con (Portal / Website sỉ/lẻ).
+TIEN_DO_PERM_MATRIX_MODULES = frozenset({MODULE_TIEN_DO})
+TIEN_DO_PERM_MATRIX_SUBMENUS = (
+    (MODULE_TIEN_DO, 'portal'),
+    (MODULE_TIEN_DO, 'wholesale_retail'),
+)
+
 
 def is_portal_module_visible(module_key: str) -> bool:
     return module_key not in HIDDEN_PORTAL_MODULES
@@ -190,6 +199,10 @@ DEPARTMENT_MENU_SECTIONS = [
             MODULE_KHO_SAN_PHAM,
             MODULE_KIOTVIET,
         ]),
+    },
+    {
+        'label': 'Tiến độ',
+        'modules': _visible_module_list([MODULE_TIEN_DO]),
     },
     {
         'label': 'Thư viện',
@@ -257,6 +270,7 @@ PATH_MODULE_RULES = [
     ('/tien-ich/', MODULE_UTILITIES),
     ('/kiotviet/', MODULE_KIOTVIET),
     ('/odoo/', MODULE_ODOO),
+    ('/tien-do/', MODULE_TIEN_DO),
     ('/kho-npl/', MODULE_KHO_NPL),
     ('/kho-vat-tu/', MODULE_KHO_VAT_TU),
     ('/kho-san-pham/', MODULE_KHO_SAN_PHAM),
