@@ -229,3 +229,83 @@ class KpiListDefaultsTests(TestCase):
         response = self.client.get(reverse('kpi_list'), {'tab': 'team'})
         self.assertEqual(response.context['active_tab'], 'division')
 
+
+@override_settings(ALLOWED_HOSTS=['testserver', 'localhost', '127.0.0.1'])
+@skip_if_kpi_hidden
+class KpiManagerEditLockTests(TestCase):
+    """Sau khi KPI đã trình giám đốc (mgr_reviewed), quản lý thường không
+    được sửa/chấm nữa — chỉ giám đốc tác động."""
+
+    def setUp(self):
+        from hrm.permissions import ROLE_DIRECTOR
+
+        self.dept = Department.objects.create(name='KPI Lock Dept', sort_order=7)
+        DepartmentMenuPermission.objects.create(department=self.dept, modules=['kpi'])
+
+        self.employee = User.objects.create_user(username='kpi_lock_emp', password='pass12345')
+        _profile(self.employee, full_name='NV Lock', department=self.dept, role=ROLE_EMPLOYEE, is_employed=True)
+
+        self.manager = User.objects.create_user(username='kpi_lock_mgr', password='pass12345')
+        _profile(self.manager, full_name='QL Lock', department=self.dept, role=ROLE_TEAM_LEADER, is_employed=True)
+        self.manager.profile.subordinates.add(self.employee)
+
+        self.director = User.objects.create_user(username='kpi_lock_dir', password='pass12345')
+        _profile(self.director, full_name='GD Lock', department=self.dept, role=ROLE_DIRECTOR, is_employed=True)
+
+        self.board = MonthlyKpi.objects.create(
+            employee=self.employee, direct_manager=self.manager, year=2026, month=7,
+        )
+        self.item = MonthlyKpiItem.objects.create(
+            monthly_kpi=self.board, sort_order=1, weightage=100,
+            indicator='Tieu chi', self_score=8,
+        )
+        self.client = Client(HTTP_HOST='testserver')
+
+    def _detail(self):
+        return reverse('kpi_detail', kwargs={'kpi_id': self.board.id})
+
+    def test_manager_can_edit_when_self_submitted(self):
+        self.board.status = MonthlyKpi.STATUS_SELF_SUBMITTED
+        self.board.save(update_fields=['status'])
+        self.client.login(username='kpi_lock_mgr', password='pass12345')
+        resp = self.client.get(self._detail())
+        self.assertTrue(resp.context['can_edit_manager'])
+
+    def test_manager_cannot_edit_after_mgr_reviewed(self):
+        self.board.status = MonthlyKpi.STATUS_MGR_REVIEWED
+        self.board.save(update_fields=['status'])
+        self.client.login(username='kpi_lock_mgr', password='pass12345')
+        resp = self.client.get(self._detail())
+        self.assertFalse(resp.context['can_edit_manager'])
+        self.assertFalse(resp.context['can_submit_manager'])
+        self.assertFalse(resp.context['can_approve'])  # manager không phải GĐ
+
+    def test_manager_post_blocked_after_mgr_reviewed(self):
+        self.board.status = MonthlyKpi.STATUS_MGR_REVIEWED
+        self.board.save(update_fields=['status'])
+        self.client.login(username='kpi_lock_mgr', password='pass12345')
+        resp = self.client.post(self._detail(), {
+            f'item_{self.item.id}_mgr_score': '12',
+            f'item_{self.item.id}_mgr_actual': 'sửa trộm',
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.item.refresh_from_db()
+        self.assertIsNone(self.item.mgr_score)
+        self.assertEqual(self.item.mgr_actual, '')
+
+    def test_director_can_edit_after_mgr_reviewed(self):
+        self.board.status = MonthlyKpi.STATUS_MGR_REVIEWED
+        self.board.save(update_fields=['status'])
+        self.client.login(username='kpi_lock_dir', password='pass12345')
+        resp = self.client.get(self._detail())
+        self.assertTrue(resp.context['can_edit_manager'])
+        self.assertTrue(resp.context['can_approve'])
+
+    def test_nobody_edits_after_approved(self):
+        self.board.status = MonthlyKpi.STATUS_APPROVED
+        self.board.save(update_fields=['status'])
+        self.client.login(username='kpi_lock_dir', password='pass12345')
+        resp = self.client.get(self._detail())
+        self.assertFalse(resp.context['can_edit_manager'])
+        self.assertFalse(resp.context['can_edit_self'])
+

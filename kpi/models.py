@@ -186,9 +186,20 @@ class MonthlyKpi(models.Model):
         """NV chỉ sửa cột của mình khi bảng còn ở bước tự đánh giá."""
         return self.status == self.STATUS_DRAFT
 
-    def can_manager_edit(self) -> bool:
-        """QL chấm cột QL khi NV đã nộp (và chưa phê duyệt)."""
-        return self.status in (self.STATUS_SELF_SUBMITTED, self.STATUS_MGR_REVIEWED)
+    def can_manager_edit(self, *, is_director: bool = False) -> bool:
+        """Quyền chấm/sửa cột Quản lý.
+
+        - Quản lý/TBP thường: chỉ khi NV đã nộp và CHƯA trình giám đốc
+          (status = self_submitted). Khi đã trình (mgr_reviewed) thì khoá với
+          quản lý — chỉ giám đốc mới tác động.
+        - Giám đốc: còn sửa được cột QL ở cả self_submitted và mgr_reviewed
+          (để chốt điểm trước khi phê duyệt).
+        """
+        if self.status == self.STATUS_SELF_SUBMITTED:
+            return True
+        if self.status == self.STATUS_MGR_REVIEWED:
+            return is_director
+        return False
 
 
 class MonthlyKpiItem(models.Model):

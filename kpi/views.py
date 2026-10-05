@@ -880,7 +880,9 @@ def kpi_detail_view(request, kpi_id):
     role_can_edit_manager = is_manager or (is_director and not is_owner)
 
     can_edit_self = role_can_edit_self and kpi_board.can_self_edit()
-    can_edit_manager = role_can_edit_manager and kpi_board.can_manager_edit()
+    can_edit_manager = role_can_edit_manager and kpi_board.can_manager_edit(
+        is_director=is_director,
+    )
 
     # Hành động chuyển trạng thái
     can_submit_self = (
@@ -905,7 +907,13 @@ def kpi_detail_view(request, kpi_id):
         if not can_edit_self and not can_edit_manager:
             if role_can_edit_self and not kpi_board.can_self_edit():
                 messages.error(request, 'Bạn đã nộp KPI — không thể sửa cột Nhân viên nữa.')
-            elif role_can_edit_manager and not kpi_board.can_manager_edit():
+            elif role_can_edit_manager and kpi_board.status == MonthlyKpi.STATUS_MGR_REVIEWED:
+                messages.error(
+                    request,
+                    'KPI đã trình giám đốc — quản lý không chỉnh sửa được nữa. '
+                    'Nếu cần sửa, đề nghị giám đốc trả lại.',
+                )
+            elif role_can_edit_manager and not kpi_board.can_manager_edit(is_director=is_director):
                 messages.error(request, 'Chưa thể chấm — nhân viên chưa nộp bản tự đánh giá.')
             else:
                 messages.error(request, 'Bạn không có quyền sửa / chấm điểm KPI.')
@@ -1118,7 +1126,10 @@ def kpi_inline_upload(request, kpi_id):
         return _kpi_upload_error('KPI đã phê duyệt — không thể chỉnh sửa.', status=403)
     is_director = request.user.is_superuser or ROLE_DIRECTOR in effective_roles(request.user)
     can_edit_self = is_owner and kpi_board.can_self_edit()
-    can_edit_manager = (is_manager or (is_director and not is_owner)) and kpi_board.can_manager_edit()
+    can_edit_manager = (
+        (is_manager or (is_director and not is_owner))
+        and kpi_board.can_manager_edit(is_director=is_director)
+    )
     if not can_edit_self and not can_edit_manager:
         return _kpi_upload_error('Không có quyền chèn ảnh.', status=403)
 
