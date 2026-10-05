@@ -107,7 +107,7 @@
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'locked_accounts' or request.resolver_match.url_name == 'unlock_locked_account' %}{% elif '/dashboard/users' in request.path or '/dashboard/org' in request.path or '/dashboard/divisions' in request.path %}active{% elif '/dashboard/departments' in request.path and request.resolver_match.url_name != 'department_permissions' %}active{% endif %}"
                        data-jp-team-list-nav
                        data-loading-message="Đang tải danh sách nhân sự...">
-                        <i class="bi bi-person-lines-fill"></i><span>Danh sách nhân viên</span>
+                        <i class="bi bi-person-lines-fill"></i><span>DS nhân viên</span>
                     </a>
                 </li>
                 {% endif %}
@@ -254,7 +254,7 @@
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'team_cn' or request.resolver_match.url_name == 'detail_cn' or request.resolver_match.url_name == 'team_summary_cn' %}active{% endif %}"
                        data-jp-team-list-nav
                        data-loading-message="Đang tải danh sách SX...">
-                        <i class="bi bi-people-fill"></i><span>Quản lý báo cáo SX</span>
+                        <i class="bi bi-people-fill"></i><span>Quản lý BCSX</span>
                     </a>
                 </li>
                 {% endif %}
@@ -292,7 +292,7 @@
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'team_vp' or request.resolver_match.url_name == 'detail_vp' %}active{% endif %}"
                        data-jp-team-list-nav
                        data-loading-message="Đang tải danh sách VP...">
-                        <i class="bi bi-people-fill"></i><span>Quản lý báo cáo (VP)</span>
+                        <i class="bi bi-people-fill"></i><span>Quản lý BCVP</span>
                     </a>
                 </li>
                 {% endif %}
@@ -319,7 +319,7 @@
                 <li>
                     <a href="{% url 'tasks:cross_dept_list' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if '/cong-viec/lien-phong-ban' in request.path %}active{% endif %}">
-                        <i class="bi bi-diagram-3"></i><span>Dự án liên phòng ban</span>
+                        <i class="bi bi-diagram-3"></i><span>Dự án liên PB</span>
                     </a>
                 </li>
                 {% endif %}
@@ -436,8 +436,6 @@
                             </a>
                         </li>
                         {% endif %}
-                        {# Gộp vào loại "Sửa chữa máy móc, IT, CSVC" ở màn hình Gửi đề xuất —
-                           ẩn link tạo riêng để tránh trùng. Yêu cầu cũ vẫn xem/ xử lý được. #}
                     </ul>
                 </li>
                 {% endif %}
@@ -542,7 +540,7 @@
                 <li>
                     <a href="{% url 'tien_do:portal' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'portal' or request.resolver_match.url_name == 'portal_alt' %}active{% endif %}">
-                        <i class="bi bi-pc-display"></i><span>Tiến độ Portal</span>
+                        <i class="bi bi-pc-display"></i><span>Portal</span>
                     </a>
                 </li>
                 {% endif %}
@@ -551,7 +549,7 @@
                 <li>
                     <a href="{% url 'tien_do:wholesale_retail' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'wholesale_retail' %}active{% endif %}">
-                        <i class="bi bi-shop"></i><span>Tiến độ Website sỉ/lẻ</span>
+                        <i class="bi bi-shop"></i><span>Website sỉ/lẻ</span>
                     </a>
                 </li>
                 {% endif %}
