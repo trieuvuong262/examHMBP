@@ -423,6 +423,7 @@ class ServiceRequestWorkflowTests(TestCase):
             'title': 'Mua máy in',
             'description': 'Cần máy in A4',
             'needs_advance': '',
+            'needed_by': '2026-10-20',
             'lines-TOTAL_FORMS': '1',
             'lines-INITIAL_FORMS': '0',
             'lines-MIN_NUM_FORMS': '0',
@@ -691,6 +692,8 @@ class GeneralProposalTests(TestCase):
             'payment_kind': 'payment',
             'payment_amount': '3000000',
             'payee': 'EVN',
+            'payment_method': 'cash',
+            'due_date': '2026-10-20',
         })
         self.assertEqual(resp.status_code, 302)
         req = ServiceRequest.objects.get(requester=self.employee)
@@ -731,7 +734,7 @@ class GeneralProposalTests(TestCase):
         req = ServiceRequest.objects.get(requester=self.employee)
         self.assertEqual(req.request_subtype, ServiceRequest.SUBTYPE_REPAIR)
         final = req.steps.order_by('step_order').last()
-        self.assertEqual(final.step_code, ServiceRequestStep.STEP_IT_REPAIR)
+        self.assertEqual(final.step_code, ServiceRequestStep.STEP_GENERAL_EXECUTION)
         self.assertEqual(final.target_department_id, self.dept_it.id)
 
     def test_account_proposal_creates_request(self):
@@ -742,6 +745,8 @@ class GeneralProposalTests(TestCase):
             'description': 'Nhân viên vào làm 01/06',
             'account_kind': 'email',
             'target_user': 'Nguyễn Văn A',
+            'account_department': str(self.dept_prod.pk),
+            'needed_date': '2026-10-20',
         })
         self.assertEqual(resp.status_code, 302)
         req = ServiceRequest.objects.get(requester=self.employee)
@@ -756,8 +761,10 @@ class GeneralProposalTests(TestCase):
             'description': 'Bổ sung nhân lực chuyền 2',
             'hr_kind': 'recruit',
             'position': 'Công nhân may',
-            'target_department': 'Sản xuất',
+            'target_department': str(self.dept_prod.pk),
             'headcount': '3',
+            'recruit_reason': 'addition',
+            'desired_date': '2026-11-01',
         })
         self.assertEqual(resp.status_code, 302)
         req = ServiceRequest.objects.get(requester=self.employee)
@@ -773,7 +780,339 @@ class GeneralProposalTests(TestCase):
             'description': 'Máy mới',
             'account_kind': 'computer',
             'target_user': 'B',
+            'device_spec': 'Laptop văn phòng',
+            'account_department': str(self.dept_prod.pk),
+            'needed_date': '2026-10-20',
         })
         resp = self.client.get(reverse('service_requests:de_xuat_my'))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'Cấp máy tính')
+
+    # --- Hồi quy: 5 lỗi luồng đề xuất chung / quyền duyệt ---
+
+    def _create_general(self, subtype, **extra):
+        from service_requests.workflow_general import create_general_request_with_steps
+
+        return create_general_request_with_steps(
+            requester=self.employee,
+            request_type=RequestType.objects.get(code=RequestType.CODE_GENERAL_PROPOSAL),
+            subtype=subtype,
+            title=f'Đề xuất {subtype}',
+            description='Test',
+            **extra,
+        )
+
+    def _approve_managers(self, req):
+        approve_step(req.steps.get(step_code=ServiceRequestStep.STEP_TEAM_LEADER), actor=self.team_leader)
+        # Đề xuất chung: TBP duyệt không cần chọn Thu mua.
+        approve_step(req.steps.get(step_code=ServiceRequestStep.STEP_DIVISION_HEAD), actor=self.div_head)
+        req.refresh_from_db()
+
+    def test_division_head_approves_general_without_procurement_pick(self):
+        req = self._create_general(ServiceRequest.SUBTYPE_HR)
+        self._approve_managers(req)
+        dh = req.steps.get(step_code=ServiceRequestStep.STEP_DIVISION_HEAD)
+        self.assertEqual(dh.status, ServiceRequestStep.STATUS_COMPLETED)
+
+    def test_general_final_step_in_department_pending_and_completable(self):
+        from service_requests.permissions import can_handle_step, pending_steps_for_user
+        from service_requests.workflow import complete_execution_step
+
+        hr_staff = self._user('hcns_gen', ROLE_EMPLOYEE, self.dept_hr)
+        req = self._create_general(ServiceRequest.SUBTYPE_HR)
+        self._approve_managers(req)
+        final = req.steps.get(step_code=ServiceRequestStep.STEP_GENERAL_EXECUTION)
+        self.assertEqual(final.status, ServiceRequestStep.STATUS_PENDING)
+        self.assertTrue(pending_steps_for_user(hr_staff).filter(pk=final.pk).exists())
+        self.assertTrue(can_handle_step(hr_staff, final))
+        complete_execution_step(final, actor=hr_staff, note='Đã xử lý')
+        req.refresh_from_db()
+        self.assertEqual(req.status, ServiceRequest.STATUS_COMPLETED)
+
+    def test_general_repair_completable_by_it_department(self):
+        from service_requests.permissions import can_handle_step
+
+        it_staff = self._user('it_gen', ROLE_EMPLOYEE, self.dept_it)
+        req = self._create_general(ServiceRequest.SUBTYPE_REPAIR)
+        self._approve_managers(req)
+        final = req.steps.get(step_code=ServiceRequestStep.STEP_GENERAL_EXECUTION)
+        self.assertTrue(can_handle_step(it_staff, final))
+
+    def test_general_proposal_in_de_xuat_pending_list(self):
+        self.client.force_login(self.team_leader)
+        self._create_general(ServiceRequest.SUBTYPE_ACCOUNT)
+        resp = self.client.get(reverse('service_requests:de_xuat_pending'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Đề xuất account')
+
+    def test_other_division_head_cannot_handle_assigned_step(self):
+        from service_requests.permissions import can_handle_step
+
+        other_dh = self._user('tbp_khac', ROLE_DIVISION_HEAD, self.dept_hr)
+        req = self._create_general(ServiceRequest.SUBTYPE_HR)
+        approve_step(req.steps.get(step_code=ServiceRequestStep.STEP_TEAM_LEADER), actor=self.team_leader)
+        dh = req.steps.get(step_code=ServiceRequestStep.STEP_DIVISION_HEAD)
+        self.assertEqual(dh.assignee, self.div_head)
+        self.assertFalse(can_handle_step(other_dh, dh))
+        self.assertTrue(can_handle_step(self.div_head, dh))
+        self.assertTrue(can_handle_step(self.director, dh))
+
+
+class ProposalFormRulesTests(TestCase):
+    """Trường bắt buộc / điều kiện hiển thị theo loại đề xuất (proposal_forms.LAYOUT)."""
+
+    def setUp(self):
+        self.dept_a = Department.objects.create(name='Sản xuất', sort_order=0)
+        self.dept_b = Department.objects.create(name='Kho', sort_order=1)
+
+    def _form(self, subtype, data):
+        from service_requests.proposal_forms import GeneralProposalForm
+
+        base = {'title': 'T', 'description': 'D'}
+        base.update(data)
+        return GeneralProposalForm(base, subtype=subtype)
+
+    def test_transfer_requires_bank_account(self):
+        form = self._form('payment', {
+            'payment_kind': 'payment', 'payment_amount': '1000000', 'due_date': '2026-10-20',
+            'payee': 'NCC', 'payment_method': 'transfer',
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn('bank_account', form.errors)
+
+    def test_cash_does_not_require_bank_account_and_drops_hidden_value(self):
+        form = self._form('payment', {
+            'payment_kind': 'payment', 'payment_amount': '1000000', 'due_date': '2026-10-20',
+            'payee': 'NCC', 'payment_method': 'cash', 'bank_account': 'stale',
+        })
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertNotIn('bank_account', form.extra_data())
+        self.assertEqual(form.extra_data()['due_date'], '20/10/2026')
+
+    def test_reimbursement_requires_advance_ref(self):
+        form = self._form('payment', {
+            'payment_kind': 'reimbursement', 'payment_amount': '500000', 'due_date': '2026-10-20',
+            'payee': 'A', 'payment_method': 'cash',
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn('advance_ref', form.errors)
+
+    def test_hr_transfer_fields_and_recruit_fields_independent(self):
+        form = self._form('hr', {
+            'hr_kind': 'transfer', 'transfer_employee': 'Nguyễn A',
+            'from_department': str(self.dept_a.pk), 'to_department': str(self.dept_b.pk),
+            'effective_date': '2026-11-01',
+        })
+        self.assertTrue(form.is_valid(), form.errors)
+        extra = form.extra_data()
+        self.assertEqual(extra['from_department'], 'Sản xuất')
+        self.assertNotIn('position', extra)
+
+    def test_hr_transfer_same_department_rejected(self):
+        form = self._form('hr', {
+            'hr_kind': 'transfer', 'transfer_employee': 'Nguyễn A',
+            'from_department': str(self.dept_a.pk), 'to_department': str(self.dept_a.pk),
+            'effective_date': '2026-11-01',
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn('to_department', form.errors)
+
+    def test_hr_recruit_requires_position_headcount(self):
+        form = self._form('hr', {'hr_kind': 'recruit'})
+        self.assertFalse(form.is_valid())
+        for name in ('position', 'target_department', 'headcount', 'recruit_reason', 'desired_date'):
+            self.assertIn(name, form.errors)
+        self.assertNotIn('transfer_employee', form.errors)
+
+    def test_account_kind_specific_requirements(self):
+        form = self._form('account', {
+            'account_kind': 'account', 'needed_date': '2026-10-20',
+            'target_user': 'B', 'account_department': str(self.dept_a.pk),
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn('system_name', form.errors)
+        self.assertNotIn('device_spec', form.errors)
+
+    def test_required_markers_match_layout(self):
+        form = self._form('payment', {'payment_method': 'transfer'})
+        flags = {
+            item['field'].name: item['required']
+            for section in form.sections() for item in section['fields']
+        }
+        self.assertTrue(flags['payment_amount'])
+        self.assertTrue(flags['bank_account'])
+        self.assertFalse(flags['invoice_no'])
+
+    def test_extra_labels_for_detail_page(self):
+        from service_requests.proposal_forms import extra_field_labels
+
+        labels = extra_field_labels('payment')
+        self.assertEqual(labels['bank_account'], 'Số tài khoản · Ngân hàng')
+        self.assertEqual(extra_field_labels('purchase')['needed_by'], 'Ngày cần hàng')
+
+
+class ProposalFlowPreviewTests(TestCase):
+    def setUp(self):
+        self.dept = Department.objects.create(name='Sản xuất', sort_order=0)
+        Department.objects.create(name='Kế toán', sort_order=1)
+        self.user = User.objects.create_user(username='nv_flow', password='x')
+        Profile.objects.filter(user=self.user).update(
+            department=self.dept, role=ROLE_EMPLOYEE, full_name='nv_flow', is_employed=True,
+        )
+        self.user.refresh_from_db()
+
+    def test_payment_preview_has_amount_tiers_and_final_step(self):
+        from service_requests.workflow_general import preview_flow
+
+        steps = preview_flow(self.user, ServiceRequest.SUBTYPE_PAYMENT)
+        tiers = [s['tier'] for s in steps if s['tier']]
+        self.assertEqual(tiers, ['accountant', 'director'])
+        self.assertEqual(steps[-1]['label'], 'Kế toán xử lý chi')
+        self.assertEqual(steps[-1]['kind'], 'execution')
+
+    def test_purchase_preview_ends_with_receipt(self):
+        from service_requests.workflow_general import preview_flow
+
+        steps = preview_flow(self.user, ServiceRequest.SUBTYPE_PURCHASE)
+        labels = [s['label'] for s in steps]
+        self.assertIn('Thu mua kiểm tra giá & NCC', labels)
+        self.assertEqual(labels[-1], 'Xác nhận nhận hàng')
+
+
+@override_settings(PROCUREMENT_STAFF_USERNAMES='tm_test')
+class RequestProgressListTests(TestCase):
+    """Tiến trình trên «Đề xuất của tôi» / «Theo dõi tiến trình» (dùng lại setUp mua hàng)."""
+
+    setUp = ServiceRequestWorkflowTests.setUp
+    _user = ServiceRequestWorkflowTests._user
+    _create_request = ServiceRequestWorkflowTests._create_request
+    _submit_quote = ServiceRequestWorkflowTests._submit_quote
+    _approve_division_head = ServiceRequestWorkflowTests._approve_division_head
+    _approve_department_head = ServiceRequestWorkflowTests._approve_department_head
+    _approve_through_quote = ServiceRequestWorkflowTests._approve_through_quote
+
+    def test_purchase_progress_shows_post_quote_placeholder(self):
+        from service_requests.progress import STATE_CURRENT, STATE_PLANNED, build_progress
+
+        req = self._create_request()
+        progress = build_progress(req)
+        states = [n['state'] for n in progress['trail']]
+        self.assertEqual(states[0], STATE_CURRENT)
+        self.assertEqual(states[-1], STATE_PLANNED)
+        self.assertEqual(progress['position'], 1)
+        self.assertIn(self.team_leader.profile.full_name, progress['detail'])
+
+    def test_progress_after_quote_has_real_steps_only(self):
+        from service_requests.progress import STATE_PLANNED, build_progress
+
+        req = self._create_request()
+        self._approve_through_quote(req, unit_price=Decimal('100000'))
+        progress = build_progress(req)
+        self.assertNotIn(STATE_PLANNED, [n['state'] for n in progress['trail']])
+        self.assertEqual(progress['headline'], 'Thu mua đặt hàng')
+
+    def test_rejected_progress_shows_reason(self):
+        from service_requests.progress import build_progress
+        from service_requests.workflow import reject_step
+
+        req = self._create_request()
+        reject_step(req.steps.get(step_code=ServiceRequestStep.STEP_TEAM_LEADER), actor=self.team_leader, reason='Chưa cần')
+        req.refresh_from_db()
+        progress = build_progress(req)
+        self.assertIn('Tổ trưởng duyệt', progress['headline'])
+        self.assertEqual(progress['detail'], 'Lý do: Chưa cần')
+
+    def test_my_list_renders_progress_and_filters_subtype(self):
+        self._create_request(title='Mua keo dán')
+        self.client.force_login(self.employee)
+        resp = self.client.get(reverse('service_requests:de_xuat_my'))
+        self.assertContains(resp, 'Mua keo dán')
+        self.assertContains(resp, 'jp-rq-trail')
+        self.assertContains(resp, 'Mua vật tư, thiết bị, văn phòng phẩm')
+        resp = self.client.get(reverse('service_requests:de_xuat_my') + '?subtype=payment')
+        self.assertNotContains(resp, 'Mua keo dán')
+
+    def test_involved_list_marks_my_action_and_done_steps(self):
+        req = self._create_request(title='Theo dõi keo')
+        self.client.force_login(self.team_leader)
+        resp = self.client.get(reverse('service_requests:de_xuat_involved') + '?can-xu-ly=1')
+        self.assertContains(resp, 'Theo dõi keo')
+        self.assertContains(resp, 'Chờ tôi xử lý')
+
+        approve_step(req.steps.get(step_code=ServiceRequestStep.STEP_TEAM_LEADER), actor=self.team_leader)
+        resp = self.client.get(reverse('service_requests:de_xuat_involved'))
+        self.assertContains(resp, 'bi-check2')
+        resp = self.client.get(reverse('service_requests:de_xuat_involved') + '?can-xu-ly=1')
+        self.assertNotContains(resp, 'Theo dõi keo')
+
+
+@override_settings(PROCUREMENT_STAFF_USERNAMES='tm_test')
+class PendingListFlowTests(TestCase):
+    """«Chờ tôi xử lý» phải khớp đúng người được phép xử lý ở từng bước."""
+
+    setUp = ServiceRequestWorkflowTests.setUp
+    _user = ServiceRequestWorkflowTests._user
+    _create_request = ServiceRequestWorkflowTests._create_request
+    _submit_quote = ServiceRequestWorkflowTests._submit_quote
+    _approve_division_head = ServiceRequestWorkflowTests._approve_division_head
+
+    def _people(self):
+        return [self.team_leader, self.div_head, self.employee, self.accountant, self.buyer, self.director]
+
+    def _assert_pending_matches_permissions(self, req):
+        from service_requests.permissions import can_claim_step, can_handle_step, pending_steps_for_user
+
+        for user in self._people():
+            for step in pending_steps_for_user(user).filter(request=req):
+                self.assertTrue(
+                    can_handle_step(user, step) or can_claim_step(user, step),
+                    f'{user.username} thấy bước {step.name} nhưng không xử lý được',
+                )
+        open_step = req.steps.filter(status__in=ServiceRequestStep.OPEN_HANDLER_STATUSES).first()
+        if open_step:
+            handlers = [u for u in self._people() if can_handle_step(u, open_step)]
+            for user in handlers:
+                self.assertTrue(
+                    pending_steps_for_user(user).filter(pk=open_step.pk).exists(),
+                    f'{user.username} xử lý được {open_step.name} nhưng không thấy trong Chờ xử lý',
+                )
+
+    def test_pending_matches_permissions_through_purchase_flow(self):
+        req = self._create_request()
+        self._assert_pending_matches_permissions(req)
+        approve_step(req.steps.get(step_code=ServiceRequestStep.STEP_TEAM_LEADER), actor=self.team_leader)
+        self._assert_pending_matches_permissions(req)
+        self._approve_division_head(req)
+        self._assert_pending_matches_permissions(req)
+        self._submit_quote(req, unit_price=Decimal('500000'))  # 5M → Kế toán
+        self._assert_pending_matches_permissions(req)
+
+    def test_pending_page_shows_action_and_reason(self):
+        self._create_request(title='Mua băng keo')
+        self.client.force_login(self.team_leader)
+        resp = self.client.get(reverse('service_requests:de_xuat_pending'))
+        self.assertContains(resp, 'Mua băng keo')
+        self.assertContains(resp, 'Được giao cho bạn')
+        self.assertEqual(resp.context['page_obj'].object_list[0].info['action'], 'Duyệt')
+
+    def test_procurement_quote_listed_as_quote_action(self):
+        req = self._create_request(title='Mua máy khoan')
+        approve_step(req.steps.get(step_code=ServiceRequestStep.STEP_TEAM_LEADER), actor=self.team_leader)
+        self._approve_division_head(req)
+        self.client.force_login(self.buyer)
+        resp = self.client.get(reverse('service_requests:de_xuat_pending') + '?nhom=thuc-hien')
+        self.assertContains(resp, 'Mua máy khoan')
+        self.assertContains(resp, 'Báo giá NCC')
+        resp = self.client.get(reverse('service_requests:de_xuat_pending') + '?nhom=duyet')
+        self.assertNotContains(resp, 'Mua máy khoan')
+
+    def test_director_sees_unassigned_team_leader_step(self):
+        from service_requests.permissions import can_claim_step, pending_steps_for_user
+
+        req = self._create_request()
+        tl = req.steps.get(step_code=ServiceRequestStep.STEP_TEAM_LEADER)
+        tl.assignee = None
+        tl.save(update_fields=['assignee'])
+        self.assertTrue(pending_steps_for_user(self.director).filter(pk=tl.pk).exists())
+        self.assertTrue(can_claim_step(self.director, tl))
+        self.assertFalse(pending_steps_for_user(self.accountant).filter(pk=tl.pk).exists())

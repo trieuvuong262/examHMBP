@@ -304,12 +304,23 @@ class ServiceRequest(models.Model):
         return self.request_subtype == self.SUBTYPE_PURCHASE
 
     @property
+    def is_asset_purchase(self):
+        """Đề xuất mua hàng (có Thu mua báo giá) — khác đề xuất chung và hỗ trợ."""
+        return self.request_type.code == RequestType.CODE_ASSET_PURCHASE
+
+    @property
     def subtype_label(self):
         return dict(self.SUBTYPE_CHOICES).get(self.request_subtype, '')
 
     def extra_items(self):
         """Danh sách (nhãn, giá trị) của extra_data — dùng để hiển thị ở trang chi tiết."""
-        labels = EXTRA_FIELD_LABELS.get(self.request_subtype, {})
+        from .proposal_forms import extra_field_labels
+
+        # Nhãn cũ (dữ liệu trước khi đổi form) + nhãn theo bố cục form hiện tại.
+        labels = {
+            **EXTRA_FIELD_LABELS.get(self.request_subtype, {}),
+            **extra_field_labels(self.request_subtype),
+        }
         items = []
         for key, value in (self.extra_data or {}).items():
             if value in (None, '', []):
@@ -353,7 +364,7 @@ EXTRA_FIELD_LABELS = {
     ServiceRequest.SUBTYPE_HR: {
         'hr_kind': 'Loại yêu cầu',
         'position': 'Vị trí / chức danh',
-        'target_department': 'Phòng ban',
+        'target_department': 'Phòng ban cần nhân sự',
         'headcount': 'Số lượng',
         'desired_date': 'Ngày mong muốn',
     },
@@ -490,6 +501,8 @@ class ServiceRequestStep(models.Model):
     STEP_RECEIPT = 'goods_receipt'
     STEP_IT_REPAIR = 'it_repair_execution'
     STEP_REQUESTER_CONFIRM = 'requester_confirmation'
+    # Bước thực hiện cuối của đề xuất chung (thanh toán, nhân sự, sửa chữa, cấp phát).
+    STEP_GENERAL_EXECUTION = 'general_execution'
 
     request = models.ForeignKey(
         ServiceRequest,

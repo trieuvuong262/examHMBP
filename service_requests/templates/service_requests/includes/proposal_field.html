@@ -1,0 +1,17 @@
+{# Một trường form đề xuất. Tham số: field, col, required, is_checkbox, show_field, show_values, visible #}
+<div class="{{ col }} jp-pf-field{% if field.errors %} has-error{% endif %}"
+     {% if show_field %}data-show-field="{{ show_field }}" data-show-values="{{ show_values }}"{% endif %}
+     {% if not visible %}hidden{% endif %}>
+    {% if is_checkbox %}
+    <div class="form-check jp-pf-check">
+        {{ field }}
+        <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+    </div>
+    {% else %}
+    <label class="form-label fw-semibold" for="{{ field.id_for_label }}">
+        {{ field.label }}{% if required %} <span class="text-danger" aria-hidden="true">*</span><span class="visually-hidden">(bắt buộc)</span>{% endif %}
+    </label>
+    {{ field }}
+    {% endif %}
+    {% if field.errors %}<div class="invalid-feedback d-block" role="alert">{{ field.errors.0 }}</div>{% endif %}
+</div>

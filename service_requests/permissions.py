@@ -37,6 +37,23 @@ _PROCUREMENT_QUEUE_STEP_CODES = frozenset({
     ServiceRequestStep.STEP_ADVANCE,
 })
 
+_MANAGER_APPROVAL_STEP_CODES = frozenset({
+    ServiceRequestStep.STEP_DIVISION_HEAD,
+    ServiceRequestStep.STEP_DEPARTMENT_HEAD,
+})
+
+
+def _is_resolved_manager(user, step) -> bool:
+    """User có đúng là cấp trên (theo vai trò bước) của người gửi không."""
+    from .workflow import _resolve_assignee
+
+    manager = _resolve_assignee(
+        step.assignee_rule,
+        step.request.requester,
+        step_code=step.step_code,
+    )
+    return bool(manager and manager.pk == user.pk)
+
 
 def is_procurement_staff(user) -> bool:
     """Nhân viên Thu mua được phép xử lý hàng đợi mua sắm."""
@@ -185,12 +202,17 @@ def can_handle_step(user, step: ServiceRequestStep) -> bool:
         return False
     if step.status not in ServiceRequestStep.OPEN_HANDLER_STATUSES:
         return False
-    if step.step_code == ServiceRequestStep.STEP_DIVISION_HEAD and is_division_head(user):
-        return True
-    if step.step_code == ServiceRequestStep.STEP_DEPARTMENT_HEAD and is_department_head(user):
+    # Giám đốc được duyệt thay bước Trưởng bộ phận / Trưởng phòng của mọi phiếu.
+    # TBP/TP khác chỉ xử lý bước được gán cho chính mình (kiểm tra assignee bên dưới).
+    if step.step_code in _MANAGER_APPROVAL_STEP_CODES and is_director(user):
         return True
     if step.assignee_id:
         return step.assignee_id == user.id
+    if step.assignee_rule == RequestTypeStepTemplate.RULE_DIRECT_MANAGER:
+        # Bước cấp trên chưa gán được người: GĐ hoặc đúng cấp trên của người gửi.
+        if is_director(user):
+            return True
+        return _is_resolved_manager(user, step)
     if step.assignee_rule == RequestTypeStepTemplate.RULE_DEPARTMENT_QUEUE:
         if _is_procurement_queue_step(step):
             return is_procurement_staff(user)
@@ -304,6 +326,11 @@ def pending_steps_for_user(user):
     if is_director(user):
         filters |= Q(step_code=ServiceRequestStep.STEP_DIVISION_HEAD)
         filters |= Q(step_code=ServiceRequestStep.STEP_DEPARTMENT_HEAD)
+        # Bước cấp trên không gán được người (VD Tổ trưởng nghỉ) — GĐ tiếp nhận thay (khớp can_handle_step).
+        filters |= Q(
+            assignee__isnull=True,
+            assignee_rule=RequestTypeStepTemplate.RULE_DIRECT_MANAGER,
+        )
         filters |= Q(
             assignee__isnull=True,
             assignee_rule=RequestTypeStepTemplate.RULE_DEPARTMENT_QUEUE,

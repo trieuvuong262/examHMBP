@@ -535,8 +535,15 @@ def approve_step(step, *, actor, note='', procurement_assignee=None):
     if step.status not in ServiceRequestStep.OPEN_HANDLER_STATUSES:
         raise ValueError('Bước không thể duyệt.')
 
-    if step.step_code == ServiceRequestStep.STEP_DIVISION_HEAD and not procurement_assignee:
+    # Chỉ đề xuất mua hàng mới có bước Thu mua báo giá để chỉ định.
+    needs_procurement_pick = (
+        step.step_code == ServiceRequestStep.STEP_DIVISION_HEAD
+        and step.request.is_asset_purchase
+    )
+    if needs_procurement_pick and not procurement_assignee:
         raise ValueError('Vui lòng chỉ định nhân viên Thu mua xử lý.')
+    if not needs_procurement_pick:
+        procurement_assignee = None
 
     if procurement_assignee:
         from .permissions import get_procurement_staff_candidates

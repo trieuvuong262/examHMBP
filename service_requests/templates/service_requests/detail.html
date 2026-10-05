@@ -223,7 +223,7 @@
                         {{ purchase_form.note }}
                         <button type="submit" class="btn btn-success w-100 mt-3">Ghi nhận đặt hàng</button>
                     </form>
-                    {% elif can_handle_current and current_step.is_approval and current_step.step_code == 'division_head_approval' %}
+                    {% elif can_handle_current and current_step.is_approval and current_step.step_code == 'division_head_approval' and service_request.is_asset_purchase %}
                     <form method="post" class="mb-3">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="approve">

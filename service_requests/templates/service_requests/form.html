@@ -1,249 +1,265 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}
+<style>
+    .jp-pf-card { border-radius: .75rem; }
+    .jp-pf-card + .jp-pf-card { margin-top: 1rem; }
+    .jp-pf-section-title {
+        display: flex; align-items: center; gap: .5rem;
+        font-size: .95rem; font-weight: 700; color: var(--hm-primary);
+        margin-bottom: .75rem;
+    }
+    .jp-pf-section-title .jp-pf-step-no {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 1.6rem; height: 1.6rem; border-radius: 50%;
+        background: var(--hm-primary); color: #fff; font-size: .8rem; line-height: 1;
+    }
+    .jp-pf-sub-title {
+        display: flex; align-items: center; gap: .4rem;
+        font-weight: 600; font-size: .85rem; color: #475569;
+        text-transform: uppercase; letter-spacing: .02em;
+        margin: .25rem 0 .5rem;
+    }
+    .jp-pf-field.has-error .form-control,
+    .jp-pf-field.has-error .form-select { border-color: #dc3545; }
+    .jp-pf-check { padding-top: .35rem; }
+    .jp-pf-money-hint { font-size: .8rem; color: #64748b; min-height: 1.1rem; }
+    .jp-pf-required-note { font-size: .8rem; color: #64748b; }
+
+    /* Khung quy trình dự kiến */
+    .jp-pf-flow { position: sticky; top: 1rem; }
+    .jp-pf-flow-list { list-style: none; margin: 0; padding: 0; counter-reset: flow; }
+    .jp-pf-flow-item {
+        position: relative; padding: 0 0 .9rem 2.2rem; counter-increment: flow;
+    }
+    .jp-pf-flow-item::before {
+        content: counter(flow);
+        position: absolute; left: 0; top: 0;
+        width: 1.5rem; height: 1.5rem; border-radius: 50%;
+        display: inline-flex; align-items: center; justify-content: center;
+        font-size: .75rem; font-weight: 700; line-height: 1;
+        background: #fff; color: var(--hm-primary); border: 1.5px solid var(--hm-primary);
+    }
+    .jp-pf-flow-item.is-execution::before { background: var(--hm-primary); color: #fff; }
+    .jp-pf-flow-item:not(:last-child)::after {
+        content: ''; position: absolute; left: .72rem; top: 1.6rem; bottom: .1rem;
+        border-left: 1.5px dashed #cbd5e1;
+    }
+    .jp-pf-flow-item[hidden] { display: none; }
+    .jp-pf-flow-label { font-weight: 600; font-size: .9rem; }
+    .jp-pf-flow-note { font-size: .78rem; color: #64748b; }
+
+    [data-theme="dark"] .jp-pf-sub-title,
+    [data-theme="dark"] .jp-pf-flow-note,
+    [data-theme="dark"] .jp-pf-money-hint,
+    [data-theme="dark"] .jp-pf-required-note { color: #94a3b8; }
+    [data-theme="dark"] .jp-pf-flow-item::before { background: transparent; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container jp-page py-3 py-md-4 mb-5">
-    <div class="jp-page-header mb-3 mb-md-4">
-        <div>
-            <h2 class="fw-bold text-hm mb-1 jp-page-title">Gửi đề xuất</h2>
-        </div>
+    <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-end gap-2">
+        <h2 class="fw-bold text-hm mb-0 jp-page-title">Gửi đề xuất</h2>
+        <span class="jp-pf-required-note"><span class="text-danger">*</span> Trường bắt buộc</span>
     </div>
 
-    <div class="card border-0 shadow-sm">
-        <div class="card-body p-3 p-md-4">
+    <form method="post" enctype="multipart/form-data" novalidate id="proposal-form" data-subtype="{{ current_subtype }}">
+        {% csrf_token %}
+        <div class="row g-3 g-lg-4">
+            <div class="col-lg-8">
 
-            <div class="mb-4">
-                <label class="form-label fw-bold">{{ subtype_form.request_subtype.label }} <span class="text-danger">*</span></label>
-                {{ subtype_form.request_subtype }}
-                <div class="form-text">Chọn loại đề xuất để hiển thị các thông tin phù hợp.</div>
-            </div>
+                {# ---------- 1. Loại đề xuất ---------- #}
+                <div class="card border-0 shadow-sm jp-pf-card">
+                    <div class="card-body p-3 p-md-4">
+                        <div class="jp-pf-section-title"><span class="jp-pf-step-no">1</span>Loại đề xuất</div>
+                        <label class="form-label fw-semibold" for="id_request_subtype">
+                            Chọn loại đề xuất <span class="text-danger" aria-hidden="true">*</span><span class="visually-hidden">(bắt buộc)</span>
+                        </label>
+                        <select name="request_subtype" id="id_request_subtype" class="form-select form-select-lg" required
+                                data-current="{{ current_subtype }}">
+                            {% for value, label in subtype_form.fields.request_subtype.choices %}
+                            <option value="{{ value }}"{% if value == current_subtype %} selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
 
-            {% if current_subtype == 'purchase' %}
-            <div class="alert alert-light border mb-4">
-                <strong>Quy trình:</strong>
-                <ol class="mb-0 mt-2 ps-3 small">
-                    <li>Tổ trưởng duyệt (nếu phòng có Tổ trưởng và bạn là nhân viên)</li>
-                    <li>Trưởng bộ phận duyệt (bỏ qua nếu bạn là Trưởng BP)</li>
-                    <li>Thu mua kiểm tra giá, nhập báo giá nhiều NCC</li>
-                    <li>Kế toán / Giám đốc duyệt (theo tổng giá NCC đã chọn: &lt;2M hoặc hàng định kỳ → bỏ qua)</li>
-                    <li>Tạm ứng (nếu chọn) → Thu mua đặt hàng → Xác nhận nhận hàng</li>
-                </ol>
-            </div>
-            {% else %}
-            <div class="alert alert-light border mb-4">
-                <strong>Quy trình:</strong>
-                <ol class="mb-0 mt-2 ps-3 small">
-                    <li>Tổ trưởng duyệt (nếu phòng có Tổ trưởng và bạn là nhân viên)</li>
-                    <li>Trưởng bộ phận / Trưởng phòng duyệt</li>
-                    <li>Kế toán / Giám đốc duyệt (nếu có số tiền lớn)</li>
-                    <li>Bộ phận phụ trách tiếp nhận &amp; xử lý</li>
-                </ol>
-            </div>
-            {% endif %}
-
-            {% if current_subtype == 'purchase' %}
-            {# ---------- Mua vật tư, thiết bị, VPP ---------- #}
-            <form method="post" enctype="multipart/form-data" novalidate id="request-create-form">
-                {% csrf_token %}
-                <input type="hidden" name="request_subtype" value="purchase">
+                {% if current_subtype == 'purchase' %}
+                {# ================= Mua vật tư, thiết bị, VPP ================= #}
                 {% if form.non_field_errors %}
-                <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                <div class="alert alert-danger mt-3 mb-0" role="alert">{{ form.non_field_errors }}</div>
                 {% endif %}
 
-                <div class="mb-3">
-                    <label class="form-label fw-bold">{{ form.title.label }} <span class="text-danger">*</span></label>
-                    {{ form.title }}
-                    {% if form.title.errors %}<div class="text-danger small">{{ form.title.errors }}</div>{% endif %}
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label fw-bold">{{ form.description.label }} <span class="text-danger">*</span></label>
-                    {{ form.description }}
-                    {% if form.description.errors %}<div class="text-danger small">{{ form.description.errors }}</div>{% endif %}
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label fw-bold">{{ form.recurring_item.label }}</label>
-                    {{ form.recurring_item }}
-                    <div class="form-text">Chọn hàng mua định kỳ để bỏ qua bước duyệt Kế toán/Giám đốc theo giá trị.</div>
-                </div>
-
-                <div class="mb-4">
-                    <label class="form-label fw-bold">Danh sách hàng hóa <span class="text-danger">*</span></label>
-                    <div class="table-responsive">
-                        <table class="table table-sm align-middle" id="line-items-table">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Mô tả</th>
-                                    <th style="width:120px">Số lượng</th>
-                                    <th style="width:100px">Đơn vị</th>
-                                    <th style="width:50px"></th>
-                                </tr>
-                            </thead>
-                            <tbody id="line-items-body">
-                                {{ line_formset.management_form }}
-                                {% for lform in line_formset %}
-                                <tr class="line-item-row">
-                                    <td>{{ lform.description }}{% if lform.description.errors %}<div class="text-danger small">{{ lform.description.errors }}</div>{% endif %}</td>
-                                    <td>{{ lform.quantity }}</td>
-                                    <td>{{ lform.unit }}</td>
-                                    <td><button type="button" class="btn btn-sm btn-outline-danger remove-line-btn" title="Xóa dòng">&times;</button></td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" id="add-line-btn">
-                        <i class="bi bi-plus-lg me-1"></i>Thêm dòng
-                    </button>
-                    <div class="form-text">Không cần nhập giá — Thu mua sẽ báo giá sau khi duyệt.</div>
-                </div>
-
-                <div class="mb-3">
-                    <div class="form-check">
-                        {{ form.needs_advance }}
-                        <label class="form-check-label" for="{{ form.needs_advance.id_for_label }}">{{ form.needs_advance.label }}</label>
+                <div class="card border-0 shadow-sm jp-pf-card">
+                    <div class="card-body p-3 p-md-4">
+                        <div class="jp-pf-section-title"><span class="jp-pf-step-no">2</span>Thông tin chung</div>
+                        <div class="row g-3">
+                            <div class="col-12 jp-pf-field{% if form.title.errors %} has-error{% endif %}">
+                                <label class="form-label fw-semibold" for="{{ form.title.id_for_label }}">{{ form.title.label }} <span class="text-danger" aria-hidden="true">*</span></label>
+                                {{ form.title }}
+                                {% if form.title.errors %}<div class="invalid-feedback d-block">{{ form.title.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6 jp-pf-field{% if form.needed_by.errors %} has-error{% endif %}">
+                                <label class="form-label fw-semibold" for="{{ form.needed_by.id_for_label }}">{{ form.needed_by.label }} <span class="text-danger" aria-hidden="true">*</span></label>
+                                {{ form.needed_by }}
+                                {% if form.needed_by.errors %}<div class="invalid-feedback d-block">{{ form.needed_by.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6 jp-pf-field">
+                                <label class="form-label fw-semibold" for="{{ form.usage_location.id_for_label }}">{{ form.usage_location.label }}</label>
+                                {{ form.usage_location }}
+                            </div>
+                            <div class="col-12 jp-pf-field{% if form.description.errors %} has-error{% endif %}">
+                                <label class="form-label fw-semibold" for="{{ form.description.id_for_label }}">{{ form.description.label }} <span class="text-danger" aria-hidden="true">*</span></label>
+                                {{ form.description }}
+                                {% if form.description.errors %}<div class="invalid-feedback d-block">{{ form.description.errors.0 }}</div>{% endif %}
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="mb-3" id="advance-amount-wrap">
-                    <label class="form-label fw-bold">{{ form.advance_amount.label }}</label>
-                    {{ form.advance_amount }}
-                    {% if form.advance_amount.errors %}<div class="text-danger small">{{ form.advance_amount.errors }}</div>{% endif %}
+
+                <div class="card border-0 shadow-sm jp-pf-card">
+                    <div class="card-body p-3 p-md-4">
+                        <div class="jp-pf-section-title"><span class="jp-pf-step-no">3</span>Danh sách hàng hóa</div>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-2" id="line-items-table">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th scope="col">Tên / mô tả hàng <span class="text-danger" aria-hidden="true">*</span></th>
+                                        <th scope="col" style="width:130px">Số lượng <span class="text-danger" aria-hidden="true">*</span></th>
+                                        <th scope="col" style="width:110px">Đơn vị</th>
+                                        <th scope="col" style="width:48px"><span class="visually-hidden">Xóa</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="line-items-body">
+                                    {{ line_formset.management_form }}
+                                    {% for lform in line_formset %}
+                                    <tr class="line-item-row">
+                                        <td>{{ lform.description }}{% if lform.description.errors %}<div class="invalid-feedback d-block">{{ lform.description.errors.0 }}</div>{% endif %}</td>
+                                        <td>{{ lform.quantity }}{% if lform.quantity.errors %}<div class="invalid-feedback d-block">{{ lform.quantity.errors.0 }}</div>{% endif %}</td>
+                                        <td>{{ lform.unit }}</td>
+                                        <td class="text-center"><button type="button" class="btn btn-link text-danger p-0 remove-line-btn" aria-label="Xóa dòng"><i class="bi bi-x-lg"></i></button></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% if line_formset.non_form_errors %}<div class="invalid-feedback d-block mb-2">{{ line_formset.non_form_errors.0 }}</div>{% endif %}
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="add-line-btn">
+                            <i class="bi bi-plus-lg me-1"></i>Thêm dòng
+                        </button>
+                        <div class="form-text">Không cần nhập giá — Thu mua báo giá sau khi duyệt.</div>
+                    </div>
                 </div>
 
-                {% include 'tasks/includes/upload_fields.html' %}
-
-                <div class="d-flex flex-wrap gap-2 mt-4">
-                    <button type="submit" class="btn btn-hm">Gửi yêu cầu</button>
-                    <a href="{% url 'service_requests:de_xuat_my' %}" class="btn btn-outline-secondary">Hủy</a>
+                <div class="card border-0 shadow-sm jp-pf-card">
+                    <div class="card-body p-3 p-md-4">
+                        <div class="jp-pf-section-title"><span class="jp-pf-step-no">4</span>Tạm ứng &amp; đính kèm</div>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <div class="form-check">
+                                    {{ form.needs_advance }}
+                                    <label class="form-check-label" for="{{ form.needs_advance.id_for_label }}">{{ form.needs_advance.label }}</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 jp-pf-field{% if form.advance_amount.errors %} has-error{% endif %}" id="advance-amount-wrap"
+                                 data-show-field="needs_advance" data-show-values="on"
+                                 {% if not form.needs_advance.value %}hidden{% endif %}>
+                                <label class="form-label fw-semibold" for="{{ form.advance_amount.id_for_label }}">{{ form.advance_amount.label }} <span class="text-danger" aria-hidden="true">*</span></label>
+                                {{ form.advance_amount }}
+                                <div class="jp-pf-money-hint" data-money-hint-for="{{ form.advance_amount.id_for_label }}"></div>
+                                {% if form.advance_amount.errors %}<div class="invalid-feedback d-block">{{ form.advance_amount.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-12">
+                                {% include 'tasks/includes/upload_fields.html' %}
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </form>
 
-            {% else %}
-            {# ---------- Các loại đề xuất chung ---------- #}
-            <form method="post" enctype="multipart/form-data" novalidate id="general-create-form">
-                {% csrf_token %}
-                <input type="hidden" name="request_subtype" value="{{ current_subtype }}">
+                {% else %}
+                {# ================= Các loại đề xuất chung ================= #}
                 {% if general_form.non_field_errors %}
-                <div class="alert alert-danger">{{ general_form.non_field_errors }}</div>
+                <div class="alert alert-danger mt-3 mb-0" role="alert">{{ general_form.non_field_errors }}</div>
                 {% endif %}
 
-                <div class="mb-3">
-                    <label class="form-label fw-bold">{{ general_form.title.label }} <span class="text-danger">*</span></label>
-                    {{ general_form.title }}
-                    {% if general_form.title.errors %}<div class="text-danger small">{{ general_form.title.errors }}</div>{% endif %}
+                <div class="card border-0 shadow-sm jp-pf-card">
+                    <div class="card-body p-3 p-md-4">
+                        <div class="jp-pf-section-title"><span class="jp-pf-step-no">2</span>Thông tin chung</div>
+                        <div class="row g-3">
+                            {% include 'service_requests/includes/proposal_field.html' with field=general_form.title col='col-12' required=True visible=True %}
+                        </div>
+                    </div>
                 </div>
 
-                {% if current_subtype == 'payment' %}
-                <div class="row g-3">
-                    <div class="col-md-4 mb-2">
-                        <label class="form-label fw-bold">{{ general_form.payment_kind.label }} <span class="text-danger">*</span></label>
-                        {{ general_form.payment_kind }}
-                        {% if general_form.payment_kind.errors %}<div class="text-danger small">{{ general_form.payment_kind.errors }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-4 mb-2">
-                        <label class="form-label fw-bold">{{ general_form.payment_amount.label }} <span class="text-danger">*</span></label>
-                        {{ general_form.payment_amount }}
-                        {% if general_form.payment_amount.errors %}<div class="text-danger small">{{ general_form.payment_amount.errors }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-4 mb-2">
-                        <label class="form-label fw-bold">{{ general_form.due_date.label }}</label>
-                        {{ general_form.due_date }}
-                    </div>
-                    <div class="col-12 mb-2">
-                        <label class="form-label fw-bold">{{ general_form.payee.label }}</label>
-                        {{ general_form.payee }}
-                    </div>
-                </div>
-                {% elif current_subtype == 'hr' %}
-                <div class="row g-3">
-                    <div class="col-md-4 mb-2">
-                        <label class="form-label fw-bold">{{ general_form.hr_kind.label }} <span class="text-danger">*</span></label>
-                        {{ general_form.hr_kind }}
-                        {% if general_form.hr_kind.errors %}<div class="text-danger small">{{ general_form.hr_kind.errors }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-8 mb-2">
-                        <label class="form-label fw-bold">{{ general_form.position.label }} <span class="text-danger">*</span></label>
-                        {{ general_form.position }}
-                        {% if general_form.position.errors %}<div class="text-danger small">{{ general_form.position.errors }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-5 mb-2">
-                        <label class="form-label fw-bold">{{ general_form.target_department.label }}</label>
-                        {{ general_form.target_department }}
-                    </div>
-                    <div class="col-md-3 mb-2">
-                        <label class="form-label fw-bold">{{ general_form.headcount.label }}</label>
-                        {{ general_form.headcount }}
-                    </div>
-                    <div class="col-md-4 mb-2">
-                        <label class="form-label fw-bold">{{ general_form.desired_date.label }}</label>
-                        {{ general_form.desired_date }}
+                <div class="card border-0 shadow-sm jp-pf-card">
+                    <div class="card-body p-3 p-md-4">
+                        <div class="jp-pf-section-title"><span class="jp-pf-step-no">3</span>Chi tiết: {{ current_subtype_label }}</div>
+                        {% for section in general_form.sections %}
+                        <div class="jp-pf-section mb-3"
+                             {% if section.show_field %}data-show-field="{{ section.show_field }}" data-show-values="{{ section.show_values }}"{% endif %}
+                             {% if not section.visible %}hidden{% endif %}>
+                            {% if general_form.sections|length > 1 %}
+                            <div class="jp-pf-sub-title"><i class="bi {{ section.icon }}" aria-hidden="true"></i>{{ section.title }}</div>
+                            {% endif %}
+                            <div class="row g-3">
+                                {% for item in section.fields %}
+                                {% include 'service_requests/includes/proposal_field.html' with field=item.field col=item.col required=item.required is_checkbox=item.is_checkbox show_field=item.show_field show_values=item.show_values visible=item.visible %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                        <div class="row g-3">
+                            {% include 'service_requests/includes/proposal_field.html' with field=general_form.description col='col-12' required=True visible=True %}
+                        </div>
                     </div>
                 </div>
-                {% elif current_subtype == 'repair' %}
-                <div class="row g-3">
-                    <div class="col-md-6 mb-2">
-                        <label class="form-label fw-bold">{{ general_form.incident_category.label }} <span class="text-danger">*</span></label>
-                        {{ general_form.incident_category }}
-                        {% if general_form.incident_category.errors %}<div class="text-danger small">{{ general_form.incident_category.errors }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <label class="form-label fw-bold">{{ general_form.priority.label }} <span class="text-danger">*</span></label>
-                        {{ general_form.priority }}
-                        {% if general_form.priority.errors %}<div class="text-danger small">{{ general_form.priority.errors }}</div>{% endif %}
-                    </div>
-                    <div class="col-12 mb-2">
-                        <label class="form-label fw-bold">{{ general_form.location_text.label }} <span class="text-danger">*</span></label>
-                        {{ general_form.location_text }}
-                        {% if general_form.location_text.errors %}<div class="text-danger small">{{ general_form.location_text.errors }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <label class="form-label fw-bold">{{ general_form.equipment_label.label }}</label>
-                        {{ general_form.equipment_label }}
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <label class="form-label fw-bold">{{ general_form.equipment_serial.label }}</label>
-                        {{ general_form.equipment_serial }}
-                    </div>
-                </div>
-                {% elif current_subtype == 'account' %}
-                <div class="row g-3">
-                    <div class="col-md-6 mb-2">
-                        <label class="form-label fw-bold">{{ general_form.account_kind.label }} <span class="text-danger">*</span></label>
-                        {{ general_form.account_kind }}
-                        {% if general_form.account_kind.errors %}<div class="text-danger small">{{ general_form.account_kind.errors }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <label class="form-label fw-bold">{{ general_form.target_user.label }} <span class="text-danger">*</span></label>
-                        {{ general_form.target_user }}
-                        {% if general_form.target_user.errors %}<div class="text-danger small">{{ general_form.target_user.errors }}</div>{% endif %}
+
+                <div class="card border-0 shadow-sm jp-pf-card">
+                    <div class="card-body p-3 p-md-4">
+                        <div class="jp-pf-section-title"><span class="jp-pf-step-no">4</span>Đính kèm</div>
+                        {% include 'tasks/includes/upload_fields.html' %}
                     </div>
                 </div>
                 {% endif %}
 
-                <div class="mb-3 mt-2">
-                    <label class="form-label fw-bold">{{ general_form.description.label }} <span class="text-danger">*</span></label>
-                    {{ general_form.description }}
-                    {% if general_form.description.errors %}<div class="text-danger small">{{ general_form.description.errors }}</div>{% endif %}
-                </div>
-
-                {% include 'tasks/includes/upload_fields.html' %}
-
-                <div class="d-flex flex-wrap gap-2 mt-4">
-                    <button type="submit" class="btn btn-hm">Gửi đề xuất</button>
+                <div class="d-flex flex-wrap gap-2 mt-3">
+                    <button type="submit" class="btn btn-hm fw-bold px-4">
+                        <i class="bi bi-send me-1" aria-hidden="true"></i>Gửi đề xuất
+                    </button>
                     <a href="{% url 'service_requests:de_xuat_my' %}" class="btn btn-outline-secondary">Hủy</a>
                 </div>
-            </form>
-            {% endif %}
+            </div>
+
+            {# ---------- Quy trình dự kiến ---------- #}
+            <div class="col-lg-4">
+                <aside class="card border-0 shadow-sm jp-pf-card jp-pf-flow" aria-labelledby="jp-pf-flow-title"
+                       data-acc-min="{{ thresholds.accountant_min }}" data-dir-min="{{ thresholds.director_min }}">
+                    <div class="card-body p-3 p-md-4">
+                        <div class="jp-pf-section-title mb-3" id="jp-pf-flow-title"><i class="bi bi-diagram-3" aria-hidden="true"></i>Quy trình xử lý</div>
+                        <ol class="jp-pf-flow-list">
+                            {% for step in flow_steps %}
+                            <li class="jp-pf-flow-item{% if step.kind == 'execution' %} is-execution{% endif %}"
+                                {% if step.tier %}data-tier="{{ step.tier }}"{% endif %}
+                                {% if step.advance %}data-advance="1"{% endif %}>
+                                <div class="jp-pf-flow-label">{{ step.label }}</div>
+                                {% if step.note %}<div class="jp-pf-flow-note">{{ step.note }}</div>{% endif %}
+                            </li>
+                            {% endfor %}
+                        </ol>
+                    </div>
+                </aside>
+            </div>
         </div>
-    </div>
+    </form>
 </div>
 
 <template id="line-item-row-template">
     <tr class="line-item-row">
-        <td><input type="text" name="lines-__prefix__-description" class="form-control" placeholder="Tên / mô tả hàng hóa"></td>
-        <td><input type="number" name="lines-__prefix__-quantity" class="form-control" min="0.01" step="0.01" value="1"></td>
-        <td><input type="text" name="lines-__prefix__-unit" class="form-control" value="cái"></td>
-        <td><button type="button" class="btn btn-sm btn-outline-danger remove-line-btn">&times;</button></td>
+        <td><input type="text" name="lines-__prefix__-description" class="form-control" placeholder="Tên / mô tả hàng hóa" aria-label="Tên / mô tả hàng"></td>
+        <td><input type="number" name="lines-__prefix__-quantity" class="form-control" min="0.01" step="0.01" value="1" aria-label="Số lượng"></td>
+        <td><input type="text" name="lines-__prefix__-unit" class="form-control" value="cái" aria-label="Đơn vị"></td>
+        <td class="text-center"><button type="button" class="btn btn-link text-danger p-0 remove-line-btn" aria-label="Xóa dòng"><i class="bi bi-x-lg"></i></button></td>
     </tr>
 </template>
 {% endblock %}
@@ -251,60 +267,124 @@
 {% block scripts %}
 <script>
 (function () {
-    // Chuyển loại đề xuất → tải lại trang với loại mới (giữ server render đúng bộ trường).
+    const form = document.getElementById('proposal-form');
+    if (!form) return;
+
+    // ---- Đổi loại đề xuất: tải lại trang với bộ trường của loại mới ----
     const subtypeSelect = document.getElementById('id_request_subtype');
-    if (subtypeSelect) {
-        subtypeSelect.addEventListener('change', function () {
-            const url = new URL(window.location.href);
-            url.searchParams.set('request_subtype', this.value);
-            window.location.href = url.toString();
+    let dirty = false;
+    form.addEventListener('input', function (e) {
+        if (e.target !== subtypeSelect) dirty = true;
+    });
+    subtypeSelect.addEventListener('change', function () {
+        if (dirty && !window.confirm('Đổi loại đề xuất sẽ xóa thông tin đã nhập. Tiếp tục?')) {
+            this.value = this.dataset.current;
+            return;
+        }
+        const url = new URL(window.location.href);
+        url.searchParams.set('request_subtype', this.value);
+        window.location.href = url.toString();
+    });
+
+    // ---- Hiện/ẩn trường theo điều kiện (khớp LAYOUT phía server) ----
+    function controlValue(name) {
+        const el = form.elements[name];
+        if (!el) return '';
+        if (el.type === 'checkbox') return el.checked ? 'on' : '';
+        return el.value || '';
+    }
+    function applyVisibility() {
+        form.querySelectorAll('[data-show-field]').forEach(function (box) {
+            const allowed = box.dataset.showValues.split(',');
+            const show = allowed.indexOf(controlValue(box.dataset.showField)) !== -1;
+            box.hidden = !show;
+            // Trường ẩn không gửi lên — server cũng bỏ qua trường không hiển thị.
+            box.querySelectorAll('input, select, textarea').forEach(function (input) {
+                input.disabled = !show;
+            });
+        });
+        updateFlow();
+    }
+    const controllers = new Set();
+    form.querySelectorAll('[data-show-field]').forEach(function (box) { controllers.add(box.dataset.showField); });
+    controllers.forEach(function (name) {
+        const el = form.elements[name];
+        if (el) el.addEventListener('change', applyVisibility);
+    });
+
+    // ---- Định dạng số tiền (hiển thị gợi ý dạng 1.000.000 VNĐ) ----
+    function formatVnd(raw) {
+        const n = parseInt(String(raw).replace(/\D/g, ''), 10);
+        return isNaN(n) ? '' : n.toLocaleString('vi-VN') + ' VNĐ';
+    }
+    function bindMoneyHint(input) {
+        let hint = form.querySelector('[data-money-hint-for="' + input.id + '"]');
+        if (!hint) {
+            hint = document.createElement('div');
+            hint.className = 'jp-pf-money-hint';
+            hint.dataset.moneyHintFor = input.id;
+            input.insertAdjacentElement('afterend', hint);
+        }
+        const update = function () { hint.textContent = formatVnd(input.value); };
+        input.addEventListener('input', function () { update(); updateFlow(); });
+        update();
+    }
+    ['id_payment_amount', 'id_advance_amount'].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el) bindMoneyHint(el);
+    });
+
+    // ---- Khung quy trình: bước theo ngưỡng tiền / tạm ứng ----
+    const flow = document.querySelector('.jp-pf-flow');
+    function updateFlow() {
+        if (!flow) return;
+        const accMin = parseInt(flow.dataset.accMin, 10);
+        const dirMin = parseInt(flow.dataset.dirMin, 10);
+        const amountInput = document.getElementById('id_payment_amount');
+        flow.querySelectorAll('[data-tier]').forEach(function (item) {
+            if (!amountInput) { item.hidden = false; return; }  // Mua hàng: tuỳ tổng báo giá NCC.
+            const amount = parseInt(amountInput.value, 10) || 0;
+            const tier = amount >= dirMin ? 'director' : (amount >= accMin ? 'accountant' : '');
+            item.hidden = item.dataset.tier !== tier;
+        });
+        const advance = document.getElementById('id_needs_advance');
+        flow.querySelectorAll('[data-advance]').forEach(function (item) {
+            item.hidden = !(advance && advance.checked);
         });
     }
+    const advanceCheckbox = document.getElementById('id_needs_advance');
+    if (advanceCheckbox) advanceCheckbox.addEventListener('change', applyVisibility);
 
-    // Phần dưới chỉ áp dụng cho form mua hàng.
+    applyVisibility();
+
+    // ---- Danh sách hàng hóa (mua hàng) ----
     const body = document.getElementById('line-items-body');
     if (!body) return;
-
     const totalInput = document.querySelector('#id_lines-TOTAL_FORMS');
     const template = document.getElementById('line-item-row-template');
-    const addBtn = document.getElementById('add-line-btn');
-    const needsAdvance = document.getElementById('{{ form.needs_advance.id_for_label }}');
-    const advanceWrap = document.getElementById('advance-amount-wrap');
-
-    function toggleAdvance() {
-        if (!needsAdvance || !advanceWrap) return;
-        advanceWrap.style.display = needsAdvance.checked ? '' : 'none';
-    }
-    if (needsAdvance) {
-        needsAdvance.addEventListener('change', toggleAdvance);
-        toggleAdvance();
-    }
 
     function reindexRows() {
         const rows = body.querySelectorAll('.line-item-row');
-        rows.forEach((row, idx) => {
-            row.querySelectorAll('[name]').forEach(el => {
+        rows.forEach(function (row, idx) {
+            row.querySelectorAll('[name]').forEach(function (el) {
                 el.name = el.name.replace(/lines-\d+-/, 'lines-' + idx + '-');
-                el.id = el.id ? el.id.replace(/id_lines-\d+-/, 'id_lines-' + idx + '-') : '';
+                if (el.id) el.id = el.id.replace(/id_lines-\d+-/, 'id_lines-' + idx + '-');
             });
         });
         totalInput.value = rows.length;
     }
-
-    addBtn.addEventListener('click', function () {
+    document.getElementById('add-line-btn').addEventListener('click', function () {
         const idx = parseInt(totalInput.value, 10);
-        const html = template.innerHTML.replace(/__prefix__/g, idx);
-        body.insertAdjacentHTML('beforeend', html);
+        body.insertAdjacentHTML('beforeend', template.innerHTML.replace(/__prefix__/g, idx));
         totalInput.value = idx + 1;
+        dirty = true;
     });
-
     body.addEventListener('click', function (e) {
-        if (e.target.classList.contains('remove-line-btn')) {
-            const rows = body.querySelectorAll('.line-item-row');
-            if (rows.length <= 1) return;
-            e.target.closest('tr').remove();
-            reindexRows();
-        }
+        const btn = e.target.closest('.remove-line-btn');
+        if (!btn) return;
+        if (body.querySelectorAll('.line-item-row').length <= 1) return;
+        btn.closest('tr').remove();
+        reindexRows();
     });
 })();
 </script>

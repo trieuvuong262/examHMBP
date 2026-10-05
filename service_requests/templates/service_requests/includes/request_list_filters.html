@@ -1,0 +1,47 @@
+{# Bộ lọc danh sách đề xuất. Tham số: status_tabs, subtype_choices, current_subtype, current_status, search_query, only_mine, show_mine_toggle, placeholder #}
+<ul class="nav nav-pills jp-portal-pills gap-2 mb-3" role="tablist" aria-label="Lọc theo trạng thái">
+    {% for tab in status_tabs %}
+    <li class="nav-item">
+        <a class="nav-link rounded-pill fw-bold{% if tab.active %} active{% endif %}" href="{{ tab.url }}"
+           {% if tab.active %}aria-current="page"{% endif %}>
+            {{ tab.label }} <span class="badge rounded-pill jp-rq-count ms-1">{{ tab.count }}</span>
+        </a>
+    </li>
+    {% endfor %}
+</ul>
+
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body p-3">
+        <form method="get" class="row g-2 align-items-center" role="search">
+            {% if current_status %}<input type="hidden" name="status" value="{{ current_status }}">{% endif %}
+            {% if subtype_choices %}
+            <div class="col-md-4">
+                <label class="visually-hidden" for="jp-rq-subtype">Loại đề xuất</label>
+                <select name="subtype" id="jp-rq-subtype" class="form-select" onchange="this.form.submit()">
+                    <option value="">Tất cả loại đề xuất</option>
+                    {% for value, label in subtype_choices %}
+                    <option value="{{ value }}"{% if value == current_subtype %} selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div class="col">
+                <div class="jp-hrm-search input-group">
+                    {% include 'includes/list_search_bar.html' with search_query=search_query placeholder=placeholder clear_url=request.path %}
+                </div>
+            </div>
+            {% if show_mine_toggle %}
+            <div class="col-auto">
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" role="switch" id="jp-rq-mine" name="can-xu-ly" value="1"
+                           {% if only_mine %}checked{% endif %} onchange="this.form.submit()">
+                    <label class="form-check-label small fw-semibold" for="jp-rq-mine">Chỉ phiếu chờ tôi xử lý</label>
+                </div>
+            </div>
+            {% endif %}
+        </form>
+        {% if search_query %}
+        <p class="text-muted small mb-0 mt-2">Kết quả tìm “{{ search_query }}” — {{ page_obj.paginator.count }} đề xuất</p>
+        {% endif %}
+    </div>
+</div>

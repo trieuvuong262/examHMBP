@@ -72,9 +72,9 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'cross_dept', 'label': 'Dự án liên phòng ban', 'icon': 'bi-diagram-3'},
     ],
     MODULE_DE_XUAT: [
-        {'key': 'my', 'label': 'Yêu cầu của tôi', 'icon': 'bi-person-lines-fill'},
-        {'key': 'pending', 'label': 'Chờ xử lý', 'icon': 'bi-inbox-fill'},
         {'key': 'create', 'label': 'Gửi đề xuất', 'icon': 'bi-plus-circle'},
+        {'key': 'my', 'label': 'Đề xuất của tôi', 'icon': 'bi-person-lines-fill'},
+        {'key': 'pending', 'label': 'Chờ tôi xử lý & Theo dõi tiến trình', 'icon': 'bi-inbox-fill'},
         {'key': 'catalog', 'label': 'Danh mục định kỳ', 'icon': 'bi-journal-text'},
     ],
     MODULE_HO_TRO: [

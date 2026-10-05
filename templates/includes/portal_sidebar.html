@@ -326,7 +326,7 @@
             </ul>
         </li>
         {% endif %}
-        {% if jp_can_de_xuat or jp_can_ho_tro %}
+        {% if jp_can_de_xuat %}
         <li class="jp-sidebar-group{% if 'yeu-cau' in request.path %} is-open{% endif %}">
             <button type="button"
                     class="jp-sidebar-group-toggle"
@@ -338,108 +338,55 @@
                 </span>
                 <i class="bi bi-chevron-down jp-sidebar-group-chevron" aria-hidden="true"></i>
             </button>
+            {# Chỉ còn luồng Đề xuất (đã bỏ "Hỗ trợ kỹ thuật" — trùng loại "Sửa chữa máy móc, IT, CSVC"), #}
+            {# nên hiển thị phẳng 1 cấp: tạo → của tôi → việc cần xử lý → theo dõi → danh mục (Thu mua). #}
+            {% with url_name=request.resolver_match.url_name %}
             <ul class="jp-sidebar-submenu" id="jp-sidebar-requests-submenu">
-                {% if jp_can_de_xuat %}
-                <li class="jp-sidebar-nested-group{% if '/yeu-cau/de-xuat' in request.path %} is-open{% endif %}">
-                    <button type="button"
-                            class="jp-sidebar-nested-toggle"
-                            data-jp-sidebar-group-toggle
-                            aria-expanded="{% if '/yeu-cau/de-xuat' in request.path %}true{% else %}false{% endif %}"
-                            aria-controls="jp-sidebar-de-xuat-submenu">
-                        <span class="jp-sidebar-nested-toggle-main">
-                            <i class="bi bi-lightbulb"></i><span>Đề xuất mới</span>
-                        </span>
-                        <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
-                    </button>
-                    <ul class="jp-sidebar-nested-submenu" id="jp-sidebar-de-xuat-submenu">
-                        {% jp_can_menu 'de_xuat' 'my' as jp_can_de_xuat_my %}
-                        {% if jp_can_de_xuat_my %}
-                        <li>
-                            <a href="{% url 'service_requests:de_xuat_my' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'de_xuat_my' %}active{% endif %}">
-                                <i class="bi bi-person-lines-fill"></i><span>Yêu cầu của tôi</span>
-                            </a>
-                        </li>
-                        {% endif %}
-                        {% jp_can_menu 'de_xuat' 'pending' as jp_can_de_xuat_pending %}
-                        {% if jp_can_de_xuat_pending %}
-                        <li>
-                            <a href="{% url 'service_requests:de_xuat_pending' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'de_xuat_pending' %}active{% endif %}">
-                                <i class="bi bi-inbox-fill"></i><span>Chờ xử lý</span>
-                                {% if jp_de_xuat_pending_count %}<span class="badge bg-danger ms-1">{{ jp_de_xuat_pending_count }}</span>{% endif %}
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{% url 'service_requests:de_xuat_involved' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'de_xuat_involved' %}active{% endif %}">
-                                <i class="bi bi-diagram-3"></i><span>Theo dõi tiến trình</span>
-                            </a>
-                        </li>
-                        {% endif %}
-                        {% jp_can_menu 'de_xuat' 'create' as jp_can_de_xuat_create %}
-                        {% if jp_can_de_xuat_create %}
-                        <li>
-                            <a href="{% url 'service_requests:create' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'create' %}active{% endif %}">
-                                <i class="bi bi-plus-circle"></i><span>Gửi đề xuất</span>
-                            </a>
-                        </li>
-                        {% endif %}
-                        {% jp_can_menu 'de_xuat' 'catalog' as jp_can_de_xuat_catalog %}
-                        {% if jp_can_de_xuat_catalog and jp_can_manage_catalog %}
-                        <li>
-                            <a href="{% url 'service_requests:catalog_list' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name and 'catalog' in request.resolver_match.url_name %}active{% endif %}">
-                                <i class="bi bi-journal-text"></i><span>Danh mục định kỳ</span>
-                            </a>
-                        </li>
-                        {% endif %}
-                    </ul>
+                {% jp_can_menu 'de_xuat' 'create' as jp_can_de_xuat_create %}
+                {% if jp_can_de_xuat_create %}
+                <li>
+                    <a href="{% url 'service_requests:create' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if url_name == 'create' %}active{% endif %}">
+                        <i class="bi bi-plus-circle"></i><span>Gửi đề xuất</span>
+                    </a>
                 </li>
                 {% endif %}
-                {% if jp_can_ho_tro %}
-                <li class="jp-sidebar-nested-group{% if '/yeu-cau/ho-tro' in request.path %} is-open{% endif %}">
-                    <button type="button"
-                            class="jp-sidebar-nested-toggle"
-                            data-jp-sidebar-group-toggle
-                            aria-expanded="{% if '/yeu-cau/ho-tro' in request.path %}true{% else %}false{% endif %}"
-                            aria-controls="jp-sidebar-ho-tro-submenu">
-                        <span class="jp-sidebar-nested-toggle-main">
-                            <i class="bi bi-tools"></i><span>Hỗ trợ kỹ thuật</span>
-                        </span>
-                        <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
-                    </button>
-                    <ul class="jp-sidebar-nested-submenu" id="jp-sidebar-ho-tro-submenu">
-                        {% jp_can_menu 'ho_tro' 'my' as jp_can_ho_tro_my %}
-                        {% if jp_can_ho_tro_my %}
-                        <li>
-                            <a href="{% url 'service_requests:ho_tro_my' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'ho_tro_my' %}active{% endif %}">
-                                <i class="bi bi-person-lines-fill"></i><span>Yêu cầu của tôi</span>
-                            </a>
-                        </li>
-                        {% endif %}
-                        {% jp_can_menu 'ho_tro' 'pending' as jp_can_ho_tro_pending %}
-                        {% if jp_can_ho_tro_pending %}
-                        <li>
-                            <a href="{% url 'service_requests:ho_tro_pending' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'ho_tro_pending' %}active{% endif %}">
-                                <i class="bi bi-inbox-fill"></i><span>Chờ duyệt</span>
-                                {% if jp_ho_tro_pending_count %}<span class="badge bg-danger ms-1">{{ jp_ho_tro_pending_count }}</span>{% endif %}
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{% url 'service_requests:ho_tro_involved' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'ho_tro_involved' %}active{% endif %}">
-                                <i class="bi bi-diagram-3"></i><span>Theo dõi tiến trình</span>
-                            </a>
-                        </li>
-                        {% endif %}
-                    </ul>
+                {% jp_can_menu 'de_xuat' 'my' as jp_can_de_xuat_my %}
+                {% if jp_can_de_xuat_my %}
+                <li>
+                    <a href="{% url 'service_requests:de_xuat_my' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if url_name == 'de_xuat_my' or url_name == 'my' %}active{% endif %}">
+                        <i class="bi bi-person-lines-fill"></i><span>Đề xuất của tôi</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% jp_can_menu 'de_xuat' 'pending' as jp_can_de_xuat_pending %}
+                {% if jp_can_de_xuat_pending %}
+                <li>
+                    <a href="{% url 'service_requests:de_xuat_pending' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if url_name == 'de_xuat_pending' or url_name == 'pending' %}active{% endif %}">
+                        <i class="bi bi-inbox-fill"></i><span>Chờ tôi xử lý</span>
+                        {% if jp_de_xuat_pending_count %}<span class="badge bg-danger ms-1">{{ jp_de_xuat_pending_count }}</span>{% endif %}
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'service_requests:de_xuat_involved' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if url_name == 'de_xuat_involved' %}active{% endif %}">
+                        <i class="bi bi-diagram-3"></i><span>Theo dõi tiến trình</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% jp_can_menu 'de_xuat' 'catalog' as jp_can_de_xuat_catalog %}
+                {% if jp_can_de_xuat_catalog and jp_can_manage_catalog %}
+                <li>
+                    <a href="{% url 'service_requests:catalog_list' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if url_name and 'catalog' in url_name %}active{% endif %}">
+                        <i class="bi bi-journal-text"></i><span>Danh mục định kỳ</span>
+                    </a>
                 </li>
                 {% endif %}
             </ul>
+            {% endwith %}
         </li>
         {% endif %}
         {% jp_can_menu 'equipment' 'it' as jp_can_equipment_it %}

@@ -154,9 +154,7 @@ def _build_general_steps(service_request):
     final_step = _create_step(
         service_request,
         step_order=order,
-        step_code=ServiceRequestStep.STEP_IT_REPAIR
-        if service_request.request_subtype == ServiceRequest.SUBTYPE_REPAIR
-        else ServiceRequestStep.STEP_PURCHASE,
+        step_code=ServiceRequestStep.STEP_GENERAL_EXECUTION,
         name=final_name,
         step_kind=RequestTypeStepTemplate.KIND_EXECUTION,
         assignee_rule=RequestTypeStepTemplate.RULE_DEPARTMENT_QUEUE,
@@ -206,3 +204,62 @@ def create_general_request_with_steps(
         _log_step_opened(service_request, requester, first_active)
 
     return service_request
+
+
+def preview_flow(requester, subtype):
+    """Các bước dự kiến cho người gửi + loại đề xuất — hiển thị ở màn hình tạo.
+
+    Dùng đúng các điều kiện khi tạo bước thật (_needs_*, ngưỡng tiền, _final_step_spec)
+    để khung quy trình không lệch với luồng thực tế.
+
+    Mỗi bước: {'label', 'note', 'kind': approval|execution, 'tier': ''|accountant|director,
+    'advance': bool}. Bước có ``tier`` chỉ áp dụng khi số tiền rơi vào ngưỡng đó.
+    """
+    from types import SimpleNamespace
+
+    from hrm.permissions import get_profile
+
+    from .workflow import department_has_department_heads, get_procurement_department
+
+    steps = []
+
+    def add(label, note='', kind='approval', tier='', advance=False):
+        steps.append({'label': label, 'note': note, 'kind': kind, 'tier': tier, 'advance': advance})
+
+    if _needs_team_leader_step(requester):
+        add('Tổ trưởng duyệt')
+    if _needs_division_head_step(requester):
+        note = 'Chỉ định nhân viên Thu mua' if subtype == ServiceRequest.SUBTYPE_PURCHASE else ''
+        add('Trưởng bộ phận duyệt', note)
+    if _needs_department_head_step(requester):
+        profile = get_profile(requester)
+        has_heads = bool(profile and profile.department_id and department_has_department_heads(profile.department))
+        add('Trưởng phòng duyệt' if has_heads else 'Giám đốc duyệt (thay Trưởng phòng)')
+
+    acc_min = f'{AMOUNT_ACCOUNTING_MIN:,.0f}'.replace(',', '.')
+    dir_min = f'{AMOUNT_DIRECTOR_MIN:,.0f}'.replace(',', '.')
+
+    if subtype == ServiceRequest.SUBTYPE_PURCHASE:
+        procurement = get_procurement_department()
+        add('Thu mua kiểm tra giá & NCC', procurement.name if procurement else '', kind='execution')
+        add('Kế toán duyệt chi phí', f'Tổng NCC từ {acc_min} đến dưới {dir_min} VNĐ', tier='accountant')
+        add('Giám đốc duyệt chi phí', f'Tổng NCC từ {dir_min} VNĐ', tier='director')
+        add('Tạm ứng', 'Khi chọn cần tạm ứng', kind='execution', advance=True)
+        add('Thu mua đặt hàng', kind='execution')
+        add('Xác nhận nhận hàng', 'Người nhận hàng', kind='execution')
+        return steps
+
+    if subtype == ServiceRequest.SUBTYPE_PAYMENT:
+        add('Kế toán duyệt chi phí', f'Số tiền từ {acc_min} đến dưới {dir_min} VNĐ', tier='accountant')
+        add('Giám đốc duyệt chi phí', f'Số tiền từ {dir_min} VNĐ', tier='director')
+
+    final_name, final_dept = _final_step_spec(SimpleNamespace(request_subtype=subtype))
+    add(final_name, final_dept.name if final_dept else '', kind='execution')
+    return steps
+
+
+def approval_thresholds():
+    return {
+        'accountant_min': int(AMOUNT_ACCOUNTING_MIN),
+        'director_min': int(AMOUNT_DIRECTOR_MIN),
+    }

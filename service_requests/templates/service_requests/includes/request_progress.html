@@ -1,0 +1,17 @@
+{# Tiến trình một đề xuất. Tham số: progress (service_requests.progress.build_progress) #}
+<div class="jp-rq-progress">
+    <ol class="jp-rq-trail" aria-label="Tiến trình {{ progress.position }}/{{ progress.total }} bước">
+        {% for node in progress.trail %}
+        <li class="jp-rq-node is-{{ node.state }}" title="{{ node.name }}">
+            <span class="visually-hidden">{{ node.name }} —
+                {% if node.state == 'done' %}đã xong{% elif node.state == 'current' %}đang xử lý{% elif node.state == 'rejected' %}từ chối{% elif node.state == 'planned' %}sau báo giá{% else %}chưa tới{% endif %}
+            </span>
+        </li>
+        {% endfor %}
+    </ol>
+    <div class="jp-rq-headline">
+        {% if progress.total %}<span class="jp-rq-pos">{{ progress.position }}/{{ progress.total }}</span>{% endif %}
+        <span>{{ progress.headline }}</span>
+    </div>
+    {% if progress.detail %}<div class="jp-rq-detail">{{ progress.detail }}</div>{% endif %}
+</div>

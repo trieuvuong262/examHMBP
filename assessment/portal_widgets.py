@@ -260,7 +260,7 @@ def _de_xuat_widgets(user):
     my_open = ServiceRequest.objects.filter(
         requester=user,
         status=ServiceRequest.STATUS_IN_PROGRESS,
-        request_type__code=RequestType.CODE_ASSET_PURCHASE,
+        request_type__code__in=[RequestType.CODE_ASSET_PURCHASE, RequestType.CODE_GENERAL_PROPOSAL],
     ).count()
     if my_open:
         widgets.append({
@@ -274,7 +274,7 @@ def _de_xuat_widgets(user):
         })
 
     pending = pending_steps_for_user(user).filter(
-        request__request_type__code=RequestType.CODE_ASSET_PURCHASE,
+        request__request_type__code__in=[RequestType.CODE_ASSET_PURCHASE, RequestType.CODE_GENERAL_PROPOSAL],
     ).count()
     if pending:
         widgets.append({

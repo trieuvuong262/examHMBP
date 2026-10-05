@@ -6,8 +6,9 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.http import urlencode
 
-from django.db.models import Q
+from django.db.models import Count, Q
 
 from assessment.decorators import module_perm_required
 from hrm.module_permissions import MODULE_DE_XUAT, MODULE_HO_TRO, user_can_access_module
@@ -35,10 +36,12 @@ from .forms import (
 from .models import (
     RecurringItemCatalog,
     RequestType,
+    RequestTypeStepTemplate,
     ServiceRequest,
     ServiceRequestAttachment,
     ServiceRequestStep,
 )
+from .progress import attach_pending_info, attach_progress
 from .permissions import (
     can_cancel_own_request,
     can_claim_step,
@@ -73,8 +76,10 @@ from .workflow_it import (
     get_it_repair_request_type,
 )
 from .workflow_general import (
+    approval_thresholds,
     create_general_request_with_steps,
     get_general_request_type,
+    preview_flow,
 )
 
 
@@ -243,28 +248,20 @@ def my_requests(request, flow_tab=None):
         'steps__target_department',
     )
     qs = _filter_by_flow(qs, flow_tab)
-    status = request.GET.get('status', '')
-    if status:
-        qs = qs.filter(status=status)
     qs = apply_term_search(
         qs, search_query,
         'title__icontains', 'description__icontains', 'request_type__name__icontains',
         'equipment_label__icontains', 'location_text__icontains',
     )
+    qs, filter_ctx = _apply_list_filters(request, qs, flow_tab)
     page_obj, query_string = paginate_queryset(request, qs)
+    attach_progress(page_obj.object_list, user=request.user)
     ctx = _subnav_context(request, flow_tab=flow_tab)
     ctx.update({
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
-        'current_status': status,
-        'status_tabs': [
-            ('', 'Tất cả'),
-            (ServiceRequest.STATUS_IN_PROGRESS, 'Đang xử lý'),
-            (ServiceRequest.STATUS_COMPLETED, 'Hoàn thành'),
-            (ServiceRequest.STATUS_REJECTED, 'Từ chối'),
-            (ServiceRequest.STATUS_CANCELLED, 'Đã hủy'),
-        ],
+        **filter_ctx,
     })
     return render(request, 'service_requests/my_list.html', ctx)
 
@@ -278,7 +275,10 @@ def pending_requests(request, flow_tab=None):
     if flow_tab == FLOW_HO_TRO:
         qs = qs.filter(request__request_type__code=RequestType.CODE_IT_REPAIR)
     else:
-        qs = qs.filter(request__request_type__code=RequestType.CODE_ASSET_PURCHASE)
+        qs = qs.filter(request__request_type__code__in=[
+            RequestType.CODE_ASSET_PURCHASE,
+            RequestType.CODE_GENERAL_PROPOSAL,
+        ])
 
     qs = apply_combined_search(qs, search_query, lambda term: (
         Q(request__title__icontains=term)
@@ -289,12 +289,56 @@ def pending_requests(request, flow_tab=None):
         | Q(request__requester__profile__employee_code__icontains=term)
         | Q(request__equipment_label__icontains=term)
     ))
+
+    subtype = (request.GET.get('subtype') or '').strip()
+    if flow_tab == FLOW_DE_XUAT and subtype in {code for code, _ in ServiceRequest.SUBTYPE_CHOICES}:
+        qs = qs.filter(request__request_subtype=subtype)
+    else:
+        subtype = ''
+
+    kind_filters = {
+        'duyet': Q(step_kind=RequestTypeStepTemplate.KIND_APPROVAL),
+        'thuc-hien': Q(step_kind=RequestTypeStepTemplate.KIND_EXECUTION),
+        'chua-nhan': Q(assignee__isnull=True),
+    }
+    counts = {'': qs.count()}
+    for key, cond in kind_filters.items():
+        counts[key] = qs.filter(cond).count()
+    kind = (request.GET.get('nhom') or '').strip()
+    if kind in kind_filters:
+        qs = qs.filter(kind_filters[kind])
+    else:
+        kind = ''
+
+    # Hàng đợi công việc: phiếu gửi sớm xử lý trước.
+    qs = qs.order_by('request__created_at', 'step_order').prefetch_related(
+        'request__request_type',
+        'request__steps__assignee__profile',
+        'request__steps__target_department',
+    )
     page_obj, query_string = paginate_queryset(request, qs)
+    attach_pending_info(page_obj.object_list, request.user)
+
+    base_params = {k: v for k, v in (('subtype', subtype), ('q', search_query)) if v}
+    kind_tabs = []
+    for key, label in (('', 'Tất cả'), ('duyet', 'Cần duyệt'), ('thuc-hien', 'Cần thực hiện'), ('chua-nhan', 'Chưa tiếp nhận')):
+        params = dict(base_params)
+        if key:
+            params['nhom'] = key
+        kind_tabs.append({
+            'key': key, 'label': label, 'count': counts[key], 'active': kind == key,
+            'url': f'?{urlencode(params)}' if params else '?',
+        })
+
     ctx = _subnav_context(request, flow_tab=flow_tab)
     ctx.update({
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
+        'status_tabs': kind_tabs,
+        'current_kind': kind,
+        'current_subtype': subtype,
+        'subtype_choices': ServiceRequest.SUBTYPE_CHOICES if flow_tab == FLOW_DE_XUAT else [],
     })
     return render(request, 'service_requests/pending_list.html', ctx)
 
@@ -306,9 +350,6 @@ def involved_requests(request, flow_tab=None):
 
     qs = involved_requests_for_user(request.user)
     qs = _filter_by_flow(qs, flow_tab)
-    status = request.GET.get('status', '')
-    if status:
-        qs = qs.filter(status=status)
     qs = apply_term_search(
         qs, search_query,
         'title__icontains', 'description__icontains', 'request_type__name__icontains',
@@ -316,23 +357,102 @@ def involved_requests(request, flow_tab=None):
         'requester__profile__employee_code__icontains',
         'equipment_label__icontains', 'location_text__icontains',
     )
+    qs, filter_ctx = _apply_list_filters(request, qs, flow_tab, allow_mine=True)
     page_obj, query_string = paginate_queryset(request, qs)
     _annotate_requests_with_action_flags(page_obj.object_list, request.user)
+    attach_progress(page_obj.object_list, user=request.user)
     ctx = _subnav_context(request, flow_tab=flow_tab)
     ctx.update({
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
-        'current_status': status,
-        'status_tabs': [
-            ('', 'Tất cả'),
-            (ServiceRequest.STATUS_IN_PROGRESS, 'Đang xử lý'),
-            (ServiceRequest.STATUS_COMPLETED, 'Hoàn thành'),
-            (ServiceRequest.STATUS_REJECTED, 'Từ chối'),
-            (ServiceRequest.STATUS_CANCELLED, 'Đã hủy'),
-        ],
+        **filter_ctx,
     })
     return render(request, 'service_requests/involved_list.html', ctx)
+
+
+_LIST_STATUS_TABS = [
+    ('', 'Tất cả'),
+    (ServiceRequest.STATUS_IN_PROGRESS, 'Đang xử lý'),
+    (ServiceRequest.STATUS_COMPLETED, 'Hoàn thành'),
+    (ServiceRequest.STATUS_REJECTED, 'Từ chối'),
+    (ServiceRequest.STATUS_CANCELLED, 'Đã hủy'),
+]
+
+
+def _apply_list_filters(request, qs, flow_tab, *, allow_mine=False):
+    """Bộ lọc chung cho «Đề xuất của tôi» / «Theo dõi tiến trình».
+
+    - ``subtype``: loại đề xuất (5 loại ở màn hình tạo).
+    - ``status``: trạng thái phiếu, tab có đếm số theo bộ lọc hiện tại.
+    - ``can-xu-ly=1`` (chỉ Theo dõi): chỉ phiếu đang chờ chính user xử lý.
+    """
+    subtype = (request.GET.get('subtype') or '').strip()
+    valid_subtypes = {code for code, _ in ServiceRequest.SUBTYPE_CHOICES}
+    if flow_tab == FLOW_DE_XUAT and subtype in valid_subtypes:
+        qs = qs.filter(request_subtype=subtype)
+    else:
+        subtype = ''
+
+    only_mine = allow_mine and request.GET.get('can-xu-ly') == '1'
+    if only_mine:
+        qs = qs.filter(pk__in=pending_steps_for_user(request.user).values('request_id'))
+
+    counts = {
+        row['status']: row['n']
+        for row in ServiceRequest.objects.filter(pk__in=qs.values('pk'))
+        .values('status').annotate(n=Count('pk'))
+    }
+    status = (request.GET.get('status') or '').strip()
+    if status not in {key for key, _ in _LIST_STATUS_TABS if key}:
+        status = ''
+    if status:
+        qs = qs.filter(status=status)
+
+    base_params = {}
+    if subtype:
+        base_params['subtype'] = subtype
+    if only_mine:
+        base_params['can-xu-ly'] = '1'
+    search = get_search_query(request)
+    if search:
+        base_params['q'] = search
+
+    def _tab_url(key):
+        params = dict(base_params)
+        if key:
+            params['status'] = key
+        return f'?{urlencode(params)}' if params else '?'
+
+    status_tabs = [
+        {
+            'key': key,
+            'label': label,
+            'count': sum(counts.values()) if not key else counts.get(key, 0),
+            'url': _tab_url(key),
+            'active': status == key,
+        }
+        for key, label in _LIST_STATUS_TABS
+    ]
+    return qs, {
+        'status_tabs': status_tabs,
+        'current_status': status,
+        'current_subtype': subtype,
+        'subtype_choices': ServiceRequest.SUBTYPE_CHOICES if flow_tab == FLOW_DE_XUAT else [],
+        'only_mine': only_mine,
+    }
+
+
+def _create_page_context(request, subtype):
+    """Phần dùng chung của trang Gửi đề xuất: ô chọn loại + khung quy trình dự kiến."""
+    return {
+        'subtype_form': SubtypeSelectForm(initial={'request_subtype': subtype}),
+        'current_subtype': subtype,
+        'current_subtype_label': dict(ServiceRequest.SUBTYPE_CHOICES).get(subtype, ''),
+        'flow_steps': preview_flow(request.user, subtype),
+        'thresholds': approval_thresholds(),
+        **_subnav_context(request, flow_tab=FLOW_DE_XUAT),
+    }
 
 
 def _resolve_create_subtype(request):
@@ -362,9 +482,9 @@ def _create_purchase_request(request, subtype):
         form = ServiceRequestCreateForm(request.POST, request_type=request_type)
         line_formset = LineItemFormSet(request.POST, prefix='lines')
         if form.is_valid() and line_formset.is_valid():
-            recurring_item = form.cleaned_data.get('recurring_item')
+            recurring_item = None  # Ô hàng định kỳ đã bỏ khỏi form tạo.
             line_items = _line_items_from_formset(line_formset, recurring_item)
-            if not line_items and not recurring_item:
+            if not line_items:
                 messages.error(request, 'Vui lòng thêm ít nhất một dòng hàng.')
             else:
                 try:
@@ -378,6 +498,10 @@ def _create_purchase_request(request, subtype):
                         needs_advance=form.cleaned_data.get('needs_advance', False),
                         advance_amount=form.cleaned_data.get('advance_amount'),
                     )
+                    extra = form.extra_data()
+                    if extra:
+                        service_request.extra_data = extra
+                        service_request.save(update_fields=['extra_data', 'updated_at'])
                     prepared = read_separate_uploads(
                         request.FILES.getlist('images'),
                         request.FILES.getlist('files'),
@@ -407,9 +531,7 @@ def _create_purchase_request(request, subtype):
         'form': form,
         'line_formset': line_formset,
         'request_type': request_type,
-        'subtype_form': SubtypeSelectForm(initial={'request_subtype': subtype}),
-        'current_subtype': subtype,
-        **_subnav_context(request, flow_tab=FLOW_DE_XUAT),
+        **_create_page_context(request, subtype),
     })
 
 
@@ -459,9 +581,7 @@ def _create_general_request(request, subtype):
     return render(request, 'service_requests/form.html', {
         'general_form': form,
         'request_type': request_type,
-        'subtype_form': SubtypeSelectForm(initial={'request_subtype': subtype}),
-        'current_subtype': subtype,
-        **_subnav_context(request, flow_tab=FLOW_DE_XUAT),
+        **_create_page_context(request, subtype),
     })
 
 
@@ -706,7 +826,10 @@ def request_detail(request, pk, flow_tab=None):
                 return redirect(_detail_url(service_request))
 
             if action == 'approve' and can_handle_current and current_step.is_approval:
-                if current_step.step_code == ServiceRequestStep.STEP_DIVISION_HEAD:
+                if (
+                    current_step.step_code == ServiceRequestStep.STEP_DIVISION_HEAD
+                    and service_request.is_asset_purchase
+                ):
                     division_head_form = DivisionHeadApproveForm(
                         request.POST,
                         staff_queryset=get_procurement_staff_candidates(),

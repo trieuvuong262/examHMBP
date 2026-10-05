@@ -1,0 +1,22 @@
+<style>
+    .jp-rq-progress { min-width: 13rem; }
+    .jp-rq-trail { display: flex; gap: 3px; list-style: none; margin: 0 0 .35rem; padding: 0; }
+    .jp-rq-node { flex: 1 1 0; height: 6px; border-radius: 3px; background: #e2e8f0; }
+    .jp-rq-node.is-done { background: #16a34a; }
+    .jp-rq-node.is-current { background: #f59e0b; }
+    .jp-rq-node.is-rejected { background: #dc2626; }
+    .jp-rq-node.is-planned {
+        background: repeating-linear-gradient(90deg, #cbd5e1 0 4px, transparent 4px 7px);
+    }
+    .jp-rq-headline { font-size: .85rem; font-weight: 600; display: flex; gap: .4rem; align-items: baseline; }
+    .jp-rq-pos { font-size: .72rem; font-weight: 700; color: #64748b; white-space: nowrap; }
+    .jp-rq-detail { font-size: .78rem; color: #64748b; }
+    .jp-rq-subtype { font-size: .78rem; color: #64748b; }
+    .jp-rq-count { background: rgba(100, 116, 139, .15); color: inherit; font-size: .7rem; }
+    .jp-portal-pills .nav-link.active .jp-rq-count { background: rgba(255, 255, 255, .25); }
+    .jp-rq-row.needs-action { box-shadow: inset 3px 0 0 var(--hm-primary); }
+    [data-theme="dark"] .jp-rq-node { background: #334155; }
+    [data-theme="dark"] .jp-rq-pos,
+    [data-theme="dark"] .jp-rq-detail,
+    [data-theme="dark"] .jp-rq-subtype { color: #94a3b8; }
+</style>
