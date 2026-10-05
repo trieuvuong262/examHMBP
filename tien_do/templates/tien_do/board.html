@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/tien-do.css' %}?v=20261005d">
+<link rel="stylesheet" href="{% static 'css/tien-do.css' %}?v=20261005e">
 {% endblock %}
 
 {% block content %}
@@ -20,6 +20,10 @@
                        placeholder="Tìm tính năng, mô tả…" aria-label="Tìm theo Tính năng / Mô tả">
             </form>
             {% if can_create %}
+            <button type="button" class="btn btn-outline-hm btn-sm fw-bold jp-td-btn"
+                    data-bs-toggle="modal" data-bs-target="#jp-td-import-modal">
+                <i class="bi bi-file-earmark-arrow-up"></i><span>Import Excel</span>
+            </button>
             <form method="post" action="{% url 'tien_do:item_create' platform %}" class="d-inline-flex">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-hm btn-sm fw-bold jp-td-btn">
@@ -191,8 +195,40 @@
 
     {% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string only %}
 </div>
+
+{% if can_create %}
+<div class="modal fade" id="jp-td-import-modal" tabindex="-1" aria-labelledby="jp-td-import-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="post" action="{% url 'tien_do:item_import' platform %}" enctype="multipart/form-data"
+              class="modal-content jp-td-import">
+            {% csrf_token %}
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="jp-td-import-title">Import tiến độ — {{ platform_label }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <label for="jp-td-import-file" class="form-label fw-semibold small">File Excel (.xlsx)</label>
+                <input type="file" name="file" id="jp-td-import-file" class="form-control"
+                       accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+                <div class="jp-td-import__cols">
+                    <span>Tính năng</span><span>Mô tả</span><span>User flow</span>
+                </div>
+                <a href="{% url 'tien_do:import_template' %}" class="jp-td-import__tpl">
+                    <i class="bi bi-download"></i>Tải file mẫu
+                </a>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary btn-sm jp-td-btn" data-bs-dismiss="modal">Hủy</button>
+                <button type="submit" class="btn btn-hm btn-sm fw-bold jp-td-btn">
+                    <i class="bi bi-upload"></i><span>Import</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
-<script src="{% static 'js/tien-do-board.js' %}?v=20261005d"></script>
+<script src="{% static 'js/tien-do-board.js' %}?v=20261005e"></script>
 {% endblock %}

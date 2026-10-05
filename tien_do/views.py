@@ -3,6 +3,7 @@ import mimetypes
 import os
 
 from django.contrib import messages
+from django.db import transaction
 from django.db.models import Prefetch, Q
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -31,6 +32,7 @@ from reports.daily_inline_images import (
     save_inline_image,
 )
 
+from . import importing as tien_do_importing
 from .models import TienDoFeedback, TienDoItem
 
 logger = logging.getLogger(__name__)
@@ -202,6 +204,50 @@ def item_create(request, platform):
     if platform == TienDoItem.PLATFORM_WHOLESALE_RETAIL:
         return redirect('tien_do:wholesale_retail')
     return redirect('tien_do:portal')
+
+
+def _board_redirect(platform):
+    if platform == TienDoItem.PLATFORM_WHOLESALE_RETAIL:
+        return redirect('tien_do:wholesale_retail')
+    return redirect('tien_do:portal')
+
+
+@module_perm_required(MODULE_TIEN_DO, 'create')
+@require_POST
+def item_import(request, platform):
+    """Import Tính năng / Mô tả / User flow từ Excel — chỉ người có quyền Thêm."""
+    _platform_or_404(platform)
+    upload = request.FILES.get('file')
+    if not upload:
+        messages.error(request, 'Chưa chọn file Excel.')
+        return _board_redirect(platform)
+    if not (upload.name or '').lower().endswith(('.xlsx', '.xlsm')):
+        messages.error(request, 'Chỉ nhận file .xlsx.')
+        return _board_redirect(platform)
+    if upload.size > tien_do_importing.MAX_FILE_BYTES:
+        messages.error(request, 'File quá lớn (tối đa 5MB).')
+        return _board_redirect(platform)
+
+    try:
+        rows = tien_do_importing.parse_workbook(upload)
+    except tien_do_importing.TienDoImportError as exc:
+        messages.error(request, str(exc))
+        return _board_redirect(platform)
+
+    with transaction.atomic():
+        count = tien_do_importing.import_rows(rows, platform=platform, user=request.user)
+    messages.success(request, f'Đã import {count} dòng tiến độ.')
+    return _board_redirect(platform)
+
+
+@module_perm_required(MODULE_TIEN_DO, 'create')
+def import_template(request):
+    response = HttpResponse(
+        tien_do_importing.build_template_xlsx(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = 'attachment; filename=mau_import_tien_do.xlsx'
+    return response
 
 
 @require_POST

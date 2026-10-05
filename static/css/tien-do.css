@@ -554,3 +554,44 @@ img.jp-fb-avatar.is-me {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* --- Modal import ----------------------------------------------------- */
+.jp-td-import .modal-header,
+.jp-td-import .modal-footer {
+  padding: .75rem 1rem;
+}
+
+.jp-td-import__cols {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+  margin-top: .75rem;
+}
+
+.jp-td-import__cols span {
+  display: inline-flex;
+  align-items: center;
+  height: 1.5rem;
+  padding: 0 .6rem;
+  font-size: .75rem;
+  font-weight: 600;
+  color: #334155;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+}
+
+.jp-td-import__tpl {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  margin-top: .75rem;
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--hm-primary, #dc2626);
+  text-decoration: none;
+}
+
+.jp-td-import__tpl:hover {
+  text-decoration: underline;
+}
