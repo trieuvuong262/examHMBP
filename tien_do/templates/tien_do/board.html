@@ -2,112 +2,197 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/tien-do.css' %}?v=20261005a">
+<link rel="stylesheet" href="{% static 'css/tien-do.css' %}?v=20261005d">
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid jp-page py-3 py-md-4 px-2 px-md-4 mb-5" id="jp-tien-do"
+<div class="container jp-page jp-td-page py-3 py-md-4 mb-5" id="jp-tien-do"
      data-cell-update-base="/tien-do/"
-     data-image-upload-url="{% if can_upload_image %}{{ image_upload_url }}{% endif %}"
-     data-can-edit-it="{{ can_edit_it|yesno:'1,0' }}"
-     data-can-edit-tester="{{ can_edit_tester|yesno:'1,0' }}">
+     data-image-upload-url="{% if can_upload_image %}{{ image_upload_url }}{% endif %}">
     {% csrf_token %}
-    <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
-        <div class="jp-page-header-main">
-            <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ platform_label }}</h2>
-        </div>
-        <div class="d-flex flex-wrap gap-2 align-items-center">
-            <form method="get" class="d-flex gap-2">
-                <input type="text" name="q" value="{{ search_query }}" class="form-control form-control-sm"
-                       placeholder="Tìm theo Tính năng / Mô tả" style="min-width:220px">
-                <button type="submit" class="btn btn-outline-hm btn-sm"><i class="bi bi-search"></i></button>
+
+    <div class="jp-td-topbar">
+        <h2 class="fw-bold text-hm mb-0 jp-page-title">{{ platform_label }}</h2>
+        <div class="jp-td-tools">
+            <form method="get" class="jp-td-search" role="search">
+                <i class="bi bi-search" aria-hidden="true"></i>
+                <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm"
+                       placeholder="Tìm tính năng, mô tả…" aria-label="Tìm theo Tính năng / Mô tả">
             </form>
             {% if can_create %}
-            <form method="post" action="{% url 'tien_do:item_create' platform %}">
+            <form method="post" action="{% url 'tien_do:item_create' platform %}" class="d-inline-flex">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-hm fw-bold btn-sm">
-                    <i class="bi bi-plus-circle-fill me-1"></i>Thêm dòng
+                <button type="submit" class="btn btn-hm btn-sm fw-bold jp-td-btn">
+                    <i class="bi bi-plus-lg"></i><span>Thêm dòng</span>
                 </button>
             </form>
             {% else %}
-            <button type="button" class="btn btn-hm fw-bold btn-sm disabled" disabled
+            <button type="button" class="btn btn-hm btn-sm fw-bold jp-td-btn" disabled
                     title="Bạn không có quyền thêm dòng">
-                <i class="bi bi-plus-circle-fill me-1"></i>Thêm dòng
+                <i class="bi bi-plus-lg"></i><span>Thêm dòng</span>
             </button>
             {% endif %}
         </div>
     </div>
 
-    <div class="table-responsive">
-        <table class="table table-bordered align-middle jp-tien-do-table">
-            <thead class="table-light">
-                <tr>
-                    {% for col, label in column_headers %}
-                    <th style="min-width:200px">{{ label }}</th>
-                    {% endfor %}
-                    <th style="width:90px" class="text-center {% if not can_edit_tester %}jp-col-dim{% endif %}">Đã test</th>
-                    <th style="width:60px" class="text-center {% if not can_delete %}jp-col-dim{% endif %}">Xóa</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in rows %}
-                <tr data-item-id="{{ row.item.id }}">
-                    {% for cell in row.cells %}
-                    <td class="jp-cell {% if cell.can_edit %}jp-cell-editable{% else %}jp-cell-readonly{% endif %}"
-                        data-column="{{ cell.column }}" data-rich="{{ cell.is_rich|yesno:'1,0' }}">
-                        {% if cell.can_edit %}
-                        <div class="jp-cell-frame {% if not cell.is_rich %}jp-cell-frame--plain{% endif %}">
-                            <div class="jp-cell-editor" contenteditable="true" data-td-editor
-                                 data-placeholder="{{ cell.label }}…">{{ cell.html }}</div>
-                            {% if cell.is_rich and can_upload_image %}
-                            <label class="jp-cell-imgbtn" title="Chèn ảnh">
-                                <i class="bi bi-image"></i>
-                                <span>Ảnh</span>
-                                <input type="file" accept="image/*" hidden data-td-file>
-                            </label>
+    {% for row in rows %}
+    <article class="jp-td-card" data-item-id="{{ row.item.id }}">
+        <header class="jp-td-card__head">
+            <span class="jp-td-card__no">{{ page_obj.start_index|add:forloop.counter0 }}</span>
+            <div class="jp-td-card__title" data-column="{{ row.feature.column }}" data-rich="0">
+                {% if row.feature.can_edit %}
+                <div class="jp-td-title-editor" contenteditable="true" data-td-editor
+                     data-placeholder="Tên tính năng…">{{ row.feature.html }}</div>
+                {% else %}
+                <div class="jp-td-title-view is-locked">{{ row.feature.html|default:"(chưa đặt tên)" }}</div>
+                {% endif %}
+            </div>
+            <div class="jp-td-card__meta">
+                <span class="jp-td-chip" title="Số feedback">
+                    <i class="bi bi-chat-left-text"></i>{{ row.entries|length }}
+                </span>
+                <span class="jp-td-card__time" title="Cập nhật lần cuối">
+                    <i class="bi bi-clock-history"></i>{{ row.updated_at|date:"d/m/Y H:i" }}
+                </span>
+                {% if can_delete %}
+                <form method="post" action="{% url 'tien_do:item_delete' row.item.id %}" class="d-inline-flex"
+                      onsubmit="return confirm('Xóa dòng tiến độ này?');">
+                    {% csrf_token %}
+                    <button type="submit" class="jp-td-icon-btn is-danger" title="Xóa dòng" aria-label="Xóa dòng">
+                        <i class="bi bi-trash3"></i>
+                    </button>
+                </form>
+                {% else %}
+                <button type="button" class="jp-td-icon-btn is-danger" disabled
+                        title="Bạn không có quyền xóa" aria-label="Xóa dòng">
+                    <i class="bi bi-trash3"></i>
+                </button>
+                {% endif %}
+            </div>
+        </header>
+
+        <div class="jp-td-card__body">
+            <section class="jp-td-pane">
+                {% for field in row.fields %}
+                <div class="jp-td-field" data-column="{{ field.column }}" data-rich="1">
+                    <div class="jp-td-label">{{ field.label }}</div>
+                    {% if field.can_edit %}
+                    <div class="jp-cell-frame">
+                        <div class="jp-cell-editor" contenteditable="true" data-td-editor
+                             data-placeholder="{{ field.label }}…">{{ field.html }}</div>
+                        {% if can_upload_image %}
+                        <label class="jp-cell-imgbtn" title="Chèn ảnh">
+                            <i class="bi bi-image"></i><span>Ảnh</span>
+                            <input type="file" accept="image/*" hidden data-td-file>
+                        </label>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="jp-cell-view is-locked" title="Bạn không có quyền sửa">{{ field.html|default:"—" }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </section>
+
+            <section class="jp-td-pane jp-td-pane--fb">
+                <div class="jp-td-label">Feedback &amp; Ghi chú</div>
+
+                {% if row.entries %}
+                <ul class="jp-fb-list">
+                    {% for entry in row.entries %}
+                    <li class="jp-fb-entry">
+                        {% if entry.author_avatar %}
+                        <img class="jp-fb-avatar" src="{{ entry.author_avatar }}" alt="{{ entry.author_label }}" loading="lazy">
+                        {% else %}
+                        <span class="jp-fb-avatar" aria-hidden="true">{{ entry.author_initials }}</span>
+                        {% endif %}
+                        <div class="jp-fb-entry__main">
+                            <div class="jp-fb-entry__meta">
+                                <strong>{{ entry.author_label }}</strong>
+                                <span>{{ entry.created_at|date:"d/m/Y H:i" }}</span>
+                            </div>
+                            {% if entry.feedback_html %}
+                            <div class="jp-fb-block">
+                                <span class="jp-fb-tag">Feedback</span>
+                                <div class="jp-fb-text">{{ entry.feedback_html }}</div>
+                            </div>
+                            {% endif %}
+                            {% if entry.note_html %}
+                            <div class="jp-fb-block">
+                                <span class="jp-fb-tag is-note">Ghi chú</span>
+                                <div class="jp-fb-text">{{ entry.note_html }}</div>
+                            </div>
                             {% endif %}
                         </div>
-                        {% else %}
-                        <div class="jp-cell-view" title="Bạn không có quyền sửa cột này">{{ cell.html }}</div>
-                        {% endif %}
-                    </td>
+                    </li>
                     {% endfor %}
-                    <td class="text-center {% if not can_edit_tester %}jp-cell-locked{% endif %}"
-                        {% if not can_edit_tester %}title="Bạn không có quyền sửa cột này"{% endif %}>
-                        <input type="checkbox" class="form-check-input jp-tested-toggle"
-                               {% if row.item.is_tested %}checked{% endif %}
-                               {% if not can_edit_tester %}disabled{% endif %}>
-                    </td>
-                    <td class="text-center {% if not can_delete %}jp-cell-locked{% endif %}"
-                        {% if not can_delete %}title="Bạn không có quyền xóa"{% endif %}>
-                        {% if can_delete %}
-                        <form method="post" action="{% url 'tien_do:item_delete' row.item.id %}"
-                              onsubmit="return confirm('Xóa dòng tiến độ này?');">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-link text-danger p-0"><i class="bi bi-trash3"></i></button>
-                        </form>
-                        {% else %}
-                        <button type="button" class="btn btn-link text-danger p-0 disabled" disabled>
-                            <i class="bi bi-trash3"></i>
-                        </button>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="{{ column_headers|length|add:2 }}" class="text-center text-muted py-4">
-                        Chưa có dòng tiến độ nào.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+                </ul>
+                {% else %}
+                <div class="jp-fb-empty">Chưa có feedback</div>
+                {% endif %}
 
-    {% include 'includes/pagination.html' %}
+                {% if can_edit_tester %}
+                <div class="jp-fb-composer" data-fb-composer>
+                    {% if current_user_avatar %}
+                    <img class="jp-fb-avatar is-me" src="{{ current_user_avatar }}" alt="{{ current_user_label }}" loading="lazy">
+                    {% else %}
+                    <span class="jp-fb-avatar is-me" aria-hidden="true">{{ current_user_initials }}</span>
+                    {% endif %}
+                    <div class="jp-fb-composer__main">
+                        <div class="jp-fb-composer__fields">
+                            <div class="jp-td-field" data-fb-field>
+                                <div class="jp-cell-frame">
+                                    <div class="jp-cell-editor" contenteditable="true" data-fb-editor="feedback"
+                                         data-placeholder="Feedback…" aria-label="Feedback"></div>
+                                    {% if can_upload_image %}
+                                    <label class="jp-cell-imgbtn" title="Chèn ảnh">
+                                        <i class="bi bi-image"></i><span>Ảnh</span>
+                                        <input type="file" accept="image/*" hidden data-td-file>
+                                    </label>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="jp-td-field" data-fb-field>
+                                <div class="jp-cell-frame">
+                                    <div class="jp-cell-editor" contenteditable="true" data-fb-editor="note"
+                                         data-placeholder="Ghi chú…" aria-label="Ghi chú"></div>
+                                    {% if can_upload_image %}
+                                    <label class="jp-cell-imgbtn" title="Chèn ảnh">
+                                        <i class="bi bi-image"></i><span>Ảnh</span>
+                                        <input type="file" accept="image/*" hidden data-td-file>
+                                    </label>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="jp-fb-composer__foot">
+                            <span class="jp-fb-composer__who">{{ current_user_label }}</span>
+                            <button type="button" class="btn btn-hm btn-sm fw-bold jp-td-btn" data-fb-save
+                                    data-url="{% url 'tien_do:item_feedback_create' row.item.id %}">
+                                <i class="bi bi-send"></i><span>Lưu</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="jp-fb-composer is-locked" title="Bạn không có quyền ghi Feedback / Ghi chú">
+                    <i class="bi bi-lock"></i><span>Chỉ xem</span>
+                </div>
+                {% endif %}
+            </section>
+        </div>
+    </article>
+    {% empty %}
+    <div class="jp-td-empty">
+        <i class="bi bi-kanban" aria-hidden="true"></i>
+        <div>{% if search_query %}Không tìm thấy dòng tiến độ phù hợp.{% else %}Chưa có dòng tiến độ nào.{% endif %}</div>
+    </div>
+    {% endfor %}
+
+    {% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string only %}
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script src="{% static 'js/tien-do-board.js' %}?v=20261005a"></script>
+<script src="{% static 'js/tien-do-board.js' %}?v=20261005d"></script>
 {% endblock %}

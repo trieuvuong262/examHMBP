@@ -12,6 +12,6 @@ urlpatterns = [
     path('tai-anh/', views.item_image_upload, name='item_image_upload'),
     path('anh/<path:relpath>', views.item_image_serve, name='item_image'),
     path('<int:pk>/sua-o/', views.item_cell_update, name='item_cell_update'),
-    path('<int:pk>/danh-dau-test/', views.item_toggle_tested, name='item_toggle_tested'),
+    path('<int:pk>/feedback/', views.item_feedback_create, name='item_feedback_create'),
     path('<int:pk>/xoa/', views.item_delete, name='item_delete'),
 ]

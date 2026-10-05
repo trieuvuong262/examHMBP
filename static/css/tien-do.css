@@ -1,40 +1,262 @@
-/* Bảng tiến độ — ô inline có ảnh, ô không có quyền thì làm mờ. */
+/* Tiến độ — card theo từng tính năng, luồng Feedback theo người gửi. */
 
-.jp-tien-do-table {
-  table-layout: fixed;
+.jp-td-page {
+  --td-border: #e5e7eb;
+  --td-border-strong: #d1d5db;
+  --td-muted: #64748b;
+  --td-soft: #f8fafc;
+  --td-locked-bg: #f3f4f6;
+  --td-brand: var(--hm-primary, #dc2626);
+  --td-brand-soft: var(--hm-primary-soft, rgba(220, 38, 38, .08));
+  --td-radius: var(--jp-radius-lg, 7px);
+  --td-ctl-h: 2rem;
 }
 
-.jp-tien-do-table td.jp-cell {
-  vertical-align: top;
-  padding: .35rem;
+/* --- Topbar ------------------------------------------------------------ */
+.jp-td-topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  width: 100%;
+  margin-bottom: 1rem;
 }
 
-/* --- Ô chỉnh sửa được ------------------------------------------------- */
-.jp-cell-frame {
+.jp-td-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem;
+}
+
+.jp-td-search {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+}
+
+.jp-td-search .bi {
+  position: absolute;
+  left: .65rem;
+  color: #94a3b8;
+  font-size: .85rem;
+  pointer-events: none;
+}
+
+.jp-td-search .form-control {
+  width: 16rem;
+  height: var(--td-ctl-h);
+  padding-left: 2rem;
+  border-color: var(--td-border-strong);
+  border-radius: var(--jp-btn-radius, 6px);
+}
+
+.jp-td-search .form-control:focus {
+  border-color: var(--td-brand);
+  box-shadow: 0 0 0 2px var(--td-brand-soft);
+}
+
+/* Nút: chữ + icon luôn nằm giữa */
+.jp-td-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .35rem;
+  height: var(--td-ctl-h);
+  padding: 0 .85rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.jp-td-btn:disabled,
+.jp-td-btn.disabled {
+  opacity: .6;
+  cursor: not-allowed;
+  pointer-events: auto;
+}
+
+.jp-td-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  color: var(--td-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--jp-btn-radius, 6px);
+  line-height: 1;
+  transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+}
+
+.jp-td-icon-btn.is-danger:hover:not(:disabled) {
+  color: var(--td-brand);
+  background: var(--td-brand-soft);
+  border-color: rgba(220, 38, 38, .25);
+}
+
+.jp-td-icon-btn:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+/* --- Card ------------------------------------------------------------- */
+.jp-td-card {
+  margin-bottom: 1rem;
+  background: #fff;
+  border: 1px solid var(--td-border);
+  border-radius: var(--td-radius);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+  overflow: hidden;
+  transition: box-shadow .15s ease, border-color .15s ease;
+}
+
+.jp-td-card:hover {
+  border-color: var(--td-border-strong);
+  box-shadow: var(--hm-card-shadow, 0 4px 20px rgba(0, 0, 0, .06));
+}
+
+.jp-td-card__head {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .6rem .9rem;
+  background: var(--td-soft);
+  border-bottom: 1px solid var(--td-border);
+}
+
+.jp-td-card__no {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  padding: 0 .4rem;
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--td-brand);
+  background: var(--td-brand-soft);
+  border-radius: 999px;
+}
+
+.jp-td-card__title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.jp-td-title-editor,
+.jp-td-title-view {
+  padding: .2rem .4rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.35;
+  border: 1px solid transparent;
+  border-radius: var(--jp-radius, 5px);
+  outline: none;
+  word-break: break-word;
+}
+
+.jp-td-title-editor:hover {
+  background: #fff;
+  border-color: var(--td-border);
+}
+
+.jp-td-title-editor:focus {
+  background: #fff;
+  border-color: var(--td-brand);
+  box-shadow: 0 0 0 2px var(--td-brand-soft);
+}
+
+.jp-td-title-editor:empty:before {
+  content: attr(data-placeholder);
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+.jp-td-card__meta {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: .6rem;
+  font-size: .78rem;
+  color: var(--td-muted);
+}
+
+.jp-td-card__time,
+.jp-td-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  white-space: nowrap;
+}
+
+.jp-td-chip {
+  height: 1.5rem;
+  padding: 0 .55rem;
+  font-weight: 600;
+  background: #fff;
+  border: 1px solid var(--td-border);
+  border-radius: 999px;
+}
+
+.jp-td-card__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.jp-td-pane {
   display: flex;
   flex-direction: column;
+  gap: .75rem;
   min-width: 0;
+  padding: .9rem;
+}
+
+.jp-td-pane--fb {
+  background: #fcfcfd;
+  border-left: 1px solid var(--td-border);
+}
+
+.jp-td-label {
+  margin-bottom: .3rem;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--td-muted);
+}
+
+/* --- Editor ô rich (Mô tả / User flow / Feedback / Ghi chú) ----------- */
+.jp-cell-frame {
+  position: relative;
   background: #fff;
-  border: 1px solid var(--jp-surface-border, #dbe2ea);
-  border-radius: .5rem;
-  overflow: hidden;
+  border: 1px solid var(--td-border-strong);
+  border-radius: var(--jp-radius, 5px);
   transition: border-color .15s ease, box-shadow .15s ease;
 }
 
+.jp-cell-frame:hover {
+  border-color: #9ca3af;
+}
+
 .jp-cell-frame:focus-within {
-  border-color: var(--hm-primary, #0d6efd);
-  box-shadow: 0 0 0 2px rgba(13, 110, 253, .12);
+  border-color: var(--td-brand);
+  box-shadow: 0 0 0 2px var(--td-brand-soft);
 }
 
 .jp-cell-editor {
-  flex: 1 1 auto;
-  min-height: 3.75rem;
-  max-height: 16rem;
+  min-height: 4rem;
+  max-height: 18rem;
   overflow: auto;
-  padding: .4rem .5rem 1.75rem;
+  padding: .45rem .6rem 1.9rem;
   font-size: .875rem;
-  line-height: 1.45;
+  line-height: 1.5;
+  color: #1f2937;
   outline: none;
   white-space: pre-wrap;
   word-break: break-word;
@@ -46,82 +268,289 @@
   pointer-events: none;
 }
 
-/* Ô text thuần (Tính năng) không cần chỗ cho nút ảnh */
-.jp-cell-frame--plain .jp-cell-editor {
-  min-height: 2.5rem;
-  padding-bottom: .4rem;
-}
-
 .jp-cell-imgbtn {
   position: absolute;
-  right: .3rem;
-  bottom: .25rem;
+  right: .35rem;
+  bottom: .3rem;
   z-index: 2;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: .25rem;
+  height: 1.4rem;
   margin: 0;
-  padding: .1rem .4rem;
+  padding: 0 .5rem;
   font-size: .72rem;
-  line-height: 1.3;
+  line-height: 1;
   color: #475569;
   background: #fff;
   border: 1px solid #cbd5e1;
   border-radius: 999px;
   cursor: pointer;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, .08);
 }
 
 .jp-cell-imgbtn:hover {
-  color: var(--hm-primary, #0d6efd);
-  background: #f8fafc;
-  border-color: #94a3b8;
+  color: var(--td-brand);
+  border-color: rgba(220, 38, 38, .35);
 }
 
 .jp-cell-imgbtn.is-busy {
   pointer-events: none;
-  opacity: .55;
+  opacity: .5;
 }
 
-/* --- Ô chỉ đọc: làm mờ ------------------------------------------------ */
-.jp-tien-do-table td.jp-cell-readonly,
-.jp-tien-do-table td.jp-cell-locked {
-  background: #f1f3f6;
-  color: #6b7280;
-  cursor: not-allowed;
-}
-
+/* --- Trạng thái chỉ đọc: làm mờ -------------------------------------- */
 .jp-cell-view {
-  min-height: 1.5rem;
-  max-height: 16rem;
+  min-height: 2.25rem;
+  max-height: 18rem;
   overflow: auto;
-  padding: .3rem .35rem;
+  padding: .45rem .6rem;
   font-size: .875rem;
-  line-height: 1.45;
-  opacity: .62;
+  line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-.jp-tien-do-table .jp-cell-locked .form-check-input:disabled,
-.jp-tien-do-table .jp-cell-locked .btn:disabled,
-.jp-tien-do-table .jp-cell-locked .btn.disabled {
-  opacity: .4;
-  cursor: not-allowed;
+/* Mờ nhẹ: nền xám rất nhạt, chữ vẫn đậm đủ đọc rõ */
+.jp-cell-view.is-locked {
+  color: #374151;
+  background: #f9fafb;
+  border: 1px solid var(--td-border);
+  border-radius: var(--jp-radius, 5px);
+  cursor: default;
 }
 
-.jp-tien-do-table thead th.jp-col-dim {
+.jp-td-title-view.is-locked {
+  color: #1f2937;
+  cursor: default;
+}
+
+.jp-cell-view.is-locked img {
+  opacity: 1;
+}
+
+/* --- Luồng feedback --------------------------------------------------- */
+.jp-fb-list {
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.jp-fb-entry {
+  display: flex;
+  gap: .6rem;
+  padding: .6rem .7rem;
+  background: #fff;
+  border: 1px solid var(--td-border);
+  border-radius: var(--jp-radius, 5px);
+}
+
+.jp-fb-avatar {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  font-size: .72rem;
+  font-weight: 700;
+  color: #334155;
+  background: #e2e8f0;
+  border-radius: 50%;
+  line-height: 1;
+}
+
+.jp-fb-avatar.is-me {
+  color: #fff;
+  background: var(--td-brand);
+}
+
+img.jp-fb-avatar {
+  object-fit: cover;
+  background: #e2e8f0;
+  border: 1px solid var(--td-border);
+}
+
+img.jp-fb-avatar.is-me {
+  border-color: var(--td-brand);
+}
+
+.jp-fb-entry__main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.jp-fb-entry__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: .25rem .5rem;
+  margin-bottom: .3rem;
+  font-size: .82rem;
+}
+
+.jp-fb-entry__meta strong {
+  color: #0f172a;
+}
+
+.jp-fb-entry__meta span {
+  font-size: .75rem;
+  color: var(--td-muted);
+}
+
+.jp-fb-block + .jp-fb-block {
+  margin-top: .4rem;
+}
+
+.jp-fb-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 1.15rem;
+  margin-bottom: .2rem;
+  padding: 0 .45rem;
+  font-size: .66rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  color: #0369a1;
+  background: #e0f2fe;
+  border-radius: 999px;
+  line-height: 1;
+}
+
+.jp-fb-tag.is-note {
+  color: #a16207;
+  background: #fef3c7;
+}
+
+.jp-fb-text {
+  font-size: .86rem;
+  line-height: 1.5;
+  color: #1f2937;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.jp-fb-empty {
+  padding: .6rem;
+  font-size: .82rem;
   color: #94a3b8;
+  text-align: center;
+  border: 1px dashed var(--td-border);
+  border-radius: var(--jp-radius, 5px);
+}
+
+.jp-fb-composer {
+  display: flex;
+  gap: .6rem;
+  margin-top: auto;
+  padding-top: .75rem;
+  border-top: 1px dashed var(--td-border-strong);
+}
+
+.jp-fb-composer__main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.jp-fb-composer__fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: .5rem;
+}
+
+.jp-fb-composer .jp-cell-editor {
+  min-height: 3.25rem;
+}
+
+.jp-fb-composer__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  margin-top: .5rem;
+}
+
+.jp-fb-composer__who {
+  font-size: .78rem;
+  color: var(--td-muted);
+}
+
+.jp-fb-composer.is-locked {
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  font-size: .8rem;
+  color: #6b7280;
 }
 
 /* --- Ảnh inline ------------------------------------------------------- */
 .jp-cell-editor img,
 .jp-cell-view img,
+.jp-fb-text img,
 .jp-tien-do-inline-img {
   display: block;
   max-width: 100%;
+  max-height: 14rem;
   height: auto;
-  margin: .25rem 0;
-  border: 1px solid var(--jp-surface-border, #e2e8f0);
-  border-radius: .35rem;
+  margin: .3rem 0;
+  border: 1px solid var(--td-border);
+  border-radius: var(--jp-radius, 5px);
+}
+
+/* --- Trạng thái trống ------------------------------------------------- */
+.jp-td-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .5rem;
+  padding: 3rem 1rem;
+  color: var(--td-muted);
+  background: #fff;
+  border: 1px dashed var(--td-border-strong);
+  border-radius: var(--td-radius);
+}
+
+.jp-td-empty .bi {
+  font-size: 2rem;
+  color: #cbd5e1;
+}
+
+/* --- Responsive ------------------------------------------------------- */
+@media (max-width: 991.98px) {
+  .jp-td-card__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .jp-td-pane--fb {
+    border-left: 0;
+    border-top: 1px solid var(--td-border);
+  }
+}
+
+@media (max-width: 575.98px) {
+  .jp-td-search,
+  .jp-td-search .form-control {
+    width: 100%;
+  }
+
+  .jp-td-tools {
+    width: 100%;
+  }
+
+  .jp-td-card__head {
+    flex-wrap: wrap;
+  }
+
+  .jp-td-card__meta {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .jp-fb-composer__fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

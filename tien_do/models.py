@@ -21,9 +21,6 @@ class TienDoItem(models.Model):
     feature = models.CharField(max_length=255, blank=True, verbose_name='Tính năng')
     description = models.TextField(blank=True, verbose_name='Mô tả')
     user_flow = models.TextField(blank=True, verbose_name='User flow')
-    feedback = models.TextField(blank=True, verbose_name='Feedback')
-    note = models.TextField(blank=True, verbose_name='Ghi chú')
-    is_tested = models.BooleanField(default=False, verbose_name='Đã test')
 
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -36,20 +33,17 @@ class TienDoItem(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    # Tên cột IT nhập / người test nhập — dùng để phân quyền chỉnh sửa inline.
+    # Cột IT nhập inline. Feedback / Ghi chú nằm ở TienDoFeedback (mỗi người một bản ghi).
     IT_COLUMNS = ('feature', 'description', 'user_flow')
-    TESTER_COLUMNS = ('feedback', 'note')
-    EDITABLE_COLUMNS = IT_COLUMNS + TESTER_COLUMNS
+    EDITABLE_COLUMNS = IT_COLUMNS
 
     # Cột cho phép nội dung rich (text + ảnh inline). 'feature' là CharField nên để text thuần.
-    RICH_COLUMNS = ('description', 'user_flow', 'feedback', 'note')
+    RICH_COLUMNS = ('description', 'user_flow')
 
     COLUMN_LABELS = {
         'feature': 'Tính năng',
         'description': 'Mô tả',
         'user_flow': 'User flow',
-        'feedback': 'Feedback',
-        'note': 'Ghi chú',
     }
 
     class Meta:
@@ -59,3 +53,36 @@ class TienDoItem(models.Model):
 
     def __str__(self):
         return f'[{self.get_platform_display()}] {self.feature or "(chưa đặt tên)"}'
+
+
+class TienDoFeedback(models.Model):
+    """Feedback + Ghi chú của một người cho một dòng tiến độ (mỗi lần bấm Lưu là một bản ghi)."""
+
+    item = models.ForeignKey(
+        TienDoItem,
+        on_delete=models.CASCADE,
+        related_name='feedbacks',
+        verbose_name='Dòng tiến độ',
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='tien_do_feedbacks',
+        verbose_name='Người gửi',
+    )
+    feedback = models.TextField(blank=True, verbose_name='Feedback')
+    note = models.TextField(blank=True, verbose_name='Ghi chú')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    RICH_FIELDS = ('feedback', 'note')
+
+    class Meta:
+        ordering = ['created_at', 'id']
+        verbose_name = 'Feedback tiến độ'
+        verbose_name_plural = 'Feedback tiến độ'
+
+    def __str__(self):
+        return f'Feedback #{self.pk} — {self.item_id}'

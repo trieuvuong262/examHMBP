@@ -3,7 +3,7 @@ import mimetypes
 import os
 
 from django.contrib import messages
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -22,6 +22,7 @@ from hrm.module_permissions import (
     user_can_delete_module,
     user_can_update_module,
 )
+from hrm.permissions import get_profile
 from kpi.services.inline_images import actual_html_for_edit, sanitize_actual_html
 from reports.daily_inline_images import (
     inline_image_exists,
@@ -30,7 +31,7 @@ from reports.daily_inline_images import (
     save_inline_image,
 )
 
-from .models import TienDoItem
+from .models import TienDoFeedback, TienDoItem
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,7 @@ def _can_edit_it_columns(user):
 
 
 def _can_edit_tester_columns(user):
-    """Cột người test (Feedback / Ghi chú / Đã test): dành cho người có quyền Sửa."""
+    """Feedback / Ghi chú: dành cho người có quyền Sửa."""
     return user_can_update_module(user, MODULE_TIEN_DO)
 
 
@@ -85,27 +86,83 @@ def _platform_or_404(platform):
     return platform
 
 
-def _build_rows(items, *, can_edit_it, can_edit_tester):
-    """Dựng dữ liệu ô cho template: nội dung an toàn + cờ phân quyền từng cột."""
+def _user_label(user):
+    if not user:
+        return '—'
+    profile = get_profile(user)
+    if profile and getattr(profile, 'full_name', ''):
+        return profile.full_name
+    return user.get_full_name() or user.username
+
+
+def _initials(label):
+    """2 chữ cái đầu cho avatar: 'Trần Nhân Đức' → 'TĐ'."""
+    words = [w for w in (label or '').split() if w and w != '—']
+    if not words:
+        return '?'
+    if len(words) == 1:
+        return words[0][:2].upper()
+    return (words[0][0] + words[-1][0]).upper()
+
+
+def _avatar_url(user):
+    """URL ảnh đại diện nhân viên (Profile.avatar); rỗng nếu chưa có ảnh."""
+    profile = get_profile(user) if user else None
+    avatar = getattr(profile, 'avatar', None) if profile else None
+    if not avatar:
+        return ''
+    try:
+        return avatar.url or ''
+    except (ValueError, OSError):
+        return ''
+
+
+def _feedback_payload(entry):
+    author_label = _user_label(entry.author)
+    return {
+        'id': entry.pk,
+        'feedback_html': actual_html_for_edit(entry.feedback),
+        'note_html': actual_html_for_edit(entry.note),
+        'author_label': author_label,
+        'author_initials': _initials(author_label),
+        'author_avatar': _avatar_url(entry.author),
+        'created_at': timezone.localtime(entry.created_at),
+    }
+
+
+def _it_field(item, column, can_edit_it):
+    return {
+        'column': column,
+        'label': TienDoItem.COLUMN_LABELS[column],
+        'is_rich': column in TienDoItem.RICH_COLUMNS,
+        'can_edit': can_edit_it,
+        'html': actual_html_for_edit(getattr(item, column)),
+    }
+
+
+def _build_rows(items, *, can_edit_it):
+    """Mỗi dòng tiến độ → một card: Tính năng (tiêu đề), Mô tả + User flow, luồng Feedback."""
     rows = []
     for item in items:
-        cells = []
-        for column in TienDoItem.EDITABLE_COLUMNS:
-            is_it_column = column in TienDoItem.IT_COLUMNS
-            cells.append({
-                'column': column,
-                'label': TienDoItem.COLUMN_LABELS[column],
-                'is_rich': column in TienDoItem.RICH_COLUMNS,
-                'can_edit': can_edit_it if is_it_column else can_edit_tester,
-                'html': actual_html_for_edit(getattr(item, column)),
-            })
-        rows.append({'item': item, 'cells': cells})
+        entries = [_feedback_payload(e) for e in item.feedbacks.all()]
+        rows.append({
+            'item': item,
+            'feature': _it_field(item, 'feature', can_edit_it),
+            'fields': [_it_field(item, col, can_edit_it) for col in TienDoItem.RICH_COLUMNS],
+            'entries': entries,
+            'updated_at': timezone.localtime(item.updated_at),
+        })
     return rows
 
 
 def _render_board(request, platform):
     search_query = get_search_query(request)
-    qs = TienDoItem.objects.filter(platform=platform)
+    qs = TienDoItem.objects.filter(platform=platform).prefetch_related(
+        Prefetch(
+            'feedbacks',
+            queryset=TienDoFeedback.objects.select_related('author', 'author__profile'),
+        )
+    )
     qs = apply_term_search(qs, search_query, 'feature__icontains', 'description__icontains')
     page_obj, query_string = paginate_queryset(request, qs)
 
@@ -113,14 +170,10 @@ def _render_board(request, platform):
     context = {
         'platform': platform,
         'platform_label': PLATFORM_LABELS[platform],
-        'rows': _build_rows(
-            page_obj.object_list,
-            can_edit_it=perms['can_edit_it'],
-            can_edit_tester=perms['can_edit_tester'],
-        ),
-        'column_headers': [
-            (col, TienDoItem.COLUMN_LABELS[col]) for col in TienDoItem.EDITABLE_COLUMNS
-        ],
+        'rows': _build_rows(page_obj.object_list, can_edit_it=perms['can_edit_it']),
+        'current_user_label': _user_label(request.user),
+        'current_user_initials': _initials(_user_label(request.user)),
+        'current_user_avatar': _avatar_url(request.user),
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
@@ -158,15 +211,10 @@ def item_cell_update(request, pk):
     column = request.POST.get('column', '')
     value = request.POST.get('value', '')
 
-    if column not in TienDoItem.EDITABLE_COLUMNS:
+    if column not in TienDoItem.IT_COLUMNS:
         return JsonResponse({'status': 'error', 'message': 'Cột không hợp lệ.'}, status=400)
 
-    if column in TienDoItem.IT_COLUMNS:
-        allowed = _can_edit_it_columns(request.user)
-    else:  # TESTER_COLUMNS
-        allowed = _can_edit_tester_columns(request.user)
-
-    if not allowed:
+    if not _can_edit_it_columns(request.user):
         return JsonResponse(
             {'status': 'error', 'message': 'Bạn không có quyền sửa cột này.'},
             status=403,
@@ -187,16 +235,31 @@ def item_cell_update(request, pk):
 
 
 @require_POST
-def item_toggle_tested(request, pk):
+def item_feedback_create(request, pk):
+    """Người có quyền Sửa lưu một bản ghi Feedback + Ghi chú; người gửi = user hiện tại."""
     item = get_object_or_404(TienDoItem, pk=pk)
     if not _can_edit_tester_columns(request.user):
         return JsonResponse(
-            {'status': 'error', 'message': 'Bạn không có quyền.'},
+            {'status': 'error', 'message': 'Bạn không có quyền ghi Feedback / Ghi chú.'},
             status=403,
         )
-    item.is_tested = not item.is_tested
-    item.save(update_fields=['is_tested', 'updated_at'])
-    return JsonResponse({'status': 'ok', 'is_tested': item.is_tested})
+    feedback = sanitize_actual_html(request.POST.get('feedback', ''))
+    note = sanitize_actual_html(request.POST.get('note', ''))
+    if not feedback and not note:
+        return JsonResponse(
+            {'status': 'error', 'message': 'Nhập Feedback hoặc Ghi chú trước khi lưu.'},
+            status=400,
+        )
+    entry = TienDoFeedback.objects.create(
+        item=item, author=request.user, feedback=feedback, note=note,
+    )
+    TienDoItem.objects.filter(pk=item.pk).update(updated_at=timezone.now())
+    return JsonResponse({
+        'status': 'ok',
+        'id': entry.pk,
+        'author': _user_label(request.user),
+        'created_at': timezone.localtime(entry.created_at).strftime('%d/%m/%Y %H:%M'),
+    })
 
 
 @module_perm_required(MODULE_TIEN_DO, 'delete')
@@ -277,10 +340,15 @@ def _can_view_item_image(user, rel):
     filename = parts[-1]
     if not filename:
         return False
-    condition = Q()
+    item_condition = Q()
     for column in TienDoItem.RICH_COLUMNS:
-        condition |= Q(**{f'{column}__contains': filename})
-    return TienDoItem.objects.filter(condition).exists()
+        item_condition |= Q(**{f'{column}__contains': filename})
+    if TienDoItem.objects.filter(item_condition).exists():
+        return True
+    fb_condition = Q()
+    for field in TienDoFeedback.RICH_FIELDS:
+        fb_condition |= Q(**{f'{field}__contains': filename})
+    return TienDoFeedback.objects.filter(fb_condition).exists()
 
 
 @module_perm_required(MODULE_TIEN_DO, 'view')

@@ -1,5 +1,8 @@
 /**
- * Bảng tiến độ — lưu ô inline (AJAX) + chèn/dán ảnh giống ô Đánh giá thực tế KPI.
+ * Bảng tiến độ:
+ *  - Cột IT (Tính năng / Mô tả / User flow): lưu inline khi rời ô.
+ *  - Feedback / Ghi chú: mỗi người nhập rồi bấm «Lưu» → tạo bản ghi mới kèm người gửi.
+ *  - Chèn / dán / kéo-thả ảnh giống ô Đánh giá thực tế KPI.
  */
 (function () {
   var root = document.getElementById('jp-tien-do');
@@ -86,55 +89,8 @@
     else editor.textContent = value;
   }
 
-  function bindEditor(editor) {
-    var cell = editor.closest('td');
-    var row = editor.closest('tr');
-    if (!cell || !row) return;
-
-    var isRich = cell.getAttribute('data-rich') === '1';
-    var column = cell.getAttribute('data-column');
-    var itemId = row.getAttribute('data-item-id');
-    var saveUrl = updateBase + itemId + '/sua-o/';
-    var original = readValue(editor, isRich);
-    var saving = false;
-
-    function save() {
-      var value = readValue(editor, isRich);
-      if (saving || value === original) return;
-      saving = true;
-      post(saveUrl, { column: column, value: value })
-        .then(function (res) {
-          if (!res.ok) {
-            window.alert(res.data.message || 'Lưu thất bại.');
-            writeValue(editor, isRich, original);
-          } else {
-            original = res.data.value;
-            if (document.activeElement !== editor) {
-              writeValue(editor, isRich, original);
-            }
-          }
-        })
-        .catch(function () {
-          window.alert('Lỗi kết nối.');
-          writeValue(editor, isRich, original);
-        })
-        .then(function () {
-          saving = false;
-        });
-    }
-
-    editor.addEventListener('blur', save);
-
-    if (!isRich) {
-      editor.addEventListener('keydown', function (event) {
-        if (event.key === 'Enter') {
-          event.preventDefault();
-          editor.blur();
-        }
-      });
-      return;
-    }
-
+  /** Gắn chèn ảnh (nút / dán / kéo-thả) cho một editor rich. onInserted gọi sau khi chèn xong. */
+  function bindImages(editor, cell, onInserted) {
     var fileInput = cell.querySelector('[data-td-file]');
     var button = cell.querySelector('.jp-cell-imgbtn');
 
@@ -143,7 +99,7 @@
       uploadBlob(blob, name)
         .then(function (url) {
           insertImage(editor, url);
-          save();
+          if (onInserted) onInserted();
         })
         .catch(function (err) {
           window.alert(err.message || 'Không upload được ảnh.');
@@ -192,25 +148,87 @@
     }
   }
 
-  root.querySelectorAll('[data-td-editor]').forEach(bindEditor);
+  /* --- Cột IT: autosave khi rời ô ---------------------------------------- */
+  function bindItEditor(editor) {
+    var cell = editor.closest('[data-column]');
+    var row = editor.closest('[data-item-id]');
+    if (!cell || !row) return;
 
-  root.querySelectorAll('.jp-tested-toggle').forEach(function (box) {
-    if (box.disabled) return;
-    box.addEventListener('change', function () {
-      var row = box.closest('tr');
-      var id = row.getAttribute('data-item-id');
-      post(updateBase + id + '/danh-dau-test/', {})
+    var isRich = cell.getAttribute('data-rich') === '1';
+    var column = cell.getAttribute('data-column');
+    var saveUrl = updateBase + row.getAttribute('data-item-id') + '/sua-o/';
+    var original = readValue(editor, isRich);
+    var saving = false;
+
+    function save() {
+      var value = readValue(editor, isRich);
+      if (saving || value === original) return;
+      saving = true;
+      post(saveUrl, { column: column, value: value })
         .then(function (res) {
           if (!res.ok) {
-            window.alert(res.data.message || 'Thất bại.');
-            box.checked = !box.checked;
+            window.alert(res.data.message || 'Lưu thất bại.');
+            writeValue(editor, isRich, original);
           } else {
-            box.checked = res.data.is_tested;
+            original = res.data.value;
+            if (document.activeElement !== editor) writeValue(editor, isRich, original);
           }
         })
         .catch(function () {
           window.alert('Lỗi kết nối.');
-          box.checked = !box.checked;
+          writeValue(editor, isRich, original);
+        })
+        .then(function () {
+          saving = false;
+        });
+    }
+
+    editor.addEventListener('blur', save);
+
+    if (isRich) {
+      bindImages(editor, cell, save);
+    } else {
+      editor.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          editor.blur();
+        }
+      });
+    }
+  }
+
+  root.querySelectorAll('[data-td-editor]').forEach(bindItEditor);
+
+  /* --- Feedback / Ghi chú: nhập rồi bấm «Lưu» ---------------------------- */
+  root.querySelectorAll('[data-fb-editor]').forEach(function (editor) {
+    bindImages(editor, editor.closest('[data-fb-field]'), null);
+  });
+
+  root.querySelectorAll('[data-fb-save]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      var row = button.closest('[data-fb-composer]');
+      var fbEditor = row.querySelector('[data-fb-editor="feedback"]');
+      var noteEditor = row.querySelector('[data-fb-editor="note"]');
+      var feedback = fbEditor ? readValue(fbEditor, true) : '';
+      var note = noteEditor ? readValue(noteEditor, true) : '';
+      if (!feedback && !note) {
+        window.alert('Nhập Feedback hoặc Ghi chú trước khi lưu.');
+        return;
+      }
+      button.disabled = true;
+      post(button.getAttribute('data-url'), { feedback: feedback, note: note })
+        .then(function (res) {
+          if (!res.ok) {
+            window.alert(res.data.message || 'Lưu thất bại.');
+            button.disabled = false;
+            return;
+          }
+          // Tải lại để hiện bản ghi mới (kèm người gửi) và ô nhập trống cho lần sau.
+          window.location.reload();
+        })
+        .catch(function () {
+          window.alert('Lỗi kết nối.');
+          button.disabled = false;
         });
     });
   });
