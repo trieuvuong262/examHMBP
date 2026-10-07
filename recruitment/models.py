@@ -370,10 +370,12 @@ class CandidateReview(models.Model):
     DECISION_CONSIDER = 'consider'
     DECISION_NOT_SUITABLE = 'not_suitable'
     DECISION_CHOICES = [
-        (DECISION_RECOMMEND, 'Đề xuất phỏng vấn'),
+        (DECISION_RECOMMEND, 'Đạt'),
         (DECISION_CONSIDER, 'Cân nhắc'),
-        (DECISION_NOT_SUITABLE, 'Không phù hợp'),
+        (DECISION_NOT_SUITABLE, 'Không đạt'),
     ]
+    # «Cân nhắc» chỉ còn để hiển thị đánh giá cũ — quản lý chỉ chọn Đạt / Không đạt.
+    ACTIVE_DECISIONS = (DECISION_RECOMMEND, DECISION_NOT_SUITABLE)
 
     candidate = models.ForeignKey(
         Candidate, on_delete=models.CASCADE, related_name='reviews', verbose_name='Ứng viên',

@@ -377,7 +377,7 @@ def transition(candidate, to_status: str, *, actor, reason: str = '',
 
     if to_status == C.STATUS_INTERVIEWING:
         if not has_recommend_review(candidate):
-            raise RecruitmentError('Cần ít nhất 1 đánh giá «Đề xuất phỏng vấn» của quản lý.')
+            raise RecruitmentError('Cần ít nhất 1 đánh giá «Đạt» của quản lý.')
         validate_interview_slot(interview_time, interview_end)
         interview, _ = Interview.objects.update_or_create(
             candidate=candidate,
@@ -489,11 +489,11 @@ def submit_review(candidate, reviewer, *, decision: str, rating=None, comment: s
     candidate = Candidate.objects.select_for_update().select_related('job_posting').get(pk=candidate.pk)
     if not can_review_candidate(reviewer, candidate):
         raise RecruitmentError('Bạn không thể đánh giá hồ sơ này (ngoài phạm vi hoặc không ở bước đánh giá).')
-    if decision not in dict(CandidateReview.DECISION_CHOICES):
+    if decision not in CandidateReview.ACTIVE_DECISIONS:
         raise RecruitmentError('Kết luận không hợp lệ.')
     comment = (comment or '').strip()
     if decision == CandidateReview.DECISION_NOT_SUITABLE and not comment:
-        raise RecruitmentError('Cần nhận xét khi đánh giá «Không phù hợp».')
+        raise RecruitmentError('Cần nhận xét khi đánh giá «Không đạt».')
     if rating is not None and not 1 <= int(rating) <= 5:
         raise RecruitmentError('Điểm hồ sơ từ 1 đến 5.')
 

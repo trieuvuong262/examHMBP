@@ -73,7 +73,7 @@ Hệ thống kiểm tra các quy tắc dưới đây ở mọi thao tác (kéo t
 |---|---|---|
 | Mới | Chờ quản lý đánh giá | Vị trí đã gắn phòng ban |
 | Mới | Loại | Bắt buộc nhập lý do |
-| Chờ quản lý đánh giá | Phỏng vấn | Có ít nhất 1 đánh giá **Đề xuất phỏng vấn** của quản lý + chọn thời gian phỏng vấn |
+| Chờ quản lý đánh giá | Phỏng vấn | Có ít nhất 1 đánh giá **Đạt** của quản lý + chọn thời gian phỏng vấn |
 | Chờ quản lý đánh giá | Loại | Bắt buộc nhập lý do |
 | Phỏng vấn | Trúng tuyển | **Tự động** khi lưu kết quả **Đạt** + vị trí còn chỉ tiêu (Trúng tuyển + Đã nhận việc < Số lượng cần tuyển). Chuyển tay chỉ khi đã Đạt mà lúc đó vị trí đủ chỉ tiêu |
 | Phỏng vấn | Loại | Bắt buộc nhập lý do (tự động khi nhập kết quả **Không đạt**) |
@@ -100,7 +100,7 @@ Hệ thống kiểm tra các quy tắc dưới đây ở mọi thao tác (kéo t
 
 - Chỉ đánh giá khi hồ sơ ở bước **Chờ quản lý đánh giá**.
 - Mỗi quản lý một đánh giá / ứng viên (gửi lại = cập nhật).
-- **Không phù hợp** bắt buộc có nhận xét.
+- **Không đạt** bắt buộc có nhận xét.
 
 **Onboard**
 
@@ -145,8 +145,8 @@ flowchart TD
     F --> G[Mới]
     G -- Gửi quản lý --> R[Chờ quản lý đánh giá]
     R --> S{Quản lý đánh giá hồ sơ}
-    S -- Đề xuất phỏng vấn --> T[HR lên lịch → Phỏng vấn]
-    S -- Không phù hợp --> L[Loại]
+    S -- Đạt --> T[HR lên lịch → Phỏng vấn]
+    S -- Không đạt --> L[Loại]
     T --> U{Kết quả phỏng vấn}
     U -- Không đạt --> L
     U -- Đạt --> V[Tự chuyển Trúng tuyển]
@@ -167,7 +167,7 @@ stateDiagram-v2
     [*] --> Moi: Thêm ứng viên
     Moi --> ChoDanhGia: Gửi quản lý
     Moi --> Loai: Loại (lý do)
-    ChoDanhGia --> PhongVan: ≥1 «Đề xuất phỏng vấn»<br/>+ lịch PV
+    ChoDanhGia --> PhongVan: ≥1 «Đạt»<br/>+ lịch PV
     ChoDanhGia --> Loai: Loại (lý do)
     PhongVan --> TrungTuyen: Kết quả Đạt<br/>+ còn chỉ tiêu
     PhongVan --> Loai: Không đạt / Loại
@@ -203,7 +203,7 @@ sequenceDiagram
     HR->>TD: Thêm ứng viên + CV
     QL->>TD: (tuỳ chọn) Đề xuất ứng viên
     HR->>TD: Chuyển «Chờ quản lý đánh giá»
-    QL->>TD: Xem CV, đánh giá «Đề xuất phỏng vấn»
+    QL->>TD: Xem CV, đánh giá «Đạt»
     HR->>TD: Chuyển «Phỏng vấn» + lịch, người phỏng vấn
     PV->>TD: Xem CV khi phỏng vấn
     PV->>TD: Lưu kết quả Đạt / Không đạt (hoặc quản lý / HR)
@@ -307,9 +307,9 @@ Kanban: lọc **Vị trí** (*Tất cả vị trí chưa đóng* hoặc một v�
 
 **13.** Bấm **CV** để xem nhanh, hoặc **Đánh giá** để mở hồ sơ.
 
-**14.** Trang hồ sơ → khung **Đánh giá của quản lý** → chọn **Đề xuất phỏng vấn** / **Cân nhắc** / **Không phù hợp**, **Điểm hồ sơ** (1–5, tuỳ chọn), **Nhận xét** → **Gửi đánh giá**. Muốn sửa: mở lại hồ sơ, đổi và gửi lại.
+**14.** Trang hồ sơ: CV hiện ngay bên trái; khung **Đánh giá của bạn** bên phải → chọn **Đạt** / **Không đạt**, **Điểm hồ sơ** (1–5 sao, tuỳ chọn), **Nhận xét** → **Gửi đánh giá**. Gửi xong tự mở hồ sơ kế tiếp đang chờ bạn (**Hồ sơ khác** để bỏ qua). Muốn sửa: mở lại hồ sơ, đổi và gửi lại.
 
-> Chỉ **Đề xuất phỏng vấn** mới cho phép HR chuyển ứng viên sang phỏng vấn. **Cân nhắc** giữ hồ sơ ở bước chờ đánh giá.
+> Chỉ **Đạt** mới cho phép HR chuyển ứng viên sang phỏng vấn. **Không đạt** bắt buộc có nhận xét.
 
 ### Quản lý — Đề xuất ứng viên (tuỳ chọn)
 
@@ -317,7 +317,7 @@ Kanban: lọc **Vị trí** (*Tất cả vị trí chưa đóng* hoặc một v�
 
 ### HR — Lên lịch phỏng vấn
 
-**16.** Ứng viên đã có **Đề xuất phỏng vấn**: kéo thẻ sang **Phỏng vấn** (hoặc nút **Phỏng vấn** ở **Bước tiếp theo**). Hộp xác nhận yêu cầu:
+**16.** Ứng viên đã có **Đạt**: kéo thẻ sang **Phỏng vấn** (hoặc nút **Phỏng vấn** ở **Bước tiếp theo**). Hộp xác nhận yêu cầu:
 
 - **Bắt đầu**, **Thời lượng**, **Kết thúc** (bắt buộc) — chọn bắt đầu + thời lượng (15 phút … 3 giờ) thì kết thúc tự tính; sửa kết thúc thì thời lượng tự cập nhật (*Tuỳ chỉnh*). Buổi phỏng vấn từ 15 phút đến 8 giờ.
 - **Địa điểm**
@@ -413,7 +413,7 @@ Cấu hình ở **Phân quyền → Nhóm quyền**, dòng **Nhân sự**:
 
 | Thông báo | Nguyên nhân | Cách xử lý |
 |---|---|---|
-| *Cần ít nhất 1 đánh giá «Đề xuất phỏng vấn» của quản lý.* | Chưa có quản lý đề xuất phỏng vấn | Chờ / nhắc quản lý phụ trách đánh giá |
+| *Cần ít nhất 1 đánh giá «Đạt» của quản lý.* | Chưa có quản lý đề xuất phỏng vấn | Chờ / nhắc quản lý phụ trách đánh giá |
 | *Cần chọn thời gian bắt đầu / kết thúc phỏng vấn.* | Bỏ trống giờ khi chuyển Phỏng vấn | Chọn bắt đầu và thời lượng |
 | *Thời gian kết thúc phải sau thời gian bắt đầu.* | Kết thúc ≤ bắt đầu | Sửa kết thúc hoặc chọn lại thời lượng |
 | *Chỉ trúng tuyển khi kết quả phỏng vấn là «Đạt».* | Chưa lưu kết quả Đạt | Lưu kết quả ở khung Phỏng vấn |

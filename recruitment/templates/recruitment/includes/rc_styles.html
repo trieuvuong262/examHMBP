@@ -237,6 +237,39 @@
   .jp-rc-job.is-closed td { color: #64748b; }
   .jp-rc-job.is-closed .jp-rc-person-name { color: #64748b; }
   .jp-rc-job.is-closed .jp-rc-progress > span { background: #94a3b8; }
+  /* Quản lý đánh giá ứng viên */
+  .jp-rc-review-head { display: flex; align-items: flex-start; gap: .9rem; flex-wrap: wrap; }
+  .jp-rc-avatar-lg { flex-basis: 3.2rem; width: 3.2rem; height: 3.2rem; font-size: 1.2rem; }
+  .jp-rc-viewer-card { overflow: hidden; }
+  .jp-rc-embed { height: calc(100vh - 15rem); min-height: 32rem; background: #525659; display: flex; }
+  .jp-rc-embed iframe { flex: 1; width: 100%; height: 100%; border: 0; }
+  .jp-rc-embed .jp-rc-empty { flex: 1; align-self: center; color: #e2e8f0; }
+  .jp-rc-embed-image { flex: 1; overflow: auto; display: flex; justify-content: center; align-items: flex-start; padding: 1rem; }
+  .jp-rc-embed-image img { max-width: 100%; height: auto; background: #fff; box-shadow: 0 4px 24px rgba(0, 0, 0, .35); }
+  .jp-rc-file-tabs { display: flex; gap: .3rem; flex-wrap: wrap; }
+  .jp-rc-file-tab {
+    display: inline-flex; align-items: center; gap: .3rem; padding: .25rem .65rem; border-radius: 999px;
+    border: 1px solid #e2e8f0; background: #fff; font-size: .8rem; font-weight: 600; color: #334155;
+  }
+  .jp-rc-file-tab.active { background: #0f172a; border-color: #0f172a; color: #fff; }
+  .jp-rc-review-side { display: flex; flex-direction: column; gap: 1rem; }
+  @media (min-width: 1200px) {
+    .jp-rc-review-side { position: sticky; top: 1rem; max-height: calc(100vh - 2rem); overflow-y: auto; padding-right: .15rem; }
+  }
+  .jp-rc-review-card { border-top: 3px solid var(--hm-primary, #dc2626) !important; }
+  .jp-rc-stars { display: inline-flex; flex-direction: row-reverse; gap: .15rem; }
+  .jp-rc-stars input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .jp-rc-stars label { font-size: 1.45rem; line-height: 1; color: #cbd5e1; cursor: pointer; transition: color .1s; }
+  .jp-rc-stars label:hover, .jp-rc-stars label:hover ~ label,
+  .jp-rc-stars input:checked ~ label { color: #f59e0b; }
+  .jp-rc-stars input:focus-visible + label { outline: 2px solid #2563eb; outline-offset: 2px; border-radius: .2rem; }
+  .jp-rc-stars-ro { font-size: .8rem; color: #e2e8f0; margin-top: .2rem; }
+  .jp-rc-stars-ro .on { color: #f59e0b; }
+  .jp-rc-details { border-top: 1px dashed #e2e8f0; padding: .5rem 0; }
+  .jp-rc-details summary { font-size: .85rem; font-weight: 600; color: #334155; cursor: pointer; }
+  .jp-rc-details[open] summary { margin-bottom: .35rem; }
+
+  [data-theme="dark"] .jp-rc-file-tab { background: transparent; border-color: #334155; color: #e2e8f0; }
   [data-theme="dark"] .jp-rc-chip,
   [data-theme="dark"] .jp-rc-result-opt { background: transparent; border-color: #334155; color: #e2e8f0; }
   [data-theme="dark"] .jp-rc-count-main,

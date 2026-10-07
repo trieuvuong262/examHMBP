@@ -9,7 +9,6 @@
         {{ candidate.full_name }}
         <span class="jp-rc-badge is-{{ candidate.status }} align-middle ms-1">{{ candidate.get_status_display }}</span>
       </h2>
-      <p class="text-muted small mb-0">{{ job.title }} · {{ job.department_label }} · Đã tuyển {{ filled }}/{{ job.quantity }}</p>
     </div>
     <div class="jp-rc-tools">
       {% include 'recruitment/includes/cv_button.html' with f=candidate.primary_file label='Xem CV' cls='btn btn-hm btn-sm fw-bold' %}
@@ -111,7 +110,7 @@
         <div class="card-header bg-white fw-bold">Bước tiếp theo</div>
         <div class="card-body">
           {% if needs_review_for_interview %}
-          <p class="small text-muted mb-2">Chờ quản lý phòng {{ job.department_label }} đánh giá «Đề xuất phỏng vấn».</p>
+          <p class="small text-muted mb-2">Chờ quản lý phòng {{ job.department_label }} đánh giá «Đạt».</p>
           {% endif %}
           <div class="jp-rc-tools">
             {% for status, label in targets %}

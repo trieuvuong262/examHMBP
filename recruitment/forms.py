@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from hrm.choices import GENDER_FORM_CHOICES
 from hrm.models import Department
+from hrm.permissions import ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR, ROLE_DIVISION_HEAD, ROLE_TEAM_LEADER
 
 from .models import (
     CANDIDATE_FILE_TYPES,
@@ -18,6 +19,8 @@ from .models import (
 )
 
 MIN_WORKING_AGE = 15
+# Người phỏng vấn: từ Tổ trưởng trở lên (vai trò chính hoặc kiêm nhiệm đang hiệu lực).
+INTERVIEWER_ROLES = (ROLE_TEAM_LEADER, ROLE_DIVISION_HEAD, ROLE_DEPARTMENT_HEAD, ROLE_DIRECTOR)
 
 
 def _ctl(extra: str = '') -> dict:
@@ -226,7 +229,13 @@ class TransitionForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.fields['interviewers'].queryset = (
             User.objects.filter(is_active=True, profile__is_employed=True)
-            .select_related('profile').order_by('profile__full_name', 'username')
+            .filter(
+                Q(profile__role__in=INTERVIEWER_ROLES)
+                | Q(profile__concurrent_positions__is_active=True,
+                    profile__concurrent_positions__role__in=INTERVIEWER_ROLES)
+            )
+            .distinct()
+            .select_related('profile', 'profile__department').order_by('profile__full_name', 'username')
         )
         self.fields['interviewers'].label_from_instance = (
             lambda u: getattr(getattr(u, 'profile', None), 'full_name', '') or u.username
@@ -243,7 +252,10 @@ class InterviewResultForm(forms.Form):
 
 
 class ReviewForm(forms.Form):
-    decision = forms.ChoiceField(label='Kết luận', choices=CandidateReview.DECISION_CHOICES, widget=forms.RadioSelect)
+    decision = forms.ChoiceField(
+        label='Kết luận', widget=forms.RadioSelect,
+        choices=[c for c in CandidateReview.DECISION_CHOICES if c[0] in CandidateReview.ACTIVE_DECISIONS],
+    )
     rating = forms.TypedChoiceField(
         label='Điểm hồ sơ', required=False, coerce=int, empty_value=None,
         choices=[('', '—')] + [(i, f'{i}/5') for i in range(1, 6)],

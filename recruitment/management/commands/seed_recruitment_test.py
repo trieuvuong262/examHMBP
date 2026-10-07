@@ -198,11 +198,7 @@ class Command(BaseCommand):
             return cand
 
         services.transition(cand, Candidate.STATUS_REVIEWING, actor=hr)
-        if scenario == 'reviewing':
-            return cand
-        if scenario == 'considered':
-            services.submit_review(cand, manager, decision=R.DECISION_CONSIDER, rating=3,
-                                   comment='Cần xem thêm tay nghề thực tế.')
+        if scenario in ('reviewing', 'considered'):
             return cand
         if scenario == 'rejected':
             services.submit_review(cand, manager, decision=R.DECISION_NOT_SUITABLE, rating=2,

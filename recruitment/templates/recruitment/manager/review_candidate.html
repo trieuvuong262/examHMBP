@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+{% block extra_head %}{% include 'recruitment/includes/rc_styles.html' %}{% endblock %}
+{% block content %}
+{% with job=candidate.job_posting %}
+<div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
+  <div class="jp-rc-review-head mb-3">
+    <span class="jp-rc-avatar jp-rc-avatar-lg" aria-hidden="true">{{ candidate.full_name|slice:":1"|upper }}</span>
+    <div class="min-w-0 flex-grow-1 align-self-center">
+      <h2 class="jp-page-title fw-bold text-dark mb-0">
+        {{ candidate.full_name }}
+        <span class="jp-rc-badge is-{{ candidate.status }} align-middle ms-1">{{ candidate.get_status_display }}</span>
+      </h2>
+    </div>
+    <div class="jp-rc-tools">
+      {% if skip_candidate and review_form %}
+      <a href="{% url 'recruitment_review_candidate' skip_candidate %}" class="btn btn-light btn-sm border" title="Bỏ qua, đánh giá sau">
+        Hồ sơ khác<i class="bi bi-chevron-right" aria-hidden="true"></i>
+      </a>
+      {% endif %}
+      <a href="{% url 'recruitment_review_list' %}" class="btn btn-light btn-sm border"><i class="bi bi-arrow-left" aria-hidden="true"></i>Danh sách</a>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-xl-7">
+      <div class="card border-0 shadow-sm jp-rc-viewer-card">
+        <div class="card-header bg-white d-flex flex-wrap align-items-center gap-2">
+          {% if files|length > 1 %}
+          <div class="jp-rc-file-tabs" role="tablist" aria-label="Hồ sơ đính kèm">
+            {% for f in files %}
+            <button type="button" class="jp-rc-file-tab{% if f == viewer_file %} active{% endif %}" role="tab"
+                    aria-selected="{% if f == viewer_file %}true{% else %}false{% endif %}"
+                    data-rc-embed data-url="{% url 'recruitment_file' f.pk %}" data-kind="{{ f.preview_kind }}" data-file="{{ f.original_name }}">
+              <i class="bi {{ f.icon }}" aria-hidden="true"></i>{{ f.kind_label }}
+            </button>
+            {% endfor %}
+          </div>
+          {% else %}
+          <span class="fw-bold">Hồ sơ đính kèm</span>
+          {% endif %}
+          {% if viewer_file %}
+          <span class="jp-rc-sub text-truncate flex-grow-1" id="rcEmbedName">{{ viewer_file.original_name }}</span>
+          <a class="btn btn-light btn-sm border" id="rcEmbedOpen" href="{% url 'recruitment_file' viewer_file.pk %}" target="_blank" rel="noopener" title="Mở tab mới" aria-label="Mở tab mới"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
+          <a class="btn btn-light btn-sm border" id="rcEmbedDownload" href="{% url 'recruitment_file' viewer_file.pk %}?download=1" title="Tải về" aria-label="Tải về"><i class="bi bi-download" aria-hidden="true"></i></a>
+          {% endif %}
+        </div>
+        <div class="jp-rc-embed" id="rcEmbed"
+             {% if viewer_file %}data-url="{% url 'recruitment_file' viewer_file.pk %}" data-kind="{{ viewer_file.preview_kind }}"{% endif %}>
+          {% if not viewer_file %}
+          <div class="jp-rc-empty"><i class="bi bi-file-earmark-x" aria-hidden="true"></i><div class="fw-semibold">Chưa có CV</div></div>
+          {% endif %}
+        </div>
+        {% if file_form %}
+        <div class="card-body border-top">
+          <form method="post" enctype="multipart/form-data" action="{% url 'recruitment_manager_file_upload' candidate.pk %}" class="row g-2 align-items-end">
+            {% csrf_token %}
+            <div class="col-sm-4">
+              <label class="form-label fw-semibold small" for="{{ file_form.kind.id_for_label }}">{{ file_form.kind.label }}</label>
+              {{ file_form.kind }}
+            </div>
+            <div class="col-sm-5">
+              <label class="form-label fw-semibold small" for="{{ file_form.files.id_for_label }}">{{ file_form.files.label }}</label>
+              {{ file_form.files }}
+            </div>
+            <div class="col-sm-3">
+              <button type="submit" class="btn btn-outline-hm btn-sm fw-bold w-100"><i class="bi bi-upload" aria-hidden="true"></i> Tải lên</button>
+            </div>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="col-xl-5">
+      <div class="jp-rc-review-side">
+        {% if review_form %}
+        <div class="card border-0 shadow-sm jp-rc-review-card">
+          <div class="card-header bg-white d-flex justify-content-between align-items-center gap-2">
+            <span class="fw-bold">Đánh giá của bạn</span>
+            {% if my_review %}<span class="jp-rc-sub">Đã gửi {{ my_review.updated_at|date:"H:i d/m/Y" }}</span>{% endif %}
+          </div>
+          <div class="card-body">
+            <form method="post" action="{% url 'recruitment_review_candidate' candidate.pk %}" id="rcReviewForm">
+              {% csrf_token %}
+              <fieldset class="mb-3">
+                <legend class="form-label fw-semibold small mb-2">Kết luận <span class="text-danger">*</span></legend>
+                <div class="jp-rc-result-choices">
+                  {% for value, label, ui in decision_choices %}
+                  <input type="radio" class="btn-check" name="decision" id="rcDecision{{ forloop.counter }}" value="{{ value }}"
+                         autocomplete="off" required{% if review_form.decision.value == value %} checked{% endif %}>
+                  <label class="jp-rc-result-opt {{ ui.0 }}" for="rcDecision{{ forloop.counter }}">
+                    <i class="bi {{ ui.1 }}" aria-hidden="true"></i><strong>{{ label }}</strong>
+                  </label>
+                  {% endfor %}
+                </div>
+              </fieldset>
+              <fieldset class="mb-3">
+                <legend class="form-label fw-semibold small mb-1">Điểm hồ sơ</legend>
+                <div class="d-flex align-items-center gap-2">
+                  <div class="jp-rc-stars">
+                    {% for i in "54321" %}
+                    <input type="radio" name="rating" id="rcStar{{ i }}" value="{{ i }}"{% if review_form.rating.value|stringformat:"s" == i %} checked{% endif %}>
+                    <label for="rcStar{{ i }}" title="{{ i }}/5"><i class="bi bi-star-fill" aria-hidden="true"></i><span class="visually-hidden">{{ i }} sao</span></label>
+                    {% endfor %}
+                  </div>
+                  <button type="button" class="btn btn-link btn-sm p-0 text-muted" data-rc-clear-rating>Bỏ chọn</button>
+                </div>
+              </fieldset>
+              <label class="form-label fw-semibold small" for="rcReviewComment">
+                Nhận xét <span class="text-danger{% if review_form.decision.value != 'not_suitable' %} d-none{% endif %}" data-rc-comment-star>*</span>
+              </label>
+              <textarea name="comment" id="rcReviewComment" class="form-control" rows="4"
+                        placeholder="Điểm phù hợp, điểm cần lưu ý… (bắt buộc khi Không đạt)"
+                        {% if review_form.decision.value == 'not_suitable' %}required{% endif %}>{{ review_form.comment.value|default:"" }}</textarea>
+              <button type="submit" class="btn btn-hm fw-bold w-100 mt-3">
+                <i class="bi bi-send" aria-hidden="true"></i> {% if my_review %}Cập nhật đánh giá{% else %}Gửi đánh giá{% endif %}
+              </button>
+              {% if pending_left %}<div class="jp-rc-sub text-center mt-2">Còn {{ pending_left }} hồ sơ khác chờ bạn đánh giá</div>{% endif %}
+            </form>
+          </div>
+        </div>
+        {% elif my_review %}
+        <div class="card border-0 shadow-sm">
+          <div class="card-body d-flex align-items-center gap-2">
+            <i class="bi bi-check-circle-fill text-success fs-5" aria-hidden="true"></i>
+            <div>
+              <div class="fw-semibold">Bạn đã đánh giá: {{ my_review.get_decision_display }}</div>
+              <div class="jp-rc-sub">Hồ sơ đã sang bước «{{ candidate.get_status_display }}».</div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        {% if interview %}
+        <div class="card border-0 shadow-sm">
+          <div class="card-header bg-white d-flex justify-content-between align-items-center gap-2">
+            <span class="fw-bold">Phỏng vấn</span>
+            <span class="jp-rc-badge is-{{ interview.result }}">{{ interview.get_result_display }}</span>
+          </div>
+          <div class="card-body">
+            <div class="jp-rc-kv"><span class="jp-rc-kv-label">Thời gian</span><span class="jp-rc-kv-value">{{ interview.time_range_label }}</span></div>
+            <div class="jp-rc-kv"><span class="jp-rc-kv-label">Địa điểm</span><span class="jp-rc-kv-value">{{ interview.location|default:"—" }}</span></div>
+            <div class="jp-rc-kv"><span class="jp-rc-kv-label">Người phỏng vấn</span>
+              <span class="jp-rc-kv-value">{% for u in interview.interviewers.all %}{{ u.profile.full_name|default:u.username }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</span>
+            </div>
+            {% if interview.result_notes %}<div class="small mt-2" style="white-space: pre-line;">{{ interview.result_notes }}</div>{% endif %}
+            {% if result_form %}
+            {% if interview_started %}
+            <form method="post" action="{{ result_action }}" class="border-top pt-3 mt-2">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{{ request.path }}">
+              {% include 'recruitment/includes/interview_result_fields.html' with uid='rcResultM' %}
+              <button type="submit" class="btn btn-hm fw-bold w-100 mt-3"><i class="bi bi-check2-square" aria-hidden="true"></i> Lưu kết quả</button>
+            </form>
+            {% else %}
+            <p class="small text-muted border-top pt-3 mt-2 mb-0">Nhập kết quả sau giờ phỏng vấn.</p>
+            {% endif %}
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
+
+        {% if other_reviews %}
+        <div class="card border-0 shadow-sm">
+          <div class="card-header bg-white fw-bold">Đánh giá khác <span class="badge rounded-pill jp-rc-count">{{ other_reviews|length }}</span></div>
+          <ul class="list-group list-group-flush">
+            {% for review in other_reviews %}
+            <li class="list-group-item">
+              <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <span class="fw-semibold small">{{ review.reviewer.profile.full_name|default:review.reviewer.username|default:"(đã xóa)" }}</span>
+                <span class="jp-rc-badge is-{{ review.decision }}">{{ review.get_decision_display }}</span>
+              </div>
+              {% if review.rating %}
+              <div class="jp-rc-stars-ro" aria-label="{{ review.rating }}/5">
+                {% for i in "12345" %}<i class="bi bi-star-fill{% if i|add:0 <= review.rating %} on{% endif %}" aria-hidden="true"></i>{% endfor %}
+              </div>
+              {% endif %}
+              {% if review.comment %}<div class="small mt-1" style="white-space: pre-line;">{{ review.comment }}</div>{% endif %}
+              <div class="jp-rc-sub mt-1">{{ review.updated_at|date:"H:i d/m/Y" }}</div>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+
+        <div class="card border-0 shadow-sm">
+          <div class="card-header bg-white fw-bold">Thông tin ứng viên</div>
+          <div class="card-body py-2">
+            <div class="jp-rc-kv"><span class="jp-rc-kv-label">Số điện thoại</span><a class="jp-rc-kv-value" href="tel:{{ candidate.phone }}">{{ candidate.phone }}</a></div>
+            <div class="jp-rc-kv"><span class="jp-rc-kv-label">Email</span><span class="jp-rc-kv-value text-break">{{ candidate.email|default:"—" }}</span></div>
+            <div class="jp-rc-kv"><span class="jp-rc-kv-label">Giới tính</span><span class="jp-rc-kv-value">{{ candidate.get_gender_display|default:"—" }}</span></div>
+            <div class="jp-rc-kv"><span class="jp-rc-kv-label">Ngày sinh</span><span class="jp-rc-kv-value">{{ candidate.date_of_birth|date:"d/m/Y"|default:"—" }}</span></div>
+            <div class="jp-rc-kv"><span class="jp-rc-kv-label">Nguồn hồ sơ</span>
+              <span class="jp-rc-kv-value">{{ candidate.source_label }}{% if candidate.referred_by %} · {{ candidate.referred_by.profile.full_name|default:candidate.referred_by.username }}{% endif %}</span>
+            </div>
+            {% if candidate.reject_reason %}
+            <div class="jp-rc-kv"><span class="jp-rc-kv-label">Lý do loại</span><span class="jp-rc-kv-value text-danger">{{ candidate.reject_reason }}</span></div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+          <div class="card-header bg-white fw-bold">Vị trí ứng tuyển</div>
+          <div class="card-body py-2">
+            <div class="jp-rc-kv"><span class="jp-rc-kv-label">Vị trí</span><span class="jp-rc-kv-value">{{ job.title }}</span></div>
+            <div class="jp-rc-kv"><span class="jp-rc-kv-label">Chỉ tiêu</span><span class="jp-rc-kv-value">Đã tuyển {{ filled }}/{{ job.quantity }}</span></div>
+            {% if job.deadline %}<div class="jp-rc-kv"><span class="jp-rc-kv-label">Hạn nộp</span><span class="jp-rc-kv-value">{{ job.deadline|date:"d/m/Y" }}</span></div>{% endif %}
+            {% if job.requirements %}
+            <details class="jp-rc-details" open>
+              <summary>Yêu cầu ứng viên</summary>
+              <div class="small" style="white-space: pre-line;">{{ job.requirements }}</div>
+            </details>
+            {% endif %}
+            {% if job.description %}
+            <details class="jp-rc-details">
+              <summary>Mô tả công việc</summary>
+              <div class="small" style="white-space: pre-line;">{{ job.description }}</div>
+            </details>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endwith %}
+<script>
+(function () {
+  var box = document.getElementById('rcEmbed');
+  function show(url, kind) {
+    box.textContent = '';
+    if (kind === 'pdf') {
+      var frame = document.createElement('iframe');
+      frame.title = 'CV';
+      frame.src = url + '#view=FitH&navpanes=0';
+      box.appendChild(frame);
+    } else if (kind === 'image') {
+      var wrap = document.createElement('div');
+      wrap.className = 'jp-rc-embed-image';
+      var img = document.createElement('img');
+      img.alt = 'CV';
+      img.src = url;
+      wrap.appendChild(img);
+      box.appendChild(wrap);
+    } else {
+      var empty = document.createElement('div');
+      empty.className = 'jp-rc-empty';
+      empty.innerHTML = '<i class="bi bi-file-earmark-word" aria-hidden="true"></i><div class="fw-semibold">File Word không xem trực tiếp được</div>';
+      var btn = document.createElement('a');
+      btn.className = 'btn btn-hm btn-sm fw-bold mt-2';
+      btn.href = url + '?download=1';
+      btn.textContent = 'Tải về';
+      empty.appendChild(btn);
+      box.appendChild(empty);
+    }
+  }
+  if (box && box.dataset.url) show(box.dataset.url, box.dataset.kind);
+  document.querySelectorAll('[data-rc-embed]').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      document.querySelectorAll('[data-rc-embed]').forEach(function (t) {
+        t.classList.toggle('active', t === tab);
+        t.setAttribute('aria-selected', t === tab ? 'true' : 'false');
+      });
+      show(tab.dataset.url, tab.dataset.kind);
+      document.getElementById('rcEmbedName').textContent = tab.dataset.file;
+      document.getElementById('rcEmbedOpen').href = tab.dataset.url;
+      document.getElementById('rcEmbedDownload').href = tab.dataset.url + '?download=1';
+    });
+  });
+
+  var form = document.getElementById('rcReviewForm');
+  if (!form) return;
+  var comment = form.querySelector('textarea[name="comment"]');
+  var star = form.querySelector('[data-rc-comment-star]');
+  form.addEventListener('change', function (ev) {
+    if (ev.target.name !== 'decision') return;
+    var required = ev.target.value === 'not_suitable';
+    comment.required = required;
+    star.classList.toggle('d-none', !required);
+  });
+  form.querySelector('[data-rc-clear-rating]').addEventListener('click', function () {
+    form.querySelectorAll('input[name="rating"]').forEach(function (r) { r.checked = false; });
+  });
+})();
+</script>
+{% endblock %}

@@ -108,6 +108,10 @@ JOB_ACTION_LABELS = {
     JobPosting.STATUS_PAUSED: 'Tạm dừng tuyển',
     JobPosting.STATUS_CLOSED: 'Đóng vị trí',
 }
+REVIEW_DECISION_UI = {
+    CandidateReview.DECISION_RECOMMEND: ('is-pass', 'bi-check-circle-fill'),
+    CandidateReview.DECISION_NOT_SUITABLE: ('is-fail', 'bi-x-circle-fill'),
+}
 JOB_ATTENTION = 'can-chu-y'
 JOB_DEADLINE_SOON_DAYS = 7
 
@@ -481,7 +485,7 @@ def _candidate_page_context(request, current, f):
 NEED_ACTION = 'can-xu-ly'
 PIPELINE_STEPS = [
     (C.STATUS_NEW, 'Mới'),
-    (C.STATUS_REVIEWING, 'QL đánh giá'),
+    (C.STATUS_REVIEWING, 'Đánh giá'),
     (C.STATUS_INTERVIEWING, 'Phỏng vấn'),
     (C.STATUS_OFFERED, 'Trúng tuyển'),
     (C.STATUS_HIRED, 'Nhận việc'),
@@ -1048,14 +1052,9 @@ def review_list(request):
     )
     tabs_spec = []
     if is_manager:
-        scope = manager_job_filter(user)
-        base = _candidate_qs().filter(job_posting__in=JobPosting.objects.filter(scope))
+        base = _managed_candidates(user)
         my_reviews = CandidateReview.objects.filter(reviewer=user)
-        pending = (
-            base.filter(status=C.STATUS_REVIEWING)
-            .exclude(reviews__reviewer=user)
-            .order_by('status_changed_at')
-        )
+        pending = _pending_reviews(user)
         reviewed = (
             base.filter(pk__in=my_reviews.values('candidate_id'))
             .annotate(my_review_at=Max('reviews__updated_at', filter=Q(reviews__reviewer=user)))
@@ -1119,29 +1118,62 @@ def review_interview_result(request, pk):
     return redirect(_safe_next(request, f'{reverse("recruitment_review_list")}?tab=phong-van'))
 
 
+def _managed_candidates(user):
+    return _candidate_qs().filter(job_posting__in=JobPosting.objects.filter(manager_job_filter(user)))
+
+
+def _pending_reviews(user):
+    """Hồ sơ đang chờ đánh giá mà quản lý này chưa đánh giá — cũ nhất trước."""
+    return (
+        _managed_candidates(user).filter(status=C.STATUS_REVIEWING)
+        .exclude(reviews__reviewer=user)
+        .order_by('status_changed_at', 'pk')
+    )
+
+
 @login_required
 def review_candidate(request, pk):
     candidate = _reviewer_candidate(request, pk)
+    user = request.user
     if request.method == 'POST':
         form = ReviewForm(request.POST)
         if form.is_valid():
             try:
                 services.submit_review(
-                    candidate, request.user,
+                    candidate, user,
                     decision=form.cleaned_data['decision'],
                     rating=form.cleaned_data['rating'],
                     comment=form.cleaned_data['comment'],
                 )
-                messages.success(request, f'Đã gửi đánh giá cho {candidate.full_name}.')
-                return redirect('recruitment_review_list')
             except services.RecruitmentError as exc:
                 messages.error(request, str(exc))
+            else:
+                nxt = _pending_reviews(user).exclude(pk=candidate.pk).first() if is_hiring_manager(user) else None
+                if nxt:
+                    messages.success(request, f'Đã gửi đánh giá cho {candidate.full_name}. Tiếp theo: {nxt.full_name}.')
+                    return redirect('recruitment_review_candidate', pk=nxt.pk)
+                messages.success(request, f'Đã gửi đánh giá cho {candidate.full_name}.')
+                return redirect('recruitment_review_list')
         else:
             messages.error(request, 'Chọn kết luận đánh giá.')
         return redirect('recruitment_review_candidate', pk=pk)
-    return render(request, 'recruitment/admin/candidate_detail.html', _detail_context(
-        request, candidate, manager_view=True,
-    ))
+    ctx = _detail_context(request, candidate, manager_view=True)
+    reviews = list(ctx['reviews'])
+    files = ctx['files']
+    primary = candidate.primary_file
+    pending_ids = list(_pending_reviews(user).values_list('pk', flat=True)) if is_hiring_manager(user) else []
+    ctx.update({
+        'reviews': reviews,
+        'other_reviews': [r for r in reviews if r.reviewer_id != user.pk],
+        'viewer_file': primary or (files[0] if files else None),
+        'decision_choices': [
+            (value, label, REVIEW_DECISION_UI[value]) for value, label in CandidateReview.DECISION_CHOICES
+            if value in CandidateReview.ACTIVE_DECISIONS
+        ],
+        'pending_left': len([i for i in pending_ids if i != candidate.pk]),
+        'skip_candidate': next((i for i in pending_ids if i != candidate.pk), None),
+    })
+    return render(request, 'recruitment/manager/review_candidate.html', ctx)
 
 
 @_manager_required

@@ -20,7 +20,7 @@
           <div class="row g-2 mb-3">
             <div class="col-sm-6">
               <label class="form-label fw-semibold small" for="rcInterviewTime">Bắt đầu <span class="text-danger">*</span></label>
-              <input type="datetime-local" name="interview_time" id="rcInterviewTime" class="form-control" step="300">
+              <input type="datetime-local" name="interview_time" id="rcInterviewTime" class="form-control" step="60">
             </div>
             <div class="col-sm-6">
               <label class="form-label fw-semibold small" for="rcDuration">Thời lượng <span class="text-danger">*</span></label>
@@ -37,7 +37,7 @@
             </div>
             <div class="col-sm-6">
               <label class="form-label fw-semibold small" for="rcInterviewEnd">Kết thúc <span class="text-danger">*</span></label>
-              <input type="datetime-local" name="interview_end" id="rcInterviewEnd" class="form-control" step="300">
+              <input type="datetime-local" name="interview_end" id="rcInterviewEnd" class="form-control" step="60">
             </div>
             <div class="col-sm-6 d-flex align-items-end">
               <div class="small text-muted pb-2" id="rcDurationText" aria-live="polite"></div>
@@ -64,7 +64,7 @@
             <label class="form-label fw-semibold small" for="rcInterviewers">Người phỏng vấn</label>
             <select name="interviewers" id="rcInterviewers" class="form-select" multiple size="5">
               {% for u in transition_form.fields.interviewers.queryset %}
-              <option value="{{ u.pk }}">{{ u.profile.full_name|default:u.username }}</option>
+              <option value="{{ u.pk }}">{{ u.profile.full_name|default:u.username }} — {{ u.profile.get_role_display }}{% if u.profile.department %} · {{ u.profile.department.name }}{% endif %}</option>
               {% endfor %}
             </select>
           </div>
