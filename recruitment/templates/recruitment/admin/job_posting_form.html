@@ -31,6 +31,37 @@
               {% include 'recruitment/includes/field.html' with field=form.position col='col-md-6' %}
               {% include 'recruitment/includes/field.html' with field=form.quantity col='col-md-3' %}
               {% include 'recruitment/includes/field.html' with field=form.deadline col='col-md-3' %}
+              <div class="col-12">
+                <fieldset class="jp-rc-salary">
+                  <legend class="form-label fw-semibold mb-2">Mức lương <span class="fw-normal text-muted small">(VNĐ/tháng — để trống nếu chưa công bố)</span></legend>
+                  <div class="row g-2 align-items-start">
+                    {% with lo=form.salary_min hi=form.salary_max %}
+                    <div class="col-sm jp-rc-field{% if lo.errors %} has-error{% endif %}">
+                      <div class="input-group">
+                        <span class="input-group-text">Từ</span>
+                        {{ lo }}
+                        <span class="input-group-text">đ</span>
+                      </div>
+                      {% for err in lo.errors %}<div class="invalid-feedback d-block">{{ err }}</div>{% endfor %}
+                    </div>
+                    <div class="col-sm jp-rc-field{% if hi.errors %} has-error{% endif %}">
+                      <div class="input-group">
+                        <span class="input-group-text">Đến</span>
+                        {{ hi }}
+                        <span class="input-group-text">đ</span>
+                      </div>
+                      {% for err in hi.errors %}<div class="invalid-feedback d-block">{{ err }}</div>{% endfor %}
+                    </div>
+                    {% endwith %}
+                    <div class="col-sm-auto">
+                      <div class="form-check mt-sm-2 text-nowrap">
+                        {{ form.salary_negotiable }}
+                        <label class="form-check-label" for="{{ form.salary_negotiable.id_for_label }}">{{ form.salary_negotiable.label }}</label>
+                      </div>
+                    </div>
+                  </div>
+                </fieldset>
+              </div>
             </div>
           </div>
         </div>
@@ -77,6 +108,7 @@
               <span style="width: {% widthratio filled job.quantity 100 %}%"></span>
             </div>
             <div class="jp-rc-kv"><span class="jp-rc-kv-label">Hồ sơ</span><span class="jp-rc-kv-value">{{ candidate_count }}</span></div>
+            <div class="jp-rc-kv"><span class="jp-rc-kv-label">Mức lương</span><span class="jp-rc-kv-value">{{ job.salary_label|default:"—" }}</span></div>
             <div class="jp-rc-kv"><span class="jp-rc-kv-label">Hạn nộp</span>
               <span class="jp-rc-kv-value{% if job.is_expired %} text-danger{% endif %}">{{ job.deadline|date:"d/m/Y"|default:"—" }}</span></div>
             <div class="jp-rc-kv"><span class="jp-rc-kv-label">Tạo lúc</span><span class="jp-rc-kv-value">{{ job.created_at|date:"d/m/Y" }}</span></div>
@@ -153,6 +185,21 @@
   }
   dept.addEventListener('change', sync);
   sync();
+})();
+
+/* Ô tiền: tự thêm dấu chấm hàng nghìn khi gõ */
+(function () {
+  document.querySelectorAll('[data-rc-money]').forEach(function (input) {
+    function format() {
+      var digits = input.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+      var caretFromEnd = input.value.length - (input.selectionEnd || 0);
+      input.value = digits ? Number(digits).toLocaleString('vi-VN') : '';
+      var pos = Math.max(0, input.value.length - caretFromEnd);
+      if (document.activeElement === input) input.setSelectionRange(pos, pos);
+    }
+    input.addEventListener('input', format);
+    format();
+  });
 })();
 </script>
 {% endblock %}

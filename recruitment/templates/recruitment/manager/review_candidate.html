@@ -203,6 +203,7 @@
           <div class="card-header bg-white fw-bold">Vị trí ứng tuyển</div>
           <div class="card-body py-2">
             <div class="jp-rc-kv"><span class="jp-rc-kv-label">Vị trí</span><span class="jp-rc-kv-value">{{ job.title }}</span></div>
+            {% if job.salary_label %}<div class="jp-rc-kv"><span class="jp-rc-kv-label">Mức lương</span><span class="jp-rc-kv-value">{{ job.salary_label }}</span></div>{% endif %}
             <div class="jp-rc-kv"><span class="jp-rc-kv-label">Chỉ tiêu</span><span class="jp-rc-kv-value">Đã tuyển {{ filled }}/{{ job.quantity }}</span></div>
             {% if job.deadline %}<div class="jp-rc-kv"><span class="jp-rc-kv-label">Hạn nộp</span><span class="jp-rc-kv-value">{{ job.deadline|date:"d/m/Y" }}</span></div>{% endif %}
             {% if job.requirements %}

@@ -92,6 +92,7 @@
                 {{ job.department_label }} · {{ job.get_position_display|default:"Chưa chọn chức danh" }}
                 {% if job.service_request_id %} · Đề xuất #{{ job.service_request_id }}{% endif %}
               </div>
+              {% if job.salary_label %}<div class="jp-rc-sub"><i class="bi bi-cash-coin" aria-hidden="true"></i> {{ job.salary_label }}</div>{% endif %}
             </td>
             <td>
               <div class="jp-rc-quota">

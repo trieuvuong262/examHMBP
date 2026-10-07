@@ -166,6 +166,9 @@ class JobPosting(models.Model):
     department = models.CharField(max_length=100, blank=True, verbose_name='Phòng ban (cũ)')
     position = models.CharField(max_length=50, choices=POSITION_CHOICES, verbose_name='Chức danh')
     quantity = models.PositiveIntegerField(default=1, verbose_name='Số lượng cần tuyển')
+    salary_min = models.PositiveIntegerField(null=True, blank=True, verbose_name='Lương từ (VNĐ/tháng)')
+    salary_max = models.PositiveIntegerField(null=True, blank=True, verbose_name='Lương đến (VNĐ/tháng)')
+    salary_negotiable = models.BooleanField(default=False, verbose_name='Lương thỏa thuận')
     description = models.TextField(blank=True, verbose_name='Mô tả công việc')
     requirements = models.TextField(blank=True, verbose_name='Yêu cầu ứng viên')
     deadline = models.DateField(null=True, blank=True, verbose_name='Hạn nộp hồ sơ')
@@ -205,6 +208,23 @@ class JobPosting(models.Model):
                 label = f'{label} · {self.target_division.name}'
             return label
         return self.department or '—'
+
+    @property
+    def salary_label(self) -> str:
+        """VD: «8.000.000 – 12.000.000 đ», «Từ 8.000.000 đ», «Thỏa thuận»; rỗng nếu chưa nhập."""
+        def vnd(n):
+            return f'{n:,}'.replace(',', '.')
+
+        lo, hi = self.salary_min, self.salary_max
+        if lo and hi:
+            text = f'{vnd(lo)} đ' if lo == hi else f'{vnd(lo)} – {vnd(hi)} đ'
+        elif lo:
+            text = f'Từ {vnd(lo)} đ'
+        elif hi:
+            text = f'Đến {vnd(hi)} đ'
+        else:
+            return 'Thỏa thuận' if self.salary_negotiable else ''
+        return f'{text} (thỏa thuận)' if self.salary_negotiable else text
 
     @property
     def is_expired(self) -> bool:

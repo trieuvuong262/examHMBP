@@ -81,12 +81,36 @@ class MultipleFileField(forms.FileField):
         return [single(item, initial) for item in items]
 
 
+class VndField(forms.IntegerField):
+    """Số tiền nhập dạng «8.000.000» — bỏ mọi ký tự không phải số trước khi kiểm tra."""
+
+    widget = forms.TextInput
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault('min_value', 0)
+        kwargs.setdefault('max_value', 2_000_000_000)
+        super().__init__(**kwargs)
+
+    def widget_attrs(self, widget):
+        return {**_ctl(), 'inputmode': 'numeric', 'autocomplete': 'off', 'data-rc-money': '1'}
+
+    def prepare_value(self, value):
+        return f'{value:,}'.replace(',', '.') if isinstance(value, int) else value
+
+    def to_python(self, value):
+        digits = ''.join(ch for ch in str(value or '') if ch.isdigit())
+        return super().to_python(digits)
+
+
 class JobPostingForm(forms.ModelForm):
+    salary_min = VndField(label='Lương từ', required=False)
+    salary_max = VndField(label='Lương đến', required=False)
+
     class Meta:
         model = JobPosting
         fields = [
             'title', 'target_department', 'target_division', 'position', 'quantity', 'deadline',
-            'description', 'requirements',
+            'salary_min', 'salary_max', 'salary_negotiable', 'description', 'requirements',
         ]
         widgets = {
             'title': forms.TextInput(attrs={**_ctl(), 'placeholder': 'VD: Công nhân may chuyền 2'}),
@@ -94,6 +118,7 @@ class JobPostingForm(forms.ModelForm):
             'target_division': forms.Select(attrs={'class': 'form-select'}),
             'position': forms.Select(attrs={'class': 'form-select'}),
             'quantity': forms.NumberInput(attrs={**_ctl(), 'min': 1}),
+            'salary_negotiable': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'deadline': forms.DateInput(
                 attrs={**_ctl('jp-date-vn'), 'type': 'date', 'placeholder': 'dd/mm/yyyy'}, format='%Y-%m-%d',
             ),
@@ -104,7 +129,7 @@ class JobPostingForm(forms.ModelForm):
                 **_ctl(), 'rows': 4, 'placeholder': 'Kinh nghiệm, tay nghề, độ tuổi, sức khỏe…',
             }),
         }
-        labels = {'title': 'Tên vị trí', 'quantity': 'Số lượng cần tuyển'}
+        labels = {'title': 'Tên vị trí', 'quantity': 'Số lượng cần tuyển', 'salary_negotiable': 'Thỏa thuận'}
 
     def __init__(self, *args, scope=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -132,6 +157,9 @@ class JobPostingForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
+        lo, hi = cleaned.get('salary_min'), cleaned.get('salary_max')
+        if lo and hi and hi < lo:
+            self.add_error('salary_max', 'Lương đến phải lớn hơn hoặc bằng lương từ.')
         dept, div = cleaned.get('target_department'), cleaned.get('target_division')
         if dept and div and div.department_id != dept.pk:
             self.add_error('target_division', 'Bộ phận không thuộc phòng ban đã chọn.')
