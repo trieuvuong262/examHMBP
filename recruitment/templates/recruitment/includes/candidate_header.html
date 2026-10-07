@@ -1,0 +1,26 @@
+{# Đầu trang Ứng viên — dùng chung tab Danh sách / Kanban. #}
+<div class="jp-page-header mb-3">
+  <div class="jp-page-header-main">
+    <h2 class="jp-page-title fw-bold text-dark mb-1">Ứng viên</h2>
+    <p class="text-muted small mb-0"><i class="bi bi-building" aria-hidden="true"></i> {{ scope_label }}</p>
+  </div>
+  <div class="jp-rc-tools">
+    <a href="{% url 'interview_list' %}" class="btn btn-outline-hm btn-sm fw-bold"><i class="bi bi-calendar-event" aria-hidden="true"></i>Lịch phỏng vấn</a>
+    {% if can_export and export_url %}
+    <a href="{{ export_url }}" class="btn btn-outline-hm btn-sm fw-bold"><i class="bi bi-file-earmark-excel" aria-hidden="true"></i>Xuất Excel</a>
+    {% endif %}
+    {% if can_create %}
+    <a href="{% url 'add_candidate' %}{% if selected_job %}?job_id={{ selected_job }}{% endif %}" class="btn btn-hm btn-sm fw-bold"><i class="bi bi-person-plus" aria-hidden="true"></i>Thêm ứng viên</a>
+    {% endif %}
+  </div>
+</div>
+
+<ul class="nav nav-pills jp-portal-pills gap-2 mb-3" aria-label="Cách hiển thị">
+  {% for tab in view_tabs %}
+  <li class="nav-item">
+    <a class="nav-link rounded-pill fw-bold{% if tab.active %} active{% endif %}" href="{{ tab.url }}"{% if tab.active %} aria-current="page"{% endif %}>
+      <i class="bi {{ tab.icon }} me-1" aria-hidden="true"></i>{{ tab.label }}
+    </a>
+  </li>
+  {% endfor %}
+</ul>

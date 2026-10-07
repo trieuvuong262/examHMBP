@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block extra_head %}{% include 'recruitment/includes/rc_styles.html' %}{% endblock %}
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-end gap-2">
+    <div>
+      <h2 class="fw-bold text-hm mb-1 jp-page-title">Đánh giá ứng viên</h2>
+      <p class="text-muted small mb-0"><i class="bi bi-building" aria-hidden="true"></i> {{ scope_label }}</p>
+    </div>
+    {% if open_jobs_in_scope %}
+    <a href="{% url 'recruitment_refer_candidate' %}" class="btn btn-hm btn-sm fw-bold d-inline-flex align-items-center gap-1">
+      <i class="bi bi-person-plus" aria-hidden="true"></i>Đề xuất ứng viên
+    </a>
+    {% endif %}
+  </div>
+
+  <ul class="nav nav-pills jp-portal-pills gap-2 mb-3" aria-label="Nhóm hồ sơ">
+    {% for tab in tabs %}
+    <li class="nav-item">
+      <a class="nav-link rounded-pill fw-bold{% if tab.active %} active{% endif %}" href="{{ tab.url }}"
+         {% if tab.active %}aria-current="page"{% endif %}>
+        {{ tab.label }} <span class="badge rounded-pill jp-rc-count ms-1">{{ tab.count }}</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+
+  <div class="card border-0 shadow-sm jp-rc-card overflow-hidden">
+    {% for cand in items %}
+    {% with job=cand.job_posting %}
+    {% if current_tab == 'phong-van' %}
+    {% with inv=cand.interview %}
+    <div class="jp-rc-row{% if inv.interview_time <= now %} needs-action{% endif %}">
+      <span class="jp-rc-avatar" aria-hidden="true">{{ cand.full_name|slice:":1"|upper }}</span>
+      <div class="jp-rc-row-main">
+        <a class="jp-rc-row-title" href="{% url 'recruitment_review_candidate' cand.pk %}">{{ cand.full_name }}</a>
+        <div class="jp-rc-row-meta">{{ job.title }} · {{ job.department_label }}</div>
+        <div class="jp-rc-row-meta">
+          <i class="bi bi-calendar-event" aria-hidden="true"></i> {{ inv.time_range_label }}
+          {% if inv.location %} · <i class="bi bi-geo-alt" aria-hidden="true"></i> {{ inv.location }}{% endif %}
+        </div>
+      </div>
+      <div class="jp-rc-row-side">
+        {% include 'recruitment/includes/cv_button.html' with candidate=cand f=cand.primary_file label='CV' %}
+        {% if inv.interview_time <= now %}
+        {% if inv.end_time and inv.end_time <= now %}<span class="jp-rc-badge is-fail">Chờ kết quả</span>
+        {% else %}<span class="jp-rc-badge is-interviewing">Đang phỏng vấn</span>{% endif %}
+        <button type="button" class="btn btn-hm btn-sm fw-bold" data-rc-result
+                data-url="{% url 'recruitment_review_interview_result' cand.pk %}"
+                data-name="{{ cand.full_name }}" data-time="{{ inv.time_range_label }}"
+                data-next="{{ request.get_full_path }}">
+          <i class="bi bi-clipboard-check" aria-hidden="true"></i> Nhập kết quả
+        </button>
+        {% else %}
+        <span class="jp-rc-badge is-pending">Sắp diễn ra</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endwith %}
+    {% else %}
+    <div class="jp-rc-row{% if current_tab == 'cho-danh-gia' %} needs-action{% endif %}">
+      <span class="jp-rc-avatar" aria-hidden="true">{{ cand.full_name|slice:":1"|upper }}</span>
+      <div class="jp-rc-row-main">
+        <a class="jp-rc-row-title" href="{% url 'recruitment_review_candidate' cand.pk %}">{{ cand.full_name }}</a>
+        <div class="jp-rc-row-meta">
+          {{ job.title }} · {{ job.department_label }}
+          {% if cand.source == 'referral' and current_tab != 'da-de-xuat' %} · <i class="bi bi-person-check" aria-hidden="true"></i> QL đề xuất{% endif %}
+        </div>
+      </div>
+      <div class="jp-rc-row-side">
+        {% include 'recruitment/includes/cv_button.html' with candidate=cand f=cand.primary_file label='CV' %}
+        {% if current_tab == 'cho-danh-gia' %}
+        <span class="small text-muted text-nowrap" title="Chờ đánh giá từ">
+          <i class="bi bi-clock" aria-hidden="true"></i> {{ cand.status_changed_at|date:"H:i d/m/Y" }}
+        </span>
+        <a href="{% url 'recruitment_review_candidate' cand.pk %}" class="btn btn-hm btn-sm fw-bold">Đánh giá</a>
+        {% elif current_tab == 'da-danh-gia' %}
+        {% with review=cand.my_reviews.0 %}
+        <span class="jp-rc-badge is-{{ review.decision }}">{{ review.get_decision_display }}{% if review.rating %} · {{ review.rating }}/5{% endif %}</span>
+        {% endwith %}
+        <span class="jp-rc-badge is-{{ cand.status }}">{{ cand.get_status_display }}</span>
+        {% else %}
+        <span class="small text-muted text-nowrap">{{ cand.applied_at|date:"d/m/Y" }}</span>
+        <span class="jp-rc-badge is-{{ cand.status }}">{{ cand.get_status_display }}</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+    {% endwith %}
+    {% empty %}
+    <div class="jp-rc-empty">
+      {% if current_tab == 'phong-van' %}
+      <i class="bi bi-calendar-check" aria-hidden="true"></i>
+      <div class="fw-semibold">Không có buổi phỏng vấn nào chờ kết quả</div>
+      {% elif current_tab == 'cho-danh-gia' %}
+      <i class="bi bi-inbox" aria-hidden="true"></i>
+      <div class="fw-semibold">Không có hồ sơ chờ bạn đánh giá</div>
+      {% elif current_tab == 'da-danh-gia' %}
+      <i class="bi bi-clipboard-check" aria-hidden="true"></i>
+      <div class="fw-semibold">Bạn chưa đánh giá hồ sơ nào</div>
+      {% else %}
+      <i class="bi bi-person-plus" aria-hidden="true"></i>
+      <div class="fw-semibold">Bạn chưa đề xuất ứng viên nào</div>
+      {% if open_jobs_in_scope %}
+      <a href="{% url 'recruitment_refer_candidate' %}" class="btn btn-outline-hm btn-sm fw-bold mt-2">Đề xuất ứng viên</a>
+      {% endif %}
+      {% endif %}
+    </div>
+    {% endfor %}
+    {% if page_obj.has_other_pages %}
+    <div class="card-footer bg-white">
+      {% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% if current_tab == 'phong-van' %}{% include 'recruitment/includes/interview_result_modal.html' %}{% endif %}
+{% include 'recruitment/includes/cv_viewer.html' %}
+{% endblock %}

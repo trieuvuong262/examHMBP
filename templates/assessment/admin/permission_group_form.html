@@ -197,7 +197,7 @@
                             </tr>
                             {% endfor %}
                             {% for extra in row.extras %}
-                            <tr data-module="{{ row.key }}" data-extra="{{ extra.key }}" class="jp-perm-matrix-row jp-perm-submenu-row jp-perm-extra-row">
+                            <tr data-module="{{ extra.module_key|default:row.key }}" data-extra="{{ extra.key }}" class="jp-perm-matrix-row jp-perm-submenu-row jp-perm-extra-row">
                                 <td class="jp-perm-sticky-col ps-3">
                                     <div class="jp-perm-module-cell jp-perm-submenu-cell">
                                         <span class="jp-perm-submenu-indent" aria-hidden="true"></span>

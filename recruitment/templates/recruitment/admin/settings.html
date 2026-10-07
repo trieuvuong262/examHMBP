@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block extra_head %}{% include 'recruitment/includes/rc_styles.html' %}{% endblock %}
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <h2 class="fw-bold text-hm mb-1 jp-page-title">Thiết lập tuyển dụng</h2>
+    <p class="text-muted small mb-0">Danh mục dùng chung cho thêm ứng viên, hồ sơ đính kèm và lịch phỏng vấn.</p>
+  </div>
+
+  <ul class="nav nav-pills jp-portal-pills gap-2 mb-3" aria-label="Danh mục">
+    {% for t in tabs %}
+    <li class="nav-item">
+      <a class="nav-link rounded-pill fw-bold{% if t.active %} active{% endif %}" href="{{ t.url }}"
+         {% if t.active %}aria-current="page"{% endif %}>
+        <i class="bi {{ t.icon }}" aria-hidden="true"></i> {{ t.label }}
+        <span class="badge rounded-pill jp-rc-count ms-1">{{ t.count }}</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+
+  <div class="row g-3">
+    {% if can_create %}
+    <div class="col-lg-4 order-lg-2">
+      <div class="card border-0 shadow-sm jp-rc-card">
+        <div class="card-body">
+          <div class="jp-rc-section-title"><i class="bi bi-plus-circle" aria-hidden="true"></i> Thêm {{ spec.singular }}</div>
+          <form method="post" action="{% url 'recruitment_settings_add' tab %}" novalidate>
+            {% csrf_token %}
+            {% for field in create_form %}
+            {% if field.name == 'is_cv' %}
+            <div class="form-check mb-3">
+              {{ field }}
+              <label class="form-check-label small" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            </div>
+            {% else %}
+            <div class="mb-3 jp-rc-field{% if field.errors %} has-error{% endif %}">
+              <label class="form-label fw-semibold small" for="{{ field.id_for_label }}">
+                {{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}
+              </label>
+              {{ field }}
+              {% for e in field.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+            </div>
+            {% endif %}
+            {% endfor %}
+            <button type="submit" class="btn btn-hm fw-bold w-100"><i class="bi bi-plus-lg" aria-hidden="true"></i> Thêm</button>
+          </form>
+          <p class="small text-muted mt-3 mb-0"><i class="bi bi-info-circle" aria-hidden="true"></i> {{ spec.hint }}</p>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="{% if can_create %}col-lg-8 order-lg-1{% else %}col-12{% endif %}">
+      <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr class="small text-muted">
+                <th class="ps-3" style="width: 3.5rem;">TT</th>
+                <th>{{ spec.label }}</th>
+                <th class="text-center">Đã dùng</th>
+                <th class="text-center">Trạng thái</th>
+                <th class="text-end pe-3"><span class="visually-hidden">Thao tác</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in items %}
+              <tr class="{% if not item.is_active %}text-muted{% endif %}">
+                <td class="ps-3 small">{{ item.sort_order }}</td>
+                <td>
+                  <div class="fw-semibold">
+                    {{ item.name }}
+                    {% if item.is_system %}<span class="jp-rc-badge is-draft ms-1" title="Mục hệ thống — không xóa / ngừng dùng được"><i class="bi bi-lock-fill" aria-hidden="true"></i> Hệ thống</span>{% endif %}
+                    {% if item.is_cv %}<span class="jp-rc-badge is-interviewing ms-1">Là CV</span>{% endif %}
+                  </div>
+                  {% if item.note %}<div class="small text-muted">{{ item.note }}</div>{% endif %}
+                </td>
+                <td class="text-center small">{% if item.usage %}{{ item.usage }} {% if tab == 'dia-diem' %}buổi PV{% elif tab == 'loai-ho-so' %}file{% else %}hồ sơ{% endif %}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                <td class="text-center">
+                  {% if item.is_active %}<span class="jp-rc-badge is-open">Đang dùng</span>
+                  {% else %}<span class="jp-rc-badge is-closed">Ngừng dùng</span>{% endif %}
+                </td>
+                <td class="text-end pe-3 text-nowrap">
+                  {% if can_update %}
+                  <button type="button" class="btn btn-light btn-sm border" title="Sửa" aria-label="Sửa {{ item.name }}"
+                          data-rc-opt-edit data-url="{% url 'recruitment_settings_edit' tab item.pk %}"
+                          data-name="{{ item.name }}" data-note="{{ item.note|default:'' }}"
+                          data-sort="{{ item.sort_order }}" data-is-cv="{% if item.is_cv %}1{% endif %}">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  {% if not item.is_system %}
+                  <form method="post" action="{% url 'recruitment_settings_toggle' tab item.pk %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-light btn-sm border" title="{% if item.is_active %}Ngừng dùng{% else %}Dùng lại{% endif %}"
+                            aria-label="{% if item.is_active %}Ngừng dùng{% else %}Dùng lại{% endif %} {{ item.name }}">
+                      <i class="bi {% if item.is_active %}bi-pause-circle{% else %}bi-play-circle{% endif %}"></i>
+                    </button>
+                  </form>
+                  {% endif %}
+                  {% endif %}
+                  {% if can_delete and not item.is_system %}
+                  {% if item.usage and tab != 'dia-diem' %}
+                  <button type="button" class="btn btn-light btn-sm border" disabled title="Đang được dùng — chỉ ngừng dùng được"><i class="bi bi-trash"></i></button>
+                  {% else %}
+                  <form method="post" action="{% url 'recruitment_settings_delete' tab item.pk %}" class="d-inline"
+                        onsubmit="return confirm('Xóa «{{ item.name|escapejs }}»?');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-light btn-sm border text-danger" title="Xóa" aria-label="Xóa {{ item.name }}"><i class="bi bi-trash"></i></button>
+                  </form>
+                  {% endif %}
+                  {% endif %}
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="5">
+                <div class="jp-rc-empty">
+                  <i class="bi {{ spec.icon }}" aria-hidden="true"></i>
+                  <div class="fw-semibold">Chưa có {{ spec.singular }} nào</div>
+                </div>
+              </td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if can_update %}
+<div class="modal fade" id="rcOptModal" tabindex="-1" aria-labelledby="rcOptTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="post" class="modal-content" id="rcOptForm">
+      {% csrf_token %}
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="rcOptTitle">Sửa {{ spec.singular }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label fw-semibold small" for="rcOptName">Tên <span class="text-danger">*</span></label>
+        <input type="text" name="name" id="rcOptName" class="form-control mb-3" maxlength="120" required>
+        {% if tab == 'dia-diem' %}
+        <label class="form-label fw-semibold small" for="rcOptNote">Địa chỉ / ghi chú</label>
+        <input type="text" name="note" id="rcOptNote" class="form-control mb-3" maxlength="255">
+        {% endif %}
+        {% if tab == 'loai-ho-so' %}
+        <div class="form-check mb-3">
+          <input type="checkbox" name="is_cv" id="rcOptIsCv" class="form-check-input">
+          <label class="form-check-label small" for="rcOptIsCv">Là CV (dùng cho nút «Xem CV»)</label>
+        </div>
+        {% endif %}
+        <label class="form-label fw-semibold small" for="rcOptSort">Thứ tự</label>
+        <input type="number" name="sort_order" id="rcOptSort" class="form-control" min="0" style="max-width: 6rem;" required>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Hủy</button>
+        <button type="submit" class="btn btn-hm fw-bold">Lưu</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+(function () {
+  var modalEl = document.getElementById('rcOptModal');
+  var form = document.getElementById('rcOptForm');
+  document.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('[data-rc-opt-edit]');
+    if (!btn) return;
+    form.action = btn.dataset.url;
+    form.elements.name.value = btn.dataset.name;
+    form.elements.sort_order.value = btn.dataset.sort;
+    if (form.elements.note) form.elements.note.value = btn.dataset.note;
+    if (form.elements.is_cv) form.elements.is_cv.checked = btn.dataset.isCv === '1';
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    setTimeout(function () { form.elements.name.focus(); }, 300);
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

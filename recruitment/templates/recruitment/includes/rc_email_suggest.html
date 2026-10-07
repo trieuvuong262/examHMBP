@@ -1,0 +1,39 @@
+{# Gợi ý email công ty theo họ tên — tự điền cho tới khi người dùng tự sửa (giống form Thêm nhân viên). Tham số: name_input, email_input (id) #}
+<script>
+(function () {
+  var nameEl = document.getElementById('{{ name_input }}');
+  var emailEl = document.getElementById('{{ email_input }}');
+  if (!nameEl || !emailEl) return;
+  var url = '{% url "recruitment_suggest_email" %}';
+  var manual = emailEl.value.trim() !== '';
+  var timer = null;
+  var lastName = '';
+
+  function markManual() { manual = true; }
+  emailEl.addEventListener('keydown', markManual);
+  emailEl.addEventListener('paste', markManual);
+  emailEl.addEventListener('drop', markManual);
+  emailEl.addEventListener('input', function () {
+    if (!emailEl.value.trim()) { manual = false; lastName = ''; schedule(0); }
+  });
+
+  function fetchSuggestion() {
+    var name = nameEl.value.trim();
+    if (manual || !name || name === lastName) return;
+    lastName = name;
+    fetch(url + '?full_name=' + encodeURIComponent(name), { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (data && data.email && !manual && nameEl.value.trim() === name) emailEl.value = data.email;
+      })
+      .catch(function () {});
+  }
+  function schedule(ms) {
+    clearTimeout(timer);
+    timer = setTimeout(fetchSuggestion, ms);
+  }
+  nameEl.addEventListener('input', function () { schedule(400); });
+  nameEl.addEventListener('blur', function () { schedule(0); });
+  nameEl.addEventListener('change', function () { schedule(0); });
+})();
+</script>

@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block extra_head %}{% include 'recruitment/includes/rc_styles.html' %}{% endblock %}
+{% block content %}
+<div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div class="jp-page-header-main">
+      <h2 class="jp-page-title fw-bold text-dark mb-1">Lịch phỏng vấn</h2>
+    </div>
+    <div class="jp-rc-tools">
+      {% if can_export %}
+      <a href="{% url 'export_interviews_excel' %}?{{ request.GET.urlencode }}" class="btn btn-outline-hm btn-sm fw-bold">
+        <i class="bi bi-file-earmark-excel"></i>Xuất Excel
+      </a>
+      {% endif %}
+      <a href="{% url 'kanban_board' %}" class="btn btn-light btn-sm border"><i class="bi bi-kanban"></i>Ứng viên</a>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-3">
+      <form method="get" class="row g-2 align-items-end">
+        <div class="col-md-2">
+          {% include 'includes/date_range_span_select.html' with span_id='rc-interview-span' %}
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small fw-bold text-muted mb-1" for="rcFrom">Từ ngày</label>
+          <input type="date" name="from" id="rcFrom" class="form-control jp-date-vn" data-autosubmit value="{{ date_from|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small fw-bold text-muted mb-1" for="rcTo">Đến ngày</label>
+          <input type="date" name="to" id="rcTo" class="form-control jp-date-vn" data-autosubmit value="{{ date_to|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-bold text-muted mb-1" for="rcJob">Vị trí</label>
+          <select name="job_id" id="rcJob" class="form-select" onchange="this.form.submit()">
+            <option value="">Tất cả</option>
+            {% for job in jobs %}
+            <option value="{{ job.pk }}"{% if selected_job == job.pk|stringformat:"s" %} selected{% endif %}>{{ job.title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-bold text-muted mb-1" for="rcResult">Kết quả</label>
+          <select name="result" id="rcResult" class="form-select" onchange="this.form.submit()">
+            <option value="">Tất cả</option>
+            {% for key, label in result_choices %}
+            <option value="{{ key }}"{% if result_filter == key %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm overflow-hidden">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr class="small text-muted">
+            <th class="ps-3">Thời gian</th>
+            <th>Ứng viên</th>
+            <th>Vị trí</th>
+            <th>Địa điểm</th>
+            <th>Người phỏng vấn</th>
+            <th class="text-center">Kết quả</th>
+            <th class="text-center">CV</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for inv in interviews %}
+          <tr>
+            <td class="ps-3 text-nowrap{% if inv.result == 'pending' and inv.interview_time < now %} text-danger fw-semibold{% endif %}">
+              <div class="fw-semibold">{{ inv.interview_time|date:"H:i" }}{% if inv.end_time %} – {{ inv.end_time|date:"H:i" }}{% endif %}</div>
+              <div class="small text-muted">{{ inv.interview_time|date:"d/m/Y" }}{% if inv.duration_label %} · {{ inv.duration_label }}{% endif %}</div>
+            </td>
+            <td>
+              <a href="{% url 'candidate_detail' inv.candidate.pk %}" class="fw-semibold">{{ inv.candidate.full_name }}</a>
+              <div class="small text-muted">{{ inv.candidate.phone }}</div>
+            </td>
+            <td>{{ inv.candidate.job_posting.title }}<div class="small text-muted">{{ inv.candidate.job_posting.department_label }}</div></td>
+            <td>{{ inv.location|default:"—" }}</td>
+            <td class="small">{% for u in inv.interviewers.all %}{{ u.profile.full_name|default:u.username }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</td>
+            <td class="text-center"><span class="jp-rc-badge is-{{ inv.result }}">{{ inv.get_result_display }}</span></td>
+            <td class="text-center">
+              {% include 'recruitment/includes/cv_button.html' with candidate=inv.candidate f=inv.candidate.primary_file label='Xem' %}
+              {% if not inv.candidate.primary_file %}<span class="text-muted small">—</span>{% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="text-center text-muted small py-4">Không có lịch phỏng vấn trong khoảng này.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if page_obj.has_other_pages %}
+    <div class="card-footer bg-white">
+      {% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+{% include 'recruitment/includes/cv_viewer.html' %}
+{% include 'recruitment/includes/rc_date_scripts.html' %}
+{% include 'includes/date_range_span_script.html' %}
+{% endblock %}

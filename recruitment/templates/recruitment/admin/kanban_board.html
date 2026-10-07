@@ -1,927 +1,291 @@
 {% extends "base.html" %}
-
-{% block content %}
+{% block extra_head %}{% include 'recruitment/includes/rc_styles.html' %}
 <style>
-    :root {
-        --hm-primary: #dc2626;
-        --hm-primary-hover: #b91c1c;
-        --hm-bg-light: #f8fafc;
-        --hm-card-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    }
-
-    body { background-color: var(--hm-bg-light); }
-
-    /* Trải dài 100% màn hình */
-    .kanban-wrapper {
-        padding: 2rem 1.5rem;
-        width: 100%;
-        max-width: 100%;
-    }
-
-    /* KHUNG CHỨA CÁC CỘT: Ép các cột cao bằng nhau */
-    .kanban-container { 
-        min-height: 80vh; 
-        overflow-x: auto; 
-        overflow-y: hidden; 
-        display: flex;
-        flex-wrap: nowrap; 
-        justify-content: flex-start; 
-        gap: 1.25rem; 
-        padding-bottom: 1rem;
-        align-items: stretch; /* VŨ KHÍ BÍ MẬT: Ép tất cả các cột phải cao bằng nhau */
-    }
-
-    /* TÙY CHỈNH THANH CUỘN NGANG */
-    .kanban-container::-webkit-scrollbar { height: 10px; }
-    .kanban-container::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 3px; }
-    .kanban-container::-webkit-scrollbar-thumb { background: var(--hm-primary); border-radius: 3px; }
-    .kanban-container::-webkit-scrollbar-thumb:hover { background: var(--hm-primary-hover); }
-
-    /* ĐỊNH DẠNG TỪNG CỘT: Co giãn thông minh */
-    .col-kanban { 
-        /* Tự động giãn lấp đầy khoảng trống (flex-grow: 1), tối thiểu 280px, tối đa 400px */
-        flex: 1 0 280px; 
-        max-width: 400px; 
-    }
-
-    .column-card {
-        background-color: #f1f5f9;
-        border-radius: 5px;
-        border: none;
-        display: flex;
-        flex-direction: column;
-        height: 100%; /* Chiếm trọn 100% chiều cao của col-kanban */
-        max-height: 82vh; 
-        box-shadow: var(--hm-card-shadow);
-    }
-
-    .column-header {
-        padding: 1rem;
-        font-weight: 700;
-        font-size: 0.85rem;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-        border-radius: 5px 5px 0 0 !important;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        color: white;
-    }
-
-    .kanban-column { 
-        flex: 1; /* Khu vực chứa thẻ tự động kéo dài xuống tận đáy cột */
-        min-height: 200px; 
-        padding: 0.75rem;
-        overflow-y: auto; 
-        display: flex; 
-        flex-direction: column; 
-        gap: 0.75rem; 
-    }
-
-    /* ĐỊNH DẠNG THẺ (CARD) */
-    .kanban-card { 
-        cursor: grab; 
-        border: 1px solid #e2e8f0 !important;
-        border-radius: 4px !important;
-        transition: all 0.2s ease;
-        background: white;
-    }
-
-    .kanban-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 15px rgba(0,0,0,0.1);
-        border-color: var(--hm-primary) !important;
-    }
-
-    .kanban-card:active { cursor: grabbing; }
-
-    .badge-count {
-        background: rgba(255,255,255,0.2);
-        padding: 4px 10px;
-        border-radius: 6px;
-        font-size: 0.75rem;
-    }
-
-    /* BẢNG MÀU CÁC CỘT KANBAN */
-    .bg-new { background-color: #0d6efd; }
-    .bg-reviewing { background-color: #ffc107; color: #423100 !important; }
-    .bg-interviewing { background-color: #0dcaf0; }
-    .bg-offered { background-color: #198754; }
-    .bg-not-onboarded { background-color: #fd7e14; }
-    .bg-rejected { background-color: #64748b; }
-
-    .sortable-ghost { 
-        opacity: 0.4; 
-        background-color: rgba(220, 38, 38, 0.1) !important; 
-        border: 2px dashed var(--hm-primary) !important;
-    }
-
-    .x-small { font-size: 0.75rem; }
-    
-    /* Tùy chỉnh thanh cuộn dọc bên trong từng cột Kanban */
-    .kanban-column::-webkit-scrollbar { width: 6px; }
-    .kanban-column::-webkit-scrollbar-track { background: transparent; }
-    .kanban-column::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-    .kanban-column::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  /* Cột co giãn để màn rộng thấy đủ luồng; màn hẹp cuộn ngang */
+  .jp-rc-board .jp-rc-col { flex: 1 1 0; min-width: 12.5rem; max-width: none; }
+  .jp-rc-board .jp-rc-col.is-closed-col { flex: 0.8 1 0; min-width: 11rem; }
+  .jp-rc-col-head small { font-weight: 500; color: #94a3b8; }
+  .jp-rc-card { position: relative; }
+  .jp-rc-card-foot { display: flex; align-items: center; justify-content: space-between; gap: .35rem; margin-top: .4rem; }
+  .jp-rc-card-foot .btn { height: 1.6rem; padding: 0 .45rem; font-size: .72rem; display: inline-flex; align-items: center; }
+  .jp-rc-card a, .jp-rc-card button { -webkit-user-drag: none; }
+  .jp-rc-card[data-movable="1"] { cursor: grab; }
+  .jp-rc-ghost {
+    position: fixed; left: 0; top: 0; z-index: 2000; margin: 0 !important; pointer-events: none;
+    cursor: grabbing; opacity: .95; box-shadow: 0 12px 28px rgba(15, 23, 42, .22);
+  }
+  body.jp-rc-dragging, body.jp-rc-dragging * { cursor: grabbing !important; user-select: none !important; }
+  @media (pointer: coarse) {
+    .jp-rc-card[data-movable="1"] { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  }
+  .jp-rc-drop-hint { position: sticky; left: 0; }
+  @media (max-width: 767.98px) {
+    .jp-rc-board .jp-rc-col, .jp-rc-board .jp-rc-col.is-closed-col { flex: 0 0 80vw; }
+  }
 </style>
+{% endblock %}
+{% block content %}
+<div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
+  {% include 'recruitment/includes/candidate_header.html' %}
 
-<div class="container-fluid mt-3 mt-md-4 mb-5 kanban-wrapper jp-page">
-    <div class="jp-page-header mb-3 mb-md-4 px-1 px-md-2">
-        <div>
-            <h3 class="fw-bold text-dark mb-1 jp-page-title">Bảng ứng viên</h3>
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-3">
+      <form method="get" class="row g-2 align-items-end" role="search">
+        <div class="col-md-4">
+          <label class="form-label small fw-bold text-muted mb-1" for="kbJob">Vị trí</label>
+          <select name="job_id" id="kbJob" class="form-select" onchange="this.form.submit()">
+            <option value="">Tất cả vị trí chưa đóng</option>
+            {% for job in jobs %}
+            <option value="{{ job.pk }}"{% if selected_job == job.pk %} selected{% endif %}>{{ job.title }}{% if job.status != 'open' %} ({{ job.get_status_display|lower }}){% endif %}</option>
+            {% endfor %}
+          </select>
         </div>
-        <div class="d-flex gap-2 align-items-stretch flex-wrap w-100 w-md-auto kanban-toolbar jp-kanban-toolbar">
-            
-            <button class="btn btn-hm shadow-sm fw-bold d-flex align-items-center justify-content-center flex-fill flex-md-grow-0" data-bs-toggle="modal" data-bs-target="#addCandidateModal">
-                <i class="bi bi-person-plus-fill me-1"></i> Thêm UV
-            </button>
-            <button class="btn btn-hm shadow-sm fw-bold d-flex align-items-center justify-content-center flex-fill flex-md-grow-0" onclick="openAllInterviewsModal()">
-                <i class="bi bi-calendar-week me-1"></i> Lịch PV
-            </button>
-            <button class="btn btn-hm shadow-sm fw-bold d-flex align-items-center justify-content-center flex-fill flex-md-grow-0" onclick="openAllLicensesModal()">
-                <i class="bi bi-file-medical me-1"></i> CCHN
-            </button>
-
-            <form method="GET" class="d-flex align-items-center bg-white shadow-sm px-2 border mb-0 flex-fill flex-md-grow-0 jp-kanban-filter" style="min-height: 42px;">
-                
-                <select name="job_id" class="form-select border-0 shadow-none bg-transparent py-0 h-100 w-100" onchange="this.form.submit()" style="min-width: 0; cursor: pointer;">
-                    <option value="">-- Tất cả vị trí đang mở --</option>
-                    {% for job in jobs %}
-                        <option value="{{ job.id }}" {% if selected_job == job.id %}selected{% endif %}>{{ job.title }}</option>
-                    {% endfor %}
-                </select>
-            </form>
-
-            <a href="{% url 'admin_dashboard' %}" class="btn btn-white border shadow-sm px-3 d-flex align-items-center justify-content-center" style="height: 42px; width: 42px;" title="Quay lại">
-                <i class="bi bi-arrow-left fs-5 text-dark"></i>
-            </a>
-            
+        <div class="col-md-5">
+          <label class="form-label small fw-bold text-muted mb-1" for="kbQ">Tìm ứng viên</label>
+          <div class="input-group jp-hrm-search">
+            {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Họ tên, SĐT, email…' clear_url=request.path %}
+          </div>
         </div>
+        <div class="col-md-3 text-md-end small">
+          {% if hired_count %}
+          <a href="{% url 'candidate_list' %}?status=hired{% if selected_job %}&job_id={{ selected_job }}{% endif %}">
+            <i class="bi bi-person-check" aria-hidden="true"></i> {{ hired_count }} đã nhận việc
+          </a>
+          {% endif %}
+        </div>
+      </form>
     </div>
+  </div>
 
-    <div class="kanban-container">
-        <div class="col-kanban">
-            <div class="card column-card">
-                <div class="column-header bg-new">
-                    MỚI NỘP <span class="badge-count">{{ new_candidates.paginator.count }}</span>
-                </div>
-                <div class="card-body kanban-column" data-status="new">
-                    {% for cand in new_candidates %}
-                        <div class="card kanban-card shadow-sm" data-id="{{ cand.id }}">
-                            <div class="card-body p-3">
-                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                    <h6 class="fw-bold text-dark mb-0 jp-text-clamp-2">{{ cand.full_name }}</h6>
-                                    {% if cand.cv_file %}
-                                        <a href="{{ cand.cv_file.url }}" target="_blank" class="text-danger" title="Xem CV"></a>
-                                    {% endif %}
-                                </div>
-                                <p class="x-small text-hm mb-2 fw-semibold jp-text-clamp-2">{{ cand.job_posting.title }}</p>
-                                <div class="d-flex justify-content-between align-items-center mt-2 border-top pt-2">
-                                    <span class="x-small text-muted">{{ cand.applied_at|date:"d/m" }}</span>
-                                    <button type="button" class="btn btn-sm btn-light border x-small py-0 px-2" title="Xem/Sửa Ghi chú" onclick="openNoteModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}', '{{ cand.hr_note|escapejs|default:'' }}')"><i class="bi bi-chat-text-fill text-warning"></i></button>
-                                </div>
-                                
-                                <button type="button" class="btn btn-sm btn-outline-info w-100 fw-bold mt-2 set-interview-btn {% if cand.status != 'interviewing' %}d-none{% endif %}" onclick="openSetInterviewModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}')">
-                                    <i class="bi bi-calendar-plus me-1"></i> Lịch phỏng vấn
-                                </button>
-                                
-                            </div>
-                        </div>
-                    {% endfor %}
-                </div>
-                {% include 'includes/pagination_compact.html' with page_obj=new_candidates page_param='p_new' query_string=kanban_query_string %}
-            </div>
-        </div>
+  <div class="alert alert-warning py-2 small d-none jp-rc-drop-hint" id="rcDropHint" role="status"></div>
 
-        <div class="col-kanban">
-            <div class="card column-card">
-                <div class="column-header bg-reviewing">
-                    XEM XÉT <span class="badge-count">{{ reviewing_candidates.paginator.count }}</span>
-                </div>
-                <div class="card-body kanban-column" data-status="reviewing">
-                    {% for cand in reviewing_candidates %}
-                        <div class="card kanban-card shadow-sm" data-id="{{ cand.id }}">
-                            <div class="card-body p-3">
-                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                    <h6 class="fw-bold text-dark mb-0 jp-text-clamp-2">{{ cand.full_name }}</h6>
-                                    {% if cand.cv_file %}
-                                        <a href="{{ cand.cv_file.url }}" target="_blank" class="text-danger"></a>
-                                    {% endif %}
-                                </div>
-                                <p class="x-small text-hm mb-2 fw-semibold jp-text-clamp-2">{{ cand.job_posting.title }}</p>
-                                <div class="d-flex justify-content-between align-items-center mt-2 border-top pt-2">
-                                    <span class="x-small text-muted">{{ cand.applied_at|date:"d/m" }}</span>
-                                    <button type="button" class="btn btn-sm btn-light border x-small py-0 px-2" title="Xem/Sửa Ghi chú" onclick="openNoteModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}', '{{ cand.hr_note|escapejs|default:'' }}')"><i class="bi bi-chat-text-fill text-warning"></i></button>
-                                </div>
-                            </div>
-                        </div>
-                    {% endfor %}
-                </div>
-                {% include 'includes/pagination_compact.html' with page_obj=reviewing_candidates page_param='p_reviewing' query_string=kanban_query_string %}
-            </div>
-        </div>
-
-        <div class="col-kanban">
-            <div class="card column-card">
-                <div class="column-header bg-interviewing">
-                    PHỎNG VẤN <span class="badge-count">{{ interviewing_candidates.paginator.count }}</span>
-                </div>
-                <div class="card-body kanban-column" data-status="interviewing">
-                    {% for cand in interviewing_candidates %}
-                        <div class="card kanban-card shadow-sm" data-id="{{ cand.id }}">
-                            <div class="card-body p-3">
-                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                    <h6 class="fw-bold text-dark mb-0 jp-text-clamp-2">{{ cand.full_name }}</h6>
-                                    {% if cand.cv_file %}
-                                        <a href="{{ cand.cv_file.url }}" target="_blank" class="text-danger"></a>
-                                    {% endif %}
-                                </div>
-                                <p class="x-small text-hm mb-2 fw-semibold jp-text-clamp-2">{{ cand.job_posting.title }}</p>
-                                <div class="d-flex justify-content-between align-items-center mt-2 border-top pt-2">
-                                    <span class="x-small text-muted">{{ cand.applied_at|date:"d/m" }}</span>
-                                    <button type="button" class="btn btn-sm btn-light border x-small py-0 px-2" title="Xem/Sửa Ghi chú" onclick="openNoteModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}', '{{ cand.hr_note|escapejs|default:'' }}')"><i class="bi bi-chat-text-fill text-warning"></i></button>
-                                </div>
-
-                                <button type="button" class="btn btn-sm btn-outline-info w-100 fw-bold mt-2 set-interview-btn {% if cand.status != 'interviewing' %}d-none{% endif %}" onclick="openSetInterviewModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}')">
-                                    <i class="bi bi-calendar-plus me-1"></i> Lịch phỏng vấn
-                                </button>
-                                
-                            </div>
-                        </div>
-                    {% endfor %}
-                </div>
-                {% include 'includes/pagination_compact.html' with page_obj=interviewing_candidates page_param='p_interviewing' query_string=kanban_query_string %}
-            </div>
-        </div>
-
-        <div class="col-kanban">
-            <div class="card column-card">
-                <div class="column-header bg-offered">
-                    TRÚNG TUYỂN <span class="badge-count">{{ offered_candidates.paginator.count }}</span>
-                </div>
-                <div class="card-body kanban-column" data-status="offered">
-                    {% for cand in offered_candidates %}
-                        <div class="card kanban-card shadow-sm" data-id="{{ cand.id }}">
-                            <div class="card-body p-3">
-                                <h6 class="fw-bold text-dark mb-2 jp-text-clamp-2">{{ cand.full_name }}</h6>
-                                <p class="x-small text-hm mb-3 fw-semibold">{{ cand.job_posting.title }}</p>
-                                
-                                {% if cand.status == 'hired' %}
-                                    <button class="btn btn-sm btn-secondary w-100 fw-bold opacity-75 mb-2" disabled>
-                                        <i class="bi bi-check-circle-fill me-1"></i> Đã tạo User
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-outline-primary w-100 fw-bold license-btn" onclick="openLicenseModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}')">
-                                        <i class="bi bi-file-medical-fill me-1"></i> ĐK Hành nghề
-                                    </button>
-                                {% else %}
-                                    <button class="btn btn-sm btn-success w-100 fw-bold convert-user-btn mb-2" data-id="{{ cand.id }}" data-name="{{ cand.full_name }}">
-                                        <i class="bi bi-person-check-fill me-1"></i> Tạo User
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-outline-primary w-100 fw-bold license-btn d-none" onclick="openLicenseModal('{{ cand.id }}', '{{ cand.full_name|escapejs }}')">
-                                        <i class="bi bi-file-medical-fill me-1"></i> ĐK Hành nghề
-                                    </button>
-                                {% endif %}
-                            </div>
-                        </div>
-                    {% endfor %}
-                </div>
-                {% include 'includes/pagination_compact.html' with page_obj=offered_candidates page_param='p_offered' query_string=kanban_query_string %}
-            </div>
-        </div>
-
-        <div class="col-kanban">
-            <div class="card column-card">
-                <div class="column-header bg-not-onboarded">
-                    KHÔNG ONBOARD <span class="badge-count">{{ not_onboarded_candidates.paginator.count }}</span>
-                </div>
-                <div class="card-body kanban-column" data-status="not_onboarded">
-                    {% for cand in not_onboarded_candidates %}
-                        <div class="card kanban-card shadow-sm opacity-75" data-id="{{ cand.id }}">
-                            <div class="card-body p-3">
-                                <h6 class="fw-bold text-muted mb-1 text-decoration-line-through jp-text-clamp-2">{{ cand.full_name }}</h6>
-                                <p class="x-small text-muted mb-0">{{ cand.job_posting.title }}</p>
-                            </div>
-                        </div>
-                    {% endfor %}
-                </div>
-                {% include 'includes/pagination_compact.html' with page_obj=not_onboarded_candidates page_param='p_not_onboarded' query_string=kanban_query_string %}
-            </div>
-        </div>
-
-        <div class="col-kanban">
-            <div class="card column-card">
-                <div class="column-header bg-rejected">
-                    TỪ CHỐI <span class="badge-count">{{ rejected_candidates.paginator.count }}</span>
-                </div>
-                <div class="card-body kanban-column" data-status="rejected">
-                    {% for cand in rejected_candidates %}
-                        <div class="card kanban-card shadow-sm opacity-75" data-id="{{ cand.id }}">
-                            <div class="card-body p-3">
-                                <h6 class="fw-bold text-muted mb-1 text-decoration-line-through jp-text-clamp-2">{{ cand.full_name }}</h6>
-                                <p class="x-small text-muted mb-0">{{ cand.job_posting.title }}</p>
-                            </div>
-                        </div>
-                    {% endfor %}
-                </div>
-                {% include 'includes/pagination_compact.html' with page_obj=rejected_candidates page_param='p_rejected' query_string=kanban_query_string %}
-            </div>
-        </div>
-
-    </div>
+  <div class="jp-rc-board" id="rcBoard" data-can-move="{{ can_move|yesno:'1,0' }}">
+    {% for col in columns %}
+    <section class="jp-rc-col {{ col.css }} is-{{ col.key }}{% if col.is_closed %} is-closed-col{% endif %}"
+             data-status="{{ col.key }}" data-label="{{ col.label }}"
+             data-droppable="{{ col.droppable|yesno:'1,0' }}" aria-label="{{ col.label }}">
+      <header class="jp-rc-col-head">
+        <span>{{ col.label }}</span>
+        <span class="jp-rc-col-count">{{ col.page.paginator.count }}</span>
+      </header>
+      <div class="jp-rc-col-body">
+        {% for cand in col.cards %}
+        <article class="jp-rc-card" draggable="false"
+                 data-movable="{% if can_move and cand.move_targets %}1{% else %}0{% endif %}"
+                 data-id="{{ cand.pk }}" data-name="{{ cand.full_name }}" data-status="{{ cand.status }}"
+                 data-url="{% url 'candidate_transition' cand.pk %}">
+          <div class="d-flex justify-content-between align-items-start gap-1">
+            <a class="jp-rc-card-name" href="{% url 'candidate_detail' cand.pk %}" draggable="false">{{ cand.full_name }}</a>
+            {% include 'recruitment/includes/cv_button.html' with candidate=cand f=cand.primary_file cls='btn btn-link btn-sm p-0 lh-1 text-secondary' %}
+          </div>
+          <div class="jp-rc-card-meta">{{ cand.job_posting.title }}</div>
+          <div class="jp-rc-card-meta">
+            {{ cand.phone }}
+            {% if cand.source == 'referral' %} · <i class="bi bi-person-check" aria-hidden="true"></i> QL đề xuất{% endif %}
+          </div>
+          {% if col.key == 'reviewing' %}
+          <div class="jp-rc-card-meta mt-1">
+            {% if cand.n_recommend %}<span class="jp-rc-badge is-recommend">{{ cand.n_recommend }} đề xuất PV</span>
+            {% elif cand.n_reviews %}<span class="jp-rc-badge is-consider">{{ cand.n_reviews }} đánh giá</span>
+            {% else %}<span class="jp-rc-badge is-pending">Chưa đánh giá</span>{% endif %}
+          </div>
+          {% elif col.key == 'interviewing' and cand.interview_or_none %}
+          <div class="jp-rc-card-meta mt-1">
+            <i class="bi bi-clock" aria-hidden="true"></i> {{ cand.interview.interview_time|date:"H:i" }}{% if cand.interview.end_time %}–{{ cand.interview.end_time|date:"H:i" }}{% endif %} {{ cand.interview.interview_time|date:"d/m" }}
+            <span class="jp-rc-badge is-{{ cand.interview.result }}">{{ cand.interview.get_result_display }}</span>
+          </div>
+          {% elif col.is_closed and cand.reject_reason %}
+          <div class="jp-rc-card-meta mt-1 text-truncate" title="{{ cand.reject_reason }}">{{ cand.reject_reason }}</div>
+          {% endif %}
+          {% if can_move and col.key == 'offered' %}
+          <div class="jp-rc-card-foot justify-content-end">
+            <a href="{% url 'candidate_detail' cand.pk %}" class="btn btn-hm btn-sm fw-bold" draggable="false">Onboard</a>
+          </div>
+          {% endif %}
+        </article>
+        {% empty %}
+        <p class="small text-muted text-center my-3">Trống</p>
+        {% endfor %}
+      </div>
+      {% if col.page.has_other_pages %}
+      <div class="jp-rc-col-foot">
+        {% with page_param='p_'|add:col.key %}
+        {% include 'includes/pagination_compact.html' with page_obj=col.page query_string=query_string page_param=page_param %}
+        {% endwith %}
+      </div>
+      {% endif %}
+    </section>
+    {% endfor %}
+  </div>
 </div>
 
-<div class="modal fade" id="addCandidateModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <form action="{% url 'add_candidate' %}" method="POST" enctype="multipart/form-data" class="modal-content border-0 shadow-lg">
-            {% csrf_token %}
-            <div class="modal-header bg-hm text-white border-0 py-3 px-4">
-                <h5 class="modal-title fw-bold">Thêm Hồ sơ Ứng viên</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-4">
-                <div class="mb-3">
-                    <label class="form-label fw-bold small text-muted text-uppercase">Vị trí ứng tuyển</label>
-                    <select name="job_posting" class="form-select bg-light border-0 py-2" required>
-                        <option value="">-- Chọn vị trí --</option>
-                        {% for job in jobs %}
-                            <option value="{{ job.id }}">{{ job.title }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label fw-bold small text-muted text-uppercase">Họ và tên</label>
-                    <input type="text" name="full_name" class="form-control bg-light border-0 py-2" required placeholder="Nguyễn Văn A">
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold small text-muted text-uppercase">Số điện thoại</label>
-                        <input type="text" name="phone" class="form-control bg-light border-0 py-2" required>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold small text-muted text-uppercase">Email</label>
-                        <input type="email" name="email" class="form-control bg-light border-0 py-2" required>
-                    </div>
-                </div>
-                <div class="mb-2">
-                    <label class="form-label fw-bold small text-muted text-uppercase">CV (PDF/Word)</label>
-                    <input type="file" name="cv_file" class="form-control bg-light border-0 py-2" required accept=".pdf,.doc,.docx">
-                </div>
-            </div>
-            <div class="modal-footer border-0 p-4 pt-0">
-                <button type="button" class="btn btn-light fw-bold px-4" data-bs-dismiss="modal">Đóng</button>
-                <button type="submit" class="btn btn-hm fw-bold px-4">Lưu hồ sơ</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div class="modal fade" id="hrNoteModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <form action="{% url 'update_hr_note' %}" method="POST" class="modal-content border-0 shadow-lg">
-            {% csrf_token %}
-            <input type="hidden" name="candidate_id" id="modalNoteCandidateId">
-            
-            <div class="modal-header bg-warning bg-opacity-25 border-0 py-3 px-4">
-                <h6 class="modal-title fw-bold text-dark mb-0">
-                    Ghi chú: <span id="modalNoteCandidateName" class="text-primary ms-1"></span>
-                </h6>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            
-            <div class="modal-body p-4 bg-white">
-                <label class="form-label fw-bold small text-muted text-uppercase mb-2">Nội dung đánh giá / Ghi chú phỏng vấn</label>
-                <textarea name="hr_note" id="modalHrNoteContent" class="form-control bg-light border-0 py-3" rows="6" placeholder="Nhập nhận xét, lý do đánh giá, đề xuất lương..."></textarea>
-            </div>
-            
-            <div class="modal-footer p-3 border-0 bg-light rounded-bottom-4">
-                <button type="button" class="btn btn-white border px-4 fw-bold" data-bs-dismiss="modal">Đóng</button>
-                <button type="submit" class="btn btn-hm-dark px-4 fw-bold shadow-sm text-dark">
-                    <i class="bi bi-save me-1"></i> LƯU GHI CHÚ
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-<div class="modal fade" id="licenseModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <form action="{% url 'update_practice_license' %}" method="POST" class="modal-content border-0 shadow-lg">
-            {% csrf_token %}
-            <input type="hidden" name="candidate_id" id="modalLicenseCandId">
-            <div class="modal-header bg-hm text-white border-0 py-3 px-4">
-                <h6 class="modal-title fw-bold">Đăng ký Hành Nghề: <span id="modalLicenseCandName"></span></h6>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body p-4 bg-light">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label small fw-bold text-muted">Số GPHN / CCHN</label>
-                        <input type="text" name="license_number" id="input_license_number" class="form-control shadow-sm border-0">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label small fw-bold text-muted">Vị trí chuyên môn</label>
-                        <input type="text" name="professional_position" id="input_professional_position" class="form-control shadow-sm border-0">
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label small fw-bold text-muted">Phạm vi hành nghề</label>
-                        <input type="text" name="scope_of_practice" id="input_scope_of_practice" class="form-control shadow-sm border-0">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label small fw-bold text-muted">Thời gian ĐK Hành nghề (CS KBCB hiện tại)</label>
-                        <input type="text" name="practice_time" id="input_practice_time" class="form-control shadow-sm border-0" placeholder="VD: T2-T6 (7h00 - 16h30)">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label small fw-bold text-muted">Thời gian ĐK Hành nghề (CS KBCB khác)</label>
-                        <input type="text" name="other_practice_time" id="input_other_practice_time" class="form-control shadow-sm border-0" placeholder="VD: Ngoài giờ HC">
-                    </div>
-                    <div class="col-12 mt-3">
-                        <label class="form-label fw-bold small text-muted">Ghi chú</label>
-                        <textarea name="license_note" id="input_license_note" class="form-control border-0 shadow-sm" rows="2" placeholder="Nhập ghi chú..."></textarea>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer border-0 p-3 bg-white rounded-bottom-4">
-                <button type="submit" class="btn btn-hm text-white px-5 fw-bold shadow-sm">Lưu Thông Tin</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div class="modal fade" id="allLicensesModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-hm text-white border-0 py-3 px-4">
-                <h5 class="modal-title fw-bold">Tổng hợp Đăng ký Hành Nghề   -</h5>
-                <button class="btn btn-sm btn-success fw-bold px-3 d-flex align-items-center" onclick="exportLicensesExcel()">
-                    <i class="bi bi-file-earmark-excel me-1"></i> Xuất Excel
-                </button>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th class="px-3">Họ và tên</th>
-                                <th>Vị trí CM</th>
-                                <th>Số CCHN</th>
-                                <th>Phạm vi HN</th>
-                                <th>TG tại CS này</th>
-                                <th>TG tại CS khác</th>
-                            </tr>
-                        </thead>
-                        <tbody id="licenseTableBody">
-                            <tr><td colspan="6" class="text-center py-4 text-muted">Đang tải dữ liệu...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-<div class="modal fade" id="setInterviewModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <form action="{% url 'set_interview_schedule' %}" method="POST" class="modal-content border-0 shadow-lg">
-            {% csrf_token %}
-            <input type="hidden" name="candidate_id" id="modalInterviewCandId">
-            <div class="modal-header bg-hm text-white border-0 py-3 px-4">
-                <h6 class="modal-title fw-bold">Set lịch: <span id="modalInterviewCandName"></span></h6>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body p-4">
-                <div class="mb-3">
-                    <label class="form-label fw-bold small text-muted">Thời gian phỏng vấn</label>
-                    <input type="datetime-local" name="interview_time" id="input_interview_time" class="form-control bg-light border-0" required>
-                </div>
-            </div>
-            <div class="modal-footer border-0 p-3 bg-light rounded-bottom-4">
-                <button type="submit" class="btn btn-hm text-white px-4 fw-bold w-100">Lưu Lịch</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div class="modal fade" id="allInterviewsModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-hm text-white border-0 py-3 px-4">
-                <h5 class="modal-title fw-bold">Tổng lịch Phỏng Vấn   -</h5>
-                <button class="btn btn-sm btn-success fw-bold px-3 d-flex align-items-center" onclick="exportInterviewsExcel()">
-                    <i class="bi bi-file-earmark-excel me-1"></i> Xuất Excel
-                </button>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th class="px-4">Thời gian</th>
-                                <th>Ứng viên</th>
-                                <th>Vị trí</th>
-                            </tr>
-                        </thead>
-                        <tbody id="interviewTableBody">
-                            <tr><td colspan="3" class="text-center py-4 text-muted">Đang tải dữ liệu...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+{% include 'recruitment/includes/transition_modal.html' %}
+{% include 'recruitment/includes/cv_viewer.html' %}
+{{ transitions|json_script:"rcTransitions" }}
+{{ status_labels|json_script:"rcStatusLabels" }}
 <script>
-function getCsrfToken() {
-    const meta = document.querySelector('meta[name="csrf-token"]');
-    if (meta && meta.content) return meta.content;
-    const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
-    return match ? decodeURIComponent(match[1]) : '';
-}
+(function () {
+  var board = document.getElementById('rcBoard');
+  if (!board || board.dataset.canMove !== '1') return;
+  var transitions = JSON.parse(document.getElementById('rcTransitions').textContent);
+  var labels = JSON.parse(document.getElementById('rcStatusLabels').textContent);
+  var hint = document.getElementById('rcDropHint');
+  var hintTimer = null;
+  // Pointer Events thay HTML5 drag&drop — chạy được với chuột, cảm ứng, bút và trình duyệt nhúng.
+  var MOVE_THRESHOLD = 6;
+  var TOUCH_HOLD_MS = 250;
+  var EDGE = 60;
+  var drag = null;
+  var suppressClickUntil = 0;
 
-async function parseJsonResponse(res) {
-    const text = await res.text();
-    try {
-        return JSON.parse(text);
-    } catch (err) {
-        if (res.status === 403) {
-            throw new Error('Phiên đăng nhập hết hạn hoặc CSRF không hợp lệ. Vui lòng tải lại trang.');
-        }
-        if (res.status === 404) {
-            throw new Error('Không tìm thấy API trên máy chủ.');
-        }
-        throw new Error('Máy chủ trả về dữ liệu không hợp lệ (HTTP ' + res.status + ').');
-    }
-}
+  function allowed(status, col) {
+    if (!col || col.dataset.droppable !== '1') return false;
+    return (transitions[status] || []).indexOf(col.dataset.status) !== -1;
+  }
+  function showHint(text) {
+    hint.textContent = text;
+    hint.classList.remove('d-none');
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(function () { hint.classList.add('d-none'); }, 4000);
+  }
+  function colAt(x, y) {
+    var el = document.elementFromPoint(x, y);
+    return el && el.closest ? el.closest('#rcBoard .jp-rc-col') : null;
+  }
 
-function ensureConvertButton(cardEl) {
-    if (!cardEl || cardEl.querySelector('.convert-user-btn')) return;
-    const candId = cardEl.getAttribute('data-id');
-    const wrap = document.createElement('div');
-    wrap.innerHTML = `
-        <button type="button" class="btn btn-sm btn-success w-100 fw-bold convert-user-btn mb-2" data-id="${candId}">
-            <i class="bi bi-person-check-fill me-1"></i> Tạo User
-        </button>
-        <button type="button" class="btn btn-sm btn-outline-primary w-100 fw-bold license-btn d-none" data-license-id="${candId}">
-            <i class="bi bi-file-medical-fill me-1"></i> ĐK Hành nghề
-        </button>`;
-    cardEl.querySelector('.card-body').appendChild(wrap);
-    const licenseBtn = wrap.querySelector('.license-btn');
-    if (licenseBtn) {
-        licenseBtn.addEventListener('click', function () {
-            const nameEl = cardEl.querySelector('.fw-bold');
-            openLicenseModal(candId, nameEl ? nameEl.textContent.trim() : '');
-        });
-    }
-}
-
-function updateBadgeCount(columnElement) {
-    const count = columnElement.querySelectorAll('.kanban-card').length;
-    const badge = columnElement.closest('.column-card').querySelector('.badge-count');
-    if (badge) badge.textContent = count;
-}
-
-async function convertCandidateToUser(btn) {
-    const candId = btn.getAttribute('data-id');
-    const card = btn.closest('.kanban-card');
-    const column = card ? card.closest('.kanban-column') : null;
-
-    if (!confirm('Hệ thống sẽ TỰ ĐỘNG tạo Tài khoản và Mật khẩu ngẫu nhiên cho ứng viên này.\nBạn có chắc chắn muốn tiếp tục?')) return;
-
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Đang xử lý...';
-
-    const convertUrl = "{% url 'convert_to_employee' 999999 %}".replace('999999', candId);
-
-    try {
-        const res = await fetch(convertUrl, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCsrfToken(),
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-            },
-            credentials: 'same-origin',
-            body: '{}',
-        });
-        const data = await parseJsonResponse(res);
-
-        if (data.status === 'success') {
-            btn.classList.remove('btn-success', 'convert-user-btn');
-            btn.classList.add('btn-secondary', 'opacity-75');
-            btn.innerHTML = ' Đã tạo User';
-            btn.disabled = true;
-            const licenseBtn = card ? card.querySelector('.license-btn') : null;
-            if (licenseBtn) licenseBtn.classList.remove('d-none');
-            if (column) updateBadgeCount(column);
-
-            const textToCopy = `Tài khoản: ${data.username}\nMật khẩu: ${data.password}`;
-            try {
-                await navigator.clipboard.writeText(textToCopy);
-            } catch (e) { /* ignore */ }
-            alert(
-                '🎉 TẠO TÀI KHOẢN THÀNH CÔNG!\n\n' +
-                'Thông tin đăng nhập:\n' +
-                '----------------------------------------\n' +
-                `Tài khoản : ${data.username}\n` +
-                `Mật khẩu  : ${data.password}\n` +
-                '----------------------------------------\n'
-            );
-        } else {
-            alert('Lỗi: ' + (data.message || 'Không thể tạo tài khoản.'));
-            btn.disabled = false;
-            btn.innerHTML = ' Tạo User';
-        }
-    } catch (err) {
-        alert(err.message || 'Lỗi kết nối đến máy chủ! Vui lòng thử lại.');
-        btn.disabled = false;
-        btn.innerHTML = ' Tạo User';
-        console.error(err);
-    }
-}
-function openLicenseModal(candId, candName) {
-    // 1. Gắn ID và Tên ứng viên lên tiêu đề Modal
-    document.getElementById('modalLicenseCandId').value = candId;
-    document.getElementById('modalLicenseCandName').innerText = candName;
-    
-    // 2. Tạm thời xóa trắng hoặc hiện chữ "Đang tải..." để tránh hiện dữ liệu của người bấm trước đó
-    document.getElementById('input_license_number').value = 'Đang tải dữ liệu cũ...';
-    document.getElementById('input_scope_of_practice').value = '';
-    document.getElementById('input_practice_time').value = '';
-    document.getElementById('input_professional_position').value = '';
-    document.getElementById('input_other_practice_time').value = '';
-    document.getElementById('input_license_note').value = '';
-
-    // 3. Bật cái Modal lên trước cho mượt giao diện
-    var myModal = new bootstrap.Modal(document.getElementById('licenseModal'));
-    myModal.show();
-
-    // 4. Gọi API đập thẳng vào Backend lấy dữ liệu đã lưu
-    const fetchUrl = "{% url 'get_candidate_license' 999999 %}".replace('999999', candId);
-    
-    fetch(fetchUrl)
-        .then(res => {
-            if (!res.ok) throw new Error('Mạng lỗi hoặc không tìm thấy ứng viên');
-            return res.json();
-        })
-        .then(data => {
-            console.log("Dữ liệu cũ từ Server trả về:", data); // Dòng này để ní F12 lên kiểm tra kiểm tra xem server có trả về đúng dữ liệu không
-            
-            // 5. Điền chính xác dữ liệu cũ vào form (Kiểm tra kỹ ID phải trùng khớp với thẻ HTML)
-            document.getElementById('input_license_number').value = data.license_number || '';
-            document.getElementById('input_scope_of_practice').value = data.scope_of_practice || '';
-            document.getElementById('input_practice_time').value = data.practice_time || '';
-            document.getElementById('input_professional_position').value = data.professional_position || '';
-            document.getElementById('input_other_practice_time').value = data.other_practice_time || '';
-            document.getElementById('input_license_note').value = data.license_note || '';
-        })
-        .catch(err => {
-            console.error("Lỗi Fetch dữ liệu hành nghề:", err);
-            document.getElementById('input_license_number').value = 'Lỗi không tải được dữ liệu!';
-        });
-}
-function openAllLicensesModal() {
-    new bootstrap.Modal(document.getElementById('allLicensesModal')).show();
-    
-    const currentJobId = "{{ selected_job|default_if_none:'' }}";
-    let fetchUrl = "{% url 'get_all_licenses' %}";
-    
-    if (currentJobId) {
-        fetchUrl += `?job_id=${currentJobId}`;
-    }
-    
-    fetch(fetchUrl)
-        .then(res => res.json())
-        .then(data => {
-            const tbody = document.getElementById('licenseTableBody');
-            tbody.innerHTML = '';
-            if(data.licenses.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">Chưa có nhân sự nào được onboard ở vị trí này.</td></tr>';
-                return;
-            }
-            
-            data.licenses.forEach(lic => {
-                tbody.innerHTML += `
-                    <tr>
-                        <td class="px-3 fw-bold text-primary">${lic.full_name}</td>
-                        <td class="small fw-semibold">${lic.professional_position}</td>
-                        <td class="fw-bold">${lic.license_number}</td>
-                        <td class="small text-muted">${lic.scope_of_practice}</td>
-                        <td class="small">${lic.practice_time}</td>
-                        <td class="small">${lic.other_practice_time}</td>
-                    </tr>
-                `;
-            });
-        });
-}
-// Hàm mở form đặt lịch
-// Hàm mở form đặt lịch có bốc dữ liệu cũ
-function openSetInterviewModal(candId, candName) {
-    // Gắn thông tin ứng viên lên popup
-    document.getElementById('modalInterviewCandId').value = candId;
-    document.getElementById('modalInterviewCandName').innerText = candName;
-    
-    // Reset ô thời gian cho nó trống trước khi bốc dữ liệu mới
-    const timeInput = document.getElementById('input_interview_time');
-    if(timeInput) timeInput.value = '';
-    
-    // Hiển thị Popup lên
-    new bootstrap.Modal(document.getElementById('setInterviewModal')).show();
-
-    // Gọi API lấy dữ liệu lịch cũ về
-    const fetchUrl = "{% url 'get_candidate_interview' 999999 %}".replace('999999', candId);
-    
-    fetch(fetchUrl)
-        .then(res => res.json())
-        .then(data => {
-            // Nếu server báo có lịch cũ thì tự động điền vào ô ngày giờ
-            if (data.interview_time && timeInput) {
-                timeInput.value = data.interview_time;
-            }
-        })
-        .catch(err => console.error("Lỗi tải lịch phỏng vấn:", err));
-}
-
-// Hàm fetch danh sách lịch và mở popup Tổng lịch
-// Hàm fetch danh sách lịch và mở popup Tổng lịch
-function openAllInterviewsModal() {
-    new bootstrap.Modal(document.getElementById('allInterviewsModal')).show();
-    
-    // Lấy ID vị trí đang lọc từ Django (Nếu đang ở "Tất cả vị trí" thì nó sẽ rỗng)
-    const currentJobId = "{{ selected_job|default_if_none:'' }}";
-    let fetchUrl = "{% url 'get_all_interviews' %}";
-    
-    // Nối thêm đuôi ?job_id=... vào link để báo cho Server biết
-    if (currentJobId) {
-        fetchUrl += `?job_id=${currentJobId}`;
-    }
-    
-    fetch(fetchUrl)
-        .then(res => res.json())
-        .then(data => {
-            const tbody = document.getElementById('interviewTableBody');
-            tbody.innerHTML = '';
-            if(data.interviews.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-muted">Chưa có lịch phỏng vấn nào được xếp cho vị trí này.</td></tr>';
-                return;
-            }
-            
-            data.interviews.forEach(inv => {
-                tbody.innerHTML += `
-                    <tr>
-                        <td class="px-4 fw-bold text-info">${inv.time}</td>
-                        <td class="fw-bold">${inv.candidate_name}<br><small class="text-muted fw-normal">${inv.status}</small></td>
-                        <td><span class="badge bg-light text-dark border">${inv.job_title}</span></td>
-                    </tr>
-                `;
-            });
-        });
-}
-    function openNoteModal(id, name, note) {
-        document.getElementById('modalNoteCandidateId').value = id;
-        document.getElementById('modalNoteCandidateName').innerText = name;
-        
-        let cleanNote = note.replace(/\\n/g, '\n').replace(/\\r/g, '\r');
-        document.getElementById('modalHrNoteContent').value = cleanNote;
-        
-        var noteModal = new bootstrap.Modal(document.getElementById('hrNoteModal'));
-        noteModal.show();
-    }
-
-    document.addEventListener('DOMContentLoaded', function () {
-        const columns = document.querySelectorAll('.kanban-column');
-        
-        columns.forEach(col => {
-            new Sortable(col, {
-                group: 'kanban',
-                animation: 200,
-                ghostClass: 'sortable-ghost',
-                onEnd: function (evt) {
-                    const toColumn = evt.to;
-                    const fromColumn = evt.from;
-                    if (toColumn === fromColumn) return; 
-
-                    const candidateId = evt.item.getAttribute('data-id');
-                    const newStatus = toColumn.getAttribute('data-status');
-                    
-                    updateBadgeCount(fromColumn);
-                    updateBadgeCount(toColumn);
-
-                    fetch("{% url 'update_candidate_status' %}", {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRFToken': getCsrfToken()
-                        },
-                        credentials: 'same-origin',
-                        body: JSON.stringify({
-                            'candidate_id': candidateId,
-                            'status': newStatus
-                        })
-                    }).then(res => {
-                        if(!res.ok) {
-                            alert("Lỗi khi lưu trạng thái lên server.");
-                        } else {
-                            const cardEl = evt.item;
-                            const nameEl = cardEl.querySelector('.fw-bold');
-                            const badgeEl = cardEl.querySelector('.badge-soft');
-                            const convertBtn = cardEl.querySelector('.convert-user-btn');
-
-                            // Xóa các class định dạng thẻ cũ
-                            cardEl.classList.remove('opacity-50', 'opacity-75', 'bg-light', 'bg-white');
-                            if (nameEl) nameEl.classList.remove('text-decoration-line-through', 'text-muted', 'text-dark');
-                            
-                            if (badgeEl) {
-                                badgeEl.classList.remove('bg-primary-soft', 'bg-warning-soft', 'bg-info-soft', 'bg-success-soft', 'bg-danger-soft');
-                                
-                                if (newStatus === 'new') {
-                                    badgeEl.classList.add('bg-primary-soft');
-                                    badgeEl.innerText = 'Mới nộp';
-                                } else if (newStatus === 'reviewing') {
-                                    badgeEl.classList.add('bg-warning-soft');
-                                    badgeEl.innerText = 'Đang xem xét';
-                                } else if (newStatus === 'interviewing') {
-                                    badgeEl.classList.add('bg-info-soft');
-                                    badgeEl.innerText = 'Phỏng vấn';
-                                } else if (newStatus === 'offered' || newStatus === 'hired') {
-                                    badgeEl.classList.add('bg-success-soft');
-                                    badgeEl.innerText = 'Trúng tuyển';
-                                } else if (newStatus === 'not_onboarded') {
-                                    badgeEl.classList.add('bg-warning-soft');
-                                    badgeEl.innerText = 'Không Onboard';
-                                } else if (newStatus === 'rejected') {
-                                    badgeEl.classList.add('bg-danger-soft');
-                                    badgeEl.innerText = 'Đã loại';
-                                }
-                            }
-
-                            if (newStatus === 'rejected' || newStatus === 'not_onboarded') {
-                                cardEl.classList.add('opacity-75', 'bg-light');
-                                if (nameEl) nameEl.classList.add('text-decoration-line-through', 'text-muted');
-                                if (convertBtn) convertBtn.classList.add('d-none');
-                                
-                                // Thêm dòng này để lỡ bị rớt/loại thì nút Lịch cũng biến mất luôn
-                                const setInterviewBtn = cardEl.querySelector('.set-interview-btn');
-                                if (setInterviewBtn) setInterviewBtn.classList.add('d-none');
-                                
-                            } else {
-                                // Khôi phục lại trạng thái sáng, hiển thị lại các nút
-                                cardEl.classList.add('bg-white');
-                                if (nameEl) nameEl.classList.add('text-dark');
-                                
-                                if (convertBtn) {
-                                    if (newStatus === 'offered' || newStatus === 'hired') {
-                                        convertBtn.classList.remove('d-none');
-                                    } else {
-                                        convertBtn.classList.add('d-none');
-                                    }
-                                } else if (newStatus === 'offered') {
-                                    ensureConvertButton(cardEl);
-                                }
-
-                                // 👉 DÁN ĐOẠN CODE CỦA NÍ VÀO CHÍNH CHỖ NÀY NÈ:
-                                const setInterviewBtn = cardEl.querySelector('.set-interview-btn');
-                                if (setInterviewBtn) {
-                                    if (newStatus === 'interviewing') {
-                                        setInterviewBtn.classList.remove('d-none'); // Kéo vào ô Phỏng vấn -> Hiện nút
-                                    } else {
-                                        setInterviewBtn.classList.add('d-none');    // Kéo ra ô khác -> Ẩn nút
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
-            });
-        });
-
-        document.addEventListener('click', function (e) {
-            const btn = e.target.closest('.convert-user-btn');
-            if (!btn || btn.disabled) return;
-            convertCandidateToUser(btn);
-        });
+  function startDrag() {
+    var card = drag.card;
+    var rect = card.getBoundingClientRect();
+    drag.started = true;
+    drag.offX = drag.x0 - rect.left;
+    drag.offY = drag.y0 - rect.top;
+    var ghost = card.cloneNode(true);
+    ghost.classList.add('jp-rc-ghost');
+    ghost.style.width = rect.width + 'px';
+    ghost.style.borderLeftColor = getComputedStyle(card).borderLeftColor;
+    document.body.appendChild(ghost);
+    drag.ghost = ghost;
+    card.classList.add('is-dragging');
+    document.body.classList.add('jp-rc-dragging');
+    if (window.getSelection) window.getSelection().removeAllRanges();
+    board.querySelectorAll('.jp-rc-col').forEach(function (col) {
+      if (col.dataset.status !== card.dataset.status && !allowed(card.dataset.status, col)) col.classList.add('is-blocked');
     });
-// Hàm kích hoạt tải file Excel Lịch phỏng vấn (có ăn theo bộ lọc vị trí)
-function exportInterviewsExcel() {
-    const currentJobId = "{{ selected_job|default_if_none:'' }}";
-    let url = "{% url 'export_interviews_excel' %}";
-    
-    if (currentJobId) {
-        url += `?job_id=${currentJobId}`;
-    }
-    // Chuyển hướng trình duyệt đến link tải file
-    window.location.href = url;
-}
+    moveDrag(drag.x, drag.y);
+    drag.raf = requestAnimationFrame(autoScroll);
+  }
 
-// Hàm kích hoạt tải file Excel Chứng chỉ hành nghề (có ăn theo bộ lọc vị trí)
-function exportLicensesExcel() {
-    const currentJobId = "{{ selected_job|default_if_none:'' }}";
-    let url = "{% url 'export_licenses_excel' %}";
-    
-    if (currentJobId) {
-        url += `?job_id=${currentJobId}`;
+  function moveDrag(x, y) {
+    drag.x = x;
+    drag.y = y;
+    drag.ghost.style.transform = 'translate(' + (x - drag.offX) + 'px,' + (y - drag.offY) + 'px) rotate(2deg)';
+    var col = colAt(x, y);
+    if (col !== drag.overCol) {
+      if (drag.overCol) drag.overCol.classList.remove('is-over');
+      drag.overCol = col;
+      if (col && allowed(drag.card.dataset.status, col)) col.classList.add('is-over');
     }
-    window.location.href = url;
-}
+  }
+
+  function autoScroll() {
+    if (!drag || !drag.started) return;
+    var r = board.getBoundingClientRect();
+    if (drag.x < r.left + EDGE) board.scrollLeft -= 14;
+    else if (drag.x > r.right - EDGE) board.scrollLeft += 14;
+    if (drag.y < EDGE) window.scrollBy(0, -14);
+    else if (drag.y > window.innerHeight - EDGE) window.scrollBy(0, 14);
+    moveDrag(drag.x, drag.y);
+    drag.raf = requestAnimationFrame(autoScroll);
+  }
+
+  function endDrag(x, y, cancelled) {
+    var d = drag;
+    drag = null;
+    clearTimeout(d.holdTimer);
+    if (!d.started) return;
+    cancelAnimationFrame(d.raf);
+    d.ghost.remove();
+    d.card.classList.remove('is-dragging');
+    document.body.classList.remove('jp-rc-dragging');
+    board.querySelectorAll('.jp-rc-col').forEach(function (col) { col.classList.remove('is-over', 'is-blocked'); });
+    suppressClickUntil = Date.now() + 400;
+    if (cancelled) return;
+    var col = colAt(x, y);
+    var status = d.card.dataset.status;
+    if (!col || col.dataset.status === status) return;
+    if (!allowed(status, col)) {
+      var targets = (transitions[status] || []).map(function (s) { return '«' + labels[s] + '»'; });
+      showHint('Không chuyển thẳng «' + labels[status] + '» → «' + col.dataset.label + '». '
+        + (targets.length ? 'Bước tiếp theo: ' + targets.join(', ') + '.' : 'Hồ sơ đã ở bước cuối.'));
+      return;
+    }
+    window.jpRcOpenTransition({
+      url: d.card.dataset.url, to: col.dataset.status, toLabel: labels[col.dataset.status] || col.dataset.label,
+      name: d.card.dataset.name,
+    });
+  }
+
+  board.addEventListener('pointerdown', function (ev) {
+    if (drag || (ev.pointerType === 'mouse' && ev.button !== 0)) return;
+    var card = ev.target.closest('.jp-rc-card[data-movable="1"]');
+    if (!card || ev.target.closest('.jp-rc-card-foot')) return;
+    var touch = ev.pointerType !== 'mouse';
+    drag = {
+      card: card, pointerId: ev.pointerId, touch: touch, started: false,
+      x0: ev.clientX, y0: ev.clientY, x: ev.clientX, y: ev.clientY, overCol: null,
+    };
+    if (touch) {
+      // Cảm ứng: nhấn giữ mới kéo — vuốt nhanh vẫn cuộn bảng như bình thường.
+      drag.holdTimer = setTimeout(function () {
+        if (drag && !drag.started) startDrag();
+      }, TOUCH_HOLD_MS);
+    } else {
+      ev.preventDefault();
+    }
+  });
+
+  document.addEventListener('pointermove', function (ev) {
+    if (!drag || ev.pointerId !== drag.pointerId) return;
+    if (drag.started) {
+      ev.preventDefault();
+      moveDrag(ev.clientX, ev.clientY);
+      return;
+    }
+    var moved = Math.abs(ev.clientX - drag.x0) + Math.abs(ev.clientY - drag.y0) > MOVE_THRESHOLD;
+    if (!moved) return;
+    if (drag.touch) {
+      endDrag(ev.clientX, ev.clientY, true);
+    } else {
+      drag.x = ev.clientX;
+      drag.y = ev.clientY;
+      startDrag();
+    }
+  });
+
+  document.addEventListener('pointerup', function (ev) {
+    // Toạ độ pointerup của cảm ứng có thể là 0,0 — dùng vị trí kéo cuối cùng.
+    if (drag && ev.pointerId === drag.pointerId) endDrag(drag.x, drag.y, false);
+  });
+  document.addEventListener('pointercancel', function (ev) {
+    if (drag && ev.pointerId === drag.pointerId) endDrag(drag.x, drag.y, true);
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (drag && drag.started && ev.key === 'Escape') endDrag(0, 0, true);
+  });
+  board.addEventListener('touchmove', function (ev) {
+    if (drag && drag.started) ev.preventDefault();
+  }, { passive: false });
+  board.addEventListener('contextmenu', function (ev) {
+    if (drag) ev.preventDefault();
+  });
+  board.addEventListener('dragstart', function (ev) { ev.preventDefault(); });
+  // Thả chuột sau khi kéo không được tính là bấm vào tên / nút CV.
+  board.addEventListener('click', function (ev) {
+    if (Date.now() < suppressClickUntil) {
+      ev.preventDefault();
+      ev.stopPropagation();
+    }
+  }, true);
+})();
 </script>
 {% endblock %}

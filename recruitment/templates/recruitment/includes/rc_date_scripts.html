@@ -1,0 +1,23 @@
+{# Ô ngày dd/mm/yyyy (flatpickr) cho input.jp-date-vn — cùng thư viện module Sản xuất đang dùng. #}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  if (!window.flatpickr) return;
+  document.querySelectorAll('input.jp-date-vn').forEach(function (el) {
+    if (el._flatpickr) return;
+    var autoSubmit = el.hasAttribute('data-autosubmit');
+    flatpickr(el, {
+      dateFormat: 'Y-m-d',
+      altInput: true,
+      altFormat: 'd/m/Y',
+      allowInput: true,
+      altInputClass: el.className.replace('jp-date-vn', '').trim(),
+      onChange: autoSubmit ? function () {
+        var form = el.form;
+        if (form) (form.requestSubmit ? form.requestSubmit() : form.submit());
+      } : null,
+    });
+  });
+});
+</script>

@@ -1,0 +1,35 @@
+{# Trường nhập kết quả PV — Đạt / Không đạt tự chuyển bước. Tham số: uid (tiền tố id, duy nhất trên trang) #}
+<fieldset class="mb-3">
+  <legend class="form-label fw-semibold small mb-2">Kết quả phỏng vấn <span class="text-danger">*</span></legend>
+  <div class="jp-rc-result-choices" data-rc-result-group>
+    <input type="radio" class="btn-check" name="result" id="{{ uid }}Pass" value="pass" required autocomplete="off">
+    <label class="jp-rc-result-opt is-pass" for="{{ uid }}Pass">
+      <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+      <strong>Đạt</strong>
+    </label>
+    <input type="radio" class="btn-check" name="result" id="{{ uid }}Fail" value="fail" autocomplete="off">
+    <label class="jp-rc-result-opt is-fail" for="{{ uid }}Fail">
+      <i class="bi bi-x-circle-fill" aria-hidden="true"></i>
+      <strong>Không đạt</strong>
+    </label>
+  </div>
+</fieldset>
+<label class="form-label fw-semibold small" for="{{ uid }}Notes">
+  Nhận xét <span class="text-danger d-none" data-rc-notes-star>*</span>
+</label>
+<textarea name="notes" id="{{ uid }}Notes" class="form-control" rows="3"
+          placeholder="Điểm mạnh, điểm cần lưu ý… (bắt buộc khi Không đạt)"></textarea>
+<script>
+(function () {
+  if (window.jpRcResultFieldsBound) return;
+  window.jpRcResultFieldsBound = true;
+  document.addEventListener('change', function (ev) {
+    var radio = ev.target;
+    if (radio.name !== 'result' || !radio.closest('[data-rc-result-group]')) return;
+    var form = radio.form;
+    var fail = radio.value === 'fail';
+    form.querySelector('textarea[name="notes"]').required = fail;
+    form.querySelector('[data-rc-notes-star]').classList.toggle('d-none', !fail);
+  });
+})();
+</script>

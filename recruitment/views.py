@@ -1,507 +1,1199 @@
-import json
-from django.shortcuts import render
-from django.http import JsonResponse
-from django.views.decorators.http import require_POST
-from django.views.decorators.csrf import ensure_csrf_cookie
-from django.contrib.admin.views.decorators import staff_member_required
-from django.db import transaction, IntegrityError
-from .models import JobPosting, Candidate
-from django.shortcuts import render, redirect
+"""Tuyển dụng — view mỏng; quy tắc nghiệp vụ nằm ở ``recruitment.services``."""
+
+from datetime import datetime, timedelta
+from functools import wraps
+
+import openpyxl
 from django.contrib import messages
-from django.shortcuts import render, redirect, get_object_or_404
-from .forms import JobPostingForm
-import unicodedata
-from django.contrib.auth.models import User
-from django.contrib.auth.hashers import make_password
-from assessment.models import Exam
+from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
+from django.db.models import Count, Exists, Max, OuterRef, Prefetch, Q
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.utils import timezone
+from django.views.decorators.http import require_POST
+
 from assessment.decorators import module_perm_required
-from hrm.module_permissions import MODULE_RECRUITMENT
-import unicodedata
-import secrets
-import string
-from assessment.models import Exam
-from hrm.models import Profile
-from hrm.choices import normalize_position
-from hrm.choices import resolve_department
-from PortalJustPlay.utils import generate_hm_email, generate_hm_username, generate_secure_password
+from hrm.module_permissions import MODULE_RECRUITMENT, user_can_access_module
 from PortalJustPlay.list_search import apply_term_search, get_search_query
 from PortalJustPlay.pagination import paginate_columns, paginate_queryset
-from .models import Interview
-import openpyxl
-from django.http import HttpResponse
-from django.utils import timezone
-@module_perm_required(MODULE_RECRUITMENT, 'view')
-@ensure_csrf_cookie
-def kanban_board(request):
-    candidates = Candidate.objects.select_related('job_posting').filter(job_posting__is_active=True)
-    job_id_str = request.GET.get('job_id')
-    selected_job_id = None
-    
-    if job_id_str and job_id_str.isdigit():
-        selected_job_id = int(job_id_str)
-        candidates = candidates.filter(job_posting_id=selected_job_id)
+from utilities.date_range_filter import (
+    date_range_span_context,
+    parse_date_range_span_from_request,
+)
 
-    kanban_pages, kanban_query_string = paginate_columns(request, [
-        ('not_onboarded', candidates.filter(status='not_onboarded').order_by('-applied_at'), 'p_not_onboarded'),
-        ('new', candidates.filter(status='new').order_by('-applied_at'), 'p_new'),
-        ('reviewing', candidates.filter(status='reviewing').order_by('-applied_at'), 'p_reviewing'),
-        ('interviewing', candidates.filter(status='interviewing').order_by('-applied_at'), 'p_interviewing'),
-        ('offered', candidates.filter(status__in=['offered', 'hired']).order_by('-id'), 'p_offered'),
-        ('rejected', candidates.filter(status='rejected').order_by('-id'), 'p_rejected'),
-    ])
+from . import services
+from .forms import (
+    CandidateFileForm,
+    CandidateFileKindForm,
+    CandidateForm,
+    CandidateSourceForm,
+    InterviewLocationForm,
+    InterviewResultForm,
+    JobPostingForm,
+    OnboardForm,
+    ReviewForm,
+    TransitionForm,
+)
+from .models import (
+    Candidate,
+    CandidateEvent,
+    CandidateFile,
+    CandidateFileKind,
+    CandidateReview,
+    CandidateSource,
+    Interview,
+    InterviewLocation,
+    JobPosting,
+)
+from .permissions import (
+    can_candidates,
+    can_jobs,
+    can_onboard,
+    can_record_interview_result,
+    can_review_candidate,
+    can_settings,
+    can_view_candidate,
+    interview_queue,
+    is_hiring_manager,
+    is_interviewer,
+    manager_can_access_job,
+    manager_job_filter,
+    scope_label,
+    visible_jobs_q,
+    visible_scope,
+)
 
-    context = {
-        'jobs': JobPosting.objects.filter(is_active=True),
-        'selected_job': selected_job_id,
-        'not_onboarded_candidates': kanban_pages['not_onboarded'],
-        'new_candidates': kanban_pages['new'],
-        'reviewing_candidates': kanban_pages['reviewing'],
-        'interviewing_candidates': kanban_pages['interviewing'],
-        'offered_candidates': kanban_pages['offered'],
-        'rejected_candidates': kanban_pages['rejected'],
-        'kanban_query_string': kanban_query_string,
-        'users': User.objects.filter(is_active=True),
-    }
-    return render(request, 'recruitment/admin/kanban_board.html', context)
+C = Candidate
 
-@module_perm_required(MODULE_RECRUITMENT, 'update')
-@require_POST
-def update_candidate_status(request):
-    try:
-        data = json.loads(request.body)
-        candidate_id = data.get('candidate_id')
-        new_status = data.get('status')
-        
-        candidate = Candidate.objects.get(id=candidate_id)
-        candidate.status = new_status
-        candidate.save()
-        
-        return JsonResponse({'status': 'success'})
-    except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
-    
-@module_perm_required(MODULE_RECRUITMENT, 'create')
-@require_POST
-def add_candidate(request):
-    full_name = (request.POST.get('full_name') or '').strip()
-    email = (request.POST.get('email') or '').strip()
-    phone = (request.POST.get('phone') or '').strip()
-    job_posting_id = request.POST.get('job_posting')
-    hr_note = (request.POST.get('hr_note') or '').strip()
-    cv_file = request.FILES.get('cv_file')
+KANBAN_COLUMNS = [
+    (C.STATUS_NEW, 'Mới', 'is-new'),
+    (C.STATUS_REVIEWING, 'Chờ đánh giá', 'is-reviewing'),
+    (C.STATUS_INTERVIEWING, 'Phỏng vấn', 'is-interviewing'),
+    (C.STATUS_OFFERED, 'Trúng tuyển', 'is-offered'),
+    (C.STATUS_HIRED, 'Đã nhận việc', 'is-hired'),
+    (C.STATUS_NOT_ONBOARDED, 'Không nhận việc', 'is-closed'),
+    (C.STATUS_REJECTED, 'Loại', 'is-closed'),
+]
+# Kanban chỉ cho luồng đang xử lý + 2 cột kết thúc có thể thả vào.
+# «Đã nhận việc» là trạng thái cuối — xem ở tab Danh sách.
+KANBAN_BOARD_STATUSES = (
+    C.STATUS_NEW, C.STATUS_REVIEWING, C.STATUS_INTERVIEWING, C.STATUS_OFFERED,
+    C.STATUS_NOT_ONBOARDED, C.STATUS_REJECTED,
+)
+KANBAN_PAGE_SIZE = 20
 
-    if not full_name:
-        messages.error(request, 'Vui lòng nhập họ và tên ứng viên.')
-        return redirect('kanban_board')
+# Nhóm lọc nhanh trên tab Danh sách.
+STATUS_GROUPS = {
+    'dang-xu-ly': ('Đang xử lý', (C.STATUS_NEW, C.STATUS_REVIEWING, C.STATUS_INTERVIEWING, C.STATUS_OFFERED)),
+    'ket-thuc': ('Loại / Không nhận việc', (C.STATUS_REJECTED, C.STATUS_NOT_ONBOARDED)),
+}
+CANDIDATE_SORTS = {
+    'moi-nhat': ('Nộp mới nhất', ('-applied_at', '-id')),
+    'cu-nhat': ('Nộp cũ nhất', ('applied_at', 'id')),
+    'cap-nhat': ('Cập nhật gần nhất', ('-status_changed_at', '-id')),
+    'ten': ('Họ tên A–Z', ('full_name', 'id')),
+}
 
-    if not email:
-        messages.error(request, 'Vui lòng nhập email ứng viên.')
-        return redirect('kanban_board')
 
-    if not phone:
-        messages.error(request, 'Vui lòng nhập số điện thoại.')
-        return redirect('kanban_board')
+def _fail(request, exc, fallback):
+    messages.error(request, str(exc))
+    return redirect(fallback)
 
-    if not job_posting_id:
-        messages.error(request, 'Vui lòng chọn vị trí ứng tuyển.')
-        return redirect('kanban_board')
 
-    job = JobPosting.objects.filter(id=job_posting_id, is_active=True).first()
-    if not job:
-        messages.error(request, 'Vị trí tuyển dụng không hợp lệ hoặc đã đóng.')
-        return redirect('kanban_board')
+def _manager_required(view_func):
+    """Trưởng bộ phận / Trưởng phòng / Giám đốc."""
+    @login_required
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not is_hiring_manager(request.user):
+            messages.error(request, 'Chức năng dành cho Trưởng bộ phận, Trưởng phòng và Giám đốc.')
+            return redirect('home_portal')
+        return view_func(request, *args, **kwargs)
+    return wrapper
 
-    if not cv_file:
-        messages.error(request, 'Vui lòng tải lên file CV (PDF/Word).')
-        return redirect('kanban_board')
 
-    if Candidate.objects.filter(email__iexact=email, job_posting=job).exists():
-        messages.error(request, f'Email {email} đã được nộp cho vị trí "{job.title}".')
-        return redirect('kanban_board')
+def _reviewer_required(view_func):
+    """Quản lý tuyển dụng hoặc người đang được giao phỏng vấn ứng viên."""
+    @login_required
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not (is_hiring_manager(request.user) or interview_queue(request.user).exists()):
+            messages.error(request, 'Chức năng dành cho quản lý và người được giao phỏng vấn.')
+            return redirect('home_portal')
+        return view_func(request, *args, **kwargs)
+    return wrapper
 
-    try:
-        Candidate.objects.create(
-            job_posting=job,
-            full_name=full_name,
-            email=email,
-            phone=phone,
-            hr_note=hr_note,
-            cv_file=cv_file,
-            status='new',
-        )
-        messages.success(request, f'Đã thêm ứng viên {full_name}.')
-    except Exception as e:
-        messages.error(request, f'Không thể lưu hồ sơ: {e}')
 
-    return redirect('kanban_board')
+def _candidate_qs():
+    return Candidate.objects.select_related(
+        'job_posting', 'job_posting__target_department', 'job_posting__target_division',
+        'referred_by__profile', 'employee',
+    ).prefetch_related('files')
+
+
+# --- Phạm vi dữ liệu: mọi màn hình HR chỉ thấy vị trí / ứng viên trong phạm vi của user ---
+
+def _jobs(request):
+    return JobPosting.objects.filter(visible_jobs_q(request.user))
+
+
+def _cands(request):
+    return _candidate_qs().filter(visible_jobs_q(request.user, 'job_posting__'))
+
+
+def _interviews(request):
+    return Interview.objects.filter(visible_jobs_q(request.user, 'candidate__job_posting__'))
+
+
+def _get_candidate(request, pk):
+    return get_object_or_404(_cands(request), pk=pk)
+
+
+def _open_jobs():
+    today = timezone.localdate()
+    return (
+        JobPosting.objects.filter(status=JobPosting.STATUS_OPEN)
+        .filter(Q(deadline__isnull=True) | Q(deadline__gte=today))
+        .select_related('target_department', 'target_division')
+        .order_by('title')
+    )
+
+
+# ================================================================ Tổng quan
+
+@login_required
+def recruitment_overview(request):
+    if not user_can_access_module(request.user, MODULE_RECRUITMENT):
+        messages.error(request, 'Bạn không có quyền xem Tuyển dụng.')
+        return redirect('home_portal')
+    now = timezone.now()
+    today = timezone.localdate()
+    scope_q = visible_jobs_q(request.user, 'job_posting__')
+    status_counts = dict(
+        Candidate.objects.filter(scope_q).values_list('status').annotate(n=Count('id')).values_list('status', 'n')
+    )
+    pending_results = (
+        _interviews(request).filter(
+            candidate__status=C.STATUS_INTERVIEWING, result=Interview.RESULT_PENDING, interview_time__lte=now,
+        ).select_related('candidate', 'candidate__job_posting').order_by('interview_time')[:10]
+    )
+    upcoming = (
+        _interviews(request).filter(
+            candidate__status=C.STATUS_INTERVIEWING, interview_time__gt=now,
+            interview_time__lt=now + timedelta(days=7),
+        ).select_related('candidate', 'candidate__job_posting').order_by('interview_time')[:10]
+    )
+    awaiting_onboard = _cands(request).filter(status=C.STATUS_OFFERED).order_by('status_changed_at')[:10]
+    draft_jobs = (
+        _jobs(request).filter(status=JobPosting.STATUS_DRAFT)
+        .select_related('target_department', 'target_division', 'service_request').order_by('-created_at')[:10]
+    )
+    return render(request, 'recruitment/admin/overview.html', {
+        'open_jobs_count': _open_jobs().filter(visible_jobs_q(request.user)).count(),
+        'draft_jobs': draft_jobs,
+        'status_counts': [(key, label, status_counts.get(key, 0)) for key, label, _ in KANBAN_COLUMNS],
+        'pending_results': pending_results,
+        'upcoming': upcoming,
+        'awaiting_onboard': awaiting_onboard,
+        'hired_this_month': Candidate.objects.filter(scope_q).filter(
+            status=C.STATUS_HIRED, status_changed_at__year=today.year, status_changed_at__month=today.month,
+        ).count(),
+        'scope_label': scope_label(request.user),
+        'can_candidates_view': can_candidates(request.user, 'view'),
+        'can_jobs_view': can_jobs(request.user, 'view'),
+    })
+
+
+# ================================================================ Vị trí tuyển dụng
 
 @module_perm_required(MODULE_RECRUITMENT, 'view')
 def job_posting_list(request):
     search_query = get_search_query(request)
-    jobs_qs = JobPosting.objects.all().order_by('-created_at')
-    jobs_qs = apply_term_search(
-        jobs_qs, search_query,
-        'title__icontains', 'department__icontains', 'description__icontains',
-        'requirements__icontains', 'position__icontains',
+    status = (request.GET.get('status') or '').strip()
+    dept = (request.GET.get('department') or '').strip()
+    qs = services.annotate_job_counts(
+        _jobs(request).select_related('target_department', 'target_division', 'service_request')
+    ).order_by('-created_at')
+    if status in dict(JobPosting.STATUS_CHOICES):
+        qs = qs.filter(status=status)
+    if dept.isdigit():
+        qs = qs.filter(target_department_id=int(dept))
+    qs = apply_term_search(
+        qs, search_query, 'title__icontains', 'target_department__name__icontains',
+        'department__icontains', 'position__icontains',
     )
-    page_obj, query_string = paginate_queryset(request, jobs_qs)
+    page_obj, query_string = paginate_queryset(request, qs)
+    from hrm.models import Department
+
     return render(request, 'recruitment/admin/job_posting_list.html', {
         'jobs': page_obj.object_list,
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
+        'status_filter': status,
+        'department_filter': dept,
+        'status_choices': JobPosting.STATUS_CHOICES,
+        'departments': Department.objects.filter(job_postings__in=_jobs(request)).distinct().order_by('sort_order', 'name'),
+        'scope_label': scope_label(request.user),
+        'can_create': can_jobs(request.user, 'create'),
+        'can_update': can_jobs(request.user, 'update'),
+        'can_delete': can_jobs(request.user, 'delete'),
     })
+
 
 @module_perm_required(MODULE_RECRUITMENT, 'create')
 def job_posting_create(request):
-    if request.method == 'POST':
-        form = JobPostingForm(request.POST)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Đã tạo vị trí tuyển dụng thành công!')
-            return redirect('job_posting_list')
-    else:
-        form = JobPostingForm()
-    return render(request, 'recruitment/admin/job_posting_form.html', {'form': form, 'title': 'Đăng tin Tuyển dụng mới'})
+    form = JobPostingForm(request.POST or None, scope=visible_scope(request.user))
+    if request.method == 'POST' and form.is_valid():
+        job = form.save(commit=False)
+        job.created_by = request.user
+        job.status = JobPosting.STATUS_DRAFT
+        job.save()
+        messages.success(request, f'Đã tạo vị trí «{job.title}» ở trạng thái Nháp.')
+        return redirect('job_posting_edit', pk=job.pk)
+    return render(request, 'recruitment/admin/job_posting_form.html', {
+        'form': form, 'title': 'Tạo vị trí tuyển dụng',
+    })
+
 
 @module_perm_required(MODULE_RECRUITMENT, 'update')
 def job_posting_edit(request, pk):
-    job = get_object_or_404(JobPosting, pk=pk)
-    if request.method == 'POST':
-        form = JobPostingForm(request.POST, instance=job)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Đã cập nhật vị trí tuyển dụng!')
-            return redirect('job_posting_list')
-    else:
-        form = JobPostingForm(instance=job)
-    return render(request, 'recruitment/admin/job_posting_form.html', {'form': form, 'title': 'Chỉnh sửa Vị trí Tuyển dụng', 'job': job})
+    job = get_object_or_404(_jobs(request).select_related('service_request'), pk=pk)
+    form = JobPostingForm(request.POST or None, instance=job, scope=visible_scope(request.user))
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        messages.success(request, 'Đã cập nhật vị trí tuyển dụng.')
+        return redirect('job_posting_edit', pk=job.pk)
+    return render(request, 'recruitment/admin/job_posting_form.html', {
+        'form': form,
+        'title': job.title,
+        'job': job,
+        'job_actions': [
+            (s, label) for s, label in JobPosting.STATUS_CHOICES
+            if s in services.JOB_TRANSITIONS.get(job.status, set())
+        ],
+        'filled': services.filled_count(job),
+        'candidate_count': job.candidates.count(),
+        'can_delete': can_jobs(request.user, 'delete'),
+    })
+
+
+@module_perm_required(MODULE_RECRUITMENT, 'update')
+@require_POST
+def job_posting_status(request, pk):
+    job = get_object_or_404(_jobs(request), pk=pk)
+    try:
+        services.change_job_status(job, request.POST.get('status', ''), actor=request.user)
+        messages.success(request, f'Vị trí «{job.title}»: {job.get_status_display()}.')
+    except services.RecruitmentError as exc:
+        messages.error(request, str(exc))
+    return redirect('job_posting_edit', pk=job.pk)
+
 
 @module_perm_required(MODULE_RECRUITMENT, 'delete')
 @require_POST
 def job_posting_delete(request, pk):
-    job = get_object_or_404(JobPosting, pk=pk)
-    job.delete()
-    messages.success(request, 'Đã xóa vị trí tuyển dụng!')
+    job = get_object_or_404(_jobs(request), pk=pk)
+    title = job.title
+    try:
+        services.delete_job(job)
+    except services.RecruitmentError as exc:
+        return _fail(request, exc, reverse('job_posting_edit', args=[pk]))
+    messages.success(request, f'Đã xóa vị trí «{title}».')
     return redirect('job_posting_list')
 
 
-def generate_employee_username(full_name):
-    nfkd_form = unicodedata.normalize('NFKD', full_name)
-    clean_name = u"".join([c for c in nfkd_form if not unicodedata.combining(c)]).upper()
-    words = clean_name.split()
-    
-    if len(words) >= 3:
-        initials = words[0][0] + words[-2][0] + words[-1][0]
-    elif len(words) == 2:
-        initials = words[0][0] + words[-1][0]
-    elif len(words) == 1:
-        initials = words[0][0:3]
-    else:
-        initials = "NV"
-        
-    prefix = initials.lower() # VD: ltv
-    
-    existing_users = User.objects.filter(username__startswith=prefix, username__endswith='-bp')
-    max_seq = 0
-    for u in existing_users:
-        try:
-            num_part = u.username[len(prefix):-3] 
-            num = int(num_part)
-            if num > max_seq:
-                max_seq = num
-        except ValueError:
-            continue
-            
-    next_seq = max_seq + 1
-    return f"{prefix}{next_seq:03d}-bp"
+# ================================================================ Ứng viên — Danh sách & Kanban
 
-
-@module_perm_required(MODULE_RECRUITMENT, 'update')
-@require_POST
-def convert_to_employee(request, candidate_id):
-    candidate = get_object_or_404(Candidate, id=candidate_id)
-
-    if candidate.status == 'hired':
-        if candidate.email and User.objects.filter(email=candidate.email).exists():
-            return JsonResponse(
-                {'status': 'error', 'message': 'Ứng viên này đã có tài khoản đang hoạt động!'},
-                status=400,
-            )
-
-    if candidate.status not in {'offered', 'hired'}:
-        return JsonResponse(
-            {'status': 'error', 'message': 'Chỉ tạo user khi ứng viên ở trạng thái Trúng tuyển.'},
-            status=400,
-        )
-
-    position = normalize_position(candidate.job_posting.position)
-
-    try:
-        with transaction.atomic():
-            new_username = generate_hm_username(candidate.full_name)
-            new_password = generate_secure_password()
-
-            user = User.objects.create_user(
-                username=new_username,
-                email=candidate.email or generate_hm_email(new_username),
-                password=new_password,
-                first_name=candidate.full_name,
-                is_staff=False,
-                is_superuser=False,
-            )
-
-            Profile.objects.update_or_create(
-                user=user,
-                defaults={
-                    'full_name': candidate.full_name,
-                    'department': resolve_department(candidate.job_posting.department),
-                    'job_position': position,
-                    'job_title': candidate.job_posting.title,
-                    'join_date': timezone.now().date(),
-                    'role': 'EMPLOYEE',
-                    'must_change_password': True,
-                },
-            )
-
-            candidate.status = 'hired'
-            candidate.save(update_fields=['status'])
-
-            onboarding_exam = Exam.objects.filter(is_active=True).first()
-            if onboarding_exam:
-                onboarding_exam.assigned_users.add(user)
-
-        return JsonResponse({
-            'status': 'success',
-            'message': f'Đã tạo tài khoản cho nhân viên {candidate.full_name}',
-            'username': new_username,
-            'password': new_password,
-        })
-
-    except IntegrityError:
-        return JsonResponse(
-            {'status': 'error', 'message': 'Tài khoản đã tồn tại (trùng username hoặc email).'},
-            status=400,
-        )
-    except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-    
-@module_perm_required(MODULE_RECRUITMENT, 'view')
-def candidate_detail_ajax(request, pk):
-    candidate = get_object_or_404(Candidate, pk=pk)
-    data = {
-        'full_name': candidate.full_name,
-        'email': candidate.email,
-        'phone': candidate.phone,
-        'job_title': candidate.job_posting.title,
-        'status': candidate.get_status_display(),
-        'applied_at': candidate.applied_at.strftime('%d/%m/%Y'),
-        'hr_note': candidate.hr_note or "Chưa có ghi chú.",
-        'cv_url': candidate.cv_file.url if candidate.cv_file else None,
+def _candidate_filters(request):
+    """Bộ lọc dùng chung cho tab Danh sách / Kanban / xuất Excel."""
+    return {
+        'q': get_search_query(request),
+        'job_id': (request.GET.get('job_id') or '').strip(),
+        'status': (request.GET.get('status') or '').strip(),
+        'source': (request.GET.get('source') or '').strip(),
+        'sort': (request.GET.get('sort') or '').strip(),
     }
-    return JsonResponse(data)
-
-@module_perm_required(MODULE_RECRUITMENT, 'update')
-@require_POST
-def update_hr_note(request):
-    candidate_id = request.POST.get('candidate_id')
-    new_note = request.POST.get('hr_note', '')
-    
-    try:
-        candidate = get_object_or_404(Candidate, id=candidate_id)
-        candidate.hr_note = new_note
-        candidate.save()
-        messages.success(request, f'Đã cập nhật ghi chú cho ứng viên {candidate.full_name}!')
-    except Exception as e:
-        messages.error(request, f'Lỗi khi lưu ghi chú: {str(e)}')
-        
-    return redirect('kanban_board')
 
 
-@module_perm_required(MODULE_RECRUITMENT, 'update')
-@require_POST
-def set_interview_schedule(request):
-    candidate_id = request.POST.get('candidate_id')
-    interview_time = request.POST.get('interview_time')
-    candidate = get_object_or_404(Candidate, id=candidate_id)
+def _filtered_candidates(request, f, *, include_closed_jobs=False, open_jobs_only=False):
+    qs = _cands(request).annotate(
+        n_recommend=Count('reviews', filter=Q(reviews__decision=CandidateReview.DECISION_RECOMMEND), distinct=True),
+        n_reviews=Count('reviews', distinct=True),
+    ).select_related('interview')
+    if open_jobs_only:
+        qs = qs.filter(job_posting__status=JobPosting.STATUS_OPEN)
+    if f['job_id'].isdigit():
+        qs = qs.filter(job_posting_id=int(f['job_id']))
+    elif not include_closed_jobs:
+        qs = qs.exclude(job_posting__status=JobPosting.STATUS_CLOSED)
+    if f['source']:
+        qs = qs.filter(source=f['source'])
+    return apply_term_search(qs, f['q'], 'full_name__icontains', 'phone__icontains', 'email__icontains')
 
-    # Bỏ phần interviewer_ids, chỉ lưu thời gian và địa điểm
-    interview, created = Interview.objects.update_or_create(
-        candidate=candidate,
-        defaults={
-            'interview_time': interview_time,
-        }
+
+def _view_tabs(request, current):
+    """Tab Danh sách | Kanban — giữ bộ lọc vị trí + tìm kiếm khi chuyển tab."""
+    keep = {k: v for k, v in request.GET.items() if k in ('job_id', 'q') and v}
+    from urllib.parse import urlencode
+
+    suffix = f'?{urlencode(keep)}' if keep else ''
+    return [
+        {'key': 'list', 'label': 'Danh sách', 'icon': 'bi-list-ul',
+         'url': reverse('candidate_list') + suffix, 'active': current == 'list'},
+        {'key': 'kanban', 'label': 'Kanban', 'icon': 'bi-kanban',
+         'url': reverse('kanban_board') + suffix, 'active': current == 'kanban'},
+    ]
+
+
+def _interview_locations():
+    return list(InterviewLocation.objects.filter(is_active=True).values('name', 'note'))
+
+
+def _attach_move_targets(candidates):
+    """Gắn danh sách bước được chuyển (nút «Chuyển») — «Đã nhận việc» chỉ qua Onboard."""
+    for cand in candidates:
+        cand.move_targets = [(s, services.status_label(s)) for s in services.allowed_targets(cand)]
+    return candidates
+
+
+def _candidate_page_context(request, current, f):
+    return {
+        'view_tabs': _view_tabs(request, current),
+        'filters': f,
+        'search_query': f['q'],
+        'jobs': _jobs(request).exclude(status=JobPosting.STATUS_DRAFT).order_by('title'),
+        'selected_job': int(f['job_id']) if f['job_id'].isdigit() else None,
+        'can_create': can_candidates(request.user, 'create'),
+        'can_move': can_candidates(request.user, 'update'),
+        'can_export': can_candidates(request.user, 'export'),
+        'transitions': {k: sorted(v) for k, v in services.TRANSITIONS.items()},
+        'status_labels': dict(C.STATUS_CHOICES),
+        'transition_form': TransitionForm(),
+        'interview_locations': _interview_locations(),
+        'scope_label': scope_label(request.user),
+    }
+
+
+NEED_ACTION = 'can-xu-ly'
+PIPELINE_STEPS = [
+    (C.STATUS_NEW, 'Mới'),
+    (C.STATUS_REVIEWING, 'QL đánh giá'),
+    (C.STATUS_INTERVIEWING, 'Phỏng vấn'),
+    (C.STATUS_OFFERED, 'Trúng tuyển'),
+    (C.STATUS_HIRED, 'Nhận việc'),
+]
+_STEP_INDEX = {status: i for i, (status, _) in enumerate(PIPELINE_STEPS)}
+
+
+def _need_action_q(now):
+    """Hồ sơ HR cần làm ngay — khớp với cột «Bước tiếp theo»."""
+    has_recommend = Exists(CandidateReview.objects.filter(
+        candidate=OuterRef('pk'), decision=CandidateReview.DECISION_RECOMMEND,
+    ))
+    return (
+        Q(status=C.STATUS_NEW)
+        | (Q(status=C.STATUS_REVIEWING) & Q(has_recommend))
+        | Q(status=C.STATUS_INTERVIEWING, interview__result=Interview.RESULT_PASS)
+        | Q(status=C.STATUS_INTERVIEWING, interview__result=Interview.RESULT_PENDING, interview__end_time__lte=now)
+        | Q(status=C.STATUS_OFFERED)
     )
 
-    messages.success(request, f'Đã lưu lịch phỏng vấn cho ứng viên {candidate.full_name}!')
-    return redirect('kanban_board')
+
+def _progress(cand):
+    """Vị trí trên thanh tiến trình; hồ sơ đã đóng dừng ở bước đã tới."""
+    closed = cand.status in (C.STATUS_REJECTED, C.STATUS_NOT_ONBOARDED)
+    if cand.status == C.STATUS_NOT_ONBOARDED:
+        reached = _STEP_INDEX[C.STATUS_OFFERED]
+    elif cand.status == C.STATUS_REJECTED:
+        if cand.interview_or_none:
+            reached = _STEP_INDEX[C.STATUS_INTERVIEWING]
+        elif cand.n_reviews:
+            reached = _STEP_INDEX[C.STATUS_REVIEWING]
+        else:
+            reached = _STEP_INDEX[C.STATUS_NEW]
+    else:
+        reached = _STEP_INDEX.get(cand.status, 0)
+    return [
+        {'label': label, 'state': (
+            'closed' if closed and i == reached else
+            'done' if i < reached or cand.status == C.STATUS_HIRED else
+            'current' if i == reached and not closed else 'todo'
+        )}
+        for i, (_, label) in enumerate(PIPELINE_STEPS)
+    ]
+
+
+def _next_step(cand, now, *, can_move, can_onboard_user):
+    """Gợi ý bước tiếp theo + 1 thao tác chính, chỉ khi rule cho phép.
+
+    tone: action (HR cần làm) · wait (chờ người khác) · alert (trễ / vướng) · done · muted
+    """
+    inv = cand.interview_or_none
+    s = cand.status
+    if s == C.STATUS_NEW:
+        if not cand.job_posting.target_department_id:
+            return {'tone': 'alert', 'label': 'Vị trí chưa gắn phòng ban'}
+        return {'tone': 'action', 'label': 'Gửi quản lý đánh giá',
+                'action': 'move', 'to': C.STATUS_REVIEWING, 'button': 'Gửi đánh giá', 'icon': 'bi-send'}
+    if s == C.STATUS_REVIEWING:
+        if cand.n_recommend:
+            return {'tone': 'action', 'label': 'Lên lịch phỏng vấn',
+                    'action': 'move', 'to': C.STATUS_INTERVIEWING, 'button': 'Lên lịch PV', 'icon': 'bi-calendar-plus'}
+        if cand.n_reviews:
+            return {'tone': 'wait', 'label': 'Chưa có đề xuất phỏng vấn'}
+        days = (now - cand.status_changed_at).days if cand.status_changed_at else 0
+        return {'tone': 'alert' if days >= 3 else 'wait', 'label': 'Chờ quản lý đánh giá'}
+    if s == C.STATUS_INTERVIEWING and inv:
+        if inv.result == Interview.RESULT_PASS:
+            return {'tone': 'alert', 'label': 'Đạt — vị trí đủ chỉ tiêu'}
+        if inv.interview_time > now:
+            return {'tone': 'wait', 'label': f'Phỏng vấn {timezone.localtime(inv.interview_time):%H:%M %d/%m}'}
+        late = (inv.end_time or inv.interview_time) <= now
+        step = {'tone': 'alert' if late else 'wait',
+                'label': 'Chờ kết quả phỏng vấn' if late else 'Đang phỏng vấn'}
+        if can_move:
+            step.update(action='result', button='Nhập kết quả', icon='bi-clipboard-check')
+        return step
+    if s == C.STATUS_OFFERED:
+        step = {'tone': 'action', 'label': 'Onboard nhân viên'}
+        if can_onboard_user:
+            step.update(action='onboard', button='Onboard', icon='bi-person-badge')
+        return step
+    if s == C.STATUS_HIRED:
+        return {'tone': 'done', 'label': 'Đã nhận việc'}
+    return {'tone': 'muted', 'label': cand.get_status_display()}
+
 
 @module_perm_required(MODULE_RECRUITMENT, 'view')
-def get_all_interviews(request):
-    # 1. Bắt lấy ID của vị trí đang được lọc trên trình duyệt
-    job_id = request.GET.get('job_id')
-    
-    interviews = Interview.objects.select_related('candidate__job_posting')
-    
-    # 2. Nếu có lọc theo vị trí thì bóp data lại
-    if job_id and job_id.isdigit():
-        interviews = interviews.filter(candidate__job_posting_id=job_id)
-        
-    interviews = interviews.order_by('-interview_time')
-    
-    data = []
-    for inv in interviews:
-        time_str = inv.interview_time.strftime('%H:%M - %d/%m/%Y') if inv.interview_time else ''
-        data.append({
-            'candidate_name': inv.candidate.full_name,
-            'job_title': inv.candidate.job_posting.title,
-            'time': time_str,
-            'status': inv.candidate.get_status_display()
-        })
-    return JsonResponse({'interviews': data})
+def candidate_list(request):
+    f = _candidate_filters(request)
+    now = timezone.now()
+    base = _filtered_candidates(request, f, open_jobs_only=True)
+    status_counts = dict(base.order_by().values_list('status').annotate(n=Count('id', distinct=True)))
+    need_q = _need_action_q(now)
+    need_count = Candidate.objects.filter(pk__in=base.values('pk')).filter(need_q).count()
+    qs = base
+    if f['status'] == NEED_ACTION:
+        qs = qs.filter(pk__in=Candidate.objects.filter(need_q).values('pk'))
+    elif f['status'] in STATUS_GROUPS:
+        qs = qs.filter(status__in=STATUS_GROUPS[f['status']][1])
+    elif f['status'] in dict(C.STATUS_CHOICES):
+        qs = qs.filter(status=f['status'])
+    sort_key = f['sort'] if f['sort'] in CANDIDATE_SORTS else 'moi-nhat'
+    qs = qs.order_by(*CANDIDATE_SORTS[sort_key][1])
+    page_obj, query_string = paginate_queryset(request, qs)
+
+    ctx = _candidate_page_context(request, 'list', f)
+    ctx['jobs'] = ctx['jobs'].filter(status=JobPosting.STATUS_OPEN)
+    candidates = list(page_obj.object_list)
+    if ctx['can_move']:
+        _attach_move_targets(candidates)
+    onboard_ok = can_onboard(request.user)
+    for cand in candidates:
+        cand.progress = _progress(cand)
+        cand.next_step = _next_step(cand, now, can_move=ctx['can_move'], can_onboard_user=onboard_ok)
+
+    keep = request.GET.copy()
+    keep.pop('page', None)
+
+    def chip_url(key):
+        params = keep.copy()
+        if key:
+            params['status'] = key
+        else:
+            params.pop('status', None)
+        encoded = params.urlencode()
+        return f'{request.path}?{encoded}' if encoded else request.path
+
+    chip_specs = [('', 'Tất cả', sum(status_counts.values()), 'all'),
+                  (NEED_ACTION, 'Cần xử lý', need_count, 'need')]
+    chip_specs += [(key, label, status_counts.get(key, 0), key) for key, label, _ in KANBAN_COLUMNS]
+    status_chips = [
+        {'key': key, 'label': label, 'count': count, 'tone': tone,
+         'active': f['status'] == key, 'url': chip_url(key)}
+        for key, label, count, tone in chip_specs
+    ]
+    if f['status'] in STATUS_GROUPS:
+        label, statuses = STATUS_GROUPS[f['status']]
+        status_chips.insert(2, {'key': f['status'], 'label': label, 'tone': 'group', 'active': True,
+                                'count': sum(status_counts.get(s, 0) for s in statuses), 'url': chip_url(f['status'])})
+    return render(request, 'recruitment/admin/candidate_list.html', {
+        **ctx,
+        'candidates': candidates,
+        'page_obj': page_obj,
+        'query_string': query_string,
+        'status_chips': status_chips,
+        'source_choices': CandidateSource.objects.values_list('code', 'name'),
+        'sort_options': [(k, v[0]) for k, v in CANDIDATE_SORTS.items()],
+        'current_sort': sort_key,
+        'can_onboard': onboard_ok,
+    })
+
+
+@module_perm_required(MODULE_RECRUITMENT, 'export')
+def export_candidates_excel(request):
+    f = _candidate_filters(request)
+    qs = _filtered_candidates(request, f, open_jobs_only=True)
+    if f['status'] == NEED_ACTION:
+        qs = qs.filter(pk__in=Candidate.objects.filter(_need_action_q(timezone.now())).values('pk'))
+    elif f['status'] in STATUS_GROUPS:
+        qs = qs.filter(status__in=STATUS_GROUPS[f['status']][1])
+    elif f['status'] in dict(C.STATUS_CHOICES):
+        qs = qs.filter(status=f['status'])
+    sort_key = f['sort'] if f['sort'] in CANDIDATE_SORTS else 'moi-nhat'
+    qs = qs.order_by(*CANDIDATE_SORTS[sort_key][1])
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Ung vien'
+    ws.append(['Họ tên', 'SĐT', 'Email', 'Vị trí', 'Phòng ban', 'Nguồn', 'Trạng thái',
+               'Đề xuất PV / đánh giá', 'Lịch PV', 'Kết quả PV', 'Ngày nộp', 'Lý do'])
+    for c in qs:
+        inv = c.interview_or_none
+        ws.append([
+            c.full_name, c.phone, c.email, c.job_posting.title, c.job_posting.department_label,
+            c.source_label, c.get_status_display(), f'{c.n_recommend}/{c.n_reviews}',
+            inv.time_range_label if inv else '',
+            inv.get_result_display() if inv else '',
+            timezone.localtime(c.applied_at).strftime('%d/%m/%Y'), c.reject_reason,
+        ])
+    for col, width in zip('ABCDEFGHIJKL', (26, 14, 26, 28, 26, 16, 20, 12, 18, 14, 12, 36)):
+        ws.column_dimensions[col].width = width
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="ung_vien_{timezone.localdate():%Y%m%d}.xlsx"'
+    wb.save(response)
+    return response
+
+
 @module_perm_required(MODULE_RECRUITMENT, 'view')
-def get_candidate_interview(request, pk):
-    candidate = get_object_or_404(Candidate, pk=pk)
-    
-    # Kiểm tra xem ứng viên này đã có lịch phỏng vấn trong Database chưa
-    if hasattr(candidate, 'interview'):
-        # ⚠️ BẮT BUỘC: Ép định dạng ngày giờ chuẩn ISO (YYYY-MM-DDTHH:MM) để thẻ HTML5 hiểu
-        time_str = candidate.interview.interview_time.strftime('%Y-%m-%dT%H:%M') if candidate.interview.interview_time else ''
-        data = {
-            'interview_time': time_str,
-        }
-    else:
-        # Nếu chưa có lịch thì trả về rỗng
-        data = {
-            'interview_time': '',
-        }
-        
-    return JsonResponse(data)
+def kanban_board(request):
+    f = _candidate_filters(request)
+    qs = _filtered_candidates(request, f)
+    labels = dict((k, (label, css)) for k, label, css in KANBAN_COLUMNS)
+    pages, query_string = paginate_columns(
+        request,
+        [(key, qs.filter(status=key).order_by('-status_changed_at', '-id'), f'p_{key}') for key in KANBAN_BOARD_STATUSES],
+        per_page=KANBAN_PAGE_SIZE,
+    )
+    ctx = _candidate_page_context(request, 'kanban', f)
+    columns = []
+    for key in KANBAN_BOARD_STATUSES:
+        cards = list(pages[key].object_list)
+        if ctx['can_move']:
+            _attach_move_targets(cards)
+        columns.append({
+            'key': key, 'label': labels[key][0], 'css': labels[key][1], 'page': pages[key],
+            'cards': cards, 'droppable': ctx['can_move'],
+            'is_closed': key in (C.STATUS_NOT_ONBOARDED, C.STATUS_REJECTED),
+        })
+    return render(request, 'recruitment/admin/kanban_board.html', {
+        **ctx,
+        'columns': columns,
+        'query_string': query_string,
+        'hired_count': qs.filter(status=C.STATUS_HIRED).count(),
+    })
+
+
+@module_perm_required(MODULE_RECRUITMENT, 'create')
+def add_candidate(request):
+    jobs = _open_jobs().filter(visible_jobs_q(request.user))
+    initial = {}
+    if (request.GET.get('job_id') or '').isdigit():
+        initial['job_posting'] = int(request.GET['job_id'])
+    form = CandidateForm(request.POST or None, request.FILES or None, jobs=jobs, initial=initial)
+    if request.method == 'POST' and form.is_valid():
+        d = form.cleaned_data
+        try:
+            cand = services.add_candidate(
+                d['job_posting'],
+                services.CandidateInput(
+                    full_name=d['full_name'], phone=d['phone'], email=d['email'],
+                    gender=d['gender'], date_of_birth=d['date_of_birth'],
+                    files=d['files'], note=d['note'], source=d['source'],
+                ),
+                actor=request.user,
+                request=request,
+            )
+        except services.RecruitmentError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, f'Đã thêm ứng viên {cand.full_name}.')
+            return redirect('candidate_detail', pk=cand.pk)
+    return render(request, 'recruitment/admin/candidate_form.html', {
+        'form': form, 'title': 'Thêm ứng viên', 'back_url': reverse('kanban_board'),
+        'has_jobs': jobs.exists(),
+    })
+
+
+@login_required
+def candidate_suggest_email(request):
+    """Gợi ý email công ty theo họ tên — form thêm / đề xuất ứng viên."""
+    if not (can_candidates(request.user, 'create') or is_hiring_manager(request.user)):
+        raise PermissionDenied
+    return JsonResponse({'email': services.suggest_email(request.GET.get('full_name', ''))})
+
+
+# ================================================================ Ứng viên — chi tiết & thao tác
+
+def _detail_context(request, candidate, *, manager_view=False, onboard_form=None):
+    user = request.user
+    interview = candidate.interview_or_none
+    reviews = candidate.reviews.select_related('reviewer__profile')
+    my_review = next((r for r in reviews if r.reviewer_id == user.pk), None)
+    can_update = (not manager_view) and can_candidates(user, 'update')
+    review_form = None
+    if can_review_candidate(user, candidate):
+        review_form = ReviewForm(initial={
+            'decision': my_review.decision, 'rating': my_review.rating, 'comment': my_review.comment,
+        } if my_review else None)
+    targets = []
+    if can_update:
+        for status in services.allowed_targets(candidate):
+            targets.append((status, services.status_label(status)))
+    show_onboard = (not manager_view) and candidate.status == C.STATUS_OFFERED and can_onboard(user)
+    can_manage_files = can_update or (
+        manager_view and candidate.referred_by_id == user.pk and candidate.status == C.STATUS_NEW
+    )
+    return {
+        'candidate': candidate,
+        'files': list(candidate.files.all()),
+        'file_form': CandidateFileForm() if can_manage_files else None,
+        'can_delete_files': can_update,
+        'interview': interview,
+        'reviews': reviews,
+        'review_form': review_form,
+        'my_review': my_review,
+        'manager_view': manager_view,
+        'can_update': can_update,
+        'targets': targets,
+        'transition_form': TransitionForm(),
+        'interview_locations': _interview_locations() if can_update else [],
+        'needs_review_for_interview': (
+            candidate.status == C.STATUS_REVIEWING and not services.has_recommend_review(candidate)
+        ),
+        'result_form': InterviewResultForm() if can_record_interview_result(user, candidate) else None,
+        'result_action': reverse(
+            'recruitment_review_interview_result' if manager_view else 'candidate_interview_result',
+            args=[candidate.pk],
+        ),
+        'interview_started': bool(interview and interview.interview_time <= timezone.now()),
+        'can_onboard': show_onboard,
+        'onboard_form': (onboard_form or OnboardForm(
+            candidate=candidate,
+            suggested_email='' if candidate.email else services.suggest_email(candidate.full_name),
+        )) if show_onboard else None,
+        'onboarding_course': services.onboarding_course() if candidate.status == C.STATUS_OFFERED else None,
+        'onboarding_group': services.onboarding_permission_group() if candidate.status == C.STATUS_OFFERED else None,
+        'filled': services.filled_count(candidate.job_posting),
+    }
+
+
+@module_perm_required(MODULE_RECRUITMENT, 'view')
+def candidate_detail(request, pk):
+    candidate = _get_candidate(request, pk)
+    return render(request, 'recruitment/admin/candidate_detail.html', _detail_context(request, candidate))
+
 
 @module_perm_required(MODULE_RECRUITMENT, 'update')
 @require_POST
-def update_practice_license(request):
-    candidate_id = request.POST.get('candidate_id')
-    candidate = get_object_or_404(Candidate, id=candidate_id)
-    
-    candidate.license_number = request.POST.get('license_number', '')
-    candidate.scope_of_practice = request.POST.get('scope_of_practice', '')
-    candidate.practice_time = request.POST.get('practice_time', '')
-    candidate.professional_position = request.POST.get('professional_position', '')
-    candidate.other_practice_time = request.POST.get('other_practice_time', '')
-    candidate.license_note = request.POST.get('license_note', '')
-    candidate.save()
-    
-    messages.success(request, f'Đã cập nhật thông tin Hành nghề cho {candidate.full_name}')
-    return redirect('kanban_board')
+def candidate_transition(request, pk):
+    candidate = _get_candidate(request, pk)
+    form = TransitionForm(request.POST)
+    back = request.POST.get('next') or reverse('candidate_detail', args=[pk])
+    if not back.startswith('/'):
+        back = reverse('candidate_detail', args=[pk])
+    if not form.is_valid():
+        messages.error(request, 'Dữ liệu chuyển trạng thái không hợp lệ.')
+        return redirect(back)
+    d = form.cleaned_data
+    try:
+        services.transition(
+            candidate, d['to_status'], actor=request.user, reason=d['reason'],
+            interview_time=d['interview_time'], interview_end=d['interview_end'],
+            location=d['location'], interviewers=d['interviewers'],
+        )
+    except services.RecruitmentError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, f'{candidate.full_name}: {services.status_label(d["to_status"])}.')
+    return redirect(back)
+
+
+def _save_interview_result(request, candidate):
+    form = InterviewResultForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, 'Chọn kết quả phỏng vấn.')
+        return False
+    try:
+        outcome = services.record_interview_result(
+            candidate, form.cleaned_data['result'], form.cleaned_data['notes'], actor=request.user,
+        )
+    except services.RecruitmentError as exc:
+        messages.error(request, str(exc))
+        return False
+    (messages.success if outcome.auto_status else messages.warning)(request, outcome.message)
+    return True
+
+
+def _safe_next(request, fallback):
+    nxt = request.POST.get('next') or ''
+    return nxt if nxt.startswith('/') and not nxt.startswith('//') else fallback
+
+
+@module_perm_required(MODULE_RECRUITMENT, 'update')
+@require_POST
+def candidate_interview_result(request, pk):
+    candidate = _get_candidate(request, pk)
+    _save_interview_result(request, candidate)
+    return redirect(_safe_next(request, reverse('candidate_detail', args=[pk])))
+
+
+@module_perm_required(MODULE_RECRUITMENT, 'update')
+@require_POST
+def candidate_onboard(request, pk):
+    candidate = _get_candidate(request, pk)
+    if not can_onboard(request.user):
+        messages.error(request, 'Onboard cần thêm quyền «Thêm» ở Danh sách nhân viên (Nhân sự).')
+        return redirect('candidate_detail', pk=pk)
+    form = OnboardForm(request.POST, candidate=candidate)
+    if not form.is_valid():
+        messages.error(request, 'Kiểm tra lại thông tin onboard.')
+        return render(request, 'recruitment/admin/candidate_detail.html',
+                      _detail_context(request, candidate, onboard_form=form))
+    d = form.cleaned_data
+    try:
+        result = services.onboard_candidate(
+            candidate, actor=request.user, join_date=d['join_date'],
+            email=d['email'], gender=d['gender'], date_of_birth=d['date_of_birth'],
+        )
+    except services.RecruitmentError as exc:
+        return _fail(request, exc, reverse('candidate_detail', args=[pk]))
+    if not result.course_title:
+        messages.warning(request, f'Chưa có khóa «{services.ONBOARDING_COURSE_TITLE}» đang hoạt động để giao.')
+    # Hiển thị mật khẩu một lần trên trang kết quả (không lưu, không gửi qua flash 3 giây).
+    response = render(request, 'recruitment/admin/onboard_result.html', {
+        'candidate': candidate, 'result': result,
+    })
+    response['Cache-Control'] = 'no-store'
+    return response
+
+
+# ================================================================ Hồ sơ đính kèm (CV)
+
+@login_required
+def candidate_file(request, pk):
+    """Trả file hồ sơ — kiểm tra quyền mỗi lần, không có link /media/ công khai."""
+    obj = get_object_or_404(CandidateFile.objects.select_related('candidate__job_posting'), pk=pk)
+    if not can_view_candidate(request.user, obj.candidate):
+        raise PermissionDenied
+    try:
+        handle = obj.file.open('rb')
+    except (FileNotFoundError, OSError):
+        raise Http404('File không còn trên máy chủ.')
+    download = request.GET.get('download') == '1' or obj.preview_kind == 'download'
+    response = FileResponse(handle, content_type=obj.content_type, as_attachment=download,
+                            filename=obj.original_name)
+    response['X-Content-Type-Options'] = 'nosniff'
+    response['Cache-Control'] = 'private, no-store'
+    response['Referrer-Policy'] = 'no-referrer'
+    return response
+
+
+@module_perm_required(MODULE_RECRUITMENT, 'update')
+@require_POST
+def candidate_file_upload(request, pk):
+    candidate = _get_candidate(request, pk)
+    return _upload_files(request, candidate, reverse('candidate_detail', args=[pk]))
+
+
+@_manager_required
+@require_POST
+def manager_file_upload(request, pk):
+    """Quản lý bổ sung hồ sơ cho ứng viên mình đề xuất (khi HR chưa tiếp nhận)."""
+    candidate = get_object_or_404(Candidate, pk=pk, referred_by=request.user, status=C.STATUS_NEW)
+    return _upload_files(request, candidate, reverse('recruitment_review_candidate', args=[pk]))
+
+
+def _upload_files(request, candidate, back):
+    form = CandidateFileForm(request.POST, request.FILES)
+    if not form.is_valid():
+        messages.error(request, ' '.join(e for errs in form.errors.values() for e in errs))
+        return redirect(back)
+    try:
+        created = services.attach_files(
+            candidate, form.cleaned_data['files'], actor=request.user,
+            kind=form.cleaned_data['kind'], request=request,
+        )
+        messages.success(request, f'Đã lưu {len(created)} file hồ sơ.')
+    except services.RecruitmentError as exc:
+        messages.error(request, str(exc))
+    return redirect(back)
+
+
+@module_perm_required(MODULE_RECRUITMENT, 'update')
+@require_POST
+def candidate_file_delete(request, pk, file_pk):
+    obj = get_object_or_404(CandidateFile, pk=file_pk, candidate__in=_cands(request).filter(pk=pk))
+    services.remove_file(obj, actor=request.user)
+    messages.success(request, f'Đã xóa file {obj.original_name}.')
+    return redirect('candidate_detail', pk=pk)
+
+
+# ================================================================ Lịch phỏng vấn
+
+def _interview_range(request):
+    today = timezone.localdate()
+    span = parse_date_range_span_from_request(request)
+    raw_from, raw_to = request.GET.get('from'), request.GET.get('to')
+    try:
+        d_from = datetime.strptime(raw_from, '%Y-%m-%d').date() if raw_from else None
+        d_to = datetime.strptime(raw_to, '%Y-%m-%d').date() if raw_to else None
+    except ValueError:
+        d_from = d_to = None
+    if not d_from and not d_to:
+        # Mặc định: các buổi phỏng vấn sắp tới trong khoảng preset.
+        d_from, d_to = today, today + timedelta(days=span - 1)
+    d_from = d_from or (d_to - timedelta(days=span - 1))
+    d_to = d_to or (d_from + timedelta(days=span - 1))
+    if d_from > d_to:
+        d_from, d_to = d_to, d_from
+    return d_from, d_to
+
+
+def _interview_queryset(request):
+    d_from, d_to = _interview_range(request)
+    qs = _interviews(request).select_related(
+        'candidate', 'candidate__job_posting', 'candidate__job_posting__target_department',
+    ).prefetch_related('interviewers__profile', 'candidate__files').filter(
+        interview_time__date__gte=d_from, interview_time__date__lte=d_to,
+    )
+    job_id = (request.GET.get('job_id') or '').strip()
+    if job_id.isdigit():
+        qs = qs.filter(candidate__job_posting_id=int(job_id))
+    result = (request.GET.get('result') or '').strip()
+    if result in dict(Interview.RESULT_CHOICES):
+        qs = qs.filter(result=result)
+    return qs.order_by('interview_time'), d_from, d_to
+
 
 @module_perm_required(MODULE_RECRUITMENT, 'view')
-def get_candidate_license(request, pk):
-    candidate = get_object_or_404(Candidate, pk=pk)
-    data = {
-        'license_number': candidate.license_number or '',
-        'scope_of_practice': candidate.scope_of_practice or '',
-        'practice_time': candidate.practice_time or '',
-        'professional_position': candidate.professional_position or '',
-        'other_practice_time': candidate.other_practice_time or '',
-        'license_note': candidate.license_note or '',
-    }
-    return JsonResponse(data)
+def interview_list(request):
+    qs, d_from, d_to = _interview_queryset(request)
+    page_obj, query_string = paginate_queryset(request, qs)
+    return render(request, 'recruitment/admin/interview_list.html', {
+        'interviews': page_obj.object_list,
+        'page_obj': page_obj,
+        'query_string': query_string,
+        'date_from': d_from,
+        'date_to': d_to,
+        'jobs': _jobs(request).exclude(status=JobPosting.STATUS_DRAFT).order_by('title'),
+        'selected_job': request.GET.get('job_id', ''),
+        'result_filter': request.GET.get('result', ''),
+        'result_choices': Interview.RESULT_CHOICES,
+        'can_export': can_candidates(request.user, 'export'),
+        'now': timezone.now(),
+        **date_range_span_context(d_from, d_to),
+    })
 
-@module_perm_required(MODULE_RECRUITMENT, 'view')
-def get_all_licenses(request):
-    # 1. Bắt lấy ID của vị trí đang được lọc trên trình duyệt
-    job_id = request.GET.get('job_id')
-    
-    candidates = Candidate.objects.filter(status='hired').select_related('job_posting')
-    
-    # 2. Nếu có lọc theo vị trí thì bóp data lại
-    if job_id and job_id.isdigit():
-        candidates = candidates.filter(job_posting_id=job_id)
-        
-    candidates = candidates.order_by('-applied_at')
-    
-    data = []
-    for cand in candidates:
-        data.append({
-            'full_name': cand.full_name,
-            'professional_position': cand.professional_position or cand.job_posting.title,
-            'license_number': cand.license_number or '<span class="badge bg-light text-muted border">Chưa nhập</span>',
-            'scope_of_practice': cand.scope_of_practice or '',
-            'practice_time': cand.practice_time or '',
-            'other_practice_time': cand.other_practice_time or '',
-        })
-    return JsonResponse({'licenses': data})
 
 @module_perm_required(MODULE_RECRUITMENT, 'export')
 def export_interviews_excel(request):
-    job_id = request.GET.get('job_id')
-    interviews = Interview.objects.select_related('candidate__job_posting')
-    
-    if job_id and job_id.isdigit():
-        interviews = interviews.filter(candidate__job_posting_id=job_id)
-        
-    interviews = interviews.order_by('-interview_time')
-
-    # Khởi tạo file Excel
+    qs, d_from, d_to = _interview_queryset(request)
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = "Lịch Phỏng Vấn"
-
-    # Tạo hàng Header (Tiêu đề cột)
-    headers = ["Thời gian phỏng vấn", "Họ và tên Ứng viên", "Trạng thái", "Vị trí ứng tuyển"]
-    ws.append(headers)
-
-    # Đổ dữ liệu vào các hàng tiếp theo
-    for inv in interviews:
-        time_str = inv.interview_time.strftime('%H:%M - %d/%m/%Y') if inv.interview_time else ''
+    ws.title = 'Lich phong van'
+    ws.append(['Bắt đầu', 'Kết thúc', 'Thời lượng (phút)', 'Ứng viên', 'SĐT', 'Vị trí', 'Phòng ban', 'Địa điểm',
+               'Người phỏng vấn', 'Kết quả', 'Nhận xét'])
+    for inv in qs:
+        cand = inv.candidate
         ws.append([
-            time_str,
-            inv.candidate.full_name,
-            inv.candidate.get_status_display(),
-            inv.candidate.job_posting.title
-        ])
-
-    # Thiết lập Response để trình duyệt tự hiểu đây là file tải về
-    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = 'attachment; filename="Danh_sach_lich_phong_van.xlsx"'
-    wb.save(response)
-    return response
-
-
-@module_perm_required(MODULE_RECRUITMENT, 'export')
-def export_licenses_excel(request):
-    job_id = request.GET.get('job_id')
-    candidates = Candidate.objects.filter(status='hired').select_related('job_posting')
-    
-    if job_id and job_id.isdigit():
-        candidates = candidates.filter(job_posting_id=job_id)
-        
-    candidates = candidates.order_by('-applied_at')
-
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "Đăng Ký Hành Nghề"
-
-    headers = [
-        "Họ và tên", "Số GPHN/CCHN", "Phạm vi hành nghề", 
-        "Thời gian ĐKHN tại cơ sở này", "Vị trí chuyên môn", 
-        "Thời gian ĐKHN tại cơ sở khác", "Ghi chú"
-    ]
-    ws.append(headers)
-
-    for cand in candidates:
-        ws.append([
+            timezone.localtime(inv.interview_time).strftime('%H:%M %d/%m/%Y'),
+            timezone.localtime(inv.end_time).strftime('%H:%M %d/%m/%Y') if inv.end_time else '',
+            inv.duration_minutes,
             cand.full_name,
-            cand.license_number or '',
-            cand.scope_of_practice or '',
-            cand.practice_time or '',
-            cand.professional_position or cand.job_posting.title,
-            cand.other_practice_time or '',
-            cand.license_note or ''
+            cand.phone,
+            cand.job_posting.title,
+            cand.job_posting.department_label,
+            inv.location,
+            ', '.join(
+                (getattr(getattr(u, 'profile', None), 'full_name', '') or u.username)
+                for u in inv.interviewers.all()
+            ),
+            inv.get_result_display(),
+            inv.result_notes,
         ])
-
+    for col, width in zip('ABCDEFGHIJK', (18, 18, 12, 26, 14, 28, 22, 22, 30, 16, 40)):
+        ws.column_dimensions[col].width = width
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = 'attachment; filename="Danh_sach_dang_ky_hanh_nghe.xlsx"'
+    response['Content-Disposition'] = (
+        f'attachment; filename="lich_phong_van_{d_from:%Y%m%d}_{d_to:%Y%m%d}.xlsx"'
+    )
     wb.save(response)
     return response
+
+
+# ================================================================ Quản lý: đề xuất & đánh giá
+
+@_reviewer_required
+def review_list(request):
+    user = request.user
+    is_manager = is_hiring_manager(user)
+    interviews = (
+        _candidate_qs().filter(pk__in=interview_queue(user).values('pk'))
+        .select_related('interview').order_by('interview__interview_time')
+    )
+    tabs_spec = []
+    if is_manager:
+        scope = manager_job_filter(user)
+        base = _candidate_qs().filter(job_posting__in=JobPosting.objects.filter(scope))
+        my_reviews = CandidateReview.objects.filter(reviewer=user)
+        pending = (
+            base.filter(status=C.STATUS_REVIEWING)
+            .exclude(reviews__reviewer=user)
+            .order_by('status_changed_at')
+        )
+        reviewed = (
+            base.filter(pk__in=my_reviews.values('candidate_id'))
+            .annotate(my_review_at=Max('reviews__updated_at', filter=Q(reviews__reviewer=user)))
+            .prefetch_related(Prefetch('reviews', queryset=my_reviews, to_attr='my_reviews'))
+            .order_by('-my_review_at')
+        )
+        referred = (
+            Candidate.objects.select_related('job_posting', 'job_posting__target_department')
+            .prefetch_related('files')
+            .filter(referred_by=user).order_by('-applied_at')
+        )
+        tabs_spec = [
+            ('cho-danh-gia', 'Chờ đánh giá', pending),
+            ('phong-van', 'Kết quả phỏng vấn', interviews),
+            ('da-danh-gia', 'Đã đánh giá', reviewed),
+            ('da-de-xuat', 'Tôi đề xuất', referred),
+        ]
+    else:
+        tabs_spec = [('phong-van', 'Kết quả phỏng vấn', interviews)]
+    current = request.GET.get('tab') or tabs_spec[0][0]
+    if current not in {key for key, _, _ in tabs_spec}:
+        current = tabs_spec[0][0]
+    tabs = [
+        {'key': key, 'label': label, 'count': qs.count(), 'active': key == current,
+         'url': f'{reverse("recruitment_review_list")}?tab={key}'}
+        for key, label, qs in tabs_spec
+    ]
+    active_qs = next(qs for key, _, qs in tabs_spec if key == current)
+    page_obj, query_string = paginate_queryset(request, active_qs)
+    return render(request, 'recruitment/manager/review_list.html', {
+        'tabs': tabs,
+        'current_tab': current,
+        'page_obj': page_obj,
+        'items': page_obj.object_list,
+        'query_string': query_string,
+        'now': timezone.now(),
+        'result_form': InterviewResultForm(),
+        'open_jobs_in_scope': is_manager and _open_jobs().filter(manager_job_filter(user)).exists(),
+        'scope_label': (
+            scope_label(user, managed=True) if is_manager else 'Các buổi phỏng vấn bạn được giao'
+        ),
+    })
+
+
+def _reviewer_candidate(request, pk):
+    candidate = get_object_or_404(_candidate_qs(), pk=pk)
+    user = request.user
+    if not (
+        (is_hiring_manager(user) and manager_can_access_job(user, candidate.job_posting))
+        or is_interviewer(user, candidate)
+    ):
+        raise PermissionDenied
+    return candidate
+
+
+@login_required
+@require_POST
+def review_interview_result(request, pk):
+    candidate = _reviewer_candidate(request, pk)
+    _save_interview_result(request, candidate)
+    return redirect(_safe_next(request, f'{reverse("recruitment_review_list")}?tab=phong-van'))
+
+
+@login_required
+def review_candidate(request, pk):
+    candidate = _reviewer_candidate(request, pk)
+    if request.method == 'POST':
+        form = ReviewForm(request.POST)
+        if form.is_valid():
+            try:
+                services.submit_review(
+                    candidate, request.user,
+                    decision=form.cleaned_data['decision'],
+                    rating=form.cleaned_data['rating'],
+                    comment=form.cleaned_data['comment'],
+                )
+                messages.success(request, f'Đã gửi đánh giá cho {candidate.full_name}.')
+                return redirect('recruitment_review_list')
+            except services.RecruitmentError as exc:
+                messages.error(request, str(exc))
+        else:
+            messages.error(request, 'Chọn kết luận đánh giá.')
+        return redirect('recruitment_review_candidate', pk=pk)
+    return render(request, 'recruitment/admin/candidate_detail.html', _detail_context(
+        request, candidate, manager_view=True,
+    ))
+
+
+@_manager_required
+def refer_candidate(request):
+    jobs = _open_jobs().filter(manager_job_filter(request.user))
+    form = CandidateForm(request.POST or None, request.FILES or None, jobs=jobs, referral=True)
+    if request.method == 'POST' and form.is_valid():
+        d = form.cleaned_data
+        try:
+            cand = services.add_candidate(
+                d['job_posting'],
+                services.CandidateInput(
+                    full_name=d['full_name'], phone=d['phone'], email=d['email'],
+                    gender=d['gender'], date_of_birth=d['date_of_birth'],
+                    files=d['files'], note=d['note'], source=C.SOURCE_REFERRAL,
+                ),
+                actor=request.user,
+                referred_by=request.user,
+                request=request,
+            )
+        except services.RecruitmentError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, f'Đã đề xuất ứng viên {cand.full_name} — HR sẽ tiếp nhận hồ sơ.')
+            return redirect('recruitment_review_list')
+    return render(request, 'recruitment/admin/candidate_form.html', {
+        'form': form, 'title': 'Đề xuất ứng viên', 'back_url': reverse('recruitment_review_list'),
+        'has_jobs': jobs.exists(), 'referral': True,
+    })
+
+
+# ================================================================ Thiết lập (menu «settings»)
+
+SETTINGS_TABS = {
+    'dia-diem': {
+        'model': InterviewLocation, 'form': InterviewLocationForm, 'label': 'Địa điểm họp', 'icon': 'bi-geo-alt',
+        'singular': 'địa điểm', 'hint': 'Chọn nhanh khi lên lịch phỏng vấn. Đổi tên sẽ cập nhật các lịch chưa có kết quả.',
+    },
+    'loai-ho-so': {
+        'model': CandidateFileKind, 'form': CandidateFileKindForm, 'label': 'Loại hồ sơ',
+        'icon': 'bi-file-earmark-text', 'singular': 'loại hồ sơ',
+        'hint': 'Phân loại file đính kèm. Loại «Là CV» được mở khi bấm «Xem CV».',
+    },
+    'nguon-ho-so': {
+        'model': CandidateSource, 'form': CandidateSourceForm, 'label': 'Nguồn hồ sơ', 'icon': 'bi-signpost-split',
+        'singular': 'nguồn', 'hint': 'Lựa chọn bắt buộc khi thêm ứng viên. «Quản lý đề xuất» do hệ thống tự gán.',
+    },
+}
+
+
+def _settings_usage(tab):
+    if tab == 'nguon-ho-so':
+        rows = Candidate.objects.values_list('source').annotate(n=Count('id'))
+    elif tab == 'loai-ho-so':
+        rows = CandidateFile.objects.values_list('kind').annotate(n=Count('id'))
+    else:
+        rows = Interview.objects.exclude(location='').values_list('location').annotate(n=Count('id'))
+    return dict(rows)
+
+
+def _settings_url(tab):
+    return f'{reverse("recruitment_settings")}?tab={tab}'
+
+
+@module_perm_required(MODULE_RECRUITMENT, 'view')
+def recruitment_settings(request, create_form=None, create_tab=None):
+    tab = create_tab or request.GET.get('tab')
+    if tab not in SETTINGS_TABS:
+        tab = next(iter(SETTINGS_TABS))
+    spec = SETTINGS_TABS[tab]
+    usage = _settings_usage(tab)
+    items = list(spec['model'].objects.all())
+    for item in items:
+        item.usage = usage.get(getattr(item, 'code', None) or item.name, 0)
+    user = request.user
+    return render(request, 'recruitment/admin/settings.html', {
+        'tabs': [
+            {'key': key, 'label': s['label'], 'icon': s['icon'], 'active': key == tab, 'url': _settings_url(key),
+             'count': s['model'].objects.filter(is_active=True).count()}
+            for key, s in SETTINGS_TABS.items()
+        ],
+        'tab': tab,
+        'spec': spec,
+        'items': items,
+        'create_form': create_form or spec['form'](),
+        'can_create': can_settings(user, 'create'),
+        'can_update': can_settings(user, 'update'),
+        'can_delete': can_settings(user, 'delete'),
+    })
+
+
+def _settings_item(tab, pk):
+    if tab not in SETTINGS_TABS:
+        raise Http404
+    return get_object_or_404(SETTINGS_TABS[tab]['model'], pk=pk)
+
+
+@module_perm_required(MODULE_RECRUITMENT, 'create')
+@require_POST
+def recruitment_settings_add(request, tab):
+    if tab not in SETTINGS_TABS:
+        raise Http404
+    spec = SETTINGS_TABS[tab]
+    form = spec['form'](request.POST)
+    if not form.is_valid():
+        return recruitment_settings(request, create_form=form, create_tab=tab)
+    try:
+        obj = services.save_option(form)
+    except services.RecruitmentError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, f'Đã thêm {spec["singular"]} «{obj.name}».')
+    return redirect(_settings_url(tab))
+
+
+@module_perm_required(MODULE_RECRUITMENT, 'update')
+@require_POST
+def recruitment_settings_edit(request, tab, pk):
+    obj = _settings_item(tab, pk)
+    form = SETTINGS_TABS[tab]['form'](request.POST, instance=obj)
+    if not form.is_valid():
+        messages.error(request, ' '.join(e for errs in form.errors.values() for e in errs))
+        return redirect(_settings_url(tab))
+    try:
+        obj = services.save_option(form)
+    except services.RecruitmentError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, f'Đã cập nhật «{obj.name}».')
+    return redirect(_settings_url(tab))
+
+
+@module_perm_required(MODULE_RECRUITMENT, 'update')
+@require_POST
+def recruitment_settings_toggle(request, tab, pk):
+    obj = _settings_item(tab, pk)
+    try:
+        services.toggle_option(obj)
+    except services.RecruitmentError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, f'«{obj.name}»: {"đang dùng" if obj.is_active else "ngừng dùng"}.')
+    return redirect(_settings_url(tab))
+
+
+@module_perm_required(MODULE_RECRUITMENT, 'delete')
+@require_POST
+def recruitment_settings_delete(request, tab, pk):
+    obj = _settings_item(tab, pk)
+    try:
+        name = services.delete_option(obj)
+    except services.RecruitmentError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, f'Đã xóa «{name}».')
+    return redirect(_settings_url(tab))

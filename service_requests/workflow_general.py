@@ -54,8 +54,9 @@ def _final_step_spec(service_request):
         return 'Bộ phận kỹ thuật xử lý', get_department_by_patterns(
             'IT', 'cntt', 'công nghệ', 'cong nghe', 'bảo trì', 'bao tri',
         )
-    if subtype == ServiceRequest.SUBTYPE_HR:
-        return 'HCNS xử lý', get_department_by_patterns(
+    if subtype in (ServiceRequest.SUBTYPE_HR, ServiceRequest.SUBTYPE_CANDIDATE):
+        name = 'HCNS tiếp nhận tuyển dụng' if subtype == ServiceRequest.SUBTYPE_CANDIDATE else 'HCNS xử lý'
+        return name, get_department_by_patterns(
             'hành chính nhân sự', 'hcns', 'nhân sự', 'nhan su',
         )
     if subtype == ServiceRequest.SUBTYPE_ACCOUNT:

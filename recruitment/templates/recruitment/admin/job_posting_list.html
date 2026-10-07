@@ -1,149 +1,105 @@
 {% extends "base.html" %}
+{% block extra_head %}{% include 'recruitment/includes/rc_styles.html' %}{% endblock %}
 {% block content %}
-<style>
-    :root {
-        --hm-primary: #dc2626;
-        --hm-primary-hover: #b91c1c;
-    }
-    
-    .bg-hm { background-color: var(--hm-primary) !important; }
-    .text-hm { color: var(--hm-primary) !important; }
-    
-    .btn-hm { 
-        background-color: var(--hm-primary); 
-        color: white; 
-        border: none; 
-        transition: all 0.3s; 
-    }
-    .btn-hm:hover { 
-        background-color: var(--hm-primary-hover); 
-        color: white; 
-        transform: translateY(-1px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    }
-    
-    .btn-white { background-color: white; transition: all 0.2s; }
-    .btn-white:hover { background-color: #f8f9fa; transform: translateY(-1px); }
-    
-    .table-hover tbody tr { transition: all 0.2s ease; }
-    .table-hover tbody tr:hover { background-color: rgba(220, 38, 38, 0.03); }
-    
-    .action-btn {
-        width: 34px;
-        height: 34px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 2px;
-        transition: all 0.2s;
-    }
-    .action-btn:hover { transform: scale(1.05); }
-    
-    .badge-soft-success { background-color: rgba(25, 135, 84, 0.1); color: #198754; }
-    .badge-soft-secondary { background-color: rgba(108, 117, 125, 0.1); color: #6c757d; }
-</style>
-
-<div class="container-fluid jp-page mt-3 mt-md-4 mb-5 px-2 px-md-3" style="max-width: 1400px;">
-    <div class="jp-page-header mb-3 mb-md-4">
-        <div>
-            <h3 class="fw-bold text-dark mb-1 jp-page-title">Vị trí tuyển dụng</h3>
-        </div>
-        
-        <div class="d-flex gap-2 align-items-stretch flex-wrap w-100 w-md-auto">
-            <a href="{% url 'job_posting_create' %}" class="btn btn-hm shadow-sm fw-bold d-flex align-items-center justify-content-center flex-fill flex-md-grow-0">
-                <i class="bi bi-plus-circle-fill me-1"></i> Đăng tin
-            </a>
-            
-            <a href="{% url 'admin_dashboard' %}" class="btn btn-white border shadow-sm d-flex align-items-center justify-content-center flex-fill flex-md-grow-0" title="Quay lại Dashboard">
-                <i class="bi bi-arrow-left fs-5 text-dark"></i>
-            </a>
-        </div>
+<div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div class="jp-page-header-main">
+      <h2 class="jp-page-title fw-bold text-dark mb-1">Vị trí tuyển dụng</h2>
+      <p class="text-muted small mb-0"><i class="bi bi-building" aria-hidden="true"></i> {{ scope_label }}</p>
     </div>
-
-    <div class="card border-0 shadow-sm mb-3">
-        <div class="card-body p-3">
-            <form method="get" class="jp-hrm-search input-group" role="search">
-                {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tìm theo vị trí, phòng ban...' clear_url=request.path %}
-            </form>
-            {% if search_query %}
-            <p class="text-muted small mb-0 mt-2">Kết quả tìm “{{ search_query }}” — {{ page_obj.paginator.count }} tin</p>
-            {% endif %}
-        </div>
+    {% if can_create %}
+    <div class="jp-rc-tools">
+      <a href="{% url 'job_posting_create' %}" class="btn btn-hm btn-sm fw-bold"><i class="bi bi-plus-lg"></i>Tạo vị trí</a>
     </div>
+    {% endif %}
+  </div>
 
-    <div class="card shadow-sm border-0 overflow-hidden">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="bg-light text-uppercase">
-                        <tr style="font-size: 0.8rem; letter-spacing: 0.5px;">
-                            <th class="ps-4 py-3 text-muted border-0">Vị trí Tuyển dụng</th>
-                            <th class="text-muted border-0">Khoa / Phòng</th>
-                            <th class="text-center text-muted border-0">Số lượng</th>
-                            <th class="text-center text-muted border-0">Hạn nộp</th>
-                            <th class="text-center text-muted border-0">Trạng thái</th>
-                            <th class="text-end pe-4 text-muted border-0">Thao tác</th>
-                        </tr>
-                    </thead>
-                    <tbody class="border-top-0">
-                        {% for job in jobs %}
-                        <tr>
-                            <td class="ps-4">
-                                <div class="fw-bold text-dark fs-6 jp-text-clamp-2">{{ job.title }}</div>
-                                <div class="text-muted x-small mt-1">{{ job.position }}</div>
-                            </td>
-                            <td>
-                                <span class="fw-medium text-secondary">{{ job.department }}</span>
-                            </td>
-                            <td class="text-center">
-                                <span class="badge bg-light text-dark border px-2 py-1 fs-6">{{ job.quantity }}</span>
-                            </td>
-                            <td class="text-center">
-                                <span class="text-muted small fw-medium">{{ job.deadline|date:"d/m/Y" }}</span>
-                            </td>
-                            <td class="text-center">
-                                {% if job.is_active and not job.is_expired %}
-                                    <span class="badge badge-soft-success px-3 py-2 fw-bold border border-success border-opacity-25"> Đang mở</span>
-                                {% else %}
-                                    <span class="badge badge-soft-secondary px-3 py-2 fw-bold border border-secondary border-opacity-25"> Đã đóng</span>
-                                {% endif %}
-                            </td>
-                            
-                            <td class="text-end pe-4">
-                                <div class="d-inline-flex gap-2">
-                                    <a href="{% url 'job_posting_edit' job.id %}" class="btn btn-light border action-btn shadow-sm" title="Chỉnh sửa tin">
-                                        <i class="bi bi-pencil-square text-warning fs-5"></i>
-                                    </a>
-                                    
-                                    <form action="{% url 'job_posting_delete' job.id %}" method="POST" class="m-0">
-                                        {% csrf_token %}
-                                        <button type="submit" class="btn btn-light border action-btn shadow-sm" onclick="return confirm('Bạn có chắc chắn muốn xóa tin tuyển dụng này? Toàn bộ ứng viên thuộc tin này cũng sẽ bị ảnh hưởng.');" title="Xóa tin">
-                                            <i class="bi bi-trash-fill text-danger fs-5"></i>
-                                        </button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="6" class="text-center py-5">
-                                <div class="py-4">
-                                    
-                                    <p class="mt-3 text-muted fs-5">Chưa có vị trí tuyển dụng nào được đăng.</p>
-                                    <a href="{% url 'job_posting_create' %}" class="btn btn-hm btn-sm px-4 mt-2 fw-bold">Đăng tin đầu tiên ngay</a>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-3">
+      <form method="get" class="row g-2 align-items-end" role="search">
+        <div class="col-md-3">
+          <label class="form-label small fw-bold text-muted mb-1" for="jobStatus">Trạng thái</label>
+          <select name="status" id="jobStatus" class="form-select" onchange="this.form.submit()">
+            <option value="">Tất cả</option>
+            {% for key, label in status_choices %}
+            <option value="{{ key }}"{% if status_filter == key %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
         </div>
-        {% if page_obj.has_other_pages %}
-        <div class="card-footer bg-white border-top py-3">
-            {% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}
+        <div class="col-md-3">
+          <label class="form-label small fw-bold text-muted mb-1" for="jobDept">Phòng ban</label>
+          <select name="department" id="jobDept" class="form-select" onchange="this.form.submit()">
+            <option value="">Tất cả</option>
+            {% for d in departments %}
+            <option value="{{ d.pk }}"{% if department_filter == d.pk|stringformat:"s" %} selected{% endif %}>{{ d.name }}</option>
+            {% endfor %}
+          </select>
         </div>
-        {% endif %}
+        <div class="col-md-6">
+          <label class="form-label small fw-bold text-muted mb-1" for="jobQ">Tìm kiếm</label>
+          <div class="input-group jp-hrm-search">
+            {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Vị trí, chức danh, phòng ban…' clear_url=request.path %}
+          </div>
+        </div>
+      </form>
     </div>
+  </div>
+
+  <div class="card border-0 shadow-sm overflow-hidden">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr class="small text-muted">
+            <th class="ps-3">Vị trí</th>
+            <th>Phòng ban</th>
+            <th class="text-center">Đã tuyển / Chỉ tiêu</th>
+            <th class="text-center">Đang xử lý</th>
+            <th class="text-center">Hạn nộp</th>
+            <th class="text-center">Trạng thái</th>
+            <th class="text-end pe-3"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for job in jobs %}
+          <tr>
+            <td class="ps-3">
+              <a href="{% url 'job_posting_edit' job.pk %}" class="fw-semibold text-dark">{{ job.title }}</a>
+              <div class="small text-muted">
+                {{ job.get_position_display|default:"Chưa chọn chức danh" }}
+                {% if job.service_request_id %} · đề xuất #{{ job.service_request_id }}{% endif %}
+              </div>
+            </td>
+            <td>{{ job.department_label }}</td>
+            <td class="text-center">{{ job.n_filled }} / {{ job.quantity }}</td>
+            <td class="text-center">
+              {% if job.n_candidates %}
+              <a href="{% url 'kanban_board' %}?job_id={{ job.pk }}">{{ job.n_active }}</a>
+              <span class="text-muted small">/ {{ job.n_candidates }}</span>
+              {% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
+            <td class="text-center small">
+              {% if job.deadline %}
+              <span class="{% if job.is_expired and job.status == 'open' %}text-danger fw-semibold{% endif %}">{{ job.deadline|date:"d/m/Y" }}</span>
+              {% else %}—{% endif %}
+            </td>
+            <td class="text-center"><span class="jp-rc-badge is-{{ job.status }}">{{ job.get_status_display }}</span></td>
+            <td class="text-end pe-3">
+              <a href="{% url 'job_posting_edit' job.pk %}" class="btn btn-light btn-sm border" title="Chi tiết / sửa" aria-label="Chi tiết {{ job.title }}">
+                <i class="bi bi-pencil-square"></i>
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="text-center text-muted small py-4">Chưa có vị trí tuyển dụng.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if page_obj.has_other_pages %}
+    <div class="card-footer bg-white">
+      {% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}
+    </div>
+    {% endif %}
+  </div>
 </div>
 {% endblock %}

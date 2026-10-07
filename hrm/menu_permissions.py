@@ -54,6 +54,8 @@ _MENU_DEFER_PATH_PATTERNS = (
     re.compile(r'^/reports/cn/my/?'),
     re.compile(r'^/reports/my/?'),
     re.compile(r'^/thu-muc-nas/phan-quyen(/|$)'),
+    # Tổng quan Tuyển dụng — chỉ cần quyền một menu con bất kỳ.
+    re.compile(r'^/hr/?$'),
 )
 
 _MENU_REGEX_RULES: list[tuple[re.Pattern, str, str]] = [

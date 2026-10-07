@@ -1,0 +1,179 @@
+{# Modal xác nhận chuyển trạng thái ứng viên — dùng cho Kanban và trang chi tiết. #}
+{# Nút mở: data-rc-transition data-url data-to data-to-label data-name [data-next] #}
+<div class="modal fade" id="rcTransitionModal" tabindex="-1" aria-labelledby="rcTransitionTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="post" class="modal-content" id="rcTransitionForm">
+      {% csrf_token %}
+      <input type="hidden" name="to_status" id="rcTransitionTo">
+      <input type="hidden" name="next" id="rcTransitionNext" value="{{ request.get_full_path }}">
+      <div class="modal-header">
+        <h2 class="modal-title fs-6 fw-bold" id="rcTransitionTitle">Chuyển trạng thái</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3" id="rcTransitionText"></p>
+        <div class="mb-3 d-none" data-rc-group="reason">
+          <label class="form-label fw-semibold small" for="rcReason">Lý do <span class="text-danger">*</span></label>
+          <textarea name="reason" id="rcReason" class="form-control" rows="3"></textarea>
+        </div>
+        <div class="d-none" data-rc-group="interview">
+          <div class="row g-2 mb-3">
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold small" for="rcInterviewTime">Bắt đầu <span class="text-danger">*</span></label>
+              <input type="datetime-local" name="interview_time" id="rcInterviewTime" class="form-control" step="300">
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold small" for="rcDuration">Thời lượng <span class="text-danger">*</span></label>
+              <select id="rcDuration" class="form-select">
+                <option value="15">15 phút</option>
+                <option value="30">30 phút</option>
+                <option value="45">45 phút</option>
+                <option value="60" selected>1 giờ</option>
+                <option value="90">1 giờ 30 phút</option>
+                <option value="120">2 giờ</option>
+                <option value="180">3 giờ</option>
+                <option value="custom">Tuỳ chỉnh</option>
+              </select>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold small" for="rcInterviewEnd">Kết thúc <span class="text-danger">*</span></label>
+              <input type="datetime-local" name="interview_end" id="rcInterviewEnd" class="form-control" step="300">
+            </div>
+            <div class="col-sm-6 d-flex align-items-end">
+              <div class="small text-muted pb-2" id="rcDurationText" aria-live="polite"></div>
+            </div>
+          </div>
+          <div class="mb-3">
+            {% if interview_locations %}
+            <label class="form-label fw-semibold small" for="rcLocationPick">Địa điểm</label>
+            <select id="rcLocationPick" class="form-select">
+              <option value="">— Chọn địa điểm họp —</option>
+              {% for loc in interview_locations %}
+              <option value="{{ loc.name }}">{{ loc.name }}{% if loc.note %} — {{ loc.note }}{% endif %}</option>
+              {% endfor %}
+              <option value="__other">Khác (nhập tay)…</option>
+            </select>
+            <input type="text" name="location" id="rcLocation" class="form-control mt-2 d-none" maxlength="255"
+                   placeholder="Nhập địa điểm" aria-label="Địa điểm khác">
+            {% else %}
+            <label class="form-label fw-semibold small" for="rcLocation">Địa điểm</label>
+            <input type="text" name="location" id="rcLocation" class="form-control" maxlength="255">
+            {% endif %}
+          </div>
+          <div class="mb-1">
+            <label class="form-label fw-semibold small" for="rcInterviewers">Người phỏng vấn</label>
+            <select name="interviewers" id="rcInterviewers" class="form-select" multiple size="5">
+              {% for u in transition_form.fields.interviewers.queryset %}
+              <option value="{{ u.pk }}">{{ u.profile.full_name|default:u.username }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Hủy</button>
+        <button type="submit" class="btn btn-hm btn-sm fw-bold" id="rcTransitionSubmit">Xác nhận</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+(function () {
+  var modalEl = document.getElementById('rcTransitionModal');
+  if (!modalEl || modalEl.dataset.bound === '1') return;
+  modalEl.dataset.bound = '1';
+  var form = document.getElementById('rcTransitionForm');
+  var REASON = ['rejected', 'not_onboarded'];
+
+  function show(group, on) {
+    var el = modalEl.querySelector('[data-rc-group="' + group + '"]');
+    el.classList.toggle('d-none', !on);
+    el.querySelectorAll('input, textarea').forEach(function (inp) {
+      if (inp.name === 'reason' || inp.name === 'interview_time' || inp.name === 'interview_end') inp.required = on;
+    });
+  }
+
+  var startEl = document.getElementById('rcInterviewTime');
+  var endEl = document.getElementById('rcInterviewEnd');
+  var durEl = document.getElementById('rcDuration');
+  var durText = document.getElementById('rcDurationText');
+
+  function parseLocal(v) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(v || '');
+    return m ? new Date(+m[1], m[2] - 1, +m[3], +m[4], +m[5]) : null;
+  }
+  function toLocal(d) {
+    function p(n) { return (n < 10 ? '0' : '') + n; }
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+  function fmtMinutes(min) {
+    var h = Math.floor(min / 60), m = min % 60;
+    return h && m ? h + ' giờ ' + m + ' phút' : (h ? h + ' giờ' : m + ' phút');
+  }
+  function refreshDuration() {
+    var s = parseLocal(startEl.value), e = parseLocal(endEl.value);
+    endEl.setCustomValidity('');
+    if (!s || !e) { durText.textContent = ''; return; }
+    var min = Math.round((e - s) / 60000);
+    if (min <= 0) {
+      durText.textContent = '';
+      endEl.setCustomValidity('Thời gian kết thúc phải sau thời gian bắt đầu.');
+      return;
+    }
+    durText.textContent = 'Thời lượng: ' + fmtMinutes(min);
+    var opt = durEl.querySelector('option[value="' + min + '"]');
+    durEl.value = opt ? String(min) : 'custom';
+  }
+  function applyDuration() {
+    var s = parseLocal(startEl.value);
+    if (!s || durEl.value === 'custom') { refreshDuration(); return; }
+    endEl.value = toLocal(new Date(s.getTime() + (+durEl.value) * 60000));
+    refreshDuration();
+  }
+  startEl.addEventListener('change', applyDuration);
+  startEl.addEventListener('input', applyDuration);
+  durEl.addEventListener('change', function () {
+    if (durEl.value === 'custom') endEl.focus(); else applyDuration();
+  });
+  endEl.addEventListener('change', refreshDuration);
+  endEl.addEventListener('input', refreshDuration);
+
+  var locPick = document.getElementById('rcLocationPick');
+  var locInput = document.getElementById('rcLocation');
+  function syncLocation() {
+    if (!locPick) return;
+    var other = locPick.value === '__other';
+    locInput.classList.toggle('d-none', !other);
+    locInput.value = other ? '' : locPick.value;
+    if (other) locInput.focus();
+  }
+  if (locPick) locPick.addEventListener('change', syncLocation);
+
+  window.jpRcOpenTransition = function (opts) {
+    form.reset();
+    form.action = opts.url;
+    document.getElementById('rcTransitionTo').value = opts.to;
+    if (opts.next) document.getElementById('rcTransitionNext').value = opts.next;
+    document.getElementById('rcTransitionTitle').textContent = opts.toLabel;
+    document.getElementById('rcTransitionText').textContent =
+      'Chuyển «' + opts.name + '» sang «' + opts.toLabel + '»?';
+    show('reason', REASON.indexOf(opts.to) !== -1);
+    show('interview', opts.to === 'interviewing');
+    durEl.value = '60';
+    durText.textContent = '';
+    if (locPick) { locPick.value = ''; syncLocation(); }
+    endEl.setCustomValidity('');
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+  };
+
+  document.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('[data-rc-transition]');
+    if (!btn) return;
+    ev.preventDefault();
+    window.jpRcOpenTransition({
+      url: btn.dataset.url, to: btn.dataset.to, toLabel: btn.dataset.toLabel,
+      name: btn.dataset.name, next: btn.dataset.next,
+    });
+  });
+})();
+</script>

@@ -1,16 +1,26 @@
 """Phân quyền cập nhật avatar — không mặc định cho mọi nhân viên."""
 
 from hrm.group_permissions import get_user_group_permissions
-from hrm.module_permissions import MODULE_HRM, bypass_department_modules, user_can_update_module
+from hrm.module_permissions import (
+    MODULE_HRM,
+    MODULE_RECRUITMENT,
+    bypass_department_modules,
+    user_can_update_module,
+)
 
 EXTRA_UPDATE_OWN_AVATAR = 'update_own_avatar'
+# Tuyển dụng: bỏ giới hạn «chỉ vị trí mình quản lý» (HCNS, TGĐ) — xem recruitment.permissions.
+EXTRA_RECRUITMENT_ALL_DEPARTMENTS = 'all_departments'
 
+# Quyền bổ sung theo module (registry dùng chung cho ma trận nhóm quyền).
 MODULE_EXTRA_PERMS = {
     MODULE_HRM: (EXTRA_UPDATE_OWN_AVATAR,),
+    MODULE_RECRUITMENT: (EXTRA_RECRUITMENT_ALL_DEPARTMENTS,),
 }
 
 EXTRA_PERM_LABELS = {
     EXTRA_UPDATE_OWN_AVATAR: 'Cập nhật avatar cá nhân',
+    EXTRA_RECRUITMENT_ALL_DEPARTMENTS: 'Tuyển dụng — xem ứng viên mọi phòng ban',
 }
 
 

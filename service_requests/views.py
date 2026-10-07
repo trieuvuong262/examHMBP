@@ -443,10 +443,23 @@ def _apply_list_filters(request, qs, flow_tab, *, allow_mine=False):
     }
 
 
+def allowed_create_subtypes(user) -> list[tuple[str, str]]:
+    """Loại đề xuất user được chọn — «Yêu cầu ứng viên» chỉ cho TBP / Trưởng phòng / Giám đốc."""
+    from recruitment.permissions import is_hiring_manager
+
+    manager = is_hiring_manager(user)
+    return [
+        (code, label) for code, label in ServiceRequest.SUBTYPE_CHOICES
+        if code not in ServiceRequest.MANAGER_ONLY_SUBTYPES or manager
+    ]
+
+
 def _create_page_context(request, subtype):
     """Phần dùng chung của trang Gửi đề xuất: ô chọn loại + khung quy trình dự kiến."""
+    subtype_form = SubtypeSelectForm(initial={'request_subtype': subtype})
+    subtype_form.fields['request_subtype'].choices = allowed_create_subtypes(request.user)
     return {
-        'subtype_form': SubtypeSelectForm(initial={'request_subtype': subtype}),
+        'subtype_form': subtype_form,
         'current_subtype': subtype,
         'current_subtype_label': dict(ServiceRequest.SUBTYPE_CHOICES).get(subtype, ''),
         'flow_steps': preview_flow(request.user, subtype),
@@ -458,15 +471,21 @@ def _create_page_context(request, subtype):
 def _resolve_create_subtype(request):
     """Loại đề xuất đang chọn — POST > GET > mặc định mua hàng."""
     raw = (request.POST.get('request_subtype') or request.GET.get('request_subtype') or '').strip()
-    valid = {code for code, _ in ServiceRequest.SUBTYPE_CHOICES}
+    valid = {code for code, _ in allowed_create_subtypes(request.user)}
     if raw in valid:
         return raw
+    if raw in ServiceRequest.MANAGER_ONLY_SUBTYPES:
+        messages.error(request, 'Chỉ Trưởng bộ phận, Trưởng phòng hoặc Giám đốc được gửi yêu cầu ứng viên.')
     return ServiceRequest.SUBTYPE_PURCHASE
 
 
 @module_perm_required(MODULE_DE_XUAT, 'create')
 def create_request(request):
+    raw = (request.POST.get('request_subtype') or '').strip()
     subtype = _resolve_create_subtype(request)
+    if request.method == 'POST' and raw in ServiceRequest.MANAGER_ONLY_SUBTYPES and subtype != raw:
+        # Không quyền mà vẫn POST loại hạn chế → không tạo đề xuất loại khác thay thế.
+        return redirect('service_requests:create')
     if subtype == ServiceRequest.SUBTYPE_PURCHASE:
         return _create_purchase_request(request, subtype)
     return _create_general_request(request, subtype)
@@ -542,7 +561,7 @@ def _create_general_request(request, subtype):
         return redirect('service_requests:de_xuat_my')
 
     if request.method == 'POST':
-        form = GeneralProposalForm(request.POST, subtype=subtype)
+        form = GeneralProposalForm(request.POST, subtype=subtype, user=request.user)
         if form.is_valid():
             try:
                 service_request = create_general_request_with_steps(
@@ -576,7 +595,7 @@ def _create_general_request(request, subtype):
             except ValueError as exc:
                 messages.error(request, str(exc))
     else:
-        form = GeneralProposalForm(subtype=subtype)
+        form = GeneralProposalForm(subtype=subtype, user=request.user)
 
     return render(request, 'service_requests/form.html', {
         'general_form': form,
@@ -959,8 +978,33 @@ def request_detail(request, pk, flow_tab=None):
         'requester_confirm_form': requester_confirm_form,
         'equipment_it_url': equipment_it_url,
         'list_url': _list_url_for_request(service_request, request.user),
+        'recruitment_link': _recruitment_link(request.user, service_request),
     })
     return render(request, 'service_requests/detail.html', ctx)
+
+
+def _recruitment_link(user, service_request):
+    """Vị trí tuyển dụng sinh từ «Yêu cầu ứng viên» + tiến độ tuyển (hiện ở trang chi tiết)."""
+    if service_request.request_subtype not in (ServiceRequest.SUBTYPE_CANDIDATE, ServiceRequest.SUBTYPE_HR):
+        return None
+    from recruitment.models import JobPosting
+    from recruitment.permissions import can_access_job, can_jobs, manager_can_access_job
+    from recruitment.services import annotate_job_counts
+
+    job = (
+        annotate_job_counts(JobPosting.objects.filter(service_request=service_request))
+        .select_related('target_department', 'target_division').first()
+    )
+    if job is None:
+        if service_request.request_subtype != ServiceRequest.SUBTYPE_CANDIDATE:
+            return None
+        return {'job': None}
+    url = ''
+    if can_jobs(user, 'view') and can_access_job(user, job):
+        url = reverse('job_posting_edit', args=[job.pk])
+    elif manager_can_access_job(user, job):
+        url = reverse('recruitment_review_list')
+    return {'job': job, 'url': url}
 
 
 @_catalog_required

@@ -1,0 +1,239 @@
+{# Style dùng chung module Tuyển dụng — chỉ class tiền tố jp-rc-, không ghi đè theme. #}
+<style>
+  .jp-rc-badge {
+    display: inline-flex; align-items: center; gap: .25rem;
+    padding: .15rem .5rem; border-radius: 999px;
+    font-size: .72rem; font-weight: 600; line-height: 1.4;
+    border: 1px solid transparent; white-space: nowrap;
+  }
+  .jp-rc-badge.is-new { background: #f1f5f9; color: #334155; border-color: #e2e8f0; }
+  .jp-rc-badge.is-reviewing { background: #fffbeb; color: #a16207; border-color: #fde68a; }
+  .jp-rc-badge.is-interviewing { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+  .jp-rc-badge.is-offered { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+  .jp-rc-badge.is-hired { background: #047857; color: #fff; }
+  .jp-rc-badge.is-not_onboarded,
+  .jp-rc-badge.is-rejected { background: #f8fafc; color: #64748b; border-color: #e2e8f0; }
+  .jp-rc-badge.is-draft { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+  .jp-rc-badge.is-open { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+  .jp-rc-badge.is-paused { background: #fffbeb; color: #a16207; border-color: #fde68a; }
+  .jp-rc-badge.is-closed { background: #f8fafc; color: #64748b; border-color: #e2e8f0; }
+  .jp-rc-badge.is-pass { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+  .jp-rc-badge.is-fail { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+  .jp-rc-badge.is-pending { background: #f1f5f9; color: #475569; border-color: #e2e8f0; }
+  .jp-rc-badge.is-recommend { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+  .jp-rc-badge.is-consider { background: #fffbeb; color: #a16207; border-color: #fde68a; }
+  .jp-rc-badge.is-not_suitable { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+
+  .jp-rc-tools { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+  .jp-rc-tools .btn { display: inline-flex; align-items: center; justify-content: center; gap: .3rem; }
+
+  .jp-rc-stat { border: 1px solid #e2e8f0; border-radius: .6rem; padding: .75rem .9rem; background: #fff; height: 100%; }
+  .jp-rc-stat-value { font-size: 1.5rem; font-weight: 700; line-height: 1.1; color: #0f172a; }
+  .jp-rc-stat-label { font-size: .78rem; color: #64748b; }
+  a.jp-rc-stat { text-decoration: none; display: block; }
+  a.jp-rc-stat:hover { border-color: #94a3b8; }
+
+  .jp-rc-board { display: flex; gap: .65rem; overflow-x: auto; padding-bottom: .75rem; align-items: flex-start; }
+  .jp-rc-col {
+    flex: 0 0 15rem; max-width: 15rem; background: #f8fafc;
+    border: 1px solid #e8edf3; border-radius: .75rem; display: flex; flex-direction: column; min-height: 14rem;
+  }
+  .jp-rc-col-head {
+    display: flex; align-items: center; justify-content: space-between; gap: .35rem;
+    padding: .55rem .7rem; border-bottom: 1px solid #e8edf3; font-weight: 700; font-size: .82rem; color: #0f172a;
+  }
+  .jp-rc-col-count {
+    font-size: .72rem; font-weight: 600; color: #64748b; background: #fff;
+    border: 1px solid #e2e8f0; border-radius: 999px; padding: .05rem .45rem;
+  }
+  .jp-rc-col-body { flex: 1; padding: .45rem; display: flex; flex-direction: column; gap: .4rem; min-height: 8rem; }
+  .jp-rc-col-foot { padding: .35rem .45rem .5rem; }
+  .jp-rc-col.is-over { outline: 2px solid #0369a1; outline-offset: -2px; background: #eff6ff; }
+  .jp-rc-col.is-blocked { opacity: .45; }
+  .jp-rc-card {
+    background: #fff; border: 1px solid #e2e8f0; border-left: 3px solid #94a3b8; border-radius: .55rem;
+    padding: .5rem .55rem; box-shadow: 0 2px 8px rgba(15, 23, 42, .04);
+  }
+  .jp-rc-card[draggable="true"] { cursor: grab; }
+  .jp-rc-card.is-dragging { opacity: .45; }
+  .jp-rc-col.is-reviewing .jp-rc-card { border-left-color: #d97706; }
+  .jp-rc-col.is-interviewing .jp-rc-card { border-left-color: #2563eb; }
+  .jp-rc-col.is-offered .jp-rc-card,
+  .jp-rc-col.is-hired .jp-rc-card { border-left-color: #059669; }
+  .jp-rc-col.is-closed .jp-rc-card { border-left-color: #cbd5e1; background: #fbfcfd; }
+  .jp-rc-card-name { font-weight: 700; font-size: .84rem; color: #0f172a; text-decoration: none; }
+  .jp-rc-card-name:hover { color: var(--hm-primary, #dc2626); }
+  .jp-rc-card-meta { font-size: .72rem; color: #64748b; line-height: 1.4; }
+
+  .jp-rc-timeline { list-style: none; margin: 0; padding: 0; }
+  .jp-rc-timeline li { position: relative; padding: 0 0 .85rem 1.1rem; border-left: 2px solid #e2e8f0; margin-left: .35rem; }
+  .jp-rc-timeline li:last-child { border-left-color: transparent; }
+  .jp-rc-timeline li::before {
+    content: ''; position: absolute; left: -.42rem; top: .2rem; width: .7rem; height: .7rem;
+    border-radius: 50%; background: #fff; border: 2px solid #94a3b8;
+  }
+  .jp-rc-timeline-msg { white-space: pre-line; font-size: .85rem; }
+  .jp-rc-dl dt { font-size: .75rem; color: #64748b; font-weight: 600; }
+  .jp-rc-dl dd { margin-bottom: .6rem; }
+
+  /* Form theo khối có đánh số — cùng ngôn ngữ với form Gửi đề xuất */
+  .jp-rc-card { border-radius: .75rem; }
+  .jp-rc-card + .jp-rc-card { margin-top: 1rem; }
+  .jp-rc-section-title {
+    display: flex; align-items: center; gap: .5rem;
+    font-size: .95rem; font-weight: 700; color: var(--hm-primary); margin-bottom: .9rem;
+  }
+  .jp-rc-step-no {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 1.6rem; height: 1.6rem; border-radius: 50%;
+    background: var(--hm-primary); color: #fff; font-size: .8rem; line-height: 1;
+  }
+  .jp-rc-required-note { font-size: .8rem; color: #64748b; }
+  .jp-rc-field.has-error .form-control,
+  .jp-rc-field.has-error .form-select { border-color: #dc3545; }
+  .jp-rc-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-top: 1rem; }
+  .jp-rc-actions .btn { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; }
+  .jp-rc-aside { position: sticky; top: 1rem; }
+
+  .jp-rc-flow { list-style: none; margin: 0; padding: 0; counter-reset: rcflow; }
+  .jp-rc-flow li { position: relative; padding: 0 0 .9rem 2.2rem; counter-increment: rcflow; }
+  .jp-rc-flow li::before {
+    content: counter(rcflow); position: absolute; left: 0; top: 0;
+    width: 1.5rem; height: 1.5rem; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: .75rem; font-weight: 700; line-height: 1;
+    background: #fff; color: var(--hm-primary); border: 1.5px solid var(--hm-primary);
+  }
+  .jp-rc-flow li.is-current::before { background: var(--hm-primary); color: #fff; }
+  .jp-rc-flow li:not(:last-child)::after {
+    content: ''; position: absolute; left: .72rem; top: 1.6rem; bottom: .1rem; border-left: 1.5px dashed #cbd5e1;
+  }
+  .jp-rc-flow-label { font-weight: 600; font-size: .9rem; }
+  .jp-rc-flow-note { font-size: .78rem; color: #64748b; }
+
+  .jp-rc-kv { display: flex; justify-content: space-between; gap: .75rem; padding: .45rem 0; border-bottom: 1px dashed #e2e8f0; font-size: .88rem; }
+  .jp-rc-kv:last-child { border-bottom: 0; }
+  .jp-rc-kv-label { color: #64748b; }
+  .jp-rc-kv-value { font-weight: 600; text-align: right; }
+  .jp-rc-progress { height: .45rem; border-radius: 999px; background: #eef2f7; overflow: hidden; }
+  .jp-rc-progress > span { display: block; height: 100%; background: #059669; border-radius: 999px; }
+
+  /* Danh sách đánh giá */
+  .jp-rc-count { background: rgba(100, 116, 139, .15); color: inherit; font-size: .7rem; }
+  .jp-portal-pills .nav-link.active .jp-rc-count { background: rgba(255, 255, 255, .25); }
+  .jp-rc-row { display: flex; align-items: center; gap: .85rem; padding: .85rem 1rem; border-bottom: 1px solid #eef2f7; }
+  .jp-rc-row:last-child { border-bottom: 0; }
+  .jp-rc-row.needs-action { box-shadow: inset 3px 0 0 var(--hm-primary); }
+  .jp-rc-avatar {
+    flex: 0 0 2.4rem; width: 2.4rem; height: 2.4rem; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: #fef2f2; color: var(--hm-primary); font-weight: 700; font-size: .85rem;
+  }
+  .jp-rc-row-main { flex: 1; min-width: 0; }
+  .jp-rc-row-title { font-weight: 700; color: #0f172a; text-decoration: none; }
+  .jp-rc-row-title:hover { color: var(--hm-primary); }
+  .jp-rc-row-meta { font-size: .78rem; color: #64748b; }
+  .jp-rc-row-side { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; justify-content: flex-end; }
+  .jp-rc-empty { text-align: center; padding: 2.5rem 1rem; color: #64748b; }
+  .jp-rc-empty i { font-size: 2rem; color: #cbd5e1; display: block; margin-bottom: .5rem; }
+  @media (max-width: 575.98px) {
+    .jp-rc-row { flex-wrap: wrap; }
+    .jp-rc-row-side { width: 100%; justify-content: flex-start; padding-left: 3.25rem; }
+  }
+
+  /* Kết quả phỏng vấn — 2 lựa chọn dạng thẻ */
+  .jp-rc-result-choices { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+  .jp-rc-result-opt {
+    display: flex; align-items: center; gap: .6rem; margin: 0; cursor: pointer;
+    padding: .7rem .8rem; border: 1.5px solid #e2e8f0; border-radius: .65rem; background: #fff;
+    transition: border-color .15s, background-color .15s, box-shadow .15s;
+  }
+  .jp-rc-result-opt i { font-size: 1.35rem; color: #cbd5e1; transition: color .15s; }
+  .jp-rc-result-opt strong { display: block; font-size: .92rem; color: #0f172a; }
+  .jp-rc-result-opt small { display: block; font-size: .74rem; color: #64748b; }
+  .jp-rc-result-opt:hover { border-color: #94a3b8; }
+  .btn-check:focus-visible + .jp-rc-result-opt { box-shadow: 0 0 0 .2rem rgba(37, 99, 235, .25); }
+  .btn-check:checked + .jp-rc-result-opt.is-pass { border-color: #059669; background: #ecfdf5; }
+  .btn-check:checked + .jp-rc-result-opt.is-pass i { color: #059669; }
+  .btn-check:checked + .jp-rc-result-opt.is-fail { border-color: #dc2626; background: #fef2f2; }
+  .btn-check:checked + .jp-rc-result-opt.is-fail i { color: #dc2626; }
+
+  /* Danh sách ứng viên — chip trạng thái */
+  .jp-rc-chips { display: flex; gap: .4rem; overflow-x: auto; padding-bottom: .15rem; scrollbar-width: thin; }
+  .jp-rc-chip {
+    display: inline-flex; align-items: center; gap: .4rem; flex: 0 0 auto;
+    padding: .35rem .75rem; border-radius: 999px; border: 1px solid #e2e8f0; background: #fff;
+    font-size: .8rem; font-weight: 600; color: #334155; text-decoration: none; white-space: nowrap;
+  }
+  .jp-rc-chip:hover { border-color: #94a3b8; color: #0f172a; }
+  .jp-rc-chip-n { font-size: .72rem; padding: 0 .4rem; border-radius: 999px; background: #f1f5f9; color: #475569; }
+  .jp-rc-chip::before { content: ''; width: .5rem; height: .5rem; border-radius: 50%; background: #cbd5e1; }
+  .jp-rc-chip.is-all::before, .jp-rc-chip.is-group::before { display: none; }
+  .jp-rc-chip.is-need::before { background: var(--hm-primary, #dc2626); }
+  .jp-rc-chip.is-need { border-color: #fecaca; color: #b91c1c; }
+  .jp-rc-chip.is-need .jp-rc-chip-n { background: #fee2e2; color: #b91c1c; }
+  .jp-rc-chip.is-reviewing::before { background: #d97706; }
+  .jp-rc-chip.is-interviewing::before { background: #2563eb; }
+  .jp-rc-chip.is-offered::before { background: #10b981; }
+  .jp-rc-chip.is-hired::before { background: #047857; }
+  .jp-rc-chip.is-new::before { background: #64748b; }
+  .jp-rc-chip.active { background: #0f172a; border-color: #0f172a; color: #fff; }
+  .jp-rc-chip.active .jp-rc-chip-n { background: rgba(255, 255, 255, .2); color: #fff; }
+  .jp-rc-chip.is-need.active { background: var(--hm-primary, #dc2626); border-color: var(--hm-primary, #dc2626); }
+  .jp-rc-chip.is-zero:not(.active) { opacity: .55; }
+
+  /* Danh sách ứng viên — bảng */
+  .jp-rc-table td { padding-top: .7rem; padding-bottom: .7rem; }
+  .jp-rc-table tr.is-need td:first-child { box-shadow: inset 3px 0 0 var(--hm-primary, #dc2626); }
+  .jp-rc-person { display: flex; align-items: center; gap: .65rem; min-width: 12rem; }
+  .jp-rc-person .jp-rc-avatar { flex-basis: 2.2rem; width: 2.2rem; height: 2.2rem; font-size: .8rem; }
+  .jp-rc-person-name { font-weight: 700; color: #0f172a; text-decoration: none; }
+  .jp-rc-person-name:hover { color: var(--hm-primary, #dc2626); }
+  .jp-rc-sub { font-size: .76rem; color: #64748b; line-height: 1.35; }
+
+  .jp-rc-steps { display: flex; align-items: center; gap: 0; margin: 0 0 .35rem; padding: 0; list-style: none; }
+  .jp-rc-steps li { position: relative; display: flex; align-items: center; }
+  .jp-rc-steps li + li::before { content: ''; width: .9rem; height: 2px; background: #e2e8f0; }
+  .jp-rc-steps li.is-done + li::before,
+  .jp-rc-steps li.is-done + li.is-current::before { background: #10b981; }
+  .jp-rc-steps .dot {
+    width: .7rem; height: .7rem; border-radius: 50%; background: #fff; border: 2px solid #cbd5e1; display: block;
+  }
+  .jp-rc-steps li.is-done .dot { background: #10b981; border-color: #10b981; }
+  .jp-rc-steps li.is-current .dot { border-color: #2563eb; background: #2563eb; box-shadow: 0 0 0 3px #dbeafe; }
+  .jp-rc-steps li.is-closed .dot { border-color: #94a3b8; background: #94a3b8; position: relative; }
+  .jp-rc-steps li.is-closed .dot::after {
+    content: '×'; position: absolute; inset: -.3rem 0 0; color: #fff; font-size: .62rem; font-weight: 700; text-align: center;
+  }
+
+  .jp-rc-next { display: flex; gap: .5rem; align-items: flex-start; min-width: 12rem; }
+  .jp-rc-next-icon {
+    flex: 0 0 1.7rem; width: 1.7rem; height: 1.7rem; border-radius: .45rem;
+    display: inline-flex; align-items: center; justify-content: center; font-size: .85rem;
+  }
+  .jp-rc-next-label { font-weight: 600; font-size: .84rem; color: #0f172a; line-height: 1.3; }
+  .jp-rc-next.is-action .jp-rc-next-icon { background: #fef2f2; color: var(--hm-primary, #dc2626); }
+  .jp-rc-next.is-wait .jp-rc-next-icon { background: #eff6ff; color: #2563eb; }
+  .jp-rc-next.is-alert .jp-rc-next-icon { background: #fff7ed; color: #c2410c; }
+  .jp-rc-next.is-alert .jp-rc-next-label { color: #c2410c; }
+  .jp-rc-next.is-done .jp-rc-next-icon { background: #ecfdf5; color: #047857; }
+  .jp-rc-next.is-muted .jp-rc-next-icon { background: #f1f5f9; color: #94a3b8; }
+  .jp-rc-next.is-muted .jp-rc-next-label { color: #64748b; }
+  .jp-rc-row-actions { display: inline-flex; align-items: center; gap: .35rem; justify-content: flex-end; }
+  .jp-rc-row-actions .btn { display: inline-flex; align-items: center; gap: .3rem; white-space: nowrap; }
+
+  [data-theme="dark"] .jp-rc-chip,
+  [data-theme="dark"] .jp-rc-result-opt { background: transparent; border-color: #334155; color: #e2e8f0; }
+  [data-theme="dark"] .jp-rc-person-name,
+  [data-theme="dark"] .jp-rc-next-label,
+  [data-theme="dark"] .jp-rc-result-opt strong { color: #e2e8f0; }
+  [data-theme="dark"] .jp-rc-stat,
+  [data-theme="dark"] .jp-rc-card { background: var(--bs-body-bg, #1e293b); border-color: #334155; }
+  [data-theme="dark"] .jp-rc-stat-value,
+  [data-theme="dark"] .jp-rc-row-title { color: #e2e8f0; }
+  [data-theme="dark"] .jp-rc-flow li::before { background: transparent; }
+  [data-theme="dark"] .jp-rc-row,
+  [data-theme="dark"] .jp-rc-kv { border-color: #334155; }
+  [data-theme="dark"] .jp-rc-progress { background: #334155; }
+  [data-theme="dark"] .jp-rc-avatar { background: rgba(220, 38, 38, .18); }
+</style>

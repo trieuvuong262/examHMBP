@@ -167,7 +167,9 @@ class PermissionLogicTests(TestCase):
         self.assertTrue(user_can_access_module(self.team_leader, MODULE_KPI))
         self.assertTrue(user_can_edit_module(self.team_leader, MODULE_KPI))
 
-    def test_recruitment_hidden_from_portal_permissions(self):
+    def test_recruitment_visible_but_team_leader_has_no_access(self):
+        from hrm.module_permissions import is_portal_module_visible
+        self.assertTrue(is_portal_module_visible(MODULE_RECRUITMENT))
         self.assertFalse(user_can_edit_module(self.team_leader, MODULE_RECRUITMENT))
         self.assertFalse(user_can_access_module(self.team_leader, MODULE_RECRUITMENT))
 

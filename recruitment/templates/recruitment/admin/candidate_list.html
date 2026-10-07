@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block extra_head %}{% include 'recruitment/includes/rc_styles.html' %}{% endblock %}
+{% block content %}
+<div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
+  {% url 'export_candidates_excel' as export_base %}
+  {% with export_url=export_base|add:'?'|add:request.GET.urlencode %}
+  {% include 'recruitment/includes/candidate_header.html' %}
+  {% endwith %}
+
+  <nav class="jp-rc-chips mb-3" aria-label="Lọc theo trạng thái">
+    {% for chip in status_chips %}
+    <a href="{{ chip.url }}" class="jp-rc-chip is-{{ chip.tone }}{% if chip.active %} active{% endif %}{% if not chip.count %} is-zero{% endif %}"
+       {% if chip.active %}aria-current="page"{% endif %}>
+      {% if chip.tone == 'need' %}<i class="bi bi-lightning-charge-fill" aria-hidden="true"></i>{% endif %}
+      {{ chip.label }} <span class="jp-rc-chip-n">{{ chip.count }}</span>
+    </a>
+    {% endfor %}
+  </nav>
+
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-3">
+      <form method="get" class="row g-2 align-items-end" role="search">
+        {% if filters.status %}<input type="hidden" name="status" value="{{ filters.status }}">{% endif %}
+        <div class="col-md-4 col-lg-3">
+          <label class="form-label small fw-bold text-muted mb-1" for="clJob">Vị trí</label>
+          <select name="job_id" id="clJob" class="form-select" onchange="this.form.submit()">
+            <option value="">Tất cả vị trí</option>
+            {% for job in jobs %}
+            <option value="{{ job.pk }}"{% if selected_job == job.pk %} selected{% endif %}>{{ job.title }}{% if job.status != 'open' %} ({{ job.get_status_display|lower }}){% endif %}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label small fw-bold text-muted mb-1" for="clSource">Nguồn</label>
+          <select name="source" id="clSource" class="form-select" onchange="this.form.submit()">
+            <option value="">Tất cả</option>
+            {% for key, label in source_choices %}
+            <option value="{{ key }}"{% if filters.source == key %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label small fw-bold text-muted mb-1" for="clSort">Sắp xếp</label>
+          <select name="sort" id="clSort" class="form-select" onchange="this.form.submit()">
+            {% for key, label in sort_options %}
+            <option value="{{ key }}"{% if current_sort == key %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4 col-lg-5">
+          <label class="form-label small fw-bold text-muted mb-1" for="clQ">Tìm ứng viên</label>
+          <div class="input-group jp-hrm-search">
+            {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Họ tên, SĐT, email…' clear_url=request.path %}
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm overflow-hidden">
+    <div class="card-header bg-white">
+      <span class="fw-bold">{{ page_obj.paginator.count }} ứng viên</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 jp-rc-table">
+        <thead class="table-light">
+          <tr class="small text-muted">
+            <th class="ps-3">Ứng viên</th>
+            <th>Vị trí</th>
+            <th>Tiến trình</th>
+            <th>Bước tiếp theo</th>
+            <th class="text-end pe-3"><span class="visually-hidden">Thao tác</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for cand in candidates %}
+          {% with job=cand.job_posting step=cand.next_step inv=cand.interview_or_none %}
+          <tr class="{% if step.tone == 'action' or step.tone == 'alert' %}is-need{% endif %}">
+            <td class="ps-3">
+              <div class="jp-rc-person">
+                <span class="jp-rc-avatar" aria-hidden="true">{{ cand.full_name|slice:":1"|upper }}</span>
+                <div class="min-w-0">
+                  <a href="{% url 'candidate_detail' cand.pk %}" class="jp-rc-person-name">{{ cand.full_name }}</a>
+                  <div class="jp-rc-sub">{{ cand.phone }}{% if cand.email %} · {{ cand.email }}{% endif %}</div>
+                  <div class="jp-rc-sub">
+                    {% if cand.referred_by %}<i class="bi bi-person-check" aria-hidden="true"></i> {{ cand.referred_by.profile.full_name|default:cand.referred_by.username }}
+                    {% else %}{{ cand.source_label }}{% endif %} · Nộp {{ cand.applied_at|date:"d/m/Y" }}
+                  </div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <div class="fw-semibold small">{{ job.title }}</div>
+              <div class="jp-rc-sub">{{ job.department_label }}</div>
+            </td>
+            <td>
+              <ol class="jp-rc-steps" aria-label="Tiến trình tuyển dụng">
+                {% for s in cand.progress %}
+                <li class="is-{{ s.state }}" title="{{ s.label }}"><span class="dot"></span><span class="visually-hidden">{{ s.label }}</span></li>
+                {% endfor %}
+              </ol>
+              <span class="jp-rc-badge is-{{ cand.status }}">{{ cand.get_status_display }}</span>
+              {% if inv and inv.result != 'pending' %}<span class="jp-rc-badge is-{{ inv.result }}">PV {{ inv.get_result_display|lower }}</span>{% endif %}
+            </td>
+            <td>
+              <div class="jp-rc-next is-{{ step.tone }}">
+                <div class="jp-rc-next-label">{{ step.label }}</div>
+              </div>
+            </td>
+            <td class="text-end pe-3">
+              <div class="jp-rc-row-actions">
+                {% if step.action == 'move' and can_move %}
+                <button type="button" class="btn btn-hm btn-sm fw-bold" data-rc-transition
+                        data-url="{% url 'candidate_transition' cand.pk %}" data-to="{{ step.to }}"
+                        data-to-label="{% if step.to == 'reviewing' %}Chờ quản lý đánh giá{% else %}Phỏng vấn{% endif %}"
+                        data-name="{{ cand.full_name }}" data-next="{{ request.get_full_path }}">
+                  <i class="bi {{ step.icon }}" aria-hidden="true"></i>{{ step.button }}
+                </button>
+                {% elif step.action == 'result' %}
+                <button type="button" class="btn btn-hm btn-sm fw-bold" data-rc-result
+                        data-url="{% url 'candidate_interview_result' cand.pk %}" data-name="{{ cand.full_name }}"
+                        data-time="{{ inv.time_range_label }}" data-next="{{ request.get_full_path }}">
+                  <i class="bi {{ step.icon }}" aria-hidden="true"></i>{{ step.button }}
+                </button>
+                {% elif step.action == 'onboard' %}
+                <a href="{% url 'candidate_detail' cand.pk %}#onboard" class="btn btn-success btn-sm fw-bold">
+                  <i class="bi {{ step.icon }}" aria-hidden="true"></i>{{ step.button }}
+                </a>
+                {% endif %}
+                {% include 'recruitment/includes/cv_button.html' with candidate=cand f=cand.primary_file %}
+                {% if can_move %}{% include 'recruitment/includes/move_menu.html' with cand=cand compact=True %}{% endif %}
+                <a href="{% url 'candidate_detail' cand.pk %}" class="btn btn-light btn-sm border" title="Chi tiết" aria-label="Chi tiết {{ cand.full_name }}"><i class="bi bi-chevron-right"></i></a>
+              </div>
+            </td>
+          </tr>
+          {% endwith %}
+          {% empty %}
+          <tr><td colspan="5">
+            <div class="jp-rc-empty">
+              {% if filters.status == 'can-xu-ly' %}
+              <i class="bi bi-check2-circle" aria-hidden="true"></i>
+              <div class="fw-semibold">Không còn hồ sơ cần HR xử lý</div>
+              <div class="small">Các hồ sơ còn lại đang chờ quản lý đánh giá hoặc chờ phỏng vấn.</div>
+              {% else %}
+              <i class="bi bi-search" aria-hidden="true"></i>
+              <div class="fw-semibold">Không có ứng viên phù hợp bộ lọc</div>
+              {% endif %}
+            </div>
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if page_obj.has_other_pages %}
+    <div class="card-footer bg-white">
+      {% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% include 'recruitment/includes/transition_modal.html' %}
+{% include 'recruitment/includes/interview_result_modal.html' %}
+{% include 'recruitment/includes/cv_viewer.html' %}
+{% endblock %}

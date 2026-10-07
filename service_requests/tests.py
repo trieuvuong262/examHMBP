@@ -753,24 +753,85 @@ class GeneralProposalTests(TestCase):
         self.assertEqual(req.request_subtype, ServiceRequest.SUBTYPE_ACCOUNT)
         self.assertEqual(req.extra_data.get('account_kind'), 'Email')
 
-    def test_hr_proposal_creates_request(self):
-        self.client.force_login(self.employee)
-        resp = self.client.post(reverse('service_requests:create'), {
-            'request_subtype': 'hr',
+    def _candidate_post(self, **overrides):
+        data = {
+            'request_subtype': 'candidate',
             'title': 'Tuyển công nhân may',
-            'description': 'Bổ sung nhân lực chuyền 2',
-            'hr_kind': 'recruit',
+            'description': 'May áo thun chuyền 2',
             'position': 'Công nhân may',
             'target_department': str(self.dept_prod.pk),
             'headcount': '3',
             'recruit_reason': 'addition',
             'desired_date': '2026-11-01',
+            'candidate_requirements': 'Biết may 1 kim',
+        }
+        data.update(overrides)
+        return self.client.post(reverse('service_requests:create'), data)
+
+    def test_candidate_request_by_manager_creates_request(self):
+        self.client.force_login(self.div_head)
+        resp = self._candidate_post()
+        self.assertEqual(resp.status_code, 302)
+        req = ServiceRequest.objects.get(requester=self.div_head)
+        self.assertEqual(req.request_subtype, ServiceRequest.SUBTYPE_CANDIDATE)
+        self.assertEqual(req.extra_data.get('headcount'), 3)
+        self.assertEqual(req.extra_data.get('target_department'), 'Sản xuất')
+        final = req.steps.order_by('step_order').last()
+        self.assertEqual(final.target_department_id, self.dept_hr.id)
+
+    def test_employee_cannot_request_candidate(self):
+        self.client.force_login(self.employee)
+        page = self.client.get(reverse('service_requests:create'))
+        self.assertNotContains(page, 'value="candidate"')
+        resp = self._candidate_post()
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(ServiceRequest.objects.filter(requester=self.employee).exists())
+
+    def test_manager_sees_candidate_subtype(self):
+        self.client.force_login(self.div_head)
+        page = self.client.get(reverse('service_requests:create'))
+        self.assertContains(page, 'value="candidate"')
+
+    def test_candidate_request_limited_to_managed_department(self):
+        self.client.force_login(self.div_head)
+        resp = self._candidate_post(target_department=str(self.dept_it.pk))
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(ServiceRequest.objects.filter(requester=self.div_head).exists())
+
+    def test_completed_candidate_request_creates_draft_job(self):
+        from hrm.models import Division
+        from recruitment.models import JobPosting
+        from service_requests.workflow import _maybe_complete_request
+
+        div = Division.objects.create(name='Chuyền 2', department=self.dept_prod)
+        self.client.force_login(self.div_head)
+        self._candidate_post(target_division=str(div.pk))
+        req = ServiceRequest.objects.get(requester=self.div_head)
+        req.steps.all().delete()
+        self.assertTrue(_maybe_complete_request(req, actor=self.director))
+        job = JobPosting.objects.get(service_request=req)
+        self.assertEqual(job.status, JobPosting.STATUS_DRAFT)
+        self.assertEqual(job.target_division, div)
+        self.assertEqual(job.quantity, 3)
+        detail = self.client.get(reverse('service_requests:de_xuat_detail', args=[req.pk]))
+        self.assertContains(detail, 'Tuyển dụng')
+        self.assertContains(detail, job.title)
+
+    def test_hr_subtype_is_transfer_only(self):
+        self.client.force_login(self.employee)
+        resp = self.client.post(reverse('service_requests:create'), {
+            'request_subtype': 'hr',
+            'title': 'Điều chuyển',
+            'description': 'Bổ sung chuyền 3',
+            'transfer_employee': 'Nguyễn A',
+            'from_department': str(self.dept_prod.pk),
+            'to_department': str(self.dept_hr.pk),
+            'effective_date': '2026-11-01',
         })
         self.assertEqual(resp.status_code, 302)
         req = ServiceRequest.objects.get(requester=self.employee)
         self.assertEqual(req.request_subtype, ServiceRequest.SUBTYPE_HR)
-        self.assertEqual(req.extra_data.get('headcount'), 3)
-        self.assertEqual(req.extra_data.get('hr_kind'), 'Tuyển dụng')
+        self.assertNotIn('hr_kind', req.extra_data)
 
     def test_general_proposal_appears_in_de_xuat_my_list(self):
         self.client.force_login(self.employee)
@@ -899,7 +960,7 @@ class ProposalFormRulesTests(TestCase):
 
     def test_hr_transfer_fields_and_recruit_fields_independent(self):
         form = self._form('hr', {
-            'hr_kind': 'transfer', 'transfer_employee': 'Nguyễn A',
+            'transfer_employee': 'Nguyễn A',
             'from_department': str(self.dept_a.pk), 'to_department': str(self.dept_b.pk),
             'effective_date': '2026-11-01',
         })
@@ -910,17 +971,18 @@ class ProposalFormRulesTests(TestCase):
 
     def test_hr_transfer_same_department_rejected(self):
         form = self._form('hr', {
-            'hr_kind': 'transfer', 'transfer_employee': 'Nguyễn A',
+            'transfer_employee': 'Nguyễn A',
             'from_department': str(self.dept_a.pk), 'to_department': str(self.dept_a.pk),
             'effective_date': '2026-11-01',
         })
         self.assertFalse(form.is_valid())
         self.assertIn('to_department', form.errors)
 
-    def test_hr_recruit_requires_position_headcount(self):
-        form = self._form('hr', {'hr_kind': 'recruit'})
+    def test_candidate_requires_position_headcount(self):
+        form = self._form('candidate', {})
         self.assertFalse(form.is_valid())
-        for name in ('position', 'target_department', 'headcount', 'recruit_reason', 'desired_date'):
+        for name in ('position', 'target_department', 'headcount', 'recruit_reason', 'desired_date',
+                     'candidate_requirements'):
             self.assertIn(name, form.errors)
         self.assertNotIn('transfer_employee', form.errors)
 

@@ -759,17 +759,8 @@ def user_delete(request, user_id):
     if is_protected_system_user(user):
         messages.error(request, "Không thể xóa tài khoản quản trị hệ thống!")
     else:
-        deleted_email = user.email 
+        # Hồ sơ tuyển dụng giữ nguyên trạng thái (Candidate.employee → SET_NULL).
         user.delete()
-        
-        # Đồng bộ trạng thái thẻ Kanban bên Recruitment
-        if deleted_email:
-            try:
-                from recruitment.models import Candidate
-                Candidate.objects.filter(email=deleted_email, status='hired').update(status='interviewing')
-            except:
-                pass
-                
         messages.success(request, "Đã xóa nhân viên khỏi hệ thống.")
     return redirect('user_list')
 

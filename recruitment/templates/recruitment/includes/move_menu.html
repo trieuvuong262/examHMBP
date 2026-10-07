@@ -1,0 +1,22 @@
+{# Nút «Chuyển» — danh sách bước được phép. Tham số: cand, cls, compact (chỉ icon) #}
+{% if cand.move_targets %}
+<div class="dropdown d-inline-block">
+  <button type="button" class="{{ cls|default:'btn btn-light btn-sm border' }}{% if not compact %} dropdown-toggle{% endif %}"
+          data-bs-toggle="dropdown" aria-expanded="false" draggable="false"
+          aria-label="Chuyển bước cho {{ cand.full_name }}" title="Chuyển bước thủ công">
+    {% if compact %}<i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
+    {% else %}<i class="bi bi-arrow-right-circle" aria-hidden="true"></i><span class="ms-1">Chuyển</span>{% endif %}
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    {% if compact %}<li><h6 class="dropdown-header">Chuyển thủ công sang</h6></li>{% endif %}
+    {% for status, label in cand.move_targets %}
+    <li>
+      <button type="button" class="dropdown-item{% if status == 'rejected' or status == 'not_onboarded' %} text-danger{% endif %}"
+              data-rc-transition data-url="{% url 'candidate_transition' cand.pk %}"
+              data-to="{{ status }}" data-to-label="{{ label }}" data-name="{{ cand.full_name }}"
+              data-next="{{ request.get_full_path }}">{{ label }}</button>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}

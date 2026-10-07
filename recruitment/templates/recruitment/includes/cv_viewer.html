@@ -1,0 +1,93 @@
+{# Xem nhanh hồ sơ ứng viên — panel bên phải, không chặn trang (vẫn gõ nhận xét phỏng vấn được). #}
+{# Nút mở: data-rc-cv data-url data-name data-file data-kind(pdf|image|download) #}
+<style>
+  /* Nổi trên thanh header cố định của portal để luôn thấy nút đóng / tải về */
+  .jp-rc-cv-panel { --bs-offcanvas-width: min(980px, 100vw); z-index: 2000; }
+  @media (min-width: 1200px) { .jp-rc-cv-panel { --bs-offcanvas-width: 52vw; } }
+  .jp-rc-cv-panel .offcanvas-body { padding: 0; background: #525659; display: flex; }
+  .jp-rc-cv-frame { flex: 1; width: 100%; height: 100%; border: 0; background: #525659; }
+  .jp-rc-cv-image { flex: 1; overflow: auto; display: flex; align-items: flex-start; justify-content: center; padding: 1rem; }
+  .jp-rc-cv-image img { max-width: 100%; height: auto; background: #fff; box-shadow: 0 4px 24px rgba(0,0,0,.35); }
+  .jp-rc-cv-download { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .75rem; color: #e2e8f0; text-align: center; padding: 2rem; }
+  .jp-rc-cv-download i { font-size: 3rem; }
+  .jp-rc-cv-head-tools { display: flex; align-items: center; gap: .35rem; }
+  .jp-rc-cv-head-tools .btn { display: inline-flex; align-items: center; gap: .3rem; }
+  .jp-rc-cv-title { min-width: 0; }
+  .jp-rc-cv-title .small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+</style>
+<div class="offcanvas offcanvas-end jp-rc-cv-panel" tabindex="-1" id="rcCvPanel" aria-labelledby="rcCvTitle"
+     data-bs-backdrop="false" data-bs-scroll="true">
+  <div class="offcanvas-header border-bottom gap-2">
+    <div class="jp-rc-cv-title">
+      <h2 class="offcanvas-title fs-6 fw-bold mb-0" id="rcCvTitle">Hồ sơ</h2>
+      <div class="small text-muted" id="rcCvFile"></div>
+    </div>
+    <div class="jp-rc-cv-head-tools ms-auto">
+      <a class="btn btn-light btn-sm border" id="rcCvOpen" target="_blank" rel="noopener" title="Mở tab mới">
+        <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i><span class="d-none d-sm-inline">Tab mới</span>
+      </a>
+      <a class="btn btn-light btn-sm border" id="rcCvDownload" title="Tải về">
+        <i class="bi bi-download" aria-hidden="true"></i><span class="d-none d-sm-inline">Tải về</span>
+      </a>
+      <button type="button" class="btn-close ms-1" data-bs-dismiss="offcanvas" aria-label="Đóng"></button>
+    </div>
+  </div>
+  <div class="offcanvas-body" id="rcCvBody"></div>
+</div>
+<script>
+(function () {
+  var panel = document.getElementById('rcCvPanel');
+  if (!panel || panel.dataset.bound === '1') return;
+  panel.dataset.bound = '1';
+  var body = document.getElementById('rcCvBody');
+
+  function render(opts) {
+    body.textContent = '';
+    if (opts.kind === 'pdf') {
+      var frame = document.createElement('iframe');
+      frame.className = 'jp-rc-cv-frame';
+      frame.title = 'CV ' + opts.name;
+      frame.src = opts.url + '#view=FitH';
+      body.appendChild(frame);
+    } else if (opts.kind === 'image') {
+      var wrap = document.createElement('div');
+      wrap.className = 'jp-rc-cv-image';
+      var img = document.createElement('img');
+      img.alt = 'CV ' + opts.name;
+      img.src = opts.url;
+      wrap.appendChild(img);
+      body.appendChild(wrap);
+    } else {
+      var box = document.createElement('div');
+      box.className = 'jp-rc-cv-download';
+      var icon = document.createElement('i');
+      icon.className = 'bi bi-file-earmark-word';
+      var text = document.createElement('div');
+      text.textContent = 'File Word không xem trực tiếp được — tải về để mở.';
+      var btn = document.createElement('a');
+      btn.className = 'btn btn-hm btn-sm fw-bold';
+      btn.href = opts.url + '?download=1';
+      btn.textContent = 'Tải về';
+      box.append(icon, text, btn);
+      body.appendChild(box);
+    }
+  }
+
+  document.addEventListener('click', function (ev) {
+    var trigger = ev.target.closest('[data-rc-cv]');
+    if (!trigger) return;
+    ev.preventDefault();
+    var opts = {
+      url: trigger.dataset.url, name: trigger.dataset.name || '',
+      file: trigger.dataset.file || '', kind: trigger.dataset.kind || 'download',
+    };
+    document.getElementById('rcCvTitle').textContent = opts.name || 'Hồ sơ';
+    document.getElementById('rcCvFile').textContent = opts.file;
+    document.getElementById('rcCvOpen').href = opts.url;
+    document.getElementById('rcCvDownload').href = opts.url + '?download=1';
+    render(opts);
+    bootstrap.Offcanvas.getOrCreateInstance(panel).show();
+  });
+  panel.addEventListener('hidden.bs.offcanvas', function () { body.textContent = ''; });
+})();
+</script>

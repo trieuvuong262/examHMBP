@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block extra_head %}{% include 'recruitment/includes/rc_styles.html' %}{% endblock %}
+{% block content %}
+<div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div class="jp-page-header-main">
+      <h2 class="jp-page-title fw-bold text-dark mb-1">Đã onboard {{ candidate.full_name }}</h2>
+    </div>
+    <div class="jp-rc-tools">
+      <a href="{% url 'candidate_detail' candidate.pk %}" class="btn btn-light btn-sm border"><i class="bi bi-arrow-left"></i>Hồ sơ ứng viên</a>
+      <a href="{% url 'user_edit' result.user.pk %}" class="btn btn-outline-hm btn-sm fw-bold"><i class="bi bi-person-lines-fill"></i>Hồ sơ nhân viên</a>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <div class="alert alert-warning small mb-3">Mật khẩu chỉ hiển thị một lần. Nhân viên phải đổi mật khẩu khi đăng nhập lần đầu.</div>
+      <dl class="jp-rc-dl row mb-0">
+        <div class="col-sm-4"><dt>Tên đăng nhập</dt><dd class="fs-5 fw-bold" id="rcUser">{{ result.user.username }}</dd></div>
+        <div class="col-sm-4"><dt>Mật khẩu</dt><dd class="fs-5 fw-bold font-monospace" id="rcPass">{{ result.password }}</dd></div>
+        <div class="col-sm-4"><dt>Mã nhân viên</dt><dd class="fs-5 fw-bold">{{ result.employee_code }}</dd></div>
+        <div class="col-sm-4"><dt>Email</dt><dd id="rcEmail">{{ result.user.email }}</dd></div>
+        <div class="col-sm-4"><dt>Giới tính</dt><dd>{{ result.user.profile.get_gender_display|default:"—" }}</dd></div>
+        <div class="col-sm-4"><dt>Ngày sinh</dt><dd>{{ result.user.profile.date_of_birth|date:"d/m/Y"|default:"—" }}</dd></div>
+        <div class="col-sm-4"><dt>Phòng ban</dt><dd>{{ candidate.job_posting.department_label }}</dd></div>
+        <div class="col-sm-4"><dt>Nhóm quyền</dt><dd>{{ result.permission_group|default:"—" }}</dd></div>
+        <div class="col-sm-4"><dt>Đào tạo hội nhập</dt><dd>{{ result.course_title|default:"Chưa giao — không tìm thấy khóa" }}</dd></div>
+      </dl>
+      <button type="button" class="btn btn-hm btn-sm fw-bold mt-2" id="rcCopy"><i class="bi bi-clipboard"></i>Sao chép tài khoản</button>
+    </div>
+  </div>
+</div>
+<script>
+document.getElementById('rcCopy').addEventListener('click', function () {
+  var text = 'Tài khoản: ' + document.getElementById('rcUser').textContent.trim()
+    + '\nMật khẩu: ' + document.getElementById('rcPass').textContent.trim()
+    + '\nEmail: ' + document.getElementById('rcEmail').textContent.trim();
+  if (navigator.clipboard) navigator.clipboard.writeText(text);
+  this.textContent = 'Đã sao chép';
+});
+</script>
+{% endblock %}

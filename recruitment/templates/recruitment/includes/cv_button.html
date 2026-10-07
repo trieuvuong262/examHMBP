@@ -1,0 +1,9 @@
+{# Nút «Xem CV» cho file chính. Tham số: candidate, f (CandidateFile), label (tùy chọn), cls (tùy chọn) #}
+{% if f %}
+<button type="button" class="{{ cls|default:'btn btn-light btn-sm border' }}"
+        data-rc-cv data-url="{% url 'recruitment_file' f.pk %}" data-kind="{{ f.preview_kind }}"
+        data-name="{{ candidate.full_name }}" data-file="{{ f.original_name }}"
+        title="Xem {{ f.original_name }}" aria-label="Xem CV {{ candidate.full_name }}">
+  <i class="bi {{ f.icon }}" aria-hidden="true"></i>{% if label %}<span>{{ label }}</span>{% endif %}
+</button>
+{% endif %}

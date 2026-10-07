@@ -64,25 +64,12 @@
             </a>
         </li>
         {% endif %}
-        {% if jp_can_recruitment %}
-        <li>
-            {% if jp_can_edit_recruitment %}
-            <a href="{% url 'admin_dashboard' %}?tab=recruitment" class="jp-sidebar-link {% if request.GET.tab == 'recruitment' or request.resolver_match.url_name == 'admin_dashboard' and not request.GET.tab %}active{% endif %}">
-                <i class="bi bi-person-lines-fill"></i><span>Tuyển dụng</span>
-            </a>
-            {% else %}
-            <a href="{% url 'kanban_board' %}" class="jp-sidebar-link {% if 'recruitment' in request.path %}active{% endif %}">
-                <i class="bi bi-person-lines-fill"></i><span>Tuyển dụng</span>
-            </a>
-            {% endif %}
-        </li>
-        {% endif %}
-        {% if jp_can_hrm or jp_can_kpi or jp_can_training or jp_can_assessment or jp_can_manage_training or jp_can_manage_assessment %}
-        <li class="jp-sidebar-group{% if request.resolver_match.url_name == 'locked_accounts' or request.resolver_match.url_name == 'unlock_locked_account' or '/dashboard/users' in request.path or '/dashboard/org' in request.path or '/dashboard/divisions' in request.path or 'kpi' in request.path or 'training' in request.path or 'exams' in request.path or '/dashboard/exam' in request.path or '/dashboard/results' in request.path or '/dashboard/competency' in request.path or request.GET.tab == 'training' or request.GET.tab == 'assessment' %} is-open{% elif '/dashboard/departments' in request.path and request.resolver_match.url_name != 'department_permissions' %} is-open{% endif %}">
+        {% if jp_can_hrm or jp_can_recruitment or jp_can_review_candidates or jp_can_kpi or jp_can_training or jp_can_assessment or jp_can_manage_training or jp_can_manage_assessment %}
+        <li class="jp-sidebar-group{% if '/hr/' in request.path %} is-open{% elif request.resolver_match.url_name == 'locked_accounts' or request.resolver_match.url_name == 'unlock_locked_account' or '/dashboard/users' in request.path or '/dashboard/org' in request.path or '/dashboard/divisions' in request.path or 'kpi' in request.path or 'training' in request.path or 'exams' in request.path or '/dashboard/exam' in request.path or '/dashboard/results' in request.path or '/dashboard/competency' in request.path or request.GET.tab == 'training' or request.GET.tab == 'assessment' %} is-open{% elif '/dashboard/departments' in request.path and request.resolver_match.url_name != 'department_permissions' %} is-open{% endif %}">
             <button type="button"
                     class="jp-sidebar-group-toggle"
                     data-jp-sidebar-group-toggle
-                    aria-expanded="{% if request.resolver_match.url_name == 'locked_accounts' or request.resolver_match.url_name == 'unlock_locked_account' or '/dashboard/users' in request.path or '/dashboard/org' in request.path or '/dashboard/divisions' in request.path or 'kpi' in request.path or 'training' in request.path or 'exams' in request.path or '/dashboard/exam' in request.path or '/dashboard/results' in request.path or '/dashboard/competency' in request.path or request.GET.tab == 'training' or request.GET.tab == 'assessment' %}true{% elif '/dashboard/departments' in request.path and request.resolver_match.url_name != 'department_permissions' %}true{% else %}false{% endif %}"
+                    aria-expanded="{% if '/hr/' in request.path %}true{% elif request.resolver_match.url_name == 'locked_accounts' or request.resolver_match.url_name == 'unlock_locked_account' or '/dashboard/users' in request.path or '/dashboard/org' in request.path or '/dashboard/divisions' in request.path or 'kpi' in request.path or 'training' in request.path or 'exams' in request.path or '/dashboard/exam' in request.path or '/dashboard/results' in request.path or '/dashboard/competency' in request.path or request.GET.tab == 'training' or request.GET.tab == 'assessment' %}true{% elif '/dashboard/departments' in request.path and request.resolver_match.url_name != 'department_permissions' %}true{% else %}false{% endif %}"
                     aria-controls="jp-sidebar-hrm-submenu">
                 <span class="jp-sidebar-group-toggle-main">
                     <span class="jp-sidebar-link-icon">
@@ -118,6 +105,89 @@
                        class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'locked_accounts' or request.resolver_match.url_name == 'unlock_locked_account' %}active{% endif %}">
                         <i class="bi bi-lock-fill"></i><span>Tài khoản bị khóa</span>
                     </a>
+                </li>
+                {% endif %}
+                {% if jp_can_recruitment or jp_can_review_candidates %}
+                {% jp_can_menu 'recruitment' 'candidates' as jp_can_recruitment_candidates %}
+                {% jp_can_menu 'recruitment' 'jobs' as jp_can_recruitment_jobs %}
+                {% jp_can_menu 'recruitment' 'settings' as jp_can_recruitment_settings %}
+                <li class="jp-sidebar-nested-group{% if '/hr/' in request.path %} is-open{% endif %}">
+                    <button type="button"
+                            class="jp-sidebar-nested-toggle"
+                            data-jp-sidebar-group-toggle
+                            aria-expanded="{% if '/hr/' in request.path %}true{% else %}false{% endif %}"
+                            aria-controls="jp-sidebar-recruitment-submenu">
+                        <span class="jp-sidebar-nested-toggle-main">
+                            <span class="jp-sidebar-link-icon">
+                                <i class="bi bi-person-plus-fill"></i>
+                                {% if jp_recruitment_review_pending %}
+                                <span class="jp-sidebar-notify" aria-label="{{ jp_recruitment_review_pending }} hồ sơ chờ đánh giá">
+                                    {% if jp_recruitment_review_pending > 99 %}99+{% else %}{{ jp_recruitment_review_pending }}{% endif %}
+                                </span>
+                                {% endif %}
+                            </span>
+                            <span>Tuyển dụng</span>
+                        </span>
+                        <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
+                    </button>
+                    <ul class="jp-sidebar-nested-submenu" id="jp-sidebar-recruitment-submenu">
+                        {% with rc_url=request.resolver_match.url_name %}
+                        {% if jp_can_recruitment %}
+                        <li>
+                            <a href="{% url 'recruitment_overview' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if rc_url == 'recruitment_overview' %}active{% endif %}">
+                                <i class="bi bi-speedometer2"></i><span>Tổng quan</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if jp_can_recruitment_jobs %}
+                        <li>
+                            <a href="{% url 'job_posting_list' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if '/hr/admin/recruitment/jobs' in request.path %}active{% endif %}">
+                                <i class="bi bi-megaphone"></i><span>Vị trí tuyển dụng</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if jp_can_recruitment_candidates %}
+                        <li>
+                            <a href="{% url 'candidate_list' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if rc_url == 'candidate_list' or rc_url == 'kanban_board' or rc_url == 'candidate_detail' or rc_url == 'add_candidate' %}active{% endif %}">
+                                <i class="bi bi-kanban"></i><span>Ứng viên</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'interview_list' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if rc_url == 'interview_list' %}active{% endif %}">
+                                <i class="bi bi-calendar-event"></i><span>Lịch phỏng vấn</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if jp_can_review_candidates %}
+                        <li>
+                            <a href="{% url 'recruitment_review_list' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if '/hr/danh-gia-ung-vien' in request.path %}active{% endif %}">
+                                <span class="jp-sidebar-link-icon">
+                                    <i class="bi bi-clipboard-check"></i>
+                                    {% if jp_recruitment_review_pending %}
+                                    <span class="jp-sidebar-notify" aria-label="{{ jp_recruitment_review_pending }} hồ sơ chờ đánh giá">
+                                        {% if jp_recruitment_review_pending > 99 %}99+{% else %}{{ jp_recruitment_review_pending }}{% endif %}
+                                    </span>
+                                    {% endif %}
+                                </span>
+                                <span>Đánh giá ứng viên</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if jp_can_recruitment_settings %}
+                        <li>
+                            <a href="{% url 'recruitment_settings' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if '/hr/admin/recruitment/settings' in request.path %}active{% endif %}">
+                                <i class="bi bi-gear"></i><span>Thiết lập</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% endwith %}
+                    </ul>
                 </li>
                 {% endif %}
                 {% jp_can_menu 'kpi' 'boards' as jp_can_kpi_boards %}

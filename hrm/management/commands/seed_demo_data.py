@@ -26,7 +26,7 @@ from assessment.models import (
     Question,
     UserAnswer,
 )
-from hrm.models import Profile
+from hrm.models import Department, Profile
 from kpi.models import MonthlyKpi, MonthlyKpiItem
 from recruitment.models import Candidate, Interview, JobPosting
 from reports.models import DailyWorkReport, DailyWorkReportLine
@@ -448,7 +448,12 @@ class Command(BaseCommand):
         for job_data in jobs:
             job, _ = JobPosting.objects.update_or_create(
                 title=job_data['title'],
-                defaults={**job_data, 'deadline': deadline, 'is_active': True},
+                defaults={
+                    **job_data,
+                    'deadline': deadline,
+                    'status': JobPosting.STATUS_OPEN,
+                    'target_department': Department.objects.filter(name__iexact=job_data['department']).first(),
+                },
             )
 
             for title_match, full_name, status in candidates_spec:
@@ -462,17 +467,22 @@ class Command(BaseCommand):
                         'full_name': full_name,
                         'phone': '0901234567',
                         'status': status,
-                        'hr_note': 'Ứng viên demo — tạo bởi seed_demo_data.',
+                        'status_changed_at': timezone.now(),
                     },
                 )
-                if created or not cand.cv_file:
-                    cand.cv_file.save('demo_cv.pdf', cv_content, save=True)
+                if created or not cand.files.exists():
+                    from recruitment.models import CandidateFile
+
+                    demo_file = CandidateFile(candidate=cand, original_name='demo_cv.pdf', size=cv_content.size)
+                    demo_file.file.save('demo_cv.pdf', cv_content, save=False)
+                    demo_file.save()
 
                 if status == 'interviewing':
                     interview, _ = Interview.objects.get_or_create(
                         candidate=cand,
                         defaults={
                             'interview_time': timezone.now() + timedelta(days=3),
+                            'end_time': timezone.now() + timedelta(days=3, hours=1),
                             'location': 'Phòng HR — JustPlay.vn',
                             'result_notes': 'Chờ phỏng vấn vòng 2.',
                         },

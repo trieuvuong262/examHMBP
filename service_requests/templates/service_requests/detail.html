@@ -85,6 +85,33 @@
                 </div>
             </div>
 
+            {% if recruitment_link %}
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center gap-2">
+                    <span><i class="bi bi-person-plus me-1" aria-hidden="true"></i>Tuyển dụng</span>
+                    {% if recruitment_link.url %}
+                    <a href="{{ recruitment_link.url }}" class="btn btn-outline-hm btn-sm fw-bold">Mở vị trí</a>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% with job=recruitment_link.job %}
+                    {% if job %}
+                    <dl class="row mb-0 small">
+                        <dt class="col-sm-4">Vị trí</dt>
+                        <dd class="col-sm-8">{{ job.title }} · {{ job.department_label }}</dd>
+                        <dt class="col-sm-4">Trạng thái</dt>
+                        <dd class="col-sm-8">{{ job.get_status_display }}</dd>
+                        <dt class="col-sm-4">Đã tuyển</dt>
+                        <dd class="col-sm-8">{{ job.n_hired }} / {{ job.quantity }} · {{ job.n_candidates }} hồ sơ ({{ job.n_active }} đang xử lý)</dd>
+                    </dl>
+                    {% else %}
+                    <p class="small text-muted mb-0">Vị trí tuyển dụng được tạo tự động khi đề xuất hoàn thành.</p>
+                    {% endif %}
+                    {% endwith %}
+                </div>
+            </div>
+            {% endif %}
+
             {% if service_request.is_procurement %}
             <div class="card border-0 shadow-sm mb-3">
                 <div class="card-header bg-white fw-bold">Danh sách hàng hóa</div>

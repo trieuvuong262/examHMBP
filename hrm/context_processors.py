@@ -89,10 +89,39 @@ def _jp_concurrent_positions(user):
     return concurrent_positions_summary(profile)
 
 
+def _recruitment_review_nav(user) -> dict:
+    """Menu «Đánh giá ứng viên» cho Trưởng BP / Trưởng phòng / Giám đốc và người được giao phỏng vấn."""
+    try:
+        from django.utils import timezone
+
+        from recruitment.models import Candidate, JobPosting
+        from recruitment.permissions import interview_queue, is_hiring_manager, manager_job_filter
+
+        due_results = interview_queue(user).filter(interview__interview_time__lte=timezone.now()).count()
+        if not is_hiring_manager(user):
+            has_queue = due_results > 0 or interview_queue(user).exists()
+            return {'jp_can_review_candidates': has_queue, 'jp_recruitment_review_pending': due_results}
+        pending = (
+            Candidate.objects.filter(
+                status=Candidate.STATUS_REVIEWING,
+                job_posting__in=JobPosting.objects.filter(manager_job_filter(user)),
+            )
+            .exclude(reviews__reviewer=user)
+            .count()
+        )
+        return {'jp_can_review_candidates': True, 'jp_recruitment_review_pending': pending + due_results}
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning('recruitment review nav failed: %s', exc)
+        return {'jp_can_review_candidates': False, 'jp_recruitment_review_pending': 0}
+
+
 def portal_permissions(request):
     user = request.user
     if not user.is_authenticated:
         return {
+            'jp_can_review_candidates': False,
+            'jp_recruitment_review_pending': 0,
             'jp_force_password_change': False,
             'jp_can_portal_admin': False,
             'jp_can_edit_guide': False,
@@ -377,6 +406,7 @@ def portal_permissions(request):
         'jp_can_delete_nas_storage': user_can_delete_module(user, MODULE_NAS_STORAGE),
         'jp_can_manage_permissions': user_can_edit_module(user, MODULE_PERMISSIONS) or bypass_department_modules(user),
     }
+    base.update(_recruitment_review_nav(user))
     from service_requests.portal_nav import portal_nav_context
 
     try:

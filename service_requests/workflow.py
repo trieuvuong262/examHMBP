@@ -1,5 +1,6 @@
 """Quy trình mua hàng — sinh bước động, báo giá NCC, duyệt theo giá trị."""
 
+import logging
 from decimal import Decimal
 
 from django.contrib.auth.models import User
@@ -28,6 +29,8 @@ from .models import (
     ServiceRequestLog,
     ServiceRequestStep,
 )
+
+logger = logging.getLogger(__name__)
 
 AMOUNT_ACCOUNTING_MIN = Decimal('2000000')
 AMOUNT_DIRECTOR_MIN = Decimal('10000000')
@@ -510,8 +513,30 @@ def _maybe_complete_request(request_obj, *, actor):
         request_obj.completed_at = timezone.now()
         request_obj.save(update_fields=['status', 'completed_at', 'updated_at'])
         log_action(request_obj, actor=actor, action='completed', message='Yêu cầu hoàn thành')
+        _create_recruitment_draft(request_obj, actor=actor)
         return True
     return False
+
+
+def _create_recruitment_draft(request_obj, *, actor):
+    """Yêu cầu ứng viên duyệt xong → vị trí tuyển dụng trạng thái Nháp cho HR hoàn thiện."""
+    if request_obj.request_subtype not in (ServiceRequest.SUBTYPE_CANDIDATE, ServiceRequest.SUBTYPE_HR):
+        return None
+    from recruitment.services import create_draft_from_service_request
+
+    try:
+        # Savepoint riêng — lỗi tạo nháp không làm hỏng việc duyệt đề xuất.
+        with transaction.atomic():
+            job = create_draft_from_service_request(request_obj)
+    except Exception:
+        logger.exception('Không tạo được vị trí tuyển dụng nháp từ đề xuất #%s', request_obj.pk)
+        return None
+    if job is not None:
+        log_action(
+            request_obj, actor=actor, action='recruitment_draft',
+            message=f'Đã tạo vị trí tuyển dụng nháp: {job.title}',
+        )
+    return job
 
 
 def _complete_step(step, *, actor, note=''):

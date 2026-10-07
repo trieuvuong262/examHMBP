@@ -45,7 +45,6 @@ MODULE_XAY_DUNG = 'xay_dung'
 
 # Tạm ẩn khỏi sidebar + màn hình phân quyền — gỡ khỏi set khi bật lại.
 HIDDEN_PORTAL_MODULES = frozenset({
-    MODULE_RECRUITMENT,
     MODULE_COMPANY_TRIP,  # Đặt lịch nằm trong Tiện ích (admin only)
 })
 
@@ -99,11 +98,14 @@ DEPARTMENT_MODULE_LABELS = {
 # Nhân sự + KPI + Đào tạo — Đào tạo/Kiểm tra là menu con trong nhóm Nhân sự.
 # Key module/submenu không đổi — chỉ gộp hiển thị sidebar + ma trận quyền.
 HRM_PERM_MATRIX_MODULES = frozenset({
-    MODULE_HRM, MODULE_KPI, MODULE_TRAINING, MODULE_ASSESSMENT,
+    MODULE_HRM, MODULE_RECRUITMENT, MODULE_KPI, MODULE_TRAINING, MODULE_ASSESSMENT,
 })
 HRM_PERM_MATRIX_SUBMENUS = (
     (MODULE_HRM, 'users'),
     (MODULE_HRM, 'locked_accounts'),
+    (MODULE_RECRUITMENT, 'candidates'),
+    (MODULE_RECRUITMENT, 'jobs'),
+    (MODULE_RECRUITMENT, 'settings'),
     (MODULE_KPI, 'boards'),
     (MODULE_KPI, 'summary'),
     (MODULE_TRAINING, 'lessons'),
@@ -157,10 +159,7 @@ def _visible_module_list(modules: list[str]) -> list[str]:
 DEPARTMENT_MENU_SECTIONS = [
     {
         'label': 'Menu chính',
-        'modules': _visible_module_list([
-            MODULE_ANNOUNCEMENTS,
-            MODULE_RECRUITMENT,
-        ]),
+        'modules': _visible_module_list([MODULE_ANNOUNCEMENTS]),
     },
     {
         'label': 'Báo cáo & Công việc',
@@ -170,6 +169,7 @@ DEPARTMENT_MENU_SECTIONS = [
         'label': 'Nhân sự',
         'modules': _visible_module_list([
             MODULE_HRM,
+            MODULE_RECRUITMENT,
             MODULE_KPI,
             MODULE_TRAINING,
             MODULE_ASSESSMENT,
@@ -240,6 +240,10 @@ EXEMPT_PATH_PREFIXES = (
     '/tien-ich/push/',
     # Đăng ký du lịch — view tự kiểm tra quyền menu (thêm / sửa / xóa / xuất)
     '/tien-ich/dat-lich/',
+    # Trưởng BP / Trưởng phòng / GĐ đề xuất & đánh giá ứng viên — view tự kiểm tra vai trò + phạm vi phòng ban
+    '/hr/danh-gia-ung-vien/',
+    # File hồ sơ ứng viên — view tự kiểm tra (HR / quản lý đúng phòng / người phỏng vấn)
+    '/hr/ho-so-ung-vien/',
 )
 
 # Map prefix URL → module (thứ tự quan trọng — dài/specific trước)

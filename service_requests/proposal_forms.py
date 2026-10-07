@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from django import forms
+from django.db.models import Q
 
 from .models import ServiceRequest
 
@@ -70,24 +71,28 @@ LAYOUT = {
                       show_when=when('payment_method', 'transfer')),
         )),
     ),
+    # Yêu cầu ứng viên — duyệt xong tạo vị trí tuyển dụng «Nháp» (recruitment).
+    S.SUBTYPE_CANDIDATE: (
+        Section('Vị trí cần tuyển', 'bi-person-plus', (
+            FieldSpec('position', 'col-md-6', required=True),
+            FieldSpec('headcount', 'col-md-3', required=True),
+            FieldSpec('desired_date', 'col-md-3', required=True),
+            FieldSpec('target_department', 'col-md-6', required=True),
+            FieldSpec('target_division', 'col-md-6'),
+            FieldSpec('recruit_reason', 'col-md-6', required=True),
+        )),
+        Section('Yêu cầu ứng viên', 'bi-person-check', (
+            FieldSpec('candidate_requirements', 'col-12', required=True),
+        )),
+    ),
+    # Tuyển dụng đã tách sang «Yêu cầu ứng viên» — loại này chỉ còn điều chuyển.
     S.SUBTYPE_HR: (
-        Section('Loại yêu cầu nhân sự', 'bi-people', (
-            FieldSpec('hr_kind', 'col-md-6', required=True),
-        )),
-        Section('Tuyển dụng', 'bi-person-plus', (
-            FieldSpec('position', 'col-md-6', required=True, show_when=when('hr_kind', 'recruit')),
-            FieldSpec('target_department', 'col-md-6', required=True, show_when=when('hr_kind', 'recruit')),
-            FieldSpec('headcount', 'col-md-3', required=True, show_when=when('hr_kind', 'recruit')),
-            FieldSpec('recruit_reason', 'col-md-5', required=True, show_when=when('hr_kind', 'recruit')),
-            FieldSpec('desired_date', 'col-md-4', required=True, show_when=when('hr_kind', 'recruit')),
-            FieldSpec('candidate_requirements', 'col-12', show_when=when('hr_kind', 'recruit')),
-        )),
         Section('Điều chuyển', 'bi-arrow-left-right', (
-            FieldSpec('transfer_employee', 'col-md-6', required=True, show_when=when('hr_kind', 'transfer')),
-            FieldSpec('new_position', 'col-md-6', show_when=when('hr_kind', 'transfer')),
-            FieldSpec('from_department', 'col-md-4', required=True, show_when=when('hr_kind', 'transfer')),
-            FieldSpec('to_department', 'col-md-4', required=True, show_when=when('hr_kind', 'transfer')),
-            FieldSpec('effective_date', 'col-md-4', required=True, show_when=when('hr_kind', 'transfer')),
+            FieldSpec('transfer_employee', 'col-md-6', required=True),
+            FieldSpec('new_position', 'col-md-6'),
+            FieldSpec('from_department', 'col-md-4', required=True),
+            FieldSpec('to_department', 'col-md-4', required=True),
+            FieldSpec('effective_date', 'col-md-4', required=True),
         )),
     ),
     S.SUBTYPE_REPAIR: (
@@ -122,14 +127,16 @@ LAYOUT = {
 
 DESCRIPTION_LABELS = {
     S.SUBTYPE_PAYMENT: 'Nội dung chi / lý do',
-    S.SUBTYPE_HR: 'Lý do / mô tả công việc',
+    S.SUBTYPE_CANDIDATE: 'Mô tả công việc',
+    S.SUBTYPE_HR: 'Lý do điều chuyển',
     S.SUBTYPE_REPAIR: 'Mô tả hiện tượng sự cố',
     S.SUBTYPE_ACCOUNT: 'Mục đích sử dụng',
 }
 
 TITLE_PLACEHOLDERS = {
     S.SUBTYPE_PAYMENT: 'VD: Thanh toán tiền điện tháng 9',
-    S.SUBTYPE_HR: 'VD: Tuyển 3 công nhân may chuyền 2',
+    S.SUBTYPE_CANDIDATE: 'VD: Tuyển 3 công nhân may chuyền 2',
+    S.SUBTYPE_HR: 'VD: Điều chuyển nhân viên sang chuyền 3',
     S.SUBTYPE_REPAIR: 'VD: Máy may chuyền 2 không chạy',
     S.SUBTYPE_ACCOUNT: 'VD: Cấp email cho nhân viên mới',
 }
@@ -202,6 +209,9 @@ class GeneralProposalForm(forms.Form):
     )
     target_department = forms.ModelChoiceField(
         label='Phòng ban cần nhân sự', required=False, queryset=None, empty_label='— Chọn —',
+    )
+    target_division = forms.ModelChoiceField(
+        label='Bộ phận', required=False, queryset=None, empty_label='— Cả phòng ban —',
     )
     headcount = forms.IntegerField(
         label='Số lượng', required=False, min_value=1, max_value=500,
@@ -308,12 +318,39 @@ class GeneralProposalForm(forms.Form):
     # Trường lưu vào cột model, không đưa vào extra_data.
     MODEL_FIELDS = frozenset({'payment_amount'})
 
-    def __init__(self, *args, subtype=None, **kwargs):
+    def __init__(self, *args, subtype=None, user=None, **kwargs):
         super().__init__(*args, **kwargs)
+        from hrm.models import Division
+
         self.subtype = subtype
+        self.user = user
+        self.recruit_scope = None
         departments = _department_queryset()
         for name in ('target_department', 'from_department', 'to_department', 'account_department'):
             self.fields[name].queryset = departments
+        divisions = Division.objects.filter(is_active=True, department__isnull=False).select_related('department')
+
+        if subtype == S.SUBTYPE_CANDIDATE and user is not None:
+            # Chỉ yêu cầu người cho phòng ban / bộ phận mình quản lý.
+            from recruitment.permissions import managed_scope
+
+            scope = managed_scope(user)
+            self.recruit_scope = scope
+            if not scope.all:
+                div_dept_ids = set(
+                    Division.objects.filter(pk__in=scope.division_ids).values_list('department_id', flat=True)
+                )
+                self.fields['target_department'].queryset = departments.filter(
+                    pk__in=scope.department_ids | div_dept_ids,
+                )
+                divisions = divisions.filter(
+                    Q(department_id__in=scope.department_ids) | Q(pk__in=scope.division_ids)
+                )
+        self.fields['target_division'].queryset = divisions.order_by('department__sort_order', 'sort_order', 'name')
+        self.fields['target_division'].label_from_instance = lambda d: f'{d.department.name} · {d.name}'
+        if subtype == S.SUBTYPE_CANDIDATE:
+            self.fields['target_department'].label = 'Phòng ban'
+            self.fields['candidate_requirements'].widget.attrs['rows'] = 3
 
         self.fields['title'].widget.attrs['placeholder'] = TITLE_PLACEHOLDERS.get(subtype, '')
         self.fields['description'].label = DESCRIPTION_LABELS.get(subtype, 'Nội dung chi tiết')
@@ -397,7 +434,10 @@ class GeneralProposalForm(forms.Form):
                 if spec.name not in self.errors:
                     self.add_error(spec.name, 'Trường này là bắt buộc.')
 
-        if self.subtype == S.SUBTYPE_HR and cleaned.get('hr_kind') == 'transfer':
+        if self.subtype == S.SUBTYPE_CANDIDATE:
+            self._clean_candidate_scope(cleaned)
+
+        if self.subtype == S.SUBTYPE_HR:
             src, dst = cleaned.get('from_department'), cleaned.get('to_department')
             if src and dst and src == dst:
                 self.add_error('to_department', 'Phòng ban mới phải khác phòng ban hiện tại.')
@@ -407,6 +447,21 @@ class GeneralProposalForm(forms.Form):
             if due and settle and settle < due:
                 self.add_error('advance_settle_date', 'Ngày hoàn ứng phải sau ngày nhận tạm ứng.')
         return cleaned
+
+    def _clean_candidate_scope(self, cleaned):
+        dept, div = cleaned.get('target_department'), cleaned.get('target_division')
+        if div and dept and div.department_id != dept.pk:
+            self.add_error('target_division', 'Bộ phận không thuộc phòng ban đã chọn.')
+            return
+        scope = self.recruit_scope
+        if scope is None or not dept or scope.all:
+            return
+        in_scope = dept.pk in scope.department_ids or bool(div and div.pk in scope.division_ids)
+        if not in_scope:
+            self.add_error(
+                'target_division' if dept.pk not in scope.department_ids else 'target_department',
+                'Chỉ yêu cầu ứng viên cho phòng ban / bộ phận bạn quản lý.',
+            )
 
     # ---- lưu ----
 

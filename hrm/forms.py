@@ -1288,6 +1288,12 @@ class PermissionGroupPermissionForm(forms.Form):
                 spec = sub_lookup.get((module_key, menu_key))
                 if spec:
                     hub_submenus.append(spec)
+            # Quyền bổ sung của module con (vd. avatar NV, Tuyển dụng mọi phòng ban) hiện dưới hub.
+            hub_extras = [
+                {**extra, 'module_key': row['key']}
+                for row in all_rows if row['key'] in modules
+                for extra in row['extras']
+            ]
             if hub_submenus:
                 hubs.append({
                     'modules': modules,
@@ -1301,7 +1307,7 @@ class PermissionGroupPermissionForm(forms.Form):
                         'view_export_only': False,
                         'has_submenus': True,
                         'submenus': hub_submenus,
-                        'extras': [],
+                        'extras': hub_extras,
                         'fields': {},
                     },
                 })

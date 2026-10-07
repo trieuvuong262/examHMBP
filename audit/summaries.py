@@ -316,8 +316,23 @@ URL_DESCRIPTIONS: dict[str, dict[str, str] | str] = {
     'api_delete_category': 'xóa danh mục khóa học #{pk} (API)',
 
     # Tuyển dụng
+    'recruitment_overview': 'xem tổng quan tuyển dụng',
     'kanban_board': 'xem bảng Kanban tuyển dụng',
-    'update_candidate_status': 'cập nhật trạng thái ứng viên (kéo thả Kanban)',
+    'candidate_detail': 'xem hồ sơ ứng viên #{pk}',
+    'candidate_transition': 'chuyển trạng thái ứng viên #{pk}',
+    'candidate_interview_result': 'nhập kết quả phỏng vấn ứng viên #{pk}',
+    'candidate_onboard': 'onboard ứng viên #{pk} thành nhân viên',
+    'interview_list': 'xem lịch phỏng vấn',
+    'job_posting_status': 'đổi trạng thái vị trí tuyển dụng #{pk}',
+    'recruitment_review_list': 'xem danh sách đánh giá ứng viên',
+    'recruitment_review_candidate': {
+        'GET': 'xem hồ sơ ứng viên #{pk} để đánh giá',
+        'POST': 'đánh giá hồ sơ ứng viên #{pk}',
+    },
+    'recruitment_refer_candidate': {
+        'GET': 'mở form đề xuất ứng viên',
+        'POST': 'đề xuất ứng viên',
+    },
     'add_candidate': {
         'GET': 'mở form thêm ứng viên',
         'POST': 'thêm ứng viên mới',
@@ -332,17 +347,7 @@ URL_DESCRIPTIONS: dict[str, dict[str, str] | str] = {
         'POST': 'cập nhật tin tuyển dụng #{pk}',
     },
     'job_posting_delete': 'xóa tin tuyển dụng #{pk}',
-    'convert_to_employee': 'chuyển ứng viên #{candidate_id} thành nhân viên',
-    'candidate_detail_ajax': 'xem chi tiết ứng viên #{pk}',
-    'update_hr_note': 'cập nhật ghi chú HR ứng viên',
-    'set_interview_schedule': 'đặt lịch phỏng vấn ứng viên',
-    'get_all_interviews': 'xem danh sách lịch phỏng vấn',
-    'get_candidate_interview': 'xem lịch phỏng vấn ứng viên #{pk}',
-    'update_practice_license': 'cập nhật giấy phép hành nghề',
-    'get_candidate_license': 'xem giấy phép hành nghề ứng viên #{pk}',
-    'get_all_licenses': 'xem danh sách giấy phép hành nghề',
     'export_interviews_excel': 'xuất Excel lịch phỏng vấn',
-    'export_licenses_excel': 'xuất Excel giấy phép hành nghề',
 
     # KPI
     'kpi_list': 'xem danh sách KPI',
@@ -939,7 +944,7 @@ URL_POST_HIGHLIGHTS: dict[str, list[str]] = {
     'job_posting_create': ['title', 'department', 'status'],
     'job_posting_edit': ['title', 'department', 'status'],
     'add_candidate': ['full_name', 'phone', 'email', 'position'],
-    'update_candidate_status': ['candidate_id', 'new_status', 'status'],
+    'candidate_transition': ['to_status'],
     'admin_category_create': ['name', 'sort_order'],
     'admin_category_edit': ['name', 'sort_order'],
     'admin_document_create': ['title', 'category', 'category_id'],

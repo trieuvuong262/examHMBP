@@ -23,6 +23,7 @@ from hrm.module_permissions import (
     MODULE_KIOTVIET,
     MODULE_SAN_XUAT,
     MODULE_NAS_STORAGE,
+    MODULE_RECRUITMENT,
     MODULE_REPORTS,
     MODULE_TASKS,
     MODULE_TRAINING,
@@ -52,6 +53,27 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
     MODULE_HRM: [
         {'key': 'users', 'label': 'Danh sách nhân viên', 'icon': 'bi-person-lines-fill'},
         {'key': 'locked_accounts', 'label': 'Tài khoản bị khóa', 'icon': 'bi-lock-fill'},
+    ],
+    # Tuyển dụng — menu con trong nhóm Nhân sự (sidebar + ma trận quyền).
+    MODULE_RECRUITMENT: [
+        {
+            'key': 'candidates',
+            'label': 'Ứng viên',
+            'perm_label': 'Tuyển dụng — Ứng viên (Kanban, phỏng vấn)',
+            'icon': 'bi-kanban',
+        },
+        {
+            'key': 'jobs',
+            'label': 'Vị trí tuyển dụng',
+            'perm_label': 'Tuyển dụng — Vị trí tuyển dụng',
+            'icon': 'bi-megaphone',
+        },
+        {
+            'key': 'settings',
+            'label': 'Thiết lập',
+            'perm_label': 'Tuyển dụng — Thiết lập (địa điểm họp, loại hồ sơ, nguồn hồ sơ)',
+            'icon': 'bi-gear',
+        },
     ],
     MODULE_REPORTS: [
         {'key': 'daily_cn', 'label': 'Báo cáo ngày (SX)', 'icon': 'bi-calendar-day'},
@@ -300,6 +322,10 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/dashboard/org/', MODULE_HRM, 'users'),
     ('/dashboard/divisions/', MODULE_HRM, 'users'),
     ('/dashboard/departments/', MODULE_HRM, 'users'),
+    # Tuyển dụng — /hr/ còn lại (kanban, ứng viên, phỏng vấn, giấy phép) → candidates
+    ('/hr/admin/recruitment/jobs', MODULE_RECRUITMENT, 'jobs'),
+    ('/hr/admin/recruitment/settings', MODULE_RECRUITMENT, 'settings'),
+    ('/hr/', MODULE_RECRUITMENT, 'candidates'),
     ('/exams/', MODULE_ASSESSMENT, 'exams'),
     # Báo cáo — SX (sản xuất)
     ('/reports/sx/thong-ke', MODULE_REPORTS, 'report_stats'),
@@ -663,6 +689,9 @@ def submenu_supported_actions(module_key: str, menu_key: str) -> frozenset[str]:
         return _SAN_XUAT_MENU_ACTIONS.get(menu_key, frozenset({'view'}))
     if module_key == MODULE_UTILITIES and menu_key == 'trip_schedule':
         return frozenset({'view', 'create', 'update', 'delete', 'export'})
+    if module_key == MODULE_RECRUITMENT and menu_key in ('jobs', 'settings'):
+        # Vị trí tuyển dụng / Thiết lập không có xuất Excel.
+        return frozenset({'view', 'create', 'update', 'delete'})
     return frozenset({'view', 'create', 'update', 'delete', 'export', 'print'})
 
 

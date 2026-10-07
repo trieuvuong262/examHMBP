@@ -1,0 +1,41 @@
+{# Modal nhập kết quả PV. Nút mở: data-rc-result data-url data-name data-time [data-next] #}
+<div class="modal fade" id="rcResultModal" tabindex="-1" aria-labelledby="rcResultTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="post" class="modal-content" id="rcResultForm">
+      {% csrf_token %}
+      <input type="hidden" name="next" id="rcResultNext">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title fw-bold mb-0" id="rcResultTitle">Kết quả phỏng vấn</h5>
+          <div class="small text-muted" id="rcResultSub"></div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        {% include 'recruitment/includes/interview_result_fields.html' with uid='rcResultM' %}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Hủy</button>
+        <button type="submit" class="btn btn-hm fw-bold"><i class="bi bi-check2-square" aria-hidden="true"></i> Lưu kết quả</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+(function () {
+  var modalEl = document.getElementById('rcResultModal');
+  var form = document.getElementById('rcResultForm');
+  document.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('[data-rc-result]');
+    if (!btn) return;
+    ev.preventDefault();
+    form.reset();
+    form.action = btn.dataset.url;
+    form.querySelector('textarea[name="notes"]').required = false;
+    form.querySelector('[data-rc-notes-star]').classList.add('d-none');
+    document.getElementById('rcResultNext').value = btn.dataset.next || window.location.pathname + window.location.search;
+    document.getElementById('rcResultSub').textContent = btn.dataset.name + (btn.dataset.time ? ' · ' + btn.dataset.time : '');
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+  });
+})();
+</script>

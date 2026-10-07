@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+{% block extra_head %}{% include 'recruitment/includes/rc_styles.html' %}{% endblock %}
+{% block content %}
+{% with job=candidate.job_posting %}
+<div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div class="jp-page-header-main">
+      <h2 class="jp-page-title fw-bold text-dark mb-1">
+        {{ candidate.full_name }}
+        <span class="jp-rc-badge is-{{ candidate.status }} align-middle ms-1">{{ candidate.get_status_display }}</span>
+      </h2>
+      <p class="text-muted small mb-0">{{ job.title }} · {{ job.department_label }} · Đã tuyển {{ filled }}/{{ job.quantity }}</p>
+    </div>
+    <div class="jp-rc-tools">
+      {% include 'recruitment/includes/cv_button.html' with f=candidate.primary_file label='Xem CV' cls='btn btn-hm btn-sm fw-bold' %}
+      {% if manager_view %}
+      <a href="{% url 'recruitment_review_list' %}" class="btn btn-light btn-sm border"><i class="bi bi-arrow-left"></i>Đánh giá ứng viên</a>
+      {% else %}
+      <a href="{% url 'kanban_board' %}?job_id={{ job.pk }}" class="btn btn-light btn-sm border"><i class="bi bi-arrow-left"></i>Ứng viên</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white fw-bold">Hồ sơ</div>
+        <div class="card-body">
+          <dl class="jp-rc-dl mb-0">
+            <dt>Giới tính</dt><dd>{{ candidate.get_gender_display|default:"—" }}</dd>
+            <dt>Ngày sinh</dt><dd>{{ candidate.date_of_birth|date:"d/m/Y"|default:"—" }}</dd>
+            <dt>Số điện thoại</dt><dd>{{ candidate.phone }}</dd>
+            <dt>Email</dt><dd>{{ candidate.email|default:"—" }}</dd>
+            <dt>Nguồn hồ sơ</dt>
+            <dd>
+              {{ candidate.source_label }}
+              {% if candidate.referred_by %} · {{ candidate.referred_by.profile.full_name|default:candidate.referred_by.username }}{% endif %}
+            </dd>
+            <dt>Ngày nộp</dt><dd>{{ candidate.applied_at|date:"d/m/Y H:i" }}</dd>
+            {% if candidate.reject_reason %}
+            <dt>Lý do</dt><dd class="text-danger">{{ candidate.reject_reason }}</dd>
+            {% endif %}
+            {% if candidate.employee %}
+            <dt>Tài khoản nhân viên</dt>
+            <dd>{{ candidate.employee.username }}{% if candidate.employee.profile.employee_code %} · Mã {{ candidate.employee.profile.employee_code }}{% endif %}</dd>
+            {% endif %}
+          </dl>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mb-3" id="ho-so">
+        <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+          <span>Hồ sơ đính kèm</span>
+          <span class="small text-muted fw-normal">{{ files|length }} file</span>
+        </div>
+        <ul class="list-group list-group-flush">
+          {% for f in files %}
+          <li class="list-group-item d-flex align-items-center gap-2">
+            <i class="bi {{ f.icon }} fs-5 text-muted" aria-hidden="true"></i>
+            <div class="flex-grow-1 min-w-0">
+              <button type="button" class="btn btn-link p-0 text-start fw-semibold text-truncate d-block mw-100"
+                      data-rc-cv data-url="{% url 'recruitment_file' f.pk %}" data-kind="{{ f.preview_kind }}"
+                      data-name="{{ candidate.full_name }}" data-file="{{ f.original_name }}">{{ f.original_name }}</button>
+              <div class="small text-muted">{{ f.kind_label }} · {{ f.size|filesizeformat }} · {{ f.uploaded_at|date:"d/m/Y" }}</div>
+            </div>
+            <a href="{% url 'recruitment_file' f.pk %}?download=1" class="btn btn-light btn-sm border" title="Tải về" aria-label="Tải {{ f.original_name }}"><i class="bi bi-download"></i></a>
+            {% if can_delete_files %}
+            <form method="post" action="{% url 'candidate_file_delete' candidate.pk f.pk %}" class="d-inline-flex"
+                  onsubmit="return confirm('Xóa file {{ f.original_name|escapejs }}?');">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-link text-danger btn-sm p-1" title="Xóa" aria-label="Xóa {{ f.original_name }}"><i class="bi bi-x-lg"></i></button>
+            </form>
+            {% endif %}
+          </li>
+          {% empty %}
+          <li class="list-group-item small text-muted">Chưa có CV.</li>
+          {% endfor %}
+        </ul>
+        {% if file_form %}
+        <div class="card-body border-top">
+          <form method="post" enctype="multipart/form-data"
+                action="{% if manager_view %}{% url 'recruitment_manager_file_upload' candidate.pk %}{% else %}{% url 'candidate_file_upload' candidate.pk %}{% endif %}">
+            {% csrf_token %}
+            <div class="row g-2">
+              <div class="col-12">
+                <label class="form-label fw-semibold small" for="{{ file_form.kind.id_for_label }}">{{ file_form.kind.label }}</label>
+                {{ file_form.kind }}
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-semibold small" for="{{ file_form.files.id_for_label }}">{{ file_form.files.label }}</label>
+                {{ file_form.files }}
+              </div>
+            </div>
+            <button type="submit" class="btn btn-outline-hm btn-sm fw-bold mt-2"><i class="bi bi-upload" aria-hidden="true"></i> Tải lên</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+
+      {% if job.requirements %}
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white fw-bold">Yêu cầu vị trí</div>
+        <div class="card-body small" style="white-space: pre-line;">{{ job.requirements }}</div>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="col-lg-8">
+      {% if can_update and targets or can_onboard %}
+      <div class="card border-0 shadow-sm mb-3" id="onboard">
+        <div class="card-header bg-white fw-bold">Bước tiếp theo</div>
+        <div class="card-body">
+          {% if needs_review_for_interview %}
+          <p class="small text-muted mb-2">Chờ quản lý phòng {{ job.department_label }} đánh giá «Đề xuất phỏng vấn».</p>
+          {% endif %}
+          <div class="jp-rc-tools">
+            {% for status, label in targets %}
+            <button type="button" class="btn btn-sm fw-bold {% if status == 'rejected' or status == 'not_onboarded' %}btn-outline-secondary{% else %}btn-outline-hm{% endif %}"
+                    data-rc-transition data-url="{% url 'candidate_transition' candidate.pk %}"
+                    data-to="{{ status }}" data-to-label="{{ label }}" data-name="{{ candidate.full_name }}"
+                    data-next="{{ request.path }}">
+              {{ label }}
+            </button>
+            {% endfor %}
+          </div>
+          {% if can_onboard %}
+          <hr>
+          <form method="post" action="{% url 'candidate_onboard' candidate.pk %}" class="row g-2 align-items-start" novalidate
+                onsubmit="return confirm('Tạo tài khoản nhân viên cho {{ candidate.full_name|escapejs }}?');">
+            {% csrf_token %}
+            <div class="col-12 small fw-semibold text-muted">Thông tin tài khoản nhân viên — kiểm tra / bổ sung trước khi tạo</div>
+            {% include 'recruitment/includes/field.html' with field=onboard_form.email col='col-md-6' %}
+            {% include 'recruitment/includes/field.html' with field=onboard_form.join_date col='col-md-6' %}
+            {% include 'recruitment/includes/field.html' with field=onboard_form.gender col='col-md-6' %}
+            {% include 'recruitment/includes/field.html' with field=onboard_form.date_of_birth col='col-md-6' %}
+            <div class="col-12">
+              <button type="submit" class="btn btn-hm btn-sm fw-bold"><i class="bi bi-person-badge"></i>Onboard — tạo nhân viên</button>
+            </div>
+            <div class="col-12 small text-muted">
+              Phòng ban {{ job.department_label }} · Nhóm quyền {{ onboarding_group.name|default:"(chưa có)" }}
+              · Khóa {{ onboarding_course.title|default:"Đào tạo hội nhập (chưa có)" }}
+            </div>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white fw-bold">Đánh giá của quản lý</div>
+        <ul class="list-group list-group-flush">
+          {% for review in reviews %}
+          <li class="list-group-item">
+            <div class="d-flex flex-wrap justify-content-between gap-2">
+              <span class="fw-semibold">{{ review.reviewer.profile.full_name|default:review.reviewer.username|default:"(đã xóa)" }}</span>
+              <span>
+                <span class="jp-rc-badge is-{{ review.decision }}">{{ review.get_decision_display }}</span>
+                {% if review.rating %}<span class="small text-muted ms-1">{{ review.rating }}/5</span>{% endif %}
+              </span>
+            </div>
+            {% if review.comment %}<div class="small mt-1" style="white-space: pre-line;">{{ review.comment }}</div>{% endif %}
+            <div class="small text-muted">{{ review.updated_at|date:"H:i d/m/Y" }}</div>
+          </li>
+          {% empty %}
+          <li class="list-group-item small text-muted">Chưa có đánh giá.</li>
+          {% endfor %}
+        </ul>
+        {% if review_form %}
+        <div class="card-body border-top">
+          <form method="post" action="{% url 'recruitment_review_candidate' candidate.pk %}">
+            {% csrf_token %}
+            <fieldset class="mb-2">
+              <legend class="form-label fw-semibold small mb-1">{% if my_review %}Cập nhật đánh giá của bạn{% else %}Đánh giá của bạn{% endif %} <span class="text-danger">*</span></legend>
+              <div class="d-flex flex-wrap gap-3">
+                {% for radio in review_form.decision %}
+                <div class="form-check">
+                  {{ radio.tag }}
+                  <label class="form-check-label" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
+                </div>
+                {% endfor %}
+              </div>
+            </fieldset>
+            <div class="row g-2">
+              <div class="col-sm-3">
+                <label class="form-label fw-semibold small" for="{{ review_form.rating.id_for_label }}">{{ review_form.rating.label }}</label>
+                {{ review_form.rating }}
+              </div>
+              <div class="col-sm-9">
+                <label class="form-label fw-semibold small" for="{{ review_form.comment.id_for_label }}">{{ review_form.comment.label }}</label>
+                {{ review_form.comment }}
+              </div>
+            </div>
+            <button type="submit" class="btn btn-hm btn-sm fw-bold mt-2"><i class="bi bi-send"></i>Gửi đánh giá</button>
+          </form>
+        </div>
+        {% elif manager_view and candidate.status != 'reviewing' %}
+        <div class="card-body border-top small text-muted">Hồ sơ không ở bước chờ đánh giá.</div>
+        {% endif %}
+      </div>
+
+      {% if interview %}
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center gap-2">
+          <span>Phỏng vấn</span>
+          <span class="d-inline-flex align-items-center gap-2">
+            {% include 'recruitment/includes/cv_button.html' with f=candidate.primary_file label='Xem CV' %}
+            <span class="jp-rc-badge is-{{ interview.result }}">{{ interview.get_result_display }}</span>
+          </span>
+        </div>
+        <div class="card-body">
+          <dl class="jp-rc-dl row mb-0">
+            <div class="col-sm-4"><dt>Thời gian</dt>
+              <dd>{{ interview.time_range_label }}{% if interview.duration_label %}<div class="small text-muted">{{ interview.duration_label }}</div>{% endif %}</dd>
+            </div>
+            <div class="col-sm-4"><dt>Địa điểm</dt><dd>{{ interview.location|default:"—" }}</dd></div>
+            <div class="col-sm-4"><dt>Người phỏng vấn</dt>
+              <dd>{% for u in interview.interviewers.all %}{{ u.profile.full_name|default:u.username }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</dd>
+            </div>
+            {% if interview.result_notes %}
+            <div class="col-12"><dt>Nhận xét</dt><dd style="white-space: pre-line;">{{ interview.result_notes }}</dd></div>
+            {% endif %}
+          </dl>
+          {% if result_form %}
+          {% if interview_started %}
+          <form method="post" action="{{ result_action }}" class="border-top pt-3 mt-2">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.path }}">
+            {% include 'recruitment/includes/interview_result_fields.html' with uid='rcResultD' %}
+            <button type="submit" class="btn btn-hm btn-sm fw-bold mt-3"><i class="bi bi-check2-square"></i>Lưu kết quả</button>
+          </form>
+          {% else %}
+          <p class="small text-muted border-top pt-3 mt-2 mb-0">Nhập kết quả sau giờ phỏng vấn.</p>
+          {% endif %}
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endwith %}
+{% if can_update %}{% include 'recruitment/includes/transition_modal.html' %}{% endif %}
+{% if can_onboard %}{% include 'recruitment/includes/rc_date_scripts.html' %}{% endif %}
+{% include 'recruitment/includes/cv_viewer.html' %}
+{% endblock %}

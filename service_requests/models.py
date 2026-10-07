@@ -129,10 +129,15 @@ class ServiceRequest(models.Model):
     SUBTYPE_HR = 'hr'
     SUBTYPE_REPAIR = 'repair'
     SUBTYPE_ACCOUNT = 'account'
+    # Yêu cầu ứng viên — chỉ Trưởng bộ phận / Trưởng phòng / Giám đốc; duyệt xong tạo vị trí tuyển dụng.
+    SUBTYPE_CANDIDATE = 'candidate'
+    # Chỉ hiện trong ô chọn loại cho người có quyền (xem service_requests.subtypes).
+    MANAGER_ONLY_SUBTYPES = frozenset({SUBTYPE_CANDIDATE})
     SUBTYPE_CHOICES = [
         (SUBTYPE_PURCHASE, 'Mua vật tư, thiết bị, văn phòng phẩm'),
         (SUBTYPE_PAYMENT, 'Thanh toán, tạm ứng, hoàn ứng'),
-        (SUBTYPE_HR, 'Tuyển dụng và điều chuyển nhân sự'),
+        (SUBTYPE_CANDIDATE, 'Yêu cầu ứng viên (tuyển dụng)'),
+        (SUBTYPE_HR, 'Điều chuyển nhân sự'),
         (SUBTYPE_REPAIR, 'Sửa chữa máy móc, IT, cơ sở vật chất'),
         (SUBTYPE_ACCOUNT, 'Cấp phát tài khoản, máy tính, email'),
     ]
@@ -362,11 +367,21 @@ EXTRA_FIELD_LABELS = {
         'due_date': 'Ngày cần chi',
     },
     ServiceRequest.SUBTYPE_HR: {
+        # hr_kind / position / … — đề xuất cũ (trước khi tách «Yêu cầu ứng viên»).
         'hr_kind': 'Loại yêu cầu',
         'position': 'Vị trí / chức danh',
         'target_department': 'Phòng ban cần nhân sự',
         'headcount': 'Số lượng',
         'desired_date': 'Ngày mong muốn',
+        'transfer_employee': 'Nhân viên điều chuyển',
+        'to_department': 'Phòng ban mới',
+    },
+    ServiceRequest.SUBTYPE_CANDIDATE: {
+        'position': 'Vị trí / chức danh',
+        'target_department': 'Phòng ban',
+        'target_division': 'Bộ phận',
+        'headcount': 'Số lượng',
+        'desired_date': 'Ngày cần nhân sự',
     },
     ServiceRequest.SUBTYPE_REPAIR: {
         'incident_category': 'Loại sự cố',

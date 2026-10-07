@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block extra_head %}{% include 'recruitment/includes/rc_styles.html' %}{% endblock %}
+{% block content %}
+<div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div class="jp-page-header-main">
+      <h2 class="jp-page-title fw-bold text-dark mb-1">Tuyển dụng</h2>
+      <p class="text-muted small mb-0"><i class="bi bi-building" aria-hidden="true"></i> {{ scope_label }}</p>
+    </div>
+    <div class="jp-rc-tools">
+      {% if can_jobs_view %}
+      <a href="{% url 'job_posting_list' %}" class="btn btn-outline-hm btn-sm fw-bold"><i class="bi bi-megaphone"></i>Vị trí</a>
+      {% endif %}
+      {% if can_candidates_view %}
+      <a href="{% url 'kanban_board' %}" class="btn btn-hm btn-sm fw-bold"><i class="bi bi-kanban"></i>Ứng viên</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="row g-2 g-md-3 mb-3">
+    <div class="col-6 col-md-3">
+      <a class="jp-rc-stat" href="{% url 'job_posting_list' %}?status=open">
+        <div class="jp-rc-stat-value">{{ open_jobs_count }}</div>
+        <div class="jp-rc-stat-label">Vị trí đang tuyển</div>
+      </a>
+    </div>
+    <div class="col-6 col-md-3">
+      <a class="jp-rc-stat" href="{% url 'job_posting_list' %}?status=draft">
+        <div class="jp-rc-stat-value">{{ draft_jobs|length }}</div>
+        <div class="jp-rc-stat-label">Vị trí nháp chờ hoàn thiện</div>
+      </a>
+    </div>
+    <div class="col-6 col-md-3">
+      <a class="jp-rc-stat" href="{% url 'interview_list' %}">
+        <div class="jp-rc-stat-value">{{ upcoming|length }}</div>
+        <div class="jp-rc-stat-label">Phỏng vấn 7 ngày tới</div>
+      </a>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="jp-rc-stat">
+        <div class="jp-rc-stat-value">{{ hired_this_month }}</div>
+        <div class="jp-rc-stat-label">Nhận việc trong tháng</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2 d-flex flex-wrap gap-2 align-items-center">
+      {% for key, label, count in status_counts %}
+      <span class="jp-rc-badge is-{{ key }}">{{ label }} · {{ count }}</span>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white fw-bold">Phỏng vấn chờ nhập kết quả</div>
+        <ul class="list-group list-group-flush">
+          {% for inv in pending_results %}
+          <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+            <div>
+              <a href="{% url 'candidate_detail' inv.candidate.pk %}" class="fw-semibold">{{ inv.candidate.full_name }}</a>
+              <div class="small text-muted">{{ inv.candidate.job_posting.title }}</div>
+            </div>
+            <span class="small text-muted text-nowrap">{{ inv.time_range_label }}</span>
+          </li>
+          {% empty %}
+          <li class="list-group-item small text-muted">Không có.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white fw-bold">Trúng tuyển chờ onboard</div>
+        <ul class="list-group list-group-flush">
+          {% for cand in awaiting_onboard %}
+          <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+            <div>
+              <a href="{% url 'candidate_detail' cand.pk %}" class="fw-semibold">{{ cand.full_name }}</a>
+              <div class="small text-muted">{{ cand.job_posting.title }} · {{ cand.job_posting.department_label }}</div>
+            </div>
+            <span class="small text-muted text-nowrap">{{ cand.status_changed_at|date:"d/m/Y" }}</span>
+          </li>
+          {% empty %}
+          <li class="list-group-item small text-muted">Không có.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white fw-bold">Phỏng vấn sắp tới</div>
+        <ul class="list-group list-group-flush">
+          {% for inv in upcoming %}
+          <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+            <div>
+              <a href="{% url 'candidate_detail' inv.candidate.pk %}" class="fw-semibold">{{ inv.candidate.full_name }}</a>
+              <div class="small text-muted">{{ inv.candidate.job_posting.title }}{% if inv.location %} · {{ inv.location }}{% endif %}</div>
+            </div>
+            <span class="small text-muted text-nowrap">{{ inv.time_range_label }}</span>
+          </li>
+          {% empty %}
+          <li class="list-group-item small text-muted">Không có.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white fw-bold">Vị trí nháp</div>
+        <ul class="list-group list-group-flush">
+          {% for job in draft_jobs %}
+          <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+            <div>
+              <a href="{% url 'job_posting_edit' job.pk %}" class="fw-semibold">{{ job.title }}</a>
+              <div class="small text-muted">
+                {{ job.department_label }} · {{ job.quantity }} người
+                {% if job.service_request_id %} · từ đề xuất #{{ job.service_request_id }}{% endif %}
+              </div>
+            </div>
+            <span class="small text-muted text-nowrap">{{ job.created_at|date:"d/m/Y" }}</span>
+          </li>
+          {% empty %}
+          <li class="list-group-item small text-muted">Không có.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

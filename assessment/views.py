@@ -8,7 +8,6 @@ from django.contrib import messages
 from django.http import HttpResponseForbidden, JsonResponse
 from training.models import Course, Enrollment
 from django.contrib.auth.hashers import make_password 
-from recruitment.models import JobPosting, Candidate, Interview
 import pandas as pd
 from django.contrib.auth.models import User
 from django.http import HttpResponse
@@ -460,10 +459,34 @@ def exam_result(request, exam_id):
     })
 
 
+def _first_dashboard_tab(user) -> str | None:
+    """Tab dashboard đầu tiên user được sửa (Tuyển dụng đã tách sang /hr/)."""
+    from hrm.module_permissions import MODULE_KPI, MODULE_TRAINING
+
+    for tab_key, module_key in (
+        ('training', MODULE_TRAINING),
+        ('assessment', MODULE_ASSESSMENT),
+        ('kpi', MODULE_KPI),
+    ):
+        if user_can_edit_module(user, module_key):
+            return tab_key
+    return None
+
+
 @dashboard_hub_required
 def admin_dashboard(request):
     now = timezone.now()
-    tab = (request.GET.get('tab') or '').strip() or 'recruitment'
+    tab = (request.GET.get('tab') or '').strip()
+    if tab in ('', 'recruitment'):
+        # Tổng quan Tuyển dụng nằm ở trang riêng trong module Tuyển dụng.
+        from hrm.module_permissions import MODULE_RECRUITMENT, user_can_access_module
+
+        if user_can_access_module(request.user, MODULE_RECRUITMENT):
+            return redirect('recruitment_overview')
+        fallback = _first_dashboard_tab(request.user)
+        if fallback:
+            return redirect(f"{reverse('admin_dashboard')}?tab={fallback}")
+        return redirect('home_portal')
     context = {
         'active_kpi_periods': 0,
         'total_yearly_kpis': 0,
@@ -478,10 +501,6 @@ def admin_dashboard(request):
         'exams_query_string': '',
         'recent_exams': [],
         'recent_submissions': [],
-        'active_jobs': 0,
-        'total_candidates': 0,
-        'upcoming_interviews': 0,
-        'recent_candidates': [],
         'total_courses': 0,
         'active_learners': 0,
         'completed_learners': 0,
@@ -523,19 +542,6 @@ def admin_dashboard(request):
                 year=now_kpi.year, month=now_kpi.month,
             ).count(),
             'total_yearly_kpis': MonthlyKpi.objects.count(),
-        })
-    else:
-        today = timezone.localdate()
-        open_jobs_qs = JobPosting.objects.filter(is_active=True, deadline__gte=today)
-        context.update({
-            'jobs': open_jobs_qs,
-            'active_jobs': open_jobs_qs.count(),
-            'total_candidates': Candidate.objects.count(),
-            'upcoming_interviews': Interview.objects.filter(interview_time__gte=now).count(),
-            'recent_candidates': list(
-                Candidate.objects.select_related('job_posting').order_by('-applied_at')[:5]
-            ),
-            'total_users': User.objects.count(),
         })
 
     return render(request, 'assessment/admin/dashboard.html', context)
