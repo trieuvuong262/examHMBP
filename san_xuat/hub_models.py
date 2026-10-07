@@ -1589,6 +1589,14 @@ class SxMaterialIssueRequest(DemoMarkedModel):
         related_name='material_issue_requests',
         verbose_name='Phiếu xuất NPL',
     )
+    work_center = models.ForeignKey(
+        'san_xuat.SxWorkCenter',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='material_issue_requests',
+        verbose_name='Tổ / bộ phận nhận',
+    )
     status = models.CharField(max_length=20, default='draft')
     request_date = models.DateField()
     notes = models.TextField(blank=True, default='')
@@ -1607,6 +1615,13 @@ class SxMaterialIssueRequestLine(models.Model):
     request = models.ForeignKey(SxMaterialIssueRequest, on_delete=models.CASCADE, related_name='lines')
     material_code = models.CharField(max_length=60)
     material_name = models.CharField(max_length=255, blank=True, default='')
+    bom_material_code = models.CharField(
+        max_length=60,
+        blank=True,
+        default='',
+        verbose_name='Mã NPL theo BOM',
+        help_text='Mã NPL chính trên BOM (khác material_code khi xuất NPL thay thế).',
+    )
     qty_requested = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal('0'))
     qty_issued = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal('0'))
     preferred_location = models.ForeignKey(

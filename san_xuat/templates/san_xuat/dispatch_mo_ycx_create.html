@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% load sx_format %}
+
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+<style>
+.jp-sx-ycx-new .qty-input { max-width: 8rem; margin-left: auto; text-align: right; }
+.jp-sx-ycx-new tr.is-empty td { color: var(--bs-secondary-color); }
+.jp-sx-ycx-new .team-hint { font-size: 0.75rem; color: var(--bs-secondary-color); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-sx-ycx-new py-3 py-md-4 mb-5">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Tạo yêu cầu xuất VT <span class="text-muted">({{ mo.code }})</span></h2>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại lệnh</a>
+    </nav>
+  </div>
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-12 col-md-5">
+            <label class="form-label small fw-semibold" for="jp-ycx-team">Tổ / bộ phận nhận</label>
+            <select name="work_center" id="jp-ycx-team" class="form-select">
+              <option value="">— Không gắn tổ —</option>
+              {% for t in teams %}
+              <option value="{{ t.work_center.pk }}" {% if selected_team_id == t.work_center.pk %}selected{% endif %}>
+                {{ t.work_center.name }}{% if t.processes %} · {{ t.processes|join:", " }}{% endif %}
+              </option>
+              {% endfor %}
+            </select>
+            {% if not teams %}
+            <div class="team-hint mt-1">Lệnh chưa gán tổ cho công đoạn nào — gán tổ trên công đoạn LSX để xuất theo tổ.</div>
+            {% endif %}
+          </div>
+          <div class="col-12 col-md-7">
+            <label class="form-label small fw-semibold" for="jp-ycx-notes">Ghi chú</label>
+            <input type="text" name="notes" id="jp-ycx-notes" class="form-control" value="{{ notes }}" maxlength="500">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+          <p class="small fw-bold text-uppercase text-muted mb-0">Nhu cầu NPL theo BOM</p>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-ycx-pick="all">Chọn tất cả còn lại</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-ycx-pick="none">Bỏ chọn</button>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th style="width:2.5rem"></th>
+                <th>NPL</th>
+                <th class="text-end">Nhu cầu</th>
+                <th class="text-end">Đã giao phiếu</th>
+                <th class="text-end">Còn lại</th>
+                <th class="text-end" style="min-width:9rem">SL xuất cho tổ</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for r in rows %}
+              <tr class="{% if not r.remaining %}is-empty{% endif %}">
+                <td>
+                  <input type="hidden" name="key_{{ r.idx }}" value="{{ r.row.key }}">
+                  <input type="checkbox" class="form-check-input" name="pick_{{ r.idx }}" value="1"
+                    data-ycx-row {% if r.picked %}checked{% endif %} {% if not r.remaining %}disabled{% endif %}
+                    aria-label="Chọn {{ r.row.bom_material_code }}">
+                </td>
+                <td>
+                  <div class="fw-semibold small">{{ r.row.bom_material_code }}</div>
+                  <div class="text-muted small">{{ r.row.material_name }}{% if r.row.unit %} · {{ r.row.unit }}{% endif %}</div>
+                </td>
+                <td class="text-end small">{{ r.row.qty_need|sx_num }}</td>
+                <td class="text-end small">{{ r.row.qty_allocated|sx_num }}</td>
+                <td class="text-end small fw-semibold">{{ r.remaining|sx_num }}</td>
+                <td class="text-end">
+                  {% if r.remaining %}
+                  <input type="text" inputmode="decimal" name="qty_{{ r.idx }}" value="{{ r.qty_value }}"
+                    class="form-control form-control-sm qty-input" data-max="{{ r.remaining }}">
+                  {% else %}<span class="small">Đã giao đủ</span>{% endif %}
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="6" class="text-muted small p-3">Lệnh chưa có định mức NPL từ BOM.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 justify-content-end">
+      <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}" class="btn btn-outline-secondary">Hủy</a>
+      <button type="submit" class="btn btn-hm fw-bold" {% if not has_remaining %}disabled{% endif %}>Tạo phiếu</button>
+    </div>
+  </form>
+
+  {% if ycx_list %}
+  <div class="card border-0 shadow-sm mt-4">
+    <div class="card-body">
+      <p class="small fw-bold text-uppercase text-muted mb-2">Phiếu đã tạo cho lệnh này</p>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light">
+            <tr><th>Mã</th><th>Tổ</th><th>Trạng thái</th><th class="text-end">Số dòng NPL</th></tr>
+          </thead>
+          <tbody>
+          {% for req in ycx_list %}
+            <tr>
+              <td><a href="{% url 'san_xuat:dispatch_material_issue_req_detail' req.pk %}" class="small fw-semibold">{{ req.code }}</a></td>
+              <td class="small">{% if req.work_center %}{{ req.work_center.name }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+              <td class="small">
+                {% if req.status == 'draft' %}Nháp{% elif req.status == 'submitted' %}Đã gửi{% elif req.status == 'approved' %}Đã duyệt{% elif req.status == 'partial' %}Xuất một phần{% elif req.status == 'done' %}Hoàn thành{% else %}{{ req.status }}{% endif %}
+              </td>
+              <td class="text-end small">{{ req.lines.all|length }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  document.querySelectorAll('[data-ycx-pick]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var on = btn.getAttribute('data-ycx-pick') === 'all';
+      document.querySelectorAll('input[data-ycx-row]:not(:disabled)').forEach(function (cb) {
+        cb.checked = on;
+      });
+    });
+  });
+  document.querySelectorAll('.qty-input').forEach(function (input) {
+    input.addEventListener('input', function () {
+      var cb = input.closest('tr').querySelector('input[data-ycx-row]');
+      if (cb && !cb.disabled && input.value.trim() !== '') cb.checked = true;
+    });
+  });
+})();
+</script>
+{% endblock %}

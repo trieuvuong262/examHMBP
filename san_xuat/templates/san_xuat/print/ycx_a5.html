@@ -10,7 +10,7 @@
   <div><span class="label">SL lệnh:</span> {{ mo.qty|sx_num }}</div>
   <div class="full"><span class="label">Tên SP:</span> {{ mo.product_name|default:"—" }}</div>
   <div><span class="label">Ngày YC:</span> {{ req.request_date|date:"d/m/Y" }}</div>
-  <div><span class="label">Tổ:</span> {{ mo.team_label|default:"—" }}</div>
+  <div><span class="label">Tổ:</span> {% if req.work_center %}{{ req.work_center.name }}{% else %}{{ mo.team_label|default:"—" }}{% endif %}</div>
   <div class="full"><span class="label">Phiếu xuất kho:</span> {% if req.stock_issue %}{{ req.stock_issue.number }}{% else %}—{% endif %}</div>
 </div>
 

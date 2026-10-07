@@ -46,6 +46,7 @@
             <td class="npl-col" data-col="mo">
               <a href="{% url 'san_xuat:dispatch_mo_detail' req.production_order.pk %}">{{ req.production_order.code }}</a>
             </td>
+            <td class="npl-col" data-col="team">{% if req.work_center %}{{ req.work_center.name }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
             <td class="npl-col" data-col="request_date">{{ req.request_date|date:"d/m/Y" }}</td>
             <td class="npl-col" data-col="status">
               <span class="badge {% if req.status == 'done' %}text-bg-success{% elif req.status == 'partial' %}text-bg-warning{% elif req.status == 'approved' %}text-bg-primary{% elif req.status == 'cancelled' %}text-bg-danger{% else %}bg-secondary-subtle text-secondary border{% endif %}">

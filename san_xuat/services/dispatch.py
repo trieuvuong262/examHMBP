@@ -996,10 +996,108 @@ def _reserve_ycx_safe(req: SxMaterialIssueRequest) -> None:
         return
 
 
+_YCX_CREATE_MO_STATUSES = (
+    SxProductionOrder.STATUS_RELEASED,
+    SxProductionOrder.STATUS_IN_PROGRESS,
+    SxProductionOrder.STATUS_DONE,
+)
+
+
+@dataclass
+class YcxPoolRow:
+    """Nhu cầu NPL của LSX theo một mã BOM, sau khi trừ phần đã giao cho các phiếu YCX."""
+
+    key: str
+    bom_material_code: str
+    material_name: str
+    unit: str
+    qty_need: Decimal
+    qty_allocated: Decimal
+    need: object
+
+    @property
+    def qty_remaining(self) -> Decimal:
+        left = self.qty_need - self.qty_allocated
+        return left if left > 0 else Decimal("0")
+
+
+def _ycx_pool_key(code: str) -> str:
+    return (code or "").strip().casefold()
+
+
+def ycx_team_choices(mo: SxProductionOrder) -> list[dict]:
+    """Tổ/bộ phận gắn trên công đoạn của LSX (mỗi tổ một lần, kèm tên các công đoạn)."""
+    teams: dict[int, dict] = {}
+    steps = mo.mo_process_steps.filter(work_center__isnull=False).select_related("work_center")
+    for step in steps.order_by("sequence", "id"):
+        row = teams.setdefault(
+            step.work_center_id,
+            {"work_center": step.work_center, "processes": []},
+        )
+        name = (step.process_name or "").strip()
+        if name and name not in row["processes"]:
+            row["processes"].append(name)
+    return list(teams.values())
+
+
+def ycx_remaining_pool(mo: SxProductionOrder) -> list[YcxPoolRow]:
+    """Nhu cầu BOM (ĐM × SL) gộp theo mã NPL, trừ SL đã nằm trên các YCX chưa hủy của LSX."""
+    from dataclasses import replace
+
+    from san_xuat.services.bom_need import explode_for_mo
+
+    rows: dict[str, YcxPoolRow] = {}
+    for need in explode_for_mo(mo):
+        if need.qty_total <= 0:
+            continue
+        key = _ycx_pool_key(need.material_code)
+        if not key:
+            continue
+        row = rows.get(key)
+        if row is None:
+            rows[key] = YcxPoolRow(
+                key=key,
+                bom_material_code=need.material_code,
+                material_name=need.material_name,
+                unit=need.unit,
+                qty_need=need.qty_total,
+                qty_allocated=Decimal("0"),
+                need=need,
+            )
+        else:
+            row.qty_need += need.qty_total
+            row.need = replace(row.need, qty_total=row.qty_need)
+
+    allocated_lines = SxMaterialIssueRequestLine.objects.filter(
+        request__production_order=mo,
+        request__is_demo=False,
+    ).exclude(request__status="cancelled")
+    for code, bom_code, qty in allocated_lines.values_list(
+        "material_code", "bom_material_code", "qty_requested"
+    ):
+        row = rows.get(_ycx_pool_key(bom_code or code))
+        if row is not None:
+            row.qty_allocated += qty or Decimal("0")
+    return list(rows.values())
+
+
 @transaction.atomic
 def _create_material_issue_request(
-    *, production_order_id: int, code: str | None = None, notes: str = ""
+    *,
+    production_order_id: int,
+    code: str | None = None,
+    notes: str = "",
+    work_center_id: int | None = None,
+    selections: dict[str, Decimal] | None = None,
 ) -> SxMaterialIssueRequest:
+    """Tạo YCX từ phần nhu cầu BOM chưa giao.
+
+    ``selections`` = {mã NPL BOM (casefold): SL}; ``None`` = lấy toàn bộ phần còn lại.
+    """
+    from dataclasses import replace
+
+    from san_xuat.services.bom_need import resolve_issue_material
+
     # Khóa LSX trước, rồi mới join BOM/đơn — Postgres cấm FOR UPDATE trên LEFT JOIN (FK nullable).
     SxProductionOrder.objects.select_for_update().get(pk=production_order_id)
     mo = (
@@ -1012,71 +1110,118 @@ def _create_material_issue_request(
         )
         .get(pk=production_order_id)
     )
-    if mo.status not in (SxProductionOrder.STATUS_RELEASED, SxProductionOrder.STATUS_IN_PROGRESS, SxProductionOrder.STATUS_DONE):
+    if mo.status not in _YCX_CREATE_MO_STATUSES:
         raise DispatchError("Chỉ được tạo Yêu cầu xuất khi Lệnh sản xuất đã release.")
 
-    existing = (
-        SxMaterialIssueRequest.objects.select_for_update()
-        .filter(production_order=mo, is_demo=False, status__in=_YCX_OPEN_STATUSES)
-        .order_by("-pk")
-        .first()
-    )
-    if existing is not None:
-        return existing
+    work_center = None
+    if work_center_id:
+        team = next(
+            (t for t in ycx_team_choices(mo) if t["work_center"].pk == work_center_id),
+            None,
+        )
+        if team is None:
+            raise DispatchError("Tổ / bộ phận không thuộc công đoạn của lệnh sản xuất này.")
+        work_center = team["work_center"]
 
-    from san_xuat.services.bom_need import explode_for_mo, resolve_issue_material
-
-    needs = explode_for_mo(mo)
-    if not needs:
+    pool = ycx_remaining_pool(mo)
+    if not pool:
         raise DispatchError("Lệnh sản xuất chưa có định mức NPL từ BOM đã chọn.")
 
-    req_code = _code("ycx", SxMaterialIssueRequest, code=code)
+    if selections is None:
+        picks = [(row, row.qty_remaining) for row in pool if row.qty_remaining > 0]
+        if not picks:
+            existing = (
+                SxMaterialIssueRequest.objects
+                .filter(production_order=mo, is_demo=False, status__in=_YCX_OPEN_STATUSES)
+                .order_by("-pk")
+                .first()
+            )
+            if existing is not None and work_center is None:
+                return existing
+            raise DispatchError("Toàn bộ nhu cầu NPL của lệnh đã được giao cho các phiếu yêu cầu xuất.")
+    else:
+        by_key = {row.key: row for row in pool}
+        picks = []
+        for key, qty in selections.items():
+            qty = (qty or Decimal("0")).quantize(Decimal("0.001"))
+            if qty <= 0:
+                continue
+            row = by_key.get(_ycx_pool_key(key))
+            if row is None:
+                raise DispatchError(f"NPL {key} không có trong định mức của lệnh.")
+            if qty > row.qty_remaining.quantize(Decimal("0.001")):
+                raise DispatchError(
+                    f"{row.bom_material_code}: SL {qty} vượt nhu cầu còn lại "
+                    f"{row.qty_remaining.quantize(Decimal('0.001'))}."
+                )
+            picks.append((row, qty))
+        if not picks:
+            raise DispatchError("Chọn ít nhất một NPL với SL lớn hơn 0.")
+
     req = SxMaterialIssueRequest.objects.create(
-        code=req_code,
+        code=_code("ycx", SxMaterialIssueRequest, code=code),
         production_order=mo,
+        work_center=work_center,
         status="draft",
         request_date=timezone.localdate(),
         notes=notes or "",
     )
 
     lines = []
-    skipped_no_mat = 0
-    for need in needs:
-        if need.qty_total <= 0:
-            continue
+    for row, qty in picks:
         try:
-            material = resolve_issue_material(need)
+            material = resolve_issue_material(replace(row.need, qty_total=qty))
         except Exception:
             material = None
         if material is None:
-            skipped_no_mat += 1
-            continue
+            raise DispatchError(f"NPL {row.bom_material_code} không tồn tại hoặc không hoạt động.")
         lines.append(
             SxMaterialIssueRequestLine(
                 request=req,
                 material_code=material.code,
-                material_name=material.name or need.material_name,
-                qty_requested=need.qty_total,
+                material_name=material.name or row.material_name,
+                bom_material_code=row.bom_material_code,
+                qty_requested=qty,
                 qty_issued=Decimal("0"),
             )
-        )
-    if not lines:
-        raise DispatchError(
-            "Không tính được nhu cầu NPL (ĐM × SL). "
-            "Kiểm tra BOM đã chọn, size trên lệnh"
-            + (" và mã NPL còn hoạt động." if skipped_no_mat else ".")
         )
     SxMaterialIssueRequestLine.objects.bulk_create(lines)
     return req
 
 
 def build_material_issue_request(
-    *, production_order_id: int, code: str | None = None, user=None, notes: str = ""
+    *,
+    production_order_id: int,
+    code: str | None = None,
+    user=None,
+    notes: str = "",
+    work_center_id: int | None = None,
+    selections: dict[str, Decimal] | None = None,
 ) -> SxMaterialIssueRequest:
     req = _create_material_issue_request(
-        production_order_id=production_order_id, code=code, notes=notes,
+        production_order_id=production_order_id,
+        code=code,
+        notes=notes,
+        work_center_id=work_center_id,
+        selections=selections,
     )
     _reserve_ycx_safe(req)
+    return req
+
+
+@transaction.atomic
+def cancel_material_issue_request(*, request_id: int, user=None) -> SxMaterialIssueRequest:
+    """Hủy YCX chưa xuất kho — trả SL về nhu cầu còn lại của LSX và nhả giữ chỗ tồn."""
+    from kho_npl.services.reservation import release_reservations_for_ycx
+
+    req = SxMaterialIssueRequest.objects.select_for_update().get(pk=request_id)
+    if req.status == "cancelled":
+        return req
+    if req.stock_issue_id or req.status not in ("draft", "submitted"):
+        raise DispatchError("Chỉ hủy được yêu cầu xuất chưa có phiếu xuất kho.")
+    req.status = "cancelled"
+    req.save(update_fields=["status"])
+    release_reservations_for_ycx(ycx_code=req.code)
     return req
 
 

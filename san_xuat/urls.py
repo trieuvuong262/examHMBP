@@ -68,6 +68,7 @@ urlpatterns = [
     path('dieu-phoi/lenh-sx/them/', views_hub.dispatch_mo_create, name='dispatch_mo_create'),
     path('dieu-phoi/lenh-sx/<int:pk>/', views_hub.dispatch_mo_detail, name='dispatch_mo_detail'),
     path('dieu-phoi/lenh-sx/<int:pk>/in/', views_print.print_mo, name='print_mo'),
+    path('dieu-phoi/lenh-sx/<int:pk>/tao-ycx/', views_hub.dispatch_mo_ycx_create, name='dispatch_mo_ycx_create'),
     path('dieu-phoi/lenh-thao-do/', views_hub.dispatch_disassembly, name='dispatch_disassembly'),
     path('dieu-phoi/lenh-thao-do/them/', views_hub.dispatch_disassembly_create, name='dispatch_disassembly_create'),
     path('dieu-phoi/lenh-thao-do/<int:pk>/', views_hub.dispatch_disassembly_detail, name='dispatch_disassembly_detail'),

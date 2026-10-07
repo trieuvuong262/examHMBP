@@ -356,8 +356,8 @@ SX_FILTER_DISASSEMBLY = SxFilterSpec(
     date_field='order_date',
 )
 SX_FILTER_MATERIAL_ISSUE = SxFilterSpec(
-    code_fields=('code', 'production_order__code', 'production_order__product_code'),
-    name_fields=('production_order__product_name',),
+    code_fields=('code', 'production_order__code', 'production_order__product_code', 'work_center__code'),
+    name_fields=('production_order__product_name', 'work_center__name'),
     date_field='request_date',
 )
 SX_FILTER_PROD_STAT = SxFilterSpec(

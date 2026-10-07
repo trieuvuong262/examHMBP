@@ -121,6 +121,7 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
         _cols(
             _col('code', 'Mã', required=True),
             _col('mo', 'Lệnh sản xuất', weight=150),
+            _col('team', 'Tổ / bộ phận', weight=130),
             _col('request_date', 'Ngày', weight=90),
             _col('status', 'Trạng thái', weight=100),
             _col('issue_doc', 'Phiếu xuất', weight=110, default=False),
@@ -129,6 +130,7 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
         {
             'code': 'code',
             'mo': 'production_order__code',
+            'team': 'work_center__name',
             'request_date': 'request_date',
             'status': 'status',
             'issue_doc': 'npl_issue_doc_code',

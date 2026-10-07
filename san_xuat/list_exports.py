@@ -338,12 +338,13 @@ def _export_material_issue(request):
         base = pending_material_issue_qs()
     else:
         base = SxMaterialIssueRequest.objects.filter(is_demo=False)
-    base = base.select_related('production_order', 'stock_issue').order_by('-request_date', '-pk')
+    base = base.select_related('production_order', 'stock_issue', 'work_center').order_by('-request_date', '-pk')
     qs = _filtered(request, base, SX_FILTER_MATERIAL_ISSUE)
     rows = [
         {
             'Mã': r.code,
             'LSX': getattr(r.production_order, 'code', '') if r.production_order_id else '',
+            'Tổ / bộ phận': r.work_center.name if r.work_center_id else '',
             'Ngày YC': _d(r.request_date),
             'Trạng thái': _status(r),
             'Phiếu kho': getattr(r.stock_issue, 'code', '') if r.stock_issue_id else '',

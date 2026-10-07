@@ -173,8 +173,18 @@
         <button type="submit" name="action" value="approve_partial" class="btn btn-outline-secondary btn-sm">
           <i class="bi bi-box-seam" aria-hidden="true"></i>Xuất phần có tồn
         </button>
+        {% if ycx_can_cancel %}
+        <button type="submit" name="action" value="cancel" form="jp-ycx-cancel-form" class="btn btn-outline-danger btn-sm">
+          <i class="bi bi-x-circle" aria-hidden="true"></i>Hủy phiếu
+        </button>
+        {% endif %}
       </div>
     </form>
+    {% if ycx_can_cancel %}
+    <form method="post" id="jp-ycx-cancel-form" class="d-none" onsubmit="return confirm('Hủy phiếu {{ req.code }}? SL NPL sẽ trả về nhu cầu còn lại của lệnh.');">
+      {% csrf_token %}
+    </form>
+    {% endif %}
   </div>
   {% elif req.status == 'done' and req.stock_issue %}
   <div class="alert alert-light border small mb-3 py-2">
@@ -202,6 +212,10 @@
       </div>
 
       <div class="jp-sx-ycx-meta">
+        <div>
+          <div class="label">Tổ / bộ phận nhận</div>
+          <div class="value">{% if req.work_center %}{{ req.work_center.name }}{% else %}<span class="text-muted fw-normal">Không gắn tổ</span>{% endif %}</div>
+        </div>
         <div>
           <div class="label">Ngày yêu cầu</div>
           <div class="value">{{ req.request_date|date:"d/m/Y" }}</div>

@@ -3731,19 +3731,7 @@ def dispatch_mo_detail(request, pk: int):
             SxProductionOrder.STATUS_RELEASED,
             SxProductionOrder.STATUS_IN_PROGRESS,
         ):
-            try:
-                req = build_material_issue_request(
-                    production_order_id=mo.pk,
-                    user=request.user,
-                    notes='',
-                )
-            except DispatchError as exc:
-                messages.error(request, str(exc))
-            except Exception as exc:
-                messages.error(request, f'Không tạo được phiếu xuất VT. {exc}')
-            else:
-                messages.success(request, f'Yêu cầu xuất vật tư {req.code}.')
-                return redirect('san_xuat:dispatch_material_issue_req_detail', pk=req.pk)
+            return redirect('san_xuat:dispatch_mo_ycx_create', pk=mo.pk)
 
         elif action == 'approve_ycx' and can_update:
             ycx_id = (request.POST.get('ycx_id') or '').strip()
@@ -3839,7 +3827,7 @@ def dispatch_mo_detail(request, pk: int):
         )
 
     ycx_list = (
-        mo.material_issue_requests.select_related('stock_issue')
+        mo.material_issue_requests.select_related('stock_issue', 'work_center')
         .all()
         .order_by('-request_date', '-pk')[:50]
     )
@@ -4216,11 +4204,11 @@ def dispatch_material_issue_req(request):
     base_qs = (
         SxMaterialIssueRequest.objects.filter(is_demo=False)
         .order_by('-request_date', '-pk')
-        .select_related('production_order', 'stock_issue')
+        .select_related('production_order', 'stock_issue', 'work_center')
     )
     pending_count = pending_material_issue_qs().count()
     if queue in ('pending', 'cho-duyet', '1'):
-        base_qs = pending_material_issue_qs()
+        base_qs = pending_material_issue_qs().select_related('work_center')
     requests_qs, fctx = prepare_hub_list(request, base_qs, SX_FILTER_MATERIAL_ISSUE, list_key='dispatch_material_issue')
     return render(request, 'san_xuat/dispatch_material_issue_req_list.html', {
         **_perm_ctx(request),
@@ -4229,6 +4217,111 @@ def dispatch_material_issue_req(request):
         'pending_ycx_count': pending_count,
         'queue_pending': queue in ('pending', 'cho-duyet', '1'),
         **fctx,
+    })
+
+
+def _ycx_parse_qty(raw) -> Decimal | None:
+    text = (raw or '').strip().replace(' ', '')
+    if not text:
+        return None
+    if ',' in text and '.' not in text:
+        text = text.replace(',', '.')
+    else:
+        text = text.replace(',', '')
+    try:
+        return Decimal(text)
+    except (InvalidOperation, ValueError):
+        return None
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def dispatch_mo_ycx_create(request, pk: int):
+    """Tạo YCX cho một tổ/bộ phận: chọn NPL + SL từ phần nhu cầu BOM chưa giao."""
+    from san_xuat.services.dispatch import ycx_remaining_pool, ycx_team_choices
+
+    mo = get_object_or_404(SxProductionOrder, pk=pk)
+    if mo.status not in (SxProductionOrder.STATUS_RELEASED, SxProductionOrder.STATUS_IN_PROGRESS):
+        messages.error(request, 'Chỉ tạo yêu cầu xuất khi lệnh đã phát hành hoặc đang sản xuất.')
+        return redirect('san_xuat:dispatch_mo_detail', pk=mo.pk)
+
+    teams = ycx_team_choices(mo)
+    pool = ycx_remaining_pool(mo)
+    team_raw = (request.POST.get('work_center') if request.method == 'POST' else request.GET.get('team')) or ''
+    selected_team_id = int(team_raw) if team_raw.strip().isdigit() else None
+    notes = (request.POST.get('notes') or '').strip() if request.method == 'POST' else ''
+    posted_qty: dict[str, str] = {}
+    posted_pick: set[str] = set()
+
+    if request.method == 'POST':
+        selections: dict[str, Decimal] = {}
+        errors: list[str] = []
+        for idx in range(len(pool)):
+            key = (request.POST.get(f'key_{idx}') or '').strip()
+            if not key:
+                continue
+            raw_qty = request.POST.get(f'qty_{idx}') or ''
+            posted_qty[key] = raw_qty
+            if not request.POST.get(f'pick_{idx}'):
+                continue
+            posted_pick.add(key)
+            qty = _ycx_parse_qty(raw_qty)
+            if qty is None or qty < 0:
+                errors.append(f'SL không hợp lệ: {key}')
+                continue
+            selections[key] = qty
+        if errors:
+            for err in errors:
+                messages.error(request, err)
+        else:
+            try:
+                req = build_material_issue_request(
+                    production_order_id=mo.pk,
+                    user=request.user,
+                    notes=notes,
+                    work_center_id=selected_team_id,
+                    selections=selections,
+                )
+            except DispatchError as exc:
+                messages.error(request, str(exc))
+            else:
+                team_name = req.work_center.name if req.work_center_id else 'không gắn tổ'
+                messages.success(request, f'Đã tạo yêu cầu xuất vật tư {req.code} ({team_name}).')
+                return redirect('san_xuat:dispatch_material_issue_req_detail', pk=req.pk)
+
+    rows = []
+    for idx, row in enumerate(pool):
+        remaining = row.qty_remaining
+        if request.method == 'POST':
+            qty_value = posted_qty.get(row.key, '')
+            picked = row.key in posted_pick
+        else:
+            qty_value = format(remaining.quantize(Decimal('0.001')).normalize(), 'f') if remaining > 0 else ''
+            picked = False
+        rows.append({
+            'idx': idx,
+            'row': row,
+            'remaining': remaining,
+            'qty_value': qty_value,
+            'picked': picked,
+        })
+
+    ycx_list = list(
+        mo.material_issue_requests.filter(is_demo=False)
+        .exclude(status='cancelled')
+        .select_related('work_center')
+        .prefetch_related('lines')
+        .order_by('pk')
+    )
+    return render(request, 'san_xuat/dispatch_mo_ycx_create.html', {
+        **_perm_ctx(request),
+        'page_title': f'Tạo yêu cầu xuất VT — {mo.code}',
+        'mo': mo,
+        'teams': teams,
+        'selected_team_id': selected_team_id,
+        'rows': rows,
+        'has_remaining': any(r['remaining'] > 0 for r in rows),
+        'notes': notes,
+        'ycx_list': ycx_list,
     })
 
 
@@ -4308,17 +4401,30 @@ def _ycx_detail_context(req):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def dispatch_material_issue_req_detail(request, pk: int):
-    req = (
-        SxMaterialIssueRequest.objects.select_related('production_order', 'stock_issue')
-        .prefetch_related('lines__preferred_location')
-        .get(pk=pk)
+    req = get_object_or_404(
+        SxMaterialIssueRequest.objects.select_related('production_order', 'stock_issue', 'work_center')
+        .prefetch_related('lines__preferred_location'),
+        pk=pk,
     )
     can_update = _perm_ctx(request).get('can_update')
     stock_issue = req.stock_issue
     form = MaterialIssueApproveForm()
+    ycx_can_cancel = bool(
+        can_update and not req.stock_issue_id and req.status in ('draft', 'submitted')
+    )
 
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
+        if action == 'cancel' and ycx_can_cancel:
+            from san_xuat.services.dispatch import cancel_material_issue_request
+
+            try:
+                cancel_material_issue_request(request_id=req.pk, user=request.user)
+            except DispatchError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã hủy {req.code} — SL NPL được trả về nhu cầu còn lại của lệnh.')
+            return redirect('san_xuat:dispatch_material_issue_req_detail', pk=req.pk)
         ycx_editable_loc = can_update and req.status in (
             'draft', 'submitted', 'approved', 'partial',
         ) and (
@@ -4402,6 +4508,7 @@ def dispatch_material_issue_req_detail(request, pk: int):
         'stock_issue': stock_issue,
         'ycx_can_edit_loc': ycx_can_edit_loc,
         'ycx_can_approve': ycx_can_approve,
+        'ycx_can_cancel': ycx_can_cancel,
         **_ycx_detail_context(req),
     })
 

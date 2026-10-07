@@ -126,6 +126,7 @@ def print_ycx(request, pk: int):
         SxMaterialIssueRequest.objects.select_related(
             'production_order',
             'stock_issue',
+            'work_center',
         ).prefetch_related('lines__preferred_location'),
         pk=pk,
     )

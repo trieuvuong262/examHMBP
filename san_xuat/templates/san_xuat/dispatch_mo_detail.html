@@ -72,11 +72,7 @@
           <div class="small text-muted mb-1">Tiếp theo</div>
           <div class="jp-mo-next">
             {% if not progress.issue_done %}
-            <form method="post">
-              {% csrf_token %}
-              <input type="hidden" name="action" value="create_ycx"/>
-              <button type="submit" class="btn btn-hm fw-bold">Xuất VT</button>
-            </form>
+            <a href="{% url 'san_xuat:dispatch_mo_ycx_create' mo.pk %}" class="btn btn-hm fw-bold">Xuất VT</a>
             {% endif %}
             {% if not progress.qc_done %}
               {% if mo.status == 'in_progress' or mo.status == 'done' %}
@@ -451,11 +447,7 @@
             <div class="d-flex flex-wrap gap-1">
               <a href="{% url 'san_xuat:dispatch_material_issue_req' %}" class="btn btn-sm btn-outline-secondary">Danh sách</a>
               {% if mo.status == 'released' or mo.status == 'in_progress' %}
-              <form method="post" class="d-inline">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="create_ycx"/>
-                <button type="submit" class="btn btn-sm btn-hm">Tạo</button>
-              </form>
+              <a href="{% url 'san_xuat:dispatch_mo_ycx_create' mo.pk %}" class="btn btn-sm btn-hm">Tạo</a>
               {% endif %}
             </div>
           </div>
@@ -465,6 +457,7 @@
               <thead class="table-light">
                 <tr>
                   <th>Mã</th>
+                  <th>Tổ</th>
                   <th>Ngày</th>
                   <th>TT</th>
                   <th class="text-end"></th>
@@ -474,6 +467,7 @@
               {% for req in ycx_list %}
                 <tr>
                   <td><a href="{% url 'san_xuat:dispatch_material_issue_req_detail' req.pk %}" class="fw-semibold small text-decoration-none">{{ req.code }}</a></td>
+                  <td class="small">{% if req.work_center %}{{ req.work_center.name }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
                   <td class="small text-muted">{{ req.request_date|date:"d/m/Y" }}</td>
                   <td class="small">
                     {% if req.status == 'draft' %}Nháp
