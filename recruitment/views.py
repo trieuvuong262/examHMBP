@@ -7,7 +7,19 @@ import openpyxl
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count, Exists, Max, OuterRef, Prefetch, Q
+from django.db.models import (
+    Case,
+    Count,
+    Exists,
+    F,
+    IntegerField,
+    Max,
+    OuterRef,
+    Prefetch,
+    Q,
+    Value,
+    When,
+)
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -89,6 +101,16 @@ STATUS_GROUPS = {
     'dang-xu-ly': ('Đang xử lý', (C.STATUS_NEW, C.STATUS_REVIEWING, C.STATUS_INTERVIEWING, C.STATUS_OFFERED)),
     'ket-thuc': ('Loại / Không nhận việc', (C.STATUS_REJECTED, C.STATUS_NOT_ONBOARDED)),
 }
+JOB_STATUS_ORDER = (
+    JobPosting.STATUS_OPEN, JobPosting.STATUS_DRAFT, JobPosting.STATUS_PAUSED, JobPosting.STATUS_CLOSED,
+)
+JOB_ACTION_LABELS = {
+    JobPosting.STATUS_PAUSED: 'Tạm dừng tuyển',
+    JobPosting.STATUS_CLOSED: 'Đóng vị trí',
+}
+JOB_ATTENTION = 'can-chu-y'
+JOB_DEADLINE_SOON_DAYS = 7
+
 CANDIDATE_SORTS = {
     'moi-nhat': ('Nộp mới nhất', ('-applied_at', '-id')),
     'cu-nhat': ('Nộp cũ nhất', ('applied_at', 'id')),
@@ -213,34 +235,113 @@ def job_posting_list(request):
     search_query = get_search_query(request)
     status = (request.GET.get('status') or '').strip()
     dept = (request.GET.get('department') or '').strip()
-    qs = services.annotate_job_counts(
+    today = timezone.localdate()
+    base = services.annotate_job_counts(
         _jobs(request).select_related('target_department', 'target_division', 'service_request')
-    ).order_by('-created_at')
-    if status in dict(JobPosting.STATUS_CHOICES):
-        qs = qs.filter(status=status)
+    )
     if dept.isdigit():
-        qs = qs.filter(target_department_id=int(dept))
-    qs = apply_term_search(
-        qs, search_query, 'title__icontains', 'target_department__name__icontains',
+        base = base.filter(target_department_id=int(dept))
+    base = apply_term_search(
+        base, search_query, 'title__icontains', 'target_department__name__icontains',
         'department__icontains', 'position__icontains',
     )
+    attention_q = Q(status=JobPosting.STATUS_OPEN) & (
+        Q(deadline__lte=today + timedelta(days=JOB_DEADLINE_SOON_DAYS)) | Q(n_filled__gte=F('quantity'))
+    )
+    status_counts = dict(base.order_by().values_list('status').annotate(n=Count('id', distinct=True)))
+    qs = base
+    if status == JOB_ATTENTION:
+        qs = qs.filter(attention_q)
+    elif status in dict(JobPosting.STATUS_CHOICES):
+        qs = qs.filter(status=status)
+    qs = qs.annotate(
+        status_rank=Case(
+            *[When(status=s, then=Value(i)) for i, s in enumerate(JOB_STATUS_ORDER)],
+            default=Value(len(JOB_STATUS_ORDER)), output_field=IntegerField(),
+        ),
+    ).order_by('status_rank', F('deadline').asc(nulls_last=True), '-created_at')
     page_obj, query_string = paginate_queryset(request, qs)
+
+    can_update = can_jobs(request.user, 'update')
+    jobs = list(page_obj.object_list)
+    for job in jobs:
+        _decorate_job_row(job, today, can_update)
+
+    open_rows = list(base.filter(status=JobPosting.STATUS_OPEN).values_list('quantity', 'n_filled', 'n_active'))
+    chip_url = _query_url(request, status=None, page=None)
+    chips = [{'key': '', 'label': 'Tất cả', 'count': sum(status_counts.values()), 'tone': 'all'}]
+    if status_counts.get(JobPosting.STATUS_OPEN):
+        chips.append({'key': JOB_ATTENTION, 'label': 'Cần chú ý', 'count': base.filter(attention_q).count(), 'tone': 'need'})
+    chips += [
+        {'key': s, 'label': dict(JobPosting.STATUS_CHOICES)[s], 'count': status_counts.get(s, 0), 'tone': s}
+        for s in JOB_STATUS_ORDER
+    ]
+    for chip in chips:
+        chip['active'] = status == chip['key']
+        chip['url'] = chip_url + (f'&status={chip["key"]}' if chip['key'] else '')
     from hrm.models import Department
 
     return render(request, 'recruitment/admin/job_posting_list.html', {
-        'jobs': page_obj.object_list,
+        'jobs': jobs,
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
         'status_filter': status,
         'department_filter': dept,
-        'status_choices': JobPosting.STATUS_CHOICES,
+        'status_chips': chips,
+        'summary': {
+            'open': len(open_rows),
+            'missing': sum(max(quota - filled, 0) for quota, filled, _ in open_rows),
+            'active': sum(active for *_, active in open_rows),
+        },
         'departments': Department.objects.filter(job_postings__in=_jobs(request)).distinct().order_by('sort_order', 'name'),
         'scope_label': scope_label(request.user),
         'can_create': can_jobs(request.user, 'create'),
-        'can_update': can_jobs(request.user, 'update'),
-        'can_delete': can_jobs(request.user, 'delete'),
+        'can_update': can_update,
+        'can_add_candidate': can_candidates(request.user, 'create'),
     })
+
+
+def _query_url(request, **overrides) -> str:
+    """URL hiện tại với một số tham số GET được thay / bỏ (giá trị None)."""
+    params = request.GET.copy()
+    for key, value in overrides.items():
+        params.pop(key, None)
+        if value is not None:
+            params[key] = value
+    return f'{request.path}?{params.urlencode()}'
+
+
+def _decorate_job_row(job, today, can_update):
+    """Gắn số liệu hiển thị + thao tác hợp lệ theo JOB_TRANSITIONS cho 1 dòng vị trí."""
+    job.fill_pct = min(100, round(job.n_filled * 100 / job.quantity)) if job.quantity else 0
+    job.is_full = bool(job.quantity) and job.n_filled >= job.quantity
+    job.days_left = (job.deadline - today).days if job.deadline else None
+    live = job.status in (JobPosting.STATUS_OPEN, JobPosting.STATUS_PAUSED, JobPosting.STATUS_DRAFT)
+    job.deadline_tone, job.deadline_note = '', ''
+    if live and job.days_left is not None:
+        if job.days_left < 0:
+            job.deadline_tone, job.deadline_note = 'expired', f'Quá hạn {-job.days_left} ngày'
+        elif job.days_left == 0:
+            job.deadline_tone, job.deadline_note = 'soon', 'Hết hạn hôm nay'
+        elif job.days_left <= JOB_DEADLINE_SOON_DAYS:
+            job.deadline_tone, job.deadline_note = 'soon', f'Còn {job.days_left} ngày'
+    job.candidates_url = (
+        reverse('candidate_list') if job.status == JobPosting.STATUS_OPEN else reverse('kanban_board')
+    ) + f'?job_id={job.pk}'
+    job.open_blocker = services.open_blocker(job)
+    targets = services.JOB_TRANSITIONS.get(job.status, set()) if can_update else set()
+    can_open = JobPosting.STATUS_OPEN in targets and not job.open_blocker
+    open_label = 'Mở tuyển' if job.status == JobPosting.STATUS_DRAFT else 'Mở lại'
+    job.status_actions = [
+        (s, open_label if s == JobPosting.STATUS_OPEN else JOB_ACTION_LABELS[s])
+        for s in JOB_STATUS_ORDER
+        if s in targets and (s != JobPosting.STATUS_OPEN or can_open)
+    ]
+    job.primary_open_label = open_label if can_open and job.status != JobPosting.STATUS_CLOSED else ''
+    job.needs_completion = (
+        JobPosting.STATUS_OPEN in targets and bool(job.open_blocker) and job.status != JobPosting.STATUS_CLOSED
+    )
 
 
 @module_perm_required(MODULE_RECRUITMENT, 'create')
@@ -289,7 +390,7 @@ def job_posting_status(request, pk):
         messages.success(request, f'Vị trí «{job.title}»: {job.get_status_display()}.')
     except services.RecruitmentError as exc:
         messages.error(request, str(exc))
-    return redirect('job_posting_edit', pk=job.pk)
+    return redirect(_safe_next(request, reverse('job_posting_edit', args=[job.pk])))
 
 
 @module_perm_required(MODULE_RECRUITMENT, 'delete')

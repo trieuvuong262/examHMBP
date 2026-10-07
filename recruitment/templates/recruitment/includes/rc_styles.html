@@ -222,8 +222,24 @@
   .jp-rc-row-actions { display: inline-flex; align-items: center; gap: .35rem; justify-content: flex-end; }
   .jp-rc-row-actions .btn { display: inline-flex; align-items: center; gap: .3rem; white-space: nowrap; }
 
+  /* Danh sách vị trí tuyển dụng */
+  .jp-rc-chip.is-open::before { background: #10b981; }
+  .jp-rc-chip.is-draft::before { background: #64748b; }
+  .jp-rc-chip.is-paused::before { background: #d97706; }
+  .jp-rc-chip.is-closed::before { background: #cbd5e1; }
+  .jp-rc-quota { min-width: 9rem; max-width: 12rem; }
+  .jp-rc-count-link { text-decoration: none; display: inline-block; line-height: 1.2; }
+  .jp-rc-count-main { font-weight: 700; font-size: 1.05rem; color: #0f172a; }
+  .jp-rc-count-link:hover .jp-rc-count-main { color: var(--hm-primary, #dc2626); }
+  .jp-rc-deadline { font-size: .74rem; font-weight: 600; }
+  .jp-rc-deadline.is-soon { color: #b45309; }
+  .jp-rc-deadline.is-expired { color: #b91c1c; }
+  .jp-rc-job.is-closed td { color: #64748b; }
+  .jp-rc-job.is-closed .jp-rc-person-name { color: #64748b; }
+  .jp-rc-job.is-closed .jp-rc-progress > span { background: #94a3b8; }
   [data-theme="dark"] .jp-rc-chip,
   [data-theme="dark"] .jp-rc-result-opt { background: transparent; border-color: #334155; color: #e2e8f0; }
+  [data-theme="dark"] .jp-rc-count-main,
   [data-theme="dark"] .jp-rc-person-name,
   [data-theme="dark"] .jp-rc-next-label,
   [data-theme="dark"] .jp-rc-result-opt strong { color: #e2e8f0; }

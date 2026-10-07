@@ -114,6 +114,22 @@ JOB_TRANSITIONS = {
 }
 
 
+def open_blocker(job: JobPosting) -> str:
+    """Lý do chưa mở tuyển được (rỗng = đủ điều kiện)."""
+    missing = [
+        label for label, value in (
+            ('phòng ban', job.target_department_id),
+            ('hạn nộp hồ sơ', job.deadline),
+            ('mô tả công việc', (job.description or '').strip()),
+        ) if not value
+    ]
+    if missing:
+        return 'Cần bổ sung ' + ', '.join(missing) + ' trước khi mở tuyển.'
+    if job.is_expired:
+        return 'Hạn nộp hồ sơ đã qua — cập nhật hạn mới trước khi mở tuyển.'
+    return ''
+
+
 def change_job_status(job: JobPosting, new_status: str, *, actor) -> JobPosting:
     if new_status not in JOB_TRANSITIONS.get(job.status, set()):
         raise RecruitmentError(
@@ -121,17 +137,9 @@ def change_job_status(job: JobPosting, new_status: str, *, actor) -> JobPosting:
             f'«{dict(JobPosting.STATUS_CHOICES).get(new_status, new_status)}».'
         )
     if new_status == JobPosting.STATUS_OPEN:
-        missing = [
-            label for label, value in (
-                ('phòng ban', job.target_department_id),
-                ('hạn nộp hồ sơ', job.deadline),
-                ('mô tả công việc', (job.description or '').strip()),
-            ) if not value
-        ]
-        if missing:
-            raise RecruitmentError('Cần bổ sung ' + ', '.join(missing) + ' trước khi mở tuyển.')
-        if job.is_expired:
-            raise RecruitmentError('Hạn nộp hồ sơ đã qua — cập nhật hạn mới trước khi mở tuyển.')
+        blocker = open_blocker(job)
+        if blocker:
+            raise RecruitmentError(blocker)
     job.status = new_status
     job.closed_at = timezone.now() if new_status == JobPosting.STATUS_CLOSED else None
     job.save(update_fields=['status', 'closed_at', 'updated_at'])

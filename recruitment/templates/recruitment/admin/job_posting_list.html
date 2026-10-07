@@ -2,40 +2,62 @@
 {% block extra_head %}{% include 'recruitment/includes/rc_styles.html' %}{% endblock %}
 {% block content %}
 <div class="container-fluid jp-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
-  <div class="jp-page-header mb-3 mb-md-4">
+  <div class="jp-page-header mb-3">
     <div class="jp-page-header-main">
       <h2 class="jp-page-title fw-bold text-dark mb-1">Vị trí tuyển dụng</h2>
       <p class="text-muted small mb-0"><i class="bi bi-building" aria-hidden="true"></i> {{ scope_label }}</p>
     </div>
     {% if can_create %}
     <div class="jp-rc-tools">
-      <a href="{% url 'job_posting_create' %}" class="btn btn-hm btn-sm fw-bold"><i class="bi bi-plus-lg"></i>Tạo vị trí</a>
+      <a href="{% url 'job_posting_create' %}" class="btn btn-hm btn-sm fw-bold"><i class="bi bi-plus-lg" aria-hidden="true"></i>Tạo vị trí</a>
     </div>
     {% endif %}
   </div>
 
+  <div class="row g-2 g-md-3 mb-3">
+    <div class="col-4">
+      <div class="jp-rc-stat">
+        <div class="jp-rc-stat-value">{{ summary.open }}</div>
+        <div class="jp-rc-stat-label">Vị trí đang tuyển</div>
+      </div>
+    </div>
+    <div class="col-4">
+      <div class="jp-rc-stat">
+        <div class="jp-rc-stat-value{% if summary.missing %} text-danger{% endif %}">{{ summary.missing }}</div>
+        <div class="jp-rc-stat-label">Chỉ tiêu còn thiếu</div>
+      </div>
+    </div>
+    <div class="col-4">
+      <a class="jp-rc-stat" href="{% url 'candidate_list' %}">
+        <div class="jp-rc-stat-value">{{ summary.active }}</div>
+        <div class="jp-rc-stat-label">Ứng viên đang xử lý</div>
+      </a>
+    </div>
+  </div>
+
+  <nav class="jp-rc-chips mb-3" aria-label="Lọc theo trạng thái">
+    {% for chip in status_chips %}
+    <a href="{{ chip.url }}" class="jp-rc-chip is-{{ chip.tone }}{% if chip.active %} active{% endif %}{% if not chip.count %} is-zero{% endif %}"
+       {% if chip.active %}aria-current="page"{% endif %}>
+      {{ chip.label }} <span class="jp-rc-chip-n">{{ chip.count }}</span>
+    </a>
+    {% endfor %}
+  </nav>
+
   <div class="card border-0 shadow-sm mb-3">
     <div class="card-body py-3">
       <form method="get" class="row g-2 align-items-end" role="search">
-        <div class="col-md-3">
-          <label class="form-label small fw-bold text-muted mb-1" for="jobStatus">Trạng thái</label>
-          <select name="status" id="jobStatus" class="form-select" onchange="this.form.submit()">
-            <option value="">Tất cả</option>
-            {% for key, label in status_choices %}
-            <option value="{{ key }}"{% if status_filter == key %} selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-md-3">
+        {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+        <div class="col-md-4 col-lg-3">
           <label class="form-label small fw-bold text-muted mb-1" for="jobDept">Phòng ban</label>
           <select name="department" id="jobDept" class="form-select" onchange="this.form.submit()">
-            <option value="">Tất cả</option>
+            <option value="">Tất cả phòng ban</option>
             {% for d in departments %}
             <option value="{{ d.pk }}"{% if department_filter == d.pk|stringformat:"s" %} selected{% endif %}>{{ d.name }}</option>
             {% endfor %}
           </select>
         </div>
-        <div class="col-md-6">
+        <div class="col-md-8 col-lg-9">
           <label class="form-label small fw-bold text-muted mb-1" for="jobQ">Tìm kiếm</label>
           <div class="input-group jp-hrm-search">
             {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Vị trí, chức danh, phòng ban…' clear_url=request.path %}
@@ -46,51 +68,125 @@
   </div>
 
   <div class="card border-0 shadow-sm overflow-hidden">
+    <div class="card-header bg-white">
+      <span class="fw-bold">{{ page_obj.paginator.count }} vị trí</span>
+    </div>
     <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
+      <table class="table table-hover align-middle mb-0 jp-rc-table">
         <thead class="table-light">
           <tr class="small text-muted">
             <th class="ps-3">Vị trí</th>
-            <th>Phòng ban</th>
-            <th class="text-center">Đã tuyển / Chỉ tiêu</th>
-            <th class="text-center">Đang xử lý</th>
-            <th class="text-center">Hạn nộp</th>
-            <th class="text-center">Trạng thái</th>
-            <th class="text-end pe-3"></th>
+            <th>Chỉ tiêu</th>
+            <th class="text-center">Ứng viên</th>
+            <th>Hạn nộp</th>
+            <th>Trạng thái</th>
+            <th class="text-end pe-3"><span class="visually-hidden">Thao tác</span></th>
           </tr>
         </thead>
         <tbody>
           {% for job in jobs %}
-          <tr>
+          <tr class="jp-rc-job is-{{ job.status }}{% if job.deadline_tone == 'expired' and job.status == 'open' %} is-need{% endif %}">
             <td class="ps-3">
-              <a href="{% url 'job_posting_edit' job.pk %}" class="fw-semibold text-dark">{{ job.title }}</a>
-              <div class="small text-muted">
-                {{ job.get_position_display|default:"Chưa chọn chức danh" }}
-                {% if job.service_request_id %} · đề xuất #{{ job.service_request_id }}{% endif %}
+              <a href="{% url 'job_posting_edit' job.pk %}" class="jp-rc-person-name">{{ job.title }}</a>
+              <div class="jp-rc-sub">
+                {{ job.department_label }} · {{ job.get_position_display|default:"Chưa chọn chức danh" }}
+                {% if job.service_request_id %} · Đề xuất #{{ job.service_request_id }}{% endif %}
               </div>
             </td>
-            <td>{{ job.department_label }}</td>
-            <td class="text-center">{{ job.n_filled }} / {{ job.quantity }}</td>
+            <td>
+              <div class="jp-rc-quota">
+                <div class="d-flex justify-content-between align-items-baseline gap-2">
+                  <span class="fw-semibold small">{{ job.n_filled }}/{{ job.quantity }} người</span>
+                  {% if job.is_full %}<span class="jp-rc-badge is-offered">Đủ chỉ tiêu</span>{% endif %}
+                </div>
+                <div class="jp-rc-progress mt-1" role="progressbar" aria-label="Đã tuyển {{ job.n_filled }}/{{ job.quantity }}"
+                     aria-valuenow="{{ job.fill_pct }}" aria-valuemin="0" aria-valuemax="100">
+                  <span style="width: {{ job.fill_pct }}%"></span>
+                </div>
+              </div>
+            </td>
             <td class="text-center">
               {% if job.n_candidates %}
-              <a href="{% url 'kanban_board' %}?job_id={{ job.pk }}">{{ job.n_active }}</a>
-              <span class="text-muted small">/ {{ job.n_candidates }}</span>
+              <a href="{{ job.candidates_url }}" class="jp-rc-count-link" title="Xem ứng viên của vị trí">
+                <span class="jp-rc-count-main">{{ job.n_active }}</span>
+              </a>
               {% else %}<span class="text-muted">—</span>{% endif %}
             </td>
-            <td class="text-center small">
+            <td>
               {% if job.deadline %}
-              <span class="{% if job.is_expired and job.status == 'open' %}text-danger fw-semibold{% endif %}">{{ job.deadline|date:"d/m/Y" }}</span>
-              {% else %}—{% endif %}
+              <div class="small fw-semibold{% if job.deadline_tone == 'expired' %} text-danger{% endif %}">{{ job.deadline|date:"d/m/Y" }}</div>
+              {% if job.deadline_note %}<div class="jp-rc-deadline is-{{ job.deadline_tone }}">{{ job.deadline_note }}</div>{% endif %}
+              {% else %}<span class="text-muted small">Chưa đặt</span>{% endif %}
             </td>
-            <td class="text-center"><span class="jp-rc-badge is-{{ job.status }}">{{ job.get_status_display }}</span></td>
+            <td><span class="jp-rc-badge is-{{ job.status }}">{{ job.get_status_display }}</span></td>
             <td class="text-end pe-3">
-              <a href="{% url 'job_posting_edit' job.pk %}" class="btn btn-light btn-sm border" title="Chi tiết / sửa" aria-label="Chi tiết {{ job.title }}">
-                <i class="bi bi-pencil-square"></i>
-              </a>
+              <div class="jp-rc-row-actions">
+                {% if job.primary_open_label %}
+                <form method="post" action="{% url 'job_posting_status' job.pk %}" class="d-inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="status" value="open">
+                  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                  <button type="submit" class="btn btn-hm btn-sm fw-bold"><i class="bi bi-play-fill" aria-hidden="true"></i>{{ job.primary_open_label }}</button>
+                </form>
+                {% elif job.needs_completion and can_update %}
+                <a href="{% url 'job_posting_edit' job.pk %}" class="btn btn-outline-secondary btn-sm fw-semibold" title="{{ job.open_blocker }}">
+                  <i class="bi bi-pencil" aria-hidden="true"></i>Hoàn thiện
+                </a>
+                {% elif job.status == 'open' and job.n_candidates %}
+                <a href="{{ job.candidates_url }}" class="btn btn-light btn-sm border fw-semibold"><i class="bi bi-people" aria-hidden="true"></i>Ứng viên</a>
+                {% elif job.accepts_candidates and can_add_candidate %}
+                <a href="{% url 'add_candidate' %}?job_id={{ job.pk }}" class="btn btn-light btn-sm border fw-semibold"><i class="bi bi-person-plus" aria-hidden="true"></i>Thêm ứng viên</a>
+                {% endif %}
+                <div class="dropdown d-inline-block">
+                  <button type="button" class="btn btn-light btn-sm border" data-bs-toggle="dropdown" aria-expanded="false"
+                          aria-label="Thao tác cho {{ job.title }}" title="Thao tác">
+                    <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="{% url 'job_posting_edit' job.pk %}"><i class="bi bi-pencil-square me-2" aria-hidden="true"></i>{% if can_update %}Sửa thông tin{% else %}Xem chi tiết{% endif %}</a></li>
+                    {% if job.n_candidates %}
+                    <li><a class="dropdown-item" href="{{ job.candidates_url }}"><i class="bi bi-people me-2" aria-hidden="true"></i>Xem ứng viên</a></li>
+                    {% endif %}
+                    {% if can_add_candidate and job.accepts_candidates %}
+                    <li><a class="dropdown-item" href="{% url 'add_candidate' %}?job_id={{ job.pk }}"><i class="bi bi-person-plus me-2" aria-hidden="true"></i>Thêm ứng viên</a></li>
+                    {% endif %}
+                    {% if job.status_actions %}
+                    <li><hr class="dropdown-divider"></li>
+                    {% for status, label in job.status_actions %}
+                    <li>
+                      <form method="post" action="{% url 'job_posting_status' job.pk %}"
+                            {% if status != 'open' %}onsubmit="return confirm('{{ label|escapejs }} «{{ job.title|escapejs }}»?{% if job.n_active %} Vị trí còn {{ job.n_active }} ứng viên đang xử lý.{% endif %}');"{% endif %}>
+                        {% csrf_token %}
+                        <input type="hidden" name="status" value="{{ status }}">
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        <button type="submit" class="dropdown-item{% if status == 'closed' %} text-danger{% endif %}">
+                          <i class="bi {% if status == 'open' %}bi-play-fill{% elif status == 'paused' %}bi-pause-fill{% else %}bi-x-circle{% endif %} me-2" aria-hidden="true"></i>{{ label }}
+                        </button>
+                      </form>
+                    </li>
+                    {% endfor %}
+                    {% endif %}
+                  </ul>
+                </div>
+              </div>
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="7" class="text-center text-muted small py-4">Chưa có vị trí tuyển dụng.</td></tr>
+          <tr><td colspan="6">
+            <div class="jp-rc-empty">
+              {% if status_filter == 'can-chu-y' %}
+              <i class="bi bi-check2-circle" aria-hidden="true"></i>
+              <div class="fw-semibold">Không có vị trí cần chú ý</div>
+              {% elif status_filter or search_query or department_filter %}
+              <i class="bi bi-search" aria-hidden="true"></i>
+              <div class="fw-semibold">Không có vị trí phù hợp bộ lọc</div>
+              {% else %}
+              <i class="bi bi-briefcase" aria-hidden="true"></i>
+              <div class="fw-semibold">Chưa có vị trí tuyển dụng</div>
+              {% if can_create %}<a href="{% url 'job_posting_create' %}" class="btn btn-hm btn-sm fw-bold mt-2"><i class="bi bi-plus-lg" aria-hidden="true"></i>Tạo vị trí</a>{% endif %}
+              {% endif %}
+            </div>
+          </td></tr>
           {% endfor %}
         </tbody>
       </table>
