@@ -31,9 +31,7 @@
             <select name="work_center" id="jp-ycx-team" class="form-select">
               <option value="">— Không gắn tổ —</option>
               {% for t in teams %}
-              <option value="{{ t.work_center.pk }}" {% if selected_team_id == t.work_center.pk %}selected{% endif %}>
-                {{ t.work_center.name }}{% if t.processes %} · {{ t.processes|join:", " }}{% endif %}
-              </option>
+              <option value="{{ t.work_center.pk }}" {% if selected_team_id == t.work_center.pk %}selected{% endif %}>{{ t.work_center.name }}</option>
               {% endfor %}
             </select>
             {% if not teams %}
