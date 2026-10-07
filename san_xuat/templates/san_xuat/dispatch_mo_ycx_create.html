@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load sx_format %}
+{% load sx_format npl_extras %}
 
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
@@ -36,15 +36,15 @@
       <div class="card-body">
         <div class="row g-3">
           <div class="col-12 col-md-5">
-            <label class="form-label small fw-semibold" for="jp-ycx-team">Tổ / bộ phận nhận</label>
-            <select name="work_center" id="jp-ycx-team" class="form-select">
-              <option value="">— Không gắn tổ —</option>
+            <label class="form-label small fw-semibold" for="jp-ycx-team">Tổ / bộ phận nhận <span class="text-danger">*</span></label>
+            <select name="work_center" id="jp-ycx-team" class="form-select" required>
+              <option value="">— Chọn tổ / bộ phận —</option>
               {% for t in teams %}
               <option value="{{ t.work_center.pk }}" {% if selected_team_id == t.work_center.pk %}selected{% endif %}>{{ t.work_center.name }}</option>
               {% endfor %}
             </select>
             {% if not teams %}
-            <div class="team-hint mt-1">Lệnh chưa gán tổ cho công đoạn nào — gán tổ trên công đoạn LSX để xuất theo tổ.</div>
+            <div class="small text-danger mt-1">Lệnh chưa gán tổ cho công đoạn nào — gán tổ trên công đoạn LSX trước khi tạo phiếu.</div>
             {% endif %}
           </div>
           <div class="col-12 col-md">
@@ -52,7 +52,7 @@
             <input type="text" name="notes" id="jp-ycx-notes" class="form-control" value="{{ notes }}" maxlength="500">
           </div>
           <div class="col-12 col-md-auto d-flex align-items-end">
-            <button type="submit" class="btn btn-hm fw-bold w-100" {% if not has_remaining %}disabled{% endif %}>Tạo phiếu</button>
+            <button type="submit" class="btn btn-hm fw-bold w-100" {% if not has_remaining or not teams %}disabled{% endif %}>Tạo phiếu</button>
           </div>
         </div>
       </div>
@@ -142,7 +142,7 @@
       <div class="table-responsive">
         <table class="table table-sm mb-0 align-middle">
           <thead class="table-light">
-            <tr><th>Mã</th><th>Tổ</th><th>Trạng thái</th><th class="text-end">Số dòng NPL</th></tr>
+            <tr><th>Mã</th><th>Tổ</th><th>Trạng thái</th><th>Phiếu xuất NPL</th><th class="text-end">Số dòng NPL</th></tr>
           </thead>
           <tbody>
           {% for req in ycx_list %}
@@ -151,6 +151,9 @@
               <td class="small">{% if req.work_center %}{{ req.work_center.name }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
               <td class="small">
                 {% if req.status == 'draft' %}Nháp{% elif req.status == 'submitted' %}Đã gửi{% elif req.status == 'approved' %}Đã duyệt{% elif req.status == 'partial' %}Xuất một phần{% elif req.status == 'done' %}Hoàn thành{% else %}{{ req.status }}{% endif %}
+              </td>
+              <td class="small">
+                {% for si in req.stock_issues.all %}<a href="{% stock_url 'issue_detail' 'kho_npl' si.pk %}">{{ si.number }}</a>{% if not forloop.last %}, {% endif %}{% empty %}<span class="text-muted">—</span>{% endfor %}
               </td>
               <td class="text-end small">{{ req.lines.all|length }}</td>
             </tr>

@@ -149,7 +149,7 @@ def issue_detail(request, pk):
     issue = get_object_or_404(
         docs_for_domain(
             StockIssue.objects.select_related('issued_by', 'created_by', 'recipient', 'recipient__profile')
-            .prefetch_related('lines__material', 'lines__location')
+            .prefetch_related('lines__material', 'lines__location', 'ycx_requests__work_center')
         ),
         pk=pk,
     )

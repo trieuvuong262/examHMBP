@@ -1589,6 +1589,12 @@ class SxMaterialIssueRequest(DemoMarkedModel):
         related_name='material_issue_requests',
         verbose_name='Phiếu xuất NPL',
     )
+    stock_issues = models.ManyToManyField(
+        'kho_npl.StockIssue',
+        blank=True,
+        related_name='ycx_requests',
+        verbose_name='Các phiếu xuất NPL (gồm bổ sung)',
+    )
     work_center = models.ForeignKey(
         'san_xuat.SxWorkCenter',
         on_delete=models.SET_NULL,

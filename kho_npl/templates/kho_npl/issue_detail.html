@@ -65,14 +65,24 @@
                     —
                     {% endif %}
                 </dd>
-                <dt class="col-sm-3 text-muted">Người nhận</dt>
+                {% with ycx_list=issue.ycx_requests.all %}
+                {% if ycx_list %}
+                <dt class="col-sm-3 text-muted">Yêu cầu xuất VT</dt>
                 <dd class="col-sm-9">
-                    {% if issue.display_recipient_name %}
-                    {{ issue.display_recipient_name }}{% if issue.recipient_department %} - {{ issue.recipient_department }}{% endif %}
-                    {% else %}
-                    —
-                    {% endif %}
+                    {% for ycx in ycx_list %}
+                    <a href="{% url 'san_xuat:dispatch_material_issue_req_detail' ycx.pk %}" class="fw-semibold">{{ ycx.code }}</a>{% if ycx.work_center %} <span class="text-muted">· {{ ycx.work_center.name }}</span>{% endif %}{% if not forloop.last %}<br>{% endif %}
+                    {% endfor %}
                 </dd>
+                {% endif %}
+                {% endwith %}
+                {% if issue.production_order %}
+                <dt class="col-sm-3 text-muted">Lệnh sản xuất</dt>
+                <dd class="col-sm-9">{{ issue.production_order }}</dd>
+                {% endif %}
+                <dt class="col-sm-3 text-muted">Bộ phận nhận</dt>
+                <dd class="col-sm-9">{{ issue.recipient_department|default:"—" }}</dd>
+                <dt class="col-sm-3 text-muted">Người nhận</dt>
+                <dd class="col-sm-9">{{ issue.display_recipient_name|default:"—" }}</dd>
                 <dt class="col-sm-3 text-muted">Người xuất</dt>
                 <dd class="col-sm-9">{% if issue.issued_by %}{{ issue.issued_by.get_full_name|default:issue.issued_by.username }}{% else %}—{% endif %}</dd>
                 <dt class="col-sm-3 text-muted">Người tạo</dt>

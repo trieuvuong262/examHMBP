@@ -1113,6 +1113,8 @@ def _create_material_issue_request(
     if mo.status not in _YCX_CREATE_MO_STATUSES:
         raise DispatchError("Chỉ được tạo Yêu cầu xuất khi Lệnh sản xuất đã release.")
 
+    if selections is not None and not work_center_id:
+        raise DispatchError("Chọn Tổ / bộ phận nhận cho phiếu yêu cầu xuất.")
     work_center = None
     if work_center_id:
         team = next(
@@ -1366,8 +1368,8 @@ def approve_material_issue(
     ``partial`` nếu còn thiếu — có thể gọi lại (bổ sung) khi có hàng.
     """
     req = (
-        SxMaterialIssueRequest.objects.select_for_update()
-        .select_related("production_order")
+        SxMaterialIssueRequest.objects.select_for_update(of=("self",))
+        .select_related("production_order", "work_center")
         .prefetch_related("lines")
         .get(pk=request_id)
     )
@@ -1383,6 +1385,7 @@ def approve_material_issue(
     existing = req.stock_issue
     issue: StockIssue
     is_supplement = False
+    recipient_department = (req.work_center.name if req.work_center_id else "")[:120]
 
     if existing_id := req.stock_issue_id:
         existing = StockIssue.objects.select_for_update().get(pk=existing_id)
@@ -1403,6 +1406,7 @@ def approve_material_issue(
                 issued_by=user,
                 created_by=user,
                 recipient=user,
+                recipient_department=recipient_department,
                 notes=(req.notes or "") + f" (Bổ sung {req.code})",
             )
             if attachment is not None:
@@ -1412,9 +1416,15 @@ def approve_material_issue(
             # Phiếu nháp trước đó: dựng lại dòng theo tồn hiện tại (đặc biệt khi partial).
             existing.lines.all().delete()
             issue = existing
+            update_fields = []
+            if recipient_department and issue.recipient_department != recipient_department:
+                issue.recipient_department = recipient_department
+                update_fields.append("recipient_department")
             if attachment is not None:
                 issue.attachment = attachment
-                issue.save(update_fields=["attachment"])
+                update_fields.append("attachment")
+            if update_fields:
+                issue.save(update_fields=update_fields)
         else:
             raise DispatchError(
                 f"Phiếu xuất liên kết đang ở trạng thái không thể duyệt ({existing.status})."
@@ -1429,6 +1439,7 @@ def approve_material_issue(
             issued_by=user,
             created_by=user,
             recipient=user,
+            recipient_department=recipient_department,
             notes=req.notes or "",
         )
         if attachment is not None:
@@ -1502,6 +1513,7 @@ def approve_material_issue(
     StockIssueLine.objects.bulk_create(issue_lines)
 
     req.stock_issue = issue
+    req.stock_issues.add(issue)
     # Luôn ghi sổ / trừ tồn khi duyệt YCX. Thiếu chứng từ → đính kèm stub tối thiểu
     # để thỏa ràng buộc phiếu xuất kho (không bắt user sang Kho NPL thêm bước).
     if attachment is not None:

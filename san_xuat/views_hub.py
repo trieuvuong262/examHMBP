@@ -4374,7 +4374,7 @@ def dispatch_mo_ycx_create(request, pk: int):
         mo.material_issue_requests.filter(is_demo=False)
         .exclude(status='cancelled')
         .select_related('work_center')
-        .prefetch_related('lines')
+        .prefetch_related('lines', 'stock_issues')
         .order_by('pk')
     )
     return render(request, 'san_xuat/dispatch_mo_ycx_create.html', {
@@ -4468,7 +4468,7 @@ def _ycx_detail_context(req):
 def dispatch_material_issue_req_detail(request, pk: int):
     req = get_object_or_404(
         SxMaterialIssueRequest.objects.select_related('production_order', 'stock_issue', 'work_center')
-        .prefetch_related('lines__preferred_location'),
+        .prefetch_related('lines__preferred_location', 'stock_issues'),
         pk=pk,
     )
     can_update = _perm_ctx(request).get('can_update')
