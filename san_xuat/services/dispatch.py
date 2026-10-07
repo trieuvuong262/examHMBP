@@ -21,7 +21,7 @@ from kho_npl.models import (
     StockIssueLine,
     StockBalance,
 )
-from kho_npl.services.batches import BatchWorkflowError, batches_with_stock
+from kho_npl.services.batches import BatchWorkflowError, batches_with_stock, catalog_base_unit_price
 from kho_npl.services.doc_numbers import next_issue_number
 from kho_npl.services.issues import IssueWorkflowError, post_stock_issue
 
@@ -1302,6 +1302,9 @@ def create_team_stock_issue(
                 uom_factor=factor,
                 qty_base=qty_base,
                 location=location,
+                unit_price=catalog_base_unit_price(
+                    material, fallback_batch=batches_with_stock(material).first()
+                ),
                 notes=f"{req.code} · {mo.code}",
             )
         )
