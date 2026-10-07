@@ -4234,6 +4234,54 @@ def _ycx_parse_qty(raw) -> Decimal | None:
         return None
 
 
+def _ycx_pool_material_info(pool) -> dict[str, dict]:
+    """Tên, ảnh, tồn kho và các ĐVT quy đổi (hệ số về ĐVT lẻ) cho từng dòng nhu cầu."""
+    from django.db.models.functions import Lower
+
+    from kho_npl.models import Material
+    from kho_npl.services.stock import material_total_qty
+    from kho_npl.services.uom import UomConversionError, material_units
+
+    materials = {
+        m._code_l: m
+        for m in Material.objects.annotate(_code_l=Lower('code'))
+        .filter(_code_l__in=[row.key for row in pool])
+        .select_related('unit', 'specification')
+        .prefetch_related('specification__levels__unit')
+    }
+    info: dict[str, dict] = {}
+    for row in pool:
+        mat = materials.get(row.key)
+        units: list[dict] = []
+        image_url = ''
+        stock = Decimal('0')
+        if mat is not None:
+            try:
+                units = [
+                    {'id': str(u['id']), 'name': u['name'], 'factor': Decimal(u['factor'])}
+                    for u in material_units(mat)
+                ]
+            except UomConversionError:
+                units = []
+            if not units and mat.unit_id:
+                units = [{'id': str(mat.unit_id), 'name': mat.unit.name, 'factor': Decimal('1')}]
+            try:
+                image_url = mat.image.url if mat.image else ''
+            except (ValueError, OSError):
+                image_url = ''
+            stock = material_total_qty(mat)
+        if not units:
+            units = [{'id': '', 'name': row.unit or '', 'factor': Decimal('1')}]
+        info[row.key] = {
+            'name': (mat.name if mat is not None and mat.name else row.material_name) or row.bom_material_code,
+            'image_url': image_url,
+            'units': units,
+            'stock': stock,
+            'stock_after': stock - row.qty_remaining,
+        }
+    return info
+
+
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def dispatch_mo_ycx_create(request, pk: int):
     """Tạo YCX cho một tổ/bộ phận: chọn NPL + SL từ phần nhu cầu BOM chưa giao."""
@@ -4246,29 +4294,40 @@ def dispatch_mo_ycx_create(request, pk: int):
 
     teams = ycx_team_choices(mo)
     pool = ycx_remaining_pool(mo)
+    pool_info = _ycx_pool_material_info(pool)
     team_raw = (request.POST.get('work_center') if request.method == 'POST' else request.GET.get('team')) or ''
     selected_team_id = int(team_raw) if team_raw.strip().isdigit() else None
     notes = (request.POST.get('notes') or '').strip() if request.method == 'POST' else ''
     posted_qty: dict[str, str] = {}
+    posted_unit: dict[str, str] = {}
     posted_pick: set[str] = set()
 
     if request.method == 'POST':
+        by_key = {row.key: row for row in pool}
         selections: dict[str, Decimal] = {}
         errors: list[str] = []
         for idx in range(len(pool)):
             key = (request.POST.get(f'key_{idx}') or '').strip()
-            if not key:
+            if not key or key not in by_key:
                 continue
             raw_qty = request.POST.get(f'qty_{idx}') or ''
             posted_qty[key] = raw_qty
+            posted_unit[key] = (request.POST.get(f'unit_{idx}') or '').strip()
             if not request.POST.get(f'pick_{idx}'):
                 continue
             posted_pick.add(key)
+            info = pool_info[key]
             qty = _ycx_parse_qty(raw_qty)
             if qty is None or qty < 0:
-                errors.append(f'SL không hợp lệ: {key}')
+                errors.append(f'SL không hợp lệ: {info["name"]}')
                 continue
-            selections[key] = qty
+            unit = next((u for u in info['units'] if u['id'] == posted_unit[key]), info['units'][0])
+            qty_base = (qty * unit['factor']).quantize(Decimal('0.001'))
+            remaining = by_key[key].qty_remaining.quantize(Decimal('0.001'))
+            # SL nhập theo ĐVT lớn bị làm tròn 3 số lẻ — cho phép lệch trong 1 đơn vị làm tròn.
+            if unit['factor'] != 1 and abs(qty_base - remaining) <= unit['factor'] * Decimal('0.001'):
+                qty_base = remaining
+            selections[key] = qty_base
         if errors:
             for err in errors:
                 messages.error(request, err)
@@ -4291,18 +4350,24 @@ def dispatch_mo_ycx_create(request, pk: int):
     rows = []
     for idx, row in enumerate(pool):
         remaining = row.qty_remaining
+        info = pool_info[row.key]
         if request.method == 'POST':
             qty_value = posted_qty.get(row.key, '')
             picked = row.key in posted_pick
+            unit_id = posted_unit.get(row.key, '')
         else:
             qty_value = format(remaining.quantize(Decimal('0.001')).normalize(), 'f') if remaining > 0 else ''
             picked = False
+            unit_id = ''
+        selected_unit = next((u for u in info['units'] if u['id'] == unit_id), info['units'][0])
         rows.append({
             'idx': idx,
             'row': row,
+            'info': info,
             'remaining': remaining,
             'qty_value': qty_value,
             'picked': picked,
+            'selected_unit': selected_unit,
         })
 
     ycx_list = list(

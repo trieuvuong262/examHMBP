@@ -7,6 +7,15 @@
 .jp-sx-ycx-new .qty-input { max-width: 8rem; margin-left: auto; text-align: right; }
 .jp-sx-ycx-new tr.is-empty td { color: var(--bs-secondary-color); }
 .jp-sx-ycx-new .team-hint { font-size: 0.75rem; color: var(--bs-secondary-color); }
+.jp-sx-ycx-new .npl-thumb {
+  width: 2.25rem; height: 2.25rem; flex: 0 0 2.25rem;
+  object-fit: cover; border-radius: 0.35rem; border: 1px solid rgba(15, 23, 42, 0.1);
+}
+.jp-sx-ycx-new .npl-thumb-empty {
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--bs-secondary-color); background: var(--bs-tertiary-bg, #f8f9fa);
+}
+.jp-sx-ycx-new .is-negative { color: var(--bs-danger); }
 </style>
 {% endblock %}
 
@@ -64,37 +73,60 @@
               <tr>
                 <th style="width:2.5rem"></th>
                 <th>NPL</th>
+                <th style="min-width:6.5rem">ĐVT</th>
                 <th class="text-end">Nhu cầu</th>
                 <th class="text-end">Đã giao phiếu</th>
                 <th class="text-end">Còn lại</th>
+                <th class="text-end">Tồn kho</th>
                 <th class="text-end" style="min-width:9rem">SL xuất cho tổ</th>
+                <th class="text-end">Sau xuất</th>
               </tr>
             </thead>
             <tbody>
             {% for r in rows %}
-              <tr class="{% if not r.remaining %}is-empty{% endif %}">
+              <tr class="{% if not r.remaining %}is-empty{% endif %}" data-ycx-line data-factor="{{ r.selected_unit.factor|sx_num_input:6 }}">
                 <td>
                   <input type="hidden" name="key_{{ r.idx }}" value="{{ r.row.key }}">
                   <input type="checkbox" class="form-check-input" name="pick_{{ r.idx }}" value="1"
                     data-ycx-row {% if r.picked %}checked{% endif %} {% if not r.remaining %}disabled{% endif %}
-                    aria-label="Chọn {{ r.row.bom_material_code }}">
+                    aria-label="Chọn {{ r.info.name }}">
                 </td>
                 <td>
-                  <div class="fw-semibold small">{{ r.row.bom_material_code }}</div>
-                  <div class="text-muted small">{{ r.row.material_name }}{% if r.row.unit %} · {{ r.row.unit }}{% endif %}</div>
+                  <div class="d-flex align-items-center gap-2">
+                    {% if r.info.image_url %}
+                    <img src="{{ r.info.image_url }}" alt="" class="npl-thumb" loading="lazy">
+                    {% else %}
+                    <span class="npl-thumb npl-thumb-empty"><i class="bi bi-image" aria-hidden="true"></i></span>
+                    {% endif %}
+                    <span class="small fw-semibold" title="{{ r.row.bom_material_code }}">{{ r.info.name }}</span>
+                  </div>
                 </td>
-                <td class="text-end small">{{ r.row.qty_need|sx_num }}</td>
-                <td class="text-end small">{{ r.row.qty_allocated|sx_num }}</td>
-                <td class="text-end small fw-semibold">{{ r.remaining|sx_num }}</td>
+                <td>
+                  {% if r.info.units|length > 1 %}
+                  <select name="unit_{{ r.idx }}" class="form-select form-select-sm" data-ycx-unit aria-label="ĐVT {{ r.info.name }}">
+                    {% for u in r.info.units %}
+                    <option value="{{ u.id }}" data-factor="{{ u.factor|sx_num_input:6 }}" {% if u.id == r.selected_unit.id %}selected{% endif %}>{{ u.name }}</option>
+                    {% endfor %}
+                  </select>
+                  {% else %}
+                  <input type="hidden" name="unit_{{ r.idx }}" value="{{ r.selected_unit.id }}">
+                  <span class="small">{{ r.selected_unit.name|default:"—" }}</span>
+                  {% endif %}
+                </td>
+                <td class="text-end small" data-base="{{ r.row.qty_need|sx_num_input:6 }}">{{ r.row.qty_need|sx_num }}</td>
+                <td class="text-end small" data-base="{{ r.row.qty_allocated|sx_num_input:6 }}">{{ r.row.qty_allocated|sx_num }}</td>
+                <td class="text-end small fw-semibold" data-base="{{ r.remaining|sx_num_input:6 }}">{{ r.remaining|sx_num }}</td>
+                <td class="text-end small" data-base="{{ r.info.stock|sx_num_input:6 }}" data-ycx-stock>{{ r.info.stock|sx_num }}</td>
                 <td class="text-end">
                   {% if r.remaining %}
                   <input type="text" inputmode="decimal" name="qty_{{ r.idx }}" value="{{ r.qty_value }}"
-                    class="form-control form-control-sm qty-input" data-max="{{ r.remaining }}">
+                    class="form-control form-control-sm qty-input">
                   {% else %}<span class="small">Đã giao đủ</span>{% endif %}
                 </td>
+                <td class="text-end small fw-semibold" data-ycx-after>{% if r.remaining %}{{ r.info.stock_after|sx_num }}{% else %}{{ r.info.stock|sx_num }}{% endif %}</td>
               </tr>
             {% empty %}
-              <tr><td colspan="6" class="text-muted small p-3">Lệnh chưa có định mức NPL từ BOM.</td></tr>
+              <tr><td colspan="9" class="text-muted small p-3">Lệnh chưa có định mức NPL từ BOM.</td></tr>
             {% endfor %}
             </tbody>
           </table>
@@ -143,11 +175,56 @@
       });
     });
   });
-  document.querySelectorAll('.qty-input').forEach(function (input) {
-    input.addEventListener('input', function () {
-      var cb = input.closest('tr').querySelector('input[data-ycx-row]');
-      if (cb && !cb.disabled && input.value.trim() !== '') cb.checked = true;
+  function parseNum(text) {
+    var s = String(text || '').trim().replace(/\s/g, '');
+    if (!s) return NaN;
+    if (s.indexOf(',') >= 0 && s.indexOf('.') < 0) s = s.replace(',', '.');
+    else s = s.replace(/,/g, '');
+    return Number(s);
+  }
+  function round3(n) { return Math.round(n * 1000) / 1000; }
+  var fmt = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 3 });
+
+  function refreshLine(tr) {
+    var factor = Number(tr.getAttribute('data-factor')) || 1;
+    tr.querySelectorAll('[data-base]').forEach(function (cell) {
+      cell.textContent = fmt.format(round3(Number(cell.getAttribute('data-base')) / factor));
     });
+    var after = tr.querySelector('[data-ycx-after]');
+    var stockCell = tr.querySelector('[data-ycx-stock]');
+    var input = tr.querySelector('.qty-input');
+    if (!after || !stockCell) return;
+    var stock = Number(stockCell.getAttribute('data-base')) / factor;
+    var qty = input ? parseNum(input.value) : 0;
+    var left = round3(stock - (isNaN(qty) ? 0 : qty));
+    after.textContent = fmt.format(left);
+    after.classList.toggle('is-negative', left < 0);
+  }
+
+  document.querySelectorAll('tr[data-ycx-line]').forEach(function (tr) {
+    var input = tr.querySelector('.qty-input');
+    var unitSel = tr.querySelector('select[data-ycx-unit]');
+    if (input) {
+      input.addEventListener('input', function () {
+        var cb = tr.querySelector('input[data-ycx-row]');
+        if (cb && !cb.disabled && input.value.trim() !== '') cb.checked = true;
+        refreshLine(tr);
+      });
+    }
+    if (unitSel) {
+      unitSel.addEventListener('change', function () {
+        var oldFactor = Number(tr.getAttribute('data-factor')) || 1;
+        var opt = unitSel.options[unitSel.selectedIndex];
+        var newFactor = Number(opt.getAttribute('data-factor')) || 1;
+        if (input) {
+          var qty = parseNum(input.value);
+          if (!isNaN(qty)) input.value = String(round3(qty * oldFactor / newFactor));
+        }
+        tr.setAttribute('data-factor', String(newFactor));
+        refreshLine(tr);
+      });
+    }
+    refreshLine(tr);
   });
 })();
 </script>
