@@ -441,11 +441,10 @@
         <div class="card-body">
           <div class="jp-mo-section-head">
             <div>
-              <p class="title">Yêu cầu xuất</p>
+              <p class="title">Phiếu xuất NPL</p>
               <div class="count">{{ ycx_list|length }} phiếu</div>
             </div>
             <div class="d-flex flex-wrap gap-1">
-              <a href="{% url 'san_xuat:dispatch_material_issue_req' %}" class="btn btn-sm btn-outline-secondary">Danh sách</a>
               {% if mo.status == 'released' or mo.status == 'in_progress' %}
               <a href="{% url 'san_xuat:dispatch_mo_ycx_create' mo.pk %}" class="btn btn-sm btn-hm">Tạo</a>
               {% endif %}
@@ -456,52 +455,37 @@
             <table class="table table-sm table-hover mb-0 align-middle">
               <thead class="table-light">
                 <tr>
-                  <th>Mã</th>
+                  <th>Phiếu xuất</th>
                   <th>Tổ</th>
                   <th>Ngày</th>
-                  <th>TT</th>
-                  <th class="text-end"></th>
+                  <th>Trạng thái kho</th>
                 </tr>
               </thead>
               <tbody>
               {% for req in ycx_list %}
+                {% for si in req.stock_issues.all %}
                 <tr>
-                  <td><a href="{% url 'san_xuat:dispatch_material_issue_req_detail' req.pk %}" class="fw-semibold small text-decoration-none">{{ req.code }}</a></td>
+                  <td><a href="{% stock_url 'issue_detail' 'kho_npl' si.pk %}" class="fw-semibold small text-decoration-none">{{ si.number }}</a></td>
                   <td class="small">{% if req.work_center %}{{ req.work_center.name }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
-                  <td class="small text-muted">{{ req.request_date|date:"d/m/Y" }}</td>
+                  <td class="small text-muted">{{ si.issue_date|date:"d/m/Y" }}</td>
                   <td class="small">
-                    {% if req.status == 'draft' %}Nháp
-                    {% elif req.status == 'submitted' %}Đã gửi
-                    {% elif req.status == 'approved' %}Đã duyệt
-                    {% elif req.status == 'partial' %}Xuất một phần
-                    {% elif req.status == 'done' %}Hoàn thành
-                    {% elif req.status == 'cancelled' %}Hủy
-                    {% else %}{{ req.status }}{% endif %}
-                  </td>
-                  <td class="text-end">
-                    <div class="d-flex flex-wrap gap-1 justify-content-end">
-                      {% if can_update and req.status != 'done' and req.status != 'cancelled' %}
-                      <form method="post" class="d-inline">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="approve_ycx"/>
-                        <input type="hidden" name="ycx_id" value="{{ req.pk }}"/>
-                        <button type="submit" class="btn btn-sm btn-outline-secondary" title="Duyệt và trừ kho NPL">
-                          {% if req.status == 'partial' %}Bổ sung{% else %}Duyệt xuất{% endif %}
-                        </button>
-                      </form>
-                      {% elif req.stock_issue_id %}
-                      <a href="{% stock_url 'issue_detail' 'kho_npl' req.stock_issue_id %}" class="btn btn-sm btn-outline-secondary">Phiếu kho</a>
-                      {% endif %}
-                      <a href="{% url 'san_xuat:dispatch_material_issue_req_detail' req.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
-                    </div>
+                    <span class="badge {% if si.status == 'posted' %}text-bg-success{% elif si.status == 'cancelled' %}text-bg-danger{% else %}text-bg-warning{% endif %}">{{ si.get_status_display }}</span>
                   </td>
                 </tr>
+                {% empty %}
+                <tr>
+                  <td class="small text-muted">{{ req.code }}</td>
+                  <td class="small">{% if req.work_center %}{{ req.work_center.name }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                  <td class="small text-muted">{{ req.request_date|date:"d/m/Y" }}</td>
+                  <td class="small text-muted">Chưa có phiếu kho</td>
+                </tr>
+                {% endfor %}
               {% endfor %}
               </tbody>
             </table>
           </div>
           {% else %}
-          <div class="text-muted small mb-0">Chưa có yêu cầu xuất.</div>
+          <div class="text-muted small mb-0">Chưa có phiếu xuất NPL.</div>
           {% endif %}
         </div>
       </div>

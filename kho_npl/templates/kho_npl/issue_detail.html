@@ -67,18 +67,17 @@
                 </dd>
                 {% with ycx_list=issue.ycx_requests.all %}
                 {% if ycx_list %}
-                <dt class="col-sm-3 text-muted">Yêu cầu xuất VT</dt>
+                <dt class="col-sm-3 text-muted">Lệnh sản xuất</dt>
                 <dd class="col-sm-9">
                     {% for ycx in ycx_list %}
-                    <a href="{% url 'san_xuat:dispatch_material_issue_req_detail' ycx.pk %}" class="fw-semibold">{{ ycx.code }}</a>{% if ycx.work_center %} <span class="text-muted">· {{ ycx.work_center.name }}</span>{% endif %}{% if not forloop.last %}<br>{% endif %}
+                    <a href="{% url 'san_xuat:dispatch_mo_detail' ycx.production_order_id %}" class="fw-semibold">{{ ycx.production_order.code }}</a>{% if not forloop.last %}<br>{% endif %}
                     {% endfor %}
                 </dd>
-                {% endif %}
-                {% endwith %}
-                {% if issue.production_order %}
+                {% elif issue.production_order %}
                 <dt class="col-sm-3 text-muted">Lệnh sản xuất</dt>
                 <dd class="col-sm-9">{{ issue.production_order }}</dd>
                 {% endif %}
+                {% endwith %}
                 <dt class="col-sm-3 text-muted">Bộ phận nhận</dt>
                 <dd class="col-sm-9">{{ issue.recipient_department|default:"—" }}</dd>
                 <dt class="col-sm-3 text-muted">Người nhận</dt>

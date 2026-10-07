@@ -1072,12 +1072,15 @@ def ycx_remaining_pool(mo: SxProductionOrder) -> list[YcxPoolRow]:
         request__production_order=mo,
         request__is_demo=False,
     ).exclude(request__status="cancelled")
-    for code, bom_code, qty in allocated_lines.values_list(
-        "material_code", "bom_material_code", "qty_requested"
+    for code, bom_code, qty_req, qty_iss, status in allocated_lines.values_list(
+        "material_code", "bom_material_code", "qty_requested", "qty_issued", "request__status"
     ):
         row = rows.get(_ycx_pool_key(bom_code or code))
-        if row is not None:
-            row.qty_allocated += qty or Decimal("0")
+        if row is None:
+            continue
+        # Phiếu đã xuất xong (không còn phiếu kho chờ) chỉ giữ phần thực xuất — phần thiếu trả về để bổ sung.
+        qty = qty_iss if status in ("partial", "done") else qty_req
+        row.qty_allocated += qty or Decimal("0")
     return list(rows.values())
 
 
@@ -1209,6 +1212,155 @@ def build_material_issue_request(
     )
     _reserve_ycx_safe(req)
     return req
+
+
+def _pick_issue_location(material: Material, qty_base: Decimal) -> WarehouseLocation | None:
+    """Vị trí đề xuất cho dòng phiếu xuất: vị trí chính nếu đủ tồn, rồi vị trí đủ tồn, rồi vị trí tồn nhiều nhất."""
+    balances = list(
+        StockBalance.objects.filter(material=material, quantity__gt=0, location__is_active=True)
+        .select_related("location")
+        .order_by("-quantity", "location__code")
+    )
+    primary = material.primary_location if material.primary_location_id else None
+    if primary is not None:
+        bal = next((b for b in balances if b.location_id == primary.pk), None)
+        if bal is not None and bal.quantity >= qty_base:
+            return primary
+    enough = next((b for b in balances if b.quantity >= qty_base), None)
+    if enough is not None:
+        return enough.location
+    if balances:
+        return balances[0].location
+    if primary is not None:
+        return primary
+    return (
+        WarehouseLocation.objects.filter(is_active=True, location_kind=WarehouseLocation.KIND_STOCK)
+        .order_by("code")
+        .first()
+    )
+
+
+@dataclass(frozen=True)
+class TeamIssueResult:
+    request: SxMaterialIssueRequest
+    stock_issue: StockIssue
+
+
+@transaction.atomic
+def create_team_stock_issue(
+    *,
+    production_order_id: int,
+    work_center_id: int,
+    selections: dict[str, Decimal],
+    units: dict[str, tuple[int, Decimal, Decimal]] | None = None,
+    user=None,
+    notes: str = "",
+) -> TeamIssueResult:
+    """Tạo YCX (nội bộ) + phiếu xuất NPL «Đã tạo» cho tổ — kho NPL đính kèm chứng từ và xuất trên Kho NPL.
+
+    ``units`` = {mã NPL BOM: (unit_id, hệ số về ĐVT lẻ, SL nhập theo ĐVT đó)} — giữ ĐVT người lập chọn trên phiếu xuất.
+    """
+    req = _create_material_issue_request(
+        production_order_id=production_order_id,
+        notes=notes,
+        work_center_id=work_center_id,
+        selections=selections,
+    )
+    mo = req.production_order
+    issue = StockIssue.objects.create(
+        number=next_issue_number(),
+        issue_date=timezone.localdate(),
+        issue_type=ISSUE_TYPE_PRODUCTION,
+        production_order=mo.code,
+        product_code=mo.product_code,
+        recipient_department=(req.work_center.name if req.work_center_id else "")[:120],
+        created_by=user,
+        notes=" — ".join(p for p in (f"Xuất NPL cho {req.work_center.name}" if req.work_center_id else "", notes) if p),
+    )
+    units = {_ycx_pool_key(k): v for k, v in (units or {}).items()}
+    issue_lines = []
+    for line in req.lines.all().order_by("id"):
+        material = _resolve_material_by_code(line.material_code)
+        qty_base = (line.qty_requested or Decimal("0")).quantize(Decimal("0.001"))
+        quantity, line_unit_id, factor = qty_base, material.unit_id, Decimal("1")
+        picked = units.get(_ycx_pool_key(line.bom_material_code or line.material_code))
+        if picked and line.material_code.casefold() == (line.bom_material_code or line.material_code).casefold():
+            unit_id, unit_factor, entered = picked
+            entered = (entered or Decimal("0")).quantize(Decimal("0.001"))
+            # Chỉ giữ ĐVT chọn khi quy đổi khớp tuyệt đối — lệch làm tròn thì ghi theo ĐVT lẻ.
+            if unit_id and (entered * unit_factor).quantize(Decimal("0.001")) == qty_base:
+                quantity, line_unit_id, factor = entered, unit_id, unit_factor
+        location = _pick_issue_location(material, qty_base)
+        if location is None:
+            raise DispatchError("Kho NPL chưa có vị trí kho nào đang hoạt động.")
+        issue_lines.append(
+            StockIssueLine(
+                issue=issue,
+                material=material,
+                quantity=quantity,
+                line_unit_id=line_unit_id,
+                uom_factor=factor,
+                qty_base=qty_base,
+                location=location,
+                notes=f"{req.code} · {mo.code}",
+            )
+        )
+    StockIssueLine.objects.bulk_create(issue_lines)
+    req.stock_issue = issue
+    req.status = "submitted"
+    req.save(update_fields=["stock_issue", "status"])
+    req.stock_issues.add(issue)
+    _reserve_ycx_safe(req)
+    return TeamIssueResult(request=req, stock_issue=issue)
+
+
+def sync_ycx_from_stock_issue(issue: StockIssue) -> None:
+    """Gọi sau khi Kho NPL xuất / hủy phiếu: cập nhật SL đã xuất, trạng thái YCX và tiến độ LSX."""
+    from kho_npl.choices import DOC_STATUS_CANCELLED
+    from kho_npl.services.reservation import consume_reservations_for_ycx, release_reservations_for_ycx
+
+    for req in SxMaterialIssueRequest.objects.filter(stock_issues=issue).select_related("production_order"):
+        issues = list(req.stock_issues.all())
+        posted = [si for si in issues if si.status == DOC_STATUS_POSTED]
+        open_issues = [si for si in issues if si.status != DOC_STATUS_CANCELLED]
+
+        issued_by_code: dict[str, Decimal] = {}
+        for si_line in StockIssueLine.objects.filter(issue__in=posted).select_related("material"):
+            qty = si_line.qty_base or (si_line.quantity * (si_line.uom_factor or Decimal("1")))
+            key = (si_line.material.code or "").casefold()
+            issued_by_code[key] = issued_by_code.get(key, Decimal("0")) + qty
+
+        lines = list(req.lines.all().order_by("id"))
+        for line in lines:
+            key = (line.material_code or "").casefold()
+            available = issued_by_code.get(key, Decimal("0"))
+            requested = line.qty_requested or Decimal("0")
+            take = min(available, requested)
+            issued_by_code[key] = available - take
+            if line.qty_issued != take:
+                line.qty_issued = take
+                line.save(update_fields=["qty_issued"])
+
+        if not open_issues:
+            req.status = "cancelled"
+            req.save(update_fields=["status"])
+            release_reservations_for_ycx(ycx_code=req.code)
+            continue
+        if any(si.status == DOC_STATUS_DRAFT for si in open_issues):
+            if req.status != "submitted":
+                req.status = "submitted"
+                req.save(update_fields=["status"])
+            if posted:
+                _recompute_mo_progress(req.production_order)
+            continue
+        if posted:
+            still_short = any(_ycx_line_remaining(ln) > 0 for ln in lines)
+            req.status = "partial" if still_short else "done"
+            req.stock_issue = posted[-1]
+            req.save(update_fields=["status", "stock_issue"])
+            if req.status == "done":
+                consume_reservations_for_ycx(ycx_code=req.code)
+            _recompute_mo_progress(req.production_order)
 
 
 @transaction.atomic
@@ -1535,32 +1687,9 @@ def approve_material_issue(
         req.save(update_fields=["stock_issue", "status"])
         raise DispatchError(str(exc)) from exc
 
-    # Cộng dồn qty_issued theo phần vừa xuất (không ghi đè nếu bổ sung).
-    for line in req.lines.all():
-        add = issued_by_line.get(line.pk)
-        if not add:
-            continue
-        line.qty_issued = ((line.qty_issued or Decimal("0")) + add).quantize(Decimal("0.001"))
-        # Không vượt quá yêu cầu
-        if line.qty_issued > (line.qty_requested or Decimal("0")):
-            line.qty_issued = line.qty_requested or Decimal("0")
-        line.save(update_fields=["qty_issued"])
-
-    # Refresh remaining sau khi cập nhật qty_issued
+    # post_stock_issue gọi sync_ycx_from_stock_issue: qty_issued, trạng thái, giữ chỗ, tiến độ LSX.
+    req.save(update_fields=["stock_issue"])
     req.refresh_from_db()
-    lines = list(req.lines.all())
-    still_short = any(_ycx_line_remaining(ln) > 0 for ln in lines)
-    if issue.status == DOC_STATUS_POSTED:
-        req.status = "partial" if still_short else "done"
-    else:
-        req.status = "approved"
-    req.save(update_fields=["stock_issue", "status"])
-    from kho_npl.services.reservation import consume_reservations_for_ycx
-
-    if req.status == "done":
-        consume_reservations_for_ycx(ycx_code=req.code)
-    if req.production_order_id and issue.status == DOC_STATUS_POSTED:
-        _recompute_mo_progress(req.production_order)
     return ApprovedIssueResult(request=req, stock_issue=issue)
 
 

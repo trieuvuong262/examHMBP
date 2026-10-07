@@ -138,25 +138,33 @@
   {% if ycx_list %}
   <div class="card border-0 shadow-sm mt-4">
     <div class="card-body">
-      <p class="small fw-bold text-uppercase text-muted mb-2">Phiếu đã tạo cho lệnh này</p>
+      <p class="small fw-bold text-uppercase text-muted mb-2">Phiếu xuất NPL đã chuyển kho cho lệnh này</p>
       <div class="table-responsive">
         <table class="table table-sm mb-0 align-middle">
           <thead class="table-light">
-            <tr><th>Mã</th><th>Tổ</th><th>Trạng thái</th><th>Phiếu xuất NPL</th><th class="text-end">Số dòng NPL</th></tr>
+            <tr><th>Phiếu xuất</th><th>Tổ</th><th>Ngày</th><th>Trạng thái kho</th><th class="text-end">Số dòng NPL</th></tr>
           </thead>
           <tbody>
           {% for req in ycx_list %}
+            {% for si in req.stock_issues.all %}
             <tr>
-              <td><a href="{% url 'san_xuat:dispatch_material_issue_req_detail' req.pk %}" class="small fw-semibold">{{ req.code }}</a></td>
+              <td><a href="{% stock_url 'issue_detail' 'kho_npl' si.pk %}" class="small fw-semibold">{{ si.number }}</a></td>
               <td class="small">{% if req.work_center %}{{ req.work_center.name }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+              <td class="small text-muted">{{ si.issue_date|date:"d/m/Y" }}</td>
               <td class="small">
-                {% if req.status == 'draft' %}Nháp{% elif req.status == 'submitted' %}Đã gửi{% elif req.status == 'approved' %}Đã duyệt{% elif req.status == 'partial' %}Xuất một phần{% elif req.status == 'done' %}Hoàn thành{% else %}{{ req.status }}{% endif %}
+                <span class="badge {% if si.status == 'posted' %}text-bg-success{% elif si.status == 'cancelled' %}text-bg-danger{% else %}text-bg-warning{% endif %}">{{ si.get_status_display }}</span>
               </td>
-              <td class="small">
-                {% for si in req.stock_issues.all %}<a href="{% stock_url 'issue_detail' 'kho_npl' si.pk %}">{{ si.number }}</a>{% if not forloop.last %}, {% endif %}{% empty %}<span class="text-muted">—</span>{% endfor %}
-              </td>
+              <td class="text-end small">{{ si.lines.all|length }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td class="small text-muted">{{ req.code }}</td>
+              <td class="small">{% if req.work_center %}{{ req.work_center.name }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+              <td class="small text-muted">{{ req.request_date|date:"d/m/Y" }}</td>
+              <td class="small text-muted">Chưa có phiếu kho</td>
               <td class="text-end small">{{ req.lines.all|length }}</td>
             </tr>
+            {% endfor %}
           {% endfor %}
           </tbody>
         </table>

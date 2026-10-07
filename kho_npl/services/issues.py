@@ -93,6 +93,7 @@ def post_stock_issue(issue: StockIssue, user) -> StockIssue:
     issue.status = DOC_STATUS_POSTED
     issue.posted_at = timezone.now()
     issue.save(update_fields=['status', 'posted_at'])
+    _sync_production_requests(issue)
     return issue
 
 
@@ -104,4 +105,14 @@ def cancel_stock_issue(issue: StockIssue) -> StockIssue:
     from kho_npl.choices import DOC_STATUS_CANCELLED
     issue.status = DOC_STATUS_CANCELLED
     issue.save(update_fields=['status'])
+    _sync_production_requests(issue)
     return issue
+
+
+def _sync_production_requests(issue: StockIssue) -> None:
+    """Phiếu xuất tạo từ lệnh sản xuất (theo tổ): cập nhật SL đã xuất / trạng thái bên Sản xuất."""
+    if not issue.ycx_requests.exists():
+        return
+    from san_xuat.services.dispatch import sync_ycx_from_stock_issue
+
+    sync_ycx_from_stock_issue(issue)

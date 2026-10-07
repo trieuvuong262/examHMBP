@@ -1027,7 +1027,7 @@
                 {% if jp_can_san_xuat_dispatch or jp_can_san_xuat_mo or jp_can_san_xuat_mat_issue or jp_can_san_xuat_fg_req or jp_can_san_xuat_ho_status %}
                 <li class="jp-sidebar-nested-group{% if '/san-xuat/dieu-phoi' in request.path %} is-open{% endif %}"
                     data-sx-area="dispatch" data-sx-icon="bi-diagram-2" data-sx-label="Điều phối"
-                    data-sx-href="{% if jp_can_san_xuat_mo or jp_can_san_xuat_dispatch %}{% url 'san_xuat:dispatch_mo' %}{% elif jp_can_san_xuat_mat_issue %}{% url 'san_xuat:dispatch_material_issue_req' %}{% else %}{% url 'san_xuat:dispatch_handover_status' %}{% endif %}">
+                    data-sx-href="{% if jp_can_san_xuat_mo or jp_can_san_xuat_dispatch or jp_can_san_xuat_mat_issue %}{% url 'san_xuat:dispatch_mo' %}{% else %}{% url 'san_xuat:dispatch_handover_status' %}{% endif %}">
                     <button type="button"
                             class="jp-sidebar-nested-toggle"
                             data-jp-sidebar-group-toggle
@@ -1044,14 +1044,6 @@
                             <a href="{% url 'san_xuat:dispatch_mo' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if 'dispatch_mo' in request.resolver_match.url_name %}active{% endif %}">
                                 <i class="bi bi-card-checklist"></i><span>Lệnh sản xuất</span>
-                            </a>
-                        </li>
-                        {% endif %}
-                        {% if jp_can_san_xuat_mat_issue or jp_can_san_xuat_dispatch %}
-                        <li>
-                            <a href="{% url 'san_xuat:dispatch_material_issue_req' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if 'dispatch_material_issue' in request.resolver_match.url_name %}active{% endif %}">
-                                <i class="bi bi-box-arrow-right"></i><span>Yêu cầu xuất vật tư</span>
                             </a>
                         </li>
                         {% endif %}

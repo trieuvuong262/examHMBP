@@ -3733,43 +3733,6 @@ def dispatch_mo_detail(request, pk: int):
         ):
             return redirect('san_xuat:dispatch_mo_ycx_create', pk=mo.pk)
 
-        elif action == 'approve_ycx' and can_update:
-            ycx_id = (request.POST.get('ycx_id') or '').strip()
-            if not ycx_id.isdigit():
-                messages.error(request, 'Thiếu mã yêu cầu xuất.')
-            else:
-                ycx = (
-                    SxMaterialIssueRequest.objects
-                    .filter(pk=int(ycx_id), production_order=mo)
-                    .first()
-                )
-                if not ycx:
-                    messages.error(request, 'Yêu cầu xuất không thuộc lệnh này.')
-                else:
-                    try:
-                        res = approve_material_issue(
-                            request_id=ycx.pk,
-                            user=request.user,
-                            attachment=None,
-                            allow_partial=ycx.status == 'partial',
-                        )
-                    except DispatchError as exc:
-                        messages.error(request, str(exc))
-                    except Exception as exc:
-                        messages.error(request, f'Không duyệt được phiếu xuất VT. {exc}')
-                    else:
-                        if res.request.status == 'partial':
-                            messages.success(
-                                request,
-                                f'Đã xuất phần có tồn ({res.stock_issue.number}). Còn thiếu sẽ bổ sung sau.',
-                            )
-                        else:
-                            messages.success(
-                                request,
-                                f'Đã duyệt {res.request.code}: phiếu {res.stock_issue.number} — đã trừ kho NPL.',
-                            )
-            return redirect('san_xuat:dispatch_mo_detail', pk=mo.pk)
-
         elif action == 'create_ycntp' and mo.status in (
             SxProductionOrder.STATUS_IN_PROGRESS,
             SxProductionOrder.STATUS_DONE,
@@ -3827,8 +3790,10 @@ def dispatch_mo_detail(request, pk: int):
         )
 
     ycx_list = (
-        mo.material_issue_requests.select_related('stock_issue', 'work_center')
-        .all()
+        mo.material_issue_requests.filter(is_demo=False)
+        .exclude(status='cancelled')
+        .select_related('stock_issue', 'work_center')
+        .prefetch_related('stock_issues')
         .order_by('-request_date', '-pk')[:50]
     )
     qc_request_list = (
@@ -4198,26 +4163,8 @@ def dispatch_schedule(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def dispatch_material_issue_req(request):
-    from san_xuat.services.mo_progress import pending_material_issue_qs
-
-    queue = (request.GET.get('queue') or '').strip().lower()
-    base_qs = (
-        SxMaterialIssueRequest.objects.filter(is_demo=False)
-        .order_by('-request_date', '-pk')
-        .select_related('production_order', 'stock_issue', 'work_center')
-    )
-    pending_count = pending_material_issue_qs().count()
-    if queue in ('pending', 'cho-duyet', '1'):
-        base_qs = pending_material_issue_qs().select_related('work_center')
-    requests_qs, fctx = prepare_hub_list(request, base_qs, SX_FILTER_MATERIAL_ISSUE, list_key='dispatch_material_issue')
-    return render(request, 'san_xuat/dispatch_material_issue_req_list.html', {
-        **_perm_ctx(request),
-        'page_title': 'Yêu cầu xuất vật tư',
-        'requests': requests_qs,
-        'pending_ycx_count': pending_count,
-        'queue_pending': queue in ('pending', 'cho-duyet', '1'),
-        **fctx,
-    })
+    """Đã bỏ màn YCX — phiếu xuất NPL theo tổ nằm bên Kho NPL."""
+    return redirect(reverse('kho_npl:issue_list', current_app='kho_npl'))
 
 
 def _ycx_parse_qty(raw) -> Decimal | None:
@@ -4322,6 +4269,7 @@ def dispatch_mo_ycx_create(request, pk: int):
     if request.method == 'POST':
         by_key = {row.key: row for row in pool}
         selections: dict[str, Decimal] = {}
+        chosen_units: dict[str, tuple[int, Decimal, Decimal]] = {}
         errors: list[str] = []
         for idx in range(len(pool)):
             key = (request.POST.get(f'key_{idx}') or '').strip()
@@ -4345,24 +4293,34 @@ def dispatch_mo_ycx_create(request, pk: int):
             if unit['factor'] != 1 and abs(qty_base - remaining) <= unit['factor'] * Decimal('0.001'):
                 qty_base = remaining
             selections[key] = qty_base
+            if unit['id'].isdigit():
+                chosen_units[key] = (int(unit['id']), unit['factor'], qty)
         if errors:
             for err in errors:
                 messages.error(request, err)
+        elif not selected_team_id:
+            messages.error(request, 'Chọn Tổ / bộ phận nhận.')
         else:
+            from san_xuat.services.dispatch import create_team_stock_issue
+
             try:
-                req = build_material_issue_request(
+                res = create_team_stock_issue(
                     production_order_id=mo.pk,
-                    user=request.user,
-                    notes=notes,
                     work_center_id=selected_team_id,
                     selections=selections,
+                    units=chosen_units,
+                    user=request.user,
+                    notes=notes,
                 )
             except DispatchError as exc:
                 messages.error(request, str(exc))
             else:
-                team_name = req.work_center.name if req.work_center_id else 'không gắn tổ'
-                messages.success(request, f'Đã tạo yêu cầu xuất vật tư {req.code} ({team_name}).')
-                return redirect('san_xuat:dispatch_material_issue_req_detail', pk=req.pk)
+                messages.success(
+                    request,
+                    f'Đã chuyển phiếu xuất {res.stock_issue.number} ({res.request.work_center.name}) '
+                    'sang Kho NPL để xuất.',
+                )
+                return redirect('san_xuat:dispatch_mo_ycx_create', pk=mo.pk)
 
     rows = []
     for idx, row in enumerate(pool):
@@ -4391,7 +4349,7 @@ def dispatch_mo_ycx_create(request, pk: int):
         mo.material_issue_requests.filter(is_demo=False)
         .exclude(status='cancelled')
         .select_related('work_center')
-        .prefetch_related('lines', 'stock_issues')
+        .prefetch_related('lines', 'stock_issues__lines')
         .order_by('pk')
     )
     return render(request, 'san_xuat/dispatch_mo_ycx_create.html', {
@@ -4407,192 +4365,14 @@ def dispatch_mo_ycx_create(request, pk: int):
     })
 
 
-def _ycx_apply_locations(req, post_data) -> int:
-    """Áp dụng chọn kho (preferred_location) từ POST ``loc_<line_id>``."""
-    from kho_npl.models import WarehouseLocation
-
-    updated = 0
-    for line in req.lines.all():
-        raw = (post_data.get(f'loc_{line.pk}') or '').strip()
-        loc = None
-        if raw.isdigit():
-            loc = WarehouseLocation.objects.filter(pk=int(raw), is_active=True).first()
-        new_id = loc.pk if loc else None
-        if line.preferred_location_id != new_id:
-            line.preferred_location = loc
-            line.save(update_fields=['preferred_location'])
-            updated += 1
-    return updated
-
-
-def _ycx_detail_context(req):
-    from decimal import Decimal
-
-    from kho_npl.models import StockBalance, WarehouseLocation
-
-    locations = list(
-        WarehouseLocation.objects.filter(
-            is_active=True,
-            location_kind=WarehouseLocation.KIND_STOCK,
-        ).order_by('code')[:200]
-    )
-    if not locations:
-        locations = list(WarehouseLocation.objects.filter(is_active=True).order_by('code')[:200])
-    line_rows = []
-    has_remaining = False
-    lines = list(req.lines.select_related('preferred_location').all())
-    display = _ycx_material_display(line.material_code for line in lines)
-    for line in lines:
-        info = _ycx_display_or_default(display, line.material_code, name=line.material_name)
-        mat = info['material']
-        balances = []
-        if mat is not None:
-            balances = list(
-                StockBalance.objects.filter(material=mat, quantity__gt=0)
-                .select_related('location')
-                .order_by('location__code')[:12]
-            )
-        stock_total = info['stock']
-        qty_req = line.qty_requested or Decimal('0')
-        qty_iss = line.qty_issued or Decimal('0')
-        remaining = qty_req - qty_iss
-        if remaining < 0:
-            remaining = Decimal('0')
-        if remaining > 0:
-            has_remaining = True
-        short = remaining > 0 and stock_total < remaining
-        shortfall = (remaining - stock_total) if short else Decimal('0')
-        if shortfall < 0:
-            shortfall = Decimal('0')
-        line_rows.append({
-            'line': line,
-            'info': info,
-            'balances': balances,
-            'stock_total': stock_total,
-            'stock_after': stock_total - remaining,
-            'remaining': remaining,
-            'short': short,
-            'shortfall': shortfall,
-        })
-    return {
-        'locations': locations,
-        'line_rows': line_rows,
-        'ycx_has_remaining': has_remaining,
-    }
-
-
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def dispatch_material_issue_req_detail(request, pk: int):
-    req = get_object_or_404(
-        SxMaterialIssueRequest.objects.select_related('production_order', 'stock_issue', 'work_center')
-        .prefetch_related('lines__preferred_location', 'stock_issues'),
-        pk=pk,
-    )
-    can_update = _perm_ctx(request).get('can_update')
-    stock_issue = req.stock_issue
-    form = MaterialIssueApproveForm()
-    ycx_can_cancel = bool(
-        can_update and not req.stock_issue_id and req.status in ('draft', 'submitted')
-    )
-
-    if request.method == 'POST':
-        action = (request.POST.get('action') or '').strip()
-        if action == 'cancel' and ycx_can_cancel:
-            from san_xuat.services.dispatch import cancel_material_issue_request
-
-            try:
-                cancel_material_issue_request(request_id=req.pk, user=request.user)
-            except DispatchError as exc:
-                messages.error(request, str(exc))
-            else:
-                messages.success(request, f'Đã hủy {req.code} — SL NPL được trả về nhu cầu còn lại của lệnh.')
-            return redirect('san_xuat:dispatch_material_issue_req_detail', pk=req.pk)
-        ycx_editable_loc = can_update and req.status in (
-            'draft', 'submitted', 'approved', 'partial',
-        ) and (
-            not req.stock_issue_id
-            or req.status == 'partial'
-            or getattr(req.stock_issue, 'status', '') == 'draft'
-        )
-        if action == 'save_locations' and ycx_editable_loc:
-            _ycx_apply_locations(req, request.POST)
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                from django.http import JsonResponse
-                return JsonResponse({'ok': True})
-            return redirect('san_xuat:dispatch_material_issue_req_detail', pk=req.pk)
-
-        if action in ('approve', 'approve_partial') and can_update and req.status in (
-            'draft', 'submitted', 'approved', 'partial',
-        ):
-            if ycx_editable_loc:
-                _ycx_apply_locations(req, request.POST)
-            form = MaterialIssueApproveForm(request.POST, request.FILES)
-            if form.is_valid():
-                allow_partial = action == 'approve_partial'
-                try:
-                    res = approve_material_issue(
-                        request_id=req.pk,
-                        user=request.user,
-                        attachment=form.cleaned_data.get('attachment') or None,
-                        allow_partial=allow_partial,
-                    )
-                except DispatchError as exc:
-                    messages.error(request, str(exc))
-                else:
-                    if res.request.status == 'partial':
-                        messages.success(
-                            request,
-                            f'Đã xuất phần có tồn cho {res.request.code}. '
-                            f'Còn thiếu sẽ bổ sung khi có hàng (phiếu {res.stock_issue.number}).',
-                        )
-                    elif req.status == 'partial' or allow_partial:
-                        messages.success(
-                            request,
-                            f'Đã bổ sung xuất đủ cho {res.request.code} '
-                            f'(phiếu {res.stock_issue.number}).',
-                        )
-                    else:
-                        messages.success(
-                            request,
-                            f'Đã duyệt {res.request.code}: tạo phiếu {res.stock_issue.number} và trừ kho NPL.',
-                        )
-                    return redirect('san_xuat:dispatch_material_issue_req_detail', pk=res.request.pk)
-            else:
-                messages.error(request, 'Không duyệt được yêu cầu xuất — kiểm tra lại form.')
-
-    else:
-        form = MaterialIssueApproveForm()
-
-    ycx_can_edit_loc = bool(
-        can_update
-        and req.status not in ('done', 'cancelled')
-        and (
-            not req.stock_issue_id
-            or req.status == 'partial'
-            or getattr(req.stock_issue, 'status', '') == 'draft'
-        )
-    )
-    ycx_can_approve = bool(
-        can_update
-        and req.status in ('draft', 'submitted', 'approved', 'partial')
-        and (
-            not req.stock_issue_id
-            or req.status == 'partial'
-            or getattr(req.stock_issue, 'status', '') == 'draft'
-        )
-    )
-
-    return render(request, 'san_xuat/dispatch_material_issue_req_detail.html', {
-        **_perm_ctx(request),
-        'req': req,
-        'form': form,
-        'can_update': can_update,
-        'stock_issue': stock_issue,
-        'ycx_can_edit_loc': ycx_can_edit_loc,
-        'ycx_can_approve': ycx_can_approve,
-        'ycx_can_cancel': ycx_can_cancel,
-        **_ycx_detail_context(req),
-    })
+    """Đã bỏ màn YCX — mở phiếu xuất NPL tương ứng bên Kho NPL (hoặc lệnh sản xuất nếu chưa có)."""
+    req = get_object_or_404(SxMaterialIssueRequest, pk=pk)
+    issue = req.stock_issues.order_by('-pk').first() or req.stock_issue
+    if issue is not None:
+        return redirect(reverse('kho_npl:issue_detail', args=[issue.pk], current_app='kho_npl'))
+    return redirect('san_xuat:dispatch_mo_detail', pk=req.production_order_id)
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
