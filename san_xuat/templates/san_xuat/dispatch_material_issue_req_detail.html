@@ -31,6 +31,15 @@
   margin: 0 0 0.5rem;
 }
 .jp-sx-ycx-short td { background: rgba(220, 38, 38, 0.06); }
+.npl-thumb {
+  width: 2.25rem; height: 2.25rem; flex: 0 0 2.25rem;
+  object-fit: cover; border-radius: 0.35rem; border: 1px solid rgba(15, 23, 42, 0.1);
+}
+.npl-thumb-empty {
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--bs-secondary-color); background: var(--bs-tertiary-bg, #f8f9fa);
+}
+.is-negative { color: var(--bs-danger); }
 
 .jp-sx-ycx-approve {
   margin-top: 0;
@@ -271,25 +280,49 @@
           <thead class="table-light">
             <tr>
               <th>NPL</th>
+              <th style="min-width:6.5rem">ĐVT</th>
               <th class="text-end">SL YC</th>
               <th class="text-end">Đã xuất</th>
               <th class="text-end">Còn thiếu</th>
+              <th class="text-end">Tồn kho</th>
+              <th class="text-end">Sau xuất</th>
               <th style="min-width:8.5rem">Chọn kho</th>
               <th>Tồn theo VT</th>
             </tr>
           </thead>
           <tbody>
           {% for row in line_rows %}
-            {% with l=row.line %}
-            <tr class="{% if row.short %}jp-sx-ycx-short{% endif %}">
+            {% with l=row.line info=row.info %}
+            <tr class="{% if row.short %}jp-sx-ycx-short{% endif %}" data-ycx-line data-factor="1">
               <td>
-                <div class="fw-semibold small">{{ l.material_code }}</div>
-                <div class="text-muted small">{{ l.material_name }}</div>
-                {% if row.short %}<div class="small text-danger">Không đủ (tồn {{ row.stock_total|sx_num }} / cần {{ row.remaining|sx_num }})</div>{% endif %}
+                <div class="d-flex align-items-center gap-2">
+                  {% if info.image_url %}
+                  <img src="{{ info.image_url }}" alt="" class="npl-thumb" loading="lazy">
+                  {% else %}
+                  <span class="npl-thumb npl-thumb-empty"><i class="bi bi-image" aria-hidden="true"></i></span>
+                  {% endif %}
+                  <div class="min-w-0">
+                    <div class="small fw-semibold" title="{{ l.material_code }}">{{ info.name }}</div>
+                    {% if row.short %}<div class="small text-danger">Không đủ tồn</div>{% endif %}
+                  </div>
+                </div>
               </td>
-              <td class="text-end small">{{ l.qty_requested|sx_num }}</td>
-              <td class="text-end small">{{ l.qty_issued|sx_num }}</td>
-              <td class="text-end small {% if row.remaining %}fw-semibold{% endif %}">{{ row.remaining|sx_num }}</td>
+              <td>
+                {% if info.units|length > 1 %}
+                <select class="form-select form-select-sm" data-ycx-unit aria-label="ĐVT {{ info.name }}">
+                  {% for u in info.units %}
+                  <option value="{{ u.id }}" data-factor="{{ u.factor|sx_num_input:6 }}" {% if forloop.first %}selected{% endif %}>{{ u.name }}</option>
+                  {% endfor %}
+                </select>
+                {% else %}
+                <span class="small">{{ info.units.0.name|default:"—" }}</span>
+                {% endif %}
+              </td>
+              <td class="text-end small" data-base="{{ l.qty_requested|sx_num_input:6 }}">{{ l.qty_requested|sx_num }}</td>
+              <td class="text-end small" data-base="{{ l.qty_issued|sx_num_input:6 }}">{{ l.qty_issued|sx_num }}</td>
+              <td class="text-end small {% if row.remaining %}fw-semibold{% endif %}" data-base="{{ row.remaining|sx_num_input:6 }}">{{ row.remaining|sx_num }}</td>
+              <td class="text-end small" data-base="{{ row.stock_total|sx_num_input:6 }}">{{ row.stock_total|sx_num }}</td>
+              <td class="text-end small fw-semibold {% if row.stock_after < 0 %}is-negative{% endif %}" data-base="{{ row.stock_after|sx_num_input:6 }}">{{ row.stock_after|sx_num }}</td>
               <td>
                 {% if ycx_can_edit_loc %}
                 <select
@@ -309,13 +342,13 @@
               </td>
               <td class="small text-muted">
                 {% for b in row.balances %}
-                  {{ b.location.code }}: {{ b.quantity }}{% if not forloop.last %} · {% endif %}
+                  {{ b.location.code }}: <span data-base="{{ b.quantity|sx_num_input:6 }}">{{ b.quantity|sx_num }}</span>{% if not forloop.last %} · {% endif %}
                 {% empty %}—{% endfor %}
               </td>
             </tr>
             {% endwith %}
           {% empty %}
-            <tr><td colspan="6" class="text-muted small p-3">Chưa có dòng NPL.</td></tr>
+            <tr><td colspan="9" class="text-muted small p-3">Chưa có dòng NPL.</td></tr>
           {% endfor %}
           </tbody>
         </table>
@@ -359,6 +392,20 @@
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
         credentials: 'same-origin'
       }).catch(function () {});
+    });
+  });
+
+  var fmt = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 3 });
+  document.querySelectorAll('tr[data-ycx-line]').forEach(function (tr) {
+    var unitSel = tr.querySelector('select[data-ycx-unit]');
+    if (!unitSel) return;
+    unitSel.addEventListener('change', function () {
+      var opt = unitSel.options[unitSel.selectedIndex];
+      var factor = Number(opt.getAttribute('data-factor')) || 1;
+      tr.querySelectorAll('[data-base]').forEach(function (cell) {
+        var value = Math.round(Number(cell.getAttribute('data-base')) / factor * 1000) / 1000;
+        cell.textContent = fmt.format(value);
+      });
     });
   });
 })();

@@ -4234,51 +4234,68 @@ def _ycx_parse_qty(raw) -> Decimal | None:
         return None
 
 
-def _ycx_pool_material_info(pool) -> dict[str, dict]:
-    """Tên, ảnh, tồn kho và các ĐVT quy đổi (hệ số về ĐVT lẻ) cho từng dòng nhu cầu."""
+def _ycx_material_display(codes) -> dict[str, dict]:
+    """Theo mã NPL (casefold): material, tên, ảnh, tồn kho, các ĐVT quy đổi (hệ số về ĐVT lẻ)."""
     from django.db.models.functions import Lower
 
     from kho_npl.models import Material
     from kho_npl.services.stock import material_total_qty
     from kho_npl.services.uom import UomConversionError, material_units
 
-    materials = {
-        m._code_l: m
-        for m in Material.objects.annotate(_code_l=Lower('code'))
-        .filter(_code_l__in=[row.key for row in pool])
+    keys = {(c or '').strip().casefold() for c in codes if (c or '').strip()}
+    materials = (
+        Material.objects.annotate(_code_l=Lower('code'))
+        .filter(_code_l__in=keys)
         .select_related('unit', 'specification')
         .prefetch_related('specification__levels__unit')
-    }
+    )
     info: dict[str, dict] = {}
-    for row in pool:
-        mat = materials.get(row.key)
-        units: list[dict] = []
-        image_url = ''
-        stock = Decimal('0')
-        if mat is not None:
-            try:
-                units = [
-                    {'id': str(u['id']), 'name': u['name'], 'factor': Decimal(u['factor'])}
-                    for u in material_units(mat)
-                ]
-            except UomConversionError:
-                units = []
-            if not units and mat.unit_id:
-                units = [{'id': str(mat.unit_id), 'name': mat.unit.name, 'factor': Decimal('1')}]
-            try:
-                image_url = mat.image.url if mat.image else ''
-            except (ValueError, OSError):
-                image_url = ''
-            stock = material_total_qty(mat)
-        if not units:
-            units = [{'id': '', 'name': row.unit or '', 'factor': Decimal('1')}]
-        info[row.key] = {
-            'name': (mat.name if mat is not None and mat.name else row.material_name) or row.bom_material_code,
+    for mat in materials:
+        try:
+            units = [
+                {'id': str(u['id']), 'name': u['name'], 'factor': Decimal(u['factor'])}
+                for u in material_units(mat)
+            ]
+        except UomConversionError:
+            units = []
+        if not units and mat.unit_id:
+            units = [{'id': str(mat.unit_id), 'name': mat.unit.name, 'factor': Decimal('1')}]
+        try:
+            image_url = mat.image.url if mat.image else ''
+        except (ValueError, OSError):
+            image_url = ''
+        info[mat._code_l] = {
+            'material': mat,
+            'name': mat.name or mat.code,
             'image_url': image_url,
             'units': units,
-            'stock': stock,
-            'stock_after': stock - row.qty_remaining,
+            'stock': material_total_qty(mat),
         }
+    return info
+
+
+def _ycx_display_or_default(display: dict, code: str, *, name: str = '', unit: str = '') -> dict:
+    item = dict(display.get((code or '').strip().casefold()) or {})
+    item.setdefault('material', None)
+    item.setdefault('image_url', '')
+    item.setdefault('stock', Decimal('0'))
+    if not item.get('name'):
+        item['name'] = name or code
+    if not item.get('units'):
+        item['units'] = [{'id': '', 'name': unit or '', 'factor': Decimal('1')}]
+    return item
+
+
+def _ycx_pool_material_info(pool) -> dict[str, dict]:
+    """Tên, ảnh, tồn kho và các ĐVT quy đổi cho từng dòng nhu cầu."""
+    display = _ycx_material_display(row.key for row in pool)
+    info: dict[str, dict] = {}
+    for row in pool:
+        item = _ycx_display_or_default(
+            display, row.key, name=row.material_name or row.bom_material_code, unit=row.unit,
+        )
+        item['stock_after'] = item['stock'] - row.qty_remaining
+        info[row.key] = item
     return info
 
 
@@ -4423,21 +4440,19 @@ def _ycx_detail_context(req):
         locations = list(WarehouseLocation.objects.filter(is_active=True).order_by('code')[:200])
     line_rows = []
     has_remaining = False
-    for line in req.lines.select_related('preferred_location').all():
+    lines = list(req.lines.select_related('preferred_location').all())
+    display = _ycx_material_display(line.material_code for line in lines)
+    for line in lines:
+        info = _ycx_display_or_default(display, line.material_code, name=line.material_name)
+        mat = info['material']
         balances = []
-        mat = None
-        stock_total = Decimal('0')
-        code = (line.material_code or '').strip()
-        if code:
-            from kho_npl.models import Material
-            mat = Material.objects.filter(code__iexact=code, is_active=True).first()
-        if mat:
+        if mat is not None:
             balances = list(
                 StockBalance.objects.filter(material=mat, quantity__gt=0)
                 .select_related('location')
                 .order_by('location__code')[:12]
             )
-            stock_total = sum((b.quantity for b in balances), Decimal('0'))
+        stock_total = info['stock']
         qty_req = line.qty_requested or Decimal('0')
         qty_iss = line.qty_issued or Decimal('0')
         remaining = qty_req - qty_iss
@@ -4451,8 +4466,10 @@ def _ycx_detail_context(req):
             shortfall = Decimal('0')
         line_rows.append({
             'line': line,
+            'info': info,
             'balances': balances,
             'stock_total': stock_total,
+            'stock_after': stock_total - remaining,
             'remaining': remaining,
             'short': short,
             'shortfall': shortfall,
