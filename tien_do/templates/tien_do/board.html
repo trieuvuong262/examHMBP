@@ -19,6 +19,12 @@
                 <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm"
                        placeholder="Tìm tính năng, mô tả…" aria-label="Tìm theo Tính năng / Mô tả">
             </form>
+            {% if platform == 'wholesale_retail' %}
+            <a href="{% url 'tien_do:wholesale_retail_export' %}{% if search_query %}?q={{ search_query|urlencode }}{% endif %}"
+               class="btn btn-outline-hm btn-sm fw-bold jp-td-btn">
+                <i class="bi bi-file-earmark-excel"></i><span>Xuất Excel</span>
+            </a>
+            {% endif %}
             {% if can_create %}
             <button type="button" class="btn btn-outline-hm btn-sm fw-bold jp-td-btn"
                     data-bs-toggle="modal" data-bs-target="#jp-td-import-modal">

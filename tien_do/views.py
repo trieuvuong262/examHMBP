@@ -157,15 +157,45 @@ def _build_rows(items, *, can_edit_it):
     return rows
 
 
-def _render_board(request, platform):
-    search_query = get_search_query(request)
+def _board_queryset(platform, search_query):
     qs = TienDoItem.objects.filter(platform=platform).prefetch_related(
         Prefetch(
             'feedbacks',
             queryset=TienDoFeedback.objects.select_related('author', 'author__profile'),
         )
     )
-    qs = apply_term_search(qs, search_query, 'feature__icontains', 'description__icontains')
+    return apply_term_search(qs, search_query, 'feature__icontains', 'description__icontains')
+
+
+def _export_records(items):
+    """Mỗi dòng tiến độ một STT; mỗi feedback một hàng Excel."""
+    records = []
+    for index, item in enumerate(items, start=1):
+        base = {
+            'stt': index,
+            'feature': tien_do_importing.html_to_plain(item.feature),
+            'description': tien_do_importing.html_to_plain(item.description),
+            'user_flow': tien_do_importing.html_to_plain(item.user_flow),
+            'updated_at': timezone.localtime(item.updated_at).strftime('%d/%m/%Y %H:%M'),
+        }
+        feedbacks = list(item.feedbacks.all())
+        if not feedbacks:
+            records.append(base)
+            continue
+        for entry in feedbacks:
+            records.append({
+                **base,
+                'author': _user_label(entry.author),
+                'feedback_at': timezone.localtime(entry.created_at).strftime('%d/%m/%Y %H:%M'),
+                'feedback': tien_do_importing.html_to_plain(entry.feedback),
+                'note': tien_do_importing.html_to_plain(entry.note),
+            })
+    return records
+
+
+def _render_board(request, platform):
+    search_query = get_search_query(request)
+    qs = _board_queryset(platform, search_query)
     page_obj, query_string = paginate_queryset(request, qs)
 
     perms = _perm_context(request.user)
@@ -193,6 +223,21 @@ def board_portal(request):
 @module_perm_required(MODULE_TIEN_DO, 'view')
 def board_wholesale_retail(request):
     return _render_board(request, TienDoItem.PLATFORM_WHOLESALE_RETAIL)
+
+
+@module_perm_required(MODULE_TIEN_DO, 'view')
+def board_wholesale_retail_export(request):
+    """Xuất Excel toàn bộ dòng Website sỉ/lẻ (theo ô tìm kiếm, không chỉ trang hiện tại)."""
+    search_query = get_search_query(request)
+    items = _board_queryset(TienDoItem.PLATFORM_WHOLESALE_RETAIL, search_query)
+    response = HttpResponse(
+        tien_do_importing.build_board_export_xlsx(_export_records(items)),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = (
+        f'attachment; filename="tien_do_website_si_le_{timezone.localdate():%Y%m%d}.xlsx"'
+    )
+    return response
 
 
 @module_perm_required(MODULE_TIEN_DO, 'create')

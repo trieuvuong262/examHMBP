@@ -486,6 +486,7 @@ URL_PAGE_LABELS: dict[str, str] = {
     'detail_cn': 'Chi tiết báo cáo SX',
     'detail_export_vp': 'Xuất Excel báo cáo',
     'detail_export_cn': 'Xuất Excel báo cáo SX',
+    'wholesale_retail_export': 'Xuất Excel tiến độ Website sỉ/lẻ',
     'team_detail_cn_export': 'Xuất chi tiết báo cáo SX',
     'copy_prev_vp': 'Sao chép kỳ trước',
     'copy_prev_cn': 'Sao chép kỳ trước',
@@ -715,6 +716,7 @@ def _summary_from_breadcrumb(
 
 
 NAMESPACE_URL_DESCRIPTIONS: dict[str, dict[str, str] | str] = {
+    'tien_do:wholesale_retail_export': 'xuất Excel tiến độ Website sỉ/lẻ',
     # Audit / quản trị hệ thống
     'audit:login_security': 'xem trang bảo mật đăng nhập',
     'audit:login_security_save_config': {

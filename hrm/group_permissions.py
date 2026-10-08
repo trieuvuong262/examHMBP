@@ -363,6 +363,7 @@ MODULE_LIST_META = {
     'kho_vat_tu': {'icon': 'bi-archive', 'short': 'VT'},
     'kho_san_pham': {'icon': 'bi-box-seam', 'short': 'SP'},
     'xay_dung': {'icon': 'bi-buildings', 'short': 'XD'},
+    'thiet_ke_sp': {'icon': 'bi-palette', 'short': 'TK'},
 }
 
 

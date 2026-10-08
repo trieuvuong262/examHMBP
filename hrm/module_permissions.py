@@ -39,6 +39,7 @@ MODULE_KHO_NPL = 'kho_npl'
 MODULE_KHO_VAT_TU = 'kho_vat_tu'
 MODULE_KHO_SAN_PHAM = 'kho_san_pham'
 MODULE_SAN_XUAT = 'san_xuat'
+MODULE_THIET_KE_SP = 'thiet_ke_sp'
 MODULE_ODOO = 'odoo'
 MODULE_TIEN_DO = 'tien_do'
 MODULE_XAY_DUNG = 'xay_dung'
@@ -67,6 +68,7 @@ _ALL_MODULE_CHOICES = [
     (MODULE_ODOO, 'Odoo'),
     (MODULE_TIEN_DO, 'Tiến độ'),
     (MODULE_XAY_DUNG, 'Xây Dựng'),
+    (MODULE_THIET_KE_SP, 'Thiết kế sản phẩm'),
     (MODULE_SAN_XUAT, 'Sản xuất'),
     (MODULE_KHO_NPL, 'Kho Nguyên Phụ Liệu'),
     (MODULE_KHO_VAT_TU, 'Kho vật tư'),
@@ -195,6 +197,7 @@ DEPARTMENT_MENU_SECTIONS = [
     {
         'label': 'Sản xuất',
         'modules': _visible_module_list([
+            MODULE_THIET_KE_SP,
             MODULE_SAN_XUAT,
             MODULE_KHO_NPL,
             MODULE_KHO_VAT_TU,
@@ -286,6 +289,7 @@ PATH_MODULE_RULES = [
     ('/kho-vat-tu/', MODULE_KHO_VAT_TU),
     ('/kho-san-pham/', MODULE_KHO_SAN_PHAM),
     ('/san-xuat/', MODULE_SAN_XUAT),
+    ('/thiet-ke-san-pham/', MODULE_THIET_KE_SP),
 ]
 
 EQUIPMENT_PUBLIC_PREFIXES = (

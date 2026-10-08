@@ -22,6 +22,7 @@ from hrm.module_permissions import (
     MODULE_KHO_SAN_PHAM,
     MODULE_KIOTVIET,
     MODULE_SAN_XUAT,
+    MODULE_THIET_KE_SP,
     MODULE_NAS_STORAGE,
     MODULE_RECRUITMENT,
     MODULE_REPORTS,
@@ -117,6 +118,18 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'share', 'label': 'Tạo link gửi NV', 'icon': 'bi-send'},
         {'key': 'results', 'label': 'Kết quả', 'icon': 'bi-inbox-fill'},
         {'key': 'ksk_manage', 'label': 'Quản lý KSK', 'icon': 'bi-heart-pulse'},
+    ],
+    MODULE_THIET_KE_SP: [
+        {'key': 'dashboard', 'label': 'Tổng quan', 'icon': 'bi-speedometer2', 'perm_view_only': True},
+        {'key': 'dossiers', 'label': 'Hồ sơ sản phẩm', 'icon': 'bi-journal-richtext'},
+        {'key': 'my_tasks', 'label': 'Việc chờ tôi xử lý', 'icon': 'bi-inbox-fill', 'perm_view_only': True},
+        {
+            'key': 'approve',
+            'label': 'Duyệt hồ sơ',
+            'perm_label': 'Duyệt hồ sơ (Sửa = được làm Người duyệt)',
+            'icon': 'bi-check2-circle',
+        },
+        {'key': 'settings', 'label': 'Thiết lập', 'icon': 'bi-gear'},
     ],
     MODULE_TIEN_DO: [
         {'key': 'portal', 'label': 'Tiến độ Portal', 'icon': 'bi-pc-display'},
@@ -549,6 +562,13 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/kiotviet/don-dat-hang', MODULE_KIOTVIET, 'orders'),
     ('/kiotviet/khach-hang', MODULE_KIOTVIET, 'customers'),
     # Tiến độ
+    ('/thiet-ke-san-pham/thiet-lap', MODULE_THIET_KE_SP, 'settings'),
+    ('/thiet-ke-san-pham/cho-toi', MODULE_THIET_KE_SP, 'my_tasks'),
+    ('/thiet-ke-san-pham/thong-bao', MODULE_THIET_KE_SP, 'my_tasks'),
+    ('/thiet-ke-san-pham/duyet', MODULE_THIET_KE_SP, 'approve'),
+    ('/thiet-ke-san-pham/ho-so', MODULE_THIET_KE_SP, 'dossiers'),
+    ('/thiet-ke-san-pham/tep', MODULE_THIET_KE_SP, 'dossiers'),
+    ('/thiet-ke-san-pham/', MODULE_THIET_KE_SP, 'dashboard'),
     ('/tien-do/website-si-le', MODULE_TIEN_DO, 'wholesale_retail'),
     ('/tien-do/portal', MODULE_TIEN_DO, 'portal'),
     ('/tien-do/', MODULE_TIEN_DO, 'portal'),
@@ -592,6 +612,18 @@ MENU_PATH_ACCESS_ALIASES: dict[tuple[str, str], tuple[str, ...]] = {
     # KHSX có bảng so giá vẫn đi được URL /duyet-gia/ (middleware);
     # view sẽ redirect sang so-gia, không mở hàng chờ Sếp.
     (MODULE_SAN_XUAT, 'sx_price_approve'): ('sx_price_quote',),
+    # Người duyệt / bộ phận nhận bàn giao mở hồ sơ từ việc được giao.
+    (MODULE_THIET_KE_SP, 'dossiers'): ('approve', 'my_tasks'),
+    (MODULE_THIET_KE_SP, 'dashboard'): ('dossiers', 'approve'),
+    (MODULE_THIET_KE_SP, 'my_tasks'): ('dossiers', 'approve'),
+}
+
+_THIET_KE_SP_MENU_ACTIONS: dict[str, frozenset[str]] = {
+    'dashboard': frozenset({'view'}),
+    'dossiers': frozenset({'view', 'create', 'update', 'delete'}),
+    'my_tasks': frozenset({'view'}),
+    'approve': frozenset({'view', 'update'}),
+    'settings': frozenset({'view', 'update'}),
 }
 
 MENU_FIELD_SEP = '__'
@@ -687,6 +719,8 @@ def submenu_supported_actions(module_key: str, menu_key: str) -> frozenset[str]:
     """Tập hành động có endpoint/chức năng thật cho một menu."""
     if module_key == MODULE_SAN_XUAT:
         return _SAN_XUAT_MENU_ACTIONS.get(menu_key, frozenset({'view'}))
+    if module_key == MODULE_THIET_KE_SP:
+        return _THIET_KE_SP_MENU_ACTIONS.get(menu_key, frozenset({'view'}))
     if module_key == MODULE_UTILITIES and menu_key == 'trip_schedule':
         return frozenset({'view', 'create', 'update', 'delete', 'export'})
     if module_key == MODULE_RECRUITMENT and menu_key in ('jobs', 'settings'):
