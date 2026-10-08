@@ -10,7 +10,7 @@
         <div class="d-flex gap-2">
           <select name="scope" class="form-select form-select-sm" style="max-width: 240px;">
             <option value="">Chung cho hồ sơ</option>
-            {% if current_dv %}<option value="d{{ current_dv.pk }}">Thiết kế {{ current_dv.label }}</option>{% endif %}
+            {% for dv in current_dvs %}<option value="d{{ dv.pk }}">Thiết kế {% if multi_options %}{{ dv.tag }}{% else %}{{ dv.label }}{% endif %}</option>{% endfor %}
             {% if current_sv %}<option value="s{{ current_sv.pk }}">Mẫu {{ current_sv.label }}</option>{% endif %}
           </select>
           <button type="submit" class="btn btn-sm btn-hm text-white fw-bold ms-auto"><i class="bi bi-send me-1"></i>Gửi</button>

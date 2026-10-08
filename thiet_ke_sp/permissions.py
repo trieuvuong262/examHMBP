@@ -1,5 +1,7 @@
 """Quyền module Thiết kế sản phẩm = quyền menu (Phân quyền) × vai trò trên từng hồ sơ.
 
+Tài khoản quản trị không được vượt vai trò: muốn duyệt / thao tác phải được gán đúng vai trò trên hồ sơ.
+
 - Menu «Hồ sơ sản phẩm»: Xem / Thêm (tạo đề xuất) / Sửa (cập nhật nội dung theo vai trò) / Xóa (xóa nháp).
 - Menu «Chờ tôi duyệt»: Sửa = được chọn làm Người duyệt và ra quyết định duyệt.
 - Menu «Thiết lập»: Sửa = cấu hình số ngày chuẩn, người nhận bàn giao.
@@ -70,8 +72,6 @@ def user_roles(dossier: ProductDevelopment, user) -> set[str]:
 
 
 def has_role(dossier: ProductDevelopment, user, *roles: str) -> bool:
-    if is_admin(user):
-        return True
     return bool(user_roles(dossier, user) & set(roles))
 
 
@@ -85,8 +85,6 @@ def can_work_as(dossier: ProductDevelopment, user, *roles: str) -> bool:
 def is_dossier_approver(dossier: ProductDevelopment, user) -> bool:
     if dossier.status in FINAL_STATUSES:
         return False
-    if is_admin(user):
-        return True
     return dossier.approver_id == user.pk and has_approve_permission(user)
 
 
@@ -103,7 +101,7 @@ def can_edit_roles(dossier: ProductDevelopment, user) -> bool:
 
 
 def is_participant(dossier: ProductDevelopment, user) -> bool:
-    return is_admin(user) or bool(user_roles(dossier, user))
+    return bool(user_roles(dossier, user))
 
 
 def _matrix_allows_approve(matrix: dict) -> bool:

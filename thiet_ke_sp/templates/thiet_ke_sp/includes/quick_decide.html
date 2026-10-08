@@ -1,0 +1,38 @@
+{% load tksp_tags %}
+{% for d in quick_dossiers %}
+{% if d.quick_kind == 'brief' %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with dossier=d modal_id=d.quick_modal_id modal_action='brief_decide' modal_title='Duyệt đề bài — '|add:d.name modal_next=quick_next modal_size='' modal_confirm='' tab='' %}
+  {% include 'thiet_ke_sp/includes/quick_head.html' %}
+  {% include 'thiet_ke_sp/includes/decide_brief_fields.html' %}
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Ghi nhận quyết định' submit_class='' %}
+{% elif d.quick_kind == 'design' %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with dossier=d modal_id=d.quick_modal_id modal_action='design_decide' modal_title='Duyệt thiết kế — '|add:d.name modal_next=quick_next modal_size='modal-lg' modal_confirm='' tab='' %}
+  {% include 'thiet_ke_sp/includes/quick_head.html' %}
+  {% if d.quick_options|length == 1 %}
+  {% with dv=d.quick_options.0 %}{% with front=dv.current_atts|get_item:'front' %}
+  {% if front and front.is_image %}<a href="{{ front.get_absolute_url }}" target="_blank" rel="noopener" class="tk-option-thumb is-lg mb-2"><img src="{{ front.get_absolute_url }}" alt="" loading="lazy"></a>{% endif %}
+  {% endwith %}{% endwith %}
+  {% endif %}
+  {% include 'thiet_ke_sp/includes/decide_design_fields.html' with options=d.quick_options %}
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Ghi nhận quyết định' submit_class='' %}
+{% elif d.quick_kind == 'master' %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with dossier=d modal_id=d.quick_modal_id modal_action='master_decide' modal_title='Duyệt mẫu chuẩn — '|add:d.name modal_next=quick_next modal_size='' modal_confirm='' tab='' %}
+  {% include 'thiet_ke_sp/includes/quick_head.html' %}
+  {% include 'thiet_ke_sp/includes/checklist_block.html' with items=d.quick_checklist %}
+  <div class="d-flex flex-column gap-1 my-2">
+    <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="approved" data-due="{{ sla_due.approved|due_input }}" data-tk-show=".tk-master-approve" checked> <span class="form-check-label">Duyệt sản xuất</span></label>
+    <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="request_fix" data-due="{{ sla_due.sample_revise|due_input }}" data-tk-hide=".tk-master-approve"> <span class="form-check-label">Yêu cầu sửa mẫu</span></label>
+    <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="request_design" data-due="{{ sla_due.design_revise|due_input }}" data-tk-hide=".tk-master-approve"> <span class="form-check-label">Yêu cầu chỉnh thiết kế</span></label>
+    <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="cancelled" data-due="" data-tk-hide=".tk-master-approve"> <span class="form-check-label text-danger">Hủy hồ sơ</span></label>
+  </div>
+  <div class="tk-master-approve mb-2">
+    <label class="form-label fw-bold small mb-1">Mã sản phẩm chính thức <span class="text-danger">*</span></label>
+    <input type="text" name="official_code" class="form-control form-control-sm text-uppercase" maxlength="60" value="{{ d.official_product_code }}">
+  </div>
+  <label class="form-label fw-bold small mb-1">Ý kiến</label>
+  <textarea name="comment" class="form-control form-control-sm mb-2" rows="3"></textarea>
+  {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.approved %}
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Ghi nhận quyết định' submit_class='' %}
+{% endif %}
+{% endfor %}
+{% if quick_dossiers %}{% include 'thiet_ke_sp/includes/modal_toggle_script.html' %}{% endif %}

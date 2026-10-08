@@ -10,7 +10,7 @@
     {% endfor %}
   </div>
   <div class="tk-grid3 mt-2">
-    <div class="tk-field"><label>Thiết kế</label><strong>{% if current_dv %}{{ current_dv.label }} · {{ current_dv.get_state_display }}{% else %}—{% endif %}</strong></div>
+    <div class="tk-field"><label>Thiết kế</label><strong>{% for dv in current_dvs %}{% if not forloop.first %}, {% endif %}{% if multi_options %}{{ dv.tag }}{% else %}{{ dv.label }}{% endif %} · {{ dv.get_state_display }}{% empty %}—{% endfor %}</strong></div>
     <div class="tk-field"><label>Mẫu</label><strong>{% if current_sv %}{{ current_sv.label }} · {{ current_sv.get_state_display }}{% else %}—{% endif %}</strong></div>
     <div class="tk-field"><label>Giá thành / mục tiêu</label><strong>{{ costing.cost|sx_num }} / {{ dossier.target_cost|sx_num }}</strong></div>
   </div>
@@ -25,6 +25,7 @@
     {% if flags.decide_design %}<button type="button" class="btn btn-sm btn-hm text-white fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalDesign">Duyệt thiết kế</button>{% endif %}
     {% if flags.decide_master %}<button type="button" class="btn btn-sm btn-hm text-white fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalMaster">Duyệt mẫu chuẩn</button>{% endif %}
     {% if flags.request_fix and flags.decide_master %}<button type="button" class="btn btn-sm btn-outline-danger fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalSampleFix">Yêu cầu sửa mẫu</button>{% endif %}
+    {% if flags.request_design_change and flags.decide_master %}<button type="button" class="btn btn-sm btn-outline-danger fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalDesignChange">Yêu cầu chỉnh thiết kế</button>{% endif %}
     {% if flags.resume %}<button type="button" class="btn btn-sm btn-hm text-white fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalResume">Tiếp tục</button>{% endif %}
   </span>
 </div>

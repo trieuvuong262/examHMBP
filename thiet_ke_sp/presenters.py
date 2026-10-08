@@ -160,6 +160,8 @@ KANBAN_MOVE_SPECS = {
     'sample_fix': ('Yêu cầu sửa mẫu', True, False),
     'master_approve': ('Duyệt mẫu chuẩn — sản xuất', False, True),
     'master_request_fix': ('Yêu cầu sửa mẫu', True, False),
+    'eval_request_design': ('Yêu cầu chỉnh thiết kế', True, False),
+    'master_request_design': ('Yêu cầu chỉnh thiết kế', True, False),
     'pause': ('Tạm dừng hồ sơ', True, False),
     'resume': ('Tiếp tục hồ sơ', False, False),
 }
@@ -172,8 +174,9 @@ _KANBAN_STEP_MOVES = {
     Status.DESIGN_PENDING: {'sample': 'design_approve', 'design': 'design_request_change'},
     Status.SAMPLING: {'evaluation': 'sample_submit'},
     Status.SAMPLE_REVISE: {'evaluation': 'sample_submit'},
-    Status.SAMPLE_EVAL_PENDING: {'master': 'master_submit', 'sample': 'sample_fix'},
-    Status.MASTER_PENDING: {'handover': 'master_approve', 'sample': 'master_request_fix'},
+    Status.SAMPLE_EVAL_PENDING: {'master': 'master_submit', 'sample': 'sample_fix', 'design': 'eval_request_design'},
+    Status.MASTER_PENDING: {'handover': 'master_approve', 'sample': 'master_request_fix',
+                            'design': 'master_request_design'},
 }
 
 
@@ -201,7 +204,7 @@ def _can_kanban_move(dossier: ProductDevelopment, user, move: str, cache: dict) 
         return perms.can_work_as(dossier, user, Role.DESIGNER, Role.OWNER)
     if move == 'sample_submit':
         return perms.can_work_as(dossier, user, Role.SAMPLE_MAKER, Role.TECHNICIAN, Role.OWNER)
-    if move in ('master_submit', 'sample_fix'):
+    if move in ('master_submit', 'sample_fix', 'eval_request_design'):
         return perms.can_work_as(dossier, user, Role.OWNER)
     return approver()
 
@@ -240,7 +243,7 @@ def dashboard_alerts(data: dict, user, limit: int = 5) -> list[dict]:
             'body': f'{t.title} · {perms.display_name(t.assignee) or "Chưa giao"}',
         })
     waiting = (
-        ProductDevelopment.objects.filter(approver=user, status__in=APPROVAL_STATUSES)
+        ProductDevelopment.objects.filter(approver=user, status__in=APPROVAL_STATUSES, is_demo=False)
         .order_by('status_changed_at')[:3]
     )
     for d in waiting:
@@ -260,7 +263,7 @@ def dashboard_alerts(data: dict, user, limit: int = 5) -> list[dict]:
 def step_checklist(dossier: ProductDevelopment) -> tuple[str, list[tuple[str, bool]]]:
     status = dossier.status
     if status in (Status.DESIGNING, Status.DESIGN_REVISE):
-        return 'Điều kiện gửi duyệt thiết kế', wf.design_checklist(dossier.current_design_version())
+        return 'Điều kiện gửi duyệt thiết kế', wf.design_checklist_all(dossier)
     if status in (Status.SAMPLE_EVAL_PENDING, Status.MASTER_PENDING):
         return 'Điều kiện duyệt mẫu chuẩn', wf.master_checklist(dossier)
     if status in (Status.APPROVED, Status.HANDED_OVER, Status.CLOSED):
@@ -298,18 +301,22 @@ def action_flags(dossier: ProductDevelopment, user) -> dict[str, bool]:
     s = dossier.status
     approver = perms.is_dossier_approver(dossier, user)
     owner = perms.can_work_as(dossier, user, Role.OWNER)
-    dv = dossier.current_design_version()
+    dvs = dossier.current_design_versions()
     sv = dossier.current_sample_version()
-    design_open = s in (Status.DESIGNING, Status.DESIGN_REVISE) and dv is not None and dv.is_editable
+    design_open = s in (Status.DESIGNING, Status.DESIGN_REVISE) and any(dv.is_editable for dv in dvs)
     sample_open = s in (Status.SAMPLING, Status.SAMPLE_REVISE) and sv is not None and sv.is_editable
+    designer = perms.can_work_as(dossier, user, Role.DESIGNER, Role.OWNER)
     return {
         'edit_brief': perms.can_edit_brief(dossier, user),
         'submit_brief': s in (Status.DRAFT, Status.BRIEF_NEEDS_INFO) and perms.can_edit_brief(dossier, user),
         'delete_draft': s == Status.DRAFT and perms.can_delete(user)
         and perms.has_role(dossier, user, Role.PROPOSER, Role.OWNER),
         'decide_brief': s == Status.BRIEF_PENDING and approver,
-        'edit_design': design_open and perms.can_work_as(dossier, user, Role.DESIGNER, Role.OWNER),
+        'edit_design': design_open and designer,
+        'add_design_option': design_open and designer and len(dvs) < wf.MAX_DESIGN_OPTIONS,
+        'drop_design_option': design_open and designer and len(dvs) > 1,
         'decide_design': s == Status.DESIGN_PENDING and approver,
+        'request_design_change': (s == Status.SAMPLE_EVAL_PENDING and owner) or (s == Status.MASTER_PENDING and approver),
         'edit_sample': sample_open and perms.can_work_as(dossier, user, Role.SAMPLE_MAKER, Role.TECHNICIAN, Role.OWNER),
         'edit_tech_pack': sample_open and perms.can_work_as(dossier, user, Role.TECHNICIAN, Role.OWNER),
         'evaluate': s == Status.SAMPLE_EVAL_PENDING and perms.can_update(user)

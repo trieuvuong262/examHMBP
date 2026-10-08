@@ -11,6 +11,7 @@
     <span class="ms-auto d-flex gap-1">
       {% if flags.submit_master %}<button type="button" class="btn btn-sm btn-hm text-white fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalSubmitMaster">Trình duyệt mẫu chuẩn</button>{% endif %}
       {% if flags.request_fix %}<button type="button" class="btn btn-sm btn-outline-danger fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalSampleFix">Yêu cầu sửa mẫu</button>{% endif %}
+      {% if flags.request_design_change %}<button type="button" class="btn btn-sm btn-outline-danger fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalDesignChange">Yêu cầu chỉnh thiết kế</button>{% endif %}
     </span>
   </div>
   {% if sample_form %}

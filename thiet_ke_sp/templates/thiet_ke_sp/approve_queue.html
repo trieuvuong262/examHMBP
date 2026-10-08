@@ -29,7 +29,10 @@
             <td class="small">{{ d.approver|uname }}</td>
             <td>{% include 'thiet_ke_sp/includes/progress_cell.html' %}</td>
             <td class="small">{% include 'thiet_ke_sp/includes/step_due_cell.html' %}</td>
-            <td class="text-end"><a class="btn btn-sm btn-hm text-white fw-bold py-0" href="{{ d.get_absolute_url }}?tab=approval">Xem duyệt</a></td>
+            <td class="text-end text-nowrap">
+              {% if d.quick_modal_id %}<button type="button" class="btn btn-sm btn-outline-hm fw-bold py-0" data-bs-toggle="modal" data-bs-target="#{{ d.quick_modal_id }}">Duyệt nhanh</button>{% endif %}
+              <a class="btn btn-sm btn-hm text-white fw-bold py-0" href="{{ d.get_absolute_url }}?tab=approval">Xem duyệt</a>
+            </td>
           </tr>
         {% empty %}
           <tr><td colspan="7" class="text-muted text-center small py-4">Không có hồ sơ chờ duyệt.</td></tr>
@@ -38,5 +41,7 @@
       </table>
     </div>
   </div>
+  {% include 'thiet_ke_sp/includes/quick_decide.html' %}
 </div>
+{% include 'thiet_ke_sp/includes/tksp_scripts.html' %}
 {% endblock %}

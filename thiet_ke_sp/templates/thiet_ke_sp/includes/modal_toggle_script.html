@@ -1,0 +1,17 @@
+<script>
+(function () {
+  document.querySelectorAll('.modal input[type="radio"][data-due], .modal select').forEach(function (el) {
+    el.addEventListener('change', function () {
+      var modal = el.closest('.modal');
+      var src = el.tagName === 'SELECT' ? el.options[el.selectedIndex] : el;
+      if (!src || !src.hasAttribute('data-due') || !modal) return;
+      var input = modal.querySelector('.tk-due-input');
+      if (input) input.value = src.getAttribute('data-due') || '';
+      var show = src.getAttribute('data-tk-show');
+      var hide = src.getAttribute('data-tk-hide');
+      if (show) modal.querySelectorAll(show).forEach(function (n) { n.classList.remove('d-none'); });
+      if (hide) modal.querySelectorAll(hide).forEach(function (n) { n.classList.add('d-none'); });
+    });
+  });
+})();
+</script>

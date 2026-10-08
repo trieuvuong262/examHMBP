@@ -25,7 +25,7 @@ Menu: **Nhân sự → Tuyển dụng**.
 | **Vị trí tuyển dụng** | HR | Danh sách vị trí, tạo / sửa / mở / tạm dừng / đóng vị trí |
 | **Ứng viên** | HR | Bảng Kanban theo bước, thêm ứng viên, trang chi tiết hồ sơ |
 | **Lịch phỏng vấn** | HR | Danh sách buổi phỏng vấn theo khoảng ngày, xuất Excel, xem nhanh CV |
-| **Đánh giá ứng viên** | Quản lý, người phỏng vấn | Hồ sơ chờ đánh giá, kết quả phỏng vấn, hồ sơ đã đánh giá, ứng viên mình đề xuất |
+| **Đánh giá ứng viên** | Quản lý, người phỏng vấn, giám đốc | Hồ sơ chờ đánh giá CV, kết quả phỏng vấn, giám đốc duyệt cấp 2 |
 | **Thiết lập** | HR | Danh mục **Địa điểm họp**, **Loại hồ sơ**, **Nguồn hồ sơ** |
 
 ### 1.2a. Thiết lập danh mục
@@ -300,10 +300,9 @@ Kanban: lọc **Vị trí** (*Tất cả vị trí chưa đóng* hoặc một v�
 
 | Tab | Nội dung |
 |---|---|
-| **Chờ đánh giá** | Hồ sơ ở bước chờ đánh giá, bạn chưa đánh giá |
+| **Đánh giá CV** | Hồ sơ ở bước chờ đánh giá, bạn chưa đánh giá |
 | **Kết quả phỏng vấn** | Buổi phỏng vấn bạn được giao / thuộc phạm vi bạn, chưa có kết quả (xem bước 19) |
-| **Đã đánh giá** | Kết luận + điểm bạn đã cho, trạng thái hiện tại |
-| **Tôi đề xuất** | Ứng viên bạn giới thiệu và trạng thái |
+| **Giám đốc duyệt** | Chỉ người có quyền duyệt cấp 2: hồ sơ phỏng vấn Đạt chờ giám đốc duyệt (xem bước 19b) |
 
 **13.** Bấm **CV** để xem nhanh, hoặc **Đánh giá** để mở hồ sơ.
 
@@ -343,11 +342,11 @@ Chọn **Đạt** / **Không đạt**, nhập **Nhận xét** → **Lưu kết q
 
 ### Giám đốc — Duyệt cấp 2
 
-**19b.** Người có quyền **Tuyển dụng — giám đốc duyệt cấp 2** (nhóm TGĐ, admin): **Đánh giá ứng viên** → tab **Giám đốc duyệt** → **Duyệt**. Trang duyệt hiển thị CV, kết quả & nhận xét phỏng vấn cấp 1. Chọn **Đạt** / **Không đạt** (Không đạt bắt buộc nhận xét) → **Lưu duyệt**; trang tự mở hồ sơ chờ duyệt tiếp theo.
+**19b.** Người có quyền **Tuyển dụng — giám đốc duyệt cấp 2** (nhóm TGĐ, admin): **Đánh giá ứng viên** → tab **Giám đốc duyệt** → **GĐ duyệt**. Trang duyệt hiển thị CV, kết quả & nhận xét phỏng vấn cấp 1. Chọn **Đạt** / **Không đạt** (Không đạt bắt buộc nhận xét) → **Lưu duyệt**; trang tự mở hồ sơ chờ duyệt tiếp theo.
 
 - **Đạt** → tự chuyển **Trúng tuyển** (nếu vị trí đã đủ chỉ tiêu: giữ ở **Phỏng vấn**, cột *Bước tiếp theo* báo *Đạt — vị trí đủ chỉ tiêu*).
 - **Không đạt** → **Loại**, lý do *Giám đốc duyệt không đạt: …*.
-- Giám đốc **tự phỏng vấn** vẫn phải duyệt 2 lần: nhập kết quả cấp 1, sau đó duyệt riêng ở tab **Giám đốc duyệt**.
+- Giám đốc **tự phỏng vấn** vẫn phải duyệt 2 lần: nhập kết quả cấp 1, sau đó bấm **GĐ duyệt** ở tab **Giám đốc duyệt**.
 - Đổi lịch phỏng vấn sẽ xóa kết quả duyệt cấp 2 cũ.
 - Cấp quyền cho nhóm khác: **Phân quyền nhóm** → module Tuyển dụng → tick *giám đốc duyệt cấp 2*.
 
@@ -426,7 +425,7 @@ Cấu hình ở **Phân quyền → Nhóm quyền**, dòng **Nhân sự**:
 | *Cần ít nhất 1 đánh giá «Đạt» của quản lý.* | Chưa có quản lý đề xuất phỏng vấn | Chờ / nhắc quản lý phụ trách đánh giá |
 | *Cần chọn thời gian bắt đầu / kết thúc phỏng vấn.* | Bỏ trống giờ khi chuyển Phỏng vấn | Chọn bắt đầu và thời lượng |
 | *Thời gian kết thúc phải sau thời gian bắt đầu.* | Kết thúc ≤ bắt đầu | Sửa kết thúc hoặc chọn lại thời lượng |
-| *Chỉ trúng tuyển khi phỏng vấn «Đạt» và giám đốc đã duyệt «Đạt».* | Chưa có kết quả Đạt hoặc giám đốc chưa duyệt | Lưu kết quả phỏng vấn, chờ giám đốc duyệt ở tab **Giám đốc duyệt** |
+| *Chỉ trúng tuyển khi phỏng vấn «Đạt» và giám đốc đã duyệt «Đạt».* | Chưa có kết quả Đạt hoặc giám đốc chưa duyệt | Lưu kết quả phỏng vấn, chờ giám đốc bấm **GĐ duyệt** ở tab **Giám đốc duyệt** |
 | *Vị trí đã đủ chỉ tiêu (n).* | Trúng tuyển + Đã nhận việc = Số lượng | Tăng **Số lượng cần tuyển** hoặc chuyển người khác **Không nhận việc** |
 | *Chưa tới giờ phỏng vấn.* | Nhập kết quả trước giờ hẹn | Nhập sau buổi phỏng vấn |
 | *Buổi phỏng vấn đã có kết quả.* | Người khác đã nhập trước | Xem lịch sử ở trang chi tiết |

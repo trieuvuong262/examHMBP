@@ -1058,25 +1058,9 @@ def review_list(request):
     )
     tabs_spec = []
     if is_manager:
-        base = _managed_candidates(user)
-        my_reviews = CandidateReview.objects.filter(reviewer=user)
-        pending = _pending_reviews(user)
-        reviewed = (
-            base.filter(pk__in=my_reviews.values('candidate_id'))
-            .annotate(my_review_at=Max('reviews__updated_at', filter=Q(reviews__reviewer=user)))
-            .prefetch_related(Prefetch('reviews', queryset=my_reviews, to_attr='my_reviews'))
-            .order_by('-my_review_at')
-        )
-        referred = (
-            Candidate.objects.select_related('job_posting', 'job_posting__target_department')
-            .prefetch_related('files')
-            .filter(referred_by=user).order_by('-applied_at')
-        )
         tabs_spec = [
-            ('cho-danh-gia', 'Chờ đánh giá', pending),
+            ('cho-danh-gia', 'Đánh giá CV', _pending_reviews(user)),
             ('phong-van', 'Kết quả phỏng vấn', interviews),
-            ('da-danh-gia', 'Đã đánh giá', reviewed),
-            ('da-de-xuat', 'Tôi đề xuất', referred),
         ]
     else:
         tabs_spec = [('phong-van', 'Kết quả phỏng vấn', interviews)]
@@ -1086,7 +1070,8 @@ def review_list(request):
             .select_related('interview').prefetch_related('interview__interviewers__profile')
             .order_by('status_changed_at', 'pk')
         )
-        tabs_spec.insert(0, (TAB_FINAL, 'Giám đốc duyệt', finals))
+        at = next(i for i, spec in enumerate(tabs_spec) if spec[0] == 'phong-van') + 1
+        tabs_spec.insert(at, (TAB_FINAL, 'Giám đốc duyệt', finals))
     current = request.GET.get('tab') or tabs_spec[0][0]
     if current not in {key for key, _, _ in tabs_spec}:
         current = tabs_spec[0][0]

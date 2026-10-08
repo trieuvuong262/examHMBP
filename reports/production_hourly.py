@@ -2617,8 +2617,13 @@ def validate_production_submit_efficiency(
     report: DailyWorkReport,
     *,
     declared_work_hours=None,
+    block_on_time_efficiency: bool = True,
 ) -> tuple[float | None, str]:
-    """Chặn gửi nếu vượt ngưỡng hiệu suất thiết lập hoặc công đoạn SL>0 nhưng 0 phút."""
+    """Chặn gửi nếu vượt ngưỡng hiệu suất thiết lập hoặc công đoạn SL>0 nhưng 0 phút.
+
+    Giờ khai báo nằm trong khoảng thiết lập thì không chặn theo hiệu suất thời gian
+    (công nhân được nhập 4 giờ khi tối thiểu là 0,50 và tối đa là 16).
+    """
     max_qty, max_time = _production_efficiency_caps()
     qty_s = format(max_qty, '.0f') if max_qty == int(max_qty) else format(max_qty, '.2f')
     time_s = format(max_time, '.0f') if max_time == int(max_time) else format(max_time, '.2f')
@@ -2663,7 +2668,7 @@ def validate_production_submit_efficiency(
     time_pct = _report_time_efficiency_pct(
         report, products, declared_work_hours=declared_work_hours,
     )
-    if time_pct is not None and time_pct > max_time:
+    if block_on_time_efficiency and time_pct is not None and time_pct > max_time:
         pct_text = format(time_pct, '.2f').rstrip('0').rstrip('.')
         return time_pct, (
             f'Số liệu bạn gửi sai — hiệu suất thời gian {pct_text}% vượt '

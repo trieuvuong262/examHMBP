@@ -700,8 +700,15 @@
                     aria-expanded="{% if '/thiet-ke-san-pham/' in request.path %}true{% else %}false{% endif %}"
                     aria-controls="jp-sidebar-tksp-submenu">
                 <span class="jp-sidebar-group-toggle-main">
-                    <i class="bi bi-palette"></i><span>Thiết kế sản phẩm</span>
-                    {% if tksp_my_task_count %}<span class="badge {% if tksp_overdue_count %}bg-danger{% else %}bg-secondary{% endif %} ms-1">{{ tksp_my_task_count }}</span>{% endif %}
+                    <span class="jp-sidebar-link-icon">
+                        <i class="bi bi-palette"></i>
+                        {% if tksp_my_task_count %}
+                        <span class="jp-sidebar-notify" aria-label="{{ tksp_my_task_count }} việc thiết kế sản phẩm chờ xử lý">
+                            {% if tksp_my_task_count > 99 %}99+{% else %}{{ tksp_my_task_count }}{% endif %}
+                        </span>
+                        {% endif %}
+                    </span>
+                    <span>Thiết kế sản phẩm</span>
                 </span>
                 <i class="bi bi-chevron-down jp-sidebar-group-chevron" aria-hidden="true"></i>
             </button>
@@ -718,8 +725,15 @@
                 <li>
                     <a href="{% url 'thiet_ke_sp:list' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if '/thiet-ke-san-pham/ho-so' in request.path %}active{% endif %}">
-                        <i class="bi bi-journal-richtext"></i><span>Hồ sơ sản phẩm</span>
-                        {% if tksp_active_count %}<span class="badge bg-secondary ms-1">{{ tksp_active_count }}</span>{% endif %}
+                        <span class="jp-sidebar-link-icon">
+                            <i class="bi bi-journal-richtext"></i>
+                            {% if tksp_active_count %}
+                            <span class="jp-sidebar-notify" aria-label="{{ tksp_active_count }} hồ sơ đang thực hiện">
+                                {% if tksp_active_count > 99 %}99+{% else %}{{ tksp_active_count }}{% endif %}
+                            </span>
+                            {% endif %}
+                        </span>
+                        <span>Hồ sơ sản phẩm</span>
                     </a>
                 </li>
                 {% endif %}
@@ -735,8 +749,15 @@
                 <li>
                     <a href="{% url 'thiet_ke_sp:approve_queue' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if '/thiet-ke-san-pham/duyet' in request.path %}active{% endif %}">
-                        <i class="bi bi-check2-circle"></i><span>Chờ tôi duyệt</span>
-                        {% if tksp_approve_count %}<span class="badge bg-danger ms-1">{{ tksp_approve_count }}</span>{% endif %}
+                        <span class="jp-sidebar-link-icon">
+                            <i class="bi bi-check2-circle"></i>
+                            {% if tksp_approve_count %}
+                            <span class="jp-sidebar-notify" aria-label="{{ tksp_approve_count }} hồ sơ chờ duyệt">
+                                {% if tksp_approve_count > 99 %}99+{% else %}{{ tksp_approve_count }}{% endif %}
+                            </span>
+                            {% endif %}
+                        </span>
+                        <span>Chờ tôi duyệt</span>
                     </a>
                 </li>
                 {% endif %}
@@ -744,8 +765,15 @@
                 <li>
                     <a href="{% url 'thiet_ke_sp:my_tasks' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if '/thiet-ke-san-pham/cho-toi' in request.path %}active{% endif %}">
-                        <i class="bi bi-inbox-fill"></i><span>Việc chờ tôi xử lý</span>
-                        {% if tksp_my_task_count %}<span class="badge {% if tksp_overdue_count %}bg-danger{% else %}bg-secondary{% endif %} ms-1">{{ tksp_my_task_count }}</span>{% endif %}
+                        <span class="jp-sidebar-link-icon">
+                            <i class="bi bi-inbox-fill"></i>
+                            {% if tksp_my_task_count %}
+                            <span class="jp-sidebar-notify" aria-label="{{ tksp_my_task_count }} việc chờ xử lý">
+                                {% if tksp_my_task_count > 99 %}99+{% else %}{{ tksp_my_task_count }}{% endif %}
+                            </span>
+                            {% endif %}
+                        </span>
+                        <span>Việc chờ tôi xử lý</span>
                     </a>
                 </li>
                 {% endif %}

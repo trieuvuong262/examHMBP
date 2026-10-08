@@ -1,0 +1,9 @@
+{% load tksp_tags %}
+<div class="d-flex flex-column gap-1 mb-2">
+  <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="approved" data-due="{{ sla_due.designing|due_input }}" checked> <span class="form-check-label">Duyệt — chuyển sang thiết kế</span></label>
+  <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="request_change" data-due="{{ sla_due.brief_needs_info|due_input }}"> <span class="form-check-label">Yêu cầu bổ sung đề bài</span></label>
+  <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="cancelled" data-due=""> <span class="form-check-label text-danger">Hủy hồ sơ</span></label>
+</div>
+<label class="form-label fw-bold small mb-1">Ý kiến</label>
+<textarea name="comment" class="form-control form-control-sm mb-2" rows="3"></textarea>
+{% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.designing %}

@@ -43,8 +43,9 @@
       </div>
       <div class="jp-rc-row-side">
         {% include 'recruitment/includes/cv_button.html' with candidate=cand f=cand.primary_file label='CV' %}
-        <span class="jp-rc-badge is-pass">PV Đạt</span>
-        <a href="{% url 'recruitment_review_candidate' cand.pk %}" class="btn btn-hm btn-sm fw-bold">Duyệt</a>
+        <a href="{% url 'recruitment_review_candidate' cand.pk %}" class="btn btn-hm btn-sm fw-bold">
+          <i class="bi bi-patch-check" aria-hidden="true"></i> GĐ duyệt
+        </a>
       </div>
     </div>
     {% endwith %}
@@ -63,46 +64,34 @@
       <div class="jp-rc-row-side">
         {% include 'recruitment/includes/cv_button.html' with candidate=cand f=cand.primary_file label='CV' %}
         {% if inv.interview_time <= now %}
-        {% if inv.end_time and inv.end_time <= now %}<span class="jp-rc-badge is-fail">Chờ kết quả</span>
-        {% else %}<span class="jp-rc-badge is-interviewing">Đang phỏng vấn</span>{% endif %}
         <button type="button" class="btn btn-hm btn-sm fw-bold" data-rc-result
                 data-url="{% url 'recruitment_review_interview_result' cand.pk %}"
                 data-name="{{ cand.full_name }}" data-time="{{ inv.time_range_label }}"
                 data-next="{{ request.get_full_path }}">
           <i class="bi bi-clipboard-check" aria-hidden="true"></i> Nhập kết quả
         </button>
-        {% else %}
-        <span class="jp-rc-badge is-pending">Sắp diễn ra</span>
         {% endif %}
       </div>
     </div>
     {% endwith %}
     {% else %}
-    <div class="jp-rc-row{% if current_tab == 'cho-danh-gia' %} needs-action{% endif %}">
+    <div class="jp-rc-row needs-action">
       <span class="jp-rc-avatar" aria-hidden="true">{{ cand.full_name|slice:":1"|upper }}</span>
       <div class="jp-rc-row-main">
         <a class="jp-rc-row-title" href="{% url 'recruitment_review_candidate' cand.pk %}">{{ cand.full_name }}</a>
         <div class="jp-rc-row-meta">
           {{ job.title }} · {{ job.department_label }}
-          {% if cand.source == 'referral' and current_tab != 'da-de-xuat' %} · <i class="bi bi-person-check" aria-hidden="true"></i> QL đề xuất{% endif %}
+          {% if cand.source == 'referral' %} · <i class="bi bi-person-check" aria-hidden="true"></i> QL đề xuất{% endif %}
         </div>
       </div>
       <div class="jp-rc-row-side">
         {% include 'recruitment/includes/cv_button.html' with candidate=cand f=cand.primary_file label='CV' %}
-        {% if current_tab == 'cho-danh-gia' %}
         <span class="small text-muted text-nowrap" title="Chờ đánh giá từ">
           <i class="bi bi-clock" aria-hidden="true"></i> {{ cand.status_changed_at|date:"H:i d/m/Y" }}
         </span>
-        <a href="{% url 'recruitment_review_candidate' cand.pk %}" class="btn btn-hm btn-sm fw-bold">Đánh giá</a>
-        {% elif current_tab == 'da-danh-gia' %}
-        {% with review=cand.my_reviews.0 %}
-        <span class="jp-rc-badge is-{{ review.decision }}">{{ review.get_decision_display }}{% if review.rating %} · {{ review.rating }}/5{% endif %}</span>
-        {% endwith %}
-        <span class="jp-rc-badge is-{{ cand.status }}">{{ cand.get_status_display }}</span>
-        {% else %}
-        <span class="small text-muted text-nowrap">{{ cand.applied_at|date:"d/m/Y" }}</span>
-        <span class="jp-rc-badge is-{{ cand.status }}">{{ cand.get_status_display }}</span>
-        {% endif %}
+        <a href="{% url 'recruitment_review_candidate' cand.pk %}" class="btn btn-hm btn-sm fw-bold">
+          <i class="bi bi-clipboard-check" aria-hidden="true"></i> Đánh giá
+        </a>
       </div>
     </div>
     {% endif %}
@@ -115,18 +104,9 @@
       {% elif current_tab == 'phong-van' %}
       <i class="bi bi-calendar-check" aria-hidden="true"></i>
       <div class="fw-semibold">Không có buổi phỏng vấn nào chờ kết quả</div>
-      {% elif current_tab == 'cho-danh-gia' %}
+      {% else %}
       <i class="bi bi-inbox" aria-hidden="true"></i>
       <div class="fw-semibold">Không có hồ sơ chờ bạn đánh giá</div>
-      {% elif current_tab == 'da-danh-gia' %}
-      <i class="bi bi-clipboard-check" aria-hidden="true"></i>
-      <div class="fw-semibold">Bạn chưa đánh giá hồ sơ nào</div>
-      {% else %}
-      <i class="bi bi-person-plus" aria-hidden="true"></i>
-      <div class="fw-semibold">Bạn chưa đề xuất ứng viên nào</div>
-      {% if open_jobs_in_scope %}
-      <a href="{% url 'recruitment_refer_candidate' %}" class="btn btn-outline-hm btn-sm fw-bold mt-2">Đề xuất ứng viên</a>
-      {% endif %}
       {% endif %}
     </div>
     {% endfor %}

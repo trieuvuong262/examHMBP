@@ -9,34 +9,39 @@
 
 {% if flags.decide_brief %}
 {% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalBrief' modal_action='brief_decide' modal_title='Duyệt đề bài' %}
-  <div class="d-flex flex-column gap-1 mb-2">
-    <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="approved" data-due="{{ sla_due.designing|due_input }}" checked> <span class="form-check-label">Duyệt — chuyển sang thiết kế</span></label>
-    <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="request_change" data-due="{{ sla_due.brief_needs_info|due_input }}"> <span class="form-check-label">Yêu cầu bổ sung đề bài</span></label>
-    <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="cancelled" data-due=""> <span class="form-check-label text-danger">Hủy hồ sơ</span></label>
-  </div>
-  <label class="form-label fw-bold small mb-1">Ý kiến</label>
-  <textarea name="comment" class="form-control form-control-sm mb-2" rows="3"></textarea>
-  {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.designing %}
+  {% include 'thiet_ke_sp/includes/decide_brief_fields.html' %}
 {% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Ghi nhận quyết định' %}
 {% endif %}
 
 {% if flags.edit_design %}
-{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalSubmitDesign' modal_action='design_submit' modal_title='Gửi duyệt thiết kế '|add:current_dv.label %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalSubmitDesign' modal_action='design_submit' modal_title='Gửi duyệt thiết kế '|add:design_scope %}
   {% include 'thiet_ke_sp/includes/checklist_block.html' with items=checklist %}
   {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.design_pending due_label_text='Hạn duyệt thiết kế' %}
 {% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Gửi duyệt' %}
 {% endif %}
 
+{% if flags.add_design_option %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalAddOption' modal_action='design_option_add' modal_title='Thêm phương án thiết kế' %}
+  <label class="form-label fw-bold small mb-1">Nội dung ban đầu</label>
+  <select name="copy_from" class="form-select form-select-sm">
+    <option value="">Phương án trống</option>
+    {% for dv in current_dvs %}<option value="{{ dv.pk }}">Sao chép {{ dv.tag }}</option>{% endfor %}
+  </select>
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Thêm phương án' %}
+{% endif %}
+
 {% if flags.decide_design %}
-{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalDesign' modal_action='design_decide' modal_title='Duyệt thiết kế '|add:current_dv.label %}
-  <div class="d-flex flex-column gap-1 mb-2">
-    <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="approved" data-due="{{ sla_due.sampling|due_input }}" checked> <span class="form-check-label">Duyệt — chuyển sang làm mẫu</span></label>
-    <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="request_change" data-due="{{ sla_due.design_revise|due_input }}"> <span class="form-check-label">Yêu cầu chỉnh sửa — mở phiên bản mới</span></label>
-  </div>
-  <label class="form-label fw-bold small mb-1">Ý kiến</label>
-  <textarea name="comment" class="form-control form-control-sm mb-2" rows="3"></textarea>
-  {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.sampling %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalDesign' modal_action='design_decide' modal_title='Duyệt thiết kế '|add:design_scope modal_size=design_modal_size %}
+  {% include 'thiet_ke_sp/includes/decide_design_fields.html' with options=submitted_dvs %}
 {% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Ghi nhận quyết định' %}
+{% endif %}
+
+{% if flags.request_design_change %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalDesignChange' modal_action='design_change' modal_title='Yêu cầu chỉnh thiết kế — mẫu '|add:current_sv.label %}
+  <label class="form-label fw-bold small mb-1">Nội dung cần chỉnh thiết kế <span class="text-danger">*</span></label>
+  <textarea name="comment" class="form-control form-control-sm mb-2" rows="4" required></textarea>
+  {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.design_revise due_label_text='Hạn chỉnh thiết kế' %}
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Yêu cầu chỉnh' submit_class='btn-danger' %}
 {% endif %}
 
 {% if flags.edit_sample %}
@@ -69,6 +74,8 @@
       <div class="d-flex flex-column gap-1 my-3">
         <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="approved" data-due="{{ sla_due.approved|due_input }}" data-tk-show="#tkMasterApproveBox" checked> <span class="form-check-label">Duyệt sản xuất</span></label>
         <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="request_fix" data-due="{{ sla_due.sample_revise|due_input }}" data-tk-hide="#tkMasterApproveBox"> <span class="form-check-label">Yêu cầu sửa mẫu</span></label>
+        <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="request_design" data-due="{{ sla_due.design_revise|due_input }}" data-tk-hide="#tkMasterApproveBox"> <span class="form-check-label">Yêu cầu chỉnh thiết kế</span></label>
+        <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="cancelled" data-due="" data-tk-hide="#tkMasterApproveBox"> <span class="form-check-label text-danger">Hủy hồ sơ</span></label>
       </div>
       <label class="form-label fw-bold small mb-1">Ý kiến</label>
       <textarea name="comment" class="form-control form-control-sm mb-2" rows="3"></textarea>
@@ -169,21 +176,9 @@
 {% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Lưu' %}
 {% endif %}
 
+{% include 'thiet_ke_sp/includes/modal_toggle_script.html' %}
 <script>
 (function () {
-  document.querySelectorAll('.modal input[type="radio"][data-due], .modal select').forEach(function (el) {
-    el.addEventListener('change', function () {
-      var modal = el.closest('.modal');
-      var src = el.tagName === 'SELECT' ? el.options[el.selectedIndex] : el;
-      if (!src || !src.hasAttribute('data-due')) return;
-      var input = modal && modal.querySelector('.tk-due-input');
-      if (input) input.value = src.getAttribute('data-due') || '';
-      var show = el.getAttribute('data-tk-show');
-      var hide = el.getAttribute('data-tk-hide');
-      if (show) document.querySelector(show).classList.remove('d-none');
-      if (hide) document.querySelector(hide).classList.add('d-none');
-    });
-  });
   ['tkModalDelay', 'tkModalDue'].forEach(function (id) {
     var modal = document.getElementById(id);
     if (!modal) return;

@@ -1,0 +1,35 @@
+{% load tksp_tags %}
+<div class="d-flex flex-column gap-1 mb-2">
+  <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="approved" data-due="{{ sla_due.sampling|due_input }}" data-tk-show=".tk-pick" data-tk-hide=".tk-keep" checked> <span class="form-check-label">Duyệt — chuyển sang làm mẫu</span></label>
+  <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="request_change" data-due="{{ sla_due.design_revise|due_input }}" data-tk-show=".tk-keep" data-tk-hide=".tk-pick"> <span class="form-check-label">Yêu cầu chỉnh sửa — mở phiên bản mới</span></label>
+  <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="cancelled" data-due="" data-tk-hide=".tk-pick, .tk-keep"> <span class="form-check-label text-danger">Hủy hồ sơ</span></label>
+</div>
+{% if options|length > 1 %}
+<div class="tk-pick mb-2">
+  <div class="fw-bold small mb-1">Phương án được duyệt <span class="text-danger">*</span></div>
+  <div class="tk-option-picks">
+    {% for dv in options %}
+    <label class="tk-option-pick">
+      <input class="form-check-input" type="radio" name="option_id" value="{{ dv.pk }}">
+      {% with front=dv.current_atts|get_item:'front' %}<span class="tk-option-thumb">{% if front and front.is_image %}<img src="{{ front.get_absolute_url }}" alt="" loading="lazy">{% else %}<i class="bi bi-palette"></i>{% endif %}</span>{% endwith %}
+      <span class="fw-bold small">{{ dv.tag }}</span>
+    </label>
+    {% endfor %}
+  </div>
+</div>
+<div class="tk-keep mb-2 d-none">
+  <div class="fw-bold small mb-1">Phương án giữ lại để chỉnh <span class="text-danger">*</span></div>
+  <div class="tk-option-picks">
+    {% for dv in options %}
+    <label class="tk-option-pick">
+      <input class="form-check-input" type="checkbox" name="keep_ids" value="{{ dv.pk }}" checked>
+      {% with front=dv.current_atts|get_item:'front' %}<span class="tk-option-thumb">{% if front and front.is_image %}<img src="{{ front.get_absolute_url }}" alt="" loading="lazy">{% else %}<i class="bi bi-palette"></i>{% endif %}</span>{% endwith %}
+      <span class="fw-bold small">{{ dv.tag }}</span>
+    </label>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+<label class="form-label fw-bold small mb-1">Ý kiến</label>
+<textarea name="comment" class="form-control form-control-sm mb-2" rows="3"></textarea>
+{% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.sampling %}

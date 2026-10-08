@@ -1,0 +1,7 @@
+{% load tksp_tags %}
+<div class="d-flex flex-wrap align-items-center gap-2 small mb-2">
+  <span class="fw-bold">{{ d.code }}</span>
+  <span class="text-muted">{{ d.get_product_group_display }}</span>
+  {% if d.launch_date %}<span class="text-muted">· ra mắt {{ d.launch_date|date:'d/m/Y' }}</span>{% endif %}
+  <a href="{{ d.get_absolute_url }}?tab=approval" class="ms-auto fw-semibold">Mở hồ sơ <i class="bi bi-box-arrow-up-right"></i></a>
+</div>

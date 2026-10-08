@@ -114,6 +114,32 @@
       </div>
     </div>
   </div>
+
+  <div class="tk-card tk-panel">
+    <div class="tk-panel-head">
+      <div class="tk-panel-title">Việc trễ hạn và nguyên nhân chậm</div>
+      {% if data.overdue_count > data.overdue_tasks|length %}<span class="tk-panel-sub">{{ data.overdue_tasks|length }} / {{ data.overdue_count }} việc trễ lâu nhất</span>{% endif %}
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover tk-mini-table align-middle">
+        <thead><tr><th>Hồ sơ</th><th>Công việc</th><th>Người giữ việc</th><th>Hạn</th><th class="text-end">Trễ</th><th>Nguyên nhân chậm</th></tr></thead>
+        <tbody>
+        {% for t in data.overdue_tasks %}
+          <tr class="jp-npl-catalog-row" data-href="{{ t.dossier.get_absolute_url }}">
+            <td><b>{{ t.dossier.name|truncatechars:34 }}</b><div class="small text-muted">{{ t.dossier.code }}</div></td>
+            <td class="small">{{ t.title }}</td>
+            <td class="small">{{ t.assignee|uname }}</td>
+            <td class="small text-nowrap">{{ t.due_at|due_short }}</td>
+            <td class="text-end"><span class="tk-late">{{ t.days_late }} ngày</span></td>
+            <td class="small">{% if t.delay_reason %}{{ t.delay_reason }}{% else %}<span class="tk-miss">Chưa ghi</span>{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="text-muted small">Không có việc trễ.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 <script>
 (function () {

@@ -48,13 +48,20 @@
     fromDate.setDate(fromDate.getDate() - (spanDays - 1));
     setInputDate(fromEl, fromDate, true);
   }
+  function clearRange(form) {
+    form.querySelectorAll('input[name="to"], input[name="date_to"], input[name="from"], input[name="date_from"]').forEach(function (el) {
+      if (el._flatpickr) el._flatpickr.clear(false);
+      el.value = '';
+    });
+  }
   function bindSpan(form) {
     if (!form || form.dataset.jpSpanBound === '1') return;
     form.dataset.jpSpanBound = '1';
     var sel = form.querySelector('select[name="span"]');
     if (!sel) return;
     sel.addEventListener('change', function () {
-      if (sel.value) applySpanToFrom(form, parseInt(sel.value, 10));
+      if (sel.value === 'all') clearRange(form);
+      else if (sel.value) applySpanToFrom(form, parseInt(sel.value, 10));
       if (typeof form.requestSubmit === 'function') form.requestSubmit();
       else form.submit();
     });

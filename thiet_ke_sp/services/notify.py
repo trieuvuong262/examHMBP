@@ -7,8 +7,7 @@ from thiet_ke_sp.models import Notification, ProductDevelopment
 KIND_TASK = 'task'
 KIND_APPROVAL_REQUEST = 'approval_request'
 KIND_REVISION = 'revision'
-KIND_DUE_SOON = 'due_soon'
-KIND_OVERDUE = 'overdue'
+KIND_ASSIGNED = 'assigned'
 KIND_APPROVED = 'approved'
 KIND_HANDOVER = 'handover'
 KIND_COMMENT = 'comment'
@@ -18,8 +17,7 @@ KIND_ICONS = {
     KIND_TASK: 'bi-person-check',
     KIND_APPROVAL_REQUEST: 'bi-check2-circle',
     KIND_REVISION: 'bi-arrow-counterclockwise',
-    KIND_DUE_SOON: 'bi-hourglass-split',
-    KIND_OVERDUE: 'bi-exclamation-triangle-fill',
+    KIND_ASSIGNED: 'bi-person-plus',
     KIND_APPROVED: 'bi-patch-check-fill',
     KIND_HANDOVER: 'bi-box-arrow-right',
     KIND_COMMENT: 'bi-chat-dots',

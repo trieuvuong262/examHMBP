@@ -146,6 +146,7 @@ class Role(models.TextChoices):
     COSTING = 'costing_user', 'Kế hoạch / Giá thành'
     RECEIVER = 'receiver', 'Bộ phận nhận bàn giao'
     CONDITION = 'condition', 'Xử lý điều kiện duyệt'
+    FIX = 'fix_owner', 'Sửa lỗi mẫu'
 
 
 # Vai trò gán sẵn trên hồ sơ — tên field trùng value của Role.
@@ -332,7 +333,10 @@ class ProductDevelopment(models.Model):
         return (variance * 100 / self.target_cost).quantize(Decimal('0.1'))
 
     def current_design_version(self):
-        return self.design_versions.filter(is_current=True).first()
+        return self.design_versions.filter(is_current=True).order_by('option_no').first()
+
+    def current_design_versions(self) -> list:
+        return list(self.design_versions.filter(is_current=True).order_by('option_no'))
 
     def current_sample_version(self):
         return self.sample_versions.filter(is_current=True).first()
@@ -346,15 +350,20 @@ class DesignVersion(models.Model):
     STATE_SUBMITTED = 'submitted'
     STATE_APPROVED = 'approved'
     STATE_REJECTED = 'rejected'
+    STATE_NOT_SELECTED = 'not_selected'
+    STATE_DROPPED = 'dropped'
     STATE_CHOICES = [
         (STATE_DRAFT, 'Đang soạn'),
         (STATE_SUBMITTED, 'Đã gửi duyệt'),
         (STATE_APPROVED, 'Đã duyệt'),
         (STATE_REJECTED, 'Yêu cầu chỉnh'),
+        (STATE_NOT_SELECTED, 'Không chọn'),
+        (STATE_DROPPED, 'Đã bỏ'),
     ]
 
     dossier = models.ForeignKey(ProductDevelopment, on_delete=models.CASCADE, related_name='design_versions')
     version_no = models.PositiveIntegerField(verbose_name='Phiên bản')
+    option_no = models.PositiveSmallIntegerField(default=1, verbose_name='Phương án')
     state = models.CharField(max_length=20, choices=STATE_CHOICES, default=STATE_DRAFT)
     is_current = models.BooleanField(default=True, verbose_name='Phiên bản hiện hành')
     style_description = models.TextField(blank=True, default='', verbose_name='Kiểu dáng')
@@ -380,6 +389,18 @@ class DesignVersion(models.Model):
     @property
     def label(self) -> str:
         return f'V{self.version_no}'
+
+    @property
+    def option_letter(self) -> str:
+        return chr(64 + self.option_no) if 1 <= self.option_no <= 26 else str(self.option_no)
+
+    @property
+    def option_label(self) -> str:
+        return f'Phương án {self.option_letter}'
+
+    @property
+    def tag(self) -> str:
+        return f'{self.label} · PA {self.option_letter}'
 
     @property
     def is_editable(self) -> bool:
@@ -533,12 +554,19 @@ class SampleEvaluation(models.Model):
         verbose_name='Người chịu trách nhiệm sửa',
     )
     fix_due = models.DateField(null=True, blank=True, verbose_name='Hạn sửa')
+    fix_done_at = models.DateTimeField(null=True, blank=True, verbose_name='Xác nhận đã sửa lúc')
+    fix_done_by = models.ForeignKey(USER, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    fix_done_note = models.CharField(max_length=500, blank=True, default='', verbose_name='Kết quả sửa')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['-created_at']
         verbose_name = 'Đánh giá mẫu'
         verbose_name_plural = 'Đánh giá mẫu'
+
+    @property
+    def needs_fix(self) -> bool:
+        return self.fix_owner_id is not None and self.fix_done_at is None
 
 
 class EvaluationItem(models.Model):
@@ -640,8 +668,9 @@ class Task(models.Model):
     condition = models.ForeignKey(
         ApprovalCondition, on_delete=models.CASCADE, null=True, blank=True, related_name='tasks',
     )
-    due_soon_notified_at = models.DateTimeField(null=True, blank=True)
-    overdue_notified_at = models.DateTimeField(null=True, blank=True)
+    evaluation = models.ForeignKey(
+        SampleEvaluation, on_delete=models.CASCADE, null=True, blank=True, related_name='tasks',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

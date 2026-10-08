@@ -40,7 +40,7 @@ JOBS = [
     ('Công nhân cắt', 'SẢN XUẤT', 'Công nhân cắt', 2,
      'Trải vải, cắt bán thành phẩm theo sơ đồ.',
      'Sức khỏe tốt, ưu tiên biết dùng máy cắt đẩy tay.',
-     [('Bùi Văn Nam', 'considered'),
+     [('Bùi Văn Nam', 'final_rejected'),
       ('Hoàng Thị Yến', 'rejected'),
       ('Ngô Văn Lực', 'not_onboarded')]),
     ('Kế toán kho', 'TÀI CHÍNH KẾ TOÁN', 'Kế toán', 1,
@@ -53,7 +53,7 @@ JOBS = [
      'Nhận hàng, sắp xếp kho NPL, cấp phát cho chuyền.',
      'Nhanh nhẹn, chịu khó, có thể bốc xếp.',
      [('Đỗ Văn Phúc', 'new'),
-      ('Châu Thị Diễm', 'recommended'),
+      ('Châu Thị Diễm', 'awaiting_final'),
       ('Tạ Văn Long', 'interview_failed')]),
 ]
 
@@ -166,6 +166,14 @@ class Command(BaseCommand):
         return count
 
     @staticmethod
+    def _director():
+        """Tài khoản giám đốc ductn nếu có quyền duyệt cấp 2."""
+        from recruitment.permissions import can_final_approve
+
+        user = User.objects.filter(username='ductn', is_active=True).first()
+        return user if user and can_final_approve(user) else None
+
+    @staticmethod
     def _manager_for(job):
         """Quản lý thật phụ trách vị trí (đúng phạm vi đánh giá; không lấy superuser)."""
         from recruitment.permissions import manager_can_access_job
@@ -198,7 +206,7 @@ class Command(BaseCommand):
             return cand
 
         services.transition(cand, Candidate.STATUS_REVIEWING, actor=hr)
-        if scenario in ('reviewing', 'considered'):
+        if scenario == 'reviewing':
             return cand
         if scenario == 'rejected':
             services.submit_review(cand, manager, decision=R.DECISION_NOT_SUITABLE, rating=2,
@@ -228,7 +236,13 @@ class Command(BaseCommand):
                                          check_permission=False)
         if scenario == 'awaiting_final':
             return cand
-        services.record_final_decision(cand, Interview.FINAL_PASS, 'Đồng ý tuyển.', actor=hr, check_permission=False)
+        director = self._director() or hr
+        if scenario == 'final_rejected':
+            services.record_final_decision(cand, Interview.FINAL_FAIL, 'Chưa phù hợp định hướng vị trí.',
+                                           actor=director, check_permission=False)
+            return cand
+        services.record_final_decision(cand, Interview.FINAL_PASS, 'Đồng ý tuyển.', actor=director,
+                                       check_permission=False)
         if scenario == 'not_onboarded':
             services.transition(cand, Candidate.STATUS_NOT_ONBOARDED, actor=hr,
                                 reason='Ứng viên nhận việc nơi khác.')

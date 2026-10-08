@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 from urllib.parse import quote
 
@@ -21,6 +21,7 @@ from hrm.menu_permissions import handle_menu_access_denied, user_can_access_reso
 from hrm.module_permissions import MODULE_THIET_KE_SP
 from san_xuat.design_nas_storage import design_file_abs_path
 from san_xuat.list_grid import apply_sx_list_sort, sx_list_grid_context
+from utilities.date_range_filter import date_range_from_span, date_range_span_context, parse_date_range_span
 
 from . import forms as f
 from . import permissions as perms
@@ -30,11 +31,13 @@ from .models import (
     DESIGN_KINDS,
     DONE_STATUSES,
     DOSSIER_KINDS,
+    FINAL_STATUSES,
     IN_PROGRESS_STATUSES,
     SAMPLE_KINDS,
     STOPPED_STATUSES,
     ApprovalCondition,
     ApprovalDecision,
+    ApprovalStage,
     Attachment,
     AttachmentKind,
     Colorway,
@@ -46,6 +49,8 @@ from .models import (
     Priority,
     ProductDevelopment,
     ProductGroup,
+    Role,
+    SampleEvaluation,
     SampleVersion,
     Status,
     Task,
@@ -184,6 +189,13 @@ def dossier_list(request):
     if approver_id.isdigit():
         qs = qs.filter(approver_id=int(approver_id))
     qs = _apply_quick(qs, quick, user)
+    date_kind, date_from, date_to = _list_date_range(g)
+    if date_from or date_to:
+        field = LIST_DATE_FIELDS[date_kind][1]
+        if date_from:
+            qs = qs.filter(**{f'{field}__gte': date_from})
+        if date_to:
+            qs = qs.filter(**{f'{field}__lte': date_to})
     qs = apply_sx_list_sort(qs, request, LIST_KEY)
 
     page = Paginator(qs, 30).get_page(g.get('page'))
@@ -191,7 +203,7 @@ def dossier_list(request):
 
     params = g.copy()
     params.pop('page', None)
-    has_filters = any([q, statuses, quick, group, owner_id, approver_id, collection])
+    has_filters = any([q, statuses, quick, group, owner_id, approver_id, collection, date_from, date_to])
     ctx = _common(
         request,
         page_obj=page,
@@ -208,9 +220,42 @@ def dossier_list(request):
         quick_filters=QUICK_FILTERS,
         owner_choices=_people_with('tksp_owned'),
         approver_choices=_people_with('tksp_approving'),
+        date_kind_choices=[(k, label) for k, (label, _f) in LIST_DATE_FIELDS.items()],
+        filter_date_kind=date_kind, date_from=date_from, date_to=date_to,
+        range_all=not (date_from or date_to),
+        **date_range_span_context(date_from, date_to),
         **sx_list_grid_context(request, LIST_KEY),
     )
     return render(request, 'thiet_ke_sp/dossier_list.html', ctx)
+
+
+LIST_DATE_FIELDS = {
+    'proposed': ('Ngày đề xuất', 'proposed_date'),
+    'launch': ('Ngày ra mắt', 'launch_date'),
+    'step_due': ('Hạn bước hiện tại', 'step_due_at__date'),
+}
+
+
+def _parse_ymd(raw):
+    try:
+        return date.fromisoformat((raw or '').strip())
+    except ValueError:
+        return None
+
+
+def _list_date_range(g):
+    """Không chọn ngày = không lọc (xem tất cả)."""
+    kind = g.get('date_kind') if g.get('date_kind') in LIST_DATE_FIELDS else 'proposed'
+    span = (g.get('span') or '').strip()
+    if span == 'all':
+        return kind, None, None
+    date_from, date_to = _parse_ymd(g.get('from')), _parse_ymd(g.get('to'))
+    if span.isdigit() and not (date_from or date_to):
+        date_to = timezone.localdate()
+        date_from = date_range_from_span(date_to, parse_date_range_span(span))
+    if date_from and date_to and date_from > date_to:
+        date_from, date_to = date_to, date_from
+    return kind, date_from, date_to
 
 
 def _decorate_rows(rows: list) -> list:
@@ -353,8 +398,11 @@ def dossier_detail(request, pk):
             Prefetch('evaluations__items', queryset=EvaluationItem.objects.order_by('pk')),
             'evaluations__evaluator__profile',
             'evaluations__fix_owner__profile',
+            'evaluations__fix_done_by__profile',
         )
     )
+    today = timezone.localdate()
+    can_close_fix = dossier.status not in FINAL_STATUSES
     for dv in design_versions:
         live = _live_atts(dv.attachments.all())
         dv.live_atts = live
@@ -375,10 +423,21 @@ def dossier_detail(request, pk):
         pack = getattr(sv, 'tech_pack', None)
         sv.pack = pack
         sv.lines = list(pack.material_lines.all()) if pack else []
+        for ev in sv.evaluations.all():
+            ev.can_fix = can_close_fix and ev.needs_fix and ev.fix_owner_id == user.pk
+            ev.fix_late = ev.needs_fix and ev.fix_due is not None and ev.fix_due < today
 
-    current_dv = next((dv for dv in design_versions if dv.is_current), None)
+    current_dvs = sorted((dv for dv in design_versions if dv.is_current), key=lambda dv: dv.option_no)
+    current_dv = current_dvs[0] if current_dvs else None
     current_sv = next((sv for sv in samples if sv.is_current), None)
     flags = presenters.action_flags(dossier, user)
+    multi_options = len(current_dvs) > 1
+    for dv in current_dvs:
+        dv.can_edit = flags['edit_design'] and dv.is_editable
+        dv.form = f.DesignVersionForm(instance=dv, auto_id=f'id_dv{dv.pk}_%s') if dv.can_edit else None
+        dv.can_upload = wf.can_upload(dossier, user, AttachmentKind.FRONT, design_version=dv)
+        dv.needs_note = dv.can_edit and wf.needs_change_note(dv)
+    submitted_dvs = [dv for dv in current_dvs if dv.state == DesignVersion.STATE_SUBMITTED]
     checklist_title, checklist = presenters.step_checklist(dossier)
     main_task = wf.current_main_task(dossier)
     open_tasks = list(
@@ -397,8 +456,7 @@ def dossier_detail(request, pk):
     handover = getattr(dossier, 'handover', None) if dossier.status in (Status.HANDED_OVER, Status.CLOSED) else None
     receipts = list(handover.receipts.select_related('receiver__profile', 'confirmed_by__profile')) if handover else []
     for r in receipts:
-        r.can_confirm = not r.is_confirmed and dossier.status == Status.HANDED_OVER and (
-            r.receiver_id == user.pk or perms.is_admin(user))
+        r.can_confirm = not r.is_confirmed and dossier.status == Status.HANDED_OVER and r.receiver_id == user.pk
     conditions = list(dossier.conditions.select_related('assignee__profile', 'done_by__profile'))
     for c in conditions:
         c.can_complete = not c.is_done and dossier.status == Status.APPROVED and (
@@ -421,6 +479,12 @@ def dossier_detail(request, pk):
         cover=presenters.cover_map([dossier.pk]).get(dossier.pk),
         design_versions=design_versions,
         current_dv=current_dv,
+        current_dvs=current_dvs,
+        multi_options=multi_options,
+        has_options=any(dv.option_no > 1 for dv in design_versions),
+        submitted_dvs=submitted_dvs,
+        design_scope=wf.design_scope_label(dossier) if current_dvs else '',
+        design_modal_size='modal-lg' if len(submitted_dvs) > 1 else '',
         samples=samples,
         current_sv=current_sv,
         approvals=list(dossier.approvals.select_related(
@@ -437,7 +501,6 @@ def dossier_detail(request, pk):
         sample_kinds=[(k, AttachmentKind(k).label) for k in SAMPLE_KINDS if k != AttachmentKind.EVALUATION],
         dossier_kinds=[(k, AttachmentKind(k).label) for k in DOSSIER_KINDS],
         criteria=Criterion.choices,
-        design_form=f.DesignVersionForm(instance=current_dv) if flags['edit_design'] and current_dv else None,
         colorway_form=f.ColorwayForm() if flags['edit_design'] else None,
         sample_form=f.SampleForm(instance=current_sv) if flags['edit_sample'] and current_sv else None,
         tech_pack_form=(
@@ -452,7 +515,6 @@ def dossier_detail(request, pk):
         can_upload_dossier_other=wf.can_upload(dossier, user, AttachmentKind.OTHER),
         can_upload_reference=wf.can_upload(dossier, user, AttachmentKind.REFERENCE),
         can_upload_cost=wf.can_upload(dossier, user, AttachmentKind.COST),
-        can_upload_design=bool(current_dv) and wf.can_upload(dossier, user, AttachmentKind.FRONT, design_version=current_dv),
         can_upload_sample=bool(current_sv) and wf.can_upload(dossier, user, AttachmentKind.SAMPLE_PHOTO, sample_version=current_sv),
         can_upload_tech=bool(current_sv) and wf.can_upload(dossier, user, AttachmentKind.TECH_SPEC, sample_version=current_sv),
         can_upload_eval=bool(current_sv) and wf.can_upload(dossier, user, AttachmentKind.EVALUATION, sample_version=current_sv),
@@ -591,12 +653,26 @@ def _run_action(request, dossier: ProductDevelopment, action: str) -> tuple[str,
         cw = get_object_or_404(Colorway, pk=post.get('colorway_id'), design_version__dossier=dossier)
         wf.delete_colorway(cw, user)
         return 'design', 'Đã xóa colorway.'
+    if action == 'design_option_add':
+        source = None
+        if (post.get('copy_from') or '').isdigit():
+            source = get_object_or_404(DesignVersion, pk=post['copy_from'], dossier=dossier, is_current=True)
+        dv = wf.add_design_option(dossier, user, copy_from=source)
+        return 'design', f'Đã thêm {dv.option_label}.'
+    if action == 'design_option_drop':
+        dv = get_object_or_404(DesignVersion, pk=post.get('design_version_id'), dossier=dossier)
+        wf.drop_design_option(dv, user)
+        return 'design', f'Đã bỏ {dv.option_label}.'
     if action == 'design_submit':
         wf.submit_design(dossier, user, due_at=due)
         return 'design', 'Đã gửi duyệt thiết kế.'
     if action == 'design_decide':
-        wf.decide_design(dossier, user, decision=post.get('decision', ''), comment=comment, due_at=due)
+        wf.decide_design(dossier, user, decision=post.get('decision', ''), comment=comment, due_at=due,
+                         option_id=post.get('option_id'), keep_ids=post.getlist('keep_ids'))
         return 'design', 'Đã ghi nhận quyết định duyệt thiết kế.'
+    if action == 'design_change':
+        wf.request_design_change_from_sample(dossier, user, comment=comment, due_at=due)
+        return 'design', 'Đã yêu cầu chỉnh thiết kế — mở phiên bản thiết kế mới.'
 
     if action == 'sample_save':
         sv = get_object_or_404(SampleVersion, pk=post.get('sample_version_id'), dossier=dossier)
@@ -634,6 +710,10 @@ def _run_action(request, dossier: ProductDevelopment, action: str) -> tuple[str,
             wf.upload_attachment(dossier, user, uploaded_file=upload, kind=AttachmentKind.EVALUATION,
                                  sample_version=dossier.current_sample_version())
         return 'sample', 'Đã lưu đánh giá mẫu.'
+    if action == 'fix_done':
+        ev = get_object_or_404(SampleEvaluation, pk=post.get('evaluation_id'), sample_version__dossier=dossier)
+        wf.complete_fix(ev, user, note=post.get('note', ''))
+        return 'sample', 'Đã xác nhận sửa lỗi mẫu.'
     if action == 'sample_fix':
         wf.request_sample_fix(dossier, user, comment=comment, due_at=due)
         return 'sample', 'Đã yêu cầu sửa mẫu — mở lần mẫu mới.'
@@ -645,6 +725,12 @@ def _run_action(request, dossier: ProductDevelopment, action: str) -> tuple[str,
         if decision == 'request_fix':
             wf.request_sample_fix(dossier, user, comment=comment, due_at=due)
             return 'sample', 'Đã yêu cầu sửa mẫu.'
+        if decision == 'request_design':
+            wf.request_design_change_from_sample(dossier, user, comment=comment, due_at=due)
+            return 'design', 'Đã yêu cầu chỉnh thiết kế — mở phiên bản thiết kế mới.'
+        if decision == ApprovalDecision.CANCELLED:
+            wf.cancel(dossier, user, reason=comment, stage=ApprovalStage.MASTER)
+            return 'overview', 'Đã hủy hồ sơ.'
         if decision != ApprovalDecision.APPROVED:
             raise wf.WorkflowError('Quyết định không hợp lệ.')
         wf.decide_master(dossier, user, official_code=post.get('official_code', ''), comment=comment,
@@ -811,6 +897,45 @@ def attachment_serve(request, att_pk):
 # Việc của tôi / duyệt / thông báo / tổng quan / thiết lập
 # ---------------------------------------------------------------------------
 
+QUICK_KINDS = {Status.BRIEF_PENDING: 'brief', Status.DESIGN_PENDING: 'design', Status.MASTER_PENDING: 'master'}
+
+
+def _prepare_quick(dossiers, user) -> list:
+    """Hồ sơ người dùng được ra quyết định ngay trên danh sách (modal duyệt nhanh)."""
+    ready = []
+    for d in dossiers:
+        kind = QUICK_KINDS.get(d.status)
+        if not kind or not perms.is_dossier_approver(d, user):
+            continue
+        d.quick_kind = kind
+        d.quick_modal_id = f'tkQuick{d.pk}'
+        d.quick_options = []
+        d.quick_checklist = []
+        if kind == 'design':
+            options = [dv for dv in d.current_design_versions() if dv.state == DesignVersion.STATE_SUBMITTED]
+            fronts = {
+                a.design_version_id: a for a in Attachment.objects.filter(
+                    design_version__in=options, kind=AttachmentKind.FRONT, is_current=True, is_deleted=False,
+                )
+            }
+            for dv in options:
+                dv.current_atts = {'front': fronts.get(dv.pk)}
+            d.quick_options = options
+        elif kind == 'master':
+            d.quick_checklist = wf.master_checklist(d)
+        ready.append(d)
+    return ready
+
+
+def _quick_context(request, dossiers) -> dict:
+    setting = sla.get_settings()
+    return {
+        'quick_dossiers': dossiers,
+        'quick_next': request.get_full_path(),
+        'sla_due': {s: sla.due_at_for(s, setting=setting) for s in Status.values} if dossiers else {},
+    }
+
+
 @login_required
 def my_tasks(request):
     user = request.user
@@ -820,6 +945,14 @@ def my_tasks(request):
     open_tasks = list(base.filter(state=Task.STATE_OPEN).exclude(
         dossier__status__in=(Status.PAUSED, Status.CANCELLED, Status.CLOSED),
     ).order_by('due_at', 'pk'))
+    approval_dossiers = {
+        t.dossier_id: t.dossier for t in open_tasks
+        if t.role == Role.APPROVER and t.step == t.dossier.status
+    }
+    quick = _prepare_quick(approval_dossiers.values(), user)
+    quick_ids = {d.pk: d.quick_modal_id for d in quick}
+    for t in open_tasks:
+        t.quick_id = quick_ids.get(t.dossier_id) if t.role == Role.APPROVER else None
     now = timezone.now()
     soon = now + timedelta(days=1)
     groups = {
@@ -830,6 +963,7 @@ def my_tasks(request):
     recent_done = list(base.filter(state=Task.STATE_DONE).order_by('-completed_at')[:15])
     return render(request, 'thiet_ke_sp/my_tasks.html', _common(
         request, groups=groups, open_count=len(open_tasks), recent_done=recent_done,
+        **_quick_context(request, quick),
     ))
 
 
@@ -844,9 +978,10 @@ def approve_queue(request):
         scope = 'mine'
         qs = qs.filter(approver=user)
     rows = _decorate_rows(list(qs.order_by('step_due_at', 'pk')))
+    quick = _prepare_quick(rows, user)
     return render(request, 'thiet_ke_sp/approve_queue.html', _common(
         request, rows=rows, scope=scope, is_admin=perms.is_admin(user),
-        can_approve=perms.has_approve_permission(user),
+        can_approve=perms.has_approve_permission(user), **_quick_context(request, quick),
     ))
 
 
@@ -888,7 +1023,7 @@ def dashboard(request):
             return redirect('thiet_ke_sp:my_tasks')
         return _deny(request, perms.MENU_DASHBOARD)
     data = reports.dashboard_data()
-    recent = _annotated_list_qs().exclude(status__in=(*STOPPED_STATUSES, Status.CLOSED)).order_by(
+    recent = _annotated_list_qs().filter(is_demo=False).exclude(status__in=(*STOPPED_STATUSES, Status.CLOSED)).order_by(
         F('step_due_at').asc(nulls_last=True), '-updated_at',
     )[:6]
     bars = presenters.stage_bars(data['status_rows'])
@@ -966,9 +1101,13 @@ def _run_kanban_move(dossier, user, move: str, *, comment: str, official_code: s
         'sample_fix': lambda: wf.request_sample_fix(dossier, user, comment=comment),
         'master_request_fix': lambda: wf.request_sample_fix(dossier, user, comment=comment),
         'master_approve': lambda: wf.decide_master(dossier, user, official_code=official_code, comment=comment),
+        'eval_request_design': lambda: wf.request_design_change_from_sample(dossier, user, comment=comment),
+        'master_request_design': lambda: wf.request_design_change_from_sample(dossier, user, comment=comment),
         'pause': lambda: wf.pause(dossier, user, reason=comment),
         'resume': lambda: wf.resume(dossier, user, comment=comment),
     }
+    if move in ('design_approve', 'design_request_change') and len(dossier.current_design_versions()) > 1:
+        raise wf.WorkflowError('Hồ sơ có nhiều phương án thiết kế — mở hồ sơ để chọn phương án.')
     runners[move]()
 
 

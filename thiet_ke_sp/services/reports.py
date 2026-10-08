@@ -6,7 +6,7 @@ from collections import Counter
 from datetime import timedelta
 from decimal import Decimal
 
-from django.db.models import Count, Max
+from django.db.models import Count, Max, Q
 from django.utils import timezone
 
 from thiet_ke_sp import permissions as perms
@@ -27,8 +27,46 @@ from thiet_ke_sp.models import (
 )
 
 
+MONTHLY_SPAN = 6
+
+
 def _month_start(today):
     return today.replace(day=1)
+
+
+def live_dossiers():
+    """Hồ sơ thật — dữ liệu demo không tính vào số liệu tổng quan / báo cáo."""
+    return ProductDevelopment.objects.filter(is_demo=False)
+
+
+def _shift_month(month_start, delta: int):
+    index = month_start.year * 12 + month_start.month - 1 + delta
+    return month_start.replace(year=index // 12, month=index % 12 + 1, day=1)
+
+
+def monthly_rows(qs, today, months: int = MONTHLY_SPAN) -> list[dict]:
+    """Số đề xuất / duyệt sản xuất / hủy theo từng tháng, cũ → mới."""
+    current = _month_start(today)
+    first = _shift_month(current, -(months - 1))
+    starts = [_shift_month(first, i) for i in range(months)]
+
+    def per_month(field: str, **extra) -> Counter:
+        values = qs.filter(**{f'{field}__date__gte': first}, **extra).values_list(field, flat=True)
+        return Counter(timezone.localtime(v).date().replace(day=1) for v in values if v is not None)
+
+    proposed = per_month('created_at')
+    approved = per_month('approved_at')
+    cancelled = per_month('closed_at', status=Status.CANCELLED)
+    peak = max([proposed[s] for s in starts] + [approved[s] for s in starts] + [cancelled[s] for s in starts] + [1])
+    return [
+        {
+            'label': s.strftime('%m/%Y'),
+            'proposed': proposed[s], 'approved': approved[s], 'cancelled': cancelled[s],
+            'w_proposed': round(proposed[s] * 100 / peak), 'w_approved': round(approved[s] * 100 / peak),
+            'w_cancelled': round(cancelled[s] * 100 / peak),
+        }
+        for s in starts
+    ]
 
 
 def _avg(values) -> Decimal | None:
@@ -38,13 +76,11 @@ def _avg(values) -> Decimal | None:
     return (sum(values) / len(values)).quantize(Decimal('0.1'))
 
 
-def dashboard_data(*, include_demo: bool = True) -> dict:
+def dashboard_data() -> dict:
     now = timezone.now()
     today = timezone.localdate()
     month_start = _month_start(today)
-    qs = ProductDevelopment.objects.all()
-    if not include_demo:
-        qs = qs.filter(is_demo=False)
+    qs = live_dossiers()
 
     counts = dict(qs.values_list('status').annotate(n=Count('pk')).values_list('status', 'n'))
     status_rows = [
@@ -71,9 +107,7 @@ def dashboard_data(*, include_demo: bool = True) -> dict:
     first_pass = sum(1 for d in with_final if d.final_sample_version.version_no == 1)
     first_pass_rate = (Decimal(first_pass * 100) / len(with_final)).quantize(Decimal('0.1')) if with_final else None
 
-    design_rounds = qs.filter(approved_design_version__isnull=False).annotate(
-        rounds=Max('design_versions__version_no'),
-    ).values_list('rounds', flat=True)
+    design_rounds = _design_rounds(qs)
     sample_rounds = qs.filter(sample_versions__isnull=False).annotate(
         rounds=Max('sample_versions__version_no'),
     ).values_list('rounds', flat=True)
@@ -100,6 +134,7 @@ def dashboard_data(*, include_demo: bool = True) -> dict:
         'month_proposed': qs.filter(created_at__date__gte=month_start).count(),
         'month_approved': qs.filter(approved_at__date__gte=month_start).count(),
         'month_cancelled': qs.filter(status=Status.CANCELLED, closed_at__date__gte=month_start).count(),
+        'monthly': monthly_rows(qs, today),
         'avg_dev_days': avg_days,
         'first_pass_rate': first_pass_rate,
         'first_pass_base': len(with_final),
@@ -108,6 +143,13 @@ def dashboard_data(*, include_demo: bool = True) -> dict:
         'avg_cost_variance_pct': _avg([d.cost_variance_pct for d in variance_rows]),
         'variance_rows': variance_rows[:10],
     }
+
+
+def _design_rounds(qs):
+    """Số lần trình duyệt thiết kế đến khi được duyệt (đếm quyết định duyệt thiết kế, không phụ thuộc số phương án)."""
+    return qs.filter(approved_design_version__isnull=False).annotate(
+        rounds=Count('approvals', filter=Q(approvals__stage=ApprovalStage.DESIGN)),
+    ).values_list('rounds', flat=True)
 
 
 def _pct(part: int, whole: int) -> Decimal | None:
@@ -129,7 +171,7 @@ def report_data(*, collection: str = '', group: str = '') -> dict:
     now = timezone.now()
     today = timezone.localdate()
     month_start = _month_start(today)
-    qs = ProductDevelopment.objects.all()
+    qs = live_dossiers()
     if collection:
         qs = qs.filter(collection=collection)
     if group:
@@ -142,9 +184,7 @@ def report_data(*, collection: str = '', group: str = '') -> dict:
     ]
 
     approved = list(qs.filter(approved_at__isnull=False).only('created_at', 'approved_at'))
-    design_rounds = qs.filter(approved_design_version__isnull=False).annotate(
-        rounds=Max('design_versions__version_no'),
-    ).values_list('rounds', flat=True)
+    design_rounds = _design_rounds(qs)
     sample_rounds = qs.filter(final_sample_version__isnull=False).annotate(
         rounds=Max('sample_versions__version_no'),
     ).values_list('rounds', flat=True)
@@ -193,8 +233,8 @@ def report_data(*, collection: str = '', group: str = '') -> dict:
 
     live = qs.exclude(status__in=(Status.PAUSED, Status.CANCELLED, Status.CLOSED))
     overdue = list(Task.objects.filter(state=Task.STATE_OPEN, dossier__in=live, due_at__lt=now).select_related(
-        'assignee__profile',
-    ))
+        'assignee__profile', 'dossier',
+    ).order_by('due_at', 'pk'))
     overdue_by_step = Counter(Status(t.step).label for t in overdue)
     overdue_by_user = Counter(perms.display_name(t.assignee) or '— Chưa giao —' for t in overdue)
 
@@ -218,6 +258,7 @@ def report_data(*, collection: str = '', group: str = '') -> dict:
         'first_pass_by_group': first_pass_by_group,
         'revision_reasons': _meters(reasons),
         'overdue_count': len(overdue),
+        'overdue_tasks': overdue[:50],
         'overdue_by_step': _meters(overdue_by_step.most_common()),
         'overdue_by_user': _meters(overdue_by_user.most_common(10)),
         'month_proposed': qs.filter(created_at__date__gte=month_start).count(),

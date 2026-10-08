@@ -15,6 +15,13 @@
             <button type="submit" class="btn btn-sm btn-outline-hm py-0">Nhận việc</button>
           </form>
           {% endif %}
+          {% if t.quick_id %}<button type="button" class="btn btn-sm btn-outline-hm fw-bold py-0" data-bs-toggle="modal" data-bs-target="#{{ t.quick_id }}">Duyệt nhanh</button>{% endif %}
+          {% if t.role == 'fix_owner' and t.evaluation_id %}
+          <form method="post" action="{% url 'thiet_ke_sp:action' t.dossier_id 'fix_done' %}" class="d-inline" data-tk-confirm="Xác nhận đã sửa lỗi này?">{% csrf_token %}
+            <input type="hidden" name="evaluation_id" value="{{ t.evaluation_id }}"><input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button type="submit" class="btn btn-sm btn-outline-hm fw-bold py-0">Đã sửa</button>
+          </form>
+          {% endif %}
           <a href="{{ t.dossier.get_absolute_url }}" class="btn btn-sm btn-hm text-white py-0">Mở</a>
         </td>
       </tr>

@@ -19,11 +19,12 @@
           {% if dossier.priority == 'urgent' or dossier.priority == 'high' %}<span class="tk-hero-code text-warning"><i class="bi bi-flag-fill"></i> {{ dossier.get_priority_display }}</span>{% endif %}
         </div>
         <h1>{{ dossier.name }}</h1>
-        <p class="tk-hero-sub">{{ dossier.get_product_group_display }} · {{ dossier.get_product_type_display }}{% if dossier.collection %} · {{ dossier.collection }}{% endif %}{% if current_sv %} · Mẫu {{ current_sv.label }}{% elif current_dv %} · Thiết kế {{ current_dv.label }}{% endif %}</p>
+        <p class="tk-hero-sub">{{ dossier.get_product_group_display }} · {{ dossier.get_product_type_display }}{% if dossier.collection %} · {{ dossier.collection }}{% endif %}{% if current_sv %} · Mẫu {{ current_sv.label }}{% elif current_dv %} · Thiết kế {{ design_scope }}{% endif %}</p>
       </div>
       <div class="tk-hero-actions">
         {% if flags.edit_brief %}<a href="{% url 'thiet_ke_sp:edit' dossier.pk %}" class="btn btn-sm fw-bold btn-tk-ghost"><i class="bi bi-pencil"></i>Sửa đề bài</a>{% endif %}
         {% if flags.request_fix %}<button type="button" class="btn btn-sm fw-bold btn-tk-ghost" data-bs-toggle="modal" data-bs-target="#tkModalSampleFix"><i class="bi bi-arrow-counterclockwise"></i>Yêu cầu sửa mẫu</button>{% endif %}
+        {% if flags.request_design_change %}<button type="button" class="btn btn-sm fw-bold btn-tk-ghost" data-bs-toggle="modal" data-bs-target="#tkModalDesignChange"><i class="bi bi-palette"></i>Yêu cầu chỉnh thiết kế</button>{% endif %}
         {% if flags.change_request %}<button type="button" class="btn btn-sm fw-bold btn-tk-ghost" data-bs-toggle="modal" data-bs-target="#tkModalChange"><i class="bi bi-pencil-square"></i>Yêu cầu thay đổi</button>{% endif %}
         {% if flags.submit_brief %}<button type="button" class="btn btn-hm btn-sm fw-bold text-white" data-bs-toggle="modal" data-bs-target="#tkModalSubmitBrief"><i class="bi bi-send"></i>Gửi duyệt đề bài</button>{% endif %}
         {% if flags.decide_brief %}<button type="button" class="btn btn-hm btn-sm fw-bold text-white" data-bs-toggle="modal" data-bs-target="#tkModalBrief"><i class="bi bi-check2-circle"></i>Duyệt đề bài</button>{% endif %}

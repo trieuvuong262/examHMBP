@@ -943,7 +943,9 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
                 return redirect(_production_redirect(report_date, shift, for_user or None, extra))
             report.declared_work_hours = work_hours
             _, efficiency_err = validate_production_submit_efficiency(
-                report, declared_work_hours=work_hours,
+                report,
+                declared_work_hours=work_hours,
+                block_on_time_efficiency=False,
             )
             if efficiency_err:
                 if report.pk:

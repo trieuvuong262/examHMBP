@@ -1,0 +1,113 @@
+{% load tksp_tags %}
+<div class="tk-section">
+  <div class="tk-section-title">
+    <span class="tk-version-pill"><i class="bi bi-palette"></i>Thiết kế {% if multi_options %}{{ dv.tag }}{% else %}{{ dv.label }}{% endif %}</span>
+    <span class="tk-pill {% if dv.state == 'approved' %}is-green{% elif dv.state == 'submitted' %}is-amber{% elif dv.state == 'rejected' %}is-red{% else %}is-blue{% endif %}">{{ dv.get_state_display }}</span>
+    <span class="tk-section-sub">{{ dv.created_by|uname }} · {{ dv.created_at|date:'H:i d/m/Y' }}</span>
+    <span class="ms-auto d-flex gap-1">
+      {% if flags.drop_design_option and dv.is_editable %}
+      <form method="post" action="{% url 'thiet_ke_sp:action' dossier.pk 'design_option_drop' %}" class="m-0" data-tk-confirm="Bỏ {{ dv.option_label }}?">{% csrf_token %}
+        <input type="hidden" name="design_version_id" value="{{ dv.pk }}"><input type="hidden" name="return_tab" value="design">
+        <button type="submit" class="btn btn-sm btn-outline-danger fw-bold"><i class="bi bi-x-lg me-1"></i>Bỏ phương án</button>
+      </form>
+      {% endif %}
+      {% if flags.decide_design and not multi_options %}<button type="button" class="btn btn-sm btn-hm text-white fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalDesign">Ra quyết định</button>{% endif %}
+    </span>
+  </div>
+
+  {% if dv.form %}
+  <form method="post" action="{% url 'thiet_ke_sp:action' dossier.pk 'design_save' %}">{% csrf_token %}
+    <input type="hidden" name="design_version_id" value="{{ dv.pk }}"><input type="hidden" name="return_tab" value="design">
+    <div class="row g-3">
+      {% include 'thiet_ke_sp/includes/field.html' with field=dv.form.style_description %}
+      {% include 'thiet_ke_sp/includes/field.html' with field=dv.form.pattern_description %}
+      {% include 'thiet_ke_sp/includes/field.html' with field=dv.form.logo_placement %}
+      {% include 'thiet_ke_sp/includes/field.html' with field=dv.form.materials %}
+      {% include 'thiet_ke_sp/includes/field.html' with field=dv.form.highlights %}
+      {% if dv.needs_note %}{% include 'thiet_ke_sp/includes/field.html' with field=dv.form.change_note req=True %}{% endif %}
+    </div>
+    <div class="text-end mt-2"><button type="submit" class="btn btn-sm btn-outline-hm fw-bold"><i class="bi bi-save me-1"></i>Lưu nội dung</button></div>
+  </form>
+  {% else %}
+  {% include 'thiet_ke_sp/includes/design_kv.html' with dv=dv %}
+  {% endif %}
+</div>
+
+<div class="tk-section">
+  <div class="tk-section-title"><i class="bi bi-images"></i>Bản vẽ &amp; file thiết kế</div>
+  <div class="tk-thumbs mb-3">
+    {% include 'thiet_ke_sp/includes/thumb.html' with a=dv.current_atts|get_item:'front' label='Ảnh mặt trước' missing=True can_delete=dv.can_edit %}
+    {% include 'thiet_ke_sp/includes/thumb.html' with a=dv.current_atts|get_item:'back' label='Ảnh mặt sau' missing=True can_delete=dv.can_edit %}
+    {% include 'thiet_ke_sp/includes/thumb.html' with a=dv.current_atts|get_item:'design_source' label='File thiết kế gốc' missing=True can_delete=dv.can_edit %}
+    {% include 'thiet_ke_sp/includes/thumb.html' with a=dv.current_atts|get_item:'design_preview' label='File xem nhanh' missing=False can_delete=dv.can_edit %}
+    {% for a in dv.detail_atts %}{% include 'thiet_ke_sp/includes/thumb.html' with a=a label='Ảnh chi tiết' missing=False can_delete=dv.can_edit %}{% endfor %}
+  </div>
+  {% if dv.can_upload %}
+  <form method="post" action="{% url 'thiet_ke_sp:upload' dossier.pk %}" enctype="multipart/form-data" class="row g-2 align-items-end">{% csrf_token %}
+    <input type="hidden" name="design_version_id" value="{{ dv.pk }}"><input type="hidden" name="return_tab" value="design">
+    <div class="col-md-3">
+      <label class="form-label fw-bold small mb-1">Loại tệp</label>
+      <select name="kind" class="form-select form-select-sm">{% for k, l in design_kinds %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</select>
+    </div>
+    <div class="col-md-5"><label class="form-label fw-bold small mb-1">Tệp</label><input type="file" name="files" class="form-control form-control-sm" multiple required></div>
+    <div class="col-md-2"><label class="form-label fw-bold small mb-1">Ghi chú</label><input type="text" name="note" class="form-control form-control-sm" maxlength="255"></div>
+    <div class="col-md-2"><button type="submit" class="btn btn-sm btn-hm text-white w-100 fw-bold"><i class="bi bi-upload me-1"></i>Tải lên</button></div>
+  </form>
+  {% endif %}
+  {% if dv.archived_atts %}
+  <details class="mt-3 small"><summary class="text-muted">Bản cũ đã thay thế ({{ dv.archived_atts|length }})</summary>
+    <div class="tk-thumbs mt-2">{% for a in dv.archived_atts %}{% include 'thiet_ke_sp/includes/thumb.html' with a=a label='' missing=False can_delete=False %}{% endfor %}</div>
+  </details>
+  {% endif %}
+</div>
+
+<div class="tk-section">
+  <div class="tk-section-title"><i class="bi bi-droplet-half"></i>Colorway <span class="tk-section-sub">{{ dv.colorway_rows|length }} phối màu</span></div>
+  <div class="tk-colorways mb-3">
+    {% for cw, images in dv.colorway_rows %}
+    <div class="tk-color-card{% if not images %} is-missing{% endif %}">
+      {% with img=images|first %}
+      {% if img %}
+      <a class="tk-swatch d-block" href="{{ img.get_absolute_url }}" target="_blank" rel="noopener"><img src="{{ img.get_absolute_url }}" alt="{{ cw.name }}" loading="lazy"></a>
+      {% else %}
+      <div class="tk-swatch" style="background: {{ cw.color_codes|cw_swatch }}"></div>
+      {% endif %}
+      {% endwith %}
+      <div class="cap"><b>{{ cw.name }}</b><span>{{ cw.color_codes }}</span>{% if cw.note %}<div class="text-muted">{{ cw.note }}</div>{% endif %}{% if not images %}<div class="tk-bad">Chưa có ảnh</div>{% elif images|length > 1 %}<div class="text-muted">{{ images|length }} ảnh</div>{% endif %}</div>
+      {% if dv.can_edit %}
+      <div class="tools">
+        <form method="post" action="{% url 'thiet_ke_sp:upload' dossier.pk %}" enctype="multipart/form-data" class="m-0">{% csrf_token %}
+          <input type="hidden" name="design_version_id" value="{{ dv.pk }}"><input type="hidden" name="colorway_id" value="{{ cw.pk }}">
+          <input type="hidden" name="kind" value="colorway"><input type="hidden" name="return_tab" value="design">
+          <label class="btn btn-sm btn-light border py-0 px-2 mb-0" title="Tải ảnh"><i class="bi bi-upload"></i><input type="file" name="files" accept="image/*" class="d-none" onchange="this.form.requestSubmit()"></label>
+        </form>
+        {% for a in images %}
+        <form method="post" action="{% url 'thiet_ke_sp:attachment_delete' a.pk %}" class="m-0" data-tk-confirm="Xóa ảnh {{ a.display_name }}?">{% csrf_token %}
+          <input type="hidden" name="return_tab" value="design">
+          <button type="submit" class="btn btn-sm btn-light border py-0 px-2" title="Xóa ảnh {{ forloop.counter }}"><i class="bi bi-image"></i><i class="bi bi-x"></i></button>
+        </form>
+        {% endfor %}
+        <form method="post" action="{% url 'thiet_ke_sp:action' dossier.pk 'colorway_delete' %}" class="m-0 ms-auto" data-tk-confirm="Xóa colorway {{ cw.name }}?">{% csrf_token %}
+          <input type="hidden" name="colorway_id" value="{{ cw.pk }}"><input type="hidden" name="return_tab" value="design">
+          <button type="submit" class="btn btn-sm btn-light border py-0 px-2" title="Xóa colorway"><i class="bi bi-trash"></i></button>
+        </form>
+      </div>
+      {% endif %}
+    </div>
+    {% empty %}
+    <div class="small text-muted">Chưa có colorway.</div>
+    {% endfor %}
+  </div>
+  {% if dv.can_edit %}
+  <form method="post" action="{% url 'thiet_ke_sp:action' dossier.pk 'colorway_add' %}" enctype="multipart/form-data" class="row g-2 align-items-end">{% csrf_token %}
+    <input type="hidden" name="design_version_id" value="{{ dv.pk }}"><input type="hidden" name="return_tab" value="design">
+    <div class="col-md-3"><label class="form-label fw-bold small mb-1">Tên phối màu</label><input type="text" name="name" class="form-control form-control-sm" maxlength="120" required></div>
+    <div class="col-md-3"><label class="form-label fw-bold small mb-1">Mã màu</label><input type="text" name="color_codes" class="form-control form-control-sm" maxlength="255" placeholder="#111111 / #dc2626" required></div>
+    <div class="col-md-2"><label class="form-label fw-bold small mb-1">Ghi chú</label><input type="text" name="note" class="form-control form-control-sm" maxlength="255"></div>
+    <div class="col-md-2"><label class="form-label fw-bold small mb-1">Ảnh</label><input type="file" name="colorway_file" class="form-control form-control-sm" accept="image/*"></div>
+    <div class="col-md-2"><button type="submit" class="btn btn-sm btn-hm text-white w-100 fw-bold"><i class="bi bi-plus-lg me-1"></i>Thêm</button></div>
+  </form>
+  {% endif %}
+</div>
+
+{% include 'thiet_ke_sp/includes/version_comments.html' with scope_prefix='d' scope_id=dv.pk version_comments=dv.comments.all return_tab='design' %}

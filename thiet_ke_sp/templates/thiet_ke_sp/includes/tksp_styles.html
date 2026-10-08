@@ -177,6 +177,17 @@
 .jp-tksp .tk-version small { font-size: .72rem; color: var(--tk-muted); }
 .jp-tksp .tk-version-pill { display: inline-flex; align-items: center; gap: .35rem; font-weight: 850; }
 
+/* Chọn phương án thiết kế (modal nằm ngoài .jp-tksp) */
+.tk-option-picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .5rem; }
+.tk-option-pick { display: flex; flex-direction: column; align-items: center; gap: .35rem; padding: .5rem; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; margin: 0; }
+.tk-option-pick:has(input:checked) { border-color: #dc2626; background: rgba(220, 38, 38, .06); }
+.tk-option-pick .form-check-input { margin: 0; align-self: flex-start; }
+.tk-option-thumb { width: 100%; height: 110px; border-radius: 6px; overflow: hidden; display: grid; place-items: center; background: #0f172a; color: rgba(255, 255, 255, .6); font-size: 1.4rem; }
+.tk-option-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.tk-option-thumb.is-lg { display: block; height: 220px; }
+.tk-option-thumb.is-lg img { object-fit: contain; background: #0f172a; }
+[data-theme="dark"] .tk-option-pick { border-color: rgba(148, 163, 184, .3); }
+
 /* Giá thành */
 .jp-tksp .tk-cost-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .6rem; }
 .jp-tksp .tk-costbox { padding: .8rem .9rem; border-radius: var(--tk-radius); background: var(--tk-surface-2); border: 1px solid var(--tk-line); }
@@ -239,6 +250,9 @@
 .jp-tksp .tk-meter-row { display: grid; grid-template-columns: minmax(110px, 40%) 1fr 34px; gap: .5rem; align-items: center; margin: .45rem 0; font-size: .78rem; text-decoration: none; color: inherit; }
 .jp-tksp .tk-meter { height: 7px; background: var(--tk-line); border-radius: 10px; overflow: hidden; }
 .jp-tksp .tk-meter i { display: block; height: 100%; background: var(--tk-accent); }
+.jp-tksp .tk-meter.is-green i { background: var(--tk-green); }
+.jp-tksp .tk-meter.is-gray i { background: #94a3b8; }
+.jp-tksp td > .tk-meter-row { grid-template-columns: minmax(60px, 1fr) 34px; min-width: 140px; }
 
 .jp-tksp .tk-task-row.is-late { background: rgba(185, 28, 28, .05); }
 .jp-tksp .ts-wrapper.form-select { padding: 0; }

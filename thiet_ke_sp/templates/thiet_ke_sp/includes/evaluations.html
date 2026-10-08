@@ -21,7 +21,26 @@
     </table>
   </div>
   {% if ev.conclusion %}<div class="small mt-2">{{ ev.conclusion|linebreaksbr }}</div>{% endif %}
-  {% if ev.defects %}<div class="tk-callout is-danger mb-0"><b>Cần chỉnh:</b> {{ ev.defects|linebreaksbr }}{% if ev.fix_owner %} · {{ ev.fix_owner|uname }}{% endif %}{% if ev.fix_due %} · hạn {{ ev.fix_due|date:'d/m/Y' }}{% endif %}</div>{% endif %}
+  {% if ev.defects %}
+  <div class="tk-callout {% if ev.fix_done_at %}is-ok{% else %}is-danger{% endif %} mb-0">
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      <div class="flex-grow-1"><b>Cần chỉnh:</b> {{ ev.defects|linebreaksbr }}{% if ev.fix_owner %} · {{ ev.fix_owner|uname }}{% endif %}{% if ev.fix_due %} · hạn {{ ev.fix_due|date:'d/m/Y' }}{% endif %}</div>
+      {% if ev.fix_done_at %}
+      <span class="tk-pill is-green">Đã sửa · {{ ev.fix_done_by|uname }} · {{ ev.fix_done_at|date:'H:i d/m/Y' }}</span>
+      {% elif ev.fix_owner %}
+      <span class="tk-pill {% if ev.fix_late %}is-red{% else %}is-amber{% endif %}">Chưa sửa{% if ev.fix_late %} · trễ{% endif %}</span>
+      {% endif %}
+    </div>
+    {% if ev.fix_done_note %}<div class="small mt-1">{{ ev.fix_done_note }}</div>{% endif %}
+    {% if ev.can_fix %}
+    <form method="post" action="{% url 'thiet_ke_sp:action' dossier.pk 'fix_done' %}" class="d-flex gap-2 align-items-center mt-2" data-tk-confirm="Xác nhận đã sửa lỗi này?">{% csrf_token %}
+      <input type="hidden" name="evaluation_id" value="{{ ev.pk }}"><input type="hidden" name="return_tab" value="sample">
+      <input type="text" name="note" class="form-control form-control-sm" maxlength="500" placeholder="Ghi chú sửa">
+      <button type="submit" class="btn btn-sm btn-hm text-white fw-bold text-nowrap"><i class="bi bi-check2 me-1"></i>Đã sửa</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}
 </div>
 {% empty %}
 <div class="small text-muted">Chưa có đánh giá.</div>
