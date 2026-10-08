@@ -1,0 +1,21 @@
+{% load sx_format %}
+<div class="table-responsive">
+  <table class="table tk-mini-table align-middle">
+    <thead><tr><th>Nguyên phụ liệu</th><th>Loại</th><th>Quy cách / màu</th><th class="text-end">Định mức</th><th>ĐVT</th><th class="text-end">Đơn giá</th><th class="text-end">Thành tiền</th></tr></thead>
+    <tbody>
+    {% for ln in lines %}
+      <tr>
+        <td class="fw-semibold">{{ ln.material_name }}</td>
+        <td>{% if ln.is_main %}<span class="tk-pill is-blue">Chính</span>{% else %}<span class="tk-pill is-gray">Phụ</span>{% endif %}</td>
+        <td class="small">{{ ln.spec }}</td>
+        <td class="text-end">{{ ln.consumption|sx_num }}</td>
+        <td>{{ ln.unit }}</td>
+        <td class="text-end">{{ ln.unit_price|sx_num }}</td>
+        <td class="text-end fw-semibold">{{ ln.line_cost|sx_num }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="7" class="text-muted small">Chưa có dòng NPL.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>

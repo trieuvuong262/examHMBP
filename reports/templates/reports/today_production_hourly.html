@@ -620,9 +620,12 @@
                                inputmode="decimal"
                                autocomplete="off"
                                placeholder="9.5 hoặc 9,5"
-                               value="{% if report.declared_work_hours %}{{ report.declared_work_hours }}{% else %}9.5{% endif %}">
+                               data-work-min="{{ hourly_grid.work_hours_min|default:'7.5' }}"
+                               data-work-max="{{ hourly_grid.work_hours_max|default:'16' }}"
+                               value="{% if report.declared_work_hours %}{{ report.declared_work_hours }}{% elif hourly_grid.default_declared_work_hours %}{{ hourly_grid.default_declared_work_hours }}{% else %}9.5{% endif %}">
                         <span class="input-group-text">giờ</span>
                     </div>
+                    <div class="form-text">Tối thiểu {{ hourly_grid.work_hours_min_label|default:"7,50" }} giờ.</div>
                     <div class="invalid-feedback" id="prodWorkHoursFeedback"></div>
                 </div>
                 <p class="small text-muted mb-0">
@@ -674,5 +677,5 @@
 
 {% include 'reports/includes/report_submit_loading.html' %}
 {% if hourly_grid %}{{ hourly_grid|json_script:"hourly-grid-data" }}{% endif %}
-<script src="{% static 'js/reports-production-hourly.js' %}?v=20260722a"></script>
+<script src="{% static 'js/reports-production-hourly.js' %}?v=20261008a"></script>
 {% endblock %}

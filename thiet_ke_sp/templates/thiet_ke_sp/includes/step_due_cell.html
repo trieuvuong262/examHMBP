@@ -1,0 +1,1 @@
+{% load tksp_tags %}{% if d.step_due_at %}<span class="{% if d.step_late_days %}tk-late{% endif %}">{{ d.step_due_at|due_short }}{% if d.step_late_days %} · Trễ {{ d.step_late_days }} ngày{% endif %}</span>{% if d.step_assignee_name %}<div class="small text-muted">{{ d.step_assignee_name }}</div>{% endif %}{% else %}<span class="text-muted">—</span>{% endif %}

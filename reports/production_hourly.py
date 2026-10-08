@@ -2193,6 +2193,7 @@ def build_hourly_grid(report: DailyWorkReport, *, steps_editable: bool | None = 
         'uses_session_reporting': bool(rows) and all(r['is_session_reported'] for r in rows),
         'overall_efficiency_pct': _report_overall_efficiency_pct(productive),
         **_efficiency_cap_payload(),
+        **_work_hours_client_payload(shift),
     }
 
 
@@ -2273,6 +2274,7 @@ def build_proxy_entry_grid(report: DailyWorkReport) -> dict:
         'shift': shift,
         'overall_efficiency_pct': _report_overall_efficiency_pct(productive),
         **_efficiency_cap_payload(),
+        **_work_hours_client_payload(shift),
     }
 
 
@@ -2385,6 +2387,33 @@ def _production_work_hours_bounds():
     if low >= high:
         return PRODUCTION_WORK_HOURS_MIN, PRODUCTION_WORK_HOURS_MAX
     return low, high
+
+
+def _hours_vi(value: Decimal) -> str:
+    return f'{Decimal(value):.2f}'.replace('.', ',')
+
+
+def _work_hours_client_payload(shift: str | None = None) -> dict:
+    """Ngưỡng giờ làm việc cho modal gửi BC — lấy từ thiết lập chung."""
+    from reports.report_settings import (
+        report_default_declared_work_hours,
+        report_night_default_declared_work_hours,
+    )
+
+    low, high = _production_work_hours_bounds()
+    try:
+        if shift == DailyWorkReport.SHIFT_NIGHT:
+            default_hours = report_night_default_declared_work_hours()
+        else:
+            default_hours = report_default_declared_work_hours()
+    except Exception:
+        default_hours = Decimal('9.50')
+    return {
+        'work_hours_min': f'{low:.2f}',
+        'work_hours_max': f'{high:.2f}',
+        'work_hours_min_label': _hours_vi(low),
+        'default_declared_work_hours': f'{default_hours:.2f}',
+    }
 
 
 def _production_efficiency_caps() -> tuple[float, float]:

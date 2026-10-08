@@ -122,13 +122,15 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
     MODULE_THIET_KE_SP: [
         {'key': 'dashboard', 'label': 'Tổng quan', 'icon': 'bi-speedometer2', 'perm_view_only': True},
         {'key': 'dossiers', 'label': 'Hồ sơ sản phẩm', 'icon': 'bi-journal-richtext'},
-        {'key': 'my_tasks', 'label': 'Việc chờ tôi xử lý', 'icon': 'bi-inbox-fill', 'perm_view_only': True},
+        {'key': 'kanban', 'label': 'Tiến độ Kanban', 'icon': 'bi-kanban', 'perm_view_only': True},
         {
             'key': 'approve',
-            'label': 'Duyệt hồ sơ',
-            'perm_label': 'Duyệt hồ sơ (Sửa = được làm Người duyệt)',
+            'label': 'Chờ tôi duyệt',
+            'perm_label': 'Chờ tôi duyệt (Sửa = được làm Người duyệt)',
             'icon': 'bi-check2-circle',
         },
+        {'key': 'my_tasks', 'label': 'Việc chờ tôi xử lý', 'icon': 'bi-inbox-fill', 'perm_view_only': True},
+        {'key': 'reports', 'label': 'Báo cáo', 'icon': 'bi-graph-up', 'perm_view_only': True},
         {'key': 'settings', 'label': 'Thiết lập', 'icon': 'bi-gear'},
     ],
     MODULE_TIEN_DO: [
@@ -566,6 +568,8 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/thiet-ke-san-pham/cho-toi', MODULE_THIET_KE_SP, 'my_tasks'),
     ('/thiet-ke-san-pham/thong-bao', MODULE_THIET_KE_SP, 'my_tasks'),
     ('/thiet-ke-san-pham/duyet', MODULE_THIET_KE_SP, 'approve'),
+    ('/thiet-ke-san-pham/kanban', MODULE_THIET_KE_SP, 'kanban'),
+    ('/thiet-ke-san-pham/bao-cao', MODULE_THIET_KE_SP, 'reports'),
     ('/thiet-ke-san-pham/ho-so', MODULE_THIET_KE_SP, 'dossiers'),
     ('/thiet-ke-san-pham/tep', MODULE_THIET_KE_SP, 'dossiers'),
     ('/thiet-ke-san-pham/', MODULE_THIET_KE_SP, 'dashboard'),
@@ -616,13 +620,17 @@ MENU_PATH_ACCESS_ALIASES: dict[tuple[str, str], tuple[str, ...]] = {
     (MODULE_THIET_KE_SP, 'dossiers'): ('approve', 'my_tasks'),
     (MODULE_THIET_KE_SP, 'dashboard'): ('dossiers', 'approve'),
     (MODULE_THIET_KE_SP, 'my_tasks'): ('dossiers', 'approve'),
+    (MODULE_THIET_KE_SP, 'kanban'): ('dossiers',),
+    (MODULE_THIET_KE_SP, 'reports'): ('dashboard',),
 }
 
 _THIET_KE_SP_MENU_ACTIONS: dict[str, frozenset[str]] = {
     'dashboard': frozenset({'view'}),
     'dossiers': frozenset({'view', 'create', 'update', 'delete'}),
+    'kanban': frozenset({'view'}),
     'my_tasks': frozenset({'view'}),
     'approve': frozenset({'view', 'update'}),
+    'reports': frozenset({'view'}),
     'settings': frozenset({'view', 'update'}),
 }
 

@@ -692,6 +692,82 @@
             </ul>
         </li>
         {% endif %}
+        {% if jp_can_thiet_ke_sp %}
+        <li class="jp-sidebar-group{% if '/thiet-ke-san-pham/' in request.path %} is-open{% endif %}">
+            <button type="button"
+                    class="jp-sidebar-group-toggle"
+                    data-jp-sidebar-group-toggle
+                    aria-expanded="{% if '/thiet-ke-san-pham/' in request.path %}true{% else %}false{% endif %}"
+                    aria-controls="jp-sidebar-tksp-submenu">
+                <span class="jp-sidebar-group-toggle-main">
+                    <i class="bi bi-palette"></i><span>Thiết kế sản phẩm</span>
+                    {% if tksp_my_task_count %}<span class="badge {% if tksp_overdue_count %}bg-danger{% else %}bg-secondary{% endif %} ms-1">{{ tksp_my_task_count }}</span>{% endif %}
+                </span>
+                <i class="bi bi-chevron-down jp-sidebar-group-chevron" aria-hidden="true"></i>
+            </button>
+            <ul class="jp-sidebar-submenu" id="jp-sidebar-tksp-submenu">
+                {% if tksp_menu.dashboard %}
+                <li>
+                    <a href="{% url 'thiet_ke_sp:dashboard' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.namespace == 'thiet_ke_sp' and request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                        <i class="bi bi-grid-1x2"></i><span>Tổng quan</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% if tksp_menu.dossiers %}
+                <li>
+                    <a href="{% url 'thiet_ke_sp:list' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/thiet-ke-san-pham/ho-so' in request.path %}active{% endif %}">
+                        <i class="bi bi-journal-richtext"></i><span>Hồ sơ sản phẩm</span>
+                        {% if tksp_active_count %}<span class="badge bg-secondary ms-1">{{ tksp_active_count }}</span>{% endif %}
+                    </a>
+                </li>
+                {% endif %}
+                {% if tksp_menu.kanban %}
+                <li>
+                    <a href="{% url 'thiet_ke_sp:kanban' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/thiet-ke-san-pham/kanban' in request.path %}active{% endif %}">
+                        <i class="bi bi-kanban"></i><span>Tiến độ Kanban</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% if tksp_menu.approve %}
+                <li>
+                    <a href="{% url 'thiet_ke_sp:approve_queue' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/thiet-ke-san-pham/duyet' in request.path %}active{% endif %}">
+                        <i class="bi bi-check2-circle"></i><span>Chờ tôi duyệt</span>
+                        {% if tksp_approve_count %}<span class="badge bg-danger ms-1">{{ tksp_approve_count }}</span>{% endif %}
+                    </a>
+                </li>
+                {% endif %}
+                {% if tksp_menu.my_tasks %}
+                <li>
+                    <a href="{% url 'thiet_ke_sp:my_tasks' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/thiet-ke-san-pham/cho-toi' in request.path %}active{% endif %}">
+                        <i class="bi bi-inbox-fill"></i><span>Việc chờ tôi xử lý</span>
+                        {% if tksp_my_task_count %}<span class="badge {% if tksp_overdue_count %}bg-danger{% else %}bg-secondary{% endif %} ms-1">{{ tksp_my_task_count }}</span>{% endif %}
+                    </a>
+                </li>
+                {% endif %}
+                {% if tksp_menu.reports %}
+                <li>
+                    <a href="{% url 'thiet_ke_sp:reports' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/thiet-ke-san-pham/bao-cao' in request.path %}active{% endif %}">
+                        <i class="bi bi-graph-up"></i><span>Báo cáo</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% if tksp_menu.settings %}
+                <li>
+                    <a href="{% url 'thiet_ke_sp:settings' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/thiet-ke-san-pham/thiet-lap' in request.path %}active{% endif %}">
+                        <i class="bi bi-gear"></i><span>Thiết lập</span>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </li>
+        {% endif %}
         {% if jp_can_san_xuat %}
         <li class="jp-sidebar-group jp-sx-group{% if 'san-xuat' in request.path or 'kho-npl' in request.path or 'kho-vat-tu' in request.path or 'kho-san-pham' in request.path or 'kiotviet' in request.path or is_production_scope %} is-open{% endif %}">
             <button type="button"

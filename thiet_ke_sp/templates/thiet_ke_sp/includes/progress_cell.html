@@ -1,0 +1,2 @@
+<b class="small">Bước {{ d.step_no }}/{{ d.step_total }}</b>
+<div class="tk-progress{% if d.status_tone == 'red' %} is-red{% elif d.status_tone == 'green' or d.status_tone == 'dark' %} is-green{% endif %}"><i style="width: {{ d.step_pct }}%"></i></div>

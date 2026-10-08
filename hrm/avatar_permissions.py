@@ -11,16 +11,19 @@ from hrm.module_permissions import (
 EXTRA_UPDATE_OWN_AVATAR = 'update_own_avatar'
 # Tuyển dụng: bỏ giới hạn «chỉ vị trí mình quản lý» (HCNS, TGĐ) — xem recruitment.permissions.
 EXTRA_RECRUITMENT_ALL_DEPARTMENTS = 'all_departments'
+# Tuyển dụng: giám đốc duyệt cấp 2 sau khi phỏng vấn Đạt — xem recruitment.permissions.
+EXTRA_RECRUITMENT_FINAL_APPROVE = 'final_approve'
 
 # Quyền bổ sung theo module (registry dùng chung cho ma trận nhóm quyền).
 MODULE_EXTRA_PERMS = {
     MODULE_HRM: (EXTRA_UPDATE_OWN_AVATAR,),
-    MODULE_RECRUITMENT: (EXTRA_RECRUITMENT_ALL_DEPARTMENTS,),
+    MODULE_RECRUITMENT: (EXTRA_RECRUITMENT_ALL_DEPARTMENTS, EXTRA_RECRUITMENT_FINAL_APPROVE),
 }
 
 EXTRA_PERM_LABELS = {
     EXTRA_UPDATE_OWN_AVATAR: 'Cập nhật avatar cá nhân',
     EXTRA_RECRUITMENT_ALL_DEPARTMENTS: 'Tuyển dụng — xem ứng viên mọi phòng ban',
+    EXTRA_RECRUITMENT_FINAL_APPROVE: 'Tuyển dụng — giám đốc duyệt cấp 2 sau phỏng vấn',
 }
 
 

@@ -95,11 +95,16 @@ def _recruitment_review_nav(user) -> dict:
         from django.utils import timezone
 
         from recruitment.models import Candidate, JobPosting
-        from recruitment.permissions import interview_queue, is_hiring_manager, manager_job_filter
+        from recruitment.permissions import (
+            can_final_approve, final_queue, interview_queue, is_hiring_manager, manager_job_filter,
+        )
 
         due_results = interview_queue(user).filter(interview__interview_time__lte=timezone.now()).count()
+        approver = can_final_approve(user)
+        if approver:
+            due_results += final_queue(user).count()
         if not is_hiring_manager(user):
-            has_queue = due_results > 0 or interview_queue(user).exists()
+            has_queue = approver or due_results > 0 or interview_queue(user).exists()
             return {'jp_can_review_candidates': has_queue, 'jp_recruitment_review_pending': due_results}
         pending = (
             Candidate.objects.filter(

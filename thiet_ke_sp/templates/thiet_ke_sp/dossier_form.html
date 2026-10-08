@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% load tksp_tags %}
+{% block title %}{% if dossier %}Sửa đề bài {{ dossier.code }}{% else %}Đề xuất sản phẩm mới{% endif %}{% endblock %}
+{% block extra_head %}{% include 'thiet_ke_sp/includes/tksp_styles.html' %}{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-tksp py-3 py-md-4 mb-5">
+  {% if dossier %}
+  {% url 'thiet_ke_sp:detail' dossier.pk as back_url %}
+  {% include 'thiet_ke_sp/includes/tksp_topbar.html' with tk_title='Sửa đề bài '|add:dossier.code tk_active='create' back_url=back_url back_label=dossier.code %}
+  {% else %}
+  {% url 'thiet_ke_sp:list' as back_url %}
+  {% include 'thiet_ke_sp/includes/tksp_topbar.html' with tk_title='Đề xuất sản phẩm mới' tk_active='create' back_url=back_url back_label='Danh sách hồ sơ' %}
+  {% endif %}
+
+  {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors|join:' ' }}</div>{% endif %}
+
+  <form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    <div class="tk-section">
+      <div class="tk-section-title"><i class="bi bi-lightbulb"></i>Đề bài sản phẩm</div>
+      <div class="row g-3">
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.name col='col-md-8' req=True %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.priority col='col-md-4' req=True %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.product_group col='col-md-4' req=True %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.product_type col='col-md-4' req=True %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.collection col='col-md-4' %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.target_customer col='col-md-8' req=True %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.launch_date col='col-md-4' req=True %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.usage_need req=True %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.market_need %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.description col='col-12' %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.reference_links col='col-12' %}
+        <div class="col-12">
+          <label class="form-label fw-bold small mb-1" for="tk-ref-files">Ảnh / tài liệu tham khảo</label>
+          <input type="file" id="tk-ref-files" name="reference_files" class="form-control" multiple>
+          {% if references %}
+          <div class="tk-thumbs mt-2">
+            {% for a in references %}
+            <a class="tk-thumb text-decoration-none" href="{{ a.get_absolute_url }}" target="_blank" rel="noopener">
+              <div class="img">{% if a.is_image %}<img src="{{ a.get_absolute_url }}" alt="">{% else %}<i class="bi bi-file-earmark"></i>{% endif %}</div>
+              <div class="cap"><div class="n">{{ a.display_name }}</div></div>
+            </a>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="tk-section">
+      <div class="tk-section-title"><i class="bi bi-bullseye"></i>Mục tiêu sản lượng &amp; giá</div>
+      <div class="row g-3">
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.expected_qty col='col-md-3' %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.target_wholesale_price col='col-md-3' %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.target_retail_price col='col-md-3' %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.target_cost col='col-md-3' %}
+      </div>
+    </div>
+
+    <div class="tk-section">
+      <div class="tk-section-title"><i class="bi bi-people"></i>Nhân sự phụ trách</div>
+      <div class="row g-3">
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.owner col='col-md-4' req=True %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.approver col='col-md-4' req=True %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.designer col='col-md-4' %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.technician col='col-md-3' %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.sample_maker col='col-md-3' %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.qa_user col='col-md-3' %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.costing_user col='col-md-3' %}
+      </div>
+    </div>
+
+    <div class="tk-section d-flex flex-wrap align-items-end gap-3 justify-content-between">
+      <div style="min-width: 240px;">
+        <label class="form-label fw-bold small mb-1" for="tk-due">Hạn duyệt đề bài</label>
+        <input type="datetime-local" id="tk-due" name="due_at" class="form-control" value="{{ default_due|due_input }}">
+      </div>
+      <div class="d-flex flex-wrap gap-2">
+        <button type="submit" name="submit_action" value="save" class="btn btn-outline-secondary fw-bold"><i class="bi bi-save me-1"></i>Lưu nháp</button>
+        <button type="submit" name="submit_action" value="submit" class="btn btn-hm fw-bold text-white"><i class="bi bi-send me-1"></i>Gửi duyệt đề bài</button>
+      </div>
+    </div>
+  </form>
+</div>
+{% include 'thiet_ke_sp/includes/tksp_scripts.html' %}
+{% endblock %}

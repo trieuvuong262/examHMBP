@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% load sx_format tksp_tags %}
+{% block title %}Tổng quan thiết kế sản phẩm{% endblock %}
+{% block extra_head %}{% include 'thiet_ke_sp/includes/tksp_styles.html' %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-sx-page jp-tksp py-3 py-md-4 mb-5 px-3 px-lg-4">
+  {% include 'thiet_ke_sp/includes/tksp_topbar.html' with tk_title='Tổng quan phát triển sản phẩm' tk_active='dashboard' %}
+
+  <div class="tk-kpis mb-3">
+    <a class="tk-kpi" href="{% url 'thiet_ke_sp:list' %}?quick=in_progress">
+      <div><div class="cap">Hồ sơ đang phát triển</div><div class="num">{{ data.in_progress|sx_num }}</div><div class="sub is-ok">{{ data.month_proposed|sx_num }} đề xuất mới tháng này</div></div>
+      <div class="ico info"><i class="bi bi-journal-richtext"></i></div>
+    </a>
+    <a class="tk-kpi" href="{% url 'thiet_ke_sp:list' %}?quick=waiting_approval">
+      <div><div class="cap">Chờ phê duyệt</div><div class="num">{{ data.waiting_approval|sx_num }}</div><div class="sub is-warn">Đề bài · thiết kế · mẫu chuẩn</div></div>
+      <div class="ico warn"><i class="bi bi-check2-circle"></i></div>
+    </a>
+    <a class="tk-kpi" href="{% url 'thiet_ke_sp:list' %}?quick=overdue">
+      <div><div class="cap">Việc trễ hạn</div><div class="num">{{ data.overdue_count|sx_num }}</div><div class="sub {% if data.overdue_count %}is-bad{% endif %}">{{ data.due_soon_tasks|length }} việc đến hạn trong 48 giờ</div></div>
+      <div class="ico"><i class="bi bi-exclamation-lg"></i></div>
+    </a>
+    <a class="tk-kpi" href="{% if tksp_menu.reports %}{% url 'thiet_ke_sp:reports' %}{% else %}{% url 'thiet_ke_sp:list' %}?quick=done{% endif %}">
+      <div><div class="cap">Tỷ lệ mẫu lần đầu đạt</div><div class="num">{% if data.first_pass_rate is not None %}{{ data.first_pass_rate|sx_num }}%{% else %}—{% endif %}</div><div class="sub is-ok">{{ data.first_pass_base|sx_num }} hồ sơ có mẫu chuẩn</div></div>
+      <div class="ico ok"><i class="bi bi-bullseye"></i></div>
+    </a>
+  </div>
+
+  <div class="tk-dash-grid mb-3">
+    <div class="tk-card tk-panel">
+      <div class="tk-panel-head">
+        <div><div class="tk-panel-title">Hồ sơ theo giai đoạn</div><div class="tk-panel-sub">{{ active_count|sx_num }} hồ sơ đang hoạt động</div></div>
+        <span class="tk-pill is-blue">Tháng {% now 'm/Y' %}</span>
+      </div>
+      <div class="overflow-auto">
+        <div class="tk-pipeline">
+          {% for b in bars %}
+          <a class="tk-barwrap" href="{% url 'thiet_ke_sp:list' %}?{{ b.query }}">
+            <div class="tk-bar{% if b.height == 100 and b.count %} is-peak{% endif %}" style="height: {{ b.height }}%"><span>{{ b.count }}</span></div>
+            <div class="tk-barlabel">{{ b.label }}</div>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    <div class="tk-card tk-panel">
+      <div class="tk-panel-head">
+        <div><div class="tk-panel-title">Cảnh báo cần xử lý</div><div class="tk-panel-sub">Theo hạn và việc chờ duyệt</div></div>
+        <a class="tk-link" href="{% url 'thiet_ke_sp:my_tasks' %}">Xem tất cả</a>
+      </div>
+      <div class="tk-alert-list">
+        {% for a in alerts %}
+        <a class="tk-alert" href="{{ a.url }}"><span class="tk-dot is-{{ a.tone }}"></span><div><strong>{{ a.title }}</strong><p>{{ a.body }}</p></div></a>
+        {% empty %}
+        <div class="small text-muted">Không có cảnh báo.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="tk-card tk-panel mb-3">
+    <div class="tk-panel-head">
+      <div><div class="tk-panel-title">Hồ sơ gần đây</div><div class="tk-panel-sub">Ưu tiên theo hạn xử lý</div></div>
+      <a class="tk-link" href="{% url 'thiet_ke_sp:list' %}">Mở danh sách <i class="bi bi-arrow-right"></i></a>
+    </div>
+    {% include 'thiet_ke_sp/includes/dossier_rows.html' with rows=recent %}
+  </div>
+
+</div>
+{% include 'thiet_ke_sp/includes/tksp_scripts.html' %}
+{% endblock %}

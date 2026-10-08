@@ -1903,6 +1903,7 @@ TEAM_STATUS_REVIEWED = 'reviewed'
 TEAM_STATUS_NOT_REVIEWED = 'not_reviewed'
 TEAM_STATUS_REJECTED = 'rejected'
 TEAM_SUMMARY_DEFAULT_SPAN_DAYS = 3
+REPORT_STATS_DEFAULT_SPAN_DAYS = 10
 
 
 def _summary_week_date_range(anchor_to=None):
@@ -1950,6 +1951,7 @@ def _render_production_summary_matrix(
     export_url_name: str,
     show_metric_selector: bool = False,
     require_stats_access: bool = False,
+    default_span_days: int = TEAM_SUMMARY_DEFAULT_SPAN_DAYS,
 ):
     """Ma trận NV × ngày — báo cáo tổng hợp (chỉ HS) hoặc thống kê KPI (nhiều chỉ số)."""
     from .production_team import build_production_team_summary
@@ -1965,7 +1967,7 @@ def _render_production_summary_matrix(
         )
         return redirect('home_portal')
 
-    date_from, date_to = parse_team_date_range(request, default_span_days=TEAM_SUMMARY_DEFAULT_SPAN_DAYS)
+    date_from, date_to = parse_team_date_range(request, default_span_days=default_span_days)
     search_query = get_search_query(request)
     dept_filter = (request.GET.get('dept') or '').strip()
     division_filter = (request.GET.get('division') or '').strip()
@@ -2075,6 +2077,7 @@ def _export_production_summary_matrix(
     *,
     show_metric_selector: bool = False,
     require_stats_access: bool = False,
+    default_span_days: int = TEAM_SUMMARY_DEFAULT_SPAN_DAYS,
 ):
     from .production_team import build_production_team_summary
     from .excel_export import export_production_team_summary_xlsx
@@ -2085,7 +2088,7 @@ def _export_production_summary_matrix(
     elif not can_view_team_reports(request.user):
         return redirect('home_portal')
 
-    date_from, date_to = parse_team_date_range(request, default_span_days=TEAM_SUMMARY_DEFAULT_SPAN_DAYS)
+    date_from, date_to = parse_team_date_range(request, default_span_days=default_span_days)
     search_query = get_search_query(request)
     dept_filter = (request.GET.get('dept') or '').strip()
     division_filter = (request.GET.get('division') or '').strip()
@@ -2210,6 +2213,7 @@ def report_stats_cn(request):
         export_url_name='reports:report_stats_cn_export',
         show_metric_selector=True,
         require_stats_access=True,
+        default_span_days=REPORT_STATS_DEFAULT_SPAN_DAYS,
     )
 
 
@@ -2220,6 +2224,7 @@ def report_stats_cn_export(request):
         request,
         show_metric_selector=True,
         require_stats_access=True,
+        default_span_days=REPORT_STATS_DEFAULT_SPAN_DAYS,
     )
 
 

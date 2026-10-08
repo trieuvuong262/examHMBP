@@ -12,7 +12,7 @@
       </h2>
     </div>
     <div class="jp-rc-tools">
-      {% if skip_candidate and review_form %}
+      {% if skip_candidate and review_form or skip_candidate and can_final %}
       <a href="{% url 'recruitment_review_candidate' skip_candidate %}" class="btn btn-light btn-sm border" title="Bỏ qua, đánh giá sau">
         Hồ sơ khác<i class="bi bi-chevron-right" aria-hidden="true"></i>
       </a>
@@ -73,6 +73,47 @@
 
     <div class="col-xl-5">
       <div class="jp-rc-review-side">
+        {% if can_final %}
+        <div class="card border-0 shadow-sm jp-rc-review-card">
+          <div class="card-header bg-white d-flex justify-content-between align-items-center gap-2">
+            <span class="fw-bold">Giám đốc duyệt</span>
+            <span class="jp-rc-badge is-reviewing">Cấp 2</span>
+          </div>
+          <div class="card-body">
+            <div class="jp-rc-level1 mb-3">
+              <div class="d-flex justify-content-between align-items-center gap-2">
+                <span class="small fw-semibold">Phỏng vấn (cấp 1)</span>
+                <span class="jp-rc-badge is-pass">{{ interview.get_result_display }}</span>
+              </div>
+              <div class="jp-rc-sub mt-1">
+                {{ interview.time_range_label }} ·
+                {% for u in interview.interviewers.all %}{{ u.profile.full_name|default:u.username }}{% if not forloop.last %}, {% endif %}{% empty %}Chưa giao người PV{% endfor %}
+              </div>
+              {% if interview.result_notes %}<div class="small mt-2" style="white-space: pre-line;">{{ interview.result_notes }}</div>{% endif %}
+            </div>
+            <form method="post" action="{% url 'recruitment_review_final_decision' candidate.pk %}" id="rcFinalForm">
+              {% csrf_token %}
+              <fieldset class="mb-3">
+                <legend class="form-label fw-semibold small mb-2">Kết luận <span class="text-danger">*</span></legend>
+                <div class="jp-rc-result-choices">
+                  <input type="radio" class="btn-check" name="decision" id="rcFinalPass" value="pass" required autocomplete="off">
+                  <label class="jp-rc-result-opt is-pass" for="rcFinalPass"><i class="bi bi-check-circle-fill" aria-hidden="true"></i><strong>Đạt</strong></label>
+                  <input type="radio" class="btn-check" name="decision" id="rcFinalFail" value="fail" autocomplete="off">
+                  <label class="jp-rc-result-opt is-fail" for="rcFinalFail"><i class="bi bi-x-circle-fill" aria-hidden="true"></i><strong>Không đạt</strong></label>
+                </div>
+              </fieldset>
+              <label class="form-label fw-semibold small" for="rcFinalNotes">
+                Nhận xét <span class="text-danger d-none" data-rc-final-star>*</span>
+              </label>
+              <textarea name="notes" id="rcFinalNotes" class="form-control" rows="3"
+                        placeholder="Ý kiến của giám đốc… (bắt buộc khi Không đạt)"></textarea>
+              <button type="submit" class="btn btn-hm fw-bold w-100 mt-3"><i class="bi bi-check2-square" aria-hidden="true"></i> Lưu duyệt</button>
+              {% if pending_left %}<div class="jp-rc-sub text-center mt-2">Còn {{ pending_left }} hồ sơ khác chờ duyệt</div>{% endif %}
+            </form>
+          </div>
+        </div>
+        {% endif %}
+
         {% if review_form %}
         <div class="card border-0 shadow-sm jp-rc-review-card">
           <div class="card-header bg-white d-flex justify-content-between align-items-center gap-2">
@@ -144,6 +185,15 @@
               <span class="jp-rc-kv-value">{% for u in interview.interviewers.all %}{{ u.profile.full_name|default:u.username }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</span>
             </div>
             {% if interview.result_notes %}<div class="small mt-2" style="white-space: pre-line;">{{ interview.result_notes }}</div>{% endif %}
+            {% if interview.final_result %}
+            <div class="jp-rc-kv mt-2"><span class="jp-rc-kv-label">Giám đốc duyệt</span>
+              <span class="jp-rc-kv-value">
+                <span class="jp-rc-badge is-{% if interview.final_result == 'pending' %}reviewing{% else %}{{ interview.final_result }}{% endif %}">{{ interview.get_final_result_display }}</span>
+              </span>
+            </div>
+            {% if interview.final_by %}<div class="jp-rc-sub">{{ interview.final_by.profile.full_name|default:interview.final_by.username }} · {{ interview.final_at|date:"H:i d/m/Y" }}</div>{% endif %}
+            {% if interview.final_notes %}<div class="small mt-1" style="white-space: pre-line;">{{ interview.final_notes }}</div>{% endif %}
+            {% endif %}
             {% if result_form %}
             {% if interview_started %}
             <form method="post" action="{{ result_action }}" class="border-top pt-3 mt-2">
@@ -268,6 +318,16 @@
       document.getElementById('rcEmbedDownload').href = tab.dataset.url + '?download=1';
     });
   });
+
+  var finalForm = document.getElementById('rcFinalForm');
+  if (finalForm) {
+    finalForm.addEventListener('change', function (ev) {
+      if (ev.target.name !== 'decision') return;
+      var fail = ev.target.value === 'fail';
+      finalForm.querySelector('textarea[name="notes"]').required = fail;
+      finalForm.querySelector('[data-rc-final-star]').classList.toggle('d-none', !fail);
+    });
+  }
 
   var form = document.getElementById('rcReviewForm');
   if (!form) return;

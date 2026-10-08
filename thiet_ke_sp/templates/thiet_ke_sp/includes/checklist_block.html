@@ -1,0 +1,3 @@
+{% for label, ok in items %}
+<div class="small d-flex gap-2 {% if ok %}text-success{% else %}text-danger{% endif %}"><i class="bi {% if ok %}bi-check-circle-fill{% else %}bi-x-circle{% endif %}"></i>{{ label }}</div>
+{% endfor %}

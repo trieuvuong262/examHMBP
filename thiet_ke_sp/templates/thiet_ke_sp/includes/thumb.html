@@ -1,0 +1,20 @@
+<div class="tk-thumb{% if missing %} is-missing{% endif %}">
+  {% if a %}
+  <a href="{{ a.get_absolute_url }}" target="_blank" rel="noopener" class="text-decoration-none">
+    <div class="img">{% if a.is_image %}<img src="{{ a.get_absolute_url }}" alt="" loading="lazy">{% else %}<i class="bi bi-file-earmark-text"></i>{% endif %}</div>
+  </a>
+  <div class="cap">
+    <div class="k">{{ label|default:a.get_kind_display }}</div>
+    <div class="n" title="{{ a.display_name }}"><a href="{{ a.get_absolute_url }}?download=1" class="text-reset">{{ a.display_name }}</a></div>
+  </div>
+  {% if can_delete %}
+  <form method="post" action="{% url 'thiet_ke_sp:attachment_delete' a.pk %}" class="del" data-tk-confirm="Xóa tệp {{ a.display_name }}?">{% csrf_token %}
+    <input type="hidden" name="return_tab" value="{{ tab }}">
+    <button type="submit" class="btn btn-sm btn-light border py-0 px-1" title="Xóa"><i class="bi bi-x"></i></button>
+  </form>
+  {% endif %}
+  {% else %}
+  <div class="img"><i class="bi bi-image"></i></div>
+  <div class="cap"><div class="k">{{ label }}</div><div class="n text-danger">Chưa có</div></div>
+  {% endif %}
+</div>

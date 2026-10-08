@@ -1,7 +1,7 @@
 """Quyền module Thiết kế sản phẩm = quyền menu (Phân quyền) × vai trò trên từng hồ sơ.
 
 - Menu «Hồ sơ sản phẩm»: Xem / Thêm (tạo đề xuất) / Sửa (cập nhật nội dung theo vai trò) / Xóa (xóa nháp).
-- Menu «Duyệt hồ sơ»: Sửa = được chọn làm Người duyệt và ra quyết định duyệt.
+- Menu «Chờ tôi duyệt»: Sửa = được chọn làm Người duyệt và ra quyết định duyệt.
 - Menu «Thiết lập»: Sửa = cấu hình số ngày chuẩn, người nhận bàn giao.
 """
 
@@ -22,8 +22,10 @@ from .models import DOSSIER_ROLE_FIELDS, FINAL_STATUSES, ProductDevelopment, Rol
 
 MENU_DASHBOARD = 'dashboard'
 MENU_DOSSIERS = 'dossiers'
+MENU_KANBAN = 'kanban'
 MENU_MY_TASKS = 'my_tasks'
 MENU_APPROVE = 'approve'
+MENU_REPORTS = 'reports'
 MENU_SETTINGS = 'settings'
 
 
@@ -104,22 +106,35 @@ def is_participant(dossier: ProductDevelopment, user) -> bool:
     return is_admin(user) or bool(user_roles(dossier, user))
 
 
+def _matrix_allows_approve(matrix: dict) -> bool:
+    module = (matrix or {}).get(MODULE_THIET_KE_SP) or {}
+    menus = module.get('menus')
+    if isinstance(menus, dict) and menus:
+        return bool((menus.get(MENU_APPROVE) or {}).get('update'))
+    return bool(module.get('update'))
+
+
 def approver_candidates():
-    """Người có quyền Sửa menu «Duyệt hồ sơ» — lọc thô theo nhóm quyền rồi kiểm tra lại từng người."""
-    from hrm.models import PermissionGroup
+    """Người có quyền Sửa menu «Chờ tôi duyệt» — lọc thô theo ma trận quyền rồi kiểm tra lại từng người."""
+    from hrm.group_permissions import permissions_from_legacy_role
+    from hrm.models import PermissionGroup, Profile
 
     User = get_user_model()
-    group_ids = []
-    for group in PermissionGroup.objects.all():
-        module = (group.module_permissions or {}).get(MODULE_THIET_KE_SP) or {}
-        menu = (module.get('menus') or {}).get(MENU_APPROVE) or {}
-        if menu.get('update') or (not module.get('menus') and module.get('update')):
-            group_ids.append(group.pk)
+    group_ids = [g.pk for g in PermissionGroup.objects.all() if _matrix_allows_approve(g.get_permissions())]
+    legacy_roles = [
+        role for role in Profile.objects.filter(permission_group__isnull=True).values_list('role', flat=True).distinct()
+        if _matrix_allows_approve(permissions_from_legacy_role(role))
+    ]
     rough = (
         User.objects.filter(is_active=True)
-        .filter(Q(is_superuser=True) | Q(username='admin') | Q(profile__permission_group_id__in=group_ids))
+        .filter(
+            Q(is_superuser=True)
+            | Q(username='admin')
+            | Q(profile__permission_group_id__in=group_ids)
+            | Q(profile__permission_group__isnull=True, profile__role__in=legacy_roles)
+        )
         .select_related('profile')
-        .order_by('first_name', 'username')
+        .order_by('profile__full_name', 'username')
         .distinct()
     )
     return [u for u in rough if has_approve_permission(u)]

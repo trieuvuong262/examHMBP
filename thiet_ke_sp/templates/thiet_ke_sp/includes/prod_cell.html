@@ -1,0 +1,4 @@
+<div class="tk-prod">
+  <div class="tk-prod-thumb">{% if d.cover %}<img src="{{ d.cover.get_absolute_url }}" alt="" loading="lazy">{% else %}<i class="bi bi-palette"></i>{% endif %}</div>
+  <div class="min-w-0"><strong>{{ d.name }}</strong><small>{{ d.code }}{% if d.official_product_code %} · {{ d.official_product_code }}{% endif %}{% if d.is_demo %} · demo{% endif %}</small></div>
+</div>

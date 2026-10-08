@@ -36,7 +36,7 @@ def notify(user, dossier: ProductDevelopment | None, kind: str, title: str, body
     note = Notification.objects.create(
         user=user, dossier=dossier, kind=kind, title=title[:255], body=body, url=url,
     )
-    _invalidate_badges(user)
+    invalidate_badges(user)
     return note
 
 
@@ -49,9 +49,9 @@ def notify_many(users, dossier, kind, title, body='', *, actor=None):
         notify(user, dossier, kind, title, body, actor=actor)
 
 
-def _invalidate_badges(user) -> None:
-    try:
-        from assessment.portal_widgets import invalidate_portal_badges
-    except ImportError:
-        return
+def invalidate_badges(user) -> None:
+    from assessment.portal_widgets import invalidate_portal_badges
+    from thiet_ke_sp.context_processors import invalidate_user_badges
+
+    invalidate_user_badges(user)
     invalidate_portal_badges(user)

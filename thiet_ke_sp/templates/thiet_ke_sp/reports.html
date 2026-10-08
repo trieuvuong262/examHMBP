@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% load sx_format tksp_tags %}
+{% block title %}Báo cáo phát triển sản phẩm{% endblock %}
+{% block extra_head %}{% include 'thiet_ke_sp/includes/tksp_styles.html' %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-sx-page jp-tksp py-3 py-md-4 mb-5 px-3 px-lg-4">
+  {% include 'thiet_ke_sp/includes/tksp_topbar.html' with tk_title='Báo cáo phát triển sản phẩm' tk_active='reports' %}
+
+  <form method="get" id="tkReportFilter" class="tk-card tk-panel mb-3" aria-label="Bộ lọc báo cáo">
+    <div class="tk-toolbar">
+      <select name="collection" class="form-select form-select-sm tk-auto" aria-label="Mùa / bộ sưu tập">
+        <option value="">Tất cả mùa</option>
+        {% for c in collection_choices %}<option value="{{ c }}" {% if filter_collection == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+      </select>
+      <select name="group" class="form-select form-select-sm tk-auto" aria-label="Nhóm sản phẩm">
+        <option value="">Tất cả nhóm</option>
+        {% for val, label in group_choices %}<option value="{{ val }}" {% if filter_group == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+      {% if has_filters %}<a href="{% url 'thiet_ke_sp:reports' %}" class="btn btn-light border btn-sm" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>{% endif %}
+      <span class="tk-count">{{ data.total|sx_num }} hồ sơ</span>
+    </div>
+  </form>
+
+  <div class="tk-kpis mb-3">
+    <div class="tk-kpi"><div><div class="cap">Thời gian phát triển TB</div><div class="num">{% if data.avg_dev_days is not None %}{{ data.avg_dev_days|sx_num }} <small>ngày</small>{% else %}—{% endif %}</div><div class="sub">{{ data.approved_base|sx_num }} hồ sơ đã duyệt SX</div></div><div class="ico info"><i class="bi bi-hourglass-split"></i></div></div>
+    <div class="tk-kpi"><div><div class="cap">Số vòng thiết kế TB</div><div class="num">{% if data.avg_design_rounds is not None %}{{ data.avg_design_rounds|sx_num }}{% else %}—{% endif %}</div><div class="sub">Đến khi duyệt thiết kế</div></div><div class="ico"><i class="bi bi-palette"></i></div></div>
+    <div class="tk-kpi"><div><div class="cap">Số vòng mẫu TB</div><div class="num">{% if data.avg_sample_rounds is not None %}{{ data.avg_sample_rounds|sx_num }}{% else %}—{% endif %}</div><div class="sub">Đến khi có mẫu chuẩn</div></div><div class="ico warn"><i class="bi bi-scissors"></i></div></div>
+    <div class="tk-kpi"><div><div class="cap">Tỷ lệ đúng hạn</div><div class="num">{% if data.on_time_rate is not None %}{{ data.on_time_rate|sx_num }}%{% else %}—{% endif %}</div><div class="sub">{{ data.on_time_base|sx_num }} bước đã hoàn thành</div></div><div class="ico ok"><i class="bi bi-calendar-check"></i></div></div>
+  </div>
+
+  <div class="tk-dash-grid mb-3">
+    <div class="tk-card tk-panel">
+      <div class="tk-panel-head">
+        <div><div class="tk-panel-title">Tỷ lệ mẫu lần đầu đạt theo nhóm</div><div class="tk-panel-sub">Toàn bộ: {% if data.first_pass_rate is not None %}{{ data.first_pass_rate|sx_num }}%{% else %}—{% endif %} · {{ data.first_pass_base|sx_num }} hồ sơ có mẫu chuẩn</div></div>
+      </div>
+      <div class="table-responsive">
+        <table class="table tk-mini-table align-middle">
+          <thead><tr><th>Nhóm</th><th class="text-end">Số hồ sơ</th><th class="text-end">Đạt lần đầu</th><th class="text-end">Số vòng mẫu TB</th></tr></thead>
+          <tbody>
+          {% for r in data.first_pass_by_group %}
+            <tr>
+              <td class="fw-semibold">{{ r.label }}</td>
+              <td class="text-end">{{ r.total|sx_num }}</td>
+              <td class="text-end"><b class="{% if r.rate >= 70 %}tk-ok{% elif r.rate < 50 %}tk-bad{% endif %}">{{ r.rate|sx_num }}%</b></td>
+              <td class="text-end">{{ r.avg_rounds|sx_num }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="text-muted small">Chưa có hồ sơ có mẫu chuẩn.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="tk-card tk-panel">
+      <div class="tk-panel-head"><div><div class="tk-panel-title">Nguyên nhân chỉnh sửa phổ biến</div><div class="tk-panel-sub">Tiêu chí không đạt khi đánh giá mẫu</div></div></div>
+      {% for m in data.revision_reasons %}
+      <div class="tk-meter-row"><span>{{ m.label }}</span><div class="tk-meter"><i style="width: {{ m.width }}%"></i></div><b class="text-end">{{ m.pct|sx_num:0 }}%</b></div>
+      {% empty %}
+      <div class="small text-muted">Chưa có dữ liệu.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-xl-4">
+      <div class="tk-card tk-panel h-100">
+        <div class="tk-panel-head"><div class="tk-panel-title">Hồ sơ theo trạng thái</div></div>
+        <table class="table tk-mini-table align-middle">
+          <tbody>
+          {% for r in data.status_rows %}
+            <tr class="jp-npl-catalog-row" data-href="{% url 'thiet_ke_sp:list' %}?status={{ r.value }}{% if filter_group %}&group={{ filter_group }}{% endif %}{% if filter_collection %}&collection={{ filter_collection|urlencode }}{% endif %}">
+              <td><span class="tk-pill is-{{ r.tone }}">{{ r.label }}</span></td>
+              <td class="text-end fw-bold">{{ r.count|sx_num }}</td>
+            </tr>
+          {% empty %}<tr><td class="text-muted small">Chưa có hồ sơ.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+        <div class="tk-grid3 mt-2">
+          <div class="tk-field"><label>Đề xuất tháng này</label><strong>{{ data.month_proposed|sx_num }}</strong></div>
+          <div class="tk-field"><label>Duyệt SX tháng này</label><strong>{{ data.month_approved|sx_num }}</strong></div>
+          <div class="tk-field"><label>Hủy tháng này</label><strong>{{ data.month_cancelled|sx_num }}</strong></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-xl-4">
+      <div class="tk-card tk-panel h-100">
+        <div class="tk-panel-head"><div class="tk-panel-title">Bước bị chậm nhiều</div>{% if data.overdue_count %}<span class="tk-pill is-red">{{ data.overdue_count }} việc trễ</span>{% endif %}</div>
+        {% for m in data.overdue_by_step %}
+        <div class="tk-meter-row"><span>{{ m.label }}</span><div class="tk-meter"><i style="width: {{ m.width }}%"></i></div><b class="text-end">{{ m.count }}</b></div>
+        {% empty %}<div class="small text-muted">Không có việc trễ.</div>{% endfor %}
+        <h3 class="tk-sub mt-3">Người đang có việc trễ</h3>
+        {% for m in data.overdue_by_user %}
+        <div class="tk-meter-row"><span>{{ m.label }}</span><div class="tk-meter"><i style="width: {{ m.width }}%"></i></div><b class="text-end">{{ m.count }}</b></div>
+        {% empty %}<div class="small text-muted">Không có.</div>{% endfor %}
+      </div>
+    </div>
+    <div class="col-xl-4">
+      <div class="tk-card tk-panel h-100">
+        <div class="tk-panel-head">
+          <div class="tk-panel-title">Chênh lệch giá thành</div>
+          {% if data.avg_cost_variance_pct is not None %}<span class="tk-pill is-gray">TB {{ data.avg_cost_variance_pct|sx_num }}%</span>{% endif %}
+        </div>
+        <table class="table tk-mini-table align-middle">
+          <tbody>
+          {% for d in data.variance_rows %}
+            <tr class="jp-npl-catalog-row" data-href="{{ d.get_absolute_url }}?tab=costing">
+              <td><b>{{ d.name|truncatechars:30 }}</b><div class="small text-muted">{{ d.code }}</div></td>
+              <td class="text-end {% if d.cost_variance > 0 %}tk-bad{% else %}tk-ok{% endif %}">{% if d.cost_variance > 0 %}+{% endif %}{{ d.cost_variance_pct|sx_num }}%</td>
+            </tr>
+          {% empty %}<tr><td class="text-muted small">Chưa có hồ sơ có giá thành.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var form = document.getElementById('tkReportFilter');
+  if (!form) return;
+  form.querySelectorAll('.tk-auto').forEach(function (el) {
+    el.addEventListener('change', function () { form.requestSubmit(); });
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,5 @@
+<div class="{{ col|default:'col-md-6' }}">
+  <label class="form-label fw-bold small mb-1" for="{{ field.id_for_label }}">{{ field.label }}{% if req %} <span class="text-danger">*</span>{% endif %}</label>
+  {{ field }}
+  {% if field.errors %}<div class="invalid-feedback d-block">{{ field.errors|join:' ' }}</div>{% endif %}
+</div>

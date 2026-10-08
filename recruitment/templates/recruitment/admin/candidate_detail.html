@@ -218,6 +218,15 @@
             {% if interview.result_notes %}
             <div class="col-12"><dt>Nhận xét</dt><dd style="white-space: pre-line;">{{ interview.result_notes }}</dd></div>
             {% endif %}
+            {% if interview.final_result %}
+            <div class="col-12"><dt>Giám đốc duyệt (cấp 2)</dt>
+              <dd>
+                <span class="jp-rc-badge is-{% if interview.final_result == 'pending' %}reviewing{% else %}{{ interview.final_result }}{% endif %}">{{ interview.get_final_result_display }}</span>
+                {% if interview.final_by %}<span class="jp-rc-sub ms-1">{{ interview.final_by.profile.full_name|default:interview.final_by.username }} · {{ interview.final_at|date:"H:i d/m/Y" }}</span>{% endif %}
+                {% if interview.final_notes %}<div class="small mt-1" style="white-space: pre-line;">{{ interview.final_notes }}</div>{% endif %}
+              </dd>
+            </div>
+            {% endif %}
           </dl>
           {% if result_form %}
           {% if interview_started %}

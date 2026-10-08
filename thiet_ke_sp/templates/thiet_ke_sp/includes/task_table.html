@@ -1,0 +1,26 @@
+{% load tksp_tags %}
+<div class="table-responsive">
+  <table class="table table-hover align-middle mb-0 tk-mini-table">
+    <thead><tr><th>Công việc</th><th>Hồ sơ</th><th>Hạn</th><th></th></tr></thead>
+    <tbody>
+    {% for t in tasks %}
+      <tr class="jp-npl-catalog-row{% if t.is_overdue %} tk-task-row is-late{% endif %}" data-href="{{ t.dossier.get_absolute_url }}">
+        <td><div class="fw-semibold">{{ t.title }}</div><div class="small text-muted">{{ t.get_step_display }}{% if t.accepted_at %} · <span class="tk-ok">đã nhận</span>{% endif %}</div></td>
+        <td><div class="fw-semibold small">{{ t.dossier.name }}</div><div class="small text-muted">{{ t.dossier.code }}</div></td>
+        <td class="small text-nowrap">{% if t.due_at %}<span class="{% if t.is_overdue %}tk-late{% elif t.is_due_soon %}tk-miss{% endif %}">{{ t.due_at|due_short }}</span><div class="text-muted">{{ t.due_at|due_remaining }}</div>{% else %}—{% endif %}</td>
+        <td class="text-end text-nowrap">
+          {% if not t.accepted_at and t.state == 'open' %}
+          <form method="post" action="{% url 'thiet_ke_sp:action' t.dossier_id 'task_accept' %}" class="d-inline">{% csrf_token %}
+            <input type="hidden" name="task_id" value="{{ t.pk }}"><input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button type="submit" class="btn btn-sm btn-outline-hm py-0">Nhận việc</button>
+          </form>
+          {% endif %}
+          <a href="{{ t.dossier.get_absolute_url }}" class="btn btn-sm btn-hm text-white py-0">Mở</a>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="4" class="text-muted small text-center py-3">Không có việc.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>

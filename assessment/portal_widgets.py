@@ -646,6 +646,40 @@ def _report_comment_widgets(user):
     return widgets
 
 
+def _thiet_ke_sp_widgets(user):
+    from hrm.module_permissions import MODULE_THIET_KE_SP, user_can_access_module
+
+    if not user_can_access_module(user, MODULE_THIET_KE_SP):
+        return []
+    from thiet_ke_sp.context_processors import user_badges
+
+    badges = user_badges(user)
+    widgets = []
+    url = reverse('thiet_ke_sp:my_tasks')
+    if badges['overdue']:
+        widgets.append({
+            'level': 'danger',
+            'icon': 'bi-palette-fill',
+            'title': 'Thiết kế sản phẩm — quá hạn',
+            'text': f'{badges["overdue"]} việc hồ sơ thiết kế đã quá hạn.',
+            'url': url,
+            'action': 'Xử lý',
+            'badge': badges['overdue'],
+        })
+    pending = badges['tasks'] - badges['overdue']
+    if pending > 0:
+        widgets.append({
+            'level': 'warning',
+            'icon': 'bi-palette',
+            'title': 'Thiết kế sản phẩm',
+            'text': f'{pending} việc hồ sơ thiết kế đang chờ bạn xử lý.',
+            'url': url,
+            'action': 'Xem',
+            'badge': pending,
+        })
+    return widgets
+
+
 PORTAL_BADGE_CACHE_SECONDS = 60
 
 
@@ -747,6 +781,7 @@ def get_portal_dashboard(user):
     widgets.extend(_feedback_widgets(user))
     widgets.extend(_utilities_widgets(user))
     widgets.extend(_san_xuat_widgets(user))
+    widgets.extend(_thiet_ke_sp_widgets(user))
     widgets.extend(_report_comment_widgets(user))
 
     # --- HOD / GM: team chưa nộp BC ---

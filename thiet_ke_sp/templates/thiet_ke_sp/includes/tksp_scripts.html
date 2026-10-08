@@ -1,0 +1,43 @@
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
+<script>
+(function () {
+  function initUserSelects(root) {
+    if (typeof TomSelect === 'undefined') return;
+    (root || document).querySelectorAll('select.jp-tksp-user-select').forEach(function (el) {
+      if (el.tomselect || el.closest('template')) return;
+      new TomSelect(el, { create: false, maxOptions: 300, allowEmptyOption: true, dropdownParent: 'body' });
+    });
+  }
+  window.jpTkspInitUserSelects = initUserSelects;
+  document.addEventListener('DOMContentLoaded', function () { initUserSelects(document); });
+
+  document.addEventListener('click', function (e) {
+    var addBtn = e.target.closest('[data-tk-add-row]');
+    if (addBtn) {
+      var body = document.querySelector(addBtn.getAttribute('data-tk-add-row'));
+      var tpl = document.querySelector(addBtn.getAttribute('data-tk-template'));
+      if (!body || !tpl) return;
+      var index = body.querySelectorAll('tr').length;
+      var html = tpl.innerHTML.replace(/__i__/g, String(index));
+      body.insertAdjacentHTML('beforeend', html);
+      initUserSelects(body);
+      return;
+    }
+    var delBtn = e.target.closest('[data-tk-del-row]');
+    if (delBtn) {
+      var tr = delBtn.closest('tr');
+      if (tr) tr.remove();
+    }
+  });
+
+  document.addEventListener('submit', function (e) {
+    var form = e.target;
+    var msg = form.getAttribute('data-tk-confirm');
+    if (msg && !window.confirm(msg)) { e.preventDefault(); return; }
+    if (form.method.toLowerCase() !== 'post') return;
+    setTimeout(function () {
+      form.querySelectorAll('button[type="submit"]').forEach(function (b) { b.disabled = true; });
+    }, 0);
+  });
+})();
+</script>

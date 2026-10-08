@@ -37,5 +37,6 @@ urlpatterns = [
     path('danh-gia-ung-vien/goi-y-email/', views.candidate_suggest_email, name='recruitment_suggest_email'),
     path('danh-gia-ung-vien/<int:pk>/', views.review_candidate, name='recruitment_review_candidate'),
     path('danh-gia-ung-vien/<int:pk>/ket-qua-pv/', views.review_interview_result, name='recruitment_review_interview_result'),
+    path('danh-gia-ung-vien/<int:pk>/giam-doc-duyet/', views.review_final_decision, name='recruitment_review_final_decision'),
     path('danh-gia-ung-vien/<int:pk>/files/', views.manager_file_upload, name='recruitment_manager_file_upload'),
 ]

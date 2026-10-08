@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% load sx_format tksp_tags %}
+{% block title %}Việc chờ tôi xử lý{% endblock %}
+{% block extra_head %}{% include 'thiet_ke_sp/includes/tksp_styles.html' %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-sx-page jp-tksp py-3 py-md-4 mb-5 px-3 px-lg-4">
+  {% include 'thiet_ke_sp/includes/tksp_topbar.html' with tk_title='Việc chờ tôi xử lý' tk_active='my_tasks' %}
+
+  <div class="tk-kpis mb-3">
+    <div class="tk-kpi"><div><div class="cap">Đang mở</div><div class="num">{{ open_count|sx_num }}</div></div><div class="ico info"><i class="bi bi-inbox"></i></div></div>
+    <div class="tk-kpi"><div><div class="cap">Quá hạn</div><div class="num">{{ groups.overdue|length }}</div>{% if groups.overdue %}<div class="sub is-bad">Cần xử lý ngay</div>{% endif %}</div><div class="ico"><i class="bi bi-exclamation-lg"></i></div></div>
+    <div class="tk-kpi"><div><div class="cap">Đến hạn trong 24 giờ</div><div class="num">{{ groups.soon|length }}</div></div><div class="ico warn"><i class="bi bi-hourglass-split"></i></div></div>
+    <div class="tk-kpi"><div><div class="cap">Còn hạn</div><div class="num">{{ groups.later|length }}</div></div><div class="ico ok"><i class="bi bi-calendar-check"></i></div></div>
+  </div>
+
+  {% if groups.overdue %}
+  <div class="tk-card tk-panel mb-3">
+    <div class="tk-panel-head"><div class="tk-panel-title tk-bad"><i class="bi bi-exclamation-triangle me-1"></i>Quá hạn</div></div>
+    {% include 'thiet_ke_sp/includes/task_table.html' with tasks=groups.overdue %}
+  </div>
+  {% endif %}
+  {% if groups.soon %}
+  <div class="tk-card tk-panel mb-3">
+    <div class="tk-panel-head"><div class="tk-panel-title tk-miss"><i class="bi bi-hourglass-split me-1"></i>Đến hạn trong 24 giờ</div></div>
+    {% include 'thiet_ke_sp/includes/task_table.html' with tasks=groups.soon %}
+  </div>
+  {% endif %}
+  <div class="tk-card tk-panel mb-3">
+    <div class="tk-panel-head"><div class="tk-panel-title"><i class="bi bi-list-task me-1"></i>Còn hạn</div></div>
+    {% include 'thiet_ke_sp/includes/task_table.html' with tasks=groups.later %}
+  </div>
+
+  {% if recent_done %}
+  <div class="tk-card tk-panel">
+    <div class="tk-panel-head"><div class="tk-panel-title text-muted"><i class="bi bi-check2-all me-1"></i>Đã hoàn thành gần đây</div></div>
+    <div class="table-responsive">
+      <table class="table tk-mini-table align-middle">
+        <tbody>
+        {% for t in recent_done %}
+          <tr class="jp-npl-catalog-row" data-href="{{ t.dossier.get_absolute_url }}"><td class="fw-semibold">{{ t.title }}</td><td>{{ t.dossier.name }} <span class="text-muted small">· {{ t.dossier.code }}</span></td><td class="text-nowrap text-muted text-end">{{ t.completed_at|date:'H:i d/m/Y' }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% include 'thiet_ke_sp/includes/tksp_scripts.html' %}
+{% endblock %}

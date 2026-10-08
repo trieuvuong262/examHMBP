@@ -1,0 +1,79 @@
+{% load tksp_tags %}
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="tk-section h-100">
+      <div class="tk-section-title"><i class="bi bi-chat-dots"></i>Trao đổi</div>
+      {% if flags.comment %}
+      <form method="post" action="{% url 'thiet_ke_sp:action' dossier.pk 'comment_add' %}" class="mb-3">{% csrf_token %}
+        <input type="hidden" name="return_tab" value="files">
+        <textarea name="body" class="form-control mb-2" rows="3" required></textarea>
+        <div class="d-flex gap-2">
+          <select name="scope" class="form-select form-select-sm" style="max-width: 240px;">
+            <option value="">Chung cho hồ sơ</option>
+            {% if current_dv %}<option value="d{{ current_dv.pk }}">Thiết kế {{ current_dv.label }}</option>{% endif %}
+            {% if current_sv %}<option value="s{{ current_sv.pk }}">Mẫu {{ current_sv.label }}</option>{% endif %}
+          </select>
+          <button type="submit" class="btn btn-sm btn-hm text-white fw-bold ms-auto"><i class="bi bi-send me-1"></i>Gửi</button>
+        </div>
+      </form>
+      {% endif %}
+      {% for c in comments %}
+      <div class="tk-comment{% if c.is_revision_request %} is-revision{% endif %}">
+        <div class="small text-muted mb-1">
+          <strong class="text-body">{{ c.author|uname }}</strong> · {{ c.created_at|date:'H:i d/m/Y' }}
+          {% if c.design_version %} <span class="tk-pill is-gray">{{ c.design_version.label }}</span>{% endif %}
+          {% if c.sample_version %} <span class="tk-pill is-gray">{{ c.sample_version.label }}</span>{% endif %}
+          {% if c.is_revision_request %} <span class="tk-pill is-red">Yêu cầu chỉnh sửa</span>{% endif %}
+        </div>
+        {{ c.body|linebreaksbr }}
+      </div>
+      {% empty %}
+      <div class="small text-muted">Chưa có trao đổi.</div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="tk-section">
+      <div class="tk-section-title"><i class="bi bi-paperclip"></i>Tệp chung của hồ sơ</div>
+      <div class="tk-thumbs mb-2">
+        {% for a in dossier_files %}{% include 'thiet_ke_sp/includes/thumb.html' with a=a label='' missing=False can_delete=user_is_participant %}{% empty %}<span class="small text-muted">Chưa có tệp.</span>{% endfor %}
+      </div>
+      {% if can_upload_dossier_other or can_upload_reference or can_upload_cost %}
+      <form method="post" action="{% url 'thiet_ke_sp:upload' dossier.pk %}" enctype="multipart/form-data" class="row g-2 align-items-end">{% csrf_token %}
+        <input type="hidden" name="return_tab" value="files">
+        <div class="col-md-4">
+          <label class="form-label fw-bold small mb-1">Loại</label>
+          <select name="kind" class="form-select form-select-sm">
+            {% for k, l in dossier_kinds %}
+            {% if k == 'reference' and can_upload_reference or k == 'cost' and can_upload_cost or k == 'other' and can_upload_dossier_other %}<option value="{{ k }}">{{ l }}</option>{% endif %}
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-8"><label class="form-label fw-bold small mb-1">Tệp</label><input type="file" name="files" class="form-control form-control-sm" multiple required></div>
+        <div class="col-md-8"><input type="text" name="note" class="form-control form-control-sm" placeholder="Ghi chú" maxlength="255"></div>
+        <div class="col-md-4"><button type="submit" class="btn btn-sm btn-hm text-white w-100 fw-bold"><i class="bi bi-upload me-1"></i>Tải lên</button></div>
+      </form>
+      {% endif %}
+    </div>
+    <div class="tk-section">
+      <div class="tk-section-title"><i class="bi bi-folder2-open"></i>Tệp theo phiên bản</div>
+      <div class="table-responsive">
+        <table class="table tk-mini-table align-middle">
+          <thead><tr><th>Phiên bản</th><th>Loại</th><th>Tệp</th><th>Người tải</th></tr></thead>
+          <tbody>
+          {% for dv in design_versions %}{% for a in dv.live_atts %}
+            <tr{% if not a.is_current or not dv.is_current %} class="text-muted"{% endif %}><td>{{ dv.label }}</td><td>{{ a.get_kind_display }}{% if a.colorway %} · {{ a.colorway.name }}{% endif %}</td><td><a href="{{ a.get_absolute_url }}" target="_blank" rel="noopener">{{ a.display_name }}</a>{% if not a.is_current %} <span class="tk-pill is-gray">đã thay</span>{% endif %}</td><td>{{ a.uploaded_by|uname }} · {{ a.uploaded_at|date:'d/m/Y' }}</td></tr>
+          {% endfor %}{% endfor %}
+          {% for sv in samples %}{% for a in sv.photos %}
+            <tr{% if not sv.is_current %} class="text-muted"{% endif %}><td>{{ sv.label }}</td><td>{{ a.get_kind_display }}</td><td><a href="{{ a.get_absolute_url }}" target="_blank" rel="noopener">{{ a.display_name }}</a></td><td>{{ a.uploaded_by|uname }} · {{ a.uploaded_at|date:'d/m/Y' }}</td></tr>
+          {% endfor %}{% for a in sv.tech_files %}
+            <tr{% if not sv.is_current %} class="text-muted"{% endif %}><td>{{ sv.label }}</td><td>{{ a.get_kind_display }}</td><td><a href="{{ a.get_absolute_url }}" target="_blank" rel="noopener">{{ a.display_name }}</a></td><td>{{ a.uploaded_by|uname }} · {{ a.uploaded_at|date:'d/m/Y' }}</td></tr>
+          {% endfor %}{% for a in sv.eval_files %}
+            <tr{% if not sv.is_current %} class="text-muted"{% endif %}><td>{{ sv.label }}</td><td>{{ a.get_kind_display }}</td><td><a href="{{ a.get_absolute_url }}" target="_blank" rel="noopener">{{ a.display_name }}</a></td><td>{{ a.uploaded_by|uname }} · {{ a.uploaded_at|date:'d/m/Y' }}</td></tr>
+          {% endfor %}{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

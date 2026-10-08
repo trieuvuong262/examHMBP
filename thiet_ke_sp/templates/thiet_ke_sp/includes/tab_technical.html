@@ -1,0 +1,66 @@
+{% load sx_format tksp_tags %}
+{% if not current_sv %}
+<div class="tk-section text-muted small">Chưa có hồ sơ kỹ thuật.</div>
+{% else %}
+{% with sv=current_sv pack=current_sv.pack %}
+<div class="tk-section">
+  <div class="tk-section-title">
+    <span class="tk-version-pill"><i class="bi bi-rulers"></i>Hồ sơ kỹ thuật mẫu {{ sv.label }}</span>
+    <span class="tk-section-sub">theo thiết kế {{ sv.design_version.label }}{% if pack.updated_at %} · cập nhật {{ pack.updated_by|uname }} {{ pack.updated_at|date:'H:i d/m/Y' }}{% endif %}</span>
+  </div>
+  {% if tech_pack_form %}
+  <form method="post" action="{% url 'thiet_ke_sp:action' dossier.pk 'techpack_save' %}">{% csrf_token %}
+    <input type="hidden" name="sample_version_id" value="{{ sv.pk }}"><input type="hidden" name="return_tab" value="technical">
+    <div class="row g-3">
+      {% include 'thiet_ke_sp/includes/field.html' with field=tech_pack_form.size_spec col='col-12' %}
+      {% include 'thiet_ke_sp/includes/field.html' with field=tech_pack_form.cutting_req %}
+      {% include 'thiet_ke_sp/includes/field.html' with field=tech_pack_form.sewing_req %}
+      {% include 'thiet_ke_sp/includes/field.html' with field=tech_pack_form.decoration_req %}
+      {% include 'thiet_ke_sp/includes/field.html' with field=tech_pack_form.finishing_req %}
+      {% include 'thiet_ke_sp/includes/field.html' with field=tech_pack_form.packing_req %}
+    </div>
+    <h3 class="tk-sub mt-3">BOM nguyên phụ liệu</h3>
+    <div class="table-responsive">
+      <table class="table tk-mini-table align-middle mb-2">
+        <thead><tr><th style="min-width: 180px;">Nguyên phụ liệu</th><th style="width: 90px;">Loại</th><th>Quy cách / màu</th><th style="width: 100px;">Định mức</th><th style="width: 80px;">ĐVT</th><th style="width: 120px;">Đơn giá</th><th style="width: 44px;"></th></tr></thead>
+        <tbody id="tkBomBody">
+          {% for ln in sv.lines %}{% include 'thiet_ke_sp/includes/bom_row.html' with ln=ln %}{% empty %}{% include 'thiet_ke_sp/includes/bom_row.html' with ln=None %}{% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <template id="tkBomTpl">{% include 'thiet_ke_sp/includes/bom_row.html' with ln=None %}</template>
+    <div class="d-flex justify-content-between">
+      <button type="button" class="btn btn-sm btn-light border" data-tk-add-row="#tkBomBody" data-tk-template="#tkBomTpl"><i class="bi bi-plus-lg me-1"></i>Thêm dòng</button>
+      <button type="submit" class="btn btn-sm btn-hm text-white fw-bold"><i class="bi bi-save me-1"></i>Lưu hồ sơ kỹ thuật</button>
+    </div>
+  </form>
+  {% else %}
+  <div class="tk-field"><label>Bảng thông số kích thước</label><span class="v">{{ pack.size_spec|default:'—' }}</span></div>
+  <div class="tk-grid2">
+    <div class="tk-field"><label>Yêu cầu cắt</label><span class="v">{{ pack.cutting_req|default:'—' }}</span></div>
+    <div class="tk-field"><label>Yêu cầu may</label><span class="v">{{ pack.sewing_req|default:'—' }}</span></div>
+    <div class="tk-field"><label>In / ép / thêu</label><span class="v">{{ pack.decoration_req|default:'—' }}</span></div>
+    <div class="tk-field"><label>Hoàn thiện</label><span class="v">{{ pack.finishing_req|default:'—' }}</span></div>
+    <div class="tk-field"><label>Đóng gói</label><span class="v">{{ pack.packing_req|default:'—' }}</span></div>
+  </div>
+  <h3 class="tk-sub mt-3">BOM nguyên phụ liệu</h3>
+  {% include 'thiet_ke_sp/includes/bom_table.html' with lines=sv.lines %}
+  {% endif %}
+</div>
+
+<div class="tk-section">
+  <div class="tk-section-title"><i class="bi bi-file-earmark-ruled"></i>Tài liệu kỹ thuật {{ sv.label }}</div>
+  <div class="tk-thumbs mb-2">
+    {% for a in sv.tech_files %}{% include 'thiet_ke_sp/includes/thumb.html' with a=a label='' missing=False can_delete=flags.edit_tech_pack %}{% empty %}<span class="small text-muted">Chưa có tệp.</span>{% endfor %}
+  </div>
+  {% if can_upload_tech %}
+  <form method="post" action="{% url 'thiet_ke_sp:upload' dossier.pk %}" enctype="multipart/form-data" class="row g-2 align-items-end">{% csrf_token %}
+    <input type="hidden" name="sample_version_id" value="{{ sv.pk }}"><input type="hidden" name="kind" value="tech_spec"><input type="hidden" name="return_tab" value="technical">
+    <div class="col-md-7"><input type="file" name="files" class="form-control form-control-sm" multiple required></div>
+    <div class="col-md-3"><input type="text" name="note" class="form-control form-control-sm" placeholder="Ghi chú" maxlength="255"></div>
+    <div class="col-md-2"><button type="submit" class="btn btn-sm btn-hm text-white w-100 fw-bold"><i class="bi bi-upload me-1"></i>Tải lên</button></div>
+  </form>
+  {% endif %}
+</div>
+{% endwith %}
+{% endif %}

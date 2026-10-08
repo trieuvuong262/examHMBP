@@ -34,6 +34,7 @@ MENU_CANDIDATES = 'candidates'
 MENU_JOBS = 'jobs'
 MENU_SETTINGS = 'settings'
 EXTRA_ALL_DEPARTMENTS = 'all_departments'
+EXTRA_FINAL_APPROVE = 'final_approve'
 
 
 def can_candidates(user, action: str = 'view') -> bool:
@@ -56,6 +57,29 @@ def can_onboard(user) -> bool:
 def is_hiring_manager(user) -> bool:
     """Trưởng bộ phận, Trưởng phòng hoặc Giám đốc (kể cả kiêm nhiệm)."""
     return bool(getattr(user, 'is_authenticated', False)) and user_is_division_head(user)
+
+
+def can_final_approve(user) -> bool:
+    """Giám đốc duyệt cấp 2 (mọi phòng ban) — quyền bổ sung trong nhóm quyền hoặc superuser."""
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    if bypass_department_modules(user):
+        return True
+    extras = get_user_group_permissions(user).get(MODULE_RECRUITMENT, {}).get('extras')
+    return bool(isinstance(extras, dict) and extras.get(EXTRA_FINAL_APPROVE))
+
+
+def final_queue(user):
+    """Hồ sơ phỏng vấn Đạt đang chờ giám đốc duyệt — rỗng nếu user không có quyền duyệt."""
+    from recruitment.models import Candidate, Interview
+
+    if not can_final_approve(user):
+        return Candidate.objects.none()
+    return Candidate.objects.filter(
+        status=Candidate.STATUS_INTERVIEWING,
+        interview__result=Interview.RESULT_PASS,
+        interview__final_result=Interview.FINAL_PENDING,
+    )
 
 
 # ---------------------------------------------------------------- phạm vi

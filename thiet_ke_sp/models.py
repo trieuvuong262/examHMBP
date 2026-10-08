@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import uuid
+from datetime import timedelta
 from decimal import Decimal
 
 from django.conf import settings
@@ -64,6 +65,24 @@ STATUS_BADGES = {
     Status.HANDED_OVER: 'success',
     Status.PAUSED: 'secondary',
     Status.CANCELLED: 'dark',
+    Status.CLOSED: 'dark',
+}
+
+STATUS_TONES = {
+    Status.DRAFT: 'gray',
+    Status.BRIEF_PENDING: 'amber',
+    Status.BRIEF_NEEDS_INFO: 'red',
+    Status.DESIGNING: 'blue',
+    Status.DESIGN_PENDING: 'amber',
+    Status.DESIGN_REVISE: 'red',
+    Status.SAMPLING: 'blue',
+    Status.SAMPLE_EVAL_PENDING: 'amber',
+    Status.SAMPLE_REVISE: 'red',
+    Status.MASTER_PENDING: 'purple',
+    Status.APPROVED: 'green',
+    Status.HANDED_OVER: 'green',
+    Status.PAUSED: 'gray',
+    Status.CANCELLED: 'gray',
     Status.CLOSED: 'dark',
 }
 
@@ -273,6 +292,28 @@ class ProductDevelopment(models.Model):
         return PRIORITY_BADGES.get(self.priority, 'secondary')
 
     @property
+    def status_tone(self) -> str:
+        return STATUS_TONES.get(self.status, 'gray')
+
+    @property
+    def step_no(self) -> int:
+        status = self.paused_from_status if self.status == Status.PAUSED and self.paused_from_status else self.status
+        for index, (_key, _label, statuses) in enumerate(STEPS, start=1):
+            if status in statuses:
+                return index
+        return 1
+
+    @property
+    def step_total(self) -> int:
+        return len(STEPS)
+
+    @property
+    def step_pct(self) -> int:
+        if self.status in DONE_STATUSES:
+            return 100
+        return round((self.step_no - 1) * 100 / len(STEPS))
+
+    @property
     def cost_for_variance(self) -> Decimal | None:
         return self.post_sample_cost if self.post_sample_cost is not None else self.estimated_cost
 
@@ -376,7 +417,7 @@ class SampleVersion(models.Model):
     dossier = models.ForeignKey(ProductDevelopment, on_delete=models.CASCADE, related_name='sample_versions')
     version_no = models.PositiveIntegerField(verbose_name='Lần làm mẫu')
     design_version = models.ForeignKey(
-        DesignVersion, on_delete=models.PROTECT, related_name='samples', verbose_name='Theo thiết kế',
+        DesignVersion, on_delete=models.CASCADE, related_name='samples', verbose_name='Theo thiết kế',
     )
     state = models.CharField(max_length=20, choices=STATE_CHOICES, default=STATE_IN_PROGRESS)
     is_current = models.BooleanField(default=True, verbose_name='Phiên bản hiện hành')
@@ -616,6 +657,13 @@ class Task(models.Model):
         return self.state == self.STATE_OPEN and bool(self.due_at) and self.due_at < timezone.now()
 
     @property
+    def is_due_soon(self) -> bool:
+        if self.state != self.STATE_OPEN or not self.due_at:
+            return False
+        left = self.due_at - timezone.now()
+        return timedelta(0) <= left <= timedelta(hours=48)
+
+    @property
     def days_late(self) -> int:
         if not self.is_overdue:
             return 0
@@ -768,8 +816,8 @@ class AuditLog(models.Model):
 class Handover(models.Model):
     dossier = models.OneToOneField(ProductDevelopment, on_delete=models.CASCADE, related_name='handover')
     product_code = models.CharField(max_length=60, verbose_name='Mã sản phẩm chính thức')
-    design_version = models.ForeignKey(DesignVersion, on_delete=models.PROTECT, related_name='+')
-    sample_version = models.ForeignKey(SampleVersion, on_delete=models.PROTECT, related_name='+')
+    design_version = models.ForeignKey(DesignVersion, on_delete=models.CASCADE, related_name='+')
+    sample_version = models.ForeignKey(SampleVersion, on_delete=models.CASCADE, related_name='+')
     tech_doc = models.ForeignKey(
         'san_xuat.ProductTechDoc', on_delete=models.SET_NULL, null=True, blank=True,
         related_name='tksp_handovers', verbose_name='Hồ sơ thiết kế SX',

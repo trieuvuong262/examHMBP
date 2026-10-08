@@ -74,7 +74,7 @@ def allowed_targets(candidate) -> list[str]:
     targets = set(TRANSITIONS.get(candidate.status, ()))
     if C.STATUS_OFFERED in targets and candidate.status == C.STATUS_INTERVIEWING:
         interview = candidate.interview_or_none
-        if not interview or interview.result != Interview.RESULT_PASS:
+        if not interview or not interview.is_approved:
             targets.discard(C.STATUS_OFFERED)
     return sorted(targets, key=lambda s: [k for k, _ in C.STATUS_CHOICES].index(s))
 
@@ -387,14 +387,18 @@ def transition(candidate, to_status: str, *, actor, reason: str = '',
                 'location': (location or '').strip(),
                 'result': Interview.RESULT_PENDING,
                 'result_notes': '',
+                'final_result': Interview.FINAL_NONE,
+                'final_notes': '',
+                'final_by': None,
+                'final_at': None,
             },
         )
         interview.interviewers.set(interviewers or [])
 
     if to_status == C.STATUS_OFFERED:
         interview = candidate.interview_or_none
-        if not interview or interview.result != Interview.RESULT_PASS:
-            raise RecruitmentError('Chỉ trúng tuyển khi kết quả phỏng vấn là «Đạt».')
+        if not interview or not interview.is_approved:
+            raise RecruitmentError('Chỉ trúng tuyển khi phỏng vấn «Đạt» và giám đốc đã duyệt «Đạt».')
         JobPosting.objects.select_for_update().filter(pk=job.pk).first()
         if filled_count(job, exclude_candidate_id=candidate.pk) >= job.quantity:
             raise RecruitmentError(f'Vị trí đã đủ chỉ tiêu ({job.quantity}).')
@@ -431,7 +435,7 @@ class InterviewOutcome:
 
 @transaction.atomic
 def record_interview_result(candidate, result: str, notes: str, *, actor, check_permission=True) -> InterviewOutcome:
-    """Lưu kết quả PV rồi tự chuyển bước: Đạt → Trúng tuyển (nếu còn chỉ tiêu), Không đạt → Loại."""
+    """Cấp 1 — lưu kết quả PV: Đạt → chờ giám đốc duyệt, Không đạt → tự chuyển Loại."""
     from .permissions import can_record_interview_result
 
     candidate = Candidate.objects.select_for_update().select_related('job_posting').get(pk=candidate.pk)
@@ -454,7 +458,8 @@ def record_interview_result(candidate, result: str, notes: str, *, actor, check_
 
     interview.result = result
     interview.result_notes = notes
-    interview.save(update_fields=['result', 'result_notes'])
+    interview.final_result = Interview.FINAL_PENDING if result == Interview.RESULT_PASS else Interview.FINAL_NONE
+    interview.save(update_fields=['result', 'result_notes', 'final_result'])
     label = dict(Interview.RESULT_CHOICES)[result]
     _log(candidate, CandidateEvent.KIND_INTERVIEW, actor=actor,
          message=f'Kết quả: {label}' + (f' — {notes}' if notes else ''))
@@ -464,6 +469,43 @@ def record_interview_result(candidate, result: str, notes: str, *, actor, check_
         transition(candidate, C.STATUS_REJECTED, actor=actor, reason=f'Không đạt phỏng vấn: {notes}')
         candidate.refresh_from_db()
         return InterviewOutcome(candidate, result, C.STATUS_REJECTED, f'{name}: Không đạt — đã tự chuyển sang «Loại».')
+    return InterviewOutcome(candidate, result, None, f'{name}: Đạt — chờ giám đốc duyệt.')
+
+
+@transaction.atomic
+def record_final_decision(candidate, decision: str, notes: str, *, actor, check_permission=True) -> InterviewOutcome:
+    """Cấp 2 — giám đốc duyệt: Đạt → Trúng tuyển (nếu còn chỉ tiêu), Không đạt → Loại.
+
+    Giám đốc đã phỏng vấn (nhập cấp 1) vẫn phải duyệt riêng ở cấp 2.
+    """
+    from .permissions import can_final_approve
+
+    candidate = Candidate.objects.select_for_update().select_related('job_posting').get(pk=candidate.pk)
+    interview = candidate.interview_or_none
+    if candidate.status != C.STATUS_INTERVIEWING or not interview or not interview.awaiting_final:
+        raise RecruitmentError('Hồ sơ không ở bước chờ giám đốc duyệt.')
+    if check_permission and not can_final_approve(actor):
+        raise RecruitmentError('Bạn không có quyền duyệt cấp 2.')
+    if decision not in (Interview.FINAL_PASS, Interview.FINAL_FAIL):
+        raise RecruitmentError('Kết luận duyệt không hợp lệ.')
+    notes = (notes or '').strip()
+    if decision == Interview.FINAL_FAIL and not notes:
+        raise RecruitmentError('Cần nhận xét khi duyệt «Không đạt».')
+
+    interview.final_result = decision
+    interview.final_notes = notes
+    interview.final_by = actor
+    interview.final_at = timezone.now()
+    interview.save(update_fields=['final_result', 'final_notes', 'final_by', 'final_at'])
+    label = 'Đạt' if decision == Interview.FINAL_PASS else 'Không đạt'
+    _log(candidate, CandidateEvent.KIND_INTERVIEW, actor=actor,
+         message=f'Giám đốc duyệt: {label}' + (f' — {notes}' if notes else ''))
+
+    name = candidate.full_name
+    if decision == Interview.FINAL_FAIL:
+        transition(candidate, C.STATUS_REJECTED, actor=actor, reason=f'Giám đốc duyệt không đạt: {notes}')
+        candidate.refresh_from_db()
+        return InterviewOutcome(candidate, decision, C.STATUS_REJECTED, f'{name}: Không đạt — đã chuyển sang «Loại».')
 
     job = candidate.job_posting
     JobPosting.objects.select_for_update().filter(pk=job.pk).first()
@@ -471,13 +513,13 @@ def record_interview_result(candidate, result: str, notes: str, *, actor, check_
         _log(candidate, CandidateEvent.KIND_NOTE, actor=actor,
              message=f'Đạt nhưng vị trí đã đủ chỉ tiêu ({job.quantity}) — chờ HR xử lý.')
         return InterviewOutcome(
-            candidate, result, None,
+            candidate, decision, None,
             f'{name}: Đạt, nhưng vị trí đã đủ chỉ tiêu ({job.quantity}) — giữ ở bước Phỏng vấn, '
             f'HR tăng chỉ tiêu hoặc xử lý thủ công.',
         )
-    transition(candidate, C.STATUS_OFFERED, actor=actor, reason='Tự động: kết quả phỏng vấn Đạt.')
+    transition(candidate, C.STATUS_OFFERED, actor=actor, reason='Tự động: giám đốc duyệt Đạt.')
     candidate.refresh_from_db()
-    return InterviewOutcome(candidate, result, C.STATUS_OFFERED, f'{name}: Đạt — đã tự chuyển sang «Trúng tuyển».')
+    return InterviewOutcome(candidate, decision, C.STATUS_OFFERED, f'{name}: Đạt — đã chuyển sang «Trúng tuyển».')
 
 
 # ---------------------------------------------------------------- manager review

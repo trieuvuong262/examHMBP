@@ -61,12 +61,14 @@ from .models import (
 )
 from .permissions import (
     can_candidates,
+    can_final_approve,
     can_jobs,
     can_onboard,
     can_record_interview_result,
     can_review_candidate,
     can_settings,
     can_view_candidate,
+    final_queue,
     interview_queue,
     is_hiring_manager,
     is_interviewer,
@@ -112,6 +114,7 @@ REVIEW_DECISION_UI = {
     CandidateReview.DECISION_RECOMMEND: ('is-pass', 'bi-check-circle-fill'),
     CandidateReview.DECISION_NOT_SUITABLE: ('is-fail', 'bi-x-circle-fill'),
 }
+TAB_FINAL = 'giam-doc-duyet'
 JOB_ATTENTION = 'can-chu-y'
 JOB_DEADLINE_SOON_DAYS = 7
 
@@ -145,7 +148,8 @@ def _reviewer_required(view_func):
     @login_required
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
-        if not (is_hiring_manager(request.user) or interview_queue(request.user).exists()):
+        user = request.user
+        if not (is_hiring_manager(user) or can_final_approve(user) or interview_queue(user).exists()):
             messages.error(request, 'Chức năng dành cho quản lý và người được giao phỏng vấn.')
             return redirect('home_portal')
         return view_func(request, *args, **kwargs)
@@ -501,7 +505,7 @@ def _need_action_q(now):
     return (
         Q(status=C.STATUS_NEW)
         | (Q(status=C.STATUS_REVIEWING) & Q(has_recommend))
-        | Q(status=C.STATUS_INTERVIEWING, interview__result=Interview.RESULT_PASS)
+        | Q(status=C.STATUS_INTERVIEWING, interview__final_result=Interview.FINAL_PASS)
         | Q(status=C.STATUS_INTERVIEWING, interview__result=Interview.RESULT_PENDING, interview__end_time__lte=now)
         | Q(status=C.STATUS_OFFERED)
     )
@@ -552,6 +556,8 @@ def _next_step(cand, now, *, can_move, can_onboard_user):
         days = (now - cand.status_changed_at).days if cand.status_changed_at else 0
         return {'tone': 'alert' if days >= 3 else 'wait', 'label': 'Chờ quản lý đánh giá'}
     if s == C.STATUS_INTERVIEWING and inv:
+        if inv.awaiting_final:
+            return {'tone': 'wait', 'label': 'Chờ giám đốc duyệt'}
         if inv.result == Interview.RESULT_PASS:
             return {'tone': 'alert', 'label': 'Đạt — vị trí đủ chỉ tiêu'}
         if inv.interview_time > now:
@@ -839,7 +845,7 @@ def _save_interview_result(request, candidate):
     except services.RecruitmentError as exc:
         messages.error(request, str(exc))
         return False
-    (messages.success if outcome.auto_status else messages.warning)(request, outcome.message)
+    messages.success(request, outcome.message)
     return True
 
 
@@ -1074,6 +1080,13 @@ def review_list(request):
         ]
     else:
         tabs_spec = [('phong-van', 'Kết quả phỏng vấn', interviews)]
+    if can_final_approve(user):
+        finals = (
+            _candidate_qs().filter(pk__in=final_queue(user).values('pk'))
+            .select_related('interview').prefetch_related('interview__interviewers__profile')
+            .order_by('status_changed_at', 'pk')
+        )
+        tabs_spec.insert(0, (TAB_FINAL, 'Giám đốc duyệt', finals))
     current = request.GET.get('tab') or tabs_spec[0][0]
     if current not in {key for key, _, _ in tabs_spec}:
         current = tabs_spec[0][0]
@@ -1105,9 +1118,29 @@ def _reviewer_candidate(request, pk):
     if not (
         (is_hiring_manager(user) and manager_can_access_job(user, candidate.job_posting))
         or is_interviewer(user, candidate)
+        or can_final_approve(user)
     ):
         raise PermissionDenied
     return candidate
+
+
+@login_required
+@require_POST
+def review_final_decision(request, pk):
+    candidate = _reviewer_candidate(request, pk)
+    user = request.user
+    try:
+        outcome = services.record_final_decision(
+            candidate, request.POST.get('decision', ''), request.POST.get('notes', ''), actor=user,
+        )
+    except services.RecruitmentError as exc:
+        messages.error(request, str(exc))
+        return redirect('recruitment_review_candidate', pk=pk)
+    (messages.success if outcome.auto_status else messages.warning)(request, outcome.message)
+    nxt = final_queue(user).exclude(pk=candidate.pk).order_by('status_changed_at', 'pk').first()
+    if nxt:
+        return redirect('recruitment_review_candidate', pk=nxt.pk)
+    return redirect(f'{reverse("recruitment_review_list")}?tab={TAB_FINAL}')
 
 
 @login_required
@@ -1161,8 +1194,16 @@ def review_candidate(request, pk):
     reviews = list(ctx['reviews'])
     files = ctx['files']
     primary = candidate.primary_file
-    pending_ids = list(_pending_reviews(user).values_list('pk', flat=True)) if is_hiring_manager(user) else []
+    interview = ctx['interview']
+    can_final = bool(interview and interview.awaiting_final and can_final_approve(user))
+    if can_final:
+        pending_ids = list(final_queue(user).order_by('status_changed_at', 'pk').values_list('pk', flat=True))
+    elif is_hiring_manager(user):
+        pending_ids = list(_pending_reviews(user).values_list('pk', flat=True))
+    else:
+        pending_ids = []
     ctx.update({
+        'can_final': can_final,
         'reviews': reviews,
         'other_reviews': [r for r in reviews if r.reviewer_id != user.pk],
         'viewer_file': primary or (files[0] if files else None),

@@ -445,6 +445,27 @@ class Interview(models.Model):
         max_length=10, choices=RESULT_CHOICES, default=RESULT_PENDING, verbose_name='Kết quả',
     )
     result_notes = models.TextField(blank=True, verbose_name='Nhận xét phỏng vấn')
+    # Duyệt cấp 2 (giám đốc) — chỉ phát sinh khi kết quả cấp 1 là Đạt.
+    FINAL_NONE = ''
+    FINAL_PENDING = 'pending'
+    FINAL_PASS = 'pass'
+    FINAL_FAIL = 'fail'
+    FINAL_CHOICES = [
+        (FINAL_NONE, '—'),
+        (FINAL_PENDING, 'Chờ giám đốc duyệt'),
+        (FINAL_PASS, 'Giám đốc duyệt Đạt'),
+        (FINAL_FAIL, 'Giám đốc duyệt Không đạt'),
+    ]
+    final_result = models.CharField(
+        max_length=10, choices=FINAL_CHOICES, default=FINAL_NONE, blank=True, db_index=True,
+        verbose_name='Duyệt cấp 2',
+    )
+    final_notes = models.TextField(blank=True, verbose_name='Nhận xét giám đốc')
+    final_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name='interviews_final_approved',
+        verbose_name='Giám đốc duyệt',
+    )
+    final_at = models.DateTimeField(null=True, blank=True, verbose_name='Thời điểm duyệt')
 
     class Meta:
         verbose_name = 'Lịch phỏng vấn'
@@ -453,6 +474,15 @@ class Interview(models.Model):
 
     def __str__(self):
         return f'Phỏng vấn: {self.candidate.full_name}'
+
+    @property
+    def awaiting_final(self) -> bool:
+        return self.result == self.RESULT_PASS and self.final_result == self.FINAL_PENDING
+
+    @property
+    def is_approved(self) -> bool:
+        """Đạt cả 2 cấp — điều kiện để Trúng tuyển."""
+        return self.result == self.RESULT_PASS and self.final_result == self.FINAL_PASS
 
     @property
     def duration_minutes(self) -> int | None:

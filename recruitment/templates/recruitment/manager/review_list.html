@@ -28,7 +28,27 @@
   <div class="card border-0 shadow-sm jp-rc-card overflow-hidden">
     {% for cand in items %}
     {% with job=cand.job_posting %}
-    {% if current_tab == 'phong-van' %}
+    {% if current_tab == 'giam-doc-duyet' %}
+    {% with inv=cand.interview %}
+    <div class="jp-rc-row needs-action">
+      <span class="jp-rc-avatar" aria-hidden="true">{{ cand.full_name|slice:":1"|upper }}</span>
+      <div class="jp-rc-row-main">
+        <a class="jp-rc-row-title" href="{% url 'recruitment_review_candidate' cand.pk %}">{{ cand.full_name }}</a>
+        <div class="jp-rc-row-meta">{{ job.title }} · {{ job.department_label }}</div>
+        <div class="jp-rc-row-meta">
+          <i class="bi bi-person-video3" aria-hidden="true"></i> PV {{ inv.time_range_label }}
+          · {% for u in inv.interviewers.all %}{{ u.profile.full_name|default:u.username }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}
+        </div>
+        {% if inv.result_notes %}<div class="jp-rc-row-meta text-truncate" title="{{ inv.result_notes }}"><i class="bi bi-chat-left-text" aria-hidden="true"></i> {{ inv.result_notes }}</div>{% endif %}
+      </div>
+      <div class="jp-rc-row-side">
+        {% include 'recruitment/includes/cv_button.html' with candidate=cand f=cand.primary_file label='CV' %}
+        <span class="jp-rc-badge is-pass">PV Đạt</span>
+        <a href="{% url 'recruitment_review_candidate' cand.pk %}" class="btn btn-hm btn-sm fw-bold">Duyệt</a>
+      </div>
+    </div>
+    {% endwith %}
+    {% elif current_tab == 'phong-van' %}
     {% with inv=cand.interview %}
     <div class="jp-rc-row{% if inv.interview_time <= now %} needs-action{% endif %}">
       <span class="jp-rc-avatar" aria-hidden="true">{{ cand.full_name|slice:":1"|upper }}</span>
@@ -89,7 +109,10 @@
     {% endwith %}
     {% empty %}
     <div class="jp-rc-empty">
-      {% if current_tab == 'phong-van' %}
+      {% if current_tab == 'giam-doc-duyet' %}
+      <i class="bi bi-patch-check" aria-hidden="true"></i>
+      <div class="fw-semibold">Không có ứng viên nào chờ giám đốc duyệt</div>
+      {% elif current_tab == 'phong-van' %}
       <i class="bi bi-calendar-check" aria-hidden="true"></i>
       <div class="fw-semibold">Không có buổi phỏng vấn nào chờ kết quả</div>
       {% elif current_tab == 'cho-danh-gia' %}

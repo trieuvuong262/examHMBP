@@ -1,0 +1,22 @@
+{% load tksp_tags %}
+<div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100 mb-3">
+  <div class="jp-sx-detail-title">
+    <h2 class="jp-npl-mat-topbar-title w-100 mb-0">{{ tk_title }}</h2>
+  </div>
+  <nav class="jp-sx-tools" aria-label="Công cụ">
+    {% if back_url %}
+    <a href="{{ back_url }}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>{{ back_label|default:'Quay lại' }}</a>
+    {% endif %}
+    {% if tksp_menu.dashboard and tk_active != 'dashboard' %}<a href="{% url 'thiet_ke_sp:dashboard' %}"><i class="bi bi-grid-1x2" aria-hidden="true"></i>Tổng quan</a>{% endif %}
+    {% if tksp_menu.dossiers and tk_active != 'list' %}<a href="{% url 'thiet_ke_sp:list' %}"><i class="bi bi-journal-richtext" aria-hidden="true"></i>Hồ sơ</a>{% endif %}
+    {% if tksp_menu.kanban and tk_active != 'kanban' %}<a href="{% url 'thiet_ke_sp:kanban' %}"><i class="bi bi-kanban" aria-hidden="true"></i>Kanban</a>{% endif %}
+    {% if tksp_menu.approve and tk_active != 'approve' %}<a href="{% url 'thiet_ke_sp:approve_queue' %}"><i class="bi bi-check2-circle" aria-hidden="true"></i>Chờ tôi duyệt{% if tksp_approve_count %} <span class="badge rounded-pill bg-danger">{{ tksp_approve_count }}</span>{% endif %}</a>{% endif %}
+    {% if tksp_menu.my_tasks and tk_active != 'my_tasks' %}<a href="{% url 'thiet_ke_sp:my_tasks' %}"><i class="bi bi-inbox-fill" aria-hidden="true"></i>Việc chờ tôi{% if tksp_my_task_count %} <span class="badge rounded-pill {% if tksp_overdue_count %}bg-danger{% else %}bg-secondary{% endif %}">{{ tksp_my_task_count }}</span>{% endif %}</a>{% endif %}
+    {% if tksp_menu.reports and tk_active != 'reports' %}<a href="{% url 'thiet_ke_sp:reports' %}"><i class="bi bi-graph-up" aria-hidden="true"></i>Báo cáo</a>{% endif %}
+    {% if tksp_can_settings and tk_active != 'settings' %}<a href="{% url 'thiet_ke_sp:settings' %}"><i class="bi bi-gear" aria-hidden="true"></i>Thiết lập</a>{% endif %}
+    {% if tk_show_col_picker %}{% include 'san_xuat/includes/sx_list_col_picker.html' %}{% endif %}
+    {% if tksp_can_create and tk_active != 'create' %}
+    <a href="{% url 'thiet_ke_sp:create' %}" class="btn btn-hm btn-sm fw-bold text-white"><i class="bi bi-plus-lg" aria-hidden="true"></i>Đề xuất sản phẩm</a>
+    {% endif %}
+  </nav>
+</div>

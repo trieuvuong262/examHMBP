@@ -318,6 +318,23 @@
         return String(raw || '').trim().replace(/\s+/g, '').replace(/,/g, '.');
     }
 
+    function productionWorkHoursBounds() {
+        var input = document.getElementById('prodWorkHoursInput');
+        var min = 7.5;
+        var max = 16;
+        if (input) {
+            var rawMin = parseFloat(normalizeDecimalInput(input.getAttribute('data-work-min')));
+            var rawMax = parseFloat(normalizeDecimalInput(input.getAttribute('data-work-max')));
+            if (isFinite(rawMin)) min = rawMin;
+            if (isFinite(rawMax) && rawMax > min) max = rawMax;
+        }
+        return { min: min, max: max };
+    }
+
+    function formatHoursVi(hours) {
+        return Number(hours).toFixed(2).replace('.', ',');
+    }
+
     function validateProdWorkHours(raw) {
         var text = normalizeDecimalInput(raw);
         if (!text) {
@@ -327,8 +344,13 @@
         if (isNaN(hours)) {
             return { ok: false, message: 'Thời gian làm việc không hợp lệ (vd. 9.5 hoặc 9,5).' };
         }
-        if (hours < 7.5 || hours >= 16) {
-            return { ok: false, message: 'Thời gian làm việc phải từ 7,50 đến 15,99 giờ.' };
+        var bounds = productionWorkHoursBounds();
+        if (hours < bounds.min || hours >= bounds.max) {
+            var high = bounds.max - 0.01;
+            return {
+                ok: false,
+                message: 'Thời gian làm việc phải từ ' + formatHoursVi(bounds.min) + ' đến ' + formatHoursVi(high) + ' giờ.',
+            };
         }
         return { ok: true, value: hours.toFixed(2) };
     }

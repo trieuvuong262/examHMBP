@@ -1,0 +1,61 @@
+{% load sx_format tksp_tags %}
+{% if checklist %}
+<div class="tk-section">
+  <div class="tk-section-title"><i class="bi bi-clipboard2-check"></i>Phiếu trình duyệt · {{ dossier.get_status_display }}
+    {% if checklist_ok %}<span class="tk-pill is-green">Đủ điều kiện</span>{% else %}<span class="tk-pill is-amber">Còn thiếu</span>{% endif %}
+  </div>
+  <div class="tk-grid2">
+    {% for label, ok in checklist %}
+    <div class="tk-field d-flex align-items-center justify-content-between gap-2"><span class="fw-semibold">{{ label }}</span>{% if ok %}<span class="tk-ok"><i class="bi bi-check-lg"></i></span>{% else %}<span class="tk-miss"><i class="bi bi-exclamation-lg"></i></span>{% endif %}</div>
+    {% endfor %}
+  </div>
+  <div class="tk-grid3 mt-2">
+    <div class="tk-field"><label>Thiết kế</label><strong>{% if current_dv %}{{ current_dv.label }} · {{ current_dv.get_state_display }}{% else %}—{% endif %}</strong></div>
+    <div class="tk-field"><label>Mẫu</label><strong>{% if current_sv %}{{ current_sv.label }} · {{ current_sv.get_state_display }}{% else %}—{% endif %}</strong></div>
+    <div class="tk-field"><label>Giá thành / mục tiêu</label><strong>{{ costing.cost|sx_num }} / {{ dossier.target_cost|sx_num }}</strong></div>
+  </div>
+</div>
+{% endif %}
+
+{% if flags.decide_brief or flags.decide_design or flags.decide_master or flags.resume %}
+<div class="tk-callout is-warn d-flex flex-wrap align-items-center gap-2">
+  <b><i class="bi bi-hourglass-split me-1"></i>Hồ sơ đang chờ bạn ra quyết định.</b>
+  <span class="ms-auto d-flex flex-wrap gap-1">
+    {% if flags.decide_brief %}<button type="button" class="btn btn-sm btn-hm text-white fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalBrief">Duyệt đề bài</button>{% endif %}
+    {% if flags.decide_design %}<button type="button" class="btn btn-sm btn-hm text-white fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalDesign">Duyệt thiết kế</button>{% endif %}
+    {% if flags.decide_master %}<button type="button" class="btn btn-sm btn-hm text-white fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalMaster">Duyệt mẫu chuẩn</button>{% endif %}
+    {% if flags.request_fix and flags.decide_master %}<button type="button" class="btn btn-sm btn-outline-danger fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalSampleFix">Yêu cầu sửa mẫu</button>{% endif %}
+    {% if flags.resume %}<button type="button" class="btn btn-sm btn-hm text-white fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalResume">Tiếp tục</button>{% endif %}
+  </span>
+</div>
+{% endif %}
+
+{% if conditions %}
+<div class="tk-section">
+  <div class="tk-section-title"><i class="bi bi-list-check"></i>Điều kiện kèm theo</div>
+  {% include 'thiet_ke_sp/includes/conditions_table.html' %}
+</div>
+{% endif %}
+
+<div class="tk-section">
+  <div class="tk-section-title"><i class="bi bi-check2-circle"></i>Lịch sử phê duyệt</div>
+  <div class="table-responsive">
+    <table class="table tk-mini-table align-middle">
+      <thead><tr><th>Thời gian</th><th>Nội dung</th><th>Phiên bản</th><th>Quyết định</th><th>Người duyệt</th><th>Ý kiến</th></tr></thead>
+      <tbody>
+      {% for ap in approvals %}
+        <tr>
+          <td class="small text-nowrap">{{ ap.decided_at|date:'H:i d/m/Y' }}</td>
+          <td class="small">{{ ap.get_stage_display }}</td>
+          <td class="small">{% if ap.design_version %}{{ ap.design_version.label }}{% endif %}{% if ap.sample_version %}{% if ap.design_version %} / {% endif %}{{ ap.sample_version.label }}{% endif %}</td>
+          <td><span class="tk-pill {% if ap.decision == 'approved' or ap.decision == 'approved_conditional' or ap.decision == 'resumed' %}is-green{% elif ap.decision == 'request_change' %}is-amber{% elif ap.decision == 'rejected' or ap.decision == 'cancelled' %}is-red{% else %}is-gray{% endif %}">{{ ap.get_decision_display }}</span>{% if ap.conditions.all %}<div class="small text-muted">{{ ap.conditions.all|length }} điều kiện</div>{% endif %}</td>
+          <td class="small">{{ ap.decided_by|uname }}</td>
+          <td class="small">{{ ap.comment|linebreaksbr }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6" class="text-muted small">Chưa có quyết định duyệt.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>

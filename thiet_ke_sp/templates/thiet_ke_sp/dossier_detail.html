@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% load sx_format tksp_tags %}
+{% block title %}{{ dossier.code }} — {{ dossier.name }}{% endblock %}
+{% block extra_head %}{% include 'thiet_ke_sp/includes/tksp_styles.html' %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-sx-page jp-tksp py-3 py-md-4 mb-5 px-3 px-lg-4">
+  {% url 'thiet_ke_sp:list' as back_url %}
+  {% include 'thiet_ke_sp/includes/tksp_topbar.html' with tk_title='Chi tiết hồ sơ sản phẩm' tk_active='detail' back_url=back_url back_label='Danh sách' %}
+
+  <div class="tk-hero mb-3">
+    <div class="tk-hero-main">
+      <div class="tk-hero-thumb">{% if cover %}<a href="{{ cover.get_absolute_url }}" target="_blank" rel="noopener"><img src="{{ cover.get_absolute_url }}" alt=""></a>{% else %}<i class="bi bi-palette"></i>{% endif %}</div>
+      <div class="min-w-0">
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          <span class="tk-pill {% if dossier.status_tone == 'gray' or dossier.status_tone == 'dark' %}is-gray{% else %}is-accent{% endif %}">{{ dossier.get_status_display }}</span>
+          <span class="tk-hero-code">{{ dossier.code }}{% if dossier.official_product_code %} · Mã chính thức {{ dossier.official_product_code }}{% endif %}</span>
+          {% if dossier.is_locked %}<span class="tk-hero-code"><i class="bi bi-lock-fill"></i> Đã khóa</span>{% endif %}
+          {% if dossier.priority == 'urgent' or dossier.priority == 'high' %}<span class="tk-hero-code text-warning"><i class="bi bi-flag-fill"></i> {{ dossier.get_priority_display }}</span>{% endif %}
+        </div>
+        <h1>{{ dossier.name }}</h1>
+        <p class="tk-hero-sub">{{ dossier.get_product_group_display }} · {{ dossier.get_product_type_display }}{% if dossier.collection %} · {{ dossier.collection }}{% endif %}{% if current_sv %} · Mẫu {{ current_sv.label }}{% elif current_dv %} · Thiết kế {{ current_dv.label }}{% endif %}</p>
+      </div>
+      <div class="tk-hero-actions">
+        {% if flags.edit_brief %}<a href="{% url 'thiet_ke_sp:edit' dossier.pk %}" class="btn btn-sm fw-bold btn-tk-ghost"><i class="bi bi-pencil"></i>Sửa đề bài</a>{% endif %}
+        {% if flags.request_fix %}<button type="button" class="btn btn-sm fw-bold btn-tk-ghost" data-bs-toggle="modal" data-bs-target="#tkModalSampleFix"><i class="bi bi-arrow-counterclockwise"></i>Yêu cầu sửa mẫu</button>{% endif %}
+        {% if flags.change_request %}<button type="button" class="btn btn-sm fw-bold btn-tk-ghost" data-bs-toggle="modal" data-bs-target="#tkModalChange"><i class="bi bi-pencil-square"></i>Yêu cầu thay đổi</button>{% endif %}
+        {% if flags.submit_brief %}<button type="button" class="btn btn-hm btn-sm fw-bold text-white" data-bs-toggle="modal" data-bs-target="#tkModalSubmitBrief"><i class="bi bi-send"></i>Gửi duyệt đề bài</button>{% endif %}
+        {% if flags.decide_brief %}<button type="button" class="btn btn-hm btn-sm fw-bold text-white" data-bs-toggle="modal" data-bs-target="#tkModalBrief"><i class="bi bi-check2-circle"></i>Duyệt đề bài</button>{% endif %}
+        {% if flags.edit_design %}<button type="button" class="btn btn-hm btn-sm fw-bold text-white" data-bs-toggle="modal" data-bs-target="#tkModalSubmitDesign"><i class="bi bi-send"></i>Gửi duyệt thiết kế</button>{% endif %}
+        {% if flags.decide_design %}<button type="button" class="btn btn-hm btn-sm fw-bold text-white" data-bs-toggle="modal" data-bs-target="#tkModalDesign"><i class="bi bi-check2-circle"></i>Duyệt thiết kế</button>{% endif %}
+        {% if flags.edit_sample %}<button type="button" class="btn btn-hm btn-sm fw-bold text-white" data-bs-toggle="modal" data-bs-target="#tkModalSubmitSample"><i class="bi bi-send"></i>Gửi đánh giá mẫu</button>{% endif %}
+        {% if flags.submit_master %}<button type="button" class="btn btn-hm btn-sm fw-bold text-white" data-bs-toggle="modal" data-bs-target="#tkModalSubmitMaster"><i class="bi bi-send"></i>Trình duyệt mẫu chuẩn</button>{% endif %}
+        {% if flags.decide_master %}<button type="button" class="btn btn-hm btn-sm fw-bold text-white" data-bs-toggle="modal" data-bs-target="#tkModalMaster"><i class="bi bi-check2"></i>Duyệt mẫu chuẩn</button>{% endif %}
+        {% if flags.handover %}<button type="button" class="btn btn-hm btn-sm fw-bold text-white" data-bs-toggle="modal" data-bs-target="#tkModalHandover"><i class="bi bi-box-arrow-right"></i>Bàn giao sản xuất</button>{% endif %}
+        {% if flags.close %}
+        <form method="post" action="{% url 'thiet_ke_sp:action' dossier.pk 'close' %}" data-tk-confirm="Đóng hồ sơ {{ dossier.code }}?">{% csrf_token %}
+          <button type="submit" class="btn btn-hm btn-sm fw-bold text-white"><i class="bi bi-archive"></i>Đóng hồ sơ</button>
+        </form>
+        {% endif %}
+        {% if flags.resume %}<button type="button" class="btn btn-hm btn-sm fw-bold text-white" data-bs-toggle="modal" data-bs-target="#tkModalResume"><i class="bi bi-play-fill"></i>Tiếp tục</button>{% endif %}
+        {% if flags.pause or flags.cancel or flags.delete_draft %}
+        <div class="dropdown">
+          <button type="button" class="btn btn-sm btn-tk-ghost" data-bs-toggle="dropdown" aria-expanded="false" title="Thao tác khác"><i class="bi bi-three-dots"></i></button>
+          <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+            {% if flags.pause %}<li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#tkModalPause"><i class="bi bi-pause-circle me-2"></i>Tạm dừng</button></li>{% endif %}
+            {% if flags.cancel %}<li><button type="button" class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#tkModalCancel"><i class="bi bi-x-octagon me-2"></i>Hủy hồ sơ</button></li>{% endif %}
+            {% if flags.delete_draft %}
+            <li>
+              <form method="post" action="{% url 'thiet_ke_sp:delete' dossier.pk %}" data-tk-confirm="Xóa hồ sơ nháp {{ dossier.code }}?">{% csrf_token %}
+                <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash me-2"></i>Xóa nháp</button>
+              </form>
+            </li>
+            {% endif %}
+          </ul>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="tk-stepper mb-3{% if dossier.status == 'paused' or dossier.status == 'cancelled' %} is-stopped{% endif %}">
+    {% for s in steps %}
+    <div class="tk-step {{ s.state }}"><i>{% if s.state == 'done' %}✓{% else %}{{ s.no }}{% endif %}</i>{{ s.label }}</div>
+    {% endfor %}
+  </div>
+
+  {% if dossier.status == 'paused' %}
+  <div class="tk-callout is-muted mt-0"><b><i class="bi bi-pause-circle me-1"></i>Tạm dừng</b> từ bước «{{ dossier.get_paused_from_status_display }}»: {{ dossier.stop_reason }}</div>
+  {% elif dossier.status == 'cancelled' %}
+  <div class="tk-callout is-muted mt-0"><b><i class="bi bi-x-octagon me-1"></i>Đã hủy:</b> {{ dossier.stop_reason }}</div>
+  {% elif dossier.status == 'brief_needs_info' or dossier.status == 'design_revise' or dossier.status == 'sample_revise' %}
+  {% with last=approvals|first %}{% if last and last.comment %}<div class="tk-callout is-danger mt-0"><b><i class="bi bi-arrow-counterclockwise me-1"></i>Yêu cầu chỉnh sửa:</b> {{ last.comment }}</div>{% endif %}{% endwith %}
+  {% endif %}
+
+  <div class="tk-detail-layout">
+    <div class="tk-card min-w-0">
+      <div class="tk-tabs-head">
+        <ul class="nav nav-pills jp-portal-pills gap-1 flex-wrap">
+          {% for key, label, icon in tabs %}
+          <li class="nav-item"><a class="nav-link rounded-pill fw-bold{% if tab == key %} active{% endif %}" href="?tab={{ key }}"><i class="bi {{ icon }} me-1"></i>{{ label }}</a></li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="tk-tab-body">
+        {% if tab == 'overview' %}{% include 'thiet_ke_sp/includes/tab_overview.html' %}
+        {% elif tab == 'design' %}{% include 'thiet_ke_sp/includes/tab_design.html' %}
+        {% elif tab == 'technical' %}{% include 'thiet_ke_sp/includes/tab_technical.html' %}
+        {% elif tab == 'sample' %}{% include 'thiet_ke_sp/includes/tab_sample.html' %}
+        {% elif tab == 'costing' %}{% include 'thiet_ke_sp/includes/tab_costing.html' %}
+        {% elif tab == 'approval' %}{% include 'thiet_ke_sp/includes/tab_approval.html' %}
+        {% elif tab == 'files' %}{% include 'thiet_ke_sp/includes/tab_files.html' %}
+        {% else %}{% include 'thiet_ke_sp/includes/tab_history.html' %}{% endif %}
+      </div>
+    </div>
+    <aside class="tk-rail">
+      {% include 'thiet_ke_sp/includes/side_rail.html' %}
+    </aside>
+  </div>
+</div>
+{% include 'thiet_ke_sp/includes/action_modals.html' %}
+{% include 'thiet_ke_sp/includes/tksp_scripts.html' %}
+{% endblock %}

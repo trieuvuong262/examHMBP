@@ -12846,12 +12846,12 @@ b, strong,
    Áp dụng khi KHÔNG bật shell "classic".
    ============================================================ */
 :root:not([data-shell="classic"]) {
-    /* Sidebar: nền xám #B7B7B7, chữ đen */
-    --jp-sidebar-surface: #b7b7b7;
-    --jp-sidebar-surface-2: #adadad;
-    --jp-sidebar-gradient: linear-gradient(180deg, #b7b7b7 0%, #b7b7b7 100%);
-    --jp-sidebar-drawer-bg: #b7b7b7;
-    --jp-sidebar-status-ring: #b7b7b7;
+    /* Sidebar: nền #F5F5F5, chữ đen */
+    --jp-sidebar-surface: #F5F5F5;
+    --jp-sidebar-surface-2: #ebebeb;
+    --jp-sidebar-gradient: linear-gradient(180deg, #F5F5F5 0%, #F5F5F5 100%);
+    --jp-sidebar-drawer-bg: #F5F5F5;
+    --jp-sidebar-status-ring: #F5F5F5;
     --jp-sidebar-text: var(--jp-black-800);
     --jp-sidebar-text-muted: #4a4a4a;
     --jp-sidebar-border: #a3a3a3;

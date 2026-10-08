@@ -1,0 +1,28 @@
+{% load tksp_tags %}
+{% for ev in evaluations %}
+<div class="tk-card p-3{% if not forloop.last %} mb-2{% endif %}">
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+    <span class="tk-pill {% if ev.result == 'pass' %}is-green{% else %}is-red{% endif %}">{{ ev.get_result_display }}</span>
+    <strong class="small">{{ ev.get_role_display }}</strong>
+    <span class="small text-muted">{{ ev.evaluator|uname }} · {{ ev.created_at|date:'H:i d/m/Y' }}</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table tk-mini-table">
+      <thead><tr><th>Tiêu chí</th><th class="text-center">Kết quả</th><th>Ghi chú</th></tr></thead>
+      <tbody>
+      {% for it in ev.items.all %}{% if it.result != 'na' %}
+        <tr>
+          <td class="fw-semibold">{{ it.get_criterion_display }}</td>
+          <td class="text-center">{% if it.result == 'pass' %}<span class="tk-ok"><i class="bi bi-check-lg"></i> Đạt</span>{% else %}<span class="tk-bad"><i class="bi bi-exclamation-lg"></i> Không đạt</span>{% endif %}</td>
+          <td class="small">{{ it.note|default:'—' }}</td>
+        </tr>
+      {% endif %}{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if ev.conclusion %}<div class="small mt-2">{{ ev.conclusion|linebreaksbr }}</div>{% endif %}
+  {% if ev.defects %}<div class="tk-callout is-danger mb-0"><b>Cần chỉnh:</b> {{ ev.defects|linebreaksbr }}{% if ev.fix_owner %} · {{ ev.fix_owner|uname }}{% endif %}{% if ev.fix_due %} · hạn {{ ev.fix_due|date:'d/m/Y' }}{% endif %}</div>{% endif %}
+</div>
+{% empty %}
+<div class="small text-muted">Chưa có đánh giá.</div>
+{% endfor %}

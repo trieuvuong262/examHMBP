@@ -1,0 +1,5 @@
+{% load tksp_tags %}
+<div class="mb-2">
+  <label class="form-label fw-bold small mb-1">{{ due_label_text|default:'Hạn bước tiếp theo' }}</label>
+  <input type="datetime-local" name="due_at" class="form-control form-control-sm tk-due-input" value="{{ due_value|due_input }}">
+</div>

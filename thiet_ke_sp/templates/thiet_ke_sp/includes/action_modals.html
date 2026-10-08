@@ -1,0 +1,200 @@
+{% load tksp_tags %}
+{% if flags.submit_brief %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalSubmitBrief' modal_action='submit_brief' modal_title='Gửi duyệt đề bài' %}
+  {% include 'thiet_ke_sp/includes/checklist_block.html' with items=checklist %}
+  <div class="small my-2">Người duyệt: <strong>{{ dossier.approver|uname }}</strong></div>
+  {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.brief_pending due_label_text='Hạn duyệt đề bài' %}
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Gửi duyệt' %}
+{% endif %}
+
+{% if flags.decide_brief %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalBrief' modal_action='brief_decide' modal_title='Duyệt đề bài' %}
+  <div class="d-flex flex-column gap-1 mb-2">
+    <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="approved" data-due="{{ sla_due.designing|due_input }}" checked> <span class="form-check-label">Duyệt — chuyển sang thiết kế</span></label>
+    <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="request_change" data-due="{{ sla_due.brief_needs_info|due_input }}"> <span class="form-check-label">Yêu cầu bổ sung đề bài</span></label>
+    <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="cancelled" data-due=""> <span class="form-check-label text-danger">Hủy hồ sơ</span></label>
+  </div>
+  <label class="form-label fw-bold small mb-1">Ý kiến</label>
+  <textarea name="comment" class="form-control form-control-sm mb-2" rows="3"></textarea>
+  {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.designing %}
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Ghi nhận quyết định' %}
+{% endif %}
+
+{% if flags.edit_design %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalSubmitDesign' modal_action='design_submit' modal_title='Gửi duyệt thiết kế '|add:current_dv.label %}
+  {% include 'thiet_ke_sp/includes/checklist_block.html' with items=checklist %}
+  {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.design_pending due_label_text='Hạn duyệt thiết kế' %}
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Gửi duyệt' %}
+{% endif %}
+
+{% if flags.decide_design %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalDesign' modal_action='design_decide' modal_title='Duyệt thiết kế '|add:current_dv.label %}
+  <div class="d-flex flex-column gap-1 mb-2">
+    <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="approved" data-due="{{ sla_due.sampling|due_input }}" checked> <span class="form-check-label">Duyệt — chuyển sang làm mẫu</span></label>
+    <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="request_change" data-due="{{ sla_due.design_revise|due_input }}"> <span class="form-check-label">Yêu cầu chỉnh sửa — mở phiên bản mới</span></label>
+  </div>
+  <label class="form-label fw-bold small mb-1">Ý kiến</label>
+  <textarea name="comment" class="form-control form-control-sm mb-2" rows="3"></textarea>
+  {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.sampling %}
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Ghi nhận quyết định' %}
+{% endif %}
+
+{% if flags.edit_sample %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalSubmitSample' modal_action='sample_submit' modal_title='Hoàn thành mẫu '|add:current_sv.label %}
+  <div class="small mb-2 {% if current_sv.photos %}text-success{% else %}text-danger{% endif %}"><i class="bi {% if current_sv.photos %}bi-check-circle-fill{% else %}bi-x-circle{% endif %} me-1"></i>Ảnh mẫu thực tế ({{ current_sv.photos|length }})</div>
+  {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.sample_eval_pending due_label_text='Hạn đánh giá mẫu' %}
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Gửi đánh giá' %}
+{% endif %}
+
+{% if flags.submit_master %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalSubmitMaster' modal_action='master_submit' modal_title='Trình duyệt mẫu chuẩn' %}
+  {% include 'thiet_ke_sp/includes/checklist_block.html' with items=checklist %}
+  {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.master_pending due_label_text='Hạn duyệt mẫu chuẩn' %}
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Trình duyệt' %}
+{% endif %}
+
+{% if flags.request_fix %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalSampleFix' modal_action='sample_fix' modal_title='Yêu cầu sửa mẫu '|add:current_sv.label %}
+  <label class="form-label fw-bold small mb-1">Nội dung cần sửa <span class="text-danger">*</span></label>
+  <textarea name="comment" class="form-control form-control-sm mb-2" rows="4" required></textarea>
+  {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.sample_revise due_label_text='Hạn sửa mẫu' %}
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Yêu cầu sửa' submit_class='btn-danger' %}
+{% endif %}
+
+{% if flags.decide_master %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalMaster' modal_action='master_decide' modal_title='Duyệt mẫu chuẩn '|add:current_sv.label modal_size='modal-xl' %}
+  <div class="row g-3">
+    <div class="col-lg-4">
+      {% include 'thiet_ke_sp/includes/checklist_block.html' with items=checklist %}
+      <div class="d-flex flex-column gap-1 my-3">
+        <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="approved" data-due="{{ sla_due.approved|due_input }}" data-tk-show="#tkMasterApproveBox" checked> <span class="form-check-label">Duyệt sản xuất</span></label>
+        <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="request_fix" data-due="{{ sla_due.sample_revise|due_input }}" data-tk-hide="#tkMasterApproveBox"> <span class="form-check-label">Yêu cầu sửa mẫu</span></label>
+      </div>
+      <label class="form-label fw-bold small mb-1">Ý kiến</label>
+      <textarea name="comment" class="form-control form-control-sm mb-2" rows="3"></textarea>
+      {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.approved %}
+    </div>
+    <div class="col-lg-8" id="tkMasterApproveBox">
+      <label class="form-label fw-bold small mb-1">Mã sản phẩm chính thức <span class="text-danger">*</span></label>
+      <input type="text" name="official_code" class="form-control mb-3 text-uppercase" maxlength="60" value="{{ dossier.official_product_code }}">
+      <div class="fw-bold small mb-1">Điều kiện kèm theo</div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-2">
+          <thead class="table-light"><tr><th>Điều kiện</th><th style="width: 30%;">Người xử lý</th><th style="width: 190px;">Hạn</th><th style="width: 44px;"></th></tr></thead>
+          <tbody id="tkCondBody"></tbody>
+        </table>
+      </div>
+      <template id="tkCondTpl">
+        <tr>
+          <td><input type="text" name="cond_content" class="form-control form-control-sm" maxlength="500"></td>
+          <td><select name="cond_assignee" class="form-select form-select-sm jp-tksp-user-select"><option value="">— Chọn —</option>{% for u in condition_users %}<option value="{{ u.pk }}">{{ u|uname }}</option>{% endfor %}</select></td>
+          <td><input type="datetime-local" name="cond_due" class="form-control form-control-sm" value="{{ sla_due.approved|due_input }}"></td>
+          <td><button type="button" class="btn btn-sm btn-light border" data-tk-del-row><i class="bi bi-x"></i></button></td>
+        </tr>
+      </template>
+      <button type="button" class="btn btn-sm btn-light border" data-tk-add-row="#tkCondBody" data-tk-template="#tkCondTpl"><i class="bi bi-plus-lg me-1"></i>Thêm điều kiện</button>
+    </div>
+  </div>
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Ghi nhận quyết định' %}
+{% endif %}
+
+{% if flags.handover and handover_form %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalHandover' modal_action='handover' modal_title='Bàn giao sản xuất — '|add:dossier.official_product_code modal_size='modal-lg' %}
+  {% include 'thiet_ke_sp/includes/checklist_block.html' with items=checklist %}
+  <div class="row g-2 mt-2">
+    {% for field in handover_form.receiver_fields %}{% include 'thiet_ke_sp/includes/field.html' with field=field req=True %}{% endfor %}
+    {% include 'thiet_ke_sp/includes/field.html' with field=handover_form.note col='col-12' %}
+  </div>
+  <div class="mt-2">{% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.handed_over due_label_text='Hạn xác nhận nhận bàn giao' %}</div>
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Bàn giao' %}
+{% endif %}
+
+{% if flags.change_request %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalChange' modal_action='change_request' modal_title='Yêu cầu thay đổi sau duyệt' modal_confirm='Mở khóa hồ sơ và tạo phiên bản mới?' %}
+  <label class="form-label fw-bold small mb-1">Phần cần thay đổi</label>
+  <select name="target" class="form-select form-select-sm mb-2">
+    <option value="sample" data-due="{{ sla_due.sample_revise|due_input }}">Mẫu — mở lần mẫu mới</option>
+    <option value="design" data-due="{{ sla_due.design_revise|due_input }}">Thiết kế — mở phiên bản thiết kế mới</option>
+  </select>
+  <label class="form-label fw-bold small mb-1">Lý do thay đổi <span class="text-danger">*</span></label>
+  <textarea name="comment" class="form-control form-control-sm mb-2" rows="3" required></textarea>
+  {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.sample_revise %}
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Tạo yêu cầu' %}
+{% endif %}
+
+{% if flags.pause %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalPause' modal_action='pause' modal_title='Tạm dừng hồ sơ' %}
+  <label class="form-label fw-bold small mb-1">Lý do tạm dừng <span class="text-danger">*</span></label>
+  <textarea name="comment" class="form-control form-control-sm" rows="3" required></textarea>
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Tạm dừng' submit_class='btn-secondary' %}
+{% endif %}
+
+{% if flags.resume %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalResume' modal_action='resume' modal_title='Tiếp tục hồ sơ' %}
+  <div class="small mb-2">Quay lại bước «{{ dossier.get_paused_from_status_display }}».</div>
+  <label class="form-label fw-bold small mb-1">Ý kiến</label>
+  <textarea name="comment" class="form-control form-control-sm mb-2" rows="2"></textarea>
+  {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due|get_item:dossier.paused_from_status %}
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Tiếp tục' %}
+{% endif %}
+
+{% if flags.cancel %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalCancel' modal_action='cancel' modal_title='Hủy hồ sơ '|add:dossier.code modal_confirm='Hủy hồ sơ — không thể hoàn tác. Tiếp tục?' %}
+  <label class="form-label fw-bold small mb-1">Lý do hủy <span class="text-danger">*</span></label>
+  <textarea name="comment" class="form-control form-control-sm" rows="3" required></textarea>
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Hủy hồ sơ' submit_class='btn-danger' %}
+{% endif %}
+
+{% if roles_form %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalRoles' modal_action='roles_save' modal_title='Nhân sự hồ sơ' modal_size='modal-lg' %}
+  <div class="row g-2">
+    {% for field in roles_form %}{% include 'thiet_ke_sp/includes/field.html' with field=field %}{% endfor %}
+  </div>
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Lưu' %}
+{% endif %}
+
+{% if open_tasks %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalDelay' modal_action='task_delay' modal_title='Nguyên nhân chậm' %}
+  <input type="hidden" name="task_id" value="">
+  <div class="small fw-semibold mb-2 tk-task-title"></div>
+  <textarea name="reason" class="form-control form-control-sm" rows="3" required></textarea>
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Lưu' %}
+{% endif %}
+
+{% if open_tasks and flags.manage_due %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalDue' modal_action='task_due' modal_title='Đổi hạn công việc' %}
+  <input type="hidden" name="task_id" value="">
+  <div class="small fw-semibold mb-2 tk-task-title"></div>
+  <input type="datetime-local" name="due_at" class="form-control form-control-sm" required>
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Lưu' %}
+{% endif %}
+
+<script>
+(function () {
+  document.querySelectorAll('.modal input[type="radio"][data-due], .modal select').forEach(function (el) {
+    el.addEventListener('change', function () {
+      var modal = el.closest('.modal');
+      var src = el.tagName === 'SELECT' ? el.options[el.selectedIndex] : el;
+      if (!src || !src.hasAttribute('data-due')) return;
+      var input = modal && modal.querySelector('.tk-due-input');
+      if (input) input.value = src.getAttribute('data-due') || '';
+      var show = el.getAttribute('data-tk-show');
+      var hide = el.getAttribute('data-tk-hide');
+      if (show) document.querySelector(show).classList.remove('d-none');
+      if (hide) document.querySelector(hide).classList.add('d-none');
+    });
+  });
+  ['tkModalDelay', 'tkModalDue'].forEach(function (id) {
+    var modal = document.getElementById(id);
+    if (!modal) return;
+    modal.addEventListener('show.bs.modal', function (e) {
+      var btn = e.relatedTarget;
+      if (!btn) return;
+      modal.querySelector('input[name="task_id"]').value = btn.getAttribute('data-task-id') || '';
+      modal.querySelector('.tk-task-title').textContent = btn.getAttribute('data-task-title') || '';
+      var due = modal.querySelector('input[name="due_at"]');
+      if (due) due.value = btn.getAttribute('data-task-due') || '';
+    });
+  });
+})();
+</script>

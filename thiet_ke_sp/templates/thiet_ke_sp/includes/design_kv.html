@@ -1,0 +1,8 @@
+<div class="tk-grid2">
+  <div class="tk-field"><label>Kiểu dáng</label><span class="v">{{ dv.style_description|default:'—' }}</span></div>
+  <div class="tk-field"><label>Màu sắc / họa tiết</label><span class="v">{{ dv.pattern_description|default:'—' }}</span></div>
+  <div class="tk-field"><label>Logo / họa tiết</label><span class="v">{{ dv.logo_placement|default:'—' }}</span></div>
+  <div class="tk-field"><label>Chất liệu, NPL dự kiến</label><span class="v">{{ dv.materials|default:'—' }}</span></div>
+  <div class="tk-field"><label>Điểm nổi bật</label><span class="v">{{ dv.highlights|default:'—' }}</span></div>
+  {% if dv.version_no > 1 %}<div class="tk-field"><label>Thay đổi so với bản trước</label><span class="v">{{ dv.change_note|default:'—' }}</span></div>{% endif %}
+</div>

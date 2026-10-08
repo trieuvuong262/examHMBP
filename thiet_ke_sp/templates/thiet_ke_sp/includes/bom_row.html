@@ -1,0 +1,9 @@
+{% load sx_format %}<tr>
+  <td><input type="text" name="line_name" class="form-control form-control-sm" value="{{ ln.material_name|default:'' }}" maxlength="200"></td>
+  <td><select name="line_main" class="form-select form-select-sm"><option value="1"{% if not ln or ln.is_main %} selected{% endif %}>Chính</option><option value="0"{% if ln and not ln.is_main %} selected{% endif %}>Phụ</option></select></td>
+  <td><input type="text" name="line_spec" class="form-control form-control-sm" value="{{ ln.spec|default:'' }}" maxlength="255"></td>
+  <td><input type="text" name="line_consumption" class="form-control form-control-sm text-end" value="{{ ln.consumption|sx_num_input }}" inputmode="decimal"></td>
+  <td><input type="text" name="line_unit" class="form-control form-control-sm" value="{{ ln.unit|default:'' }}" maxlength="30"></td>
+  <td><input type="text" name="line_price" class="form-control form-control-sm text-end" value="{{ ln.unit_price|sx_num_input:0 }}" inputmode="numeric"></td>
+  <td class="text-end"><button type="button" class="btn btn-sm btn-light border" data-tk-del-row title="Xóa dòng"><i class="bi bi-trash"></i></button></td>
+</tr>

@@ -48,7 +48,7 @@ JOBS = [
      'Tốt nghiệp Cao đẳng/Đại học Kế toán, thành thạo Excel.',
      [('Lý Thị Ngọc', 'referral'),
       ('Trịnh Văn Khoa', 'reviewing'),
-      ('Mai Thị Thảo', 'interview_passed')]),
+      ('Mai Thị Thảo', 'awaiting_final')]),
     ('Nhân viên kho vận', 'KẾ HOẠCH SẢN XUẤT', 'Kho vận', 2,
      'Nhận hàng, sắp xếp kho NPL, cấp phát cho chuyền.',
      'Nhanh nhẹn, chịu khó, có thể bốc xếp.',
@@ -223,9 +223,12 @@ class Command(BaseCommand):
                                              check_permission=False)
             return cand
 
-        # Đạt → tự chuyển «Trúng tuyển» (khi vị trí còn chỉ tiêu).
+        # Đạt → chờ giám đốc duyệt; giám đốc duyệt Đạt → tự chuyển «Trúng tuyển» (khi còn chỉ tiêu).
         services.record_interview_result(cand, Interview.RESULT_PASS, 'Đạt yêu cầu chuyên môn.', actor=hr,
                                          check_permission=False)
+        if scenario == 'awaiting_final':
+            return cand
+        services.record_final_decision(cand, Interview.FINAL_PASS, 'Đồng ý tuyển.', actor=hr, check_permission=False)
         if scenario == 'not_onboarded':
             services.transition(cand, Candidate.STATUS_NOT_ONBOARDED, actor=hr,
                                 reason='Ứng viên nhận việc nơi khác.')

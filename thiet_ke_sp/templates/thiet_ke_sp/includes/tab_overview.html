@@ -1,0 +1,106 @@
+{% load sx_format tksp_tags %}
+{% if handover %}
+<div class="tk-section">
+  <div class="tk-section-title"><i class="bi bi-box-arrow-right"></i>Bàn giao sản xuất
+    <span class="tk-pill is-green">{{ handover.handed_at|date:'H:i d/m/Y' }}</span>
+    {% if handover.tech_doc_id %}<a class="btn btn-sm btn-outline-hm ms-auto" href="{% url 'san_xuat:doc_detail' handover.tech_doc_id %}"><i class="bi bi-box-arrow-up-right me-1"></i>Hồ sơ kỹ thuật SX {{ handover.product_code }}</a>{% endif %}
+  </div>
+  <div class="tk-grid3 mb-3">
+    <div class="tk-field"><label>Mã sản phẩm</label><strong>{{ handover.product_code }}</strong></div>
+    <div class="tk-field"><label>Thiết kế / mẫu chuẩn</label><strong>{{ handover.design_version.label }} / {{ handover.sample_version.label }}</strong></div>
+    <div class="tk-field"><label>Người bàn giao</label><strong>{{ handover.handed_by|uname }}</strong></div>
+  </div>
+  {% if handover.note %}<div class="tk-field mb-3"><label>Nội dung</label><span class="v">{{ handover.note }}</span></div>{% endif %}
+  <div class="table-responsive">
+    <table class="table tk-mini-table align-middle">
+      <thead><tr><th>Bộ phận</th><th>Người nhận</th><th>Xác nhận</th><th>Ghi chú</th><th></th></tr></thead>
+      <tbody>
+      {% for r in receipts %}
+        <tr>
+          <td class="fw-semibold">{{ r.get_department_display }}</td>
+          <td>{{ r.receiver|uname }}</td>
+          <td>{% if r.is_confirmed %}<span class="tk-ok"><i class="bi bi-check-circle-fill me-1"></i>{{ r.confirmed_at|date:'H:i d/m/Y' }}</span>{% else %}<span class="tk-pill is-amber">Chưa xác nhận</span>{% endif %}</td>
+          <td class="small">{{ r.note|default:'' }}</td>
+          <td class="text-end">
+            {% if r.can_confirm %}
+            <form method="post" action="{% url 'thiet_ke_sp:action' dossier.pk 'receipt_confirm' %}" class="d-flex gap-1 justify-content-end">{% csrf_token %}
+              <input type="hidden" name="receipt_id" value="{{ r.pk }}">
+              <input type="text" name="note" class="form-control form-control-sm" placeholder="Ghi chú" style="max-width: 180px;">
+              <button type="submit" class="btn btn-sm btn-hm text-white text-nowrap">Đã nhận</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% if conditions %}
+<div class="tk-section">
+  <div class="tk-section-title"><i class="bi bi-list-check"></i>Điều kiện kèm theo khi duyệt</div>
+  {% include 'thiet_ke_sp/includes/conditions_table.html' %}
+</div>
+{% endif %}
+
+<div class="tk-section">
+  <div class="tk-grid2">
+    <div>
+      <h3 class="tk-sub">Thông tin sản phẩm</h3>
+      <div class="tk-field"><label>Mã hồ sơ</label><strong>{{ dossier.code }}</strong></div>
+      <div class="tk-field"><label>Nhóm / loại</label><strong>{{ dossier.get_product_group_display }} · {{ dossier.get_product_type_display }}</strong></div>
+      <div class="tk-field"><label>Mùa / bộ sưu tập</label><strong>{{ dossier.collection|default:'—' }}</strong></div>
+      <div class="tk-field"><label>Khách hàng mục tiêu</label><strong>{{ dossier.target_customer|default:'—' }}</strong></div>
+      <div class="tk-field"><label>Người đề xuất</label><strong>{{ dossier.proposer|uname }} · {{ dossier.proposed_date|date:'d/m/Y' }}</strong></div>
+      <div class="tk-field"><label>Mức ưu tiên</label><strong>{{ dossier.get_priority_display }}</strong></div>
+    </div>
+    <div>
+      <h3 class="tk-sub">Mục tiêu thương mại</h3>
+      <div class="tk-field"><label>Giá bán lẻ mục tiêu</label><strong>{% if dossier.target_retail_price %}{{ dossier.target_retail_price|sx_num }} đ{% else %}—{% endif %}</strong></div>
+      <div class="tk-field"><label>Giá bán sỉ mục tiêu</label><strong>{% if dossier.target_wholesale_price %}{{ dossier.target_wholesale_price|sx_num }} đ{% else %}—{% endif %}</strong></div>
+      <div class="tk-field"><label>Giá thành mục tiêu</label><strong>{% if dossier.target_cost %}{{ dossier.target_cost|sx_num }} đ{% else %}—{% endif %}</strong></div>
+      <div class="tk-field"><label>Sản lượng dự kiến</label><strong>{% if dossier.expected_qty %}{{ dossier.expected_qty|sx_num }}{% else %}—{% endif %}</strong></div>
+      <div class="tk-field"><label>Ngày dự kiến ra mắt</label><strong>{{ dossier.launch_date|date:'d/m/Y'|default:'—' }}</strong></div>
+    </div>
+  </div>
+  {% if checklist and not checklist_ok %}
+  <div class="tk-callout is-warn"><b>{{ checklist_title }} còn thiếu:</b>
+    {% for label, ok in checklist %}{% if not ok %}<span class="d-inline-block me-2">· {{ label }}</span>{% endif %}{% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+<div class="tk-section">
+  <div class="tk-section-title"><i class="bi bi-lightbulb"></i>Đề bài</div>
+  <div class="tk-grid2">
+    <div class="tk-field"><label>Nhu cầu sử dụng</label><span class="v">{{ dossier.usage_need|default:'—' }}</span></div>
+    <div class="tk-field"><label>Thị trường / phân khúc</label><span class="v">{{ dossier.market_need|default:'—' }}</span></div>
+  </div>
+  <div class="tk-field"><label>Mô tả ý tưởng</label><span class="v">{{ dossier.description|default:'—' }}</span></div>
+  <div class="tk-field"><label>Tham khảo</label><span class="v">{{ dossier.reference_links|default:'—'|urlize }}</span></div>
+  {% if dossier_files %}
+  <div class="tk-thumbs mt-3">
+    {% for a in dossier_files %}{% if a.kind == 'reference' %}{% include 'thiet_ke_sp/includes/thumb.html' with a=a %}{% endif %}{% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+<div class="tk-section">
+  <div class="tk-section-title"><i class="bi bi-diagram-3"></i>Tóm tắt phiên bản</div>
+  <div class="tk-grid2">
+    <div>
+      <h3 class="tk-sub">Thiết kế</h3>
+      {% for dv in design_versions %}
+      <div class="tk-field"><strong>{{ dv.label }} · {{ dv.get_state_display }}{% if dv.is_current %} <span class="tk-pill is-blue">hiện hành</span>{% endif %}{% if dossier.approved_design_version_id == dv.pk %} <span class="tk-pill is-green">được duyệt</span>{% endif %}</strong><label class="mt-1">{{ dv.created_at|date:'d/m/Y' }}</label></div>
+      {% empty %}<div class="small text-muted">Chưa có.</div>{% endfor %}
+    </div>
+    <div>
+      <h3 class="tk-sub">Mẫu</h3>
+      {% for sv in samples %}
+      <div class="tk-field"><strong>{{ sv.label }} ({{ sv.design_version.label }}) · {{ sv.get_state_display }}{% if sv.is_current %} <span class="tk-pill is-blue">hiện hành</span>{% endif %}{% if dossier.final_sample_version_id == sv.pk %} <span class="tk-pill is-green">mẫu chuẩn</span>{% endif %}</strong></div>
+      {% empty %}<div class="small text-muted">Chưa có.</div>{% endfor %}
+    </div>
+  </div>
+</div>

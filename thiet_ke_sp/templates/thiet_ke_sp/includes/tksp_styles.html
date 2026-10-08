@@ -1,0 +1,300 @@
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
+<style>
+.jp-tksp {
+  --tk-accent: var(--hm-primary, #dc2626);
+  --tk-accent-soft: var(--hm-primary-soft, rgba(220, 38, 38, .08));
+  --tk-dark: var(--jp-sidebar-gradient, linear-gradient(180deg, #111 0%, #1a1a1a 100%));
+  --tk-surface: var(--jp-surface-bg, #fff);
+  --tk-surface-2: var(--jp-surface-muted, #f8fafc);
+  --tk-line: var(--jp-surface-border, #e2e8f0);
+  --tk-muted: var(--jp-text-muted, #64748b);
+  --tk-radius: var(--jp-radius-xl, 8px);
+  --tk-green: #15803d;
+  --tk-amber: #b45309;
+  --tk-blue: #1d4ed8;
+  --tk-purple: #6d28d9;
+  --tk-red: #b91c1c;
+}
+
+/* Thẻ, tiêu đề khối */
+.jp-tksp .tk-card { background: var(--tk-surface); border: 1px solid var(--tk-line); border-radius: var(--tk-radius); }
+.jp-tksp .tk-panel { padding: 1rem 1.1rem; }
+.jp-tksp .tk-panel-head { display: flex; justify-content: space-between; align-items: center; gap: .75rem; margin-bottom: .9rem; }
+.jp-tksp .tk-panel-title { font-size: .95rem; font-weight: 800; }
+.jp-tksp .tk-panel-sub { font-size: .75rem; color: var(--tk-muted); }
+.jp-tksp .tk-link { font-weight: 700; font-size: .82rem; color: var(--tk-accent); text-decoration: none; white-space: nowrap; }
+.jp-tksp .tk-link:hover { text-decoration: underline; }
+
+/* KPI */
+.jp-tksp .tk-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .9rem; }
+.jp-tksp .tk-kpi { background: var(--tk-surface); border: 1px solid var(--tk-line); border-radius: var(--tk-radius); padding: 1rem 1.1rem; display: flex; align-items: flex-start; gap: .75rem; text-decoration: none; color: inherit; }
+.jp-tksp a.tk-kpi:hover { border-color: var(--tk-accent); color: inherit; }
+.jp-tksp .tk-kpi .cap { color: var(--tk-muted); font-size: .78rem; }
+.jp-tksp .tk-kpi .num { font-size: 1.8rem; font-weight: 900; line-height: 1.15; letter-spacing: -1px; margin: .3rem 0 .1rem; }
+.jp-tksp .tk-kpi .num small { font-size: .8rem; font-weight: 700; letter-spacing: 0; color: var(--tk-muted); }
+.jp-tksp .tk-kpi .sub { font-size: .72rem; font-weight: 700; color: var(--tk-muted); }
+.jp-tksp .tk-kpi .sub.is-ok { color: var(--tk-green); }
+.jp-tksp .tk-kpi .sub.is-warn { color: var(--tk-amber); }
+.jp-tksp .tk-kpi .sub.is-bad { color: var(--tk-red); }
+.jp-tksp .tk-kpi .ico { margin-left: auto; width: 2.5rem; height: 2.5rem; border-radius: var(--tk-radius); display: grid; place-items: center; background: var(--tk-accent-soft); color: var(--tk-accent); font-size: 1.1rem; flex-shrink: 0; }
+.jp-tksp .tk-kpi .ico.warn { background: rgba(180, 83, 9, .1); color: var(--tk-amber); }
+.jp-tksp .tk-kpi .ico.ok { background: rgba(21, 128, 61, .1); color: var(--tk-green); }
+.jp-tksp .tk-kpi .ico.info { background: rgba(29, 78, 216, .08); color: var(--tk-blue); }
+
+/* Nhãn trạng thái */
+.jp-tksp .tk-pill { display: inline-flex; align-items: center; gap: .3rem; padding: .28rem .55rem; border-radius: 999px; font-size: .72rem; font-weight: 750; white-space: nowrap; line-height: 1.1; }
+.jp-tksp .tk-pill.is-blue { background: rgba(29, 78, 216, .1); color: var(--tk-blue); }
+.jp-tksp .tk-pill.is-green { background: rgba(21, 128, 61, .1); color: var(--tk-green); }
+.jp-tksp .tk-pill.is-amber { background: rgba(180, 83, 9, .12); color: var(--tk-amber); }
+.jp-tksp .tk-pill.is-red { background: rgba(185, 28, 28, .1); color: var(--tk-red); }
+.jp-tksp .tk-pill.is-purple { background: rgba(109, 40, 217, .1); color: var(--tk-purple); }
+.jp-tksp .tk-pill.is-gray { background: rgba(100, 116, 139, .14); color: #475569; }
+.jp-tksp .tk-pill.is-dark { background: #262626; color: #fff; }
+.jp-tksp .tk-pill.is-accent { background: var(--tk-accent); color: #fff; }
+
+/* Ô sản phẩm trong bảng */
+.jp-tksp .tk-prod { display: flex; align-items: center; gap: .7rem; min-width: 0; }
+.jp-tksp .tk-prod-thumb { width: 42px; height: 48px; border-radius: 6px; flex-shrink: 0; overflow: hidden; display: grid; place-items: center; background: var(--tk-dark); color: rgba(255, 255, 255, .7); font-size: 1rem; }
+.jp-tksp .tk-prod-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.jp-tksp .tk-prod strong { display: block; line-height: 1.25; }
+.jp-tksp .tk-prod small { color: var(--tk-muted); font-weight: 600; }
+.jp-tksp .tk-progress { height: 6px; width: 90px; background: var(--tk-line); border-radius: 99px; overflow: hidden; margin-top: .3rem; }
+.jp-tksp .tk-progress i { display: block; height: 100%; background: var(--tk-accent); border-radius: 99px; }
+.jp-tksp .tk-progress.is-wide { width: 100%; }
+.jp-tksp .tk-progress.is-amber i { background: var(--tk-amber); }
+.jp-tksp .tk-progress.is-red i { background: var(--tk-red); }
+.jp-tksp .tk-progress.is-green i { background: var(--tk-green); }
+.jp-tksp .tk-late { color: var(--tk-red); font-weight: 800; }
+
+/* Bộ lọc dạng thanh công cụ */
+.jp-tksp .tk-toolbar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.jp-tksp .tk-toolbar .form-control, .jp-tksp .tk-toolbar .form-select { width: auto; min-width: 150px; }
+.jp-tksp .tk-toolbar .tk-search { min-width: 260px; flex: 1 1 260px; max-width: 360px; }
+.jp-tksp .tk-toolbar .tk-count { margin-left: auto; color: var(--tk-muted); font-size: .8rem; font-weight: 700; white-space: nowrap; }
+.jp-tksp .tk-chips { display: flex; flex-wrap: wrap; gap: .35rem; }
+.jp-tksp .tk-chips .btn { border-radius: 999px; }
+
+/* Header chi tiết */
+.jp-tksp .tk-hero { background: var(--tk-dark); color: #fff; border-radius: var(--tk-radius); padding: 1.15rem 1.3rem; position: relative; overflow: hidden; }
+.jp-tksp .tk-hero::after { content: ""; position: absolute; width: 260px; height: 260px; border: 52px solid rgba(220, 38, 38, .12); border-radius: 50%; right: -115px; top: -130px; pointer-events: none; }
+.jp-tksp .tk-hero-main { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 1rem; align-items: center; position: relative; z-index: 1; }
+.jp-tksp .tk-hero-thumb { width: 72px; height: 82px; border-radius: var(--tk-radius); overflow: hidden; display: grid; place-items: center; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .18); font-size: 1.8rem; color: rgba(255, 255, 255, .55); }
+.jp-tksp .tk-hero-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.jp-tksp .tk-hero-code { font-size: .72rem; color: #a3a3a3; font-weight: 700; letter-spacing: .03em; }
+.jp-tksp .tk-hero h1 { font-size: 1.35rem; font-weight: 800; margin: .3rem 0 .2rem; color: #fff; }
+.jp-tksp .tk-hero-sub { margin: 0; color: #bdbdbd; font-size: .85rem; }
+.jp-tksp .tk-hero .tk-pill.is-gray { background: rgba(255, 255, 255, .14); color: #e5e5e5; }
+.jp-tksp .tk-hero-actions { display: flex; flex-wrap: wrap; gap: .45rem; justify-content: flex-end; align-items: center; }
+.jp-tksp .tk-hero-actions form { display: inline-flex; margin: 0; }
+.jp-tksp .btn-tk-ghost { background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .24); color: #fff; }
+.jp-tksp .btn-tk-ghost:hover, .jp-tksp .btn-tk-ghost:focus { background: rgba(255, 255, 255, .16); border-color: rgba(255, 255, 255, .4); color: #fff; }
+.jp-tksp .tk-hero-actions .btn { display: inline-flex; align-items: center; justify-content: center; gap: .3rem; line-height: 1; }
+
+/* Thanh 8 bước */
+.jp-tksp .tk-stepper { background: var(--tk-surface); border: 1px solid var(--tk-line); border-radius: var(--tk-radius); padding: 1rem 1.1rem .8rem; display: flex; overflow-x: auto; }
+.jp-tksp .tk-step { min-width: 110px; flex: 1; position: relative; text-align: center; color: #94a3b8; font-size: .74rem; font-weight: 600; padding-top: 2rem; }
+.jp-tksp .tk-step::before { content: ""; position: absolute; top: .7rem; left: 0; right: 0; height: 3px; background: var(--tk-line); }
+.jp-tksp .tk-step:first-child::before { left: 50%; }
+.jp-tksp .tk-step:last-child::before { right: 50%; }
+.jp-tksp .tk-step i { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 1.45rem; height: 1.45rem; border-radius: 50%; background: var(--tk-line); color: #64748b; display: grid; place-items: center; font-style: normal; font-weight: 900; font-size: .72rem; z-index: 1; }
+.jp-tksp .tk-step.done { color: var(--tk-green); font-weight: 700; }
+.jp-tksp .tk-step.done::before { background: #61c99f; }
+.jp-tksp .tk-step.done i { background: var(--tk-green); color: #fff; }
+.jp-tksp .tk-step.current { color: var(--tk-accent); font-weight: 850; }
+.jp-tksp .tk-step.current i { background: var(--tk-accent); color: #fff; box-shadow: 0 0 0 4px var(--tk-accent-soft); }
+.jp-tksp .tk-step.current::before { background: linear-gradient(90deg, #61c99f 50%, var(--tk-line) 50%); }
+.jp-tksp .tk-stepper.is-stopped .tk-step.current i { background: #64748b; box-shadow: 0 0 0 4px rgba(100, 116, 139, .18); }
+.jp-tksp .tk-stepper.is-stopped .tk-step.current { color: #475569; }
+
+/* Bố cục chi tiết: tab + cột phải */
+.jp-tksp .tk-detail-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 1rem; align-items: start; }
+.jp-tksp .tk-tabs-head { padding: .75rem .9rem 0; border-bottom: 1px solid var(--tk-line); }
+.jp-tksp .tk-tabs-head .jp-portal-pills { margin-bottom: .75rem; }
+.jp-tksp .tk-tab-body { padding: 1.2rem; }
+.jp-tksp .tk-tab-body > .tk-section, .jp-tksp .tk-tab-body > .row > [class*="col"] > .tk-section { border: 0; border-radius: 0; padding: 0; background: transparent; }
+.jp-tksp .tk-tab-body > .tk-section + .tk-section, .jp-tksp .tk-tab-body > .tk-kpis + .tk-section, .jp-tksp .tk-tab-body > .tk-cost-summary + .tk-section { border-top: 1px solid var(--tk-line); margin-top: 1.25rem; padding-top: 1.25rem; }
+.jp-tksp .tk-tab-body > .row > [class*="col"] > .tk-section + .tk-section { border-top: 1px solid var(--tk-line); margin-top: 1.25rem; padding-top: 1.25rem; }
+
+.jp-tksp .tk-section { background: var(--tk-surface); border: 1px solid var(--tk-line); border-radius: var(--tk-radius); padding: 1rem; }
+.jp-tksp .tk-section + .tk-section { margin-top: .9rem; }
+.jp-tksp .tk-section-title { font-weight: 850; font-size: .9rem; margin-bottom: .75rem; display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.jp-tksp .tk-section-title > i { color: var(--tk-muted); }
+.jp-tksp .tk-section-sub { font-size: .74rem; color: var(--tk-muted); font-weight: 600; }
+
+/* Trường thông tin kiểu demo */
+.jp-tksp .tk-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.5rem; }
+.jp-tksp .tk-grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 1.25rem; }
+.jp-tksp .tk-sub { font-size: .82rem; font-weight: 850; margin: 0 0 .4rem; }
+.jp-tksp .tk-field { border-bottom: 1px dashed var(--tk-line); padding: .5rem 0; }
+.jp-tksp .tk-field label { display: block; color: var(--tk-muted); font-size: .66rem; text-transform: uppercase; letter-spacing: .04em; font-weight: 700; margin: 0; }
+.jp-tksp .tk-field strong, .jp-tksp .tk-field .v { display: block; margin-top: .15rem; font-weight: 650; white-space: pre-line; }
+.jp-tksp .tk-callout { padding: .7rem .9rem; border-radius: var(--tk-radius); background: rgba(29, 78, 216, .06); border-left: 4px solid var(--tk-blue); margin: .9rem 0; font-size: .86rem; }
+.jp-tksp .tk-callout.is-warn { background: rgba(180, 83, 9, .08); border-color: var(--tk-amber); }
+.jp-tksp .tk-callout.is-danger { background: rgba(185, 28, 28, .07); border-color: var(--tk-red); }
+.jp-tksp .tk-callout.is-ok { background: rgba(21, 128, 61, .07); border-color: var(--tk-green); }
+.jp-tksp .tk-callout.is-muted { background: var(--tk-surface-2); border-color: #94a3b8; }
+.jp-tksp .tk-ok { color: var(--tk-green); font-weight: 800; }
+.jp-tksp .tk-miss { color: var(--tk-amber); font-weight: 800; }
+.jp-tksp .tk-bad { color: var(--tk-red); font-weight: 800; }
+
+/* Bảng nhỏ */
+.jp-tksp .tk-mini-table { width: 100%; margin: 0; }
+.jp-tksp .tk-mini-table > thead > tr > th { background: var(--tk-surface-2); color: var(--tk-muted); font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; font-weight: 800; border-bottom: 1px solid var(--tk-line); padding: .5rem .5rem; white-space: nowrap; }
+.jp-tksp .tk-mini-table > tbody > tr > td { padding: .55rem .5rem; font-size: .84rem; border-bottom: 1px solid var(--tk-line); vertical-align: middle; }
+
+/* Ảnh / tệp */
+.jp-tksp .tk-thumbs { display: flex; flex-wrap: wrap; gap: .6rem; }
+.jp-tksp .tk-thumb { width: 132px; border: 1px solid var(--tk-line); border-radius: var(--tk-radius); overflow: hidden; background: var(--tk-surface); font-size: .74rem; position: relative; }
+.jp-tksp .tk-thumb .img { height: 112px; background: var(--tk-surface-2); display: grid; place-items: center; color: #94a3b8; font-size: 1.6rem; }
+.jp-tksp .tk-thumb .img img { width: 100%; height: 100%; object-fit: cover; }
+.jp-tksp .tk-thumb .cap { padding: .3rem .45rem; line-height: 1.25; }
+.jp-tksp .tk-thumb .cap .k { font-weight: 700; }
+.jp-tksp .tk-thumb .cap .n { color: var(--tk-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jp-tksp .tk-thumb.is-missing { border-style: dashed; }
+.jp-tksp .tk-thumb .del { position: absolute; top: .25rem; right: .25rem; }
+
+/* Colorway */
+.jp-tksp .tk-colorways { display: flex; flex-wrap: wrap; gap: .7rem; }
+.jp-tksp .tk-color-card { width: 150px; border: 1px solid var(--tk-line); border-radius: var(--tk-radius); overflow: hidden; background: var(--tk-surface); position: relative; }
+.jp-tksp .tk-swatch { height: 86px; display: grid; place-items: center; color: rgba(255, 255, 255, .85); font-size: 1.5rem; }
+.jp-tksp .tk-swatch img { width: 100%; height: 100%; object-fit: cover; }
+.jp-tksp .tk-color-card .cap { padding: .45rem .55rem; font-size: .74rem; }
+.jp-tksp .tk-color-card .cap b { display: block; font-size: .78rem; }
+.jp-tksp .tk-color-card .cap span { color: var(--tk-muted); }
+.jp-tksp .tk-color-card .tools { display: flex; gap: .25rem; align-items: center; padding: 0 .55rem .5rem; }
+.jp-tksp .tk-color-card.is-missing .tk-swatch { outline: 2px dashed rgba(185, 28, 28, .45); outline-offset: -6px; }
+
+/* Danh sách phiên bản */
+.jp-tksp .tk-version-list { display: grid; gap: .6rem; }
+.jp-tksp .tk-version { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: .8rem; align-items: center; border: 1px solid var(--tk-line); padding: .6rem; border-radius: var(--tk-radius); background: var(--tk-surface); }
+.jp-tksp .tk-version.is-current { border-color: rgba(220, 38, 38, .45); background: var(--tk-accent-soft); }
+.jp-tksp .tk-version-preview { height: 62px; border-radius: 6px; overflow: hidden; display: grid; place-items: center; background: var(--tk-dark); color: rgba(255, 255, 255, .6); font-size: 1.3rem; }
+.jp-tksp .tk-version-preview img { width: 100%; height: 100%; object-fit: cover; }
+.jp-tksp .tk-version b { font-size: .86rem; }
+.jp-tksp .tk-version p { margin: .1rem 0; font-size: .78rem; color: var(--tk-muted); }
+.jp-tksp .tk-version small { font-size: .72rem; color: var(--tk-muted); }
+.jp-tksp .tk-version-pill { display: inline-flex; align-items: center; gap: .35rem; font-weight: 850; }
+
+/* Giá thành */
+.jp-tksp .tk-cost-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .6rem; }
+.jp-tksp .tk-costbox { padding: .8rem .9rem; border-radius: var(--tk-radius); background: var(--tk-surface-2); border: 1px solid var(--tk-line); }
+.jp-tksp .tk-costbox small { color: var(--tk-muted); font-size: .74rem; font-weight: 600; }
+.jp-tksp .tk-costbox b { display: block; font-size: 1.2rem; font-weight: 850; }
+.jp-tksp .tk-costbox .pct { font-size: .74rem; font-weight: 700; }
+
+/* Nhật ký */
+.jp-tksp .tk-timeline { list-style: none; position: relative; padding: 0 0 0 1.45rem; margin: 0; }
+.jp-tksp .tk-timeline::before { content: ""; position: absolute; left: .45rem; top: .4rem; bottom: .5rem; width: 2px; background: var(--tk-line); }
+.jp-tksp .tk-timeline li { position: relative; margin: 0 0 1rem; font-size: .84rem; }
+.jp-tksp .tk-timeline li::before { content: ""; position: absolute; left: -1.3rem; top: .28rem; width: .65rem; height: .65rem; border-radius: 50%; background: #94a3b8; border: 3px solid var(--tk-surface); box-shadow: 0 0 0 1px var(--tk-line); }
+.jp-tksp .tk-timeline li.is-status::before { background: var(--tk-accent); }
+.jp-tksp .tk-timeline strong { font-size: .84rem; }
+.jp-tksp .tk-timeline .t { color: var(--tk-muted); font-size: .72rem; }
+
+/* Trao đổi */
+.jp-tksp .tk-comment { border: 1px solid var(--tk-line); border-radius: var(--tk-radius); padding: .6rem .75rem; font-size: .86rem; }
+.jp-tksp .tk-comment + .tk-comment { margin-top: .5rem; }
+.jp-tksp .tk-comment.is-revision { border-color: rgba(185, 28, 28, .35); background: rgba(185, 28, 28, .05); }
+
+/* Cột phải */
+.jp-tksp .tk-side-card { padding: 1rem; }
+.jp-tksp .tk-side-card + .tk-side-card { margin-top: .85rem; }
+.jp-tksp .tk-side-card h3 { font-size: .84rem; font-weight: 850; margin: 0 0 .7rem; display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.jp-tksp .tk-owner { display: flex; align-items: center; gap: .6rem; margin: .55rem 0; }
+.jp-tksp .tk-avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: .74rem; flex-shrink: 0; }
+.jp-tksp .tk-avatar.is-empty { background: var(--tk-line) !important; color: var(--tk-muted); }
+.jp-tksp .tk-owner strong { font-size: .8rem; display: block; line-height: 1.2; }
+.jp-tksp .tk-owner small { color: var(--tk-muted); font-size: .7rem; }
+.jp-tksp .tk-due { background: var(--tk-surface-2); border: 1px solid var(--tk-line); border-radius: var(--tk-radius); padding: .7rem .8rem; }
+.jp-tksp .tk-due strong { font-size: .92rem; display: block; }
+.jp-tksp .tk-due span { font-size: .74rem; }
+.jp-tksp .tk-due.is-late { background: rgba(185, 28, 28, .07); border-color: rgba(185, 28, 28, .3); color: var(--tk-red); }
+.jp-tksp .tk-due.is-soon { background: rgba(180, 83, 9, .08); border-color: rgba(180, 83, 9, .3); color: var(--tk-amber); }
+.jp-tksp .tk-rule-list { padding: 0; margin: 0; list-style: none; }
+.jp-tksp .tk-rule-list li { padding: .45rem 0; border-bottom: 1px solid var(--tk-line); font-size: .8rem; display: flex; gap: .45rem; }
+.jp-tksp .tk-rule-list li:last-child { border-bottom: 0; }
+.jp-tksp .tk-rule-list li i { flex-shrink: 0; margin-top: .1rem; }
+.jp-tksp .tk-task { border: 1px solid var(--tk-line); border-radius: var(--tk-radius); padding: .5rem .6rem; font-size: .8rem; }
+.jp-tksp .tk-task + .tk-task { margin-top: .45rem; }
+.jp-tksp .tk-task.is-late { border-color: rgba(185, 28, 28, .3); background: rgba(185, 28, 28, .05); }
+
+/* Tổng quan */
+.jp-tksp .tk-dash-grid { display: grid; grid-template-columns: 1.35fr .85fr; gap: 1rem; }
+.jp-tksp .tk-pipeline { display: grid; grid-template-columns: repeat(6, minmax(52px, 1fr)); gap: .6rem; align-items: end; height: 190px; }
+.jp-tksp .tk-barwrap { height: 160px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: .4rem; text-decoration: none; color: inherit; }
+.jp-tksp .tk-bar { width: 52%; min-width: 26px; border-radius: 6px 6px 3px 3px; background: var(--tk-dark); position: relative; transition: background .2s; }
+.jp-tksp .tk-barwrap:hover .tk-bar, .jp-tksp .tk-bar.is-peak { background: linear-gradient(180deg, #ef4444, var(--tk-accent)); }
+.jp-tksp .tk-bar span { position: absolute; top: -1.35rem; left: 0; right: 0; text-align: center; font-weight: 800; font-size: .85rem; }
+.jp-tksp .tk-barlabel { text-align: center; font-size: .7rem; color: var(--tk-muted); line-height: 1.2; font-weight: 600; }
+.jp-tksp .tk-alert-list { display: grid; gap: .55rem; }
+.jp-tksp .tk-alert { border: 1px solid var(--tk-line); border-radius: var(--tk-radius); padding: .65rem .75rem; display: flex; gap: .6rem; text-decoration: none; color: inherit; }
+.jp-tksp a.tk-alert:hover { border-color: var(--tk-accent); color: inherit; }
+.jp-tksp .tk-alert strong { display: block; font-size: .8rem; }
+.jp-tksp .tk-alert p { margin: .1rem 0 0; color: var(--tk-muted); font-size: .74rem; }
+.jp-tksp .tk-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--tk-red); margin-top: .35rem; flex: none; }
+.jp-tksp .tk-dot.is-amber { background: var(--tk-amber); }
+.jp-tksp .tk-dot.is-blue { background: var(--tk-blue); }
+.jp-tksp .tk-meter-row { display: grid; grid-template-columns: minmax(110px, 40%) 1fr 34px; gap: .5rem; align-items: center; margin: .45rem 0; font-size: .78rem; text-decoration: none; color: inherit; }
+.jp-tksp .tk-meter { height: 7px; background: var(--tk-line); border-radius: 10px; overflow: hidden; }
+.jp-tksp .tk-meter i { display: block; height: 100%; background: var(--tk-accent); }
+
+.jp-tksp .tk-task-row.is-late { background: rgba(185, 28, 28, .05); }
+.jp-tksp .ts-wrapper.form-select { padding: 0; }
+
+/* Kanban */
+.jp-tksp .tk-kanban { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(260px, 1fr); gap: .8rem; overflow-x: auto; padding-bottom: .5rem; align-items: start; }
+.jp-tksp .tk-kan-col { background: var(--tk-surface-2); border: 1px solid var(--tk-line); border-radius: var(--tk-radius); padding: .7rem; min-height: 180px; }
+.jp-tksp .tk-kan-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; font-weight: 850; font-size: .8rem; padding: .1rem .15rem .65rem; }
+.jp-tksp .tk-kan-head a { color: inherit; text-decoration: none; }
+.jp-tksp .tk-kan-head a:hover { color: var(--tk-accent); }
+.jp-tksp .tk-kan-card { display: block; background: var(--tk-surface); border: 1px solid var(--tk-line); border-radius: var(--tk-radius); padding: .7rem; color: inherit; text-decoration: none; box-shadow: 0 2px 4px rgba(15, 23, 42, .04); transition: border-color .15s, transform .15s; }
+.jp-tksp .tk-kan-card + .tk-kan-card { margin-top: .55rem; }
+.jp-tksp .tk-kan-card:hover { border-color: var(--tk-accent); color: inherit; transform: translateY(-1px); }
+.jp-tksp .tk-kan-card.is-late { border-left: 3px solid var(--tk-red); }
+.jp-tksp .tk-kan-card strong { display: block; font-size: .82rem; line-height: 1.3; }
+.jp-tksp .tk-kan-card .meta { font-size: .7rem; color: var(--tk-muted); font-weight: 600; margin: .15rem 0 .5rem; }
+.jp-tksp .tk-kan-top { display: flex; gap: .55rem; align-items: flex-start; }
+.jp-tksp .tk-kan-top .tk-prod-thumb { width: 34px; height: 40px; font-size: .85rem; }
+.jp-tksp .tk-kan-foot { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-top: .55rem; font-size: .7rem; }
+.jp-tksp .tk-kan-foot .tk-avatar { width: 24px; height: 24px; font-size: .62rem; }
+.jp-tksp .tk-kan-empty { font-size: .74rem; color: var(--tk-muted); padding: .2rem .15rem; }
+.jp-tksp .tk-kan-more { display: block; text-align: center; font-size: .74rem; font-weight: 700; margin-top: .55rem; color: var(--tk-accent); text-decoration: none; }
+.jp-tksp .tk-kan-col { transition: background .15s, border-color .15s, opacity .15s; }
+.jp-tksp .tk-kan-col.is-over { border: 2px dashed var(--tk-accent); background: var(--tk-accent-soft); }
+.jp-tksp .tk-kan-col.is-blocked { opacity: .45; }
+.jp-tksp .tk-kan-card[data-movable="1"] { cursor: grab; }
+.jp-tksp .tk-kan-card.is-dragging { opacity: .35; }
+.jp-tksp .tk-kan-card a, .jp-tksp .tk-kan-card img { -webkit-user-drag: none; }
+.jp-tksp .tk-kan-hint { position: sticky; left: 0; }
+.tk-kan-ghost { position: fixed; left: 0; top: 0; z-index: 2000; margin: 0 !important; pointer-events: none; cursor: grabbing; opacity: .95; box-shadow: 0 12px 28px rgba(15, 23, 42, .22); }
+body.tk-kan-dragging, body.tk-kan-dragging * { cursor: grabbing !important; user-select: none !important; }
+@media (pointer: coarse) {
+  .jp-tksp .tk-kan-card[data-movable="1"] { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+}
+
+[data-theme="dark"] .jp-tksp .tk-pill.is-gray { color: #cbd5e1; }
+[data-theme="dark"] .jp-tksp .tk-pill.is-blue { color: #93c5fd; }
+[data-theme="dark"] .jp-tksp .tk-pill.is-green, [data-theme="dark"] .jp-tksp .tk-ok { color: #86efac; }
+[data-theme="dark"] .jp-tksp .tk-pill.is-amber, [data-theme="dark"] .jp-tksp .tk-miss { color: #fcd34d; }
+[data-theme="dark"] .jp-tksp .tk-pill.is-red, [data-theme="dark"] .jp-tksp .tk-late, [data-theme="dark"] .jp-tksp .tk-bad { color: #fca5a5; }
+[data-theme="dark"] .jp-tksp .tk-pill.is-purple { color: #c4b5fd; }
+[data-theme="dark"] .jp-tksp .tk-hero, [data-theme="dark"] .jp-tksp .tk-prod-thumb, [data-theme="dark"] .jp-tksp .tk-version-preview, [data-theme="dark"] .jp-tksp .tk-bar { border: 1px solid rgba(255, 255, 255, .08); }
+
+@media (max-width: 1199.98px) {
+  .jp-tksp .tk-kpis, .jp-tksp .tk-cost-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .jp-tksp .tk-dash-grid, .jp-tksp .tk-detail-layout { grid-template-columns: minmax(0, 1fr); }
+  .jp-tksp .tk-rail { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .85rem; }
+  .jp-tksp .tk-rail .tk-side-card + .tk-side-card { margin-top: 0; }
+}
+@media (max-width: 767.98px) {
+  .jp-tksp .tk-kpis, .jp-tksp .tk-cost-summary, .jp-tksp .tk-grid2, .jp-tksp .tk-grid3, .jp-tksp .tk-rail { grid-template-columns: minmax(0, 1fr); }
+  .jp-tksp .tk-hero-main { grid-template-columns: auto minmax(0, 1fr); }
+  .jp-tksp .tk-hero-actions { grid-column: 1 / -1; justify-content: stretch; }
+  .jp-tksp .tk-hero-actions .btn { flex: 1; }
+  .jp-tksp .tk-hero-thumb { width: 58px; height: 66px; }
+  .jp-tksp .tk-pipeline { min-width: 420px; }
+  .jp-tksp .tk-toolbar .tk-search { max-width: none; }
+}
+</style>

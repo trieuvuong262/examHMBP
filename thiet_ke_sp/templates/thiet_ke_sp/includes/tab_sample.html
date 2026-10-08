@@ -1,0 +1,126 @@
+{% load tksp_tags %}
+{% if not current_sv %}
+<div class="tk-section text-muted small">Chưa có lần làm mẫu.</div>
+{% else %}
+{% with sv=current_sv %}
+<div class="tk-section">
+  <div class="tk-section-title">
+    <span class="tk-version-pill"><i class="bi bi-scissors"></i>Mẫu {{ sv.label }}</span>
+    <span class="tk-pill {% if sv.state == 'passed' %}is-green{% elif sv.state == 'submitted' %}is-amber{% elif sv.state == 'failed' %}is-red{% else %}is-blue{% endif %}">{{ sv.get_state_display }}</span>
+    <span class="tk-section-sub">theo thiết kế {{ sv.design_version.label }}</span>
+    <span class="ms-auto d-flex gap-1">
+      {% if flags.submit_master %}<button type="button" class="btn btn-sm btn-hm text-white fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalSubmitMaster">Trình duyệt mẫu chuẩn</button>{% endif %}
+      {% if flags.request_fix %}<button type="button" class="btn btn-sm btn-outline-danger fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalSampleFix">Yêu cầu sửa mẫu</button>{% endif %}
+    </span>
+  </div>
+  {% if sample_form %}
+  <form method="post" action="{% url 'thiet_ke_sp:action' dossier.pk 'sample_save' %}">{% csrf_token %}
+    <input type="hidden" name="sample_version_id" value="{{ sv.pk }}"><input type="hidden" name="return_tab" value="sample">
+    <div class="row g-3">
+      {% include 'thiet_ke_sp/includes/field.html' with field=sample_form.maker col='col-md-4' %}
+      {% include 'thiet_ke_sp/includes/field.html' with field=sample_form.assigned_date col='col-md-4' %}
+      {% include 'thiet_ke_sp/includes/field.html' with field=sample_form.completed_date col='col-md-4' %}
+      {% include 'thiet_ke_sp/includes/field.html' with field=sample_form.progress_note %}
+      {% if sv.version_no > 1 %}{% include 'thiet_ke_sp/includes/field.html' with field=sample_form.change_note req=True %}{% endif %}
+    </div>
+    <div class="text-end mt-2"><button type="submit" class="btn btn-sm btn-outline-hm fw-bold"><i class="bi bi-save me-1"></i>Lưu tiến độ</button></div>
+  </form>
+  {% else %}
+  {% include 'thiet_ke_sp/includes/sample_kv.html' with sv=sv %}
+  {% endif %}
+
+  <h3 class="tk-sub mt-3">Ảnh mẫu thực tế</h3>
+  <div class="tk-thumbs mb-2">
+    {% for a in sv.photos %}{% include 'thiet_ke_sp/includes/thumb.html' with a=a label='' missing=False can_delete=flags.edit_sample %}{% empty %}{% include 'thiet_ke_sp/includes/thumb.html' with a=None label='Ảnh mẫu' missing=True %}{% endfor %}
+  </div>
+  {% if can_upload_sample %}
+  <form method="post" action="{% url 'thiet_ke_sp:upload' dossier.pk %}" enctype="multipart/form-data" class="row g-2 align-items-end">{% csrf_token %}
+    <input type="hidden" name="sample_version_id" value="{{ sv.pk }}"><input type="hidden" name="kind" value="sample_photo"><input type="hidden" name="return_tab" value="sample">
+    <div class="col-md-7"><input type="file" name="files" class="form-control form-control-sm" accept="image/*" multiple required></div>
+    <div class="col-md-3"><input type="text" name="note" class="form-control form-control-sm" placeholder="Ghi chú" maxlength="255"></div>
+    <div class="col-md-2"><button type="submit" class="btn btn-sm btn-hm text-white w-100 fw-bold"><i class="bi bi-upload me-1"></i>Tải ảnh</button></div>
+  </form>
+  {% endif %}
+</div>
+
+<div class="tk-section">
+  <div class="tk-section-title"><i class="bi bi-clipboard-check"></i>Đánh giá mẫu {{ sv.label }}</div>
+  {% include 'thiet_ke_sp/includes/evaluations.html' with evaluations=sv.evaluations.all %}
+  {% if sv.eval_files %}
+  <div class="tk-thumbs mt-2">{% for a in sv.eval_files %}{% include 'thiet_ke_sp/includes/thumb.html' with a=a label='Biên bản đánh giá' missing=False can_delete=False %}{% endfor %}</div>
+  {% endif %}
+
+  {% if evaluation_form %}
+  <form method="post" action="{% url 'thiet_ke_sp:action' dossier.pk 'evaluation_add' %}" enctype="multipart/form-data" class="tk-card p-3 mt-3">{% csrf_token %}
+    <input type="hidden" name="return_tab" value="sample">
+    <h3 class="tk-sub">Nhập đánh giá</h3>
+    <div class="table-responsive">
+      <table class="table tk-mini-table align-middle mb-2">
+        <thead><tr><th>Tiêu chí</th><th class="text-center">Đạt</th><th class="text-center">Không đạt</th><th class="text-center">Không đánh giá</th><th>Ghi chú</th></tr></thead>
+        <tbody>
+        {% for key, label in criteria %}
+          <tr>
+            <td class="fw-semibold">{{ label }}</td>
+            <td class="text-center"><input class="form-check-input" type="radio" name="crit_{{ key }}" value="pass"></td>
+            <td class="text-center"><input class="form-check-input" type="radio" name="crit_{{ key }}" value="fail"></td>
+            <td class="text-center"><input class="form-check-input" type="radio" name="crit_{{ key }}" value="na" checked></td>
+            <td><input type="text" name="crit_note_{{ key }}" class="form-control form-control-sm" maxlength="255"></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="row g-2">
+      {% include 'thiet_ke_sp/includes/field.html' with field=evaluation_form.role col='col-md-4' %}
+      {% include 'thiet_ke_sp/includes/field.html' with field=evaluation_form.result col='col-md-4' req=True %}
+      <div class="col-md-4">
+        <label class="form-label fw-bold small mb-1">Biên bản đánh giá</label>
+        <input type="file" name="evaluation_file" class="form-control form-control-sm">
+      </div>
+      {% include 'thiet_ke_sp/includes/field.html' with field=evaluation_form.conclusion %}
+      {% include 'thiet_ke_sp/includes/field.html' with field=evaluation_form.defects %}
+      {% include 'thiet_ke_sp/includes/field.html' with field=evaluation_form.fix_owner %}
+      {% include 'thiet_ke_sp/includes/field.html' with field=evaluation_form.fix_due %}
+    </div>
+    <div class="text-end mt-2"><button type="submit" class="btn btn-sm btn-hm text-white fw-bold"><i class="bi bi-save me-1"></i>Lưu đánh giá</button></div>
+  </form>
+  {% endif %}
+</div>
+
+{% include 'thiet_ke_sp/includes/version_comments.html' with scope_prefix='s' scope_id=sv.pk version_comments=sv.comments.all return_tab='sample' %}
+{% endwith %}
+{% endif %}
+
+{% if samples %}
+<div class="tk-section">
+  <div class="tk-section-title"><i class="bi bi-clock-history"></i>Lịch sử các lần làm mẫu</div>
+  <div class="tk-version-list">
+    {% for sv in samples %}
+    <div class="tk-version{% if sv.is_current %} is-current{% endif %}">
+      {% with photo=sv.photos|first %}
+      <div class="tk-version-preview">{% if photo and photo.is_image %}<img src="{{ photo.get_absolute_url }}" alt="" loading="lazy">{% else %}<i class="bi bi-scissors"></i>{% endif %}</div>
+      {% endwith %}
+      <div class="min-w-0">
+        <b>{{ sv.label }} · thiết kế {{ sv.design_version.label }}{% if dossier.final_sample_version_id == sv.pk %} · mẫu chuẩn{% elif sv.is_current %} · hiện hành{% endif %}</b>
+        <p>{% if sv.change_note %}{{ sv.change_note|truncatechars:110 }}{% else %}{{ sv.progress_note|truncatechars:110|default:'—' }}{% endif %}</p>
+        <small>{{ sv.maker|uname }} · {{ sv.completed_date|date:'d/m/Y'|default:'—' }}</small>
+      </div>
+      <div class="d-flex flex-column align-items-end gap-1">
+        <span class="tk-pill {% if sv.state == 'passed' %}is-green{% elif sv.state == 'submitted' %}is-amber{% elif sv.state == 'failed' %}is-red{% else %}is-gray{% endif %}">{{ sv.get_state_display }}</span>
+        {% if not sv.is_current %}<button type="button" class="btn btn-sm btn-light border py-0" data-bs-toggle="collapse" data-bs-target="#tkSv{{ sv.pk }}" aria-expanded="false">Chi tiết</button>{% endif %}
+      </div>
+    </div>
+    {% if not sv.is_current %}
+    <div id="tkSv{{ sv.pk }}" class="collapse">
+      <div class="tk-card p-3">
+        {% include 'thiet_ke_sp/includes/sample_kv.html' with sv=sv %}
+        <div class="tk-thumbs mt-2">{% for a in sv.photos %}{% include 'thiet_ke_sp/includes/thumb.html' with a=a label='' missing=False can_delete=False %}{% endfor %}</div>
+        <div class="mt-3">{% include 'thiet_ke_sp/includes/evaluations.html' with evaluations=sv.evaluations.all %}</div>
+        {% if sv.lines %}<h3 class="tk-sub mt-3">BOM</h3>{% include 'thiet_ke_sp/includes/bom_table.html' with lines=sv.lines %}{% endif %}
+      </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}

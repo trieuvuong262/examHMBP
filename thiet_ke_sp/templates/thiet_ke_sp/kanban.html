@@ -1,0 +1,308 @@
+{% extends 'base.html' %}
+{% load sx_format tksp_tags %}
+{% block title %}Tiến độ Kanban{% endblock %}
+{% block extra_head %}{% include 'thiet_ke_sp/includes/tksp_styles.html' %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-sx-page jp-tksp py-3 py-md-4 mb-5 px-3 px-lg-4">
+  {% include 'thiet_ke_sp/includes/tksp_topbar.html' with tk_title='Tiến độ Kanban' tk_active='kanban' %}
+
+  <form method="get" id="tkKanbanFilter" class="tk-card tk-panel mb-3" role="search" aria-label="Bộ lọc Kanban">
+    <div class="tk-toolbar">
+      <div class="tk-chips">
+        {% for val, label in quick_filters %}
+        <button type="submit" name="quick" value="{{ val }}" class="btn btn-sm fw-bold {% if filter_quick == val %}btn-hm text-white{% else %}btn-light border{% endif %}">{{ label }}</button>
+        {% endfor %}
+      </div>
+      <input type="hidden" name="quick" value="{{ filter_quick }}" id="tkQuickHidden">
+      <input type="search" id="tk-q" name="q" class="form-control form-control-sm tk-search" value="{{ filter_q }}" placeholder="Tìm mã, tên sản phẩm…" autocomplete="off" aria-label="Tìm kiếm">
+      <select name="group" class="form-select form-select-sm tk-auto" aria-label="Nhóm sản phẩm">
+        <option value="">Tất cả nhóm</option>
+        {% for val, label in group_choices %}<option value="{{ val }}" {% if filter_group == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+      <select name="collection" class="form-select form-select-sm tk-auto" aria-label="Mùa / bộ sưu tập">
+        <option value="">Tất cả mùa</option>
+        {% for c in collection_choices %}<option value="{{ c }}" {% if filter_collection == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+      </select>
+      <select name="owner" class="form-select form-select-sm tk-auto" aria-label="Phụ trách">
+        <option value="">Mọi người phụ trách</option>
+        {% for u in owner_choices %}<option value="{{ u.pk }}" {% if filter_owner == u.pk|stringformat:'s' %}selected{% endif %}>{{ u|uname }}</option>{% endfor %}
+      </select>
+      {% if has_filters %}<a href="{% url 'thiet_ke_sp:kanban' %}" class="btn btn-light border btn-sm" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>{% endif %}
+      <span class="tk-count">{{ total_count|sx_num }} hồ sơ{% if late_count %} · <span class="tk-late">{{ late_count }} trễ</span>{% endif %}</span>
+    </div>
+  </form>
+
+  <div class="alert alert-warning py-2 small d-none tk-kan-hint" id="tkKanHint" role="status"></div>
+
+  <div class="tk-kanban" id="tkKanBoard">
+    {% for col in columns %}
+    <section class="tk-kan-col" data-col="{{ col.key }}" data-label="{{ col.label }}" aria-label="{{ col.label }}">
+      <div class="tk-kan-head">
+        <a href="{% url 'thiet_ke_sp:list' %}?{{ col.query }}">{{ col.label }}</a>
+        <span class="d-inline-flex gap-1">{% if col.late %}<span class="tk-pill is-red">{{ col.late }} trễ</span>{% endif %}<span class="tk-pill is-gray">{{ col.count }}</span></span>
+      </div>
+      {% for d in col.items %}
+      <a class="tk-kan-card{% if d.step_late_days %} is-late{% endif %}" href="{{ d.get_absolute_url }}" draggable="false"
+         data-movable="{% if d.kanban_moves_json != '{}' %}1{% else %}0{% endif %}" data-col="{{ col.key }}"
+         data-status="{{ d.status }}" data-status-label="{{ d.get_status_display }}" data-name="{{ d.name }}"
+         data-moves="{{ d.kanban_moves_json }}" data-url="{% url 'thiet_ke_sp:kanban_move' d.pk %}">
+        <div class="tk-kan-top">
+          <div class="tk-prod-thumb">{% if d.cover %}<img src="{{ d.cover.get_absolute_url }}" alt="" loading="lazy">{% else %}<i class="bi bi-palette"></i>{% endif %}</div>
+          <div class="min-w-0">
+            <strong>{{ d.name }}</strong>
+            <div class="meta">{{ d.code }} · {{ d.get_product_group_display }}{% if d.collection %} · {{ d.collection }}{% endif %}</div>
+          </div>
+        </div>
+        <span class="tk-pill is-{{ d.status_tone }}">{{ d.get_status_display }}</span>
+        <div class="tk-kan-foot">
+          <span class="d-inline-flex align-items-center gap-1 min-w-0">
+            {% if d.owner %}<span class="tk-avatar" style="background: {{ d.owner_id|avatar_tone }}" title="{{ d.owner|uname }}">{{ d.owner|initial }}</span>{% else %}<span class="tk-avatar is-empty"><i class="bi bi-person"></i></span>{% endif %}
+            <span class="text-muted text-truncate">{{ d.step_assignee_name|default:'' }}</span>
+          </span>
+          {% if d.step_due_at %}<span class="text-nowrap {% if d.step_late_days %}tk-late{% else %}text-muted{% endif %}">{% if d.step_late_days %}Trễ {{ d.step_late_days }} ngày{% else %}Hạn {{ d.step_due_at|date:'d/m' }}{% endif %}</span>{% endif %}
+        </div>
+      </a>
+      {% empty %}
+      <div class="tk-kan-empty">Chưa có hồ sơ</div>
+      {% endfor %}
+      {% if col.more %}<a class="tk-kan-more" href="{% url 'thiet_ke_sp:list' %}?{{ col.query }}">+ {{ col.more }} hồ sơ khác</a>{% endif %}
+    </section>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="modal fade" id="tkKanMoveModal" tabindex="-1" aria-labelledby="tkKanMoveTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="post" class="modal-content" id="tkKanMoveForm">
+      {% csrf_token %}
+      <input type="hidden" name="to" id="tkKanMoveTo">
+      <input type="hidden" name="from" id="tkKanMoveFrom">
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <div class="modal-header py-2">
+        <h5 class="modal-title fs-6 fw-bold" id="tkKanMoveTitle">Chuyển bước</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3" id="tkKanMoveText"></p>
+        <div class="mb-3 d-none" id="tkKanMoveCodeGroup">
+          <label class="form-label fw-bold small mb-1" for="tkKanMoveCode">Mã sản phẩm chính thức <span class="text-danger">*</span></label>
+          <input type="text" name="official_code" id="tkKanMoveCode" class="form-control form-control-sm text-uppercase" maxlength="50" autocomplete="off">
+        </div>
+        <div>
+          <label class="form-label fw-bold small mb-1" for="tkKanMoveComment"><span id="tkKanMoveCommentLabel">Ý kiến</span> <span class="text-danger d-none" id="tkKanMoveCommentStar">*</span></label>
+          <textarea name="comment" id="tkKanMoveComment" class="form-control form-control-sm" rows="3"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer py-2">
+        <button type="button" class="btn btn-light border btn-sm" data-bs-dismiss="modal">Hủy</button>
+        <button type="submit" class="btn btn-hm text-white btn-sm fw-bold" id="tkKanMoveSubmit">Xác nhận</button>
+      </div>
+    </form>
+  </div>
+</div>
+{{ move_specs|json_script:"tkKanMoveSpecs" }}
+{% include 'thiet_ke_sp/includes/tksp_scripts.html' %}
+<script>
+(function () {
+  var board = document.getElementById('tkKanBoard');
+  if (!board) return;
+  var specs = JSON.parse(document.getElementById('tkKanMoveSpecs').textContent);
+  var hint = document.getElementById('tkKanHint');
+  var host = board.closest('.jp-tksp') || document.body;
+  var hintTimer = null;
+  var MOVE_THRESHOLD = 6;
+  var TOUCH_HOLD_MS = 250;
+  var EDGE = 60;
+  var drag = null;
+  var suppressClickUntil = 0;
+
+  function movesOf(card) {
+    try { return JSON.parse(card.dataset.moves || '{}'); } catch (e) { return {}; }
+  }
+  function colAt(x, y) {
+    var el = document.elementFromPoint(x, y);
+    return el && el.closest ? el.closest('#tkKanBoard .tk-kan-col') : null;
+  }
+  function showHint(text) {
+    hint.textContent = text;
+    hint.classList.remove('d-none');
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(function () { hint.classList.add('d-none'); }, 4000);
+  }
+  function colLabel(key) {
+    var col = board.querySelector('.tk-kan-col[data-col="' + key + '"]');
+    return col ? col.dataset.label : key;
+  }
+
+  var modalEl = document.getElementById('tkKanMoveModal');
+  var form = document.getElementById('tkKanMoveForm');
+  var codeGroup = document.getElementById('tkKanMoveCodeGroup');
+  var codeEl = document.getElementById('tkKanMoveCode');
+  var commentEl = document.getElementById('tkKanMoveComment');
+  function openMove(card, colKey, move) {
+    var spec = specs[move] || { label: move, comment: false, code: false };
+    form.reset();
+    form.action = card.dataset.url;
+    document.getElementById('tkKanMoveTo').value = colKey;
+    document.getElementById('tkKanMoveFrom').value = card.dataset.status;
+    document.getElementById('tkKanMoveTitle').textContent = spec.label;
+    document.getElementById('tkKanMoveText').textContent =
+      '«' + card.dataset.name + '»: ' + card.dataset.statusLabel + ' → ' + colLabel(colKey) + '.';
+    codeGroup.classList.toggle('d-none', !spec.code);
+    codeEl.required = !!spec.code;
+    commentEl.required = !!spec.comment;
+    document.getElementById('tkKanMoveCommentStar').classList.toggle('d-none', !spec.comment);
+    document.getElementById('tkKanMoveCommentLabel').textContent = spec.comment ? 'Lý do / nội dung' : 'Ý kiến';
+    document.getElementById('tkKanMoveSubmit').textContent = spec.label;
+    var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modalEl.addEventListener('shown.bs.modal', function focus() {
+      modalEl.removeEventListener('shown.bs.modal', focus);
+      (spec.code ? codeEl : commentEl).focus();
+    });
+    modal.show();
+  }
+
+  function startDrag() {
+    var card = drag.card;
+    var rect = card.getBoundingClientRect();
+    drag.started = true;
+    drag.offX = drag.x0 - rect.left;
+    drag.offY = drag.y0 - rect.top;
+    var ghost = card.cloneNode(true);
+    ghost.classList.add('tk-kan-ghost');
+    ghost.style.width = rect.width + 'px';
+    host.appendChild(ghost);
+    drag.ghost = ghost;
+    card.classList.add('is-dragging');
+    document.body.classList.add('tk-kan-dragging');
+    if (window.getSelection) window.getSelection().removeAllRanges();
+    board.querySelectorAll('.tk-kan-col').forEach(function (col) {
+      if (col.dataset.col !== card.dataset.col && !drag.moves[col.dataset.col]) col.classList.add('is-blocked');
+    });
+    moveDrag(drag.x, drag.y);
+    drag.raf = requestAnimationFrame(autoScroll);
+  }
+  function moveDrag(x, y) {
+    drag.x = x;
+    drag.y = y;
+    drag.ghost.style.transform = 'translate(' + (x - drag.offX) + 'px,' + (y - drag.offY) + 'px) rotate(2deg)';
+    var col = colAt(x, y);
+    if (col !== drag.overCol) {
+      if (drag.overCol) drag.overCol.classList.remove('is-over');
+      drag.overCol = col;
+      if (col && drag.moves[col.dataset.col]) col.classList.add('is-over');
+    }
+  }
+  function autoScroll() {
+    if (!drag || !drag.started) return;
+    var r = board.getBoundingClientRect();
+    if (drag.x < r.left + EDGE) board.scrollLeft -= 14;
+    else if (drag.x > r.right - EDGE) board.scrollLeft += 14;
+    if (drag.y < EDGE) window.scrollBy(0, -14);
+    else if (drag.y > window.innerHeight - EDGE) window.scrollBy(0, 14);
+    moveDrag(drag.x, drag.y);
+    drag.raf = requestAnimationFrame(autoScroll);
+  }
+  function endDrag(x, y, cancelled) {
+    var d = drag;
+    drag = null;
+    clearTimeout(d.holdTimer);
+    if (!d.started) return;
+    cancelAnimationFrame(d.raf);
+    d.ghost.remove();
+    d.card.classList.remove('is-dragging');
+    document.body.classList.remove('tk-kan-dragging');
+    board.querySelectorAll('.tk-kan-col').forEach(function (col) { col.classList.remove('is-over', 'is-blocked'); });
+    suppressClickUntil = Date.now() + 400;
+    if (cancelled) return;
+    var col = colAt(x, y);
+    if (!col || col.dataset.col === d.card.dataset.col) return;
+    var move = d.moves[col.dataset.col];
+    if (!move) {
+      var targets = Object.keys(d.moves).map(function (k) { return '«' + colLabel(k) + '»'; });
+      showHint('Không chuyển «' + d.card.dataset.name + '» sang «' + col.dataset.label + '». '
+        + (targets.length ? 'Bạn có thể kéo sang: ' + targets.join(', ') + '.' : 'Bạn không có thao tác nào ở bước này.'));
+      return;
+    }
+    openMove(d.card, col.dataset.col, move);
+  }
+
+  board.addEventListener('pointerdown', function (ev) {
+    if (drag || (ev.pointerType === 'mouse' && ev.button !== 0)) return;
+    var card = ev.target.closest('.tk-kan-card[data-movable="1"]');
+    if (!card) return;
+    var touch = ev.pointerType !== 'mouse';
+    drag = {
+      card: card, moves: movesOf(card), pointerId: ev.pointerId, touch: touch, started: false,
+      x0: ev.clientX, y0: ev.clientY, x: ev.clientX, y: ev.clientY, overCol: null,
+    };
+    if (touch) {
+      drag.holdTimer = setTimeout(function () {
+        if (drag && !drag.started) startDrag();
+      }, TOUCH_HOLD_MS);
+    } else {
+      ev.preventDefault();
+    }
+  });
+  document.addEventListener('pointermove', function (ev) {
+    if (!drag || ev.pointerId !== drag.pointerId) return;
+    if (drag.started) {
+      ev.preventDefault();
+      moveDrag(ev.clientX, ev.clientY);
+      return;
+    }
+    var moved = Math.abs(ev.clientX - drag.x0) + Math.abs(ev.clientY - drag.y0) > MOVE_THRESHOLD;
+    if (!moved) return;
+    if (drag.touch) {
+      endDrag(ev.clientX, ev.clientY, true);
+    } else {
+      drag.x = ev.clientX;
+      drag.y = ev.clientY;
+      startDrag();
+    }
+  });
+  document.addEventListener('pointerup', function (ev) {
+    if (drag && ev.pointerId === drag.pointerId) endDrag(drag.x, drag.y, false);
+  });
+  document.addEventListener('pointercancel', function (ev) {
+    if (drag && ev.pointerId === drag.pointerId) endDrag(drag.x, drag.y, true);
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (drag && drag.started && ev.key === 'Escape') endDrag(0, 0, true);
+  });
+  board.addEventListener('touchmove', function (ev) {
+    if (drag && drag.started) ev.preventDefault();
+  }, { passive: false });
+  board.addEventListener('contextmenu', function (ev) {
+    if (drag) ev.preventDefault();
+  });
+  board.addEventListener('dragstart', function (ev) { ev.preventDefault(); });
+  board.addEventListener('click', function (ev) {
+    if (Date.now() < suppressClickUntil) {
+      ev.preventDefault();
+      ev.stopPropagation();
+    }
+  }, true);
+})();
+</script>
+<script>
+(function () {
+  var form = document.getElementById('tkKanbanFilter');
+  if (!form) return;
+  var hidden = document.getElementById('tkQuickHidden');
+  form.querySelectorAll('button[name="quick"]').forEach(function (btn) {
+    btn.addEventListener('click', function () { if (hidden) hidden.disabled = true; });
+  });
+  form.querySelectorAll('.tk-auto').forEach(function (el) {
+    el.addEventListener('change', function () { form.requestSubmit(); });
+  });
+  var q = document.getElementById('tk-q');
+  var timer = null;
+  if (q) q.addEventListener('input', function () {
+    clearTimeout(timer);
+    timer = setTimeout(function () { form.requestSubmit(); }, 450);
+  });
+})();
+</script>
+{% endblock %}

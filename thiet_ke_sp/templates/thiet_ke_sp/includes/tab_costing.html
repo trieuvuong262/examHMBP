@@ -1,0 +1,70 @@
+{% load sx_format tksp_tags %}
+<div class="tk-section">
+  <div class="tk-cost-summary">
+    <div class="tk-costbox"><small>Giá thành mục tiêu</small><b>{{ dossier.target_cost|sx_num }}</b></div>
+    <div class="tk-costbox"><small>{{ costing.cost_label }}</small><b>{{ costing.cost|sx_num }}</b>{% if dossier.post_sample_cost is not None and dossier.estimated_cost is not None %}<span class="pct text-muted">Dự kiến {{ dossier.estimated_cost|sx_num }}</span>{% endif %}</div>
+    <div class="tk-costbox"><small>Chênh lệch</small><b class="{% if costing.variance > 0 %}tk-bad{% elif costing.variance is not None %}tk-ok{% endif %}">{% if costing.variance > 0 %}+{% endif %}{{ costing.variance|sx_num }}</b>{% if costing.variance_pct is not None %}<span class="pct {% if costing.variance > 0 %}tk-bad{% else %}tk-ok{% endif %}">{% if costing.variance > 0 %}+{% endif %}{{ costing.variance_pct|sx_num }}%</span>{% endif %}</div>
+    <div class="tk-costbox"><small>Biên lợi nhuận bán lẻ</small><b>{% if costing.retail_margin_pct is not None %}{{ costing.retail_margin_pct|sx_num }}%{% else %}—{% endif %}</b>{% if costing.retail_margin is not None %}<span class="pct text-muted">{{ costing.retail_margin|sx_num }} / sp</span>{% endif %}</div>
+  </div>
+  {% if costing.variance > 0 %}<div class="tk-callout is-warn mb-0">Giá thành vượt mục tiêu {{ costing.variance|sx_num }}{% if costing.variance_pct is not None %} ({{ costing.variance_pct|sx_num }}%){% endif %}.</div>{% endif %}
+</div>
+
+<div class="tk-section">
+  <div class="tk-section-title"><i class="bi bi-cash-coin"></i>Giá thành &amp; giá bán đề xuất</div>
+  {% if costing_form %}
+  <form method="post" action="{% url 'thiet_ke_sp:action' dossier.pk 'costing_save' %}">{% csrf_token %}
+    <input type="hidden" name="return_tab" value="costing">
+    <div class="row g-3">
+      {% include 'thiet_ke_sp/includes/field.html' with field=costing_form.estimated_cost col='col-md-3' %}
+      {% include 'thiet_ke_sp/includes/field.html' with field=costing_form.post_sample_cost col='col-md-3' %}
+      {% include 'thiet_ke_sp/includes/field.html' with field=costing_form.proposed_wholesale_price col='col-md-3' %}
+      {% include 'thiet_ke_sp/includes/field.html' with field=costing_form.proposed_retail_price col='col-md-3' %}
+      {% include 'thiet_ke_sp/includes/field.html' with field=costing_form.cost_note col='col-12' %}
+    </div>
+    <div class="text-end mt-2"><button type="submit" class="btn btn-sm btn-hm text-white fw-bold"><i class="bi bi-save me-1"></i>Lưu giá thành</button></div>
+  </form>
+  {% else %}
+  <div class="tk-grid3">
+    <div>
+      <h3 class="tk-sub">Giá thành</h3>
+      <div class="tk-field"><label>Dự kiến</label><strong>{{ dossier.estimated_cost|sx_num }}</strong></div>
+      <div class="tk-field"><label>Sau mẫu</label><strong>{{ dossier.post_sample_cost|sx_num }}</strong></div>
+    </div>
+    <div>
+      <h3 class="tk-sub">Giá bán sỉ</h3>
+      <div class="tk-field"><label>Mục tiêu / đề xuất</label><strong>{{ dossier.target_wholesale_price|sx_num }} / {{ dossier.proposed_wholesale_price|sx_num }}</strong></div>
+      <div class="tk-field"><label>Biên lợi nhuận</label><strong>{% if costing.wholesale_margin_pct is not None %}{{ costing.wholesale_margin_pct|sx_num }}% · {{ costing.wholesale_margin|sx_num }}{% else %}—{% endif %}</strong></div>
+    </div>
+    <div>
+      <h3 class="tk-sub">Giá bán lẻ</h3>
+      <div class="tk-field"><label>Mục tiêu / đề xuất</label><strong>{{ dossier.target_retail_price|sx_num }} / {{ dossier.proposed_retail_price|sx_num }}</strong></div>
+      <div class="tk-field"><label>Biên lợi nhuận</label><strong>{% if costing.retail_margin_pct is not None %}{{ costing.retail_margin_pct|sx_num }}% · {{ costing.retail_margin|sx_num }}{% else %}—{% endif %}</strong></div>
+    </div>
+  </div>
+  {% if dossier.cost_note %}<div class="tk-field"><label>Ghi chú</label><span class="v">{{ dossier.cost_note }}</span></div>{% endif %}
+  {% endif %}
+</div>
+
+{% if current_sv %}
+<div class="tk-section">
+  <div class="tk-section-title"><i class="bi bi-list-columns"></i>Chi phí NPL theo BOM mẫu {{ current_sv.label }}
+    <span class="ms-auto tk-pill is-gray">Tổng {{ material_total|sx_num }}</span>
+  </div>
+  {% include 'thiet_ke_sp/includes/bom_table.html' with lines=current_sv.lines %}
+</div>
+{% endif %}
+
+<div class="tk-section">
+  <div class="tk-section-title"><i class="bi bi-file-earmark-spreadsheet"></i>Bảng giá thành</div>
+  <div class="tk-thumbs mb-2">
+    {% for a in dossier_files %}{% if a.kind == 'cost' %}{% include 'thiet_ke_sp/includes/thumb.html' with a=a label='' missing=False can_delete=can_upload_cost %}{% endif %}{% endfor %}
+  </div>
+  {% if can_upload_cost %}
+  <form method="post" action="{% url 'thiet_ke_sp:upload' dossier.pk %}" enctype="multipart/form-data" class="row g-2 align-items-end">{% csrf_token %}
+    <input type="hidden" name="kind" value="cost"><input type="hidden" name="return_tab" value="costing">
+    <div class="col-md-7"><input type="file" name="files" class="form-control form-control-sm" required></div>
+    <div class="col-md-3"><input type="text" name="note" class="form-control form-control-sm" placeholder="Ghi chú" maxlength="255"></div>
+    <div class="col-md-2"><button type="submit" class="btn btn-sm btn-hm text-white w-100 fw-bold"><i class="bi bi-upload me-1"></i>Tải lên</button></div>
+  </form>
+  {% endif %}
+</div>

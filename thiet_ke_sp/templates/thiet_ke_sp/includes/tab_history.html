@@ -1,0 +1,15 @@
+{% load tksp_tags %}
+<div class="tk-section">
+  <div class="tk-section-title"><i class="bi bi-clock-history"></i>Nhật ký xử lý</div>
+  <ul class="tk-timeline">
+    {% for log in audit_logs %}
+    <li class="{% if log.to_status %}is-status{% endif %}">
+      <strong>{% if log.to_status %}{{ log.get_to_status_display }}{% else %}{{ log.summary }}{% endif %}</strong>
+      {% if log.to_status %}<div>{{ log.summary }}{% if log.from_status %} <span class="text-muted">· từ «{{ log.get_from_status_display }}»</span>{% endif %}</div>{% endif %}
+      <div class="t">{{ log.actor|uname }} · {{ log.created_at|date:'H:i d/m/Y' }}</div>
+    </li>
+    {% empty %}
+    <li>Chưa có nhật ký.</li>
+    {% endfor %}
+  </ul>
+</div>

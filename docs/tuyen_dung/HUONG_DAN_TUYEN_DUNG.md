@@ -75,7 +75,7 @@ Hệ thống kiểm tra các quy tắc dưới đây ở mọi thao tác (kéo t
 | Mới | Loại | Bắt buộc nhập lý do |
 | Chờ quản lý đánh giá | Phỏng vấn | Có ít nhất 1 đánh giá **Đạt** của quản lý + chọn thời gian phỏng vấn |
 | Chờ quản lý đánh giá | Loại | Bắt buộc nhập lý do |
-| Phỏng vấn | Trúng tuyển | **Tự động** khi lưu kết quả **Đạt** + vị trí còn chỉ tiêu (Trúng tuyển + Đã nhận việc < Số lượng cần tuyển). Chuyển tay chỉ khi đã Đạt mà lúc đó vị trí đủ chỉ tiêu |
+| Phỏng vấn | Trúng tuyển | **Tự động** khi phỏng vấn **Đạt** (cấp 1) **và giám đốc duyệt Đạt** (cấp 2) + vị trí còn chỉ tiêu (Trúng tuyển + Đã nhận việc < Số lượng cần tuyển). Chuyển tay chỉ khi đã Đạt mà lúc đó vị trí đủ chỉ tiêu |
 | Phỏng vấn | Loại | Bắt buộc nhập lý do (tự động khi nhập kết quả **Không đạt**) |
 | Trúng tuyển | Đã nhận việc | Chỉ qua nút **Onboard — tạo nhân viên** |
 | Trúng tuyển | Không nhận việc | Bắt buộc nhập lý do |
@@ -336,10 +336,20 @@ Kanban: lọc **Vị trí** (*Tất cả vị trí chưa đóng* hoặc một v�
 - **Người phỏng vấn / quản lý**: **Đánh giá ứng viên** → tab **Kết quả phỏng vấn** → **Nhập kết quả** (người phỏng vấn không phải quản lý cũng thấy menu này khi có buổi được giao).
 - **HR**: **Ứng viên** → chip **Cần xử lý** → nút **Nhập kết quả** trên dòng, hoặc khung **Phỏng vấn** ở trang chi tiết.
 
-Chọn **Đạt** / **Không đạt**, nhập **Nhận xét** → **Lưu kết quả**. Hồ sơ **tự chuyển bước**, không cần HR kéo thẻ:
+Chọn **Đạt** / **Không đạt**, nhập **Nhận xét** → **Lưu kết quả** (đánh giá **cấp 1**):
 
-- **Đạt** → **Trúng tuyển** (nếu vị trí đã đủ chỉ tiêu: giữ ở **Phỏng vấn**, cột *Bước tiếp theo* báo *Đạt — vị trí đủ chỉ tiêu*).
+- **Đạt** → hồ sơ ở lại **Phỏng vấn**, trạng thái *Chờ giám đốc duyệt* (bắt buộc, không bỏ qua được).
 - **Không đạt** (bắt buộc nhận xét) → **Loại**, lý do = nhận xét.
+
+### Giám đốc — Duyệt cấp 2
+
+**19b.** Người có quyền **Tuyển dụng — giám đốc duyệt cấp 2** (nhóm TGĐ, admin): **Đánh giá ứng viên** → tab **Giám đốc duyệt** → **Duyệt**. Trang duyệt hiển thị CV, kết quả & nhận xét phỏng vấn cấp 1. Chọn **Đạt** / **Không đạt** (Không đạt bắt buộc nhận xét) → **Lưu duyệt**; trang tự mở hồ sơ chờ duyệt tiếp theo.
+
+- **Đạt** → tự chuyển **Trúng tuyển** (nếu vị trí đã đủ chỉ tiêu: giữ ở **Phỏng vấn**, cột *Bước tiếp theo* báo *Đạt — vị trí đủ chỉ tiêu*).
+- **Không đạt** → **Loại**, lý do *Giám đốc duyệt không đạt: …*.
+- Giám đốc **tự phỏng vấn** vẫn phải duyệt 2 lần: nhập kết quả cấp 1, sau đó duyệt riêng ở tab **Giám đốc duyệt**.
+- Đổi lịch phỏng vấn sẽ xóa kết quả duyệt cấp 2 cũ.
+- Cấp quyền cho nhóm khác: **Phân quyền nhóm** → module Tuyển dụng → tick *giám đốc duyệt cấp 2*.
 
 ### HR — Trúng tuyển & onboard
 
@@ -416,7 +426,7 @@ Cấu hình ở **Phân quyền → Nhóm quyền**, dòng **Nhân sự**:
 | *Cần ít nhất 1 đánh giá «Đạt» của quản lý.* | Chưa có quản lý đề xuất phỏng vấn | Chờ / nhắc quản lý phụ trách đánh giá |
 | *Cần chọn thời gian bắt đầu / kết thúc phỏng vấn.* | Bỏ trống giờ khi chuyển Phỏng vấn | Chọn bắt đầu và thời lượng |
 | *Thời gian kết thúc phải sau thời gian bắt đầu.* | Kết thúc ≤ bắt đầu | Sửa kết thúc hoặc chọn lại thời lượng |
-| *Chỉ trúng tuyển khi kết quả phỏng vấn là «Đạt».* | Chưa lưu kết quả Đạt | Lưu kết quả ở khung Phỏng vấn |
+| *Chỉ trúng tuyển khi phỏng vấn «Đạt» và giám đốc đã duyệt «Đạt».* | Chưa có kết quả Đạt hoặc giám đốc chưa duyệt | Lưu kết quả phỏng vấn, chờ giám đốc duyệt ở tab **Giám đốc duyệt** |
 | *Vị trí đã đủ chỉ tiêu (n).* | Trúng tuyển + Đã nhận việc = Số lượng | Tăng **Số lượng cần tuyển** hoặc chuyển người khác **Không nhận việc** |
 | *Chưa tới giờ phỏng vấn.* | Nhập kết quả trước giờ hẹn | Nhập sau buổi phỏng vấn |
 | *Buổi phỏng vấn đã có kết quả.* | Người khác đã nhập trước | Xem lịch sử ở trang chi tiết |

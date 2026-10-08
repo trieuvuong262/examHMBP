@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% load tksp_tags %}
+{% block title %}Chờ tôi duyệt{% endblock %}
+{% block extra_head %}{% include 'thiet_ke_sp/includes/tksp_styles.html' %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-sx-page jp-tksp py-3 py-md-4 mb-5 px-3 px-lg-4">
+  {% include 'thiet_ke_sp/includes/tksp_topbar.html' with tk_title='Việc chờ tôi phê duyệt' tk_active='approve' %}
+
+  <div class="tk-card tk-panel">
+    <div class="tk-panel-head">
+      <div><div class="tk-panel-title">{% if scope == 'all' %}Tất cả hồ sơ chờ duyệt{% else %}Hồ sơ cần quyết định của tôi{% endif %}</div><div class="tk-panel-sub">{{ rows|length }} hồ sơ</div></div>
+      {% if is_admin %}
+      <ul class="nav nav-pills jp-portal-pills gap-1">
+        <li class="nav-item"><a class="nav-link rounded-pill fw-bold{% if scope == 'mine' %} active{% endif %}" href="?scope=mine">Tôi là người duyệt</a></li>
+        <li class="nav-item"><a class="nav-link rounded-pill fw-bold{% if scope == 'all' %} active{% endif %}" href="?scope=all">Tất cả</a></li>
+      </ul>
+      {% endif %}
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 tk-mini-table">
+        <thead><tr><th>Sản phẩm</th><th>Chờ duyệt</th><th>Phụ trách</th><th>Người duyệt</th><th>Tiến độ</th><th>Hạn</th><th></th></tr></thead>
+        <tbody>
+        {% for d in rows %}
+          <tr class="jp-npl-catalog-row" data-href="{{ d.get_absolute_url }}?tab=approval">
+            <td>{% include 'thiet_ke_sp/includes/prod_cell.html' %}</td>
+            <td><span class="tk-pill is-{{ d.status_tone }}">{{ d.get_status_display }}</span></td>
+            <td class="small">{{ d.owner|uname }}</td>
+            <td class="small">{{ d.approver|uname }}</td>
+            <td>{% include 'thiet_ke_sp/includes/progress_cell.html' %}</td>
+            <td class="small">{% include 'thiet_ke_sp/includes/step_due_cell.html' %}</td>
+            <td class="text-end"><a class="btn btn-sm btn-hm text-white fw-bold py-0" href="{{ d.get_absolute_url }}?tab=approval">Xem duyệt</a></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="text-muted text-center small py-4">Không có hồ sơ chờ duyệt.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
