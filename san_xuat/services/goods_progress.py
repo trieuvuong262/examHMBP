@@ -482,27 +482,16 @@ def _matches_due_filter(row: GoodsProgressRow, due_key: str) -> bool:
 
 
 def _team_columns() -> list[GoodsTeamColumn]:
-    """Cột tổ = bộ phận HR theo thứ tự công đoạn KHSX, rồi tổ chất lượng.
-
-    Tổ cùng phòng với các tổ sản xuất mà không gắn công đoạn (vd. Cơ điện) không hiện.
-    """
+    """Cột tổ = bộ phận HR theo thứ tự công đoạn KHSX, rồi tổ chất lượng."""
     from san_xuat.services.progress_template import TEAM_SLUGS, team_by_slug
     from san_xuat.services.team_division_map import all_hr_team_items
 
     stage_rank = {slug: idx for idx, (slug, *_rest) in enumerate(TEAM_SLUGS)}
-    items = []
+    picked = []
     for idx, item in enumerate(all_hr_team_items()):
         meta = team_by_slug(item["slug"])
         if meta:
-            items.append((idx, item, meta))
-    prod_depts = {
-        (meta.get("group_label") or "").strip() for _i, item, meta in items if item.get("stage_slug")
-    }
-    picked = [
-        (idx, item, meta)
-        for idx, item, meta in items
-        if item.get("stage_slug") or (meta.get("group_label") or "").strip() not in prod_depts
-    ]
+            picked.append((idx, item, meta))
     picked.sort(key=lambda t: (stage_rank.get(t[1].get("stage_slug") or "", len(stage_rank)), t[0]))
     return [GoodsTeamColumn(slug=item["slug"], label=item["label"], meta=meta) for _i, item, meta in picked]
 

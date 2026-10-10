@@ -193,13 +193,17 @@ def hr_team_stage_by_label() -> dict[str, str]:
 
 
 def _hr_team_items(*, only_ids: set[int] | None, mapped: dict[int, str]) -> list[dict]:
+    """Tổ menu từ bộ phận HR. Bộ phận cùng phòng với tổ sản xuất mà không gắn công đoạn (vd. Cơ điện) bỏ qua."""
     from san_xuat.services.capacity_from_hrm import hr_divisions_for_ie_groups
 
+    divs = [(div, _stage_slug_for_division(div, mapped=mapped)) for div in hr_divisions_for_ie_groups()]
+    prod_dept_ids = {int(div.department_id or 0) for div, stage in divs if stage}
     items: list[dict] = []
-    for div in hr_divisions_for_ie_groups():
+    for div, stage in divs:
+        if not stage and int(div.department_id or 0) in prod_dept_ids:
+            continue
         if only_ids is not None and int(div.pk) not in only_ids:
             continue
-        stage = _stage_slug_for_division(div, mapped=mapped)
         menu_key = 'team_work'
         for item_slug, _gk, mk, _label in TEAM_SLUGS:
             if item_slug == stage:
