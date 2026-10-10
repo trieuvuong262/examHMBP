@@ -36,29 +36,20 @@
   }
   .jp-tw-meta { color: var(--tw-muted); font-size: .82rem; margin: 0 0 1rem; }
   .jp-tw-jobs { display: flex; flex-direction: column; gap: .85rem; }
-  .jp-tw-steps-fold {
-    border-top: 1px solid #eef2f7;
-    background: #fff;
+  .jp-tw-steps-btn { display: inline-flex; align-items: center; gap: .4rem; }
+  .jp-tw-steps-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 1.35rem; height: 1.25rem; padding: 0 .35rem; border-radius: 999px;
+    background: #dc2626; color: #fff; font-size: .72rem; font-weight: 800; line-height: 1;
   }
-  .jp-tw-steps-fold > summary {
-    list-style: none;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: .45rem;
-    padding: .65rem 1.1rem;
-    font-size: .8rem;
-    font-weight: 800;
-    color: var(--tw-muted);
-    user-select: none;
-  }
-  .jp-tw-steps-fold > summary::-webkit-details-marker { display: none; }
-  .jp-tw-steps-fold > summary .bi-chevron-down {
-    font-size: .72rem;
-    transition: transform .15s ease;
-  }
-  .jp-tw-steps-fold[open] > summary .bi-chevron-down { transform: rotate(180deg); }
-  .jp-tw-steps-fold > summary .jp-tw-count { font-weight: 800; color: var(--tw-ink); }
+  .jp-tw-steps-btn.btn-outline-secondary .jp-tw-steps-badge { background: #64748b; }
+  .jp-tw-steps-btn:hover .jp-tw-steps-badge { background: #fff; color: #dc2626; }
+  .jp-tw-modal.jp-tw-steps-modal .modal-dialog { max-width: min(64rem, calc(100vw - 1.5rem)); }
+  .jp-tw-modal.jp-tw-steps-modal .modal-content { min-height: 0; }
+  .jp-tw-modal.jp-tw-steps-modal .modal-body { min-height: 0; }
+  .jp-tw-steps-sub { margin-top: .2rem; color: var(--tw-muted); font-size: .8rem; font-weight: 600; }
+  .jp-tw-steps-sub strong { color: var(--tw-ink); font-weight: 800; }
+  .jp-tw-steps-sub strong.is-warn { color: #dc2626; }
   .jp-tw-job {
     border: 1px solid var(--tw-line);
     border-radius: 1rem;
@@ -115,6 +106,7 @@
   .jp-tw-job-actions {
     display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .5rem;
   }
+  .jp-tw-job-head > div:first-child { flex: 1 1 22rem; min-width: 0; }
   .jp-tw-steps { list-style: none; margin: 0; padding: 0; }
   .jp-tw-step {
     display: grid;
@@ -124,7 +116,7 @@
     padding: .72rem 1.1rem;
     border-top: 1px solid #eef2f7;
   }
-  .jp-tw-jobs.is-assignable .jp-tw-step {
+  .jp-tw-steps.is-assignable .jp-tw-step {
     grid-template-columns: minmax(8.5rem, 1.15fr) auto auto minmax(10rem, 1.5fr) auto;
   }
   .jp-tw-step:first-child { border-top: 0; }
@@ -156,6 +148,23 @@
   .jp-tw-chip i { font-size: .72rem; color: var(--tw-muted); }
   .jp-tw-empty { color: var(--tw-muted); font-size: .8rem; }
   .jp-tw-step .btn { white-space: nowrap; }
+  .jp-tw-prog {
+    display: inline-flex; align-items: center; gap: .4rem;
+    margin-right: .15rem; cursor: default;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .jp-tw-prog-bar {
+    width: 4.5rem; height: 6px; border-radius: 999px;
+    background: #e2e8f0; overflow: hidden;
+  }
+  .jp-tw-prog-bar i {
+    display: block; height: 100%; max-width: 100%; border-radius: inherit;
+    background: var(--tw-accent);
+  }
+  .jp-tw-prog.is-full .jp-tw-prog-bar i { background: #15803d; }
+  .jp-tw-prog-pct { min-width: 2.6rem; color: var(--tw-ink); font-size: .78rem; font-weight: 800; }
+  .jp-tw-prog.is-full .jp-tw-prog-pct { color: #15803d; }
+  .jp-tw-prog.is-zero .jp-tw-prog-pct { color: #94a3b8; }
   .jp-tw-job.is-closed { opacity: .92; }
   .jp-tw-job.is-closed .jp-tw-job-head { background: #f8fafc; }
   .jp-portal-pills.jp-tw-filter-pills .nav-link .jp-tw-count {
@@ -223,6 +232,9 @@
     justify-content: flex-end;
   }
   @media (max-width: 767.98px) {
+    .jp-tw-job-head > div:first-child { flex: 0 0 auto; }
+    .jp-tw-job-actions > .jp-tw-prog { grid-column: 1 / -1; display: flex; margin: 0; }
+    .jp-tw-job-actions > .jp-tw-prog .jp-tw-prog-bar { flex: 1 1 auto; width: auto; }
     .jp-tw-page {
       padding-left: max(.75rem, env(safe-area-inset-left)) !important;
       padding-right: max(.75rem, env(safe-area-inset-right)) !important;
@@ -277,9 +289,11 @@
       width: 100%;
     }
     .jp-tw-job-actions > form .btn,
-    .jp-tw-job-actions > a.btn {
+    .jp-tw-job-actions > a.btn,
+    .jp-tw-job-actions > .jp-tw-steps-btn {
       width: 100%;
       min-height: 2.5rem;
+      justify-content: center;
     }
     .jp-tw-job-actions .jp-tw-stat-pill {
       grid-column: 1 / -1;
@@ -445,11 +459,14 @@
   </form>
 
   {% if jobs %}
-  <div class="jp-tw-jobs{% if can_assign and not show_closed %} is-assignable{% endif %}">
+  <div class="jp-tw-jobs">
     {% for job in jobs %}
     {% include 'san_xuat/includes/team_work_job.html' %}
     {% endfor %}
   </div>
+  {% for job in jobs %}
+  {% if not job.subcontract %}{% include 'san_xuat/includes/team_work_steps_modal.html' %}{% endif %}
+  {% endfor %}
   {% else %}
   <div class="jp-tw-empty-board">
     {% if show_closed %}Chưa có lệnh nào tổ này đã hoàn thành.{% else %}Chưa có lệnh sản xuất đang chạy cho tổ này.{% endif %}
@@ -520,11 +537,24 @@
   var processKey = document.getElementById('jpTwProcessKey');
   var meta = document.getElementById('jpTwAssignMeta');
   var title = document.getElementById('jpTwAssignModalTitle');
+  var form = document.getElementById('jpTwAssignForm');
+  var REOPEN_KEY = 'jpTwReopenSteps';
+  var returnTo = null;
+  var submitting = false;
+
+  form.addEventListener('submit', function () {
+    submitting = true;
+    if (returnTo) {
+      try { sessionStorage.setItem(REOPEN_KEY, returnTo.id); } catch (e) { /* storage off */ }
+    }
+  });
 
   document.querySelectorAll('[data-jp-tw-assign]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var row = btn.closest('.jp-tw-step');
       if (!row) return;
+      var parent = btn.closest('.jp-tw-steps-modal');
+      returnTo = parent;
       var ids = (row.getAttribute('data-assignee-ids') || '')
         .split(',')
         .map(function (x) { return x.trim(); })
@@ -540,10 +570,25 @@
       meta.textContent = moTitle + ' · ' + processLabel + ' · SL cần làm: ' + remainQty + ' (đã ' + doneQty + '/' + planQty + ')';
       ts.clear(true);
       if (ids.length) ts.setValue(ids, true);
-      modal.show();
-      setTimeout(function () { ts.focus(); }, 200);
+      if (parent && parent.classList.contains('show')) {
+        parent.addEventListener('hidden.bs.modal', function () {
+          modal.show();
+          setTimeout(function () { ts.focus(); }, 200);
+        }, { once: true });
+        bootstrap.Modal.getOrCreateInstance(parent).hide();
+      } else {
+        modal.show();
+        setTimeout(function () { ts.focus(); }, 200);
+      }
     });
   });
+
+  try {
+    var reopenId = sessionStorage.getItem(REOPEN_KEY);
+    sessionStorage.removeItem(REOPEN_KEY);
+    var reopenEl = reopenId && document.getElementById(reopenId);
+    if (reopenEl) bootstrap.Modal.getOrCreateInstance(reopenEl).show();
+  } catch (e) { /* storage off */ }
 
   modalEl.addEventListener('shown.bs.modal', function () {
     if (window.matchMedia('(max-width: 767.98px)').matches) {
@@ -556,6 +601,9 @@
     ts.clear(true);
     moId.value = '';
     processKey.value = '';
+    var back = returnTo;
+    returnTo = null;
+    if (back && !submitting) bootstrap.Modal.getOrCreateInstance(back).show();
   });
 })();
 </script>

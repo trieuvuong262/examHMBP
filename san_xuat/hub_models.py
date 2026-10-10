@@ -3465,6 +3465,13 @@ class SxTeamProgressLog(models.Model):
     old_qty = models.DecimalField(max_digits=14, decimal_places=2, default=0, verbose_name='SL cũ')
     new_qty = models.DecimalField(max_digits=14, decimal_places=2, default=0, verbose_name='SL mới')
     is_backfill = models.BooleanField(default=False, db_index=True, verbose_name='Nhập bù')
+    KIND_EDIT = 'edit'
+    KIND_COMPLETE = 'complete'
+    KIND_CHOICES = [
+        (KIND_EDIT, 'Nhập tay'),
+        (KIND_COMPLETE, 'Hoàn thành'),
+    ]
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES, default=KIND_EDIT, verbose_name='Loại')
     changed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

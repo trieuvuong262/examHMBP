@@ -6196,6 +6196,15 @@ def team_work_goods(request):
     })
 
 
+def _complete_message(filled: Decimal) -> str:
+    msg = 'Đã hoàn thành — công nhân tổ này không chọn đơn đó làm tiếp. Tổ sau không bị chặn.'
+    if filled > 0:
+        from san_xuat.templatetags.sx_format import sx_num
+
+        msg += f' Đã tự điền {sx_num(filled)} SL còn thiếu vào hôm nay (loại Hoàn thành).'
+    return msg
+
+
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def team_work_board(request, slug: str):
     """Bảng công việc theo tổ — phân công CD con cho NV."""
@@ -6292,12 +6301,13 @@ def team_work_board(request, slug: str):
             if active_subcontract_for_team(mo_id=mo_id, team_slug=slug):
                 messages.error(request, 'Tổ này đang thuê gia công — nhận hàng trên phiếu GC.')
                 return redirect(_board_qs())
+            from san_xuat.services.team_progress_log import complete_team_job
+
             try:
-                close_team_job(mo_id=mo_id, team_slug=slug, user=request.user)
-                messages.success(
-                    request,
-                    'Đã hoàn thành — công nhân tổ này không chọn đơn đó làm tiếp. Tổ sau không bị chặn.',
+                filled = complete_team_job(
+                    mo_id=mo_id, team_meta=team_meta, team_slug=slug, user=request.user,
                 )
+                messages.success(request, _complete_message(filled))
             except PlanningError as exc:
                 messages.error(request, str(exc))
             except Exception as exc:
@@ -6610,12 +6620,13 @@ def team_work_progress(request, slug: str, mo_id: int):
                 messages.error(request, str(exc))
             return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
         if action == 'complete':
+            from san_xuat.services.team_progress_log import complete_team_job
+
             try:
-                close_team_job(mo_id=mo.pk, team_slug=slug, user=request.user)
-                messages.success(
-                    request,
-                    'Đã hoàn thành — công nhân tổ này không chọn đơn đó làm tiếp. Tổ sau không bị chặn.',
+                filled = complete_team_job(
+                    mo_id=mo.pk, team_meta=team_meta, team_slug=slug, user=request.user,
                 )
+                messages.success(request, _complete_message(filled))
             except PlanningError as exc:
                 messages.error(request, str(exc))
             return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)

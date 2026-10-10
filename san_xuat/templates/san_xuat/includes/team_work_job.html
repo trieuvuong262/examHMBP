@@ -22,12 +22,6 @@
         </a>
         </span>
         {% endwith %}
-        {% if can_view_plan_board and job.mo.sales_order_id %}
-        <a class="jp-tw-stat-pill" href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=route&amp;q={{ job.mo.sales_order.code|urlencode }}" title="Lộ trình KHSX">Lộ trình</a>
-        {% endif %}
-        {% if not job.subcontract %}
-        <span class="jp-tw-stat-pill"><strong>{{ job.step_count }}</strong> công đoạn</span>
-        {% endif %}
         {% if job.closed %}<span class="jp-tw-status is-done"><i class="bi bi-check-circle"></i>Hoàn thành</span>{% endif %}
       </div>
       <div class="jp-tw-job-khsx" title="Ưu tiên và hạn giao trên KHSX">
@@ -57,6 +51,17 @@
       </div>
     </div>
     <div class="jp-tw-job-actions">
+      {% with p=job.progress %}
+      {% if p and p.plan %}
+      <div class="jp-tw-prog{% if p.pct >= 100 %} is-full{% elif not p.counted %} is-zero{% endif %}"
+           title="Tiến độ tổng: {{ p.counted|sx_num }} / {{ p.plan|sx_num }}{% if p.remain %} · thiếu {{ p.remain|sx_num }}{% endif %}{% if p.over %} · vượt {{ p.over|sx_num }}{% endif %}">
+        <div class="jp-tw-prog-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ p.pct|sx_num_input:0 }}" aria-label="Tiến độ tổng">
+          <i style="width:{{ p.pct|sx_num_input:1 }}%"></i>
+        </div>
+        <span class="jp-tw-prog-pct">{{ p.pct|sx_num }}%</span>
+      </div>
+      {% endif %}
+      {% endwith %}
       {% if job.closed %}
         {% if can_assign %}
         <form method="post" class="d-inline">
@@ -103,8 +108,9 @@
       <a href="{% url 'san_xuat:team_work_progress' team.slug job.mo.pk %}"
          class="btn btn-hm btn-sm fw-bold"
          title="Ghi SL tổ — lên lộ trình KHSX theo ngày báo cáo">Tiến độ</a>
+      {% include 'san_xuat/includes/team_work_steps_btn.html' %}
       {% if can_assign %}
-        <form method="post" class="d-inline">
+        <form method="post" class="d-inline" onsubmit="return confirm('Hoàn thành lệnh này cho tổ?\nCác size / công đoạn chưa đủ SL sẽ được tự điền phần còn thiếu vào hôm nay. SL đã nhập giữ nguyên.');">
           {% csrf_token %}
           <input type="hidden" name="action" value="complete">
           <input type="hidden" name="mo_id" value="{{ job.mo.pk }}">
@@ -113,71 +119,10 @@
         </form>
       {% endif %}
       {% endif %}
+      {% if job.closed or not job.accepted %}{% include 'san_xuat/includes/team_work_steps_btn.html' %}{% endif %}
       {% if not job.subcontract and not job.closed %}
       {% if job.run_count %}<span class="jp-tw-stat-pill">Đang làm <strong>{{ job.run_count }}</strong></span>{% endif %}
       {% endif %}
     </div>
   </header>
-  {% if not job.subcontract %}
-  <details class="jp-tw-steps-fold">
-    <summary>
-      <i class="bi bi-chevron-down" aria-hidden="true"></i>
-      Công đoạn
-      <span class="jp-tw-count">{{ job.step_count }}</span>
-      {% if job.unassigned_count %}
-      · Chưa phân công
-      <span class="jp-tw-count">{{ job.unassigned_count }}</span>
-      {% endif %}
-    </summary>
-  <ul class="jp-tw-steps" aria-label="Công đoạn {% with pname=job.mo.product_name|default:job.mo.product_code ocode=job.mo.sales_order.code|default:job.mo.code %}{% if pname %}{{ pname }} - {{ ocode }}{% else %}{{ ocode }}{% endif %}{% endwith %}">
-    {% for row in job.rows %}
-    {% with pname=row.mo.product_name|default:row.mo.product_code ocode=row.mo.sales_order.code|default:row.mo.code %}
-    <li class="jp-tw-step"
-        data-mo-id="{{ row.mo.pk }}"
-        data-mo-code="{{ ocode }}"
-        data-mo-title="{% if pname %}{{ pname }} - {{ ocode }}{% else %}{{ ocode }}{% endif %}"
-        data-process-key="{{ row.step_def.key }}"
-        data-process-label="{{ row.step_def.label }}"
-        data-plan-qty="{{ row.plan_qty|sx_num }}"
-        data-done-qty="{{ row.done_qty|sx_num }}"
-        data-remain-qty="{{ row.remain_qty|sx_num }}"
-        data-assignee-ids="{% for a in row.assignees %}{{ a.id }}{% if not forloop.last %},{% endif %}{% endfor %}">
-      <div class="jp-tw-step-name">{{ row.step_def.label }}</div>
-      <div class="jp-tw-step-qty" title="Đã {{ row.done_qty|sx_num }} / Kế hoạch {{ row.plan_qty|sx_num }}">
-        <span class="jp-tw-step-qty-need">Cần <strong>{{ row.remain_qty|sx_num }}</strong></span>
-        <span class="jp-tw-step-qty-track">{{ row.done_qty|sx_num }}<span class="dim">/{{ row.plan_qty|sx_num }}</span></span>
-      </div>
-      <div class="jp-tw-status-wrap">
-        {% if row.mo_step %}
-          {% if row.status == 'done' %}
-            <span class="jp-tw-status is-done"><i class="bi bi-check-circle"></i>Xong</span>
-          {% elif row.status == 'in_progress' %}
-            <span class="jp-tw-status is-run"><i class="bi bi-play-circle"></i>Đang làm</span>
-          {% else %}
-            <span class="jp-tw-status is-wait"><i class="bi bi-hourglass-split"></i>Chờ</span>
-          {% endif %}
-        {% else %}
-          <span class="jp-tw-status is-none"><i class="bi bi-plus-circle"></i>Chưa gắn</span>
-        {% endif %}
-      </div>
-      <div class="jp-tw-people">
-        {% for a in row.assignees %}
-          <span class="jp-tw-chip"><i class="bi bi-person"></i>{{ a.label }}</span>
-        {% empty %}
-          <span class="jp-tw-empty">Chưa phân công</span>
-        {% endfor %}
-      </div>
-      {% if can_assign and not job.closed %}
-      <button type="button"
-              class="btn btn-sm jp-tw-step-action {% if row.assignees %}btn-hm{% else %}btn-outline-hm{% endif %} fw-bold"
-              data-jp-tw-assign>
-        {% if row.assignees %}Đổi{% else %}Phân công{% endif %}
-      </button>
-      {% endif %}
-    </li>
-    {% endwith %}
-    {% endfor %}
-  </ul>
-  </details>
-  {% endif %}
 </article>

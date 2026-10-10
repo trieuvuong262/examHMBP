@@ -234,7 +234,7 @@ class CandidateForm(forms.Form):
         label='Họ và tên', max_length=255, widget=forms.TextInput(attrs={**_ctl(), 'autocomplete': 'off'}),
     )
     gender = _gender_field()
-    date_of_birth = _dob_field()
+    date_of_birth = _dob_field(required=False)
     phone = forms.CharField(
         label='Số điện thoại', max_length=20,
         widget=forms.TextInput(attrs={**_ctl(), 'inputmode': 'tel', 'autocomplete': 'off'}),
@@ -249,10 +249,9 @@ class CandidateForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.fields['job_posting'].queryset = jobs if jobs is not None else JobPosting.objects.none()
         if referral:
-            # Quản lý đề xuất — nguồn cố định; HR bổ sung giới tính / ngày sinh khi onboard.
+            # Quản lý đề xuất — nguồn cố định; HR bổ sung giới tính khi onboard.
             del self.fields['source']
             self.fields['gender'].required = False
-            self.fields['date_of_birth'].required = False
         else:
             # Nguồn hệ thống (Quản lý đề xuất) chỉ gán tự động, HR không chọn.
             self.fields['source'].choices = [('', '— Chọn nguồn hồ sơ —')] + list(

@@ -22,7 +22,7 @@
   .jp-tw-goods-filter-form .jp-team-filter-body {
     gap: .75rem 1rem;
   }
-  .jp-tw-goods-filter-form .jp-team-filter-org-search {
+  .jp-tw .jp-tw-goods-filter-form .jp-team-filter-org-search {
     flex: 1 1 100%;
     display: grid;
     grid-template-columns: minmax(12rem, 1.4fr) repeat(5, minmax(8rem, 1fr));
@@ -30,12 +30,12 @@
     align-items: end;
   }
   @media (max-width: 1199px) {
-    .jp-tw-goods-filter-form .jp-team-filter-org-search {
+    .jp-tw .jp-tw-goods-filter-form .jp-team-filter-org-search {
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
   }
   @media (max-width: 767px) {
-    .jp-tw-goods-filter-form .jp-team-filter-org-search {
+    .jp-tw .jp-tw-goods-filter-form .jp-team-filter-org-search {
       grid-template-columns: 1fr 1fr;
     }
   }
@@ -75,8 +75,8 @@
     border: 1px solid var(--tw-line);
     border-radius: 1rem;
     background: #fff;
-    margin: 0 0 1rem;
-    padding: .35rem;
+    margin: 0 0 .85rem;
+    padding: .25rem;
   }
   .jp-tw-pipe-item {
     flex: 1 1 0;
@@ -84,9 +84,10 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: .12rem;
-    padding: .65rem .8rem;
-    border-radius: .75rem;
+    gap: .05rem;
+    padding: .35rem .75rem;
+    border-radius: .6rem;
+    white-space: nowrap;
     text-decoration: none;
     color: inherit;
     position: relative;
@@ -94,7 +95,8 @@
   .jp-tw-pipe-item:not(:last-child)::after {
     content: "";
     position: absolute;
-    top: 1.05rem;
+    top: 50%;
+    margin-top: -.12rem;
     right: -.12rem;
     width: .24rem;
     height: .24rem;
@@ -124,7 +126,9 @@
     color: #b91c1c;
   }
 
-  .jp-tw-goods-list { display: flex; flex-direction: column; gap: .85rem; }
+  .jp-tw-goods-list { display: flex; flex-direction: column; gap: .45rem; }
+  .jp-tw-goods-so + .jp-tw-goods-card { margin-top: -.15rem; }
+  .jp-tw-goods-card + .jp-tw-goods-so { margin-top: .45rem; }
 
   .jp-tw-goods-so {
     display: flex;
@@ -143,36 +147,32 @@
   .jp-tw-goods-so .dim { color: var(--tw-muted); font-weight: 600; }
 
   .jp-tw-goods-card {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .55rem 1.25rem;
+    padding: .6rem .9rem;
     border: 1px solid var(--tw-line);
-    border-radius: 1rem;
+    border-radius: .85rem;
     background: #fff;
-    overflow: hidden;
   }
   .jp-tw-goods-card.is-late { box-shadow: inset 3px 0 0 #dc2626; }
   .jp-tw-goods-card.is-hot:not(.is-late) { box-shadow: inset 3px 0 0 #ea580c; }
 
-  .jp-tw-goods-head {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: .65rem 1.1rem;
-    padding: .85rem 1.05rem .7rem;
-    background: var(--tw-soft);
-    border-bottom: 1px solid var(--tw-line);
-  }
   .jp-tw-goods-product {
+    flex: 1 1 18rem;
     display: flex;
     align-items: center;
     gap: .6rem;
     min-width: 0;
   }
-  .jp-tw-goods-head .sx-doc-thumb { flex: 0 0 auto; }
+  .jp-tw-goods-product .sx-doc-thumb { flex: 0 0 auto; }
+  .jp-tw-goods-text { min-width: 0; }
   .jp-tw-goods-image,
   .jp-tw-goods-image-placeholder {
-    width: 2.7rem;
-    height: 2.7rem;
-    flex: 0 0 2.7rem;
+    width: 2.4rem;
+    height: 2.4rem;
+    flex: 0 0 2.4rem;
     border: 1px solid var(--tw-line);
     border-radius: .45rem;
     background: #fff;
@@ -185,160 +185,76 @@
     font-size: .95rem;
   }
   .jp-tw-goods-mo-link {
+    display: block;
     font-weight: 800;
-    font-size: 1.02rem;
+    font-size: .95rem;
     color: var(--tw-ink);
     text-decoration: none;
-    line-height: 1.35;
+    line-height: 1.3;
     letter-spacing: -.01em;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .jp-tw-goods-mo-link:hover { color: var(--tw-accent); }
   .jp-tw-goods-mo-sub {
+    display: flex; flex-wrap: wrap; align-items: center; gap: .2rem .6rem;
+    margin-top: .2rem;
     color: var(--tw-muted);
     font-size: .74rem;
-    margin-top: .15rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
   }
-  .jp-tw-goods-meta {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: flex-end;
-    gap: .4rem .55rem;
-    max-width: 36rem;
-  }
+  .jp-tw-goods-mo-sub strong { color: var(--tw-ink); font-weight: 800; }
+  .jp-tw-goods-mo-sub .is-late,
+  .jp-tw-goods-mo-sub .is-late strong { color: #b91c1c; }
+  .jp-tw-goods-mo-sub .jp-pb-urgency { font-size: .68rem; }
   .jp-tw-goods-here {
     display: inline-flex;
     align-items: center;
-    gap: .3rem;
-    padding: .18rem .55rem;
+    gap: .25rem;
+    padding: .05rem .45rem;
     border-radius: 999px;
-    background: #fff;
-    border: 1px solid #fecaca;
-    color: #be123c;
-    font-size: .72rem;
+    font-size: .7rem;
     font-weight: 800;
   }
   .jp-tw-goods-here.is-done {
-    border-color: #99f6e4;
     background: var(--tw-done-soft);
     color: #0f766e;
   }
-  .jp-tw-goods-qty {
-    font-size: .78rem;
-    font-weight: 800;
-    font-variant-numeric: tabular-nums;
-  }
 
-  .jp-tw-tl-scroll {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    padding: .95rem 1.05rem 1.05rem;
+  /* Công đoạn — chip gọn */
+  .jp-tw-st {
+    flex: 0 1 auto;
+    display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .35rem;
+    margin: 0; padding: 0; list-style: none;
   }
-  .jp-tw-tl {
-    list-style: none;
-    display: flex;
-    align-items: flex-start;
-    margin: 0;
-    padding: 0;
-    min-width: max-content;
+  .jp-tw-st-item > a,
+  .jp-tw-st-item.is-skip {
+    display: flex; flex-direction: column; gap: .2rem;
+    width: 8.6rem; padding: .3rem .5rem;
+    border: 1px solid var(--tw-line); border-radius: .55rem;
+    background: #fff; color: inherit; text-decoration: none;
   }
-  .jp-tw-tl-step {
-    flex: 1 1 0;
-    min-width: 5.6rem;
-    position: relative;
-    text-align: center;
-    padding: 0 .2rem;
+  .jp-tw-st-item > a:hover { border-color: #fecaca; background: var(--tw-accent-soft); }
+  .jp-tw-st-name {
+    display: flex; align-items: center; gap: .25rem;
+    font-size: .68rem; font-weight: 800; color: var(--tw-ink); text-transform: uppercase;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .jp-tw-tl-step:not(:last-child)::after {
-    content: "";
-    position: absolute;
-    top: .72rem;
-    left: calc(50% + .85rem);
-    right: calc(-50% + .85rem);
-    height: 2px;
-    background: #e2e8f0;
-    z-index: 0;
-  }
-  .jp-tw-tl-link,
-  .jp-tw-tl-skip {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: .28rem;
-    text-decoration: none;
-    color: inherit;
-    position: relative;
-    z-index: 1;
-  }
-  .jp-tw-tl-link:hover .jp-tw-tl-name { color: var(--tw-accent); }
-  .jp-tw-tl-dot {
-    width: 1.45rem;
-    height: 1.45rem;
-    border-radius: 999px;
-    border: 2px solid var(--tw-idle);
-    background: #fff;
-    display: grid;
-    place-items: center;
-    font-size: .72rem;
-    line-height: 1;
-    color: #fff;
-  }
-  .jp-tw-tl-step.is-done .jp-tw-tl-dot {
-    border-color: var(--tw-done);
-    background: var(--tw-done);
-  }
-  .jp-tw-tl-step.is-run .jp-tw-tl-dot,
-  .jp-tw-tl-step.is-here .jp-tw-tl-dot {
-    border-color: var(--tw-run);
-    background: var(--tw-run);
-    box-shadow: 0 0 0 4px #ffe4e6;
-  }
-  .jp-tw-tl-step.is-idle .jp-tw-tl-dot { border-color: #94a3b8; }
-  .jp-tw-tl-step.is-skip .jp-tw-tl-dot {
-    border-color: #e2e8f0;
-    background: #f8fafc;
-  }
-  .jp-tw-tl-step.is-focus .jp-tw-tl-name { color: var(--tw-accent); }
-  .jp-tw-tl-name {
-    font-size: .68rem;
-    font-weight: 800;
-    color: var(--tw-ink);
-    line-height: 1.25;
-    max-width: 6.4rem;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-  .jp-tw-tl-step.is-skip .jp-tw-tl-name { color: #94a3b8; font-weight: 600; }
-  .jp-tw-tl-qty {
-    font-size: .72rem;
-    font-weight: 800;
-    font-variant-numeric: tabular-nums;
-    color: var(--tw-ink);
-    line-height: 1.2;
-  }
-  .jp-tw-tl-qty .dim { color: var(--tw-muted); font-weight: 600; }
-  .jp-tw-tl-step.is-skip .jp-tw-tl-qty { color: #94a3b8; font-weight: 600; }
-  .jp-tw-tl-wait {
-    font-size: .65rem;
-    font-weight: 800;
-    color: #be123c;
-  }
-  .jp-tw-tl-when {
-    font-size: .62rem;
-    font-weight: 700;
-    color: var(--tw-muted);
-    font-variant-numeric: tabular-nums;
-  }
-  .jp-tw-tl-step.is-late .jp-tw-tl-when { color: #dc2626; font-weight: 800; }
-  .jp-tw-tl-gc {
-    font-size: .62rem;
-    font-weight: 800;
-    color: var(--tw-muted);
-    text-decoration: none;
-  }
-  .jp-tw-tl-gc:hover { color: var(--tw-accent); }
+  .jp-tw-st-name i { font-size: .72rem; flex: 0 0 auto; }
+  .jp-tw-st-bar { display: block; height: 4px; border-radius: 999px; background: #e2e8f0; overflow: hidden; }
+  .jp-tw-st-bar i { display: block; height: 100%; max-width: 100%; border-radius: inherit; background: var(--tw-run); }
+  .jp-tw-st-qty { font-size: .72rem; font-weight: 800; color: var(--tw-ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .jp-tw-st-qty .dim { color: var(--tw-muted); font-weight: 600; }
+  .jp-tw-st-item.is-done .jp-tw-st-name i,
+  .jp-tw-st-item.is-done .jp-tw-st-qty { color: var(--tw-done); }
+  .jp-tw-st-item.is-done .jp-tw-st-bar i { background: var(--tw-done); }
+  .jp-tw-st-item.is-run .jp-tw-st-name i { color: var(--tw-run); }
+  .jp-tw-st-item.is-run > a { border-color: #fecdd3; }
+  .jp-tw-st-item.is-late .jp-tw-st-name { color: #b91c1c; }
+  .jp-tw-st-item.is-focus > a { border-color: var(--tw-accent); box-shadow: 0 0 0 2px var(--tw-accent-soft); }
+  .jp-tw-st-item.is-skip { background: #f8fafc; border-style: dashed; }
+  .jp-tw-st-item.is-skip .jp-tw-st-name,
+  .jp-tw-st-item.is-skip .jp-tw-st-qty { color: #94a3b8; font-weight: 600; }
 
   .jp-tw-empty-board {
     border: 1px dashed var(--tw-line);
@@ -360,11 +276,20 @@
       white-space: normal;
       line-height: 1.25;
     }
-    .jp-tw-goods-filter-form .jp-team-filter-org-search {
-      grid-template-columns: 1fr;
+    .jp-tw-goods-filter-form .card-body { padding: .75rem !important; }
+    .jp-tw .jp-tw-goods-filter-form .jp-team-filter-org-search {
+      grid-template-columns: 1fr 1fr;
+      gap: .5rem .6rem;
     }
-    .jp-tw-goods-meta { justify-content: flex-start; max-width: none; }
-    .jp-tw-pipe-item { min-width: 6.4rem; }
+    .jp-tw .jp-tw-goods-filter-form .jp-team-filter-org-search > .jp-team-filter-org:first-child { grid-column: 1 / -1; }
+    .jp-tw-goods-filter-form .form-label { font-size: .72rem; margin-bottom: .15rem !important; }
+    .jp-tw-pipe-item { min-width: 8.2rem; flex: 0 0 auto; }
+    .jp-tw-goods-card { padding: .6rem .7rem; gap: .5rem; }
+    .jp-tw-goods-product { flex-basis: 100%; }
+    .jp-tw-st { flex: 1 1 100%; justify-content: flex-start; }
+    .jp-tw-st-item { flex: 1 1 6.6rem; }
+    .jp-tw-st-item > a,
+    .jp-tw-st-item.is-skip { width: auto; }
   }
 </style>
 {% endblock %}
@@ -470,8 +395,7 @@
        href="{% if board.filter_team == q.slug %}?{% if board.search %}q={{ board.search|urlencode }}&amp;{% endif %}{% if board.filter_priority %}priority={{ board.filter_priority|urlencode }}&amp;{% endif %}{% if board.filter_status %}status={{ board.filter_status|urlencode }}&amp;{% endif %}{% if board.filter_due %}due={{ board.filter_due|urlencode }}&amp;{% endif %}{% if board.sort %}sort={{ board.sort|urlencode }}{% endif %}{% else %}?team={{ q.slug|urlencode }}{% if board.search %}&amp;q={{ board.search|urlencode }}{% endif %}{% if board.filter_priority %}&amp;priority={{ board.filter_priority|urlencode }}{% endif %}{% if board.filter_status %}&amp;status={{ board.filter_status|urlencode }}{% endif %}{% if board.filter_due %}&amp;due={{ board.filter_due|urlencode }}{% endif %}{% if board.sort %}&amp;sort={{ board.sort|urlencode }}{% endif %}{% endif %}"
        title="{% if board.filter_team == q.slug %}Bỏ lọc {{ q.label }}{% else %}Lọc lệnh còn việc tại {{ q.label }}{% endif %}">
       <span class="jp-tw-pipe-name">{{ q.label }}</span>
-      <span class="jp-tw-pipe-stat">{{ q.mo_count }} <span class="dim">lệnh</span></span>
-      {% if q.waiting %}<span class="jp-tw-pipe-wait">chờ {{ q.waiting|sx_num }}</span>{% endif %}
+      <span class="jp-tw-pipe-stat">{{ q.mo_count }} <span class="dim">lệnh</span>{% if q.waiting %} <span class="jp-tw-pipe-wait">· chờ {{ q.waiting|sx_num }}</span>{% endif %}</span>
     </a>
     {% endfor %}
   </nav>
@@ -491,72 +415,49 @@
     </div>
     {% endif %}
     <article class="jp-tw-goods-card{% if row.is_overdue %} is-late{% elif row.is_hot %} is-hot{% endif %}">
-      <header class="jp-tw-goods-head">
-        <div class="jp-tw-goods-product">
-          {% with pname=row.mo.product_name|default:row.mo.product_code|default:row.mo.code %}
-          {% if row.product_image_url %}
-          <button type="button" class="sx-doc-thumb" data-sx-gallery
-                  data-sx-gallery-title="{{ pname }}"
-                  data-sx-gallery-images="{{ row.product_image_urls_json }}"
-                  aria-label="Phóng to ảnh {{ pname }}">
-            <img src="{{ row.product_image_url }}" alt="" class="jp-tw-goods-image" loading="lazy">
-          </button>
-          {% else %}
-          <span class="jp-tw-goods-image-placeholder" title="Sản phẩm chưa có ảnh" aria-hidden="true">
-            <i class="bi bi-image"></i>
-          </span>
-          {% endif %}
-          <div>
-            <a class="jp-tw-goods-mo-link" href="{% url 'san_xuat:dispatch_mo_detail' row.mo.pk %}" title="{{ row.mo.code }}">
-              {{ pname }}
-            </a>
-            <div class="jp-tw-goods-mo-sub">{{ row.mo.code }} · {{ row.status_label }}</div>
+      <div class="jp-tw-goods-product">
+        {% with pname=row.mo.product_name|default:row.mo.product_code|default:row.mo.code %}
+        {% if row.product_image_url %}
+        <button type="button" class="sx-doc-thumb" data-sx-gallery
+                data-sx-gallery-title="{{ pname }}"
+                data-sx-gallery-images="{{ row.product_image_urls_json }}"
+                aria-label="Phóng to ảnh {{ pname }}">
+          <img src="{{ row.product_image_url }}" alt="" class="jp-tw-goods-image" loading="lazy">
+        </button>
+        {% else %}
+        <span class="jp-tw-goods-image-placeholder" title="Sản phẩm chưa có ảnh" aria-hidden="true">
+          <i class="bi bi-image"></i>
+        </span>
+        {% endif %}
+        <div class="jp-tw-goods-text">
+          <a class="jp-tw-goods-mo-link" href="{% url 'san_xuat:dispatch_mo_detail' row.mo.pk %}" title="{{ pname }} · {{ row.mo.code }}">{{ pname }}</a>
+          <div class="jp-tw-goods-mo-sub">
+            <span class="jp-pb-urgency is-{{ row.priority }}">{{ row.priority_label }}</span>
+            {% if row.status == 'done' %}<span class="jp-tw-goods-here is-done"><i class="bi bi-check-circle"></i>Đã xong</span>{% endif %}
+            <span>SL <strong>{{ row.plan|sx_num }}</strong></span>
+            {% if row.due %}<span class="{% if row.is_overdue %}is-late{% endif %}">Hạn <strong>{{ row.due|date:"d/m" }}</strong>{% if row.due_label and row.status != 'done' %} · {{ row.due_label|lower }}{% endif %}</span>{% endif %}
           </div>
-          {% endwith %}
         </div>
-        <div class="jp-tw-goods-meta">
-          {% if row.status == 'done' %}
-          <span class="jp-tw-goods-here is-done"><i class="bi bi-check-circle"></i>Đã xong</span>
-          {% elif row.active_labels %}
-          <span class="jp-tw-goods-here"><i class="bi bi-play-fill"></i>Đang làm {{ row.active_labels|join:", " }}</span>
-          {% elif row.open_labels %}
-          <span class="jp-tw-goods-here"><i class="bi bi-circle"></i>Còn việc {{ row.open_labels|join:", " }}</span>
-          {% endif %}
-          <span class="jp-pb-urgency is-{{ row.priority }}">{{ row.priority_label }}</span>
-          <span class="jp-tw-goods-qty">SL {{ row.plan|sx_num }}</span>
-        </div>
-      </header>
-      <ol class="jp-tw-tl-scroll jp-tw-tl" aria-label="Công đoạn KHSX — làm độc lập">
+        {% endwith %}
+      </div>
+      <ol class="jp-tw-st" aria-label="Công đoạn KHSX — làm độc lập">
         {% for c in row.cells %}
-        <li class="jp-tw-tl-step is-{{ c.status }}{% if c.status == 'run' and row.status != 'done' %} is-here{% endif %}{% if board.filter_team == c.slug %} is-focus{% endif %}{% if c.khsx_end and c.plan > 0 and c.done < c.plan and row.khsx_is_late %} is-late{% endif %}">
-          {% if c.status == 'skip' or not c.plan and not c.done %}
-          <span class="jp-tw-tl-skip">
-            <span class="jp-tw-tl-dot" aria-hidden="true"></span>
-            <span class="jp-tw-tl-name">{{ c.label }}</span>
-            <span class="jp-tw-tl-qty">—</span>
-            {% if c.khsx_start %}
-            <span class="jp-tw-tl-when">{{ c.khsx_start|date:"d/m" }}{% if c.khsx_end and c.khsx_end != c.khsx_start %}–{{ c.khsx_end|date:"d/m" }}{% endif %}</span>
-            {% endif %}
-          </span>
-          {% else %}
-          <a class="jp-tw-tl-link" href="{% url 'san_xuat:team_work_progress' c.slug row.mo.pk %}"
-             title="{{ c.label }}: {{ c.done|sx_num }}/{{ c.plan|sx_num }}{% if c.waiting %} · còn {{ c.waiting|sx_num }} — làm khi có hàng, không chờ tổ khác{% endif %}">
-            <span class="jp-tw-tl-dot" aria-hidden="true">{% if c.status == 'done' %}<i class="bi bi-check"></i>{% elif c.status == 'run' %}<i class="bi bi-play-fill"></i>{% endif %}</span>
-            <span class="jp-tw-tl-name">{{ c.label }}</span>
-            <span class="jp-tw-tl-qty">{{ c.done|sx_num }}<span class="dim">/{{ c.plan|sx_num }}</span></span>
-            {% if c.khsx_start %}
-            <span class="jp-tw-tl-when">{{ c.khsx_start|date:"d/m" }}{% if c.khsx_end and c.khsx_end != c.khsx_start %}–{{ c.khsx_end|date:"d/m" }}{% endif %}</span>
-            {% endif %}
-            {% if c.waiting and c.status != 'done' and row.status != 'done' %}
-            <span class="jp-tw-tl-wait">còn {{ c.waiting|sx_num }}</span>
-            {% endif %}
-          </a>
-          {% if c.subcontract and can_view_subcontract %}
-          <a class="jp-tw-tl-gc" href="{% url 'san_xuat:subcontract_detail' c.subcontract.pk %}"
-             title="Phiếu thuê GC {{ c.subcontract.code }}">GC {{ c.subcontract.code }}</a>
-          {% endif %}
-          {% endif %}
+        {% if c.status == 'skip' or not c.plan and not c.done %}
+        <li class="jp-tw-st-item is-skip" title="{{ c.label }}: không làm">
+          <span class="jp-tw-st-name">{{ c.label }}</span>
+          <span class="jp-tw-st-bar"><i></i></span>
+          <span class="jp-tw-st-qty">—</span>
         </li>
+        {% else %}
+        <li class="jp-tw-st-item is-{{ c.status }}{% if board.filter_team == c.slug %} is-focus{% endif %}{% if c.khsx_end and c.plan > 0 and c.done < c.plan and row.khsx_is_late %} is-late{% endif %}">
+          <a href="{% url 'san_xuat:team_work_progress' c.slug row.mo.pk %}"
+             title="{{ c.label }}: {{ c.done|sx_num }} / {{ c.plan|sx_num }}{% if c.waiting and c.status != 'done' and row.status != 'done' %} · còn {{ c.waiting|sx_num }}{% endif %}{% if c.khsx_start %} · KHSX {{ c.khsx_start|date:'d/m' }}{% if c.khsx_end and c.khsx_end != c.khsx_start %}–{{ c.khsx_end|date:'d/m' }}{% endif %}{% endif %}{% if c.subcontract %} · GC {{ c.subcontract.code }}{% endif %}">
+            <span class="jp-tw-st-name">{% if c.status == 'done' %}<i class="bi bi-check-circle-fill"></i>{% elif c.status == 'run' %}<i class="bi bi-play-circle-fill"></i>{% endif %}{{ c.label }}</span>
+            <span class="jp-tw-st-bar"><i style="width:{% widthratio c.done c.plan 100 %}%"></i></span>
+            <span class="jp-tw-st-qty">{{ c.done|sx_num }}<span class="dim">/{{ c.plan|sx_num }}</span></span>
+          </a>
+        </li>
+        {% endif %}
         {% endfor %}
       </ol>
     </article>

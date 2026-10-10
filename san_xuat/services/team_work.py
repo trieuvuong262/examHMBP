@@ -44,6 +44,30 @@ class TeamWorkRow:
     plan_qty: Decimal = field(default_factory=lambda: Decimal('0'))
     done_qty: Decimal = field(default_factory=lambda: Decimal('0'))
     remain_qty: Decimal = field(default_factory=lambda: Decimal('0'))
+    team_progress: 'TeamProgress | None' = None
+
+
+@dataclass
+class TeamProgress:
+    """SL tổ theo bộ (min các công đoạn) trên từng size; phần vượt không bù size khác."""
+
+    plan: Decimal = field(default_factory=lambda: Decimal('0'))
+    done: Decimal = field(default_factory=lambda: Decimal('0'))
+    over: Decimal = field(default_factory=lambda: Decimal('0'))
+
+    @property
+    def counted(self) -> Decimal:
+        return self.done - self.over
+
+    @property
+    def remain(self) -> Decimal:
+        return max(self.plan - self.counted, Decimal('0'))
+
+    @property
+    def pct(self) -> Decimal:
+        if self.plan <= 0:
+            return Decimal('0')
+        return (self.counted * Decimal('100') / self.plan).quantize(Decimal('0.1'))
 
 
 @dataclass
@@ -75,6 +99,7 @@ class TeamWorkJob:
     khsx_is_late: bool = False
     product_image_url: str = ''
     product_image_urls_json: str = '[]'
+    progress: TeamProgress | None = None
 
     @property
     def unassigned_count(self) -> int:
@@ -89,7 +114,7 @@ def group_team_work_jobs(rows: list[TeamWorkRow]) -> list[TeamWorkJob]:
     for row in rows:
         job = by_mo.get(row.mo.pk)
         if job is None:
-            job = TeamWorkJob(mo=row.mo, rows=[], plan_qty=row.plan_qty)
+            job = TeamWorkJob(mo=row.mo, rows=[], plan_qty=row.plan_qty, progress=row.team_progress)
             by_mo[row.mo.pk] = job
             jobs.append(job)
         job.rows.append(row)
@@ -147,6 +172,42 @@ def _step_qty_for_mo(
     if plan <= 0:
         plan = _q(mo.qty)
     return plan, done, remain
+
+
+def _team_progress_for_mo(
+    mo: SxProductionOrder,
+    *,
+    sizes,
+    stats: list[SxProductionStat],
+    label_map: dict[str, ProgressStepDef],
+) -> TeamProgress:
+    zero = Decimal('0')
+    if not sizes:
+        return TeamProgress(plan=_q(mo.qty))
+    size_set = {r.size_label for r in sizes}
+    single_total = len(sizes) == 1 and sizes[0].size_label == 'Tổng'
+    keys = {s.key for s in label_map.values()}
+    done_map: dict[tuple[str, str], Decimal] = {}
+    for st in stats:
+        step = label_map.get((st.process_name or '').strip().casefold())
+        if not step:
+            continue
+        size = (st.size_label or '').strip()
+        if single_total:
+            size = 'Tổng'
+        elif not size or size not in size_set:
+            continue
+        qty = _q(st.qty_good)
+        if qty > 0:
+            done_map[(size, step.key)] = done_map.get((size, step.key), zero) + qty
+    out = TeamProgress()
+    for row in sizes:
+        done = min((done_map.get((row.size_label, k), zero) for k in keys), default=zero)
+        out.plan += row.qty
+        out.done += done
+        if row.qty > 0 and done > row.qty:
+            out.over += done - row.qty
+    return out
 
 
 def _batch_stats_by_mo(mo_ids: list[int]) -> dict[int, list[SxProductionStat]]:
@@ -238,6 +299,7 @@ def build_team_work_rows(*, slug: str, search: str = '') -> tuple[dict, list[Tea
             if key in mo_label_set and key not in by_name:
                 by_name[key] = st
         label_map = {s.label.casefold(): s for s in mo_step_defs}
+        team_progress = _team_progress_for_mo(mo, sizes=sizes, stats=mo_stats, label_map=label_map)
 
         for sd in mo_step_defs:
             lk = sd.label.casefold()
@@ -269,6 +331,7 @@ def build_team_work_rows(*, slug: str, search: str = '') -> tuple[dict, list[Tea
                     plan_qty=plan_qty,
                     done_qty=done_qty,
                     remain_qty=remain_qty,
+                    team_progress=team_progress,
                 )
             )
     return team, rows

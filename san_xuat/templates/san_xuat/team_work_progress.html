@@ -36,7 +36,7 @@
   .jp-seg button.is-on { background:var(--dg-surface); color:var(--dg-brand); box-shadow:0 1px 2px rgba(0,0,0,.08); }
   /* Table shell */
   .jp-dg-wrap {
-    overflow:auto; max-height:calc(100vh - 11rem);
+    overflow:auto; max-height:calc(100vh - 12rem); margin-top:1.75rem;
     background:var(--dg-surface); border:1px solid var(--dg-line); border-radius:var(--jp-radius-lg, 7px);
   }
   .jp-dg-table { border-collapse:separate; border-spacing:0; min-width:100%; font-size:.875rem; color:var(--dg-ink); font-variant-numeric:tabular-nums; }
@@ -83,6 +83,13 @@
 
   .jp-dg-table .kind { width:4.6rem; color:var(--dg-muted); font-size:.8125rem; font-weight:600; }
   .jp-dg-table .tot { min-width:6.5rem; font-weight:700; background:var(--dg-soft); }
+  .jp-dg-table thead th.pc-head { width:6.4rem; min-width:6.4rem; max-width:6.4rem; white-space:normal; line-height:1.2; font-size:.72rem; }
+  .jp-dg-table .pc { min-width:6.4rem; font-weight:700; color:var(--dg-ink); }
+  .jp-dg-table .pc.is-full,
+  .jp-dg-table .pc.is-full .pv { color:var(--dg-ok); }
+  .jp-dg-table .pc.is-zero { color:var(--dg-faint); font-weight:600; }
+  .jp-dg-table .pc.is-na { color:var(--dg-faint); font-weight:400; }
+  .jp-dg-table tr.day-in td.pc { padding-bottom:.3rem; }
 
   /* Plan */
   .jp-dg-table tr.plan td { background:var(--dg-soft); color:var(--dg-muted); font-weight:600; }
@@ -141,6 +148,7 @@
   .jp-hist-table tr.is-bf .new { color:var(--dg-bf); }
   .jp-hist-tag { display:inline-block; padding:.05rem .45rem; border-radius:999px; font-size:.75rem; font-weight:600; line-height:1.5; white-space:nowrap; }
   .jp-hist-tag.is-bf { background:var(--dg-bf-soft); color:var(--dg-bf); }
+  .jp-hist-tag.is-done { background:rgba(21, 128, 61, .1); color:var(--dg-ok); }
   .jp-hist-tag.is-day { background:var(--dg-soft); color:var(--dg-muted); border:1px solid var(--dg-line); }
   .jp-hist-empty { color:var(--dg-muted); font-size:.875rem; }
   .jp-dg-table tr.is-today td { background-image:linear-gradient(var(--dg-brand-soft), var(--dg-brand-soft)); }
@@ -174,7 +182,7 @@
   td.is-error .jp-dg-in { border-color:var(--dg-brand); background:var(--dg-brand-soft); }
 
   /* Note */
-  .jp-dg-table .note { min-width:13rem; padding:.25rem; text-align:left; }
+  .jp-dg-table .note { width:8rem; min-width:8rem; max-width:8rem; padding:.25rem; text-align:left; }
   .jp-dg-table .note textarea {
     display:block; width:100%; height:3.4rem; resize:vertical; font:inherit; font-size:.8125rem; color:var(--dg-ink);
     border:1px solid transparent; border-radius:4px; padding:.2rem .35rem; background:transparent;
@@ -202,6 +210,11 @@
   .jp-dg-table tr.remain td { color:var(--dg-brand); font-weight:600; background:var(--dg-surface); }
   .jp-dg-table tr.remain td.sticky-col { color:var(--dg-muted); font-size:.8125rem; text-transform:uppercase; letter-spacing:.03em; }
   .jp-dg-table tr.remain td.is-zero { color:var(--dg-ok); }
+  .jp-dg-table tr.remain td.pc.is-zero { color:var(--dg-ok); font-weight:700; }
+  .jp-dg-table tr.remain td.is-over { color:var(--dg-warn); font-size:.8125rem; }
+  .jp-dg-bar-mini.is-over i { background:var(--dg-warn); }
+  .jp-dg-table .ov-sub { display:block; margin-top:.1rem; color:var(--dg-warn); font-size:.75rem; font-weight:600; }
+  .jp-dg-table .ov-sub[hidden] { display:none; }
 </style>
 {% endblock %}
 
@@ -227,7 +240,7 @@
           <button type="submit" class="btn btn-sm btn-outline-secondary">Mở lại</button>
         </form>
         {% else %}
-        <form method="post" class="d-inline">
+        <form method="post" class="d-inline" onsubmit="return confirm('Hoàn thành lệnh này cho tổ?\nCác size / công đoạn chưa đủ SL sẽ được tự điền phần còn thiếu vào hôm nay. SL đã nhập giữ nguyên.');">
           {% csrf_token %}
           <input type="hidden" name="action" value="complete">
           <button type="submit" class="btn btn-sm btn-outline-hm fw-bold">Hoàn thành</button>
@@ -235,14 +248,6 @@
         {% endif %}
         <span class="sep" aria-hidden="true"></span>
       {% endif %}
-      <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}"><i class="bi bi-file-earmark-text" aria-hidden="true"></i>Lệnh sản xuất</a>
-      <span class="sep" aria-hidden="true"></span>
-      <a href="{% url 'san_xuat:team_work_goods' %}{% if mo.sales_order_id %}?q={{ mo.sales_order.code|urlencode }}{% endif %}"><i class="bi bi-bar-chart-line" aria-hidden="true"></i>Tiến độ hàng hoá</a>
-      {% if mo.sales_order_id %}
-      <span class="sep" aria-hidden="true"></span>
-      <a href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=route&amp;q={{ mo.sales_order.code|urlencode }}"><i class="bi bi-calendar3" aria-hidden="true"></i>Lộ trình</a>
-      {% endif %}
-      <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:team_work_board' team.slug %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Công việc tổ</a>
     </nav>
   </div>
@@ -297,6 +302,8 @@
           </th>
           <th colspan="{{ grid.sizes|length }}">Size</th>
           <th rowspan="2">Loại</th>
+          <th rowspan="2" class="pc-head" title="SL ngày so với SL kế hoạch KHSX của ngày đó">Tỷ lệ hoàn thành theo kế hoạch</th>
+          <th rowspan="2" class="pc-head" title="SL so với tổng SL đơn hàng">Tỷ lệ hoàn thành theo đơn hàng</th>
           <th rowspan="2">Tổng</th>
           <th rowspan="2">Ghi chú</th>
         </tr>
@@ -311,6 +318,8 @@
           <td data-plan="{{ s.qty|sx_num_input }}">{{ s.qty|sx_num }}</td>
           {% endfor %}
           <td class="kind">SL</td>
+          <td class="pc"></td>
+          <td class="pc"></td>
           <td class="tot">{{ grid.total_plan|sx_num }}</td>
           <td></td>
         </tr>
@@ -344,7 +353,13 @@
             </div>
             {% else %}SL{% endif %}
           </td>
-          <td class="tot" rowspan="2" data-role="in-total">{% if day.total %}{{ day.total|sx_num }}{% if grid.total_plan %} <span class="pct">({{ day.total_pct|sx_num }}%)</span>{% endif %}{% endif %}</td>
+          {% if day.plan_qty %}
+          <td class="pc{% if day.plan_pct >= 100 %} is-full{% elif not day.total %} is-zero{% endif %}" rowspan="2" data-role="day-plan-pct" data-plan="{{ day.plan_qty|sx_num_input }}" title="{{ day.total|sx_num }} / KH {{ day.plan_qty|sx_num }}">{% if not day.is_future %}{{ day.plan_pct|sx_num }}%{% endif %}</td>
+          {% else %}
+          <td class="pc is-na" rowspan="2" title="Ngày không có kế hoạch">—</td>
+          {% endif %}
+          <td class="pc" rowspan="2" data-role="day-order-pct">{% if day.total and grid.total_plan %}{{ day.total_pct|sx_num }}%{% endif %}</td>
+          <td class="tot" rowspan="2" data-role="in-total">{% if day.total %}{{ day.total|sx_num }}{% endif %}</td>
           <td class="note" rowspan="2">
             {% if can_update and not day.is_future %}
             <textarea maxlength="500" placeholder="Ghi chú…" data-orig="{{ day.note }}" aria-label="Ghi chú {{ day.date|date:'d/m/Y' }}">{{ day.note }}</textarea>
@@ -365,22 +380,41 @@
           {% for t in grid.totals %}
           <td data-role="size-done" data-col="{{ forloop.counter0 }}" data-val="{{ t.done|sx_num_input }}">
             <span class="qp">{{ t.done|sx_num }} <span class="pct">({{ t.pct|sx_num }}%)</span></span>
-            <div class="jp-dg-bar-mini{% if t.pct >= 100 %} is-full{% endif %}"><i style="width:{{ t.pct|sx_num_input:0 }}%"></i></div>
+            <div class="jp-dg-bar-mini{% if t.over %} is-over{% elif t.pct >= 100 %} is-full{% endif %}"><i style="width:{{ t.pct|sx_num_input:0 }}%"></i></div>
           </td>
           {% endfor %}
-          <td class="kind">SL (%)</td>
-          <td class="tot" data-role="grand-done">
-            <span class="qp">{{ grid.grand_done|sx_num }} <span class="pct">({{ grid.grand_pct|sx_num }}%)</span></span>
+          <td class="kind">SL</td>
+          {% if grid.plan_to_date %}
+          <td class="pc{% if grid.grand_plan_pct >= 100 %} is-full{% endif %}" data-role="grand-plan-pct" data-plan="{{ grid.plan_to_date|sx_num_input }}" title="Tính trong đơn {{ grid.grand_counted|sx_num }} / KH đến hôm nay {{ grid.plan_to_date|sx_num }}">
+            <span class="pv">{{ grid.grand_plan_pct|sx_num }}%</span>
+            <div class="jp-dg-bar-mini{% if grid.grand_plan_pct >= 100 %} is-full{% endif %}"><i style="width:{{ grid.grand_plan_pct|sx_num_input:0 }}%"></i></div>
+          </td>
+          {% else %}
+          <td class="pc is-na" title="Chưa có kế hoạch KHSX tới hôm nay">—</td>
+          {% endif %}
+          <td class="pc{% if grid.grand_pct >= 100 %} is-full{% endif %}" data-role="grand-order-pct" title="Tính trong đơn {{ grid.grand_counted|sx_num }} / đơn hàng {{ grid.total_plan|sx_num }}">
+            <span class="pv">{{ grid.grand_pct|sx_num }}%</span>
             <div class="jp-dg-bar-mini{% if grid.grand_pct >= 100 %} is-full{% endif %}"><i style="width:{{ grid.grand_pct|sx_num_input:0 }}%"></i></div>
+          </td>
+          <td class="tot" data-role="grand-done-cell">
+            <span data-role="grand-done">{{ grid.grand_done|sx_num }}</span>
+            <span class="ov-sub" data-role="grand-over"{% if not grid.grand_over %} hidden{% endif %}>vượt {{ grid.grand_over|sx_num }}</span>
           </td>
           <td rowspan="2"></td>
         </tr>
         <tr class="remain">
           <td class="sticky-col">Còn thiếu</td>
           {% for t in grid.totals %}
-          <td data-role="size-remain" data-col="{{ forloop.counter0 }}" data-val="{{ t.remain|sx_num_input }}"{% if not t.remain %} class="is-zero"{% endif %}>{{ t.remain|sx_num }}</td>
+          <td data-role="size-remain" data-col="{{ forloop.counter0 }}" data-val="{{ t.remain|sx_num_input }}"
+              class="{% if t.over %}is-over{% elif not t.remain %}is-zero{% endif %}"{% if t.over %} title="Vượt kế hoạch: {{ t.over|sx_num }}"{% endif %}>{% if t.over %}vượt {{ t.over|sx_num }}{% else %}{{ t.remain|sx_num }}{% endif %}</td>
           {% endfor %}
           <td class="kind">SL</td>
+          {% if grid.plan_to_date %}
+          <td class="pc{% if not grid.plan_remain %} is-zero{% endif %}" data-role="remain-plan-pct" title="Còn thiếu so với KH đến hôm nay: {{ grid.plan_remain|sx_num }}">{{ grid.plan_remain_pct|sx_num }}%</td>
+          {% else %}
+          <td class="pc is-na">—</td>
+          {% endif %}
+          <td class="pc{% if not grid.grand_remain %} is-zero{% endif %}" data-role="remain-order-pct" title="Còn thiếu so với đơn hàng: {{ grid.grand_remain|sx_num }}">{{ grid.remain_pct|sx_num }}%</td>
           <td class="tot" data-role="grand-remain">{{ grid.grand_remain|sx_num }}</td>
         </tr>
       </tbody>
@@ -444,9 +478,11 @@
         + '<td>' + esc(l.user || '—') + '</td>'
         + '<td class="num old">' + show(l.old) + '</td>'
         + '<td class="num new">' + show(l.new) + '</td>'
-        + '<td>' + (l.backfill
-          ? '<span class="jp-hist-tag is-bf">Nhập bù</span>'
-          : '<span class="jp-hist-tag is-day">Đúng ngày</span>') + '</td>'
+        + '<td>' + (l.kind === 'complete'
+          ? '<span class="jp-hist-tag is-done">Hoàn thành</span>'
+          : l.backfill
+            ? '<span class="jp-hist-tag is-bf">Nhập bù</span>'
+            : '<span class="jp-hist-tag is-day">Đúng ngày</span>') + '</td>'
         + '</tr>';
     }).join('');
     modalEl.querySelector('[data-hist-empty]').hidden = logs.length > 0;
@@ -575,8 +611,25 @@
         altCells[col].textContent = t ? '= ' + t : '';
       }
     });
-    tr.querySelector('[data-role="in-total"]').innerHTML =
-      qtyPctHtml(total, totalPlan > 0 ? qtyToPct(total, totalPlan) : null);
+    tr.querySelector('[data-role="in-total"]').textContent = qtyText(total);
+    var planTd = tr.querySelector('[data-role="day-plan-pct"]');
+    if (planTd) {
+      var dayPlan = num(planTd.getAttribute('data-plan'));
+      var p = qtyToPct(total, dayPlan);
+      planTd.textContent = pctNum(p);
+      planTd.classList.toggle('is-full', p >= 100);
+      planTd.classList.toggle('is-zero', !total);
+    }
+    tr.querySelector('[data-role="day-order-pct"]').textContent = totalPlan > 0 ? pctText(total, totalPlan) : '';
+  }
+
+  function paintPctCell(td, pct) {
+    if (!td) return;
+    td.querySelector('.pv').textContent = pctNum(pct);
+    td.classList.toggle('is-full', pct >= 100);
+    var bar = td.querySelector('.jp-dg-bar-mini');
+    bar.classList.toggle('is-full', pct >= 100);
+    bar.firstElementChild.style.width = Math.min(100, Math.max(0, pct)) + '%';
   }
 
   function setMode(tr, mode) {
@@ -588,26 +641,64 @@
     refreshDay(tr);
   }
 
+  function overOf(col, done) {
+    var plan = plans[col];
+    return plan > 0 ? Math.max(0, done - plan) : 0;
+  }
+
+  function paintRemainPct(td, missing, whole) {
+    if (!td) return;
+    td.textContent = pctNum(qtyToPct(missing, whole));
+    td.classList.toggle('is-zero', !missing);
+  }
+
   function refreshGrand() {
     var done = 0;
+    var over = 0;
     var remain = 0;
-    table.querySelectorAll('[data-role="size-done"]').forEach(function (td) { done += num(td.getAttribute('data-val')); });
+    table.querySelectorAll('[data-role="size-done"]').forEach(function (td) {
+      var q = num(td.getAttribute('data-val'));
+      done += q;
+      over += overOf(Number(td.getAttribute('data-col')), q);
+    });
     table.querySelectorAll('[data-role="size-remain"]').forEach(function (td) { remain += num(td.getAttribute('data-val')); });
-    paintQtyPct(table.querySelector('[data-role="grand-done"]'), done, qtyToPct(done, totalPlan));
+    var counted = done - over;
+    table.querySelector('[data-role="grand-done"]').textContent = show(done);
+    var gOver = table.querySelector('[data-role="grand-over"]');
+    gOver.hidden = !over;
+    gOver.textContent = 'vượt ' + show(over);
+    var gPlan = table.querySelector('[data-role="grand-plan-pct"]');
+    if (gPlan) {
+      var planToDate = num(gPlan.getAttribute('data-plan'));
+      paintPctCell(gPlan, qtyToPct(counted, planToDate));
+      paintRemainPct(table.querySelector('[data-role="remain-plan-pct"]'), Math.max(0, planToDate - counted), planToDate);
+    }
+    paintPctCell(table.querySelector('[data-role="grand-order-pct"]'), qtyToPct(counted, totalPlan));
+    paintRemainPct(table.querySelector('[data-role="remain-order-pct"]'), remain, totalPlan);
     table.querySelector('[data-role="grand-remain"]').textContent = show(remain);
   }
 
   function setSizeTotals(col, j) {
     var d = cell('size-done', col);
     var r = cell('size-remain', col);
+    var done = num(j.size_done);
+    var over = overOf(col, done);
     if (d) {
-      d.setAttribute('data-val', plain(j.size_done));
-      paintQtyPct(d, num(j.size_done), num(j.size_pct));
+      d.setAttribute('data-val', plain(done));
+      paintQtyPct(d, done, num(j.size_pct));
+      var bar = d.querySelector('.jp-dg-bar-mini');
+      if (bar) {
+        bar.classList.toggle('is-over', over > 0);
+        if (over > 0) bar.classList.remove('is-full');
+      }
     }
     if (r) {
       r.setAttribute('data-val', plain(j.size_remain));
-      r.textContent = show(j.size_remain);
-      r.classList.toggle('is-zero', !num(j.size_remain));
+      r.textContent = over > 0 ? 'vượt ' + show(over) : show(j.size_remain);
+      r.classList.toggle('is-over', over > 0);
+      r.classList.toggle('is-zero', !over && !num(j.size_remain));
+      if (over > 0) r.title = 'Vượt kế hoạch: ' + show(over);
+      else r.removeAttribute('title');
     }
     refreshGrand();
   }

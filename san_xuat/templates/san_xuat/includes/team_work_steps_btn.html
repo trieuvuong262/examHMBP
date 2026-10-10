@@ -1,0 +1,8 @@
+{% if not job.subcontract %}
+<button type="button" class="btn btn-sm fw-bold jp-tw-steps-btn {% if job.unassigned_count and can_assign and not job.closed %}btn-outline-hm{% else %}btn-outline-secondary{% endif %}"
+        data-bs-toggle="modal" data-bs-target="#jpTwSteps{{ job.mo.pk }}"
+        title="{{ job.step_count }} công đoạn{% if job.unassigned_count %} · {{ job.unassigned_count }} chưa phân công{% endif %}">
+  {% if can_assign and not job.closed %}Phân công{% else %}Công đoạn{% endif %}
+  {% if job.unassigned_count %}<span class="jp-tw-steps-badge">{{ job.unassigned_count }}</span>{% endif %}
+</button>
+{% endif %}

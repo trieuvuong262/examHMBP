@@ -1,0 +1,72 @@
+{% load sx_format %}
+{% with pname=job.mo.product_name|default:job.mo.product_code ocode=job.mo.sales_order.code|default:job.mo.code %}
+<div class="modal fade jp-tw-modal jp-tw-steps-modal" id="jpTwSteps{{ job.mo.pk }}" data-mo-id="{{ job.mo.pk }}" tabindex="-1"
+     aria-labelledby="jpTwStepsTitle{{ job.mo.pk }}" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable jp-tw-modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="min-w-0">
+          <h5 class="modal-title" id="jpTwStepsTitle{{ job.mo.pk }}">{% if can_assign and not job.closed %}Phân công{% else %}Công đoạn{% endif %} · {% if pname %}{{ pname }} - {{ ocode }}{% else %}{{ ocode }}{% endif %}</h5>
+          <div class="jp-tw-steps-sub">
+            <strong>{{ job.step_count }}</strong> công đoạn
+            {% if job.unassigned_count %} · <strong class="is-warn">{{ job.unassigned_count }}</strong> chưa phân công{% else %} · đã phân công đủ{% endif %}
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body p-0">
+        <ul class="jp-tw-steps{% if can_assign and not job.closed %} is-assignable{% endif %}" aria-label="Công đoạn {% if pname %}{{ pname }} - {{ ocode }}{% else %}{{ ocode }}{% endif %}">
+          {% for row in job.rows %}
+          <li class="jp-tw-step"
+              data-mo-id="{{ row.mo.pk }}"
+              data-mo-code="{{ ocode }}"
+              data-mo-title="{% if pname %}{{ pname }} - {{ ocode }}{% else %}{{ ocode }}{% endif %}"
+              data-process-key="{{ row.step_def.key }}"
+              data-process-label="{{ row.step_def.label }}"
+              data-plan-qty="{{ row.plan_qty|sx_num }}"
+              data-done-qty="{{ row.done_qty|sx_num }}"
+              data-remain-qty="{{ row.remain_qty|sx_num }}"
+              data-assignee-ids="{% for a in row.assignees %}{{ a.id }}{% if not forloop.last %},{% endif %}{% endfor %}">
+            <div class="jp-tw-step-name">{{ row.step_def.label }}</div>
+            <div class="jp-tw-step-qty" title="Đã {{ row.done_qty|sx_num }} / Kế hoạch {{ row.plan_qty|sx_num }}">
+              <span class="jp-tw-step-qty-need">Cần <strong>{{ row.remain_qty|sx_num }}</strong></span>
+              <span class="jp-tw-step-qty-track">{{ row.done_qty|sx_num }}<span class="dim">/{{ row.plan_qty|sx_num }}</span></span>
+            </div>
+            <div class="jp-tw-status-wrap">
+              {% if row.mo_step %}
+                {% if row.status == 'done' %}
+                  <span class="jp-tw-status is-done"><i class="bi bi-check-circle"></i>Xong</span>
+                {% elif row.status == 'in_progress' %}
+                  <span class="jp-tw-status is-run"><i class="bi bi-play-circle"></i>Đang làm</span>
+                {% else %}
+                  <span class="jp-tw-status is-wait"><i class="bi bi-hourglass-split"></i>Chờ</span>
+                {% endif %}
+              {% else %}
+                <span class="jp-tw-status is-none"><i class="bi bi-plus-circle"></i>Chưa gắn</span>
+              {% endif %}
+            </div>
+            <div class="jp-tw-people">
+              {% for a in row.assignees %}
+                <span class="jp-tw-chip"><i class="bi bi-person"></i>{{ a.label }}</span>
+              {% empty %}
+                <span class="jp-tw-empty">Chưa phân công</span>
+              {% endfor %}
+            </div>
+            {% if can_assign and not job.closed %}
+            <button type="button"
+                    class="btn btn-sm jp-tw-step-action {% if row.assignees %}btn-hm{% else %}btn-outline-hm{% endif %} fw-bold"
+                    data-jp-tw-assign>
+              {% if row.assignees %}Đổi{% else %}Phân công{% endif %}
+            </button>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="modal-footer border-0 pt-2 px-3 pb-3">
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endwith %}

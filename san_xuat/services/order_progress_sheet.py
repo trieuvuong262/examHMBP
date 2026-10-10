@@ -670,6 +670,7 @@ def build_team_day_grid(
             ],
             'total': total,
             'total_pct': _pct(total, total_plan),
+            'plan_pct': _pct(total, plan_days[d]) if plan_days.get(d) else None,
             'note': notes.get(d, ''),
         })
 
@@ -677,14 +678,22 @@ def build_team_day_grid(
     totals = []
     for r in sizes:
         row = done_by_size.get(r.size_label) or {}
+        done = row.get('total_done', zero)
         totals.append({
             'size': r.size_label,
             'plan': r.qty,
-            'done': row.get('total_done', zero),
+            'done': done,
             'pct': row.get('total_pct', zero),
             'remain': row.get('total_remain', r.qty),
+            'over': max(done - r.qty, zero) if r.qty > 0 else zero,
         })
     grand_done = sum((t['done'] for t in totals), zero)
+    grand_over = sum((t['over'] for t in totals), zero)
+    grand_remain = sum((t['remain'] for t in totals), zero)
+    # Phần vượt của một size không bù cho size khác còn thiếu.
+    grand_counted = grand_done - grand_over
+    plan_to_date = sum((q for d, q in plan_days.items() if q and d <= today), zero)
+    plan_remain = max(plan_to_date - grand_counted, zero)
     return {
         'sizes': [{'label': r.size_label, 'qty': r.qty} for r in sizes],
         'days': days,
@@ -694,8 +703,15 @@ def build_team_day_grid(
         'totals': totals,
         'total_plan': total_plan,
         'grand_done': grand_done,
-        'grand_pct': _pct(grand_done, total_plan),
-        'grand_remain': sum((t['remain'] for t in totals), zero),
+        'grand_counted': grand_counted,
+        'grand_over': grand_over,
+        'grand_pct': _pct(grand_counted, total_plan),
+        'plan_to_date': plan_to_date,
+        'grand_plan_pct': _pct(grand_counted, plan_to_date) if plan_to_date else None,
+        'grand_remain': grand_remain,
+        'remain_pct': _pct(grand_remain, total_plan),
+        'plan_remain': plan_remain,
+        'plan_remain_pct': _pct(plan_remain, plan_to_date) if plan_to_date else None,
     }
 
 
