@@ -319,6 +319,7 @@ class PlanBoardRow:
     npl_pr_code: str = ''
     show_npl_uom_col: bool = False
     timeline_steps: list = field(default_factory=list)
+    stage_progress: list = field(default_factory=list)
 
     @property
     def in_queue(self) -> bool:
@@ -2245,7 +2246,19 @@ def build_plan_board_rows(
     _fill_npl_supplier_names(rows)
     _fill_product_flow_images(rows)
     attach_subcontracts_to_plan_rows(rows)
+    _fill_stage_progress(rows)
     return rows
+
+
+def _fill_stage_progress(rows: list[PlanBoardRow]) -> None:
+    from san_xuat.services.handover_status import stage_progress_by_order
+
+    released = [r for r in rows if r.is_released and r.mo_count]
+    if not released:
+        return
+    by_order = stage_progress_by_order([r.order.pk for r in released])
+    for r in released:
+        r.stage_progress = by_order.get(r.order.pk, [])
 
 
 def _fill_npl_supplier_names(rows: list[PlanBoardRow]) -> None:

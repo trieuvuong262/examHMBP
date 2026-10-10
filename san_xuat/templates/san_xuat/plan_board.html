@@ -328,6 +328,13 @@
   .jp-pb-stat strong { color: var(--pb-ink); font-weight: 800; }
   .jp-pb-stat.is-late { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
   .jp-pb-stat.is-late strong { color: #991b1b; }
+  .jp-pb-stage-prog { flex-wrap: wrap; align-items: center; row-gap: 0.15rem; }
+  .jp-pb-sp { display: inline-flex; align-items: baseline; gap: 0.2rem; white-space: nowrap; }
+  .jp-pb-sp + .jp-pb-sp::before { content: '·'; margin-right: 0.2rem; color: var(--pb-muted); opacity: 0.55; font-weight: 800; }
+  .jp-pb-sp.is-idle strong { color: var(--pb-muted); font-weight: 700; }
+  .jp-pb-sp.is-run strong { color: var(--pb-ink); }
+  .jp-pb-sp.is-done strong { color: #15803d; }
+  .jp-pb-sp.is-over strong { color: #b45309; }
   .jp-pb-npl-stat-form { margin: 0; display: inline-flex; }
   button.jp-pb-stat,
   a.jp-pb-stat {

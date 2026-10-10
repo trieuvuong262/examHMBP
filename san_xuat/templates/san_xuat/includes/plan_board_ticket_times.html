@@ -27,9 +27,13 @@
     </span>
     {% endif %}
     {% if row.is_released and row.mo_count %}
-    <span class="jp-pb-stat" title="Tiến độ lệnh sản xuất">
-      Tiến độ <strong>{{ row.progress_pct|sx_num }}%</strong>
-      <span class="text-muted fw-semibold">({{ row.qty_done|sx_num }}/{{ row.qty_planned|sx_num }})</span>
+    <span class="jp-pb-stat jp-pb-stage-prog" aria-label="Tiến độ theo bộ phận">
+      Tiến độ
+      {% for s in row.stage_progress %}
+      <span class="jp-pb-sp is-{{ s.status }}" title="{{ s.label }}: {{ s.done|sx_num }} / {{ s.plan|sx_num }}{% if s.status == 'over' %} — vượt kế hoạch{% endif %}">{{ s.label }} <strong>{{ s.pct }}%</strong></span>
+      {% empty %}
+      <strong>—</strong>
+      {% endfor %}
     </span>
     {% endif %}
     <span class="jp-pb-stat{% if row.is_overdue %} is-late{% endif %}">

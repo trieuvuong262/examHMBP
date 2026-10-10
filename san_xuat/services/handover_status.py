@@ -473,6 +473,65 @@ def done_qty_by_order_team(order_ids: list[int]) -> dict[tuple[int, str], Decima
     return out
 
 
+_STAGE_SHORT_LABEL = {"gh": "Giao hàng"}
+
+
+@dataclass
+class OrderStageProgress:
+    """SL đạt / kế hoạch của một bộ phận trên đơn — cùng công thức lộ trình."""
+
+    slug: str
+    label: str
+    done: Decimal
+    plan: Decimal
+
+    @property
+    def pct(self) -> int:
+        if self.plan <= 0:
+            return 0
+        return int(round(100 * self.done / self.plan))
+
+    @property
+    def status(self) -> str:
+        if self.done <= 0:
+            return "idle"
+        if self.plan > 0 and self.done > self.plan:
+            return "over"
+        return "done" if self.done >= self.plan else "run"
+
+
+def stage_progress_by_order(order_ids: list[int]) -> dict[int, list[OrderStageProgress]]:
+    """Tiến độ từng bộ phận theo đơn — cộng các LSX của đơn, giữ thứ tự GROUPS."""
+    mos = _mos_for_sales_orders(order_ids)
+    if not mos:
+        return {}
+    acc: dict[int, dict[str, OrderStageProgress]] = {}
+    for row in build_mo_handover_rows(mos):
+        oid = int(row.mo.sales_order_id or 0)
+        if not oid:
+            continue
+        slot = acc.setdefault(oid, {})
+        for cell in row.cells:
+            slug = (cell.slug or "").strip().lower()
+            if not slug:
+                continue
+            item = slot.get(slug)
+            if item is None:
+                item = slot[slug] = OrderStageProgress(
+                    slug=slug,
+                    label=_STAGE_SHORT_LABEL.get(slug, cell.label),
+                    done=Decimal("0"),
+                    plan=Decimal("0"),
+                )
+            item.done += _q(cell.done)
+            item.plan += _q(cell.plan)
+    rank = {_slug_for_group(g.key): i for i, g in enumerate(GROUPS)}
+    return {
+        oid: sorted(slot.values(), key=lambda s: rank.get(s.slug, 99))
+        for oid, slot in acc.items()
+    }
+
+
 def done_qty_by_order_team_day(
     order_ids: list[int],
 ) -> dict[tuple[int, str], dict[date, Decimal]]:
