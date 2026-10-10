@@ -42,8 +42,6 @@ def post_stock_receipt(receipt: StockReceipt, user, *, require_attachment: bool 
         )
         if line.unit_price is None or line.unit_price < 0:
             raise ReceiptWorkflowError(f'{line.material.code}: đơn giá nhập không hợp lệ.')
-        if line.unit_price <= 0:
-            raise ReceiptWorkflowError(f'{line.material.code}: đơn giá nhập phải lớn hơn 0.')
         try:
             qty_base = apply_line_conversion(line, line.received_qty)
             base_unit_price = price_to_base(line.unit_price, line.uom_factor)

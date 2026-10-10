@@ -19,7 +19,7 @@ from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from django.utils import timezone
 
-from hrm.choices import GENDER_CHOICES, POSITION_CHOICES
+from hrm.choices import GENDER_CHOICES
 
 # Đuôi được nhận làm hồ sơ ứng viên → content-type khi trả file.
 CANDIDATE_FILE_TYPES = {
@@ -143,7 +143,6 @@ class JobPosting(models.Model):
         (STATUS_CLOSED, 'Đã đóng'),
     ]
 
-    POSITION_CHOICES = POSITION_CHOICES
     title = models.CharField(max_length=255, verbose_name='Tiêu đề tuyển dụng')
     target_department = models.ForeignKey(
         'hrm.Department',
@@ -164,7 +163,7 @@ class JobPosting(models.Model):
     )
     # Nhãn phòng ban cũ (text tự do) — giữ để hiển thị dữ liệu trước khi có FK.
     department = models.CharField(max_length=100, blank=True, verbose_name='Phòng ban (cũ)')
-    position = models.CharField(max_length=50, choices=POSITION_CHOICES, verbose_name='Chức danh')
+    position = models.CharField(max_length=100, verbose_name='Vị trí')
     quantity = models.PositiveIntegerField(default=1, verbose_name='Số lượng cần tuyển')
     salary_min = models.PositiveIntegerField(null=True, blank=True, verbose_name='Lương từ (VNĐ/tháng)')
     salary_max = models.PositiveIntegerField(null=True, blank=True, verbose_name='Lương đến (VNĐ/tháng)')

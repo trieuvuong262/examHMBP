@@ -798,8 +798,8 @@ class StockReceiptLineForm(MultiLevelUomLineFormMixin, forms.ModelForm):
 
     def clean_unit_price(self):
         price = self.cleaned_data.get('unit_price')
-        if price is None or price <= 0:
-            raise ValidationError('Đơn giá nhập phải lớn hơn 0.')
+        if price is None or price < 0:
+            raise ValidationError('Đơn giá nhập không được âm.')
         return price
 
     def full_clean(self):
@@ -830,8 +830,8 @@ class BaseStockReceiptLineFormSet(BaseInlineFormSet):
             if qty is None or qty <= 0:
                 raise ValidationError('Số lượng nhập phải lớn hơn 0 cho mỗi dòng NPL.')
             price = line.get('unit_price')
-            if price is None or price <= 0:
-                raise ValidationError('Mỗi dòng nhập cần đơn giá lớn hơn 0.')
+            if price is None or price < 0:
+                raise ValidationError('Mỗi dòng nhập cần đơn giá lớn hơn hoặc bằng 0.')
 
 StockReceiptLineFormSet = inlineformset_factory(
     StockReceipt,

@@ -60,7 +60,7 @@
         <div class="col-md-8 col-lg-9">
           <label class="form-label small fw-bold text-muted mb-1" for="jobQ">Tìm kiếm</label>
           <div class="input-group jp-hrm-search">
-            {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Vị trí, chức danh, phòng ban…' clear_url=request.path %}
+            {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tên vị trí, vị trí, phòng ban…' clear_url=request.path %}
           </div>
         </div>
       </form>
@@ -89,7 +89,7 @@
             <td class="ps-3">
               <a href="{% url 'job_posting_edit' job.pk %}" class="jp-rc-person-name">{{ job.title }}</a>
               <div class="jp-rc-sub">
-                {{ job.department_label }} · {{ job.get_position_display|default:"Chưa chọn chức danh" }}
+                {{ job.department_label }} · {{ job.position|default:"Chưa chọn vị trí" }}
                 {% if job.service_request_id %} · Đề xuất #{{ job.service_request_id }}{% endif %}
               </div>
               {% if job.salary_label %}<div class="jp-rc-sub"><i class="bi bi-cash-coin" aria-hidden="true"></i> {{ job.salary_label }}</div>{% endif %}

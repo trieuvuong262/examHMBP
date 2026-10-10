@@ -6626,7 +6626,7 @@ def team_work_progress(request, slug: str, mo_id: int):
             except PlanningError as exc:
                 messages.error(request, str(exc))
             return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
-        if action in ('record', 'set_done', 'set_total'):
+        if action in ('record', 'set_done', 'set_total', 'set_day', 'set_note'):
             if not accepted:
                 msg = 'Cần nhận sản xuất trước khi ghi tiến độ.'
                 if wants_json:
@@ -6639,20 +6639,59 @@ def team_work_progress(request, slug: str, mo_id: int):
                     return JsonResponse({'ok': False, 'error': msg}, status=400)
                 messages.error(request, msg)
                 return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
+            from django.utils.dateparse import parse_date
+
+            stat_date = None
+            if action in ('set_day', 'set_note'):
+                try:
+                    stat_date = parse_date((request.POST.get('stat_date') or '').strip())
+                except ValueError:
+                    stat_date = None
+                if not stat_date or stat_date > timezone.localdate():
+                    msg = 'Ngày không hợp lệ.'
+                    if wants_json:
+                        return JsonResponse({'ok': False, 'error': msg}, status=400)
+                    messages.error(request, msg)
+                    return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
+            if action == 'set_note':
+                from san_xuat.hub_models import SxTeamWorkDayNote
+
+                note = (request.POST.get('notes') or '').strip()[:500]
+                if note:
+                    SxTeamWorkDayNote.objects.update_or_create(
+                        production_order=mo,
+                        team_slug=slug,
+                        note_date=stat_date,
+                        defaults={'notes': note, 'created_by': request.user},
+                    )
+                else:
+                    SxTeamWorkDayNote.objects.filter(
+                        production_order=mo, team_slug=slug, note_date=stat_date,
+                    ).delete()
+                if wants_json:
+                    return JsonResponse({'ok': True, 'notes': note})
+                return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
             process_key = (request.POST.get('process_key') or '').strip()
             size_label = (request.POST.get('size_label') or '').strip()
             try:
                 qty = Decimal(str(request.POST.get('qty') or '0').replace(',', '').strip() or '0')
             except (InvalidOperation, ValueError):
                 qty = Decimal('0')
-            if action != 'set_total' and process_key not in allowed_keys:
+            if action not in ('set_total', 'set_day') and process_key not in allowed_keys:
                 msg = 'Công đoạn không thuộc tổ này.'
                 if wants_json:
                     return JsonResponse({'ok': False, 'error': msg}, status=400)
                 messages.error(request, msg)
                 return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
+            old_day_qty = None
+            if action == 'set_day':
+                from san_xuat.services.order_progress_sheet import team_day_qty
+
+                old_day_qty = team_day_qty(
+                    build_progress_sheet(mo, team=team_meta), steps=team_steps, day=stat_date,
+                ).get(size_label, Decimal('0'))
             try:
-                if action == 'set_total':
+                if action in ('set_total', 'set_day'):
                     result = set_team_total_done_qty(
                         mo_id=mo.pk,
                         process_keys=[s.key for s in team_steps],
@@ -6660,6 +6699,7 @@ def team_work_progress(request, slug: str, mo_id: int):
                         qty=qty,
                         user=request.user,
                         team_slug=slug,
+                        stat_date=stat_date,
                     )
                 else:
                     result = set_progress_done_qty(
@@ -6680,6 +6720,37 @@ def team_work_progress(request, slug: str, mo_id: int):
                     return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
                 messages.error(request, str(exc))
                 return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
+            day_log = None
+            if action == 'set_day' and result['changed']:
+                from san_xuat.services.team_progress_log import log_day_change, log_to_dict
+
+                day_log = log_day_change(
+                    mo=mo,
+                    team_slug=slug,
+                    work_date=stat_date,
+                    size_label=size_label,
+                    old_qty=old_day_qty,
+                    new_qty=Decimal(str(result['done'] or 0)),
+                    user=request.user,
+                )
+                day_log = log_to_dict(day_log) if day_log else None
+            if wants_json and action == 'set_day':
+                size_row = next(
+                    (
+                        r for r in build_progress_sheet(mo, team=team_meta).done_rows
+                        if r['size_label'] == size_label
+                    ),
+                    None,
+                ) or {}
+                return JsonResponse({
+                    'ok': True,
+                    'changed': result['changed'],
+                    'day_done': str(result['done'] or 0),
+                    'size_done': str(size_row.get('total_done') or 0),
+                    'size_pct': str(size_row.get('total_pct') or 0),
+                    'size_remain': str(size_row.get('total_remain') or 0),
+                    'log': day_log,
+                })
             if wants_json:
                 plan_qty = Decimal('0')
                 for row in build_progress_sheet(mo, team=team_meta).done_rows:
@@ -6702,13 +6773,53 @@ def team_work_progress(request, slug: str, mo_id: int):
                 messages.success(request, 'Đã cập nhật SL thực hiện.')
             return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
 
+    from san_xuat.hub_models import SxTeamWorkAccept, SxTeamWorkDayNote
+    from san_xuat.services.order_progress_sheet import build_team_day_grid, team_plan_days
+
+    from django.utils.dateparse import parse_date
+
     sheet = build_progress_sheet(mo, team=team_meta)
+    accept_rec = SxTeamWorkAccept.objects.filter(production_order=mo, team_slug=slug).first()
+    try:
+        extra_day = parse_date((request.GET.get('ngay') or '').strip())
+    except ValueError:
+        extra_day = None
+    if extra_day and extra_day > timezone.localdate():
+        extra_day = None
+    day_notes = dict(
+        SxTeamWorkDayNote.objects.filter(production_order=mo, team_slug=slug)
+        .values_list('note_date', 'notes')
+    )
+    from san_xuat.services.team_progress_log import log_to_dict, team_day_logs
+
+    day_logs = team_day_logs(mo_id=mo.pk, team_slug=slug)
+    grid = build_team_day_grid(
+        sheet,
+        steps=team_steps,
+        plan_days=team_plan_days(mo, team_meta),
+        extra_days=[extra_day] if extra_day else None,
+        start_date=timezone.localdate(accept_rec.accepted_at) if accept_rec else None,
+        notes=day_notes,
+        logs=day_logs,
+    )
+    history = {
+        d.isoformat(): [log_to_dict(log) for log in logs]
+        for d, logs in day_logs.items()
+    }
+    from san_xuat.services.products import product_gallery_map
+
+    product_images = product_gallery_map([mo.product_code]).get((mo.product_code or '').casefold(), [])
 
     return render(request, 'san_xuat/team_work_progress.html', {
         **_perm_ctx(request),
         'team': team_meta,
         'mo': mo,
         'sheet': sheet,
+        'product_image_url': product_images[0] if product_images else '',
+        'product_image_urls_json': json.dumps(product_images, ensure_ascii=False),
+        'product_image_count': len(product_images),
+        'grid': grid,
+        'history': history,
         'flat_steps': team_steps,
         'accepted': accepted,
         'can_update': can_update and accepted and not job_closed,

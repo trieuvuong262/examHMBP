@@ -168,7 +168,6 @@ def create_draft_from_service_request(service_request) -> JobPosting | None:
 
     Vẫn nhận đề xuất cũ loại HR có ``hr_kind = Tuyển dụng`` (trước khi tách loại riêng).
     """
-    from hrm.choices import LEGACY_POSITION_MAP, VALID_POSITIONS
     from hrm.models import Department, Division
     from service_requests.models import ServiceRequest
 
@@ -181,9 +180,8 @@ def create_draft_from_service_request(service_request) -> JobPosting | None:
     if existing:
         return existing
 
-    position_text = (data.get('position') or '').strip()
-    # Chỉ gán chức danh khi khớp danh mục — còn lại để HR chọn khi hoàn thiện nháp.
-    position = position_text if position_text in VALID_POSITIONS else LEGACY_POSITION_MAP.get(position_text, '')
+    position_text = ' '.join((data.get('position') or '').split())
+    position = position_text[:100]
     try:
         quantity = max(1, int(data.get('headcount') or 1))
     except (TypeError, ValueError):
@@ -590,7 +588,6 @@ def suggest_email(full_name: str) -> str:
 def onboard_candidate(candidate, *, actor, join_date=None, email=None, gender=None,
                       date_of_birth=None) -> OnboardResult:
     """Tạo tài khoản nhân viên. ``email`` / ``gender`` / ``date_of_birth`` (nếu truyền) ghi đè hồ sơ ứng viên."""
-    from hrm.choices import normalize_position
     from hrm.models import Profile
     from hrm.permissions import ROLE_EMPLOYEE
     from PortalJustPlay.utils import (
@@ -644,7 +641,7 @@ def onboard_candidate(candidate, *, actor, join_date=None, email=None, gender=No
                 'date_of_birth': candidate.date_of_birth,
                 'department': job.target_department,
                 'division': job.target_division,
-                'job_position': normalize_position(job.position) or job.position,
+                'job_position': ' '.join((job.position or '').split())[:100],
                 'job_title': job.title,
                 'join_date': join_date or timezone.localdate(),
                 'on_probation': True,

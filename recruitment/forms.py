@@ -103,6 +103,8 @@ class VndField(forms.IntegerField):
 
 
 class JobPostingForm(forms.ModelForm):
+    NEW_POSITION = '__new__'
+
     salary_min = VndField(label='Lương từ', required=False)
     salary_max = VndField(label='Lương đến', required=False)
 
@@ -129,14 +131,43 @@ class JobPostingForm(forms.ModelForm):
                 **_ctl(), 'rows': 4, 'placeholder': 'Kinh nghiệm, tay nghề, độ tuổi, sức khỏe…',
             }),
         }
-        labels = {'title': 'Tên vị trí', 'quantity': 'Số lượng cần tuyển', 'salary_negotiable': 'Thỏa thuận'}
+        labels = {
+            'title': 'Tên vị trí',
+            'position': 'Vị trí',
+            'quantity': 'Số lượng cần tuyển',
+            'salary_negotiable': 'Thỏa thuận',
+        }
 
     def __init__(self, *args, scope=None, **kwargs):
         super().__init__(*args, **kwargs)
         from hrm.models import Division
+        from hrm.user_search import job_positions_cascade_for_filter
 
         self.scope = scope
-        self.fields['position'].choices = [('', '— Chọn chức danh —')] + list(JobPosting.POSITION_CHOICES)
+        self.position_cascade = job_positions_cascade_for_filter()
+        names = []
+        seen = set()
+        for raw in self.position_cascade.get('', []):
+            label = ' '.join((raw or '').split())
+            key = label.casefold()
+            if label and key not in seen and label != self.NEW_POSITION:
+                names.append(label)
+                seen.add(key)
+        self.position_options = names
+        extra = ''
+        if self.is_bound:
+            extra = self.data.get(self.add_prefix('position')) or ''
+        elif getattr(self.instance, 'position', None):
+            extra = self.instance.position
+        extra = ' '.join(str(extra).split())
+        if extra and extra != self.NEW_POSITION and extra.casefold() not in seen:
+            names.append(extra)
+        self.fields['position'].widget.choices = [
+            ('', '— Chọn vị trí —'),
+            *[(name, name) for name in names],
+            (self.NEW_POSITION, '＋ Nhập vị trí mới'),
+        ]
+        self.fields['position'].widget.attrs['data-rc-new'] = self.NEW_POSITION
         departments = Department.objects.filter(is_active=True).order_by('sort_order', 'name')
         divisions = Division.objects.filter(is_active=True, department__isnull=False).select_related('department')
         if scope is not None and not scope.all:
@@ -174,6 +205,15 @@ class JobPostingForm(forms.ModelForm):
         return cleaned
         self.fields['deadline'].required = True
         self.fields['description'].required = True
+
+    def clean_position(self):
+        value = ' '.join((self.cleaned_data.get('position') or '').split())
+        if not value or value == self.NEW_POSITION:
+            raise forms.ValidationError('Chọn vị trí hoặc nhập vị trí mới.')
+        for name in self.position_options:
+            if name.casefold() == value.casefold():
+                return name
+        return value
 
     def clean_deadline(self):
         deadline = self.cleaned_data.get('deadline')

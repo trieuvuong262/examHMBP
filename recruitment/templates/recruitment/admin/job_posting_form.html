@@ -166,7 +166,30 @@
     </div>
   </div>
 </div>
+<div class="modal fade" id="rcPositionModal" tabindex="-1" aria-labelledby="rcPositionTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="rcPositionTitle">Nhập vị trí mới</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label fw-semibold" for="rcPositionInput">Vị trí <span class="text-danger" aria-hidden="true">*</span></label>
+        <input type="text" id="rcPositionInput" class="form-control" maxlength="100" autocomplete="off" placeholder="VD: Kỹ thuật bảo trì">
+        <div class="invalid-feedback d-block" id="rcPositionError"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Hủy</button>
+        <button type="button" class="btn btn-hm fw-bold" id="rcPositionSave">Thêm</button>
+      </div>
+    </div>
+  </div>
+</div>
+{{ form.position_cascade|json_script:"rcPositionCascade" }}
 {% include 'recruitment/includes/rc_date_scripts.html' %}
+{% endblock %}
+
+{% block scripts %}
 <script>
 /* Bộ phận lọc theo phòng ban đã chọn */
 (function () {
@@ -185,6 +208,97 @@
   }
   dept.addEventListener('change', sync);
   sync();
+})();
+
+/* Vị trí: lấy vị trí NV theo phòng ban / bộ phận (như bộ lọc DS nhân viên); dòng cuối mở hộp nhập mới */
+(function () {
+  var select = document.getElementById('{{ form.position.id_for_label }}');
+  var dept = document.getElementById('{{ form.target_department.id_for_label }}');
+  var div = document.getElementById('{{ form.target_division.id_for_label }}');
+  var modalEl = document.getElementById('rcPositionModal');
+  var input = document.getElementById('rcPositionInput');
+  var error = document.getElementById('rcPositionError');
+  var saveBtn = document.getElementById('rcPositionSave');
+  if (!select || !modalEl || !input || !saveBtn || !window.bootstrap) return;
+  var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  var sentinel = select.getAttribute('data-rc-new') || '__new__';
+  var cascadeEl = document.getElementById('rcPositionCascade');
+  var cascade = cascadeEl ? JSON.parse(cascadeEl.textContent) : {};
+  var custom = [];
+  var previous = select.value === sentinel ? '' : select.value;
+
+  function norm(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim();
+  }
+  function key(value) {
+    return norm(value).toLocaleLowerCase('vi');
+  }
+  function scopeNames() {
+    var d = dept ? dept.value : '';
+    var v = div ? div.value : '';
+    if (d && v && cascade[d + ':' + v]) return cascade[d + ':' + v];
+    if (d && cascade[d]) return cascade[d];
+    return cascade[''] || [];
+  }
+  function rebuild(keepCurrent) {
+    var current = previous;
+    var names = [];
+    var seen = {};
+    function push(name) {
+      name = norm(name);
+      if (!name || name === sentinel || seen[key(name)]) return;
+      seen[key(name)] = true;
+      names.push(name);
+    }
+    scopeNames().forEach(push);
+    custom.forEach(push);
+    if (current && (keepCurrent || seen[key(current)])) push(current);
+    else current = '';
+
+    select.innerHTML = '';
+    select.add(new Option('— Chọn vị trí —', ''));
+    names.forEach(function (name) { select.add(new Option(name, name)); });
+    select.add(new Option('＋ Nhập vị trí mới', sentinel));
+    var match = names.filter(function (n) { return key(n) === key(current); })[0] || '';
+    select.value = match;
+    previous = match;
+  }
+  function commit() {
+    var name = norm(input.value);
+    error.textContent = '';
+    if (!name) {
+      error.textContent = 'Nhập vị trí.';
+      input.focus();
+      return;
+    }
+    if (!custom.some(function (n) { return key(n) === key(name); })) custom.push(name);
+    previous = name;
+    rebuild(true);
+    modal.hide();
+  }
+
+  if (dept) dept.addEventListener('change', function () { rebuild(false); });
+  if (div) div.addEventListener('change', function () { rebuild(false); });
+  rebuild(true);
+
+  select.addEventListener('change', function () {
+    if (select.value !== sentinel) {
+      previous = select.value;
+      return;
+    }
+    select.value = previous;
+    input.value = '';
+    error.textContent = '';
+    modal.show();
+  });
+  modalEl.addEventListener('shown.bs.modal', function () { input.focus(); });
+  saveBtn.addEventListener('click', commit);
+  input.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Enter') {
+      ev.preventDefault();
+      commit();
+    }
+  });
 })();
 
 /* Ô tiền: tự thêm dấu chấm hàng nghìn khi gõ */

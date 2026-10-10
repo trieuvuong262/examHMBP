@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 import re
 
@@ -365,12 +365,15 @@ def _size_plans(mo: SxProductionOrder) -> list[SizePlanRow]:
         if so_rows:
             by_size = {r.size_label: r for r in so_rows}
     if by_size:
-        # Thứ tự size gần Excel: S M L XL 2XL …
+        # Thứ tự size gần Excel: 7 9 11 … rồi S M L XL 2XL …
         order = ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '6XL']
         rank = {s: i for i, s in enumerate(order)}
 
         def _key(r: SizePlanRow):
-            return (rank.get(r.size_label.upper(), 100), r.size_label)
+            label = r.size_label.strip().upper()
+            if label.isdigit():
+                return (0, int(label), label)
+            return (1, rank.get(label, 100), label)
 
         return sorted(by_size.values(), key=_key)
 
@@ -530,6 +533,172 @@ def build_progress_sheet(
     )
 
 
+def _pct(part: Decimal, whole: Decimal) -> Decimal:
+    if whole <= 0:
+        return Decimal('0')
+    return (part * Decimal('100') / whole).quantize(Decimal('0.1'))
+
+
+def team_plan_days(mo: SxProductionOrder, team: dict) -> dict[date, Decimal | None]:
+    """Ngày kế hoạch KHSX của tổ trên đơn → SL dự kiến ngày (None nếu KHSX không tách SL).
+
+    Ưu tiên phân bổ ngày (tách SL); bộ phận tách cho nhiều tổ năng lực thì lấy
+    đúng phần của tổ. Không có phân bổ thì dùng span KHSX (ngày làm việc).
+    """
+    from san_xuat.hub_models import SxOrderTeamDayPlan
+    from san_xuat.services.plan_board import team_khsx_spans
+    from san_xuat.services.work_calendar import working_days
+
+    so = getattr(mo, 'sales_order', None)
+    if not so:
+        return {}
+    stage = (team.get('stage_slug') or team.get('slug') or '').strip().lower()
+    if not stage:
+        return {}
+
+    rows = list(
+        SxOrderTeamDayPlan.objects.filter(sales_order=so, team_slug__iexact=stage)
+        .select_related('work_center')
+        .order_by('plan_date', 'id')
+    )
+    wc_code = (team.get('work_center_code') or '').strip().upper()
+    own = [r for r in rows if r.work_center and (r.work_center.code or '').upper() == wc_code]
+    if own:
+        rows = own
+    elif any(r.work_center_id for r in rows):
+        rows = [r for r in rows if not r.work_center_id]
+    if rows:
+        out: dict[date, Decimal | None] = {}
+        for r in rows:
+            out[r.plan_date] = (out.get(r.plan_date) or Decimal('0')) + _q(r.qty)
+        return out
+
+    span = next((sp for sp in team_khsx_spans(so) if sp.slug == stage), None)
+    if not span or not span.start or not span.end:
+        return {}
+    days = working_days(span.start, span.end) or [span.start]
+    if len(days) == 1 and _q(span.planned_qty) > 0:
+        return {days[0]: _q(span.planned_qty)}
+    return {d: None for d in days}
+
+
+def _team_day_values(sheet: ProgressSheet, keys: list[str]) -> dict[date, list[Decimal]]:
+    """SL tổ theo ngày × size (min các công đoạn của tổ), bỏ ngày toàn 0."""
+    zero = Decimal('0')
+    per_day: dict[date, list[Decimal]] = {}
+    for dr in sheet.daily_rows:
+        vals = [
+            min((dr.cells.get((row.size_label, k), zero) for k in keys), default=zero)
+            for row in sheet.sizes
+        ]
+        if any(v > 0 for v in vals):
+            per_day[dr.stat_date] = vals
+    return per_day
+
+
+def team_day_qty(sheet: ProgressSheet, *, steps: list[ProgressStepDef], day: date) -> dict[str, Decimal]:
+    vals = _team_day_values(sheet, [s.key for s in steps]).get(day)
+    return {
+        r.size_label: (vals[i] if vals else Decimal('0'))
+        for i, r in enumerate(sheet.sizes)
+    }
+
+
+def build_team_day_grid(
+    sheet: ProgressSheet,
+    *,
+    steps: list[ProgressStepDef],
+    plan_days: dict[date, Decimal | None] | None = None,
+    extra_days: list[date] | None = None,
+    start_date: date | None = None,
+    notes: dict[date, str] | None = None,
+    logs: dict[date, list] | None = None,
+    today: date | None = None,
+) -> dict:
+    """Phiếu tiến độ tổ dạng Excel: hàng = ngày, cột = size.
+
+    SL ngày của tổ trên một size = min các công đoạn của tổ (theo bộ).
+    Hàng ngày = ngày kế hoạch KHSX + ngày đã ghi / có ghi chú / có yêu cầu
+    lịch sử sửa / thêm tay + hôm nay (khi đã tới kỳ kế hoạch). Không có KHSX
+    thì dải liên tục từ ngày nhận SX đến hôm nay. Ngày / ô có sửa sau ngày đó
+    đánh dấu nhập bù.
+    """
+    today = today or timezone.localdate()
+    notes = notes or {}
+    logs = logs or {}
+    plan_days = plan_days or {}
+    keys = [s.key for s in steps]
+    sizes = sheet.sizes
+    zero = Decimal('0')
+
+    per_day = _team_day_values(sheet, keys)
+
+    day_set: set[date] = {*per_day.keys(), *notes.keys(), *logs.keys(), *(extra_days or [])}
+    if plan_days:
+        day_set.update(plan_days.keys())
+        if today >= min(plan_days):
+            day_set.add(today)
+    else:
+        d = min([*day_set, start_date or today, today])
+        while d <= today:
+            day_set.add(d)
+            d += timedelta(days=1)
+    total_plan = sum((r.qty for r in sizes), zero)
+
+    days: list[dict] = []
+    for d in sorted(day_set):
+        vals = per_day.get(d) or [zero] * len(sizes)
+        total = sum(vals, zero)
+        bf_sizes = {lg.size_label for lg in logs.get(d, []) if lg.is_backfill}
+        hist_sizes = {lg.size_label for lg in logs.get(d, [])}
+        days.append({
+            'date': d,
+            'is_today': d == today,
+            'is_future': d > today,
+            'is_backfill': bool(bf_sizes),
+            'in_plan': d in plan_days,
+            'plan_qty': plan_days.get(d),
+            'cells': [
+                {
+                    'size': r.size_label,
+                    'qty': v,
+                    'pct': _pct(v, r.qty),
+                    'is_backfill': r.size_label in bf_sizes,
+                    'has_history': r.size_label in hist_sizes,
+                }
+                for r, v in zip(sizes, vals)
+            ],
+            'total': total,
+            'total_pct': _pct(total, total_plan),
+            'note': notes.get(d, ''),
+        })
+
+    done_by_size = {r['size_label']: r for r in sheet.done_rows}
+    totals = []
+    for r in sizes:
+        row = done_by_size.get(r.size_label) or {}
+        totals.append({
+            'size': r.size_label,
+            'plan': r.qty,
+            'done': row.get('total_done', zero),
+            'pct': row.get('total_pct', zero),
+            'remain': row.get('total_remain', r.qty),
+        })
+    grand_done = sum((t['done'] for t in totals), zero)
+    return {
+        'sizes': [{'label': r.size_label, 'qty': r.qty} for r in sizes],
+        'days': days,
+        'has_plan': bool(plan_days),
+        'plan_start': min(plan_days) if plan_days else None,
+        'plan_end': max(plan_days) if plan_days else None,
+        'totals': totals,
+        'total_plan': total_plan,
+        'grand_done': grand_done,
+        'grand_pct': _pct(grand_done, total_plan),
+        'grand_remain': sum((t['remain'] for t in totals), zero),
+    }
+
+
 @transaction.atomic
 def record_progress_qty(
     *,
@@ -540,6 +709,7 @@ def record_progress_qty(
     stat_date: date | None = None,
     user=None,
     team_slug: str | None = None,
+    recompute: bool = True,
 ) -> SxProductionStat:
     """Ghi SL đạt vào phiếu (TKSX confirmed) — dùng bởi planner trên màn tiến độ."""
     from san_xuat.services.dispatch import _code, _recompute_mo_progress
@@ -616,7 +786,7 @@ def record_progress_qty(
         qty_defect=Decimal('0'),
         team_label=team,
         sku=resolved.sku if resolved else None,
-        size_label=(resolved.size_label if resolved else size) or '',
+        size_label=size or (resolved.size_label if resolved else '') or '',
         sku_code=(resolved.sku_code if resolved else '') or '',
         color_label=(resolved.color_label if resolved else color_label) or '',
         color_code=(resolved.color_code if resolved else color_code) or '',
@@ -626,11 +796,12 @@ def record_progress_qty(
     if mo.status == SxProductionOrder.STATUS_RELEASED:
         mo.status = SxProductionOrder.STATUS_IN_PROGRESS
         mo.save(update_fields=['status'])
-    _recompute_mo_progress(mo)
+    if recompute:
+        _recompute_mo_progress(mo)
     return stat
 
 
-def _confirmed_stats_for_cell(*, mo, step, size: str):
+def _confirmed_stats_for_cell(*, mo, step, size: str, stat_date: date | None = None):
     from django.db.models import Q
 
     qs = SxProductionStat.objects.filter(
@@ -643,6 +814,8 @@ def _confirmed_stats_for_cell(*, mo, step, size: str):
         qs = qs.filter(Q(size_label='') | Q(size_label__iexact='Tổng'))
     else:
         qs = qs.filter(size_label__iexact=size)
+    if stat_date:
+        qs = qs.filter(stat_date=stat_date)
     return qs.order_by('-stat_date', '-pk')
 
 
@@ -655,8 +828,13 @@ def set_progress_done_qty(
     qty: Decimal,
     user=None,
     team_slug: str | None = None,
+    stat_date: date | None = None,
+    recompute: bool = True,
 ) -> dict:
-    """Đặt tổng SL thực hiện của một ô (size × công đoạn) — không cộng dồn."""
+    """Đặt tổng SL thực hiện của một ô (size × công đoạn) — không cộng dồn.
+
+    Có ``stat_date``: chỉ đặt SL của ngày đó (các ngày khác giữ nguyên).
+    """
     from django.db.models import Sum
 
     from san_xuat.services.dispatch import _recompute_mo_progress
@@ -664,6 +842,8 @@ def set_progress_done_qty(
     qty = _q(qty)
     if qty < 0:
         raise PlanningError('SL không được âm.')
+    if stat_date and stat_date > timezone.localdate():
+        raise PlanningError('Không ghi tiến độ cho ngày tương lai.')
 
     mo = SxProductionOrder.objects.select_for_update().get(pk=mo_id, is_demo=False)
     if mo.status == SxProductionOrder.STATUS_CANCELLED:
@@ -680,7 +860,7 @@ def set_progress_done_qty(
         size = ''
 
     current = _q(
-        _confirmed_stats_for_cell(mo=mo, step=step, size=size)
+        _confirmed_stats_for_cell(mo=mo, step=step, size=size, stat_date=stat_date)
         .aggregate(t=Sum('qty_good'))
         .get('t')
     )
@@ -693,12 +873,14 @@ def set_progress_done_qty(
             process_key=process_key,
             size_label=size_label,
             qty=qty - current,
+            stat_date=stat_date,
             user=user,
             team_slug=team_slug,
+            recompute=recompute,
         )
     else:
         need_cut = current - qty
-        for stat in _confirmed_stats_for_cell(mo=mo, step=step, size=size):
+        for stat in _confirmed_stats_for_cell(mo=mo, step=step, size=size, stat_date=stat_date):
             if need_cut <= 0:
                 break
             good = _q(stat.qty_good)
@@ -709,10 +891,11 @@ def set_progress_done_qty(
                 stat.qty_good = good - need_cut
                 stat.save(update_fields=['qty_good'])
                 need_cut = Decimal('0')
-        _recompute_mo_progress(mo)
+        if recompute:
+            _recompute_mo_progress(mo)
 
     done = _q(
-        _confirmed_stats_for_cell(mo=mo, step=step, size=size)
+        _confirmed_stats_for_cell(mo=mo, step=step, size=size, stat_date=stat_date)
         .aggregate(t=Sum('qty_good'))
         .get('t')
     )
@@ -728,11 +911,14 @@ def set_team_total_done_qty(
     qty: Decimal,
     user=None,
     team_slug: str | None = None,
+    stat_date: date | None = None,
 ) -> dict:
-    """Đặt cùng một SL tổng cho mọi công đoạn của tổ trên một size.
+    """Đặt cùng một SL tổng cho mọi công đoạn của tổ trên một size (hoặc một ngày).
 
     KHSX tính SL tổ theo bộ (min các công đoạn) nên ghi đều mỗi CĐ = SL tổng.
     """
+    from san_xuat.services.dispatch import _recompute_mo_progress
+
     keys = [k for k in process_keys if k]
     if not keys:
         raise PlanningError('Tổ này chưa có công đoạn trên lệnh.')
@@ -746,9 +932,13 @@ def set_team_total_done_qty(
             qty=qty,
             user=user,
             team_slug=team_slug,
+            stat_date=stat_date,
+            recompute=False,
         )
         changed = changed or bool(res['changed'])
         dones.append(_q(res['done']))
+    if changed:
+        _recompute_mo_progress(SxProductionOrder.objects.get(pk=mo_id))
     return {'done': min(dones), 'changed': changed}
 
 

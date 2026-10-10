@@ -91,19 +91,10 @@
                 {% if jp_can_hrm_users %}
                 <li>
                     <a href="{% url 'user_list' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'locked_accounts' or request.resolver_match.url_name == 'unlock_locked_account' %}{% elif '/dashboard/users' in request.path or '/dashboard/org' in request.path or '/dashboard/divisions' in request.path %}active{% elif '/dashboard/departments' in request.path and request.resolver_match.url_name != 'department_permissions' %}active{% endif %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'locked_accounts' or request.resolver_match.url_name == 'unlock_locked_account' %}active{% elif '/dashboard/users' in request.path or '/dashboard/org' in request.path or '/dashboard/divisions' in request.path %}active{% elif '/dashboard/departments' in request.path and request.resolver_match.url_name != 'department_permissions' %}active{% endif %}"
                        data-jp-team-list-nav
                        data-loading-message="Đang tải danh sách nhân sự...">
                         <i class="bi bi-person-lines-fill"></i><span>DS nhân viên</span>
-                    </a>
-                </li>
-                {% endif %}
-                {% jp_can_menu 'hrm' 'locked_accounts' as jp_can_hrm_locked_accounts %}
-                {% if jp_can_hrm_locked_accounts %}
-                <li>
-                    <a href="{% url 'locked_accounts' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'locked_accounts' or request.resolver_match.url_name == 'unlock_locked_account' %}active{% endif %}">
-                        <i class="bi bi-lock-fill"></i><span>Tài khoản bị khóa</span>
                     </a>
                 </li>
                 {% endif %}

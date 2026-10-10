@@ -3411,6 +3411,81 @@ class SxTeamWorkClose(DemoMarkedModel):
         return f'{self.team_slug} · {self.production_order_id}'
 
 
+class SxTeamWorkDayNote(DemoMarkedModel):
+    """Ghi chú theo ngày trên phiếu tiến độ tổ (hàng ngày × cột size)."""
+
+    production_order = models.ForeignKey(
+        SxProductionOrder,
+        on_delete=models.CASCADE,
+        related_name='team_work_day_notes',
+        verbose_name='Lệnh sản xuất',
+    )
+    team_slug = models.CharField(
+        max_length=20,
+        choices=SxTeamDivisionMap.TEAM_SLUG_CHOICES,
+        db_index=True,
+        verbose_name='Tổ chuyền',
+    )
+    note_date = models.DateField(verbose_name='Ngày')
+    notes = models.CharField(max_length=500, blank=True, default='', verbose_name='Ghi chú')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['note_date', 'id']
+        verbose_name = 'Ghi chú tiến độ tổ theo ngày'
+        verbose_name_plural = 'Ghi chú tiến độ tổ theo ngày'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['production_order', 'team_slug', 'note_date'],
+                name='san_xuat_team_work_day_note_uniq',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.team_slug} · {self.production_order_id} · {self.note_date}'
+
+
+class SxTeamProgressLog(models.Model):
+    """Lịch sử sửa SL tiến độ tổ theo ngày × size. Ghi sau ngày đó = nhập bù."""
+
+    production_order = models.ForeignKey(
+        SxProductionOrder,
+        on_delete=models.CASCADE,
+        related_name='team_progress_logs',
+        verbose_name='Lệnh sản xuất',
+    )
+    team_slug = models.CharField(
+        max_length=20,
+        choices=SxTeamDivisionMap.TEAM_SLUG_CHOICES,
+        db_index=True,
+        verbose_name='Tổ chuyền',
+    )
+    work_date = models.DateField(verbose_name='Ngày tiến độ')
+    size_label = models.CharField(max_length=40, blank=True, default='', verbose_name='Size')
+    old_qty = models.DecimalField(max_digits=14, decimal_places=2, default=0, verbose_name='SL cũ')
+    new_qty = models.DecimalField(max_digits=14, decimal_places=2, default=0, verbose_name='SL mới')
+    is_backfill = models.BooleanField(default=False, db_index=True, verbose_name='Nhập bù')
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sx_team_progress_logs',
+    )
+    changed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['work_date', 'changed_at', 'pk']
+        verbose_name = 'Lịch sử cập nhật tiến độ tổ'
+        verbose_name_plural = 'Lịch sử cập nhật tiến độ tổ'
+        indexes = [
+            models.Index(fields=['production_order', 'team_slug', 'work_date'], name='sx_team_prog_log_day_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.team_slug} · {self.production_order_id} · {self.work_date} · {self.size_label}'
+
+
 class SxTeamPersonnelSkill(DemoMarkedModel):
     """Hồ sơ năng lực nhân sự theo tổ — một NV có thể khác nhau ở từng tổ."""
 
