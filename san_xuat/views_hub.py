@@ -6171,21 +6171,63 @@ def team_work_goods(request):
     if not _can_team_work_overview(request.user):
         return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'team_work_goods')
 
+    from san_xuat.list_grid import _col
+
+    grid_sorts = {'code': 'code', 'product': 'name', 'priority': 'priority', 'due': 'due', 'qty': 'qty'}
+    sort_key = (request.GET.get('sort') or '').strip()
+    if sort_key not in grid_sorts:
+        sort_key = ''
+    sort_dir = 'desc' if (request.GET.get('dir') or '').strip().lower() == 'desc' else 'asc'
+
+    nav_team = _nav_team_for_user(request.user)
     board = build_goods_progress_board(
         search=(request.GET.get('q') or '').strip(),
         priority=(request.GET.get('priority') or '').strip(),
         mo_status=(request.GET.get('status') or '').strip(),
         due=(request.GET.get('due') or '').strip(),
-        sort=(request.GET.get('sort') or '').strip(),
+        sort=grid_sorts.get(sort_key, ''),
+        descending=sort_dir == 'desc',
         team_slug=(request.GET.get('team') or '').strip(),
     )
     page_obj, query_string = paginate_queryset(request, board.rows, per_page=LIST_PAGE_SIZE)
+
+    team_columns = board.team_columns
+    list_columns = [
+        _col('code', 'Đơn hàng', weight=75, required=True),
+        _col('product', 'Sản phẩm', weight=160),
+        _col('mo', 'Lệnh sản xuất', weight=110, default=False, sortable=False),
+        _col('priority', 'Ưu tiên', weight=80),
+        _col('due', 'Hạn giao', weight=100),
+        _col('qty', 'Số lượng', weight=70, align='end'),
+        *[
+            _col(f'st_{t.slug}', t.label, weight=72, default=t.has_data, sortable=False, align='center')
+            for t in team_columns
+        ],
+        _col('status', 'Trạng thái', weight=90, default=False, sortable=False),
+    ]
+    grid_min_rem = round(sum(c['weight'] for c in list_columns if c.get('default', True)) / 16)
+    team_options = [
+        (t.slug, f'{t.label} ({t.mo_count})' if t.mo_count else t.label) for t in team_columns
+    ]
     return render(request, 'san_xuat/team_work_goods.html', {
         **_perm_ctx(request),
         'board': board,
         'page_obj': page_obj,
         'query_string': query_string,
-        'team': _nav_team_for_user(request.user),
+        'team_options': team_options,
+        'list_key': 'team_work_goods',
+        'list_columns': list_columns,
+        'total_col_weight': sum(c['weight'] for c in list_columns) or 1,
+        'grid_min_rem': grid_min_rem,
+        'sort_key': sort_key,
+        'sort_dir': sort_dir,
+        'sx_default_sort_key': '',
+        'sx_list_table_id': 'sx-list-team_work_goods',
+        'sx_list_storage_key': 'san_xuat_team_work_goods_cols_v3',
+        'sx_col_btn_id': 'sx-col-btn-team_work_goods',
+        'sx_col_prefix': 'sx-col-team_work_goods',
+        'sx_col_toggle_class': 'sx-col-toggle-team_work_goods',
+        'team': nav_team,
         'tw_section': 'goods',
         'can_view_subcontract': user_can_access_menu(request.user, MODULE_SAN_XUAT, 'subcontract'),
         'can_create_subcontract': user_can_create_menu(request.user, MODULE_SAN_XUAT, 'subcontract'),

@@ -164,7 +164,7 @@ def _process_key(seq: int, name: str) -> str:
     return f'op_{int(seq or 0)}_{slug}'
 
 
-def _group_for_line(line) -> ProgressGroup:
+def _group_for_line(line, ob_slug_by_label: dict[str, str] | None = None) -> ProgressGroup:
     from san_xuat.services.capacity_from_hrm import team_slug_for_work_center
     from san_xuat.services.qc import resolve_team_slug_from_routing_line
 
@@ -172,6 +172,8 @@ def _group_for_line(line) -> ProgressGroup:
     slug = team_slug_for_work_center(wc) if wc is not None else None
     if not slug:
         slug = resolve_team_slug_from_routing_line(line)
+    if not slug and ob_slug_by_label:
+        slug = ob_slug_by_label.get((getattr(line, 'process_name', None) or '').strip().casefold())
     if not slug:
         name = (
             getattr(line, 'op_name_vi', None)
@@ -187,6 +189,20 @@ def _group_for_line(line) -> ProgressGroup:
     return GROUPS[3] if len(GROUPS) > 3 else GROUPS[-1]
 
 
+def _ob_team_slug_by_label(mo: SxProductionOrder) -> dict[str, str]:
+    """Tên CĐ (casefold) → slug tổ theo nhóm Ob — cho CĐ LSX cũ chưa gắn tổ/bộ phận."""
+    from san_xuat.services.qc import ob_source_lines, resolve_team_slug_from_routing_line
+
+    out: dict[str, str] = {}
+    for line in ob_source_lines(mo=mo) or []:
+        label = (getattr(line, 'op_name_vi', None) or getattr(line, 'process_name', None) or '').strip().casefold()
+        if label and label not in out:
+            slug = resolve_team_slug_from_routing_line(line)
+            if slug:
+                out[label] = slug
+    return out
+
+
 def progress_steps_for_mo(mo: SxProductionOrder) -> list[ProgressStepDef]:
     """Công đoạn phiếu tiến độ = Ob/LSX của lệnh, không lấy catalog mẫu 50 CĐ."""
     if 'mo_process_steps' in getattr(mo, '_prefetched_objects_cache', {}):
@@ -195,8 +211,11 @@ def progress_steps_for_mo(mo: SxProductionOrder) -> list[ProgressStepDef]:
         source_lines = list(
             mo.mo_process_steps.select_related('work_center').order_by('sequence', 'id')
         )
+    ob_slug_by_label: dict[str, str] = {}
     if source_lines:
         source_lines.sort(key=lambda s: (int(getattr(s, 'sequence', 0) or 0), getattr(s, 'pk', 0) or 0))
+        if any(getattr(s, 'work_center_id', None) is None for s in source_lines):
+            ob_slug_by_label = _ob_team_slug_by_label(mo)
     else:
         from san_xuat.services.qc import ob_source_lines
 
@@ -221,7 +240,7 @@ def progress_steps_for_mo(mo: SxProductionOrder) -> list[ProgressStepDef]:
             or getattr(line, 'seq_no', None)
             or i * 10
         )
-        group = _group_for_line(line)
+        group = _group_for_line(line, ob_slug_by_label)
         wc = getattr(line, 'work_center', None)
         wc_code = (getattr(wc, 'code', None) or '').strip() or group.work_center_code
         tmpl = step_by_label(label)
@@ -253,9 +272,15 @@ def progress_steps_for_mo(mo: SxProductionOrder) -> list[ProgressStepDef]:
     return steps
 
 
-def progress_steps_for_team(mo: SxProductionOrder, team: dict) -> list[ProgressStepDef]:
+def progress_steps_for_team(
+    mo: SxProductionOrder,
+    team: dict,
+    *,
+    steps: list[ProgressStepDef] | None = None,
+) -> list[ProgressStepDef]:
     """Công đoạn phiếu tổ = CĐ BOM/Ob của đúng bộ phận (WC HRD), không catalog 50 CĐ."""
-    steps = progress_steps_for_mo(mo)
+    if steps is None:
+        steps = progress_steps_for_mo(mo)
     if not steps:
         return []
     want_code = (team.get('work_center_code') or '').strip().upper()
@@ -384,6 +409,20 @@ def _size_plans(mo: SxProductionOrder) -> list[SizePlanRow]:
     return []
 
 
+def team_stat_label(team: dict | None) -> str:
+    """Tên tổ ghi trên TKSX khi tổ bộ phận HR (`d{id}`) nhập tiến độ — mỗi tổ chỉ tính SL của mình."""
+    if not team or not int(team.get('division_id') or 0):
+        return ''
+    return (team.get('label') or '').strip()
+
+
+def stats_for_team(stats, team: dict | None) -> list:
+    own = team_stat_label(team).casefold()
+    if not own:
+        return list(stats)
+    return [st for st in stats if (st.team_label or '').strip().casefold() == own]
+
+
 def build_progress_sheet(
     mo: SxProductionOrder,
     *,
@@ -403,13 +442,15 @@ def build_progress_sheet(
     sizes = _size_plans(mo)
     label_map = {s.label.casefold(): s for s in all_steps}
 
-    stats = list(
-        SxProductionStat.objects.filter(
-            production_order=mo,
-            is_demo=False,
-            status=SxProductionStat.STATUS_CONFIRMED,
-        ).only('stat_date', 'process_name', 'size_label', 'qty_good')
+    stats_qs = SxProductionStat.objects.filter(
+        production_order=mo,
+        is_demo=False,
+        status=SxProductionStat.STATUS_CONFIRMED,
     )
+    own_label = team_stat_label(team)
+    if own_label:
+        stats_qs = stats_qs.filter(team_label__iexact=own_label)
+    stats = list(stats_qs.only('stat_date', 'process_name', 'size_label', 'qty_good'))
 
     # done[(size, key)] 
     done_map: dict[tuple[str, str], Decimal] = {}
@@ -817,7 +858,9 @@ def record_progress_qty(
     return stat
 
 
-def _confirmed_stats_for_cell(*, mo, step, size: str, stat_date: date | None = None):
+def _confirmed_stats_for_cell(
+    *, mo, step, size: str, stat_date: date | None = None, team_label: str = ''
+):
     from django.db.models import Q
 
     qs = SxProductionStat.objects.filter(
@@ -826,6 +869,8 @@ def _confirmed_stats_for_cell(*, mo, step, size: str, stat_date: date | None = N
         status=SxProductionStat.STATUS_CONFIRMED,
         process_name__iexact=step.label,
     )
+    if team_label:
+        qs = qs.filter(team_label__iexact=team_label)
     if not size:
         qs = qs.filter(Q(size_label='') | Q(size_label__iexact='Tổng'))
     else:
@@ -874,9 +919,12 @@ def set_progress_done_qty(
     size = (size_label or '').strip()
     if size == 'Tổng':
         size = ''
+    own_label = team_stat_label(team_by_slug(team_slug)) if team_slug else ''
 
     current = _q(
-        _confirmed_stats_for_cell(mo=mo, step=step, size=size, stat_date=stat_date)
+        _confirmed_stats_for_cell(
+            mo=mo, step=step, size=size, stat_date=stat_date, team_label=own_label
+        )
         .aggregate(t=Sum('qty_good'))
         .get('t')
     )
@@ -896,7 +944,9 @@ def set_progress_done_qty(
         )
     else:
         need_cut = current - qty
-        for stat in _confirmed_stats_for_cell(mo=mo, step=step, size=size, stat_date=stat_date):
+        for stat in _confirmed_stats_for_cell(
+            mo=mo, step=step, size=size, stat_date=stat_date, team_label=own_label
+        ):
             if need_cut <= 0:
                 break
             good = _q(stat.qty_good)
@@ -911,7 +961,9 @@ def set_progress_done_qty(
             _recompute_mo_progress(mo)
 
     done = _q(
-        _confirmed_stats_for_cell(mo=mo, step=step, size=size, stat_date=stat_date)
+        _confirmed_stats_for_cell(
+            mo=mo, step=step, size=size, stat_date=stat_date, team_label=own_label
+        )
         .aggregate(t=Sum('qty_good'))
         .get('t')
     )

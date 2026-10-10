@@ -218,7 +218,7 @@ def _batch_stats_by_mo(mo_ids: list[int]) -> dict[int, list[SxProductionStat]]:
         production_order_id__in=mo_ids,
         is_demo=False,
         status=SxProductionStat.STATUS_CONFIRMED,
-    ).only('production_order_id', 'process_name', 'size_label', 'qty_good'):
+    ).only('production_order_id', 'process_name', 'size_label', 'qty_good', 'team_label'):
         out.setdefault(st.production_order_id, []).append(st)
     return out
 
@@ -246,7 +246,7 @@ def build_team_work_rows(*, slug: str, search: str = '') -> tuple[dict, list[Tea
     team = team_by_slug(slug)
     if not team:
         raise PlanningError('Tổ không hợp lệ.')
-    from san_xuat.services.order_progress_sheet import progress_steps_for_team
+    from san_xuat.services.order_progress_sheet import progress_steps_for_team, stats_for_team
 
     qs = (
         SxProductionOrder.objects.filter(is_demo=False)
@@ -291,7 +291,7 @@ def build_team_work_rows(*, slug: str, search: str = '') -> tuple[dict, list[Tea
         if not mo_step_defs:
             continue
         sizes = _size_plans(mo)
-        mo_stats = stats_by_mo.get(mo.pk, [])
+        mo_stats = stats_for_team(stats_by_mo.get(mo.pk, []), team)
         by_name: dict[str, SxMoProcessStep] = {}
         mo_label_set = {(s.label or '').strip().casefold() for s in mo_step_defs}
         for st in mo.mo_process_steps.all():

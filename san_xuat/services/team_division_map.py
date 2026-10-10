@@ -179,7 +179,47 @@ def _team_item_dict(div, *, stage: str, menu_key: str) -> dict:
         'menu_key': menu_key,
         'division_id': int(div.pk),
         'work_center_code': work_center_code_for_division(div.pk),
+        'stage_slug': (stage or '').strip().lower(),
     }
+
+
+def hr_team_stage_by_label() -> dict[str, str]:
+    """Tên tổ bộ phận HR (casefold, như ghi trên TKSX) → slug công đoạn KHSX; tổ chưa map công đoạn bỏ qua."""
+    return {
+        (item['label'] or '').strip().casefold(): item['stage_slug']
+        for item in all_hr_team_items()
+        if item.get('stage_slug')
+    }
+
+
+def _hr_team_items(*, only_ids: set[int] | None, mapped: dict[int, str]) -> list[dict]:
+    from san_xuat.services.capacity_from_hrm import hr_divisions_for_ie_groups
+
+    items: list[dict] = []
+    for div in hr_divisions_for_ie_groups():
+        if only_ids is not None and int(div.pk) not in only_ids:
+            continue
+        stage = _stage_slug_for_division(div, mapped=mapped)
+        menu_key = 'team_work'
+        for item_slug, _gk, mk, _label in TEAM_SLUGS:
+            if item_slug == stage:
+                menu_key = mk
+                break
+        items.append(_team_item_dict(div, stage=stage, menu_key=menu_key))
+    return items
+
+
+def _mapped_stage_by_division() -> dict[int, str]:
+    mapped: dict[int, str] = {}
+    for stage, ids in current_maps_by_slug().items():
+        for did in ids:
+            mapped[int(did)] = stage
+    return mapped
+
+
+def all_hr_team_items() -> list[dict]:
+    """Mọi tổ bộ phận HR như submenu Công việc tổ của admin (`d{id}`)."""
+    return _hr_team_items(only_ids=None, mapped=_mapped_stage_by_division())
 
 
 def team_work_menu_items(user) -> list[dict]:
@@ -187,26 +227,12 @@ def team_work_menu_items(user) -> list[dict]:
     from san_xuat.services.capacity_from_hrm import hr_divisions_for_ie_groups
 
     see_all = can_see_all_team_work_teams(user)
-    mapped: dict[int, str] = {}
-    for stage, ids in current_maps_by_slug().items():
-        for did in ids:
-            mapped[int(did)] = stage
+    mapped = _mapped_stage_by_division()
 
     led_ids = set() if see_all else user_led_team_division_ids(user)
-    hr_divs = list(hr_divisions_for_ie_groups())
+    if hr_divisions_for_ie_groups().exists():
+        return _hr_team_items(only_ids=None if see_all else led_ids, mapped=mapped)
     items: list[dict] = []
-    if hr_divs:
-        for div in hr_divs:
-            if not see_all and int(div.pk) not in led_ids:
-                continue
-            stage = _stage_slug_for_division(div, mapped=mapped)
-            menu_key = 'team_work'
-            for item_slug, _gk, mk, _label in TEAM_SLUGS:
-                if item_slug == stage:
-                    menu_key = mk
-                    break
-            items.append(_team_item_dict(div, stage=stage, menu_key=menu_key))
-        return items
 
     led_stages = set() if see_all else _fallback_led_stage_slugs(led_ids, mapped)
     for slug, _gk, menu_key, label in TEAM_SLUGS:

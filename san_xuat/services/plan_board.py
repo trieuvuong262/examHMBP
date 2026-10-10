@@ -422,6 +422,8 @@ class TeamKhsxSpan:
     smv_seconds: Decimal = field(default_factory=lambda: Decimal('0'))
     qty_per_day: Decimal = field(default_factory=lambda: Decimal('0'))
     planned_qty: Decimal = field(default_factory=lambda: Decimal('0'))
+    member_labels: list[str] = field(default_factory=list)
+    member_wc_ids: list[int] = field(default_factory=list)
 
 
 @dataclass
@@ -971,6 +973,9 @@ def _team_loads_from_order(
     qty_by: dict[str, Decimal] = {}
     overrides: dict[str, dict] = {}
     line_slug_seen: set[tuple[int, str]] = set()
+    # Bộ phận thực tế (tổ trên SMV đơn) trong mỗi slug — slug gộp nhiều tổ (Ủi + Gấp xếp…).
+    routing_members: dict[str, dict[int, list]] = {}
+    plan_members: dict[str, dict[int, list]] = {}
     lines = [ln for ln in order.lines.all() if (ln.qty or 0) > 0]
     with _group_slug_scope():
         for ln in lines:
@@ -980,12 +985,13 @@ def _team_loads_from_order(
                 slug = (_step_team_slug(step) or '').strip().lower()
                 if not slug:
                     continue
-                work[slug] = work.get(slug, Decimal('0')) + _q(
-                    (step.minutes_per_unit or Decimal('0')) * qty, '0.0001',
-                )
+                step_labor = _q((step.minutes_per_unit or Decimal('0')) * qty, '0.0001')
+                work[slug] = work.get(slug, Decimal('0')) + step_labor
                 wc = getattr(step, 'work_center', None)
-                if wc is not None and slug not in assigned:
-                    assigned[slug] = wc
+                if wc is not None and getattr(wc, 'pk', None):
+                    bucket = routing_members.setdefault(slug, {})
+                    entry = bucket.setdefault(int(wc.pk), [wc, Decimal('0')])
+                    entry[1] += step_labor
                 if slug not in labels:
                     wc_label = ''
                     if wc is not None:
@@ -1020,11 +1026,10 @@ def _team_loads_from_order(
                 if not isinstance(exc, ObjectDoesNotExist):
                     raise
                 wc = None
-            if wc is not None:
-                assigned[slug] = wc
-                wc_label = (wc.team_label or wc.name or '').strip()
-                if wc_label:
-                    labels[slug] = _team_display_label(slug, wc_label)
+            if wc is not None and getattr(wc, 'pk', None):
+                bucket = plan_members.setdefault(slug, {})
+                entry = bucket.setdefault(int(wc.pk), [wc, Decimal('0')])
+                entry[1] += Decimal('1')
             ov_h = getattr(step, 'khsx_headcount', None)
             ov_e = getattr(step, 'khsx_efficiency_pct', None)
             if ov_h is not None or ov_e is not None:
@@ -1034,6 +1039,14 @@ def _team_loads_from_order(
                 if ov_e is not None:
                     cur['efficiency_pct'] = _q(ov_e)
                 overrides[slug] = cur
+
+    members: dict[str, list[SxWorkCenter]] = {}
+    for slug in work:
+        bucket = routing_members.get(slug) or plan_members.get(slug) or {}
+        if not bucket:
+            continue
+        members[slug] = [entry[0] for entry in bucket.values()]
+        assigned[slug] = max(bucket.values(), key=lambda entry: entry[1])[0]
 
     catalog: dict[str, SxWorkCenter] | None = None
 
@@ -1084,9 +1097,19 @@ def _team_loads_from_order(
         wc_label = ''
         if wc is not None:
             wc_label = (wc.team_label or wc.name or '').strip()
+        member_labels: list[str] = []
+        for m in members.get(slug) or []:
+            text = (m.team_label or m.name or m.code or '').strip()
+            if text and text not in member_labels:
+                member_labels.append(text)
+        label = wc_label or labels.get(slug) or _team_display_label(slug)
+        if len(member_labels) > 1:
+            label = ' · '.join(member_labels)
         out.append({
             'slug': slug,
-            'label': wc_label or labels.get(slug) or _team_display_label(slug),
+            'label': label,
+            'member_labels': member_labels,
+            'member_wc_ids': [int(m.pk) for m in members.get(slug) or []],
             'labor_minutes': labor,
             'work_minutes': calendar,
             'buffer_minutes': buf,
@@ -1259,6 +1282,8 @@ def team_khsx_spans(
             smv_seconds=_q(row.get('smv_seconds') or 0, '0.0001'),
             qty_per_day=_q(row.get('qty_per_day') or 0),
             planned_qty=_q(row.get('qty') or 0),
+            member_labels=list(row.get('member_labels') or []),
+            member_wc_ids=list(row.get('member_wc_ids') or []),
         ))
     return npl_spans + spans
 
@@ -4050,6 +4075,11 @@ def route_team_filter_choices(board=None) -> list[dict]:
             if wc_id in by_id:
                 continue
             by_id[wc_id] = (getattr(stage, 'label', '') or '').strip() or f'Bộ phận #{wc_id}'
+    # Hàng gộp nhiều bộ phận có nhãn ghép — bộ lọc tổ vẫn dùng tên tổ.
+    wc_names = _work_center_label_map(list(by_id))
+    for wc_id in by_id:
+        if wc_names.get(wc_id):
+            by_id[wc_id] = wc_names[wc_id]
     items = [{'id': 0, 'name': 'Chưa chọn bộ phận'}] if has_unassigned else []
     for wc_id, name in sorted(by_id.items(), key=lambda item: item[1].casefold()):
         items.append({'id': wc_id, 'name': name})
@@ -4235,6 +4265,12 @@ def _stage_rows_from_bars(
             wc_id = int(getattr(plan, 'work_center_id', 0) or 0)
             if wc_id:
                 full_label = wc_names.get(wc_id) or full_label
+        if (
+            plan is not None
+            and len(getattr(plan, 'member_labels', None) or []) > 1
+            and wc_id == int(getattr(plan, 'work_center_id', 0) or 0)
+        ):
+            full_label = plan.label
         done_label = ''
         if sample is not None:
             done_label = (getattr(sample, 'done_qty_total', '') or '').strip()
@@ -5112,7 +5148,10 @@ def build_order_timeline(
                         share_qty = sum((_q(d.qty) for d in g_rows), Decimal('0'))
                         share_label = format_sx_num_input(share_qty) if share_qty > 0 else ''
                         wc_obj = wc_map.get(g_wc)
-                        bar_label = wc_names.get(g_wc) or ts.label
+                        if g_wc == primary_wc and len(ts.member_labels or []) > 1:
+                            bar_label = ts.label
+                        else:
+                            bar_label = wc_names.get(g_wc) or ts.label
                         cap = _capacity_for_share(ts, wc_obj, share_qty)
                         is_primary = (g_wc == primary_wc) or (
                             not primary_wc and bool(group_wcs) and g_wc == group_wcs[0]

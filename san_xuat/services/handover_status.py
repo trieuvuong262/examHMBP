@@ -27,6 +27,7 @@ from san_xuat.services.progress_template import (
     progress_steps,
     step_by_label,
 )
+from san_xuat.services.team_division_map import hr_team_stage_by_label
 
 # Bước đại diện lượng ra khỏi tổ. Không có thì lấy min SL các CD của tổ trên lệnh
 # (áo/quần/phối cắt đủ mới tính 1 bộ — không lấy max một CD).
@@ -148,7 +149,9 @@ def _output_steps_for_mo(mo: SxProductionOrder) -> list[ProgressStepDef]:
     catalog = list(progress_steps())
     seen = {(s.group, s.key) for s in catalog}
     out = list(catalog)
-    for step in progress_steps_for_mo(mo):
+    own = progress_steps_for_mo(mo)
+    mo._sx_own_progress_steps = own
+    for step in own:
         key = (step.group, step.key)
         if key in seen:
             continue
@@ -236,7 +239,14 @@ def _team_done_by_slug(
         if participating_slugs and slug not in participating_slugs:
             continue
         g_steps = steps_by_group.get(grp.key, [])
-        required = _required_step_keys(mo, grp.key, g_steps)
+        required = None
+        if grp.key in _SET_OUTPUT_GROUPS:
+            own_keys = {
+                s.key for s in (getattr(mo, "_sx_own_progress_steps", None) or []) if s.group == grp.key
+            }
+            required = own_keys or None
+        if required is None:
+            required = _required_step_keys(mo, grp.key, g_steps)
         done = Decimal("0")
         for size in size_labels:
             step_qty = {
@@ -401,13 +411,14 @@ def build_mo_handover_rows(mos: list[SxProductionOrder]) -> list[MoHandoverRow]:
             production_order_id__in=[m.pk for m in mos],
             is_demo=False,
             status=SxProductionStat.STATUS_CONFIRMED,
-        ).only("production_order_id", "process_name", "size_label", "qty_good", "stat_date"):
+        ).only("production_order_id", "process_name", "size_label", "qty_good", "stat_date", "team_label"):
             stats_by_mo.setdefault(st.production_order_id, []).append(st)
+    stage_by_label = hr_team_stage_by_label() if mos else {}
     rows: list[MoHandoverRow] = []
     for mo in mos:
         sizes = _size_plans(mo)
         mo_steps = _output_steps_for_mo(mo)
-        acc = _accumulate_stats(stats_by_mo.get(mo.pk, []), sizes, mo_steps)
+        acc = _accumulate_stats(stats_by_mo.get(mo.pk, []), sizes, mo_steps, stage_by_label)
         rows.append(
             _build_row(
                 mo,
@@ -548,8 +559,9 @@ def done_qty_by_order_team_day(
         production_order_id__in=[m.pk for m in mos],
         is_demo=False,
         status=SxProductionStat.STATUS_CONFIRMED,
-    ).only("production_order_id", "process_name", "size_label", "qty_good", "stat_date"):
+    ).only("production_order_id", "process_name", "size_label", "qty_good", "stat_date", "team_label"):
         stats_by_mo.setdefault(st.production_order_id, []).append(st)
+    stage_by_label = hr_team_stage_by_label()
 
     out: dict[tuple[int, str], dict[date, Decimal]] = {}
     for mo in mos:
@@ -570,7 +582,7 @@ def done_qty_by_order_team_day(
         acc: dict[tuple[str, str], Decimal] = {}
         prev: dict[str, Decimal] = {}
         for day in sorted(by_date):
-            day_acc = _accumulate_stats(by_date[day], sizes, mo_steps)
+            day_acc = _accumulate_stats(by_date[day], sizes, mo_steps, stage_by_label)
             for key, qty in day_acc.items():
                 acc[key] = acc.get(key, Decimal("0")) + qty
             current = _team_done_by_slug(
@@ -745,7 +757,9 @@ def _accumulate_stats(
     stats,
     sizes,
     mo_steps: list[ProgressStepDef] | None = None,
+    stage_by_label: dict[str, str] | None = None,
 ) -> dict[tuple[str, str], Decimal]:
+    """SL theo (size, CĐ). Có ``stage_by_label``: SL do tổ HR nhập chỉ tính cho CĐ thuộc công đoạn của tổ đó."""
     size_set = {r.size_label for r in sizes}
     single_total = len(sizes) == 1 and sizes[0].size_label == "Tổng"
     label_map = {(s.label or "").strip().casefold(): s for s in (mo_steps or []) if s.label}
@@ -757,6 +771,10 @@ def _accumulate_stats(
             step = step_by_label(name)
         if not step:
             continue
+        if stage_by_label:
+            team_stage = stage_by_label.get((getattr(st, "team_label", "") or "").strip().casefold())
+            if team_stage and team_stage != _slug_for_group(step.group):
+                continue
         size = (st.size_label or "").strip()
         if single_total:
             size = "Tổng"

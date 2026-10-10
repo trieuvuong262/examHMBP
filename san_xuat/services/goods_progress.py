@@ -15,6 +15,7 @@ from django.db.models import Prefetch, Q
 from django.utils import timezone
 
 from san_xuat.hub_models import (
+    SxMoProcessStep,
     SxOrderTeamDayPlan,
     SxProductionOrder,
     SxProductionOrderLine,
@@ -23,7 +24,6 @@ from san_xuat.hub_models import (
 )
 from san_xuat.services.handover_status import (
     TeamHandoverCell,
-    TeamQueue,
     _team_meta,
     attach_gc_to_handover_rows,
     attach_qc_to_handover_rows,
@@ -31,7 +31,6 @@ from san_xuat.services.handover_status import (
     khsx_context_by_order_team,
 )
 from san_xuat.services.order_progress_sheet import _q
-from san_xuat.services.progress_template import TEAM_SLUGS
 
 PRIORITY_RANK = {
     SxSalesOrder.PRIORITY_CRITICAL: 0,
@@ -43,6 +42,30 @@ PRIORITY_RANK = {
 PRIORITY_LABEL = dict(SxSalesOrder.PRIORITY_CHOICES)
 _FAR = date(9999, 12, 31)
 CLUSTER_SORTS = ("", "urgent", "due", "priority")
+
+
+@dataclass
+class GoodsTeamCell:
+    """SL tổ bộ phận HR trên lệnh — cùng cách tính phiếu tiến độ tổ."""
+
+    label: str
+    plan: Decimal
+    done: Decimal
+    counted: Decimal
+    khsx: TeamHandoverCell | None = None
+
+    @property
+    def is_done(self) -> bool:
+        return self.plan > 0 and self.counted >= self.plan
+
+
+@dataclass
+class GoodsTeamColumn:
+    slug: str
+    label: str
+    meta: dict
+    mo_count: int = 0
+    has_data: bool = False
 
 
 @dataclass
@@ -72,6 +95,7 @@ class GoodsProgressRow:
     khsx_is_late: bool = False
     product_image_url: str = ""
     product_image_urls_json: str = "[]"
+    team_cells: list[tuple[str, GoodsTeamCell | None]] = field(default_factory=list)
 
     @property
     def active_labels(self) -> list[str]:
@@ -140,8 +164,7 @@ class GoodsProgressBoard:
     filter_team: str = ""
     sort: str = ""
     has_filters: bool = False
-    queues: list[TeamQueue] | None = None
-    team_choices: list[tuple[str, str]] = field(default_factory=list)
+    team_columns: list[GoodsTeamColumn] = field(default_factory=list)
 
 
 def _due_for(mo: SxProductionOrder) -> date | None:
@@ -458,61 +481,89 @@ def _matches_due_filter(row: GoodsProgressRow, due_key: str) -> bool:
     return True
 
 
-def _build_khsx_queues(rows: list[GoodsProgressRow]) -> list[TeamQueue]:
-    """Thanh pipeline = các tổ thật sự có trên KHSX, không lấy 6 tổ mẫu."""
-    from san_xuat.services.progress_template import team_by_slug
+def _team_columns() -> list[GoodsTeamColumn]:
+    """Cột tổ = bộ phận HR theo thứ tự công đoạn KHSX, rồi tổ chất lượng.
+
+    Tổ cùng phòng với các tổ sản xuất mà không gắn công đoạn (vd. Cơ điện) không hiện.
+    """
+    from san_xuat.services.progress_template import TEAM_SLUGS, team_by_slug
+    from san_xuat.services.team_division_map import all_hr_team_items
+
+    stage_rank = {slug: idx for idx, (slug, *_rest) in enumerate(TEAM_SLUGS)}
+    items = []
+    for idx, item in enumerate(all_hr_team_items()):
+        meta = team_by_slug(item["slug"])
+        if meta:
+            items.append((idx, item, meta))
+    prod_depts = {
+        (meta.get("group_label") or "").strip() for _i, item, meta in items if item.get("stage_slug")
+    }
+    picked = [
+        (idx, item, meta)
+        for idx, item, meta in items
+        if item.get("stage_slug") or (meta.get("group_label") or "").strip() not in prod_depts
+    ]
+    picked.sort(key=lambda t: (stage_rank.get(t[1].get("stage_slug") or "", len(stage_rank)), t[0]))
+    return [GoodsTeamColumn(slug=item["slug"], label=item["label"], meta=meta) for _i, item, meta in picked]
+
+
+def _attach_team_cells(rows: list[GoodsProgressRow], columns: list[GoodsTeamColumn]) -> None:
+    from san_xuat.services.order_progress_sheet import (
+        _size_plans,
+        progress_steps_for_mo,
+        progress_steps_for_team,
+        stats_for_team,
+    )
     from san_xuat.services.team_division_map import khsx_slug_for_team
+    from san_xuat.services.team_work import _batch_stats_by_mo, _team_progress_for_mo
 
-    seen: dict[str, str] = {}
-    group_of: dict[str, str] = {}
+    stats_by_mo = _batch_stats_by_mo([r.mo.pk for r in rows])
+    stage_of = {col.slug: khsx_slug_for_team(col.meta, col.slug) for col in columns}
     for row in rows:
-        for cell in row.cells:
-            slug = (cell.slug or "").strip().lower()
-            if not slug or (cell.status == "skip" and not cell.plan and not cell.done):
+        mo_steps = getattr(row.mo, "_sx_own_progress_steps", None)
+        if mo_steps is None:
+            mo_steps = progress_steps_for_mo(row.mo)
+        sizes = _size_plans(row.mo)
+        stats = stats_by_mo.get(row.mo.pk, [])
+        out: list[tuple[str, GoodsTeamCell | None]] = []
+        for col in columns:
+            steps = progress_steps_for_team(row.mo, col.meta, steps=mo_steps) if mo_steps else []
+            if not steps:
+                out.append((col.slug, None))
                 continue
-            if slug not in seen:
-                seen[slug] = cell.label
-                meta = team_by_slug(slug) or {}
-                group_of[slug] = meta.get("group_key") or ""
-    if not seen:
-        return []
-    rank = {slug: idx for idx, (slug, *_rest) in enumerate(TEAM_SLUGS)}
+            prog = _team_progress_for_mo(
+                row.mo,
+                sizes=sizes,
+                stats=stats_for_team(stats, col.meta),
+                label_map={s.label.casefold(): s for s in steps},
+            )
+            stage = stage_of.get(col.slug) or ""
+            khsx = next(
+                (c for c in row.cells if stage and (c.slug == stage or stage in _slug_keys(c.slug))),
+                None,
+            )
+            out.append((
+                col.slug,
+                GoodsTeamCell(
+                    label=col.label,
+                    plan=prog.plan,
+                    done=prog.done,
+                    counted=prog.counted,
+                    khsx=khsx,
+                ),
+            ))
+        row.team_cells = out
 
-    def _rk(slug: str) -> tuple:
-        stage = khsx_slug_for_team(team_by_slug(slug), slug)
-        return (rank.get(stage, rank.get(slug, 50)), slug)
 
-    queues: list[TeamQueue] = []
-    for slug in sorted(seen, key=_rk):
-        keys = _slug_keys(slug) | {slug}
-        active = sum(
+def _count_team_columns(rows: list[GoodsProgressRow], columns: list[GoodsTeamColumn]) -> None:
+    for idx, col in enumerate(columns):
+        cells = [(r, r.team_cells[idx][1]) for r in rows if idx < len(r.team_cells)]
+        col.has_data = any(c is not None for _r, c in cells)
+        col.mo_count = sum(
             1
-            for r in rows
-            if r.status != SxProductionOrder.STATUS_DONE
-            and any(
-                (c.slug in keys or bool(_slug_keys(c.slug) & keys))
-                and c.status != "skip"
-                and c.plan > 0
-                and c.done < c.plan
-                for c in r.cells
-            )
+            for r, c in cells
+            if c is not None and not c.is_done and r.status != SxProductionOrder.STATUS_DONE
         )
-        waiting = Decimal("0")
-        for r in rows:
-            for c in r.cells:
-                if (c.slug in keys or bool(_slug_keys(c.slug) & keys)) and c.waiting > 0:
-                    waiting += c.waiting
-                    break
-        queues.append(
-            TeamQueue(
-                group_key=group_of.get(slug, ""),
-                slug=slug,
-                label=seen[slug],
-                waiting=waiting,
-                mo_count=active,
-            )
-        )
-    return queues
 
 
 def _apply_row_filters(
@@ -542,7 +593,11 @@ def _apply_row_filters(
         filtered = [r for r in filtered if _matches_due_filter(r, due_filter)]
 
     team_key = (team_slug or "").strip().lower()
-    if team_key:
+    if team_key and filtered and any(slug == team_key for slug, _c in filtered[0].team_cells):
+        filtered = [
+            r for r in filtered if any(slug == team_key and c is not None for slug, c in r.team_cells)
+        ]
+    elif team_key:
         keys = _slug_keys(team_key) | {team_key}
         filtered = [
             r
@@ -575,6 +630,7 @@ def _sort_rows(
     rows: list[GoodsProgressRow],
     *,
     sort_key: str,
+    descending: bool = False,
 ) -> list[GoodsProgressRow]:
     key = (sort_key or "").strip().lower()
     if key not in SORT_KEYS:
@@ -582,7 +638,8 @@ def _sort_rows(
 
     def _by(row: GoodsProgressRow):
         if key == "due":
-            base = (row.due or _FAR, row.so_id or 0, row.mo.code or "")
+            no_due = (row.due is not None) if descending else (row.due is None)
+            base = (no_due, row.due or _FAR, row.so_id or 0, row.mo.code or "")
         elif key == "priority":
             base = (
                 PRIORITY_RANK.get(row.priority, 3),
@@ -595,7 +652,7 @@ def _sort_rows(
         elif key == "progress_desc":
             base = (-row.progress_pct, row.mo.code or "")
         elif key == "qty":
-            base = (-row.plan, row.mo.code or "")
+            base = (row.plan, row.mo.code or "")
         elif key == "name":
             name = (row.mo.product_name or row.mo.product_code or "").casefold()
             base = (name, row.mo.code or "")
@@ -605,7 +662,7 @@ def _sort_rows(
             base = row.sort_key
         return base
 
-    rows.sort(key=_by)
+    rows.sort(key=_by, reverse=descending and key not in ("", "urgent"))
     return rows
 
 
@@ -616,6 +673,7 @@ def build_goods_progress_board(
     mo_status: str = "",
     due: str = "",
     sort: str = "",
+    descending: bool = False,
     team_slug: str = "",
     today: date | None = None,
     limit: int | None = None,
@@ -633,7 +691,10 @@ def build_goods_progress_board(
                 "lines",
                 queryset=SxProductionOrderLine.objects.order_by("size_label", "id"),
             ),
-            "mo_process_steps",
+            Prefetch(
+                "mo_process_steps",
+                queryset=SxMoProcessStep.objects.select_related("work_center"),
+            ),
             Prefetch(
                 "sales_order__plan_steps",
                 queryset=SxSalesOrderPlanStep.objects.select_related("work_center").order_by(
@@ -695,10 +756,9 @@ def build_goods_progress_board(
     almost_done_count = sum(1 for r in rows if 80 <= r.progress_pct < 100)
     done_count = sum(1 for r in rows if r.status == SxProductionOrder.STATUS_DONE)
 
-    queues = _build_khsx_queues(rows)
-    team_choices = [(q.slug, q.label) for q in queues] or [
-        (slug, label) for slug, _gk, _mk, label in TEAM_SLUGS
-    ]
+    team_columns = _team_columns()
+    _attach_team_cells(rows, team_columns)
+    _count_team_columns(rows, team_columns)
 
     priority_key = (priority or "").strip().lower()
     if priority_key and priority_key not in PRIORITY_RANK:
@@ -728,7 +788,7 @@ def build_goods_progress_board(
         due_key=due_filter,
         team_slug=team_key,
     )
-    filtered = _sort_rows(filtered, sort_key=sort_key)
+    filtered = _sort_rows(filtered, sort_key=sort_key, descending=descending)
     _mark_so_groups(filtered, sort_key=sort_key)
 
     has_filters = bool(
@@ -755,6 +815,5 @@ def build_goods_progress_board(
         filter_team=team_key,
         sort=sort_key,
         has_filters=has_filters,
-        queues=queues,
-        team_choices=team_choices,
+        team_columns=team_columns,
     )
