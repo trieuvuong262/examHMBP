@@ -2,6 +2,9 @@
 
 Tài khoản quản trị không được vượt vai trò: muốn duyệt / thao tác phải được gán đúng vai trò trên hồ sơ.
 
+Thành viên hồ sơ (Sản xuất / R&D / Kế hoạch SX / Giám đốc) được xem và thao tác trên hồ sơ mình tham gia
+theo vai trò tương ứng, kể cả khi không có quyền menu module.
+
 - Menu «Hồ sơ sản phẩm»: Xem / Thêm (tạo đề xuất) / Sửa (cập nhật nội dung theo vai trò) / Xóa (xóa nháp).
 - Menu «Chờ tôi duyệt»: Sửa = được chọn làm Người duyệt và ra quyết định duyệt.
 - Menu «Thiết lập»: Sửa = cấu hình số ngày chuẩn, người nhận bàn giao.
@@ -20,7 +23,15 @@ from hrm.menu_permissions import (
 )
 from hrm.module_permissions import MODULE_THIET_KE_SP, bypass_department_modules
 
-from .models import DOSSIER_ROLE_FIELDS, FINAL_STATUSES, ProductDevelopment, Role, Status
+from .models import (
+    DOSSIER_ROLE_FIELDS,
+    FINAL_STATUSES,
+    MEMBER_GROUP_ROLES,
+    DossierMember,
+    ProductDevelopment,
+    Role,
+    Status,
+)
 
 MENU_DASHBOARD = 'dashboard'
 MENU_DOSSIERS = 'dossiers'
@@ -59,6 +70,73 @@ def can_manage_settings(user) -> bool:
     return user_can_update_menu(user, MODULE_THIET_KE_SP, MENU_SETTINGS)
 
 
+def _member_groups(dossier: ProductDevelopment) -> dict[int, str]:
+    groups = getattr(dossier, '_tksp_member_groups', None)
+    if groups is None:
+        groups = dict(DossierMember.objects.filter(dossier=dossier).values_list('user_id', 'group'))
+        dossier._tksp_member_groups = groups
+    return groups
+
+
+def reset_member_cache(dossier: ProductDevelopment) -> None:
+    dossier.__dict__.pop('_tksp_member_groups', None)
+
+
+def member_group(dossier: ProductDevelopment, user) -> str:
+    if not getattr(user, 'is_authenticated', False) or not dossier.pk:
+        return ''
+    return _member_groups(dossier).get(user.pk, '')
+
+
+def is_member(dossier: ProductDevelopment, user) -> bool:
+    return bool(member_group(dossier, user))
+
+
+def has_memberships(user) -> bool:
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    return DossierMember.objects.filter(user=user).exclude(dossier__status__in=FINAL_STATUSES).exists()
+
+
+MEMBER_DOSSIER_URLS = frozenset({'detail', 'action', 'upload'})
+MEMBER_FILE_URLS = frozenset({'attachment_serve', 'attachment_delete'})
+
+
+def member_path_allowed(user, path: str) -> bool:
+    """Middleware phân quyền module: thành viên chỉ vào được danh sách và URL của hồ sơ mình tham gia."""
+    from django.urls import Resolver404, resolve
+
+    from .models import Attachment
+
+    try:
+        match = resolve(path)
+    except Resolver404:
+        return False
+    if match.namespace != 'thiet_ke_sp':
+        return False
+    name = match.url_name
+    if name == 'list':
+        return has_memberships(user)
+    if name == 'notification_open':
+        return True
+    if name in MEMBER_DOSSIER_URLS:
+        dossier_id = match.kwargs.get('pk')
+    elif name in MEMBER_FILE_URLS:
+        dossier_id = Attachment.objects.filter(pk=match.kwargs.get('att_pk')).values_list('dossier_id', flat=True).first()
+    else:
+        return False
+    return bool(dossier_id) and DossierMember.objects.filter(dossier_id=dossier_id, user=user).exists()
+
+
+def can_view_dossier(dossier: ProductDevelopment, user) -> bool:
+    return can_view_module(user) or is_member(dossier, user)
+
+
+def can_act(dossier: ProductDevelopment, user) -> bool:
+    """Quyền Sửa menu hồ sơ, hoặc là thành viên của chính hồ sơ này."""
+    return can_update(user) or is_member(dossier, user)
+
+
 def user_roles(dossier: ProductDevelopment, user) -> set[str]:
     if not getattr(user, 'is_authenticated', False):
         return set()
@@ -68,6 +146,11 @@ def user_roles(dossier: ProductDevelopment, user) -> set[str]:
     for field in DOSSIER_ROLE_FIELDS:
         if getattr(dossier, f'{field}_id') == user.pk:
             roles.add(field)
+    group = member_group(dossier, user)
+    if group:
+        roles.add(Role.MEMBER)
+        if group in MEMBER_GROUP_ROLES:
+            roles.add(MEMBER_GROUP_ROLES[group])
     return roles
 
 
@@ -79,7 +162,7 @@ def can_work_as(dossier: ProductDevelopment, user, *roles: str) -> bool:
     """Thao tác nghiệp vụ: cần quyền Sửa menu hồ sơ + đúng vai trò trên hồ sơ."""
     if dossier.status in FINAL_STATUSES:
         return False
-    return can_update(user) and has_role(dossier, user, *roles)
+    return can_act(dossier, user) and has_role(dossier, user, *roles)
 
 
 def is_dossier_approver(dossier: ProductDevelopment, user) -> bool:

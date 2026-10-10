@@ -160,6 +160,26 @@
 {% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Lưu' %}
 {% endif %}
 
+{% if flags.edit_roles %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalMember' modal_action='member_add' modal_title='Thêm thành viên hồ sơ' %}
+  <div class="row g-2">
+    <div class="col-md-7">
+      <label class="form-label fw-bold small mb-1">Người <span class="text-danger">*</span></label>
+      <select name="member_id" class="form-select form-select-sm jp-tksp-user-select" required>
+        <option value="">— Chọn —</option>
+        {% for u in member_users %}<option value="{{ u.pk }}">{{ u|uname }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-5">
+      <label class="form-label fw-bold small mb-1">Nhóm <span class="text-danger">*</span></label>
+      <select name="group" class="form-select form-select-sm" required>
+        {% for val, label in member_groups %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Thêm' %}
+{% endif %}
+
 {% if open_tasks %}
 {% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalDelay' modal_action='task_delay' modal_title='Nguyên nhân chậm' %}
   <input type="hidden" name="task_id" value="">

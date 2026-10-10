@@ -286,6 +286,7 @@ def cover_map(dossier_ids) -> dict[int, Attachment]:
         base.filter(kind=AttachmentKind.FRONT, design_version__is_current=True),
         base.filter(kind=AttachmentKind.FRONT),
         base.filter(kind=AttachmentKind.SAMPLE_PHOTO, sample_version__is_current=True),
+        base.filter(kind=AttachmentKind.PRODUCT_PHOTO),
         base.filter(kind__in=(AttachmentKind.REFERENCE, AttachmentKind.COLORWAY)),
     )
     for qs in priority:
@@ -319,7 +320,7 @@ def action_flags(dossier: ProductDevelopment, user) -> dict[str, bool]:
         'request_design_change': (s == Status.SAMPLE_EVAL_PENDING and owner) or (s == Status.MASTER_PENDING and approver),
         'edit_sample': sample_open and perms.can_work_as(dossier, user, Role.SAMPLE_MAKER, Role.TECHNICIAN, Role.OWNER),
         'edit_tech_pack': sample_open and perms.can_work_as(dossier, user, Role.TECHNICIAN, Role.OWNER),
-        'evaluate': s == Status.SAMPLE_EVAL_PENDING and perms.can_update(user)
+        'evaluate': s == Status.SAMPLE_EVAL_PENDING and perms.can_act(dossier, user)
         and bool(wf.evaluator_roles_for(dossier, user)),
         'request_fix': (s == Status.SAMPLE_EVAL_PENDING and owner) or (s == Status.MASTER_PENDING and approver),
         'submit_master': s == Status.SAMPLE_EVAL_PENDING and owner,
@@ -334,5 +335,5 @@ def action_flags(dossier: ProductDevelopment, user) -> dict[str, bool]:
         'cancel': s not in (*FINAL_STATUSES, Status.DRAFT, Status.HANDED_OVER) and approver,
         'edit_roles': perms.can_edit_roles(dossier, user),
         'manage_due': s not in FINAL_STATUSES and (perms.has_role(dossier, user, Role.OWNER) or approver),
-        'comment': perms.can_view_module(user) and s not in FINAL_STATUSES,
+        'comment': perms.can_view_dossier(dossier, user) and s not in FINAL_STATUSES,
     }

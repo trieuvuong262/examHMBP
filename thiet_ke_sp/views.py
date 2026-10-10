@@ -43,8 +43,10 @@ from .models import (
     Colorway,
     Criterion,
     DesignVersion,
+    DossierMember,
     EvaluationItem,
     HandoverReceipt,
+    MemberGroup,
     Notification,
     Priority,
     ProductDevelopment,
@@ -164,7 +166,8 @@ def _apply_quick(qs, quick: str, user):
 @login_required
 def dossier_list(request):
     user = request.user
-    if not perms.can_view_module(user):
+    member_only = not perms.can_view_module(user)
+    if member_only and not perms.has_memberships(user):
         return _deny(request, perms.MENU_DOSSIERS)
     g = request.GET
     q = (g.get('q') or '').strip()
@@ -176,6 +179,8 @@ def dossier_list(request):
     collection = (g.get('collection') or '').strip()
 
     qs = _annotated_list_qs()
+    if member_only:
+        qs = qs.filter(members__user=user)
     if q:
         qs = qs.filter(Q(code__icontains=q) | Q(name__icontains=q) | Q(official_product_code__icontains=q))
     if statuses:
@@ -376,9 +381,9 @@ def _live_atts(qs):
 @login_required
 def dossier_detail(request, pk):
     user = request.user
-    if not perms.can_view_module(user):
-        return _deny(request, perms.MENU_DOSSIERS)
     dossier = _get_dossier(pk)
+    if not perms.can_view_dossier(dossier, user):
+        return _deny(request, perms.MENU_DOSSIERS)
     tab = request.GET.get('tab') or 'overview'
     if tab not in TAB_KEYS:
         tab = 'overview'
@@ -449,10 +454,16 @@ def dossier_detail(request, pk):
     status_due_default = sla.due_at_for(_next_due_step(dossier.status), setting=setting)
     sla_due = {s: sla.due_at_for(s, setting=setting) for s in Status.values}
 
-    dossier_files = list(
+    level_files = list(
         dossier.attachments.filter(design_version__isnull=True, sample_version__isnull=True, is_deleted=False)
         .select_related('uploaded_by__profile').order_by('kind', '-uploaded_at')
     )
+    dossier_files = [a for a in level_files if a.kind != AttachmentKind.PRODUCT_PHOTO]
+    product_photos = sorted((a for a in level_files if a.kind == AttachmentKind.PRODUCT_PHOTO),
+                            key=lambda a: a.uploaded_at, reverse=True)
+    for a in product_photos:
+        a.can_delete = a.uploaded_by_id == user.pk or perms.has_role(dossier, user, Role.OWNER)
+    members = list(dossier.members.select_related('user__profile', 'added_by__profile'))
     handover = getattr(dossier, 'handover', None) if dossier.status in (Status.HANDED_OVER, Status.CLOSED) else None
     receipts = list(handover.receipts.select_related('receiver__profile', 'confirmed_by__profile')) if handover else []
     for r in receipts:
@@ -492,6 +503,11 @@ def dossier_detail(request, pk):
         conditions=conditions,
         comments=list(dossier.comments.select_related('author__profile', 'design_version', 'sample_version')),
         dossier_files=dossier_files,
+        product_photos=product_photos,
+        can_upload_product_photo=wf.can_upload(dossier, user, AttachmentKind.PRODUCT_PHOTO),
+        members=members,
+        member_groups=MemberGroup.choices,
+        member_users=list(f.active_users()) if flags['edit_roles'] else [],
         audit_logs=list(dossier.audit_logs.select_related('actor__profile')[:300]),
         handover=handover,
         receipts=receipts,
@@ -774,6 +790,15 @@ def _run_action(request, dossier: ProductDevelopment, action: str) -> tuple[str,
             raise wf.WorkflowError(_form_error_text(form))
         wf.update_roles(dossier, user, assignments=dict(form.cleaned_data))
         return 'overview', 'Đã cập nhật nhân sự hồ sơ.'
+    if action == 'member_add':
+        member_id = post.get('member_id') or ''
+        member = f.active_users().filter(pk=int(member_id)).first() if member_id.isdigit() else None
+        wf.add_member(dossier, user, member=member, group=post.get('group', ''))
+        return post.get('return_tab') or 'overview', 'Đã thêm thành viên hồ sơ.'
+    if action == 'member_remove':
+        member = get_object_or_404(DossierMember, pk=post.get('member_pk'), dossier=dossier)
+        wf.remove_member(member, user)
+        return post.get('return_tab') or 'overview', 'Đã bớt thành viên hồ sơ.'
     if action == 'costing_save':
         form = f.CostingForm(post, instance=ProductDevelopment.objects.get(pk=dossier.pk))
         if not form.is_valid():
@@ -877,9 +902,9 @@ def attachment_delete(request, att_pk):
 
 @login_required
 def attachment_serve(request, att_pk):
-    if not perms.can_view_module(request.user):
+    att = get_object_or_404(Attachment.objects.select_related('dossier'), pk=att_pk)
+    if not perms.can_view_dossier(att.dossier, request.user):
         return HttpResponseForbidden('Không có quyền xem tệp.')
-    att = get_object_or_404(Attachment, pk=att_pk)
     path = design_file_abs_path(att)
     if not path or not os.path.isfile(path):
         raise Http404('Không tìm thấy tệp trên NAS.')

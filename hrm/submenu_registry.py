@@ -65,8 +65,8 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         },
         {
             'key': 'jobs',
-            'label': 'Vị trí tuyển dụng',
-            'perm_label': 'Tuyển dụng — Vị trí tuyển dụng',
+            'label': 'Vị trí',
+            'perm_label': 'Tuyển dụng — Vị trí',
             'icon': 'bi-megaphone',
         },
         {
@@ -81,7 +81,7 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'daily_cn_detail', 'label': 'Quản lý báo cáo (SX)', 'icon': 'bi-people-fill'},
         {
             'key': 'report_stats',
-            'label': 'Thống kê báo cáo',
+            'label': 'THỐNG KÊ SẢN XUẤT',
             'icon': 'bi-table',
             'perm_view_only': True,
         },
@@ -182,8 +182,8 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
     MODULE_SAN_XUAT: [
         {'key': 'overview', 'label': 'Tổng quan', 'icon': 'bi-speedometer2'},
         {'key': 'orders', 'label': 'Danh sách đơn', 'icon': 'bi-cart-check'},
-        {'key': 'order_create', 'label': 'Lên đơn đặt hàng', 'icon': 'bi-cart-plus'},
-        {'key': 'order_confirm', 'label': 'Xác nhận đơn đặt hàng', 'icon': 'bi-check2-square'},
+        {'key': 'order_create', 'label': 'Lên đơn hàng', 'icon': 'bi-cart-plus'},
+        {'key': 'order_confirm', 'label': 'Xác nhận đơn hàng', 'icon': 'bi-check2-square'},
         # —— Hồ sơ (khớp sidebar): hồ sơ TK → thư viện CĐ → duyệt → thiết lập ——
         {'key': 'docs', 'label': 'Hồ sơ thiết kế sản phẩm', 'icon': 'bi-journal-text'},
         {'key': 'docs_cost_stats', 'label': 'Thống kê chi phí', 'icon': 'bi-table'},
@@ -238,7 +238,7 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'wip_handover', 'label': 'Bàn giao BTP', 'icon': 'bi-arrow-left-right'},
         {'key': 'wip_return', 'label': 'Trả lại BTP', 'icon': 'bi-arrow-return-left'},
         {'key': 'packing', 'label': 'Đóng gói', 'icon': 'bi-box2'},
-        {'key': 'team_work', 'label': 'Phân công SX', 'icon': 'bi-people'},
+        {'key': 'team_work', 'label': 'Tiến độ', 'icon': 'bi-people'},
         {'key': 'team_work_goods', 'label': 'Tiến độ hàng hoá', 'icon': 'bi-bar-chart-line'},
         {'key': 'team_work_cat', 'label': 'Tổ cắt', 'icon': 'bi-scissors'},
         {'key': 'team_work_inep', 'label': 'Tổ in ép', 'icon': 'bi-printer'},

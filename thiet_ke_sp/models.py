@@ -147,6 +147,22 @@ class Role(models.TextChoices):
     RECEIVER = 'receiver', 'Bộ phận nhận bàn giao'
     CONDITION = 'condition', 'Xử lý điều kiện duyệt'
     FIX = 'fix_owner', 'Sửa lỗi mẫu'
+    MEMBER = 'member', 'Thành viên hồ sơ'
+
+
+class MemberGroup(models.TextChoices):
+    PRODUCTION = 'production', 'Sản xuất'
+    RND = 'rnd', 'R&D'
+    PLANNING = 'planning', 'Kế hoạch SX'
+    DIRECTOR = 'director', 'Giám đốc'
+
+
+# Thành viên thao tác như vai trò tương ứng; Giám đốc chỉ tham gia (xem, trao đổi, tải ảnh / tệp).
+MEMBER_GROUP_ROLES = {
+    MemberGroup.PRODUCTION: Role.TECHNICIAN,
+    MemberGroup.RND: Role.DESIGNER,
+    MemberGroup.PLANNING: Role.COSTING,
+}
 
 
 # Vai trò gán sẵn trên hồ sơ — tên field trùng value của Role.
@@ -711,6 +727,7 @@ class AttachmentKind(models.TextChoices):
     SAMPLE_PHOTO = 'sample_photo', 'Ảnh mẫu thực tế'
     EVALUATION = 'evaluation', 'Biên bản đánh giá'
     COST = 'cost', 'Bảng giá thành'
+    PRODUCT_PHOTO = 'product_photo', 'Ảnh sản phẩm'
     OTHER = 'other', 'Khác'
 
 
@@ -824,6 +841,23 @@ class Comment(models.Model):
         ordering = ['-created_at', '-pk']
         verbose_name = 'Trao đổi'
         verbose_name_plural = 'Trao đổi'
+
+
+class DossierMember(models.Model):
+    dossier = models.ForeignKey(ProductDevelopment, on_delete=models.CASCADE, related_name='members')
+    user = models.ForeignKey(USER, on_delete=models.CASCADE, related_name='tksp_memberships', verbose_name='Người')
+    group = models.CharField(max_length=20, choices=MemberGroup.choices, verbose_name='Nhóm')
+    added_by = models.ForeignKey(USER, on_delete=models.SET_NULL, null=True, related_name='+')
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['group', 'pk']
+        constraints = [models.UniqueConstraint(fields=['dossier', 'user'], name='tksp_member_unique')]
+        verbose_name = 'Thành viên hồ sơ'
+        verbose_name_plural = 'Thành viên hồ sơ'
+
+    def __str__(self):
+        return f'{self.dossier_id} · {self.user_id} · {self.group}'
 
 
 class AuditLog(models.Model):

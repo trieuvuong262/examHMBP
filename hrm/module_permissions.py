@@ -164,7 +164,7 @@ DEPARTMENT_MENU_SECTIONS = [
         'modules': _visible_module_list([MODULE_ANNOUNCEMENTS]),
     },
     {
-        'label': 'Báo cáo & Công việc',
+        'label': 'Công việc',
         'modules': _visible_module_list([MODULE_REPORTS, MODULE_TASKS]),
     },
     {

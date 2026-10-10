@@ -1086,7 +1086,7 @@ PERM_GROUP_MODULE_ICONS = {
 
 SAN_XUAT_PERMISSION_SECTIONS = (
     ('Tổng quan', ('overview',)),
-    ('Đơn đặt hàng', ('orders', 'order_create', 'order_confirm')),
+    ('Đơn hàng', ('orders', 'order_create', 'order_confirm')),
     ('Hồ sơ sản phẩm', ('docs', 'docs_cost_stats', 'ie', 'ie_approve', 'ie_settings')),
     ('Kế hoạch SX', (
         'plan', 'plan_board', 'sx_price_quote', 'sx_price_approve', 'npl_pr', 'plan_npl',
@@ -1097,7 +1097,7 @@ SAN_XUAT_PERMISSION_SECTIONS = (
         ('dispatch', 'mo', 'material_issue_req', 'handover_status', 'fg_receipt_req'),
     ),
     (
-        'Phân công SX',
+        'Tiến độ',
         (
             'team_work', 'team_work_goods', 'team_work_cat', 'team_work_inep',
             'team_work_theu', 'team_work_may', 'team_work_ht', 'team_work_gh',
@@ -1262,7 +1262,7 @@ class PermissionGroupPermissionForm(forms.Form):
         sub_lookup = {}
         hub_module_sets = (
             (HRM_PERM_MATRIX_MODULES, HRM_PERM_MATRIX_SUBMENUS, 'hrm_hub', 'Nhân sự', 'bi-people-fill'),
-            (WORK_PERM_MATRIX_MODULES, WORK_PERM_MATRIX_SUBMENUS, 'work_hub', 'Báo cáo & Công việc', 'bi-clipboard-check-fill'),
+            (WORK_PERM_MATRIX_MODULES, WORK_PERM_MATRIX_SUBMENUS, 'work_hub', 'Công việc', 'bi-clipboard-check-fill'),
             (SURVEY_PERM_MATRIX_MODULES, SURVEY_PERM_MATRIX_SUBMENUS, 'survey_hub', 'Khảo sát', 'bi-ui-radios'),
             (TIEN_DO_PERM_MATRIX_MODULES, TIEN_DO_PERM_MATRIX_SUBMENUS, 'tien_do_hub', 'Tiến độ', 'bi-clipboard-data'),
         )

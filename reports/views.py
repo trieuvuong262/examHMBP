@@ -2208,7 +2208,7 @@ def report_stats_cn(request):
     """Thống kê báo cáo SX — ma trận KPI (HS / HS thời gian / sản lượng), xem toàn công ty."""
     return _render_production_summary_matrix(
         request,
-        page_title='Thống kê báo cáo (SX)',
+        page_title='THỐNG KÊ SẢN XUẤT',
         summary_url_name='reports:report_stats_cn',
         export_url_name='reports:report_stats_cn_export',
         show_metric_selector=True,

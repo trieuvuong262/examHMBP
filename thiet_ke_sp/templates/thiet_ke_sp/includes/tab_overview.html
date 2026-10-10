@@ -73,6 +73,21 @@
 </div>
 
 <div class="tk-section">
+  <div class="tk-section-title"><i class="bi bi-camera"></i>Ảnh sản phẩm <span class="tk-section-sub">{{ product_photos|length }} ảnh</span></div>
+  <div class="tk-thumbs{% if can_upload_product_photo %} mb-3{% endif %}">
+    {% for a in product_photos %}{% include 'thiet_ke_sp/includes/thumb.html' with a=a label=a.uploaded_by|uname missing=False can_delete=a.can_delete %}{% empty %}<span class="small text-muted">Chưa có ảnh.</span>{% endfor %}
+  </div>
+  {% if can_upload_product_photo %}
+  <form method="post" action="{% url 'thiet_ke_sp:upload' dossier.pk %}" enctype="multipart/form-data" class="row g-2 align-items-end">{% csrf_token %}
+    <input type="hidden" name="kind" value="product_photo"><input type="hidden" name="return_tab" value="overview">
+    <div class="col-md-6"><label class="form-label fw-bold small mb-1">Ảnh</label><input type="file" name="files" class="form-control form-control-sm" accept="image/*" multiple required></div>
+    <div class="col-md-4"><label class="form-label fw-bold small mb-1">Ghi chú</label><input type="text" name="note" class="form-control form-control-sm" maxlength="255"></div>
+    <div class="col-md-2"><button type="submit" class="btn btn-sm btn-hm text-white w-100 fw-bold"><i class="bi bi-upload me-1"></i>Tải ảnh</button></div>
+  </form>
+  {% endif %}
+</div>
+
+<div class="tk-section">
   <div class="tk-section-title"><i class="bi bi-lightbulb"></i>Đề bài</div>
   <div class="tk-grid2">
     <div class="tk-field"><label>Nhu cầu sử dụng</label><span class="v">{{ dossier.usage_need|default:'—' }}</span></div>

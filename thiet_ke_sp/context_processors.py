@@ -46,10 +46,26 @@ def active_dossier_count() -> int:
     return count
 
 
+def member_access_cache_key(user_id: int) -> str:
+    return f'tksp:member_access:{user_id}'
+
+
+def member_only_access(user) -> bool:
+    """Không có quyền module nhưng là thành viên của hồ sơ đang mở."""
+    from .permissions import has_memberships
+
+    key = member_access_cache_key(user.pk)
+    allowed = cache.get(key)
+    if allowed is None:
+        allowed = has_memberships(user)
+        cache.set(key, allowed, BADGE_CACHE_SECONDS)
+    return allowed
+
+
 def invalidate_user_badges(user) -> None:
     pk = getattr(user, 'pk', None)
     if pk:
-        cache.delete(badge_cache_key(pk))
+        cache.delete_many([badge_cache_key(pk), member_access_cache_key(pk)])
 
 
 def thiet_ke_sp_menu(request):
@@ -59,7 +75,17 @@ def thiet_ke_sp_menu(request):
     if not getattr(user, 'is_authenticated', False):
         return {'jp_can_thiet_ke_sp': False}
     if not user_can_access_module(user, MODULE_THIET_KE_SP):
-        return {'jp_can_thiet_ke_sp': False}
+        if not member_only_access(user):
+            return {'jp_can_thiet_ke_sp': False}
+        return {
+            'jp_can_thiet_ke_sp': True,
+            'tksp_menu': {key: key == 'dossiers' for key in SIDEBAR_MENUS},
+            'tksp_my_task_count': 0,
+            'tksp_overdue_count': 0,
+            'tksp_unread_count': 0,
+            'tksp_approve_count': 0,
+            'tksp_active_count': 0,
+        }
     badges = user_badges(user)
     menu = {key: user_can_access_resolved_menu(user, MODULE_THIET_KE_SP, key) for key in SIDEBAR_MENUS}
     return {

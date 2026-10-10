@@ -18,6 +18,7 @@ from thiet_ke_sp import permissions as perms
 from thiet_ke_sp.models import (
     DOSSIER_ROLE_FIELDS,
     FINAL_STATUSES,
+    IMAGE_EXTENSIONS,
     SINGLE_CURRENT_KINDS,
     Approval,
     ApprovalCondition,
@@ -29,12 +30,14 @@ from thiet_ke_sp.models import (
     Colorway,
     Comment,
     DesignVersion,
+    DossierMember,
     DossierSequence,
     EvaluationItem,
     EvaluatorRole,
     Handover,
     HandoverReceipt,
     MaterialLine,
+    MemberGroup,
     ProductDevelopment,
     ReceivingDepartment,
     Role,
@@ -686,7 +689,7 @@ def evaluator_roles_for(dossier: ProductDevelopment, user) -> list[str]:
 def add_evaluation(dossier: ProductDevelopment, user, *, role: str, result: str, conclusion: str = '',
                    defects: str = '', fix_owner=None, fix_due=None, items: dict[str, tuple[str, str]]) -> SampleEvaluation:
     _require(dossier.status == Status.SAMPLE_EVAL_PENDING, 'Hồ sơ không ở bước đánh giá mẫu.')
-    _require(perms.can_update(user), 'Bạn không có quyền cập nhật hồ sơ.')
+    _require(perms.can_act(dossier, user), 'Bạn không có quyền cập nhật hồ sơ.')
     _require(role in evaluator_roles_for(dossier, user), 'Bạn không được đánh giá mẫu với vai trò này.')
     sv = dossier.current_sample_version()
     _require(sv is not None and sv.state == SampleVersion.STATE_SUBMITTED, 'Không có mẫu đang chờ đánh giá.')
@@ -1228,7 +1231,7 @@ def _upload_allowed(dossier, user, kind: str, design_version, sample_version) ->
     """Trả về lý do chặn ('' = được phép)."""
     if dossier.status in FINAL_STATUSES:
         return 'Hồ sơ đã đóng / hủy.'
-    if not perms.can_update(user):
+    if not perms.can_act(dossier, user):
         return 'Bạn không có quyền cập nhật hồ sơ.'
     if design_version is not None:
         if not design_version.is_editable or dossier.status not in (Status.DESIGNING, Status.DESIGN_REVISE):
@@ -1266,6 +1269,8 @@ def upload_attachment(dossier: ProductDevelopment, user, *, uploaded_file, kind:
     _require(kind in AttachmentKind.values, 'Loại tệp không hợp lệ.')
     reason = _upload_allowed(dossier, user, kind, design_version, sample_version)
     _require(not reason, reason)
+    if kind == AttachmentKind.PRODUCT_PHOTO:
+        _require(os.path.splitext(uploaded_file.name)[1].lower() in IMAGE_EXTENSIONS, 'Ảnh sản phẩm phải là tệp ảnh.')
     if kind == AttachmentKind.COLORWAY:
         _require(colorway is not None and design_version is not None and colorway.design_version_id == design_version.pk,
                  'Chọn colorway cho ảnh.')
@@ -1311,8 +1316,38 @@ def delete_attachment(att: Attachment, user) -> None:
         log(dossier, user, 'file_deleted', f'{_name(user)} xóa tệp «{att.display_name}».')
 
 
+def add_member(dossier: ProductDevelopment, user, *, member, group: str) -> DossierMember:
+    _require(perms.can_edit_roles(dossier, user), 'Chỉ người phụ trách chính hoặc người duyệt được thêm thành viên.')
+    _require(group in MemberGroup.values, 'Chọn nhóm thành viên.')
+    _require(member is not None and member.is_active, 'Chọn người cần thêm.')
+    label = MemberGroup(group).label
+    with transaction.atomic():
+        obj, created = DossierMember.objects.update_or_create(
+            dossier=dossier, user=member, defaults={'group': group, 'added_by': user},
+        )
+        perms.reset_member_cache(dossier)
+        log(dossier, user, 'member_added' if created else 'member_changed',
+            f'{_name(user)} {"thêm" if created else "đổi nhóm"} thành viên {_name(member)} ({label}).')
+    nt.invalidate_badges(member)
+    nt.notify(member, dossier, nt.KIND_ASSIGNED, f'Bạn được thêm vào hồ sơ: {label}',
+              f'{dossier.code} — {dossier.name}', actor=user)
+    return obj
+
+
+def remove_member(member: DossierMember, user) -> None:
+    dossier = member.dossier
+    _require(perms.can_edit_roles(dossier, user), 'Chỉ người phụ trách chính hoặc người duyệt được bớt thành viên.')
+    with transaction.atomic():
+        removed_user = member.user
+        name, label = _name(removed_user), member.get_group_display()
+        member.delete()
+        perms.reset_member_cache(dossier)
+        log(dossier, user, 'member_removed', f'{_name(user)} bớt thành viên {name} ({label}).')
+    nt.invalidate_badges(removed_user)
+
+
 def add_comment(dossier: ProductDevelopment, user, *, body: str, design_version=None, sample_version=None) -> Comment:
-    _require(perms.can_view_module(user), 'Bạn không có quyền xem hồ sơ.')
+    _require(perms.can_view_dossier(dossier, user), 'Bạn không có quyền xem hồ sơ.')
     body = _require_text(body, 'nội dung trao đổi')
     comment = Comment.objects.create(dossier=dossier, author=user, body=body,
                                      design_version=design_version, sample_version=sample_version)
