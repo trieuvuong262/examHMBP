@@ -320,7 +320,10 @@
             </thead>
             <tbody>
               <tr class="jp-so-sg-stock-row">
-                <th class="jp-so-sg-label" scope="row">Tồn kho thực tế</th>
+                <th class="jp-so-sg-label" scope="row"
+                    title="Tồn KiotViet tại các kho bán hàng (Chi nhánh trung tâm, Kho bán hàng), không trừ hàng đặt giữ, không gồm kho xưởng.">
+                  Tồn kho thực tế
+                </th>
                 {% for sz in suggest_sizes_all %}
                 <td class="jp-so-sg-input-cell{% if sz not in suggest_sizes %} jp-so-sg-col-extra{% endif %}">
                   <input type="number" class="jp-so-sg-stock" data-size="{{ sz }}" value="0" min="0" step="1" inputmode="numeric" aria-label="Tồn {{ sz }}">

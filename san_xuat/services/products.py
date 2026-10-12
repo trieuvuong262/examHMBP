@@ -573,8 +573,10 @@ def search_products(q: str = '', *, limit: int = 30) -> list[dict]:
 
 
 def suggest_style_size_stock(style_code: str, *, days: int = 30) -> dict:
-    """Tồn TP + tốc độ tiêu thụ (bán KV) theo size cho 1 Style.
+    """Tồn cửa hàng + tốc độ tiêu thụ (bán KV) theo size cho 1 Style.
 
+    Tồn = on_hand KiotViet (không trừ hàng đặt giữ) của các chi nhánh bán hàng,
+    không gồm kho xưởng / đơn sản xuất.
     ``days``: số ngày gần nhất lấy từ hóa đơn KiotViet (mặc định 30).
     """
     from collections import defaultdict
@@ -583,8 +585,6 @@ def suggest_style_size_stock(style_code: str, *, days: int = 30) -> dict:
     from django.db.models import Q, Sum
     from django.db.models.functions import Upper
     from django.utils import timezone
-
-    from san_xuat.services.demand import fg_stock_map
 
     style = _norm(style_code)
     try:
@@ -608,6 +608,7 @@ def suggest_style_size_stock(style_code: str, *, days: int = 30) -> dict:
     try:
         from kho_san_pham.models import Product
         from kho_san_pham.services.sync_from_kiotviet import _size_sort_key
+        from kho_san_pham.services.sync_store_stock import kv_store_qty_by_product
     except ImportError:
         return empty
 
@@ -636,28 +637,14 @@ def suggest_style_size_stock(style_code: str, *, days: int = 30) -> dict:
             name = (p.name or p.full_name or name or '').strip()
             break
 
-    lookup_codes: list[str] = []
-    for p in products:
-        for raw in (p.code, p.kiotviet_code):
-            c = _norm(raw)
-            if c:
-                lookup_codes.append(c)
-    stock_by_code = fg_stock_map(lookup_codes)
+    store_qty = kv_store_qty_by_product(
+        kiotviet_ids=[int(p.kiotviet_id) for p in products if p.kiotviet_id],
+    )
 
     def _qty_for(product) -> Decimal:
-        for raw in (product.code, product.kiotviet_code):
-            c = _norm(raw)
-            if not c:
-                continue
-            if c in stock_by_code:
-                return Decimal(str(stock_by_code[c] or 0))
-            hit = next(
-                (v for k, v in stock_by_code.items() if k.casefold() == c.casefold()),
-                None,
-            )
-            if hit is not None:
-                return Decimal(str(hit or 0))
-        return Decimal('0')
+        if not product.kiotviet_id:
+            return Decimal('0')
+        return store_qty.get(int(product.kiotviet_id), Decimal('0'))
 
     by_size: dict[str, Decimal] = defaultdict(lambda: Decimal('0'))
     sold_by_size: dict[str, Decimal] = defaultdict(lambda: Decimal('0'))

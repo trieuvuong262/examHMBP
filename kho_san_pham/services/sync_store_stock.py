@@ -189,7 +189,11 @@ def kv_stock_rows_for_product(product, *, retailer: str | None = None) -> list[d
     ]
 
 
-def kv_store_qty_by_product(*, retailer: str | None = None) -> dict[int, Decimal]:
+def kv_store_qty_by_product(
+    *,
+    retailer: str | None = None,
+    kiotviet_ids: list[int] | None = None,
+) -> dict[int, Decimal]:
     """Tổng on_hand KV theo product_kiotviet_id, chỉ chi nhánh cửa hàng."""
     from kiotviet.models import KvProductInventory
     from kiotviet.sync_service import current_retailer
@@ -202,6 +206,8 @@ def kv_store_qty_by_product(*, retailer: str | None = None) -> dict[int, Decimal
         is_deleted=False,
         branch_kiotviet_id__in=ids,
     )
+    if kiotviet_ids is not None:
+        qs = qs.filter(product_kiotviet_id__in=kiotviet_ids)
     r = retailer or current_retailer()
     if r:
         qs = qs.filter(retailer=r)
