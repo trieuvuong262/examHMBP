@@ -87,15 +87,34 @@ def _extract_paths_from_html(html: str) -> set[str]:
     return {path for path in paths if path}
 
 
+def _storage_prefix(field) -> str | None:
+    """Thư mục của storage tính từ MEDIA_ROOT ('' = gốc media); None = storage nằm ngoài MEDIA_ROOT.
+
+    Storage riêng (VD hồ sơ ứng viên ở ``_private/recruitment``) lưu tên file tương đối với thư mục
+    của nó — phải ghép tiền tố, nếu không file bị coi là mồ côi và bị xóa.
+    """
+    location = getattr(field.storage, 'location', None)
+    if not location:
+        return ''
+    try:
+        rel = Path(location).resolve().relative_to(Path(settings.MEDIA_ROOT).resolve())
+    except ValueError:
+        return None
+    rel = rel.as_posix()
+    return '' if rel == '.' else rel
+
+
 def collect_referenced_media_paths() -> set[str]:
     referenced: set[str] = set()
 
     for model in apps.get_models():
         file_fields: list[str] = []
         rich_fields: list[str] = []
+        prefixes: dict[str, str | None] = {}
         for field in model._meta.concrete_fields:
             if isinstance(field, (FileField, ImageField)):
                 file_fields.append(field.name)
+                prefixes[field.name] = _storage_prefix(field)
             elif isinstance(field, RichTextField):
                 rich_fields.append(field.name)
 
@@ -107,8 +126,10 @@ def collect_referenced_media_paths() -> set[str]:
             for index, value in enumerate(row):
                 field_name = field_names[index]
                 if field_name in file_fields:
-                    if value:
-                        referenced.add(normalize_media_relative_path(value))
+                    prefix = prefixes[field_name]
+                    if value and prefix is not None:
+                        rel = normalize_media_relative_path(value)
+                        referenced.add(f'{prefix}/{rel}' if prefix and rel else rel)
                 elif value:
                     referenced.update(_extract_paths_from_html(value))
 
