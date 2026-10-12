@@ -8,7 +8,6 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
-from kho_san_pham.catalog_models import ProductType as CatalogType
 from thiet_ke_sp import catalog
 from thiet_ke_sp.models import (
     Approval,
@@ -94,10 +93,8 @@ class Command(BaseCommand):
         (code, name, type_code, status, launch, (month, day), priority,
          design_rounds, sample_rounds, target_cost, cost) = spec
         tz_due = timezone.make_aware(datetime.combine(date(2026, month, day), time(17, 0)))
-        ptype = CatalogType.objects.filter(code=type_code).first()
         d = ProductDevelopment.objects.create(
-            code=code, name=name, product_group=catalog.group_code(type_code) if ptype else '',
-            product_type=ptype, priority=priority,
+            code=code, name=name, product_group=catalog.group_code(type_code), priority=priority,
             collection='Mùa 2027', target_customer='Đội bóng phong trào, CLB doanh nghiệp',
             usage_need='Thi đấu và tập luyện cường độ cao, thoát mồ hôi nhanh.',
             market_need='Phân khúc trung cấp, kênh sỉ đội nhóm.',

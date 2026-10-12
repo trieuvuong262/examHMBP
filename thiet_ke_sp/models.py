@@ -151,7 +151,6 @@ DOSSIER_ROLE_FIELDS = (
     Role.DESIGNER,
     Role.TECHNICIAN,
     Role.SAMPLE_MAKER,
-    Role.QA,
     Role.COSTING,
 )
 
@@ -173,10 +172,6 @@ class ProductDevelopment(models.Model):
     product_group = models.CharField(
         max_length=32, blank=True, default='', db_index=True, verbose_name='Nhóm sản phẩm',
         help_text='Mã nhóm trong danh mục Loại mã (SET-SC → SET).',
-    )
-    product_type = models.ForeignKey(
-        'kho_san_pham.ProductType', on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='tksp_dossiers', verbose_name='Loại sản phẩm',
     )
     collection = models.CharField(max_length=120, blank=True, default='', verbose_name='Bộ sưu tập / mùa bán hàng')
     target_customer = models.CharField(max_length=255, blank=True, default='', verbose_name='Khách hàng mục tiêu')
@@ -285,9 +280,6 @@ class ProductDevelopment(models.Model):
         from .catalog import group_label
 
         return group_label(self.product_group)
-
-    def get_product_type_display(self) -> str:
-        return self.product_type.name if self.product_type_id else ''
 
     @property
     def status_badge(self) -> str:

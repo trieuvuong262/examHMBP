@@ -14,7 +14,6 @@ ROLE_SCOPES = {
     Role.DESIGNER: {'divisions': ('THIẾT KẾ SẢN PHẨM',)},
     Role.TECHNICIAN: {'divisions': ('IE',)},
     Role.SAMPLE_MAKER: {'divisions': ('MAY MẪU',)},
-    Role.QA: {'departments': ('ĐẢM BẢO CHẤT LƯỢNG',)},
     Role.COSTING: {'departments': ('KẾ HOẠCH SẢN XUẤT',), 'divisions': ('KẾ TOÁN',)},
 }
 

@@ -78,7 +78,6 @@ ROLE_LABELS = {
     'designer': 'Thiết kế / R&D',
     'technician': 'Kỹ thuật / Tài liệu kỹ thuật',
     'sample_maker': 'May mẫu',
-    'qa_user': 'QA/QC',
     'costing_user': 'Kế hoạch / Giá thành',
 }
 
@@ -103,27 +102,23 @@ class RoleFieldsMixin:
             self.fields[role] = field
 
 
-class CatalogTypeChoiceField(forms.ModelChoiceField):
-    def label_from_instance(self, obj):
-        return f'{obj.code} — {obj.name}'
-
-
-class CatalogTypeSelect(forms.Select):
-    """Mỗi option mang data-group để lọc Loại theo Nhóm đã chọn."""
-
-    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
-        option = super().create_option(name, value, label, selected, index, subindex=subindex, attrs=attrs)
-        instance = getattr(value, 'instance', None)
-        if instance is not None:
-            option['attrs']['data-group'] = catalog.group_code(instance.code)
-        return option
+NEW_GROUP = '__new__'
 
 
 class DossierForm(RoleFieldsMixin, forms.ModelForm):
+    new_group_code = forms.CharField(
+        required=False, max_length=16, label='Mã nhóm mới',
+        widget=forms.TextInput(attrs={**_INPUT, 'placeholder': 'VD: RUN', 'style': 'text-transform: uppercase'}),
+    )
+    new_group_name = forms.CharField(
+        required=False, max_length=120, label='Tên nhóm mới',
+        widget=forms.TextInput(attrs={**_INPUT, 'placeholder': 'VD: Đồ chạy bộ'}),
+    )
+
     class Meta:
         model = ProductDevelopment
         fields = [
-            'name', 'product_group', 'product_type', 'collection', 'priority', 'launch_date',
+            'name', 'product_group', 'collection', 'priority', 'launch_date',
             'target_customer', 'usage_need', 'market_need', 'expected_qty',
             'target_wholesale_price', 'target_retail_price', 'target_cost',
             'reference_links', 'description',
@@ -152,23 +147,36 @@ class DossierForm(RoleFieldsMixin, forms.ModelForm):
         if instance.product_group and instance.product_group not in dict(group_choices):
             group_choices.append((instance.product_group, catalog.group_label(instance.product_group)))
         self.fields['product_group'] = forms.ChoiceField(
-            label='Nhóm sản phẩm', choices=[('', '— Chọn nhóm —'), *group_choices],
+            label='Nhóm sản phẩm',
+            choices=[('', '— Chọn nhóm —'), *group_choices, (NEW_GROUP, '+ Thêm nhóm mới…')],
             widget=forms.Select(attrs=_SELECT),
         )
-        self.fields['product_type'] = CatalogTypeChoiceField(
-            label='Loại sản phẩm', queryset=catalog.type_queryset(include_pk=instance.product_type_id),
-            empty_label='— Chọn loại —', widget=CatalogTypeSelect(attrs=_SELECT),
-        )
+        self.new_group = None
         self._add_role_fields({role: getattr(instance, f'{role}_id') for role in DOSSIER_ROLE_FIELDS})
         if not instance.pk and user is not None and not self.is_bound:
             self.initial.setdefault('owner', user.pk)
 
     def clean(self):
         data = super().clean()
-        group, ptype = data.get('product_group'), data.get('product_type')
-        if group and ptype and catalog.group_code(ptype.code) != group:
-            self.add_error('product_type', 'Loại sản phẩm không thuộc nhóm đã chọn.')
+        if data.get('product_group') != NEW_GROUP:
+            return data
+        code = catalog.normalize_group_code(data.get('new_group_code'))
+        name = (data.get('new_group_name') or '').strip()
+        if not catalog.GROUP_CODE_RE.match(code):
+            self.add_error('new_group_code', 'Mã nhóm 2–16 ký tự, chỉ gồm chữ không dấu và số (không dùng «-»).')
+        elif catalog.group_exists(code):
+            self.add_error('new_group_code', f'Nhóm {code} đã có — chọn trong danh sách.')
+        if not name:
+            self.add_error('new_group_name', 'Nhập tên nhóm mới.')
+        if not self.errors:
+            self.new_group = (code, name)
+            data['product_group'] = code
         return data
+
+    def create_new_group(self) -> None:
+        """Gọi sau is_valid(): thêm nhóm mới vào danh mục Loại mã nếu người dùng chọn «Thêm nhóm mới»."""
+        if self.new_group:
+            catalog.create_group(*self.new_group)
 
 
 class RolesForm(RoleFieldsMixin, forms.Form):

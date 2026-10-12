@@ -1,12 +1,14 @@
-"""Nhóm / loại sản phẩm theo danh mục Loại mã của Kho sản phẩm.
+"""Nhóm sản phẩm theo danh mục Loại mã của Kho sản phẩm.
 
-Loại sản phẩm = một Loại mã (TEE, SET-SC, ACC-BALO…). Nhóm sản phẩm = phần mã trước dấu «-»
-(SET-SC → SET, ACC-BALO → ACC, TEE → TEE).
+Nhóm sản phẩm = phần mã trước dấu «-» (SET-SC → SET, ACC-BALO → ACC, TEE → TEE).
 """
 
 from __future__ import annotations
 
+import re
+
 from django.core.cache import cache
+from django.db.models import Q
 
 from kho_san_pham.catalog_models import ProductType as CatalogType
 
@@ -44,8 +46,19 @@ def group_label(code: str) -> str:
     return group_labels().get(code, code)
 
 
-def type_queryset(include_pk=None):
-    qs = CatalogType.objects.filter(is_active=True)
-    if include_pk:
-        qs = CatalogType.objects.filter(pk=include_pk) | qs
-    return qs.order_by('sort_order', 'code')
+GROUP_CODE_RE = re.compile(r'^[A-Z0-9]{2,16}$')
+
+
+def normalize_group_code(code: str) -> str:
+    return (code or '').strip().upper()
+
+
+def group_exists(code: str) -> bool:
+    return CatalogType.objects.filter(Q(code=code) | Q(code__startswith=f'{code}-')).exists()
+
+
+def create_group(code: str, name: str) -> str:
+    """Thêm nhóm mới = Loại mã mới trong danh mục Kho sản phẩm; trả về mã nhóm."""
+    ptype, _created = CatalogType.objects.get_or_create(code=code, defaults={'name': name.strip()})
+    cache.delete(_LABELS_CACHE_KEY)
+    return group_code(ptype.code)

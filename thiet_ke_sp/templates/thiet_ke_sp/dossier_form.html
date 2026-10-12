@@ -23,7 +23,12 @@
         {% include 'thiet_ke_sp/includes/field.html' with field=form.name col='col-md-8' req=True %}
         {% include 'thiet_ke_sp/includes/field.html' with field=form.priority col='col-md-4' req=True %}
         {% include 'thiet_ke_sp/includes/field.html' with field=form.product_group col='col-md-4' req=True %}
-        {% include 'thiet_ke_sp/includes/field.html' with field=form.product_type col='col-md-4' req=True %}
+        <div class="col-md-4{% if form.product_group.value != '__new__' %} d-none{% endif %}" id="tk-new-group">
+          <div class="row g-2">
+            {% include 'thiet_ke_sp/includes/field.html' with field=form.new_group_code col='col-5' req=True %}
+            {% include 'thiet_ke_sp/includes/field.html' with field=form.new_group_name col='col-7' req=True %}
+          </div>
+        </div>
         {% include 'thiet_ke_sp/includes/field.html' with field=form.collection col='col-md-4' %}
         {% include 'thiet_ke_sp/includes/field.html' with field=form.target_customer col='col-md-8' req=True %}
         {% include 'thiet_ke_sp/includes/field.html' with field=form.launch_date col='col-md-4' req=True %}
@@ -64,10 +69,9 @@
         {% include 'thiet_ke_sp/includes/field.html' with field=form.owner col='col-md-4' req=True %}
         {% include 'thiet_ke_sp/includes/field.html' with field=form.approver col='col-md-4' req=True %}
         {% include 'thiet_ke_sp/includes/field.html' with field=form.designer col='col-md-4' %}
-        {% include 'thiet_ke_sp/includes/field.html' with field=form.technician col='col-md-3' %}
-        {% include 'thiet_ke_sp/includes/field.html' with field=form.sample_maker col='col-md-3' %}
-        {% include 'thiet_ke_sp/includes/field.html' with field=form.qa_user col='col-md-3' %}
-        {% include 'thiet_ke_sp/includes/field.html' with field=form.costing_user col='col-md-3' %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.technician col='col-md-4' %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.sample_maker col='col-md-4' %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.costing_user col='col-md-4' %}
       </div>
     </div>
 
@@ -87,24 +91,18 @@
 <script>
 (function () {
   var group = document.getElementById('{{ form.product_group.id_for_label }}');
-  var type = document.getElementById('{{ form.product_type.id_for_label }}');
-  if (!group || !type) return;
-  function syncTypes() {
-    var g = group.value;
-    var visible = [];
-    Array.prototype.forEach.call(type.options, function (o) {
-      if (!o.value) return;
-      var show = !!g && o.getAttribute('data-group') === g;
-      o.hidden = !show;
-      o.disabled = !show;
-      if (show) visible.push(o);
-    });
-    var current = type.options[type.selectedIndex];
-    if (current && current.disabled) type.value = '';
-    if (!type.value && visible.length === 1) type.value = visible[0].value;
+  var box = document.getElementById('tk-new-group');
+  if (!group || !box) return;
+  function syncNewGroup() {
+    var isNew = group.value === '__new__';
+    box.classList.toggle('d-none', !isNew);
+    if (isNew) {
+      var code = document.getElementById('{{ form.new_group_code.id_for_label }}');
+      if (code && !code.value) code.focus();
+    }
   }
-  group.addEventListener('change', syncTypes);
-  syncTypes();
+  group.addEventListener('change', syncNewGroup);
+  syncNewGroup();
 })();
 </script>
 {% endblock %}

@@ -138,7 +138,6 @@ def _step_tasks(dossier: ProductDevelopment, status: str) -> list[StepTask]:
         ],
         Status.SAMPLE_EVAL_PENDING: [
             StepTask(Role.OWNER, f'Tổng hợp đánh giá mẫu {sv_label} và trình duyệt mẫu chuẩn'),
-            StepTask(Role.QA, f'Đánh giá mẫu {sv_label} (QA/QC)', is_main=False, fallback_owner=False),
             StepTask(Role.COSTING, f'Đánh giá giá thành mẫu {sv_label}', is_main=False, fallback_owner=False),
         ],
         Status.MASTER_PENDING: [StepTask(Role.APPROVER, f'Duyệt mẫu chuẩn {sv_label}', fallback_owner=False)],
@@ -250,7 +249,6 @@ def current_main_task(dossier: ProductDevelopment) -> Task | None:
 BRIEF_REQUIRED = (
     ('name', 'tên sản phẩm'),
     ('product_group', 'nhóm sản phẩm'),
-    ('product_type', 'loại sản phẩm'),
     ('target_customer', 'khách hàng mục tiêu'),
     ('usage_need', 'nhu cầu sử dụng'),
     ('launch_date', 'ngày dự kiến ra mắt'),
@@ -673,8 +671,6 @@ def submit_sample(dossier: ProductDevelopment, user, *, due_at=None) -> None:
 def evaluator_roles_for(dossier: ProductDevelopment, user) -> list[str]:
     roles = perms.user_roles(dossier, user)
     result = []
-    if Role.QA in roles:
-        result.append(EvaluatorRole.QA)
     if Role.COSTING in roles:
         result.append(EvaluatorRole.COSTING)
     if Role.TECHNICIAN in roles:
@@ -706,7 +702,7 @@ def add_evaluation(dossier: ProductDevelopment, user, *, role: str, result: str,
             EvaluationItem(evaluation=ev, criterion=criterion, result=res, note=note)
             for criterion, (res, note) in items.items()
         ])
-        task_role = {EvaluatorRole.QA: Role.QA, EvaluatorRole.COSTING: Role.COSTING}.get(role)
+        task_role = {EvaluatorRole.COSTING: Role.COSTING}.get(role)
         if task_role:
             _complete_user_tasks(dossier, user, step=Status.SAMPLE_EVAL_PENDING, role=task_role)
         if ev.needs_fix:
@@ -818,8 +814,6 @@ def master_checklist(dossier: ProductDevelopment) -> list[tuple[str, bool]]:
          or atts.filter(kind=AttachmentKind.TECH_SPEC).exists()),
         ('BOM có nguyên phụ liệu chính', bool(pack and pack.material_lines.filter(is_main=True).exists())),
         ('Ảnh mẫu thực tế', atts.filter(kind=AttachmentKind.SAMPLE_PHOTO).exists()),
-        ('QA/QC đánh giá Đạt', any(e.role == EvaluatorRole.QA and e.result == SampleEvaluation.RESULT_PASS
-                                   for e in evaluations)),
         ('Không còn đánh giá Không đạt', not any(e.result == SampleEvaluation.RESULT_FAIL for e in evaluations)),
         ('Giá thành dự kiến hoặc sau mẫu', dossier.estimated_cost is not None or dossier.post_sample_cost is not None),
     ]

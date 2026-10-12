@@ -10,6 +10,7 @@ from urllib.parse import quote
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Case, F, IntegerField, OuterRef, Prefetch, Q, Subquery, Value, When
 from django.http import FileResponse, Http404, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
@@ -95,7 +96,7 @@ def _dossier_qs():
     return ProductDevelopment.objects.select_related(
         'proposer__profile', 'owner__profile', 'approver__profile', 'designer__profile',
         'technician__profile', 'sample_maker__profile', 'qa_user__profile', 'costing_user__profile',
-        'approved_design_version', 'final_sample_version', 'product_type',
+        'approved_design_version', 'final_sample_version',
     )
 
 
@@ -304,7 +305,9 @@ def dossier_create(request):
     if request.method == 'POST' and form.is_valid():
         submit = request.POST.get('submit_action') == 'submit'
         try:
-            dossier = wf.create_dossier(user, fields=_brief_fields(form), submit=False)
+            with transaction.atomic():
+                form.create_new_group()
+                dossier = wf.create_dossier(user, fields=_brief_fields(form), submit=False)
         except wf.WorkflowError as exc:
             messages.error(request, str(exc))
         else:
@@ -339,7 +342,9 @@ def dossier_edit(request, pk):
         fields = _brief_fields(form)
         dossier.refresh_from_db()
         try:
-            wf.update_brief(dossier, user, fields=fields)
+            with transaction.atomic():
+                form.create_new_group()
+                wf.update_brief(dossier, user, fields=fields)
             for upload in request.FILES.getlist('reference_files'):
                 wf.upload_attachment(dossier, user, uploaded_file=upload, kind=AttachmentKind.REFERENCE)
             if request.POST.get('submit_action') == 'submit':
