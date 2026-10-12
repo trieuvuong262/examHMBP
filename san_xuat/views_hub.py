@@ -1541,6 +1541,11 @@ def plan_board(request):
             order_id = 0
 
         try:
+            if order_id and action not in ('approve_cancel', 'reject_cancel'):
+                from san_xuat.services.cancel_request import pending_plan_order_ids
+
+                if order_id in pending_plan_order_ids():
+                    raise PlanningError('Đơn đang chờ duyệt hủy — không thao tác được.')
             if action == 'set_priority' and can_schedule and order_id:
                 set_plan_priority(
                     order_id=order_id,

@@ -323,9 +323,6 @@
   .jp-pb-act-item.is-danger { color: #b91c1c; }
   .jp-pb-act-item.is-danger > .bi { color: #dc2626; }
   .jp-pb-act-item.is-danger:hover { background: #fef2f2; color: #991b1b; }
-  .jp-pb-act-item.is-pending { cursor: default; opacity: 1; color: #92400e; }
-  .jp-pb-act-item.is-pending > .bi { color: #b45309; }
-  .jp-pb-act-item.is-pending:hover { background: transparent; }
   .jp-pb-side .btn,
   .jp-pb-tools .btn {
     display: inline-flex;
@@ -398,6 +395,23 @@
   }
   .jp-pb-prio-toggle[aria-expanded="true"] .jp-pb-prio-caret { transform: rotate(180deg); }
   .jp-pb-prio-menu { min-width: 10rem; }
+  .jp-pb-cancel-pending {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    height: var(--jp-sx-ctl-h-sm, 38px);
+    padding: 0 0.75rem;
+    border: 1px solid #fcd34d;
+    border-radius: 0.5rem;
+    background: #fef3c7;
+    color: #92400e;
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: not-allowed;
+  }
   .jp-pb-prio-opt { color: var(--prio) !important; }
   .jp-pb-prio-opt:hover, .jp-pb-prio-opt:focus { background: var(--prio-bg) !important; }
   .jp-pb-prio-opt.is-on { background: var(--prio-bg); font-weight: 700; }
@@ -1930,6 +1944,17 @@
         </div>
         {% include 'san_xuat/includes/plan_board_ticket_times.html' %}
         <div class="jp-pb-side">
+          {% if row.order.pk in pending_cancel_order_ids %}
+          <div class="jp-pb-side-cta">
+            <span class="jp-pb-prio-toggle jp-pb-prio is-{{ row.order.plan_priority }} is-static">
+              <span class="jp-pb-prio-dot" aria-hidden="true"></span>
+              <span>{{ row.order.get_plan_priority_display }}</span>
+            </span>
+            <span class="jp-pb-cancel-pending" title="Đơn đang chờ duyệt hủy — đã khoá thao tác">
+              <i class="bi bi-hourglass-split" aria-hidden="true"></i>Chờ duyệt hủy
+            </span>
+          </div>
+          {% else %}
           {% if can_schedule and row.order.plan_status == 'on_hold' %}
           <div class="jp-pb-tools">
             {% if can_schedule and row.order.plan_status == 'on_hold' %}
@@ -2031,12 +2056,6 @@
                 {% if can_request_plan_cancel %}
                 <li class="jp-pb-act-sep" role="separator"></li>
                 <li>
-                  {% if row.order.pk in pending_cancel_order_ids %}
-                  <span class="dropdown-item jp-pb-act-item is-pending">
-                    <i class="bi bi-hourglass-split" aria-hidden="true"></i>
-                    <span>Chờ duyệt hủy</span>
-                  </span>
-                  {% else %}
                   <button type="button" class="dropdown-item jp-pb-act-item is-danger"
                           data-jp-cancel-plan-open
                           data-order-id="{{ row.order.pk }}"
@@ -2044,7 +2063,6 @@
                     <i class="bi bi-x-octagon" aria-hidden="true"></i>
                     <span>Hủy kế hoạch</span>
                   </button>
-                  {% endif %}
                 </li>
                 {% endif %}
               </ul>
@@ -2099,12 +2117,6 @@
                 {% endif %}
                 {% if can_request_plan_cancel %}
                 <li>
-                  {% if row.order.pk in pending_cancel_order_ids %}
-                  <span class="dropdown-item jp-pb-act-item is-pending">
-                    <i class="bi bi-hourglass-split" aria-hidden="true"></i>
-                    <span>Chờ duyệt hủy</span>
-                  </span>
-                  {% else %}
                   <button type="button" class="dropdown-item jp-pb-act-item is-danger"
                           data-jp-cancel-plan-open
                           data-order-id="{{ row.order.pk }}"
@@ -2112,13 +2124,13 @@
                     <i class="bi bi-x-octagon" aria-hidden="true"></i>
                     <span>Hủy kế hoạch</span>
                   </button>
-                  {% endif %}
                 </li>
                 {% endif %}
               </ul>
             </div>
             {% endif %}
           </div>
+          {% endif %}
           {% endif %}
         </div>
       </div>
