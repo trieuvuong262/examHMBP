@@ -45,6 +45,7 @@ from .forms import (
     InterviewResultForm,
     JobPostingForm,
     OnboardForm,
+    RescheduleForm,
     ReviewForm,
     TransitionForm,
 )
@@ -65,11 +66,14 @@ from .permissions import (
     can_jobs,
     can_onboard,
     can_record_interview_result,
+    can_reschedule_interview,
     can_review_candidate,
     can_settings,
     can_view_candidate,
+    can_view_interview_schedule,
     final_queue,
     interview_queue,
+    interview_schedule_q,
     is_hiring_manager,
     is_interviewer,
     manager_can_access_job,
@@ -979,7 +983,7 @@ def _interview_range(request):
 
 def _interview_queryset(request):
     d_from, d_to = _interview_range(request)
-    qs = _interviews(request).select_related(
+    qs = Interview.objects.filter(interview_schedule_q(request.user)).select_related(
         'candidate', 'candidate__job_posting', 'candidate__job_posting__target_department',
     ).prefetch_related('interviewers__profile', 'candidate__files').filter(
         interview_time__date__gte=d_from, interview_time__date__lte=d_to,
@@ -993,24 +997,76 @@ def _interview_queryset(request):
     return qs.order_by('interview_time'), d_from, d_to
 
 
-@module_perm_required(MODULE_RECRUITMENT, 'view')
+def _interview_schedule_required(view_func):
+    """HR có quyền xem ứng viên hoặc người được giao phỏng vấn."""
+    @login_required
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not can_view_interview_schedule(request.user):
+            messages.error(request, 'Chức năng dành cho HR và người được giao phỏng vấn.')
+            return redirect('home_portal')
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
+
+@_interview_schedule_required
 def interview_list(request):
+    user = request.user
     qs, d_from, d_to = _interview_queryset(request)
     page_obj, query_string = paginate_queryset(request, qs)
+    is_hr = can_candidates(user, 'view')
+    interviews = list(page_obj.object_list)
+    for inv in interviews:
+        inv.can_reschedule = can_reschedule_interview(user, inv)
+    if is_hr:
+        jobs = _jobs(request).exclude(status=JobPosting.STATUS_DRAFT)
+    else:
+        jobs = JobPosting.objects.filter(candidates__interview__interviewers=user).distinct()
     return render(request, 'recruitment/admin/interview_list.html', {
-        'interviews': page_obj.object_list,
+        'interviews': interviews,
         'page_obj': page_obj,
         'query_string': query_string,
         'date_from': d_from,
         'date_to': d_to,
-        'jobs': _jobs(request).exclude(status=JobPosting.STATUS_DRAFT).order_by('title'),
+        'jobs': jobs.order_by('title'),
         'selected_job': request.GET.get('job_id', ''),
         'result_filter': request.GET.get('result', ''),
         'result_choices': Interview.RESULT_CHOICES,
-        'can_export': can_candidates(request.user, 'export'),
+        'can_export': can_candidates(user, 'export'),
+        'is_hr': is_hr,
+        'interview_locations': _interview_locations(),
         'now': timezone.now(),
         **date_range_span_context(d_from, d_to),
     })
+
+
+@login_required
+@require_POST
+def interview_reschedule(request, pk):
+    interview = get_object_or_404(
+        Interview.objects.select_related('candidate', 'candidate__job_posting'), pk=pk,
+    )
+    back = _safe_next(request, reverse('interview_list'))
+    if not can_reschedule_interview(request.user, interview):
+        messages.error(request, 'Bạn không được cập nhật buổi phỏng vấn này.')
+        return redirect(back)
+    form = RescheduleForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, 'Thời gian phỏng vấn không hợp lệ.')
+        return redirect(back)
+    d = form.cleaned_data
+    try:
+        interview = services.reschedule_interview(
+            interview, actor=request.user, interview_time=d['interview_time'],
+            interview_end=d['interview_end'], location=d['location'],
+        )
+    except services.RecruitmentError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(
+            request, f'{interview.candidate.full_name}: đã cập nhật lịch PV {interview.time_range_label}.',
+        )
+    return redirect(back)
 
 
 @module_perm_required(MODULE_RECRUITMENT, 'export')

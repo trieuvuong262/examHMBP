@@ -324,6 +324,12 @@ class TransitionForm(forms.Form):
     location = forms.CharField(label='Địa điểm', required=False, max_length=255, widget=forms.TextInput(attrs=_ctl()))
 
 
+class RescheduleForm(forms.Form):
+    interview_time = forms.DateTimeField(input_formats=['%Y-%m-%dT%H:%M'])
+    interview_end = forms.DateTimeField(input_formats=['%Y-%m-%dT%H:%M'])
+    location = forms.CharField(required=False, max_length=255)
+
+
 class InterviewResultForm(forms.Form):
     result = forms.ChoiceField(
         label='Kết quả',

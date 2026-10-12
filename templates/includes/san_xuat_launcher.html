@@ -199,6 +199,10 @@
   body.jp-sx-focus .jp-sidebar-footer {
     display: none !important;
   }
+  /* Ngoài focus SX: submenu Sản xuất chỉ mở qua popup, không bung trên thanh menu */
+  body:not(.jp-sx-focus) .jp-sx-group > .jp-sidebar-submenu {
+    display: none !important;
+  }
   /* Khi focus SX: luôn mở nhóm Sản xuất */
   body.jp-sx-focus .jp-sx-group > .jp-sidebar-submenu {
     display: block !important;
@@ -470,7 +474,6 @@
     }
   });
 
-  var area = detectArea();
-  if (area) applyFocus(area);
+  applyFocus(detectArea());
 })();
 </script>

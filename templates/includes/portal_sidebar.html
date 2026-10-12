@@ -98,7 +98,7 @@
                     </a>
                 </li>
                 {% endif %}
-                {% if jp_can_recruitment or jp_can_review_candidates %}
+                {% if jp_can_recruitment or jp_can_review_candidates or jp_can_interview_schedule %}
                 {% jp_can_menu 'recruitment' 'candidates' as jp_can_recruitment_candidates %}
                 {% jp_can_menu 'recruitment' 'jobs' as jp_can_recruitment_jobs %}
                 {% jp_can_menu 'recruitment' 'settings' as jp_can_recruitment_settings %}
@@ -146,6 +146,8 @@
                                 <i class="bi bi-kanban"></i><span>Ứng viên</span>
                             </a>
                         </li>
+                        {% endif %}
+                        {% if jp_can_recruitment_candidates or jp_can_interview_schedule %}
                         <li>
                             <a href="{% url 'interview_list' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if rc_url == 'interview_list' %}active{% endif %}">
@@ -661,7 +663,7 @@
         {% endif %}
         {% include 'includes/quan_ly_sp_sidebar.html' %}
         {% if jp_can_san_xuat %}
-        <li class="jp-sidebar-group jp-sx-group{% if 'san-xuat' in request.path or 'kho-npl' in request.path or 'kho-vat-tu' in request.path or 'kho-san-pham' in request.path or 'kiotviet' in request.path or is_production_scope %} is-open{% endif %}">
+        <li class="jp-sidebar-group jp-sx-group{% if '/kho-san-pham/thu-vien' not in request.path %}{% if 'san-xuat' in request.path or 'kho-npl' in request.path or 'kho-vat-tu' in request.path or 'kho-san-pham' in request.path or 'kiotviet' in request.path or is_production_scope %} is-open{% endif %}{% endif %}">
             <button type="button"
                     class="jp-sidebar-group-toggle"
                     data-jp-sx-launcher

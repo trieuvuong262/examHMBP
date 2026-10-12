@@ -323,6 +323,7 @@ URL_DESCRIPTIONS: dict[str, dict[str, str] | str] = {
     'candidate_interview_result': 'nhập kết quả phỏng vấn ứng viên #{pk}',
     'candidate_onboard': 'onboard ứng viên #{pk} thành nhân viên',
     'interview_list': 'xem lịch phỏng vấn',
+    'interview_reschedule': 'cập nhật lịch phỏng vấn #{pk}',
     'job_posting_status': 'đổi trạng thái vị trí tuyển dụng #{pk}',
     'recruitment_review_list': 'xem danh sách đánh giá ứng viên',
     'recruitment_review_candidate': {

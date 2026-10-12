@@ -208,6 +208,47 @@ def can_record_interview_result(user, candidate) -> bool:
     )
 
 
+def has_assigned_interviews(user) -> bool:
+    from recruitment.models import Interview
+
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    return Interview.objects.filter(interviewers=user).exists()
+
+
+def can_view_interview_schedule(user) -> bool:
+    """Trang Lịch phỏng vấn: HR có quyền xem ứng viên, hoặc người được giao phỏng vấn."""
+    return can_candidates(user, 'view') or has_assigned_interviews(user)
+
+
+def interview_schedule_q(user) -> Q:
+    """HR thấy lịch trong phạm vi vị trí; người phỏng vấn chỉ thấy buổi mình được giao."""
+    from recruitment.models import Interview
+
+    assigned = Q(pk__in=Interview.objects.filter(interviewers=user).values('pk'))
+    if not can_candidates(user, 'view'):
+        return assigned
+    scope = visible_scope(user)
+    if scope.all:
+        return Q()  # Q(a) | Q() == Q(a) trong Django — phải trả thẳng «không lọc»
+    return assigned | scope.job_q('candidate__job_posting__')
+
+
+def can_reschedule_interview(user, interview) -> bool:
+    """Đổi giờ / địa điểm buổi PV chưa có kết quả: người được giao phỏng vấn hoặc HR có quyền Sửa."""
+    from recruitment.models import Candidate, Interview
+
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    candidate = interview.candidate
+    if candidate.status != Candidate.STATUS_INTERVIEWING or interview.result != Interview.RESULT_PENDING:
+        return False
+    return (
+        any(u.pk == user.pk for u in interview.interviewers.all())  # tận dụng prefetch trên trang danh sách
+        or (can_candidates(user, 'update') and can_access_job(user, candidate.job_posting))
+    )
+
+
 def interview_queue(user):
     """Ứng viên đang chờ kết quả PV mà user là người phỏng vấn hoặc quản lý phụ trách vị trí."""
     from recruitment.models import Candidate, Interview, JobPosting

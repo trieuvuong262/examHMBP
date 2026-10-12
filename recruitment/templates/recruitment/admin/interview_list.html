@@ -12,7 +12,9 @@
         <i class="bi bi-file-earmark-excel"></i>Xuất Excel
       </a>
       {% endif %}
+      {% if is_hr %}
       <a href="{% url 'kanban_board' %}" class="btn btn-light btn-sm border"><i class="bi bi-kanban"></i>Ứng viên</a>
+      {% endif %}
     </div>
   </div>
 
@@ -64,6 +66,7 @@
             <th>Người phỏng vấn</th>
             <th class="text-center">Kết quả</th>
             <th class="text-center">CV</th>
+            <th class="text-end pe-3"><span class="visually-hidden">Thao tác</span></th>
           </tr>
         </thead>
         <tbody>
@@ -74,7 +77,7 @@
               <div class="small text-muted">{{ inv.interview_time|date:"d/m/Y" }}{% if inv.duration_label %} · {{ inv.duration_label }}{% endif %}</div>
             </td>
             <td>
-              <a href="{% url 'candidate_detail' inv.candidate.pk %}" class="fw-semibold">{{ inv.candidate.full_name }}</a>
+              <a href="{% if is_hr %}{% url 'candidate_detail' inv.candidate.pk %}{% else %}{% url 'recruitment_review_candidate' inv.candidate.pk %}{% endif %}" class="fw-semibold">{{ inv.candidate.full_name }}</a>
               <div class="small text-muted">{{ inv.candidate.phone }}</div>
             </td>
             <td>{{ inv.candidate.job_posting.title }}<div class="small text-muted">{{ inv.candidate.job_posting.department_label }}</div></td>
@@ -85,9 +88,20 @@
               {% include 'recruitment/includes/cv_button.html' with candidate=inv.candidate f=inv.candidate.primary_file label='Xem' %}
               {% if not inv.candidate.primary_file %}<span class="text-muted small">—</span>{% endif %}
             </td>
+            <td class="text-end pe-3">
+              {% if inv.can_reschedule %}
+              <button type="button" class="btn btn-outline-hm btn-sm fw-bold text-nowrap" data-rc-reschedule
+                      data-url="{% url 'interview_reschedule' inv.pk %}" data-name="{{ inv.candidate.full_name }}"
+                      data-start="{{ inv.interview_time|date:'Y-m-d\TH:i' }}"
+                      data-end="{% if inv.end_time %}{{ inv.end_time|date:'Y-m-d\TH:i' }}{% endif %}"
+                      data-location="{{ inv.location }}">
+                <i class="bi bi-pencil-square" aria-hidden="true"></i> Cập nhật
+              </button>
+              {% endif %}
+            </td>
           </tr>
           {% empty %}
-          <tr><td colspan="7" class="text-center text-muted small py-4">Không có lịch phỏng vấn trong khoảng này.</td></tr>
+          <tr><td colspan="8" class="text-center text-muted small py-4">Không có lịch phỏng vấn trong khoảng này.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -99,8 +113,101 @@
     {% endif %}
   </div>
 </div>
+
+<div class="modal fade" id="rcRescheduleModal" tabindex="-1" aria-labelledby="rcRescheduleTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="post" class="modal-content" id="rcRescheduleForm">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <div class="modal-header">
+        <h2 class="modal-title fs-6 fw-bold" id="rcRescheduleTitle">Cập nhật lịch phỏng vấn</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3 fw-semibold" id="rcRescheduleName"></p>
+        <div class="row g-2 mb-3">
+          <div class="col-sm-6">
+            <label class="form-label fw-semibold small" for="rcRsStart">Bắt đầu <span class="text-danger">*</span></label>
+            <input type="datetime-local" name="interview_time" id="rcRsStart" class="form-control" step="60" required>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label fw-semibold small" for="rcRsEnd">Kết thúc <span class="text-danger">*</span></label>
+            <input type="datetime-local" name="interview_end" id="rcRsEnd" class="form-control" step="60" required>
+          </div>
+          <div class="col-12 small text-muted" id="rcRsDuration" aria-live="polite"></div>
+        </div>
+        <label class="form-label fw-semibold small" for="rcRsLocation">Địa điểm</label>
+        <input type="text" name="location" id="rcRsLocation" class="form-control" maxlength="255"
+               list="rcRsLocations" autocomplete="off" placeholder="Chọn hoặc nhập địa điểm">
+        <datalist id="rcRsLocations">
+          {% for loc in interview_locations %}<option value="{{ loc.name }}">{% if loc.note %}{{ loc.note }}{% endif %}</option>{% endfor %}
+        </datalist>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Hủy</button>
+        <button type="submit" class="btn btn-hm btn-sm fw-bold">Lưu</button>
+      </div>
+    </form>
+  </div>
+</div>
 {% endblock %}
 {% block scripts %}
+<script>
+(function () {
+  var modalEl = document.getElementById('rcRescheduleModal');
+  if (!modalEl || !window.bootstrap) return;
+  var form = document.getElementById('rcRescheduleForm');
+  var startEl = document.getElementById('rcRsStart');
+  var endEl = document.getElementById('rcRsEnd');
+  var durEl = document.getElementById('rcRsDuration');
+  var duration = 0;
+
+  function parseLocal(v) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(v || '');
+    return m ? new Date(+m[1], m[2] - 1, +m[3], +m[4], +m[5]) : null;
+  }
+  function toLocal(d) {
+    function p(n) { return (n < 10 ? '0' : '') + n; }
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+  function refresh() {
+    var s = parseLocal(startEl.value), e = parseLocal(endEl.value);
+    endEl.setCustomValidity('');
+    durEl.textContent = '';
+    if (!s || !e) return;
+    var min = Math.round((e - s) / 60000);
+    if (min <= 0) {
+      endEl.setCustomValidity('Thời gian kết thúc phải sau thời gian bắt đầu.');
+      return;
+    }
+    duration = min;
+    var h = Math.floor(min / 60), m = min % 60;
+    durEl.textContent = 'Thời lượng: ' + (h && m ? h + ' giờ ' + m + ' phút' : (h ? h + ' giờ' : m + ' phút'));
+  }
+  // Đổi giờ bắt đầu thì giữ nguyên thời lượng cũ.
+  startEl.addEventListener('change', function () {
+    var s = parseLocal(startEl.value);
+    if (s && duration > 0) endEl.value = toLocal(new Date(s.getTime() + duration * 60000));
+    refresh();
+  });
+  endEl.addEventListener('change', refresh);
+  endEl.addEventListener('input', refresh);
+
+  document.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('[data-rc-reschedule]');
+    if (!btn) return;
+    form.reset();
+    form.action = btn.dataset.url;
+    document.getElementById('rcRescheduleName').textContent = btn.dataset.name;
+    startEl.value = btn.dataset.start;
+    endEl.value = btn.dataset.end || '';
+    document.getElementById('rcRsLocation').value = btn.dataset.location || '';
+    duration = 60;
+    refresh();
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+  });
+})();
+</script>
 {% include 'recruitment/includes/cv_viewer.html' %}
 {% include 'recruitment/includes/rc_date_scripts.html' %}
 {% include 'includes/date_range_span_script.html' %}

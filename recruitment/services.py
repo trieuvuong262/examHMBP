@@ -456,6 +456,29 @@ def transition(candidate, to_status: str, *, actor, reason: str = '',
     return candidate
 
 
+@transaction.atomic
+def reschedule_interview(interview, *, actor, interview_time, interview_end, location: str = '') -> Interview:
+    """Đổi giờ / địa điểm buổi PV chưa có kết quả (quyền kiểm tra ở view)."""
+    interview = Interview.objects.select_for_update().select_related('candidate').get(pk=interview.pk)
+    candidate = interview.candidate
+    if candidate.status != C.STATUS_INTERVIEWING or interview.result != Interview.RESULT_PENDING:
+        raise RecruitmentError('Chỉ cập nhật được buổi phỏng vấn chưa có kết quả.')
+    validate_interview_slot(interview_time, interview_end)
+    location = (location or '').strip()
+    old_label, old_location = interview.time_range_label, interview.location
+    interview.interview_time = interview_time
+    interview.end_time = interview_end
+    interview.location = location
+    interview.save(update_fields=['interview_time', 'end_time', 'location'])
+    if (old_label, old_location) == (interview.time_range_label, location):
+        return interview
+    message = f'Đổi lịch PV: {old_label} → {interview.time_range_label} ({interview.duration_label})'
+    if location != old_location:
+        message += f' · Địa điểm: {location or "—"}'
+    _log(candidate, CandidateEvent.KIND_INTERVIEW, actor=actor, message=message)
+    return interview
+
+
 @dataclass
 class InterviewOutcome:
     candidate: Candidate

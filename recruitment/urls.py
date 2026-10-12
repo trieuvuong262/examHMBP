@@ -31,6 +31,7 @@ urlpatterns = [
     path('ho-so-ung-vien/<int:pk>/', views.candidate_file, name='recruitment_file'),
     path('admin/recruitment/interviews/', views.interview_list, name='interview_list'),
     path('admin/recruitment/interviews/export/', views.export_interviews_excel, name='export_interviews_excel'),
+    path('admin/recruitment/interviews/<int:pk>/cap-nhat/', views.interview_reschedule, name='interview_reschedule'),
     # Trưởng bộ phận / Trưởng phòng / Giám đốc — view tự kiểm tra vai trò
     path('danh-gia-ung-vien/', views.review_list, name='recruitment_review_list'),
     path('danh-gia-ung-vien/de-xuat/', views.refer_candidate, name='recruitment_refer_candidate'),

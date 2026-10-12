@@ -242,6 +242,8 @@ EXEMPT_PATH_PREFIXES = (
     '/tien-ich/dat-lich/',
     # Trưởng BP / Trưởng phòng / GĐ đề xuất & đánh giá ứng viên — view tự kiểm tra vai trò + phạm vi phòng ban
     '/hr/danh-gia-ung-vien/',
+    # Lịch phỏng vấn — view tự kiểm tra (HR trong phạm vi / người được giao phỏng vấn; xuất Excel cần quyền HR)
+    '/hr/admin/recruitment/interviews/',
     # File hồ sơ ứng viên — view tự kiểm tra (HR / quản lý đúng phòng / người phỏng vấn)
     '/hr/ho-so-ung-vien/',
 )
