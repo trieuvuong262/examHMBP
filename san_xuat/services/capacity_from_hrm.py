@@ -315,6 +315,199 @@ def sync_routing_lines_department_from_groups(*, routing_id: int | None = None) 
     return {'updated': updated, 'skipped': skipped, 'unresolved': unresolved}
 
 
+def _stage_text(raw: str) -> str:
+    text = (raw or '').strip()
+    if not text:
+        return ''
+    return normalize_ie_group_department_label(text) or text
+
+
+def operation_own_department_label(op) -> str:
+    """Nhãn bộ phận ghi trên chính công đoạn, không lấy nhãn của nhóm."""
+    if op is None:
+        return ''
+    return _stage_text(getattr(op, 'process_stage_label', None) or '')
+
+
+def _target_route_department(line, groups: dict):
+    """Bộ phận của một dòng OB/đơn.
+
+    Công đoạn có bộ phận riêng (ví dụ In nhiệt) thì dùng bộ phận đó khi dòng
+    vẫn đang để bộ phận mặc định của nhóm. Dòng đã chọn bộ phận khác (QC trên
+    bước kiểm) thì giữ nguyên. Khóa bộ phận luôn khớp nhãn, không đoán từ tên
+    công đoạn («Cắt chỉ» không phải bộ phận Cắt).
+    """
+    op = getattr(line, 'operation', None)
+    grp = op.group if op is not None and getattr(op, 'group_id', None) else None
+    if grp is None:
+        code = (getattr(line, 'group_code', None) or '').strip()
+        grp = groups.get(code.casefold()) if code else None
+    op_own = operation_own_department_label(op)
+    grp_label = _stage_text(getattr(grp, 'process_stage_label', None) or '') if grp is not None else ''
+    stored = (getattr(line, 'work_center_code', None) or '').strip()
+    line_wc = resolve_work_center_code(stored) if stored else None
+    grp_wc = resolve_work_center_code(grp_label) if grp_label else None
+    if op_own and grp_label and op_own.casefold() != grp_label.casefold():
+        on_group = line_wc is None or (
+            grp_wc is not None and line_wc.pk == grp_wc.pk
+        ) or stored.casefold() == grp_label.casefold()
+        if on_group:
+            wc = resolve_work_center_code(op_own)
+            if wc is None and op is not None:
+                wc = work_center_for_operation(op)
+            if wc is not None:
+                return op_own[:40], wc
+    if line_wc is not None:
+        return stored[:40], line_wc
+    if op is not None:
+        label = department_label_for_operation(op)
+        wc = work_center_for_operation(op)
+        if wc is not None:
+            return (label or stored)[:40], wc
+    if grp_wc is not None:
+        return grp_label[:40], grp_wc
+    return '', None
+
+
+def _write_line_department(line, groups: dict) -> str:
+    label, wc = _target_route_department(line, groups)
+    if wc is None:
+        return 'unresolved'
+    stored = (line.work_center_code or '').strip()
+    stored_wc = resolve_work_center_code(stored) if stored else None
+    if stored_wc is not None and stored_wc.pk == wc.pk:
+        code_out = stored[:40]
+    else:
+        code_out = (label or stored or (wc.code or ''))[:40]
+    if line.work_center_id == wc.pk and stored == code_out:
+        return 'skipped'
+    type(line).objects.filter(pk=line.pk).update(
+        work_center_id=wc.pk,
+        work_center_code=code_out,
+    )
+    return 'updated'
+
+
+def _retarget_day_plan(plan, new_slug: str, new_wc_id: int | None) -> None:
+    from san_xuat.hub_models import SxOrderTeamDayPlan
+
+    new_slug = (new_slug or plan.team_slug or '').strip().lower()[:40]
+    if (plan.team_slug or '') == new_slug and plan.work_center_id == new_wc_id:
+        return
+    clash = (
+        SxOrderTeamDayPlan.objects.filter(
+            sales_order_id=plan.sales_order_id,
+            team_slug=new_slug,
+            plan_date=plan.plan_date,
+            work_center_id=new_wc_id,
+        )
+        .exclude(pk=plan.pk)
+        .first()
+    )
+    if clash is not None:
+        clash.qty = (clash.qty or 0) + (plan.qty or 0)
+        clash.save(update_fields=['qty'])
+        plan.delete()
+        return
+    plan.team_slug = new_slug
+    plan.work_center_id = new_wc_id
+    plan.save(update_fields=['team_slug', 'work_center'])
+
+
+def align_route_departments() -> dict[str, int]:
+    """Gắn bộ phận OB, đơn và lộ trình theo công đoạn — không gộp May với Cắt."""
+    from san_xuat.hub_models import (
+        SxOrderTeamDayPlan,
+        SxSalesOrderPlanStep,
+        SxSalesOrderRoutingLine,
+    )
+    from san_xuat.ie_models import SxOperationGroup, SxRoutingLine
+    from san_xuat.services.inter_step_times import _group_slug_scope, _step_team_slug
+
+    groups = {
+        (g.code or '').strip().casefold(): g
+        for g in SxOperationGroup.objects.select_related('default_work_center')
+        if (g.code or '').strip()
+    }
+    stats = {
+        'ob_updated': 0,
+        'ob_skipped': 0,
+        'ob_unresolved': 0,
+        'order_updated': 0,
+        'order_skipped': 0,
+        'order_unresolved': 0,
+        'plan_updated': 0,
+        'day_moved': 0,
+    }
+    with transaction.atomic():
+        for line in SxRoutingLine.objects.select_related(
+            'operation', 'operation__group', 'work_center',
+        ).iterator():
+            stats[f'ob_{_write_line_department(line, groups)}'] += 1
+        for line in SxSalesOrderRoutingLine.objects.select_related(
+            'operation', 'operation__group', 'work_center', 'sales_order_line',
+        ).iterator():
+            stats[f'order_{_write_line_department(line, groups)}'] += 1
+
+        targets: dict[tuple, set[int]] = {}
+        for ln in SxSalesOrderRoutingLine.objects.select_related('sales_order_line').iterator():
+            if not ln.work_center_id:
+                continue
+            key = (
+                int(ln.sales_order_line.order_id),
+                (ln.group_code or '').strip().casefold(),
+                (ln.op_name_vi or '').strip().casefold(),
+            )
+            targets.setdefault(key, set()).add(int(ln.work_center_id))
+        for step in SxSalesOrderPlanStep.objects.iterator():
+            key = (
+                int(step.sales_order_id),
+                (step.group_code or '').strip().casefold(),
+                (step.process_name or '').strip().casefold(),
+            )
+            wcs = targets.get(key) or set()
+            if len(wcs) != 1:
+                continue
+            wid = next(iter(wcs))
+            if step.work_center_id == wid:
+                continue
+            SxSalesOrderPlanStep.objects.filter(pk=step.pk).update(work_center_id=wid)
+            stats['plan_updated'] += 1
+
+        wc_slugs: dict[tuple[int, int], set[str]] = {}
+        slug_wcs: dict[tuple[int, str], set[int]] = {}
+        routed = SxSalesOrderRoutingLine.objects.select_related(
+            'work_center', 'sales_order_line',
+        ).filter(total_operation_smv__gt=0)
+        with _group_slug_scope():
+            for ln in routed.iterator():
+                if not ln.work_center_id:
+                    continue
+                slug = (_step_team_slug(ln) or '').strip().lower()
+                if not slug:
+                    continue
+                oid = int(ln.sales_order_line.order_id)
+                wid = int(ln.work_center_id)
+                wc_slugs.setdefault((oid, wid), set()).add(slug)
+                slug_wcs.setdefault((oid, slug), set()).add(wid)
+        for plan in SxOrderTeamDayPlan.objects.iterator():
+            oid = int(plan.sales_order_id)
+            slug = (plan.team_slug or '').strip().lower()
+            wid = int(plan.work_center_id or 0)
+            owners = wc_slugs.get((oid, wid), set()) if wid else set()
+            if wid and slug in owners:
+                continue
+            if wid and len(owners) == 1:
+                _retarget_day_plan(plan, next(iter(owners)), wid)
+                stats['day_moved'] += 1
+                continue
+            wcs = slug_wcs.get((oid, slug), set())
+            if wid and wid not in wcs and len(wcs) == 1:
+                _retarget_day_plan(plan, slug, next(iter(wcs)))
+                stats['day_moved'] += 1
+    return stats
+
+
 def remap_ie_master_to_hr() -> dict[str, int]:
     """Gắn lại nhóm công đoạn + dòng routing từ WC IE → bộ phận HRD-*."""
     from san_xuat.ie_models import SxOperationGroup, SxRoutingLine

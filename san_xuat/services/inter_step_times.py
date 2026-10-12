@@ -285,29 +285,44 @@ def attach_group_codes_from_routing(steps, routing_lines) -> None:
 
 
 def _step_team_slug(step) -> str | None:
-    """Slug bộ phận (cat/may/…) từ trường Nhóm thư viện công đoạn chuẩn."""
+    """Slug bộ phận trên lộ trình.
+
+    Nhóm thư viện quyết định slug khi bộ phận của bước trùng nhóm. Bước thuộc
+    bộ phận khác (In nhiệt nằm trong nhóm Cắt, kiểm QC nằm trong nhóm May) đi
+    theo đúng bộ phận đó, mỗi bộ phận một dòng.
+    """
     if step is None:
         return None
+    group_slug = None
     group_code = _step_group_code(step)
     if group_code:
         mapping = _GROUP_SLUGS.get()
         if mapping is None:
             mapping = _load_group_slugs()
         slug = mapping.get(group_code.casefold())
-        if slug:
-            return _norm_slug(slug)
-        from san_xuat.services.team_personnel import _group_code_slug
+        if not slug:
+            from san_xuat.services.team_personnel import _group_code_slug
 
-        slug = _group_code_slug(group_code)
+            slug = _group_code_slug(group_code)
         if slug:
-            return _norm_slug(slug)
+            group_slug = _norm_slug(slug)
     wc = _step_attr(step, 'work_center')
     if wc is not None:
-        from san_xuat.services.capacity_from_hrm import team_slug_for_work_center
+        from san_xuat.services.capacity_from_hrm import (
+            division_id_from_work_center_code,
+            team_slug_for_work_center,
+        )
 
-        slug = team_slug_for_work_center(wc)
-        if slug:
-            return _norm_slug(slug)
+        wc_slug = _norm_slug(team_slug_for_work_center(wc))
+        if wc_slug and group_slug and wc_slug != group_slug:
+            did = division_id_from_work_center_code(getattr(wc, 'code', '') or '')
+            if did:
+                return _norm_slug(f'd{did}')
+            return wc_slug
+        if wc_slug and not group_slug:
+            return wc_slug
+    if group_slug:
+        return group_slug
     label = (_step_attr(step, 'team_label') or '').strip()
     if not label and wc is not None:
         label = (getattr(wc, 'team_label', None) or getattr(wc, 'name', None) or '').strip()
