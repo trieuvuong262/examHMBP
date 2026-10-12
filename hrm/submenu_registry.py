@@ -23,6 +23,7 @@ from hrm.module_permissions import (
     MODULE_KIOTVIET,
     MODULE_SAN_XUAT,
     MODULE_THIET_KE_SP,
+    MODULE_RA_MAT_SP,
     MODULE_NAS_STORAGE,
     MODULE_RECRUITMENT,
     MODULE_REPORTS,
@@ -131,6 +132,19 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         },
         {'key': 'my_tasks', 'label': 'Việc chờ tôi xử lý', 'icon': 'bi-inbox-fill', 'perm_view_only': True},
         {'key': 'reports', 'label': 'Báo cáo', 'icon': 'bi-graph-up', 'perm_view_only': True},
+        {'key': 'settings', 'label': 'Thiết lập', 'icon': 'bi-gear'},
+    ],
+    MODULE_RA_MAT_SP: [
+        {'key': 'dashboard', 'label': 'Tổng quan', 'icon': 'bi-speedometer2', 'perm_view_only': True},
+        {'key': 'plans', 'label': 'Kế hoạch ra mắt', 'icon': 'bi-rocket-takeoff'},
+        {'key': 'calendar', 'label': 'Lịch ra mắt', 'icon': 'bi-calendar3', 'perm_view_only': True},
+        {'key': 'my_tasks', 'label': 'Việc của tôi', 'icon': 'bi-inbox-fill', 'perm_view_only': True},
+        {
+            'key': 'approve',
+            'label': 'Chờ tôi duyệt',
+            'perm_label': 'Chờ tôi duyệt (Sửa = được làm Người duyệt Go/No-Go)',
+            'icon': 'bi-check2-circle',
+        },
         {'key': 'settings', 'label': 'Thiết lập', 'icon': 'bi-gear'},
     ],
     MODULE_TIEN_DO: [
@@ -582,6 +596,12 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/thiet-ke-san-pham/ho-so', MODULE_THIET_KE_SP, 'dossiers'),
     ('/thiet-ke-san-pham/tep', MODULE_THIET_KE_SP, 'dossiers'),
     ('/thiet-ke-san-pham/', MODULE_THIET_KE_SP, 'dashboard'),
+    ('/ke-hoach-ra-mat/thiet-lap', MODULE_RA_MAT_SP, 'settings'),
+    ('/ke-hoach-ra-mat/cho-duyet', MODULE_RA_MAT_SP, 'approve'),
+    ('/ke-hoach-ra-mat/viec-cua-toi', MODULE_RA_MAT_SP, 'my_tasks'),
+    ('/ke-hoach-ra-mat/lich', MODULE_RA_MAT_SP, 'calendar'),
+    ('/ke-hoach-ra-mat/ke-hoach', MODULE_RA_MAT_SP, 'plans'),
+    ('/ke-hoach-ra-mat/', MODULE_RA_MAT_SP, 'dashboard'),
     ('/tien-do/website-si-le', MODULE_TIEN_DO, 'wholesale_retail'),
     ('/tien-do/portal', MODULE_TIEN_DO, 'portal'),
     ('/tien-do/', MODULE_TIEN_DO, 'portal'),
@@ -631,6 +651,19 @@ MENU_PATH_ACCESS_ALIASES: dict[tuple[str, str], tuple[str, ...]] = {
     (MODULE_THIET_KE_SP, 'my_tasks'): ('dossiers', 'approve'),
     (MODULE_THIET_KE_SP, 'kanban'): ('dossiers',),
     (MODULE_THIET_KE_SP, 'reports'): ('dashboard',),
+    (MODULE_RA_MAT_SP, 'plans'): ('approve', 'my_tasks'),
+    (MODULE_RA_MAT_SP, 'dashboard'): ('plans', 'approve'),
+    (MODULE_RA_MAT_SP, 'calendar'): ('plans', 'dashboard'),
+    (MODULE_RA_MAT_SP, 'my_tasks'): ('plans', 'approve'),
+}
+
+_RA_MAT_SP_MENU_ACTIONS: dict[str, frozenset[str]] = {
+    'dashboard': frozenset({'view'}),
+    'plans': frozenset({'view', 'create', 'update', 'delete'}),
+    'calendar': frozenset({'view'}),
+    'my_tasks': frozenset({'view'}),
+    'approve': frozenset({'view', 'update'}),
+    'settings': frozenset({'view', 'update'}),
 }
 
 _THIET_KE_SP_MENU_ACTIONS: dict[str, frozenset[str]] = {
@@ -737,6 +770,8 @@ def submenu_supported_actions(module_key: str, menu_key: str) -> frozenset[str]:
         return _SAN_XUAT_MENU_ACTIONS.get(menu_key, frozenset({'view'}))
     if module_key == MODULE_THIET_KE_SP:
         return _THIET_KE_SP_MENU_ACTIONS.get(menu_key, frozenset({'view'}))
+    if module_key == MODULE_RA_MAT_SP:
+        return _RA_MAT_SP_MENU_ACTIONS.get(menu_key, frozenset({'view'}))
     if module_key == MODULE_UTILITIES and menu_key == 'trip_schedule':
         return frozenset({'view', 'create', 'update', 'delete', 'export'})
     if module_key == MODULE_RECRUITMENT and menu_key in ('jobs', 'settings'):

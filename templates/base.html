@@ -52,13 +52,13 @@
     <link rel="stylesheet" href="{% static 'css/gotham.css' %}?v=20260811f">
     <link rel="stylesheet" href="{% static 'css/justplay-theme.css' %}?v=20261008a">
     {% block extra_head %}{% endblock %}
-    {% if '/san-xuat/' in request.path or '/thiet-ke-san-pham/' in request.path %}
+    {% if '/san-xuat/' in request.path or '/thiet-ke-san-pham/' in request.path or '/ke-hoach-ra-mat/' in request.path or '/kho-san-pham/thu-vien' in request.path %}
     {% include 'san_xuat/includes/sx_ui_polish.html' %}
     {% endif %}
     <script src="{% static 'js/client-device.js' %}?v=20260813a"></script>
 </head>
 
-<body class="{% if user.is_authenticated and not jp_force_password_change %}jp-auth jp-has-sidebar jp-has-amis-header{% else %}jp-guest{% endif %}{% if '/san-xuat/' in request.path or '/thiet-ke-san-pham/' in request.path or is_production_scope %} jp-sx-module{% endif %}"{% if is_production_scope %} data-eq-scope="production"{% endif %}>
+<body class="{% if user.is_authenticated and not jp_force_password_change %}jp-auth jp-has-sidebar jp-has-amis-header{% else %}jp-guest{% endif %}{% if '/san-xuat/' in request.path or '/thiet-ke-san-pham/' in request.path or '/ke-hoach-ra-mat/' in request.path or '/kho-san-pham/thu-vien' in request.path or is_production_scope %} jp-sx-module{% endif %}{% if '/thiet-ke-san-pham/' in request.path or '/ke-hoach-ra-mat/' in request.path or '/kho-san-pham/thu-vien' in request.path %} jp-qlsp-module{% endif %}"{% if is_production_scope %} data-eq-scope="production"{% endif %}>
 
 {% if user.is_authenticated and not jp_force_password_change %}
 <div class="jp-app-shell">
@@ -250,10 +250,13 @@ window.JP_MEAL_PUSH = window.JP_PORTAL_PUSH;
 {% if jp_can_san_xuat %}
 {% include 'includes/san_xuat_launcher.html' %}
 {% endif %}
+{% if jp_can_thiet_ke_sp or jp_can_ra_mat_sp or jp_can_kho_san_pham %}
+{% include 'includes/quan_ly_sp_launcher.html' %}
+{% endif %}
 {% if '/san-xuat/' in request.path %}
 {% include 'san_xuat/includes/sx_ui_polish_scripts.html' %}
 {% include 'san_xuat/includes/sx_date_range_filter_scripts.html' %}
-{% elif '/thiet-ke-san-pham/' in request.path %}
+{% elif '/thiet-ke-san-pham/' in request.path or '/ke-hoach-ra-mat/' in request.path or '/kho-san-pham/thu-vien' in request.path %}
 {% include 'san_xuat/includes/sx_ui_polish_scripts.html' %}
 {% endif %}
 </body>

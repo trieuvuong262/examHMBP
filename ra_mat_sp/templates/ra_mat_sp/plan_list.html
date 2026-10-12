@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}Kế hoạch ra mắt sản phẩm{% endblock %}
+{% block extra_head %}{% include 'ra_mat_sp/includes/rm_styles.html' %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-sx-page jp-tksp py-3 py-md-4 mb-5 px-3 px-lg-4">
+  {% include 'ra_mat_sp/includes/rm_topbar.html' with rm_title='Kế hoạch ra mắt sản phẩm' %}
+
+  <div class="tk-card tk-panel mb-3">
+    <div class="tk-chips mb-2">
+      {% for key, label in quick_filters %}
+      <a class="btn btn-sm {% if quick == key %}btn-dark{% else %}btn-outline-secondary{% endif %}" href="?quick={{ key }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if group %}&group={{ group }}{% endif %}{% if coordinator %}&coordinator={{ coordinator }}{% endif %}">{{ label }}</a>
+      {% endfor %}
+    </div>
+    <form method="get" class="tk-toolbar">
+      <input type="hidden" name="quick" value="{{ quick }}">
+      <input type="search" name="q" value="{{ q }}" class="form-control form-control-sm tk-search" placeholder="Tìm mã, tên kế hoạch, mã / tên hồ sơ…">
+      <select name="group" class="form-select form-select-sm" onchange="this.form.submit()">
+        <option value="">Mọi nhóm sản phẩm</option>
+        {% for code, label in group_choices %}<option value="{{ code }}"{% if group == code %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+      <select name="coordinator" class="form-select form-select-sm" onchange="this.form.submit()">
+        <option value="">Mọi người điều phối</option>
+        {% for pk, name in coordinators %}<option value="{{ pk }}"{% if coordinator == pk|stringformat:'s' %} selected{% endif %}>{{ name }}</option>{% endfor %}
+      </select>
+      <button class="btn btn-sm btn-outline-secondary" type="submit"><i class="bi bi-search"></i> Lọc</button>
+      <span class="tk-count">{{ plans|length }} kế hoạch</span>
+    </form>
+  </div>
+
+  <div class="tk-card tk-panel">
+    {% include 'ra_mat_sp/includes/plan_table.html' with plans=plans empty_text='Không có kế hoạch phù hợp bộ lọc.' %}
+  </div>
+</div>
+{% endblock %}

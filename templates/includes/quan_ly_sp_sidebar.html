@@ -1,0 +1,288 @@
+{# Nhóm «Quản lý sản phẩm»: Thiết kế sản phẩm · Kế hoạch ra mắt · Thư viện sản phẩm — mở popup chọn chức năng. #}
+{% load menu_perms %}
+{% jp_can_menu 'kho_san_pham' 'products' as jp_can_qlsp_library %}
+{% jp_can_menu 'kho_san_pham' 'code_settings' as jp_can_qlsp_codes %}
+{% jp_can_menu 'kho_san_pham' 'stock' as jp_can_qlsp_stock %}
+{% jp_can_menu 'kho_san_pham' 'receipts' as jp_can_qlsp_receipts %}
+{% if jp_can_thiet_ke_sp or jp_can_ra_mat_sp or jp_can_qlsp_library or jp_can_qlsp_codes %}
+<li class="jp-sidebar-group jp-qlsp-group{% if '/thiet-ke-san-pham/' in request.path or '/ke-hoach-ra-mat/' in request.path or '/kho-san-pham/thu-vien' in request.path %} is-open{% endif %}">
+    <button type="button"
+            class="jp-sidebar-group-toggle"
+            data-jp-qlsp-launcher
+            aria-haspopup="dialog"
+            aria-controls="jpQlspLauncher"
+            title="Mở menu Quản lý sản phẩm">
+        <span class="jp-sidebar-group-toggle-main">
+            <span class="jp-sidebar-link-icon">
+                <i class="bi bi-bag-heart"></i>
+                {% with tk_n=tksp_my_task_count|default:0 rm_n=rmsp_my_task_count|default:0 %}
+                {% with qlsp_badge=tk_n|add:rm_n %}
+                {% if qlsp_badge %}
+                <span class="jp-sidebar-notify" aria-label="{{ qlsp_badge }} việc quản lý sản phẩm chờ xử lý">
+                    {% if qlsp_badge > 99 %}99+{% else %}{{ qlsp_badge }}{% endif %}
+                </span>
+                {% endif %}
+                {% endwith %}
+                {% endwith %}
+            </span>
+            <span>Quản lý sản phẩm</span>
+        </span>
+        <i class="bi bi-grid-3x3-gap jp-sidebar-group-chevron" aria-hidden="true"></i>
+    </button>
+    <ul class="jp-sidebar-submenu" id="jp-sidebar-qlsp-submenu">
+        <li class="jp-qlsp-switch-wrap">
+            <div class="jp-qlsp-focus-tools">
+                <a href="{% url 'home_portal' %}" title="Về trang chủ portal">
+                    <i class="bi bi-house" aria-hidden="true"></i><span>Portal</span>
+                </a>
+                <button type="button" data-jp-qlsp-launcher title="Đổi chức năng Quản lý sản phẩm">
+                    <i class="bi bi-grid-3x3-gap" aria-hidden="true"></i><span>Đổi chức năng</span>
+                </button>
+            </div>
+        </li>
+
+        {# —— 1. Thiết kế sản phẩm —— #}
+        {% if jp_can_thiet_ke_sp %}
+        <li class="jp-sidebar-nested-group{% if '/thiet-ke-san-pham/' in request.path %} is-open{% endif %}"
+            data-qlsp-area="design" data-qlsp-icon="bi-palette" data-qlsp-label="Thiết kế sản phẩm"
+            data-qlsp-desc="Đề xuất, thiết kế, làm mẫu, duyệt sản xuất"
+            data-qlsp-href="{% if tksp_menu.dashboard %}{% url 'thiet_ke_sp:dashboard' %}{% elif tksp_menu.dossiers %}{% url 'thiet_ke_sp:list' %}{% elif tksp_menu.my_tasks %}{% url 'thiet_ke_sp:my_tasks' %}{% else %}{% url 'thiet_ke_sp:list' %}{% endif %}">
+            <button type="button" class="jp-sidebar-nested-toggle" data-jp-sidebar-group-toggle
+                    aria-expanded="{% if '/thiet-ke-san-pham/' in request.path %}true{% else %}false{% endif %}"
+                    aria-controls="jp-sidebar-qlsp-design-submenu">
+                <span class="jp-sidebar-nested-toggle-main">
+                    <i class="bi bi-palette"></i><span>Thiết kế sản phẩm</span>
+                </span>
+                <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
+            </button>
+            <ul class="jp-sidebar-nested-submenu" id="jp-sidebar-qlsp-design-submenu">
+                {% if tksp_menu.dashboard %}
+                <li>
+                    <a href="{% url 'thiet_ke_sp:dashboard' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.namespace == 'thiet_ke_sp' and request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                        <i class="bi bi-grid-1x2"></i><span>Tổng quan</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% if tksp_menu.dossiers %}
+                <li>
+                    <a href="{% url 'thiet_ke_sp:list' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/thiet-ke-san-pham/ho-so' in request.path %}active{% endif %}">
+                        <span class="jp-sidebar-link-icon">
+                            <i class="bi bi-journal-richtext"></i>
+                            {% if tksp_active_count %}
+                            <span class="jp-sidebar-notify" aria-label="{{ tksp_active_count }} hồ sơ đang thực hiện">
+                                {% if tksp_active_count > 99 %}99+{% else %}{{ tksp_active_count }}{% endif %}
+                            </span>
+                            {% endif %}
+                        </span>
+                        <span>Hồ sơ sản phẩm</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% if tksp_menu.kanban %}
+                <li>
+                    <a href="{% url 'thiet_ke_sp:kanban' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/thiet-ke-san-pham/kanban' in request.path %}active{% endif %}">
+                        <i class="bi bi-kanban"></i><span>Tiến độ Kanban</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% if tksp_menu.approve %}
+                <li>
+                    <a href="{% url 'thiet_ke_sp:approve_queue' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/thiet-ke-san-pham/duyet' in request.path %}active{% endif %}">
+                        <span class="jp-sidebar-link-icon">
+                            <i class="bi bi-check2-circle"></i>
+                            {% if tksp_approve_count %}
+                            <span class="jp-sidebar-notify" aria-label="{{ tksp_approve_count }} hồ sơ chờ duyệt">
+                                {% if tksp_approve_count > 99 %}99+{% else %}{{ tksp_approve_count }}{% endif %}
+                            </span>
+                            {% endif %}
+                        </span>
+                        <span>Chờ tôi duyệt</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% if tksp_menu.my_tasks %}
+                <li>
+                    <a href="{% url 'thiet_ke_sp:my_tasks' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/thiet-ke-san-pham/cho-toi' in request.path %}active{% endif %}">
+                        <span class="jp-sidebar-link-icon">
+                            <i class="bi bi-inbox-fill"></i>
+                            {% if tksp_my_task_count %}
+                            <span class="jp-sidebar-notify" aria-label="{{ tksp_my_task_count }} việc chờ xử lý">
+                                {% if tksp_my_task_count > 99 %}99+{% else %}{{ tksp_my_task_count }}{% endif %}
+                            </span>
+                            {% endif %}
+                        </span>
+                        <span>Việc chờ tôi xử lý</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% if tksp_menu.reports %}
+                <li>
+                    <a href="{% url 'thiet_ke_sp:reports' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/thiet-ke-san-pham/bao-cao' in request.path %}active{% endif %}">
+                        <i class="bi bi-graph-up"></i><span>Báo cáo</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% if tksp_menu.settings %}
+                <li>
+                    <a href="{% url 'thiet_ke_sp:settings' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/thiet-ke-san-pham/thiet-lap' in request.path %}active{% endif %}">
+                        <i class="bi bi-gear"></i><span>Thiết lập</span>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </li>
+        {% endif %}
+
+        {# —— 2. Kế hoạch ra mắt —— #}
+        {% if jp_can_ra_mat_sp %}
+        <li class="jp-sidebar-nested-group{% if '/ke-hoach-ra-mat/' in request.path %} is-open{% endif %}"
+            data-qlsp-area="launch" data-qlsp-icon="bi-rocket-takeoff" data-qlsp-label="Kế hoạch ra mắt"
+            data-qlsp-desc="Mốc T-90 → D+30, Go/No-Go, đánh giá sau ra mắt"
+            data-qlsp-href="{% if rmsp_menu.dashboard %}{% url 'ra_mat_sp:dashboard' %}{% elif rmsp_menu.plans %}{% url 'ra_mat_sp:list' %}{% elif rmsp_menu.my_tasks %}{% url 'ra_mat_sp:my_tasks' %}{% else %}{% url 'ra_mat_sp:approve_queue' %}{% endif %}">
+            <button type="button" class="jp-sidebar-nested-toggle" data-jp-sidebar-group-toggle
+                    aria-expanded="{% if '/ke-hoach-ra-mat/' in request.path %}true{% else %}false{% endif %}"
+                    aria-controls="jp-sidebar-qlsp-launch-submenu">
+                <span class="jp-sidebar-nested-toggle-main">
+                    <i class="bi bi-rocket-takeoff"></i><span>Kế hoạch ra mắt</span>
+                </span>
+                <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
+            </button>
+            <ul class="jp-sidebar-nested-submenu" id="jp-sidebar-qlsp-launch-submenu">
+                {% if rmsp_menu.dashboard %}
+                <li>
+                    <a href="{% url 'ra_mat_sp:dashboard' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.namespace == 'ra_mat_sp' and request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                        <i class="bi bi-grid-1x2"></i><span>Tổng quan</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% if rmsp_menu.plans %}
+                <li>
+                    <a href="{% url 'ra_mat_sp:list' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/ke-hoach-ra-mat/ke-hoach' in request.path %}active{% endif %}">
+                        <i class="bi bi-rocket-takeoff"></i><span>Kế hoạch ra mắt</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% if rmsp_menu.calendar %}
+                <li>
+                    <a href="{% url 'ra_mat_sp:calendar' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/ke-hoach-ra-mat/lich' in request.path %}active{% endif %}">
+                        <i class="bi bi-calendar3"></i><span>Lịch ra mắt</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% if rmsp_menu.my_tasks %}
+                <li>
+                    <a href="{% url 'ra_mat_sp:my_tasks' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/ke-hoach-ra-mat/viec-cua-toi' in request.path %}active{% endif %}">
+                        <span class="jp-sidebar-link-icon">
+                            <i class="bi bi-inbox-fill"></i>
+                            {% if rmsp_my_task_count %}
+                            <span class="jp-sidebar-notify" aria-label="{{ rmsp_my_task_count }} việc ra mắt chờ xử lý">
+                                {% if rmsp_my_task_count > 99 %}99+{% else %}{{ rmsp_my_task_count }}{% endif %}
+                            </span>
+                            {% endif %}
+                        </span>
+                        <span>Việc của tôi</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% if rmsp_menu.approve %}
+                <li>
+                    <a href="{% url 'ra_mat_sp:approve_queue' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/ke-hoach-ra-mat/cho-duyet' in request.path %}active{% endif %}">
+                        <span class="jp-sidebar-link-icon">
+                            <i class="bi bi-check2-circle"></i>
+                            {% if rmsp_approve_count %}
+                            <span class="jp-sidebar-notify" aria-label="{{ rmsp_approve_count }} kế hoạch chờ duyệt">
+                                {% if rmsp_approve_count > 99 %}99+{% else %}{{ rmsp_approve_count }}{% endif %}
+                            </span>
+                            {% endif %}
+                        </span>
+                        <span>Chờ tôi duyệt</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% if rmsp_menu.settings %}
+                <li>
+                    <a href="{% url 'ra_mat_sp:settings' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/ke-hoach-ra-mat/thiet-lap' in request.path %}active{% endif %}">
+                        <i class="bi bi-gear"></i><span>Thiết lập</span>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </li>
+        {% endif %}
+
+        {# —— 3. Thư viện sản phẩm (master theo Style) —— #}
+        {% if jp_can_qlsp_library or jp_can_qlsp_codes %}
+        <li class="jp-sidebar-nested-group{% if '/kho-san-pham/thu-vien' in request.path %} is-open{% endif %}"
+            data-qlsp-area="library" data-qlsp-icon="bi-collection" data-qlsp-label="Thư viện sản phẩm"
+            data-qlsp-desc="Dữ liệu chuẩn theo Style, SKU, hình ảnh, kênh"
+            data-qlsp-href="{% if jp_can_qlsp_library %}{% url 'kho_san_pham:library' %}{% else %}{% url 'kho_san_pham:code_settings_hub' %}{% endif %}">
+            <button type="button" class="jp-sidebar-nested-toggle" data-jp-sidebar-group-toggle
+                    aria-expanded="{% if '/kho-san-pham/thu-vien' in request.path %}true{% else %}false{% endif %}"
+                    aria-controls="jp-sidebar-qlsp-library-submenu">
+                <span class="jp-sidebar-nested-toggle-main">
+                    <i class="bi bi-collection"></i><span>Thư viện sản phẩm</span>
+                </span>
+                <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
+            </button>
+            <ul class="jp-sidebar-nested-submenu" id="jp-sidebar-qlsp-library-submenu">
+                {% if jp_can_qlsp_library %}
+                <li>
+                    <a href="{% url 'kho_san_pham:library' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/kho-san-pham/thu-vien' in request.path %}active{% endif %}">
+                        <i class="bi bi-collection"></i><span>Thư viện</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'kho_san_pham:product_list' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/kho-san-pham/danh-muc' in request.path %}active{% endif %}"
+                       data-loading-message="Đang tải danh mục SKU…">
+                        <i class="bi bi-tags"></i><span>Danh mục SKU</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% if jp_can_qlsp_codes %}
+                <li>
+                    <a href="{% url 'kho_san_pham:code_settings_hub' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/kho-san-pham/thiet-lap-ma' in request.path %}active{% endif %}">
+                        <i class="bi bi-diagram-3"></i><span>Thiết lập mã</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% if not jp_can_san_xuat %}
+                {# Không có module Sản xuất: tồn kho / phiếu nhập thành phẩm vẫn mở từ đây. #}
+                {% if jp_can_qlsp_stock %}
+                <li>
+                    <a href="{% url 'kho_san_pham:stock_list' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/kho-san-pham/ton-kho' in request.path %}active{% endif %}">
+                        <i class="bi bi-boxes"></i><span>Tồn kho</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% if jp_can_qlsp_receipts %}
+                <li>
+                    <a href="{% url 'kho_san_pham:receipt_list' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/kho-san-pham/phieu-nhap' in request.path %}active{% endif %}">
+                        <i class="bi bi-box-arrow-in-down"></i><span>Phiếu nhập</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% endif %}
+            </ul>
+        </li>
+        {% endif %}
+    </ul>
+</li>
+{% endif %}

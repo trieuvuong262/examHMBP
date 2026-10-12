@@ -58,6 +58,7 @@ urlpatterns = [
     path('kho-san-pham/', include('kho_san_pham.urls')),
     path('san-xuat/', include('san_xuat.urls')),
     path('thiet-ke-san-pham/', include('thiet_ke_sp.urls')),
+    path('ke-hoach-ra-mat/', include('ra_mat_sp.urls')),
     path('xay-dung/', include('xay_dung.urls')),
     path('ckeditor/upload/', ckeditor_upload.upload, name='ckeditor_upload'),
     path('ckeditor/browse/', ckeditor_upload.browse, name='ckeditor_browse'),

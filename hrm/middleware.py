@@ -6,6 +6,7 @@ from hrm.menu_permissions import (
     user_can_access_resolved_menu,
 )
 from hrm.module_permissions import (
+    MODULE_RA_MAT_SP,
     MODULE_THIET_KE_SP,
     handle_department_access_denied,
     user_can_access_module,
@@ -14,6 +15,7 @@ from hrm.module_permissions import (
 # Module cho phép người ngoài quyền menu vào một số URL theo dữ liệu (vd. thành viên hồ sơ).
 MEMBER_ACCESS_HOOKS = {
     MODULE_THIET_KE_SP: 'thiet_ke_sp.permissions.member_path_allowed',
+    MODULE_RA_MAT_SP: 'ra_mat_sp.permissions.member_path_allowed',
 }
 
 

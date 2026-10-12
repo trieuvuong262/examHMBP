@@ -189,19 +189,38 @@ def kv_stock_rows_for_product(product, *, retailer: str | None = None) -> list[d
     ]
 
 
+_KV_WORKSHOP_BRANCH_TOKENS = ('xưởng', 'xuong')
+
+
+def kv_suggest_stock_branch_ids(*, retailer: str | None = None) -> list[tuple[int, str]]:
+    """Kho tính «Tồn kho thực tế» cho đề xuất SL: kho bán + Xưởng sản xuất.
+
+    Không gồm «Đơn sản xuất» / «Kho sản xuất …» (hàng làm theo đơn khách).
+    """
+    groups = kv_inventory_branch_groups(retailer=retailer)
+    workshop = [
+        (bid, name)
+        for bid, name in groups['factory']
+        if any(token in (name or '').casefold() for token in _KV_WORKSHOP_BRANCH_TOKENS)
+    ]
+    return groups['sales'] + workshop
+
+
 def kv_store_qty_by_product(
     *,
     retailer: str | None = None,
     kiotviet_ids: list[int] | None = None,
+    branch_ids: list[int] | None = None,
 ) -> dict[int, Decimal]:
-    """Tổng on_hand KV theo product_kiotviet_id, chỉ chi nhánh cửa hàng."""
+    """Tổng on_hand KV theo product_kiotviet_id; mặc định chỉ chi nhánh cửa hàng."""
     from kiotviet.models import KvProductInventory
     from kiotviet.sync_service import current_retailer
 
-    branches = kv_sales_branch_ids(retailer=retailer)
-    if not branches:
+    if branch_ids is None:
+        branch_ids = [bid for bid, _name in kv_sales_branch_ids(retailer=retailer)]
+    if not branch_ids:
         return {}
-    ids = [bid for bid, _name in branches]
+    ids = list(branch_ids)
     qs = KvProductInventory.objects.filter(
         is_deleted=False,
         branch_kiotviet_id__in=ids,

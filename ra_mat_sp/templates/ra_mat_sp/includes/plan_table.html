@@ -1,0 +1,49 @@
+{% load sx_format %}
+<div class="table-responsive">
+  <table class="table tk-mini-table align-middle">
+    <thead>
+      <tr>
+        <th>Kế hoạch</th>
+        <th>Ngày ra mắt</th>
+        <th>Sản phẩm</th>
+        <th>Điều phối</th>
+        <th>Trạng thái</th>
+        <th style="min-width: 150px">Sẵn sàng</th>
+        <th>Cảnh báo</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for p in plans %}
+      <tr>
+        <td>
+          <a class="tk-prod text-decoration-none text-reset" href="{{ p.get_absolute_url }}">
+            <span class="tk-prod-thumb">{% if p.cover %}<img src="{{ p.cover.get_absolute_url }}" alt="">{% else %}<i class="bi bi-rocket-takeoff"></i>{% endif %}</span>
+            <span class="min-w-0"><strong>{{ p.name }}</strong><small>{{ p.code }}{% if p.groups %} · {{ p.groups|join:', ' }}{% endif %}</small></span>
+          </a>
+        </td>
+        <td class="text-nowrap">
+          <strong>{{ p.launch_date|date:'d/m/Y' }}</strong>
+          <div class="small {% if p.days_to_launch < 0 and p.status != 'launched' and p.status != 'reviewing' and p.status != 'done' %}tk-late{% else %}text-muted{% endif %}">{{ p.countdown_label }}</div>
+        </td>
+        <td>{{ p.dossiers|length }}</td>
+        <td class="text-nowrap">{{ p.coordinator.profile.full_name|default:p.coordinator.username }}</td>
+        <td><span class="tk-pill is-{{ p.status_tone }}">{{ p.get_status_display }}</span></td>
+        <td>
+          <div class="rm-ready">
+            <div class="tk-progress is-wide is-{{ p.tone }}"><i style="width: {{ p.ready.pct }}%"></i></div>
+            <b>{{ p.ready.pct }}%</b>
+          </div>
+          <div class="small text-muted">{{ p.ready.done }}/{{ p.ready.total }} việc</div>
+        </td>
+        <td>
+          <span class="tk-pill is-{{ p.tone }}">{{ p.tone_label }}</span>
+          {% if p.ready.overdue %}<div class="small tk-late mt-1">{{ p.ready.overdue|length }} việc trễ{% if p.ready.overdue_blockers %} · {{ p.ready.overdue_blockers|length }} điều kiện Go{% endif %}</div>{% endif %}
+          {% if p.high_risks %}<div class="small tk-miss">{{ p.high_risks }} rủi ro cao</div>{% endif %}
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="7" class="text-center text-muted py-4">{{ empty_text|default:'Chưa có kế hoạch ra mắt nào.' }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>

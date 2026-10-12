@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% load sx_format %}
+{% block title %}Tổng quan kế hoạch ra mắt{% endblock %}
+{% block extra_head %}{% include 'ra_mat_sp/includes/rm_styles.html' %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-sx-page jp-tksp py-3 py-md-4 mb-5 px-3 px-lg-4">
+  {% include 'ra_mat_sp/includes/rm_topbar.html' with rm_title='Tổng quan ra mắt sản phẩm' %}
+
+  <div class="tk-kpis mb-3">
+    <a class="tk-kpi" href="{% url 'ra_mat_sp:calendar' %}">
+      <div><div class="cap">Ra mắt trong 90 ngày</div><div class="num">{{ kpi.next_90|sx_num }}</div><div class="sub">{% if kpi.avg_ready is not None %}Sẵn sàng trung bình {{ kpi.avg_ready }}%{% else %}Chưa có kế hoạch sắp tới{% endif %}</div></div>
+      <div class="ico info"><i class="bi bi-calendar3"></i></div>
+    </a>
+    <a class="tk-kpi" href="{% url 'ra_mat_sp:list' %}?quick=risk">
+      <div><div class="cap">Có rủi ro chặn ra mắt</div><div class="num">{{ kpi.at_risk|sx_num }}</div><div class="sub {% if kpi.at_risk %}is-bad{% else %}is-ok{% endif %}">Việc quan trọng trễ / rủi ro cao</div></div>
+      <div class="ico"><i class="bi bi-exclamation-octagon"></i></div>
+    </a>
+    <a class="tk-kpi" href="{% url 'ra_mat_sp:list' %}?quick=pending">
+      <div><div class="cap">Chờ quyết định</div><div class="num">{{ kpi.pending|sx_num }}</div><div class="sub is-warn">Duyệt kế hoạch · Go/No-Go</div></div>
+      <div class="ico warn"><i class="bi bi-flag"></i></div>
+    </a>
+    <a class="tk-kpi" href="{% url 'ra_mat_sp:list' %}?quick=launched">
+      <div><div class="cap">Đang theo dõi sau ra mắt</div><div class="num">{{ kpi.launched|sx_num }}</div><div class="sub {% if kpi.overdue %}is-bad{% else %}is-ok{% endif %}">{{ kpi.overdue|sx_num }} việc trễ hạn toàn bộ</div></div>
+      <div class="ico ok"><i class="bi bi-graph-up-arrow"></i></div>
+    </a>
+  </div>
+
+  <div class="tk-card tk-panel mb-3">
+    <div class="tk-panel-head">
+      <div><div class="tk-panel-title">Sắp ra mắt</div><div class="tk-panel-sub">Theo ngày ra mắt gần nhất</div></div>
+      <div class="d-flex align-items-center gap-3 flex-wrap">
+        <div class="rm-legend">
+          <span class="is-green">Đúng tiến độ</span><span class="is-amber">Có việc chậm</span>
+          <span class="is-red">Rủi ro chặn</span><span class="is-purple">Chờ quyết định</span><span class="is-gray">Nháp / dừng</span>
+        </div>
+        <a class="tk-link" href="{% url 'ra_mat_sp:list' %}">Xem tất cả</a>
+      </div>
+    </div>
+    {% include 'ra_mat_sp/includes/plan_table.html' with plans=upcoming empty_text='Chưa có kế hoạch đang chuẩn bị.' %}
+  </div>
+
+  <div class="tk-dash-grid mb-3">
+    <div class="tk-card tk-panel">
+      <div class="tk-panel-head">
+        <div><div class="tk-panel-title">Việc trễ hạn</div><div class="tk-panel-sub">Ưu tiên điều kiện Go/No-Go</div></div>
+      </div>
+      <div class="tk-alert-list">
+        {% for t in overdue %}
+        <a class="tk-alert" href="{{ t.plan.get_absolute_url }}?tab=timeline">
+          <span class="tk-dot{% if not t.is_go_blocker %} is-amber{% endif %}"></span>
+          <div>
+            <strong>{{ t.title }}</strong>
+            <p>{{ t.plan.code }} · {{ t.milestone }} · hạn {{ t.due_date|date:'d/m' }} · {{ t.owner.profile.full_name|default:t.owner.username|default:'Chưa giao' }}{% if t.is_go_blocker %} · <b class="text-danger">Điều kiện Go</b>{% endif %}</p>
+          </div>
+        </a>
+        {% empty %}
+        <div class="small text-muted">Không có việc trễ hạn.</div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="tk-card tk-panel">
+      <div class="tk-panel-head">
+        <div><div class="tk-panel-title">Rủi ro đang mở</div><div class="tk-panel-sub">Và đánh giá sau ra mắt đến hạn</div></div>
+      </div>
+      <div class="tk-alert-list">
+        {% for r in reviews_due %}
+        <a class="tk-alert" href="{{ r.plan.get_absolute_url }}?tab=post"><span class="tk-dot is-blue"></span><div><strong>Đánh giá {{ r.get_milestone_display }} đến hạn</strong><p>{{ r.plan.code }} · {{ r.plan.name }} · {{ r.due_date|date:'d/m/Y' }}</p></div></a>
+        {% endfor %}
+        {% for r in risks %}
+        <a class="tk-alert" href="{{ r.plan.get_absolute_url }}?tab=risks"><span class="tk-dot{% if r.severity != 'high' %} is-amber{% endif %}"></span><div><strong>{{ r.description|truncatechars:90 }}</strong><p>{{ r.plan.code }} · {{ r.get_group_display }} · {{ r.get_severity_display }}{% if r.owner %} · {{ r.owner.profile.full_name|default:r.owner.username }}{% endif %}</p></div></a>
+        {% empty %}
+        {% if not reviews_due %}<div class="small text-muted">Không có rủi ro đang mở.</div>{% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

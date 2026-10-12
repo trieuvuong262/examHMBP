@@ -1,0 +1,19 @@
+<div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100 mb-3">
+  <div class="jp-sx-detail-title">
+    <h2 class="jp-npl-mat-topbar-title w-100 mb-0">{{ rm_title }}</h2>
+  </div>
+  <nav class="jp-sx-tools" aria-label="Công cụ">
+    {% if back_url %}
+    <a href="{{ back_url }}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>{{ back_label|default:'Quay lại' }}</a>
+    {% endif %}
+    {% if rmsp_menu.dashboard and rm_active != 'dashboard' %}<a href="{% url 'ra_mat_sp:dashboard' %}"><i class="bi bi-grid-1x2" aria-hidden="true"></i>Tổng quan</a>{% endif %}
+    {% if rmsp_menu.plans and rm_active != 'plans' %}<a href="{% url 'ra_mat_sp:list' %}"><i class="bi bi-rocket-takeoff" aria-hidden="true"></i>Kế hoạch</a>{% endif %}
+    {% if rmsp_menu.calendar and rm_active != 'calendar' %}<a href="{% url 'ra_mat_sp:calendar' %}"><i class="bi bi-calendar3" aria-hidden="true"></i>Lịch ra mắt</a>{% endif %}
+    {% if rmsp_menu.approve and rm_active != 'approve' %}<a href="{% url 'ra_mat_sp:approve_queue' %}"><i class="bi bi-check2-circle" aria-hidden="true"></i>Chờ tôi duyệt{% if rmsp_approve_count %} <span class="badge rounded-pill bg-danger">{{ rmsp_approve_count }}</span>{% endif %}</a>{% endif %}
+    {% if rmsp_menu.my_tasks and rm_active != 'my_tasks' %}<a href="{% url 'ra_mat_sp:my_tasks' %}"><i class="bi bi-inbox-fill" aria-hidden="true"></i>Việc của tôi{% if rmsp_my_task_count %} <span class="badge rounded-pill {% if rmsp_overdue_count %}bg-danger{% else %}bg-secondary{% endif %}">{{ rmsp_my_task_count }}</span>{% endif %}</a>{% endif %}
+    {% if rmsp_menu.settings and rm_active != 'settings' %}<a href="{% url 'ra_mat_sp:settings' %}"><i class="bi bi-gear" aria-hidden="true"></i>Thiết lập</a>{% endif %}
+    {% if rm_can_create and rm_active != 'create' and rm_active != 'edit' %}
+    <a href="{% url 'ra_mat_sp:create' %}" class="btn btn-hm btn-sm fw-bold text-white"><i class="bi bi-plus-lg" aria-hidden="true"></i>Tạo kế hoạch</a>
+    {% endif %}
+  </nav>
+</div>

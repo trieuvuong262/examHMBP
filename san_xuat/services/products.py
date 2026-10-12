@@ -575,8 +575,8 @@ def search_products(q: str = '', *, limit: int = 30) -> list[dict]:
 def suggest_style_size_stock(style_code: str, *, days: int = 30) -> dict:
     """Tồn cửa hàng + tốc độ tiêu thụ (bán KV) theo size cho 1 Style.
 
-    Tồn = on_hand KiotViet (không trừ hàng đặt giữ) của các chi nhánh bán hàng,
-    không gồm kho xưởng / đơn sản xuất.
+    Tồn = on_hand KiotViet (không trừ hàng đặt giữ) của các chi nhánh bán hàng
+    và Xưởng sản xuất, không gồm Đơn sản xuất / Kho sản xuất.
     ``days``: số ngày gần nhất lấy từ hóa đơn KiotViet (mặc định 30).
     """
     from collections import defaultdict
@@ -608,7 +608,10 @@ def suggest_style_size_stock(style_code: str, *, days: int = 30) -> dict:
     try:
         from kho_san_pham.models import Product
         from kho_san_pham.services.sync_from_kiotviet import _size_sort_key
-        from kho_san_pham.services.sync_store_stock import kv_store_qty_by_product
+        from kho_san_pham.services.sync_store_stock import (
+            kv_store_qty_by_product,
+            kv_suggest_stock_branch_ids,
+        )
     except ImportError:
         return empty
 
@@ -639,6 +642,7 @@ def suggest_style_size_stock(style_code: str, *, days: int = 30) -> dict:
 
     store_qty = kv_store_qty_by_product(
         kiotviet_ids=[int(p.kiotviet_id) for p in products if p.kiotviet_id],
+        branch_ids=[bid for bid, _name in kv_suggest_stock_branch_ids()],
     )
 
     def _qty_for(product) -> Decimal:

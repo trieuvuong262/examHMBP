@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block title %}Lịch ra mắt sản phẩm{% endblock %}
+{% block extra_head %}{% include 'ra_mat_sp/includes/rm_styles.html' %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-sx-page jp-tksp py-3 py-md-4 mb-5 px-3 px-lg-4">
+  {% include 'ra_mat_sp/includes/rm_topbar.html' with rm_title='Lịch ra mắt sản phẩm' %}
+
+  <div class="tk-card tk-panel mb-3">
+    <form method="get" class="tk-toolbar">
+      <div class="btn-group btn-group-sm" role="group" aria-label="Kiểu xem">
+        <a class="btn {% if view == 'month' %}btn-dark{% else %}btn-outline-secondary{% endif %}" href="?view=month&start={{ start|date:'Y-m' }}{% if group %}&group={{ group }}{% endif %}">Tháng</a>
+        <a class="btn {% if view == 'quarter' %}btn-dark{% else %}btn-outline-secondary{% endif %}" href="?view=quarter{% if group %}&group={{ group }}{% endif %}">Quý</a>
+      </div>
+      <div class="btn-group btn-group-sm">
+        <a class="btn btn-outline-secondary" href="?view={{ view }}&start={{ nav.prev }}{% if group %}&group={{ group }}{% endif %}" aria-label="Trước"><i class="bi bi-chevron-left"></i></a>
+        <a class="btn btn-outline-secondary" href="?view={{ view }}{% if group %}&group={{ group }}{% endif %}">Hiện tại</a>
+        <a class="btn btn-outline-secondary" href="?view={{ view }}&start={{ nav.next }}{% if group %}&group={{ group }}{% endif %}" aria-label="Sau"><i class="bi bi-chevron-right"></i></a>
+      </div>
+      <strong class="ms-1">{{ start|date:'m/Y' }}{% if view == 'quarter' %} – {{ end|date:'m/Y' }}{% endif %}</strong>
+      <input type="hidden" name="view" value="{{ view }}">
+      <input type="hidden" name="start" value="{{ start|date:'Y-m' }}">
+      <select name="group" class="form-select form-select-sm" onchange="this.form.submit()">
+        <option value="">Mọi nhóm sản phẩm</option>
+        {% for code, label in group_choices %}<option value="{{ code }}"{% if group == code %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+      <span class="tk-count">{{ total }} kế hoạch</span>
+    </form>
+    <div class="rm-legend mt-2">
+      <span class="is-green">Đúng tiến độ</span><span class="is-amber">Có việc chậm</span>
+      <span class="is-red">Rủi ro chặn</span><span class="is-purple">Chờ quyết định</span><span class="is-gray">Nháp / dừng</span>
+    </div>
+  </div>
+
+  {% if view == 'month' %}
+  {% with m=months.0 %}
+  <div class="tk-card tk-panel">
+    <div class="rm-cal">
+      {% for w in weekdays %}<div class="rm-cal-h">{{ w }}</div>{% endfor %}
+      {% for week in m.weeks %}{% for d in week %}
+      <div class="rm-cal-d{% if not d.in_month %} is-out{% endif %}{% if d.is_today %} is-today{% endif %}">
+        <span class="rm-cal-n">{{ d.date.day }}</span>
+        {% for p in d.plans %}
+        <a class="rm-cal-ev is-{{ p.tone }}" href="{{ p.get_absolute_url }}" title="{{ p.code }} · {{ p.get_status_display }} · sẵn sàng {{ p.ready.pct }}%">{{ p.name|truncatechars:38 }} · {{ p.ready.pct }}%</a>
+        {% endfor %}
+      </div>
+      {% endfor %}{% endfor %}
+    </div>
+  </div>
+  {% endwith %}
+  {% else %}
+  <div class="rm-quarter">
+    {% for m in months %}
+    <div class="tk-card tk-panel">
+      <div class="tk-panel-head"><div class="tk-panel-title">Tháng {{ m.start|date:'m/Y' }}</div><span class="tk-pill is-gray">{{ m.plans|length }}</span></div>
+      {% for p in m.plans %}
+      <a class="rm-qcard is-{{ p.tone }}" href="{{ p.get_absolute_url }}">
+        <div class="d-flex justify-content-between gap-2">
+          <strong class="small">{{ p.launch_date|date:'d/m' }} · {{ p.name }}</strong>
+          <span class="tk-pill is-{{ p.status_tone }}">{{ p.get_status_display }}</span>
+        </div>
+        <div class="small text-muted mt-1">{{ p.code }}{% if p.groups %} · {{ p.groups|join:', ' }}{% endif %} · {{ p.dossiers|length }} SP</div>
+        <div class="rm-ready mt-1"><div class="tk-progress is-wide is-{{ p.tone }}"><i style="width: {{ p.ready.pct }}%"></i></div><b>{{ p.ready.pct }}%</b></div>
+      </a>
+      {% empty %}
+      <div class="small text-muted">Không có kế hoạch ra mắt.</div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
