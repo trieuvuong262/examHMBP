@@ -1097,7 +1097,7 @@ SAN_XUAT_PERMISSION_SECTIONS = (
     )),
     (
         'Điều phối',
-        ('dispatch', 'mo', 'material_issue_req', 'handover_status', 'fg_receipt_req'),
+        ('dispatch', 'mo', 'material_issue_req', 'fg_receipt_req'),
     ),
     (
         'Tiến độ',

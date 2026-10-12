@@ -110,7 +110,6 @@ LIST_AND_HUB_URLS = [
     'san_xuat:dispatch_wip_handover_create',
     'san_xuat:dispatch_wip_return',
     'san_xuat:dispatch_wip_return_create',
-    'san_xuat:dispatch_handover_status',
     'san_xuat:qc_stub',
     'san_xuat:qc_request',
     'san_xuat:qc_request_create',

@@ -1019,11 +1019,10 @@
                 {% jp_can_menu 'san_xuat' 'mo' as jp_can_san_xuat_mo %}
                 {% jp_can_menu 'san_xuat' 'material_issue_req' as jp_can_san_xuat_mat_issue %}
                 {% jp_can_menu 'san_xuat' 'fg_receipt_req' as jp_can_san_xuat_fg_req %}
-                {% jp_can_menu 'san_xuat' 'handover_status' as jp_can_san_xuat_ho_status %}
-                {% if jp_can_san_xuat_dispatch or jp_can_san_xuat_mo or jp_can_san_xuat_mat_issue or jp_can_san_xuat_fg_req or jp_can_san_xuat_ho_status %}
+                {% if jp_can_san_xuat_dispatch or jp_can_san_xuat_mo or jp_can_san_xuat_mat_issue or jp_can_san_xuat_fg_req %}
                 <li class="jp-sidebar-nested-group{% if '/san-xuat/dieu-phoi' in request.path %} is-open{% endif %}"
                     data-sx-area="dispatch" data-sx-icon="bi-diagram-2" data-sx-label="Điều phối"
-                    data-sx-href="{% if jp_can_san_xuat_mo or jp_can_san_xuat_dispatch or jp_can_san_xuat_mat_issue %}{% url 'san_xuat:dispatch_mo' %}{% else %}{% url 'san_xuat:dispatch_handover_status' %}{% endif %}">
+                    data-sx-href="{% if jp_can_san_xuat_mo or jp_can_san_xuat_dispatch or jp_can_san_xuat_mat_issue %}{% url 'san_xuat:dispatch_mo' %}{% else %}{% url 'san_xuat:dispatch_fg_receipt_req' %}{% endif %}">
                     <button type="button"
                             class="jp-sidebar-nested-toggle"
                             data-jp-sidebar-group-toggle
@@ -1040,14 +1039,6 @@
                             <a href="{% url 'san_xuat:dispatch_mo' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if 'dispatch_mo' in request.resolver_match.url_name %}active{% endif %}">
                                 <i class="bi bi-card-checklist"></i><span>Lệnh sản xuất</span>
-                            </a>
-                        </li>
-                        {% endif %}
-                        {% if jp_can_san_xuat_ho_status or jp_can_san_xuat_dispatch %}
-                        <li>
-                            <a href="{% url 'san_xuat:dispatch_handover_status' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'dispatch_handover_status' %}active{% endif %}">
-                                <i class="bi bi-clipboard-data"></i><span>Tình hình bàn giao</span>
                             </a>
                         </li>
                         {% endif %}

@@ -5201,19 +5201,6 @@ def dispatch_wip_return_detail(request, pk: int):
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
-def dispatch_handover_status(request):
-    from san_xuat.services.handover_status import build_handover_board
-
-    q = (request.GET.get('q') or '').strip()
-    team = (request.GET.get('team') or '').strip().lower()
-    board = build_handover_board(search=q, team_slug=team)
-    return render(request, 'san_xuat/wip_handover_status.html', {
-        **_perm_ctx(request),
-        'board': board,
-    })
-
-
-@module_perm_required(MODULE_SAN_XUAT, 'view')
 def qc_stub(request):
     from san_xuat.services.handover_status import build_handover_board
     from san_xuat.services.progress_template import TEAM_SLUGS

@@ -140,7 +140,6 @@ urlpatterns = [
     path('dieu-phoi/tra-lai-btp/', views_hub.dispatch_wip_return, name='dispatch_wip_return'),
     path('dieu-phoi/tra-lai-btp/them/', views_hub.dispatch_wip_return_create, name='dispatch_wip_return_create'),
     path('dieu-phoi/tra-lai-btp/<int:pk>/', views_hub.dispatch_wip_return_detail, name='dispatch_wip_return_detail'),
-    path('dieu-phoi/tinh-hinh-ban-giao/', views_hub.dispatch_handover_status, name='dispatch_handover_status'),
     path('chat-luong/', views_hub.qc_stub, name='qc_stub'),
     path('chat-luong/to/<slug:slug>/', views_hub.qc_team_board, name='qc_team_board'),
     path('chat-luong/tieu-chuan/', views_hub.qc_standards, name='qc_standards'),
