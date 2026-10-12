@@ -188,7 +188,28 @@
   }
   .jp-pb-code:hover { color: var(--hm-primary, #dc2626); }
   .jp-pb-customer { color: var(--pb-muted); font-size: 0.86rem; font-weight: 600; }
-  .jp-pb-status { font-size: 0.75rem; font-weight: 700; color: var(--pb-muted); }
+  .jp-pb-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    height: 1.4rem;
+    padding: 0 0.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .jp-pb-status > .bi { font-size: 0.78rem; }
+  .jp-pb-status.is-queued { color: #475569; background: #f1f5f9; border-color: #cbd5e1; }
+  .jp-pb-status.is-released { color: #6d28d9; background: #f5f3ff; border-color: #ddd6fe; }
+  .jp-pb-status.is-in_progress { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+  .jp-pb-status.is-done { color: #fff; background: #059669; border-color: #059669; }
+  .jp-pb-status.is-on_hold { color: #92400e; background: #fef3c7; border-color: #fcd34d; }
+  .jp-pb-status.is-cancelled { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
   .jp-pb-hold-chip {
     max-width: 16rem;
     overflow: hidden;
@@ -1895,9 +1916,11 @@
           <div>
             <div class="jp-pb-title-row">
               <a class="jp-pb-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
-              {% if row.order.plan_status != 'queued' and row.order.plan_status != 'ranked' %}
-              <span class="jp-pb-status">{{ row.order.get_plan_status_display }}</span>
-              {% endif %}
+              {% with st=row.order.plan_status %}
+              <span class="jp-pb-status is-{% if st == 'ranked' %}queued{% else %}{{ st }}{% endif %}">
+                <i class="bi {% if st == 'released' %}bi-send-check{% elif st == 'in_progress' %}bi-gear-wide-connected{% elif st == 'done' %}bi-check2-circle{% elif st == 'on_hold' %}bi-pause-circle{% elif st == 'cancelled' %}bi-x-circle{% else %}bi-hourglass-split{% endif %}" aria-hidden="true"></i>{{ row.order.get_plan_status_display }}
+              </span>
+              {% endwith %}
               {% if row.order.plan_status == 'on_hold' and row.order.plan_hold_reason %}
               <span class="jp-pb-hold-chip" title="{{ row.order.plan_hold_reason }}">{{ row.order.plan_hold_reason }}</span>
               {% endif %}
