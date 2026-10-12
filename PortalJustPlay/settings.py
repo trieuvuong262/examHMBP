@@ -228,7 +228,6 @@ INSTALLED_APPS = [
     'ra_mat_sp.apps.RaMatSpConfig',
     'nas_storage.apps.NasStorageConfig',
     'tools.apps.ToolsConfig',
-    'xay_dung.apps.XayDungConfig',
     'django_rq',  # hàng đợi job nền — chỉ hoạt động khi có REDIS_URL
     'django_cleanup.apps.CleanupConfig', # 👉 Thêm dòng này vào cuối
 ]
