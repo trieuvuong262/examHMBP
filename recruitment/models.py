@@ -311,13 +311,10 @@ class Candidate(models.Model):
 
     @property
     def primary_file(self):
-        """CV mới nhất (ưu tiên loại «Là CV») — dùng cho nút «Xem CV»."""
-        files = list(self.files.all())  # tận dụng prefetch_related('files')
-        if not files:
-            return None
+        """CV mới nhất (loại «Là CV») cho nút «Xem CV»; không có CV → None (ẩn nút)."""
         cv_codes = cv_kind_codes()
-        cvs = [f for f in files if f.kind in cv_codes]
-        return max(cvs or files, key=lambda f: (f.uploaded_at, f.pk))
+        cvs = [f for f in self.files.all() if f.kind in cv_codes]  # tận dụng prefetch_related('files')
+        return max(cvs, key=lambda f: (f.uploaded_at, f.pk)) if cvs else None
 
 
 class CandidateFile(models.Model):
