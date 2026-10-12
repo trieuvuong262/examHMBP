@@ -76,6 +76,44 @@
           </div>
         </div>
 
+        <div class="card border-0 shadow-sm jp-rc-card">
+          <div class="card-body p-3 p-md-4">
+            <div class="jp-rc-section-title"><span class="jp-rc-step-no">3</span>Phỏng vấn</div>
+            <div class="row g-3">
+              {% with f=form.interviewers %}
+              <div class="col-12 jp-rc-field{% if f.errors %} has-error{% endif %}">
+                <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-2">
+                  <span class="form-label fw-semibold mb-0" id="rcInterviewersLabel">{{ f.label }} <span class="text-danger" aria-hidden="true">*</span></span>
+                  <span class="small text-muted" id="rcInterviewersCount" aria-live="polite"></span>
+                </div>
+                <input type="search" class="form-control form-control-sm mb-2" id="rcInterviewersSearch"
+                       placeholder="Tìm theo tên, chức vụ, phòng ban…" aria-label="Tìm người phỏng vấn" autocomplete="off">
+                <div class="border rounded p-2" id="rcInterviewersList" role="group" aria-labelledby="rcInterviewersLabel"
+                     style="max-height: 240px; overflow-y: auto;">
+                  {% for cb in f %}
+                  <div class="form-check" data-rc-interviewer>
+                    {{ cb.tag }}
+                    <label class="form-check-label" for="{{ cb.id_for_label }}">{{ cb.choice_label }}</label>
+                  </div>
+                  {% empty %}
+                  <p class="small text-muted mb-0">Chưa có nhân viên từ Tổ trưởng trở lên.</p>
+                  {% endfor %}
+                </div>
+                <div class="form-text">Áp dụng cho mọi ứng viên của vị trí — khi lên lịch, HR không cần chọn lại.</div>
+                {% for err in f.errors %}<div class="invalid-feedback d-block">{{ err }}</div>{% endfor %}
+              </div>
+              {% endwith %}
+              <div class="col-12">
+                <div class="form-check form-switch">
+                  {{ form.skip_cv_review }}
+                  <label class="form-check-label fw-semibold" for="{{ form.skip_cv_review.id_for_label }}">{{ form.skip_cv_review.label }}</label>
+                </div>
+                <div class="form-text">{{ form.skip_cv_review.help_text }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="jp-rc-actions">
           <button type="submit" class="btn btn-hm fw-bold px-4"><i class="bi bi-check-lg" aria-hidden="true"></i>{% if job %}Lưu thay đổi{% else %}Tạo vị trí{% endif %}</button>
           <a href="{% url 'job_posting_list' %}" class="btn btn-outline-secondary">Hủy</a>
@@ -147,7 +185,7 @@
                 <div class="jp-rc-flow-label">Đang tuyển</div>
                 <div class="jp-rc-flow-note">Nhận hồ sơ đến hạn nộp</div>
               </li>
-              <li>
+              <li id="rcFlowReview"{% if form.skip_cv_review.value %} class="d-none"{% endif %}>
                 <div class="jp-rc-flow-label">Quản lý đánh giá hồ sơ</div>
                 <div class="jp-rc-flow-note">Trưởng BP / Trưởng phòng / Giám đốc</div>
               </li>
@@ -299,6 +337,41 @@
       commit();
     }
   });
+})();
+
+/* Người phỏng vấn: lọc nhanh + đếm số đã chọn */
+(function () {
+  var list = document.getElementById('rcInterviewersList');
+  var search = document.getElementById('rcInterviewersSearch');
+  var count = document.getElementById('rcInterviewersCount');
+  if (!list) return;
+  var rows = Array.prototype.slice.call(list.querySelectorAll('[data-rc-interviewer]'));
+  function fold(s) {
+    return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/gi, 'd').toLowerCase();
+  }
+  function refreshCount() {
+    var n = list.querySelectorAll('input[type="checkbox"]:checked').length;
+    count.textContent = n ? 'Đã chọn ' + n + ' người' : '';
+  }
+  if (search) {
+    search.addEventListener('input', function () {
+      var q = fold(search.value.trim());
+      rows.forEach(function (row) {
+        var checked = row.querySelector('input').checked;
+        row.classList.toggle('d-none', !!q && !checked && fold(row.textContent).indexOf(q) === -1);
+      });
+    });
+  }
+  list.addEventListener('change', refreshCount);
+  refreshCount();
+})();
+
+/* Bỏ qua duyệt CV: ẩn bước «Quản lý đánh giá» trong quy trình */
+(function () {
+  var toggle = document.getElementById('{{ form.skip_cv_review.id_for_label }}');
+  var step = document.getElementById('rcFlowReview');
+  if (!toggle || !step) return;
+  toggle.addEventListener('change', function () { step.classList.toggle('d-none', toggle.checked); });
 })();
 
 /* Ô tiền: tự thêm dấu chấm hàng nghìn khi gõ */

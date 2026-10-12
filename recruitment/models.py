@@ -171,6 +171,12 @@ class JobPosting(models.Model):
     description = models.TextField(blank=True, verbose_name='Mô tả công việc')
     requirements = models.TextField(blank=True, verbose_name='Yêu cầu ứng viên')
     deadline = models.DateField(null=True, blank=True, verbose_name='Hạn nộp hồ sơ')
+    # Lên lịch PV cho ứng viên nào cũng giao cho đúng những người này.
+    interviewers = models.ManyToManyField(
+        User, related_name='job_postings_interviewing', blank=True, verbose_name='Người phỏng vấn',
+    )
+    # Bỏ bước quản lý đánh giá CV: Mới → Phỏng vấn (HR chỉ cần lên lịch).
+    skip_cv_review = models.BooleanField(default=False, verbose_name='Bỏ qua duyệt CV')
     status = models.CharField(
         max_length=10, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True,
         verbose_name='Trạng thái',

@@ -18,8 +18,8 @@
   }
   .jp-qlsp-launcher-backdrop.is-open { opacity: 1; visibility: visible; pointer-events: auto; }
   .jp-qlsp-launcher-panel {
-    width: min(760px, 100%);
-    max-height: min(88vh, 640px);
+    width: min(520px, 100%);
+    max-height: min(88vh, 720px);
     overflow: auto;
     border-radius: 1.25rem;
     padding: 1.35rem 1.35rem 1.5rem;
@@ -31,9 +31,8 @@
     transition: transform .34s cubic-bezier(.22, 1, .36, 1), opacity .28s ease;
   }
   .jp-qlsp-launcher-backdrop.is-open .jp-qlsp-launcher-panel { transform: none; opacity: 1; }
-  .jp-qlsp-launcher-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.15rem; }
+  .jp-qlsp-launcher-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.15rem; }
   .jp-qlsp-launcher-head h2 { margin: 0; font-size: 1.2rem; font-weight: 800; color: #fff; letter-spacing: .01em; }
-  .jp-qlsp-launcher-head p { margin: .25rem 0 0; font-size: .8125rem; color: rgba(255, 255, 255, 0.62); }
   .jp-qlsp-launcher-close {
     flex: 0 0 auto; width: 2.25rem; height: 2.25rem; border-radius: 999px;
     border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.06); color: #fff;
@@ -41,35 +40,36 @@
     transition: transform .2s ease, background .2s ease, border-color .2s ease;
   }
   .jp-qlsp-launcher-close:hover { background: var(--hm-primary); border-color: #fff; transform: rotate(90deg) scale(1.05); }
-  .jp-qlsp-launcher-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .9rem; }
+  .jp-qlsp-launcher-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .85rem; justify-items: stretch; padding: .25rem .5rem .5rem; }
   .jp-qlsp-tile {
-    text-decoration: none; color: #fff; display: flex; flex-direction: column; align-items: center; gap: .6rem;
-    padding: 1.1rem .8rem 1rem; border-radius: 1rem; border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.03); text-align: center;
-    transition: transform .22s cubic-bezier(.22, 1, .36, 1), background .2s ease, border-color .2s ease;
+    appearance: none; border: 0; background: transparent; text-decoration: none; color: #fff;
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: .55rem;
+    padding: .75rem .35rem .8rem; border-radius: .9rem; cursor: pointer;
+    transition: transform .22s cubic-bezier(.22, 1, .36, 1), background .2s ease;
   }
   .jp-qlsp-tile:hover, .jp-qlsp-tile:focus-visible {
-    background: rgba(255, 255, 255, 0.07); border-color: rgba(255, 255, 255, 0.3);
-    transform: translateY(-4px); outline: none; color: #fff;
+    background: rgba(255, 255, 255, 0.06); transform: translateY(-4px); outline: none; color: #fff;
   }
   .jp-qlsp-tile:hover .jp-qlsp-tile-icon, .jp-qlsp-tile:focus-visible .jp-qlsp-tile-icon {
-    transform: scale(1.08) rotate(-3deg); box-shadow: 0 12px 28px rgba(220, 38, 38, 0.45);
+    transform: scale(1.08) rotate(-3deg); box-shadow: 0 12px 28px rgba(220, 38, 38, 0.45); border-color: #fff;
   }
   .jp-qlsp-tile-icon {
-    width: 4rem; height: 4rem; border-radius: 1.1rem; display: inline-flex; align-items: center; justify-content: center;
-    background: var(--hm-primary); border: 2px solid #fff; color: #fff; font-size: 1.6rem;
+    width: 3.65rem; height: 3.65rem; border-radius: 1.05rem;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--hm-primary); border: 2px solid #fff; color: #fff; font-size: 1.45rem;
     box-shadow: 0 8px 20px rgba(220, 38, 38, 0.28);
-    transition: transform .25s cubic-bezier(.22, 1, .36, 1), box-shadow .25s ease;
+    transition: transform .25s cubic-bezier(.22, 1, .36, 1), box-shadow .25s ease, border-color .2s ease;
   }
-  .jp-qlsp-tile-label { font-size: .9rem; font-weight: 800; line-height: 1.25; }
-  .jp-qlsp-tile-desc { font-size: .74rem; color: rgba(255, 255, 255, 0.62); line-height: 1.35; }
-  .jp-qlsp-tile.is-active { border-color: #fff; background: rgba(255, 255, 255, 0.08); }
+  .jp-qlsp-tile-label {
+    font-size: .78rem; font-weight: 700; text-align: center; line-height: 1.25;
+    color: rgba(255, 255, 255, 0.92); max-width: 8.5rem; min-height: 2.5em;
+  }
+  .jp-qlsp-tile.is-active .jp-qlsp-tile-icon { outline: 2px solid #fff; outline-offset: 3px; }
   @keyframes jp-qlsp-tile-in { from { opacity: 0; transform: translateY(12px) scale(.92); } to { opacity: 1; transform: none; } }
   .jp-qlsp-launcher-backdrop.is-open .jp-qlsp-tile { animation: jp-qlsp-tile-in .38s cubic-bezier(.22, 1, .36, 1) both; }
-  .jp-qlsp-launcher-backdrop.is-open .jp-qlsp-tile:nth-child(2) { animation-delay: .05s; }
-  .jp-qlsp-launcher-backdrop.is-open .jp-qlsp-tile:nth-child(3) { animation-delay: .1s; }
-  @media (max-width: 575.98px) { .jp-qlsp-launcher-grid { grid-template-columns: minmax(0, 1fr); } }
-
+  .jp-qlsp-launcher-backdrop.is-open .jp-qlsp-tile:nth-child(1) { animation-delay: .02s; }
+  .jp-qlsp-launcher-backdrop.is-open .jp-qlsp-tile:nth-child(2) { animation-delay: .04s; }
+  .jp-qlsp-launcher-backdrop.is-open .jp-qlsp-tile:nth-child(3) { animation-delay: .06s; }
   /* Focus mode: chỉ hiện chức năng đang mở trong nhóm Quản lý sản phẩm */
   body.jp-qlsp-focus #jp-sidebar-qlsp-submenu > [data-qlsp-area] { display: none !important; }
   body.jp-qlsp-focus[data-qlsp-area="design"] #jp-sidebar-qlsp-submenu > [data-qlsp-area="design"],
@@ -103,7 +103,6 @@
     <div class="jp-qlsp-launcher-head">
       <div>
         <h2 id="jpQlspLauncherTitle">Quản lý sản phẩm</h2>
-        <p>Chọn chức năng để tiếp tục</p>
       </div>
       <button type="button" class="jp-qlsp-launcher-close" data-jp-qlsp-launcher-close aria-label="Đóng">
         <i class="bi bi-x-lg" aria-hidden="true"></i>
@@ -157,9 +156,8 @@
       tile.setAttribute('data-qlsp-area', area);
       tile.innerHTML =
         '<span class="jp-qlsp-tile-icon" aria-hidden="true"><i class="bi ' + (el.getAttribute('data-qlsp-icon') || 'bi-grid') + '"></i></span>'
-        + '<span class="jp-qlsp-tile-label"></span><span class="jp-qlsp-tile-desc"></span>';
+        + '<span class="jp-qlsp-tile-label"></span>';
       tile.querySelector('.jp-qlsp-tile-label').textContent = el.getAttribute('data-qlsp-label') || '';
-      tile.querySelector('.jp-qlsp-tile-desc').textContent = el.getAttribute('data-qlsp-desc') || '';
       grid.appendChild(tile);
     });
   }

@@ -27,6 +27,30 @@ def _ctl(extra: str = '') -> dict:
     return {'class': f'form-control {extra}'.strip()}
 
 
+def interviewer_queryset():
+    return (
+        User.objects.filter(is_active=True, profile__is_employed=True)
+        .filter(
+            Q(profile__role__in=INTERVIEWER_ROLES)
+            | Q(profile__concurrent_positions__is_active=True,
+                profile__concurrent_positions__role__in=INTERVIEWER_ROLES)
+        )
+        .distinct()
+        .select_related('profile', 'profile__department').order_by('profile__full_name', 'username')
+    )
+
+
+def interviewer_label(user) -> str:
+    profile = getattr(user, 'profile', None)
+    name = getattr(profile, 'full_name', '') or user.username
+    if not profile:
+        return name
+    parts = [name, profile.get_role_display()]
+    if profile.department_id:
+        parts.append(profile.department.name)
+    return ' · '.join(p for p in parts if p)
+
+
 def _gender_field(required=True):
     return forms.ChoiceField(
         label='Giới tính', choices=GENDER_FORM_CHOICES, required=required,
@@ -113,6 +137,7 @@ class JobPostingForm(forms.ModelForm):
         fields = [
             'title', 'target_department', 'target_division', 'position', 'quantity', 'deadline',
             'salary_min', 'salary_max', 'salary_negotiable', 'description', 'requirements',
+            'interviewers', 'skip_cv_review',
         ]
         widgets = {
             'title': forms.TextInput(attrs={**_ctl(), 'placeholder': 'VD: Công nhân may chuyền 2'}),
@@ -121,6 +146,8 @@ class JobPostingForm(forms.ModelForm):
             'position': forms.Select(attrs={'class': 'form-select'}),
             'quantity': forms.NumberInput(attrs={**_ctl(), 'min': 1}),
             'salary_negotiable': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'interviewers': forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'}),
+            'skip_cv_review': forms.CheckboxInput(attrs={'class': 'form-check-input', 'role': 'switch'}),
             'deadline': forms.DateInput(
                 attrs={**_ctl('jp-date-vn'), 'type': 'date', 'placeholder': 'dd/mm/yyyy'}, format='%Y-%m-%d',
             ),
@@ -136,6 +163,11 @@ class JobPostingForm(forms.ModelForm):
             'position': 'Vị trí',
             'quantity': 'Số lượng cần tuyển',
             'salary_negotiable': 'Thỏa thuận',
+            'skip_cv_review': 'Bỏ qua duyệt CV',
+        }
+        help_texts = {
+            'skip_cv_review': 'Ứng viên mới chuyển thẳng sang Phỏng vấn — HR chỉ cần lên lịch, '
+                              'không chờ quản lý đánh giá hồ sơ.',
         }
 
     def __init__(self, *args, scope=None, **kwargs):
@@ -185,6 +217,11 @@ class JobPostingForm(forms.ModelForm):
         self.fields['target_division'].queryset = divisions.order_by('department__sort_order', 'sort_order', 'name')
         self.fields['target_division'].empty_label = '— Cả phòng ban —'
         self.fields['target_division'].label_from_instance = lambda d: f'{d.department.name} · {d.name}'
+        interviewers = self.fields['interviewers']
+        interviewers.queryset = interviewer_queryset()
+        interviewers.required = True
+        interviewers.error_messages['required'] = 'Chọn ít nhất 1 người phỏng vấn cho vị trí.'
+        interviewers.label_from_instance = interviewer_label
 
     def clean(self):
         cleaned = super().clean()
@@ -287,26 +324,6 @@ class TransitionForm(forms.Form):
         widget=forms.DateTimeInput(attrs={**_ctl(), 'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'),
     )
     location = forms.CharField(label='Địa điểm', required=False, max_length=255, widget=forms.TextInput(attrs=_ctl()))
-    interviewers = forms.ModelMultipleChoiceField(
-        label='Người phỏng vấn', required=False, queryset=User.objects.none(),
-        widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size': 4}),
-    )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['interviewers'].queryset = (
-            User.objects.filter(is_active=True, profile__is_employed=True)
-            .filter(
-                Q(profile__role__in=INTERVIEWER_ROLES)
-                | Q(profile__concurrent_positions__is_active=True,
-                    profile__concurrent_positions__role__in=INTERVIEWER_ROLES)
-            )
-            .distinct()
-            .select_related('profile', 'profile__department').order_by('profile__full_name', 'username')
-        )
-        self.fields['interviewers'].label_from_instance = (
-            lambda u: getattr(getattr(u, 'profile', None), 'full_name', '') or u.username
-        )
 
 
 class InterviewResultForm(forms.Form):

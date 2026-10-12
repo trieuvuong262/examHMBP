@@ -73,6 +73,7 @@
         <article class="jp-rc-card" draggable="false"
                  data-movable="{% if can_move and cand.move_targets %}1{% else %}0{% endif %}"
                  data-id="{{ cand.pk }}" data-name="{{ cand.full_name }}" data-status="{{ cand.status }}"
+                 data-targets="{% for status, label in cand.move_targets %}{{ status }}{% if not forloop.last %},{% endif %}{% endfor %}"
                  data-url="{% url 'candidate_transition' cand.pk %}">
           <div class="d-flex justify-content-between align-items-start gap-1">
             <a class="jp-rc-card-name" href="{% url 'candidate_detail' cand.pk %}" draggable="false">{{ cand.full_name }}</a>
@@ -138,9 +139,14 @@
   var drag = null;
   var suppressClickUntil = 0;
 
-  function allowed(status, col) {
+  // Bước hợp lệ theo từng thẻ — vị trí «Bỏ qua duyệt CV» có luồng khác bảng chung.
+  function targetsOf(card) {
+    var raw = card.dataset.targets;
+    return raw ? raw.split(',') : (transitions[card.dataset.status] || []);
+  }
+  function allowed(card, col) {
     if (!col || col.dataset.droppable !== '1') return false;
-    return (transitions[status] || []).indexOf(col.dataset.status) !== -1;
+    return targetsOf(card).indexOf(col.dataset.status) !== -1;
   }
   function showHint(text) {
     hint.textContent = text;
@@ -169,7 +175,7 @@
     document.body.classList.add('jp-rc-dragging');
     if (window.getSelection) window.getSelection().removeAllRanges();
     board.querySelectorAll('.jp-rc-col').forEach(function (col) {
-      if (col.dataset.status !== card.dataset.status && !allowed(card.dataset.status, col)) col.classList.add('is-blocked');
+      if (col.dataset.status !== card.dataset.status && !allowed(card, col)) col.classList.add('is-blocked');
     });
     moveDrag(drag.x, drag.y);
     drag.raf = requestAnimationFrame(autoScroll);
@@ -183,7 +189,7 @@
     if (col !== drag.overCol) {
       if (drag.overCol) drag.overCol.classList.remove('is-over');
       drag.overCol = col;
-      if (col && allowed(drag.card.dataset.status, col)) col.classList.add('is-over');
+      if (col && allowed(drag.card, col)) col.classList.add('is-over');
     }
   }
 
@@ -213,8 +219,8 @@
     var col = colAt(x, y);
     var status = d.card.dataset.status;
     if (!col || col.dataset.status === status) return;
-    if (!allowed(status, col)) {
-      var targets = (transitions[status] || []).map(function (s) { return '«' + labels[s] + '»'; });
+    if (!allowed(d.card, col)) {
+      var targets = targetsOf(d.card).map(function (s) { return '«' + labels[s] + '»'; });
       showHint('Không chuyển thẳng «' + labels[status] + '» → «' + col.dataset.label + '». '
         + (targets.length ? 'Bước tiếp theo: ' + targets.join(', ') + '.' : 'Hồ sơ đã ở bước cuối.'));
       return;

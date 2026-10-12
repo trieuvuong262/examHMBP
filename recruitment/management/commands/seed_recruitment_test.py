@@ -221,9 +221,11 @@ class Command(BaseCommand):
 
         now = timezone.now()
         when = now + timedelta(days=2, hours=1) if scenario == 'interview_upcoming' else now - timedelta(hours=3)
+        if not job.interviewers.exists():
+            job.interviewers.add(manager)
         services.transition(cand, Candidate.STATUS_INTERVIEWING, actor=hr,
                             interview_time=when, interview_end=when + timedelta(minutes=45),
-                            location='Phòng họp HCNS', interviewers=[manager])
+                            location='Phòng họp HCNS')
         if scenario in ('interview_upcoming', 'interview_awaiting_result'):
             return cand
         if scenario == 'interview_failed':

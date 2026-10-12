@@ -246,6 +246,7 @@ def job_posting_list(request):
     today = timezone.localdate()
     base = services.annotate_job_counts(
         _jobs(request).select_related('target_department', 'target_division', 'service_request')
+        .prefetch_related('interviewers')
     )
     if dept.isdigit():
         base = base.filter(target_department_id=int(dept))
@@ -360,6 +361,7 @@ def job_posting_create(request):
         job.created_by = request.user
         job.status = JobPosting.STATUS_DRAFT
         job.save()
+        form.save_m2m()
         messages.success(request, f'Đã tạo vị trí «{job.title}» ở trạng thái Nháp.')
         return redirect('job_posting_edit', pk=job.pk)
     return render(request, 'recruitment/admin/job_posting_form.html', {
@@ -373,6 +375,10 @@ def job_posting_edit(request, pk):
     form = JobPostingForm(request.POST or None, instance=job, scope=visible_scope(request.user))
     if request.method == 'POST' and form.is_valid():
         form.save()
+        if 'interviewers' in form.changed_data:
+            synced = services.sync_job_interviewers(job)
+            if synced:
+                messages.info(request, f'Đã cập nhật người phỏng vấn cho {synced} buổi phỏng vấn chưa có kết quả.')
         messages.success(request, 'Đã cập nhật vị trí tuyển dụng.')
         return redirect('job_posting_edit', pk=job.pk)
     return render(request, 'recruitment/admin/job_posting_form.html', {
@@ -504,7 +510,7 @@ def _need_action_q(now):
     ))
     return (
         Q(status=C.STATUS_NEW)
-        | (Q(status=C.STATUS_REVIEWING) & Q(has_recommend))
+        | (Q(status=C.STATUS_REVIEWING) & (Q(has_recommend) | Q(job_posting__skip_cv_review=True)))
         | Q(status=C.STATUS_INTERVIEWING, interview__final_result=Interview.FINAL_PASS)
         | Q(status=C.STATUS_INTERVIEWING, interview__result=Interview.RESULT_PENDING, interview__end_time__lte=now)
         | Q(status=C.STATUS_OFFERED)
@@ -542,13 +548,17 @@ def _next_step(cand, now, *, can_move, can_onboard_user):
     """
     inv = cand.interview_or_none
     s = cand.status
+    skip_review = cand.job_posting.skip_cv_review
     if s == C.STATUS_NEW:
+        if skip_review:
+            return {'tone': 'action', 'label': 'Lên lịch phỏng vấn',
+                    'action': 'move', 'to': C.STATUS_INTERVIEWING, 'button': 'Lên lịch PV', 'icon': 'bi-calendar-plus'}
         if not cand.job_posting.target_department_id:
             return {'tone': 'alert', 'label': 'Vị trí chưa gắn phòng ban'}
         return {'tone': 'action', 'label': 'Gửi quản lý đánh giá',
                 'action': 'move', 'to': C.STATUS_REVIEWING, 'button': 'Gửi đánh giá', 'icon': 'bi-send'}
     if s == C.STATUS_REVIEWING:
-        if cand.n_recommend:
+        if cand.n_recommend or skip_review:
             return {'tone': 'action', 'label': 'Lên lịch phỏng vấn',
                     'action': 'move', 'to': C.STATUS_INTERVIEWING, 'button': 'Lên lịch PV', 'icon': 'bi-calendar-plus'}
         if cand.n_reviews:
@@ -783,7 +793,8 @@ def _detail_context(request, candidate, *, manager_view=False, onboard_form=None
         'transition_form': TransitionForm(),
         'interview_locations': _interview_locations() if can_update else [],
         'needs_review_for_interview': (
-            candidate.status == C.STATUS_REVIEWING and not services.has_recommend_review(candidate)
+            candidate.status == C.STATUS_REVIEWING and not candidate.job_posting.skip_cv_review
+            and not services.has_recommend_review(candidate)
         ),
         'result_form': InterviewResultForm() if can_record_interview_result(user, candidate) else None,
         'result_action': reverse(
@@ -824,7 +835,7 @@ def candidate_transition(request, pk):
         services.transition(
             candidate, d['to_status'], actor=request.user, reason=d['reason'],
             interview_time=d['interview_time'], interview_end=d['interview_end'],
-            location=d['location'], interviewers=d['interviewers'],
+            location=d['location'],
         )
     except services.RecruitmentError as exc:
         messages.error(request, str(exc))

@@ -3,6 +3,7 @@
 Luồng ứng viên:
     Mới → Chờ quản lý đánh giá → Phỏng vấn → Trúng tuyển → Đã nhận việc
     (Loại / Không nhận việc bắt buộc lý do; có thể «Mở lại» về bước đánh giá.)
+    Vị trí «Bỏ qua duyệt CV»: Mới → Phỏng vấn; «Mở lại» về Mới.
 """
 
 from __future__ import annotations
@@ -70,8 +71,20 @@ def status_label(status: str) -> str:
     return dict(C.STATUS_CHOICES).get(status, status)
 
 
+def job_transitions(job, status: str) -> frozenset[str]:
+    """Bước được chuyển từ ``status`` — vị trí «Bỏ qua duyệt CV» không qua bước quản lý đánh giá."""
+    targets = TRANSITIONS.get(status, frozenset())
+    if not job.skip_cv_review:
+        return targets
+    if status == C.STATUS_NEW:
+        return frozenset({C.STATUS_INTERVIEWING, C.STATUS_REJECTED})
+    if status in REASON_REQUIRED:
+        return frozenset({C.STATUS_NEW})
+    return targets
+
+
 def allowed_targets(candidate) -> list[str]:
-    targets = set(TRANSITIONS.get(candidate.status, ()))
+    targets = set(job_transitions(candidate.job_posting, candidate.status))
     if C.STATUS_OFFERED in targets and candidate.status == C.STATUS_INTERVIEWING:
         interview = candidate.interview_or_none
         if not interview or not interview.is_approved:
@@ -121,6 +134,7 @@ def open_blocker(job: JobPosting) -> str:
             ('phòng ban', job.target_department_id),
             ('hạn nộp hồ sơ', job.deadline),
             ('mô tả công việc', (job.description or '').strip()),
+            ('người phỏng vấn', job.pk and job.interviewers.exists()),
         ) if not value
     ]
     if missing:
@@ -144,6 +158,19 @@ def change_job_status(job: JobPosting, new_status: str, *, actor) -> JobPosting:
     job.closed_at = timezone.now() if new_status == JobPosting.STATUS_CLOSED else None
     job.save(update_fields=['status', 'closed_at', 'updated_at'])
     return job
+
+
+def sync_job_interviewers(job: JobPosting) -> int:
+    """Đổi người PV của vị trí → cập nhật các buổi PV chưa có kết quả. Trả về số buổi được cập nhật."""
+    interviewers = list(job.interviewers.all())
+    pending = Interview.objects.filter(
+        candidate__job_posting=job, candidate__status=C.STATUS_INTERVIEWING, result=Interview.RESULT_PENDING,
+    )
+    count = 0
+    for interview in pending:
+        interview.interviewers.set(interviewers)
+        count += 1
+    return count
 
 
 def delete_job(job: JobPosting):
@@ -356,12 +383,13 @@ def validate_interview_slot(start, end):
 
 @transaction.atomic
 def transition(candidate, to_status: str, *, actor, reason: str = '',
-               interview_time=None, interview_end=None, location: str = '', interviewers=None) -> Candidate:
+               interview_time=None, interview_end=None, location: str = '') -> Candidate:
+    """Người phỏng vấn lấy theo vị trí tuyển dụng (``JobPosting.interviewers``)."""
     candidate = Candidate.objects.select_for_update().select_related('job_posting').get(pk=candidate.pk)
     from_status = candidate.status
     if to_status == C.STATUS_HIRED:
         raise RecruitmentError('Chuyển sang «Đã nhận việc» bằng thao tác Onboard.')
-    if to_status not in TRANSITIONS.get(from_status, ()):
+    if to_status not in job_transitions(candidate.job_posting, from_status):
         raise RecruitmentError(
             f'Không thể chuyển từ «{status_label(from_status)}» sang «{status_label(to_status)}».'
         )
@@ -374,8 +402,13 @@ def transition(candidate, to_status: str, *, actor, reason: str = '',
         raise RecruitmentError('Vị trí chưa gắn phòng ban — không có quản lý nhận đánh giá.')
 
     if to_status == C.STATUS_INTERVIEWING:
-        if not has_recommend_review(candidate):
+        if not job.skip_cv_review and not has_recommend_review(candidate):
             raise RecruitmentError('Cần ít nhất 1 đánh giá «Đạt» của quản lý.')
+        interviewers = list(job.interviewers.all())
+        if not interviewers:
+            raise RecruitmentError(
+                f'Vị trí «{job.title}» chưa chọn người phỏng vấn — cập nhật ở trang vị trí tuyển dụng.'
+            )
         validate_interview_slot(interview_time, interview_end)
         interview, _ = Interview.objects.update_or_create(
             candidate=candidate,
@@ -391,7 +424,7 @@ def transition(candidate, to_status: str, *, actor, reason: str = '',
                 'final_at': None,
             },
         )
-        interview.interviewers.set(interviewers or [])
+        interview.interviewers.set(interviewers)
 
     if to_status == C.STATUS_OFFERED:
         interview = candidate.interview_or_none
@@ -407,7 +440,7 @@ def transition(candidate, to_status: str, *, actor, reason: str = '',
     if to_status in REASON_REQUIRED:
         candidate.reject_reason = reason
         fields.append('reject_reason')
-    elif to_status == C.STATUS_REVIEWING and from_status in REASON_REQUIRED:
+    elif to_status in (C.STATUS_REVIEWING, C.STATUS_NEW) and from_status in REASON_REQUIRED:
         candidate.reject_reason = ''
         fields.append('reject_reason')
     candidate.save(update_fields=fields)

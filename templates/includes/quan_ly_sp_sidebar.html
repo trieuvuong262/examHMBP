@@ -45,7 +45,6 @@
         {% if jp_can_thiet_ke_sp %}
         <li class="jp-sidebar-nested-group{% if '/thiet-ke-san-pham/' in request.path %} is-open{% endif %}"
             data-qlsp-area="design" data-qlsp-icon="bi-palette" data-qlsp-label="Thiết kế sản phẩm"
-            data-qlsp-desc="Đề xuất, thiết kế, làm mẫu, duyệt sản xuất"
             data-qlsp-href="{% if tksp_menu.dashboard %}{% url 'thiet_ke_sp:dashboard' %}{% elif tksp_menu.dossiers %}{% url 'thiet_ke_sp:list' %}{% elif tksp_menu.my_tasks %}{% url 'thiet_ke_sp:my_tasks' %}{% else %}{% url 'thiet_ke_sp:list' %}{% endif %}">
             <button type="button" class="jp-sidebar-nested-toggle" data-jp-sidebar-group-toggle
                     aria-expanded="{% if '/thiet-ke-san-pham/' in request.path %}true{% else %}false{% endif %}"
@@ -144,7 +143,6 @@
         {% if jp_can_ra_mat_sp %}
         <li class="jp-sidebar-nested-group{% if '/ke-hoach-ra-mat/' in request.path %} is-open{% endif %}"
             data-qlsp-area="launch" data-qlsp-icon="bi-rocket-takeoff" data-qlsp-label="Kế hoạch ra mắt"
-            data-qlsp-desc="Mốc T-90 → D+30, Go/No-Go, đánh giá sau ra mắt"
             data-qlsp-href="{% if rmsp_menu.dashboard %}{% url 'ra_mat_sp:dashboard' %}{% elif rmsp_menu.plans %}{% url 'ra_mat_sp:list' %}{% elif rmsp_menu.my_tasks %}{% url 'ra_mat_sp:my_tasks' %}{% else %}{% url 'ra_mat_sp:approve_queue' %}{% endif %}">
             <button type="button" class="jp-sidebar-nested-toggle" data-jp-sidebar-group-toggle
                     aria-expanded="{% if '/ke-hoach-ra-mat/' in request.path %}true{% else %}false{% endif %}"
@@ -227,7 +225,6 @@
         {% if jp_can_qlsp_library or jp_can_qlsp_codes %}
         <li class="jp-sidebar-nested-group{% if '/kho-san-pham/thu-vien' in request.path %} is-open{% endif %}"
             data-qlsp-area="library" data-qlsp-icon="bi-collection" data-qlsp-label="Thư viện sản phẩm"
-            data-qlsp-desc="Dữ liệu chuẩn theo Style, SKU, hình ảnh, kênh"
             data-qlsp-href="{% if jp_can_qlsp_library %}{% url 'kho_san_pham:library' %}{% else %}{% url 'kho_san_pham:code_settings_hub' %}{% endif %}">
             <button type="button" class="jp-sidebar-nested-toggle" data-jp-sidebar-group-toggle
                     aria-expanded="{% if '/kho-san-pham/thu-vien' in request.path %}true{% else %}false{% endif %}"
