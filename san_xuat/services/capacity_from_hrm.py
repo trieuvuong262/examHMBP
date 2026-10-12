@@ -186,12 +186,21 @@ def resolve_work_center_code(code: str | None, *, name_hint: str = '') -> SxWork
                 if raw_fold == _fold(hc.code) or raw_fold == _fold(hc.name) or raw_fold == _fold(hc.team_label or ''):
                     return _store(hc)
 
-        # Map theo bảng IE → HR (dùng needle gồm hint)
-        for ie_keys, hr_keys in _IE_WC_TO_HR_KEYS:
-            if any(_fold(k) and _fold(k) in needle for k in ie_keys):
-                hit = _pick_hr_by_keys(hr_centers, hr_keys)
-                if hit:
-                    return _store(hit)
+        # Map theo bảng IE → HR. Nhãn bộ phận (raw) thắng tên công đoạn:
+        # «Cắt chỉ…» / «Cắt thun…» không được kéo MAY sang CẮT.
+        def _match_ie_keys(text: str) -> SxWorkCenter | None:
+            if not text:
+                return None
+            for ie_keys, hr_keys in _IE_WC_TO_HR_KEYS:
+                if any(_fold(k) and _fold(k) in text for k in ie_keys):
+                    return _pick_hr_by_keys(hr_centers, hr_keys)
+            return None
+
+        hit = _match_ie_keys(raw_fold)
+        if hit is None and needle != raw_fold:
+            hit = _match_ie_keys(needle)
+        if hit:
+            return _store(hit)
 
         # Khớp mờ tên / mã bộ phận trong pool
         for hc in hr_centers:
