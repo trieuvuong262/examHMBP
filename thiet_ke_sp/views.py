@@ -23,6 +23,7 @@ from san_xuat.design_nas_storage import design_file_abs_path
 from san_xuat.list_grid import apply_sx_list_sort, sx_list_grid_context
 from utilities.date_range_filter import date_range_from_span, date_range_span_context, parse_date_range_span
 
+from . import catalog
 from . import forms as f
 from . import permissions as perms
 from . import presenters
@@ -50,7 +51,6 @@ from .models import (
     Notification,
     Priority,
     ProductDevelopment,
-    ProductGroup,
     Role,
     SampleEvaluation,
     SampleVersion,
@@ -95,7 +95,7 @@ def _dossier_qs():
     return ProductDevelopment.objects.select_related(
         'proposer__profile', 'owner__profile', 'approver__profile', 'designer__profile',
         'technician__profile', 'sample_maker__profile', 'qa_user__profile', 'costing_user__profile',
-        'approved_design_version', 'final_sample_version',
+        'approved_design_version', 'final_sample_version', 'product_type',
     )
 
 
@@ -185,7 +185,7 @@ def dossier_list(request):
         qs = qs.filter(Q(code__icontains=q) | Q(name__icontains=q) | Q(official_product_code__icontains=q))
     if statuses:
         qs = qs.filter(status__in=statuses)
-    if group in ProductGroup.values:
+    if group:
         qs = qs.filter(product_group=group)
     if collection:
         qs = qs.filter(collection=collection)
@@ -220,7 +220,7 @@ def dossier_list(request):
         filter_owner=owner_id, filter_approver=approver_id, filter_collection=collection,
         has_filters=has_filters,
         status_choices=Status.choices,
-        group_choices=ProductGroup.choices,
+        group_choices=catalog.group_choices(),
         collection_choices=_collection_choices(),
         quick_filters=QUICK_FILTERS,
         owner_choices=_people_with('tksp_owned'),
@@ -1080,7 +1080,7 @@ def kanban(request):
     qs = _annotated_list_qs().filter(status__in=presenters.KANBAN_STATUSES)
     if q:
         qs = qs.filter(Q(code__icontains=q) | Q(name__icontains=q) | Q(official_product_code__icontains=q))
-    if group in ProductGroup.values:
+    if group:
         qs = qs.filter(product_group=group)
     if collection:
         qs = qs.filter(collection=collection)
@@ -1106,7 +1106,7 @@ def kanban(request):
         filter_q=q, filter_quick=quick, filter_group=group,
         filter_collection=collection, filter_owner=owner_id,
         has_filters=any([q, quick, group, collection, owner_id]),
-        group_choices=ProductGroup.choices,
+        group_choices=catalog.group_choices(),
         collection_choices=_collection_choices(),
         owner_choices=_people_with('tksp_owned'),
     ))
@@ -1176,7 +1176,8 @@ def report(request):
         return _deny(request, perms.MENU_REPORTS)
     group = (request.GET.get('group') or '').strip()
     collection = (request.GET.get('collection') or '').strip()
-    if group not in ProductGroup.values:
+    group_choices = catalog.group_choices()
+    if group not in dict(group_choices):
         group = ''
     data = reports.report_data(collection=collection, group=group)
     return render(request, 'thiet_ke_sp/reports.html', _common(
@@ -1185,7 +1186,7 @@ def report(request):
         filter_group=group,
         filter_collection=collection,
         has_filters=bool(group or collection),
-        group_choices=ProductGroup.choices,
+        group_choices=group_choices,
         collection_choices=_collection_choices(),
     ))
 

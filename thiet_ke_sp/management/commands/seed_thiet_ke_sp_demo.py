@@ -8,6 +8,8 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
+from kho_san_pham.catalog_models import ProductType as CatalogType
+from thiet_ke_sp import catalog
 from thiet_ke_sp.models import (
     Approval,
     ApprovalDecision,
@@ -19,8 +21,6 @@ from thiet_ke_sp.models import (
     MaterialLine,
     Priority,
     ProductDevelopment,
-    ProductGroup,
-    ProductType,
     SampleEvaluation,
     SampleVersion,
     Status,
@@ -30,21 +30,21 @@ from thiet_ke_sp.models import (
 from thiet_ke_sp.services.workflow import _step_tasks, _role_assignee
 
 DEMOS = [
-    ('DEMO-2026-0048', 'Raider Pro 2027', ProductGroup.FOOTBALL, ProductType.SET, Status.MASTER_PENDING,
+    ('DEMO-2026-0048', 'Raider Pro 2027', 'SET-SC', Status.MASTER_PENDING,
      date(2027, 1, 15), (10, 8), Priority.HIGH, 2, 2, Decimal('185000'), Decimal('178000')),
-    ('DEMO-2026-0051', 'Pixel Polo Air', ProductGroup.TEAMWEAR, ProductType.POLO, Status.MASTER_PENDING,
+    ('DEMO-2026-0051', 'Pixel Polo Air', 'POLO', Status.MASTER_PENDING,
      date(2026, 12, 20), (10, 7), Priority.NORMAL, 1, 1, Decimal('120000'), Decimal('126000')),
-    ('DEMO-2026-0054', 'Velocity Tee 2027', ProductGroup.RUNNING, ProductType.SHIRT, Status.DESIGN_REVISE,
+    ('DEMO-2026-0054', 'Velocity Tee 2027', 'TEE', Status.DESIGN_REVISE,
      date(2027, 1, 10), (10, 2), Priority.URGENT, 2, 0, Decimal('95000'), None),
-    ('DEMO-2026-0055', 'Aurora V2', ProductGroup.VOLLEYBALL, ProductType.SET, Status.SAMPLING,
+    ('DEMO-2026-0055', 'Aurora V2', 'SET-VB', Status.SAMPLING,
      date(2027, 2, 1), (10, 11), Priority.NORMAL, 1, 1, Decimal('170000'), None),
-    ('DEMO-2026-0056', 'Ace Court Tee', ProductGroup.RACKET, ProductType.SHIRT, Status.DESIGN_PENDING,
+    ('DEMO-2026-0056', 'Ace Court Tee', 'TEE', Status.DESIGN_PENDING,
      date(2027, 2, 15), (10, 9), Priority.NORMAL, 1, 0, Decimal('90000'), None),
-    ('DEMO-2026-0042', 'Runner III', ProductGroup.RUNNING, ProductType.SHIRT, Status.APPROVED,
+    ('DEMO-2026-0042', 'Runner III', 'TANK', Status.APPROVED,
      date(2026, 11, 15), (10, 10), Priority.HIGH, 2, 1, Decimal('110000'), Decimal('104000')),
-    ('DEMO-2026-0050', 'StormBreak V2', ProductGroup.BASKETBALL, ProductType.SET, Status.SAMPLE_REVISE,
+    ('DEMO-2026-0050', 'StormBreak V2', 'SET-BB', Status.SAMPLE_REVISE,
      date(2027, 1, 28), (10, 10), Priority.NORMAL, 1, 2, Decimal('160000'), None),
-    ('DEMO-2026-0058', 'Core Basic Tee', ProductGroup.BASIC, ProductType.SHIRT, Status.BRIEF_PENDING,
+    ('DEMO-2026-0058', 'Core Basic Tee', 'TEE', Status.BRIEF_PENDING,
      date(2027, 3, 1), (10, 8), Priority.LOW, 0, 0, Decimal('55000'), None),
 ]
 
@@ -91,11 +91,13 @@ class Command(BaseCommand):
         return others[i % len(others)]
 
     def _create(self, spec, main, others, index):
-        (code, name, group, ptype, status, launch, (month, day), priority,
+        (code, name, type_code, status, launch, (month, day), priority,
          design_rounds, sample_rounds, target_cost, cost) = spec
         tz_due = timezone.make_aware(datetime.combine(date(2026, month, day), time(17, 0)))
+        ptype = CatalogType.objects.filter(code=type_code).first()
         d = ProductDevelopment.objects.create(
-            code=code, name=name, product_group=group, product_type=ptype, priority=priority,
+            code=code, name=name, product_group=catalog.group_code(type_code) if ptype else '',
+            product_type=ptype, priority=priority,
             collection='Mùa 2027', target_customer='Đội bóng phong trào, CLB doanh nghiệp',
             usage_need='Thi đấu và tập luyện cường độ cao, thoát mồ hôi nhanh.',
             market_need='Phân khúc trung cấp, kênh sỉ đội nhóm.',

@@ -4,8 +4,10 @@ from datetime import datetime, time
 
 from django import forms
 from django.contrib.auth import get_user_model
+from django.db.models import Q
 from django.utils import timezone
 
+from . import catalog, role_scopes
 from . import permissions as perms
 from .models import (
     DOSSIER_ROLE_FIELDS,
@@ -81,11 +83,40 @@ ROLE_LABELS = {
 }
 
 
+def role_queryset(role: str, current_id=None):
+    if role == 'approver':
+        return approver_queryset()
+    scope = role_scopes.user_filter(role)
+    if scope is None:
+        return None
+    if current_id:
+        scope |= Q(pk=current_id)
+    return active_users().filter(scope)
+
+
 class RoleFieldsMixin:
-    def _add_role_fields(self):
+    def _add_role_fields(self, current: dict | None = None):
+        current = current or {}
         for role in DOSSIER_ROLE_FIELDS:
-            qs = approver_queryset() if role == 'approver' else None
-            self.fields[role] = user_field(ROLE_LABELS[role], queryset=qs)
+            field = user_field(ROLE_LABELS[role], queryset=role_queryset(role, current.get(role)))
+            field.help_text = role_scopes.scope_label(role)
+            self.fields[role] = field
+
+
+class CatalogTypeChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        return f'{obj.code} — {obj.name}'
+
+
+class CatalogTypeSelect(forms.Select):
+    """Mỗi option mang data-group để lọc Loại theo Nhóm đã chọn."""
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex=subindex, attrs=attrs)
+        instance = getattr(value, 'instance', None)
+        if instance is not None:
+            option['attrs']['data-group'] = catalog.group_code(instance.code)
+        return option
 
 
 class DossierForm(RoleFieldsMixin, forms.ModelForm):
@@ -100,8 +131,6 @@ class DossierForm(RoleFieldsMixin, forms.ModelForm):
         ]
         widgets = {
             'name': forms.TextInput(attrs=_INPUT),
-            'product_group': forms.Select(attrs=_SELECT),
-            'product_type': forms.Select(attrs=_SELECT),
             'collection': forms.TextInput(attrs=_INPUT),
             'priority': forms.Select(attrs=_SELECT),
             'launch_date': forms.DateInput(attrs=_DATE, format='%Y-%m-%d'),
@@ -118,16 +147,35 @@ class DossierForm(RoleFieldsMixin, forms.ModelForm):
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self._add_role_fields()
-        if not self.instance.pk and user is not None and not self.is_bound:
+        instance = self.instance
+        group_choices = catalog.group_choices()
+        if instance.product_group and instance.product_group not in dict(group_choices):
+            group_choices.append((instance.product_group, catalog.group_label(instance.product_group)))
+        self.fields['product_group'] = forms.ChoiceField(
+            label='Nhóm sản phẩm', choices=[('', '— Chọn nhóm —'), *group_choices],
+            widget=forms.Select(attrs=_SELECT),
+        )
+        self.fields['product_type'] = CatalogTypeChoiceField(
+            label='Loại sản phẩm', queryset=catalog.type_queryset(include_pk=instance.product_type_id),
+            empty_label='— Chọn loại —', widget=CatalogTypeSelect(attrs=_SELECT),
+        )
+        self._add_role_fields({role: getattr(instance, f'{role}_id') for role in DOSSIER_ROLE_FIELDS})
+        if not instance.pk and user is not None and not self.is_bound:
             self.initial.setdefault('owner', user.pk)
+
+    def clean(self):
+        data = super().clean()
+        group, ptype = data.get('product_group'), data.get('product_type')
+        if group and ptype and catalog.group_code(ptype.code) != group:
+            self.add_error('product_type', 'Loại sản phẩm không thuộc nhóm đã chọn.')
+        return data
 
 
 class RolesForm(RoleFieldsMixin, forms.Form):
     def __init__(self, *args, dossier: ProductDevelopment, **kwargs):
         initial = {role: getattr(dossier, f'{role}_id') for role in DOSSIER_ROLE_FIELDS}
         super().__init__(*args, initial=initial, **kwargs)
-        self._add_role_fields()
+        self._add_role_fields(initial)
         self.fields['owner'].required = True
 
 

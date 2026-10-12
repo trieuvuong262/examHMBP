@@ -99,27 +99,6 @@ STEPS = (
 )
 
 
-class ProductGroup(models.TextChoices):
-    FOOTBALL = 'bong_da', 'Bóng đá'
-    VOLLEYBALL = 'bong_chuyen', 'Bóng chuyền'
-    RACKET = 'cau_long_pickleball', 'Cầu lông / Pickleball'
-    BASKETBALL = 'bong_ro', 'Bóng rổ'
-    RUNNING = 'chay_bo', 'Chạy bộ'
-    TEAMWEAR = 'polo_teamwear', 'Polo / Teamwear'
-    BASIC = 'basic', 'Basic'
-    OTHER = 'khac', 'Nhóm khác'
-
-
-class ProductType(models.TextChoices):
-    SHIRT = 'ao', 'Áo'
-    PANTS = 'quan', 'Quần'
-    SET = 'bo', 'Bộ'
-    JACKET = 'ao_khoac', 'Áo khoác'
-    POLO = 'polo', 'Polo'
-    ACCESSORY = 'phu_kien', 'Phụ kiện'
-    OTHER = 'khac', 'Khác'
-
-
 class Priority(models.TextChoices):
     URGENT = 'urgent', 'Khẩn'
     HIGH = 'high', 'Cao'
@@ -192,10 +171,12 @@ class ProductDevelopment(models.Model):
     code = models.CharField(max_length=20, unique=True, verbose_name='Mã hồ sơ')
     name = models.CharField(max_length=255, verbose_name='Tên sản phẩm tạm thời')
     product_group = models.CharField(
-        max_length=30, choices=ProductGroup.choices, default=ProductGroup.OTHER, verbose_name='Nhóm sản phẩm',
+        max_length=32, blank=True, default='', db_index=True, verbose_name='Nhóm sản phẩm',
+        help_text='Mã nhóm trong danh mục Loại mã (SET-SC → SET).',
     )
-    product_type = models.CharField(
-        max_length=20, choices=ProductType.choices, default=ProductType.SHIRT, verbose_name='Loại sản phẩm',
+    product_type = models.ForeignKey(
+        'kho_san_pham.ProductType', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='tksp_dossiers', verbose_name='Loại sản phẩm',
     )
     collection = models.CharField(max_length=120, blank=True, default='', verbose_name='Bộ sưu tập / mùa bán hàng')
     target_customer = models.CharField(max_length=255, blank=True, default='', verbose_name='Khách hàng mục tiêu')
@@ -299,6 +280,14 @@ class ProductDevelopment(models.Model):
 
     def get_absolute_url(self):
         return reverse('thiet_ke_sp:detail', args=[self.pk])
+
+    def get_product_group_display(self) -> str:
+        from .catalog import group_label
+
+        return group_label(self.product_group)
+
+    def get_product_type_display(self) -> str:
+        return self.product_type.name if self.product_type_id else ''
 
     @property
     def status_badge(self) -> str:

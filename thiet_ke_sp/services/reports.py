@@ -9,6 +9,7 @@ from decimal import Decimal
 from django.db.models import Count, Max, Q
 from django.utils import timezone
 
+from thiet_ke_sp import catalog
 from thiet_ke_sp import permissions as perms
 from thiet_ke_sp.models import (
     DONE_STATUSES,
@@ -21,7 +22,6 @@ from thiet_ke_sp.models import (
     Criterion,
     EvaluationItem,
     ProductDevelopment,
-    ProductGroup,
     Status,
     Task,
 )
@@ -205,11 +205,11 @@ def report_data(*, collection: str = '', group: str = '') -> dict:
         row['total'] += 1
         row['first'] += 1 if d.final_sample_version.version_no == 1 else 0
         row['rounds'].append(d.final_sample_version.version_no)
-    group_labels = dict(ProductGroup.choices)
+    group_labels = catalog.group_labels()
     first_pass_by_group = sorted(
         (
             {
-                'label': group_labels.get(key, key), 'total': row['total'],
+                'label': group_labels.get(key, key) or 'Chưa chọn nhóm', 'total': row['total'],
                 'rate': _pct(row['first'], row['total']), 'avg_rounds': _avg(row['rounds']),
             }
             for key, row in by_group.items()

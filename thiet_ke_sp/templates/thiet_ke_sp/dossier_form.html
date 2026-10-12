@@ -84,4 +84,27 @@
   </form>
 </div>
 {% include 'thiet_ke_sp/includes/tksp_scripts.html' %}
+<script>
+(function () {
+  var group = document.getElementById('{{ form.product_group.id_for_label }}');
+  var type = document.getElementById('{{ form.product_type.id_for_label }}');
+  if (!group || !type) return;
+  function syncTypes() {
+    var g = group.value;
+    var visible = [];
+    Array.prototype.forEach.call(type.options, function (o) {
+      if (!o.value) return;
+      var show = !!g && o.getAttribute('data-group') === g;
+      o.hidden = !show;
+      o.disabled = !show;
+      if (show) visible.push(o);
+    });
+    var current = type.options[type.selectedIndex];
+    if (current && current.disabled) type.value = '';
+    if (!type.value && visible.length === 1) type.value = visible[0].value;
+  }
+  group.addEventListener('change', syncTypes);
+  syncTypes();
+})();
+</script>
 {% endblock %}
