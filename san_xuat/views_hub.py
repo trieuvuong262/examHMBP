@@ -2145,6 +2145,16 @@ def plan_board(request):
             messages.error(request, str(exc))
         return _board_redirect()
 
+    ticket_id = 0
+    if tab == 'queue':
+        try:
+            ticket_id = max(0, int(request.GET.get('ticket') or 0))
+        except (TypeError, ValueError):
+            ticket_id = 0
+    board_query = request.GET.copy()
+    board_query.pop('ticket', None)
+    board_return_path = request.path + (f'?{board_query.urlencode()}' if board_query else '')
+
     qty_summary = confirmed_order_qty_summary()
     queue_rows = []
     released_rows = []
@@ -2248,15 +2258,27 @@ def plan_board(request):
         filter_prev_from, filter_prev_to = _month_bounds(_shift_month(filter_date_from, -1))
         filter_next_from, filter_next_to = _month_bounds(_shift_month(filter_date_from, 1))
 
-        queue_rows = build_plan_board_rows(
-            statuses=BOARD_LIST_STATUSES,
-            search=q,
-            include_released=True,
-            date_from=filter_date_from,
-            date_to=filter_date_to,
-            persist_side_effects=False,
-        )
-        queue_rows = _apply_board_filters(queue_rows)
+        if ticket_id:
+            queue_rows = build_plan_board_rows(
+                statuses=BOARD_LIST_STATUSES,
+                include_released=True,
+                persist_side_effects=False,
+                order_ids=[ticket_id],
+            )
+            if not queue_rows:
+                from django.http import HttpResponseNotFound
+
+                return HttpResponseNotFound('Đơn không còn trên kế hoạch — tải lại trang.')
+        else:
+            queue_rows = build_plan_board_rows(
+                statuses=BOARD_LIST_STATUSES,
+                search=q,
+                include_released=True,
+                date_from=filter_date_from,
+                date_to=filter_date_to,
+                persist_side_effects=False,
+            )
+            queue_rows = _apply_board_filters(queue_rows)
         route_board = None
         route_stats = None
     elif tab == 'subcontract':
@@ -2339,6 +2361,28 @@ def plan_board(request):
     from san_xuat.services.planning import npl_prep_days
     from san_xuat.services.team_stage_colors import team_stage_color_css
 
+    if ticket_id:
+        return render(request, 'san_xuat/includes/plan_board_ticket_body.html', {
+            **_perm_ctx(request),
+            'row': queue_rows[0],
+            'mode': mode,
+            'tab': tab,
+            'search_query': q,
+            'filter_date_from': filter_date_from,
+            'filter_date_to': filter_date_to,
+            'board_return_path': board_return_path,
+            'npl_open_id': npl_open_id,
+            'npl_kit_default': npl_prep_days(),
+            'can_schedule': can_schedule,
+            'can_release': can_release,
+            'can_create_subcontract': can_release,
+            'can_receive_gc': can_schedule,
+            'can_create_npl_pr': (
+                user_can_create_menu(request.user, MODULE_SAN_XUAT, 'npl_pr')
+                or bool(_perm_ctx(request).get('can_create'))
+            ),
+        })
+
     legend_items = plan_stage_legend_items(
         queue_rows=queue_rows,
         route_board=route_board,
@@ -2346,6 +2390,7 @@ def plan_board(request):
 
     return render(request, 'san_xuat/plan_board.html', {
         **_perm_ctx(request),
+        'board_return_path': board_return_path,
         'mode': mode,
         'tab': tab,
         'search_query': q,

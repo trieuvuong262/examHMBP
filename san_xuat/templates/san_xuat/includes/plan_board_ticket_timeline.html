@@ -65,7 +65,7 @@
           {% if step.product_groups|length == 1 %}
             {% with pg=step.product_groups.0 %}
             <a class="jp-pb-stage-act jp-pb-stage-gc{% if step.subcontracts %} is-hired{% endif %}"
-               href="{% url 'san_xuat:subcontract_create' %}?so={{ row.order.pk }}&amp;product={{ pg.product_code|urlencode }}&amp;team={{ step.slug }}{% if pg.production_order_id > 0 %}&amp;mo={{ pg.production_order_id }}{% endif %}{% if step.start %}&amp;plan_date={{ step.start|date:'Y-m-d' }}{% endif %}{% if step.qty_label %}&amp;qty={{ step.qty_label }}{% endif %}{% if step.work_center_id %}&amp;work_center_id={{ step.work_center_id }}{% endif %}&amp;next={{ request.get_full_path|urlencode }}"
+               href="{% url 'san_xuat:subcontract_create' %}?so={{ row.order.pk }}&amp;product={{ pg.product_code|urlencode }}&amp;team={{ step.slug }}{% if pg.production_order_id > 0 %}&amp;mo={{ pg.production_order_id }}{% endif %}{% if step.start %}&amp;plan_date={{ step.start|date:'Y-m-d' }}{% endif %}{% if step.qty_label %}&amp;qty={{ step.qty_label }}{% endif %}{% if step.work_center_id %}&amp;work_center_id={{ step.work_center_id }}{% endif %}&amp;next={{ board_return_path|default:request.get_full_path|urlencode }}"
                title="Thuê gia công {{ pg.product_name }} — {{ step.label }}{% if step.split_count > 1 %} {{ step.split_index }}/{{ step.split_count }}{% endif %}{% if step.start %} · {{ step.start|date:'d/m' }}{% endif %}{% if step.qty_label %} · SL {{ step.qty_label }}{% endif %}">Thuê GC</a>
             {% endwith %}
           {% else %}
@@ -209,7 +209,7 @@
               {% empty %}
                 {% if can_create_subcontract and row.order.plan_status != 'done' %}
                 <a class="jp-pb-stage-product-gc-link"
-                   href="{% url 'san_xuat:subcontract_create' %}?so={{ row.order.pk }}&amp;product={{ product_group.product_code|urlencode }}&amp;team={{ step.slug }}{% if product_group.production_order_id > 0 %}&amp;mo={{ product_group.production_order_id }}{% endif %}{% if step.start %}&amp;plan_date={{ step.start|date:'Y-m-d' }}{% endif %}{% if step.qty_label %}&amp;qty={{ step.qty_label }}{% endif %}{% if step.work_center_id %}&amp;work_center_id={{ step.work_center_id }}{% endif %}&amp;next={{ request.get_full_path|urlencode }}"
+                   href="{% url 'san_xuat:subcontract_create' %}?so={{ row.order.pk }}&amp;product={{ product_group.product_code|urlencode }}&amp;team={{ step.slug }}{% if product_group.production_order_id > 0 %}&amp;mo={{ product_group.production_order_id }}{% endif %}{% if step.start %}&amp;plan_date={{ step.start|date:'Y-m-d' }}{% endif %}{% if step.qty_label %}&amp;qty={{ step.qty_label }}{% endif %}{% if step.work_center_id %}&amp;work_center_id={{ step.work_center_id }}{% endif %}&amp;next={{ board_return_path|default:request.get_full_path|urlencode }}"
                    title="Thuê gia công {{ product_group.product_name }}{% if step.start %} · {{ step.start|date:'d/m' }}{% endif %}{% if step.qty_label %} · SL {{ step.qty_label }}{% endif %}">Thuê GC</a>
                 {% endif %}
               {% endfor %}

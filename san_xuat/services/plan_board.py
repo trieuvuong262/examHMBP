@@ -1821,6 +1821,7 @@ def build_plan_board_rows(
     date_to: date | None = None,
     date_mode: str = 'queue_or_range',
     persist_side_effects: bool = True,
+    order_ids: list[int] | None = None,
 ) -> list[PlanBoardRow]:
     """Danh sách đơn trên board (MTO confirmed).
 
@@ -1845,7 +1846,7 @@ def build_plan_board_rows(
                     'bom_version', 'routing',
                 ).order_by('sort_order', 'id').prefetch_related(
                     'routing_lines__work_center',
-                    'routing_lines__operation__group',
+                    'routing_lines__operation__group__default_work_center',
                     'bom_version__process_steps',
                 ),
             ),
@@ -1886,6 +1887,8 @@ def build_plan_board_rows(
         qs = qs.filter(plan_status__in=statuses)
     elif not include_released:
         qs = qs.filter(plan_status__in=QUEUE_STATUSES)
+    if order_ids is not None:
+        qs = qs.filter(pk__in=order_ids)
 
     term = (search or '').strip()
     if term:

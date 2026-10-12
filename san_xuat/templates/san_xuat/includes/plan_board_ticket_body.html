@@ -1,0 +1,5 @@
+{% include 'san_xuat/includes/plan_board_ticket_prep.html' %}
+{% include 'san_xuat/includes/plan_board_ticket_timeline.html' %}
+{% if row.missing_bom or row.missing_ops %}
+  {% include 'san_xuat/includes/plan_board_operation_details.html' with allow_attach=True %}
+{% endif %}

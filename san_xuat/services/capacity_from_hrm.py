@@ -610,6 +610,15 @@ def team_slug_for_work_center(center: SxWorkCenter | None) -> str | None:
     if code in _WC_CODE_TO_SLUG:
         return _WC_CODE_TO_SLUG[code]
 
+    from hrm.request_cache import get_or_set
+
+    return get_or_set(
+        ('sx_team_slug_for_wc', center.code or '', center.name or '', center.team_label or ''),
+        lambda: _team_slug_for_work_center_uncached(center),
+    )
+
+
+def _team_slug_for_work_center_uncached(center: SxWorkCenter) -> str | None:
     did = division_id_from_work_center_code(center.code)
     if did:
         from san_xuat.hub_models import SxTeamDivisionMap

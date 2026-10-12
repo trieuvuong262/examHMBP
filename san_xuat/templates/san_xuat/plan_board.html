@@ -271,6 +271,35 @@
   .jp-pb-prio.is-low select { color: #475569; border-color: #cbd5e1; background: #f1f5f9; }
 
   .jp-pb-ticket-body { padding: 0.85rem 1.05rem 1rem; }
+  .jp-pb-ticket-body[hidden] { display: none; }
+  .jp-pb-ticket-toggle {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 0.6rem;
+    width: 100%;
+    padding: 0.45rem 1.05rem;
+    border: 0;
+    background: #fff;
+    color: #0369a1;
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-align: left;
+    border-radius: 0 0 0.95rem 0.95rem;
+  }
+  .jp-pb-ticket-toggle:hover { background: #f0f9ff; }
+  .jp-pb-ticket-toggle[aria-expanded="true"] { border-radius: 0; border-bottom: 1px dashed var(--pb-line); }
+  .jp-pb-ticket-toggle-icon { transition: transform 0.15s ease; }
+  .jp-pb-ticket-toggle[aria-expanded="true"] .jp-pb-ticket-toggle-icon { transform: rotate(180deg); }
+  .jp-pb-ticket-toggle-flag {
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    background: #fef2f2;
+    color: #b91c1c;
+    font-size: 0.68rem;
+  }
+  .jp-pb-ticket-loading { color: #64748b; font-size: 0.8rem; }
+  .jp-pb-ticket-loading.is-error { color: #b91c1c; }
   .jp-pb-prep { margin: 0 0 0.7rem; }
   .jp-pb-prep-open { margin: 0; }
   .jp-pb-prep-sum {
@@ -1855,13 +1884,23 @@
           {% endif %}
         </div>
       </div>
-      <div class="jp-pb-ticket-body">
-        {% include 'san_xuat/includes/plan_board_ticket_prep.html' %}
-        {% include 'san_xuat/includes/plan_board_ticket_timeline.html' %}
-        {% if row.missing_bom or row.missing_ops %}
-          {% include 'san_xuat/includes/plan_board_operation_details.html' with allow_attach=True %}
+      {% with body_open=npl_open_id|default:0 %}
+      <button type="button" class="jp-pb-ticket-toggle" data-jp-ticket-toggle
+              aria-controls="jpTicketBody-{{ row.order.pk }}"
+              aria-expanded="{% if body_open == row.order.pk %}true{% else %}false{% endif %}">
+        <i class="bi bi-chevron-down jp-pb-ticket-toggle-icon" aria-hidden="true"></i>
+        <span class="jp-pb-ticket-toggle-label">Chi tiết NPL &amp; lộ trình công đoạn</span>
+        {% if row.missing_bom or row.missing_ops %}<span class="jp-pb-ticket-toggle-flag">Thiếu {% if row.missing_bom %}BOM{% endif %}{% if row.missing_bom and row.missing_ops %} / {% endif %}{% if row.missing_ops %}công đoạn{% endif %}</span>{% endif %}
+        {% if row.npl_short_count %}<span class="jp-pb-ticket-toggle-flag">Thiếu NPL {{ row.npl_short_count }}</span>{% endif %}
+      </button>
+      <div class="jp-pb-ticket-body" id="jpTicketBody-{{ row.order.pk }}"
+           data-jp-ticket-body data-order-id="{{ row.order.pk }}"
+           {% if body_open == row.order.pk %}data-loaded="1"{% else %}hidden{% endif %}>
+        {% if body_open == row.order.pk %}
+          {% include 'san_xuat/includes/plan_board_ticket_body.html' %}
         {% endif %}
       </div>
+      {% endwith %}
     </article>
     {% empty %}
     <div class="jp-pb-empty">
@@ -4091,14 +4130,13 @@
 })();
 
 (function () {
-  document.querySelectorAll('.jp-pb-hop-edit').forEach(function (el) {
-    el.addEventListener('toggle', function () {
-      if (!el.open) return;
-      document.querySelectorAll('.jp-pb-hop-edit[open]').forEach(function (other) {
-        if (other !== el) other.open = false;
-      });
+  document.addEventListener('toggle', function (ev) {
+    var el = ev.target;
+    if (!el || !el.matches || !el.matches('.jp-pb-hop-edit') || !el.open) return;
+    document.querySelectorAll('.jp-pb-hop-edit[open]').forEach(function (other) {
+      if (other !== el) other.open = false;
     });
-  });
+  }, true);
 })();
 
 (function () {
@@ -4201,14 +4239,14 @@
     if (url) window.open(url, '_blank', 'noopener');
   });
 
-  document.querySelectorAll('form.jp-pb-attach').forEach(function (form) {
-    form.addEventListener('submit', function (ev) {
-      var bom = form.querySelector('.jp-pb-attach-bom');
-      var rt = form.querySelector('.jp-pb-attach-rt');
-      if ((bom && bom.value === CREATE_VAL) || (rt && rt.value === CREATE_VAL)) {
-        ev.preventDefault();
-      }
-    });
+  document.addEventListener('submit', function (ev) {
+    var form = ev.target;
+    if (!form || !form.matches || !form.matches('form.jp-pb-attach')) return;
+    var bom = form.querySelector('.jp-pb-attach-bom');
+    var rt = form.querySelector('.jp-pb-attach-rt');
+    if ((bom && bom.value === CREATE_VAL) || (rt && rt.value === CREATE_VAL)) {
+      ev.preventDefault();
+    }
   });
 
   document.addEventListener('visibilitychange', function () {
@@ -4287,18 +4325,121 @@
     var allocate = row.querySelector('input.jp-pb-npl-allocate');
     if (allocate) allocate.value = inputQty(baseQty(allocate) / f);
   }
-  document.querySelectorAll('form.jp-pb-npl tbody tr').forEach(function (row) {
-    var select = row.querySelector('select.jp-pb-npl-uom');
-    var allocate = row.querySelector('input.jp-pb-npl-allocate');
-    if (select) {
-      select.addEventListener('change', function () { applyRow(row); });
+  function nplRowOf(el) {
+    return el && el.closest ? el.closest('form.jp-pb-npl tbody tr') : null;
+  }
+  document.addEventListener('change', function (ev) {
+    var select = ev.target;
+    if (!select || !select.matches || !select.matches('select.jp-pb-npl-uom')) return;
+    var row = nplRowOf(select);
+    if (row) applyRow(row);
+  });
+  document.addEventListener('input', function (ev) {
+    var allocate = ev.target;
+    if (!allocate || !allocate.matches || !allocate.matches('input.jp-pb-npl-allocate')) return;
+    var row = nplRowOf(allocate);
+    var select = row && row.querySelector('select.jp-pb-npl-uom');
+    if (!select) return;
+    var n = parseFloat(String(allocate.value || '0').replace(',', '.'));
+    if (!isFinite(n) || n < 0) n = 0;
+    allocate.setAttribute('data-base-qty', String(n * factorOf(select)));
+  });
+})();
+
+(function () {
+  var list = document.querySelector('.jp-pb-list');
+  if (!list) return;
+  var STORE_KEY = 'jpPlanBoardOpenTickets';
+
+  function openIds() {
+    try {
+      var ids = JSON.parse(window.sessionStorage.getItem(STORE_KEY) || '[]');
+      return Array.isArray(ids) ? ids.map(String) : [];
+    } catch (e) {
+      return [];
     }
-    if (allocate && select) {
-      allocate.addEventListener('input', function () {
-        var n = parseFloat(String(allocate.value || '0').replace(',', '.'));
-        if (!isFinite(n) || n < 0) n = 0;
-        allocate.setAttribute('data-base-qty', String(n * factorOf(select)));
+  }
+  function remember(orderId, open) {
+    var ids = openIds().filter(function (id) { return id !== orderId; });
+    if (open) ids.push(orderId);
+    try {
+      window.sessionStorage.setItem(STORE_KEY, JSON.stringify(ids.slice(-40)));
+    } catch (e) {}
+  }
+
+  function loadBody(body) {
+    if (body.getAttribute('data-loaded') === '1' || body.getAttribute('data-loading') === '1') return;
+    body.setAttribute('data-loading', '1');
+    body.innerHTML = '<div class="jp-pb-ticket-loading">Đang tải chi tiết…</div>';
+    var url = new URL(window.location.href);
+    url.searchParams.set('ticket', body.getAttribute('data-order-id') || '');
+    fetch(url.toString(), {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin'
+    })
+      .then(function (res) {
+        if (res.redirected) {
+          window.location.reload();
+          return null;
+        }
+        return res.text().then(function (html) {
+          if (!res.ok) throw new Error(html || ('HTTP ' + res.status));
+          return html;
+        });
+      })
+      .then(function (html) {
+        if (html === null) return;
+        body.innerHTML = html;
+        body.setAttribute('data-loaded', '1');
+      })
+      .catch(function (err) {
+        var msg = document.createElement('div');
+        msg.className = 'jp-pb-ticket-loading is-error';
+        msg.textContent = 'Không tải được chi tiết: ' + ((err && err.message) || 'lỗi mạng') + ' ';
+        var retry = document.createElement('button');
+        retry.type = 'button';
+        retry.className = 'btn btn-link btn-sm p-0 align-baseline';
+        retry.setAttribute('data-jp-ticket-retry', '');
+        retry.textContent = 'Thử lại';
+        msg.appendChild(retry);
+        body.innerHTML = '';
+        body.appendChild(msg);
+      })
+      .then(function () {
+        body.removeAttribute('data-loading');
       });
+  }
+
+  function setOpen(btn, open) {
+    var body = document.getElementById(btn.getAttribute('aria-controls') || '');
+    if (!body) return;
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    body.hidden = !open;
+    remember(body.getAttribute('data-order-id') || '', open);
+    if (open) loadBody(body);
+  }
+
+  list.addEventListener('click', function (ev) {
+    var retry = ev.target.closest('[data-jp-ticket-retry]');
+    if (retry) {
+      var failed = retry.closest('[data-jp-ticket-body]');
+      if (failed) loadBody(failed);
+      return;
+    }
+    var btn = ev.target.closest('[data-jp-ticket-toggle]');
+    if (!btn) return;
+    setOpen(btn, btn.getAttribute('aria-expanded') !== 'true');
+  });
+
+  var remembered = openIds();
+  list.querySelectorAll('[data-jp-ticket-toggle]').forEach(function (btn) {
+    var body = document.getElementById(btn.getAttribute('aria-controls') || '');
+    if (!body) return;
+    var orderId = body.getAttribute('data-order-id') || '';
+    if (btn.getAttribute('aria-expanded') === 'true') {
+      remember(orderId, true);
+    } else if (remembered.indexOf(orderId) !== -1) {
+      setOpen(btn, true);
     }
   });
 })();

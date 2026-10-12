@@ -453,10 +453,13 @@ def _mos_for_sales_orders(order_ids: list[int]) -> list[SxProductionOrder]:
                 "lines",
                 queryset=SxProductionOrderLine.objects.order_by("size_label", "id"),
             ),
-            "mo_process_steps",
+            "mo_process_steps__work_center",
             "sales_order__lines__routing_lines__work_center",
+            "sales_order__lines__routing_lines__operation__group__default_work_center",
             "routing__lines__work_center",
+            "routing__lines__operation__group__default_work_center",
             "bom_version__process_steps__work_center",
+            "bom_version__process_steps__operation__group__default_work_center",
         )
     )
 
@@ -807,10 +810,13 @@ def build_handover_board(*, search: str = "", team_slug: str = "", limit: int = 
                 "lines",
                 queryset=SxProductionOrderLine.objects.order_by("size_label", "id"),
             ),
-            "mo_process_steps",
+            "mo_process_steps__work_center",
             "sales_order__lines__routing_lines__work_center",
+            "sales_order__lines__routing_lines__operation__group__default_work_center",
             "routing__lines__work_center",
+            "routing__lines__operation__group__default_work_center",
             "bom_version__process_steps__work_center",
+            "bom_version__process_steps__operation__group__default_work_center",
         )
         .order_by("-order_date", "-pk")
     )

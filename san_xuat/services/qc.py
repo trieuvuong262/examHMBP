@@ -292,17 +292,24 @@ def _order_for_mo(mo: SxProductionOrder | None):
     return None
 
 
+_OB_LINE_RELATED = ("work_center", "operation__group__default_work_center")
+
+
+def _ob_rows(rel) -> list:
+    if not hasattr(rel, "select_related"):
+        return list(rel.all())
+    from san_xuat.services.order_routing import related_manager_rows
+
+    return related_manager_rows(rel, select_related=_OB_LINE_RELATED)
+
+
 def ob_routing_lines(*, mo: SxProductionOrder | None = None, order=None) -> list:
     so = order or _order_for_mo(mo)
     if so is None:
         return []
     lines = []
     for sol in so.lines.all():
-        rel = sol.routing_lines
-        if hasattr(rel, "select_related"):
-            lines.extend(list(rel.select_related("work_center").all()))
-        else:
-            lines.extend(list(rel.all()))
+        lines.extend(_ob_rows(sol.routing_lines))
     return lines
 
 
@@ -367,10 +374,7 @@ def _lsx_routing_lines(mo: SxProductionOrder | None) -> list:
     routing = getattr(mo, "routing", None)
     if routing is None:
         return []
-    rel = routing.lines
-    if hasattr(rel, "select_related"):
-        return list(rel.select_related("work_center").all())
-    return list(rel.all())
+    return _ob_rows(routing.lines)
 
 
 def _bom_process_steps(mo: SxProductionOrder | None) -> list:
@@ -379,10 +383,7 @@ def _bom_process_steps(mo: SxProductionOrder | None) -> list:
     bom = getattr(mo, "bom_version", None)
     if bom is None:
         return []
-    rel = bom.process_steps
-    if hasattr(rel, "select_related"):
-        return list(rel.select_related("work_center").all())
-    return list(rel.all())
+    return _ob_rows(bom.process_steps)
 
 
 def ob_source_lines(*, mo: SxProductionOrder | None = None, order=None) -> list:
