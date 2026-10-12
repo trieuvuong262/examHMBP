@@ -27,6 +27,9 @@
       {% if can_create_npl_pr and row.npl_short_count %}
       <a class="btn btn-hm btn-sm fw-bold" href="{% url 'san_xuat:plan_shortage_order' row.order.pk %}">Đặt hàng thiếu</a>
       {% endif %}
+      {% if can_view_npl_orders %}
+      <a class="btn btn-outline-secondary btn-sm fw-bold" href="{% url 'san_xuat:plan_npl' %}?dh={{ row.order.pk }}">Đơn đặt hàng NPL</a>
+      {% endif %}
     </span>
   </div>
 

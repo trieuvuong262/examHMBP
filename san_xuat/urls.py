@@ -1,10 +1,78 @@
 from django.urls import path
 from django.views.generic import RedirectView
 
-from san_xuat import views, views_hub, views_ie, views_kv_embed, views_ops, views_price, views_print, views_export
+from san_xuat import (
+    views,
+    views_export,
+    views_hub,
+    views_ie,
+    views_kv_embed,
+    views_npl_plan,
+    views_ops,
+    views_price,
+    views_print,
+)
 
 
 app_name = 'san_xuat'
+
+
+def _legacy(pattern_name: str):
+    return RedirectView.as_view(pattern_name=f'san_xuat:{pattern_name}', query_string=True)
+
+
+# Kế hoạch Nguyên Phụ Liệu — tách khỏi Kế hoạch SX.
+npl_plan_patterns = [
+    path('ke-hoach-npl/', views_npl_plan.npl_plan_home, name='npl_plan_home'),
+    path('ke-hoach-npl/so-gia/', views_price.price_quote_list, name='price_quote_list'),
+    path('ke-hoach-npl/so-gia/them/', views_price.price_quote_create, name='price_quote_create'),
+    path('ke-hoach-npl/so-gia/<int:pk>/', views_price.price_quote_detail, name='price_quote_detail'),
+    path('ke-hoach-npl/duyet-gia/', views_price.price_home, name='price_approve_home'),
+    path('ke-hoach-npl/duyet-gia/don/<int:pk>/', views_price.price_review_action, name='price_review_action'),
+    path('ke-hoach-npl/duyet-gia/api/tim-npl/', views_price.price_material_search, name='price_material_search'),
+    path('ke-hoach-npl/don-dat-hang/', views_hub.npl_purchase_request, name='npl_purchase_request'),
+    path('ke-hoach-npl/don-dat-hang/them/', views_hub.npl_purchase_request_create, name='npl_purchase_request_create'),
+    path('ke-hoach-npl/don-dat-hang/<int:pk>/sua/', views_hub.npl_purchase_request_edit, name='npl_purchase_request_edit'),
+    path('ke-hoach-npl/don-dat-hang/<int:pk>/', views_hub.npl_purchase_request_detail, name='npl_purchase_request_detail'),
+    path('ke-hoach-npl/don-dat-hang/<int:pk>/in/', views_print.print_npl_pr, name='print_npl_pr'),
+    path('ke-hoach-npl/dat-hang-thieu/<int:order_id>/', views_hub.plan_shortage_order, name='plan_shortage_order'),
+    path('ke-hoach-npl/xac-nhan/', views_hub.plan_npl, name='plan_npl'),
+    path('ke-hoach-npl/da-xac-nhan/', views_hub.plan_npl_confirmed, name='plan_npl_confirmed'),
+    path('ke-hoach-npl/ke-hoach/them/', views_hub.plan_npl_create, name='plan_npl_create'),
+    path('ke-hoach-npl/ke-hoach/<int:pk>/', views_hub.plan_npl_detail, name='plan_npl_detail'),
+    path('ke-hoach-npl/don-mua-hang/', views_hub.purchase_order, name='purchase_order'),
+    path('ke-hoach-npl/don-mua-hang/them/', views_hub.purchase_order_create, name='purchase_order_create'),
+    path('ke-hoach-npl/don-mua-hang/<int:pk>/', views_hub.purchase_order_detail, name='purchase_order_detail'),
+    path('ke-hoach-npl/don-mua-hang/<int:pk>/in/', views_print.print_po, name='print_po'),
+]
+
+# URL cũ (bookmark, link trong thông báo) → URL mới.
+npl_plan_legacy_patterns = [
+    path('duyet-gia/', _legacy('price_approve_home')),
+    path('duyet-gia/so-gia/', _legacy('price_quote_list')),
+    path('duyet-gia/so-gia/them/', _legacy('price_quote_create')),
+    path('duyet-gia/so-gia/<int:pk>/', _legacy('price_quote_detail')),
+    path('duyet-gia/don/<int:pk>/', _legacy('price_review_action')),
+    path('duyet-gia/api/tim-npl/', _legacy('price_material_search')),
+    path('ke-hoach/don-dat-hang/', _legacy('npl_purchase_request')),
+    path('ke-hoach/don-dat-hang/them/', _legacy('npl_purchase_request_create')),
+    path('ke-hoach/don-dat-hang/<int:pk>/sua/', _legacy('npl_purchase_request_edit')),
+    path('ke-hoach/don-dat-hang/<int:pk>/', _legacy('npl_purchase_request_detail')),
+    path('ke-hoach/don-dat-hang/<int:pk>/in/', _legacy('print_npl_pr')),
+    path('ke-hoach/dat-hang-thieu/<int:order_id>/', _legacy('plan_shortage_order')),
+    path('ke-hoach/npl/', _legacy('plan_npl')),
+    path('ke-hoach/npl/da-xac-nhan/', _legacy('plan_npl_confirmed')),
+    path('ke-hoach/npl/them/', _legacy('plan_npl_create')),
+    path('ke-hoach/npl/<int:pk>/', _legacy('plan_npl_detail')),
+    path('ke-hoach/don-mua-hang/', _legacy('purchase_order')),
+    path('ke-hoach/don-mua-hang/them/', _legacy('purchase_order_create')),
+    path('ke-hoach/don-mua-hang/<int:pk>/', _legacy('purchase_order_detail')),
+    path('ke-hoach/don-mua-hang/<int:pk>/in/', _legacy('print_po')),
+    path('ke-hoach/yeu-cau-mua-npl/', views_hub.redirect_legacy_purchase_request),
+    path('ke-hoach/yeu-cau-mua-npl/them/', views_hub.redirect_legacy_purchase_request_create),
+    path('ke-hoach/yeu-cau-mua-npl/<int:pk>/in/', views_hub.redirect_legacy_purchase_request_print),
+    path('ke-hoach/yeu-cau-mua-npl/<int:pk>/', views_hub.redirect_legacy_purchase_request_detail),
+]
 
 urlpatterns = [
     path('', views.hub, name='hub'),
@@ -24,8 +92,8 @@ urlpatterns = [
         'duyet-huy/',
         RedirectView.as_view(pattern_name='san_xuat:sx_cancel_approve', query_string=True),
     ),
-    path('ke-hoach/dat-hang-thieu/<int:order_id>/', views_hub.plan_shortage_order, name='plan_shortage_order'),
-    path('ke-hoach/don-mua-hang/<int:pk>/in/', views_print.print_po, name='print_po'),
+    *npl_plan_patterns,
+    *npl_plan_legacy_patterns,
     path('ke-hoach/lo-trinh/', views_hub.plan_route, name='plan_route'),
     path('ke-hoach/thoi-gian-trung-gian/', views_hub.plan_inter_step, name='plan_inter_step'),
     path('ke-hoach/giam-sat-tien-do/', views_hub.plan_progress_monitor, name='plan_progress_monitor'),
@@ -39,28 +107,6 @@ urlpatterns = [
     path('ke-hoach/chi-tiet/<int:pk>/', views_hub.plan_detail_detail, name='plan_detail_detail'),
     path('ke-hoach/chinh-sach-ton/', views_hub.stock_policy_list, name='stock_policy_list'),
     path('ke-hoach/de-xuat-bu-ton/', views_hub.restock_suggestions, name='restock_suggestions'),
-    path('ke-hoach/npl/', views_hub.plan_npl, name='plan_npl'),
-    path('ke-hoach/npl/da-xac-nhan/', views_hub.plan_npl_confirmed, name='plan_npl_confirmed'),
-    path('ke-hoach/npl/them/', views_hub.plan_npl_create, name='plan_npl_create'),
-    path('ke-hoach/npl/<int:pk>/', views_hub.plan_npl_detail, name='plan_npl_detail'),
-    path('duyet-gia/', views_price.price_home, name='price_approve_home'),
-    path('duyet-gia/so-gia/', views_price.price_quote_list, name='price_quote_list'),
-    path('duyet-gia/so-gia/them/', views_price.price_quote_create, name='price_quote_create'),
-    path('duyet-gia/so-gia/<int:pk>/', views_price.price_quote_detail, name='price_quote_detail'),
-    path('duyet-gia/don/<int:pk>/', views_price.price_review_action, name='price_review_action'),
-    path('duyet-gia/api/tim-npl/', views_price.price_material_search, name='price_material_search'),
-    path('ke-hoach/don-dat-hang/', views_hub.npl_purchase_request, name='npl_purchase_request'),
-    path('ke-hoach/don-dat-hang/them/', views_hub.npl_purchase_request_create, name='npl_purchase_request_create'),
-    path('ke-hoach/don-dat-hang/<int:pk>/sua/', views_hub.npl_purchase_request_edit, name='npl_purchase_request_edit'),
-    path('ke-hoach/don-dat-hang/<int:pk>/', views_hub.npl_purchase_request_detail, name='npl_purchase_request_detail'),
-    path('ke-hoach/don-dat-hang/<int:pk>/in/', views_print.print_npl_pr, name='print_npl_pr'),
-    path('ke-hoach/yeu-cau-mua-npl/', views_hub.redirect_legacy_purchase_request),
-    path('ke-hoach/yeu-cau-mua-npl/them/', views_hub.redirect_legacy_purchase_request_create),
-    path('ke-hoach/yeu-cau-mua-npl/<int:pk>/in/', views_hub.redirect_legacy_purchase_request_print),
-    path('ke-hoach/yeu-cau-mua-npl/<int:pk>/', views_hub.redirect_legacy_purchase_request_detail),
-    path('ke-hoach/don-mua-hang/', views_hub.purchase_order, name='purchase_order'),
-    path('ke-hoach/don-mua-hang/them/', views_hub.purchase_order_create, name='purchase_order_create'),
-    path('ke-hoach/don-mua-hang/<int:pk>/', views_hub.purchase_order_detail, name='purchase_order_detail'),
     path('dieu-phoi/', views_hub.dispatch_stub, name='dispatch_stub'),
     path('dieu-phoi/chay-lenh-moi/', views_hub.run_order_wizard, name='run_order_wizard'),
     path('dieu-phoi/chay-lenh-moi/<int:mo_id>/', views_hub.run_order_wizard, name='run_order_wizard_mo'),

@@ -459,6 +459,17 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/san-xuat/don-hang/xac-nhan', MODULE_SAN_XUAT, 'order_confirm'),
     ('/san-xuat/don-hang', MODULE_SAN_XUAT, 'orders'),
     ('/san-xuat/san-pham-nvl', MODULE_SAN_XUAT, 'products_nvl'),
+    # Kế hoạch NPL — phải đứng trước /san-xuat/ke-hoach (cùng tiền tố chuỗi).
+    # Trang tổng quan /san-xuat/ke-hoach-npl/ được defer: view tự kiểm tra menu NPL bất kỳ.
+    ('/san-xuat/ke-hoach-npl/so-gia', MODULE_SAN_XUAT, 'sx_price_quote'),
+    ('/san-xuat/ke-hoach-npl/duyet-gia', MODULE_SAN_XUAT, 'sx_price_approve'),
+    ('/san-xuat/ke-hoach-npl/don-dat-hang', MODULE_SAN_XUAT, 'npl_pr'),
+    ('/san-xuat/ke-hoach-npl/dat-hang-thieu', MODULE_SAN_XUAT, 'npl_pr'),
+    ('/san-xuat/ke-hoach-npl/xac-nhan', MODULE_SAN_XUAT, 'plan_npl'),
+    ('/san-xuat/ke-hoach-npl/da-xac-nhan', MODULE_SAN_XUAT, 'plan_npl'),
+    ('/san-xuat/ke-hoach-npl/ke-hoach', MODULE_SAN_XUAT, 'plan_npl'),
+    ('/san-xuat/ke-hoach-npl/don-mua-hang', MODULE_SAN_XUAT, 'purchase_order'),
+    ('/san-xuat/ke-hoach-npl', MODULE_SAN_XUAT, 'npl_pr'),
     ('/san-xuat/ke-hoach/lo-trinh', MODULE_SAN_XUAT, 'plan_route'),
     ('/san-xuat/ke-hoach/thoi-gian-trung-gian', MODULE_SAN_XUAT, 'plan_inter_step'),
     ('/san-xuat/ke-hoach/duyet-huy', MODULE_SAN_XUAT, 'sx_cancel_approve'),
@@ -611,7 +622,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
 MENU_PATH_ACCESS_ALIASES: dict[tuple[str, str], tuple[str, ...]] = {
     (MODULE_SAN_XUAT, 'subcontract'): ('plan_board', 'plan'),
     (MODULE_SAN_XUAT, 'capacity'): ('plan', 'plan_board'),
-    # KHSX có bảng so giá vẫn đi được URL /duyet-gia/ (middleware);
+    # KHSX có bảng so giá vẫn đi được URL duyệt giá (middleware);
     # view sẽ redirect sang so-gia, không mở hàng chờ Sếp.
     (MODULE_SAN_XUAT, 'sx_price_approve'): ('sx_price_quote',),
     # Người duyệt / bộ phận nhận bàn giao mở hồ sơ từ việc được giao.

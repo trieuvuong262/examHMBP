@@ -304,7 +304,7 @@ def portal_permissions(request):
         'jp_can_equipment': user_can_access_module(user, MODULE_EQUIPMENT),
         'jp_can_feedback': user_can_access_module(user, MODULE_FEEDBACK),
         'jp_can_surveys': user_can_access_module(user, MODULE_SURVEYS),
-        'jp_can_ksk_confirm': True,
+        'jp_can_ksk_confirm': bypass_department_modules(user),
         'jp_can_company_trip': user_can_access_module(user, MODULE_COMPANY_TRIP),
         'jp_can_utilities': user_can_access_module(user, MODULE_UTILITIES),
         'jp_can_trip_register': _jp_can_trip_register(user),

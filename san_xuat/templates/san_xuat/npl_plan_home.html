@@ -1,0 +1,204 @@
+{% extends 'base.html' %}
+{% load sx_format %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+<style>
+.jp-npl-material-catalog-page.jp-sx-page .jp-sx-stat-grid {
+  grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+}
+.jp-npl-material-catalog-page.jp-sx-page a.jp-sx-stat {
+  display: flex; flex-direction: column; gap: 0.2rem;
+  text-decoration: none; color: inherit; background: var(--bs-body-bg);
+  transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease;
+}
+.jp-npl-material-catalog-page.jp-sx-page a.jp-sx-stat:hover {
+  border-color: var(--hm-red, #dc2626);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+}
+.jp-npl-material-catalog-page.jp-sx-page .jp-sx-stat .label { display: flex; align-items: center; gap: 0.4rem; }
+.jp-npl-material-catalog-page.jp-sx-page .jp-sx-stat.is-zero .value { color: var(--bs-secondary-color); }
+.jp-npl-material-catalog-page.jp-sx-page .jp-sx-stat.is-warn { border-color: #fcd34d; background: #fffbeb; }
+.jp-npl-material-catalog-page.jp-sx-page .jp-sx-stat.is-warn .value { color: #a16207; }
+.jp-npl-material-catalog-page.jp-sx-page .jp-sx-stat.is-danger { border-color: #fecaca; background: #fef2f2; }
+.jp-npl-material-catalog-page.jp-sx-page .jp-sx-stat.is-danger .value { color: #991b1b; }
+.jp-nplh-section-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  margin: 1.25rem 0 0.5rem;
+}
+.jp-npl-material-catalog-page.jp-sx-page .jp-nplh-section-head .jp-sx-section-title { margin: 0; }
+.jp-nplh-section-head a { font-size: 0.78rem; font-weight: 700; text-decoration: none; white-space: nowrap; }
+.jp-nplh-badge {
+  display: inline-flex; align-items: center; margin-left: 0.4rem;
+  font-size: 0.72rem; font-weight: 600; line-height: 1;
+  padding: 0.25rem 0.5rem; border-radius: 999px; white-space: nowrap; border: 1px solid;
+}
+.jp-nplh-badge.is-late { border-color: #fecaca; background: #fef2f2; color: #991b1b; }
+.jp-nplh-badge.is-soon { border-color: #fcd34d; background: #fffbeb; color: #a16207; }
+.jp-nplh-act {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 1.85rem; padding: 0 0.65rem; line-height: 1; white-space: nowrap;
+}
+@media (max-width: 767.98px) {
+  .jp-npl-material-catalog-page.jp-sx-page .jp-npl-mat-grid.jp-nplh-table { min-width: 0; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Kế hoạch Nguyên Phụ Liệu</h2>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      {% if board_queue_url %}
+      <a href="{{ board_queue_url }}"><i class="bi bi-kanban" aria-hidden="true"></i>Kế hoạch sản xuất</a>
+      {% endif %}
+      {% if low_stock %}
+      <a href="{% url 'kho_npl:stock_alerts' %}"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i>Cảnh báo tồn</a>
+      {% endif %}
+      {% if can_create_quote %}
+      <a href="{% url 'san_xuat:price_quote_create' %}" class="btn btn-hm btn-sm fw-bold">
+        <i class="bi bi-plus-lg" aria-hidden="true"></i> Bảng so giá mới
+      </a>
+      {% endif %}
+    </nav>
+  </div>
+
+  <div class="jp-sx-page-body">
+    <div class="jp-sx-section-title mt-0">Tiến độ đặt hàng</div>
+    <div class="jp-sx-stat-grid">
+      {% for card in step_cards %}
+      <a class="jp-sx-stat{% if not card.count %} is-zero{% endif %}" href="{{ card.href }}">
+        <span class="label"><i class="bi {{ card.icon }}" aria-hidden="true"></i>{{ card.label }}</span>
+        <span class="value">{{ card.count }}</span>
+      </a>
+      {% endfor %}
+    </div>
+
+    {% if show_orders or low_stock %}
+    <div class="jp-sx-section-title">Cảnh báo</div>
+    <div class="jp-sx-stat-grid">
+      {% if show_orders %}
+      <a class="jp-sx-stat{% if late_count %} is-danger{% else %} is-zero{% endif %}" href="#jp-nplh-due">
+        <span class="label"><i class="bi bi-alarm" aria-hidden="true"></i>Quá hạn hàng về</span>
+        <span class="value">{{ late_count }}</span>
+      </a>
+      <a class="jp-sx-stat{% if upcoming_count %} is-warn{% else %} is-zero{% endif %}" href="#jp-nplh-due">
+        <span class="label"><i class="bi bi-calendar-event" aria-hidden="true"></i>Hàng về trong {{ upcoming_days }} ngày</span>
+        <span class="value">{{ upcoming_count }}</span>
+      </a>
+      <a class="jp-sx-stat{% if shortage_total %} is-warn{% else %} is-zero{% endif %}" href="#jp-nplh-shortage">
+        <span class="label"><i class="bi bi-exclamation-diamond" aria-hidden="true"></i>Đơn SX thiếu NPL</span>
+        <span class="value">{{ shortage_total }}</span>
+      </a>
+      {% endif %}
+      {% if low_stock %}
+      <a class="jp-sx-stat{% if low_stock.low %} is-warn{% else %} is-zero{% endif %}" href="{{ low_stock.low_url }}">
+        <span class="label"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i>NPL sắp thiếu</span>
+        <span class="value">{{ low_stock.low }}</span>
+      </a>
+      <a class="jp-sx-stat{% if low_stock.out %} is-danger{% else %} is-zero{% endif %}" href="{{ low_stock.out_url }}">
+        <span class="label"><i class="bi bi-x-octagon" aria-hidden="true"></i>NPL hết hàng</span>
+        <span class="value">{{ low_stock.out }}</span>
+      </a>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if show_orders %}
+    <div class="jp-nplh-section-head" id="jp-nplh-due">
+      <div class="jp-sx-section-title">Đơn mua quá hạn / sắp tới hạn hàng về</div>
+    </div>
+    <div class="card border-0 shadow-sm overflow-hidden">
+      <div class="jp-npl-mat-grid-wrap">
+        <table class="table table-hover align-middle mb-0 jp-npl-mat-grid jp-nplh-table">
+          <thead class="table-light">
+            <tr>
+              <th class="text-start">Mã đơn mua</th>
+              <th class="text-start">Đơn SX</th>
+              <th class="text-start">Nhà cung cấp</th>
+              <th class="text-end">SL đặt</th>
+              <th class="text-start">Ngày hàng về</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in due_rows %}
+            <tr{% if row.href %} class="jp-npl-catalog-row" data-href="{{ row.href }}"{% endif %}>
+              <td class="text-start"><strong>{{ row.po.code }}</strong></td>
+              <td class="text-start">{{ row.order.code|default:"—" }}</td>
+              <td class="text-start">{{ row.supplier }}</td>
+              <td class="text-end">{{ row.qty_total|sx_num }}</td>
+              <td class="text-start">
+                {{ row.po.expected_date|date:"d/m/Y" }}
+                {% if row.is_late %}
+                <span class="jp-nplh-badge is-late">Trễ {{ row.days }} ngày</span>
+                {% elif row.days == 0 %}
+                <span class="jp-nplh-badge is-soon">Hôm nay</span>
+                {% else %}
+                <span class="jp-nplh-badge is-soon">Còn {{ row.days }} ngày</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-muted small p-3">Không có đơn mua quá hạn hoặc sắp tới hạn.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="jp-nplh-section-head" id="jp-nplh-shortage">
+      <div class="jp-sx-section-title">Đơn sản xuất đang thiếu NPL</div>
+      {% if board_short_url and shortage_total > shortage_rows|length %}
+      <a href="{{ board_short_url }}">Xem tất cả {{ shortage_total }} đơn <i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+      {% endif %}
+    </div>
+    <div class="card border-0 shadow-sm overflow-hidden">
+      <div class="jp-npl-mat-grid-wrap">
+        <table class="table table-hover align-middle mb-0 jp-npl-mat-grid jp-nplh-table">
+          <thead class="table-light">
+            <tr>
+              <th class="text-start">Đơn SX</th>
+              <th class="text-start">Khách hàng</th>
+              <th class="text-start">Hạn hoàn thành</th>
+              <th class="text-end">Mã NPL thiếu</th>
+              <th class="text-end"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in shortage_rows %}
+            <tr{% if row.board_url %} class="jp-npl-catalog-row" data-href="{{ row.board_url }}"{% endif %}>
+              <td class="text-start"><strong>{{ row.order.code }}</strong></td>
+              <td class="text-start">{{ row.order.customer_name|default:"—" }}</td>
+              <td class="text-start">{% if row.order.due_date %}{{ row.order.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+              <td class="text-end">{{ row.short_count }}</td>
+              <td class="text-end">
+                {% if row.shortage_url %}
+                <a class="btn btn-hm btn-sm fw-bold jp-nplh-act" href="{{ row.shortage_url }}">Đặt hàng thiếu</a>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-muted small p-3">Không có đơn sản xuất thiếu NPL.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+<script>
+(function () {
+  document.querySelectorAll('.jp-npl-catalog-row[data-href]').forEach(function (row) {
+    row.addEventListener('click', function (e) {
+      if (e.target.closest('a, button, input, select, label, form')) return;
+      window.location.href = row.getAttribute('data-href');
+    });
+  });
+})();
+</script>
+{% endblock %}

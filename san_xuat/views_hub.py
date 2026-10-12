@@ -2425,6 +2425,7 @@ def plan_board(request):
                 user_can_create_menu(request.user, MODULE_SAN_XUAT, 'npl_pr')
                 or bool(_perm_ctx(request).get('can_create'))
             ),
+            'can_view_npl_orders': user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan_npl'),
         })
 
     legend_items = plan_stage_legend_items(
@@ -2497,6 +2498,7 @@ def plan_board(request):
             user_can_create_menu(request.user, MODULE_SAN_XUAT, 'npl_pr')
             or bool(_perm_ctx(request).get('can_create'))
         ),
+        'can_view_npl_orders': user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan_npl'),
     })
 
 
@@ -2516,8 +2518,6 @@ def plan_shortage_order(request, order_id: int):
     menu_key = 'npl_pr'
     if not (
         user_can_access_menu(request.user, MODULE_SAN_XUAT, menu_key)
-        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan')
-        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'npl_pr')
         or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan_npl')
     ):
         return handle_menu_access_denied(request, MODULE_SAN_XUAT, menu_key)
@@ -2955,9 +2955,7 @@ def plan_npl(request):
     menu_key = 'plan_npl'
     if not (
         user_can_access_menu(request.user, MODULE_SAN_XUAT, menu_key)
-        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan')
         or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'npl_pr')
-        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan_board')
     ):
         return handle_menu_access_denied(request, MODULE_SAN_XUAT, menu_key)
 
@@ -3015,9 +3013,7 @@ def plan_npl_confirmed(request):
     menu_key = 'plan_npl'
     if not (
         user_can_access_menu(request.user, MODULE_SAN_XUAT, menu_key)
-        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan')
         or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'npl_pr')
-        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan_board')
     ):
         return handle_menu_access_denied(request, MODULE_SAN_XUAT, menu_key)
 
