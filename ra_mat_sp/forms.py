@@ -3,7 +3,8 @@ from __future__ import annotations
 from django import forms
 
 from thiet_ke_sp import catalog
-from thiet_ke_sp.forms import UserChoiceField, active_users, user_field
+from thiet_ke_sp.forms import UserChoiceField, active_users
+from thiet_ke_sp.forms import user_field as _tk_user_field
 from thiet_ke_sp.models import ProductDevelopment
 from thiet_ke_sp.models import Status as DossierStatus
 
@@ -22,15 +23,21 @@ from .models import (
     TaskStatus,
 )
 
-_INPUT = {'class': 'form-control'}
-_SELECT = {'class': 'form-select'}
-_DATE = {'class': 'form-control jp-date-vn', 'type': 'date'}
-_MONEY = {'class': 'form-control text-end', 'inputmode': 'numeric', 'min': '0', 'step': '1'}
+_INPUT = {'class': 'form-control form-control-sm'}
+_SELECT = {'class': 'form-select form-select-sm'}
+_DATE = {'class': 'form-control form-control-sm jp-date-vn', 'type': 'date'}
+_MONEY = {'class': 'form-control form-control-sm text-end', 'inputmode': 'numeric', 'min': '0', 'step': '1'}
 _CHECK = {'class': 'form-check-input'}
 
 
+def user_field(label: str, **kwargs) -> UserChoiceField:
+    field = _tk_user_field(label, **kwargs)
+    field.widget.attrs['class'] = 'form-select form-select-sm jp-tksp-user-select'
+    return field
+
+
 def _textarea(rows: int = 3) -> forms.Textarea:
-    return forms.Textarea(attrs={'class': 'form-control', 'rows': rows})
+    return forms.Textarea(attrs={'class': 'form-control form-control-sm', 'rows': rows})
 
 
 def approver_queryset(current_id=None):
@@ -58,8 +65,7 @@ class PlanForm(forms.ModelForm):
     dossiers = DossierChoiceField(
         queryset=ProductDevelopment.objects.none(),
         label='Sản phẩm ra mắt (hồ sơ thiết kế)',
-        widget=forms.SelectMultiple(attrs={'class': 'form-select jp-tksp-user-select', 'multiple': 'multiple'}),
-        help_text='Chọn một hoặc nhiều hồ sơ từ Thiết kế sản phẩm. Checklist mẫu sinh theo nhóm sản phẩm của hồ sơ.',
+        widget=forms.SelectMultiple(attrs={'class': 'form-select form-select-sm jp-tksp-user-select', 'multiple': 'multiple'}),
     )
 
     class Meta:
@@ -92,8 +98,7 @@ class PlanForm(forms.ModelForm):
         self.fields['coordinator'] = user_field('Người điều phối', required=True)
         self.fields['approver'] = UserChoiceField(
             queryset=approver_queryset(plan.approver_id), required=False, label='Người duyệt (Go/No-Go)',
-            empty_label='— Chọn —', widget=forms.Select(attrs={'class': 'form-select jp-tksp-user-select'}),
-            help_text='Người có quyền Sửa menu «Chờ tôi duyệt» của Kế hoạch ra mắt.',
+            empty_label='— Chọn —', widget=forms.Select(attrs={'class': 'form-select form-select-sm jp-tksp-user-select'}),
         )
 
 
@@ -193,3 +198,5 @@ class TemplateItemForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['product_group'].choices = [('', 'Mọi nhóm sản phẩm')] + list(catalog.group_choices())
+        for field in self.fields.values():
+            field.help_text = ''

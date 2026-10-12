@@ -10,7 +10,10 @@ from assessment.decorators import module_perm_required
 from hrm.module_permissions import MODULE_KHO_SAN_PHAM
 from PortalJustPlay.pagination import paginate_queryset
 
+from san_xuat.list_grid import SX_LIST_GRIDS, sx_list_grid_context
+
 from kho_san_pham.catalog_models import ProductStyle
+from kho_san_pham.library_grid import LIST_KEY
 from kho_san_pham.models import Product
 from kho_san_pham.view_utils import perm_context
 
@@ -83,8 +86,11 @@ def library_list(request):
             max_price=Max('base_price'),
             last_update=Max('updated_at'),
         )
-        .order_by('-last_update', 'style_code')
     )
+    grid = sx_list_grid_context(request, LIST_KEY)
+    sort_field = SX_LIST_GRIDS[LIST_KEY]['sort_fields'][grid['sort_key']]
+    prefix = '-' if grid['sort_dir'] == 'desc' else ''
+    rows = rows.order_by(f'{prefix}{sort_field}', 'style_code')
     page_obj, query_string = paginate_queryset(request, rows, per_page=40)
     items = list(page_obj.object_list)
     codes = [r['style_code'] for r in items]
@@ -130,6 +136,8 @@ def library_list(request):
         'group_choices': catalog.group_choices(),
         'total_styles': total_styles,
         'no_style': no_style,
+        'has_filters': bool(q or group or status != 'active'),
+        **grid,
     })
 
 

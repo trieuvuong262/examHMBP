@@ -15,6 +15,8 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from hrm.menu_permissions import handle_menu_access_denied, user_can_access_resolved_menu
+from PortalJustPlay.pagination import paginate_queryset
+from san_xuat.list_grid import apply_sx_list_sort, sx_list_grid_context
 from thiet_ke_sp import catalog
 from thiet_ke_sp.presenters import cover_map
 
@@ -23,6 +25,7 @@ from . import permissions as perms
 from . import services as svc
 from .context_processors import invalidate_plan_badges
 from .defaults import load_default_checklist
+from .list_grid import LIST_KEY
 from .models import (
     APPROVAL_STATUSES,
     FINAL_STATUSES,
@@ -202,16 +205,26 @@ def plan_list(request):
     group = g.get('group') or ''
     if group:
         qs = qs.filter(products__dossier__product_group=group).distinct()
-    plans = list(qs.order_by('launch_date', 'pk'))
+    grid = sx_list_grid_context(request, LIST_KEY)
+    if g.get('sort'):
+        qs = apply_sx_list_sort(qs, request, LIST_KEY)
+    else:
+        qs = qs.order_by('launch_date', 'pk')
+        grid['sort_dir'] = 'asc'
+    page_obj, query_string = paginate_queryset(
+        request, qs.select_related('coordinator__profile', 'approver__profile', 'created_by__profile'), per_page=30)
+    plans = list(page_obj.object_list)
     _refresh_running(plans)
     plans = _decorate(plans)
     User = get_user_model()
     coordinators = User.objects.filter(
         pk__in=LaunchPlan.objects.values('coordinator_id')).select_related('profile').order_by('profile__full_name')
     return render(request, 'ra_mat_sp/plan_list.html', _common(
-        request, plans=plans, quick=quick, quick_filters=QUICK_FILTERS, q=q,
+        request, plans=plans, page_obj=page_obj, query_string=query_string, quick=quick,
+        quick_filters=QUICK_FILTERS, q=q,
         coordinators=[(u.pk, svc.display_name(u)) for u in coordinators], coordinator=coordinator,
         group_choices=catalog.group_choices(), group=group, rm_active='plans',
+        has_filters=bool(q or coordinator or group), **grid,
     ))
 
 

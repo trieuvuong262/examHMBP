@@ -1,11 +1,11 @@
-{% load sx_format %}
+{% load sx_format tksp_tags %}
 <div class="table-responsive">
-  <table class="table tk-mini-table align-middle">
+  <table class="table table-hover tk-mini-table align-middle mb-0">
     <thead>
       <tr>
         <th>Kế hoạch</th>
         <th>Ngày ra mắt</th>
-        <th>Sản phẩm</th>
+        <th class="text-end">Sản phẩm</th>
         <th>Điều phối</th>
         <th>Trạng thái</th>
         <th style="min-width: 150px">Sẵn sàng</th>
@@ -14,19 +14,19 @@
     </thead>
     <tbody>
     {% for p in plans %}
-      <tr>
+      <tr class="jp-npl-catalog-row" data-href="{{ p.get_absolute_url }}">
         <td>
-          <a class="tk-prod text-decoration-none text-reset" href="{{ p.get_absolute_url }}">
+          <div class="tk-prod">
             <span class="tk-prod-thumb">{% if p.cover %}<img src="{{ p.cover.get_absolute_url }}" alt="">{% else %}<i class="bi bi-rocket-takeoff"></i>{% endif %}</span>
             <span class="min-w-0"><strong>{{ p.name }}</strong><small>{{ p.code }}{% if p.groups %} · {{ p.groups|join:', ' }}{% endif %}</small></span>
-          </a>
+          </div>
         </td>
         <td class="text-nowrap">
           <strong>{{ p.launch_date|date:'d/m/Y' }}</strong>
           <div class="small {% if p.days_to_launch < 0 and p.status != 'launched' and p.status != 'reviewing' and p.status != 'done' %}tk-late{% else %}text-muted{% endif %}">{{ p.countdown_label }}</div>
         </td>
-        <td>{{ p.dossiers|length }}</td>
-        <td class="text-nowrap">{{ p.coordinator.profile.full_name|default:p.coordinator.username }}</td>
+        <td class="text-end">{{ p.dossiers|length|sx_num }}</td>
+        <td class="text-nowrap">{{ p.coordinator|uname }}</td>
         <td><span class="tk-pill is-{{ p.status_tone }}">{{ p.get_status_display }}</span></td>
         <td>
           <div class="rm-ready">

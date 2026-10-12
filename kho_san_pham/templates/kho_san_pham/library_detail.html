@@ -48,7 +48,7 @@
           <div class="tk-field"><label>Mã KiotViet gốc</label><span class="v">{{ style.root_kiotviet_code|default:'—' }}</span></div>
           <div class="tk-field"><label>Nhóm hàng (KiotViet)</label><span class="v">{{ rep.category_name|default:'—' }}</span></div>
           <div class="tk-field"><label>Đơn vị tính</label><span class="v">{{ rep.unit|default:'—' }}</span></div>
-          <div class="tk-field"><label>Giá bán</label><span class="v">{% if min_price %}{{ min_price|sx_num }}{% if max_price != min_price %} – {{ max_price|sx_num }}{% endif %} đ{% else %}—{% endif %}</span></div>
+          <div class="tk-field"><label>Giá bán</label><span class="v">{% if min_price %}{{ min_price|sx_num:0 }}{% if max_price != min_price %} – {{ max_price|sx_num:0 }}{% endif %} đ{% else %}—{% endif %}</span></div>
           <div class="tk-field"><label>Màu</label><span class="v">{{ colors|join:', '|default:'—' }}</span></div>
           <div class="tk-field"><label>Size</label><span class="v">{{ sizes|join:' · '|default:'—' }}</span></div>
           <div class="tk-field"><label>Tồn xưởng (tham khảo)</label><span class="v">{{ qty_total|sx_num }}</span></div>
@@ -64,7 +64,7 @@
           <div class="tk-field"><label>Duyệt sản xuất lúc</label><span class="v">{{ dossier.approved_at|date:'d/m/Y'|default:'—' }}</span></div>
         </div>
         {% else %}
-        <div class="small text-muted">Chưa có hồ sơ Thiết kế sản phẩm nào có «Mã chính thức» = {{ code }}.</div>
+        <div class="small text-muted">Chưa có hồ sơ thiết kế.</div>
         {% endif %}
         {% for p in launches %}
         <div class="tk-comment mt-2">
@@ -75,11 +75,11 @@
       </div>
     {% elif tab == 'sku' %}
       <div class="table-responsive">
-        <table class="table tk-mini-table align-middle">
+        <table class="table table-hover tk-mini-table align-middle mb-0">
           <thead><tr><th>SKU</th><th>Màu</th><th>Size</th><th>Giới tính</th><th>Mã vạch</th><th>Mã kế toán</th><th>Mã KiotViet</th><th class="text-end">Giá</th><th class="text-end">Tồn xưởng</th><th>Trạng thái</th></tr></thead>
           <tbody>
           {% for p in products %}
-            <tr>
+            <tr class="jp-npl-catalog-row" data-href="{% url 'kho_san_pham:product_detail' p.pk %}">
               <td><a href="{% url 'kho_san_pham:product_detail' p.pk %}" class="fw-semibold">{{ p.code }}</a></td>
               <td>{{ p.color_label|default:p.color_code|default:'—' }}</td>
               <td>{{ p.size_label|default:'—' }}</td>
@@ -87,7 +87,7 @@
               <td class="small">{{ p.bar_code|default:'—' }}</td>
               <td class="small">{{ p.accounting_code|default:'—' }}</td>
               <td class="small">{{ p.kiotviet_code|default:'—' }}</td>
-              <td class="text-end">{{ p.base_price|sx_num }}</td>
+              <td class="text-end">{% if p.base_price is not None %}{{ p.base_price|sx_num:0 }}{% else %}—{% endif %}</td>
               <td class="text-end">{{ p.qty_on_hand|sx_num }}</td>
               <td><span class="tk-pill {% if p.is_active %}is-green{% else %}is-gray{% endif %}">{% if p.is_active %}Đang dùng{% else %}Ngừng{% endif %}</span></td>
             </tr>
@@ -105,13 +105,12 @@
           <div class="cap"><div class="k">{{ img.label }}</div><div class="n">{{ img.sku }}</div></div>
         </a>
         {% empty %}
-        <div class="small text-muted">Chưa có hình ảnh — ảnh lấy từ SKU (tải lên trong Danh mục SKU hoặc đồng bộ KiotViet).</div>
+        <div class="small text-muted">Chưa có hình ảnh.</div>
         {% endfor %}
       </div>
     {% elif tab == 'channels' %}
-      <div class="tk-callout is-muted">Dữ liệu kênh là bản lưu từ lần đồng bộ KiotViet gần nhất (Giai đoạn 1 chưa kéo trực tiếp).</div>
       <div class="table-responsive">
-        <table class="table tk-mini-table align-middle">
+        <table class="table table-hover tk-mini-table align-middle mb-0">
           <thead><tr><th>SKU</th><th>Mã KiotViet</th><th>ID KiotViet</th><th>Cho phép bán</th><th>Nguồn</th><th>KV sửa lúc</th><th>Đồng bộ lúc</th></tr></thead>
           <tbody>
           {% for p in products %}

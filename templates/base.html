@@ -258,6 +258,7 @@ window.JP_MEAL_PUSH = window.JP_PORTAL_PUSH;
 {% include 'san_xuat/includes/sx_date_range_filter_scripts.html' %}
 {% elif '/thiet-ke-san-pham/' in request.path or '/ke-hoach-ra-mat/' in request.path or '/kho-san-pham/thu-vien' in request.path %}
 {% include 'san_xuat/includes/sx_ui_polish_scripts.html' %}
+{% if '/ke-hoach-ra-mat/' in request.path %}{% include 'san_xuat/includes/sx_date_range_filter_scripts.html' %}{% endif %}
 {% endif %}
 </body>
 </html>

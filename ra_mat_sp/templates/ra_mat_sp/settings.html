@@ -10,7 +10,6 @@
     <div class="col-lg-8">
       <div class="tk-section">
         <div class="tk-section-title"><i class="bi bi-list-check"></i>Checklist mẫu theo mốc
-          <span class="tk-section-sub">Chỉ áp dụng khi tạo kế hoạch mới; kế hoạch đã tạo giữ nguyên công việc.</span>
           {% if can_edit %}
           <form method="post" class="ms-auto" data-tk-confirm="Nạp lại các dòng mặc định còn thiếu?">{% csrf_token %}<input type="hidden" name="op" value="restore">
             <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise"></i> Nạp mặc định</button></form>
@@ -18,7 +17,7 @@
         </div>
         {% for label, items in milestones %}
         <div class="rm-milestone">
-          <div class="rm-milestone-head"><span class="badge-ms">{{ label }}</span><span class="small text-muted">{{ items|length }} dòng</span></div>
+          <div class="rm-milestone-head"><span class="badge-ms">{{ label }}</span><span class="small text-muted">{{ items|length }} việc</span></div>
           <div class="table-responsive"><table class="table tk-mini-table align-middle mb-0"><tbody>
             {% for it in items %}
             <tr class="{% if not it.is_active %}text-muted{% endif %}">
@@ -60,8 +59,8 @@
             <div class="form-check">{{ form.is_active }}<label class="form-check-label small" for="{{ form.is_active.id_for_label }}">Đang dùng</label></div>
           </div>
           <div class="col-12 d-flex gap-2">
-            <button class="btn btn-hm text-white fw-bold">Lưu</button>
-            {% if edit_item %}<a href="{% url 'ra_mat_sp:settings' %}" class="btn btn-outline-secondary">Hủy sửa</a>{% endif %}
+            <button class="btn btn-sm btn-hm text-white fw-bold">Lưu</button>
+            {% if edit_item %}<a href="{% url 'ra_mat_sp:settings' %}" class="btn btn-sm btn-outline-secondary fw-bold">Hủy sửa</a>{% endif %}
           </div>
         </form>
       </div>
@@ -71,7 +70,6 @@
         {% for label, w in weights %}
         <div class="d-flex justify-content-between small py-1 border-bottom"><span>{{ label }}</span><b>{{ w }}%</b></div>
         {% endfor %}
-        <div class="form-text small mt-2">Trong nhóm: việc quan trọng ×3, điều kiện Go/No-Go ×2. Chỉ tính việc đến D-Day; bỏ qua việc «Không áp dụng».</div>
       </div>
     </div>
   </div>

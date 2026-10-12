@@ -1,35 +1,103 @@
 {% extends 'base.html' %}
+{% load sx_format tksp_tags %}
 {% block title %}Kế hoạch ra mắt sản phẩm{% endblock %}
 {% block extra_head %}{% include 'ra_mat_sp/includes/rm_styles.html' %}{% endblock %}
 
 {% block content %}
-<div class="container-fluid jp-page jp-sx-page jp-tksp py-3 py-md-4 mb-5 px-3 px-lg-4">
-  {% include 'ra_mat_sp/includes/rm_topbar.html' with rm_title='Kế hoạch ra mắt sản phẩm' %}
+<div class="container-fluid jp-page jp-sx-page jp-npl-material-catalog-page jp-tksp py-3 py-md-4 mb-5 px-3 px-lg-4">
+  {% include 'ra_mat_sp/includes/rm_topbar.html' with rm_title='Kế hoạch ra mắt sản phẩm' rm_show_col_picker=True %}
 
-  <div class="tk-card tk-panel mb-3">
-    <div class="tk-chips mb-2">
-      {% for key, label in quick_filters %}
-      <a class="btn btn-sm {% if quick == key %}btn-dark{% else %}btn-outline-secondary{% endif %}" href="?quick={{ key }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if group %}&group={{ group }}{% endif %}{% if coordinator %}&coordinator={{ coordinator }}{% endif %}">{{ label }}</a>
-      {% endfor %}
-    </div>
-    <form method="get" class="tk-toolbar">
-      <input type="hidden" name="quick" value="{{ quick }}">
-      <input type="search" name="q" value="{{ q }}" class="form-control form-control-sm tk-search" placeholder="Tìm mã, tên kế hoạch, mã / tên hồ sơ…">
-      <select name="group" class="form-select form-select-sm" onchange="this.form.submit()">
-        <option value="">Mọi nhóm sản phẩm</option>
-        {% for code, label in group_choices %}<option value="{{ code }}"{% if group == code %} selected{% endif %}>{{ label }}</option>{% endfor %}
-      </select>
-      <select name="coordinator" class="form-select form-select-sm" onchange="this.form.submit()">
-        <option value="">Mọi người điều phối</option>
-        {% for pk, name in coordinators %}<option value="{{ pk }}"{% if coordinator == pk|stringformat:'s' %} selected{% endif %}>{{ name }}</option>{% endfor %}
-      </select>
-      <button class="btn btn-sm btn-outline-secondary" type="submit"><i class="bi bi-search"></i> Lọc</button>
-      <span class="tk-count">{{ plans|length }} kế hoạch</span>
+  <div class="jp-sx-page-body">
+    <form method="get" id="rmListFilter" class="tk-card tk-panel mb-3" role="search" aria-label="Bộ lọc kế hoạch">
+      <div class="tk-chips mb-3">
+        {% for val, label in quick_filters %}
+        <button type="submit" name="quick" value="{{ val }}" class="btn btn-sm fw-bold {% if quick == val %}btn-hm text-white{% else %}btn-light border{% endif %}">{{ label }}</button>
+        {% endfor %}
+      </div>
+      <input type="hidden" name="quick" value="{{ quick }}" id="rmQuickHidden">
+      {% if sort_key and request.GET.sort %}<input type="hidden" name="sort" value="{{ sort_key }}"><input type="hidden" name="dir" value="{{ sort_dir }}">{% endif %}
+      <div class="tk-toolbar">
+        <input type="search" id="rm-q" name="q" value="{{ q }}" class="form-control form-control-sm tk-search" placeholder="Tìm mã, tên kế hoạch, hồ sơ…" autocomplete="off" aria-label="Tìm kiếm">
+        <select name="group" class="form-select form-select-sm rm-auto" aria-label="Nhóm sản phẩm">
+          <option value="">Tất cả nhóm</option>
+          {% for code, label in group_choices %}<option value="{{ code }}"{% if group == code %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        <select name="coordinator" class="form-select form-select-sm rm-auto" aria-label="Điều phối">
+          <option value="">Mọi người điều phối</option>
+          {% for pk, name in coordinators %}<option value="{{ pk }}"{% if coordinator == pk|stringformat:'s' %} selected{% endif %}>{{ name }}</option>{% endfor %}
+        </select>
+        {% if has_filters %}<a href="{% url 'ra_mat_sp:list' %}{% if quick %}?quick={{ quick }}{% endif %}" class="btn btn-light border btn-sm" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>{% endif %}
+        <span class="tk-count">{{ page_obj.paginator.count|sx_num }} kế hoạch</span>
+      </div>
     </form>
-  </div>
 
-  <div class="tk-card tk-panel">
-    {% include 'ra_mat_sp/includes/plan_table.html' with plans=plans empty_text='Không có kế hoạch phù hợp bộ lọc.' %}
+    <div class="tk-card overflow-hidden">
+      <div class="jp-npl-mat-grid-wrap">
+        <table class="table table-hover align-middle mb-0 jp-npl-mat-grid" id="{{ sx_list_table_id }}">
+          <thead class="table-light"><tr>{% include 'san_xuat/includes/sx_list_grid_head.html' %}</tr></thead>
+          <tbody>
+          {% for p in plans %}
+            <tr class="jp-npl-catalog-row" data-href="{{ p.get_absolute_url }}">
+              <td class="npl-col" data-col="name">
+                <div class="tk-prod">
+                  <span class="tk-prod-thumb">{% if p.cover %}<img src="{{ p.cover.get_absolute_url }}" alt="">{% else %}<i class="bi bi-rocket-takeoff"></i>{% endif %}</span>
+                  <span class="min-w-0"><strong>{{ p.name }}</strong><small>{{ p.code }}{% if p.groups %} · {{ p.groups|join:', ' }}{% endif %}</small></span>
+                </div>
+              </td>
+              <td class="npl-col fw-bold small" data-col="code">{{ p.code }}</td>
+              <td class="npl-col small" data-col="launch_date">
+                <strong>{{ p.launch_date|date:'d/m/Y' }}</strong>
+                <div class="{% if p.days_to_launch < 0 and p.status != 'launched' and p.status != 'reviewing' and p.status != 'done' %}tk-late{% else %}text-muted{% endif %}">{{ p.countdown_label }}</div>
+              </td>
+              <td class="npl-col small text-end" data-col="products">{{ p.dossiers|length|sx_num }}</td>
+              <td class="npl-col small" data-col="coordinator">{{ p.coordinator|uname }}</td>
+              <td class="npl-col small" data-col="approver">{{ p.approver|uname }}</td>
+              <td class="npl-col" data-col="status"><span class="tk-pill is-{{ p.status_tone }}">{{ p.get_status_display }}</span></td>
+              <td class="npl-col" data-col="ready">
+                <div class="rm-ready">
+                  <div class="tk-progress is-wide is-{{ p.tone }}"><i style="width: {{ p.ready.pct }}%"></i></div>
+                  <b>{{ p.ready.pct }}%</b>
+                </div>
+                <div class="small text-muted">{{ p.ready.done }}/{{ p.ready.total }} việc</div>
+              </td>
+              <td class="npl-col" data-col="alert">
+                <span class="tk-pill is-{{ p.tone }}">{{ p.tone_label }}</span>
+                {% if p.ready.overdue %}<div class="small tk-late mt-1">{{ p.ready.overdue|length }} việc trễ{% if p.ready.overdue_blockers %} · {{ p.ready.overdue_blockers|length }} điều kiện Go{% endif %}</div>{% endif %}
+                {% if p.high_risks %}<div class="small tk-miss">{{ p.high_risks }} rủi ro cao</div>{% endif %}
+              </td>
+              <td class="npl-col small text-end" data-col="target_qty">{% if p.target_qty %}{{ p.target_qty|sx_num }}{% else %}—{% endif %}</td>
+              <td class="npl-col small text-end" data-col="target_revenue">{% if p.target_revenue %}{{ p.target_revenue|sx_num:0 }}{% else %}—{% endif %}</td>
+              <td class="npl-col small" data-col="created_by">{{ p.created_by|uname }}</td>
+              <td class="npl-col small text-muted" data-col="created_at">{{ p.created_at|date:'d/m/Y H:i' }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="13" class="text-muted text-center py-4">Không có kế hoạch phù hợp.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="mt-3">{% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}</div>
   </div>
 </div>
+{% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
+<script>
+(function () {
+  var form = document.getElementById('rmListFilter');
+  if (!form) return;
+  var hidden = document.getElementById('rmQuickHidden');
+  form.querySelectorAll('button[name="quick"]').forEach(function (btn) {
+    btn.addEventListener('click', function () { if (hidden) hidden.disabled = true; });
+  });
+  form.querySelectorAll('.rm-auto').forEach(function (el) {
+    el.addEventListener('change', function () { form.requestSubmit(); });
+  });
+  var q = document.getElementById('rm-q');
+  var timer = null;
+  if (q) q.addEventListener('input', function () {
+    clearTimeout(timer);
+    timer = setTimeout(function () { form.requestSubmit(); }, 450);
+  });
+})();
+</script>
 {% endblock %}

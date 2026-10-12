@@ -5,9 +5,13 @@
     <h2 class="jp-npl-mat-topbar-title w-100 mb-0">{{ lib_title }}</h2>
   </div>
   <nav class="jp-sx-tools" aria-label="Công cụ">
-    {% if back_url %}<a href="{{ back_url }}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Thư viện</a>{% endif %}
     <a href="{% url 'kho_san_pham:product_list' %}"><i class="bi bi-tags" aria-hidden="true"></i>Danh mục SKU</a>
     {% if can_codes %}<a href="{% url 'kho_san_pham:code_settings_hub' %}"><i class="bi bi-diagram-3" aria-hidden="true"></i>Thiết lập mã</a>{% endif %}
-    {% if can_create %}<a href="{% url 'kho_san_pham:product_create' %}" class="btn btn-hm btn-sm fw-bold text-white"><i class="bi bi-plus-lg" aria-hidden="true"></i>Thêm SKU</a>{% endif %}
+    {% if lib_show_col_picker %}{% include 'san_xuat/includes/sx_list_col_picker.html' %}{% endif %}
+    {% if can_create and not back_url %}<a href="{% url 'kho_san_pham:product_create' %}?type=hang_hoa" class="btn btn-hm btn-sm fw-bold text-white"><i class="bi bi-plus-lg" aria-hidden="true"></i>Thêm SKU</a>{% endif %}
+    {% if back_url %}
+    <span class="sep" aria-hidden="true"></span>
+    <a href="{{ back_url }}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Thư viện</a>
+    {% endif %}
   </nav>
 </div>

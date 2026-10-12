@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Lịch ra mắt sản phẩm{% endblock %}
+{% load sx_format %}{% block title %}Lịch ra mắt sản phẩm{% endblock %}
 {% block extra_head %}{% include 'ra_mat_sp/includes/rm_styles.html' %}{% endblock %}
 
 {% block content %}
@@ -9,8 +9,8 @@
   <div class="tk-card tk-panel mb-3">
     <form method="get" class="tk-toolbar">
       <div class="btn-group btn-group-sm" role="group" aria-label="Kiểu xem">
-        <a class="btn {% if view == 'month' %}btn-dark{% else %}btn-outline-secondary{% endif %}" href="?view=month&start={{ start|date:'Y-m' }}{% if group %}&group={{ group }}{% endif %}">Tháng</a>
-        <a class="btn {% if view == 'quarter' %}btn-dark{% else %}btn-outline-secondary{% endif %}" href="?view=quarter{% if group %}&group={{ group }}{% endif %}">Quý</a>
+        <a class="btn fw-bold {% if view == 'month' %}btn-hm text-white{% else %}btn-light border{% endif %}" href="?view=month&start={{ start|date:'Y-m' }}{% if group %}&group={{ group }}{% endif %}">Tháng</a>
+        <a class="btn fw-bold {% if view == 'quarter' %}btn-hm text-white{% else %}btn-light border{% endif %}" href="?view=quarter{% if group %}&group={{ group }}{% endif %}">Quý</a>
       </div>
       <div class="btn-group btn-group-sm">
         <a class="btn btn-outline-secondary" href="?view={{ view }}&start={{ nav.prev }}{% if group %}&group={{ group }}{% endif %}" aria-label="Trước"><i class="bi bi-chevron-left"></i></a>
@@ -21,10 +21,10 @@
       <input type="hidden" name="view" value="{{ view }}">
       <input type="hidden" name="start" value="{{ start|date:'Y-m' }}">
       <select name="group" class="form-select form-select-sm" onchange="this.form.submit()">
-        <option value="">Mọi nhóm sản phẩm</option>
+        <option value="">Tất cả nhóm</option>
         {% for code, label in group_choices %}<option value="{{ code }}"{% if group == code %} selected{% endif %}>{{ label }}</option>{% endfor %}
       </select>
-      <span class="tk-count">{{ total }} kế hoạch</span>
+      <span class="tk-count">{{ total|sx_num }} kế hoạch</span>
     </form>
     <div class="rm-legend mt-2">
       <span class="is-green">Đúng tiến độ</span><span class="is-amber">Có việc chậm</span>

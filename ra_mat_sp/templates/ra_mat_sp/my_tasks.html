@@ -9,15 +9,15 @@
   <div class="tk-card tk-panel mb-3">
     <div class="tk-toolbar">
       <div class="tk-chips">
-        <a class="btn btn-sm {% if show == 'open' %}btn-dark{% else %}btn-outline-secondary{% endif %}" href="?show=open">Chưa xong</a>
-        <a class="btn btn-sm {% if show != 'open' %}btn-dark{% else %}btn-outline-secondary{% endif %}" href="?show=all">Tất cả</a>
+        <a class="btn btn-sm fw-bold {% if show == 'open' %}btn-hm text-white{% else %}btn-light border{% endif %}" href="?show=open">Chưa xong</a>
+        <a class="btn btn-sm fw-bold {% if show != 'open' %}btn-hm text-white{% else %}btn-light border{% endif %}" href="?show=all">Tất cả</a>
       </div>
       <span class="tk-count">{{ tasks|length }} việc{% if overdue %} · <span class="tk-late">{{ overdue }} trễ hạn</span>{% endif %}</span>
     </div>
   </div>
 
   <div class="tk-card tk-panel mb-3">
-    <div class="table-responsive"><table class="table tk-mini-table align-middle">
+    <div class="table-responsive"><table class="table tk-mini-table align-middle mb-0">
       <thead><tr><th>Công việc</th><th>Mốc</th><th>Hạn</th><th>Phụ trách</th><th>Trạng thái</th><th></th></tr></thead>
       <tbody>
       {% for t in tasks %}{% include 'ra_mat_sp/includes/task_row.html' with show_plan=1 %}

@@ -13,22 +13,22 @@
       <div class="ico info"><i class="bi bi-calendar3"></i></div>
     </a>
     <a class="tk-kpi" href="{% url 'ra_mat_sp:list' %}?quick=risk">
-      <div><div class="cap">Có rủi ro chặn ra mắt</div><div class="num">{{ kpi.at_risk|sx_num }}</div><div class="sub {% if kpi.at_risk %}is-bad{% else %}is-ok{% endif %}">Việc quan trọng trễ / rủi ro cao</div></div>
+      <div><div class="cap">Có rủi ro chặn ra mắt</div><div class="num">{{ kpi.at_risk|sx_num }}</div></div>
       <div class="ico"><i class="bi bi-exclamation-octagon"></i></div>
     </a>
     <a class="tk-kpi" href="{% url 'ra_mat_sp:list' %}?quick=pending">
-      <div><div class="cap">Chờ quyết định</div><div class="num">{{ kpi.pending|sx_num }}</div><div class="sub is-warn">Duyệt kế hoạch · Go/No-Go</div></div>
+      <div><div class="cap">Chờ quyết định</div><div class="num">{{ kpi.pending|sx_num }}</div></div>
       <div class="ico warn"><i class="bi bi-flag"></i></div>
     </a>
     <a class="tk-kpi" href="{% url 'ra_mat_sp:list' %}?quick=launched">
-      <div><div class="cap">Đang theo dõi sau ra mắt</div><div class="num">{{ kpi.launched|sx_num }}</div><div class="sub {% if kpi.overdue %}is-bad{% else %}is-ok{% endif %}">{{ kpi.overdue|sx_num }} việc trễ hạn toàn bộ</div></div>
+      <div><div class="cap">Đang theo dõi sau ra mắt</div><div class="num">{{ kpi.launched|sx_num }}</div><div class="sub {% if kpi.overdue %}is-bad{% else %}is-ok{% endif %}">{{ kpi.overdue|sx_num }} việc trễ hạn</div></div>
       <div class="ico ok"><i class="bi bi-graph-up-arrow"></i></div>
     </a>
   </div>
 
   <div class="tk-card tk-panel mb-3">
     <div class="tk-panel-head">
-      <div><div class="tk-panel-title">Sắp ra mắt</div><div class="tk-panel-sub">Theo ngày ra mắt gần nhất</div></div>
+      <div class="tk-panel-title">Sắp ra mắt</div>
       <div class="d-flex align-items-center gap-3 flex-wrap">
         <div class="rm-legend">
           <span class="is-green">Đúng tiến độ</span><span class="is-amber">Có việc chậm</span>
@@ -43,7 +43,7 @@
   <div class="tk-dash-grid mb-3">
     <div class="tk-card tk-panel">
       <div class="tk-panel-head">
-        <div><div class="tk-panel-title">Việc trễ hạn</div><div class="tk-panel-sub">Ưu tiên điều kiện Go/No-Go</div></div>
+        <div class="tk-panel-title">Việc trễ hạn</div>
       </div>
       <div class="tk-alert-list">
         {% for t in overdue %}
@@ -61,7 +61,7 @@
     </div>
     <div class="tk-card tk-panel">
       <div class="tk-panel-head">
-        <div><div class="tk-panel-title">Rủi ro đang mở</div><div class="tk-panel-sub">Và đánh giá sau ra mắt đến hạn</div></div>
+        <div class="tk-panel-title">Rủi ro &amp; đánh giá đến hạn</div>
       </div>
       <div class="tk-alert-list">
         {% for r in reviews_due %}
