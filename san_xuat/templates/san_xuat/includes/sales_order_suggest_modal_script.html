@@ -69,6 +69,15 @@
   function velocityInput(size) {
     return modalEl.querySelector('.jp-so-sg-velocity[data-size="' + size + '"]');
   }
+  function ordersInput(size) {
+    return modalEl.querySelector('.jp-so-sg-orders[data-size="' + size + '"]');
+  }
+  function clearOrders() {
+    ALL_SIZES.forEach(function (sz) {
+      var el = ordersInput(sz);
+      if (el) el.value = '0';
+    });
+  }
   function rawCell(size) {
     return modalEl.querySelector('.jp-so-sg-raw[data-size="' + size + '"]');
   }
@@ -221,6 +230,7 @@
 
     var stockSum = 0;
     var velSum = 0;
+    var ordSum = 0;
     var rawSum = 0;
     var sugSum = 0;
     var confirmBySize = {};
@@ -228,7 +238,8 @@
     ALL_SIZES.forEach(function (sz) {
       var stock = num(stockInput(sz), 0);
       var vel = num(velocityInput(sz), 0);
-      var raw = (vel * coef) - stock;
+      var ord = num(ordersInput(sz), 0);
+      var raw = (vel * coef) - stock - ord;
       var sug = roundUp(raw, step);
       var rawEl = rawCell(sz);
       var sugEl = outCell(sz);
@@ -245,6 +256,7 @@
       if (visSet[sz]) {
         stockSum += stock;
         velSum += vel;
+        ordSum += ord;
         rawSum += raw;
         sugSum += sug;
       }
@@ -264,6 +276,7 @@
 
     setRowTotal('stock', stockSum);
     setRowTotal('vel', velSum);
+    setRowTotal('orders', ordSum);
     setRowTotal('raw', rawSum);
     setRowTotal('out', sugSum);
     setRowTotal('confirm', confirmSum);
@@ -297,6 +310,7 @@
     productBound = true;
     productTs.on('change', function (value) {
       clearConfirmEdits();
+      clearOrders();
       loadStockForStyle(value || '');
       if (typeof window.jpSyncProductSelectExtras === 'function') {
         window.jpSyncProductSelectExtras(productEl);
@@ -379,9 +393,11 @@
     ALL_SIZES.forEach(function (sz) {
       var s = stockInput(sz);
       var v = velocityInput(sz);
+      var o = ordersInput(sz);
       var c = confirmInput(sz);
       if (s) { s.value = '0'; s.classList.remove('is-from-kho'); }
       if (v) { v.value = '0'; v.classList.remove('is-from-kv'); }
+      if (o) o.value = '0';
       if (c) { c.value = '0'; delete c.dataset.userEdited; }
     });
     setExpanded(false);
@@ -522,6 +538,7 @@
     var days = periodDays();
     var stock = {};
     var velocity = {};
+    var orders = {};
     var raw = {};
     var suggested = {};
     var confirm = {};
@@ -529,11 +546,13 @@
     sizes.forEach(function (sz) {
       var s = Math.max(0, num(stockInput(sz), 0));
       var v = Math.max(0, num(velocityInput(sz), 0));
-      var r = (v * coef) - s;
+      var o = Math.max(0, num(ordersInput(sz), 0));
+      var r = (v * coef) - s - o;
       var sug = roundUp(r, step);
       var conf = confirmQtyOf(sz);
       stock[sz] = Math.round(s);
       velocity[sz] = Math.round(v);
+      orders[sz] = Math.round(o);
       raw[sz] = Math.round(r);
       suggested[sz] = Math.round(sug);
       confirm[sz] = conf;
@@ -548,6 +567,7 @@
       sizes: sizes,
       stock: stock,
       velocity: velocity,
+      orders: orders,
       raw: raw,
       suggested: suggested,
       confirm: confirm,
@@ -660,6 +680,7 @@
     }
     var stockVals = sizes.map(function (sz) { return fmt(num(stockInput(sz), 0)); });
     var velVals = sizes.map(function (sz) { return fmt(num(velocityInput(sz), 0)); });
+    var ordVals = sizes.map(function (sz) { return fmt(num(ordersInput(sz), 0)); });
     var rawVals = sizes.map(function (sz) { return (rawCell(sz) || {}).textContent || '0'; });
     var outVals = sizes.map(function (sz) { return (outCell(sz) || {}).textContent || '0'; });
     var confVals = sizes.map(function (sz) { return fmt(confirmQtyOf(sz)); });
@@ -673,6 +694,7 @@
     lines.push('Thời gian dự đoán\t' + periodDays() + ' ngày');
     lines.push('Tồn kho thực tế\t' + withTotal(stockVals));
     lines.push('Tốc độ tiêu thụ\t' + withTotal(velVals));
+    lines.push('Đơn hàng đang có\t' + withTotal(ordVals));
     lines.push('Giá trị sau khi tính\t' + withTotal(rawVals));
     lines.push('Giá trị đề xuất\t' + withTotal(outVals));
     lines.push('Xác nhận lên đơn\t' + withTotal(confVals));

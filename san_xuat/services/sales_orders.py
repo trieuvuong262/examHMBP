@@ -111,6 +111,7 @@ def normalize_suggest_snapshot(raw) -> dict:
         'sizes': sizes,
         'stock': _num_map('stock'),
         'velocity': _num_map('velocity'),
+        'orders': _num_map('orders'),
         'raw': _num_map('raw'),
         'suggested': _num_map('suggested'),
         'confirm': _num_map('confirm'),

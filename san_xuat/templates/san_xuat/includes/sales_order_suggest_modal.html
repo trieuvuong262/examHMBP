@@ -1,4 +1,4 @@
-{# Công cụ đề xuất SL theo size — (tiêu thụ × hệ số) − tồn → làm tròn lên #}
+{# Công cụ đề xuất SL theo size — (tiêu thụ × hệ số) − tồn − đơn hàng đang có → làm tròn lên #}
 <style>
   .jp-so-suggest-modal .modal-dialog { max-width: min(1080px, 96vw); }
   .jp-so-suggest-modal .modal-content { border: 0; border-radius: .85rem; overflow: visible; }
@@ -339,6 +339,18 @@
                 </td>
                 {% endfor %}
                 <td class="jp-so-sg-row-total" data-total-of="vel">0</td>
+              </tr>
+              <tr class="jp-so-sg-orders-row">
+                <th class="jp-so-sg-label" scope="row"
+                    title="SL đơn hàng đang có (chưa giao) — người dùng tự nhập, được trừ khỏi giá trị sau khi tính.">
+                  Đơn hàng đang có
+                </th>
+                {% for sz in suggest_sizes_all %}
+                <td class="jp-so-sg-input-cell{% if sz not in suggest_sizes %} jp-so-sg-col-extra{% endif %}">
+                  <input type="number" class="jp-so-sg-orders" data-size="{{ sz }}" value="0" min="0" step="1" inputmode="numeric" aria-label="Đơn hàng đang có {{ sz }}">
+                </td>
+                {% endfor %}
+                <td class="jp-so-sg-row-total" data-total-of="orders">0</td>
               </tr>
               <tr class="jp-so-sg-raw-row">
                 <th class="jp-so-sg-label" scope="row">Giá trị sau khi tính</th>

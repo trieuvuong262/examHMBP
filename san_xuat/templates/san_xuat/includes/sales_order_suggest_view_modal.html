@@ -152,6 +152,7 @@
     tbody.innerHTML = [
       rowHtml('Tồn kho thực tế', 'is-stock', snap.stock, sizes),
       rowHtml('Tốc độ tiêu thụ', 'is-vel', snap.velocity, sizes),
+      rowHtml('Đơn hàng đang có', 'is-vel', snap.orders, sizes),
       rowHtml('Giá trị sau khi tính', 'is-raw', snap.raw, sizes),
       rowHtml('Giá trị đề xuất', 'is-out', snap.suggested, sizes),
       rowHtml('Xác nhận lên đơn', 'is-confirm', snap.confirm, sizes),
