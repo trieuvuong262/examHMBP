@@ -11,11 +11,12 @@ Công thức chung:
 
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 
-from django.db.models import Sum
+from django.db.models import Q, Sum
 
 from san_xuat.hub_models import SxProductionOrder, SxProductStockPolicy
 
@@ -31,7 +32,10 @@ def _q(value) -> Decimal:
 # ---------------------------------------------------------------------------
 
 def fg_stock_map(product_codes: list[str]) -> dict[str, Decimal]:
-    """Tồn thành phẩm khả dụng theo mã SP (on_hand − reserved), gộp mọi chi nhánh."""
+    """Tồn thành phẩm khả dụng theo mã SP (on_hand − reserved), gộp mọi chi nhánh.
+
+    Mã nhập có thể là mã KiotViet, SKU hoặc Style kho SP; Style = tổng mọi SKU.
+    """
     codes = [c.strip() for c in (product_codes or []) if (c or '').strip()]
     if not codes:
         return {}
@@ -43,37 +47,50 @@ def fg_stock_map(product_codes: list[str]) -> dict[str, Decimal]:
 
     retailer = current_retailer()
     upper = {c.upper(): c for c in codes}
-    products = list(
-        KvProduct.objects.filter(retailer=retailer, code__in=list(upper.keys()) + codes)
-        .values_list('kiotviet_id', 'code')
-    )
-    if not products:
-        return {}
-    id_to_code: dict[int, str] = {}
-    for kid, code in products:
-        key = (code or '').strip().upper()
-        if key in upper:
-            id_to_code[int(kid)] = upper[key]
+    lookup = list(upper.keys()) + codes
+    ids_by_code: dict[str, set[int]] = defaultdict(set)
 
-    if not id_to_code:
+    def _bind(raw, kid) -> None:
+        code = upper.get((raw or '').strip().upper())
+        if code and kid is not None:
+            ids_by_code[code].add(int(kid))
+
+    for kid, code in KvProduct.objects.filter(
+        retailer=retailer, is_deleted=False, code__in=lookup,
+    ).values_list('kiotviet_id', 'code'):
+        _bind(code, kid)
+
+    try:
+        from kho_san_pham.models import Product
+    except ImportError:
+        Product = None  # type: ignore[misc, assignment]
+    if Product is not None:
+        for kid, sku, style, kv_code in (
+            Product.objects.exclude(kiotviet_id=None)
+            .filter(Q(code__in=lookup) | Q(style_code__in=lookup) | Q(kiotviet_code__in=lookup))
+            .values_list('kiotviet_id', 'code', 'style_code', 'kiotviet_code')
+        ):
+            for raw in (sku, style, kv_code):
+                _bind(raw, kid)
+
+    if not ids_by_code:
         return {}
 
-    rows = (
+    all_ids = {kid for ids in ids_by_code.values() for kid in ids}
+    avail_by_id: dict[int, Decimal] = {}
+    for row in (
         KvProductInventory.objects.filter(
-            retailer=retailer, product_kiotviet_id__in=list(id_to_code.keys()),
+            retailer=retailer, is_deleted=False, product_kiotviet_id__in=list(all_ids),
         )
         .values('product_kiotviet_id')
         .annotate(on_hand_total=Sum('on_hand'), reserved_total=Sum('reserved'))
-    )
-    out: dict[str, Decimal] = {}
-    for row in rows:
-        code = id_to_code.get(int(row['product_kiotviet_id']))
-        if not code:
-            continue
+    ):
         avail = _q(row['on_hand_total']) - _q(row['reserved_total'])
-        if avail < 0:
-            avail = Decimal('0')
-        out[code] = out.get(code, Decimal('0')) + avail
+        avail_by_id[int(row['product_kiotviet_id'])] = max(avail, Decimal('0'))
+
+    out: dict[str, Decimal] = {}
+    for code, ids in ids_by_code.items():
+        out[code] = sum((avail_by_id.get(kid, Decimal('0')) for kid in ids), Decimal('0'))
     return out
 
 

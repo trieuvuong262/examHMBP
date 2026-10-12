@@ -628,10 +628,14 @@ def _sync_product_on_hands(
     *,
     retailer: str,
     client: KiotVietClient,
-    full: bool = False,
     on_progress: ProgressCallback | None = None,
 ) -> dict[str, Any]:
-    """GET /productOnHands — tồn đủ chi nhánh, không phụ thuộc includeInventory."""
+    """GET /productOnHands — tồn đủ chi nhánh, không phụ thuộc includeInventory.
+
+    Luôn quét toàn bộ: ``modifiedDate`` của productOnHands là ngày sửa hàng hóa,
+    KiotViet không đổi khi bán / chuyển / nhập kho, nên lọc ``lastModifiedFrom``
+    sẽ bỏ sót mọi biến động tồn.
+    """
     branch_ids = list(load_branch_index(retailer, client).keys())
     base_params: dict[str, Any] = {}
     if branch_ids:
@@ -642,10 +646,10 @@ def _sync_product_on_hands(
         list_fn=client.list_product_on_hand,
         upsert_fn=_bind_upsert(upsert_product_on_hand, force=True),
         base_params=base_params,
-        full=full,
+        full=True,
         on_progress=on_progress,
         sync_options=EntitySyncOptions(
-            supports_last_modified=True,
+            supports_last_modified=False,
             supports_remove_ids=False,
         ),
     )
@@ -1345,7 +1349,6 @@ def sync_entity(
                 on_hands = _sync_product_on_hands(
                     retailer=retailer,
                     client=api,
-                    full=full,
                     on_progress=on_progress,
                 )
                 result['on_hands'] = on_hands
