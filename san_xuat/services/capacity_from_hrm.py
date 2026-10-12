@@ -820,6 +820,23 @@ def team_slug_for_work_center(center: SxWorkCenter | None) -> str | None:
     )
 
 
+def stage_slug_is_shared(slug: str) -> bool:
+    """Slug công đoạn đang gom nhiều bộ phận HR (vd. inep = In nhiệt + Ép logo)."""
+    key = (slug or '').strip().lower()
+    if not key:
+        return False
+    cache = getattr(_tls, 'stage_divs', None)
+    if cache is None:
+        cache = {}
+        for center in _hr_work_centers_cached():
+            stage = team_slug_for_work_center(center)
+            did = division_id_from_work_center_code(center.code)
+            if stage and did:
+                cache.setdefault(stage, set()).add(int(did))
+        _tls.stage_divs = cache
+    return len(cache.get(key, ())) > 1
+
+
 def _team_slug_for_work_center_uncached(center: SxWorkCenter) -> str | None:
     did = division_id_from_work_center_code(center.code)
     if did:

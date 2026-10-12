@@ -60,12 +60,26 @@ def mix_stage_soft(hex_color: str) -> str:
     return f'#{red:02x}{green:02x}{blue:02x}'
 
 
+def _inherited_stage_fill(slug: str) -> str:
+    """Màu d23 theo công đoạn KHSX của bộ phận (inep, may, …)."""
+    key = (slug or '').strip().lower()
+    if not key.startswith('d') or not key[1:].isdigit():
+        return ''
+    from san_xuat.services.team_division_map import khsx_slug_for_team, team_from_hr_division_slug
+
+    stage = khsx_slug_for_team(team_from_hr_division_slug(key), key)
+    if not stage or stage == key:
+        return ''
+    return DEFAULT_TEAM_STAGE_COLORS.get(stage) or _EXTRA_STAGE_COLORS.get(stage) or ''
+
+
 def stage_color_spec(slug: str, fill: str = '') -> dict[str, str]:
     key = (slug or '').strip().lower()
     color = normalize_hex_color(
         fill
         or DEFAULT_TEAM_STAGE_COLORS.get(key)
         or _EXTRA_STAGE_COLORS.get(key)
+        or _inherited_stage_fill(key)
         or _FALLBACK,
     )
     ink = mix_stage_ink(color)

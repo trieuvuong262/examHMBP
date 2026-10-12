@@ -55,6 +55,20 @@ def _global_hop_minutes() -> tuple[Decimal, Decimal]:
     return count, transfer
 
 
+def _hop_slug_keys(slug: str | None) -> list[str]:
+    raw = _norm_slug(slug)
+    if not raw:
+        return []
+    keys = [raw]
+    if raw.startswith('d') and raw[1:].isdigit():
+        from san_xuat.services.team_division_map import khsx_slug_for_team, team_from_hr_division_slug
+
+        stage = _norm_slug(khsx_slug_for_team(team_from_hr_division_slug(raw), raw))
+        if stage and stage not in keys:
+            keys.append(stage)
+    return keys
+
+
 def default_hop_minutes(
     from_slug: str | None = None,
     to_slug: str | None = None,
@@ -62,13 +76,16 @@ def default_hop_minutes(
     pairs: dict[tuple[str, str], tuple[Decimal, Decimal]] | None = None,
 ) -> tuple[Decimal, Decimal]:
     """Mặc định theo cặp bộ phận; thiếu cặp thì dùng mặc định chung."""
-    src = _norm_slug(from_slug)
-    dst = _norm_slug(to_slug)
     mapping = pairs if pairs is not None else hop_pair_map()
-    if src and dst and src != dst:
-        pair = mapping.get((src, dst))
-        if pair is not None:
-            return pair
+    src_keys = _hop_slug_keys(from_slug)
+    dst_keys = _hop_slug_keys(to_slug)
+    for src in src_keys:
+        for dst in dst_keys:
+            if src == dst:
+                continue
+            pair = mapping.get((src, dst))
+            if pair is not None:
+                return pair
     return _global_hop_minutes()
 
 
@@ -314,8 +331,12 @@ def _step_team_slug(step) -> str | None:
         )
 
         wc_slug = _norm_slug(team_slug_for_work_center(wc))
+        did = division_id_from_work_center_code(getattr(wc, 'code', '') or '')
+        from san_xuat.services.capacity_from_hrm import stage_slug_is_shared
+
+        if did and wc_slug and stage_slug_is_shared(wc_slug):
+            return _norm_slug(f'd{did}')
         if wc_slug and group_slug and wc_slug != group_slug:
-            did = division_id_from_work_center_code(getattr(wc, 'code', '') or '')
             if did:
                 return _norm_slug(f'd{did}')
             return wc_slug
