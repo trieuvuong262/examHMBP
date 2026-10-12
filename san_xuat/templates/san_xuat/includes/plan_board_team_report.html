@@ -1,0 +1,155 @@
+{% load sx_format %}
+<style>
+  .jp-pb .jp-pb-top-tabs .btn-sx-export {
+    background-color: #198754 !important;
+    border: 1px solid #198754 !important;
+    color: #fff !important;
+  }
+  .jp-pb .jp-pb-top-tabs .btn-sx-export:hover,
+  .jp-pb .jp-pb-top-tabs .btn-sx-export:focus {
+    background-color: #157347 !important;
+    border-color: #157347 !important;
+    box-shadow: 0 4px 12px rgba(25, 135, 84, 0.28);
+  }
+  .jp-tr-wrap {
+    --sheet-brand: var(--hm-primary, #dc2626);
+    --sheet-brand-soft: #fef2f2;
+    --sheet-brand-line: #fecaca;
+    --sheet-line: #e8edf3;
+    background: #fff;
+    overflow: auto;
+    max-height: calc(100vh - 13rem);
+    border-radius: .9rem;
+    border: 1px solid rgba(220, 38, 38, .12);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 10px 28px rgba(220, 38, 38, .06);
+  }
+  .jp-tr-grid {
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+    width: max-content;
+    margin: 0;
+    font: 650 12px/1.25 var(--jp-font-sans, system-ui, sans-serif);
+    color: #111;
+  }
+  .jp-tr-grid th,
+  .jp-tr-grid td {
+    border-right: 1px solid var(--sheet-line);
+    border-bottom: 1px solid var(--sheet-line);
+    padding: 3px 7px;
+    height: 40px;
+    text-align: center;
+    vertical-align: middle;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background: #fff;
+    font-variant-numeric: tabular-nums;
+  }
+  .jp-tr-grid thead th {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    height: 32px;
+    background: var(--sheet-brand-soft);
+    color: #0f172a;
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--sheet-brand-line);
+  }
+  .jp-tr-grid .jp-tr-team {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    width: 168px;
+    min-width: 168px;
+    max-width: 168px;
+    padding: 2px 8px;
+    text-align: left;
+    font-weight: 800;
+    box-shadow: 6px 0 10px -8px rgba(15, 23, 42, .22);
+  }
+  .jp-tr-grid thead th.jp-tr-team { z-index: 6; }
+  .jp-tr-grid tbody td.jp-tr-team { background: var(--st-fill, #f1f5f9); color: var(--st-ink, #0f172a); }
+  .jp-tr-team a { color: inherit; text-decoration: none; }
+  .jp-tr-team a:hover { color: var(--hm-primary-dark, #b91c1c); text-decoration: underline; }
+
+  .jp-tr-grid .jp-tr-day {
+    width: 54px;
+    min-width: 54px;
+    max-width: 54px;
+    padding: 0;
+    font-size: .7rem;
+    font-weight: 700;
+  }
+  .jp-tr-grid .jp-tr-day.is-off { background: #f1f5f9; color: #94a3b8; }
+  .jp-tr-grid thead th.jp-tr-day.is-today { background: #fee2e2; color: var(--sheet-brand); }
+  .jp-tr-grid tbody td.jp-tr-day.is-today:not(.is-off) { background: #fff8f8; }
+  .jp-tr-grid td.jp-tr-day[title] { cursor: help; }
+  .jp-tr-grid td.jp-tr-sum.is-stack { padding: 0; }
+
+  .jp-tr-qty {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    width: 100%;
+    height: 40px;
+    overflow: hidden;
+  }
+  .jp-tr-qty > span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1 1 50%;
+    min-height: 0;
+    font: 600 11px/1 "Segoe UI", system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  .jp-tr-plan { background: var(--st-fill, #bfdbfe); color: var(--st-ink, #1e3a8a); }
+  .jp-tr-done { background: var(--st-soft, #fff); color: var(--st-ink, #64748b); }
+  .jp-tr-qty.is-actual .jp-tr-plan { opacity: .42; }
+  .jp-tr-done.is-met { color: #047857; font-weight: 800; }
+  .jp-tr-done.is-under { color: #b45309; font-weight: 800; }
+  .jp-tr-done.is-miss { color: #b91c1c; font-weight: 800; }
+
+  .jp-tr-grid .jp-tr-sum { width: 84px; min-width: 84px; max-width: 84px; font-weight: 700; color: #0f172a; }
+  .jp-tr-grid .jp-tr-sum.is-first { border-left: 1px solid var(--sheet-brand-line); }
+  .jp-tr-grid .jp-tr-muted { color: #cbd5e1; font-weight: 600; }
+  .jp-tr-rate { font-weight: 800; }
+  .jp-tr-rate.is-good { color: #047857; }
+  .jp-tr-rate.is-warn { color: #b45309; }
+  .jp-tr-rate.is-bad { color: #b91c1c; }
+</style>
+
+<div class="jp-tr-wrap">
+    <table class="jp-tr-grid" aria-label="Sản lượng tổ theo ngày">
+      <thead>
+        <tr>
+          <th class="jp-tr-team" scope="col">Tổ</th>
+          {% for c in team_report.days %}
+          <th class="jp-tr-day{% if not c.is_workday %} is-off{% endif %}{% if c.is_today %} is-today{% endif %}" scope="col" title="{{ c.day|date:'d/m/Y' }}">{{ c.day|date:'d-m' }}</th>
+          {% endfor %}
+          <th class="jp-tr-sum is-first" scope="col">Cả kỳ</th>
+          <th class="jp-tr-sum" scope="col">% KH</th>
+          <th class="jp-tr-sum" scope="col">TB/ngày</th>
+          <th class="jp-tr-sum" scope="col">Cao nhất</th>
+          <th class="jp-tr-sum" scope="col">Số ngày</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in team_report.rows %}
+        <tr class="jp-stage-{{ row.stage_slug }}{% if not row.total %} is-idle{% endif %}">
+          <td class="jp-tr-team" title="{{ row.label }}{% if row.order_count %} · {{ row.order_count }} lệnh{% endif %}"><a href="{% url 'san_xuat:team_work_board' row.slug %}">{{ row.label }}</a></td>
+          {% for c in row.cells %}{% include 'san_xuat/includes/plan_board_team_report_cell.html' with c=c slug=row.stage_slug %}{% endfor %}
+          <td class="jp-tr-sum is-first is-stack"><span class="jp-tr-qty{% if not row.plan_total %} is-actual{% endif %}"><span class="jp-tr-plan">{{ row.plan_total|sx_num }}</span><span class="jp-tr-done">{{ row.total|sx_num }}</span></span></td>
+          <td class="jp-tr-sum">{% with rate=row.plan_rate %}{% if rate is not None %}<span class="jp-tr-rate {% if rate >= 95 %}is-good{% elif rate >= 75 %}is-warn{% else %}is-bad{% endif %}">{{ rate }}%</span>{% else %}<span class="jp-tr-muted">—</span>{% endif %}{% endwith %}</td>
+          <td class="jp-tr-sum">{% if row.avg_per_day %}{{ row.avg_per_day|sx_num }}{% else %}<span class="jp-tr-muted">—</span>{% endif %}</td>
+          <td class="jp-tr-sum"{% if row.best_day %} title="{{ row.best_day|date:'d/m/Y' }}"{% endif %}>{% if row.best_qty %}{{ row.best_qty|sx_num }}{% else %}<span class="jp-tr-muted">—</span>{% endif %}</td>
+          <td class="jp-tr-sum">{% if row.active_days %}{{ row.active_days }}{% else %}<span class="jp-tr-muted">—</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+</div>

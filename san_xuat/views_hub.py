@@ -1427,7 +1427,7 @@ def plan_board(request):
         return redirect(f"{reverse('san_xuat:plan_board')}?{urlencode(params)}")
     if tab == 'released':
         tab = 'queue'
-    if tab not in {'queue', 'route', 'subcontract', 'cancel'}:
+    if tab not in {'queue', 'route', 'subcontract', 'cancel', 'team'}:
         tab = 'queue'
     if tab == 'cancel':
         return redirect('san_xuat:sx_cancel_approve')
@@ -2182,6 +2182,7 @@ def plan_board(request):
     route_dept_choices: list[tuple[str, str]] = []
     route_team_choices: list[dict] = []
     route_stats = None
+    team_report = None
 
     def _apply_board_filters(rows):
         valid_priorities = {value for value, _label in SxSalesOrder.PRIORITY_CHOICES}
@@ -2289,6 +2290,41 @@ def plan_board(request):
             queue_rows = _apply_board_filters(queue_rows)
         route_board = None
         route_stats = None
+    elif tab == 'team':
+        from san_xuat.list_filters import parse_sx_date
+        from san_xuat.services.plan_board import _month_bounds, _month_label, _shift_month
+        from san_xuat.services.team_output_report import build_team_output_report
+
+        today = timezone.localdate()
+        filter_date_from = parse_sx_date(date_from_raw)
+        filter_date_to = parse_sx_date(date_to_raw)
+        if not filter_date_from and not filter_date_to:
+            filter_date_from, filter_date_to = _month_bounds(today)
+        elif filter_date_from and not filter_date_to:
+            filter_date_from, filter_date_to = _month_bounds(filter_date_from)
+        elif filter_date_to and not filter_date_from:
+            filter_date_from, filter_date_to = _month_bounds(filter_date_to)
+        elif filter_date_from > filter_date_to:
+            filter_date_from, filter_date_to = filter_date_to, filter_date_from
+        if (filter_date_to - filter_date_from).days > 92:
+            filter_date_to = filter_date_from + timedelta(days=92)
+        today_start, today_end_month = _month_bounds(today)
+        filter_month_label = _month_label(filter_date_from)
+        filter_is_current_month = (
+            filter_date_from == today_start and filter_date_to == today_end_month
+        )
+        filter_prev_from, filter_prev_to = _month_bounds(_shift_month(filter_date_from, -1))
+        filter_next_from, filter_next_to = _month_bounds(_shift_month(filter_date_from, 1))
+        team_report = build_team_output_report(
+            date_from=filter_date_from,
+            date_to=filter_date_to,
+            search=q,
+            today=today,
+        )
+        if (request.GET.get('export') or '').strip() == 'xlsx':
+            from san_xuat.services.team_output_report import export_team_output_xlsx
+
+            return export_team_output_xlsx(team_report)
     elif tab == 'subcontract':
         from django.db.models import Q
         from san_xuat.list_filters import parse_sx_date
@@ -2441,6 +2477,7 @@ def plan_board(request):
         'route_team_filter': route_team_filter,
         'route_dept_choices': route_dept_choices,
         'route_team_choices': route_team_choices,
+        'team_report': team_report,
         'this_month_from': today_start,
         'this_month_to': today_end_month,
         'filter_date_from': filter_date_from,
