@@ -4,10 +4,14 @@
 .jp-tksp .rm-ready .tk-progress { width: 100%; margin: 0; }
 .jp-tksp .rm-ready b { font-size: .8rem; min-width: 2.4rem; text-align: right; }
 .jp-tksp .rm-ring { --p: 0; --c: var(--tk-green); width: 112px; height: 112px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0;
-  background: conic-gradient(var(--c) calc(var(--p) * 1%), rgba(255, 255, 255, .14) 0); }
-.jp-tksp .rm-ring > div { width: 86px; height: 86px; border-radius: 50%; background: #171717; display: grid; place-items: center; text-align: center; }
-.jp-tksp .rm-ring strong { font-size: 1.5rem; font-weight: 900; line-height: 1; color: #fff; }
-.jp-tksp .rm-ring small { display: block; font-size: .62rem; color: #a3a3a3; margin-top: .15rem; }
+  background: conic-gradient(var(--c) calc(var(--p) * 1%), #e7ebef 0); }
+.jp-tksp .rm-ring > div { width: 86px; height: 86px; border-radius: 50%; background: #fff; display: grid; place-items: center; text-align: center; }
+.jp-tksp .rm-ring strong { font-size: 1.5rem; font-weight: 900; line-height: 1; color: var(--tk-navy, #07182f); }
+.jp-tksp .rm-ring small { display: block; font-size: .62rem; color: var(--tk-muted, #64748b); margin-top: .15rem; text-transform: uppercase; letter-spacing: .04em; }
+.jp-tksp .tk-hero .rm-ring { background: conic-gradient(var(--c) calc(var(--p) * 1%), rgba(255, 255, 255, .14) 0); }
+.jp-tksp .tk-hero .rm-ring > div { background: #102a4d; }
+.jp-tksp .tk-hero .rm-ring strong { color: #fff; }
+.jp-tksp .tk-hero .rm-ring small { color: #a3a3a3; }
 .jp-tksp .rm-ring.is-amber { --c: #f59e0b; } .jp-tksp .rm-ring.is-red { --c: #ef4444; }
 .jp-tksp .rm-ring.is-purple { --c: #a78bfa; } .jp-tksp .rm-ring.is-gray { --c: #94a3b8; }
 .jp-tksp .rm-milestone { border: 1px solid var(--tk-line); border-radius: var(--tk-radius); background: var(--tk-surface); }

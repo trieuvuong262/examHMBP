@@ -58,6 +58,12 @@
         {% endif %}
       </div>
     </div>
+    <div class="tk-hero-meta">
+      <div><small>Nhóm</small><b>{{ dossier.get_product_group_display|default:'—' }}</b></div>
+      <div><small>Bộ sưu tập</small><b>{{ dossier.collection|default:'—' }}</b></div>
+      <div><small>Giá mục tiêu</small><b>{% if dossier.target_retail_price %}{{ dossier.target_retail_price|sx_num }} đ{% else %}—{% endif %}</b></div>
+      <div><small>Mã chính thức</small><b>{{ dossier.official_product_code|default:'Chưa có' }}</b></div>
+    </div>
   </div>
 
   <div class="tk-stepper mb-3{% if dossier.status == 'paused' or dossier.status == 'cancelled' %} is-stopped{% endif %}">

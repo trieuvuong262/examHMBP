@@ -20,7 +20,7 @@ from django.db.models import (
     Value,
     When,
 )
-from django.http import FileResponse, Http404, HttpResponse, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -747,14 +747,6 @@ def add_candidate(request):
         'form': form, 'title': 'Thêm ứng viên', 'back_url': reverse('kanban_board'),
         'has_jobs': jobs.exists(),
     })
-
-
-@login_required
-def candidate_suggest_email(request):
-    """Gợi ý email công ty theo họ tên — form thêm / đề xuất ứng viên."""
-    if not (can_candidates(request.user, 'create') or is_hiring_manager(request.user)):
-        raise PermissionDenied
-    return JsonResponse({'email': services.suggest_email(request.GET.get('full_name', ''))})
 
 
 # ================================================================ Ứng viên — chi tiết & thao tác

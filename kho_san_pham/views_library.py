@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from django.db.models import Count, Max, Min, Q
+from django.db.models import Count, Max, Min, Q, Sum
 from django.http import Http404
 from django.shortcuts import render
 
@@ -84,6 +84,7 @@ def library_list(request):
             kv_count=Count('kiotviet_id'),
             min_price=Min('base_price'),
             max_price=Max('base_price'),
+            qty_total=Sum('qty_on_hand'),
             last_update=Max('updated_at'),
         )
     )
@@ -191,6 +192,15 @@ def library_detail(request, style):
         if p.updated_at and p.updated_at != p.created_at:
             history.append({'at': p.updated_at, 'text': f'Cập nhật SKU {p.code}', 'user': None})
     history.sort(key=lambda h: h['at'], reverse=True)
+    kv_count = sum(1 for p in products if p.kiotviet_id)
+    completeness_items = [
+        ('Hình ảnh', bool(images)),
+        ('Giá bán', bool(prices)),
+        ('Màu', bool(colors)),
+        ('Size', bool(sizes)),
+        ('KiotViet', bool(kv_count)),
+        ('Hồ sơ thiết kế', bool(dossier)),
+    ]
     return render(request, 'kho_san_pham/library_detail.html', {
         **perm_context(request.user, 'products'),
         'code': code,
@@ -206,11 +216,13 @@ def library_detail(request, style):
         'colors': colors,
         'sizes': sizes,
         'active_count': sum(1 for p in products if p.is_active),
-        'kv_count': sum(1 for p in products if p.kiotviet_id),
+        'kv_count': kv_count,
         'qty_total': sum((p.qty_on_hand or 0) for p in products),
         'dossier': dossier,
         'launches': launches,
         'history': history[:100],
         'tab': tab,
         'tabs': DETAIL_TABS,
+        'completeness_items': completeness_items,
+        'completeness': round(100 * sum(1 for _, ok in completeness_items if ok) / len(completeness_items)),
     })

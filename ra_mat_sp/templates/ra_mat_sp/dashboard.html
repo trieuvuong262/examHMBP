@@ -37,7 +37,20 @@
         <a class="tk-link" href="{% url 'ra_mat_sp:list' %}">Xem tất cả</a>
       </div>
     </div>
-    {% include 'ra_mat_sp/includes/plan_table.html' with plans=upcoming empty_text='Chưa có kế hoạch đang chuẩn bị.' %}
+    {% if upcoming %}
+    <div class="tk-launch-strip">
+      {% for p in upcoming %}
+      <a class="tk-launch-mini is-{{ p.tone }}" href="{{ p.get_absolute_url }}">
+        <small>{{ p.code }}{% if p.groups %} · {{ p.groups|join:', ' }}{% endif %}</small>
+        <b>{{ p.name }}</b>
+        <div class="date">{{ p.launch_date|date:'d/m' }}</div>
+        <small>{{ p.countdown_label }} · {{ p.ready.pct }}% sẵn sàng</small>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="small text-muted">Chưa có kế hoạch đang chuẩn bị.</div>
+    {% endif %}
   </div>
 
   <div class="tk-dash-grid mb-3">

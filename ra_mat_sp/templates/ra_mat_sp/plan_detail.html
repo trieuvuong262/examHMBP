@@ -8,8 +8,7 @@
   {% include 'ra_mat_sp/includes/rm_topbar.html' with rm_title='Chi tiết kế hoạch ra mắt' rm_active='detail' %}
 
   <div class="tk-hero mb-3">
-    <div class="tk-hero-main">
-      <div class="rm-ring is-{{ tone }}" style="--p: {{ ready.pct }}"><div><div><strong>{{ ready.pct }}%</strong><small>sẵn sàng</small></div></div></div>
+    <div class="tk-hero-main is-2">
       <div class="min-w-0">
         <div class="d-flex flex-wrap align-items-center gap-2">
           <span class="tk-pill {% if plan.status_tone == 'gray' or plan.status_tone == 'dark' %}is-gray{% else %}is-accent{% endif %}">{{ plan.get_status_display }}</span>
@@ -42,6 +41,40 @@
           <button class="btn btn-sm btn-tk-ghost"><i class="bi bi-trash"></i></button></form>
         {% endif %}
       </div>
+    </div>
+    <div class="tk-hero-meta">
+      <div><small>Ngày ra mắt</small><b>{{ plan.launch_date|date:'d/m/Y' }}</b></div>
+      <div><small>Còn lại</small><b>{{ plan.countdown_label }}</b></div>
+      <div><small>Sản phẩm</small><b>{{ links|length|sx_num }}</b></div>
+      <div><small>Sẵn sàng</small><b>{{ ready.pct }}%</b></div>
+      <div><small>Kênh</small><b>{{ plan.channels|default:'—' }}</b></div>
+    </div>
+  </div>
+
+  <div class="tk-card tk-ready-banner mb-3">
+    <div class="rm-ring is-{{ tone }}" style="--p: {{ ready.pct }}"><div><div><strong>{{ ready.pct }}%</strong><small>sẵn sàng</small></div></div></div>
+    <div class="tk-streams">
+      {% for g in ready.groups %}
+      <a class="tk-stream text-decoration-none text-reset" href="?tab=work&group={{ g.key }}">
+        <div class="tk-stream-head"><b>{{ g.label }}</b><span>{% if g.pct is None %}—{% else %}{{ g.pct }}%{% endif %}</span></div>
+        <div class="tk-meter{% if g.pct == 100 %} is-green{% elif g.pct is None %} is-gray{% endif %}"><i style="width: {{ g.pct|default:0 }}%"></i></div>
+      </a>
+      {% endfor %}
+    </div>
+    <div class="tk-ready-note">
+      <strong>{{ tone_label }}</strong>
+      {% if ready.overdue_blockers %}
+      <p>{{ ready.overdue_blockers|length }} điều kiện Go trễ hạn.</p>
+      {% elif ready.open_blockers %}
+      <p>Còn {{ ready.open_blockers|length }} điều kiện Go chưa xong.</p>
+      {% elif ready.overdue %}
+      <p>{{ ready.overdue|length }} việc trễ hạn.</p>
+      {% else %}
+      <p>{{ ready.done }}/{{ ready.total }} việc đã xong · {{ plan.countdown_label }}.</p>
+      {% endif %}
+      {% if plan.status == 'preparing' or plan.status == 'at_risk' %}{% if can_edit %}
+      <a href="?tab=go" class="btn btn-sm btn-hm text-white fw-bold">Go/No-Go</a>
+      {% endif %}{% endif %}
     </div>
   </div>
 
@@ -113,6 +146,25 @@
       {% elif tab == 'products' %}
         <div class="tk-section">
           <div class="tk-section-title"><i class="bi bi-bag"></i>Sản phẩm trong đợt ra mắt</div>
+          {% if links %}
+          <div class="tk-prod-grid mb-3">
+            {% for link in links %}
+            {% with d=link.dossier %}
+            <a class="tk-prod-card" href="{{ d.get_absolute_url }}">
+              <div class="art">{% if link.cover %}<img src="{{ link.cover.get_absolute_url }}" alt="">{% else %}<i class="bi bi-palette"></i>{% endif %}</div>
+              <div class="info">
+                <b>{{ d.name }}</b>
+                <small>{{ d.code }}{% if link.group_label %} · {{ link.group_label }}{% endif %}</small>
+                <div class="foot">
+                  <span class="tk-pill {% if d.status == 'approved' or d.status == 'handed_over' or d.status == 'closed' %}is-green{% elif d.status == 'cancelled' or d.status == 'paused' %}is-gray{% else %}is-amber{% endif %}">{{ d.get_status_display }}</span>
+                  <span class="small text-muted">{% if link.planned_qty is not None %}{{ link.planned_qty|sx_num }} sp{% else %}—{% endif %}</span>
+                </div>
+              </div>
+            </a>
+            {% endwith %}
+            {% endfor %}
+          </div>
+          {% endif %}
           <form method="post" action="{% url 'ra_mat_sp:action' plan.pk 'product_qty' %}">{% csrf_token %}
           <div class="table-responsive"><table class="table tk-mini-table align-middle">
             <thead><tr><th>Hồ sơ</th><th>Nhóm</th><th>Trạng thái thiết kế</th><th>Mã chính thức</th><th>Giá bán lẻ đề xuất</th><th style="width:120px">SL ra mắt</th><th>Ghi chú</th></tr></thead>
@@ -145,6 +197,21 @@
           <div class="tk-section-title"><i class="bi bi-calendar-week"></i>Mốc tiến độ <span class="tk-section-sub">{{ ready.done }}/{{ ready.total }} việc xong</span>
             {% if can_edit %}<button type="button" class="btn btn-sm btn-outline-secondary ms-auto" data-bs-toggle="modal" data-bs-target="#rmAddTaskModal"><i class="bi bi-plus-lg"></i> Thêm việc</button>{% endif %}
           </div>
+          {% if timeline %}
+          <div class="mb-3">
+            {% for ms in timeline %}
+            <div class="tk-ms">
+              <div class="tk-ms-day">{{ ms.label }}<small>{{ ms.due|date:'d/m' }}</small></div>
+              <span class="tk-ms-dot {% if ms.late %}is-red{% elif ms.done == ms.total %}{% else %}is-amber{% endif %}"></span>
+              <div class="tk-ms-content">
+                <b>{{ ms.done }}/{{ ms.total }} việc xong</b>
+                <p>{% if ms.late %}Có việc trễ hạn{% elif ms.done == ms.total %}Đúng tiến độ{% else %}Đang thực hiện{% endif %}</p>
+              </div>
+              <div class="tk-ms-side">{{ ms.due|date:'d/m/Y' }}</div>
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
           {% for ms in timeline %}
           <div class="rm-milestone{% if ms.late %} is-late{% elif ms.done == ms.total %} is-done{% endif %}">
             <div class="rm-milestone-head">

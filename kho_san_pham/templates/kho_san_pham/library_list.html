@@ -4,12 +4,11 @@
 {% block extra_head %}{% include 'thiet_ke_sp/includes/tksp_styles.html' %}{% endblock %}
 
 {% block content %}
-<div class="container-fluid jp-page jp-sx-page jp-npl-material-catalog-page jp-tksp py-3 py-md-4 mb-5 px-3 px-lg-4">
-  {% include 'kho_san_pham/includes/library_topbar.html' with lib_title='Thư viện sản phẩm' lib_show_col_picker=True %}
+<div class="container-fluid jp-page jp-sx-page jp-tksp py-3 py-md-4 mb-5 px-3 px-lg-4">
+  {% include 'kho_san_pham/includes/library_topbar.html' with lib_title='Thư viện sản phẩm' %}
 
   <div class="jp-sx-page-body">
     <form method="get" id="libFilter" class="tk-card tk-panel mb-3" role="search" aria-label="Bộ lọc thư viện">
-      {% if request.GET.sort %}<input type="hidden" name="sort" value="{{ sort_key }}"><input type="hidden" name="dir" value="{{ sort_dir }}">{% endif %}
       <div class="tk-toolbar">
         <input type="search" id="lib-q" name="q" value="{{ q }}" class="form-control form-control-sm tk-search" placeholder="Tìm Style, tên, SKU, mã KiotViet…" autocomplete="off" aria-label="Tìm kiếm">
         <select name="group" class="form-select form-select-sm lib-auto" aria-label="Nhóm sản phẩm">
@@ -24,41 +23,38 @@
       </div>
     </form>
 
-    <div class="tk-card overflow-hidden">
-      <div class="jp-npl-mat-grid-wrap">
-        <table class="table table-hover align-middle mb-0 jp-npl-mat-grid" id="{{ sx_list_table_id }}">
-          <thead class="table-light"><tr>{% include 'san_xuat/includes/sx_list_grid_head.html' %}</tr></thead>
-          <tbody>
-          {% for r in items %}
-            <tr class="jp-npl-catalog-row" data-href="{% url 'kho_san_pham:library_detail' r.style_code %}">
-              <td class="npl-col" data-col="name">
-                <div class="tk-prod">
-                  <span class="tk-prod-thumb">{% if r.image_url %}<img src="{{ r.image_url }}" alt="" loading="lazy">{% else %}<i class="bi bi-image"></i>{% endif %}</span>
-                  <span class="min-w-0"><strong>{{ r.name }}</strong><small>{{ r.style_code }}</small></span>
-                </div>
-              </td>
-              <td class="npl-col fw-bold small" data-col="style_code">{{ r.style_code }}</td>
-              <td class="npl-col small" data-col="group">{{ r.group_label|default:'—' }}{% if r.type_code %}<div class="text-muted">{{ r.type_code }}</div>{% endif %}</td>
-              <td class="npl-col small text-end" data-col="sku_count">{{ r.sku_count|sx_num }}</td>
-              <td class="npl-col small" data-col="colors">{{ r.colors|slice:':4'|join:', '|default:'—' }}{% if r.colors|length > 4 %} +{{ r.colors|length|add:'-4' }}{% endif %}</td>
-              <td class="npl-col small" data-col="sizes">{{ r.sizes|join:' · '|default:'—' }}</td>
-              <td class="npl-col small text-end text-nowrap" data-col="price">{% if r.min_price %}{{ r.min_price|sx_num:0 }}{% if r.max_price != r.min_price %} – {{ r.max_price|sx_num:0 }}{% endif %}{% else %}—{% endif %}</td>
-              <td class="npl-col" data-col="channel">{% if r.kv_count %}<span class="tk-pill is-blue">{{ r.kv_count }}/{{ r.sku_count }} SKU</span>{% else %}<span class="tk-pill is-gray">Chưa có</span>{% endif %}</td>
-              <td class="npl-col small" data-col="dossier">{% if r.dossier %}<a href="{{ r.dossier.get_absolute_url }}">{{ r.dossier.code }}</a>{% else %}—{% endif %}</td>
-              <td class="npl-col" data-col="status"><span class="tk-pill {% if r.is_active %}is-green{% else %}is-gray{% endif %}">{% if r.is_active %}Đang dùng{% else %}Ngừng dùng{% endif %}</span></td>
-              <td class="npl-col small text-muted" data-col="last_update">{{ r.last_update|date:'d/m/Y H:i' }}</td>
-            </tr>
-          {% empty %}
-            <tr><td colspan="11" class="text-center text-muted py-4">Không có Style phù hợp.</td></tr>
-          {% endfor %}
-          </tbody>
-        </table>
-      </div>
+    <div class="tk-lib-grid">
+      {% for r in items %}
+      <a class="tk-lib-card" href="{% url 'kho_san_pham:library_detail' r.style_code %}">
+        <div class="tk-lib-art">
+          <span class="status tk-pill {% if r.is_active %}is-green{% else %}is-gray{% endif %}">{% if r.is_active %}Đang dùng{% else %}Ngừng dùng{% endif %}</span>
+          {% if r.image_url %}<img src="{{ r.image_url }}" alt="" loading="lazy">{% else %}<i class="bi bi-image"></i>{% endif %}
+        </div>
+        <div class="tk-lib-body">
+          <h3>{{ r.name }}</h3>
+          <p>{{ r.style_code }}{% if r.group_label %} · {{ r.group_label }}{% endif %}</p>
+          <div class="tk-lib-meta">
+            <div><small>SKU</small><b>{{ r.sku_count|sx_num }}</b></div>
+            <div><small>Tồn xưởng</small><b>{{ r.qty_total|default:0|sx_num }}</b></div>
+            <div><small>Giá bán</small><b>{% if r.min_price %}{{ r.min_price|sx_num:0 }}{% else %}—{% endif %}</b></div>
+          </div>
+          <div class="tk-lib-foot">
+            <div class="tk-lib-channels">
+              <span class="tk-ch{% if not r.kv_count %} is-off{% endif %}" title="KiotViet">KV</span>
+              {% if r.dossier %}<span class="tk-ch" title="Hồ sơ thiết kế">TK</span>{% else %}<span class="tk-ch is-off" title="Chưa có hồ sơ">TK</span>{% endif %}
+              <span class="tk-ch{% if not r.colors %} is-off{% endif %}" title="{{ r.colors|join:', '|default:'Chưa có màu' }}">{{ r.colors|length }}M</span>
+            </div>
+            <span class="tk-link">Xem →</span>
+          </div>
+        </div>
+      </a>
+      {% empty %}
+      <div class="tk-card tk-panel text-muted" style="grid-column:1/-1">Không có Style phù hợp.</div>
+      {% endfor %}
     </div>
     <div class="mt-3">{% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}</div>
   </div>
 </div>
-{% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
 <script>
 (function () {
   var form = document.getElementById('libFilter');
