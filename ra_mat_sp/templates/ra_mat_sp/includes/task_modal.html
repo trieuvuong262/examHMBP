@@ -1,0 +1,78 @@
+<div class="modal fade" id="rmTaskModal" tabindex="-1" aria-labelledby="rmTaskModalTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="post" class="modal-content" id="rmTaskForm" action="">
+      {% csrf_token %}
+      <input type="hidden" name="task_id" value="">
+      <input type="hidden" name="return_tab" value="{{ return_tab|default:'timeline' }}">
+      {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+      <div class="modal-header">
+        <h5 class="modal-title fs-6 fw-bold" id="rmTaskModalTitle">Cập nhật công việc</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <p class="fw-bold mb-2" data-rm-title></p>
+        <div class="row g-2">
+          <div class="col-md-6">
+            <label class="form-label small fw-bold mb-1" for="id_rm_status">Trạng thái</label>
+            <select name="status" id="id_rm_status" class="form-select">
+              {% for value, label in task_form.fields.status.choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+          {% if can_assign %}
+          <div class="col-md-6">
+            <label class="form-label small fw-bold mb-1" for="id_rm_due">Hạn</label>
+            <input type="date" name="due_date" id="id_rm_due" class="form-control">
+          </div>
+          <div class="col-12">
+            <label class="form-label small fw-bold mb-1" for="id_rm_owner">Người phụ trách</label>
+            <select name="owner" id="id_rm_owner" class="form-select jp-tksp-user-select">
+              {% for value, label in task_form.fields.owner.choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+          {% endif %}
+          <div class="col-12">
+            <label class="form-label small fw-bold mb-1" for="id_rm_evidence">Bằng chứng / kết quả <span class="text-danger d-none" data-rm-evidence-req>*</span></label>
+            <textarea name="evidence" id="id_rm_evidence" rows="2" class="form-control" placeholder="Link tài liệu, số phiếu, mô tả kết quả…"></textarea>
+          </div>
+          <div class="col-12">
+            <label class="form-label small fw-bold mb-1" for="id_rm_delay">Lý do trễ / vướng mắc</label>
+            <textarea name="delay_reason" id="id_rm_delay" rows="2" class="form-control"></textarea>
+            <div class="form-text small">Bắt buộc khi chuyển sang «Vướng mắc» hoặc hoàn thành sau hạn.</div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
+        <button type="submit" class="btn btn-hm text-white fw-bold">Lưu</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var modal = document.getElementById('rmTaskModal');
+  if (!modal) return;
+  modal.addEventListener('show.bs.modal', function (e) {
+    var btn = e.relatedTarget;
+    if (!btn) return;
+    var form = document.getElementById('rmTaskForm');
+    form.action = btn.getAttribute('data-rm-plan-action');
+    form.querySelector('[name="task_id"]').value = btn.getAttribute('data-rm-task');
+    form.querySelector('[data-rm-title]').textContent = btn.getAttribute('data-title');
+    form.querySelector('[name="status"]').value = btn.getAttribute('data-status');
+    var due = form.querySelector('[name="due_date"]');
+    if (due) due.value = btn.getAttribute('data-due') || '';
+    var owner = form.querySelector('[name="owner"]');
+    if (owner) {
+      var v = btn.getAttribute('data-owner') || '';
+      if (owner.tomselect) owner.tomselect.setValue(v, true); else owner.value = v;
+    }
+    var cell = btn.parentElement;
+    var ev = cell.querySelector('template[data-rm-evidence]');
+    var dl = cell.querySelector('template[data-rm-delay]');
+    form.querySelector('[name="evidence"]').value = ev ? ev.content.textContent.trim() : '';
+    form.querySelector('[name="delay_reason"]').value = dl ? dl.content.textContent.trim() : '';
+    form.querySelector('[data-rm-evidence-req]').classList.toggle('d-none', btn.getAttribute('data-blocker') !== '1');
+  });
+});
+</script>

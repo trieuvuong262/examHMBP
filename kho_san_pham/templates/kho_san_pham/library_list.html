@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% load sx_format %}
+{% block title %}Thư viện sản phẩm{% endblock %}
+{% block extra_head %}{% include 'thiet_ke_sp/includes/tksp_styles.html' %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-sx-page jp-tksp py-3 py-md-4 mb-5 px-3 px-lg-4">
+  {% include 'kho_san_pham/includes/library_topbar.html' with lib_title='Thư viện sản phẩm' %}
+
+  <div class="tk-card tk-panel mb-3">
+    <form method="get" class="tk-toolbar">
+      <input type="search" name="q" value="{{ q }}" class="form-control form-control-sm tk-search" placeholder="Tìm Style, tên, SKU, mã KiotViet, nhóm hàng…">
+      <select name="group" class="form-select form-select-sm" onchange="this.form.submit()">
+        <option value="">Mọi nhóm sản phẩm</option>
+        {% for code, label in group_choices %}<option value="{{ code }}"{% if group == code %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+      <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+        {% for key, label in status_choices %}<option value="{{ key }}"{% if status == key %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+      <button class="btn btn-sm btn-outline-secondary" type="submit"><i class="bi bi-search"></i> Lọc</button>
+      <span class="tk-count">{{ page_obj.paginator.count|sx_num }} Style · tổng {{ total_styles|sx_num }}</span>
+    </form>
+    {% if no_style %}
+    <div class="small text-muted mt-2"><i class="bi bi-info-circle"></i> {{ no_style|sx_num }} SKU đang dùng chưa gắn Style — không hiện trong thư viện; xem ở <a href="{% url 'kho_san_pham:product_list' %}">Danh mục SKU</a>.</div>
+    {% endif %}
+  </div>
+
+  <div class="tk-card tk-panel">
+    <div class="table-responsive">
+      <table class="table tk-mini-table align-middle">
+        <thead><tr><th>Style</th><th>Nhóm</th><th>SKU</th><th>Màu</th><th>Size</th><th class="text-end">Giá bán</th><th>Kênh</th><th>Hồ sơ thiết kế</th><th>Trạng thái</th></tr></thead>
+        <tbody>
+        {% for r in items %}
+          <tr>
+            <td>
+              <a class="tk-prod text-decoration-none text-reset" href="{% url 'kho_san_pham:library_detail' r.style_code %}">
+                <span class="tk-prod-thumb">{% if r.image_url %}<img src="{{ r.image_url }}" alt="" loading="lazy">{% else %}<i class="bi bi-image"></i>{% endif %}</span>
+                <span class="min-w-0"><strong>{{ r.name }}</strong><small>{{ r.style_code }}</small></span>
+              </a>
+            </td>
+            <td>{{ r.group_label|default:'—' }}{% if r.type_code %}<div class="small text-muted">{{ r.type_code }}</div>{% endif %}</td>
+            <td>{{ r.sku_count }}</td>
+            <td class="small">{{ r.colors|slice:':4'|join:', '|default:'—' }}{% if r.colors|length > 4 %} +{{ r.colors|length|add:'-4' }}{% endif %}</td>
+            <td class="small">{{ r.sizes|join:' · '|default:'—' }}</td>
+            <td class="text-end text-nowrap">{% if r.min_price %}{{ r.min_price|sx_num }}{% if r.max_price != r.min_price %} – {{ r.max_price|sx_num }}{% endif %}{% else %}—{% endif %}</td>
+            <td>{% if r.kv_count %}<span class="tk-pill is-blue">KiotViet {{ r.kv_count }}/{{ r.sku_count }}</span>{% else %}<span class="tk-pill is-gray">Chưa có</span>{% endif %}</td>
+            <td>{% if r.dossier %}<a href="{{ r.dossier.get_absolute_url }}" class="small">{{ r.dossier.code }}</a>{% else %}<span class="small text-muted">—</span>{% endif %}</td>
+            <td><span class="tk-pill {% if r.is_active %}is-green{% else %}is-gray{% endif %}">{% if r.is_active %}Đang dùng{% else %}Ngừng dùng{% endif %}</span></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="9" class="text-center text-muted py-4">Không có Style phù hợp.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="d-flex justify-content-center mt-3">{% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

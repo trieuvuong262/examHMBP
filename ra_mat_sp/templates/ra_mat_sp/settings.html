@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% block title %}Thiết lập kế hoạch ra mắt{% endblock %}
+{% block extra_head %}{% include 'ra_mat_sp/includes/rm_styles.html' %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-sx-page jp-tksp py-3 py-md-4 mb-5 px-3 px-lg-4">
+  {% include 'ra_mat_sp/includes/rm_topbar.html' with rm_title='Thiết lập · Checklist mẫu ra mắt' %}
+
+  <div class="row g-3">
+    <div class="col-lg-8">
+      <div class="tk-section">
+        <div class="tk-section-title"><i class="bi bi-list-check"></i>Checklist mẫu theo mốc
+          <span class="tk-section-sub">Chỉ áp dụng khi tạo kế hoạch mới; kế hoạch đã tạo giữ nguyên công việc.</span>
+          {% if can_edit %}
+          <form method="post" class="ms-auto" data-tk-confirm="Nạp lại các dòng mặc định còn thiếu?">{% csrf_token %}<input type="hidden" name="op" value="restore">
+            <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise"></i> Nạp mặc định</button></form>
+          {% endif %}
+        </div>
+        {% for label, items in milestones %}
+        <div class="rm-milestone">
+          <div class="rm-milestone-head"><span class="badge-ms">{{ label }}</span><span class="small text-muted">{{ items|length }} dòng</span></div>
+          <div class="table-responsive"><table class="table tk-mini-table align-middle mb-0"><tbody>
+            {% for it in items %}
+            <tr class="{% if not it.is_active %}text-muted{% endif %}">
+              <td><div class="rm-task-title">{% if not it.is_active %}<s>{{ it.title }}</s>{% else %}{{ it.title }}{% endif %}</div>
+                <div class="rm-task-sub">{{ it.get_group_display }}{% if it.deliverable %} · {{ it.deliverable }}{% endif %}{% if it.group_label %} · chỉ nhóm {{ it.group_label }}{% endif %}</div></td>
+              <td class="text-nowrap">{% if it.is_go_blocker %}<span class="rm-blocker"><i class="bi bi-flag-fill"></i> Go/No-Go</span>{% elif it.importance == 'high' %}<span class="tk-miss small">Quan trọng</span>{% endif %}</td>
+              <td class="text-end text-nowrap">
+                {% if can_edit %}
+                <a class="btn btn-sm btn-outline-secondary" href="?sua={{ it.pk }}"><i class="bi bi-pencil"></i></a>
+                <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="op" value="toggle"><input type="hidden" name="item_id" value="{{ it.pk }}">
+                  <button class="btn btn-sm btn-outline-secondary" title="{% if it.is_active %}Ngừng dùng{% else %}Dùng lại{% endif %}"><i class="bi {% if it.is_active %}bi-eye-slash{% else %}bi-eye{% endif %}"></i></button></form>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody></table></div>
+        </div>
+        {% empty %}
+        <div class="small text-muted">Chưa có dòng checklist nào.</div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="col-lg-4">
+      {% if can_edit %}
+      <div class="tk-section">
+        <div class="tk-section-title"><i class="bi bi-{% if edit_item %}pencil{% else %}plus-circle{% endif %}"></i>{% if edit_item %}Sửa dòng checklist{% else %}Thêm dòng checklist{% endif %}</div>
+        <form method="post" class="row g-2">{% csrf_token %}
+          {% if edit_item %}<input type="hidden" name="item_id" value="{{ edit_item.pk }}">{% endif %}
+          {% if form.non_field_errors %}<div class="col-12 text-danger small">{{ form.non_field_errors|join:' ' }}</div>{% endif %}
+          {% include 'thiet_ke_sp/includes/field.html' with field=form.title col='col-12' req=1 %}
+          {% include 'thiet_ke_sp/includes/field.html' with field=form.offset_days col='col-6' req=1 %}
+          {% include 'thiet_ke_sp/includes/field.html' with field=form.group col='col-6' %}
+          {% include 'thiet_ke_sp/includes/field.html' with field=form.deliverable col='col-12' %}
+          {% include 'thiet_ke_sp/includes/field.html' with field=form.importance col='col-6' %}
+          {% include 'thiet_ke_sp/includes/field.html' with field=form.sort_order col='col-6' %}
+          {% include 'thiet_ke_sp/includes/field.html' with field=form.product_group col='col-12' %}
+          <div class="col-12">
+            <div class="form-check">{{ form.is_go_blocker }}<label class="form-check-label small" for="{{ form.is_go_blocker.id_for_label }}">{{ form.is_go_blocker.label }}</label></div>
+            <div class="form-check">{{ form.is_active }}<label class="form-check-label small" for="{{ form.is_active.id_for_label }}">Đang dùng</label></div>
+          </div>
+          <div class="col-12 d-flex gap-2">
+            <button class="btn btn-hm text-white fw-bold">Lưu</button>
+            {% if edit_item %}<a href="{% url 'ra_mat_sp:settings' %}" class="btn btn-outline-secondary">Hủy sửa</a>{% endif %}
+          </div>
+        </form>
+      </div>
+      {% endif %}
+      <div class="tk-section">
+        <div class="tk-section-title"><i class="bi bi-percent"></i>Trọng số % sẵn sàng</div>
+        {% for label, w in weights %}
+        <div class="d-flex justify-content-between small py-1 border-bottom"><span>{{ label }}</span><b>{{ w }}%</b></div>
+        {% endfor %}
+        <div class="form-text small mt-2">Trong nhóm: việc quan trọng ×3, điều kiện Go/No-Go ×2. Chỉ tính việc đến D-Day; bỏ qua việc «Không áp dụng».</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}{% include 'thiet_ke_sp/includes/tksp_scripts.html' %}{% endblock %}

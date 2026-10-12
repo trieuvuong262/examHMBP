@@ -1,0 +1,433 @@
+{% extends 'base.html' %}
+{% load sx_format %}
+{% block title %}{{ plan.code }} · {{ plan.name }}{% endblock %}
+{% block extra_head %}{% include 'ra_mat_sp/includes/rm_styles.html' %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-sx-page jp-tksp py-3 py-md-4 mb-5 px-3 px-lg-4">
+  {% include 'ra_mat_sp/includes/rm_topbar.html' with rm_title='Chi tiết kế hoạch ra mắt' rm_active='detail' %}
+
+  <div class="tk-hero mb-3">
+    <div class="tk-hero-main">
+      <div class="rm-ring is-{{ tone }}" style="--p: {{ ready.pct }}"><div><div><strong>{{ ready.pct }}%</strong><small>sẵn sàng</small></div></div></div>
+      <div class="min-w-0">
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          <span class="tk-pill {% if plan.status_tone == 'gray' or plan.status_tone == 'dark' %}is-gray{% else %}is-accent{% endif %}">{{ plan.get_status_display }}</span>
+          <span class="tk-hero-code">{{ plan.code }}</span>
+          <span class="tk-hero-code"><i class="bi bi-circle-fill" style="font-size:.5rem;color:{% if tone == 'green' %}#22c55e{% elif tone == 'amber' %}#f59e0b{% elif tone == 'red' %}#ef4444{% elif tone == 'purple' %}#a78bfa{% else %}#94a3b8{% endif %}"></i> {{ tone_label }}</span>
+        </div>
+        <h1>{{ plan.name }}</h1>
+        <p class="tk-hero-sub">Ra mắt {{ plan.launch_date|date:'d/m/Y' }} · {{ plan.countdown_label }} · {{ links|length }} sản phẩm{% if plan.channels %} · {{ plan.channels }}{% endif %}</p>
+      </div>
+      <div class="tk-hero-actions">
+        {% if can_edit_header %}<a href="{% url 'ra_mat_sp:edit' plan.pk %}" class="btn btn-sm fw-bold btn-tk-ghost"><i class="bi bi-pencil"></i>Sửa</a>{% endif %}
+        {% if plan.status == 'draft' and can_edit %}
+        <form method="post" action="{% url 'ra_mat_sp:action' plan.pk 'submit_plan' %}" data-tk-confirm="Gửi kế hoạch cho người duyệt?">{% csrf_token %}
+          <button class="btn btn-sm fw-bold btn-hm text-white"><i class="bi bi-send"></i>Gửi duyệt kế hoạch</button></form>
+        {% endif %}
+        {% if plan.status == 'preparing' or plan.status == 'at_risk' %}{% if can_edit %}
+        <a href="?tab=go" class="btn btn-sm fw-bold btn-hm text-white"><i class="bi bi-flag"></i>Go/No-Go</a>
+        {% endif %}{% endif %}
+        {% if plan.status == 'ready' and can_edit %}
+        <form method="post" action="{% url 'ra_mat_sp:action' plan.pk 'launch' %}" data-tk-confirm="Xác nhận sản phẩm đã mở bán?">{% csrf_token %}
+          <button class="btn btn-sm fw-bold btn-hm text-white"><i class="bi bi-rocket-takeoff"></i>Xác nhận đã ra mắt</button></form>
+        {% endif %}
+        {% if not plan.is_final %}{% if can_edit or is_approver %}
+        <button type="button" class="btn btn-sm fw-bold btn-tk-ghost" data-bs-toggle="modal" data-bs-target="#rmStopModal">
+          {% if plan.status == 'paused' %}<i class="bi bi-play-circle"></i>Tiếp tục / Hủy{% else %}<i class="bi bi-pause-circle"></i>Dừng / Hủy{% endif %}
+        </button>
+        {% endif %}{% endif %}
+        {% if can_delete %}
+        <form method="post" action="{% url 'ra_mat_sp:delete' plan.pk %}" data-tk-confirm="Xóa kế hoạch nháp {{ plan.code }}?">{% csrf_token %}
+          <button class="btn btn-sm btn-tk-ghost"><i class="bi bi-trash"></i></button></form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% if plan.status == 'plan_pending' %}
+  <div class="tk-callout is-muted">{% if is_approver %}Kế hoạch đang chờ <b>bạn</b> duyệt — xem mục tiêu, sản phẩm và mốc rồi ra quyết định ở tab Tổng quan.{% else %}Đang chờ {{ plan.approver.profile.full_name|default:plan.approver.username }} duyệt kế hoạch.{% endif %}</div>
+  {% elif plan.status == 'launch_pending' %}
+  <div class="tk-callout is-muted">{% if is_approver %}Kế hoạch chờ <b>bạn</b> ra quyết định Go/No-Go ở tab <a href="?tab=go">Go/No-Go</a>.{% else %}Đang chờ họp Go/No-Go.{% endif %}</div>
+  {% elif plan.status == 'at_risk' %}
+  <div class="tk-callout is-danger">Có rủi ro: {{ ready.overdue|length }} việc trễ hạn{% if ready.overdue_blockers %} (trong đó {{ ready.overdue_blockers|length }} điều kiện Go/No-Go){% endif %}{% if high_risks %}, {{ high_risks }} rủi ro mức Cao đang mở{% endif %}.</div>
+  {% endif %}
+
+  <div class="tk-detail-layout">
+    <div class="tk-card min-w-0">
+      <div class="tk-tabs-head">
+        <ul class="nav nav-pills jp-portal-pills gap-1 flex-wrap">
+          {% for key, label, icon in tabs %}
+          <li class="nav-item"><a class="nav-link rounded-pill fw-bold{% if tab == key %} active{% endif %}" href="?tab={{ key }}"><i class="bi {{ icon }} me-1"></i>{{ label }}{% if key == 'risks' and open_risks %} <span class="badge rounded-pill bg-danger">{{ open_risks|length }}</span>{% endif %}</a></li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="tk-tab-body">
+
+      {% if tab == 'overview' %}
+        {% if plan_decision_form %}
+        <div class="tk-section">
+          <div class="tk-section-title"><i class="bi bi-check2-circle"></i>Duyệt kế hoạch</div>
+          <form method="post" action="{% url 'ra_mat_sp:action' plan.pk 'decide_plan' %}">{% csrf_token %}
+            <div class="rm-decision-opts">{% for radio in plan_decision_form.decision %}<div class="form-check">{{ radio.tag }}<label class="form-check-label fw-semibold" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label></div>{% endfor %}</div>
+            <label class="form-label small fw-bold mt-2 mb-1">Ý kiến</label>{{ plan_decision_form.comment }}
+            <div class="form-text small">Bắt buộc khi yêu cầu chỉnh sửa hoặc hủy.</div>
+            <button class="btn btn-hm text-white fw-bold mt-2">Ghi quyết định</button>
+          </form>
+        </div>
+        {% endif %}
+        <div class="tk-section">
+          <div class="tk-section-title"><i class="bi bi-bullseye"></i>Mục tiêu &amp; định vị</div>
+          <div class="tk-grid2">
+            <div class="tk-field"><label>Mục tiêu ra mắt</label><span class="v">{{ plan.objective|default:'—' }}</span></div>
+            <div class="tk-field"><label>Định vị / thông điệp</label><span class="v">{{ plan.positioning|default:'—' }}</span></div>
+            <div class="tk-field"><label>Khách hàng mục tiêu</label><span class="v">{{ plan.target_customer|default:'—' }}</span></div>
+            <div class="tk-field"><label>Phạm vi · kênh bán</label><span class="v">{{ plan.scope|default:'—' }}{% if plan.channels %} · {{ plan.channels }}{% endif %}</span></div>
+            <div class="tk-field"><label>Mục tiêu sản lượng</label><span class="v">{% if plan.target_qty %}{{ plan.target_qty|sx_num }} sp{% else %}—{% endif %}</span></div>
+            <div class="tk-field"><label>Mục tiêu doanh thu · ngân sách MKT</label><span class="v">{% if plan.target_revenue %}{{ plan.target_revenue|sx_num }} đ{% else %}—{% endif %} · {% if plan.marketing_budget %}{{ plan.marketing_budget|sx_num }} đ{% else %}—{% endif %}</span></div>
+          </div>
+          {% if plan.note %}<div class="tk-callout is-muted">{{ plan.note|linebreaksbr }}</div>{% endif %}
+        </div>
+        <div class="tk-section">
+          <div class="tk-section-title"><i class="bi bi-speedometer2"></i>Sẵn sàng theo nhóm <span class="tk-section-sub">Trọng số nhóm · việc quan trọng ×3 · điều kiện Go ×2</span></div>
+          {% for g in ready.groups %}
+          <a class="tk-meter-row" href="?tab=work&group={{ g.key }}">
+            <span>{{ g.label }} <span class="text-muted">({{ g.weight }}%)</span>{% if g.overdue %} <b class="tk-late">· {{ g.overdue }} trễ</b>{% endif %}</span>
+            <div class="tk-meter{% if g.pct == 100 %} is-green{% elif g.pct is None %} is-gray{% endif %}"><i style="width: {{ g.pct|default:0 }}%"></i></div>
+            <b class="text-end">{% if g.pct is None %}—{% else %}{{ g.pct }}%{% endif %}</b>
+          </a>
+          {% endfor %}
+        </div>
+        {% if ready.open_blockers %}
+        <div class="tk-section">
+          <div class="tk-section-title"><i class="bi bi-flag"></i>Điều kiện Go/No-Go chưa xong</div>
+          <div class="table-responsive"><table class="table tk-mini-table align-middle"><tbody>
+            {% for t in ready.open_blockers %}
+            <tr class="{% if t.is_overdue %}tk-task-row is-late{% endif %}"><td><div class="rm-task-title">{{ t.title }}</div><div class="rm-task-sub">{{ t.get_group_display }} · {{ t.owner.profile.full_name|default:t.owner.username|default:'Chưa giao' }}</div></td>
+              <td class="text-nowrap">{{ t.milestone }}</td><td class="text-nowrap{% if t.is_overdue %} tk-late{% endif %}">{{ t.due_date|date:'d/m/Y' }}</td>
+              <td><span class="tk-pill is-{{ t.status_tone }}">{{ t.get_status_display }}</span></td></tr>
+            {% endfor %}
+          </tbody></table></div>
+        </div>
+        {% endif %}
+
+      {% elif tab == 'products' %}
+        <div class="tk-section">
+          <div class="tk-section-title"><i class="bi bi-bag"></i>Sản phẩm trong đợt ra mắt <span class="tk-section-sub">Dữ liệu lấy từ hồ sơ Thiết kế sản phẩm</span></div>
+          <form method="post" action="{% url 'ra_mat_sp:action' plan.pk 'product_qty' %}">{% csrf_token %}
+          <div class="table-responsive"><table class="table tk-mini-table align-middle">
+            <thead><tr><th>Hồ sơ</th><th>Nhóm</th><th>Trạng thái thiết kế</th><th>Mã chính thức</th><th>Giá bán lẻ đề xuất</th><th style="width:120px">SL ra mắt</th><th>Ghi chú</th></tr></thead>
+            <tbody>
+            {% for link in links %}
+            {% with d=link.dossier %}
+            <tr>
+              <td><a class="tk-prod text-decoration-none text-reset" href="{{ d.get_absolute_url }}">
+                <span class="tk-prod-thumb">{% if link.cover %}<img src="{{ link.cover.get_absolute_url }}" alt="">{% else %}<i class="bi bi-palette"></i>{% endif %}</span>
+                <span><strong>{{ d.name }}</strong><small>{{ d.code }}</small></span></a></td>
+              <td>{{ link.group_label|default:'—' }}</td>
+              <td><span class="tk-pill {% if d.status == 'approved' or d.status == 'handed_over' or d.status == 'closed' %}is-green{% elif d.status == 'cancelled' or d.status == 'paused' %}is-gray{% else %}is-amber{% endif %}">{{ d.get_status_display }}</span></td>
+              <td>{% if d.official_product_code %}<a href="{% url 'kho_san_pham:library_detail' d.official_product_code %}">{{ d.official_product_code }}</a>{% else %}<span class="text-muted">Chưa có</span>{% endif %}</td>
+              <td class="text-end">{% if d.proposed_retail_price %}{{ d.proposed_retail_price|sx_num }}{% elif d.target_retail_price %}{{ d.target_retail_price|sx_num }} <small class="text-muted">(mục tiêu)</small>{% else %}—{% endif %}</td>
+              <td>{% if can_edit %}<input type="number" min="0" name="qty_{{ link.pk }}" value="{{ link.planned_qty|default_if_none:'' }}" class="form-control form-control-sm text-end">{% else %}{{ link.planned_qty|default_if_none:'—' }}{% endif %}</td>
+              <td>{% if can_edit %}<input type="text" maxlength="255" name="note_{{ link.pk }}" value="{{ link.note }}" class="form-control form-control-sm">{% else %}{{ link.note|default:'—' }}{% endif %}</td>
+            </tr>
+            {% endwith %}
+            {% empty %}
+            <tr><td colspan="7" class="text-center text-muted py-3">Chưa gắn sản phẩm. {% if can_edit_header %}<a href="{% url 'ra_mat_sp:edit' plan.pk %}">Thêm hồ sơ thiết kế</a>{% endif %}</td></tr>
+            {% endfor %}
+            </tbody>
+          </table></div>
+          {% if can_edit and links %}<div class="text-end"><button class="btn btn-sm btn-hm text-white fw-bold">Lưu sản lượng</button></div>{% endif %}
+          </form>
+        </div>
+
+      {% elif tab == 'timeline' %}
+        <div class="tk-section">
+          <div class="tk-section-title"><i class="bi bi-calendar-week"></i>Mốc tiến độ <span class="tk-section-sub">{{ ready.done }}/{{ ready.total }} việc đã xong · hạn tính từ ngày ra mắt {{ plan.launch_date|date:'d/m/Y' }}</span>
+            {% if can_edit %}<button type="button" class="btn btn-sm btn-outline-secondary ms-auto" data-bs-toggle="modal" data-bs-target="#rmAddTaskModal"><i class="bi bi-plus-lg"></i> Thêm việc</button>{% endif %}
+          </div>
+          {% for ms in timeline %}
+          <div class="rm-milestone{% if ms.late %} is-late{% elif ms.done == ms.total %} is-done{% endif %}">
+            <div class="rm-milestone-head">
+              <span class="badge-ms">{{ ms.label }}</span>
+              <strong class="small">{{ ms.due|date:'d/m/Y' }}</strong>
+              <span class="small text-muted">{{ ms.done }}/{{ ms.total }} xong</span>
+              {% if ms.late %}<span class="tk-pill is-red ms-auto">Có việc trễ</span>{% endif %}
+            </div>
+            <div class="table-responsive"><table class="table tk-mini-table align-middle mb-0"><tbody>
+              {% for t in ms.tasks %}{% include 'ra_mat_sp/includes/task_row.html' %}{% endfor %}
+            </tbody></table></div>
+          </div>
+          {% empty %}
+          <div class="text-muted small">Chưa có công việc. Kiểm tra checklist mẫu trong Thiết lập.</div>
+          {% endfor %}
+        </div>
+
+      {% elif tab == 'work' %}
+        <div class="tk-section">
+          <div class="tk-chips mb-3">
+            {% for key, label in group_tabs %}
+            <a class="btn btn-sm {% if group_filter == key %}btn-dark{% else %}btn-outline-secondary{% endif %}" href="?tab=work&group={{ key }}">{{ label }}</a>
+            {% endfor %}
+            {% if can_edit %}<button type="button" class="btn btn-sm btn-outline-secondary ms-auto" data-bs-toggle="modal" data-bs-target="#rmAddTaskModal"><i class="bi bi-plus-lg"></i> Thêm việc</button>{% endif %}
+          </div>
+          <div class="table-responsive"><table class="table tk-mini-table align-middle">
+            <thead><tr><th>Công việc</th><th>Mốc</th><th>Hạn</th><th>Phụ trách</th><th>Trạng thái</th><th></th></tr></thead>
+            <tbody>
+            {% for t in group_tasks %}{% include 'ra_mat_sp/includes/task_row.html' %}
+            {% empty %}<tr><td colspan="6" class="text-center text-muted py-3">Nhóm này chưa có công việc.</td></tr>{% endfor %}
+            </tbody>
+          </table></div>
+          <div class="form-text small">Giai đoạn 1: Sản xuất, Marketing, Kênh bán cập nhật thủ công theo checklist + bằng chứng; chưa kéo dữ liệu tự động từ Sản xuất / KiotViet.</div>
+        </div>
+
+      {% elif tab == 'risks' %}
+        {% if can_edit or my_open %}{% if not plan.is_final %}
+        <div class="tk-section">
+          <div class="tk-section-title"><i class="bi bi-plus-circle"></i>Ghi nhận rủi ro / vướng mắc</div>
+          <form method="post" action="{% url 'ra_mat_sp:action' plan.pk 'risk_add' %}" class="row g-2">{% csrf_token %}
+            {% include 'thiet_ke_sp/includes/field.html' with field=risk_form.group col='col-md-4' %}
+            {% include 'thiet_ke_sp/includes/field.html' with field=risk_form.severity col='col-md-4' %}
+            {% include 'thiet_ke_sp/includes/field.html' with field=risk_form.due_date col='col-md-4' %}
+            {% include 'thiet_ke_sp/includes/field.html' with field=risk_form.description col='col-md-6' req=1 %}
+            {% include 'thiet_ke_sp/includes/field.html' with field=risk_form.action col='col-md-6' %}
+            {% include 'thiet_ke_sp/includes/field.html' with field=risk_form.owner col='col-md-6' req=1 %}
+            <div class="col-md-6 d-flex align-items-end"><button class="btn btn-hm text-white fw-bold">Ghi nhận</button></div>
+          </form>
+          <div class="form-text small">Rủi ro mức Cao đang mở sẽ chuyển kế hoạch sang «Có rủi ro».</div>
+        </div>
+        {% endif %}{% endif %}
+        <div class="tk-section">
+          <div class="tk-section-title"><i class="bi bi-exclamation-triangle"></i>Danh sách rủi ro</div>
+          <div class="table-responsive"><table class="table tk-mini-table align-middle">
+            <thead><tr><th>Rủi ro</th><th>Nhóm</th><th>Mức</th><th>Người xử lý</th><th>Hạn</th><th>Trạng thái</th></tr></thead>
+            <tbody>
+            {% for r in risks %}
+            <tr>
+              <td><div class="fw-semibold">{{ r.description|linebreaksbr }}</div>{% if r.action %}<div class="rm-task-sub">Hướng xử lý: {{ r.action }}</div>{% endif %}{% if r.resolution %}<div class="small tk-ok">Kết quả: {{ r.resolution }}</div>{% endif %}</td>
+              <td>{{ r.get_group_display }}</td>
+              <td><span class="tk-pill {% if r.severity == 'high' %}is-red{% elif r.severity == 'medium' %}is-amber{% else %}is-gray{% endif %}">{{ r.get_severity_display }}</span></td>
+              <td class="text-nowrap">{{ r.owner.profile.full_name|default:r.owner.username|default:'—' }}</td>
+              <td class="text-nowrap">{{ r.due_date|date:'d/m/Y'|default:'—' }}</td>
+              <td>
+                {% if r.is_open %}
+                  {% if can_edit or r.owner_id == request.user.pk %}
+                  <form method="post" action="{% url 'ra_mat_sp:action' plan.pk 'risk_resolve' %}" class="d-flex gap-1">{% csrf_token %}
+                    <input type="hidden" name="risk_id" value="{{ r.pk }}">
+                    <input type="text" name="resolution" class="form-control form-control-sm" placeholder="Kết quả xử lý" required>
+                    <button class="btn btn-sm btn-outline-success text-nowrap">Đóng</button>
+                  </form>
+                  {% else %}<span class="tk-pill is-amber">Đang mở</span>{% endif %}
+                {% else %}<span class="tk-pill is-green">Đã xử lý</span>{% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center text-muted py-3">Chưa ghi nhận rủi ro.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table></div>
+        </div>
+
+      {% elif tab == 'go' %}
+        <div class="tk-section">
+          <div class="tk-section-title"><i class="bi bi-list-check"></i>Điều kiện bắt buộc trước ra mắt <span class="tk-section-sub">Sẵn sàng {{ ready.pct }}%</span></div>
+          {% for c in go_conditions %}
+          <div class="rm-cond">
+            {% if c.ok %}<i class="bi bi-check-circle-fill text-success"></i>{% else %}<i class="bi bi-x-circle-fill text-danger"></i>{% endif %}
+            <div><div class="fw-semibold">{{ c.label }}</div>{% if c.note %}<div class="rm-task-sub">{{ c.note }}</div>{% endif %}</div>
+          </div>
+          {% endfor %}
+          {% if plan.status == 'preparing' or plan.status == 'at_risk' %}{% if can_edit %}
+          <form method="post" action="{% url 'ra_mat_sp:action' plan.pk 'submit_go' %}" class="mt-3" data-tk-confirm="Trình họp Go/No-Go cho người duyệt?">{% csrf_token %}
+            <button class="btn btn-hm text-white fw-bold"{% if not plan.approver_id %} disabled title="Chọn Người duyệt trong Sửa kế hoạch"{% endif %}><i class="bi bi-flag"></i> Trình họp Go/No-Go</button>
+            {% if not plan.approver_id %}<span class="small text-danger ms-2">Chưa chọn Người duyệt.</span>{% endif %}
+          </form>
+          {% endif %}{% endif %}
+        </div>
+        {% if go_form %}
+        <div class="tk-section">
+          <div class="tk-section-title"><i class="bi bi-flag-fill"></i>Quyết định Go/No-Go</div>
+          <form method="post" action="{% url 'ra_mat_sp:action' plan.pk 'decide_go' %}" id="rmGoForm">{% csrf_token %}
+            <div class="rm-decision-opts">{% for radio in go_form.decision %}<div class="form-check">{{ radio.tag }}<label class="form-check-label fw-semibold" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label></div>{% endfor %}</div>
+            <div class="row g-2 mt-1 d-none" data-rm-go-show="go_conditional">
+              {% include 'thiet_ke_sp/includes/field.html' with field=go_form.condition_text col='col-12' req=1 %}
+              {% include 'thiet_ke_sp/includes/field.html' with field=go_form.condition_owner col='col-md-6' req=1 %}
+              {% include 'thiet_ke_sp/includes/field.html' with field=go_form.condition_due col='col-md-6' req=1 %}
+            </div>
+            <div class="row g-2 mt-1 d-none" data-rm-go-show="postpone">
+              {% include 'thiet_ke_sp/includes/field.html' with field=go_form.new_launch_date col='col-md-6' req=1 %}
+            </div>
+            <label class="form-label small fw-bold mt-2 mb-1">Ý kiến</label>{{ go_form.comment }}
+            <div class="form-text small">«Đủ điều kiện» chỉ chọn được khi mọi điều kiện bắt buộc đã đạt. Các quyết định khác cần ý kiến.</div>
+            <button class="btn btn-hm text-white fw-bold mt-2">Ghi quyết định</button>
+          </form>
+        </div>
+        {% endif %}
+        <div class="tk-section">
+          <div class="tk-section-title"><i class="bi bi-journal-check"></i>Lịch sử quyết định</div>
+          {% for d in decisions %}
+          <div class="tk-comment">
+            <div class="d-flex justify-content-between flex-wrap gap-2">
+              <strong>{{ d.get_kind_display }} · {{ d.get_decision_display }}</strong>
+              <span class="small text-muted">{{ d.decided_by.profile.full_name|default:d.decided_by.username }} · {{ d.decided_at|date:'d/m/Y H:i' }}{% if d.readiness is not None %} · sẵn sàng {{ d.readiness }}%{% endif %}</span>
+            </div>
+            {% if d.comment %}<div class="mt-1">{{ d.comment|linebreaksbr }}</div>{% endif %}
+            {% if d.condition_text %}<div class="small mt-1 tk-miss">Điều kiện: {{ d.condition_text }} · {{ d.condition_owner.profile.full_name|default:d.condition_owner.username }} · hạn {{ d.condition_due|date:'d/m/Y' }}</div>{% endif %}
+            {% if d.new_launch_date %}<div class="small mt-1">Ngày ra mắt mới: {{ d.new_launch_date|date:'d/m/Y' }}</div>{% endif %}
+          </div>
+          {% empty %}
+          <div class="small text-muted">Chưa có quyết định.</div>
+          {% endfor %}
+        </div>
+
+      {% elif tab == 'post' %}
+        <div class="tk-section">
+          <div class="tk-section-title"><i class="bi bi-graph-up-arrow"></i>Đánh giá sau ra mắt <span class="tk-section-sub">Nhập tay số liệu bán, tồn, phản hồi (chưa kéo KiotViet)</span></div>
+          {% for r in reviews %}
+          <div class="rm-review">
+            <div class="d-flex justify-content-between flex-wrap gap-2 mb-2">
+              <strong>{{ r.get_milestone_display }} · {{ r.due_date|date:'d/m/Y' }}</strong>
+              {% if r.is_done %}<span class="tk-pill is-green">Đã đánh giá · {{ r.submitted_by.profile.full_name|default:r.submitted_by.username }}</span>
+              {% elif r.can_submit %}<span class="tk-pill is-amber">Đến hạn đánh giá</span>
+              {% else %}<span class="tk-pill is-gray">{% if plan.status == 'launched' or plan.status == 'reviewing' %}Chưa đến ngày{% else %}Mở sau khi ra mắt{% endif %}</span>{% endif %}
+            </div>
+            {% if r.is_done %}
+            <div class="tk-grid3">
+              <div class="tk-field"><label>Đã bán</label><span class="v">{{ r.qty_sold|default_if_none:'—' }}{% if r.qty_pct is not None %} <small class="text-muted">({{ r.qty_pct }}% mục tiêu)</small>{% endif %}</span></div>
+              <div class="tk-field"><label>Doanh thu</label><span class="v">{% if r.revenue is not None %}{{ r.revenue|sx_num }} đ{% else %}—{% endif %}{% if r.revenue_pct is not None %} <small class="text-muted">({{ r.revenue_pct }}%)</small>{% endif %}</span></div>
+              <div class="tk-field"><label>Tồn · đổi trả</label><span class="v">{{ r.stock_left|default_if_none:'—' }} · {% if r.return_rate is not None %}{{ r.return_rate }}%{% else %}—{% endif %}</span></div>
+            </div>
+            {% if r.feedback %}<div class="small mt-2"><b>Phản hồi:</b> {{ r.feedback|linebreaksbr }}</div>{% endif %}
+            {% if r.findings %}<div class="small mt-1"><b>Nhận định:</b> {{ r.findings|linebreaksbr }}</div>{% endif %}
+            {% if r.decision %}<div class="small mt-1"><b>Quyết định:</b> {{ r.get_decision_display }}</div>{% endif %}
+            {% endif %}
+            {% if r.form %}
+            <details{% if not r.is_done %} open{% endif %} class="mt-2"><summary class="small fw-bold">{% if r.is_done %}Sửa đánh giá{% else %}Nhập đánh giá{% endif %}</summary>
+            <form method="post" action="{% url 'ra_mat_sp:action' plan.pk 'review' %}" class="row g-2 mt-1">{% csrf_token %}
+              <input type="hidden" name="review_id" value="{{ r.pk }}">
+              {% include 'thiet_ke_sp/includes/field.html' with field=r.form.qty_sold col='col-md-3' %}
+              {% include 'thiet_ke_sp/includes/field.html' with field=r.form.revenue col='col-md-3' %}
+              {% include 'thiet_ke_sp/includes/field.html' with field=r.form.stock_left col='col-md-3' %}
+              {% include 'thiet_ke_sp/includes/field.html' with field=r.form.return_rate col='col-md-3' %}
+              {% include 'thiet_ke_sp/includes/field.html' with field=r.form.feedback col='col-md-6' %}
+              {% include 'thiet_ke_sp/includes/field.html' with field=r.form.findings col='col-md-6' %}
+              {% include 'thiet_ke_sp/includes/field.html' with field=r.form.decision col='col-md-6' %}
+              <div class="col-md-6 d-flex align-items-end"><button class="btn btn-hm text-white fw-bold">Lưu đánh giá {{ r.get_milestone_display }}</button></div>
+            </form>
+            </details>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+
+      {% elif tab == 'history' %}
+        <div class="tk-section">
+          <div class="tk-section-title"><i class="bi bi-clock-history"></i>Lịch sử thay đổi</div>
+          <ul class="tk-timeline">
+            {% for l in logs %}
+            <li class="{% if l.is_status %}is-status{% endif %}"><strong>{{ l.user.profile.full_name|default:l.user.username|default:'Hệ thống' }}</strong> · <span class="t">{{ l.created_at|date:'d/m/Y H:i' }}</span><div>{{ l.message }}</div></li>
+            {% empty %}<li>Chưa có lịch sử.</li>{% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+      </div>
+    </div>
+
+    <aside class="tk-rail">
+      <div class="tk-card tk-side-card">
+        <h3>Ngày ra mắt</h3>
+        <div class="tk-due{% if plan.days_to_launch < 0 and plan.status != 'launched' and plan.status != 'reviewing' and plan.status != 'done' %} is-late{% elif plan.days_to_launch <= 14 %} is-soon{% endif %}">
+          <strong>{{ plan.launch_date|date:'d/m/Y' }}</strong><span>{{ plan.countdown_label }}</span>
+        </div>
+      </div>
+      <div class="tk-card tk-side-card">
+        <h3>Người tham gia</h3>
+        <div class="tk-owner"><span class="tk-avatar" style="background:#1d4ed8">ĐP</span><div><strong>{{ plan.coordinator.profile.full_name|default:plan.coordinator.username }}</strong><small>Người điều phối</small></div></div>
+        <div class="tk-owner"><span class="tk-avatar{% if not plan.approver %} is-empty{% endif %}" style="background:#6d28d9">DU</span><div><strong>{{ plan.approver.profile.full_name|default:plan.approver.username|default:'Chưa chọn' }}</strong><small>Người duyệt Go/No-Go</small></div></div>
+      </div>
+      <div class="tk-card tk-side-card">
+        <h3>Tình trạng <span class="tk-pill is-{{ tone }}">{{ tone_label }}</span></h3>
+        <ul class="tk-rule-list">
+          <li><i class="bi bi-list-task"></i>{{ ready.done }}/{{ ready.total }} việc đã xong</li>
+          <li><i class="bi bi-alarm {% if ready.overdue %}text-danger{% endif %}"></i>{{ ready.overdue|length }} việc trễ hạn</li>
+          <li><i class="bi bi-flag {% if ready.open_blockers %}text-warning{% endif %}"></i>{{ ready.open_blockers|length }} điều kiện Go chưa xong</li>
+          <li><i class="bi bi-exclamation-triangle {% if high_risks %}text-danger{% endif %}"></i>{{ open_risks|length }} rủi ro mở ({{ high_risks }} mức Cao)</li>
+        </ul>
+      </div>
+      {% if my_open %}
+      <div class="tk-card tk-side-card">
+        <h3>Việc của tôi <span class="badge rounded-pill bg-secondary">{{ my_open|length }}</span></h3>
+        {% for t in my_open|slice:':5' %}
+        <div class="tk-task{% if t.is_overdue %} is-late{% endif %}"><b>{{ t.title }}</b><div class="small text-muted">{{ t.milestone }} · hạn {{ t.due_date|date:'d/m' }}</div></div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </aside>
+  </div>
+</div>
+
+{% include 'ra_mat_sp/includes/task_modal.html' with can_assign=can_edit return_tab=tab %}
+
+{% if can_edit %}
+<div class="modal fade" id="rmAddTaskModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="post" class="modal-content" action="{% url 'ra_mat_sp:action' plan.pk 'task_add' %}">{% csrf_token %}
+      <input type="hidden" name="return_tab" value="{{ tab }}">
+      <div class="modal-header"><h5 class="modal-title fs-6 fw-bold">Thêm công việc</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button></div>
+      <div class="modal-body"><div class="row g-2">
+        {% include 'thiet_ke_sp/includes/field.html' with field=task_add_form.title col='col-12' req=1 %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=task_add_form.group col='col-md-6' %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=task_add_form.due_date col='col-md-6' req=1 %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=task_add_form.owner col='col-12' req=1 %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=task_add_form.deliverable col='col-12' %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=task_add_form.importance col='col-md-6' %}
+        <div class="col-md-6 d-flex align-items-end"><div class="form-check">{{ task_add_form.is_go_blocker }}<label class="form-check-label small" for="{{ task_add_form.is_go_blocker.id_for_label }}">{{ task_add_form.is_go_blocker.label }}</label></div></div>
+      </div></div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button><button class="btn btn-hm text-white fw-bold">Thêm</button></div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% if not plan.is_final %}{% if can_edit or is_approver %}
+<div class="modal fade" id="rmStopModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="post" class="modal-content" action="">{% csrf_token %}
+      <div class="modal-header"><h5 class="modal-title fs-6 fw-bold">{% if plan.status == 'paused' %}Tiếp tục hoặc hủy kế hoạch{% else %}Tạm dừng hoặc hủy kế hoạch{% endif %}</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button></div>
+      <div class="modal-body">
+        <label class="form-label small fw-bold mb-1" for="rmStopComment">Lý do <span class="text-danger">*</span></label>
+        <textarea name="comment" id="rmStopComment" rows="3" class="form-control" required></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
+        {% if plan.status == 'paused' %}
+        <button class="btn btn-success fw-bold" formaction="{% url 'ra_mat_sp:action' plan.pk 'resume' %}">Tiếp tục</button>
+        {% elif plan.status != 'launched' and plan.status != 'reviewing' %}
+        <button class="btn btn-warning fw-bold" formaction="{% url 'ra_mat_sp:action' plan.pk 'pause' %}">Tạm dừng</button>
+        {% endif %}
+        <button class="btn btn-danger fw-bold" formaction="{% url 'ra_mat_sp:action' plan.pk 'cancel' %}" onclick="return confirm('Hủy kế hoạch {{ plan.code }}?')">Hủy kế hoạch</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% include 'thiet_ke_sp/includes/tksp_scripts.html' %}
+<script>
+(function () {
+  var form = document.getElementById('rmGoForm');
+  if (!form) return;
+  function sync() {
+    var checked = form.querySelector('input[name="decision"]:checked');
+    var v = checked ? checked.value : '';
+    form.querySelectorAll('[data-rm-go-show]').forEach(function (el) {
+      el.classList.toggle('d-none', el.getAttribute('data-rm-go-show') !== v);
+    });
+  }
+  form.addEventListener('change', sync);
+  sync();
+})();
+</script>
+{% endblock %}

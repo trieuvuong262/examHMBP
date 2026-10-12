@@ -383,6 +383,7 @@ def plan_detail(request, pk):
         r.can_submit = can_edit and svc.can_review(plan, r)
         r.form = f.ReviewForm(instance=r, prefix=f'rv{r.pk}') if r.can_submit else None
     is_approver = perms.is_plan_approver(plan, user)
+    plan_tone = svc.tone(plan, ready, high)
     ctx = _common(
         request,
         plan=plan,
@@ -390,8 +391,8 @@ def plan_detail(request, pk):
         tabs=TABS,
         tasks=tasks,
         ready=ready,
-        tone=svc.tone(plan, ready, high),
-        tone_labels=svc.TONE_LABELS,
+        tone=plan_tone,
+        tone_label=svc.TONE_LABELS[plan_tone],
         risks=risks,
         open_risks=[r for r in risks if r.is_open],
         high_risks=high,

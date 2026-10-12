@@ -1,0 +1,31 @@
+<tr class="tk-task-row{% if t.is_overdue %} is-late{% endif %}">
+  <td>
+    <div class="rm-task-title">{{ t.title }}</div>
+    <div class="rm-task-sub">
+      {% if show_plan %}<a href="{{ t.plan.get_absolute_url }}?tab=timeline">{{ t.plan.code }} · {{ t.plan.name|truncatechars:40 }}</a> · {% endif %}
+      {{ t.get_group_display }}{% if t.deliverable %} · Kết quả: {{ t.deliverable }}{% endif %}
+    </div>
+    {% if t.is_go_blocker %}<span class="rm-blocker"><i class="bi bi-flag-fill"></i> Điều kiện Go/No-Go</span>{% endif %}
+    {% if t.is_condition %}<span class="rm-blocker"><i class="bi bi-patch-exclamation"></i> Điều kiện ra mắt</span>{% endif %}
+    {% if t.importance == 'high' and not t.is_go_blocker %}<span class="tk-miss small">Quan trọng</span>{% endif %}
+    {% if t.evidence %}<div class="small mt-1"><i class="bi bi-paperclip text-muted"></i> {{ t.evidence|urlize|linebreaksbr }}</div>{% endif %}
+    {% if t.delay_reason %}<div class="small tk-miss mt-1"><i class="bi bi-chat-left-text"></i> {{ t.delay_reason|linebreaksbr }}</div>{% endif %}
+  </td>
+  <td class="text-nowrap">{{ t.milestone }}</td>
+  <td class="text-nowrap{% if t.is_overdue %} tk-late{% endif %}">{{ t.due_date|date:'d/m/Y' }}</td>
+  <td class="text-nowrap">{{ t.owner.profile.full_name|default:t.owner.username|default:'—' }}</td>
+  <td><span class="tk-pill is-{{ t.status_tone }}">{% if t.is_overdue %}Trễ · {% endif %}{{ t.get_status_display }}</span>
+    {% if t.completed_at %}<div class="small text-muted">{{ t.completed_at|date:'d/m H:i' }}</div>{% endif %}</td>
+  <td class="text-end text-nowrap">
+    {% if t.can_update %}
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#rmTaskModal"
+            data-rm-task="{{ t.pk }}" data-rm-plan-action="{% url 'ra_mat_sp:action' t.plan_id 'task_update' %}"
+            data-status="{{ t.status }}" data-owner="{{ t.owner_id|default:'' }}" data-due="{{ t.due_date|date:'Y-m-d' }}"
+            data-title="{{ t.title }}" data-blocker="{% if t.is_go_blocker %}1{% endif %}">
+      <i class="bi bi-pencil-square"></i> Cập nhật
+    </button>
+    <template data-rm-evidence>{{ t.evidence }}</template>
+    <template data-rm-delay>{{ t.delay_reason }}</template>
+    {% endif %}
+  </td>
+</tr>

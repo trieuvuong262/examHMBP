@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block title %}Việc ra mắt của tôi{% endblock %}
+{% block extra_head %}{% include 'ra_mat_sp/includes/rm_styles.html' %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-sx-page jp-tksp py-3 py-md-4 mb-5 px-3 px-lg-4">
+  {% include 'ra_mat_sp/includes/rm_topbar.html' with rm_title='Việc ra mắt của tôi' %}
+
+  <div class="tk-card tk-panel mb-3">
+    <div class="tk-toolbar">
+      <div class="tk-chips">
+        <a class="btn btn-sm {% if show == 'open' %}btn-dark{% else %}btn-outline-secondary{% endif %}" href="?show=open">Chưa xong</a>
+        <a class="btn btn-sm {% if show != 'open' %}btn-dark{% else %}btn-outline-secondary{% endif %}" href="?show=all">Tất cả</a>
+      </div>
+      <span class="tk-count">{{ tasks|length }} việc{% if overdue %} · <span class="tk-late">{{ overdue }} trễ hạn</span>{% endif %}</span>
+    </div>
+  </div>
+
+  <div class="tk-card tk-panel mb-3">
+    <div class="table-responsive"><table class="table tk-mini-table align-middle">
+      <thead><tr><th>Công việc</th><th>Mốc</th><th>Hạn</th><th>Phụ trách</th><th>Trạng thái</th><th></th></tr></thead>
+      <tbody>
+      {% for t in tasks %}{% include 'ra_mat_sp/includes/task_row.html' with show_plan=1 %}
+      {% empty %}<tr><td colspan="6" class="text-center text-muted py-4">Bạn không có công việc ra mắt nào{% if show == 'open' %} chưa xong{% endif %}.</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+
+  {% if risks %}
+  <div class="tk-card tk-panel">
+    <div class="tk-panel-head"><div class="tk-panel-title">Rủi ro tôi đang xử lý</div></div>
+    <div class="tk-alert-list">
+      {% for r in risks %}
+      <a class="tk-alert" href="{{ r.plan.get_absolute_url }}?tab=risks"><span class="tk-dot{% if r.severity != 'high' %} is-amber{% endif %}"></span><div><strong>{{ r.description|truncatechars:100 }}</strong><p>{{ r.plan.code }} · {{ r.get_severity_display }}{% if r.due_date %} · hạn {{ r.due_date|date:'d/m/Y' }}{% endif %}</p></div></a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% include 'ra_mat_sp/includes/task_modal.html' with can_assign=0 next='my_tasks' %}
+{% endblock %}
+{% block scripts %}{% include 'thiet_ke_sp/includes/tksp_scripts.html' %}{% endblock %}

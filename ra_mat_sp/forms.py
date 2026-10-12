@@ -26,6 +26,7 @@ _INPUT = {'class': 'form-control'}
 _SELECT = {'class': 'form-select'}
 _DATE = {'class': 'form-control jp-date-vn', 'type': 'date'}
 _MONEY = {'class': 'form-control text-end', 'inputmode': 'numeric', 'min': '0', 'step': '1'}
+_CHECK = {'class': 'form-check-input'}
 
 
 def _textarea(rows: int = 3) -> forms.Textarea:
@@ -103,7 +104,9 @@ class TaskAddForm(forms.Form):
     due_date = forms.DateField(label='Hạn', widget=forms.DateInput(attrs=_DATE))
     owner = user_field('Người phụ trách', required=True)
     importance = forms.ChoiceField(label='Mức độ', choices=Importance.choices, widget=forms.Select(attrs=_SELECT))
-    is_go_blocker = forms.BooleanField(required=False, label='Điều kiện bắt buộc Go/No-Go')
+    is_go_blocker = forms.BooleanField(
+        required=False, label='Điều kiện bắt buộc Go/No-Go', widget=forms.CheckboxInput(attrs=_CHECK),
+    )
 
 
 class TaskUpdateForm(forms.Form):
@@ -134,7 +137,7 @@ class RiskForm(forms.ModelForm):
 
 class PlanDecisionForm(forms.Form):
     decision = forms.ChoiceField(
-        label='Quyết định', widget=forms.RadioSelect,
+        label='Quyết định', widget=forms.RadioSelect(attrs=_CHECK),
         choices=[(d, Decision(d).label) for d in PLAN_DECISIONS],
     )
     comment = forms.CharField(required=False, label='Ý kiến', widget=_textarea(3))
@@ -142,7 +145,7 @@ class PlanDecisionForm(forms.Form):
 
 class GoDecisionForm(forms.Form):
     decision = forms.ChoiceField(
-        label='Quyết định', widget=forms.RadioSelect,
+        label='Quyết định', widget=forms.RadioSelect(attrs=_CHECK),
         choices=[(d, Decision(d).label) for d in GO_DECISIONS],
     )
     comment = forms.CharField(required=False, label='Ý kiến', widget=_textarea(3))
@@ -183,6 +186,8 @@ class TemplateItemForm(forms.ModelForm):
             'deliverable': forms.TextInput(attrs=_INPUT),
             'importance': forms.Select(attrs=_SELECT),
             'sort_order': forms.NumberInput(attrs={**_INPUT, 'min': 0}),
+            'is_go_blocker': forms.CheckboxInput(attrs=_CHECK),
+            'is_active': forms.CheckboxInput(attrs=_CHECK),
         }
 
     def __init__(self, *args, **kwargs):

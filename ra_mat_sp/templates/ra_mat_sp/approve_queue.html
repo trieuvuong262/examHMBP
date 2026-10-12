@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Kế hoạch ra mắt chờ tôi duyệt{% endblock %}
+{% block extra_head %}{% include 'ra_mat_sp/includes/rm_styles.html' %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-sx-page jp-tksp py-3 py-md-4 mb-5 px-3 px-lg-4">
+  {% include 'ra_mat_sp/includes/rm_topbar.html' with rm_title='Kế hoạch ra mắt chờ tôi duyệt' %}
+  {% if not can_approve %}
+  <div class="tk-callout is-warn">Tài khoản chưa có quyền Sửa menu «Chờ tôi duyệt» — không ra quyết định được dù được chọn làm Người duyệt.</div>
+  {% endif %}
+  <div class="tk-card tk-panel">
+    <div class="tk-panel-head"><div><div class="tk-panel-title">Cần quyết định</div><div class="tk-panel-sub">Duyệt kế hoạch hoặc họp Go/No-Go</div></div></div>
+    {% include 'ra_mat_sp/includes/plan_table.html' with plans=plans empty_text='Không có kế hoạch nào chờ bạn duyệt.' %}
+  </div>
+</div>
+{% endblock %}

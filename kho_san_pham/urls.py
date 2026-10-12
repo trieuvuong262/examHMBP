@@ -1,6 +1,6 @@
 from django.urls import path
 
-from kho_san_pham import views, views_code_settings, views_receipt, views_stock
+from kho_san_pham import views, views_code_settings, views_library, views_receipt, views_stock
 
 app_name = 'kho_san_pham'
 
@@ -11,6 +11,8 @@ urlpatterns = [
     path('ton-kho/dong-bo-kv/', views_stock.stock_sync_kv, name='stock_sync_kv'),
     path('phieu-nhap/', views_receipt.receipt_list, name='receipt_list'),
     path('phieu-nhap/<int:pk>/', views_receipt.receipt_detail, name='receipt_detail'),
+    path('thu-vien/', views_library.library_list, name='library'),
+    path('thu-vien/<path:style>/', views_library.library_detail, name='library_detail'),
     path('danh-muc/', views.product_list, name='product_list'),
     path('danh-muc/xuat-excel/', views.product_export, name='product_export'),
     path('danh-muc/mau-excel/', views.product_import_template, name='product_import_template'),
