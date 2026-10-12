@@ -102,7 +102,7 @@ alwaysApply: false
   | `high` | Cao | hổ phách `#a16207` |
   | `normal` | Thường | xanh `#0369a1` |
   | `low` | Thấp | xám `#64748b` |
-- Ticket board: `border-left` theo cấp + badge `.jp-pb-urgency.is-<key>`.
+- Ticket board: **cả thẻ** (viền + nền đầu thẻ) tô theo cấp qua `.jp-pb-ticket.is-<key>` — không dùng vạch `border-left`, không tô đỏ mặc định khi trễ hạn (trễ hạn chỉ hiện ở chip «Hạn»).
 - Style dùng chung: `san_xuat/includes/sx_plan_urgency_styles.html`.
 - Có chú giải màu trên board; dropdown chọn mức cũng tô màu theo cấp đang chọn.
 

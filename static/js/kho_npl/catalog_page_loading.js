@@ -229,8 +229,10 @@
                 return;
             }
             if (url.origin !== window.location.origin) return;
-            // Cùng hồ sơ, chỉ đổi tab/query — không chặn cả trang chờ overlay.
-            if (url.pathname === window.location.pathname) return;
+            // Cùng hồ sơ, chỉ đổi tab/query — không chặn cả trang chờ overlay,
+            // trừ link chủ động gắn data-loading-message (tab tải nặng).
+            if (url.pathname === window.location.pathname
+                && !link.hasAttribute('data-loading-message')) return;
 
             const msg = messageForLink(link, url);
             if (!msg) return;

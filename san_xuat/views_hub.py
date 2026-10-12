@@ -1675,7 +1675,8 @@ def plan_board(request):
                     f'Đã gắn {" + ".join(bits) or "hồ sơ"} cho {ln.product_code} trên KHSX.',
                 )
                 return _board_redirect()
-            elif action == 'reload_tech' and (can_schedule or can_release) and order_id:
+            elif action in ('reload_tech', 'reload_order_tech') and (can_schedule or can_release) and order_id:
+                from_design = action == 'reload_tech'
                 buy_by_line = None
                 kit = None
                 if any(key.startswith('buy_for__') for key in request.POST):
@@ -1694,6 +1695,7 @@ def plan_board(request):
                     kit_days=kit,
                     buy_by_line=buy_by_line,
                     reset_allocated=False,
+                    from_design=from_design,
                 )
                 bits = []
                 if result.bom_count:
@@ -1702,9 +1704,10 @@ def plan_board(request):
                     bits.append('OB')
                 if result.npl_reloaded:
                     bits.append('NPL')
+                source = 'thiết kế' if from_design else 'đơn đặt hàng'
                 messages.success(
                     request,
-                    f'Đã Load {" / ".join(bits) or "hồ sơ"} {result.order.code} từ thiết kế. '
+                    f'Đã Load {" / ".join(bits) or "hồ sơ"} {result.order.code} từ {source}. '
                     'Snapshot khoá khi Chuyển SX.',
                 )
                 extra = {'npl': order_id} if npl_open_id == order_id else {}

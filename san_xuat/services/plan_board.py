@@ -3017,11 +3017,14 @@ def reload_plan_order_tech(
     buy_by_line: dict | None = None,
     allocate_by_line: dict | None = None,
     reset_allocated: bool = False,
+    from_design: bool = True,
 ) -> ReloadPlanTechResult:
-    """Ghi đè snapshot BOM / OB / NPL trên KHSX từ hồ sơ hiện tại.
+    """Ghi đè snapshot BOM / OB / NPL trên KHSX.
 
-    Dùng khi sửa BOM/OB sau lúc gắn nhưng đơn chưa Chuyển SX. Sau Chuyển SX
-    snapshot bị khoá — không gọi hàm này.
+    ``from_design=True``: BOM từ hồ sơ thiết kế, OB từ thư viện công đoạn (Load HSTK).
+    ``from_design=False``: BOM + SMV đơn hàng đang lưu trên đơn đặt hàng, không
+    đụng hồ sơ / thư viện (Load Đơn đặt hàng).
+    Sau Chuyển SX snapshot bị khoá — không gọi hàm này.
     """
     from san_xuat.services.order_routing import seed_order_line_routing
     from san_xuat.services.plan_audit import log_plan_action
@@ -3046,19 +3049,27 @@ def reload_plan_order_tech(
     bom_count = 0
     routing_count = 0
     for ln in lines:
-        if ln.bom_version_id:
-            ln.bom_line_overrides = bom_lines_snapshot(ln.bom_version_id)
-            ln.save(update_fields=['bom_line_overrides'])
-            bom_count += 1
         bom = ln.bom_version if ln.bom_version_id else None
         has_ob_source = bool(ln.routing_id) or bool(
             bom is not None and bom.process_steps.exists()
         )
+        if not from_design:
+            if ln.bom_line_overrides:
+                bom_count += 1
+            if ln.routing_lines.filter(total_operation_smv__gt=0).exists():
+                routing_count += 1
+            continue
+        if ln.bom_version_id:
+            ln.bom_line_overrides = bom_lines_snapshot(ln.bom_version_id)
+            ln.save(update_fields=['bom_line_overrides'])
+            bom_count += 1
         if has_ob_source:
             n = seed_order_line_routing(ln, replace=True)
             if n:
                 routing_count += 1
     if bom_count <= 0 and routing_count <= 0:
+        if not from_design:
+            raise PlanningError('Đơn đặt hàng chưa có BOM / SMV — cập nhật trên đơn trước khi Load.')
         raise PlanningError('Chưa gắn BOM / OB trên đơn — gắn hồ sơ trước khi Load.')
 
     order.plan_steps.all().delete()
@@ -3090,9 +3101,12 @@ def reload_plan_order_tech(
     if npl_reloaded:
         bits.append('NPL')
     log_plan_action(
-        action='reload_tech',
+        action='reload_tech' if from_design else 'reload_order_tech',
         obj=order,
-        summary=f'Load {", ".join(bits) or "hồ sơ"} trên KHSX {order.code}.',
+        summary=(
+            f'Load {", ".join(bits) or "hồ sơ"} trên KHSX {order.code}'
+            f'{"" if from_design else " từ đơn đặt hàng"}.'
+        ),
         changes={'bom': bom_count, 'routing': routing_count, 'npl': npl_reloaded},
         user=user,
     )
