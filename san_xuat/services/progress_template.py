@@ -155,19 +155,25 @@ LABEL_ALIASES: dict[str, str] = {
 }
 
 
+_PROGRESS_STEPS: tuple[ProgressStepDef, ...] = tuple(
+    ProgressStepDef(
+        key=key,
+        label=label,
+        group=group,
+        work_center_code=wc,
+        sequence=(i + 1) * 10,
+    )
+    for i, (key, label, group, wc) in enumerate(_STEPS_RAW)
+)
+_STEP_BY_KEY: dict[str, ProgressStepDef] = {}
+_STEP_BY_LABEL: dict[str, ProgressStepDef] = {}
+for _step in _PROGRESS_STEPS:
+    _STEP_BY_KEY.setdefault(_step.key, _step)
+    _STEP_BY_LABEL.setdefault(_step.label.casefold(), _step)
+
+
 def progress_steps() -> list[ProgressStepDef]:
-    out: list[ProgressStepDef] = []
-    for i, (key, label, group, wc) in enumerate(_STEPS_RAW):
-        out.append(
-            ProgressStepDef(
-                key=key,
-                label=label,
-                group=group,
-                work_center_code=wc,
-                sequence=(i + 1) * 10,
-            )
-        )
-    return out
+    return list(_PROGRESS_STEPS)
 
 
 def steps_for_group(group_key: str) -> list[ProgressStepDef]:
@@ -182,11 +188,7 @@ def progress_groups_with_steps() -> list[tuple[ProgressGroup, list[ProgressStepD
 
 
 def step_by_key(key: str) -> ProgressStepDef | None:
-    k = (key or '').strip()
-    for s in progress_steps():
-        if s.key == k:
-            return s
-    return None
+    return _STEP_BY_KEY.get((key or '').strip())
 
 
 def step_by_label(label: str) -> ProgressStepDef | None:
@@ -196,10 +198,7 @@ def step_by_label(label: str) -> ProgressStepDef | None:
     alias = LABEL_ALIASES.get(lab)
     if alias:
         lab = alias.casefold()
-    for s in progress_steps():
-        if s.label.casefold() == lab:
-            return s
-    return None
+    return _STEP_BY_LABEL.get(lab)
 
 
 def team_slug_for_process_label(label: str) -> str | None:

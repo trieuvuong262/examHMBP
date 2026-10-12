@@ -31,12 +31,42 @@ def _q(value, places: str = '0.0001') -> Decimal:
     return Decimal(str(value or 0)).quantize(Decimal(places), rounding=ROUND_HALF_UP)
 
 
+def _manager_prefetch_cache_name(manager) -> str | None:
+    name = getattr(manager, 'prefetch_cache_name', None)
+    if name:
+        return name
+    remote = getattr(getattr(manager, 'field', None), 'remote_field', None)
+    return getattr(remote, 'cache_name', None) if remote is not None else None
+
+
+def _relations_loaded(rows, paths) -> bool:
+    for obj in rows:
+        for path in paths:
+            cur = obj
+            for name in path.split('__'):
+                if cur is None:
+                    break
+                try:
+                    field = cur._meta.get_field(name)
+                except Exception:
+                    return False
+                if not hasattr(field, 'is_cached') or not field.is_cached(cur):
+                    return False
+                cur = getattr(cur, name)
+    return True
+
+
 def related_manager_rows(manager, *, select_related=(), order_by=()):
-    """Dùng prefetch cache nếu có; ``select_related``/``order_by`` trên manager sẽ bỏ cache."""
+    """Dùng prefetch cache nếu có (và đã nạp đủ ``select_related``); không thì query lại."""
     instance = getattr(manager, 'instance', None)
-    cache_name = getattr(manager, 'prefetch_cache_name', None)
+    cache_name = _manager_prefetch_cache_name(manager)
     cache = getattr(instance, '_prefetched_objects_cache', None) if instance is not None else None
-    if cache is not None and cache_name and cache_name in cache:
+    if (
+        cache is not None
+        and cache_name
+        and cache_name in cache
+        and _relations_loaded(cache[cache_name], select_related)
+    ):
         rows = list(manager.all())
         if order_by:
             def _sort_key(obj):

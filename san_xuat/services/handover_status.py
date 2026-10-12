@@ -142,14 +142,26 @@ def _slug_for_group(group_key: str) -> str:
     return ""
 
 
-def _output_steps_for_mo(mo: SxProductionOrder) -> list[ProgressStepDef]:
-    """CĐ tính TEAM_OUTPUT = phiếu tổ (BOM/Ob) + catalog — khớp tên TKSX cũ."""
+def _mo_memo(name: str, mo: SxProductionOrder, producer):
+    if not getattr(mo, "pk", None):
+        return producer()
+    from hrm.request_cache import get_or_set
+
+    return get_or_set((name, int(mo.pk)), producer)
+
+
+def _own_progress_steps(mo: SxProductionOrder) -> list[ProgressStepDef]:
     from san_xuat.services.order_progress_sheet import progress_steps_for_mo
 
+    return _mo_memo("sx_mo_own_progress_steps", mo, lambda: progress_steps_for_mo(mo))
+
+
+def _output_steps_for_mo(mo: SxProductionOrder) -> list[ProgressStepDef]:
+    """CĐ tính TEAM_OUTPUT = phiếu tổ (BOM/Ob) + catalog — khớp tên TKSX cũ."""
     catalog = list(progress_steps())
     seen = {(s.group, s.key) for s in catalog}
     out = list(catalog)
-    own = progress_steps_for_mo(mo)
+    own = _own_progress_steps(mo)
     mo._sx_own_progress_steps = own
     for step in own:
         key = (step.group, step.key)
@@ -382,7 +394,10 @@ def attach_gc_to_handover_rows(rows: list[MoHandoverRow]) -> list[MoHandoverRow]
 
 
 def _participating_slugs(mo: SxProductionOrder) -> set[str]:
-    from san_xuat.services.order_progress_sheet import progress_steps_for_mo
+    return _mo_memo("sx_mo_participating_slugs", mo, lambda: _participating_slugs_uncached(mo))
+
+
+def _participating_slugs_uncached(mo: SxProductionOrder) -> set[str]:
     from san_xuat.services.progress_template import team_by_slug
     from san_xuat.services.qc import ob_qc_teams
     from san_xuat.services.team_division_map import khsx_slug_for_team
@@ -396,7 +411,7 @@ def _participating_slugs(mo: SxProductionOrder) -> set[str]:
         stage = khsx_slug_for_team(team_by_slug(raw), raw)
         if stage:
             slugs.add(stage)
-    for step in progress_steps_for_mo(mo):
+    for step in _own_progress_steps(mo):
         slug = _slug_for_group(step.group)
         if slug:
             slugs.add(slug)
@@ -440,9 +455,24 @@ def build_mo_handover_row(mo: SxProductionOrder) -> MoHandoverRow:
 
 
 def _mos_for_sales_orders(order_ids: list[int]) -> list[SxProductionOrder]:
-    ids = [int(x) for x in order_ids if x]
+    ids = sorted({int(x) for x in order_ids if x})
     if not ids:
         return []
+    from hrm.request_cache import get_or_set, is_active
+
+    if not is_active():
+        return _fetch_mos_for_sales_orders(ids)
+    by_order: dict[int, list[SxProductionOrder]] = get_or_set(("sx_handover_mos_by_order",), dict)
+    missing = [oid for oid in ids if oid not in by_order]
+    if missing:
+        for oid in missing:
+            by_order[oid] = []
+        for mo in _fetch_mos_for_sales_orders(missing):
+            by_order.setdefault(int(mo.sales_order_id), []).append(mo)
+    return [mo for oid in ids for mo in by_order[oid]]
+
+
+def _fetch_mos_for_sales_orders(ids: list[int]) -> list[SxProductionOrder]:
     return list(
         SxProductionOrder.objects.filter(is_demo=False, sales_order_id__in=ids)
         .exclude(status=SxProductionOrder.STATUS_CANCELLED)

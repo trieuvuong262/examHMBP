@@ -113,6 +113,13 @@ def team_from_hr_division_slug(slug: str) -> dict | None:
     did = division_id_from_team_slug(slug)
     if not did:
         return None
+    from hrm.request_cache import get_or_set
+
+    team = get_or_set(('sx_team_from_hr_division', did), lambda: _team_from_hr_division_id(did))
+    return dict(team) if team is not None else None
+
+
+def _team_from_hr_division_id(did: int) -> dict | None:
     from san_xuat.services.capacity_from_hrm import (
         hr_divisions_for_ie_groups,
         work_center_code_for_division,
