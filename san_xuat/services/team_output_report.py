@@ -61,6 +61,7 @@ class TeamOutputRow:
     label: str
     stage_slug: str
     stage_label: str
+    color_slug: str = ''
     cells: list[TeamOutputCell] = field(default_factory=list)
     total: Decimal = ZERO
     plan_total: Decimal = ZERO
@@ -336,6 +337,9 @@ def build_team_output_report(
                 ob.setdefault(day, []).append((mo.code, v))
 
     plans, stage_plans = _plan_by_team_day(teams, date_from=date_from, date_to=date_to)
+    from san_xuat.services.team_stage_colors import team_stage_palette
+
+    palette = team_stage_palette()
 
     stages: dict[str, TeamOutputStage] = {}
     for col in teams:
@@ -353,6 +357,7 @@ def build_team_output_report(
             label=col.label,
             stage_slug=stage_slug,
             stage_label=stage.label,
+            color_slug=col.slug if col.slug in palette else (stage_slug or col.slug),
             order_count=len(team_mos.get(col.slug, ())),
         )
         t_qty = qty.get(col.slug, {})

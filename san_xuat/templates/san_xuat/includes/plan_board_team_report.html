@@ -151,9 +151,9 @@
       </thead>
       <tbody>
         {% for row in team_report.rows %}
-        <tr class="jp-stage-{{ row.stage_slug }}{% if not row.total %} is-idle{% endif %}">
+        <tr class="jp-stage-{{ row.color_slug|default:row.stage_slug }}{% if not row.total %} is-idle{% endif %}">
           <td class="jp-tr-team" title="{{ row.label }}{% if row.order_count %} · {{ row.order_count }} lệnh{% endif %}"><a href="{% url 'san_xuat:team_work_board' row.slug %}">{{ row.label }}</a></td>
-          {% for c in row.cells %}{% include 'san_xuat/includes/plan_board_team_report_cell.html' with c=c slug=row.stage_slug %}{% endfor %}
+          {% for c in row.cells %}{% include 'san_xuat/includes/plan_board_team_report_cell.html' with c=c slug=row.color_slug|default:row.stage_slug %}{% endfor %}
           <td class="jp-tr-sum is-r4 is-first is-stack"><span class="jp-tr-qty{% if not row.plan_total %} is-actual{% endif %}"><span class="jp-tr-plan">{{ row.plan_total|sx_num }}</span><span class="jp-tr-done">{{ row.total|sx_num }}</span></span></td>
           <td class="jp-tr-sum is-r3">{% with rate=row.plan_rate %}{% if rate is not None %}<span class="jp-tr-rate {% if rate >= 95 %}is-good{% elif rate >= 75 %}is-warn{% else %}is-bad{% endif %}">{{ rate }}%</span>{% else %}<span class="jp-tr-muted">—</span>{% endif %}{% endwith %}</td>
           <td class="jp-tr-sum is-r2">{% if row.avg_per_day %}{{ row.avg_per_day|sx_num }}{% else %}<span class="jp-tr-muted">—</span>{% endif %}</td>

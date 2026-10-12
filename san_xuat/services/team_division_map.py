@@ -1,4 +1,4 @@
-"""Map thủ công Bộ phận HR ↔ Tổ chuyền (Công việc tổ) + lọc NV phân công."""
+"""Map bộ phận HR ↔ tổ trên menu Tiến độ + lọc NV phân công."""
 
 from __future__ import annotations
 
@@ -60,14 +60,40 @@ def team_slug_for_division_id(division_id: int) -> str:
     return f'd{int(division_id)}'
 
 
+def _named_stage_slug(div) -> str:
+    from san_xuat.services.capacity_from_hrm import _fold, _team_slug_from_folded
+
+    return _team_slug_from_folded(_fold(getattr(div, 'name', '') or '')) or ''
+
+
+def _khsx_stage_slug(stored: str, div) -> str:
+    """Slug công đoạn KHSX (cat/may/…). Slug tổ `d{id}` không phải công đoạn."""
+    s = (stored or '').strip().lower()
+    if s in VALID_TEAM_SLUGS:
+        return s
+    return _named_stage_slug(div)
+
+
+def _inactive_division_ids() -> set[int]:
+    return set(
+        SxTeamDivisionMap.objects.filter(is_demo=False, is_active=False)
+        .values_list('division_id', flat=True)
+    )
+
+
+def _explicit_active_division_ids() -> set[int]:
+    return set(
+        SxTeamDivisionMap.objects.filter(is_demo=False, is_active=True)
+        .values_list('division_id', flat=True)
+    )
+
+
 def _stage_slug_for_division(div, *, mapped: dict[int, str] | None = None) -> str:
     did = int(getattr(div, 'pk', 0) or 0)
     if mapped is not None:
         if did in mapped:
-            return mapped[did]
-        from san_xuat.services.capacity_from_hrm import _fold, _team_slug_from_folded
-
-        return _team_slug_from_folded(_fold(getattr(div, 'name', '') or '')) or ''
+            return _khsx_stage_slug(mapped[did], div)
+        return _named_stage_slug(div)
     hit = (
         SxTeamDivisionMap.objects.filter(
             division_id=did,
@@ -78,10 +104,8 @@ def _stage_slug_for_division(div, *, mapped: dict[int, str] | None = None) -> st
         .first()
     )
     if hit:
-        return (hit or '').strip().lower()
-    from san_xuat.services.capacity_from_hrm import _fold, _team_slug_from_folded
-
-    return _team_slug_from_folded(_fold(getattr(div, 'name', '') or '')) or ''
+        return _khsx_stage_slug(hit, div)
+    return _named_stage_slug(div)
 
 
 def team_from_hr_division_slug(slug: str) -> dict | None:
@@ -193,16 +217,25 @@ def hr_team_stage_by_label() -> dict[str, str]:
 
 
 def _hr_team_items(*, only_ids: set[int] | None, mapped: dict[int, str]) -> list[dict]:
-    """Tổ menu từ bộ phận HR. Bộ phận cùng phòng với tổ sản xuất mà không gắn công đoạn (vd. Cơ điện) bỏ qua."""
+    """Tổ menu Tiến độ = bộ phận HR phòng SX / ĐBCL, không còn 6 tổ cố định.
+
+    Bộ phận tắt trên thiết lập thì ẩn. Bộ phận chưa có dòng map vẫn theo rule cũ:
+    cùng phòng với tổ đã gắn công đoạn mà bản thân không gắn thì bỏ (vd. Cơ điện).
+    """
     from san_xuat.services.capacity_from_hrm import hr_divisions_for_ie_groups
 
+    inactive = _inactive_division_ids()
+    explicit = _explicit_active_division_ids()
     divs = [(div, _stage_slug_for_division(div, mapped=mapped)) for div in hr_divisions_for_ie_groups()]
     prod_dept_ids = {int(div.department_id or 0) for div, stage in divs if stage}
     items: list[dict] = []
     for div, stage in divs:
-        if not stage and int(div.department_id or 0) in prod_dept_ids:
+        did = int(div.pk)
+        if did in inactive:
             continue
-        if only_ids is not None and int(div.pk) not in only_ids:
+        if did not in explicit and not stage and int(div.department_id or 0) in prod_dept_ids:
+            continue
+        if only_ids is not None and did not in only_ids:
             continue
         menu_key = 'team_work'
         for item_slug, _gk, mk, _label in TEAM_SLUGS:
@@ -222,7 +255,7 @@ def _mapped_stage_by_division() -> dict[int, str]:
 
 
 def all_hr_team_items() -> list[dict]:
-    """Mọi tổ bộ phận HR như submenu Công việc tổ của admin (`d{id}`)."""
+    """Mọi tổ bộ phận HR như submenu Tiến độ của admin (`d{id}`)."""
     return _hr_team_items(only_ids=None, mapped=_mapped_stage_by_division())
 
 
@@ -481,6 +514,97 @@ def current_maps_by_slug() -> dict[str, list[int]]:
         if slug in out:
             out[slug].append(div_id)
     return out
+
+
+def progress_team_form_rows() -> list[dict]:
+    """Dòng form thiết lập: mỗi bộ phận HR là một tổ Tiến độ."""
+    from san_xuat.services.capacity_from_hrm import hr_divisions_for_ie_groups
+    from san_xuat.services.team_stage_colors import (
+        DEFAULT_TEAM_STAGE_COLORS,
+        team_stage_palette,
+    )
+
+    mapped = _mapped_stage_by_division()
+    visible = {
+        int(item['division_id'])
+        for item in _hr_team_items(only_ids=None, mapped=mapped)
+    }
+    palette = team_stage_palette()
+    rows: list[dict] = []
+    for div in hr_divisions_for_ie_groups():
+        stage = _stage_slug_for_division(div, mapped=mapped)
+        slug = team_slug_for_division_id(div.pk)
+        default = DEFAULT_TEAM_STAGE_COLORS.get(stage) or '#94a3b8'
+        own = palette.get(slug) or {}
+        stage_spec = palette.get(stage) or {}
+        dept = ''
+        if getattr(div, 'department_id', None) and getattr(div, 'department', None):
+            dept = (div.department.name or '').strip()
+        rows.append({
+            'slug': slug,
+            'division_id': int(div.pk),
+            'label': (div.name or '').strip() or f'Bộ phận {div.pk}',
+            'department': dept,
+            'stage_slug': stage,
+            'enabled': int(div.pk) in visible,
+            'color': own.get('color') or stage_spec.get('color') or default,
+            'default_color': stage_spec.get('color') or default,
+        })
+    return rows
+
+
+@transaction.atomic
+def save_progress_teams(enabled_ids: set[int], *, saved_by=None) -> dict[str, int]:
+    """Bật/tắt tổ Tiến độ theo bộ phận HR. Không ghi đè slug công đoạn KHSX đã có."""
+    from san_xuat.services.capacity_from_hrm import hr_divisions_for_ie_groups
+
+    divisions = list(hr_divisions_for_ie_groups())
+    valid_ids = {int(div.pk) for div in divisions}
+    enabled = {int(raw) for raw in (enabled_ids or set()) if int(raw) in valid_ids}
+    existing = {
+        row.division_id: row
+        for row in SxTeamDivisionMap.objects.filter(
+            is_demo=False,
+            division_id__in=valid_ids,
+        ).select_for_update()
+    }
+    actor = saved_by if getattr(saved_by, 'is_authenticated', False) else None
+    created = updated = 0
+    for div in divisions:
+        did = int(div.pk)
+        want_active = did in enabled
+        stage = _named_stage_slug(div)
+        if stage not in VALID_TEAM_SLUGS:
+            stage = ''
+        fallback_slug = stage or team_slug_for_division_id(did)
+        row = existing.get(did)
+        if row is None:
+            SxTeamDivisionMap.objects.create(
+                team_slug=fallback_slug,
+                division_id=did,
+                is_active=want_active,
+                is_demo=False,
+                created_by=actor,
+            )
+            created += 1
+            continue
+        fields: list[str] = []
+        if row.is_active != want_active:
+            row.is_active = want_active
+            fields.append('is_active')
+        stored = (row.team_slug or '').strip().lower()
+        if stored not in VALID_TEAM_SLUGS and division_id_from_team_slug(stored) is None:
+            row.team_slug = fallback_slug
+            fields.append('team_slug')
+        if fields:
+            row.save(update_fields=fields)
+            updated += 1
+    return {
+        'created': created,
+        'updated': updated,
+        'enabled': len(enabled),
+        'hidden': len(valid_ids) - len(enabled),
+    }
 
 
 def sx_production_divisions():

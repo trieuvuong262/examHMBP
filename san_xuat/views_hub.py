@@ -7099,35 +7099,25 @@ def general_settings(request):
                 return redirect(f"{reverse('san_xuat:general_settings')}#sec-ie-approver")
             return redirect_ie
 
-        if action in ('save_team_map', 'suggest_team_map'):
-            from san_xuat.services.team_division_map import (
-                save_team_maps,
-                suggest_maps_from_names,
-                team_slug_choices,
-            )
-            from san_xuat.services.team_stage_colors import save_team_stage_colors
+        if action == 'save_team_map':
+            from san_xuat.services.team_division_map import save_progress_teams
+            from san_xuat.services.team_stage_colors import save_division_team_colors
 
             redirect_map = redirect(f"{reverse('san_xuat:general_settings')}#sec-team-map")
-            if action == 'suggest_team_map':
-                request.session['sx_team_map_preview'] = suggest_maps_from_names()
-                messages.info(
-                    request,
-                    'Đã điền gợi ý theo tên bộ phận — kiểm tra rồi bấm Lưu map để áp dụng.',
-                )
-                return redirect_map
-            payload: dict[str, list[int]] = {}
-            colors: dict[str, str] = {}
-            for slug, _label in team_slug_choices():
-                raw = request.POST.getlist(f'divisions_{slug}')
-                payload[slug] = [int(x) for x in raw if str(x).isdigit()]
-                colors[slug] = (request.POST.get(f'color_{slug}') or '').strip()
-            stats = save_team_maps(payload, saved_by=request.user)
-            save_team_stage_colors(colors, saved_by=request.user)
+            enabled = {
+                int(raw) for raw in request.POST.getlist('team_on') if str(raw).isdigit()
+            }
+            colors = {
+                key[6:]: (request.POST.get(key) or '').strip()
+                for key in request.POST
+                if key.startswith('color_d') and key[7:].isdigit()
+            }
+            stats = save_progress_teams(enabled, saved_by=request.user)
+            save_division_team_colors(colors, saved_by=request.user)
             request.session.pop('sx_team_map_preview', None)
             messages.success(
                 request,
-                f"Đã lưu map bộ phận → tổ: thêm {stats['created']}, "
-                f"cập nhật {stats['updated']}, tắt {stats['deactivated']}.",
+                f"Đã lưu tổ Tiến độ: bật {stats['enabled']}, ẩn {stats['hidden']}.",
             )
             return redirect_map
 
@@ -7157,30 +7147,11 @@ def general_settings(request):
     User = get_user_model()
     ie_candidate_users = list(User.objects.filter(is_active=True).order_by('username')[:300])
 
-    from san_xuat.services.team_division_map import (
-        current_maps_by_slug,
-        sx_production_divisions,
-        team_slug_choices,
-    )
-    from san_xuat.services.team_stage_colors import (
-        DEFAULT_TEAM_STAGE_COLORS,
-        stage_color_suggestions,
-        team_stage_palette,
-    )
+    from san_xuat.services.team_division_map import progress_team_form_rows
+    from san_xuat.services.team_stage_colors import stage_color_suggestions
 
-    team_map_selected = request.session.pop('sx_team_map_preview', None) or current_maps_by_slug()
-    palette = team_stage_palette()
-    team_map_teams = [
-        {
-            'slug': slug,
-            'label': label,
-            'selected_ids': set(team_map_selected.get(slug) or []),
-            'color': (palette.get(slug) or {}).get('color') or '#94a3b8',
-            'default_color': DEFAULT_TEAM_STAGE_COLORS.get(slug) or '#94a3b8',
-        }
-        for slug, label in team_slug_choices()
-    ]
-    team_map_divisions = list(sx_production_divisions().select_related('department'))
+    request.session.pop('sx_team_map_preview', None)
+    team_map_teams = progress_team_form_rows()
 
     return render(request, 'san_xuat/general_settings.html', {
         **_perm_ctx(request),
@@ -7194,7 +7165,6 @@ def general_settings(request):
         'ie_approvers': ie_approvers,
         'ie_candidate_users': ie_candidate_users,
         'team_map_teams': team_map_teams,
-        'team_map_divisions': team_map_divisions,
         'stage_color_suggestions': stage_color_suggestions(),
     })
 

@@ -149,3 +149,20 @@ def save_team_stage_colors(payload: dict[str, str], *, saved_by=None) -> int:
         )
         saved += 1
     return saved
+
+
+def save_division_team_colors(payload: dict[str, str], *, saved_by=None) -> int:
+    """Lưu màu từng tổ Tiến độ (`d{id}`). Không đụng màu công đoạn KHSX cũ."""
+    actor = saved_by if getattr(saved_by, 'is_authenticated', False) else None
+    saved = 0
+    for slug, raw in (payload or {}).items():
+        key = (slug or '').strip().lower()
+        if not re.fullmatch(r'd\d+', key):
+            continue
+        color = normalize_hex_color(raw or '', default=_FALLBACK)
+        SxTeamStageColor.objects.update_or_create(
+            team_slug=key,
+            defaults={'color': color, 'updated_by': actor},
+        )
+        saved += 1
+    return saved

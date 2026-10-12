@@ -3203,7 +3203,7 @@ class SxTeamHrMap(DemoMarkedModel):
 
 
 class SxTeamDivisionMap(DemoMarkedModel):
-    """Map thủ công Bộ phận HR → Tổ chuyền (Công việc tổ)."""
+    """Bộ phận HR gắn với tổ trên menu Tiến độ."""
 
     TEAM_SLUG_CHOICES = [
         ('cat', 'Cắt'),
@@ -3232,8 +3232,8 @@ class SxTeamDivisionMap(DemoMarkedModel):
 
     class Meta:
         ordering = ['team_slug', 'division__sort_order', 'division__name']
-        verbose_name = 'Map bộ phận → tổ chuyền'
-        verbose_name_plural = 'Map bộ phận → tổ chuyền'
+        verbose_name = 'Bộ phận → tổ Tiến độ'
+        verbose_name_plural = 'Bộ phận → tổ Tiến độ'
         constraints = [
             models.UniqueConstraint(
                 fields=['division'],
