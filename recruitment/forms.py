@@ -28,8 +28,11 @@ def _ctl(extra: str = '') -> dict:
 
 
 def interviewer_queryset():
+    # Chỉ nhân viên thật (có mã NV + họ tên) — loại tài khoản quản trị hệ thống.
     return (
         User.objects.filter(is_active=True, profile__is_employed=True)
+        .exclude(profile__employee_code__isnull=True).exclude(profile__employee_code='')
+        .exclude(profile__full_name='')
         .filter(
             Q(profile__role__in=INTERVIEWER_ROLES)
             | Q(profile__concurrent_positions__is_active=True,
@@ -165,11 +168,6 @@ class JobPostingForm(forms.ModelForm):
             'salary_negotiable': 'Thỏa thuận',
             'skip_cv_review': 'Bỏ qua duyệt CV',
         }
-        help_texts = {
-            'skip_cv_review': 'Ứng viên mới chuyển thẳng sang Phỏng vấn — HR chỉ cần lên lịch, '
-                              'không chờ quản lý đánh giá hồ sơ.',
-        }
-
     def __init__(self, *args, scope=None, **kwargs):
         super().__init__(*args, **kwargs)
         from hrm.models import Division

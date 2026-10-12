@@ -99,7 +99,6 @@
                   <p class="small text-muted mb-0">Chưa có nhân viên từ Tổ trưởng trở lên.</p>
                   {% endfor %}
                 </div>
-                <div class="form-text">Áp dụng cho mọi ứng viên của vị trí — khi lên lịch, HR không cần chọn lại.</div>
                 {% for err in f.errors %}<div class="invalid-feedback d-block">{{ err }}</div>{% endfor %}
               </div>
               {% endwith %}
@@ -108,7 +107,6 @@
                   {{ form.skip_cv_review }}
                   <label class="form-check-label fw-semibold" for="{{ form.skip_cv_review.id_for_label }}">{{ form.skip_cv_review.label }}</label>
                 </div>
-                <div class="form-text">{{ form.skip_cv_review.help_text }}</div>
               </div>
             </div>
           </div>
