@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/tien-do.css' %}?v=20261005e">
+<link rel="stylesheet" href="{% static 'css/tien-do.css' %}?v=20261012a">
 {% endblock %}
 
 {% block content %}
@@ -14,13 +14,25 @@
     <div class="jp-td-topbar">
         <h2 class="fw-bold text-hm mb-0 jp-page-title">{{ platform_label }}</h2>
         <div class="jp-td-tools">
-            <form method="get" class="jp-td-search" role="search">
-                <i class="bi bi-search" aria-hidden="true"></i>
-                <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm"
-                       placeholder="Tìm tính năng, mô tả…" aria-label="Tìm theo Tính năng / Mô tả">
+            <form method="get" class="jp-td-filters" role="search"
+                  onsubmit="this.querySelectorAll('[name=q],[name=fb]').forEach(function(el){ if(!el.value.trim()) el.disabled=true; });">
+                <div class="jp-td-search">
+                    <i class="bi bi-search" aria-hidden="true"></i>
+                    <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm"
+                           placeholder="Tìm tính năng, mô tả…" aria-label="Tìm theo Tính năng / Mô tả">
+                </div>
+                <label class="jp-td-filter">
+                    <i class="bi bi-funnel" aria-hidden="true"></i>
+                    <select name="fb" class="form-select form-select-sm" aria-label="Lọc feedback"
+                            onchange="this.form.requestSubmit()">
+                        <option value="" {% if not feedback_filter %}selected{% endif %}>Tất cả feedback</option>
+                        <option value="co" {% if feedback_filter == 'co' %}selected{% endif %}>Có feedback</option>
+                        <option value="chua" {% if feedback_filter == 'chua' %}selected{% endif %}>Chưa có feedback</option>
+                    </select>
+                </label>
             </form>
             {% if platform == 'wholesale_retail' %}
-            <a href="{% url 'tien_do:wholesale_retail_export' %}{% if search_query %}?q={{ search_query|urlencode }}{% endif %}"
+            <a href="{% url 'tien_do:wholesale_retail_export' %}{% if query_string %}?{{ query_string }}{% endif %}"
                class="btn btn-outline-hm btn-sm fw-bold jp-td-btn">
                 <i class="bi bi-file-earmark-excel"></i><span>Xuất Excel</span>
             </a>
@@ -195,11 +207,25 @@
     {% empty %}
     <div class="jp-td-empty">
         <i class="bi bi-kanban" aria-hidden="true"></i>
-        <div>{% if search_query %}Không tìm thấy dòng tiến độ phù hợp.{% else %}Chưa có dòng tiến độ nào.{% endif %}</div>
+        <div>{% if search_query or feedback_filter %}Không có dòng tiến độ phù hợp bộ lọc.{% else %}Chưa có dòng tiến độ nào.{% endif %}</div>
     </div>
     {% endfor %}
 
     {% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string only %}
+</div>
+
+<div class="modal fade jp-td-lightbox" id="jp-td-lightbox" tabindex="-1" aria-labelledby="jp-td-lightbox-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="jp-td-lightbox-title">Ảnh</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <img src="" alt="" id="jp-td-lightbox-img" class="jp-td-lightbox__img">
+            </div>
+        </div>
+    </div>
 </div>
 
 {% if can_create %}
@@ -233,5 +259,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{% static 'js/tien-do-board.js' %}?v=20261005e"></script>
+<script src="{% static 'js/tien-do-board.js' %}?v=20261012a"></script>
 {% endblock %}

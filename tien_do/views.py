@@ -4,7 +4,7 @@ import os
 
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import Prefetch, Q
+from django.db.models import Exists, F, Max, OuterRef, Prefetch, Q
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -157,14 +157,29 @@ def _build_rows(items, *, can_edit_it):
     return rows
 
 
-def _board_queryset(platform, search_query):
-    qs = TienDoItem.objects.filter(platform=platform).prefetch_related(
-        Prefetch(
-            'feedbacks',
-            queryset=TienDoFeedback.objects.select_related('author', 'author__profile'),
-        )
+def _feedback_filter(request):
+    """Bộ lọc feedback: '' = tất cả, 'co' = đã có, 'chua' = chưa có."""
+    value = (request.GET.get('fb') or '').strip()
+    return value if value in ('co', 'chua') else ''
+
+
+def _board_queryset(platform, search_query, feedback_filter=''):
+    """Dòng có feedback mới nhất đứng trước; trong mỗi dòng, feedback mới nhất ở trên."""
+    has_feedback = TienDoFeedback.objects.filter(item_id=OuterRef('pk'))
+    feedbacks = TienDoFeedback.objects.select_related(
+        'author', 'author__profile',
+    ).order_by('-created_at', '-id')
+    qs = TienDoItem.objects.filter(platform=platform)
+    qs = apply_term_search(qs, search_query, 'feature__icontains', 'description__icontains')
+    if feedback_filter == 'co':
+        qs = qs.filter(Exists(has_feedback))
+    elif feedback_filter == 'chua':
+        qs = qs.filter(~Exists(has_feedback))
+    return (
+        qs.annotate(latest_feedback_at=Max('feedbacks__created_at'))
+        .prefetch_related(Prefetch('feedbacks', queryset=feedbacks))
+        .order_by(F('latest_feedback_at').desc(nulls_last=True), '-updated_at', '-pk')
     )
-    return apply_term_search(qs, search_query, 'feature__icontains', 'description__icontains')
 
 
 def _export_records(items):
@@ -195,7 +210,8 @@ def _export_records(items):
 
 def _render_board(request, platform):
     search_query = get_search_query(request)
-    qs = _board_queryset(platform, search_query)
+    feedback_filter = _feedback_filter(request)
+    qs = _board_queryset(platform, search_query, feedback_filter)
     page_obj, query_string = paginate_queryset(request, qs)
 
     perms = _perm_context(request.user)
@@ -209,6 +225,7 @@ def _render_board(request, platform):
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
+        'feedback_filter': feedback_filter,
         'image_upload_url': reverse('tien_do:item_image_upload'),
         **perms,
     }
@@ -229,7 +246,11 @@ def board_wholesale_retail(request):
 def board_wholesale_retail_export(request):
     """Xuất Excel toàn bộ dòng Website sỉ/lẻ (theo ô tìm kiếm, không chỉ trang hiện tại)."""
     search_query = get_search_query(request)
-    items = _board_queryset(TienDoItem.PLATFORM_WHOLESALE_RETAIL, search_query)
+    items = _board_queryset(
+        TienDoItem.PLATFORM_WHOLESALE_RETAIL,
+        search_query,
+        _feedback_filter(request),
+    )
     response = HttpResponse(
         tien_do_importing.build_board_export_xlsx(_export_records(items)),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

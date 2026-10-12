@@ -37,6 +37,7 @@
     border-right: 1px solid var(--sheet-line);
     border-bottom: 1px solid var(--sheet-line);
     padding: 3px 7px;
+    box-sizing: border-box;
     height: 40px;
     text-align: center;
     vertical-align: middle;
@@ -115,7 +116,17 @@
   .jp-tr-done.is-miss { color: #b91c1c; font-weight: 800; }
 
   .jp-tr-grid .jp-tr-sum { width: 84px; min-width: 84px; max-width: 84px; font-weight: 700; color: #0f172a; }
-  .jp-tr-grid .jp-tr-sum.is-first { border-left: 1px solid var(--sheet-brand-line); }
+  .jp-tr-grid .jp-tr-sum { position: sticky; z-index: 3; }
+  .jp-tr-grid thead th.jp-tr-sum { z-index: 6; }
+  .jp-tr-grid .jp-tr-sum.is-r4 { right: 336px; }
+  .jp-tr-grid .jp-tr-sum.is-r3 { right: 252px; }
+  .jp-tr-grid .jp-tr-sum.is-r2 { right: 168px; }
+  .jp-tr-grid .jp-tr-sum.is-r1 { right: 84px; }
+  .jp-tr-grid .jp-tr-sum.is-r0 { right: 0; }
+  .jp-tr-grid .jp-tr-sum.is-first {
+    border-left: 1px solid var(--sheet-brand-line);
+    box-shadow: -6px 0 10px -8px rgba(15, 23, 42, .22);
+  }
   .jp-tr-grid .jp-tr-muted { color: #cbd5e1; font-weight: 600; }
   .jp-tr-rate { font-weight: 800; }
   .jp-tr-rate.is-good { color: #047857; }
@@ -131,11 +142,11 @@
           {% for c in team_report.days %}
           <th class="jp-tr-day{% if not c.is_workday %} is-off{% endif %}{% if c.is_today %} is-today{% endif %}" scope="col" title="{{ c.day|date:'d/m/Y' }}">{{ c.day|date:'d-m' }}</th>
           {% endfor %}
-          <th class="jp-tr-sum is-first" scope="col">Cả kỳ</th>
-          <th class="jp-tr-sum" scope="col">% KH</th>
-          <th class="jp-tr-sum" scope="col">TB/ngày</th>
-          <th class="jp-tr-sum" scope="col">Cao nhất</th>
-          <th class="jp-tr-sum" scope="col">Số ngày</th>
+          <th class="jp-tr-sum is-r4 is-first" scope="col">Cả kỳ</th>
+          <th class="jp-tr-sum is-r3" scope="col">% KH</th>
+          <th class="jp-tr-sum is-r2" scope="col">TB/ngày</th>
+          <th class="jp-tr-sum is-r1" scope="col">Cao nhất</th>
+          <th class="jp-tr-sum is-r0" scope="col">Số ngày</th>
         </tr>
       </thead>
       <tbody>
@@ -143,11 +154,11 @@
         <tr class="jp-stage-{{ row.stage_slug }}{% if not row.total %} is-idle{% endif %}">
           <td class="jp-tr-team" title="{{ row.label }}{% if row.order_count %} · {{ row.order_count }} lệnh{% endif %}"><a href="{% url 'san_xuat:team_work_board' row.slug %}">{{ row.label }}</a></td>
           {% for c in row.cells %}{% include 'san_xuat/includes/plan_board_team_report_cell.html' with c=c slug=row.stage_slug %}{% endfor %}
-          <td class="jp-tr-sum is-first is-stack"><span class="jp-tr-qty{% if not row.plan_total %} is-actual{% endif %}"><span class="jp-tr-plan">{{ row.plan_total|sx_num }}</span><span class="jp-tr-done">{{ row.total|sx_num }}</span></span></td>
-          <td class="jp-tr-sum">{% with rate=row.plan_rate %}{% if rate is not None %}<span class="jp-tr-rate {% if rate >= 95 %}is-good{% elif rate >= 75 %}is-warn{% else %}is-bad{% endif %}">{{ rate }}%</span>{% else %}<span class="jp-tr-muted">—</span>{% endif %}{% endwith %}</td>
-          <td class="jp-tr-sum">{% if row.avg_per_day %}{{ row.avg_per_day|sx_num }}{% else %}<span class="jp-tr-muted">—</span>{% endif %}</td>
-          <td class="jp-tr-sum"{% if row.best_day %} title="{{ row.best_day|date:'d/m/Y' }}"{% endif %}>{% if row.best_qty %}{{ row.best_qty|sx_num }}{% else %}<span class="jp-tr-muted">—</span>{% endif %}</td>
-          <td class="jp-tr-sum">{% if row.active_days %}{{ row.active_days }}{% else %}<span class="jp-tr-muted">—</span>{% endif %}</td>
+          <td class="jp-tr-sum is-r4 is-first is-stack"><span class="jp-tr-qty{% if not row.plan_total %} is-actual{% endif %}"><span class="jp-tr-plan">{{ row.plan_total|sx_num }}</span><span class="jp-tr-done">{{ row.total|sx_num }}</span></span></td>
+          <td class="jp-tr-sum is-r3">{% with rate=row.plan_rate %}{% if rate is not None %}<span class="jp-tr-rate {% if rate >= 95 %}is-good{% elif rate >= 75 %}is-warn{% else %}is-bad{% endif %}">{{ rate }}%</span>{% else %}<span class="jp-tr-muted">—</span>{% endif %}{% endwith %}</td>
+          <td class="jp-tr-sum is-r2">{% if row.avg_per_day %}{{ row.avg_per_day|sx_num }}{% else %}<span class="jp-tr-muted">—</span>{% endif %}</td>
+          <td class="jp-tr-sum is-r1"{% if row.best_day %} title="{{ row.best_day|date:'d/m/Y' }}"{% endif %}>{% if row.best_qty %}{{ row.best_qty|sx_num }}{% else %}<span class="jp-tr-muted">—</span>{% endif %}</td>
+          <td class="jp-tr-sum is-r0">{% if row.active_days %}{{ row.active_days }}{% else %}<span class="jp-tr-muted">—</span>{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>

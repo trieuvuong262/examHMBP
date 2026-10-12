@@ -3,6 +3,7 @@
  *  - Cột IT (Tính năng / Mô tả / User flow): lưu inline khi rời ô.
  *  - Feedback / Ghi chú: mỗi người nhập rồi bấm «Lưu» → tạo bản ghi mới kèm người gửi.
  *  - Chèn / dán / kéo-thả ảnh giống ô Đánh giá thực tế KPI.
+ *  - Bấm ảnh trong mô tả, user flow, feedback, ghi chú để phóng to.
  */
 (function () {
   var root = document.getElementById('jp-tien-do');
@@ -203,6 +204,41 @@
   root.querySelectorAll('[data-fb-editor]').forEach(function (editor) {
     bindImages(editor, editor.closest('[data-fb-field]'), null);
   });
+
+  /* --- Bấm ảnh để phóng to ------------------------------------------------ */
+  var lightboxEl = document.getElementById('jp-td-lightbox');
+  var lightboxImg = document.getElementById('jp-td-lightbox-img');
+  var lightbox = lightboxEl && lightboxImg && window.bootstrap
+    ? window.bootstrap.Modal.getOrCreateInstance(lightboxEl)
+    : null;
+
+  function zoomableImage(target) {
+    var img = target && target.closest ? target.closest('img') : null;
+    if (!img || !root.contains(img) || img.classList.contains('jp-fb-avatar')) return null;
+    if (!img.getAttribute('src')) return null;
+    if (!img.closest('.jp-cell-editor, .jp-cell-view, .jp-fb-text')) return null;
+    return img;
+  }
+
+  root.addEventListener('click', function (event) {
+    var img = zoomableImage(event.target);
+    if (!img || !lightbox) return;
+    event.preventDefault();
+    lightboxImg.src = img.currentSrc || img.src;
+    lightboxImg.alt = img.alt || 'Ảnh phóng to';
+    lightbox.show();
+  });
+
+  root.addEventListener('mouseover', function (event) {
+    var img = zoomableImage(event.target);
+    if (img && !img.getAttribute('title')) img.setAttribute('title', 'Bấm để phóng to');
+  });
+
+  if (lightboxEl) {
+    lightboxEl.addEventListener('hidden.bs.modal', function () {
+      if (lightboxImg) lightboxImg.removeAttribute('src');
+    });
+  }
 
   root.querySelectorAll('[data-fb-save]').forEach(function (button) {
     button.addEventListener('click', function () {
