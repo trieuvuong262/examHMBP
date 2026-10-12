@@ -4,7 +4,7 @@ import os
 
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import Exists, F, Max, OuterRef, Prefetch, Q
+from django.db.models import Exists, F, Max, Min, OuterRef, Prefetch, Q
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -163,12 +163,27 @@ def _feedback_filter(request):
     return value if value in ('co', 'chua') else ''
 
 
-def _board_queryset(platform, search_query, feedback_filter=''):
-    """Dòng có feedback mới nhất đứng trước; trong mỗi dòng, feedback mới nhất ở trên."""
+def _feedback_sort(request):
+    """Sắp xếp feedback: 'moi' = mới nhất, 'cu' = cũ nhất."""
+    value = (request.GET.get('sx') or '').strip()
+    return 'cu' if value == 'cu' else 'moi'
+
+
+def _board_queryset(platform, search_query, feedback_filter='', feedback_sort='moi'):
+    """Sắp dòng và feedback trong dòng theo mốc mới nhất hoặc cũ nhất."""
     has_feedback = TienDoFeedback.objects.filter(item_id=OuterRef('pk'))
+    oldest = feedback_sort == 'cu'
+    if oldest:
+        entry_order = ('created_at', 'id')
+        stamp = Min('feedbacks__created_at')
+        card_order = (F('sort_feedback_at').asc(nulls_last=True), 'updated_at', 'pk')
+    else:
+        entry_order = ('-created_at', '-id')
+        stamp = Max('feedbacks__created_at')
+        card_order = (F('sort_feedback_at').desc(nulls_last=True), '-updated_at', '-pk')
     feedbacks = TienDoFeedback.objects.select_related(
         'author', 'author__profile',
-    ).order_by('-created_at', '-id')
+    ).order_by(*entry_order)
     qs = TienDoItem.objects.filter(platform=platform)
     qs = apply_term_search(qs, search_query, 'feature__icontains', 'description__icontains')
     if feedback_filter == 'co':
@@ -176,9 +191,9 @@ def _board_queryset(platform, search_query, feedback_filter=''):
     elif feedback_filter == 'chua':
         qs = qs.filter(~Exists(has_feedback))
     return (
-        qs.annotate(latest_feedback_at=Max('feedbacks__created_at'))
+        qs.annotate(sort_feedback_at=stamp)
         .prefetch_related(Prefetch('feedbacks', queryset=feedbacks))
-        .order_by(F('latest_feedback_at').desc(nulls_last=True), '-updated_at', '-pk')
+        .order_by(*card_order)
     )
 
 
@@ -211,7 +226,8 @@ def _export_records(items):
 def _render_board(request, platform):
     search_query = get_search_query(request)
     feedback_filter = _feedback_filter(request)
-    qs = _board_queryset(platform, search_query, feedback_filter)
+    feedback_sort = _feedback_sort(request)
+    qs = _board_queryset(platform, search_query, feedback_filter, feedback_sort)
     page_obj, query_string = paginate_queryset(request, qs)
 
     perms = _perm_context(request.user)
@@ -226,6 +242,7 @@ def _render_board(request, platform):
         'query_string': query_string,
         'search_query': search_query,
         'feedback_filter': feedback_filter,
+        'feedback_sort': feedback_sort,
         'image_upload_url': reverse('tien_do:item_image_upload'),
         **perms,
     }
@@ -250,6 +267,7 @@ def board_wholesale_retail_export(request):
         TienDoItem.PLATFORM_WHOLESALE_RETAIL,
         search_query,
         _feedback_filter(request),
+        _feedback_sort(request),
     )
     response = HttpResponse(
         tien_do_importing.build_board_export_xlsx(_export_records(items)),

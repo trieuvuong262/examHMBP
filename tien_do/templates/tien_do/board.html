@@ -30,6 +30,14 @@
                         <option value="chua" {% if feedback_filter == 'chua' %}selected{% endif %}>Chưa có feedback</option>
                     </select>
                 </label>
+                <label class="jp-td-filter">
+                    <i class="bi bi-sort-down" aria-hidden="true"></i>
+                    <select name="sx" class="form-select form-select-sm" aria-label="Sắp xếp feedback"
+                            onchange="this.form.requestSubmit()">
+                        <option value="moi" {% if feedback_sort != 'cu' %}selected{% endif %}>Feedback mới nhất</option>
+                        <option value="cu" {% if feedback_sort == 'cu' %}selected{% endif %}>Feedback cũ nhất</option>
+                    </select>
+                </label>
             </form>
             {% if platform == 'wholesale_retail' %}
             <a href="{% url 'tien_do:wholesale_retail_export' %}{% if query_string %}?{{ query_string }}{% endif %}"
