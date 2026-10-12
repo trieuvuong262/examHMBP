@@ -8,7 +8,7 @@
                 <div class="jp-prod-day-summary-label">Hiệu suất TB trong ngày</div>
                 <div class="jp-prod-day-summary-value">
                     {% if productivity.day_summary.avg_efficiency_pct is not None %}
-                    <span class="jp-eff {{ productivity.day_summary.avg_efficiency_pct|summary_efficiency_class }}">{{ productivity.day_summary.avg_efficiency_pct|efficiency_pct_display:2 }}%</span>
+                    <span class="jp-eff {{ productivity.day_summary.avg_efficiency_pct|summary_efficiency_class }}" title="{{ productivity.day_summary.avg_efficiency_pct|summary_efficiency_grade }}">{{ productivity.day_summary.avg_efficiency_pct|efficiency_pct_display:2 }}%</span>
                     {% else %}
                     <span class="text-muted">—</span>
                     {% endif %}
@@ -20,7 +20,7 @@
                 <div class="jp-prod-day-summary-label">Hiệu suất sản lượng</div>
                 <div class="jp-prod-day-summary-value">
                     {% if productivity.day_summary.quantity_efficiency_pct is not None %}
-                    <span class="jp-eff {{ productivity.day_summary.quantity_efficiency_pct|summary_efficiency_class }}">{{ productivity.day_summary.quantity_efficiency_pct|efficiency_pct_display:2 }}%</span>
+                    <span class="jp-eff {{ productivity.day_summary.quantity_efficiency_pct|summary_efficiency_class }}" title="{{ productivity.day_summary.quantity_efficiency_pct|summary_efficiency_grade }}">{{ productivity.day_summary.quantity_efficiency_pct|efficiency_pct_display:2 }}%</span>
                     {% else %}
                     <span class="text-muted">—</span>
                     {% endif %}
@@ -32,7 +32,7 @@
                 <div class="jp-prod-day-summary-label">Hiệu suất thời gian</div>
                 <div class="jp-prod-day-summary-value">
                     {% if productivity.day_summary.time_efficiency_pct is not None %}
-                    <span class="jp-eff {{ productivity.day_summary.time_efficiency_pct|summary_efficiency_class }}">{{ productivity.day_summary.time_efficiency_pct|efficiency_pct_display:2 }}%</span>
+                    <span class="jp-eff {{ productivity.day_summary.time_efficiency_pct|summary_efficiency_class }}" title="{{ productivity.day_summary.time_efficiency_pct|summary_efficiency_grade }}">{{ productivity.day_summary.time_efficiency_pct|efficiency_pct_display:2 }}%</span>
                     {% else %}
                     <span class="text-muted">—</span>
                     {% endif %}
@@ -69,7 +69,7 @@
                 <div class="jp-prod-day-summary-label">Hiệu suất hỗ trợ</div>
                 <div class="jp-prod-day-summary-value">
                     {% if productivity.day_summary.support_efficiency_pct is not None %}
-                    <span class="jp-eff {{ productivity.day_summary.support_efficiency_pct|summary_efficiency_class }}">{{ productivity.day_summary.support_efficiency_pct|efficiency_pct_display:2 }}%</span>
+                    <span class="jp-eff {{ productivity.day_summary.support_efficiency_pct|summary_efficiency_class }}" title="{{ productivity.day_summary.support_efficiency_pct|summary_efficiency_grade }}">{{ productivity.day_summary.support_efficiency_pct|efficiency_pct_display:2 }}%</span>
                     {% else %}
                     <span class="text-muted">—</span>
                     {% endif %}
@@ -126,7 +126,7 @@
                     <td class="text-end text-muted{% if 'hours' in row.changed_fields %} is-field-updated{% endif %}">{{ row.hours_display }}</td>
                     <td class="text-end jp-prod-eff-cell">
                         {% if row.efficiency_pct is not None %}
-                        <span class="jp-eff {{ row.efficiency_pct|summary_efficiency_class }}">{{ row.efficiency_pct|efficiency_pct_display:2 }}%</span>
+                        <span class="jp-eff {{ row.efficiency_pct|summary_efficiency_class }}" title="{{ row.efficiency_pct|summary_efficiency_grade }}">{{ row.efficiency_pct|efficiency_pct_display:2 }}%</span>
                         {% else %}
                         <span class="jp-eff is-none" title="{% if row.is_zero_reason_only %}Không tính hiệu suất (sản lượng 0){% endif %}">—</span>
                         {% endif %}
@@ -151,7 +151,7 @@
                     {% if productivity.has_efficiency_bonus %}
                     <td class="text-end jp-prod-eff-cell">
                         {% if row.efficiency_after_bonus_pct is not None %}
-                        <span class="jp-eff {{ row.efficiency_after_bonus_pct|summary_efficiency_class }}">{{ row.efficiency_after_bonus_pct|efficiency_pct_display:2 }}%</span>
+                        <span class="jp-eff {{ row.efficiency_after_bonus_pct|summary_efficiency_class }}" title="{{ row.efficiency_after_bonus_pct|summary_efficiency_grade }}">{{ row.efficiency_after_bonus_pct|efficiency_pct_display:2 }}%</span>
                         {% else %}
                         <span class="jp-eff is-none">—</span>
                         {% endif %}

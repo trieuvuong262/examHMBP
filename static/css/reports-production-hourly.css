@@ -1699,7 +1699,7 @@ body:has(.jp-prod-modal.show) .modal-backdrop.show {
     font-weight: 600;
 }
 
-/* Hiệu suất 4 mức — đồng bộ với báo cáo tổng hợp SX */
+/* Hiệu suất — thang xếp loại 9 mức (is-g-*) theo summary_efficiency_class; is-high/norm/ok/low còn dùng cho ô sản lượng, bù HS */
 .jp-eff {
     display: inline-block;
     min-width: 3.85rem;
@@ -1715,6 +1715,16 @@ body:has(.jp-prod-modal.show) .modal-backdrop.show {
 .jp-eff.is-norm { background: #dbeafe; color: #1e40af; }
 .jp-eff.is-high { background: #dcfce7; color: #166534; }
 .jp-eff.is-none { color: #cbd5e1; background: transparent; font-weight: 600; }
+
+.jp-eff.is-g-a1, .jp-proxy-eff-badge.is-g-a1 { background: #15803d; color: #ffffff; }
+.jp-eff.is-g-ap, .jp-proxy-eff-badge.is-g-ap { background: #bbf7d0; color: #14532d; }
+.jp-eff.is-g-a,  .jp-proxy-eff-badge.is-g-a  { background: #bfdbfe; color: #1e3a8a; }
+.jp-eff.is-g-bp, .jp-proxy-eff-badge.is-g-bp { background: #dbeafe; color: #1e40af; }
+.jp-eff.is-g-b,  .jp-proxy-eff-badge.is-g-b  { background: #99f6e4; color: #134e4a; }
+.jp-eff.is-g-cp, .jp-proxy-eff-badge.is-g-cp { background: #ccfbf1; color: #0f766e; }
+.jp-eff.is-g-c,  .jp-proxy-eff-badge.is-g-c  { background: #fef9c3; color: #854d0e; }
+.jp-eff.is-g-dp, .jp-proxy-eff-badge.is-g-dp { background: #ffedd5; color: #9a3412; }
+.jp-eff.is-g-d,  .jp-proxy-eff-badge.is-g-d  { background: #fee2e2; color: #991b1b; }
 
 .jp-prod-eff-badge {
     display: inline-block;

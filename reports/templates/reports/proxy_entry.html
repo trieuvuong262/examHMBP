@@ -3,7 +3,7 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260921c">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20261012a">
 {% endblock %}
 
 {% block content %}
@@ -180,13 +180,17 @@
 {% endblock %}
 
 {% block scripts %}
+{% efficiency_grade_tiers as eff_tiers %}{{ eff_tiers|json_script:"jpEffGradeTiers" }}
 <script>
 (function () {
-    function classFor(pct) {
-        if (pct === null) return 'is-none';
-        if (pct >= 100) return 'is-good';
-        if (pct >= 80) return 'is-ok';
-        return 'is-low';
+    var effTiers = JSON.parse(document.getElementById('jpEffGradeTiers').textContent);
+
+    function tierFor(pct) {
+        if (pct === null) return null;
+        for (var i = 0; i < effTiers.length; i++) {
+            if (effTiers[i].min_pct === null || pct >= effTiers[i].min_pct) return effTiers[i];
+        }
+        return null;
     }
 
     function parseHm(value) {
@@ -311,7 +315,9 @@
             if (total > 0 && norm > 0 && hours > 0) {
                 pct = Math.round((total / (norm * hours)) * 10000) / 100;
             }
-            badge.className = 'jp-proxy-eff-badge s-eff ' + classFor(pct);
+            var tier = tierFor(pct);
+            badge.className = 'jp-proxy-eff-badge s-eff ' + (tier ? tier.css_class : 'is-none');
+            badge.title = tier ? (tier.code + ' – ' + tier.label) : '';
             badge.textContent = pct === null ? '—' : (pct.toFixed(1) + '%');
         }
     }

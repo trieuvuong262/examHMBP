@@ -1,0 +1,7 @@
+{% load report_extras %}{% efficiency_grade_tiers as eff_tiers %}
+<div class="jp-prod-eff-legend{% if inline %} jp-prod-eff-legend--inline{% endif %}">
+    <span class="jp-prod-eff-legend-title">Hiệu suất:</span>
+    {% for t in eff_tiers %}
+    <span class="jp-prod-eff-legend-item"><span class="jp-eff {{ t.css_class }}">{{ t.range_label }}</span> {{ t.code }} – {{ t.label }}</span>
+    {% endfor %}
+</div>

@@ -3,7 +3,7 @@
 
 {% block detail_extra_head %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260921c">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20261012a">
 {% endblock %}
 
 {% block detail_hero_review_actions %}
@@ -36,13 +36,7 @@
             <div class="tab-pane fade show active" id="jp-tab-productivity" role="tabpanel" aria-labelledby="jp-tab-productivity-btn" tabindex="0">
                 {% if productivity and productivity.has_data %}
                 <div class="jp-report-tab-toolbar">
-                    <div class="jp-prod-eff-legend jp-prod-eff-legend--inline">
-                        <span class="jp-prod-eff-legend-title">Hiệu suất:</span>
-                        <span class="jp-prod-eff-legend-item"><span class="jp-eff is-high">≥120%</span> Vượt cao</span>
-                        <span class="jp-prod-eff-legend-item"><span class="jp-eff is-norm">100–119%</span> Đạt</span>
-                        <span class="jp-prod-eff-legend-item"><span class="jp-eff is-ok">80–99%</span> Gần đạt</span>
-                        <span class="jp-prod-eff-legend-item"><span class="jp-eff is-low">&lt;80%</span> Chưa đạt</span>
-                    </div>
+                    {% include 'reports/includes/production_efficiency_legend.html' with inline=True %}
                 </div>
                 <div class="jp-report-tab-body">
                     {% include 'reports/includes/production_productivity_report.html' %}
@@ -63,13 +57,7 @@
             {% if productivity and productivity.has_data %}
             <div class="tab-pane fade" id="jp-tab-hourly" role="tabpanel" aria-labelledby="jp-tab-hourly-btn" tabindex="0">
                 <div class="jp-report-tab-toolbar">
-                    <div class="jp-prod-eff-legend jp-prod-eff-legend--inline">
-                        <span class="jp-prod-eff-legend-title">Hiệu suất:</span>
-                        <span class="jp-prod-eff-legend-item"><span class="jp-eff is-high">≥120%</span> Vượt cao</span>
-                        <span class="jp-prod-eff-legend-item"><span class="jp-eff is-norm">100–119%</span> Đạt</span>
-                        <span class="jp-prod-eff-legend-item"><span class="jp-eff is-ok">80–99%</span> Gần đạt</span>
-                        <span class="jp-prod-eff-legend-item"><span class="jp-eff is-low">&lt;80%</span> Chưa đạt</span>
-                    </div>
+                    {% include 'reports/includes/production_efficiency_legend.html' with inline=True %}
                 </div>
                 <div class="jp-report-tab-body">
                     {% include 'reports/includes/production_hourly_timeline_report.html' %}

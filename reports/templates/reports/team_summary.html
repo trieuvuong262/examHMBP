@@ -4,7 +4,7 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260921c">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20261012a">
 <style>
     .jp-summary-stats { display: flex; flex-wrap: wrap; gap: 0.75rem; }
     .jp-summary-stat {
@@ -563,14 +563,14 @@
                                class="jp-summary-eff-link"
                                title="Xem báo cáo chi tiết">
                                 {% if summary.metric_is_percent %}
-                                <span class="jp-eff {{ cell.value|summary_efficiency_class }}">{{ cell.value|floatformat:2 }}%</span>
+                                <span class="jp-eff {{ cell.value|summary_efficiency_class }}" title="{{ cell.value|summary_efficiency_grade }}">{{ cell.value|floatformat:2 }}%</span>
                                 {% else %}
                                 <span class="jp-eff is-norm">{{ cell.value|prod_qty }}</span>
                                 {% endif %}
                             </a>
                             {% elif cell.has_data %}
                                 {% if summary.metric_is_percent %}
-                                <span class="jp-eff {{ cell.value|summary_efficiency_class }}">{{ cell.value|floatformat:2 }}%</span>
+                                <span class="jp-eff {{ cell.value|summary_efficiency_class }}" title="{{ cell.value|summary_efficiency_grade }}">{{ cell.value|floatformat:2 }}%</span>
                                 {% else %}
                                 <span class="jp-eff is-norm">{{ cell.value|prod_qty }}</span>
                                 {% endif %}
@@ -582,7 +582,7 @@
                         <td class="jp-col-avg">
                             {% if m.avg_value is not None %}
                                 {% if summary.metric_is_percent %}
-                                <span class="jp-eff {{ m.avg_value|summary_efficiency_class }}">{{ m.avg_value|floatformat:2 }}%</span>
+                                <span class="jp-eff {{ m.avg_value|summary_efficiency_class }}" title="{{ m.avg_value|summary_efficiency_grade }}">{{ m.avg_value|floatformat:2 }}%</span>
                                 {% else %}
                                 <span class="jp-eff is-norm">{{ m.avg_value|prod_qty }}</span>
                                 {% endif %}
@@ -613,12 +613,9 @@
         </div>
     </div>
     {% if summary.metric_is_percent %}
-    <p class="text-muted small mt-2 mb-0">
-        <span class="jp-eff is-high">≥120%</span>
-        <span class="jp-eff is-norm ms-1">100–119%</span>
-        <span class="jp-eff is-ok ms-1">80–99%</span>
-        <span class="jp-eff is-low ms-1">&lt;80%</span>
-    </p>
+    <div class="mt-2">
+        {% include 'reports/includes/production_efficiency_legend.html' %}
+    </div>
     {% endif %}
 </div>
 {% endblock %}

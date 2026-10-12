@@ -3,7 +3,7 @@
 {% load static %}
 
 {% block team_extra_head %}
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260921c">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20261012a">
 {% endblock %}
 
 {% block team_header_actions %}
@@ -97,7 +97,7 @@
 </td>
 <td class="text-center">
     {% if row.production_efficiency_pct is not None %}
-    <span class="jp-eff {{ row.production_efficiency_pct|summary_efficiency_class }}">{{ row.production_efficiency_pct|efficiency_pct_display:2 }}%</span>
+    <span class="jp-eff {{ row.production_efficiency_pct|summary_efficiency_class }}" title="{{ row.production_efficiency_pct|summary_efficiency_grade }}">{{ row.production_efficiency_pct|efficiency_pct_display:2 }}%</span>
     {% else %}
     <span class="text-muted">—</span>
     {% endif %}

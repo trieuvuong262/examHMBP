@@ -75,22 +75,53 @@ def efficiency_pct_display(value, arg='2'):
     return text.replace('.', ',')
 
 
-@register.filter
-def summary_efficiency_class(pct):
-    """CSS class jp-eff cho thang màu 4 mức trên báo cáo tổng hợp SX."""
+# (ngưỡng tối thiểu %, CSS class, khoảng hiển thị, mã xếp loại, nhận xét) — sắp giảm dần theo ngưỡng.
+EFFICIENCY_GRADE_TIERS = (
+    (140, 'is-g-a1', '≥140%', 'A1', 'Xuất sắc'),
+    (130, 'is-g-ap', '130–139%', 'A+', 'Xuất sắc'),
+    (120, 'is-g-a', '120–129%', 'A', 'Vượt'),
+    (110, 'is-g-bp', '110–119%', 'B+', 'Vượt'),
+    (100, 'is-g-b', '100–109%', 'B', 'Đạt'),
+    (90, 'is-g-cp', '90–99%', 'C+', 'Đạt'),
+    (80, 'is-g-c', '80–89%', 'C', 'Cần cải thiện'),
+    (70, 'is-g-dp', '70–79%', 'D+', 'Cần cải thiện'),
+    (None, 'is-g-d', '<70%', 'D', 'Không đạt'),
+)
+
+
+def _efficiency_tier(pct):
     if pct is None:
-        return 'is-none'
+        return None
     try:
         value = float(pct)
     except (TypeError, ValueError):
-        return 'is-none'
-    if value >= 120:
-        return 'is-high'
-    if value >= 100:
-        return 'is-norm'
-    if value >= 80:
-        return 'is-ok'
-    return 'is-low'
+        return None
+    for tier in EFFICIENCY_GRADE_TIERS:
+        if tier[0] is None or value >= tier[0]:
+            return tier
+    return None
+
+
+@register.filter
+def summary_efficiency_class(pct):
+    """CSS class jp-eff theo thang xếp loại 9 mức (A1 … D) của báo cáo SX."""
+    tier = _efficiency_tier(pct)
+    return tier[1] if tier else 'is-none'
+
+
+@register.filter
+def summary_efficiency_grade(pct):
+    """Nhãn xếp loại, vd. «A – Vượt»; rỗng khi không có số liệu."""
+    tier = _efficiency_tier(pct)
+    return f'{tier[3]} – {tier[4]}' if tier else ''
+
+
+@register.simple_tag
+def efficiency_grade_tiers():
+    return [
+        {'min_pct': min_pct, 'css_class': css, 'range_label': rng, 'code': code, 'label': label}
+        for min_pct, css, rng, code, label in EFFICIENCY_GRADE_TIERS
+    ]
 
 
 @register.filter
