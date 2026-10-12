@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/tien-do.css' %}?v=20261012a">
+<link rel="stylesheet" href="{% static 'css/tien-do.css' %}?v=20261012b">
 {% endblock %}
 
 {% block content %}
@@ -16,6 +16,7 @@
         <div class="jp-td-tools">
             <form method="get" class="jp-td-filters" role="search"
                   onsubmit="this.querySelectorAll('[name=q],[name=fb]').forEach(function(el){ if(!el.value.trim()) el.disabled=true; });">
+                {% if status_tab == 'ht' %}<input type="hidden" name="tt" value="ht">{% endif %}
                 <div class="jp-td-search">
                     <i class="bi bi-search" aria-hidden="true"></i>
                     <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm"
@@ -65,9 +66,27 @@
         </div>
     </div>
 
+    <nav class="jp-td-tabs" aria-label="Trạng thái tiến độ">
+        <a class="jp-td-tab{% if status_tab != 'ht' %} is-active{% endif %}"
+           href="{{ request.path }}{% if open_query %}?{{ open_query }}{% endif %}"
+           {% if status_tab != 'ht' %}aria-current="page"{% endif %}>
+            Đang làm<span class="jp-td-tab__count">{{ open_count }}</span>
+        </a>
+        <a class="jp-td-tab{% if status_tab == 'ht' %} is-active{% endif %}"
+           href="{{ request.path }}{% if done_query %}?{{ done_query }}{% endif %}"
+           {% if status_tab == 'ht' %}aria-current="page"{% endif %}>
+            Hoàn thành<span class="jp-td-tab__count">{{ done_count }}</span>
+        </a>
+    </nav>
+
     {% for row in rows %}
-    <article class="jp-td-card" data-item-id="{{ row.item.id }}">
+    <article class="jp-td-card{% if row.item.completed_at %} is-done is-collapsed{% endif %}" data-item-id="{{ row.item.id }}">
         <header class="jp-td-card__head">
+            {% if row.item.completed_at %}
+            <button type="button" class="jp-td-fold" data-td-fold aria-expanded="false" aria-label="Mở rộng">
+                <i class="bi bi-chevron-down" aria-hidden="true"></i>
+            </button>
+            {% endif %}
             <span class="jp-td-card__no">{{ page_obj.start_index|add:forloop.counter0 }}</span>
             <div class="jp-td-card__title" data-column="{{ row.feature.column }}" data-rich="0">
                 {% if row.feature.can_edit %}
@@ -81,13 +100,54 @@
                 <span class="jp-td-chip" title="Số feedback">
                     <i class="bi bi-chat-left-text"></i>{{ row.entries|length }}
                 </span>
+                {% if row.creator_label %}
+                <span class="jp-td-card__time jp-td-card__who" title="Người thêm dòng">
+                    <i class="bi bi-person"></i>{{ row.creator_label }}
+                </span>
+                {% endif %}
+                {% if row.completed_at %}
+                <span class="jp-td-chip is-done" title="Hoàn thành bởi {{ row.completed_by_label|default:'—' }}">
+                    <i class="bi bi-check2-circle"></i>Hoàn thành
+                </span>
+                <span class="jp-td-card__time" title="Thời điểm hoàn thành">
+                    <i class="bi bi-clock-history"></i>{{ row.completed_at|date:"d/m/Y H:i" }}
+                </span>
+                {% else %}
                 <span class="jp-td-card__time" title="Cập nhật lần cuối">
                     <i class="bi bi-clock-history"></i>{{ row.updated_at|date:"d/m/Y H:i" }}
                 </span>
+                {% endif %}
+                {% if row.can_complete and not row.item.completed_at %}
+                <form method="post" action="{% url 'tien_do:item_complete' row.item.id %}" class="d-inline-flex"
+                      onsubmit="return confirm('Chuyển dòng này sang Hoàn thành?');">
+                    {% csrf_token %}
+                    {% for key, value in kept_filters.items %}
+                    <input type="hidden" name="{{ key }}" value="{{ value }}">
+                    {% endfor %}
+                    <button type="submit" class="jp-td-btn jp-td-complete" title="Hoàn thành và chuyển sang tab Hoàn thành">
+                        <i class="bi bi-check2-circle"></i><span>Hoàn thành</span>
+                    </button>
+                </form>
+                {% elif row.can_complete and row.item.completed_at %}
+                <form method="post" action="{% url 'tien_do:item_reopen' row.item.id %}" class="d-inline-flex"
+                      onsubmit="return confirm('Mở lại dòng này về tab Đang làm?');">
+                    {% csrf_token %}
+                    {% for key, value in kept_filters.items %}
+                    <input type="hidden" name="{{ key }}" value="{{ value }}">
+                    {% endfor %}
+                    <button type="submit" class="jp-td-btn jp-td-reopen" title="Chuyển lại tab Đang làm">
+                        <i class="bi bi-arrow-counterclockwise"></i><span>Mở lại</span>
+                    </button>
+                </form>
+                {% endif %}
                 {% if can_delete %}
                 <form method="post" action="{% url 'tien_do:item_delete' row.item.id %}" class="d-inline-flex"
                       onsubmit="return confirm('Xóa dòng tiến độ này?');">
                     {% csrf_token %}
+                    {% for key, value in kept_filters.items %}
+                    <input type="hidden" name="{{ key }}" value="{{ value }}">
+                    {% endfor %}
+                    {% if status_tab == 'ht' %}<input type="hidden" name="tt" value="ht">{% endif %}
                     <button type="submit" class="jp-td-icon-btn is-danger" title="Xóa dòng" aria-label="Xóa dòng">
                         <i class="bi bi-trash3"></i>
                     </button>
@@ -215,7 +275,7 @@
     {% empty %}
     <div class="jp-td-empty">
         <i class="bi bi-kanban" aria-hidden="true"></i>
-        <div>{% if search_query or feedback_filter %}Không có dòng tiến độ phù hợp bộ lọc.{% else %}Chưa có dòng tiến độ nào.{% endif %}</div>
+        <div>{% if search_query or feedback_filter %}Không có dòng tiến độ phù hợp bộ lọc.{% elif status_tab == 'ht' %}Chưa có dòng nào hoàn thành.{% else %}Chưa có dòng tiến độ nào.{% endif %}</div>
     </div>
     {% endfor %}
 
@@ -267,5 +327,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{% static 'js/tien-do-board.js' %}?v=20261012a"></script>
+<script src="{% static 'js/tien-do-board.js' %}?v=20261012b"></script>
 {% endblock %}

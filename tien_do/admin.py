@@ -12,7 +12,7 @@ class TienDoFeedbackInline(admin.TabularInline):
 
 @admin.register(TienDoItem)
 class TienDoItemAdmin(admin.ModelAdmin):
-    list_display = ('feature', 'platform', 'created_by', 'updated_at')
-    list_filter = ('platform',)
+    list_display = ('feature', 'platform', 'created_by', 'completed_at', 'completed_by', 'updated_at')
+    list_filter = ('platform', 'completed_at')
     search_fields = ('feature', 'description')
     inlines = [TienDoFeedbackInline]

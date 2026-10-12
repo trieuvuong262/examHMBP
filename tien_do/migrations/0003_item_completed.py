@@ -1,0 +1,31 @@
+import django.db.models.deletion
+from django.conf import settings
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ('tien_do', '0002_feedback_per_user'),
+        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+    ]
+
+    operations = [
+        migrations.AddField(
+            model_name='tiendoitem',
+            name='completed_at',
+            field=models.DateTimeField(blank=True, db_index=True, null=True, verbose_name='Hoàn thành lúc'),
+        ),
+        migrations.AddField(
+            model_name='tiendoitem',
+            name='completed_by',
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name='tien_do_items_completed',
+                to=settings.AUTH_USER_MODEL,
+                verbose_name='Người hoàn thành',
+            ),
+        ),
+    ]

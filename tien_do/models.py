@@ -30,6 +30,20 @@ class TienDoItem(models.Model):
         related_name='tien_do_items_created',
         verbose_name='Người tạo',
     )
+    completed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        verbose_name='Hoàn thành lúc',
+    )
+    completed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='tien_do_items_completed',
+        verbose_name='Người hoàn thành',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -53,6 +67,10 @@ class TienDoItem(models.Model):
 
     def __str__(self):
         return f'[{self.get_platform_display()}] {self.feature or "(chưa đặt tên)"}'
+
+    @property
+    def is_completed(self):
+        return self.completed_at is not None
 
 
 class TienDoFeedback(models.Model):

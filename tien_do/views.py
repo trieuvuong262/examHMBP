@@ -1,10 +1,11 @@
 import logging
 import mimetypes
 import os
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import Exists, F, Max, Min, OuterRef, Prefetch, Q
+from django.db.models import Count, Exists, F, Max, Min, OuterRef, Prefetch, Q
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -23,7 +24,7 @@ from hrm.module_permissions import (
     user_can_delete_module,
     user_can_update_module,
 )
-from hrm.permissions import get_profile
+from hrm.permissions import get_profile, is_director
 from kpi.services.inline_images import actual_html_for_edit, sanitize_actual_html
 from reports.daily_inline_images import (
     inline_image_exists,
@@ -66,6 +67,15 @@ def _can_edit_it_columns(user):
 def _can_edit_tester_columns(user):
     """Feedback / Ghi chú: dành cho người có quyền Sửa."""
     return user_can_update_module(user, MODULE_TIEN_DO)
+
+
+def _can_set_completion(user, item):
+    """Người thêm dòng được bấm Hoàn thành dòng của mình; giám đốc toàn quyền."""
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    if is_director(user):
+        return True
+    return bool(item.created_by_id and item.created_by_id == user.id)
 
 
 def _perm_context(user):
@@ -142,7 +152,7 @@ def _it_field(item, column, can_edit_it):
     }
 
 
-def _build_rows(items, *, can_edit_it):
+def _build_rows(items, *, can_edit_it, user):
     """Mỗi dòng tiến độ → một card: Tính năng (tiêu đề), Mô tả + User flow, luồng Feedback."""
     rows = []
     for item in items:
@@ -153,6 +163,10 @@ def _build_rows(items, *, can_edit_it):
             'fields': [_it_field(item, col, can_edit_it) for col in TienDoItem.RICH_COLUMNS],
             'entries': entries,
             'updated_at': timezone.localtime(item.updated_at),
+            'can_complete': _can_set_completion(user, item),
+            'creator_label': _user_label(item.created_by) if item.created_by_id else '',
+            'completed_by_label': _user_label(item.completed_by) if item.completed_by_id else '',
+            'completed_at': timezone.localtime(item.completed_at) if item.completed_at else None,
         })
     return rows
 
@@ -169,9 +183,54 @@ def _feedback_sort(request):
     return 'cu' if value == 'cu' else 'moi'
 
 
-def _board_queryset(platform, search_query, feedback_filter='', feedback_sort='moi'):
-    """Sắp dòng và feedback trong dòng theo mốc mới nhất hoặc cũ nhất."""
+def _status_tab(request):
+    """'' = đang làm, 'ht' = hoàn thành."""
+    return 'ht' if (request.GET.get('tt') or '').strip() == 'ht' else ''
+
+
+def _scoped_items(platform, search_query, feedback_filter=''):
     has_feedback = TienDoFeedback.objects.filter(item_id=OuterRef('pk'))
+    qs = TienDoItem.objects.filter(platform=platform)
+    qs = apply_term_search(qs, search_query, 'feature__icontains', 'description__icontains')
+    if feedback_filter == 'co':
+        qs = qs.filter(Exists(has_feedback))
+    elif feedback_filter == 'chua':
+        qs = qs.filter(~Exists(has_feedback))
+    return qs
+
+
+def _status_counts(platform, search_query, feedback_filter=''):
+    return _scoped_items(platform, search_query, feedback_filter).aggregate(
+        open_count=Count('pk', filter=Q(completed_at__isnull=True)),
+        done_count=Count('pk', filter=Q(completed_at__isnull=False)),
+    )
+
+
+def _tab_query(request, tab):
+    params = request.GET.copy()
+    for key in ('page', 'tt'):
+        params.pop(key, None)
+    if tab == 'ht':
+        params['tt'] = 'ht'
+    return params.urlencode()
+
+
+def _kept_filters(request):
+    source = request.POST if request.method == 'POST' else request.GET
+    params = {}
+    query = (source.get('q') or '').strip()
+    if query:
+        params['q'] = query
+    feedback = (source.get('fb') or '').strip()
+    if feedback in ('co', 'chua'):
+        params['fb'] = feedback
+    if (source.get('sx') or '').strip() == 'cu':
+        params['sx'] = 'cu'
+    return params
+
+
+def _board_queryset(platform, search_query, feedback_filter='', feedback_sort='moi', status_tab=''):
+    """Sắp dòng và feedback trong dòng theo mốc mới nhất hoặc cũ nhất."""
     oldest = feedback_sort == 'cu'
     if oldest:
         entry_order = ('created_at', 'id')
@@ -181,17 +240,22 @@ def _board_queryset(platform, search_query, feedback_filter='', feedback_sort='m
         entry_order = ('-created_at', '-id')
         stamp = Max('feedbacks__created_at')
         card_order = (F('sort_feedback_at').desc(nulls_last=True), '-updated_at', '-pk')
+    if status_tab == 'ht':
+        card_order = ('-completed_at',) + card_order
     feedbacks = TienDoFeedback.objects.select_related(
         'author', 'author__profile',
     ).order_by(*entry_order)
-    qs = TienDoItem.objects.filter(platform=platform)
-    qs = apply_term_search(qs, search_query, 'feature__icontains', 'description__icontains')
-    if feedback_filter == 'co':
-        qs = qs.filter(Exists(has_feedback))
-    elif feedback_filter == 'chua':
-        qs = qs.filter(~Exists(has_feedback))
+    qs = _scoped_items(platform, search_query, feedback_filter)
+    if status_tab == 'ht':
+        qs = qs.filter(completed_at__isnull=False)
+    else:
+        qs = qs.filter(completed_at__isnull=True)
     return (
-        qs.annotate(sort_feedback_at=stamp)
+        qs.select_related(
+            'created_by', 'created_by__profile',
+            'completed_by', 'completed_by__profile',
+        )
+        .annotate(sort_feedback_at=stamp)
         .prefetch_related(Prefetch('feedbacks', queryset=feedbacks))
         .order_by(*card_order)
     )
@@ -227,14 +291,16 @@ def _render_board(request, platform):
     search_query = get_search_query(request)
     feedback_filter = _feedback_filter(request)
     feedback_sort = _feedback_sort(request)
-    qs = _board_queryset(platform, search_query, feedback_filter, feedback_sort)
+    status_tab = _status_tab(request)
+    qs = _board_queryset(platform, search_query, feedback_filter, feedback_sort, status_tab)
     page_obj, query_string = paginate_queryset(request, qs)
+    counts = _status_counts(platform, search_query, feedback_filter)
 
     perms = _perm_context(request.user)
     context = {
         'platform': platform,
         'platform_label': PLATFORM_LABELS[platform],
-        'rows': _build_rows(page_obj.object_list, can_edit_it=perms['can_edit_it']),
+        'rows': _build_rows(page_obj.object_list, can_edit_it=perms['can_edit_it'], user=request.user),
         'current_user_label': _user_label(request.user),
         'current_user_initials': _initials(_user_label(request.user)),
         'current_user_avatar': _avatar_url(request.user),
@@ -243,6 +309,12 @@ def _render_board(request, platform):
         'search_query': search_query,
         'feedback_filter': feedback_filter,
         'feedback_sort': feedback_sort,
+        'status_tab': status_tab,
+        'open_count': counts['open_count'],
+        'done_count': counts['done_count'],
+        'open_query': _tab_query(request, ''),
+        'done_query': _tab_query(request, 'ht'),
+        'kept_filters': _kept_filters(request),
         'image_upload_url': reverse('tien_do:item_image_upload'),
         **perms,
     }
@@ -268,6 +340,7 @@ def board_wholesale_retail_export(request):
         search_query,
         _feedback_filter(request),
         _feedback_sort(request),
+        _status_tab(request),
     )
     response = HttpResponse(
         tien_do_importing.build_board_export_xlsx(_export_records(items)),
@@ -290,10 +363,17 @@ def item_create(request, platform):
     return redirect('tien_do:portal')
 
 
-def _board_redirect(platform):
+def _board_redirect(platform, *, completed=False, request=None):
     if platform == TienDoItem.PLATFORM_WHOLESALE_RETAIL:
-        return redirect('tien_do:wholesale_retail')
-    return redirect('tien_do:portal')
+        url = reverse('tien_do:wholesale_retail')
+    else:
+        url = reverse('tien_do:portal')
+    params = _kept_filters(request) if request is not None else {}
+    if completed:
+        params['tt'] = 'ht'
+    if params:
+        url = f'{url}?{urlencode(params)}'
+    return redirect(url)
 
 
 @module_perm_required(MODULE_TIEN_DO, 'create')
@@ -392,16 +472,47 @@ def item_feedback_create(request, pk):
     })
 
 
+@module_perm_required(MODULE_TIEN_DO, 'view')
+@require_POST
+def item_complete(request, pk):
+    """Người thêm dòng, hoặc giám đốc, đánh dấu hoàn thành."""
+    item = get_object_or_404(TienDoItem, pk=pk)
+    if not _can_set_completion(request.user, item):
+        messages.error(request, 'Chỉ người thêm dòng hoặc giám đốc mới được bấm Hoàn thành.')
+        return _board_redirect(item.platform, completed=bool(item.completed_at), request=request)
+    if not item.completed_at:
+        item.completed_at = timezone.now()
+        item.completed_by = request.user
+        item.save(update_fields=['completed_at', 'completed_by', 'updated_at'])
+    messages.success(request, 'Đã chuyển sang tab Hoàn thành.')
+    return _board_redirect(item.platform, completed=True, request=request)
+
+
+@module_perm_required(MODULE_TIEN_DO, 'view')
+@require_POST
+def item_reopen(request, pk):
+    """Cùng quyền Hoàn thành: đưa dòng về tab Đang làm."""
+    item = get_object_or_404(TienDoItem, pk=pk)
+    if not _can_set_completion(request.user, item):
+        messages.error(request, 'Chỉ người thêm dòng hoặc giám đốc mới được mở lại.')
+        return _board_redirect(item.platform, completed=bool(item.completed_at), request=request)
+    if item.completed_at:
+        item.completed_at = None
+        item.completed_by = None
+        item.save(update_fields=['completed_at', 'completed_by', 'updated_at'])
+    messages.success(request, 'Đã chuyển lại tab Đang làm.')
+    return _board_redirect(item.platform, request=request)
+
+
 @module_perm_required(MODULE_TIEN_DO, 'delete')
 @require_POST
 def item_delete(request, pk):
     item = get_object_or_404(TienDoItem, pk=pk)
     platform = item.platform
+    completed = request.POST.get('tt') == 'ht'
     item.delete()
     messages.success(request, 'Đã xóa dòng tiến độ.')
-    if platform == TienDoItem.PLATFORM_WHOLESALE_RETAIL:
-        return redirect('tien_do:wholesale_retail')
-    return redirect('tien_do:portal')
+    return _board_redirect(platform, completed=completed, request=request)
 
 
 # --- Ảnh inline trong ô (giống ô Đánh giá thực tế của KPI) -------------------

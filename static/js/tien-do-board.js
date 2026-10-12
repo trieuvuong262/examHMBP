@@ -4,6 +4,7 @@
  *  - Feedback / Ghi chú: mỗi người nhập rồi bấm «Lưu» → tạo bản ghi mới kèm người gửi.
  *  - Chèn / dán / kéo-thả ảnh giống ô Đánh giá thực tế KPI.
  *  - Bấm ảnh trong mô tả, user flow, feedback, ghi chú để phóng to.
+ *  - Dòng đã hoàn thành thu gọn; bấm đầu card hoặc mũi tên để mở lại.
  */
 (function () {
   var root = document.getElementById('jp-tien-do');
@@ -199,6 +200,21 @@
   }
 
   root.querySelectorAll('[data-td-editor]').forEach(bindItEditor);
+
+  /* --- Tab Hoàn thành: card thu gọn, bấm đầu dòng để mở ------------------ */
+  root.addEventListener('click', function (event) {
+    var head = event.target.closest('.jp-td-card.is-done .jp-td-card__head');
+    if (!head || !root.contains(head)) return;
+    if (event.target.closest('a, input, textarea, select, label, form, [contenteditable="true"]')) return;
+    if (event.target.closest('button') && !event.target.closest('[data-td-fold]')) return;
+    var card = head.closest('.jp-td-card');
+    var collapsed = card.classList.toggle('is-collapsed');
+    var fold = card.querySelector('[data-td-fold]');
+    if (fold) {
+      fold.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      fold.setAttribute('aria-label', collapsed ? 'Mở rộng' : 'Thu gọn');
+    }
+  });
 
   /* --- Feedback / Ghi chú: nhập rồi bấm «Lưu» ---------------------------- */
   root.querySelectorAll('[data-fb-editor]').forEach(function (editor) {
