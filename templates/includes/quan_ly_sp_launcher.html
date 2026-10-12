@@ -1,125 +1,6 @@
-{# Modal launcher menu Quản lý sản phẩm — 3 chức năng: Thiết kế · Kế hoạch ra mắt · Thư viện #}
-<style>
-  .jp-qlsp-launcher-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 1080;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1.25rem;
-    background: rgba(8, 10, 14, 0.72);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    transition: opacity .28s ease, visibility .28s ease;
-  }
-  .jp-qlsp-launcher-backdrop.is-open { opacity: 1; visibility: visible; pointer-events: auto; }
-  .jp-qlsp-launcher-panel {
-    width: min(520px, 100%);
-    max-height: min(88vh, 720px);
-    overflow: auto;
-    border-radius: 1.25rem;
-    padding: 1.35rem 1.35rem 1.5rem;
-    background: linear-gradient(165deg, rgba(28, 30, 36, 0.96), rgba(14, 16, 20, 0.98));
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    box-shadow: 0 28px 80px rgba(0, 0, 0, 0.45);
-    transform: translateY(18px) scale(.96);
-    opacity: 0;
-    transition: transform .34s cubic-bezier(.22, 1, .36, 1), opacity .28s ease;
-  }
-  .jp-qlsp-launcher-backdrop.is-open .jp-qlsp-launcher-panel { transform: none; opacity: 1; }
-  .jp-qlsp-launcher-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.15rem; }
-  .jp-qlsp-launcher-head h2 { margin: 0; font-size: 1.2rem; font-weight: 800; color: #fff; letter-spacing: .01em; }
-  .jp-qlsp-launcher-close {
-    flex: 0 0 auto; width: 2.25rem; height: 2.25rem; border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.06); color: #fff;
-    display: inline-flex; align-items: center; justify-content: center;
-    transition: transform .2s ease, background .2s ease, border-color .2s ease;
-  }
-  .jp-qlsp-launcher-close:hover { background: var(--hm-primary); border-color: #fff; transform: rotate(90deg) scale(1.05); }
-  .jp-qlsp-launcher-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .85rem; justify-items: stretch; padding: .25rem .5rem .5rem; }
-  .jp-qlsp-tile {
-    appearance: none; border: 0; background: transparent; text-decoration: none; color: #fff;
-    display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: .55rem;
-    padding: .75rem .35rem .8rem; border-radius: .9rem; cursor: pointer;
-    transition: transform .22s cubic-bezier(.22, 1, .36, 1), background .2s ease;
-  }
-  .jp-qlsp-tile:hover, .jp-qlsp-tile:focus-visible {
-    background: rgba(255, 255, 255, 0.06); transform: translateY(-4px); outline: none; color: #fff;
-  }
-  .jp-qlsp-tile:hover .jp-qlsp-tile-icon, .jp-qlsp-tile:focus-visible .jp-qlsp-tile-icon {
-    transform: scale(1.08) rotate(-3deg); box-shadow: 0 12px 28px rgba(220, 38, 38, 0.45); border-color: #fff;
-  }
-  .jp-qlsp-tile-icon {
-    width: 3.65rem; height: 3.65rem; border-radius: 1.05rem;
-    display: inline-flex; align-items: center; justify-content: center;
-    background: var(--hm-primary); border: 2px solid #fff; color: #fff; font-size: 1.45rem;
-    box-shadow: 0 8px 20px rgba(220, 38, 38, 0.28);
-    transition: transform .25s cubic-bezier(.22, 1, .36, 1), box-shadow .25s ease, border-color .2s ease;
-  }
-  .jp-qlsp-tile-label {
-    font-size: .78rem; font-weight: 700; text-align: center; line-height: 1.25;
-    color: rgba(255, 255, 255, 0.92); max-width: 8.5rem; min-height: 2.5em;
-  }
-  .jp-qlsp-tile.is-active .jp-qlsp-tile-icon { outline: 2px solid #fff; outline-offset: 3px; }
-  @keyframes jp-qlsp-tile-in { from { opacity: 0; transform: translateY(12px) scale(.92); } to { opacity: 1; transform: none; } }
-  .jp-qlsp-launcher-backdrop.is-open .jp-qlsp-tile { animation: jp-qlsp-tile-in .38s cubic-bezier(.22, 1, .36, 1) both; }
-  .jp-qlsp-launcher-backdrop.is-open .jp-qlsp-tile:nth-child(1) { animation-delay: .02s; }
-  .jp-qlsp-launcher-backdrop.is-open .jp-qlsp-tile:nth-child(2) { animation-delay: .04s; }
-  .jp-qlsp-launcher-backdrop.is-open .jp-qlsp-tile:nth-child(3) { animation-delay: .06s; }
-  /* Focus mode: chỉ hiện chức năng đang mở trong nhóm Quản lý sản phẩm */
-  body.jp-qlsp-focus #jp-sidebar-qlsp-submenu > [data-qlsp-area] { display: none !important; }
-  body.jp-qlsp-focus[data-qlsp-area="design"] #jp-sidebar-qlsp-submenu > [data-qlsp-area="design"],
-  body.jp-qlsp-focus[data-qlsp-area="launch"] #jp-sidebar-qlsp-submenu > [data-qlsp-area="launch"],
-  body.jp-qlsp-focus[data-qlsp-area="library"] #jp-sidebar-qlsp-submenu > [data-qlsp-area="library"] {
-    display: list-item !important;
-  }
-  body.jp-qlsp-focus #jp-sidebar-qlsp-submenu .jp-sidebar-nested-toggle { display: none !important; }
-  body.jp-qlsp-focus #jp-sidebar-qlsp-submenu .jp-sidebar-nested-submenu {
-    display: block !important; margin: 0 !important; padding: 0 !important; border: 0 !important;
-  }
-  body.jp-qlsp-focus .jp-sidebar-menu > li:not(.jp-qlsp-group) { display: none !important; }
-  body.jp-qlsp-focus .jp-sidebar-profile, body.jp-qlsp-focus .jp-sidebar-footer { display: none !important; }
-  body.jp-qlsp-focus .jp-qlsp-group > .jp-sidebar-submenu { display: block !important; }
-  body.jp-qlsp-focus .jp-qlsp-group > .jp-sidebar-group-toggle .jp-sidebar-group-chevron { display: none; }
-  .jp-qlsp-switch-wrap { display: none !important; list-style: none; width: 100%; padding: 0; margin: 0; }
-  body.jp-qlsp-focus .jp-qlsp-switch-wrap { display: list-item !important; }
-  .jp-qlsp-focus-tools { display: none; gap: .35rem; padding: .35rem .4rem .15rem; margin: 0 .15rem .35rem; }
-  body.jp-qlsp-focus .jp-qlsp-focus-tools { display: flex; }
-  .jp-qlsp-focus-tools a, .jp-qlsp-focus-tools button {
-    flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: .35rem;
-    min-height: 2rem; padding: .3rem .5rem; border-radius: .45rem;
-    border: 1px solid var(--bs-border-color, #e2e8f0); background: #fff; color: #334155;
-    font-size: .72rem; font-weight: 700; text-decoration: none;
-  }
-  .jp-qlsp-focus-tools a:hover, .jp-qlsp-focus-tools button:hover { border-color: var(--hm-primary); color: var(--hm-primary); }
-</style>
-
-<div class="jp-qlsp-launcher-backdrop" id="jpQlspLauncher" hidden aria-hidden="true">
-  <div class="jp-qlsp-launcher-panel" role="dialog" aria-modal="true" aria-labelledby="jpQlspLauncherTitle">
-    <div class="jp-qlsp-launcher-head">
-      <div>
-        <h2 id="jpQlspLauncherTitle">Quản lý sản phẩm</h2>
-      </div>
-      <button type="button" class="jp-qlsp-launcher-close" data-jp-qlsp-launcher-close aria-label="Đóng">
-        <i class="bi bi-x-lg" aria-hidden="true"></i>
-      </button>
-    </div>
-    <div class="jp-qlsp-launcher-grid" id="jpQlspLauncherGrid"></div>
-  </div>
-</div>
-
+{# Giữ ngữ cảnh Thư viện khi mở Danh mục SKU / Thiết lập mã (dùng chung với Sản xuất). Không còn popup. #}
 <script>
 (function () {
-  var backdrop = document.getElementById('jpQlspLauncher');
-  var grid = document.getElementById('jpQlspLauncherGrid');
-  var root = document.getElementById('jp-sidebar-qlsp-submenu');
-  if (!backdrop || !grid || !root) return;
-
-  // Danh mục SKU / Thiết lập mã dùng chung với Sản xuất: mở từ Quản lý SP thì giữ focus ở đây.
   var CTX_KEY = 'jp_qlsp_ctx';
   var hasSx = !!document.getElementById('jp-sidebar-san-xuat-submenu');
 
@@ -132,81 +13,10 @@
     } catch (e) {}
   }
 
-  function detectArea(path) {
-    if (path.indexOf('/thiet-ke-san-pham') === 0) return 'design';
-    if (path.indexOf('/ke-hoach-ra-mat') === 0) return 'launch';
-    if (path.indexOf('/kho-san-pham/thu-vien') === 0) return 'library';
-    if (path.indexOf('/kho-san-pham') !== 0) return null;
-    if (!hasSx) return 'library';
-    var shared = path.indexOf('/kho-san-pham/danh-muc') === 0 || path.indexOf('/kho-san-pham/thiet-lap-ma') === 0;
-    if (shared && ctx() === 'library') return 'library';
-    return null;
-  }
-
-  function buildGrid() {
-    grid.innerHTML = '';
-    var current = document.body.getAttribute('data-qlsp-area');
-    root.querySelectorAll(':scope > [data-qlsp-area]').forEach(function (el) {
-      var href = el.getAttribute('data-qlsp-href');
-      if (!href) return;
-      var area = el.getAttribute('data-qlsp-area');
-      var tile = document.createElement('a');
-      tile.className = 'jp-qlsp-tile' + (current === area ? ' is-active' : '');
-      tile.href = href;
-      tile.setAttribute('data-qlsp-area', area);
-      tile.innerHTML =
-        '<span class="jp-qlsp-tile-icon" aria-hidden="true"><i class="bi ' + (el.getAttribute('data-qlsp-icon') || 'bi-grid') + '"></i></span>'
-        + '<span class="jp-qlsp-tile-label"></span>';
-      tile.querySelector('.jp-qlsp-tile-label').textContent = el.getAttribute('data-qlsp-label') || '';
-      grid.appendChild(tile);
-    });
-  }
-
-  function openLauncher() {
-    buildGrid();
-    backdrop.hidden = false;
-    backdrop.setAttribute('aria-hidden', 'false');
-    requestAnimationFrame(function () { backdrop.classList.add('is-open'); });
-    document.body.style.overflow = 'hidden';
-  }
-
-  function closeLauncher() {
-    backdrop.classList.remove('is-open');
-    backdrop.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
-    setTimeout(function () { if (!backdrop.classList.contains('is-open')) backdrop.hidden = true; }, 300);
-  }
-
-  function applyFocus(area) {
-    document.body.classList.add('jp-qlsp-focus');
-    document.body.setAttribute('data-qlsp-area', area);
-    // Sidebar render 2 lần (desktop + offcanvas mobile).
-    document.querySelectorAll('#jp-sidebar-qlsp-submenu').forEach(function (menu) {
-      var group = menu.closest('.jp-qlsp-group');
-      if (group) {
-        group.classList.add('is-open');
-        var tog = group.querySelector(':scope > .jp-sidebar-group-toggle');
-        if (tog) tog.setAttribute('aria-expanded', 'true');
-      }
-      var active = menu.querySelector(':scope > [data-qlsp-area="' + area + '"]');
-      if (active) active.classList.add('is-open');
-    });
-  }
-
   document.addEventListener('click', function (e) {
-    if (e.target.closest('[data-jp-qlsp-launcher]')) {
-      e.preventDefault();
-      e.stopPropagation();
-      openLauncher();
-      return;
-    }
-    if (e.target.closest('[data-jp-qlsp-launcher-close]') || e.target === backdrop) {
-      closeLauncher();
-      return;
-    }
     var link = e.target.closest('a[href]');
     if (!link) return;
-    if (link.closest('#jp-sidebar-qlsp-submenu') || link.closest('#jpQlspLauncher')) {
+    if (link.closest('#jp-sidebar-qlsp-submenu')) {
       var area = link.closest('[data-qlsp-area]');
       setCtx(area && area.getAttribute('data-qlsp-area') === 'library' ? 'library' : '');
     } else if (link.closest('#jp-sidebar-san-xuat-submenu') || link.closest('#jpSxLauncher')) {
@@ -214,12 +24,19 @@
     }
   });
 
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && backdrop.classList.contains('is-open')) closeLauncher();
-  });
-
+  if (!hasSx || ctx() !== 'library') return;
   var path = (window.location.pathname || '').replace(/\/+$/, '') || '/';
-  var area = detectArea(path);
-  if (area) applyFocus(area);
+  var shared = path.indexOf('/kho-san-pham/danh-muc') === 0 || path.indexOf('/kho-san-pham/thiet-lap-ma') === 0;
+  if (!shared) return;
+  document.querySelectorAll('#jp-sidebar-qlsp-submenu').forEach(function (menu) {
+    var group = menu.closest('.jp-qlsp-group');
+    if (group) {
+      group.classList.add('is-open');
+      var tog = group.querySelector(':scope > .jp-sidebar-group-toggle');
+      if (tog) tog.setAttribute('aria-expanded', 'true');
+    }
+    var lib = menu.querySelector(':scope > [data-qlsp-area="library"]');
+    if (lib) lib.classList.add('is-open');
+  });
 })();
 </script>

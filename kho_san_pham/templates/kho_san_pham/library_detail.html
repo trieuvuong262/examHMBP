@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load sx_format %}
+{% load sx_format tksp_tags %}
 {% block title %}{{ code }} · Thư viện sản phẩm{% endblock %}
 {% block extra_head %}{% include 'thiet_ke_sp/includes/tksp_styles.html' %}{% endblock %}
 
@@ -10,10 +10,12 @@
 
   <div class="tk-hero mb-3">
     <div class="tk-hero-main">
-      <div class="tk-hero-thumb">{% if rep.display_image_url %}<img src="{{ rep.display_image_url }}" alt="">{% else %}<i class="bi bi-image"></i>{% endif %}</div>
+      <div class="tk-hero-thumb">{% if cover_url %}<img src="{{ cover_url }}" alt="">{% else %}<i class="bi bi-image"></i>{% endif %}</div>
       <div class="min-w-0">
         <div class="d-flex flex-wrap align-items-center gap-2">
-          <span class="tk-pill {% if active_count %}is-accent{% else %}is-gray{% endif %}">{% if active_count %}Đang dùng{% else %}Ngừng dùng{% endif %}</span>
+          {% if not style.is_active %}<span class="tk-pill is-gray">Ngừng dùng</span>
+          {% elif handover.is_transferred %}<span class="tk-pill is-green">Đã chuyển SX</span>
+          {% else %}<span class="tk-pill is-amber">Chờ chuyển SX</span>{% endif %}
           <span class="tk-hero-code">{{ code }}</span>
           {% if ptype %}<span class="tk-hero-code">{{ ptype.code }} — {{ ptype.name }}</span>{% endif %}
         </div>
@@ -21,6 +23,12 @@
         <p class="tk-hero-sub">{{ group_label|default:'Chưa xác định nhóm' }} · {{ products|length }} SKU · {{ colors|length }} màu · {{ sizes|length }} size{% if kv_count %} · {{ kv_count }} SKU trên KiotViet{% endif %}</p>
       </div>
       <div class="tk-hero-actions">
+        {% if can_transfer %}
+        <form method="post" action="{% url 'kho_san_pham:library_transfer' code %}" onsubmit="return confirm('Chuyển {{ code }} sang sản xuất? Hệ thống sẽ tạo hồ sơ sản phẩm bên Sản xuất và giao việc xác nhận cho các bộ phận nhận.');">{% csrf_token %}
+          <button type="submit" class="btn btn-hm btn-sm fw-bold text-white"><i class="bi bi-box-arrow-right"></i>Chuyển sang sản xuất</button>
+        </form>
+        {% endif %}
+        {% if handover.tech_doc_id %}<a href="{% url 'san_xuat:doc_detail' handover.tech_doc_id %}" class="btn btn-sm fw-bold btn-tk-ghost"><i class="bi bi-journal-text"></i>Hồ sơ sản phẩm SX</a>{% endif %}
         {% if dossier %}<a href="{{ dossier.get_absolute_url }}" class="btn btn-sm fw-bold btn-tk-ghost"><i class="bi bi-palette"></i>Hồ sơ {{ dossier.code }}</a>{% endif %}
         <a href="{% url 'kho_san_pham:product_list' %}?q={{ code|urlencode }}&status=all" class="btn btn-sm fw-bold btn-tk-ghost"><i class="bi bi-tags"></i>Mở trong Danh mục SKU</a>
       </div>
@@ -147,6 +155,21 @@
   </div>
 
     <aside class="tk-rail">
+      {% if handover %}
+      <div class="tk-card tk-side-card">
+        <h3>Chuyển sản xuất {% if handover.is_transferred %}<span class="tk-pill is-green">Đã chuyển</span>{% else %}<span class="tk-pill is-amber">Chờ chuyển</span>{% endif %}</h3>
+        <ul class="tk-rule-list">
+          <li><i class="bi bi-palette"></i><span>Bàn giao {{ handover.handed_at|date:'d/m/Y' }} · {{ handover.handed_by|uname }}</span></li>
+          {% if handover.is_transferred %}
+          <li><i class="bi bi-box-arrow-right tk-ok"></i><span>Chuyển {{ handover.transferred_at|date:'d/m/Y' }}{% if handover.transferred_by %} · {{ handover.transferred_by|uname }}{% endif %}</span></li>
+          {% endif %}
+          {% for r in receipts %}
+          <li><i class="bi {% if r.is_confirmed %}bi-check-circle-fill tk-ok{% else %}bi-hourglass-split tk-miss{% endif %}"></i><span><strong>{{ r.get_department_display }}</strong> · {{ r.receiver|uname }}{% if r.is_confirmed %} · đã nhận{% elif not handover.is_transferred %} · chờ chuyển{% endif %}</span></li>
+          {% endfor %}
+        </ul>
+        {% if not handover.is_transferred and not can_update %}<div class="small text-muted">Cần quyền cập nhật Kho sản phẩm để chuyển sang sản xuất.</div>{% endif %}
+      </div>
+      {% endif %}
       <div class="tk-card tk-side-card">
         <h3>Độ đầy đủ <span class="tk-pill {% if completeness == 100 %}is-green{% elif completeness >= 50 %}is-amber{% else %}is-gray{% endif %}">{{ completeness }}%</span></h3>
         <ul class="tk-rule-list">

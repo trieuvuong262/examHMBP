@@ -305,7 +305,7 @@
     }},
     { area: 'kho_sp', test: function (p) {
       if (p.indexOf('/kho-san-pham') === -1 || p.indexOf('/kho-san-pham/thu-vien') !== -1) return false;
-      // Danh mục / Thiết lập mã mở từ menu Quản lý sản phẩm → popup QLSP giữ focus.
+      // Danh mục / Thiết lập mã mở từ Thư viện sản phẩm → không chiếm focus Sản xuất.
       if (p.indexOf('/kho-san-pham/danh-muc') === -1 && p.indexOf('/kho-san-pham/thiet-lap-ma') === -1) return true;
       try { return sessionStorage.getItem('jp_qlsp_ctx') !== 'library'; } catch (e) { return true; }
     }},

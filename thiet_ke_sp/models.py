@@ -869,10 +869,16 @@ class Handover(models.Model):
     note = models.TextField(blank=True, default='', verbose_name='Nội dung bàn giao')
     handed_by = models.ForeignKey(USER, on_delete=models.SET_NULL, null=True, related_name='+')
     handed_at = models.DateTimeField(default=timezone.now)
+    transferred_by = models.ForeignKey(USER, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    transferred_at = models.DateTimeField(null=True, blank=True, verbose_name='Chuyển sản xuất lúc')
 
     class Meta:
         verbose_name = 'Bàn giao sản xuất'
         verbose_name_plural = 'Bàn giao sản xuất'
+
+    @property
+    def is_transferred(self) -> bool:
+        return self.tech_doc_id is not None
 
 
 class ReceivingDepartment(models.TextChoices):

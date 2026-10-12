@@ -259,8 +259,15 @@ class CostingForm(forms.ModelForm):
 class HandoverForm(forms.Form):
     note = forms.CharField(required=False, label='Nội dung bàn giao', widget=_textarea(3))
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, style_types=(), **kwargs):
         super().__init__(*args, **kwargs)
+        if len(style_types) > 1:
+            self.fields['product_type'] = forms.ModelChoiceField(
+                queryset=type(style_types[0]).objects.filter(pk__in=[t.pk for t in style_types]).order_by('code'),
+                label='Loại mã (Style trong Thư viện)', empty_label='— Chọn loại mã —',
+                widget=forms.Select(attrs={'class': 'form-select'}),
+            )
+            self.fields['product_type'].label_from_instance = lambda t: f'{t.code} — {t.name}'
         defaults = sla.default_receiver_ids()
         for dept in ReceivingDepartment:
             self.fields[f'receiver_{dept.value}'] = user_field(f'Người nhận — {dept.label}', required=True)

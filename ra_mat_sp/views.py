@@ -383,10 +383,23 @@ def plan_detail(request, pk):
     ready = svc.readiness(plan, tasks)
     risks = list(plan.risks.select_related('owner__profile', 'created_by__profile'))
     high = sum(1 for r in risks if r.is_open and r.severity == RiskSeverity.HIGH)
-    links = list(plan.products.select_related('dossier__owner__profile', 'dossier__designer__profile'))
+    links = list(plan.products.select_related(
+        'dossier__owner__profile', 'dossier__designer__profile', 'dossier__handover'))
     covers = cover_map([l.dossier_id for l in links])
+    official = {(l.dossier.official_product_code or '').strip().upper() for l in links} - {''}
+    in_library = set()
+    if official:
+        from kho_san_pham.catalog_models import ProductStyle
+        from kho_san_pham.models import Product
+
+        in_library = set(ProductStyle.objects.filter(code__in=official).values_list('code', flat=True))
+        in_library |= set(Product.objects.filter(style_code__in=official).values_list('style_code', flat=True))
     for link in links:
         link.cover = covers.get(link.dossier_id)
+        link.library_code = (link.dossier.official_product_code or '').strip().upper()
+        link.in_library = link.library_code in in_library
+        link.production_state = svc.production_state(link.dossier)
+        link.production_label = svc.PRODUCTION_STATE_LABELS[link.production_state]
         link.group_label = catalog.group_label(link.dossier.product_group) if link.dossier.product_group else ''
     group_filter = request.GET.get('group') or ''
     if group_filter not in TaskGroup.values:

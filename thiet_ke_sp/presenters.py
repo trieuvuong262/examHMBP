@@ -267,7 +267,7 @@ def step_checklist(dossier: ProductDevelopment) -> tuple[str, list[tuple[str, bo
     if status in (Status.SAMPLE_EVAL_PENDING, Status.MASTER_PENDING):
         return 'Điều kiện duyệt mẫu chuẩn', wf.master_checklist(dossier)
     if status in (Status.APPROVED, Status.HANDED_OVER, Status.CLOSED):
-        return 'Điều kiện bàn giao sản xuất', wf.handover_checklist(dossier)
+        return 'Điều kiện bàn giao vào Thư viện', wf.handover_checklist(dossier)
     if status in (Status.DRAFT, Status.BRIEF_NEEDS_INFO, Status.BRIEF_PENDING):
         return 'Thông tin đề bài', [
             (label, bool(getattr(dossier, field, None))) for field, label in wf.BRIEF_REQUIRED
@@ -328,7 +328,7 @@ def action_flags(dossier: ProductDevelopment, user) -> dict[str, bool]:
         'edit_costing': not dossier.is_locked and s not in (Status.DRAFT, *FINAL_STATUSES)
         and perms.can_work_as(dossier, user, Role.COSTING, Role.OWNER),
         'handover': s == Status.APPROVED and perms.can_work_as(dossier, user, Role.OWNER, Role.TECHNICIAN),
-        'close': s == Status.HANDED_OVER and owner,
+        'close': s == Status.HANDED_OVER and owner and getattr(getattr(dossier, 'handover', None), 'is_transferred', False),
         'change_request': s == Status.APPROVED and (approver or owner),
         'pause': s in wf.PAUSABLE and approver,
         'resume': s == Status.PAUSED and approver,

@@ -136,13 +136,13 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
     ],
     MODULE_RA_MAT_SP: [
         {'key': 'dashboard', 'label': 'Tổng quan', 'icon': 'bi-speedometer2', 'perm_view_only': True},
-        {'key': 'plans', 'label': 'Kế hoạch ra mắt', 'icon': 'bi-rocket-takeoff'},
+        {'key': 'plans', 'label': 'Danh sách chiến dịch', 'icon': 'bi-rocket-takeoff'},
         {'key': 'calendar', 'label': 'Lịch ra mắt', 'icon': 'bi-calendar3', 'perm_view_only': True},
-        {'key': 'my_tasks', 'label': 'Việc của tôi', 'icon': 'bi-inbox-fill', 'perm_view_only': True},
+        {'key': 'my_tasks', 'label': 'Tiến độ liên phòng ban', 'icon': 'bi-inbox-fill', 'perm_view_only': True},
         {
             'key': 'approve',
-            'label': 'Chờ tôi duyệt',
-            'perm_label': 'Chờ tôi duyệt (Sửa = được làm Người duyệt Go/No-Go)',
+            'label': 'Chờ phê duyệt',
+            'perm_label': 'Chờ phê duyệt (Sửa = được làm Người duyệt Go/No-Go)',
             'icon': 'bi-check2-circle',
         },
         {'key': 'settings', 'label': 'Thiết lập', 'icon': 'bi-gear'},

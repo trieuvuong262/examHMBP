@@ -68,7 +68,7 @@ _ALL_MODULE_CHOICES = [
     (MODULE_ODOO, 'Odoo'),
     (MODULE_TIEN_DO, 'Tiến độ'),
     (MODULE_THIET_KE_SP, 'Thiết kế sản phẩm'),
-    (MODULE_RA_MAT_SP, 'Kế hoạch ra mắt sản phẩm'),
+    (MODULE_RA_MAT_SP, 'Kế hoạch ra mắt'),
     (MODULE_SAN_XUAT, 'Sản xuất'),
     (MODULE_KHO_NPL, 'Kho Nguyên Phụ Liệu'),
     (MODULE_KHO_VAT_TU, 'Kho vật tư'),

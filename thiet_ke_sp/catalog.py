@@ -53,6 +53,14 @@ def normalize_group_code(code: str) -> str:
     return (code or '').strip().upper()
 
 
+def types_in_group(code: str):
+    code = normalize_group_code(code)
+    if not code:
+        return CatalogType.objects.none()
+    return CatalogType.objects.filter(is_active=True).filter(
+        Q(code=code) | Q(code__startswith=f'{code}-')).order_by('code')
+
+
 def group_exists(code: str) -> bool:
     return CatalogType.objects.filter(Q(code=code) | Q(code__startswith=f'{code}-')).exists()
 

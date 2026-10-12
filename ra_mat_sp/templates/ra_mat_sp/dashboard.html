@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
 {% load sx_format %}
-{% block title %}Tổng quan kế hoạch ra mắt{% endblock %}
+{% block title %}Kế hoạch ra mắt sản phẩm{% endblock %}
 {% block extra_head %}{% include 'ra_mat_sp/includes/rm_styles.html' %}{% endblock %}
 
 {% block content %}
 <div class="container-fluid jp-page jp-sx-page jp-tksp py-3 py-md-4 mb-5 px-3 px-lg-4">
-  {% include 'ra_mat_sp/includes/rm_topbar.html' with rm_title='Tổng quan ra mắt sản phẩm' %}
+  {% include 'ra_mat_sp/includes/rm_topbar.html' with rm_title='Kế hoạch ra mắt sản phẩm' %}
 
   <div class="tk-kpis mb-3">
     <a class="tk-kpi" href="{% url 'ra_mat_sp:calendar' %}">

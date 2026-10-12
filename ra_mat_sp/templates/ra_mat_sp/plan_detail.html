@@ -167,7 +167,7 @@
           {% endif %}
           <form method="post" action="{% url 'ra_mat_sp:action' plan.pk 'product_qty' %}">{% csrf_token %}
           <div class="table-responsive"><table class="table tk-mini-table align-middle">
-            <thead><tr><th>Hồ sơ</th><th>Nhóm</th><th>Trạng thái thiết kế</th><th>Mã chính thức</th><th>Giá bán lẻ đề xuất</th><th style="width:120px">SL ra mắt</th><th>Ghi chú</th></tr></thead>
+            <thead><tr><th>Hồ sơ</th><th>Nhóm</th><th>Trạng thái thiết kế</th><th>Sản xuất</th><th>Mã chính thức</th><th>Giá bán lẻ đề xuất</th><th style="width:120px">SL ra mắt</th><th>Ghi chú</th></tr></thead>
             <tbody>
             {% for link in links %}
             {% with d=link.dossier %}
@@ -177,14 +177,15 @@
                 <span><strong>{{ d.name }}</strong><small>{{ d.code }}</small></span></a></td>
               <td>{{ link.group_label|default:'—' }}</td>
               <td><span class="tk-pill {% if d.status == 'approved' or d.status == 'handed_over' or d.status == 'closed' %}is-green{% elif d.status == 'cancelled' or d.status == 'paused' %}is-gray{% else %}is-amber{% endif %}">{{ d.get_status_display }}</span></td>
-              <td>{% if d.official_product_code %}<a href="{% url 'kho_san_pham:library_detail' d.official_product_code %}">{{ d.official_product_code }}</a>{% else %}<span class="text-muted">Chưa có</span>{% endif %}</td>
+              <td><span class="tk-pill {% if link.production_state == 'transferred' %}is-green{% elif link.production_state == 'pending' %}is-amber{% else %}is-gray{% endif %}">{{ link.production_label }}</span></td>
+              <td>{% if link.in_library %}<a href="{% url 'kho_san_pham:library_detail' link.library_code %}">{{ d.official_product_code }}</a>{% elif d.official_product_code %}{{ d.official_product_code }} <small class="text-muted d-block">Chưa có trong Thư viện</small>{% else %}<span class="text-muted">Chưa có</span>{% endif %}</td>
               <td class="text-end">{% if d.proposed_retail_price %}{{ d.proposed_retail_price|sx_num }}{% elif d.target_retail_price %}{{ d.target_retail_price|sx_num }} <small class="text-muted">(mục tiêu)</small>{% else %}—{% endif %}</td>
               <td>{% if can_edit %}<input type="number" min="0" name="qty_{{ link.pk }}" value="{{ link.planned_qty|default_if_none:'' }}" class="form-control form-control-sm text-end">{% else %}{% if link.planned_qty is not None %}{{ link.planned_qty|sx_num }}{% else %}—{% endif %}{% endif %}</td>
               <td>{% if can_edit %}<input type="text" maxlength="255" name="note_{{ link.pk }}" value="{{ link.note }}" class="form-control form-control-sm">{% else %}{{ link.note|default:'—' }}{% endif %}</td>
             </tr>
             {% endwith %}
             {% empty %}
-            <tr><td colspan="7" class="text-center text-muted py-3">Chưa gắn sản phẩm. {% if can_edit_header %}<a href="{% url 'ra_mat_sp:edit' plan.pk %}">Thêm hồ sơ thiết kế</a>{% endif %}</td></tr>
+            <tr><td colspan="8" class="text-center text-muted py-3">Chưa gắn sản phẩm. {% if can_edit_header %}<a href="{% url 'ra_mat_sp:edit' plan.pk %}">Thêm hồ sơ thiết kế</a>{% endif %}</td></tr>
             {% endfor %}
             </tbody>
           </table></div>
@@ -406,7 +407,7 @@
       <div class="tk-card tk-side-card">
         <h3>Người tham gia</h3>
         <div class="tk-owner"><span class="tk-avatar" style="background:#1d4ed8">ĐP</span><div><strong>{{ plan.coordinator.profile.full_name|default:plan.coordinator.username }}</strong><small>Người điều phối</small></div></div>
-        <div class="tk-owner"><span class="tk-avatar{% if not plan.approver %} is-empty{% endif %}" style="background:#6d28d9">DU</span><div><strong>{{ plan.approver.profile.full_name|default:plan.approver.username|default:'Chưa chọn' }}</strong><small>Người duyệt Go/No-Go</small></div></div>
+        <div class="tk-owner"><span class="tk-avatar{% if not plan.approver %} is-empty{% endif %}" style="background:#6d28d9">DU</span><div><strong>{{ plan.approver|uname }}</strong><small>Người duyệt Go/No-Go</small></div></div>
       </div>
       <div class="tk-card tk-side-card">
         <h3>Tình trạng <span class="tk-pill is-{{ tone }}">{{ tone_label }}</span></h3>

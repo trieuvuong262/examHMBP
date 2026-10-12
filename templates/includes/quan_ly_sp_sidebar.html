@@ -1,4 +1,4 @@
-{# Nhóm «Quản lý sản phẩm»: Thiết kế sản phẩm · Kế hoạch ra mắt · Thư viện sản phẩm — mở popup chọn chức năng. #}
+{# Nhóm «Quản lý sản phẩm»: Thiết kế sản phẩm · Kế hoạch ra mắt · Thư viện sản phẩm (giống HTML demo). #}
 {% load menu_perms %}
 {% jp_can_menu 'kho_san_pham' 'products' as jp_can_qlsp_library %}
 {% jp_can_menu 'kho_san_pham' 'code_settings' as jp_can_qlsp_codes %}
@@ -8,10 +8,9 @@
 <li class="jp-sidebar-group jp-qlsp-group{% if '/thiet-ke-san-pham/' in request.path or '/ke-hoach-ra-mat/' in request.path or '/kho-san-pham/thu-vien' in request.path %} is-open{% endif %}">
     <button type="button"
             class="jp-sidebar-group-toggle"
-            data-jp-qlsp-launcher
-            aria-haspopup="dialog"
-            aria-controls="jpQlspLauncher"
-            title="Mở menu Quản lý sản phẩm">
+            data-jp-sidebar-group-toggle
+            aria-expanded="{% if '/thiet-ke-san-pham/' in request.path or '/ke-hoach-ra-mat/' in request.path or '/kho-san-pham/thu-vien' in request.path %}true{% else %}false{% endif %}"
+            aria-controls="jp-sidebar-qlsp-submenu">
         <span class="jp-sidebar-group-toggle-main">
             <span class="jp-sidebar-link-icon">
                 <i class="bi bi-bag-heart"></i>
@@ -27,20 +26,9 @@
             </span>
             <span>Quản lý sản phẩm</span>
         </span>
-        <i class="bi bi-grid-3x3-gap jp-sidebar-group-chevron" aria-hidden="true"></i>
+        <i class="bi bi-chevron-down jp-sidebar-group-chevron" aria-hidden="true"></i>
     </button>
     <ul class="jp-sidebar-submenu" id="jp-sidebar-qlsp-submenu">
-        <li class="jp-qlsp-switch-wrap">
-            <div class="jp-qlsp-focus-tools">
-                <a href="{% url 'home_portal' %}" title="Về trang chủ portal">
-                    <i class="bi bi-house" aria-hidden="true"></i><span>Portal</span>
-                </a>
-                <button type="button" data-jp-qlsp-launcher title="Đổi chức năng Quản lý sản phẩm">
-                    <i class="bi bi-grid-3x3-gap" aria-hidden="true"></i><span>Đổi chức năng</span>
-                </button>
-            </div>
-        </li>
-
         {# —— 1. Thiết kế sản phẩm —— #}
         {% if jp_can_thiet_ke_sp %}
         <li class="jp-sidebar-nested-group{% if '/thiet-ke-san-pham/' in request.path %} is-open{% endif %}"
@@ -165,7 +153,7 @@
                 <li>
                     <a href="{% url 'ra_mat_sp:list' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if '/ke-hoach-ra-mat/ke-hoach' in request.path %}active{% endif %}">
-                        <i class="bi bi-rocket-takeoff"></i><span>Kế hoạch ra mắt</span>
+                        <i class="bi bi-rocket-takeoff"></i><span>Danh sách chiến dịch</span>
                     </a>
                 </li>
                 {% endif %}
@@ -189,7 +177,7 @@
                             </span>
                             {% endif %}
                         </span>
-                        <span>Việc của tôi</span>
+                        <span>Tiến độ liên phòng ban</span>
                     </a>
                 </li>
                 {% endif %}
@@ -205,7 +193,7 @@
                             </span>
                             {% endif %}
                         </span>
-                        <span>Chờ tôi duyệt</span>
+                        <span>Chờ phê duyệt</span>
                     </a>
                 </li>
                 {% endif %}
@@ -239,7 +227,7 @@
                 <li>
                     <a href="{% url 'kho_san_pham:library' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if '/kho-san-pham/thu-vien' in request.path %}active{% endif %}">
-                        <i class="bi bi-collection"></i><span>Thư viện</span>
+                        <i class="bi bi-collection"></i><span>Thư viện sản phẩm</span>
                     </a>
                 </li>
                 <li>

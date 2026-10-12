@@ -472,7 +472,8 @@ def dossier_detail(request, pk):
     handover = getattr(dossier, 'handover', None) if dossier.status in (Status.HANDED_OVER, Status.CLOSED) else None
     receipts = list(handover.receipts.select_related('receiver__profile', 'confirmed_by__profile')) if handover else []
     for r in receipts:
-        r.can_confirm = not r.is_confirmed and dossier.status == Status.HANDED_OVER and r.receiver_id == user.pk
+        r.can_confirm = (not r.is_confirmed and dossier.status == Status.HANDED_OVER and r.receiver_id == user.pk
+                         and handover.is_transferred)
     conditions = list(dossier.conditions.select_related('assignee__profile', 'done_by__profile'))
     for c in conditions:
         c.can_complete = not c.is_done and dossier.status == Status.APPROVED and (
@@ -531,7 +532,7 @@ def dossier_detail(request, pk):
         evaluation_form=f.EvaluationForm(allowed_roles=eval_roles) if eval_roles else None,
         costing_form=f.CostingForm(instance=dossier) if flags['edit_costing'] else None,
         roles_form=f.RolesForm(dossier=dossier) if flags['edit_roles'] else None,
-        handover_form=f.HandoverForm() if flags['handover'] else None,
+        handover_form=f.HandoverForm(style_types=wf.handover_style_types(dossier)) if flags['handover'] else None,
         condition_users=list(f.active_users()) if flags['decide_master'] else [],
         can_upload_dossier_other=wf.can_upload(dossier, user, AttachmentKind.OTHER),
         can_upload_reference=wf.can_upload(dossier, user, AttachmentKind.REFERENCE),
@@ -763,11 +764,12 @@ def _run_action(request, dossier: ProductDevelopment, action: str) -> tuple[str,
         return 'approval', 'Đã xác nhận hoàn thành điều kiện.'
 
     if action == 'handover':
-        form = f.HandoverForm(post)
+        form = f.HandoverForm(post, style_types=wf.handover_style_types(dossier))
         if not form.is_valid():
             raise wf.WorkflowError(_form_error_text(form))
-        record = wf.handover(dossier, user, receivers=form.receivers(), note=form.cleaned_data['note'], due_at=due)
-        return 'overview', f'Đã bàn giao — tạo hồ sơ kỹ thuật SX {record.product_code}.'
+        record = wf.handover(dossier, user, receivers=form.receivers(), note=form.cleaned_data['note'], due_at=due,
+                             product_type=form.cleaned_data.get('product_type'))
+        return 'overview', f'Đã bàn giao — Style {record.product_code} đã vào Thư viện.'
     if action == 'receipt_confirm':
         receipt = get_object_or_404(HandoverReceipt, pk=post.get('receipt_id'), handover__dossier=dossier)
         wf.confirm_receipt(receipt, user, note=post.get('note', ''))

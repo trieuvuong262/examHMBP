@@ -2,25 +2,33 @@
 
 from __future__ import annotations
 
-from django.db.models import Count, Max, Min, Q, Sum
+from django.contrib import messages
+from django.db.models import (
+    Count, DateTimeField, DecimalField, Exists, F, IntegerField, Max, Min, OuterRef, Q, Subquery, Sum,
+)
+from django.db.models.functions import Coalesce, Greatest
 from django.http import Http404
-from django.shortcuts import render
+from django.shortcuts import redirect, render
+from django.urls import reverse
+from django.views.decorators.http import require_POST
 
-from assessment.decorators import module_perm_required
+from assessment.decorators import module_perm_required, module_perm_required_methods
 from hrm.module_permissions import MODULE_KHO_SAN_PHAM
 from PortalJustPlay.pagination import paginate_queryset
 
 from san_xuat.list_grid import SX_LIST_GRIDS, sx_list_grid_context
 
 from kho_san_pham.catalog_models import ProductStyle
+from kho_san_pham.choices import STYLE_SOURCE_DESIGN
 from kho_san_pham.library_grid import LIST_KEY
 from kho_san_pham.models import Product
 from kho_san_pham.view_utils import perm_context
 
 STATUS_CHOICES = (
-    ('active', 'Đang dùng'),
-    ('inactive', 'Ngừng dùng'),
     ('all', 'Tất cả'),
+    ('pending', 'Chờ chuyển SX'),
+    ('transferred', 'Đã chuyển SX'),
+    ('inactive', 'Ngừng dùng'),
 )
 
 DETAIL_TABS = (
@@ -33,8 +41,11 @@ DETAIL_TABS = (
 DETAIL_TAB_KEYS = {t[0] for t in DETAIL_TABS}
 
 
-def _group_q(group: str) -> Q:
-    return Q(catalog_type__code=group) | Q(catalog_type__code__startswith=f'{group}-')
+def _dossier_covers(dossiers) -> dict[int, str]:
+    from thiet_ke_sp.presenters import cover_map
+
+    ids = [d.pk for d in dossiers]
+    return {pk: att.get_absolute_url() for pk, att in cover_map(ids).items() if att} if ids else {}
 
 
 def _dossiers_by_style(codes) -> dict[str, object]:
@@ -51,52 +62,72 @@ def _dossiers_by_style(codes) -> dict[str, object]:
     return out
 
 
+def _sku_agg(expr, output):
+    sub = (
+        Product.objects.filter(style_code=OuterRef('code'))
+        .order_by().values('style_code').annotate(v=expr).values('v')
+    )
+    return Subquery(sub, output_field=output)
+
+
+def _handovers_by_code(codes) -> dict:
+    from thiet_ke_sp.models import Handover
+
+    if not codes:
+        return {}
+    rows = Handover.objects.filter(product_code__in=codes).select_related(
+        'dossier', 'transferred_by__profile', 'tech_doc')
+    return {h.product_code.upper(): h for h in rows}
+
+
 @module_perm_required(MODULE_KHO_SAN_PHAM, 'view')
 def library_list(request):
     from thiet_ke_sp import catalog
+    from thiet_ke_sp.models import Handover
 
     g = request.GET
-    status = g.get('status') or 'active'
+    status = g.get('status') or 'all'
     if status not in {k for k, _ in STATUS_CHOICES}:
-        status = 'active'
+        status = 'all'
     q = (g.get('q') or '').strip()
     group = (g.get('group') or '').strip().upper()
 
-    qs = Product.objects.exclude(style_code='')
-    if status == 'active':
-        qs = qs.filter(is_active=True)
-    elif status == 'inactive':
-        qs = qs.exclude(style_code__in=Product.objects.filter(is_active=True).exclude(style_code='').values('style_code'))
-    if q:
-        qs = qs.filter(
-            Q(style_code__icontains=q) | Q(name__icontains=q) | Q(code__icontains=q)
-            | Q(category_name__icontains=q) | Q(kiotviet_code__icontains=q)
-        )
-    if group:
-        qs = qs.filter(_group_q(group))
-    rows = (
-        qs.values('style_code')
-        .annotate(
-            sku_count=Count('pk'),
-            color_count=Count('color_code', distinct=True),
-            size_count=Count('size_label', distinct=True),
-            active_count=Count('pk', filter=Q(is_active=True)),
-            kv_count=Count('kiotviet_id'),
-            min_price=Min('base_price'),
-            max_price=Max('base_price'),
-            qty_total=Sum('qty_on_hand'),
-            last_update=Max('updated_at'),
-        )
+    base = ProductStyle.objects.filter(source=STYLE_SOURCE_DESIGN)
+    transferred = Exists(Handover.objects.filter(product_code=OuterRef('code'), tech_doc__isnull=False))
+    qs = base.select_related('product_type').annotate(
+        style_code=F('code'),
+        transferred=transferred,
+        sku_count=Coalesce(_sku_agg(Count('pk'), IntegerField()), 0),
+        min_price=_sku_agg(Min('base_price'), DecimalField(max_digits=18, decimal_places=2)),
+        qty_total=_sku_agg(Sum('qty_on_hand'), DecimalField(max_digits=18, decimal_places=3)),
+        kv_count=Coalesce(_sku_agg(Count('kiotviet_id'), IntegerField()), 0),
+        last_update=Greatest('updated_at', Coalesce(_sku_agg(Max('updated_at'), DateTimeField()), 'updated_at')),
     )
+    if status == 'inactive':
+        qs = qs.filter(is_active=False)
+    else:
+        qs = qs.filter(is_active=True)
+        if status == 'pending':
+            qs = qs.filter(transferred=False)
+        elif status == 'transferred':
+            qs = qs.filter(transferred=True)
+    if q:
+        sku_hit = Product.objects.filter(
+            Q(code__icontains=q) | Q(name__icontains=q) | Q(kiotviet_code__icontains=q)).values('style_code')
+        qs = qs.filter(Q(code__icontains=q) | Q(name__icontains=q) | Q(code__in=sku_hit))
+    if group:
+        qs = qs.filter(Q(product_type__code=group) | Q(product_type__code__startswith=f'{group}-'))
     grid = sx_list_grid_context(request, LIST_KEY)
     sort_field = SX_LIST_GRIDS[LIST_KEY]['sort_fields'][grid['sort_key']]
     prefix = '-' if grid['sort_dir'] == 'desc' else ''
-    rows = rows.order_by(f'{prefix}{sort_field}', 'style_code')
-    page_obj, query_string = paginate_queryset(request, rows, per_page=40)
-    items = list(page_obj.object_list)
-    codes = [r['style_code'] for r in items]
-
-    styles = {s.code: s for s in ProductStyle.objects.filter(code__in=codes).select_related('product_type')}
+    qs = qs.order_by(f'{prefix}{sort_field}', 'code')
+    page_obj, query_string = paginate_queryset(request, qs, per_page=40)
+    styles = {s.code: s for s in page_obj.object_list}
+    codes = list(styles)
+    items = [{
+        'style_code': s.code, 'sku_count': s.sku_count, 'min_price': s.min_price, 'qty_total': s.qty_total,
+        'kv_count': s.kv_count, 'transferred': s.transferred, 'style_active': s.is_active,
+    } for s in styles.values()]
     reps: dict[str, Product] = {}
     colors: dict[str, list[str]] = {}
     sizes: dict[str, list[str]] = {}
@@ -110,21 +141,22 @@ def library_list(request):
         if p.size_label and p.size_label not in sizes.setdefault(p.style_code, []):
             sizes[p.style_code].append(p.size_label)
     dossiers = _dossiers_by_style(codes)
+    covers = _dossier_covers(dossiers.values())
     for r in items:
         code = r['style_code']
-        style = styles.get(code)
+        style = styles[code]
         rep = reps.get(code)
-        ptype = style.product_type if style else (rep.catalog_type if rep else None)
-        r['name'] = (style.name if style and style.name else '') or (rep.name if rep else code)
-        r['type_code'] = ptype.code if ptype else ''
-        r['group_label'] = catalog.group_label(catalog.group_code(ptype.code)) if ptype else (rep.category_name if rep else '')
-        r['image_url'] = rep.display_image_url if rep else ''
+        dossier = dossiers.get(code.upper())
+        r['name'] = style.name or (rep.name if rep else code)
+        r['type_code'] = style.product_type.code
+        r['group_label'] = catalog.group_label(catalog.group_code(style.product_type.code))
+        r['image_url'] = (rep.display_image_url if rep else '') or (covers.get(dossier.pk, '') if dossier else '')
         r['colors'] = colors.get(code, [])
         r['sizes'] = sizes.get(code, [])
-        r['dossier'] = dossiers.get(code.upper())
-        r['is_active'] = r['active_count'] > 0
-    total_styles = Product.objects.exclude(style_code='').values('style_code').distinct().count()
-    no_style = Product.objects.filter(style_code='', is_active=True).count()
+        r['dossier'] = dossier
+    active = base.filter(is_active=True)
+    pending_count = active.exclude(
+        code__in=Handover.objects.filter(tech_doc__isnull=False).values('product_code')).count()
     return render(request, 'kho_san_pham/library_list.html', {
         **perm_context(request.user, 'products'),
         'page_obj': page_obj,
@@ -135,9 +167,10 @@ def library_list(request):
         'status_choices': STATUS_CHOICES,
         'group': group,
         'group_choices': catalog.group_choices(),
-        'total_styles': total_styles,
-        'no_style': no_style,
-        'has_filters': bool(q or group or status != 'active'),
+        'total_styles': active.count(),
+        'matched_count': page_obj.paginator.count,
+        'pending_count': pending_count,
+        'has_filters': bool(q or group or status != 'all'),
         **grid,
     })
 
@@ -147,15 +180,19 @@ def library_detail(request, style):
     from thiet_ke_sp import catalog
 
     code = (style or '').strip().upper()
-    products = list(Product.objects.filter(style_code=code).select_related('catalog_type', 'created_by__profile'))
     style_obj = ProductStyle.objects.filter(code=code).select_related('product_type', 'created_by__profile').first()
-    if not products and style_obj is None:
-        raise Http404('Không có Style này trong thư viện.')
+    if style_obj is None or style_obj.source != STYLE_SOURCE_DESIGN:
+        if style_obj is None and not Product.objects.filter(style_code=code).exists():
+            raise Http404('Không có Style này trong thư viện.')
+        return redirect(f"{reverse('kho_san_pham:product_list')}?q={code}&status=all")
+    products = list(Product.objects.filter(style_code=code).select_related('catalog_type', 'created_by__profile'))
+    handover = _handovers_by_code([code]).get(code)
+    receipts = list(handover.receipts.select_related('receiver__profile')) if handover else []
     tab = request.GET.get('tab') or 'data'
     if tab not in DETAIL_TAB_KEYS:
         tab = 'data'
     rep = next((p for p in products if p.display_image_url), products[0] if products else None)
-    ptype = style_obj.product_type if style_obj else (rep.catalog_type if rep else None)
+    ptype = style_obj.product_type
     prices = [p.base_price for p in products if p.base_price is not None]
     images = []
     seen = set()
@@ -173,7 +210,7 @@ def library_detail(request, style):
     for p in products:
         if p.size_label and p.size_label not in sizes:
             sizes.append(p.size_label)
-    dossier = _dossiers_by_style([code]).get(code)
+    dossier = handover.dossier if handover else _dossiers_by_style([code]).get(code)
     launches = []
     if dossier:
         from ra_mat_sp.models import LaunchPlan
@@ -191,6 +228,11 @@ def library_detail(request, style):
             history.append({'at': p.synced_at, 'text': f'Đồng bộ KiotViet {p.code}', 'user': None})
         if p.updated_at and p.updated_at != p.created_at:
             history.append({'at': p.updated_at, 'text': f'Cập nhật SKU {p.code}', 'user': None})
+    if handover:
+        history.append({'at': handover.handed_at, 'text': 'Thiết kế bàn giao vào Thư viện', 'user': handover.handed_by})
+        if handover.transferred_at:
+            history.append({'at': handover.transferred_at, 'text': 'Chuyển sang sản xuất',
+                            'user': handover.transferred_by})
     history.sort(key=lambda h: h['at'], reverse=True)
     kv_count = sum(1 for p in products if p.kiotviet_id)
     completeness_items = [
@@ -200,9 +242,18 @@ def library_detail(request, style):
         ('Size', bool(sizes)),
         ('KiotViet', bool(kv_count)),
         ('Hồ sơ thiết kế', bool(dossier)),
+        ('Đã chuyển sản xuất', bool(handover and handover.is_transferred)),
     ]
+    perms_ctx = perm_context(request.user, 'products')
+    can_transfer = bool(
+        perms_ctx['can_update'] and handover and not handover.is_transferred
+        and handover.dossier.status == 'handed_over' and style_obj.is_active
+    )
     return render(request, 'kho_san_pham/library_detail.html', {
-        **perm_context(request.user, 'products'),
+        **perms_ctx,
+        'handover': handover,
+        'receipts': receipts,
+        'can_transfer': can_transfer,
         'code': code,
         'style': style_obj,
         'products': products,
@@ -225,4 +276,27 @@ def library_detail(request, style):
         'tabs': DETAIL_TABS,
         'completeness_items': completeness_items,
         'completeness': round(100 * sum(1 for _, ok in completeness_items if ok) / len(completeness_items)),
+        'cover_url': (rep.display_image_url if rep else '') or (
+            _dossier_covers([dossier]).get(dossier.pk, '') if dossier else ''),
     })
+
+
+@module_perm_required_methods(MODULE_KHO_SAN_PHAM, post='update')
+@require_POST
+def library_transfer(request, style):
+    from thiet_ke_sp.services import workflow as wf
+
+    code = (style or '').strip().upper()
+    detail_url = reverse('kho_san_pham:library_detail', args=[code])
+    handover = _handovers_by_code([code]).get(code)
+    if handover is None or not ProductStyle.objects.filter(
+            code=code, source=STYLE_SOURCE_DESIGN, is_active=True).exists():
+        messages.error(request, 'Style này không có bàn giao từ Thiết kế đang chờ chuyển sản xuất.')
+        return redirect(detail_url)
+    try:
+        tech_doc = wf.transfer_to_production(handover, request.user)
+    except wf.WorkflowError as exc:
+        messages.error(request, str(exc))
+        return redirect(detail_url)
+    messages.success(request, f'Đã chuyển {code} sang sản xuất — tạo hồ sơ sản phẩm SX {tech_doc.product_code}.')
+    return redirect(detail_url)

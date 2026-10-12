@@ -36,7 +36,21 @@ from .models import (
     TaskStatus,
 )
 
-DOSSIER_READY_STATUSES = (DossierStatus.APPROVED, DossierStatus.HANDED_OVER, DossierStatus.CLOSED)
+PRODUCTION_STATE_LABELS = {
+    'transferred': 'Đã chuyển SX',
+    'pending': 'Chờ Thư viện chuyển SX',
+    'design': 'Chưa bàn giao thiết kế',
+}
+
+
+def production_state(dossier) -> str:
+    """transferred: đã có hồ sơ SX · pending: đã vào Thư viện, chờ chuyển · design: chưa bàn giao."""
+    if dossier.status not in (DossierStatus.HANDED_OVER, DossierStatus.CLOSED):
+        return 'design'
+    handover = getattr(dossier, 'handover', None)
+    if handover is None:
+        return 'design'
+    return 'transferred' if handover.is_transferred else 'pending'
 
 
 class WorkflowError(Exception):
@@ -280,13 +294,13 @@ def refresh_risk(plan: LaunchPlan, user=None) -> None:
 def go_conditions(plan: LaunchPlan, tasks=None) -> list[dict]:
     tasks = list(plan.tasks.all()) if tasks is None else tasks
     rows = []
-    links = list(plan.products.select_related('dossier'))
-    pending = [l.dossier for l in links if l.dossier.status not in DOSSIER_READY_STATUSES]
+    links = list(plan.products.select_related('dossier__handover'))
+    pending = [l.dossier for l in links if production_state(l.dossier) != 'transferred']
     rows.append({
-        'label': 'Hồ sơ thiết kế đã duyệt sản xuất',
+        'label': 'Sản phẩm đã chuyển sản xuất',
         'ok': bool(links) and not pending,
-        'note': ', '.join(f'{d.code} ({d.get_status_display()})' for d in pending) if pending else (
-            '' if links else 'Chưa gắn sản phẩm'),
+        'note': ', '.join(f'{d.code} ({PRODUCTION_STATE_LABELS[production_state(d)]})' for d in pending)
+        if pending else ('' if links else 'Chưa gắn sản phẩm'),
         'task': None,
     })
     for t in tasks:
@@ -512,6 +526,11 @@ def decide_go(plan: LaunchPlan, user, data: GoInput) -> None:
 def mark_launched(plan: LaunchPlan, user) -> None:
     if plan.status != Status.READY:
         raise WorkflowError('Chỉ xác nhận ra mắt khi kế hoạch đủ điều kiện ra mắt.')
+    pending = [l.dossier for l in plan.products.select_related('dossier__handover')
+               if production_state(l.dossier) != 'transferred']
+    if pending:
+        raise WorkflowError('Chưa chuyển sản xuất: ' + ', '.join(
+            f'{d.code} ({PRODUCTION_STATE_LABELS[production_state(d)]})' for d in pending) + '.')
     plan.launched_at = timezone.now()
     set_status(plan, Status.LAUNCHED, user, 'Xác nhận đã mở bán.')
 
