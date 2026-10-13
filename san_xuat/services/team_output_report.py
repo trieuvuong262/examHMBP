@@ -203,7 +203,7 @@ def _plan_by_team_day(
     """
     from django.urls import reverse
 
-    from san_xuat.hub_models import SxSalesOrderLine
+    from san_xuat.hub_models import SxSalesOrderLine, SxSalesOrderPlanStep
 
     by_slug = {col.slug: col for col in teams}
     by_wc: dict[str, str] = {}
@@ -246,6 +246,16 @@ def _plan_by_team_day(
                 continue
             products.setdefault(oid, []).append(label)
 
+    order_teams: dict[int, set[str]] = {}
+    if order_ids and by_wc:
+        for oid, code in SxSalesOrderPlanStep.objects.filter(
+            sales_order_id__in=order_ids,
+            work_center__code__in=list(by_wc),
+        ).values_list('sales_order_id', 'work_center__code'):
+            team = by_wc.get((code or '').strip().upper())
+            if team:
+                order_teams.setdefault(oid, set()).add(team)
+
     by_team: dict[str, dict[date, Decimal]] = {}
     by_stage: dict[str, dict[date, Decimal]] = {}
     orders: dict[str, dict[date, dict[int, dict]]] = {}
@@ -256,6 +266,14 @@ def _plan_by_team_day(
 
     for row in rows:
         team = _team_for(row.team_slug, getattr(row.work_center, 'code', '') or '')
+        if not team:
+            stage = (row.team_slug or '').strip().lower()
+            candidates = [
+                slug for slug in (teams_by_stage.get(stage) or [])
+                if slug in order_teams.get(row.sales_order_id, ())
+            ]
+            if len(candidates) == 1:
+                team = candidates[0]
         if not team:
             continue
         qty = _q(row.qty)
