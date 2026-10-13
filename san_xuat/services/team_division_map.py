@@ -561,8 +561,22 @@ def progress_team_form_rows() -> list[dict]:
 
 
 @transaction.atomic
+def assign_division_progress_slugs() -> int:
+    """Mỗi bộ phận HR một mã tổ Tiến độ (`d{id}`), không dùng chung cat/may/inep/ht."""
+    changed = 0
+    for row in SxTeamDivisionMap.objects.filter(is_demo=False).iterator():
+        slug = team_slug_for_division_id(row.division_id)
+        if (row.team_slug or '').strip().lower() == slug:
+            continue
+        row.team_slug = slug
+        row.save(update_fields=['team_slug'])
+        changed += 1
+    return changed
+
+
+@transaction.atomic
 def save_progress_teams(enabled_ids: set[int], *, saved_by=None) -> dict[str, int]:
-    """Bật/tắt tổ Tiến độ theo bộ phận HR. Không ghi đè slug công đoạn KHSX đã có."""
+    """Bật/tắt tổ Tiến độ theo bộ phận HR. Mỗi bộ phận một mã `d{id}`."""
     from san_xuat.services.capacity_from_hrm import hr_divisions_for_ie_groups
 
     divisions = list(hr_divisions_for_ie_groups())
@@ -580,14 +594,11 @@ def save_progress_teams(enabled_ids: set[int], *, saved_by=None) -> dict[str, in
     for div in divisions:
         did = int(div.pk)
         want_active = did in enabled
-        stage = _named_stage_slug(div)
-        if stage not in VALID_TEAM_SLUGS:
-            stage = ''
-        fallback_slug = stage or team_slug_for_division_id(did)
+        slug = team_slug_for_division_id(did)
         row = existing.get(did)
         if row is None:
             SxTeamDivisionMap.objects.create(
-                team_slug=fallback_slug,
+                team_slug=slug,
                 division_id=did,
                 is_active=want_active,
                 is_demo=False,
@@ -599,9 +610,8 @@ def save_progress_teams(enabled_ids: set[int], *, saved_by=None) -> dict[str, in
         if row.is_active != want_active:
             row.is_active = want_active
             fields.append('is_active')
-        stored = (row.team_slug or '').strip().lower()
-        if stored not in VALID_TEAM_SLUGS and division_id_from_team_slug(stored) is None:
-            row.team_slug = fallback_slug
+        if (row.team_slug or '').strip().lower() != slug:
+            row.team_slug = slug
             fields.append('team_slug')
         if fields:
             row.save(update_fields=fields)
