@@ -237,14 +237,23 @@ def _plan_by_team_day(
     )
     order_ids = {row.sales_order_id for row in rows}
     products: dict[int, list[str]] = {}
+    product_codes: dict[int, list[str]] = {}
     if order_ids:
         for oid, code, name in SxSalesOrderLine.objects.filter(
             order_id__in=order_ids,
         ).values_list('order_id', 'product_code', 'product_name'):
-            label = ' '.join(part for part in ((code or '').strip(), (name or '').strip()) if part)
+            code = (code or '').strip()
+            if code and code not in product_codes.get(oid, ()):
+                product_codes.setdefault(oid, []).append(code)
+            label = ' '.join(part for part in (code, (name or '').strip()) if part)
             if not label or label in products.get(oid, ()):
                 continue
             products.setdefault(oid, []).append(label)
+    from san_xuat.services.products import product_gallery_map
+
+    galleries = product_gallery_map(
+        code for codes in product_codes.values() for code in codes
+    )
 
     order_teams: dict[int, set[str]] = {}
     if order_ids and by_wc:
@@ -291,10 +300,19 @@ def _plan_by_team_day(
             product = ', '.join(names[:3])
             if len(names) > 3:
                 product = f'{product}…'
+            images: list[str] = []
+            seen_images: set[str] = set()
+            for code in product_codes.get(order.pk, []):
+                for url in galleries.get(code.casefold()) or []:
+                    if url and url not in seen_images:
+                        seen_images.add(url)
+                        images.append(url)
             bucket[order.pk] = {
                 'code': order.code,
                 'customer': (order.customer_name or '').strip(),
                 'product': product,
+                'image': images[0] if images else '',
+                'images': images[:6],
                 'qty': qty,
                 'due': order.due_date.strftime('%d/%m/%Y') if order.due_date else '',
                 'url': reverse('san_xuat:sales_order_detail', args=[order.pk]),
@@ -527,6 +545,8 @@ def _day_detail_payload(rows: list[TeamOutputRow]) -> dict:
                     'code': item['code'],
                     'customer': item['customer'],
                     'product': item['product'],
+                    'image': item.get('image') or '',
+                    'images': item.get('images') or [],
                     'qty': format_sx_num(item['qty']),
                     'due': item['due'],
                     'url': item['url'],

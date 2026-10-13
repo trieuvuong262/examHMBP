@@ -111,6 +111,26 @@
   .jp-tr-day-modal .jp-tr-day-code { font-weight: 800; color: inherit; text-decoration: none; }
   .jp-tr-day-modal .jp-tr-day-code:hover { color: var(--hm-primary-dark, #b91c1c); }
   .jp-tr-day-modal .jp-tr-day-product { color: #334155; }
+  .jp-tr-day-photo {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+  }
+  button.jp-tr-day-photo { cursor: zoom-in; }
+  .jp-tr-day-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
   .jp-tr-day-empty { color: #64748b; }
   .jp-tr-grid td.jp-tr-sum.is-stack { padding: 0; }
 
@@ -225,11 +245,16 @@ document.addEventListener('DOMContentLoaded', function () {
     if (item.orders && item.orders.length) {
       html += '<div class="fw-bold mb-2">Cần làm (' + item.orders.length + ')</div>';
       html += '<div class="table-responsive"><table class="table table-sm align-middle mb-3"><thead><tr>';
-      html += '<th>Đơn</th><th>Khách</th><th>Sản phẩm</th><th class="text-end">SL</th><th>Hạn</th>';
+      html += '<th>Đơn</th><th>Khách</th><th></th><th>Sản phẩm</th><th class="text-end">SL</th><th>Hạn</th>';
       html += '</tr></thead><tbody>';
       item.orders.forEach(function (order) {
+        var images = order.images && order.images.length ? order.images : (order.image ? [order.image] : []);
+        var photo = images.length
+          ? '<button type="button" class="jp-tr-day-photo" data-sx-gallery data-sx-gallery-title="' + esc(order.product || order.code) + '" data-sx-gallery-images="' + esc(JSON.stringify(images)) + '"><img src="' + esc(images[0]) + '" alt=""></button>'
+          : '<span class="jp-tr-day-photo" aria-hidden="true"><i class="bi bi-image"></i></span>';
         html += '<tr><td><a class="jp-tr-day-code" href="' + esc(order.url) + '">' + esc(order.code) + '</a></td>';
         html += '<td>' + esc(order.customer || '—') + '</td>';
+        html += '<td>' + photo + '</td>';
         html += '<td class="jp-tr-day-product">' + esc(order.product || '—') + '</td>';
         html += '<td class="text-end fw-bold">' + esc(order.qty) + '</td>';
         html += '<td>' + esc(order.due || '—') + '</td></tr>';
