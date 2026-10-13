@@ -49,9 +49,9 @@
 
         <div class="card border-0 shadow-sm jp-rc-card">
           <div class="card-body p-3 p-md-4">
-            <div class="jp-rc-section-title"><span class="jp-rc-step-no">3</span>Hồ sơ &amp; ghi chú</div>
+            <div class="jp-rc-section-title"><span class="jp-rc-step-no">3</span>{% if editing %}Ghi chú{% else %}Hồ sơ &amp; ghi chú{% endif %}</div>
             <div class="row g-3">
-              {% include 'recruitment/includes/field.html' with field=form.files col='col-12' %}
+              {% if form.files %}{% include 'recruitment/includes/field.html' with field=form.files col='col-12' %}{% endif %}
               {% include 'recruitment/includes/field.html' with field=form.note col='col-12' %}
             </div>
           </div>
@@ -59,11 +59,22 @@
 
         <div class="jp-rc-actions">
           <button type="submit" class="btn btn-hm fw-bold px-4">
-            <i class="bi bi-{% if referral %}send{% else %}check-lg{% endif %}" aria-hidden="true"></i>{% if referral %}Gửi đề xuất{% else %}Lưu ứng viên{% endif %}
+            <i class="bi bi-{% if referral %}send{% else %}check-lg{% endif %}" aria-hidden="true"></i>{% if referral %}Gửi đề xuất{% elif editing %}Lưu thay đổi{% else %}Lưu ứng viên{% endif %}
           </button>
           <a href="{{ back_url }}" class="btn btn-outline-secondary">Hủy</a>
+          {% if editing and can_delete %}
+          <button type="submit" form="rcCandidateDelete" class="btn btn-link text-danger ms-auto">
+            <i class="bi bi-trash3" aria-hidden="true"></i>Xóa ứng viên
+          </button>
+          {% endif %}
         </div>
       </form>
+      {% if editing and can_delete %}
+      <form id="rcCandidateDelete" method="post" action="{% url 'candidate_delete' candidate.pk %}"
+            onsubmit="return confirm('Xóa hồ sơ ứng viên «{{ candidate.full_name|escapejs }}»?');">
+        {% csrf_token %}
+      </form>
+      {% endif %}
     </div>
   </div>
   {% endif %}

@@ -327,14 +327,9 @@ def add_candidate(job: JobPosting, data: CandidateInput, *, actor, referred_by=N
     job = JobPosting.objects.select_for_update().get(pk=job.pk)
     if not job.accepts_candidates:
         raise RecruitmentError(f'Vị trí «{job.title}» không nhận hồ sơ (chưa mở hoặc đã hết hạn).')
-    phone_digits = _digits(data.phone)
-    if not data.full_name.strip() or len(phone_digits) < 9:
+    if not data.full_name.strip() or len(_digits(data.phone)) < 9:
         raise RecruitmentError('Cần họ tên và số điện thoại hợp lệ.')
-    for other in job.candidates.only('phone', 'email'):
-        if _digits(other.phone) == phone_digits:
-            raise RecruitmentError(f'Số điện thoại {data.phone} đã nộp cho vị trí này.')
-        if data.email and other.email and other.email.lower() == data.email.lower():
-            raise RecruitmentError(f'Email {data.email} đã nộp cho vị trí này.')
+    _reject_duplicate_contact(job, phone=data.phone.strip(), email=(data.email or '').strip())
 
     candidate = Candidate.objects.create(
         job_posting=job,
@@ -343,6 +338,7 @@ def add_candidate(job: JobPosting, data: CandidateInput, *, actor, referred_by=N
         date_of_birth=data.date_of_birth,
         phone=data.phone.strip(),
         email=(data.email or '').strip(),
+        note=(data.note or '').strip(),
         source=data.source,
         referred_by=referred_by,
         status=C.STATUS_NEW,
@@ -356,10 +352,73 @@ def add_candidate(job: JobPosting, data: CandidateInput, *, actor, referred_by=N
     return candidate
 
 
+def profile_locked(candidate) -> bool:
+    """Đã onboard — hồ sơ tuyển dụng không sửa / xóa (nhân viên nằm ở Danh sách nhân viên)."""
+    return bool(candidate.employee_id) or candidate.status == C.STATUS_HIRED
+
+
+def _reject_duplicate_contact(job, *, phone: str, email: str, exclude_pk=None):
+    phone_digits = _digits(phone)
+    others = job.candidates.only('phone', 'email')
+    if exclude_pk:
+        others = others.exclude(pk=exclude_pk)
+    for other in others:
+        if _digits(other.phone) == phone_digits:
+            raise RecruitmentError(f'Số điện thoại {phone} đã nộp cho vị trí này.')
+        if email and other.email and other.email.lower() == email.lower():
+            raise RecruitmentError(f'Email {email} đã nộp cho vị trí này.')
+
+
+@transaction.atomic
+def update_candidate(candidate, job: JobPosting, data: CandidateInput, *, actor) -> Candidate:
+    candidate = Candidate.objects.select_for_update().get(pk=candidate.pk)
+    if profile_locked(candidate):
+        raise RecruitmentError('Ứng viên đã nhận việc — không sửa hồ sơ tuyển dụng.')
+    full_name = data.full_name.strip()
+    phone = data.phone.strip()
+    email = (data.email or '').strip()
+    note = (data.note or '').strip()
+    if not full_name or len(_digits(phone)) < 9:
+        raise RecruitmentError('Cần họ tên và số điện thoại hợp lệ.')
+    job = JobPosting.objects.select_for_update().get(pk=job.pk)
+    if job.pk != candidate.job_posting_id and not job.accepts_candidates:
+        raise RecruitmentError(f'Vị trí «{job.title}» không nhận hồ sơ (chưa mở hoặc đã hết hạn).')
+    _reject_duplicate_contact(job, phone=phone, email=email, exclude_pk=candidate.pk)
+
+    old_note = candidate.note
+    candidate.job_posting = job
+    candidate.full_name = full_name
+    candidate.gender = data.gender or ''
+    candidate.date_of_birth = data.date_of_birth
+    candidate.phone = phone
+    candidate.email = email
+    candidate.note = note
+    candidate.source = data.source or candidate.source
+    candidate.save(update_fields=[
+        'job_posting', 'full_name', 'gender', 'date_of_birth', 'phone', 'email', 'note', 'source',
+    ])
+    if note != old_note:
+        _log(
+            candidate, CandidateEvent.KIND_NOTE, actor=actor,
+            message=note or 'Đã xóa ghi chú.',
+        )
+    return candidate
+
+
+@transaction.atomic
+def delete_candidate(candidate):
+    candidate = Candidate.objects.select_for_update().get(pk=candidate.pk)
+    if profile_locked(candidate):
+        raise RecruitmentError('Ứng viên đã nhận việc — không xóa hồ sơ tuyển dụng.')
+    candidate.delete()
+
+
 def add_note(candidate, message: str, *, actor):
     message = (message or '').strip()
     if not message:
         raise RecruitmentError('Ghi chú trống.')
+    candidate.note = message
+    candidate.save(update_fields=['note'])
     return _log(candidate, CandidateEvent.KIND_NOTE, actor=actor, message=message)
 
 

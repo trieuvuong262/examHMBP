@@ -12,6 +12,16 @@
     </div>
     <div class="jp-rc-tools">
       {% include 'recruitment/includes/cv_button.html' with f=candidate.primary_file label='Xem CV' cls='btn btn-hm btn-sm fw-bold' %}
+      {% if can_edit %}
+      <a href="{% url 'candidate_edit' candidate.pk %}" class="btn btn-outline-hm btn-sm fw-bold"><i class="bi bi-pencil" aria-hidden="true"></i>Sửa</a>
+      {% endif %}
+      {% if can_delete_candidate %}
+      <form method="post" action="{% url 'candidate_delete' candidate.pk %}" class="d-inline"
+            onsubmit="return confirm('Xóa hồ sơ ứng viên {{ candidate.full_name|escapejs }}?');">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline-danger btn-sm fw-bold"><i class="bi bi-trash3" aria-hidden="true"></i>Xóa</button>
+      </form>
+      {% endif %}
       {% if manager_view %}
       <a href="{% url 'recruitment_review_list' %}" class="btn btn-light btn-sm border"><i class="bi bi-arrow-left"></i>Đánh giá ứng viên</a>
       {% else %}
@@ -30,6 +40,7 @@
             <dt>Ngày sinh</dt><dd>{{ candidate.date_of_birth|date:"d/m/Y"|default:"—" }}</dd>
             <dt>Số điện thoại</dt><dd>{{ candidate.phone }}</dd>
             <dt>Email</dt><dd>{{ candidate.email|default:"—" }}</dd>
+            <dt>Ghi chú</dt><dd style="white-space: pre-line;">{{ candidate.note|default:"—" }}</dd>
             <dt>Nguồn hồ sơ</dt>
             <dd>
               {{ candidate.source_label }}

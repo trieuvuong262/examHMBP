@@ -16,6 +16,7 @@ from .models import (
     Interview,
     InterviewLocation,
     JobPosting,
+    source_labels,
 )
 
 MIN_WORKING_AGE = 15
@@ -280,18 +281,23 @@ class CandidateForm(forms.Form):
     files = MultipleFileField(label='CV / hồ sơ (PDF, Word, ảnh)')
     note = forms.CharField(label='Ghi chú', required=False, widget=forms.Textarea(attrs={**_ctl(), 'rows': 3}))
 
-    def __init__(self, *args, jobs=None, referral=False, **kwargs):
+    def __init__(self, *args, jobs=None, referral=False, editing=False, current_source='', **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['job_posting'].queryset = jobs if jobs is not None else JobPosting.objects.none()
+        if editing:
+            del self.fields['files']
         if referral:
             # Quản lý đề xuất — nguồn cố định; HR bổ sung giới tính khi onboard.
             del self.fields['source']
             self.fields['gender'].required = False
         else:
             # Nguồn hệ thống (Quản lý đề xuất) chỉ gán tự động, HR không chọn.
-            self.fields['source'].choices = [('', '— Chọn nguồn hồ sơ —')] + list(
+            choices = [('', '— Chọn nguồn hồ sơ —')] + list(
                 CandidateSource.objects.filter(is_active=True, is_system=False).values_list('code', 'name')
             )
+            if current_source and current_source not in {code for code, _label in choices}:
+                choices.append((current_source, source_labels().get(current_source, current_source)))
+            self.fields['source'].choices = choices
 
     def clean_date_of_birth(self):
         return _validate_dob(self.cleaned_data.get('date_of_birth'))

@@ -238,6 +238,7 @@
           <div class="card-body py-2">
             <div class="jp-rc-kv"><span class="jp-rc-kv-label">Số điện thoại</span><a class="jp-rc-kv-value" href="tel:{{ candidate.phone }}">{{ candidate.phone }}</a></div>
             <div class="jp-rc-kv"><span class="jp-rc-kv-label">Email</span><span class="jp-rc-kv-value text-break">{{ candidate.email|default:"—" }}</span></div>
+            <div class="jp-rc-kv"><span class="jp-rc-kv-label">Ghi chú</span><span class="jp-rc-kv-value" style="white-space: pre-line;">{{ candidate.note|default:"—" }}</span></div>
             <div class="jp-rc-kv"><span class="jp-rc-kv-label">Giới tính</span><span class="jp-rc-kv-value">{{ candidate.get_gender_display|default:"—" }}</span></div>
             <div class="jp-rc-kv"><span class="jp-rc-kv-label">Ngày sinh</span><span class="jp-rc-kv-value">{{ candidate.date_of_birth|date:"d/m/Y"|default:"—" }}</span></div>
             <div class="jp-rc-kv"><span class="jp-rc-kv-label">Nguồn hồ sơ</span>

@@ -674,18 +674,18 @@ def export_candidates_excel(request):
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = 'Ung vien'
-    ws.append(['Họ tên', 'SĐT', 'Email', 'Vị trí', 'Phòng ban', 'Nguồn', 'Trạng thái',
+    ws.append(['Họ tên', 'SĐT', 'Email', 'Ghi chú', 'Vị trí', 'Phòng ban', 'Nguồn', 'Trạng thái',
                'Đề xuất PV / đánh giá', 'Lịch PV', 'Kết quả PV', 'Ngày nộp', 'Lý do'])
     for c in qs:
         inv = c.interview_or_none
         ws.append([
-            c.full_name, c.phone, c.email, c.job_posting.title, c.job_posting.department_label,
+            c.full_name, c.phone, c.email, c.note, c.job_posting.title, c.job_posting.department_label,
             c.source_label, c.get_status_display(), f'{c.n_recommend}/{c.n_reviews}',
             inv.time_range_label if inv else '',
             inv.get_result_display() if inv else '',
             timezone.localtime(c.applied_at).strftime('%d/%m/%Y'), c.reject_reason,
         ])
-    for col, width in zip('ABCDEFGHIJKL', (26, 14, 26, 28, 26, 16, 20, 12, 18, 14, 12, 36)):
+    for col, width in zip('ABCDEFGHIJKLM', (26, 14, 26, 36, 28, 26, 16, 20, 12, 18, 14, 12, 36)):
         ws.column_dimensions[col].width = width
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = f'attachment; filename="ung_vien_{timezone.localdate():%Y%m%d}.xlsx"'
@@ -753,6 +753,76 @@ def add_candidate(request):
     })
 
 
+def _edit_jobs(request, candidate):
+    """Vị trí đang tuyển trong phạm vi, luôn giữ vị trí hiện tại để form không mất lựa chọn."""
+    open_ids = _open_jobs().filter(visible_jobs_q(request.user)).values('pk')
+    return (
+        JobPosting.objects.filter(Q(pk__in=open_ids) | Q(pk=candidate.job_posting_id))
+        .select_related('target_department', 'target_division')
+        .order_by('title')
+    )
+
+
+@module_perm_required(MODULE_RECRUITMENT, 'update')
+def candidate_edit(request, pk):
+    candidate = _get_candidate(request, pk)
+    if services.profile_locked(candidate):
+        messages.error(request, 'Ứng viên đã nhận việc — không sửa hồ sơ tuyển dụng.')
+        return redirect('candidate_detail', pk=pk)
+    jobs = _edit_jobs(request, candidate)
+    initial = {
+        'job_posting': candidate.job_posting_id,
+        'source': candidate.source,
+        'full_name': candidate.full_name,
+        'gender': candidate.gender,
+        'date_of_birth': candidate.date_of_birth,
+        'phone': candidate.phone,
+        'email': candidate.email,
+        'note': candidate.note,
+    }
+    form = CandidateForm(
+        request.POST or None, jobs=jobs, editing=True,
+        current_source=candidate.source, initial=initial,
+    )
+    if request.method == 'POST' and form.is_valid():
+        d = form.cleaned_data
+        try:
+            services.update_candidate(
+                candidate, d['job_posting'],
+                services.CandidateInput(
+                    full_name=d['full_name'], phone=d['phone'], email=d['email'],
+                    gender=d['gender'], date_of_birth=d['date_of_birth'],
+                    note=d['note'], source=d['source'],
+                ),
+                actor=request.user,
+            )
+        except services.RecruitmentError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, f'Đã cập nhật ứng viên {d["full_name"].strip()}.')
+            return redirect('candidate_detail', pk=pk)
+    return render(request, 'recruitment/admin/candidate_form.html', {
+        'form': form, 'title': f'Sửa {candidate.full_name}', 'editing': True,
+        'back_url': reverse('candidate_detail', args=[pk]),
+        'has_jobs': jobs.exists(),
+        'candidate': candidate,
+        'can_delete': can_candidates(request.user, 'delete') and not services.profile_locked(candidate),
+    })
+
+
+@module_perm_required(MODULE_RECRUITMENT, 'delete')
+@require_POST
+def candidate_delete(request, pk):
+    candidate = _get_candidate(request, pk)
+    name = candidate.full_name
+    try:
+        services.delete_candidate(candidate)
+    except services.RecruitmentError as exc:
+        return _fail(request, exc, reverse('candidate_detail', args=[pk]))
+    messages.success(request, f'Đã xóa ứng viên {name}.')
+    return redirect('candidate_list')
+
+
 # ================================================================ Ứng viên — chi tiết & thao tác
 
 def _detail_context(request, candidate, *, manager_view=False, onboard_form=None):
@@ -785,6 +855,10 @@ def _detail_context(request, candidate, *, manager_view=False, onboard_form=None
         'my_review': my_review,
         'manager_view': manager_view,
         'can_update': can_update,
+        'can_edit': can_update and not services.profile_locked(candidate),
+        'can_delete_candidate': (
+            (not manager_view) and can_candidates(user, 'delete') and not services.profile_locked(candidate)
+        ),
         'targets': targets,
         'transition_form': TransitionForm(),
         'interview_locations': _interview_locations() if can_update else [],
