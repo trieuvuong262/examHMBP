@@ -209,7 +209,7 @@
 </div>
 {{ team_report.day_details|json_script:"jp-team-day-details" }}
 <div class="modal fade jp-tr-day-modal" id="jpTeamDayModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
         <div>
@@ -243,9 +243,8 @@ document.addEventListener('DOMContentLoaded', function () {
   function render(item) {
     var html = '';
     if (item.orders && item.orders.length) {
-      html += '<div class="fw-bold mb-2">Cần làm (' + item.orders.length + ')</div>';
-      html += '<div class="table-responsive"><table class="table table-sm align-middle mb-3"><thead><tr>';
-      html += '<th>Đơn</th><th>Khách</th><th></th><th>Sản phẩm</th><th class="text-end">SL</th><th>Hạn</th>';
+      html += '<div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr>';
+      html += '<th>Đơn</th><th>Khách</th><th></th><th>Sản phẩm</th><th class="text-end">SL</th><th class="text-end">Đã thực hiện</th><th>Hạn</th>';
       html += '</tr></thead><tbody>';
       item.orders.forEach(function (order) {
         var images = order.images && order.images.length ? order.images : (order.image ? [order.image] : []);
@@ -257,18 +256,12 @@ document.addEventListener('DOMContentLoaded', function () {
         html += '<td>' + photo + '</td>';
         html += '<td class="jp-tr-day-product">' + esc(order.product || '—') + '</td>';
         html += '<td class="text-end fw-bold">' + esc(order.qty) + '</td>';
+        html += '<td class="text-end fw-bold">' + esc(order.done || '0') + '</td>';
         html += '<td>' + esc(order.due || '—') + '</td></tr>';
       });
       html += '</tbody></table></div>';
     } else {
-      html += '<p class="jp-tr-day-empty mb-3">Không có đơn phân bổ cho tổ này trong ngày.</p>';
-    }
-    if (item.done_orders && item.done_orders.length) {
-      html += '<div class="fw-bold mb-2">Đã ghi nhận</div><ul class="mb-0">';
-      item.done_orders.forEach(function (row) {
-        html += '<li>' + esc(row.code) + ' · ' + esc(row.qty) + '</li>';
-      });
-      html += '</ul>';
+      html += '<p class="jp-tr-day-empty mb-0">Không có đơn phân bổ cho tổ này trong ngày.</p>';
     }
     return html;
   }

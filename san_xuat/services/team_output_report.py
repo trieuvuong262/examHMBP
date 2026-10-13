@@ -33,6 +33,7 @@ class TeamOutputCell:
     is_past: bool = False
     orders: list[tuple[str, Decimal]] = field(default_factory=list)
     plan_orders: list[dict] = field(default_factory=list)
+    actual_orders: list[dict] = field(default_factory=list)
 
     @property
     def has_value(self) -> bool:
@@ -333,6 +334,7 @@ def build_team_output_report(
     search: str = '',
     today: date | None = None,
 ) -> TeamOutputReport:
+    from django.urls import reverse
     from django.utils import timezone
 
     from san_xuat.services.goods_progress import _team_columns
@@ -395,6 +397,7 @@ def build_team_output_report(
 
     qty: dict[str, dict[date, Decimal]] = {}
     orders: dict[str, dict[date, list[tuple[str, Decimal]]]] = {}
+    actuals: dict[str, dict[date, dict[str, dict]]] = {}
     team_mos: dict[str, set[int]] = {}
     for mo in mos:
         mo_steps = progress_steps_for_mo(mo)
@@ -423,9 +426,30 @@ def build_team_output_report(
             team_mos.setdefault(col.slug, set()).add(mo.pk)
             bucket = qty.setdefault(col.slug, {})
             ob = orders.setdefault(col.slug, {})
+            so = mo.sales_order
+            so_code = (so.code if so else '').strip()
             for day, v in per_day.items():
                 bucket[day] = bucket.get(day, ZERO) + v
                 ob.setdefault(day, []).append((mo.code, v))
+                if not so_code:
+                    continue
+                day_actual = actuals.setdefault(col.slug, {}).setdefault(day, {})
+                hit = day_actual.get(so_code)
+                if hit is None:
+                    product = ' '.join(
+                        part for part in ((mo.product_code or '').strip(), (mo.product_name or '').strip()) if part
+                    )
+                    day_actual[so_code] = {
+                        'code': so_code,
+                        'customer': (so.customer_name or '').strip(),
+                        'product': product,
+                        'product_code': (mo.product_code or '').strip(),
+                        'qty': v,
+                        'due': so.due_date.strftime('%d/%m/%Y') if so.due_date else '',
+                        'url': reverse('san_xuat:sales_order_detail', args=[so.pk]),
+                    }
+                else:
+                    hit['qty'] = hit['qty'] + v
 
     plans, stage_plans, plan_orders = _plan_by_team_day(teams, date_from=date_from, date_to=date_to)
     from san_xuat.services.team_stage_colors import team_stage_palette
@@ -466,6 +490,7 @@ def build_team_output_report(
                 is_past=day <= today,
                 orders=sorted(t_orders.get(day, []), key=lambda t: -t[1]),
                 plan_orders=sorted(t_plan_orders.get(day, []), key=lambda item: item['code']),
+                actual_orders=list(actuals.get(col.slug, {}).get(day, {}).values()),
             )
             row.cells.append(cell)
             stage.day_totals[i] += v
@@ -532,15 +557,26 @@ _WD_VN = ('Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Ch�
 
 def _day_detail_payload(rows: list[TeamOutputRow]) -> dict:
     """JSON cho modal: bấm một ngày của một tổ → các đơn cần làm ngày đó."""
+    from san_xuat.services.products import product_gallery_map
     from san_xuat.templatetags.sx_format import format_sx_num
 
+    extra_codes = [
+        item.get('product_code') or ''
+        for row in rows
+        for cell in row.cells
+        for item in cell.actual_orders
+        if item['code'] not in {plan['code'] for plan in cell.plan_orders}
+    ]
+    galleries = product_gallery_map(extra_codes) if extra_codes else {}
     payload: dict[str, dict] = {}
     for row in rows:
         for cell in row.cells:
-            if not cell.plan_orders and not cell.orders:
+            if not cell.plan_orders and not cell.actual_orders:
                 continue
+            done_left = {item['code']: item for item in cell.actual_orders}
             orders = []
             for item in cell.plan_orders:
+                done = done_left.pop(item['code'], None)
                 orders.append({
                     'code': item['code'],
                     'customer': item['customer'],
@@ -548,13 +584,23 @@ def _day_detail_payload(rows: list[TeamOutputRow]) -> dict:
                     'image': item.get('image') or '',
                     'images': item.get('images') or [],
                     'qty': format_sx_num(item['qty']),
+                    'done': format_sx_num(done['qty'] if done else 0),
                     'due': item['due'],
                     'url': item['url'],
                 })
-            done = [
-                {'code': code, 'qty': format_sx_num(qty)}
-                for code, qty in cell.orders
-            ]
+            for item in sorted(done_left.values(), key=lambda hit: hit['code']):
+                urls = galleries.get((item.get('product_code') or '').casefold()) or []
+                orders.append({
+                    'code': item['code'],
+                    'customer': item['customer'],
+                    'product': item['product'],
+                    'image': urls[0] if urls else '',
+                    'images': urls[:6],
+                    'qty': format_sx_num(0),
+                    'done': format_sx_num(item['qty']),
+                    'due': item['due'],
+                    'url': item['url'],
+                })
             payload[f'{row.slug}|{cell.day.isoformat()}'] = {
                 'team': row.label,
                 'date': cell.day.strftime('%d/%m/%Y'),
@@ -562,7 +608,6 @@ def _day_detail_payload(rows: list[TeamOutputRow]) -> dict:
                 'plan': format_sx_num(cell.plan or 0),
                 'done': format_sx_num(cell.qty),
                 'orders': orders,
-                'done_orders': done,
             }
     return payload
 
