@@ -219,6 +219,11 @@ class CandidateCvNasStorage(FileSystemStorage):
                 pass
             return
         remove_pending(name)
+        cache = _rclone_cache_path(name)
+        try:
+            cache.unlink(missing_ok=True)
+        except OSError:
+            pass
         from nas_storage.nas_mount_health import mount_io_safe
 
         path = cv_nas_abs_root() / name

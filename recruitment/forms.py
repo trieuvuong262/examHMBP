@@ -285,7 +285,12 @@ class CandidateForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.fields['job_posting'].queryset = jobs if jobs is not None else JobPosting.objects.none()
         if editing:
-            del self.fields['files']
+            self.fields['files'].label = 'Thêm CV / hồ sơ (PDF, Word, ảnh)'
+            self.fields['kind'] = forms.ChoiceField(
+                label='Loại file', required=False,
+                widget=forms.Select(attrs={'class': 'form-select'}),
+                choices=list(CandidateFileKind.objects.filter(is_active=True).values_list('code', 'name')),
+            )
         if referral:
             # Quản lý đề xuất — nguồn cố định; HR bổ sung giới tính khi onboard.
             del self.fields['source']

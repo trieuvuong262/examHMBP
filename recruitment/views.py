@@ -781,7 +781,7 @@ def candidate_edit(request, pk):
         'note': candidate.note,
     }
     form = CandidateForm(
-        request.POST or None, jobs=jobs, editing=True,
+        request.POST or None, request.FILES or None, jobs=jobs, editing=True,
         current_source=candidate.source, initial=initial,
     )
     if request.method == 'POST' and form.is_valid():
@@ -796,6 +796,11 @@ def candidate_edit(request, pk):
                 ),
                 actor=request.user,
             )
+            if d.get('files'):
+                services.attach_files(
+                    candidate, d['files'], actor=request.user,
+                    kind=d.get('kind') or '', request=request,
+                )
         except services.RecruitmentError as exc:
             messages.error(request, str(exc))
         else:
@@ -806,6 +811,7 @@ def candidate_edit(request, pk):
         'back_url': reverse('candidate_detail', args=[pk]),
         'has_jobs': jobs.exists(),
         'candidate': candidate,
+        'files': list(candidate.files.all()),
         'can_delete': can_candidates(request.user, 'delete') and not services.profile_locked(candidate),
     })
 
@@ -847,8 +853,9 @@ def _detail_context(request, candidate, *, manager_view=False, onboard_form=None
     return {
         'candidate': candidate,
         'files': list(candidate.files.all()),
-        'file_form': CandidateFileForm() if can_manage_files else None,
-        'can_delete_files': can_update,
+        # Tải lên / xóa file nằm ở trang Sửa. Trang chi tiết chỉ xem và tải về.
+        'file_form': CandidateFileForm() if (manager_view and can_manage_files) else None,
+        'can_delete_files': False,
         'interview': interview,
         'reviews': reviews,
         'review_form': review_form,
@@ -1037,7 +1044,7 @@ def candidate_file_delete(request, pk, file_pk):
     obj = get_object_or_404(CandidateFile, pk=file_pk, candidate__in=_cands(request).filter(pk=pk))
     services.remove_file(obj, actor=request.user)
     messages.success(request, f'Đã xóa file {obj.original_name}.')
-    return redirect('candidate_detail', pk=pk)
+    return redirect(_safe_next(request, reverse('candidate_detail', args=[pk])))
 
 
 # ================================================================ Lịch phỏng vấn

@@ -49,9 +49,30 @@
 
         <div class="card border-0 shadow-sm jp-rc-card">
           <div class="card-body p-3 p-md-4">
-            <div class="jp-rc-section-title"><span class="jp-rc-step-no">3</span>{% if editing %}Ghi chú{% else %}Hồ sơ &amp; ghi chú{% endif %}</div>
+            <div class="jp-rc-section-title"><span class="jp-rc-step-no">3</span>Hồ sơ &amp; ghi chú</div>
+            {% if editing %}
+            <ul class="list-group mb-3">
+              {% for f in files %}
+              <li class="list-group-item d-flex align-items-center gap-2">
+                <i class="bi {{ f.icon }} fs-5 text-muted" aria-hidden="true"></i>
+                <div class="flex-grow-1 min-w-0">
+                  <div class="fw-semibold text-truncate">{{ f.original_name }}</div>
+                  <div class="small text-muted">{{ f.kind_label }} · {{ f.size|filesizeformat }}</div>
+                </div>
+                <button type="submit" form="rcFileDelete{{ f.pk }}" class="btn btn-link text-danger btn-sm p-1" title="Xóa" aria-label="Xóa {{ f.original_name }}"><i class="bi bi-x-lg"></i></button>
+              </li>
+              {% empty %}
+              <li class="list-group-item small text-muted">Chưa có CV.</li>
+              {% endfor %}
+            </ul>
+            {% endif %}
             <div class="row g-3">
-              {% if form.files %}{% include 'recruitment/includes/field.html' with field=form.files col='col-12' %}{% endif %}
+              {% if form.kind %}
+              {% include 'recruitment/includes/field.html' with field=form.kind col='col-md-4' %}
+              {% include 'recruitment/includes/field.html' with field=form.files col='col-md-8' %}
+              {% elif form.files %}
+              {% include 'recruitment/includes/field.html' with field=form.files col='col-12' %}
+              {% endif %}
               {% include 'recruitment/includes/field.html' with field=form.note col='col-12' %}
             </div>
           </div>
@@ -69,6 +90,15 @@
           {% endif %}
         </div>
       </form>
+      {% if editing %}
+      {% for f in files %}
+      <form id="rcFileDelete{{ f.pk }}" method="post" action="{% url 'candidate_file_delete' candidate.pk f.pk %}"
+            onsubmit="return confirm('Xóa file {{ f.original_name|escapejs }}?');">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{% url 'candidate_edit' candidate.pk %}">
+      </form>
+      {% endfor %}
+      {% endif %}
       {% if editing and can_delete %}
       <form id="rcCandidateDelete" method="post" action="{% url 'candidate_delete' candidate.pk %}"
             onsubmit="return confirm('Xóa hồ sơ ứng viên «{{ candidate.full_name|escapejs }}»?');">
