@@ -76,16 +76,6 @@ TABS = (
 )
 TAB_KEYS = {t[0] for t in TABS}
 
-QUICK_FILTERS = (
-    ('', 'Tất cả'),
-    ('in_progress', 'Đang phát triển'),
-    ('waiting_approval', 'Chờ duyệt'),
-    ('mine', 'Chờ tôi xử lý'),
-    ('overdue', 'Quá hạn'),
-    ('done', 'Đã bàn giao / đóng'),
-    ('stopped', 'Tạm dừng / hủy'),
-)
-
 
 def _deny(request, menu: str):
     return handle_menu_access_denied(request, M, menu)
@@ -95,7 +85,7 @@ def _dossier_qs():
     return ProductDevelopment.objects.select_related(
         'proposer__profile', 'owner__profile', 'approver__profile', 'designer__profile',
         'technician__profile', 'sample_maker__profile', 'qa_user__profile', 'costing_user__profile',
-        'approved_design_version', 'final_sample_version',
+        'approved_design_version', 'final_sample_version', 'product_type',
     )
 
 
@@ -208,7 +198,14 @@ def dossier_list(request):
 
     params = g.copy()
     params.pop('page', None)
-    has_filters = any([q, statuses, quick, group, owner_id, approver_id, collection, date_from, date_to])
+    default_from, default_to = _default_list_range()
+    dates_are_default = (
+        date_kind == 'proposed' and date_from == default_from and date_to == default_to
+    )
+    has_filters = any([
+        q, statuses, quick, group, owner_id, approver_id, collection,
+        (g.get('span') or '').strip() == 'all',
+    ]) or (bool(date_from or date_to) and not dates_are_default)
     ctx = _common(
         request,
         page_obj=page,
@@ -221,10 +218,7 @@ def dossier_list(request):
         has_filters=has_filters,
         status_choices=Status.choices,
         group_choices=catalog.group_choices(),
-        collection_choices=_collection_choices(),
-        quick_filters=QUICK_FILTERS,
         owner_choices=_people_with('tksp_owned'),
-        approver_choices=_people_with('tksp_approving'),
         date_kind_choices=[(k, label) for k, (label, _f) in LIST_DATE_FIELDS.items()],
         filter_date_kind=date_kind, date_from=date_from, date_to=date_to,
         range_all=not (date_from or date_to),
@@ -248,16 +242,26 @@ def _parse_ymd(raw):
         return None
 
 
+LIST_DEFAULT_SPAN_DAYS = 10
+
+
+def _default_list_range():
+    date_to = timezone.localdate()
+    return date_range_from_span(date_to, LIST_DEFAULT_SPAN_DAYS), date_to
+
+
 def _list_date_range(g):
-    """Không chọn ngày = không lọc (xem tất cả)."""
+    """Mặc định 10 ngày theo ngày đề xuất. «Mọi thời gian» khi span=all."""
     kind = g.get('date_kind') if g.get('date_kind') in LIST_DATE_FIELDS else 'proposed'
     span = (g.get('span') or '').strip()
     if span == 'all':
         return kind, None, None
     date_from, date_to = _parse_ymd(g.get('from')), _parse_ymd(g.get('to'))
+    if not span and not date_from and not date_to:
+        return kind, *_default_list_range()
     if span.isdigit() and not (date_from or date_to):
         date_to = timezone.localdate()
-        date_from = date_range_from_span(date_to, parse_date_range_span(span))
+        date_from = date_range_from_span(date_to, parse_date_range_span(span, default=LIST_DEFAULT_SPAN_DAYS))
     if date_from and date_to and date_from > date_to:
         date_from, date_to = date_to, date_from
     return kind, date_from, date_to
@@ -338,12 +342,11 @@ def dossier_edit(request, pk):
         return redirect(dossier.get_absolute_url())
     form = f.DossierForm(request.POST or None, instance=dossier, user=user)
     if request.method == 'POST' and form.is_valid():
-        fields = _brief_fields(form)
         dossier.refresh_from_db()
         try:
             with transaction.atomic():
                 form.create_new_group()
-                wf.update_brief(dossier, user, fields=fields)
+                wf.update_brief(dossier, user, fields=_brief_fields(form))
             for upload in request.FILES.getlist('reference_files'):
                 wf.upload_attachment(dossier, user, uploaded_file=upload, kind=AttachmentKind.REFERENCE)
             if request.POST.get('submit_action') == 'submit':
@@ -531,7 +534,7 @@ def dossier_detail(request, pk):
         evaluation_form=f.EvaluationForm(allowed_roles=eval_roles) if eval_roles else None,
         costing_form=f.CostingForm(instance=dossier) if flags['edit_costing'] else None,
         roles_form=f.RolesForm(dossier=dossier) if flags['edit_roles'] else None,
-        handover_form=f.HandoverForm(style_types=wf.handover_style_types(dossier)) if flags['handover'] else None,
+        handover_form=f.HandoverForm() if flags['handover'] else None,
         condition_users=list(f.active_users()) if flags['decide_master'] else [],
         can_upload_dossier_other=wf.can_upload(dossier, user, AttachmentKind.OTHER),
         can_upload_reference=wf.can_upload(dossier, user, AttachmentKind.REFERENCE),
@@ -745,11 +748,10 @@ def _run_action(request, dossier: ProductDevelopment, action: str) -> tuple[str,
         return 'approval', 'Đã xác nhận hoàn thành điều kiện.'
 
     if action == 'handover':
-        form = f.HandoverForm(post, style_types=wf.handover_style_types(dossier))
+        form = f.HandoverForm(post)
         if not form.is_valid():
             raise wf.WorkflowError(_form_error_text(form))
-        record = wf.handover(dossier, user, note=form.cleaned_data['note'], due_at=due,
-                             product_type=form.cleaned_data.get('product_type'))
+        record = wf.handover(dossier, user, note=form.cleaned_data['note'], due_at=due)
         return 'overview', f'Đã bàn giao — Style {record.product_code} đã vào Thư viện.'
     if action == 'close':
         wf.close_dossier(dossier, user)

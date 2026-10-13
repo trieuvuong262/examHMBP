@@ -247,6 +247,7 @@ def current_main_task(dossier: ProductDevelopment) -> Task | None:
 BRIEF_REQUIRED = (
     ('name', 'tên sản phẩm'),
     ('product_group', 'nhóm sản phẩm'),
+    ('product_type', 'loại mã'),
     ('target_customer', 'khách hàng mục tiêu'),
     ('usage_need', 'nhu cầu sử dụng'),
     ('launch_date', 'ngày dự kiến ra mắt'),
@@ -991,7 +992,7 @@ def handover_style_types(dossier: ProductDevelopment) -> list:
     return list(catalog.types_in_group(dossier.product_group))
 
 
-def _library_style(dossier: ProductDevelopment, user, product_type=None):
+def _library_style(dossier: ProductDevelopment, user):
     from kho_san_pham.catalog_models import ProductStyle
     from kho_san_pham.choices import STYLE_SOURCE_DESIGN, STYLE_SOURCE_KIOTVIET
 
@@ -1006,12 +1007,14 @@ def _library_style(dossier: ProductDevelopment, user, product_type=None):
             style.name = dossier.name[:500]
         style.save()
         return style
+    product_type = dossier.product_type if dossier.product_type_id else None
     types = handover_style_types(dossier)
     if product_type is None and len(types) == 1:
         product_type = types[0]
     _require(product_type is not None,
              f'Nhóm «{dossier.product_group or "—"}» '
-             + ('chưa có loại mã trong Thiết lập mã.' if not types else 'có nhiều loại mã — chọn Loại mã.'))
+             + ('chưa có loại mã trong Thiết lập mã.' if not types
+                else 'có nhiều loại mã — chọn Loại mã trên đề xuất.'))
     _require(product_type in types, 'Loại mã không thuộc nhóm hàng của hồ sơ.')
     return ProductStyle.objects.create(
         code=code, product_type=product_type, name=dossier.name[:500], year=timezone.localdate().year,
@@ -1019,7 +1022,7 @@ def _library_style(dossier: ProductDevelopment, user, product_type=None):
     )
 
 
-def handover(dossier: ProductDevelopment, user, *, note: str = '', due_at=None, product_type=None):
+def handover(dossier: ProductDevelopment, user, *, note: str = '', due_at=None):
     """Bàn giao vào Thư viện: tạo Style nguồn Thiết kế. Sản xuất chỉ nhận khi Thư viện chuyển sang."""
     _require(dossier.status == Status.APPROVED, 'Hồ sơ chưa được duyệt sản xuất hoặc đã bàn giao.')
     _require(perms.can_work_as(dossier, user, Role.OWNER, Role.TECHNICIAN),
@@ -1030,7 +1033,7 @@ def handover(dossier: ProductDevelopment, user, *, note: str = '', due_at=None, 
     _require(not conflict, conflict)
     due_at = due_at or sla.due_at_for(Status.HANDED_OVER)
     with transaction.atomic():
-        style = _library_style(dossier, user, product_type)
+        style = _library_style(dossier, user)
         record = Handover.objects.create(
             dossier=dossier, product_code=style.code,
             design_version=dossier.approved_design_version, sample_version=dossier.final_sample_version,

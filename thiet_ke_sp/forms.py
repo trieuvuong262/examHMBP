@@ -7,6 +7,8 @@ from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.utils import timezone
 
+from kho_san_pham.catalog_models import ProductType as CatalogType
+
 from . import catalog
 from . import permissions as perms
 from .models import (
@@ -144,6 +146,21 @@ class RoleFieldsMixin:
 NEW_GROUP = '__new__'
 
 
+class _TypeSelect(forms.Select):
+    """Mỗi option mang nhóm hàng để form lọc loại mã theo nhóm đang chọn."""
+
+    def __init__(self, *args, groups=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.groups = groups or {}
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex=subindex, attrs=attrs)
+        group = self.groups.get(str(option['value']))
+        if group:
+            option['attrs']['data-group'] = group
+        return option
+
+
 class DossierForm(RoleFieldsMixin, forms.ModelForm):
     new_group_code = forms.CharField(
         required=False, max_length=16, label='Mã nhóm mới',
@@ -157,7 +174,7 @@ class DossierForm(RoleFieldsMixin, forms.ModelForm):
     class Meta:
         model = ProductDevelopment
         fields = [
-            'name', 'product_group', 'collection', 'priority', 'launch_date',
+            'name', 'product_group', 'product_type', 'collection', 'priority', 'launch_date',
             'target_customer', 'usage_need', 'market_need', 'expected_qty',
             'target_wholesale_price', 'target_retail_price', 'target_cost',
             'reference_links', 'description',
@@ -190,6 +207,21 @@ class DossierForm(RoleFieldsMixin, forms.ModelForm):
             choices=[('', '— Chọn nhóm —'), *group_choices, (NEW_GROUP, '+ Thêm nhóm mới…')],
             widget=forms.Select(attrs=_SELECT),
         )
+        type_qs = CatalogType.objects.filter(is_active=True)
+        if instance.pk and instance.product_type_id:
+            type_qs = CatalogType.objects.filter(Q(is_active=True) | Q(pk=instance.product_type_id))
+        type_qs = type_qs.order_by('sort_order', 'code')
+        self.fields['product_type'] = forms.ModelChoiceField(
+            label='Loại mã (Style trong Thư viện)',
+            queryset=type_qs,
+            required=False,
+            empty_label='— Chọn loại mã —',
+            widget=_TypeSelect(
+                attrs=_SELECT,
+                groups={str(t.pk): catalog.group_code(t.code) for t in type_qs},
+            ),
+        )
+        self.fields['product_type'].label_from_instance = lambda t: f'{t.code} — {t.name}'
         self.new_group = None
         current = {role: getattr(instance, f'{role}_id') for role in DOSSIER_ROLE_FIELDS}
         self._add_role_fields(current)
@@ -202,25 +234,37 @@ class DossierForm(RoleFieldsMixin, forms.ModelForm):
 
     def clean(self):
         data = super().clean()
-        if data.get('product_group') != NEW_GROUP:
+        group = data.get('product_group')
+        if group == NEW_GROUP:
+            code = catalog.normalize_group_code(data.get('new_group_code'))
+            name = (data.get('new_group_name') or '').strip()
+            if not catalog.GROUP_CODE_RE.match(code):
+                self.add_error('new_group_code', 'Mã nhóm 2–16 ký tự, chỉ gồm chữ không dấu và số (không dùng «-»).')
+            elif catalog.group_exists(code):
+                self.add_error('new_group_code', f'Nhóm {code} đã có — chọn trong danh sách.')
+            if not name:
+                self.add_error('new_group_name', 'Nhập tên nhóm mới.')
+            data['product_type'] = None
+            if 'product_type' in self._errors:
+                del self._errors['product_type']
+            if not self.errors:
+                self.new_group = (code, name)
+                data['product_group'] = code
             return data
-        code = catalog.normalize_group_code(data.get('new_group_code'))
-        name = (data.get('new_group_name') or '').strip()
-        if not catalog.GROUP_CODE_RE.match(code):
-            self.add_error('new_group_code', 'Mã nhóm 2–16 ký tự, chỉ gồm chữ không dấu và số (không dùng «-»).')
-        elif catalog.group_exists(code):
-            self.add_error('new_group_code', f'Nhóm {code} đã có — chọn trong danh sách.')
-        if not name:
-            self.add_error('new_group_name', 'Nhập tên nhóm mới.')
-        if not self.errors:
-            self.new_group = (code, name)
-            data['product_group'] = code
+        ptype = data.get('product_type')
+        if not ptype:
+            self.add_error('product_type', 'Chọn loại mã.')
+        elif group and catalog.group_code(ptype.code) != catalog.normalize_group_code(group):
+            self.add_error('product_type', 'Loại mã không thuộc nhóm đã chọn.')
         return data
 
     def create_new_group(self) -> None:
         """Gọi sau is_valid(): thêm nhóm mới vào danh mục Loại mã nếu người dùng chọn «Thêm nhóm mới»."""
-        if self.new_group:
-            catalog.create_group(*self.new_group)
+        if not self.new_group:
+            return
+        code, name = self.new_group
+        catalog.create_group(code, name)
+        self.cleaned_data['product_type'] = CatalogType.objects.get(code=code)
 
 
 class RolesForm(RoleFieldsMixin, forms.Form):
@@ -302,16 +346,6 @@ class CostingForm(forms.ModelForm):
 
 class HandoverForm(forms.Form):
     note = forms.CharField(required=False, label='Nội dung bàn giao', widget=_textarea(3))
-
-    def __init__(self, *args, style_types=(), **kwargs):
-        super().__init__(*args, **kwargs)
-        if len(style_types) > 1:
-            self.fields['product_type'] = forms.ModelChoiceField(
-                queryset=type(style_types[0]).objects.filter(pk__in=[t.pk for t in style_types]).order_by('code'),
-                label='Loại mã (Style trong Thư viện)', empty_label='— Chọn loại mã —',
-                widget=forms.Select(attrs={'class': 'form-select'}),
-            )
-            self.fields['product_type'].label_from_instance = lambda t: f'{t.code} — {t.name}'
 
 
 class RolePoolForm(forms.Form):

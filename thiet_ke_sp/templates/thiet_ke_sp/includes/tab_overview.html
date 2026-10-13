@@ -32,6 +32,7 @@
       <h3 class="tk-sub">Thông tin sản phẩm</h3>
       <div class="tk-field"><label>Mã hồ sơ</label><strong>{{ dossier.code }}</strong></div>
       <div class="tk-field"><label>Nhóm sản phẩm</label><strong>{{ dossier.get_product_group_display }}</strong></div>
+      <div class="tk-field"><label>Loại mã</label><strong>{{ dossier.product_type|default:'—' }}</strong></div>
       <div class="tk-field"><label>Mùa / bộ sưu tập</label><strong>{{ dossier.collection|default:'—' }}</strong></div>
       <div class="tk-field"><label>Khách hàng mục tiêu</label><strong>{{ dossier.target_customer|default:'—' }}</strong></div>
       <div class="tk-field"><label>Người đề xuất</label><strong>{{ dossier.proposer|uname }} · {{ dossier.proposed_date|date:'d/m/Y' }}</strong></div>

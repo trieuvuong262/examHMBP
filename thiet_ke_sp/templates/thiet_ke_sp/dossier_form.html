@@ -24,9 +24,10 @@
       <div class="row g-2">
         {% include 'thiet_ke_sp/includes/field.html' with field=form.name col='col-lg-8' req=True %}
         {% include 'thiet_ke_sp/includes/field.html' with field=form.priority col='col-lg-4' req=True %}
-        {% include 'thiet_ke_sp/includes/field.html' with field=form.product_group col='col-md-4' req=True %}
-        {% include 'thiet_ke_sp/includes/field.html' with field=form.collection col='col-md-4' %}
-        {% include 'thiet_ke_sp/includes/field.html' with field=form.target_customer col='col-md-4' req=True %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.product_group col='col-md-3' req=True %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.product_type col='col-md-3' req=True %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.collection col='col-md-3' %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.target_customer col='col-md-3' req=True %}
         <div class="col-12{% if form.product_group.value != '__new__' %} d-none{% endif %}" id="tk-new-group">
           <div class="row g-2">
             {% include 'thiet_ke_sp/includes/field.html' with field=form.new_group_code col='col-md-4' req=True %}
@@ -89,10 +90,34 @@
 (function () {
   var group = document.getElementById('{{ form.product_group.id_for_label }}');
   var box = document.getElementById('tk-new-group');
-  if (!group || !box) return;
+  var typeSelect = document.getElementById('{{ form.product_type.id_for_label }}');
+  var typeCol = typeSelect && typeSelect.closest('.col-md-3');
+  if (!group || !box || !typeSelect) return;
+  var typeOptions = Array.prototype.map.call(typeSelect.options, function (opt) {
+    return { value: opt.value, label: opt.text, group: opt.getAttribute('data-group') || '' };
+  }).filter(function (opt) { return opt.value; });
+  function syncTypes() {
+    var isNew = group.value === '__new__';
+    if (typeCol) typeCol.classList.toggle('d-none', isNew);
+    var selected = typeSelect.value;
+    var matches = (!isNew && group.value) ? typeOptions.filter(function (opt) { return opt.group === group.value; }) : [];
+    var placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = !group.value ? '— Chọn nhóm trước —' : (matches.length ? '— Chọn loại mã —' : '— Nhóm chưa có loại mã —');
+    typeSelect.replaceChildren(placeholder);
+    matches.forEach(function (opt) {
+      var el = document.createElement('option');
+      el.value = opt.value;
+      el.textContent = opt.label;
+      typeSelect.appendChild(el);
+    });
+    var keep = matches.some(function (opt) { return opt.value === selected; });
+    typeSelect.value = keep ? selected : (matches.length === 1 ? matches[0].value : '');
+  }
   function syncNewGroup() {
     var isNew = group.value === '__new__';
     box.classList.toggle('d-none', !isNew);
+    syncTypes();
     if (isNew) {
       var code = document.getElementById('{{ form.new_group_code.id_for_label }}');
       if (code && !code.value) code.focus();

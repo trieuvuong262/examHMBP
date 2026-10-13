@@ -8,14 +8,9 @@
   {% include 'thiet_ke_sp/includes/tksp_topbar.html' with tk_title='Hồ sơ phát triển sản phẩm' tk_active='list' tk_show_col_picker=True %}
 
   <form method="get" id="tkListFilter" class="tk-card tk-panel mb-3" role="search" aria-label="Bộ lọc hồ sơ">
-    <div class="tk-chips mb-3">
-      {% for val, label in quick_filters %}
-      <button type="submit" name="quick" value="{{ val }}" class="btn btn-sm fw-bold {% if filter_quick == val %}btn-hm text-white{% else %}btn-light border{% endif %}">{{ label }}</button>
-      {% endfor %}
-    </div>
     <input type="hidden" name="quick" value="{{ filter_quick }}" id="tkQuickHidden">
     {% if filter_statuses|length > 1 %}{% for s in filter_statuses %}<input type="hidden" name="status" value="{{ s }}" class="tk-multi-status">{% endfor %}{% endif %}
-    <div class="tk-toolbar">
+    <div class="tk-toolbar is-nowrap">
       <input type="search" id="tk-q" name="q" class="form-control form-control-sm tk-search" value="{{ filter_q }}" placeholder="Tìm mã, tên sản phẩm…" autocomplete="off" aria-label="Tìm kiếm">
       <select name="status" class="form-select form-select-sm tk-auto" aria-label="Giai đoạn" id="tk-status">
         <option value="">{% if filter_statuses|length > 1 %}{{ filter_statuses|length }} trạng thái{% else %}Tất cả trạng thái{% endif %}</option>
@@ -25,17 +20,9 @@
         <option value="">Tất cả nhóm</option>
         {% for val, label in group_choices %}<option value="{{ val }}" {% if filter_group == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
       </select>
-      <select name="collection" class="form-select form-select-sm tk-auto" aria-label="Mùa / bộ sưu tập">
-        <option value="">Tất cả mùa</option>
-        {% for c in collection_choices %}<option value="{{ c }}" {% if filter_collection == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
-      </select>
       <select name="owner" class="form-select form-select-sm tk-auto" aria-label="Phụ trách">
         <option value="">Mọi người phụ trách</option>
         {% for u in owner_choices %}<option value="{{ u.pk }}" {% if filter_owner == u.pk|stringformat:'s' %}selected{% endif %}>{{ u|uname }}</option>{% endfor %}
-      </select>
-      <select name="approver" class="form-select form-select-sm tk-auto" aria-label="Người duyệt">
-        <option value="">Mọi người duyệt</option>
-        {% for u in approver_choices %}<option value="{{ u.pk }}" {% if filter_approver == u.pk|stringformat:'s' %}selected{% endif %}>{{ u|uname }}</option>{% endfor %}
       </select>
       <select name="date_kind" class="form-select form-select-sm tk-date-kind" aria-label="Loại ngày">
         {% for val, label in date_kind_choices %}<option value="{{ val }}" {% if filter_date_kind == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
@@ -101,10 +88,6 @@
       if (el._flatpickr) el._flatpickr.config.onChange.push(onDate);
       else el.addEventListener('change', onDate);
     });
-  });
-  var hidden = document.getElementById('tkQuickHidden');
-  form.querySelectorAll('button[name="quick"]').forEach(function (btn) {
-    btn.addEventListener('click', function () { if (hidden) hidden.disabled = true; });
   });
   var status = document.getElementById('tk-status');
   if (status) status.addEventListener('change', function () {

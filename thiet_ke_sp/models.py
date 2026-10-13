@@ -173,6 +173,10 @@ class ProductDevelopment(models.Model):
         max_length=32, blank=True, default='', db_index=True, verbose_name='Nhóm sản phẩm',
         help_text='Mã nhóm trong danh mục Loại mã (SET-SC → SET).',
     )
+    product_type = models.ForeignKey(
+        'kho_san_pham.ProductType', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='tksp_dossiers', verbose_name='Loại mã (Style trong Thư viện)',
+    )
     collection = models.CharField(max_length=120, blank=True, default='', verbose_name='Bộ sưu tập / mùa bán hàng')
     target_customer = models.CharField(max_length=255, blank=True, default='', verbose_name='Khách hàng mục tiêu')
     usage_need = models.TextField(blank=True, default='', verbose_name='Nhu cầu sử dụng')
