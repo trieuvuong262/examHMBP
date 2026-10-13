@@ -30,7 +30,7 @@ from san_xuat.hub_models import (
 from san_xuat.services.dispatch import DispatchError, create_mo_from_bom
 from san_xuat.services.planning import PlanningError
 from san_xuat.services.order_routing import sales_order_line_routing, steps_dicts_from_order_line
-from san_xuat.templatetags.sx_format import format_sx_num_input
+from san_xuat.templatetags.sx_format import format_sx_num, format_sx_num_input
 
 _Q2 = Decimal('0.01')
 # Ca KHSX mặc định: 9 giờ 30 phút
@@ -424,6 +424,7 @@ class TeamKhsxSpan:
     planned_qty: Decimal = field(default_factory=lambda: Decimal('0'))
     member_labels: list[str] = field(default_factory=list)
     member_wc_ids: list[int] = field(default_factory=list)
+    buffer_days: int = 0
 
 
 @dataclass
@@ -600,31 +601,76 @@ def _buffer_from_flow_groups(groups) -> Decimal:
     return _q(total)
 
 
-def _hops_from_flow_groups(groups) -> list[dict]:
-    """Khoảng kiểm/VC giữa các tổ — dữ liệu modal chi tiết thời gian."""
-    rows = list(groups or [])
-    hops: list[dict] = []
-    for i, g in enumerate(rows[:-1]):
-        nxt = rows[i + 1]
-        from_lab = (getattr(g, 'team_label', None) or '').strip()
-        if not from_lab and getattr(g, 'process_names', None):
-            from_lab = g.process_names[0]
-        to_lab = (getattr(nxt, 'team_label', None) or '').strip()
-        if not to_lab and getattr(nxt, 'process_names', None):
-            to_lab = nxt.process_names[0]
-        count = _q(getattr(g, 'form_count_minutes', 0))
-        transfer = _q(getattr(g, 'form_transfer_minutes', 0))
-        hops.append({
-            'from': from_lab or '—',
-            'to': to_lab or '—',
-            'count': format_sx_num_input(count),
-            'transfer': format_sx_num_input(transfer),
-            'total': format_sx_num_input(count + transfer),
+def _calendar_work_days(minutes) -> int:
+    """Ngày làm việc của phút lịch sản xuất — làm tròn lên theo ca KHSX."""
+    from decimal import ROUND_CEILING
+
+    mins = max(_q(minutes), Decimal('0'))
+    if mins <= 0:
+        return 0
+    return int((mins / PLAN_SHIFT_MINUTES).to_integral_value(rounding=ROUND_CEILING))
+
+
+def _buffer_work_days(buffer_minutes) -> int:
+    """Kiểm/VC chỉ thêm ngày khi đủ một ca KHSX; phần lẻ nằm trong ngày chuyển."""
+    mins = max(_q(buffer_minutes), Decimal('0'))
+    return int((mins / PLAN_SHIFT_MINUTES).to_integral_value(rounding=ROUND_DOWN))
+
+
+def _team_work_days(prod_days: int, buffer_minutes, total_minutes) -> int:
+    days = max(0, int(prod_days or 0)) + _buffer_work_days(buffer_minutes)
+    if days <= 0 and _q(total_minutes) > 0:
+        return 1
+    return days
+
+
+def _schedule_work_days(start: date, days: int) -> tuple[date, date]:
+    from san_xuat.services.inter_step_times import schedule_span
+
+    if days <= 0:
+        return start, start
+    return schedule_span(
+        start=start,
+        lead_minutes=Decimal(int(days)) * PLAN_SHIFT_MINUTES,
+        minutes_per_day=PLAN_SHIFT_MINUTES,
+    )
+
+
+_WEEKDAY_SHORT = ('T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN')
+
+
+def _route_header_days(spans, *, due: date | None = None, max_days: int = 93) -> list[dict]:
+    """Cột ngày cho lộ trình modal chi tiết thời gian — đánh dấu ngày nghỉ xưởng."""
+    from san_xuat.services.work_calendar import holiday_dates, is_working_day, workdays_pattern
+
+    starts = [s.start for s in spans if s.start]
+    if not starts:
+        return []
+    lo = min(starts)
+    hi = max((s.end or s.start) for s in spans if s.start)
+    if hi < lo:
+        hi = lo
+    hi = min(hi, lo + timedelta(days=max_days - 1))
+    pattern = workdays_pattern()
+    holidays = holiday_dates(lo, hi)
+    today = timezone.localdate()
+    out: list[dict] = []
+    day = lo
+    while day <= hi:
+        out.append({
+            'iso': day.isoformat(),
+            'd': day.day,
+            'm': day.month,
+            'wd': _WEEKDAY_SHORT[day.weekday()],
+            'off': not is_working_day(day, pattern=pattern, holidays=holidays),
+            'today': day == today,
+            'due': bool(due and day == due),
         })
-    return hops
+        day += timedelta(days=1)
+    return out
 
 
-def format_order_duration(minutes: Decimal) -> tuple[str, int]:
+def format_order_duration(minutes: Decimal, *, work_days: int | None = None) -> tuple[str, int]:
     """Nhãn thời gian làm đơn: '16 giờ 29 phút · 3 ngày làm việc'."""
     from decimal import ROUND_CEILING
 
@@ -643,9 +689,10 @@ def format_order_duration(minutes: Decimal) -> tuple[str, int]:
     if not clock_parts:
         clock_parts.append('dưới 1 phút')
     clock = ' '.join(clock_parts)
-    per_day = PLAN_SHIFT_MINUTES
-    days = int((mins / per_day).to_integral_value(rounding=ROUND_CEILING))
-    days = max(1, days)
+    if work_days is not None:
+        days = max(1, int(work_days))
+    else:
+        days = max(1, int((mins / PLAN_SHIFT_MINUTES).to_integral_value(rounding=ROUND_CEILING)))
     if days == 1:
         return f'{clock} · 1 ngày làm việc', 1
     return f'{clock} · {days} ngày làm việc', days
@@ -906,12 +953,10 @@ def _labor_to_calendar_minutes(
 
 
 def _floor_daily_qty(raw: Decimal) -> Decimal:
-    """Làm tròn xuống SL/ngày: ≥100 thì xuống hàng trăm (627.25 → 600), không thì xuống số nguyên."""
+    """Làm tròn xuống SL/ngày theo số nguyên cái (627.25 → 627), tối thiểu 1."""
     raw = _q(raw)
     if raw <= 0:
         return Decimal('0')
-    if raw >= 100:
-        return (raw / Decimal('100')).to_integral_value(rounding=ROUND_DOWN) * Decimal('100')
     n = raw.to_integral_value(rounding=ROUND_DOWN)
     return n if n > 0 else Decimal('1')
 
@@ -926,7 +971,7 @@ def _smv_seconds_per_unit(labor_minutes: Decimal, qty: Decimal) -> Decimal:
 
 
 def _daily_qty_capacity(smv_seconds, headcount, hours, efficiency_pct) -> Decimal:
-    """SL/ngày = (số giờ × 3600 × hiệu suất / SMV) × số CN, làm tròn xuống hàng trăm."""
+    """SL/ngày = (số giờ × 3600 × hiệu suất / SMV) × số CN, làm tròn xuống số nguyên."""
     from san_xuat.hub_models import DEFAULT_WORK_HOURS_PER_DAY
 
     smv = _q(smv_seconds, '0.0001')
@@ -1127,6 +1172,9 @@ def _team_loads_from_order(
                 headcount=use_h, efficiency_pct=use_e,
             )
         buf = _q(hops.get(slug, Decimal('0')))
+        prod_days = n_days if n_days > 0 else _calendar_work_days(calendar)
+        buffer_days = _buffer_work_days(buf)
+        work_days = _team_work_days(prod_days, buf, calendar + buf)
         cap_min = _khsx_available_minutes(wc, headcount=use_h, efficiency_pct=use_e)
         wc_label = ''
         if wc is not None:
@@ -1148,6 +1196,8 @@ def _team_loads_from_order(
             'work_minutes': calendar,
             'buffer_minutes': buf,
             'minutes': _q(calendar + buf),
+            'buffer_days': buffer_days,
+            'work_days': work_days,
             'headcount': use_h,
             'efficiency_pct': _q(use_e),
             'catalog_headcount': catalog_h,
@@ -1201,7 +1251,7 @@ def team_khsx_spans(
     today: date | None = None,
 ) -> list[TeamKhsxSpan]:
     """Span KHSX từng tổ: mặc định nối tiếp; tổ đã kéo dùng planned_date độc lập (được chồng ngày)."""
-    from san_xuat.services.inter_step_times import schedule_span
+    from san_xuat.services.work_calendar import add_working_days
 
     loads = _team_loads_from_order(order, product_flows=product_flows)
     today = today or timezone.localdate()
@@ -1233,11 +1283,7 @@ def team_khsx_spans(
     cursor = anchor
     defaults: dict[str, tuple[date, date]] = {}
     for row in loads:
-        start, end = schedule_span(
-            start=cursor,
-            lead_minutes=row['minutes'],
-            minutes_per_day=PLAN_SHIFT_MINUTES,
-        )
+        start, end = _schedule_work_days(cursor, row['work_days'])
         defaults[row['slug']] = (start, end)
         cursor = _next_working_day_after(end)
 
@@ -1261,19 +1307,16 @@ def team_khsx_spans(
         slug = row['slug']
         is_pinned = slug in pinned
         start = pinned[slug] if is_pinned else defaults[slug][0]
+        buffer_days = int(row.get('buffer_days') or 0)
         day_rows = day_plans_by_slug.get(slug) or []
         pieces: list[TeamDayPiece] = []
         if day_rows:
             dates = [d.plan_date for d in day_rows if d.plan_date]
             if dates:
                 start = min(dates)
-                end = max(dates)
+                end = add_working_days(max(dates), buffer_days)
             else:
-                start, end = schedule_span(
-                    start=start,
-                    lead_minutes=row['minutes'],
-                    minutes_per_day=PLAN_SHIFT_MINUTES,
-                )
+                start, end = _schedule_work_days(start, row['work_days'])
             if len(day_rows) >= 2:
                 for dp in day_rows:
                     if not dp.plan_date:
@@ -1284,15 +1327,11 @@ def team_khsx_spans(
                         qty=qty,
                         qty_label=format_sx_num_input(qty) if qty > 0 else '0',
                     ))
-            dur_days = max(1, len(dates))
+            dur_days = max(1, len(dates)) + buffer_days
             dur_label = '1 ngày làm việc' if dur_days == 1 else f'{dur_days} ngày làm việc'
         else:
-            start, end = schedule_span(
-                start=start,
-                lead_minutes=row['minutes'],
-                minutes_per_day=PLAN_SHIFT_MINUTES,
-            )
-            dur_label, dur_days = format_order_duration(row['minutes'])
+            start, end = _schedule_work_days(start, row['work_days'])
+            dur_label, dur_days = format_order_duration(row['minutes'], work_days=row['work_days'])
         spans.append(TeamKhsxSpan(
             slug=slug,
             label=row['label'],
@@ -1318,6 +1357,7 @@ def team_khsx_spans(
             planned_qty=_q(row.get('qty') or 0),
             member_labels=list(row.get('member_labels') or []),
             member_wc_ids=list(row.get('member_wc_ids') or []),
+            buffer_days=buffer_days,
         ))
     return npl_spans + spans
 
@@ -1383,21 +1423,20 @@ def _last_team_day_plan(order: SxSalesOrder, slug: str) -> date | None:
 
 
 def _schedule_from_qty_or_minutes(span: TeamKhsxSpan, start: date) -> tuple[date, date]:
-    from san_xuat.services.inter_step_times import schedule_span
     from san_xuat.services.work_calendar import add_working_days, next_working_day
 
     start = next_working_day(start)
+    buffer_days = int(getattr(span, 'buffer_days', 0) or 0)
     qpd = _q(getattr(span, 'qty_per_day', 0) or 0)
     qty = _q(getattr(span, 'planned_qty', 0) or 0)
     if qpd > 0 and qty > 0:
         n = len(_auto_day_qty_rows(qty, qpd))
-        end = add_working_days(start, max(0, n - 1))
+        end = add_working_days(start, max(0, n - 1) + buffer_days)
         return start, end
-    return schedule_span(
-        start=start,
-        lead_minutes=span.minutes,
-        minutes_per_day=PLAN_SHIFT_MINUTES,
+    days = _team_work_days(
+        _calendar_work_days(span.work_minutes), span.buffer_minutes, span.minutes,
     )
+    return _schedule_work_days(start, days)
 
 
 def _rebase_team_day_plans(order: SxSalesOrder, slug: str, new_start: date) -> date | None:
@@ -1440,7 +1479,6 @@ def apply_auto_team_day_splits(
     origin_start: date | None = None,
 ) -> int:
     """Tự tách SL theo công suất ngày của tổ. Tách tay (modal Tách) vẫn sửa được."""
-    from san_xuat.services.inter_step_times import schedule_span
     from san_xuat.services.plan_order_npl import production_start_for_order
     from san_xuat.services.work_calendar import add_working_days, next_working_day
 
@@ -1487,17 +1525,16 @@ def apply_auto_team_day_splits(
         ]
         extra_qty = sum((_q(d.qty) for d in extras), Decimal('0'))
         primary_rows = [d for d in existing if d not in extras]
+        buffer_days = int(row.get('buffer_days') or 0)
         skip = bool(want) and slug != want
         if skip:
             if existing:
-                cursor = _next_working_day_after(existing[-1].plan_date)
+                cursor = _next_working_day_after(
+                    add_working_days(existing[-1].plan_date, buffer_days),
+                )
             else:
                 start = pinned.get(slug) or cursor
-                start, end = schedule_span(
-                    start=start,
-                    lead_minutes=row['minutes'],
-                    minutes_per_day=PLAN_SHIFT_MINUTES,
-                )
+                start, end = _schedule_work_days(start, row['work_days'])
                 cursor = _next_working_day_after(end)
             continue
         share_qty = qty_n - extra_qty
@@ -1505,7 +1542,9 @@ def apply_auto_team_day_splits(
             share_qty = Decimal('0')
         need = _auto_day_qty_rows(share_qty, qpd) if qpd > 0 and share_qty > 0 else []
         if primary_rows and not replace_existing:
-            cursor = _next_working_day_after(existing[-1].plan_date)
+            cursor = _next_working_day_after(
+                add_working_days(existing[-1].plan_date, buffer_days),
+            )
             continue
         if not need:
             cursor = pinned.get(slug) or cursor
@@ -1544,7 +1583,7 @@ def apply_auto_team_day_splits(
         existing_map[slug] = extras
         starts_to_pin[slug] = start
         written += 1
-        cursor = _next_working_day_after(assigned[-1][0])
+        cursor = _next_working_day_after(add_working_days(assigned[-1][0], buffer_days))
 
     if starts_to_pin:
         _clear_day_plan_cache(order)
@@ -2091,8 +2130,6 @@ def build_plan_board_rows(
             has_routing = any(
                 pf.flow_groups or pf.smv_minutes > 0 for pf in product_flows
             )
-        from san_xuat.services.inter_step_times import schedule_span
-
         team_spans = team_khsx_spans(
             order,
             product_flows=product_flows,
@@ -2104,8 +2141,10 @@ def build_plan_board_rows(
             work_min = _q(sum((s.work_minutes for s in prod_all), Decimal('0')))
             buffer_min = _q(sum((s.buffer_minutes for s in prod_all), Decimal('0')))
             cycle_min = _q(sum((s.minutes for s in prod_all), Decimal('0')))
+            cycle_days = sum(int(s.duration_work_days or 0) for s in prod_all)
         else:
             cycle_min = _q(work_min + buffer_min)
+            cycle_days = _team_work_days(_calendar_work_days(work_min), buffer_min, cycle_min)
         score, days_to_due, is_overdue = compute_score(
             order=order, cycle_minutes=cycle_min, today=today,
         )
@@ -2130,69 +2169,88 @@ def build_plan_board_rows(
         else:
             khsx_start = order.plan_start_date or order.request_date or today
             khsx_end = khsx_start
-            if cycle_min > 0:
-                khsx_start, khsx_end = schedule_span(
-                    start=khsx_start,
-                    lead_minutes=cycle_min,
-                    minutes_per_day=PLAN_SHIFT_MINUTES,
-                )
+            if cycle_days > 0:
+                khsx_start, khsx_end = _schedule_work_days(khsx_start, cycle_days)
         khsx_overrun = bool(order.due_date and khsx_end and khsx_end > order.due_date)
         eta = khsx_end
-        duration_label, duration_work_days = format_order_duration(cycle_min)
+        duration_label, duration_work_days = format_order_duration(cycle_min, work_days=cycle_days)
 
         def _fmt_date(d):
             return d.strftime('%d/%m/%Y') if d else ''
 
+        def _iso(d):
+            return d.isoformat() if d else ''
+
+        def _team_detail(ts: TeamKhsxSpan) -> dict:
+            total_days = int(ts.duration_work_days or 0)
+            buffer_days = int(getattr(ts, 'buffer_days', 0) or 0)
+            return {
+                'slug': ts.slug,
+                'label': ts.label,
+                'is_npl': ts.slug == 'npl',
+                'start': _fmt_date(ts.start),
+                'end': _fmt_date(ts.end),
+                'start_iso': _iso(ts.start),
+                'end_iso': _iso(ts.end),
+                'work_minutes': format_sx_num(ts.work_minutes, 2),
+                'buffer_minutes': format_sx_num(ts.buffer_minutes, 2),
+                'has_buffer': _q(ts.buffer_minutes) > 0,
+                'minutes': format_sx_num(ts.minutes, 2),
+                'duration_label': ts.duration_label,
+                'work_days': total_days,
+                'buffer_days': buffer_days,
+                'prod_days': max(0, total_days - buffer_days),
+                'labor_minutes': format_sx_num(ts.labor_minutes, 2),
+                'headcount': ts.headcount,
+                'efficiency_pct': format_sx_num(ts.efficiency_pct, 2),
+                'work_hours': format_sx_num(ts.work_hours_per_day, 2),
+                'smv_seconds': format_sx_num(ts.smv_seconds, 2),
+                'qty': format_sx_num(ts.planned_qty, 2),
+                'qty_per_day': format_sx_num(ts.qty_per_day, 2) if _q(ts.qty_per_day) > 0 else '',
+                'capacity_minutes_per_day': format_sx_num(ts.capacity_minutes_per_day, 2),
+                'splits': [
+                    {
+                        'date': _fmt_date(p.plan_date),
+                        'qty': format_sx_num(p.qty, 2),
+                    }
+                    for p in (ts.day_pieces or [])
+                ],
+            }
+
+        days_left = (order.due_date - khsx_end).days if order.due_date and khsx_end else None
         duration_detail = {
+            'route_days': _route_header_days(
+                [s for s in team_spans if s.slug != 'npl'],
+                due=order.due_date,
+            ),
             'code': order.code,
             'customer': (order.customer_name or '').strip(),
             'request': _fmt_date(order.request_date),
             'due': _fmt_date(order.due_date),
             'khsx_start': _fmt_date(khsx_start),
             'khsx_end': _fmt_date(khsx_end),
+            'overrun': khsx_overrun,
+            'due_slack_days': days_left,
             'shift_label': PLAN_SHIFT_LABEL,
-            'work_minutes': format_sx_num_input(work_min),
-            'buffer_minutes': format_sx_num_input(buffer_min),
-            'cycle_minutes': format_sx_num_input(cycle_min),
+            'work_minutes': format_sx_num(work_min, 2),
+            'buffer_minutes': format_sx_num(buffer_min, 2),
+            'cycle_minutes': format_sx_num(cycle_min, 2),
             'duration_label': duration_label,
             'work_days': duration_work_days,
             'npl_ready': _fmt_date(order.npl_ready_date),
             'npl_lead_days': int(order.npl_lead_days or 0),
             'npl_status': order.npl_status,
             'npl_short_count': int(order.npl_short_count or 0),
-            'teams': [
-                {
-                    'slug': ts.slug,
-                    'label': ts.label,
-                    'start': _fmt_date(ts.start),
-                    'end': _fmt_date(ts.end),
-                    'work_minutes': format_sx_num_input(ts.work_minutes),
-                    'buffer_minutes': format_sx_num_input(ts.buffer_minutes),
-                    'minutes': format_sx_num_input(ts.minutes),
-                    'duration_label': ts.duration_label,
-                    'labor_minutes': format_sx_num_input(ts.labor_minutes),
-                    'headcount': ts.headcount,
-                    'capacity_minutes_per_day': format_sx_num_input(ts.capacity_minutes_per_day),
-                    'splits': [
-                        {
-                            'date': _fmt_date(p.plan_date),
-                            'qty': p.qty_label,
-                        }
-                        for p in (ts.day_pieces or [])
-                    ],
-                }
-                for ts in team_spans
-            ],
+            'teams': [_team_detail(ts) for ts in team_spans],
             'products': [
                 {
                     'code': pf.product_code,
                     'name': pf.product_name,
-                    'qty': format_sx_num_input(pf.qty),
-                    'smv_min': format_sx_num_input(pf.smv_minutes),
-                    'smv_sec': format_sx_num_input(_q(pf.smv_minutes * Decimal('60'))),
-                    'work_minutes': format_sx_num_input(pf.work_minutes),
-                    'buffer_minutes': format_sx_num_input(pf.buffer_minutes),
-                    'hops': _hops_from_flow_groups(pf.flow_groups),
+                    'qty': format_sx_num(pf.qty, 2),
+                    'smv_min': format_sx_num(pf.smv_minutes, 2),
+                    'smv_sec': format_sx_num(_q(pf.smv_minutes * Decimal('60')), 2),
+                    'work_minutes': format_sx_num(pf.work_minutes, 2),
+                    'buffer_minutes': format_sx_num(pf.buffer_minutes, 2),
                 }
                 for pf in product_flows
             ],
@@ -2372,6 +2430,9 @@ def _fill_product_flow_images(rows: list[PlanBoardRow]) -> None:
             urls = galleries.get((pf.product_code or '').casefold()) or []
             pf.image_urls = urls
             pf.image_url = urls[0] if urls else ''
+        for product in (row.duration_detail or {}).get('products') or []:
+            urls = galleries.get((product.get('code') or '').casefold()) or []
+            product['image_url'] = urls[0] if urls else ''
         for step in row.timeline_steps:
             for product_group in step.product_groups:
                 urls = galleries.get(
@@ -3516,7 +3577,7 @@ def _reflow_order_from(
     sync_mos: bool = True,
 ) -> SxSalesOrder:
     """Giữ ngày tổ đang sửa, dồn các tổ sau theo quỹ phút + ngày làm việc."""
-    from san_xuat.services.work_calendar import next_working_day
+    from san_xuat.services.work_calendar import add_working_days, next_working_day
 
     steps = _load_schedule_steps(order)
     spans = team_khsx_spans(order, plan_steps=steps)
@@ -3546,7 +3607,7 @@ def _reflow_order_from(
             if last is None:
                 start, end = _schedule_from_qty_or_minutes(span, start)
             else:
-                end = last
+                end = add_working_days(last, span.buffer_days)
             starts[span.slug] = start
             prev_end = end
             continue
@@ -3571,7 +3632,7 @@ def _reflow_order_from(
             prev_end = end
             continue
         starts[span.slug] = cursor
-        prev_end = last
+        prev_end = add_working_days(last, span.buffer_days)
 
     written = _write_team_planned_dates(steps, starts, require_slug=slug)
     if written <= 0:

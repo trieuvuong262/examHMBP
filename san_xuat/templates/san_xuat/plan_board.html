@@ -1096,39 +1096,264 @@
     box-shadow: inset 0 0 0 1px #b91c1c;
   }
   .jp-pb-tl-seg.is-open { border-width: 2px; }
-  .jp-pb-dur-table { width: 100%; font-size: 0.82rem; }
-  .jp-pb-dur-table th {
-    font-size: 0.68rem;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: #64748b;
-    border-bottom: 1px solid #e8edf3;
-    padding: 0.35rem 0.45rem;
+  #jpDurationModal {
+    --pb-ink: #0f172a;
+    --pb-muted: #64748b;
+    --pb-line: #e8edf3;
+    --pb-soft: #f4f7fb;
   }
-  .jp-pb-dur-table td { padding: 0.4rem 0.45rem; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
-  .jp-pb-dur-table .num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
-  .jp-pb-dur-teams { margin: 0.75rem 0 1rem; }
-  .jp-pb-dur-table tr.is-hit td { background: #fff7ed; }
+  #jpDurationModal .modal-header { align-items: flex-start; gap: 0.75rem; border-bottom: 1px solid var(--pb-line); }
+  .jp-pb-dur-head { min-width: 0; }
+  .jp-pb-dur-head .modal-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--pb-ink);
+  }
+  .jp-pb-dur-sub { font-size: 0.8rem; font-weight: 600; color: var(--pb-muted); margin-top: 0.1rem; }
+  .jp-pb-dur-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 1.45rem;
+    padding: 0 0.55rem;
+    border: 1px solid var(--pb-line);
+    border-radius: 999px;
+    background: var(--pb-soft);
+    color: var(--pb-muted);
+    font-size: 0.72rem;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .jp-pb-dur-chip.is-ok { background: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
+  .jp-pb-dur-chip.is-tight { background: #fffbeb; border-color: #fde68a; color: #b45309; }
+  .jp-pb-dur-chip.is-late { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
+
   .jp-pb-dur-sum {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.5rem;
-    margin: 0 0 1rem;
+    margin: 0 0 1.15rem;
   }
-  @media (min-width: 576px) { .jp-pb-dur-sum { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  @media (min-width: 768px) { .jp-pb-dur-sum { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
   .jp-pb-dur-card {
-    padding: 0.55rem 0.7rem;
-    border: 1px solid #e8edf3;
+    min-width: 0;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--pb-line);
     border-radius: 0.65rem;
-    background: #f4f7fb;
+    background: var(--pb-soft);
   }
-  .jp-pb-dur-card .k { display: block; font-size: 0.68rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.03em; }
-  .jp-pb-dur-card .v { font-size: 0.92rem; font-weight: 800; color: #0f172a; }
-  .jp-pb-dur-formula { font-size: 0.78rem; color: #64748b; margin: 0 0 0.85rem; }
-  .jp-pb-dur-hops { margin: 0.25rem 0 0; padding: 0; list-style: none; font-size: 0.74rem; color: #475569; }
-  .jp-pb-dur-prod { font-weight: 800; color: #0f172a; }
-  .jp-pb-dur-muted { color: #64748b; font-weight: 600; }
+  .jp-pb-dur-card.is-late { background: #fef2f2; border-color: #fecaca; }
+  .jp-pb-dur-card.is-late .v { color: #991b1b; }
+  .jp-pb-dur-card .k { display: block; font-size: 0.68rem; font-weight: 700; color: var(--pb-muted); }
+  .jp-pb-dur-card .v { display: block; margin-top: 0.1rem; font-size: 1rem; font-weight: 800; color: var(--pb-ink); font-variant-numeric: tabular-nums; }
+  .jp-pb-dur-card .s { display: block; margin-top: 0.05rem; font-size: 0.74rem; font-weight: 600; color: var(--pb-muted); font-variant-numeric: tabular-nums; }
+
+  .jp-pb-dur-sec {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin: 0 0 0.45rem;
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: var(--pb-ink);
+  }
+  .jp-pb-dur-sec .aside { font-size: 0.74rem; font-weight: 600; color: var(--pb-muted); }
+
+  .jp-pb-dur-gantt {
+    margin: 0 0 1.15rem;
+    padding: 0.6rem 0.75rem 0.5rem;
+    border: 1px solid var(--pb-line);
+    border-radius: 0.65rem;
+    background: #fff;
+  }
+  .jp-pb-dur-grow {
+    display: grid;
+    grid-template-columns: minmax(6.5rem, 9.5rem) minmax(0, 1fr);
+    align-items: center;
+    gap: 0.6rem;
+    min-height: 1.85rem;
+  }
+  .jp-pb-dur-glabel {
+    overflow: hidden;
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: #475569;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .jp-pb-dur-grow.is-hit .jp-pb-dur-glabel { color: var(--pb-ink); font-weight: 800; }
+  .jp-pb-dur-gtrack {
+    position: relative;
+    height: 1.35rem;
+    border-radius: 0.4rem;
+    background: repeating-linear-gradient(90deg, transparent 0 calc(var(--day-w, 10%) - 1px), var(--pb-line) calc(var(--day-w, 10%) - 1px) var(--day-w, 10%));
+  }
+  .jp-pb-dur-gbar {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5rem;
+    border: 1px solid color-mix(in srgb, var(--st-fill, #cbd5e1) 72%, var(--st-ink, #94a3b8));
+    border-radius: 0.4rem;
+    background: var(--st-fill, #e2e8f0);
+    color: var(--st-ink, var(--pb-ink));
+    font-size: 0.7rem;
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .jp-pb-dur-gbar.has-buf {
+    background:
+      linear-gradient(90deg, var(--st-fill, #e2e8f0) 0 var(--prod, 100%), transparent var(--prod, 100%)),
+      repeating-linear-gradient(135deg, var(--st-fill, #e2e8f0) 0 4px, var(--st-soft, #fff) 4px 8px);
+  }
+  .jp-pb-dur-grow.is-npl .jp-pb-dur-gbar {
+    border-style: dashed;
+    border-color: #94a3b8;
+    background: #fff;
+    color: var(--pb-muted);
+  }
+  .jp-pb-dur-grow.is-hit .jp-pb-dur-gbar { box-shadow: 0 0 0 2px var(--st-ink, var(--pb-ink)); }
+  .jp-pb-dur-grow.is-head { min-height: 0; margin-bottom: 0.25rem; align-items: end; }
+  .jp-pb-dur-hdays { display: flex; border-bottom: 1px solid var(--pb-line); }
+  .jp-pb-dur-hday {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    padding: 0.2rem 0 0.25rem;
+    border-radius: 0.3rem 0.3rem 0 0;
+    color: #475569;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+  .jp-pb-dur-hday .dn { font-size: 0.7rem; font-weight: 800; white-space: nowrap; }
+  .jp-pb-dur-hday .dn small { font-size: 0.58rem; font-weight: 700; color: var(--pb-muted); }
+  .jp-pb-dur-hday .wd { font-size: 0.6rem; font-weight: 700; color: var(--pb-muted); }
+  .jp-pb-dur-hday.is-off { background: #f1f5f9; color: #94a3b8; }
+  .jp-pb-dur-hday.is-off .wd, .jp-pb-dur-hday.is-off .dn small { color: #94a3b8; }
+  .jp-pb-dur-hday.is-today { background: #fee2e2; color: var(--hm-primary, #dc2626); }
+  .jp-pb-dur-hday.is-today .wd { color: var(--hm-primary, #dc2626); }
+  .jp-pb-dur-hday.is-due { box-shadow: inset 0 -2px 0 #b91c1c; }
+  .jp-pb-dur-goff {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: #f1f5f9;
+  }
+  .jp-pb-dur-gbar { z-index: 1; }
+
+  .jp-pb-dur-steps { display: grid; gap: 0.5rem; margin: 0 0 1.15rem; }
+  .jp-pb-dur-step {
+    border: 1px solid var(--pb-line);
+    border-radius: 0.65rem;
+    background: #fff;
+    overflow: hidden;
+  }
+  .jp-pb-dur-step.is-hit { border-color: var(--st-ink, var(--pb-ink)); }
+  .jp-pb-dur-shead {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--st-fill, #cbd5e1) 72%, var(--st-ink, #94a3b8));
+    background: var(--st-fill, var(--pb-soft));
+    color: var(--st-ink, var(--pb-ink));
+  }
+  .jp-pb-dur-sname { min-width: 0; flex: 1; font-size: 0.84rem; font-weight: 800; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .jp-pb-dur-sdate { font-size: 0.74rem; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .jp-pb-dur-sdays { font-size: 0.84rem; font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .jp-pb-dur-eqs { margin: 0; padding: 0.35rem 0.75rem 0.45rem; }
+  .jp-pb-dur-eq {
+    display: grid;
+    grid-template-columns: 5.6rem minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 0.6rem;
+    padding: 0.2rem 0;
+    font-size: 0.78rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .jp-pb-dur-eq + .jp-pb-dur-eq { border-top: 1px dashed var(--pb-line); }
+  .jp-pb-dur-eq dt { margin: 0; font-size: 0.72rem; font-weight: 700; color: var(--pb-muted); }
+  .jp-pb-dur-eq dd { margin: 0; font-weight: 600; color: #334155; }
+  .jp-pb-dur-eq dd.r { font-weight: 800; color: var(--pb-ink); text-align: right; white-space: nowrap; }
+  .jp-pb-dur-eq .op { color: var(--pb-muted); font-weight: 700; padding: 0 0.15rem; }
+  .jp-pb-dur-splits { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+  .jp-pb-dur-split {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    height: 1.3rem;
+    padding: 0 0.45rem;
+    border: 1px solid var(--pb-line);
+    border-radius: 999px;
+    background: var(--pb-soft);
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1;
+  }
+  .jp-pb-dur-split strong { font-weight: 800; color: var(--pb-ink); }
+
+  .jp-pb-dur-more { border: 1px solid var(--pb-line); border-radius: 0.65rem; background: #fff; }
+  .jp-pb-dur-more > summary {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.55rem 0.75rem;
+    color: #475569;
+    font-size: 0.78rem;
+    font-weight: 800;
+    cursor: pointer;
+    list-style: none;
+  }
+  .jp-pb-dur-more > summary::-webkit-details-marker { display: none; }
+  .jp-pb-dur-more > summary .bi-chevron-down { margin-left: auto; transition: transform 0.2s ease; }
+  .jp-pb-dur-more[open] > summary .bi-chevron-down { transform: rotate(180deg); }
+  .jp-pb-dur-table { width: 100%; font-size: 0.78rem; border-top: 1px solid var(--pb-line); }
+  .jp-pb-dur-table th {
+    padding: 0.4rem 0.75rem;
+    border-bottom: 1px solid var(--pb-line);
+    background: var(--pb-soft);
+    color: var(--pb-muted);
+    font-size: 0.7rem;
+    font-weight: 700;
+    vertical-align: middle;
+  }
+  .jp-pb-dur-table td { padding: 0.45rem 0.75rem; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+  .jp-pb-dur-table tfoot td { background: var(--pb-soft); border-bottom: 0; }
+  .jp-pb-dur-table .num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+  .jp-pb-dur-pcell { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
+  .jp-pb-dur-img {
+    flex: 0 0 2.75rem;
+    width: 2.75rem;
+    height: 2.75rem;
+    border: 1px solid var(--pb-line);
+    border-radius: 0.45rem;
+    object-fit: cover;
+    background: var(--pb-soft);
+  }
+  .jp-pb-dur-img.is-empty {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    font-size: 1rem;
+  }
+  .jp-pb-dur-prod { font-weight: 800; color: var(--pb-ink); }
+  .jp-pb-dur-muted { color: var(--pb-muted); font-weight: 600; font-size: 0.72rem; }
+  .jp-pb-dur-empty { padding: 0.9rem; text-align: center; color: var(--pb-muted); font-weight: 600; }
 
   .jp-pb-flow {
     display: flex;
@@ -2276,7 +2501,10 @@
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="jpDurationTitle">Chi tiết thời gian</h5>
+        <div class="jp-pb-dur-head">
+          <h5 class="modal-title" id="jpDurationTitle">Chi tiết thời gian</h5>
+          <div class="jp-pb-dur-sub" id="jpDurationSub"></div>
+        </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
       </div>
       <div class="modal-body" id="jpDurationBody"></div>
@@ -2757,7 +2985,6 @@
   }
   function floorDailyQty(raw) {
     if (!(raw > 0)) return 0;
-    if (raw >= 100) return Math.floor(raw / 100) * 100;
     var n = Math.floor(raw);
     return n > 0 ? n : 1;
   }
@@ -3869,6 +4096,7 @@
   var modalEl = document.getElementById('jpDurationModal');
   var titleEl = document.getElementById('jpDurationTitle');
   var bodyEl = document.getElementById('jpDurationBody');
+  var subEl = document.getElementById('jpDurationSub');
   if (!modalEl || !bodyEl || typeof bootstrap === 'undefined') return;
   var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
 
@@ -3878,88 +4106,198 @@
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  function isoDay(s) {
+    var p = String(s || '').split('-');
+    if (p.length !== 3) return null;
+    return Date.UTC(+p[0], +p[1] - 1, +p[2]) / 86400000;
+  }
+
+  function dateRange(a, b) {
+    if (!a) return '—';
+    return esc(a) + (b && b !== a ? ' → ' + esc(b) : '');
+  }
+
+  function stageCls(slug) {
+    return /^[a-z0-9-]{1,30}$/.test(slug || '') ? ' jp-stage-' + slug : '';
+  }
+
+  function dayText(n) {
+    return esc(n) + ' ngày';
+  }
+
+  function op(s) {
+    return '<span class="op">' + s + '</span>';
+  }
+
+  function eqRow(label, expr, result) {
+    return '<div class="jp-pb-dur-eq"><dt>' + esc(label) + '</dt><dd>' + expr + '</dd><dd class="r">' + result + '</dd></div>';
+  }
+
+  function dueState(data) {
+    var slack = data.due_slack_days;
+    if (!data.due || slack == null) return null;
+    if (data.overrun) return { cls: 'is-late', text: 'Trễ ' + Math.abs(slack) + ' ngày' };
+    if (slack === 0) return { cls: 'is-tight', text: 'Đúng hạn chót' };
+    return { cls: 'is-ok', text: 'Dư ' + slack + ' ngày' };
+  }
+
+  function teamEquations(t) {
+    var rows = [];
+    var hasQtyPlan = !!t.qty_per_day;
+    if (hasQtyPlan && t.headcount && t.smv_seconds && t.smv_seconds !== '0') {
+      rows.push(eqRow('Năng lực',
+        esc(t.headcount) + ' người ' + op('×') + ' ' + esc(t.work_hours) + ' giờ ' + op('×') + ' ' +
+          esc(t.efficiency_pct) + '% ' + op('÷') + ' SMV ' + esc(t.smv_seconds) + ' s',
+        esc(t.qty_per_day) + ' cái/ngày'));
+    } else if (hasQtyPlan) {
+      rows.push(eqRow('Năng lực', '', esc(t.qty_per_day) + ' cái/ngày'));
+    }
+    var splits = t.splits || [];
+    if (splits.length >= 2) {
+      rows.push(eqRow('Đã tách',
+        '<span class="jp-pb-dur-splits">' + splits.map(function (p) {
+          return '<span class="jp-pb-dur-split">' + esc((p.date || '').slice(0, 5)) + ' <strong>' + esc(p.qty) + '</strong></span>';
+        }).join('') + '</span>',
+        dayText(t.prod_days)));
+    } else if (hasQtyPlan) {
+      rows.push(eqRow('Sản lượng',
+        esc(t.qty) + ' cái ' + op('÷') + ' ' + esc(t.qty_per_day) + ' cái/ngày',
+        dayText(t.prod_days)));
+    } else if (t.labor_minutes && t.labor_minutes !== '0') {
+      rows.push(eqRow('Công',
+        esc(t.labor_minutes) + '′' +
+          (t.capacity_minutes_per_day && t.capacity_minutes_per_day !== '0'
+            ? ' ' + op('÷') + ' ' + esc(t.capacity_minutes_per_day) + '′/ngày'
+            : ''),
+        dayText(t.prod_days)));
+    }
+    if (t.has_buffer) {
+      rows.push(eqRow('Kiểm/VC', esc(t.buffer_minutes) + ' phút', '+' + dayText(t.buffer_days)));
+    }
+    return rows.length ? '<dl class="jp-pb-dur-eqs">' + rows.join('') + '</dl>' : '';
+  }
+
   function render(data) {
-    titleEl.textContent = 'Thời gian SX — ' + (data.code || '');
+    var state = dueState(data);
+    titleEl.innerHTML = 'Thời gian SX — ' + esc(data.code || '') +
+      (state ? ' <span class="jp-pb-dur-chip ' + state.cls + '">' + esc(state.text) + '</span>' : '');
+    if (subEl) subEl.textContent = data.customer || '';
+    var highlight = data.highlightSlug || '';
+    var teams = (data.teams || []).filter(function (t) { return !t.is_npl; });
+
+    var lo = null;
+    var hi = null;
+    teams.forEach(function (t) {
+      var a = isoDay(t.start_iso);
+      var b = isoDay(t.end_iso || t.start_iso);
+      if (a == null) return;
+      if (b == null || b < a) b = a;
+      lo = lo == null ? a : Math.min(lo, a);
+      hi = hi == null ? b : Math.max(hi, b);
+    });
+    var routeDays = data.route_days || [];
+    if (routeDays.length) lo = isoDay(routeDays[0].iso);
+    var spanDays = routeDays.length || (lo == null ? 1 : Math.max(1, hi - lo + 1));
+    var dayW = (100 / spanDays).toFixed(3) + '%';
+    var dense = spanDays > 21;
+
+    var offCols = routeDays.map(function (d, i) {
+      if (!d.off) return '';
+      return '<span class="jp-pb-dur-goff" style="left:' + (i / spanDays * 100).toFixed(3) + '%;width:' + dayW + '"></span>';
+    }).join('');
+
+    var headCells = routeDays.map(function (d, i) {
+      var showMonth = i === 0 || d.d === 1;
+      return '<span class="jp-pb-dur-hday' + (d.off ? ' is-off' : '') + (d.today ? ' is-today' : '') + (d.due ? ' is-due' : '') + '"' +
+        ' title="' + esc(d.wd) + ' ' + esc(d.d) + '/' + esc(d.m) + (d.due ? ' · Hạn giao' : '') + '">' +
+        '<span class="dn">' + esc(d.d) + (showMonth ? '<small>/' + esc(d.m) + '</small>' : '') + '</span>' +
+        (dense ? '' : '<span class="wd">' + esc(d.wd) + '</span>') +
+      '</span>';
+    }).join('');
+    var ganttHead = routeDays.length
+      ? '<div class="jp-pb-dur-grow is-head"><span></span><div class="jp-pb-dur-hdays">' + headCells + '</div></div>'
+      : '';
+
+    var ganttRows = teams.map(function (t) {
+      var a = isoDay(t.start_iso);
+      var b = isoDay(t.end_iso || t.start_iso);
+      var bar = '';
+      if (a != null && lo != null) {
+        if (b == null || b < a) b = a;
+        var left = (a - lo) / spanDays * 100;
+        var width = (b - a + 1) / spanDays * 100;
+        var days = +t.work_days || 0;
+        var prod = days && t.buffer_days ? (t.prod_days / days * 100).toFixed(2) + '%' : '';
+        bar = '<span class="jp-pb-dur-gbar' + stageCls(t.slug) + (prod ? ' has-buf' : '') + '"' +
+          ' style="left:' + left.toFixed(2) + '%;width:' + width.toFixed(2) + '%' + (prod ? ';--prod:' + prod : '') + '"' +
+          ' title="' + esc(t.label) + ' · ' + esc(t.start) + (t.end && t.end !== t.start ? ' → ' + esc(t.end) : '') + '">' +
+          (days ? dayText(days) : '') + '</span>';
+      }
+      return '<div class="jp-pb-dur-grow' + (highlight && t.slug === highlight ? ' is-hit' : '') + '">' +
+        '<span class="jp-pb-dur-glabel" title="' + esc(t.label) + '">' + esc(t.label || t.slug) + '</span>' +
+        '<div class="jp-pb-dur-gtrack" style="--day-w:' + dayW + '">' + offCols + bar + '</div>' +
+      '</div>';
+    }).join('');
+
+    var gantt = teams.length
+      ? '<div class="jp-pb-dur-sec"><span>Lộ trình</span><span class="aside">' + esc(spanDays) + ' ngày lịch</span></div>' +
+        '<div class="jp-pb-dur-gantt">' + ganttHead + ganttRows + '</div>'
+      : '';
+
+    var steps = teams.map(function (t) {
+      return '<section class="jp-pb-dur-step' + stageCls(t.slug) + (highlight && t.slug === highlight ? ' is-hit' : '') + '">' +
+        '<header class="jp-pb-dur-shead">' +
+          '<span class="jp-pb-dur-sname" title="' + esc(t.label) + '">' + esc(t.label || t.slug) + '</span>' +
+          '<span class="jp-pb-dur-sdate">' + dateRange(t.start, t.end) + '</span>' +
+          '<span class="jp-pb-dur-sdays">' + (t.work_days ? dayText(t.work_days) : '—') + '</span>' +
+        '</header>' +
+        teamEquations(t) +
+      '</section>';
+    }).join('');
+
     var products = data.products || [];
     var rows = products.map(function (p) {
-      var hops = (p.hops || []).map(function (h) {
-        return '<li>' + esc(h.from) + ' → ' + esc(h.to) +
-          ': ' + esc(h.count) + '′ kiểm + ' + esc(h.transfer) + '′ VC = <strong>' +
-          esc(h.total) + '′</strong></li>';
-      }).join('');
+      var img = p.image_url
+        ? '<img class="jp-pb-dur-img" src="' + esc(p.image_url) + '" alt="' + esc(p.name || p.code || '') + '" loading="lazy">'
+        : '<span class="jp-pb-dur-img is-empty" aria-hidden="true"><i class="bi bi-image"></i></span>';
       return '<tr>' +
-        '<td><div class="jp-pb-dur-prod" title="' + esc(p.code || '') + '">' + esc(p.name || p.code || '—') + '</div>' +
-        (hops ? '<ul class="jp-pb-dur-hops">' + hops + '</ul>' : '') +
-        '</td>' +
+        '<td><div class="jp-pb-dur-pcell">' + img + '<div>' +
+          '<div class="jp-pb-dur-prod">' + esc(p.name || p.code || '—') + '</div>' +
+          (p.name && p.code ? '<div class="jp-pb-dur-muted">' + esc(p.code) + '</div>' : '') +
+        '</div></div></td>' +
         '<td class="num">' + esc(p.qty) + '</td>' +
-        '<td class="num">' + esc(p.smv_sec) + ' s<br><span class="jp-pb-dur-muted">' + esc(p.smv_min) + ' phút/cái</span></td>' +
-        '<td class="num">' + esc(p.work_minutes) + '</td>' +
-        '<td class="num">' + esc(p.buffer_minutes) + '</td>' +
+        '<td class="num">' + esc(p.smv_sec) + ' s</td>' +
+        '<td class="num">' + esc(p.work_minutes) + '′</td>' +
+        '<td class="num">' + esc(p.buffer_minutes) + '′</td>' +
         '</tr>';
     }).join('');
-    var highlight = data.highlightSlug || '';
-    var teams = data.teams || [];
-    var teamRows = teams.map(function (t) {
-      var hit = highlight && t.slug === highlight;
-      var splits = t.splits || [];
-      var when = splits.length
-        ? splits.map(function (p) {
-            return esc(p.date || '') + (p.qty ? ' · SL ' + esc(p.qty) : '');
-          }).join('<br>')
-        : (esc(t.start || '—') + (t.end && t.end !== t.start ? ' → ' + esc(t.end) : ''));
-      return '<tr' + (hit ? ' class="is-hit"' : '') + '>' +
-        '<td>' + esc(t.label || t.slug || '—') +
-          (t.headcount
-            ? '<div class="jp-pb-dur-muted">NL ' + esc(t.headcount) + ' người'
-              + (t.capacity_minutes_per_day ? ' · ' + esc(t.capacity_minutes_per_day) + '′/ngày' : '')
-              + '</div>'
-            : '') +
-        '</td>' +
-        '<td>' + when + '</td>' +
-        '<td class="num">' + esc(t.work_minutes) +
-          (t.labor_minutes && t.labor_minutes !== t.work_minutes
-            ? '<div class="jp-pb-dur-muted">SMV ' + esc(t.labor_minutes) + '′</div>'
-            : '') +
-        '</td>' +
-        '<td class="num">' + esc(t.buffer_minutes) + '</td>' +
-        '<td class="num"><strong>' + esc(t.minutes) + '</strong>' +
-          (t.duration_label ? '<div class="jp-pb-dur-muted">' + esc(t.duration_label) + '</div>' : '') +
-        '</td>' +
-      '</tr>';
-    }).join('');
-    var teamTable = teams.length
-      ? '<table class="jp-pb-dur-table jp-pb-dur-teams"><thead><tr>' +
-        '<th>Tổ</th><th>KHSX tổ</th><th class="num">Thực hiện (đã chia NL)</th><th class="num">Kiểm/VC</th><th class="num">Chu kỳ tổ</th>' +
-        '</tr></thead><tbody>' + teamRows + '</tbody></table>'
-      : '';
+    var productBlock = rows
+      ? '<details class="jp-pb-dur-more"><summary>Mã hàng (' + products.length + ')<i class="bi bi-chevron-down" aria-hidden="true"></i></summary>' +
+          '<table class="jp-pb-dur-table">' +
+            '<thead><tr><th>Tên hàng</th><th class="num">SL</th><th class="num">SMV đơn</th><th class="num">Thực hiện</th><th class="num">Kiểm/VC</th></tr></thead>' +
+            '<tbody>' + rows + '</tbody>' +
+            '<tfoot><tr><td colspan="3"><strong>Tổng đơn</strong></td>' +
+              '<td class="num"><strong>' + esc(data.work_minutes) + '′</strong></td>' +
+              '<td class="num"><strong>' + esc(data.buffer_minutes) + '′</strong></td></tr></tfoot>' +
+          '</table></details>'
+      : '<div class="jp-pb-dur-empty">Chưa có định mức thời gian.</div>';
+
     bodyEl.innerHTML =
       '<div class="jp-pb-dur-sum">' +
-        '<div class="jp-pb-dur-card"><span class="k">KHSX</span><span class="v">' +
-          esc(data.khsx_start || '—') +
-          (data.khsx_end && data.khsx_end !== data.khsx_start ? ' → ' + esc(data.khsx_end) : '') +
-        '</span></div>' +
-        '<div class="jp-pb-dur-card"><span class="k">NPL sẵn</span><span class="v">' +
-          (data.npl_ready
-            ? esc(data.npl_ready) + (data.npl_lead_days ? ' · ' + esc(data.npl_lead_days) + ' ngày' : '')
-            : '—') +
-        '</span></div>' +
-        '<div class="jp-pb-dur-card"><span class="k">Hạn giao</span><span class="v">' + esc(data.due || '—') + '</span></div>' +
-        '<div class="jp-pb-dur-card"><span class="k">Làm trong</span><span class="v">' + esc(data.duration_label || '—') + '</span></div>' +
-        '<div class="jp-pb-dur-card"><span class="k">Ca</span><span class="v">' + esc(data.shift_label || '9 giờ 30 phút') + ' / ngày</span></div>' +
+        '<div class="jp-pb-dur-card"><span class="k">Làm trong</span>' +
+          '<span class="v">' + (data.work_days ? esc(data.work_days) + ' ngày làm việc' : '—') + '</span>' +
+          '<span class="s">' + esc((data.duration_label || '').split(' · ')[0] || ' ') + '</span></div>' +
+        '<div class="jp-pb-dur-card"><span class="k">KHSX</span><span class="v">' + esc(data.khsx_start || '—') + '</span>' +
+          '<span class="s">' + (data.khsx_end && data.khsx_end !== data.khsx_start ? '→ ' + esc(data.khsx_end) : '&nbsp;') + '</span></div>' +
+        '<div class="jp-pb-dur-card' + (data.overrun ? ' is-late' : '') + '"><span class="k">Hạn giao</span><span class="v">' + esc(data.due || '—') + '</span>' +
+          '<span class="s">' + (state ? esc(state.text) : '&nbsp;') + '</span></div>' +
+        '<div class="jp-pb-dur-card"><span class="k">NPL sẵn</span><span class="v">' + esc(data.npl_ready || '—') + '</span>' +
+          '<span class="s">' + (data.npl_lead_days ? esc(data.npl_lead_days) + ' ngày chuẩn bị' : '&nbsp;') + '</span></div>' +
       '</div>' +
-      teamTable +
-      '<table class="jp-pb-dur-table">' +
-        '<thead><tr><th>Tên hàng</th><th class="num">SL</th><th class="num" title="Σ SMV đơn × SL/SP mọi công đoạn đã có (giây/cái)">Tổng SMV đơn hàng</th><th class="num" title="SMV × SL theo từng mã (phút)">Tổng thời gian thực hiện</th><th class="num">Kiểm/VC (phút)</th></tr></thead>' +
-        '<tbody>' + (rows || '<tr><td colspan="5" class="jp-pb-dur-muted">Chưa có định mức thời gian.</td></tr>') + '</tbody>' +
-        '<tfoot><tr>' +
-          '<td><strong>Tổng đơn</strong></td><td></td><td></td>' +
-          '<td class="num"><strong>' + esc(data.work_minutes) + '</strong></td>' +
-          '<td class="num"><strong>' + esc(data.buffer_minutes) + '</strong></td>' +
-        '</tr><tr>' +
-          '<td colspan="4">Chu kỳ lịch = thời gian thực hiện đã chia năng lực tổ + kiểm/VC</td>' +
-          '<td class="num"><strong>' + esc(data.cycle_minutes) + ' phút</strong></td>' +
-        '</tr></tfoot>' +
-      '</table>';
+      gantt +
+      (steps ? '<div class="jp-pb-dur-sec"><span>Cách tính từng tổ</span><span class="aside">1 ngày = ' + esc(data.shift_label || '9 giờ 30 phút') + '</span></div>' +
+        '<div class="jp-pb-dur-steps">' + steps + '</div>' : '') +
+      productBlock;
   }
 
   document.querySelectorAll('[data-jp-duration-open]').forEach(function (btn) {
