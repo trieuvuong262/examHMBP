@@ -7,7 +7,7 @@ from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.utils import timezone
 
-from . import catalog, role_scopes
+from . import catalog
 from . import permissions as perms
 from .models import (
     DOSSIER_ROLE_FIELDS,
@@ -90,16 +90,14 @@ def _as_pk(value):
 
 
 def role_pool_queryset(role: str, extra_ids=()):
-    """Người có thể đưa vào danh sách Thiết lập của vai trò."""
-    if role == 'approver':
-        base = approver_queryset()
-    else:
-        scope = role_scopes.user_filter(role)
-        base = active_users() if scope is None else active_users().filter(scope)
+    """Danh sách Thiết lập: mọi nhân sự đang hoạt động, không lọc phòng ban."""
+    base = approver_queryset() if role == 'approver' else active_users()
     extra = [pk for pk in (_as_pk(item) for item in extra_ids) if pk]
     if not extra:
         return base
-    return active_users().filter(Q(pk__in=base.values('pk')) | Q(pk__in=extra))
+    return get_user_model().objects.filter(
+        Q(pk__in=base.values('pk')) | Q(pk__in=extra),
+    ).select_related('profile').order_by('profile__full_name', 'username')
 
 
 def role_queryset(role: str, current_id=None, configured: dict | None = None):
@@ -331,9 +329,7 @@ class RolePoolForm(forms.Form):
                 widget=forms.SelectMultiple(attrs=multi),
             )
             if role == 'approver':
-                self.fields[role].help_text = 'Chỉ người có quyền duyệt hồ sơ.'
-            else:
-                self.fields[role].help_text = role_scopes.scope_label(role) or 'Mọi nhân sự đang hoạt động.'
+                self.fields[role].help_text = 'Mọi nhân sự có quyền duyệt hồ sơ, không lọc phòng ban.'
 
     def save(self, user):
         self.setting.default_roles = {
