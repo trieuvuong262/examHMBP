@@ -5,7 +5,13 @@
     if (typeof TomSelect === 'undefined') return;
     (root || document).querySelectorAll('select.jp-tksp-user-select').forEach(function (el) {
       if (el.tomselect || el.closest('template')) return;
-      new TomSelect(el, { create: false, maxOptions: 300, allowEmptyOption: true, dropdownParent: 'body' });
+      var multiple = !!el.multiple;
+      var opts = { create: false, maxOptions: 300, allowEmptyOption: !multiple, dropdownParent: 'body' };
+      if (multiple) {
+        opts.plugins = ['remove_button'];
+        opts.placeholder = 'Tìm và chọn nhân sự…';
+      }
+      new TomSelect(el, opts);
     });
   }
   window.jpTkspInitUserSelects = initUserSelects;

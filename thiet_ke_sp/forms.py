@@ -82,23 +82,55 @@ ROLE_LABELS = {
 }
 
 
-def role_queryset(role: str, current_id=None):
-    if role == 'approver':
-        return approver_queryset()
-    scope = role_scopes.user_filter(role)
-    if scope is None:
+def _as_pk(value):
+    try:
+        return int(value) if value else None
+    except (TypeError, ValueError):
         return None
-    if current_id:
-        scope |= Q(pk=current_id)
-    return active_users().filter(scope)
+
+
+def role_pool_queryset(role: str, extra_ids=()):
+    """Người có thể đưa vào danh sách Thiết lập của vai trò."""
+    if role == 'approver':
+        base = approver_queryset()
+    else:
+        scope = role_scopes.user_filter(role)
+        base = active_users() if scope is None else active_users().filter(scope)
+    extra = [pk for pk in (_as_pk(item) for item in extra_ids) if pk]
+    if not extra:
+        return base
+    return active_users().filter(Q(pk__in=base.values('pk')) | Q(pk__in=extra))
+
+
+def role_queryset(role: str, current_id=None, configured: dict | None = None):
+    """Người được chọn trên hồ sơ: danh sách đã cấu hình, cộng người đang giữ vai trò."""
+    if configured is None:
+        configured = sla.configured_role_ids()
+    allowed = list(configured.get(role) or [])
+    current_pk = _as_pk(current_id)
+    if current_pk and current_pk not in allowed:
+        allowed.append(current_pk)
+    if not allowed:
+        return active_users().none()
+    return active_users().filter(pk__in=allowed)
+
+
+class UserMultipleChoiceField(forms.ModelMultipleChoiceField):
+    def label_from_instance(self, obj):
+        return perms.display_name(obj)
 
 
 class RoleFieldsMixin:
     def _add_role_fields(self, current: dict | None = None):
         current = current or {}
+        configured = sla.configured_role_ids()
         for role in DOSSIER_ROLE_FIELDS:
-            field = user_field(ROLE_LABELS[role], queryset=role_queryset(role, current.get(role)))
-            field.help_text = role_scopes.scope_label(role)
+            field = user_field(
+                ROLE_LABELS[role],
+                queryset=role_queryset(role, current.get(role), configured),
+            )
+            if not configured.get(role):
+                field.help_text = 'Chưa có người trong Thiết lập → Nhân sự phụ trách.'
             self.fields[role] = field
 
 
@@ -152,9 +184,12 @@ class DossierForm(RoleFieldsMixin, forms.ModelForm):
             widget=forms.Select(attrs=_SELECT),
         )
         self.new_group = None
-        self._add_role_fields({role: getattr(instance, f'{role}_id') for role in DOSSIER_ROLE_FIELDS})
+        current = {role: getattr(instance, f'{role}_id') for role in DOSSIER_ROLE_FIELDS}
+        self._add_role_fields(current)
         if not instance.pk and user is not None and not self.is_bound:
-            self.initial.setdefault('owner', user.pk)
+            allowed = set(sla.configured_role_ids().get('owner') or [])
+            if not allowed or user.pk in allowed:
+                self.initial.setdefault('owner', user.pk)
 
     def clean(self):
         data = super().clean()
@@ -279,6 +314,35 @@ class HandoverForm(forms.Form):
 
     def receiver_fields(self):
         return [self[f'receiver_{dept}'] for dept in ReceivingDepartment.values]
+
+
+class RolePoolForm(forms.Form):
+    """Danh sách user được phép chọn cho từng vai trò khi tạo / sửa hồ sơ."""
+
+    def __init__(self, *args, setting, **kwargs):
+        self.setting = setting
+        current = sla.configured_role_ids(setting)
+        super().__init__(*args, initial=current, **kwargs)
+        multi = {'class': 'form-select jp-tksp-user-select', 'multiple': 'multiple'}
+        for role in DOSSIER_ROLE_FIELDS:
+            self.fields[role] = UserMultipleChoiceField(
+                queryset=role_pool_queryset(role, current.get(role) or []),
+                required=False, label=ROLE_LABELS[role],
+                widget=forms.SelectMultiple(attrs=multi),
+            )
+            if role == 'approver':
+                self.fields[role].help_text = 'Chỉ người có quyền duyệt hồ sơ.'
+            else:
+                self.fields[role].help_text = role_scopes.scope_label(role) or 'Mọi nhân sự đang hoạt động.'
+
+    def save(self, user):
+        self.setting.default_roles = {
+            role: [person.pk for person in (self.cleaned_data.get(role) or [])]
+            for role in DOSSIER_ROLE_FIELDS
+        }
+        self.setting.updated_by = user
+        self.setting.save()
+        return self.setting
 
 
 class SettingsForm(forms.Form):

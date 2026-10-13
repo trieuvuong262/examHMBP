@@ -7,7 +7,7 @@ theo vai trò tương ứng, kể cả khi không có quyền menu module.
 
 - Menu «Hồ sơ sản phẩm»: Xem / Thêm (tạo đề xuất) / Sửa (cập nhật nội dung theo vai trò) / Xóa (xóa nháp).
 - Menu «Chờ tôi duyệt»: Sửa = được chọn làm Người duyệt và ra quyết định duyệt.
-- Menu «Thiết lập»: Sửa = cấu hình số ngày chuẩn, người nhận bàn giao.
+- Menu «Thiết lập»: Sửa = cấu hình số ngày chuẩn, danh sách nhân sự được chọn trên hồ sơ, người nhận bàn giao.
 """
 
 from __future__ import annotations

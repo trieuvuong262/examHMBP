@@ -927,11 +927,12 @@ class Notification(models.Model):
 
 
 class ModuleSetting(models.Model):
-    """Cấu hình một dòng: số ngày chuẩn từng bước, giờ chốt hạn, người nhận bàn giao mặc định."""
+    """Cấu hình một dòng: số ngày chuẩn từng bước, giờ chốt hạn, danh sách nhân sự và người nhận bàn giao."""
 
     sla_days = models.JSONField(default=dict, blank=True, verbose_name='Số ngày chuẩn theo bước')
     due_hour = models.PositiveSmallIntegerField(default=17, verbose_name='Giờ chốt hạn')
     default_receivers = models.JSONField(default=dict, blank=True, verbose_name='Người nhận bàn giao mặc định')
+    default_roles = models.JSONField(default=dict, blank=True, verbose_name='Danh sách nhân sự phụ trách')
     updated_by = models.ForeignKey(USER, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -6,7 +6,7 @@ from datetime import datetime, time, timedelta
 
 from django.utils import timezone
 
-from thiet_ke_sp.models import ModuleSetting, ReceivingDepartment, Status
+from thiet_ke_sp.models import DOSSIER_ROLE_FIELDS, ModuleSetting, ReceivingDepartment, Status
 
 # (bước, nhãn, số ngày mặc định)
 SLA_STEPS = (
@@ -51,6 +51,33 @@ def due_at_for(step: str, *, start=None, setting: ModuleSetting | None = None) -
     due_date = start_date + timedelta(days=sla_days(step, setting))
     hour = min(max(int(setting.due_hour or DEFAULT_DUE_HOUR), 0), 23)
     return timezone.make_aware(datetime.combine(due_date, time(hour, 0)))
+
+
+def configured_role_ids(setting: ModuleSetting | None = None) -> dict[str, list[int]]:
+    """Danh sách user được phép chọn cho từng vai trò khi tạo / sửa hồ sơ."""
+    setting = setting or get_settings()
+    raw = setting.default_roles or {}
+    result = {}
+    for role in DOSSIER_ROLE_FIELDS:
+        value = raw.get(role)
+        if isinstance(value, int):
+            items = [value]
+        elif isinstance(value, str) and value.isdigit():
+            items = [int(value)]
+        elif isinstance(value, (list, tuple)):
+            items = value
+        else:
+            items = []
+        ids: list[int] = []
+        for item in items:
+            try:
+                pk = int(item)
+            except (TypeError, ValueError):
+                continue
+            if pk not in ids:
+                ids.append(pk)
+        result[role] = ids
+    return result
 
 
 def default_receiver_ids(setting: ModuleSetting | None = None) -> dict[str, int | None]:

@@ -263,7 +263,9 @@ def create_dossier(user, *, fields: dict, submit: bool = False) -> ProductDevelo
     with transaction.atomic():
         dossier = ProductDevelopment(code=next_code(), proposer=user, **fields)
         if dossier.owner_id is None:
-            dossier.owner = user
+            allowed_owners = set(sla.configured_role_ids().get(Role.OWNER) or [])
+            if not allowed_owners or user.pk in allowed_owners:
+                dossier.owner = user
         dossier.save()
         log(dossier, user, 'created', f'{_name(user)} tạo đề xuất sản phẩm.', to_status=Status.DRAFT)
         if submit:

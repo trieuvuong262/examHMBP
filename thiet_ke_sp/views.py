@@ -293,7 +293,7 @@ def _people_with(related: str):
 # ---------------------------------------------------------------------------
 
 def _brief_fields(form) -> dict:
-    return {name: form.cleaned_data.get(name) for name in form.Meta.fields}
+    return {name: form.cleaned_data[name] for name in form.Meta.fields if name in form.cleaned_data}
 
 
 @login_required
@@ -1198,20 +1198,34 @@ def report(request):
     ))
 
 
+SETTINGS_TABS = (
+    ('quy-trinh', 'Hạn xử lý', 'bi-alarm'),
+    ('nhan-su', 'Nhân sự phụ trách', 'bi-people'),
+)
+SETTINGS_TAB_KEYS = {key for key, _label, _icon in SETTINGS_TABS}
+
+
 @login_required
 def module_settings(request):
     user = request.user
     if not user_can_access_resolved_menu(user, M, perms.MENU_SETTINGS):
         return _deny(request, perms.MENU_SETTINGS)
+    tab = (request.POST.get('tab') or request.GET.get('tab') or 'quy-trinh').strip()
+    if tab not in SETTINGS_TAB_KEYS:
+        tab = 'quy-trinh'
     setting = sla.get_settings()
     can_edit = perms.can_manage_settings(user)
-    form = f.SettingsForm(request.POST or None, setting=setting)
+    form_cls = f.RolePoolForm if tab == 'nhan-su' else f.SettingsForm
+    form = form_cls(request.POST or None, setting=setting)
     if request.method == 'POST':
         if not can_edit:
             return _deny(request, perms.MENU_SETTINGS)
         if form.is_valid():
             form.save(user)
             messages.success(request, 'Đã lưu thiết lập.')
-            return redirect('thiet_ke_sp:settings')
+            return redirect(f'{reverse("thiet_ke_sp:settings")}?tab={tab}')
         messages.error(request, _form_error_text(form))
-    return render(request, 'thiet_ke_sp/settings.html', _common(request, form=form, can_edit=can_edit, setting=setting))
+    return render(request, 'thiet_ke_sp/settings.html', _common(
+        request, form=form, can_edit=can_edit, setting=setting,
+        tab=tab, settings_tabs=SETTINGS_TABS,
+    ))
