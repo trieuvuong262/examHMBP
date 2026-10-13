@@ -82,6 +82,16 @@ ROLE_LABELS = {
 }
 
 
+def _widget_sm(widget):
+    """Ô nhập form hồ sơ dùng cỡ sm (38px) theo quy ước Sản xuất. Textarea không bị ép cao."""
+    parts = (widget.attrs.get('class') or '').split()
+    if 'form-control' in parts and 'form-control-sm' not in parts:
+        parts.append('form-control-sm')
+    if 'form-select' in parts and 'form-select-sm' not in parts:
+        parts.append('form-select-sm')
+    widget.attrs['class'] = ' '.join(parts)
+
+
 def _as_pk(value):
     try:
         return int(value) if value else None
@@ -166,7 +176,7 @@ class DossierForm(RoleFieldsMixin, forms.ModelForm):
             'target_wholesale_price': forms.NumberInput(attrs=_MONEY),
             'target_retail_price': forms.NumberInput(attrs=_MONEY),
             'target_cost': forms.NumberInput(attrs=_MONEY),
-            'reference_links': _textarea(2),
+            'reference_links': forms.TextInput(attrs=_INPUT),
             'description': _textarea(4),
         }
 
@@ -188,6 +198,8 @@ class DossierForm(RoleFieldsMixin, forms.ModelForm):
             allowed = set(sla.configured_role_ids().get('owner') or [])
             if not allowed or user.pk in allowed:
                 self.initial.setdefault('owner', user.pk)
+        for field in self.fields.values():
+            _widget_sm(field.widget)
 
     def clean(self):
         data = super().clean()
