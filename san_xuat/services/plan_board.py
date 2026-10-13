@@ -657,10 +657,44 @@ def _next_working_day_after(d: date) -> date:
     return next_working_day(d + timedelta(days=1))
 
 
-def _factory_slug_rank() -> dict[str, int]:
-    from san_xuat.services.progress_template import TEAM_SLUGS
+# Thứ tự xưởng trên lộ trình. Trong cùng khâu in, In nhiệt đứng trước Ép logo.
+_ROUTE_DEPT_ORDER: tuple[tuple[str, ...], ...] = (
+    ('cat', 'trai vai', 'trai'),
+    ('in nhiet',),
+    ('ep logo',),
+    ('theu',),
+    ('may',),
+    ('ui',),
+    ('gap xep', 'gap'),
+    ('qc',),
+    ('qa',),
+    ('giao hang', 'thanh pham'),
+)
+_LEGACY_SLUG_RANK = {
+    'cat': 0,
+    'inep': 1,
+    'theu': 3,
+    'may': 4,
+    'ht': 5,
+    'gh': 9,
+    'kho': 10,
+}
 
-    return {slug: i for i, (slug, *_rest) in enumerate(TEAM_SLUGS)}
+
+def _factory_slug_rank() -> dict[str, int]:
+    """Thứ tự dòng lộ trình: Cắt → In nhiệt → Ép logo → May → Ủi → Gấp xếp → QC."""
+    from san_xuat.services.capacity_from_hrm import _fold, hr_divisions_for_ie_groups
+
+    rank = dict(_LEGACY_SLUG_RANK)
+    for div in hr_divisions_for_ie_groups():
+        folded = _fold(div.name or '')
+        place = len(_ROUTE_DEPT_ORDER)
+        for index, keys in enumerate(_ROUTE_DEPT_ORDER):
+            if any(key in folded for key in keys):
+                place = index
+                break
+        rank[f'd{int(div.pk)}'] = place
+    return rank
 
 
 def _team_display_label(slug: str, fallback: str = '') -> str:
@@ -4207,14 +4241,14 @@ def _stage_rows_from_bars(
         if key in plan_by_slug or key in grouped_slugs:
             slugs.append(key)
             seen_slugs.add(key)
-    for key in plan_by_slug:
+    rank = _factory_slug_rank()
+    extras = [key for key in plan_by_slug if key not in seen_slugs]
+    extras.extend(slug for slug, _wc in grouped if slug and slug not in seen_slugs and slug not in extras)
+    extras.sort(key=lambda s: (rank.get(s, 99), s))
+    for key in extras:
         if key not in seen_slugs:
             slugs.append(key)
             seen_slugs.add(key)
-    for slug, _wc in grouped:
-        if slug and slug not in seen_slugs:
-            slugs.append(slug)
-            seen_slugs.add(slug)
 
     ordered: list[tuple[str, int]] = []
     seen_keys: set[tuple[str, int]] = set()
@@ -5468,8 +5502,8 @@ def _stage_stat_label(stage) -> str:
 
 def _stage_stat_rank(key: str) -> tuple[int, str]:
     slug = (key.split(':', 1)[0] if key else '')
-    rank = {name: i for i, name in enumerate(_SHEET_STAGE_ORDER)}
-    return (rank.get(slug, 80), key)
+    rank = _factory_slug_rank()
+    return (rank.get(slug, 99), key)
 
 
 def build_route_stats(board) -> RouteStatsBoard:
