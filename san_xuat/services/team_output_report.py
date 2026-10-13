@@ -327,7 +327,13 @@ def build_team_output_report(
     from san_xuat.services.work_calendar import working_days
 
     today = today or timezone.localdate()
-    teams = [col for col in _team_columns() if (col.meta.get('stage_slug') or '').strip()]
+    from san_xuat.services.plan_board import _factory_slug_rank
+
+    rank = _factory_slug_rank()
+    teams = sorted(
+        _team_columns(),
+        key=lambda col: (rank.get(col.slug, 99), col.label),
+    )
     workdays = set(working_days(date_from, date_to))
     day_list: list[date] = []
     d = date_from

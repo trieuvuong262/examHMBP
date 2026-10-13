@@ -860,7 +860,7 @@ def _team_slug_from_folded(folded: str) -> str | None:
     if not folded:
         return None
     rules: tuple[tuple[tuple[str, ...], str], ...] = (
-        (('in-ep', 'in_ep', 'in ep', 'wc-print', 'ep logo'), 'inep'),
+        (('in-ep', 'in_ep', 'in ep', 'in nhiet', 'wc-print', 'ep logo'), 'inep'),
         (('giao hang', 'thanh pham', 'wc-pack', 'pack'), 'gh'),
         (('gap xep', 'wc-finish', 'finish'), 'ht'),
         (('wc-embroider', 'theu'), 'theu'),
