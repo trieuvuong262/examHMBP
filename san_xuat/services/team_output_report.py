@@ -32,6 +32,7 @@ class TeamOutputCell:
     is_today: bool = False
     is_past: bool = False
     orders: list[tuple[str, Decimal]] = field(default_factory=list)
+    plan_orders: list[dict] = field(default_factory=list)
 
     @property
     def has_value(self) -> bool:
@@ -115,6 +116,7 @@ class TeamOutputReport:
     active_team_count: int = 0
     idle_teams: list[str] = field(default_factory=list)
     unlabeled_qty: Decimal = ZERO
+    day_details: dict = field(default_factory=dict)
 
     @property
     def rows(self) -> list[TeamOutputRow]:
@@ -189,56 +191,103 @@ def _team_day_qty_for_mo(
 
 def _plan_by_team_day(
     teams, *, date_from: date, date_to: date,
-) -> tuple[dict[str, dict[date, Decimal]], dict[str, dict[date, Decimal]]]:
-    """SL phân bổ ngày KHSX → (theo tổ, theo công đoạn).
+) -> tuple[
+    dict[str, dict[date, Decimal]],
+    dict[str, dict[date, Decimal]],
+    dict[str, dict[date, list[dict]]],
+]:
+    """SL phân bổ ngày KHSX → (theo tổ, theo công đoạn, đơn của từng tổ/ngày).
 
-    Phân bổ có gắn tổ năng lực thì tính cho đúng tổ; chưa gắn thì chỉ tính cho
-    công đoạn (trừ khi công đoạn chỉ có một tổ). Đơn đã gắn tổ cho công đoạn thì
-    bỏ dòng chưa gắn — giống phiếu tiến độ tổ.
+    Dòng gắn mã tổ `d{id}` hoặc mã tổ năng lực thì vào đúng bộ phận. Slug công
+    đoạn cũ chỉ gom khi công đoạn đó còn đúng một tổ.
     """
-    team_by_code: dict[str, str] = {}
-    teams_by_stage: dict[str, list[str]] = {}
+    from django.urls import reverse
+
+    from san_xuat.hub_models import SxSalesOrderLine
+
+    by_slug = {col.slug: col for col in teams}
+    by_wc: dict[str, str] = {}
+    by_stage: dict[str, list[str]] = {}
     for col in teams:
         stage = (col.meta.get('stage_slug') or '').strip().lower()
-        if not stage:
-            continue
         code = (col.meta.get('work_center_code') or '').strip().upper()
         if code:
-            team_by_code[f'{stage}|{code}'] = col.slug
-        teams_by_stage.setdefault(stage, []).append(col.slug)
+            by_wc[code] = col.slug
+        if stage:
+            by_stage.setdefault(stage, []).append(col.slug)
+
+    def _team_for(slug: str, code: str) -> str:
+        key = (slug or '').strip().lower()
+        if key in by_slug:
+            return key
+        wc = (code or '').strip().upper()
+        if wc and wc in by_wc:
+            return by_wc[wc]
+        members = by_stage.get(key) or []
+        if len(members) == 1:
+            return members[0]
+        return ''
 
     rows = list(
         SxOrderTeamDayPlan.objects.filter(
             plan_date__range=(date_from, date_to),
             sales_order__is_demo=False,
             qty__gt=0,
-        ).values_list('sales_order_id', 'team_slug', 'work_center__code', 'plan_date', 'qty')
+        ).select_related('sales_order', 'work_center')
     )
-    has_wc = {(so, (slug or '').lower()) for so, slug, code, _d, _q2 in rows if code}
+    order_ids = {row.sales_order_id for row in rows}
+    products: dict[int, list[str]] = {}
+    if order_ids:
+        for oid, code, name in SxSalesOrderLine.objects.filter(
+            order_id__in=order_ids,
+        ).values_list('order_id', 'product_code', 'product_name'):
+            label = ' '.join(part for part in ((code or '').strip(), (name or '').strip()) if part)
+            if not label or label in products.get(oid, ()):
+                continue
+            products.setdefault(oid, []).append(label)
+
     by_team: dict[str, dict[date, Decimal]] = {}
     by_stage: dict[str, dict[date, Decimal]] = {}
+    orders: dict[str, dict[date, dict[int, dict]]] = {}
 
     def _add(bucket: dict, key: str, day: date, qty: Decimal) -> None:
         inner = bucket.setdefault(key, {})
         inner[day] = inner.get(day, ZERO) + qty
 
-    for so_id, slug, code, day, qty in rows:
-        stage = (slug or '').strip().lower()
-        if stage not in teams_by_stage:
+    for row in rows:
+        team = _team_for(row.team_slug, getattr(row.work_center, 'code', '') or '')
+        if not team:
             continue
-        qty = _q(qty)
-        if code:
+        qty = _q(row.qty)
+        day = row.plan_date
+        col = by_slug[team]
+        stage = (col.meta.get('stage_slug') or '').strip().lower()
+        if stage:
             _add(by_stage, stage, day, qty)
-            team = team_by_code.get(f'{stage}|{code.strip().upper()}')
-            if team:
-                _add(by_team, team, day, qty)
-            continue
-        if (so_id, stage) in has_wc:
-            continue
-        _add(by_stage, stage, day, qty)
-        if len(teams_by_stage[stage]) == 1:
-            _add(by_team, teams_by_stage[stage][0], day, qty)
-    return by_team, by_stage
+        _add(by_team, team, day, qty)
+        order = row.sales_order
+        bucket = orders.setdefault(team, {}).setdefault(day, {})
+        hit = bucket.get(order.pk)
+        if hit is None:
+            names = products.get(order.pk) or []
+            product = ', '.join(names[:3])
+            if len(names) > 3:
+                product = f'{product}…'
+            bucket[order.pk] = {
+                'code': order.code,
+                'customer': (order.customer_name or '').strip(),
+                'product': product,
+                'qty': qty,
+                'due': order.due_date.strftime('%d/%m/%Y') if order.due_date else '',
+                'url': reverse('san_xuat:sales_order_detail', args=[order.pk]),
+            }
+        else:
+            hit['qty'] = hit['qty'] + qty
+    listed = {
+        team: {day: list(items.values()) for day, items in days.items()}
+        for team, days in orders.items()
+    }
+    return by_team, by_stage, listed
 
 
 def build_team_output_report(
@@ -336,7 +385,7 @@ def build_team_output_report(
                 bucket[day] = bucket.get(day, ZERO) + v
                 ob.setdefault(day, []).append((mo.code, v))
 
-    plans, stage_plans = _plan_by_team_day(teams, date_from=date_from, date_to=date_to)
+    plans, stage_plans, plan_orders = _plan_by_team_day(teams, date_from=date_from, date_to=date_to)
     from san_xuat.services.team_stage_colors import team_stage_palette
 
     palette = team_stage_palette()
@@ -363,6 +412,7 @@ def build_team_output_report(
         t_qty = qty.get(col.slug, {})
         t_plan = plans.get(col.slug, {})
         t_orders = orders.get(col.slug, {})
+        t_plan_orders = plan_orders.get(col.slug, {})
         for i, day in enumerate(day_list):
             v = t_qty.get(day, ZERO)
             cell = TeamOutputCell(
@@ -373,6 +423,7 @@ def build_team_output_report(
                 is_today=day == today,
                 is_past=day <= today,
                 orders=sorted(t_orders.get(day, []), key=lambda t: -t[1]),
+                plan_orders=sorted(t_plan_orders.get(day, []), key=lambda item: item['code']),
             )
             row.cells.append(cell)
             stage.day_totals[i] += v
@@ -430,7 +481,46 @@ def build_team_output_report(
     rows = report.rows
     report.active_team_count = sum(1 for r in rows if r.total > 0)
     report.idle_teams = [r.label for r in rows if r.total <= 0]
+    report.day_details = _day_detail_payload(rows)
     return report
+
+
+_WD_VN = ('Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật')
+
+
+def _day_detail_payload(rows: list[TeamOutputRow]) -> dict:
+    """JSON cho modal: bấm một ngày của một tổ → các đơn cần làm ngày đó."""
+    from san_xuat.templatetags.sx_format import format_sx_num
+
+    payload: dict[str, dict] = {}
+    for row in rows:
+        for cell in row.cells:
+            if not cell.plan_orders and not cell.orders:
+                continue
+            orders = []
+            for item in cell.plan_orders:
+                orders.append({
+                    'code': item['code'],
+                    'customer': item['customer'],
+                    'product': item['product'],
+                    'qty': format_sx_num(item['qty']),
+                    'due': item['due'],
+                    'url': item['url'],
+                })
+            done = [
+                {'code': code, 'qty': format_sx_num(qty)}
+                for code, qty in cell.orders
+            ]
+            payload[f'{row.slug}|{cell.day.isoformat()}'] = {
+                'team': row.label,
+                'date': cell.day.strftime('%d/%m/%Y'),
+                'weekday': _WD_VN[cell.day.weekday()],
+                'plan': format_sx_num(cell.plan or 0),
+                'done': format_sx_num(cell.qty),
+                'orders': orders,
+                'done_orders': done,
+            }
+    return payload
 
 
 def teams_stage_order(teams) -> list[SimpleNamespace]:

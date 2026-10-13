@@ -88,7 +88,30 @@
   .jp-tr-grid .jp-tr-day.is-off { background: #f1f5f9; color: #94a3b8; }
   .jp-tr-grid thead th.jp-tr-day.is-today { background: #fee2e2; color: var(--sheet-brand); }
   .jp-tr-grid tbody td.jp-tr-day.is-today:not(.is-off) { background: #fff8f8; }
-  .jp-tr-grid td.jp-tr-day[title] { cursor: help; }
+  .jp-tr-day-hit {
+    display: flex;
+    width: 100%;
+    height: 40px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+  }
+  .jp-tr-day-hit:hover .jp-tr-qty,
+  .jp-tr-day-hit:focus-visible .jp-tr-qty {
+    outline: 2px solid var(--sheet-brand, #dc2626);
+    outline-offset: -2px;
+  }
+  .jp-tr-day-modal .jp-tr-day-meta { color: #64748b; font-size: .82rem; }
+  .jp-tr-day-modal table { font-size: .84rem; }
+  .jp-tr-day-modal th { font-size: .72rem; letter-spacing: .03em; text-transform: uppercase; color: #64748b; }
+  .jp-tr-day-modal td { vertical-align: middle; }
+  .jp-tr-day-modal .jp-tr-day-code { font-weight: 800; color: inherit; text-decoration: none; }
+  .jp-tr-day-modal .jp-tr-day-code:hover { color: var(--hm-primary-dark, #b91c1c); }
+  .jp-tr-day-modal .jp-tr-day-product { color: #334155; }
+  .jp-tr-day-empty { color: #64748b; }
   .jp-tr-grid td.jp-tr-sum.is-stack { padding: 0; }
 
   .jp-tr-qty {
@@ -153,7 +176,7 @@
         {% for row in team_report.rows %}
         <tr class="jp-stage-{{ row.color_slug|default:row.stage_slug }}{% if not row.total %} is-idle{% endif %}">
           <td class="jp-tr-team" title="{{ row.label }}{% if row.order_count %} · {{ row.order_count }} lệnh{% endif %}"><a href="{% url 'san_xuat:team_work_board' row.slug %}">{{ row.label }}</a></td>
-          {% for c in row.cells %}{% include 'san_xuat/includes/plan_board_team_report_cell.html' with c=c slug=row.color_slug|default:row.stage_slug %}{% endfor %}
+          {% for c in row.cells %}{% include 'san_xuat/includes/plan_board_team_report_cell.html' with c=c slug=row.color_slug|default:row.stage_slug team_slug=row.slug %}{% endfor %}
           <td class="jp-tr-sum is-r4 is-first is-stack"><span class="jp-tr-qty{% if not row.plan_total %} is-actual{% endif %}"><span class="jp-tr-plan">{{ row.plan_total|sx_num }}</span><span class="jp-tr-done">{{ row.total|sx_num }}</span></span></td>
           <td class="jp-tr-sum is-r3">{% with rate=row.plan_rate %}{% if rate is not None %}<span class="jp-tr-rate {% if rate >= 95 %}is-good{% elif rate >= 75 %}is-warn{% else %}is-bad{% endif %}">{{ rate }}%</span>{% else %}<span class="jp-tr-muted">—</span>{% endif %}{% endwith %}</td>
           <td class="jp-tr-sum is-r2">{% if row.avg_per_day %}{{ row.avg_per_day|sx_num }}{% else %}<span class="jp-tr-muted">—</span>{% endif %}</td>
@@ -164,3 +187,76 @@
       </tbody>
     </table>
 </div>
+{{ team_report.day_details|json_script:"jp-team-day-details" }}
+<div class="modal fade jp-tr-day-modal" id="jpTeamDayModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-0" id="jpTeamDayTitle">Đơn trong ngày</h5>
+          <div class="jp-tr-day-meta" id="jpTeamDayMeta"></div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body" id="jpTeamDayBody"></div>
+    </div>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var raw = document.getElementById('jp-team-day-details');
+  var details = {};
+  try { details = raw ? JSON.parse(raw.textContent || '{}') : {}; } catch (e) { details = {}; }
+  var modalEl = document.getElementById('jpTeamDayModal');
+  if (!modalEl || typeof bootstrap === 'undefined') return;
+  var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  var title = document.getElementById('jpTeamDayTitle');
+  var meta = document.getElementById('jpTeamDayMeta');
+  var body = document.getElementById('jpTeamDayBody');
+
+  function esc(value) {
+    return String(value || '').replace(/[&<>"']/g, function (ch) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+    });
+  }
+
+  function render(item) {
+    var html = '';
+    if (item.orders && item.orders.length) {
+      html += '<div class="fw-bold mb-2">Cần làm (' + item.orders.length + ')</div>';
+      html += '<div class="table-responsive"><table class="table table-sm align-middle mb-3"><thead><tr>';
+      html += '<th>Đơn</th><th>Khách</th><th>Sản phẩm</th><th class="text-end">SL</th><th>Hạn</th>';
+      html += '</tr></thead><tbody>';
+      item.orders.forEach(function (order) {
+        html += '<tr><td><a class="jp-tr-day-code" href="' + esc(order.url) + '">' + esc(order.code) + '</a></td>';
+        html += '<td>' + esc(order.customer || '—') + '</td>';
+        html += '<td class="jp-tr-day-product">' + esc(order.product || '—') + '</td>';
+        html += '<td class="text-end fw-bold">' + esc(order.qty) + '</td>';
+        html += '<td>' + esc(order.due || '—') + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+    } else {
+      html += '<p class="jp-tr-day-empty mb-3">Không có đơn phân bổ cho tổ này trong ngày.</p>';
+    }
+    if (item.done_orders && item.done_orders.length) {
+      html += '<div class="fw-bold mb-2">Đã ghi nhận</div><ul class="mb-0">';
+      item.done_orders.forEach(function (row) {
+        html += '<li>' + esc(row.code) + ' · ' + esc(row.qty) + '</li>';
+      });
+      html += '</ul>';
+    }
+    return html;
+  }
+
+  document.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('[data-jp-team-day]');
+    if (!btn) return;
+    var item = details[btn.getAttribute('data-jp-team-day') || ''];
+    if (!item) return;
+    title.textContent = item.team;
+    meta.textContent = item.weekday + ', ' + item.date + ' · Dự kiến ' + item.plan + ' · Thực hiện ' + item.done;
+    body.innerHTML = render(item);
+    modal.show();
+  });
+});
+</script>
