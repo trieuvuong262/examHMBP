@@ -6,7 +6,7 @@ from datetime import datetime, time, timedelta
 
 from django.utils import timezone
 
-from thiet_ke_sp.models import DOSSIER_ROLE_FIELDS, ModuleSetting, ReceivingDepartment, Status
+from thiet_ke_sp.models import DOSSIER_ROLE_FIELDS, ModuleSetting, Status
 
 # (bước, nhãn, số ngày mặc định)
 SLA_STEPS = (
@@ -18,7 +18,7 @@ SLA_STEPS = (
     (Status.SAMPLE_EVAL_PENDING, 'Đánh giá mẫu', 3),
     (Status.MASTER_PENDING, 'Duyệt mẫu chuẩn', 2),
     (Status.APPROVED, 'Bàn giao sản xuất', 2),
-    (Status.HANDED_OVER, 'Bộ phận xác nhận nhận bàn giao', 2),
+    (Status.HANDED_OVER, 'Chờ chuyển sang sản xuất', 2),
 )
 DEFAULT_SLA_DAYS = {step: days for step, _label, days in SLA_STEPS}
 SLA_ALIASES = {
@@ -77,16 +77,4 @@ def configured_role_ids(setting: ModuleSetting | None = None) -> dict[str, list[
             if pk not in ids:
                 ids.append(pk)
         result[role] = ids
-    return result
-
-
-def default_receiver_ids(setting: ModuleSetting | None = None) -> dict[str, int | None]:
-    setting = setting or get_settings()
-    raw = setting.default_receivers or {}
-    result = {}
-    for dept in ReceivingDepartment.values:
-        try:
-            result[dept] = int(raw.get(dept)) if raw.get(dept) else None
-        except (TypeError, ValueError):
-            result[dept] = None
     return result

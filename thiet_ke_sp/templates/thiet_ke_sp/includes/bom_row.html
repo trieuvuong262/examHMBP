@@ -1,9 +1,30 @@
-{% load sx_format %}<tr>
-  <td><input type="text" name="line_name" class="form-control form-control-sm" value="{{ ln.material_name|default:'' }}" maxlength="200"></td>
-  <td><select name="line_main" class="form-select form-select-sm"><option value="1"{% if not ln or ln.is_main %} selected{% endif %}>Chính</option><option value="0"{% if ln and not ln.is_main %} selected{% endif %}>Phụ</option></select></td>
-  <td><input type="text" name="line_spec" class="form-control form-control-sm" value="{{ ln.spec|default:'' }}" maxlength="255"></td>
+{% load sx_format %}<tr class="tk-bom-row"{% if ln.material_id %} data-base-price="{{ ln.material.base_price }}"{% endif %}>
+  <td>
+    <input type="hidden" name="line_material" value="{% if ln.material_id %}{{ ln.material_id }}{% endif %}">
+    <div class="jp-npl-material-field">
+      <select class="form-select form-select-sm jp-npl-material-select" data-placeholder="Gõ tên NPL…">
+        {% if not ln.material_id %}<option value="" selected></option>{% endif %}
+        {% if ln.material_id %}<option value="{{ ln.material_id }}" selected>{{ ln.material.name }}</option>{% endif %}
+      </select>
+    </div>
+    {% if ln.material_name and not ln.material_id %}<div class="small text-muted mt-1">Chưa gắn kho NPL: {{ ln.material_name }}</div>{% endif %}
+    <input type="hidden" name="line_legacy_name" value="{% if ln.material_name and not ln.material_id %}{{ ln.material_name }}{% endif %}">
+  </td>
   <td><input type="text" name="line_consumption" class="form-control form-control-sm text-end" value="{{ ln.consumption|sx_num_input }}" inputmode="decimal"></td>
-  <td><input type="text" name="line_unit" class="form-control form-control-sm" value="{{ ln.unit|default:'' }}" maxlength="30"></td>
-  <td><input type="text" name="line_price" class="form-control form-control-sm text-end" value="{{ ln.unit_price|sx_num_input:0 }}" inputmode="numeric"></td>
-  <td class="text-end"><button type="button" class="btn btn-sm btn-light border" data-tk-del-row title="Xóa dòng"><i class="bi bi-trash"></i></button></td>
+  <td>
+    <select name="line_unit" class="form-select form-select-sm jp-npl-line-unit-select">
+      {% if ln.material_id %}
+        {% for opt in ln.unit_choices %}
+        <option value="{{ opt.id }}" data-factor="{{ opt.factor }}"{% if opt.id == ln.selected_unit_id %} selected{% endif %}>{{ opt.name }}</option>
+        {% empty %}
+        <option value="{{ ln.material.unit_id }}" data-factor="1" selected>{{ ln.unit|default:ln.material.unit.name }}</option>
+        {% endfor %}
+      {% else %}
+        <option value="" selected>{{ ln.unit|default:'—' }}</option>
+      {% endif %}
+    </select>
+    <input type="hidden" name="line_legacy_unit" value="{% if ln.unit and not ln.material_id %}{{ ln.unit }}{% endif %}">
+  </td>
+  <td><input type="text" name="line_price" class="form-control form-control-sm text-end" value="{{ ln.unit_price|sx_num_input:0 }}" inputmode="numeric"{% if ln.material_id %} readonly{% endif %}></td>
+  <td class="text-end"><button type="button" class="btn btn-sm btn-light border tk-bom-del" title="Xóa dòng"><i class="bi bi-trash"></i></button></td>
 </tr>

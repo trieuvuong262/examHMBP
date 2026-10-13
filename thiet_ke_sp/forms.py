@@ -14,7 +14,6 @@ from .models import (
     DesignVersion,
     EvaluatorRole,
     ProductDevelopment,
-    ReceivingDepartment,
     SampleEvaluation,
     SampleVersion,
     TechnicalPack,
@@ -313,17 +312,6 @@ class HandoverForm(forms.Form):
                 widget=forms.Select(attrs={'class': 'form-select'}),
             )
             self.fields['product_type'].label_from_instance = lambda t: f'{t.code} — {t.name}'
-        defaults = sla.default_receiver_ids()
-        for dept in ReceivingDepartment:
-            self.fields[f'receiver_{dept.value}'] = user_field(f'Người nhận — {dept.label}', required=True)
-            if not self.is_bound and defaults.get(dept.value):
-                self.initial[f'receiver_{dept.value}'] = defaults[dept.value]
-
-    def receivers(self) -> dict:
-        return {dept: self.cleaned_data.get(f'receiver_{dept}') for dept in ReceivingDepartment.values}
-
-    def receiver_fields(self):
-        return [self[f'receiver_{dept}'] for dept in ReceivingDepartment.values]
 
 
 class RolePoolForm(forms.Form):
@@ -369,25 +357,14 @@ class SettingsForm(forms.Form):
                 widget=forms.NumberInput(attrs={'class': 'form-control text-end', 'min': 0, 'max': 90}),
             )
             self.initial[f'sla_{step}'] = sla.sla_days(step, setting)
-        defaults = sla.default_receiver_ids(setting)
-        for dept in ReceivingDepartment:
-            self.fields[f'receiver_{dept.value}'] = user_field(f'Người nhận mặc định — {dept.label}')
-            self.initial[f'receiver_{dept.value}'] = defaults.get(dept.value)
 
     def sla_fields(self):
         return [self[f'sla_{step}'] for step, _l, _d in sla.SLA_STEPS]
-
-    def receiver_fields(self):
-        return [self[f'receiver_{dept}'] for dept in ReceivingDepartment.values]
 
     def save(self, user):
         data = self.cleaned_data
         self.setting.due_hour = data['due_hour']
         self.setting.sla_days = {step: data[f'sla_{step}'] for step, _l, _d in sla.SLA_STEPS}
-        self.setting.default_receivers = {
-            dept: (data[f'receiver_{dept}'].pk if data.get(f'receiver_{dept}') else None)
-            for dept in ReceivingDepartment.values
-        }
         self.setting.updated_by = user
         self.setting.save()
         return self.setting

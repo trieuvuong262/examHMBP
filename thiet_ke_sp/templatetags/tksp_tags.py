@@ -1,6 +1,7 @@
 import re
 
 from django import template
+from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 
 from thiet_ke_sp.permissions import display_name
@@ -14,6 +15,23 @@ AVATAR_TONES = ('#dc2626', '#262626', '#0369a1', '#15803d', '#b45309', '#6d28d9'
 @register.filter
 def uname(user):
     return display_name(user) or '-'
+
+
+@register.filter
+def avatar_url(user):
+    """Ảnh đại diện trên hồ sơ nhân sự. Rỗng nếu chưa có ảnh."""
+    if not getattr(user, 'pk', None):
+        return ''
+    try:
+        avatar = user.profile.avatar
+    except ObjectDoesNotExist:
+        return ''
+    if not avatar:
+        return ''
+    try:
+        return avatar.url or ''
+    except (ValueError, OSError):
+        return ''
 
 
 @register.filter

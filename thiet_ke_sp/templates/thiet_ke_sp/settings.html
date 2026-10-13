@@ -43,12 +43,6 @@
           </div>
         </div>
       </div>
-      <div class="tk-section">
-        <div class="tk-section-title"><i class="bi bi-box-arrow-right"></i>Người nhận bàn giao mặc định</div>
-        <div class="row g-3">
-          {% for field in form.receiver_fields %}{% include 'thiet_ke_sp/includes/field.html' with field=field col='col-md-6' %}{% endfor %}
-        </div>
-      </div>
       {% endif %}
       {% if can_edit %}
       <div class="d-flex justify-content-between align-items-center mt-3">

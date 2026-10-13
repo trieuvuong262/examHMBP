@@ -15,31 +15,7 @@
     <div class="tk-field"><label>Người bàn giao</label><strong>{{ handover.handed_by|uname }}</strong></div>
     <div class="tk-field"><label>Chuyển sản xuất</label><strong>{% if handover.is_transferred %}{{ handover.transferred_at|date:'H:i d/m/Y' }} · {{ handover.transferred_by|uname }}{% else %}Chờ Thư viện chuyển{% endif %}</strong></div>
   </div>
-  {% if handover.note %}<div class="tk-field mb-3"><label>Nội dung</label><span class="v">{{ handover.note }}</span></div>{% endif %}
-  <div class="table-responsive">
-    <table class="table tk-mini-table align-middle">
-      <thead><tr><th>Bộ phận</th><th>Người nhận</th><th>Xác nhận</th><th>Ghi chú</th><th></th></tr></thead>
-      <tbody>
-      {% for r in receipts %}
-        <tr>
-          <td class="fw-semibold">{{ r.get_department_display }}</td>
-          <td>{{ r.receiver|uname }}</td>
-          <td>{% if r.is_confirmed %}<span class="tk-ok"><i class="bi bi-check-circle-fill me-1"></i>{{ r.confirmed_at|date:'H:i d/m/Y' }}</span>{% elif handover.is_transferred %}<span class="tk-pill is-amber">Chưa xác nhận</span>{% else %}<span class="tk-pill is-gray">Chờ chuyển SX</span>{% endif %}</td>
-          <td class="small">{{ r.note|default:'' }}</td>
-          <td class="text-end">
-            {% if r.can_confirm %}
-            <form method="post" action="{% url 'thiet_ke_sp:action' dossier.pk 'receipt_confirm' %}" class="d-flex gap-1 justify-content-end">{% csrf_token %}
-              <input type="hidden" name="receipt_id" value="{{ r.pk }}">
-              <input type="text" name="note" class="form-control form-control-sm" placeholder="Ghi chú" style="max-width: 180px;">
-              <button type="submit" class="btn btn-sm btn-hm text-white text-nowrap">Đã nhận</button>
-            </form>
-            {% endif %}
-          </td>
-        </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-  </div>
+  {% if handover.note %}<div class="tk-field mb-0"><label>Nội dung</label><span class="v">{{ handover.note }}</span></div>{% endif %}
 </div>
 {% endif %}
 

@@ -493,6 +493,14 @@ class TechnicalPack(models.Model):
 
 class MaterialLine(models.Model):
     tech_pack = models.ForeignKey(TechnicalPack, on_delete=models.CASCADE, related_name='material_lines')
+    material = models.ForeignKey(
+        'kho_npl.Material', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='design_bom_lines', verbose_name='Nguyên phụ liệu kho NPL',
+    )
+    line_unit = models.ForeignKey(
+        'kho_npl.Unit', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+', verbose_name='ĐVT định mức',
+    )
     material_name = models.CharField(max_length=200, verbose_name='Nguyên phụ liệu')
     is_main = models.BooleanField(default=True, verbose_name='NPL chính')
     spec = models.CharField(max_length=255, blank=True, default='', verbose_name='Quy cách / màu')
@@ -515,6 +523,28 @@ class MaterialLine(models.Model):
         if self.consumption is None or self.unit_price is None:
             return None
         return (self.consumption * self.unit_price).quantize(Decimal('1'))
+
+    @property
+    def unit_choices(self) -> list[dict]:
+        """ĐVT của mã kho — cùng cấp quy cách với phiếu xuất NPL."""
+        if not self.material_id:
+            return []
+        from kho_npl.catalog_labels import unit_label
+        from kho_npl.services.uom import material_units
+
+        rows = material_units(self.material)
+        if rows:
+            return rows
+        unit = self.material.unit
+        return [{'id': unit.pk, 'name': unit_label(unit), 'factor': '1', 'is_base': True}]
+
+    @property
+    def selected_unit_id(self):
+        if self.line_unit_id:
+            return self.line_unit_id
+        if self.material_id:
+            return self.material.unit_id
+        return None
 
 
 class EvaluatorRole(models.TextChoices):
@@ -927,7 +957,7 @@ class Notification(models.Model):
 
 
 class ModuleSetting(models.Model):
-    """Cấu hình một dòng: số ngày chuẩn từng bước, giờ chốt hạn, danh sách nhân sự và người nhận bàn giao."""
+    """Cấu hình một dòng: số ngày chuẩn từng bước, giờ chốt hạn và danh sách nhân sự phụ trách."""
 
     sla_days = models.JSONField(default=dict, blank=True, verbose_name='Số ngày chuẩn theo bước')
     due_hour = models.PositiveSmallIntegerField(default=17, verbose_name='Giờ chốt hạn')

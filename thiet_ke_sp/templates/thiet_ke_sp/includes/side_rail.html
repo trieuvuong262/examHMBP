@@ -3,7 +3,7 @@
   <h3>Người phụ trách{% if flags.edit_roles %}<button type="button" class="btn btn-sm btn-light border py-0 px-2" data-bs-toggle="modal" data-bs-target="#tkModalRoles" title="Đổi nhân sự"><i class="bi bi-pencil"></i></button>{% endif %}</h3>
   {% for r in roles_rail %}
   <div class="tk-owner">
-    {% if r.user %}<span class="tk-avatar" style="background: {{ forloop.counter0|avatar_tone }}">{{ r.user|initial }}</span>{% else %}<span class="tk-avatar is-empty"><i class="bi bi-person"></i></span>{% endif %}
+    {% if r.user %}{% with photo=r.user|avatar_url %}{% if photo %}<img class="tk-avatar" src="{{ photo }}" alt="{{ r.user|uname }}">{% else %}<span class="tk-avatar" style="background: {{ forloop.counter0|avatar_tone }}">{{ r.user|initial }}</span>{% endif %}{% endwith %}{% else %}<span class="tk-avatar is-empty"><i class="bi bi-person"></i></span>{% endif %}
     <div class="min-w-0"><strong>{{ r.user|uname }}</strong><small>{{ r.label }}</small></div>
   </div>
   {% endfor %}
@@ -83,20 +83,6 @@
   <ul class="tk-rule-list">
     {% for label, ok in checklist %}
     <li><i class="bi {% if ok %}bi-check-circle-fill tk-ok{% else %}bi-exclamation-circle-fill tk-miss{% endif %}"></i><span>{{ label }}</span></li>
-    {% endfor %}
-  </ul>
-</div>
-{% endif %}
-
-{% if receipts %}
-<div class="tk-card tk-side-card">
-  <h3>Xác nhận nhận bàn giao</h3>
-  <ul class="tk-rule-list">
-    {% for r in receipts %}
-    <li>
-      <i class="bi {% if r.is_confirmed %}bi-check-circle-fill tk-ok{% else %}bi-hourglass-split tk-miss{% endif %}"></i>
-      <span><strong>{{ r.get_department_display }}</strong> · {{ r.receiver|uname }}{% if r.is_confirmed %}<br><span class="text-muted">{{ r.confirmed_at|date:'H:i d/m/Y' }}</span>{% endif %}</span>
-    </li>
     {% endfor %}
   </ul>
 </div>

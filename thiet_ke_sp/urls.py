@@ -7,6 +7,7 @@ app_name = 'thiet_ke_sp'
 urlpatterns = [
     path('', views.dashboard, name='dashboard'),
     path('ho-so/', views.dossier_list, name='list'),
+    path('ho-so/tim-npl/', views.npl_material_search, name='npl_search'),
     path('kanban/', views.kanban, name='kanban'),
     path('kanban/<int:pk>/chuyen/', views.kanban_move, name='kanban_move'),
     path('bao-cao/', views.report, name='reports'),

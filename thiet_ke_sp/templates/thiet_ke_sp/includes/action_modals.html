@@ -108,13 +108,12 @@
 {% if flags.handover and handover_form %}
 {% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalHandover' modal_action='handover' modal_title='Bàn giao vào Thư viện — '|add:dossier.official_product_code modal_size='modal-lg' %}
   {% include 'thiet_ke_sp/includes/checklist_block.html' with items=checklist %}
-  <p class="small text-muted mt-2 mb-0">Sản phẩm vào Thư viện dưới dạng Style. Sản xuất chỉ nhận hồ sơ khi Thư viện bấm «Chuyển sang sản xuất»; người nhận bên dưới sẽ được giao việc xác nhận lúc đó.</p>
+  <p class="small text-muted mt-2 mb-0">Sản phẩm vào Thư viện dưới dạng Style. Sản xuất chỉ nhận hồ sơ khi Thư viện bấm «Chuyển sang sản xuất».</p>
   <div class="row g-2 mt-2">
     {% if handover_form.product_type %}{% include 'thiet_ke_sp/includes/field.html' with field=handover_form.product_type req=True %}{% endif %}
-    {% for field in handover_form.receiver_fields %}{% include 'thiet_ke_sp/includes/field.html' with field=field req=True %}{% endfor %}
     {% include 'thiet_ke_sp/includes/field.html' with field=handover_form.note col='col-12' %}
   </div>
-  <div class="mt-2">{% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.handed_over due_label_text='Hạn xác nhận nhận bàn giao' %}</div>
+  <div class="mt-2">{% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.handed_over %}</div>
 {% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Bàn giao' %}
 {% endif %}
 

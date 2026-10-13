@@ -4,7 +4,6 @@ import json
 import mimetypes
 import os
 from datetime import date, timedelta
-from decimal import Decimal, InvalidOperation
 from urllib.parse import quote
 
 from django.contrib import messages
@@ -12,7 +11,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Case, F, IntegerField, OuterRef, Prefetch, Q, Subquery, Value, When
-from django.http import FileResponse, Http404, HttpResponseForbidden
+from django.http import FileResponse, Http404, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -47,7 +46,7 @@ from .models import (
     DesignVersion,
     DossierMember,
     EvaluationItem,
-    HandoverReceipt,
+    MaterialLine,
     MemberGroup,
     Notification,
     Priority,
@@ -404,7 +403,12 @@ def dossier_detail(request, pk):
     samples = list(
         dossier.sample_versions.select_related('design_version', 'maker__profile', 'tech_pack').prefetch_related(
             Prefetch('attachments', queryset=att_qs),
-            'tech_pack__material_lines',
+            Prefetch(
+                'tech_pack__material_lines',
+                queryset=MaterialLine.objects.select_related(
+                    'material__unit', 'material__color', 'material__specification', 'line_unit',
+                ).prefetch_related('material__specification__levels__unit'),
+            ),
             Prefetch('evaluations__items', queryset=EvaluationItem.objects.order_by('pk')),
             'evaluations__evaluator__profile',
             'evaluations__fix_owner__profile',
@@ -470,10 +474,6 @@ def dossier_detail(request, pk):
         a.can_delete = a.uploaded_by_id == user.pk or perms.has_role(dossier, user, Role.OWNER)
     members = list(dossier.members.select_related('user__profile', 'added_by__profile'))
     handover = getattr(dossier, 'handover', None) if dossier.status in (Status.HANDED_OVER, Status.CLOSED) else None
-    receipts = list(handover.receipts.select_related('receiver__profile', 'confirmed_by__profile')) if handover else []
-    for r in receipts:
-        r.can_confirm = (not r.is_confirmed and dossier.status == Status.HANDED_OVER and r.receiver_id == user.pk
-                         and handover.is_transferred)
     conditions = list(dossier.conditions.select_related('assignee__profile', 'done_by__profile'))
     for c in conditions:
         c.can_complete = not c.is_done and dossier.status == Status.APPROVED and (
@@ -516,7 +516,6 @@ def dossier_detail(request, pk):
         member_users=list(f.active_users()) if flags['edit_roles'] else [],
         audit_logs=list(dossier.audit_logs.select_related('actor__profile')[:300]),
         handover=handover,
-        receipts=receipts,
         due_default=status_due_default,
         sla_due=sla_due,
         design_kinds=[(k, AttachmentKind(k).label) for k in DESIGN_KINDS if k != AttachmentKind.COLORWAY],
@@ -580,40 +579,22 @@ def _form_error_text(form) -> str:
     return ' · '.join(parts) or 'Dữ liệu không hợp lệ.'
 
 
-def _decimal_or_none(raw):
-    raw = (raw or '').strip().replace(',', '.')
-    if not raw:
-        return None
-    try:
-        value = Decimal(raw)
-    except InvalidOperation:
-        raise wf.WorkflowError(f'Số không hợp lệ: {raw}')
-    if value < 0:
-        raise wf.WorkflowError('Không nhập số âm.')
-    return value
-
-
 def _material_lines(post) -> list[dict]:
-    names = post.getlist('line_name')
-    specs = post.getlist('line_spec')
-    consumptions = post.getlist('line_consumption')
-    units = post.getlist('line_unit')
-    prices = post.getlist('line_price')
-    mains = post.getlist('line_main')
-    lines = []
-    for i, name in enumerate(names):
-        name = (name or '').strip()
-        if not name:
-            continue
-        lines.append({
-            'material_name': name[:200],
-            'spec': (specs[i] if i < len(specs) else '').strip()[:255],
-            'consumption': _decimal_or_none(consumptions[i] if i < len(consumptions) else ''),
-            'unit': (units[i] if i < len(units) else '').strip()[:30],
-            'unit_price': _decimal_or_none(prices[i] if i < len(prices) else ''),
-            'is_main': (mains[i] if i < len(mains) else '1') == '1',
-        })
-    return lines
+    from .services.npl_bom import lines_from_post
+
+    return lines_from_post(post)
+
+
+@login_required
+def npl_material_search(request):
+    """Tìm NPL cho BOM — cùng API phiếu xuất, luôn danh mục kho NPL."""
+    if not (perms.can_view_module(request.user) or perms.has_memberships(request.user)):
+        return JsonResponse({'results': []}, status=403)
+    from kho_npl.stock_domain import STOCK_DOMAIN_NPL
+    from kho_npl.views_material import material_search_response
+
+    request.stock_domain = STOCK_DOMAIN_NPL
+    return material_search_response(request)
 
 
 def _conditions(post) -> list[wf.ConditionInput]:
@@ -767,13 +748,9 @@ def _run_action(request, dossier: ProductDevelopment, action: str) -> tuple[str,
         form = f.HandoverForm(post, style_types=wf.handover_style_types(dossier))
         if not form.is_valid():
             raise wf.WorkflowError(_form_error_text(form))
-        record = wf.handover(dossier, user, receivers=form.receivers(), note=form.cleaned_data['note'], due_at=due,
+        record = wf.handover(dossier, user, note=form.cleaned_data['note'], due_at=due,
                              product_type=form.cleaned_data.get('product_type'))
         return 'overview', f'Đã bàn giao — Style {record.product_code} đã vào Thư viện.'
-    if action == 'receipt_confirm':
-        receipt = get_object_or_404(HandoverReceipt, pk=post.get('receipt_id'), handover__dossier=dossier)
-        wf.confirm_receipt(receipt, user, note=post.get('note', ''))
-        return 'overview', 'Đã xác nhận nhận bàn giao.'
     if action == 'close':
         wf.close_dossier(dossier, user)
         return 'overview', 'Đã đóng hồ sơ.'

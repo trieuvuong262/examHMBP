@@ -112,8 +112,7 @@ def _parse_positive_int(value):
     return parsed if parsed > 0 else None
 
 
-@module_perm_required(MODULE_KHO_NPL, 'view')
-def material_search(request):
+def material_search_response(request):
     q = (request.GET.get('q') or '').strip()
     location_id = _parse_positive_int(request.GET.get('location_id'))
     in_stock_only = (request.GET.get('in_stock_only') or '').strip().lower() in ('1', 'true', 'yes')
@@ -222,6 +221,7 @@ def material_search(request):
             'text': text,
             'code': material.code,
             'name': material.name,
+            'unit_id': material.unit_id,
             'unit': unit_label(material.unit),
             'unit_name': material.unit.name,
             'specification': spec_label(material.specification) if material.specification_id else '',
@@ -241,6 +241,11 @@ def material_search(request):
             'units': material_units(material),
         })
     return JsonResponse({'results': rows})
+
+
+@module_perm_required(MODULE_KHO_NPL, 'view')
+def material_search(request):
+    return material_search_response(request)
 
 
 @module_perm_required(MODULE_KHO_NPL, 'view')

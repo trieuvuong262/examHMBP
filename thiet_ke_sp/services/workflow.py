@@ -35,11 +35,9 @@ from thiet_ke_sp.models import (
     EvaluationItem,
     EvaluatorRole,
     Handover,
-    HandoverReceipt,
     MaterialLine,
     MemberGroup,
     ProductDevelopment,
-    ReceivingDepartment,
     Role,
     SampleEvaluation,
     SampleVersion,
@@ -142,7 +140,7 @@ def _step_tasks(dossier: ProductDevelopment, status: str) -> list[StepTask]:
         ],
         Status.MASTER_PENDING: [StepTask(Role.APPROVER, f'Duyệt mẫu chuẩn {sv_label}', fallback_owner=False)],
         Status.APPROVED: [StepTask(Role.OWNER, 'Bàn giao sản phẩm vào Thư viện')],
-        Status.HANDED_OVER: [StepTask(Role.OWNER, 'Theo dõi chuyển sản xuất, xác nhận nhận bàn giao và đóng hồ sơ')],
+        Status.HANDED_OVER: [StepTask(Role.OWNER, 'Theo dõi chuyển sản xuất và đóng hồ sơ')],
     }
     return mapping.get(status, [])
 
@@ -546,7 +544,8 @@ def _new_sample_version(dossier, design_version: DesignVersion, user, source: Sa
             pack.save()
             MaterialLine.objects.bulk_create([
                 MaterialLine(
-                    tech_pack=pack, material_name=line.material_name, is_main=line.is_main, spec=line.spec,
+                    tech_pack=pack, material_id=line.material_id, line_unit_id=line.line_unit_id,
+                    material_name=line.material_name, is_main=line.is_main, spec=line.spec,
                     consumption=line.consumption, unit=line.unit, unit_price=line.unit_price,
                     sort_order=line.sort_order,
                 )
@@ -1020,16 +1019,13 @@ def _library_style(dossier: ProductDevelopment, user, product_type=None):
     )
 
 
-def handover(dossier: ProductDevelopment, user, *, receivers: dict[str, object], note: str = '', due_at=None,
-             product_type=None):
+def handover(dossier: ProductDevelopment, user, *, note: str = '', due_at=None, product_type=None):
     """Bàn giao vào Thư viện: tạo Style nguồn Thiết kế. Sản xuất chỉ nhận khi Thư viện chuyển sang."""
     _require(dossier.status == Status.APPROVED, 'Hồ sơ chưa được duyệt sản xuất hoặc đã bàn giao.')
     _require(perms.can_work_as(dossier, user, Role.OWNER, Role.TECHNICIAN),
              'Chỉ người phụ trách chính hoặc Kỹ thuật được bàn giao.')
     missing = [label for label, ok in handover_checklist(dossier) if not ok]
     _require(not missing, 'Chưa đủ điều kiện bàn giao: ' + ', '.join(missing) + '.')
-    missing_dept = [ReceivingDepartment(d).label for d in ReceivingDepartment.values if not receivers.get(d)]
-    _require(not missing_dept, 'Chọn người nhận cho: ' + ', '.join(missing_dept) + '.')
     conflict = official_code_conflict(dossier.official_product_code, exclude_dossier_id=dossier.pk)
     _require(not conflict, conflict)
     due_at = due_at or sla.due_at_for(Status.HANDED_OVER)
@@ -1043,13 +1039,11 @@ def handover(dossier: ProductDevelopment, user, *, receivers: dict[str, object],
         _transition(dossier, Status.HANDED_OVER, user, 'handed_over',
                     f'{_name(user)} bàn giao vào Thư viện — Style {style.code}, chờ chuyển sang sản xuất.',
                     due_at=due_at, style_code=style.code)
-        for dept in ReceivingDepartment.values:
-            HandoverReceipt.objects.create(handover=record, department=dept, receiver=receivers[dept])
     return record
 
 
-def transfer_to_production(record: Handover, user, *, due_at=None):
-    """Thư viện chuyển sản phẩm sang Sản xuất: tạo hồ sơ sản phẩm SX + tệp, giao việc xác nhận nhận."""
+def transfer_to_production(record: Handover, user):
+    """Thư viện chuyển sản phẩm sang Sản xuất: tạo hồ sơ sản phẩm SX và sao tệp."""
     from san_xuat.models import ProductTechDoc
 
     dossier = record.dossier
@@ -1062,7 +1056,6 @@ def transfer_to_production(record: Handover, user, *, due_at=None):
     if pack:
         main_line = pack.material_lines.filter(is_main=True).first()
         main_material = main_line.material_name if main_line else ''
-    due_at = due_at or sla.due_at_for(Status.HANDED_OVER)
     with transaction.atomic():
         tech_doc = ProductTechDoc.objects.create(
             product_code=record.product_code,
@@ -1080,44 +1073,15 @@ def transfer_to_production(record: Handover, user, *, due_at=None):
         log(dossier, user, 'transferred',
             f'{_name(user)} chuyển {record.product_code} từ Thư viện sang sản xuất — tạo hồ sơ sản phẩm SX '
             f'({copied} tệp).', tech_doc_id=tech_doc.pk)
-        for receipt in record.receipts.filter(confirmed_at__isnull=True):
-            _create_task(dossier, step=Status.HANDED_OVER, role=Role.RECEIVER,
-                         title=f'Xác nhận nhận bàn giao ({receipt.get_department_display()})',
-                         assignee=receipt.receiver, due_at=due_at, is_main=False, actor=user,
-                         notify_kind=nt.KIND_HANDOVER, receipt=receipt)
         nt.notify(dossier.owner, dossier, nt.KIND_INFO, f'{record.product_code} đã chuyển sang sản xuất',
                   f'{dossier.code} — {dossier.name}', actor=user)
     return tech_doc
-
-
-def confirm_receipt(receipt: HandoverReceipt, user, *, note: str = '') -> None:
-    dossier = receipt.handover.dossier
-    _require(not receipt.is_confirmed, 'Bộ phận này đã xác nhận.')
-    _require(dossier.status == Status.HANDED_OVER, 'Hồ sơ không ở bước chờ xác nhận bàn giao.')
-    _require(receipt.handover.is_transferred, 'Sản phẩm chưa được chuyển sang sản xuất.')
-    _require(receipt.receiver_id == user.pk, 'Chỉ người nhận được chỉ định mới xác nhận.')
-    with transaction.atomic():
-        receipt.confirmed_at = timezone.now()
-        receipt.confirmed_by = user
-        receipt.note = note.strip()[:255]
-        receipt.save()
-        receipt.tasks.filter(state=Task.STATE_OPEN).update(
-            state=Task.STATE_DONE, completed_at=receipt.confirmed_at, completed_by=user,
-        )
-        nt.invalidate_badges(user)
-        log(dossier, user, 'receipt_confirmed',
-            f'{_name(user)} xác nhận nhận bàn giao ({receipt.get_department_display()}).')
-    nt.notify(dossier.owner, dossier, nt.KIND_INFO,
-              f'{receipt.get_department_display()} đã nhận bàn giao', f'{dossier.code} — {dossier.name}', actor=user)
 
 
 def close_dossier(dossier: ProductDevelopment, user) -> None:
     _require(dossier.status == Status.HANDED_OVER, 'Chỉ đóng hồ sơ sau khi đã bàn giao.')
     _require(perms.can_work_as(dossier, user, Role.OWNER), 'Chỉ người phụ trách chính được đóng hồ sơ.')
     _require(dossier.handover.is_transferred, 'Sản phẩm chưa được chuyển sang sản xuất.')
-    pending = dossier.handover.receipts.filter(confirmed_at__isnull=True)
-    _require(not pending.exists(), 'Còn bộ phận chưa xác nhận nhận bàn giao: '
-             + ', '.join(r.get_department_display() for r in pending) + '.')
     with transaction.atomic():
         dossier.closed_at = timezone.now()
         _transition(dossier, Status.CLOSED, user, 'closed', f'{_name(user)} đóng hồ sơ.', open_tasks=False)

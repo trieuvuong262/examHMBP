@@ -22,7 +22,7 @@
     <h3 class="tk-sub mt-3">BOM nguyên phụ liệu</h3>
     <div class="table-responsive">
       <table class="table tk-mini-table align-middle mb-2">
-        <thead><tr><th style="min-width: 180px;">Nguyên phụ liệu</th><th style="width: 90px;">Loại</th><th>Quy cách / màu</th><th style="width: 100px;">Định mức</th><th style="width: 80px;">ĐVT</th><th style="width: 120px;">Đơn giá</th><th style="width: 44px;"></th></tr></thead>
+        <thead><tr><th style="min-width: 240px;">Nguyên phụ liệu</th><th style="width: 100px;">Định mức</th><th style="width: 110px;">ĐVT</th><th style="width: 120px;">Đơn giá</th><th style="width: 44px;"></th></tr></thead>
         <tbody id="tkBomBody">
           {% for ln in sv.lines %}{% include 'thiet_ke_sp/includes/bom_row.html' with ln=ln %}{% empty %}{% include 'thiet_ke_sp/includes/bom_row.html' with ln=None %}{% endfor %}
         </tbody>
@@ -30,10 +30,11 @@
     </div>
     <template id="tkBomTpl">{% include 'thiet_ke_sp/includes/bom_row.html' with ln=None %}</template>
     <div class="d-flex justify-content-between">
-      <button type="button" class="btn btn-sm btn-light border" data-tk-add-row="#tkBomBody" data-tk-template="#tkBomTpl"><i class="bi bi-plus-lg me-1"></i>Thêm dòng</button>
+      <button type="button" class="btn btn-sm btn-light border" id="tkBomAdd"><i class="bi bi-plus-lg me-1"></i>Thêm dòng</button>
       <button type="submit" class="btn btn-sm btn-hm text-white fw-bold"><i class="bi bi-save me-1"></i>Lưu hồ sơ kỹ thuật</button>
     </div>
   </form>
+  {% include 'thiet_ke_sp/includes/bom_picker.html' %}
   {% else %}
   <div class="tk-field"><label>Bảng thông số kích thước</label><span class="v">{{ pack.size_spec|default:'—' }}</span></div>
   <div class="tk-grid2">
