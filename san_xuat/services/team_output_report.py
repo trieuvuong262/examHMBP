@@ -207,14 +207,14 @@ def _plan_by_team_day(
 
     by_slug = {col.slug: col for col in teams}
     by_wc: dict[str, str] = {}
-    by_stage: dict[str, list[str]] = {}
+    teams_by_stage: dict[str, list[str]] = {}
     for col in teams:
         stage = (col.meta.get('stage_slug') or '').strip().lower()
         code = (col.meta.get('work_center_code') or '').strip().upper()
         if code:
             by_wc[code] = col.slug
         if stage:
-            by_stage.setdefault(stage, []).append(col.slug)
+            teams_by_stage.setdefault(stage, []).append(col.slug)
 
     def _team_for(slug: str, code: str) -> str:
         key = (slug or '').strip().lower()
@@ -223,7 +223,7 @@ def _plan_by_team_day(
         wc = (code or '').strip().upper()
         if wc and wc in by_wc:
             return by_wc[wc]
-        members = by_stage.get(key) or []
+        members = teams_by_stage.get(key) or []
         if len(members) == 1:
             return members[0]
         return ''
