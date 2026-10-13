@@ -487,6 +487,19 @@ def _matches(head: bytes, offset: int, signature: bytes) -> bool:
     return len(head) >= end and head[offset:end] == signature
 
 
+def _pdf_header_ok(head: bytes) -> bool:
+    """%PDF ngay đầu file, hoặc sau BOM / khoảng trắng.
+
+    Một số CV xuất từ Word có một dòng trống trước ``%PDF-1.x``. Acrobat vẫn
+    đọc được; chỉ chấp nhận tiền tố là BOM hoặc space/tab/xuống dòng.
+    """
+    data = head
+    if data.startswith(b'\xef\xbb\xbf'):
+        data = data[3:]
+    data = data.lstrip(b' \t\r\n')
+    return data.startswith(b'%PDF')
+
+
 def _check_magic(uploaded, name: str, ext: str) -> None:
     head = _read_head(uploaded)
     if not head:
@@ -505,6 +518,8 @@ def _check_magic(uploaded, name: str, ext: str) -> None:
 
     expected = MAGIC_SIGNATURES.get(ext)
     if not expected:
+        return
+    if ext == '.pdf' and _pdf_header_ok(head):
         return
     if not any(_matches(head, off, sig) for off, sig in expected):
         _reject(
