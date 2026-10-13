@@ -2,8 +2,8 @@
 
 HỒ SƠ ỨNG VIÊN (CV) LÀ DỮ LIỆU CÁ NHÂN
 --------------------------------------
-* File lưu ở ``MEDIA_ROOT/_private/recruitment/`` với tên UUID, **không** có URL
-  public; nginx chặn ``/media/_private/``.
+* File mới lưu trên NAS ``14.Portal - CV`` (share HCNS), không có URL public.
+* File cũ ``cv/...`` vẫn nằm ở ``MEDIA_ROOT/_private/recruitment/``.
 * Chỉ phục vụ qua view ``recruitment_file`` (kiểm tra quyền xem ứng viên).
 """
 
@@ -20,6 +20,8 @@ from django.dispatch import receiver
 from django.utils import timezone
 
 from hrm.choices import GENDER_CHOICES
+
+from .cv_nas_storage import CandidateCvNasStorage, cv_upload_to
 
 # Đuôi được nhận làm hồ sơ ứng viên → content-type khi trả file.
 CANDIDATE_FILE_TYPES = {
@@ -328,7 +330,7 @@ class CandidateFile(models.Model):
     )
     kind = models.CharField(max_length=20, default=KIND_CV, verbose_name='Loại')
     file = models.FileField(
-        storage=candidate_file_storage, upload_to=candidate_file_upload_to, max_length=255, verbose_name='File',
+        storage=CandidateCvNasStorage(), upload_to=cv_upload_to, max_length=255, verbose_name='File',
     )
     original_name = models.CharField(max_length=255, verbose_name='Tên file gốc')
     size = models.PositiveBigIntegerField(default=0, verbose_name='Dung lượng')

@@ -80,6 +80,20 @@ def sync_all_pending() -> dict:
                 mark_storage_unavailable()
                 stats['status'] = 'nas_down'
                 return stats
+
+    from recruitment.cv_nas_storage import iter_pending_cv_names, upload_pending_cv
+
+    for name in list(iter_pending_cv_names()):
+        try:
+            upload_pending_cv(name)
+            stats['synced'] += 1
+        except OSError as exc:
+            stats['failed'] += 1
+            stats['errors'].append(f'cv/{name}: {exc}')
+            logger.warning('Đồng bộ CV lên NAS thất bại %s: %s', name, exc)
+            mark_storage_unavailable()
+            stats['status'] = 'nas_down'
+            return stats
     return stats
 
 
@@ -90,7 +104,9 @@ def maybe_auto_sync() -> None:
     trùng và chỉ chạy khi thực sự có việc.
     """
     try:
-        if not count_pending():
+        from recruitment.cv_nas_storage import has_pending_cv
+
+        if not count_pending() and not has_pending_cv():
             return
         if not cache.add(_AUTO_SYNC_LOCK_KEY, '1', _AUTO_SYNC_THROTTLE_SEC):
             return

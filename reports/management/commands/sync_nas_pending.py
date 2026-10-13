@@ -2,15 +2,16 @@
 
 from django.core.management.base import BaseCommand
 
+from recruitment.cv_nas_storage import count_pending_cv
 from reports.nas_pending import count_pending
 from reports.nas_pending_sync import sync_all_pending
 
 
 class Command(BaseCommand):
-    help = 'Đẩy file báo cáo đang lưu tạm trên VPS lên NAS rồi xóa bản tạm.'
+    help = 'Đẩy file báo cáo và CV đang lưu tạm trên VPS lên NAS rồi xóa bản tạm.'
 
     def handle(self, *args, **options):
-        pending = count_pending()
+        pending = count_pending() + count_pending_cv()
         if not pending:
             self.stdout.write(self.style.SUCCESS('Không có file nào chờ đồng bộ.'))
             return
@@ -21,7 +22,7 @@ class Command(BaseCommand):
         if stats['status'] == 'nas_down':
             self.stderr.write(self.style.WARNING(
                 f'NAS chưa sẵn sàng — đã đồng bộ {stats["synced"]}, '
-                f'còn {count_pending()} file chờ.'
+                f'còn {count_pending() + count_pending_cv()} file chờ.'
             ))
         else:
             self.stdout.write(self.style.SUCCESS(

@@ -705,6 +705,11 @@ NAS_DESIGN_DOC_REL_PATH = os.getenv(
     'NAS_DESIGN_DOC_REL_PATH',
     '06_RnD_THIET_KE_SAN_PHAM/0.Portal',
 ).strip('/')
+# CV tuyển dụng — ổ JustPlayNAS, share HCNS (cùng cơ chế ghi file báo cáo VP)
+NAS_RECRUITMENT_CV_REL_PATH = os.getenv(
+    'NAS_RECRUITMENT_CV_REL_PATH',
+    '02_HANH_CHINH_NHAN_SU/1.P.HCNS - Folder_Dung_Chung/14.Portal - CV',
+).strip().strip('/')
 PORTAL_BACKUP_SOURCE_DIRS = os.getenv('PORTAL_BACKUP_SOURCE_DIRS', '/app,/backup-source')
 # Thư mục project trên VPS. Worker phải gắn thư mục này ở chế độ ghi thì khôi phục mã nguồn mới ghi được.
 PORTAL_RESTORE_CODE_DIR = os.getenv('PORTAL_RESTORE_CODE_DIR', '/backup-source')

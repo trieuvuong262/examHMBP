@@ -885,6 +885,9 @@ def _detail_context(request, candidate, *, manager_view=False, onboard_form=None
 
 @module_perm_required(MODULE_RECRUITMENT, 'view')
 def candidate_detail(request, pk):
+    from reports.nas_pending_sync import maybe_auto_sync
+
+    maybe_auto_sync()
     candidate = _get_candidate(request, pk)
     return render(request, 'recruitment/admin/candidate_detail.html', _detail_context(request, candidate))
 
@@ -1020,6 +1023,9 @@ def _upload_files(request, candidate, back):
             kind=form.cleaned_data['kind'], request=request,
         )
         messages.success(request, f'Đã lưu {len(created)} file hồ sơ.')
+        from reports.nas_pending_sync import maybe_auto_sync
+
+        maybe_auto_sync()
     except services.RecruitmentError as exc:
         messages.error(request, str(exc))
     return redirect(back)
