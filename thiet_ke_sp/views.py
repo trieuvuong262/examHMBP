@@ -176,6 +176,8 @@ def dossier_list(request):
         qs = qs.filter(Q(code__icontains=q) | Q(name__icontains=q) | Q(official_product_code__icontains=q))
     if statuses:
         qs = qs.filter(status__in=statuses)
+    elif quick != 'stopped':
+        qs = qs.exclude(status=Status.CANCELLED)
     if group:
         qs = qs.filter(product_group=group)
     if collection:

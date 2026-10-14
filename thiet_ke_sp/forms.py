@@ -252,9 +252,14 @@ class DossierForm(RoleFieldsMixin, forms.ModelForm):
             names = [perms.display_name(person) for person in instance.followers.select_related('profile')]
             self.follower_names = ', '.join(name for name in names if name)
         else:
-            current_followers = list(instance.followers.values_list('pk', flat=True)) if instance.pk else []
-            self.fields['followers'] = follower_field(current_followers)
             if instance.pk:
+                current_followers = list(instance.followers.values_list('pk', flat=True))
+            elif not self.is_bound:
+                current_followers = list(sla.configured_role_ids().get('follower') or [])
+            else:
+                current_followers = []
+            self.fields['followers'] = follower_field(current_followers)
+            if instance.pk or not self.is_bound:
                 self.initial.setdefault('followers', current_followers)
         if not instance.pk and user is not None and not self.is_bound:
             allowed = set(sla.configured_role_ids().get('owner') or [])
