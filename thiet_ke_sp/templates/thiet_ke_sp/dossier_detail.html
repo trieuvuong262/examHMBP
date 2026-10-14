@@ -10,7 +10,7 @@
 
   <div class="tk-hero mb-3">
     <div class="tk-hero-main">
-      <div class="tk-hero-thumb">{% if cover %}<a href="{{ cover.get_absolute_url }}" target="_blank" rel="noopener"><img src="{{ cover.get_absolute_url }}" alt=""></a>{% else %}<i class="bi bi-palette"></i>{% endif %}</div>
+      <div class="tk-hero-thumb">{% if cover %}<button type="button" class="tk-thumb-zoom" data-sx-gallery data-sx-gallery-image="{{ cover.get_absolute_url }}" data-sx-gallery-title="{{ dossier.name }}"><img src="{{ cover.get_absolute_url }}" alt=""></button>{% else %}<i class="bi bi-palette"></i>{% endif %}</div>
       <div class="min-w-0">
         <div class="d-flex flex-wrap align-items-center gap-2">
           <span class="tk-pill {% if dossier.status_tone == 'gray' or dossier.status_tone == 'dark' %}is-gray{% else %}is-accent{% endif %}">{{ dossier.get_status_display }}</span>
@@ -108,4 +108,5 @@
 </div>
 {% include 'thiet_ke_sp/includes/action_modals.html' %}
 {% include 'thiet_ke_sp/includes/tksp_scripts.html' %}
+{% include 'san_xuat/includes/product_image_gallery_modal.html' %}
 {% endblock %}

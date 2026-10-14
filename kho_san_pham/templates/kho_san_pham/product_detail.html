@@ -66,7 +66,9 @@
             <div class="row g-4 align-items-start">
                 <div class="col-md-3 text-center">
                     {% if product.display_image_url %}
-                    <img src="{{ product.display_image_url }}" alt="" class="img-fluid rounded border" style="max-height:180px;object-fit:contain">
+                    <button type="button" class="btn p-0 border-0 bg-transparent" data-sx-gallery data-sx-gallery-image="{{ product.display_image_url }}" data-sx-gallery-title="{{ product.name }}">
+                      <img src="{{ product.display_image_url }}" alt="" class="img-fluid rounded border" style="max-height:180px;object-fit:contain;cursor:zoom-in">
+                    </button>
                     {% else %}
                     <div class="text-muted py-5"><i class="bi bi-image" style="font-size:2rem"></i></div>
                     {% endif %}
@@ -229,4 +231,5 @@
 })();
 </script>
 {% endif %}
+{% include 'san_xuat/includes/product_image_gallery_modal.html' %}
 {% endblock %}

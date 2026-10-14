@@ -99,7 +99,7 @@
     {% for sv in samples %}
     <div class="tk-version{% if sv.is_current %} is-current{% endif %}">
       {% with photo=sv.photos|first %}
-      <div class="tk-version-preview">{% if photo and photo.is_image %}<img src="{{ photo.get_absolute_url }}" alt="" loading="lazy">{% else %}<i class="bi bi-scissors"></i>{% endif %}</div>
+      <div class="tk-version-preview">{% if photo and photo.is_image %}<button type="button" class="tk-thumb-zoom" data-sx-gallery data-sx-gallery-image="{{ photo.get_absolute_url }}" data-sx-gallery-title="{{ sv.label }}"><img src="{{ photo.get_absolute_url }}" alt="" loading="lazy"></button>{% else %}<i class="bi bi-scissors"></i>{% endif %}</div>
       {% endwith %}
       <div class="min-w-0">
         <b>{{ sv.label }} · thiết kế {{ sv.design_version.label }}{% if dossier.final_sample_version_id == sv.pk %} · mẫu chuẩn{% elif sv.is_current %} · hiện hành{% endif %}</b>

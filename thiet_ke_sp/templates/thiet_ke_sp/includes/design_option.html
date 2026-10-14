@@ -68,7 +68,7 @@
     <div class="tk-color-card{% if not images %} is-missing{% endif %}">
       {% with img=images|first %}
       {% if img %}
-      <a class="tk-swatch d-block" href="{{ img.get_absolute_url }}" target="_blank" rel="noopener"><img src="{{ img.get_absolute_url }}" alt="{{ cw.name }}" loading="lazy"></a>
+      <button type="button" class="tk-swatch d-block tk-thumb-zoom" data-sx-gallery data-sx-gallery-image="{{ img.get_absolute_url }}" data-sx-gallery-title="{{ cw.name }}"><img src="{{ img.get_absolute_url }}" alt="{{ cw.name }}" loading="lazy"></button>
       {% else %}
       <div class="tk-swatch" style="background: {{ cw.color_codes|cw_swatch }}"></div>
       {% endif %}

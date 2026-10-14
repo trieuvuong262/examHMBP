@@ -55,10 +55,17 @@
           {% if references %}
           <div class="tk-thumbs mt-2">
             {% for a in references %}
+            {% if a.is_image %}
+            <button type="button" class="tk-thumb tk-thumb-zoom" data-sx-gallery data-sx-gallery-image="{{ a.get_absolute_url }}" data-sx-gallery-title="{{ a.display_name }}">
+              <div class="img"><img src="{{ a.get_absolute_url }}" alt=""></div>
+              <div class="cap"><div class="n">{{ a.display_name }}</div></div>
+            </button>
+            {% else %}
             <a class="tk-thumb text-decoration-none" href="{{ a.get_absolute_url }}" target="_blank" rel="noopener">
-              <div class="img">{% if a.is_image %}<img src="{{ a.get_absolute_url }}" alt="">{% else %}<i class="bi bi-file-earmark"></i>{% endif %}</div>
+              <div class="img"><i class="bi bi-file-earmark"></i></div>
               <div class="cap"><div class="n">{{ a.display_name }}</div></div>
             </a>
+            {% endif %}
             {% endfor %}
           </div>
           {% endif %}
@@ -101,6 +108,7 @@
   </div>
 </div>
 {% include 'thiet_ke_sp/includes/tksp_scripts.html' %}
+{% include 'san_xuat/includes/product_image_gallery_modal.html' %}
 <script>
 (function () {
   var group = document.getElementById('{{ form.product_group.id_for_label }}');

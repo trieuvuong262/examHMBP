@@ -1,8 +1,14 @@
 <div class="tk-thumb{% if missing %} is-missing{% endif %}">
   {% if a %}
+  {% if a.is_image %}
+  <button type="button" class="tk-thumb-zoom" data-sx-gallery data-sx-gallery-image="{{ a.get_absolute_url }}" data-sx-gallery-title="{{ a.display_name }}">
+    <div class="img"><img src="{{ a.get_absolute_url }}" alt="" loading="lazy"></div>
+  </button>
+  {% else %}
   <a href="{{ a.get_absolute_url }}" target="_blank" rel="noopener" class="text-decoration-none">
-    <div class="img">{% if a.is_image %}<img src="{{ a.get_absolute_url }}" alt="" loading="lazy">{% else %}<i class="bi bi-file-earmark-text"></i>{% endif %}</div>
+    <div class="img"><i class="bi bi-file-earmark-text"></i></div>
   </a>
+  {% endif %}
   <div class="cap">
     <div class="k">{{ label|default:a.get_kind_display }}</div>
     <div class="n" title="{{ a.display_name }}"><a href="{{ a.get_absolute_url }}?download=1" class="text-reset">{{ a.display_name }}</a></div>

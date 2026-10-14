@@ -10,7 +10,7 @@
   {% include 'thiet_ke_sp/includes/quick_head.html' %}
   {% if d.quick_options|length == 1 %}
   {% with dv=d.quick_options.0 %}{% with front=dv.current_atts|get_item:'front' %}
-  {% if front and front.is_image %}<a href="{{ front.get_absolute_url }}" target="_blank" rel="noopener" class="tk-option-thumb is-lg mb-2"><img src="{{ front.get_absolute_url }}" alt="" loading="lazy"></a>{% endif %}
+  {% if front and front.is_image %}<button type="button" class="tk-option-thumb is-lg mb-2 tk-thumb-zoom" data-sx-gallery data-sx-gallery-image="{{ front.get_absolute_url }}" data-sx-gallery-title="{{ d.name }}"><img src="{{ front.get_absolute_url }}" alt="" loading="lazy"></button>{% endif %}
   {% endwith %}{% endwith %}
   {% endif %}
   {% include 'thiet_ke_sp/includes/decide_design_fields.html' with options=d.quick_options %}

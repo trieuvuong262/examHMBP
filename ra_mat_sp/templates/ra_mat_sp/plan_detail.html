@@ -151,7 +151,7 @@
             {% for link in links %}
             {% with d=link.dossier %}
             <a class="tk-prod-card" href="{{ d.get_absolute_url }}">
-              <div class="art">{% if link.cover %}<img src="{{ link.cover.get_absolute_url }}" alt="">{% else %}<i class="bi bi-palette"></i>{% endif %}</div>
+              <div class="art">{% if link.cover %}<img src="{{ link.cover.get_absolute_url }}" alt="" data-sx-gallery data-sx-gallery-image="{{ link.cover.get_absolute_url }}" data-sx-gallery-title="{{ d.name }}" style="cursor:zoom-in">{% else %}<i class="bi bi-palette"></i>{% endif %}</div>
               <div class="info">
                 <b>{{ d.name }}</b>
                 <small>{{ d.code }}{% if link.group_label %} · {{ link.group_label }}{% endif %}</small>
@@ -173,7 +173,7 @@
             {% with d=link.dossier %}
             <tr>
               <td><a class="tk-prod text-decoration-none text-reset" href="{{ d.get_absolute_url }}">
-                <span class="tk-prod-thumb">{% if link.cover %}<img src="{{ link.cover.get_absolute_url }}" alt="">{% else %}<i class="bi bi-palette"></i>{% endif %}</span>
+                <span class="tk-prod-thumb">{% if link.cover %}<img src="{{ link.cover.get_absolute_url }}" alt="" data-sx-gallery data-sx-gallery-image="{{ link.cover.get_absolute_url }}" data-sx-gallery-title="{{ d.name }}" style="cursor:zoom-in">{% else %}<i class="bi bi-palette"></i>{% endif %}</span>
                 <span><strong>{{ d.name }}</strong><small>{{ d.code }}</small></span></a></td>
               <td>{{ link.group_label|default:'—' }}</td>
               <td><span class="tk-pill {% if d.status == 'approved' or d.status == 'handed_over' or d.status == 'closed' %}is-green{% elif d.status == 'cancelled' or d.status == 'paused' %}is-gray{% else %}is-amber{% endif %}">{{ d.get_status_display }}</span></td>
@@ -479,6 +479,7 @@
 
 {% block scripts %}
 {% include 'thiet_ke_sp/includes/tksp_scripts.html' %}
+{% include 'san_xuat/includes/product_image_gallery_modal.html' %}
 <script>
 (function () {
   var form = document.getElementById('rmGoForm');

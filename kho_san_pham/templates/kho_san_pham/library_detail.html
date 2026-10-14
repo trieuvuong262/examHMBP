@@ -10,7 +10,7 @@
 
   <div class="tk-hero mb-3">
     <div class="tk-hero-main">
-      <div class="tk-hero-thumb">{% if cover_url %}<img src="{{ cover_url }}" alt="">{% else %}<i class="bi bi-image"></i>{% endif %}</div>
+      <div class="tk-hero-thumb">{% if cover_url %}<button type="button" class="tk-thumb-zoom" data-sx-gallery data-sx-gallery-image="{{ cover_url }}" data-sx-gallery-title="{{ code }}"><img src="{{ cover_url }}" alt=""></button>{% else %}<i class="bi bi-image"></i>{% endif %}</div>
       <div class="min-w-0">
         <div class="d-flex flex-wrap align-items-center gap-2">
           {% if not style.is_active %}<span class="tk-pill is-gray">Ngừng dùng</span>
@@ -117,10 +117,10 @@
     {% elif tab == 'images' %}
       <div class="tk-thumbs">
         {% for img in images %}
-        <a class="tk-thumb text-decoration-none text-reset" href="{{ img.url }}" target="_blank" rel="noopener">
+        <button type="button" class="tk-thumb tk-thumb-zoom text-reset" data-sx-gallery data-sx-gallery-image="{{ img.url }}" data-sx-gallery-title="{{ img.label }}">
           <div class="img"><img src="{{ img.url }}" alt="" loading="lazy"></div>
           <div class="cap"><div class="k">{{ img.label }}</div><div class="n">{{ img.sku }}</div></div>
-        </a>
+        </button>
         {% empty %}
         <div class="small text-muted">Chưa có hình ảnh.</div>
         {% endfor %}
@@ -193,4 +193,5 @@
     </aside>
   </div>
 </div>
+{% include 'san_xuat/includes/product_image_gallery_modal.html' %}
 {% endblock %}

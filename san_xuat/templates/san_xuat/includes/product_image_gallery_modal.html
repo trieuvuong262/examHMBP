@@ -203,7 +203,7 @@
     e.preventDefault();
     e.stopPropagation();
     openFrom(trigger);
-  });
+  }, true);
 
   if (prevBtn) prevBtn.addEventListener('click', function () { go(-1); });
   if (nextBtn) nextBtn.addEventListener('click', function () { go(1); });
