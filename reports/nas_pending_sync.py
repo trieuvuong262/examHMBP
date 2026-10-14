@@ -82,6 +82,7 @@ def sync_all_pending() -> dict:
                 return stats
 
     from recruitment.cv_nas_storage import iter_pending_cv_names, upload_pending_cv
+    from san_xuat.design_nas_storage import iter_pending_design_names, upload_pending_design
 
     for name in list(iter_pending_cv_names()):
         try:
@@ -91,6 +92,18 @@ def sync_all_pending() -> dict:
             stats['failed'] += 1
             stats['errors'].append(f'cv/{name}: {exc}')
             logger.warning('Đồng bộ CV lên NAS thất bại %s: %s', name, exc)
+            mark_storage_unavailable()
+            stats['status'] = 'nas_down'
+            return stats
+
+    for name in list(iter_pending_design_names()):
+        try:
+            upload_pending_design(name)
+            stats['synced'] += 1
+        except OSError as exc:
+            stats['failed'] += 1
+            stats['errors'].append(f'design/{name}: {exc}')
+            logger.warning('Đồng bộ thiết kế/thư viện lên NAS thất bại %s: %s', name, exc)
             mark_storage_unavailable()
             stats['status'] = 'nas_down'
             return stats
@@ -105,8 +118,9 @@ def maybe_auto_sync() -> None:
     """
     try:
         from recruitment.cv_nas_storage import has_pending_cv
+        from san_xuat.design_nas_storage import has_pending_design
 
-        if not count_pending() and not has_pending_cv():
+        if not count_pending() and not has_pending_cv() and not has_pending_design():
             return
         if not cache.add(_AUTO_SYNC_LOCK_KEY, '1', _AUTO_SYNC_THROTTLE_SEC):
             return

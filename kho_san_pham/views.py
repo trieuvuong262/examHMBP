@@ -1,10 +1,18 @@
+import mimetypes
+import os
+from urllib.parse import quote
+
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import Q
 from django.db.models.deletion import ProtectedError
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
+
+from san_xuat.design_nas_storage import design_file_abs_path
 
 from assessment.decorators import module_perm_required, module_perm_required_methods
 from hrm.module_permissions import MODULE_KHO_SAN_PHAM
@@ -395,6 +403,25 @@ def product_generate_barcodes(request):
     else:
         messages.info(request, 'Không có sản phẩm nào cần gán mã vạch.')
     return redirect('kho_san_pham:product_list')
+
+
+@login_required
+def product_image(request, pk: int):
+    """Ảnh danh mục / thư viện. Không có URL công khai — file nằm trên NAS."""
+    from reports.nas_pending_sync import maybe_auto_sync
+
+    maybe_auto_sync()
+    product = get_object_or_404(Product, pk=pk)
+    if not product.image:
+        raise Http404('Sản phẩm không có ảnh.')
+    path = design_file_abs_path(product)
+    if not path or not os.path.isfile(path):
+        raise Http404('Không tìm thấy ảnh trên NAS.')
+    name = os.path.basename(product.image.name)
+    content_type = mimetypes.guess_type(name)[0] or 'application/octet-stream'
+    response = FileResponse(open(path, 'rb'), content_type=content_type)
+    response['Content-Disposition'] = f"inline; filename*=UTF-8''{quote(name)}"
+    return response
 
 
 @module_perm_required(MODULE_KHO_SAN_PHAM, 'view')

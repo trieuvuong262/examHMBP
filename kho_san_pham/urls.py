@@ -22,6 +22,7 @@ urlpatterns = [
     path('danh-muc/sinh-ma-vach/', views.product_generate_barcodes, name='product_generate_barcodes'),
     path('danh-muc/them/', views.product_create, name='product_create'),
     path('danh-muc/dong-bo-kv/', views.product_sync_kv, name='product_sync_kv'),
+    path('danh-muc/<int:pk>/anh/', views.product_image, name='product_image'),
     path('danh-muc/<int:pk>/', views.product_detail, name='product_detail'),
     path('danh-muc/<int:pk>/dong-bo-ho-so/', views.product_sync_tech_doc, name='product_sync_tech_doc'),
     path('danh-muc/<int:pk>/nhan-ban/', views.product_duplicate, name='product_duplicate'),

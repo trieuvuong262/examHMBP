@@ -915,6 +915,9 @@ def attachment_delete(request, att_pk):
 
 @login_required
 def attachment_serve(request, att_pk):
+    from reports.nas_pending_sync import maybe_auto_sync
+
+    maybe_auto_sync()
     att = get_object_or_404(Attachment.objects.select_related('dossier'), pk=att_pk)
     if not perms.can_view_dossier(att.dossier, request.user):
         return HttpResponseForbidden('Không có quyền xem tệp.')

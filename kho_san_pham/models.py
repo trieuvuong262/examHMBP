@@ -1,8 +1,14 @@
+import os
+import uuid
 from decimal import Decimal
 
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.urls import reverse
+from django.utils.text import get_valid_filename
+
+from san_xuat.design_nas_storage import DesignDocNasStorage
 
 from kho_san_pham.choices import (
     PRODUCT_TYPE_CHOICES,
@@ -12,6 +18,15 @@ from kho_san_pham.choices import (
     SYNC_SOURCE_MANUAL,
 )
 from kho_san_pham.sku_vocabulary import GENDER_CHOICES, GENDER_NONE
+
+
+def product_image_upload_to(instance, filename: str) -> str:
+    """``thu_vien/<mã>/...`` trong thư mục NAS 06_RnD_THIET_KE_SAN_PHAM/0.Portal."""
+    code = (getattr(instance, 'code', '') or getattr(instance, 'style_code', '') or 'unknown')
+    code = code.replace('/', '-').replace('\\', '-')
+    safe_code = get_valid_filename(code) or 'unknown'
+    safe = get_valid_filename(os.path.basename(filename or '')) or 'image'
+    return f'thu_vien/{safe_code[:80]}/{uuid.uuid4().hex[:12]}_{safe}'
 
 
 class Product(models.Model):
@@ -118,7 +133,13 @@ class Product(models.Model):
         verbose_name='Tồn xưởng',
         help_text='Bản sao tồn kho xưởng (XUONG-TP). Nguồn sự thật là sổ kho; cột này chỉ để xem trên danh mục.',
     )
-    image = models.ImageField(upload_to='kho_sp/products/', blank=True, verbose_name='Hình ảnh')
+    image = models.ImageField(
+        upload_to=product_image_upload_to,
+        storage=DesignDocNasStorage(),
+        max_length=500,
+        blank=True,
+        verbose_name='Hình ảnh',
+    )
     image_url = models.URLField(max_length=500, blank=True, default='', verbose_name='URL ảnh KV')
     allows_sale = models.BooleanField(null=True, blank=True, verbose_name='Cho phép bán')
     is_active = models.BooleanField(default=True, db_index=True, verbose_name='Đang dùng')
@@ -179,8 +200,8 @@ class Product(models.Model):
 
     @property
     def display_image_url(self) -> str:
-        if self.image:
-            return self.image.url
+        if self.image and self.pk:
+            return reverse('kho_san_pham:product_image', args=[self.pk])
         return (self.image_url or '').strip()
 
     @property
