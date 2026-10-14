@@ -179,6 +179,8 @@ class JobPosting(models.Model):
     )
     # Bỏ bước quản lý đánh giá CV: Mới → Phỏng vấn (HR chỉ cần lên lịch).
     skip_cv_review = models.BooleanField(default=False, verbose_name='Bỏ qua duyệt CV')
+    # Lao động phổ thông và vị trí tương tự: phỏng vấn Đạt → Trúng tuyển, không qua giám đốc.
+    skip_director_approval = models.BooleanField(default=False, verbose_name='Bỏ qua giám đốc duyệt')
     status = models.CharField(
         max_length=10, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True,
         verbose_name='Trạng thái',
@@ -455,11 +457,13 @@ class Interview(models.Model):
     FINAL_PENDING = 'pending'
     FINAL_PASS = 'pass'
     FINAL_FAIL = 'fail'
+    FINAL_SKIPPED = 'skipped'
     FINAL_CHOICES = [
         (FINAL_NONE, '—'),
         (FINAL_PENDING, 'Chờ giám đốc duyệt'),
         (FINAL_PASS, 'Giám đốc duyệt Đạt'),
         (FINAL_FAIL, 'Giám đốc duyệt Không đạt'),
+        (FINAL_SKIPPED, 'Không cần giám đốc duyệt'),
     ]
     final_result = models.CharField(
         max_length=10, choices=FINAL_CHOICES, default=FINAL_NONE, blank=True, db_index=True,
@@ -486,8 +490,8 @@ class Interview(models.Model):
 
     @property
     def is_approved(self) -> bool:
-        """Đạt cả 2 cấp — điều kiện để Trúng tuyển."""
-        return self.result == self.RESULT_PASS and self.final_result == self.FINAL_PASS
+        """Đủ điều kiện Trúng tuyển: giám đốc duyệt Đạt, hoặc vị trí bỏ qua giám đốc."""
+        return self.result == self.RESULT_PASS and self.final_result in (self.FINAL_PASS, self.FINAL_SKIPPED)
 
     @property
     def duration_minutes(self) -> int | None:

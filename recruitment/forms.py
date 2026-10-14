@@ -141,7 +141,7 @@ class JobPostingForm(forms.ModelForm):
         fields = [
             'title', 'target_department', 'target_division', 'position', 'quantity', 'deadline',
             'salary_min', 'salary_max', 'salary_negotiable', 'description', 'requirements',
-            'interviewers', 'skip_cv_review',
+            'interviewers', 'skip_cv_review', 'skip_director_approval',
         ]
         widgets = {
             'title': forms.TextInput(attrs={**_ctl(), 'placeholder': 'VD: Công nhân may chuyền 2'}),
@@ -152,6 +152,7 @@ class JobPostingForm(forms.ModelForm):
             'salary_negotiable': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'interviewers': forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'}),
             'skip_cv_review': forms.CheckboxInput(attrs={'class': 'form-check-input', 'role': 'switch'}),
+            'skip_director_approval': forms.CheckboxInput(attrs={'class': 'form-check-input', 'role': 'switch'}),
             'deadline': forms.DateInput(
                 attrs={**_ctl('jp-date-vn'), 'type': 'date', 'placeholder': 'dd/mm/yyyy'}, format='%Y-%m-%d',
             ),
@@ -168,7 +169,14 @@ class JobPostingForm(forms.ModelForm):
             'quantity': 'Số lượng cần tuyển',
             'salary_negotiable': 'Thỏa thuận',
             'skip_cv_review': 'Bỏ qua duyệt CV',
+            'skip_director_approval': 'Bỏ qua giám đốc duyệt',
         }
+        help_texts = {
+            'skip_director_approval': (
+                'Dùng cho lao động phổ thông và vị trí tương tự: phỏng vấn Đạt chuyển thẳng sang Trúng tuyển.'
+            ),
+        }
+
     def __init__(self, *args, scope=None, **kwargs):
         super().__init__(*args, **kwargs)
         from hrm.models import Division

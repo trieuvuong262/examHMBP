@@ -7,6 +7,7 @@ import openpyxl
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.db.models import (
     Case,
     Count,
@@ -378,11 +379,20 @@ def job_posting_edit(request, pk):
     job = get_object_or_404(_jobs(request).select_related('service_request'), pk=pk)
     form = JobPostingForm(request.POST or None, instance=job, scope=visible_scope(request.user))
     if request.method == 'POST' and form.is_valid():
-        form.save()
-        if 'interviewers' in form.changed_data:
-            synced = services.sync_job_interviewers(job)
-            if synced:
-                messages.info(request, f'Đã cập nhật người phỏng vấn cho {synced} buổi phỏng vấn chưa có kết quả.')
+        turning_on_skip = (
+            'skip_director_approval' in form.changed_data and form.cleaned_data.get('skip_director_approval')
+        )
+        with transaction.atomic():
+            form.save()
+            if 'interviewers' in form.changed_data:
+                synced = services.sync_job_interviewers(job)
+            else:
+                synced = 0
+            released = services.release_director_approvals(job, actor=request.user) if turning_on_skip else 0
+        if synced:
+            messages.info(request, f'Đã cập nhật người phỏng vấn cho {synced} buổi phỏng vấn chưa có kết quả.')
+        if released:
+            messages.info(request, f'Đã bỏ qua giám đốc duyệt cho {released} hồ sơ đang chờ.')
         messages.success(request, 'Đã cập nhật vị trí tuyển dụng.')
         return redirect('job_posting_edit', pk=job.pk)
     return render(request, 'recruitment/admin/job_posting_form.html', {
@@ -515,7 +525,9 @@ def _need_action_q(now):
     return (
         Q(status=C.STATUS_NEW)
         | (Q(status=C.STATUS_REVIEWING) & (Q(has_recommend) | Q(job_posting__skip_cv_review=True)))
-        | Q(status=C.STATUS_INTERVIEWING, interview__final_result=Interview.FINAL_PASS)
+        | Q(status=C.STATUS_INTERVIEWING, interview__final_result__in=(
+            Interview.FINAL_PASS, Interview.FINAL_SKIPPED,
+        ))
         | Q(status=C.STATUS_INTERVIEWING, interview__result=Interview.RESULT_PENDING, interview__end_time__lte=now)
         | Q(status=C.STATUS_OFFERED)
     )

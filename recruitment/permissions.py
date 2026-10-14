@@ -79,7 +79,7 @@ def final_queue(user):
         status=Candidate.STATUS_INTERVIEWING,
         interview__result=Interview.RESULT_PASS,
         interview__final_result=Interview.FINAL_PENDING,
-    )
+    ).exclude(job_posting__skip_director_approval=True)
 
 
 # ---------------------------------------------------------------- phạm vi

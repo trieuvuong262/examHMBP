@@ -102,10 +102,15 @@
                 {% for err in f.errors %}<div class="invalid-feedback d-block">{{ err }}</div>{% endfor %}
               </div>
               {% endwith %}
-              <div class="col-12">
-                <div class="form-check form-switch">
+              <div class="col-12 d-flex flex-column gap-3">
+                <div class="form-check form-switch mb-0">
                   {{ form.skip_cv_review }}
                   <label class="form-check-label fw-semibold" for="{{ form.skip_cv_review.id_for_label }}">{{ form.skip_cv_review.label }}</label>
+                </div>
+                <div class="form-check form-switch mb-0">
+                  {{ form.skip_director_approval }}
+                  <label class="form-check-label fw-semibold" for="{{ form.skip_director_approval.id_for_label }}">{{ form.skip_director_approval.label }}</label>
+                  <div class="form-text">{{ form.skip_director_approval.help_text }}</div>
                 </div>
               </div>
             </div>
@@ -190,6 +195,10 @@
               <li>
                 <div class="jp-rc-flow-label">Phỏng vấn</div>
                 <div class="jp-rc-flow-note">Kết quả Đạt / Không đạt</div>
+              </li>
+              <li id="rcFlowDirector"{% if form.skip_director_approval.value %} class="d-none"{% endif %}>
+                <div class="jp-rc-flow-label">Giám đốc duyệt</div>
+                <div class="jp-rc-flow-note">Chỉ khi phỏng vấn Đạt</div>
               </li>
               <li class="{% if job.status == 'closed' %}is-current{% endif %}">
                 <div class="jp-rc-flow-label">Onboard</div>
@@ -364,12 +373,16 @@
   refreshCount();
 })();
 
-/* Bỏ qua duyệt CV: ẩn bước «Quản lý đánh giá» trong quy trình */
+/* Bỏ qua duyệt CV / giám đốc: ẩn bước tương ứng trong quy trình */
 (function () {
-  var toggle = document.getElementById('{{ form.skip_cv_review.id_for_label }}');
-  var step = document.getElementById('rcFlowReview');
-  if (!toggle || !step) return;
-  toggle.addEventListener('change', function () { step.classList.toggle('d-none', toggle.checked); });
+  function bind(toggleId, stepId) {
+    var toggle = document.getElementById(toggleId);
+    var step = document.getElementById(stepId);
+    if (!toggle || !step) return;
+    toggle.addEventListener('change', function () { step.classList.toggle('d-none', toggle.checked); });
+  }
+  bind('{{ form.skip_cv_review.id_for_label }}', 'rcFlowReview');
+  bind('{{ form.skip_director_approval.id_for_label }}', 'rcFlowDirector');
 })();
 
 /* Ô tiền: tự thêm dấu chấm hàng nghìn khi gõ */
