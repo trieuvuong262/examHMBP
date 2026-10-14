@@ -64,6 +64,31 @@ def _log(candidate, kind, *, actor=None, message='', from_status='', to_status='
     )
 
 
+def _set_status(candidate, to_status, *, actor, message):
+    """Đổi trạng thái khi chỉnh quy trình vị trí — bước lùi không đi qua ``transition``."""
+    from_status = candidate.status
+    if from_status == to_status:
+        return
+    candidate.status = to_status
+    candidate.status_changed_at = timezone.now()
+    candidate.save(update_fields=['status', 'status_changed_at'])
+    _log(
+        candidate, CandidateEvent.KIND_STATUS, actor=actor, message=message,
+        from_status=from_status, to_status=to_status,
+    )
+
+
+def _lock_candidates(ids) -> list:
+    if not ids:
+        return []
+    return list(
+        Candidate.objects.select_for_update()
+        .filter(pk__in=ids)
+        .select_related('job_posting')
+        .order_by('pk')
+    )
+
+
 def _digits(phone: str) -> str:
     return re.sub(r'\D', '', phone or '')
 
@@ -698,6 +723,107 @@ def release_director_approvals(job, *, actor) -> int:
              message='Bỏ qua giám đốc duyệt (theo vị trí tuyển dụng).')
         _offer_if_quota(candidate, actor=actor, reason='Tự động: bỏ qua giám đốc duyệt.', via='Đạt — bỏ qua giám đốc duyệt')
     return len(pending)
+
+
+@transaction.atomic
+def restore_director_approvals(job, *, actor) -> int:
+    """Tắt «Bỏ qua giám đốc duyệt»: hồ sơ đã bỏ qua nhưng chưa nhận việc phải chờ giám đốc lại.
+
+    Đã nhận việc, loại, hoặc không nhận việc thì giữ nguyên.
+    """
+    ids = list(
+        Candidate.objects.filter(
+            job_posting=job,
+            status__in=(C.STATUS_INTERVIEWING, C.STATUS_OFFERED),
+            interview__result=Interview.RESULT_PASS,
+            interview__final_result=Interview.FINAL_SKIPPED,
+        ).values_list('pk', flat=True)
+    )
+    count = 0
+    for candidate in _lock_candidates(ids):
+        interview = candidate.interview_or_none
+        if not interview or interview.final_result != Interview.FINAL_SKIPPED:
+            continue
+        interview.final_result = Interview.FINAL_PENDING
+        interview.final_notes = ''
+        interview.final_by = None
+        interview.final_at = None
+        interview.save(update_fields=['final_result', 'final_notes', 'final_by', 'final_at'])
+        _log(candidate, CandidateEvent.KIND_INTERVIEW, actor=actor,
+             message='Vị trí yêu cầu giám đốc duyệt lại.')
+        if candidate.status == C.STATUS_OFFERED:
+            _set_status(
+                candidate, C.STATUS_INTERVIEWING, actor=actor,
+                message='Yêu cầu giám đốc duyệt lại — chuyển về Phỏng vấn.',
+            )
+        count += 1
+    return count
+
+
+def sync_skip_director_approval(job, *, actor) -> int:
+    if job.skip_director_approval:
+        return release_director_approvals(job, actor=actor)
+    return restore_director_approvals(job, actor=actor)
+
+
+@transaction.atomic
+def release_cv_reviews(job, *, actor) -> int:
+    """Bật «Bỏ qua duyệt CV»: hồ sơ đang chờ quản lý đánh giá về Mới để HR lên lịch phỏng vấn."""
+    ids = list(
+        Candidate.objects.filter(job_posting=job, status=C.STATUS_REVIEWING).values_list('pk', flat=True)
+    )
+    count = 0
+    for candidate in _lock_candidates(ids):
+        if candidate.status != C.STATUS_REVIEWING:
+            continue
+        _set_status(
+            candidate, C.STATUS_NEW, actor=actor,
+            message='Bỏ qua duyệt CV — đưa về Mới để lên lịch phỏng vấn.',
+        )
+        count += 1
+    return count
+
+
+@transaction.atomic
+def restore_cv_reviews(job, *, actor) -> int:
+    """Tắt «Bỏ qua duyệt CV»: buổi PV chưa có kết quả và chưa được duyệt CV thì hủy lịch, chờ quản lý đánh giá.
+
+    Hồ sơ đã có kết quả phỏng vấn, đã trúng tuyển hoặc đã nhận việc giữ nguyên.
+    """
+    recommended = CandidateReview.objects.filter(
+        candidate__job_posting=job,
+        decision=CandidateReview.DECISION_RECOMMEND,
+    ).values('candidate_id')
+    ids = list(
+        Candidate.objects.filter(
+            job_posting=job,
+            status=C.STATUS_INTERVIEWING,
+            interview__result=Interview.RESULT_PENDING,
+        ).exclude(pk__in=recommended).values_list('pk', flat=True)
+    )
+    target = C.STATUS_REVIEWING if job.target_department_id else C.STATUS_NEW
+    count = 0
+    for candidate in _lock_candidates(ids):
+        interview = candidate.interview_or_none
+        if candidate.status != C.STATUS_INTERVIEWING or not interview or interview.result != Interview.RESULT_PENDING:
+            continue
+        if has_recommend_review(candidate):
+            continue
+        when = interview.time_range_label
+        interview.delete()
+        if target == C.STATUS_REVIEWING:
+            message = f'Yêu cầu duyệt CV — hủy lịch PV {when}, chuyển về chờ quản lý đánh giá.'
+        else:
+            message = f'Yêu cầu duyệt CV — hủy lịch PV {when}. Vị trí chưa gắn phòng ban nên đưa về Mới.'
+        _set_status(candidate, target, actor=actor, message=message)
+        count += 1
+    return count
+
+
+def sync_skip_cv_review(job, *, actor) -> int:
+    if job.skip_cv_review:
+        return release_cv_reviews(job, actor=actor)
+    return restore_cv_reviews(job, actor=actor)
 
 
 # ---------------------------------------------------------------- manager review

@@ -171,11 +171,6 @@ class JobPostingForm(forms.ModelForm):
             'skip_cv_review': 'Bỏ qua duyệt CV',
             'skip_director_approval': 'Bỏ qua giám đốc duyệt',
         }
-        help_texts = {
-            'skip_director_approval': (
-                'Dùng cho lao động phổ thông và vị trí tương tự: phỏng vấn Đạt chuyển thẳng sang Trúng tuyển.'
-            ),
-        }
 
     def __init__(self, *args, scope=None, **kwargs):
         super().__init__(*args, **kwargs)

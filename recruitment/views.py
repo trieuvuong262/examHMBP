@@ -379,20 +379,30 @@ def job_posting_edit(request, pk):
     job = get_object_or_404(_jobs(request).select_related('service_request'), pk=pk)
     form = JobPostingForm(request.POST or None, instance=job, scope=visible_scope(request.user))
     if request.method == 'POST' and form.is_valid():
-        turning_on_skip = (
-            'skip_director_approval' in form.changed_data and form.cleaned_data.get('skip_director_approval')
-        )
+        cv_changed = 'skip_cv_review' in form.changed_data
+        director_changed = 'skip_director_approval' in form.changed_data
         with transaction.atomic():
             form.save()
             if 'interviewers' in form.changed_data:
                 synced = services.sync_job_interviewers(job)
             else:
                 synced = 0
-            released = services.release_director_approvals(job, actor=request.user) if turning_on_skip else 0
+            cv_moved = services.sync_skip_cv_review(job, actor=request.user) if cv_changed else 0
+            director_moved = (
+                services.sync_skip_director_approval(job, actor=request.user) if director_changed else 0
+            )
         if synced:
             messages.info(request, f'Đã cập nhật người phỏng vấn cho {synced} buổi phỏng vấn chưa có kết quả.')
-        if released:
-            messages.info(request, f'Đã bỏ qua giám đốc duyệt cho {released} hồ sơ đang chờ.')
+        if cv_moved:
+            if job.skip_cv_review:
+                messages.info(request, f'Đã đưa {cv_moved} hồ sơ ra khỏi bước duyệt CV.')
+            else:
+                messages.info(request, f'Đã chuyển {cv_moved} hồ sơ về chờ quản lý đánh giá.')
+        if director_moved:
+            if job.skip_director_approval:
+                messages.info(request, f'Đã bỏ qua giám đốc duyệt cho {director_moved} hồ sơ đang chờ.')
+            else:
+                messages.info(request, f'Đã chuyển {director_moved} hồ sơ về chờ giám đốc duyệt.')
         messages.success(request, 'Đã cập nhật vị trí tuyển dụng.')
         return redirect('job_posting_edit', pk=job.pk)
     return render(request, 'recruitment/admin/job_posting_form.html', {
@@ -1302,6 +1312,7 @@ def _pending_reviews(user):
     """Hồ sơ đang chờ đánh giá mà quản lý này chưa đánh giá — cũ nhất trước."""
     return (
         _managed_candidates(user).filter(status=C.STATUS_REVIEWING)
+        .exclude(job_posting__skip_cv_review=True)
         .exclude(reviews__reviewer=user)
         .order_by('status_changed_at', 'pk')
     )

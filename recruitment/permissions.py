@@ -269,6 +269,7 @@ def can_review_candidate(user, candidate) -> bool:
 
     return (
         candidate.status == Candidate.STATUS_REVIEWING
+        and not candidate.job_posting.skip_cv_review
         and manager_can_access_job(user, candidate.job_posting)
     )
 
