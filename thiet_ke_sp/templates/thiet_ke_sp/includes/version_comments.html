@@ -2,9 +2,18 @@
 <div class="tk-section">
   <div class="tk-section-title"><i class="bi bi-chat-dots"></i>Góp ý trên phiên bản</div>
   {% for c in version_comments %}
-  <div class="tk-comment{% if c.is_revision_request %} is-revision{% endif %}">
-    <div class="small text-muted mb-1">{{ c.author|uname }} · {{ c.created_at|date:'H:i d/m/Y' }}{% if c.is_revision_request %} · <span class="text-danger fw-bold">Yêu cầu chỉnh sửa</span>{% endif %}</div>
-    {{ c.body|linebreaksbr }}
+  <div class="tk-comment tk-comment-item{% if c.is_revision_request %} is-revision{% endif %}">
+    {% if c.author %}
+      {% with photo=c.author|avatar_url %}
+      {% if photo %}<img class="tk-avatar" src="{{ photo }}" alt="{{ c.author|uname }}">{% else %}<span class="tk-avatar" style="background: {{ c.author.pk|avatar_tone }}">{{ c.author|initial }}</span>{% endif %}
+      {% endwith %}
+    {% else %}
+      <span class="tk-avatar is-empty">?</span>
+    {% endif %}
+    <div class="min-w-0">
+      <div class="tk-comment-meta"><strong>{{ c.author|uname }}</strong><span>{{ c.created_at|date:'H:i d/m/Y' }}{% if c.is_revision_request %} · <span class="text-danger fw-bold">Yêu cầu chỉnh sửa</span>{% endif %}</span></div>
+      <div>{{ c.body|linebreaksbr }}</div>
+    </div>
   </div>
   {% empty %}
   <div class="small text-muted">Chưa có góp ý.</div>

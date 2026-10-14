@@ -3882,10 +3882,9 @@ def dispatch_mo_detail(request, pk: int):
         .prefetch_related('stock_issues')
         .order_by('-request_date', '-pk')[:50]
     )
-    qc_request_list = (
-        mo.qc_requests.filter(is_demo=False)
-        .prefetch_related('inspections')
-        .order_by('-request_date', '-pk')[:20]
+    qc_flow_checks = list(
+        mo.qc_flow_checks.filter(is_demo=False)
+        .order_by('-checked_on', '-pk')[:12]
     )
     open_qc_alerts = list(
         mo.qc_alerts.filter(is_demo=False, status=SxQcAlert.STATUS_OPEN)
@@ -4052,7 +4051,7 @@ def dispatch_mo_detail(request, pk: int):
         'update_form': update_form,
         'can_update': can_update,
         'ycx_list': ycx_list,
-        'qc_request_list': qc_request_list,
+        'qc_flow_checks': qc_flow_checks,
         'open_qc_alerts': open_qc_alerts,
         'fg_receipt_list': fg_receipt_list,
         'route_stat_days': route_stat_days,
@@ -5281,130 +5280,21 @@ def qc_team_board(request, slug: str):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def qc_sheet(request):
-    base_qs = (
-        SxQcInspection.objects.filter(is_demo=False)
-        .select_related('qc_request', 'qc_request__production_order', 'standard_set')
-        .order_by('-inspected_at', '-pk')
-    )
-    inspections, fctx = prepare_hub_list(request, base_qs, SX_FILTER_QC_SHEET, list_key='qc_sheet')
-    return render(request, 'san_xuat/qc_sheet_list.html', {
-        **_perm_ctx(request),
-        'inspections': inspections,
-        **fctx,
-    })
+    return redirect('san_xuat:qc_stub')
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def qc_request(request):
-    base_qs = (
-        SxQcRequest.objects.filter(is_demo=False)
-        .select_related('production_order')
-        .order_by('-request_date', '-pk')
-    )
-    requests_qs, fctx = prepare_hub_list(request, base_qs, SX_FILTER_QC_REQUEST, list_key='qc_request')
-    return render(request, 'san_xuat/qc_request_list.html', {
-        **_perm_ctx(request),
-        'requests': requests_qs,
-        **fctx,
-    })
+    return redirect('san_xuat:qc_stub')
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'create')
 def qc_request_create(request):
-    mo = None
-    stat = None
-    if request.method == 'POST':
-        form = QcRequestForm(request.POST)
-        raw_mo = (request.POST.get('production_order') or '').strip()
-        if raw_mo.isdigit():
-            mo = SxProductionOrder.objects.filter(pk=int(raw_mo)).first()
-        raw_stat = (request.POST.get('stat_id') or request.GET.get('stat') or '').strip()
-        if raw_stat.isdigit():
-            stat = SxProductionStat.objects.filter(pk=int(raw_stat)).select_related('production_order').first()
-            if stat and not mo:
-                mo = stat.production_order
-        if form.is_valid():
-            qc_req = form.save(commit=False)
-            if not qc_req.code:
-                from san_xuat.services.sx_settings import sx_prefix
-                qc_req.code = _next_code(sx_prefix('qc_req'), SxQcRequest)
-            if stat and not qc_req.production_stat_id:
-                qc_req.production_stat = stat
-            team_slug = (request.POST.get('team_slug') or request.GET.get('team') or '').strip().lower()
-            if team_slug and not qc_req.team_slug:
-                qc_req.team_slug = team_slug
-            if qc_req.team_slug and not qc_req.work_center_id:
-                from san_xuat.services.qc import work_center_for_slug
-                qc_req.work_center = work_center_for_slug(qc_req.team_slug)
-            if not qc_req.team_slug and qc_req.stage_name:
-                from san_xuat.services.qc import resolve_team_slug_from_process
-                qc_req.team_slug = resolve_team_slug_from_process(qc_req.stage_name) or ''
-            qc_req.is_demo = False
-            qc_req.save()
-            try:
-                inspection = create_inspection_from_request(
-                    request_id=qc_req.pk,
-                    notes=f'Tự tạo cùng YCKT {qc_req.code}',
-                )
-            except QcError as exc:
-                messages.warning(
-                    request,
-                    f'Đã tạo YCKT {qc_req.code} nhưng chưa lập được phiếu kiểm tra: {exc}',
-                )
-                return redirect('san_xuat:qc_request_detail', pk=qc_req.pk)
-            messages.success(
-                request,
-                f'Đã tạo YCKT {qc_req.code} và phiếu kiểm tra {inspection.code}.',
-            )
-            return redirect('san_xuat:qc_sheet_detail', pk=inspection.pk)
-        messages.error(request, 'Không tạo được yêu cầu kiểm tra - kiểm tra lại form.')
-    else:
-        initial = {}
-        mo_id = request.GET.get('mo')
-        stat_id = request.GET.get('stat')
-        team_slug = (request.GET.get('team') or '').strip().lower()
-        if mo_id and str(mo_id).isdigit():
-            mo = get_object_or_404(SxProductionOrder, pk=int(mo_id))
-            from san_xuat.services.progress_template import team_by_slug
-            team_meta = team_by_slug(team_slug) if team_slug else None
-            initial.update({
-                'production_order': mo.pk,
-                'product_code': mo.product_code,
-                'product_name': mo.product_name,
-                'stage_name': (team_meta['label'] if team_meta else None) or mo.team_label or 'QC',
-                'qty': mo.qty,
-                'team_slug': team_slug,
-            })
-        if stat_id and str(stat_id).isdigit():
-            stat = get_object_or_404(SxProductionStat, pk=int(stat_id))
-            mo = stat.production_order
-            initial.update({
-                'production_order': mo.pk,
-                'product_code': mo.product_code,
-                'product_name': mo.product_name,
-                'stage_name': stat.process_name or 'QC thành phẩm',
-                'qty': stat.qty_good or stat.qty_defect or 0,
-            })
-            from san_xuat.services.qc import resolve_team_slug_from_process
-            slug = resolve_team_slug_from_process(
-                stat.process_name or '',
-                team_label=getattr(stat, 'team_label', '') or '',
-            )
-            if slug:
-                initial['team_slug'] = slug
-        form = QcRequestForm(initial=initial)
-
-    if mo is not None:
-        for name in ('code', 'production_order', 'product_code', 'product_name', 'status', 'team_slug'):
-            if name in form.fields:
-                form.fields[name].widget = forms.HiddenInput()
-
-    return render(request, 'san_xuat/qc_request_form.html', {
-        **_perm_ctx(request),
-        'form': form,
-        'mo': mo,
-        'stat': stat,
-    })
+    mo = (request.GET.get('mo') or request.POST.get('production_order') or '').strip()
+    target = reverse('san_xuat:qc_flow_create', kwargs={'flow': 'endline'})
+    if mo.isdigit():
+        return redirect(f'{target}?mo={mo}')
+    return redirect(target)
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
@@ -5441,44 +5331,7 @@ def qc_request_detail(request, pk: int):
 
 @module_perm_required(MODULE_SAN_XUAT, 'create')
 def qc_sheet_create(request):
-    qc_req = None
-    if request.method == 'POST':
-        form = QcInspectionCreateForm(request.POST)
-        raw_req = (request.POST.get('qc_request') or '').strip()
-        if raw_req.isdigit():
-            qc_req = SxQcRequest.objects.filter(pk=int(raw_req)).first()
-        if form.is_valid():
-            try:
-                inspection = create_inspection_from_request(
-                    request_id=form.cleaned_data['qc_request'].pk,
-                    standard_id=form.cleaned_data['standard_set'].pk if form.cleaned_data.get('standard_set') else None,
-                    code=form.cleaned_data.get('code') or None,
-                    inspected_at=form.cleaned_data.get('inspected_at'),
-                    notes=form.cleaned_data.get('notes') or '',
-                )
-            except QcError as exc:
-                messages.error(request, str(exc))
-            else:
-                messages.success(request, f'Đã tạo phiếu kiểm tra {inspection.code}.')
-                return redirect('san_xuat:qc_sheet_detail', pk=inspection.pk)
-        messages.error(request, 'Không tạo được phiếu kiểm tra - kiểm tra lại form.')
-    else:
-        initial = {}
-        req_id = request.GET.get('request')
-        if req_id and str(req_id).isdigit():
-            qc_req = get_object_or_404(SxQcRequest, pk=int(req_id))
-            initial['qc_request'] = qc_req.pk
-        form = QcInspectionCreateForm(initial=initial)
-
-    if qc_req is not None and 'qc_request' in form.fields:
-        form.fields['qc_request'].widget = forms.HiddenInput()
-        form.fields['qc_request'].queryset = SxQcRequest.objects.filter(pk=qc_req.pk)
-
-    return render(request, 'san_xuat/qc_sheet_form.html', {
-        **_perm_ctx(request),
-        'form': form,
-        'qc_req': qc_req,
-    })
+    return redirect('san_xuat:qc_flow_create', flow='endline')
 
 
 def _qc_inspection_qs():

@@ -350,6 +350,11 @@ SX_FILTER_MO = SxFilterSpec(
     date_field='order_date',
     status_field='status',
 )
+SX_FILTER_QC_BOARD = SxFilterSpec(
+    code_fields=('code', 'product_code', 'sales_order__code'),
+    name_fields=('product_name', 'sales_order__customer_name'),
+    status_field='status',
+)
 SX_FILTER_DISASSEMBLY = SxFilterSpec(
     code_fields=('code', 'product_code'),
     name_fields=('product_name',),

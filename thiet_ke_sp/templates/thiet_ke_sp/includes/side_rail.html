@@ -9,6 +9,8 @@
   {% endfor %}
 </div>
 
+{% include 'thiet_ke_sp/includes/step_comments.html' %}
+
 {% if members or flags.edit_roles %}
 <div class="tk-card tk-side-card">
   <h3>Thành viên hồ sơ{% if flags.edit_roles %}<button type="button" class="btn btn-sm btn-light border py-0 px-2" data-bs-toggle="modal" data-bs-target="#tkModalMember" title="Thêm thành viên"><i class="bi bi-person-plus"></i></button>{% endif %}</h3>

@@ -98,6 +98,43 @@ def has_memberships(user) -> bool:
     return DossierMember.objects.filter(user=user).exclude(dossier__status__in=FINAL_STATUSES).exists()
 
 
+def has_follows(user) -> bool:
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    return ProductDevelopment.objects.filter(followers=user).exists()
+
+
+def _open_task_qs(user):
+    from .models import Task
+
+    return Task.objects.filter(assignee=user, state=Task.STATE_OPEN).exclude(
+        dossier__status__in=(Status.PAUSED, Status.CANCELLED, Status.CLOSED),
+    )
+
+
+def has_assigned_work(user) -> bool:
+    """Có việc hồ sơ đang mở — kể cả khi không có quyền menu module."""
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    return _open_task_qs(user).exists()
+
+
+def has_approval_queue(user) -> bool:
+    """Có hồ sơ đang chờ chính user này duyệt."""
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    return ProductDevelopment.objects.filter(
+        approver=user,
+        status__in=(Status.BRIEF_PENDING, Status.DESIGN_PENDING, Status.MASTER_PENDING),
+    ).exists()
+
+
+def is_follower(dossier: ProductDevelopment, user) -> bool:
+    if not getattr(user, 'is_authenticated', False) or not getattr(dossier, 'pk', None):
+        return False
+    return dossier.followers.filter(pk=user.pk).exists()
+
+
 MEMBER_DOSSIER_URLS = frozenset({'detail', 'action', 'upload'})
 MEMBER_FILE_URLS = frozenset({'attachment_serve', 'attachment_delete'})
 
@@ -116,7 +153,11 @@ def member_path_allowed(user, path: str) -> bool:
         return False
     name = match.url_name
     if name == 'list':
-        return has_memberships(user)
+        return has_memberships(user) or has_follows(user)
+    if name == 'notifications':
+        return has_memberships(user) or has_follows(user) or has_assigned_work(user) or has_approval_queue(user)
+    if name in ('my_tasks', 'approve_queue'):
+        return has_assigned_work(user) or has_approval_queue(user) or has_memberships(user) or has_follows(user)
     if name == 'npl_search':
         return has_memberships(user)
     if name == 'notification_open':
@@ -127,11 +168,18 @@ def member_path_allowed(user, path: str) -> bool:
         dossier_id = Attachment.objects.filter(pk=match.kwargs.get('att_pk')).values_list('dossier_id', flat=True).first()
     else:
         return False
-    return bool(dossier_id) and DossierMember.objects.filter(dossier_id=dossier_id, user=user).exists()
+    if not dossier_id:
+        return False
+    if name == 'upload' or name == 'attachment_delete':
+        return DossierMember.objects.filter(dossier_id=dossier_id, user=user).exists()
+    return (
+        DossierMember.objects.filter(dossier_id=dossier_id, user=user).exists()
+        or ProductDevelopment.objects.filter(pk=dossier_id, followers=user).exists()
+    )
 
 
 def can_view_dossier(dossier: ProductDevelopment, user) -> bool:
-    return can_view_module(user) or is_member(dossier, user)
+    return can_view_module(user) or is_member(dossier, user) or is_follower(dossier, user)
 
 
 def can_act(dossier: ProductDevelopment, user) -> bool:
@@ -174,7 +222,7 @@ def is_dossier_approver(dossier: ProductDevelopment, user) -> bool:
 
 
 def can_edit_brief(dossier: ProductDevelopment, user) -> bool:
-    if dossier.status not in (Status.DRAFT, Status.BRIEF_NEEDS_INFO):
+    if dossier.status in (*FINAL_STATUSES, Status.HANDED_OVER):
         return False
     return can_update(user) and has_role(dossier, user, Role.PROPOSER, Role.OWNER)
 

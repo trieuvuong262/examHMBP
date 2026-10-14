@@ -6,7 +6,7 @@ from datetime import datetime, time, timedelta
 
 from django.utils import timezone
 
-from thiet_ke_sp.models import DOSSIER_ROLE_FIELDS, ModuleSetting, Status
+from thiet_ke_sp.models import ModuleSetting, POOL_ROLES, Status
 
 # (bước, nhãn, số ngày mặc định)
 SLA_STEPS = (
@@ -58,7 +58,7 @@ def configured_role_ids(setting: ModuleSetting | None = None) -> dict[str, list[
     setting = setting or get_settings()
     raw = setting.default_roles or {}
     result = {}
-    for role in DOSSIER_ROLE_FIELDS:
+    for role in POOL_ROLES:
         value = raw.get(role)
         if isinstance(value, int):
             items = [value]

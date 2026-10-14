@@ -111,7 +111,7 @@ def code_letter(lot_size: int, inspection_level: str = 'II') -> str:
     level = normalize_level(inspection_level)
     size = max(int(lot_size or 0), 0)
     if size < 2:
-        return _CODE_TABLE[0][level]
+        return _CODE_TABLE[0][1][level]
     for upper, letters in _CODE_TABLE:
         if size <= upper:
             return letters[level]

@@ -1,0 +1,62 @@
+{% load tksp_tags %}
+<div class="tk-card tk-side-card tk-comments-card">
+  <h3><span><i class="bi bi-chat-dots me-1"></i>Góp ý</span></h3>
+  <div class="accordion accordion-flush" id="tkStepComments">
+    {% for s in steps %}
+    {% with rows=step_comments|get_item:s.key %}
+    <div class="accordion-item">
+      <h4 class="accordion-header">
+        {% if s.state == 'todo' %}
+        <div class="accordion-button collapsed tk-cmt-locked">
+          <span class="tk-cmt-step">{{ s.no }}. {{ s.label }}</span>
+        </div>
+        {% else %}
+        <button class="accordion-button{% if s.key != comment_step %} collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#tkCmt{{ s.key }}" aria-expanded="{% if s.key == comment_step %}true{% else %}false{% endif %}" aria-controls="tkCmt{{ s.key }}">
+          <span class="tk-cmt-step">{{ s.no }}. {{ s.label }}</span>
+          <span class="tk-cmt-marks">
+            {% if s.state == 'current' %}<span class="tk-pill is-blue">đang làm</span>{% endif %}
+            {% if rows %}<span class="tk-pill is-gray">{{ rows|length }}</span>{% endif %}
+          </span>
+        </button>
+        {% endif %}
+      </h4>
+      {% if s.state != 'todo' %}
+      <div id="tkCmt{{ s.key }}" class="accordion-collapse collapse{% if s.key == comment_step %} show{% endif %}" data-bs-parent="#tkStepComments">
+        <div class="accordion-body">
+          <div class="tk-cmt-list">
+            {% for c in rows %}
+            <div class="tk-comment tk-comment-item">
+              {% if c.author %}
+                {% with photo=c.author|avatar_url %}
+                {% if photo %}<img class="tk-avatar" src="{{ photo }}" alt="{{ c.author|uname }}">{% else %}<span class="tk-avatar" style="background: {{ c.author.pk|avatar_tone }}">{{ c.author|initial }}</span>{% endif %}
+                {% endwith %}
+              {% else %}
+                <span class="tk-avatar is-empty">?</span>
+              {% endif %}
+              <div class="min-w-0">
+                <div class="tk-comment-meta"><strong>{{ c.author|uname }}</strong><span>{{ c.created_at|date:'H:i d/m/Y' }}</span></div>
+                <div>{{ c.body|linebreaksbr }}</div>
+              </div>
+            </div>
+            {% empty %}
+            <div class="small text-muted">Chưa có góp ý.</div>
+            {% endfor %}
+          </div>
+          {% if flags.comment %}
+          <form method="post" action="{% url 'thiet_ke_sp:action' dossier.pk 'comment_add' %}" class="mt-2">{% csrf_token %}
+            <input type="hidden" name="step" value="{{ s.key }}">
+            <input type="hidden" name="return_tab" value="{{ tab }}">
+            <textarea name="body" class="form-control form-control-sm" rows="2" required placeholder="Góp ý cho bước này"></textarea>
+            <div class="text-end mt-1">
+              <button type="submit" class="btn btn-sm btn-outline-hm fw-bold"><i class="bi bi-send me-1"></i>Gửi</button>
+            </div>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+    {% endwith %}
+    {% endfor %}
+  </div>
+</div>

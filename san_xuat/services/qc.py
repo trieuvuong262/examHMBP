@@ -565,22 +565,19 @@ def latest_qc_inspection(*, mo: SxProductionOrder) -> SxQcInspection | None:
 
 
 def qc_ready_for_fg(*, mo: SxProductionOrder) -> tuple[bool, str]:
-    """Nhập TP khi đủ tổ Đạt và phiếu đã chốt Đạt."""
-    passed, total, missing = ob_qc_progress(mo=mo)
-    if total == 0:
+    """Nhập thành phẩm khi đã có ít nhất một phiếu QC endline chốt Đạt.
+
+    Không bắt kiểm đủ số lượng cả lệnh. Lệnh không có tổ trên Ob và chưa có
+    phiếu Đạt thì không chặn.
+    """
+    from san_xuat.services.qc_flow import passed_endline
+
+    sheet = passed_endline(mo=mo)
+    if sheet is not None:
         return True, ""
-    if missing:
-        return False, (
-            f"Chưa hoàn thành Kiểm tra sản phẩm ({passed}/{total}) — còn {', '.join(missing)}."
-        )
-    insp = latest_qc_inspection(mo=mo)
-    if insp is None or insp.status != "done":
-        return False, (
-            f"Đã lưu đủ tổ ({passed}/{total}) nhưng chưa chốt phiếu kiểm tra."
-        )
-    if insp.result != SxQcInspection.RESULT_PASS:
-        return False, "Phiếu kiểm tra đã chốt nhưng chưa Đạt — không được nhập thành phẩm."
-    return True, ""
+    if not ob_qc_teams(mo=mo):
+        return True, ""
+    return False, "Chưa có phiếu QC endline Đạt."
 
 
 def latest_pass_inspection(*, mo: SxProductionOrder) -> SxQcInspection | None:

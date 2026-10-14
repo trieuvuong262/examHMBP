@@ -13,7 +13,6 @@ from san_xuat.hub_models import (
     SxMaterialIssueRequest,
     SxProductionOrder,
     SxProductionStat,
-    SxQcInspection,
 )
 
 
@@ -151,13 +150,6 @@ def _has_posted_issue(mo: SxProductionOrder) -> tuple[bool, SxMaterialIssueReque
     return False, first
 
 
-def _has_qc_pass(mo: SxProductionOrder) -> tuple[bool, SxQcInspection | None]:
-    from san_xuat.services.qc import latest_qc_inspection, qc_ready_for_fg
-
-    ok, _msg = qc_ready_for_fg(mo=mo)
-    return ok, latest_qc_inspection(mo=mo)
-
-
 def build_mo_progress(mo: SxProductionOrder) -> MoProgress:
     planned = _dec(mo.qty)
     issued_ok, issue_req = _has_posted_issue(mo)
@@ -170,7 +162,6 @@ def build_mo_progress(mo: SxProductionOrder) -> MoProgress:
         .order_by("-pk")
         .first()
     )
-    _, qc_insp = _has_qc_pass(mo)
     fg = (
         SxFgReceiptRequest.objects.filter(is_demo=False, production_order=mo)
         .exclude(status=SxFgReceiptRequest.STATUS_CANCELLED)
@@ -218,44 +209,25 @@ def build_mo_progress(mo: SxProductionOrder) -> MoProgress:
             url_pk=stat.pk if stat else None,
         ),
     ]
-    from san_xuat.services.qc import (
-        QC_STATUS_PASS,
-        latest_qc_inspection_ids_for_mos,
-        ob_qc_progress,
-        ob_qc_teams,
-        qc_ready_for_fg,
-        qc_status_map_for_mos,
-    )
+    from san_xuat.services.qc import qc_ready_for_fg
+    from san_xuat.services.qc_flow import passed_endline
 
-    qc_passed, qc_total, _missing = ob_qc_progress(mo=mo)
-    qc_ok, _qc_block = qc_ready_for_fg(mo=mo)
-    insp_id = latest_qc_inspection_ids_for_mos([mo]).get(mo.pk)
-    next_slug = ""
-    if qc_total and not qc_ok:
-        status_map = qc_status_map_for_mos([mo])
-        for team in ob_qc_teams(mo=mo):
-            if status_map.get((mo.pk, team.slug)) != QC_STATUS_PASS:
-                next_slug = team.slug
-                break
-    if qc_total:
-        qc_label = f"Kiểm tra sản phẩm ({qc_passed}/{qc_total})"
-        if qc_ok:
-            qc_detail = "Đã chốt phiếu"
-        elif qc_passed == qc_total:
-            qc_detail = "Chưa chốt phiếu"
-        else:
-            qc_detail = f"Còn {qc_total - qc_passed} tổ"
+    endline = passed_endline(mo=mo)
+    qc_ok, qc_block = qc_ready_for_fg(mo=mo)
+    if endline is not None:
+        qc_detail = endline.code
+    elif qc_ok:
+        qc_detail = "Không bắt buộc"
     else:
-        qc_label = "Kiểm tra sản phẩm"
-        qc_detail = qc_insp.code if qc_insp else "Không có tổ Ob"
+        qc_detail = qc_block or "Chưa có phiếu endline"
     steps.append(
         ProgressStep(
             key="qc",
-            label=qc_label,
+            label="QC endline",
             done=qc_ok,
             detail=qc_detail,
-            url_name="san_xuat:qc_sheet_detail" if insp_id else "san_xuat:qc_stub",
-            url_pk=insp_id,
+            url_name="san_xuat:qc_flow_open" if endline else "",
+            url_pk=endline.pk if endline else None,
         )
     )
     qty_good = _qty_good_confirmed(mo)
@@ -295,10 +267,10 @@ def build_mo_progress(mo: SxProductionOrder) -> MoProgress:
         qty_rows=qty_rows,
         done_count=done_count,
         total_steps=len(tracked),
-        qc_passed=qc_passed,
-        qc_total=qc_total,
-        qc_next_slug=next_slug,
-        qc_inspection_id=insp_id,
+        qc_passed=1 if endline is not None and endline.result == endline.RESULT_PASS else 0,
+        qc_total=0 if endline is None and qc_ok else 1,
+        qc_next_slug="",
+        qc_inspection_id=endline.pk if endline else None,
     )
 
 

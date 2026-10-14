@@ -58,10 +58,21 @@ def stepper(dossier: ProductDevelopment) -> list[dict]:
     return rows
 
 
+def step_is_reached(dossier: ProductDevelopment, step: str) -> bool:
+    """Bước đã đi tới (đang làm hoặc đã xong) thì mới được góp ý."""
+    return any(row['key'] == step and row['state'] != 'todo' for row in stepper(dossier))
+
+
 def roles_rail(dossier: ProductDevelopment) -> list[dict]:
     rows = [{'role': Role.PROPOSER, 'label': Role.PROPOSER.label, 'user': dossier.proposer}]
     for role in DOSSIER_ROLE_FIELDS:
         rows.append({'role': role, 'label': Role(role).label, 'user': getattr(dossier, role)})
+    followers = list(dossier.followers.select_related('profile'))
+    if followers:
+        for person in followers:
+            rows.append({'role': Role.FOLLOWER, 'label': Role.FOLLOWER.label, 'user': person})
+    else:
+        rows.append({'role': Role.FOLLOWER, 'label': Role.FOLLOWER.label, 'user': None})
     return rows
 
 

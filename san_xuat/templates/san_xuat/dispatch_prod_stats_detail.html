@@ -117,17 +117,10 @@
           <div class="text-muted small mb-3">Bạn không có quyền cập nhật.</div>
           {% endif %}
 
-          {% if can_update and not qc_requests %}
-          <form method="post">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="create_yckt">
-            <button type="submit" class="btn btn-outline-hm btn-sm">Tạo yêu cầu kiểm tra thủ công</button>
-          </form>
+          {% if can_update and stat.production_order_id %}
+          <a href="{% url 'san_xuat:qc_flow_create' 'endline' %}?mo={{ stat.production_order_id }}" class="btn btn-outline-hm btn-sm">Tạo phiếu QC endline</a>
           {% endif %}
 
-          <a href="{% url 'san_xuat:qc_request_create' %}?stat={{ stat.pk }}" class="btn btn-outline-secondary mt-2 btn-sm">
-            Mở form Yêu cầu kiểm tra (prefill)
-          </a>
           <a href="{% url 'san_xuat:dispatch_fg_receipt_req_create' %}?stat={{ stat.pk }}" class="btn btn-outline-secondary mt-2 btn-sm">
             Tạo yêu cầu nhập thành phẩm từ thống kê sản xuất
           </a>

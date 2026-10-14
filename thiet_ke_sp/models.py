@@ -123,6 +123,7 @@ class Role(models.TextChoices):
     SAMPLE_MAKER = 'sample_maker', 'May mẫu'
     QA = 'qa_user', 'QA/QC'
     COSTING = 'costing_user', 'Kế hoạch / Giá thành'
+    FOLLOWER = 'follower', 'Người theo dõi'
     RECEIVER = 'receiver', 'Bộ phận nhận bàn giao'
     CONDITION = 'condition', 'Xử lý điều kiện duyệt'
     FIX = 'fix_owner', 'Sửa lỗi mẫu'
@@ -153,6 +154,8 @@ DOSSIER_ROLE_FIELDS = (
     Role.SAMPLE_MAKER,
     Role.COSTING,
 )
+# Người theo dõi chọn nhiều người; không gán việc và không có quyền thao tác.
+POOL_ROLES = (*DOSSIER_ROLE_FIELDS, Role.FOLLOWER)
 
 
 class DossierSequence(models.Model):
@@ -214,6 +217,9 @@ class ProductDevelopment(models.Model):
     costing_user = models.ForeignKey(
         USER, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='tksp_costing', verbose_name='Kế hoạch / Giá thành',
+    )
+    followers = models.ManyToManyField(
+        USER, blank=True, related_name='tksp_following', verbose_name='Người theo dõi',
     )
     proposed_date = models.DateField(default=timezone.localdate, verbose_name='Ngày đề xuất')
     launch_date = models.DateField(null=True, blank=True, verbose_name='Ngày dự kiến ra mắt')
@@ -846,6 +852,11 @@ class Comment(models.Model):
     )
     sample_version = models.ForeignKey(
         SampleVersion, on_delete=models.SET_NULL, null=True, blank=True, related_name='comments',
+    )
+    step = models.CharField(
+        max_length=30, blank=True, default='',
+        choices=[('', 'Cả hồ sơ'), *[(key, label) for key, label, _statuses in STEPS]],
+        verbose_name='Bước',
     )
     author = models.ForeignKey(USER, on_delete=models.SET_NULL, null=True, related_name='+')
     body = models.TextField(verbose_name='Nội dung')

@@ -3,99 +3,102 @@
 
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
-{% include 'san_xuat/includes/sx_qc_compact_styles.html' %}
+{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+{% include 'san_xuat/includes/sx_mo_styles.html' %}
 <style>
-.jp-qc-matrix-wrap {
-  border: 1px solid #fecaca;
-  border-radius: 0.75rem;
-  background: #fff;
-  overflow: auto;
+.jp-qc-prod { display: flex; align-items: center; gap: .55rem; min-width: 0; }
+.jp-qc-prod .sx-doc-thumb { flex: 0 0 auto; }
+.jp-qc-prod-img {
+  display: block; width: 2.5rem; height: 2.5rem; flex: 0 0 2.5rem;
+  object-fit: cover; border: 1px solid #e2e8f0; border-radius: .3rem; background: #fff;
 }
-.jp-qc-matrix { width: 100%; border-collapse: collapse; min-width: 52rem; font-size: 0.82rem; }
-.jp-qc-matrix th {
-  text-align: left; font-size: 0.68rem; font-weight: 800; text-transform: uppercase;
-  color: #b91c1c; padding: 0.65rem 0.7rem; background: #fef2f2; border-bottom: 1px solid #fecaca;
-}
-.jp-qc-matrix th.is-team { text-align: center; }
-.jp-qc-matrix td { padding: 0.55rem 0.7rem; border-top: 1px solid #fee2e2; vertical-align: middle; }
-.jp-qc-matrix a.fw-bold:hover { color: #b91c1c !important; }
-.jp-qc-chip {
-  display: inline-flex; align-items: center; justify-content: center;
-  min-width: 4.6rem; padding: 0.15rem 0.45rem; border-radius: 999px;
-  font-size: 0.7rem; font-weight: 800; text-decoration: none;
-  border: 1px solid #fecaca; color: #b91c1c; background: #fff;
-}
-.jp-qc-chip.is-checked { color: #9f1239; background: #fff1f2; border-color: #fecdd3; }
-.jp-qc-chip.is-pending { color: #fff; background: #dc2626; border-color: #dc2626; }
-.jp-qc-chip.is-pending:hover { background: #b91c1c; border-color: #b91c1c; color: #fff; }
-.jp-qc-chip.is-checked:hover { color: #b91c1c; border-color: #f87171; }
-.jp-qc-chip.is-skip { color: #94a3b8; background: transparent; border-color: transparent; font-weight: 600; }
-.jp-qc-empty { border: 1px dashed #fecaca; border-radius: 0.75rem; padding: 2rem 1rem; text-align: center; color: #b91c1c; background: #fff; }
+.jp-qc-prod-img.is-empty { display: grid; place-items: center; color: #94a3b8; font-size: .85rem; }
+.jp-qc-prod-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
-      <h2 class="jp-npl-mat-topbar-title w-100">Tiến độ QC</h2>
+      <h2 class="jp-npl-mat-topbar-title w-100">Kiểm tra chất lượng</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       <a href="{% url 'san_xuat:overview' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Tổng quan</a>
+      {% include 'san_xuat/includes/sx_list_col_picker.html' %}
     </nav>
   </div>
 
-  <form method="get" class="d-flex gap-2 mb-3" role="search">
-    <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm" placeholder="Lệnh SX / mã SP / đơn hàng…" style="max-width:22rem">
-    <button type="submit" class="btn btn-hm btn-sm">Lọc</button>
-  </form>
-
-  {% if board.rows %}
-  <div class="jp-qc-matrix-wrap">
-    <table class="jp-qc-matrix">
-      <thead>
-        <tr>
-          <th>Lệnh / đơn</th>
-          {% for t in qc_teams %}
-          <th class="is-team">{{ t.label }}</th>
+  <div class="jp-sx-page-body">
+    {% include 'san_xuat/includes/sx_list_filter.html' with hide_sx_date_filter=1 filter_code_placeholder='Mã đơn / LSX…' filter_name_placeholder='Tên sản phẩm…' %}
+    <div class="card border-0 shadow-sm overflow-hidden">
+      <div class="jp-npl-mat-grid-wrap">
+        <table class="table table-hover align-middle mb-0 jp-npl-mat-grid" id="{{ sx_list_table_id }}">
+          <thead class="table-light">
+            <tr>
+              {% include 'san_xuat/includes/sx_list_grid_head.html' %}
+            </tr>
+          </thead>
+          <tbody>
+          {% for row in board %}
+            {% with mo=row.mo pname=row.mo.product_name|default:row.mo.product_code %}
+            <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}">
+              <td class="npl-col" data-col="code">
+                <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}" class="text-decoration-none fw-semibold">{{ mo.sales_order.code|default:mo.code }}</a>
+              </td>
+              <td class="npl-col" data-col="product">
+                <div class="jp-qc-prod">
+                  {% if row.product_image_url %}
+                  <button type="button" class="sx-doc-thumb" data-sx-gallery
+                          data-sx-gallery-title="{{ pname }}"
+                          data-sx-gallery-images="{{ row.product_image_urls_json }}"
+                          aria-label="Phóng to ảnh {{ pname }}">
+                    <img src="{{ row.product_image_url }}" alt="" class="jp-qc-prod-img" loading="lazy">
+                  </button>
+                  {% else %}
+                  <span class="jp-qc-prod-img is-empty" aria-hidden="true"><i class="bi bi-image"></i></span>
+                  {% endif %}
+                  <a class="jp-qc-prod-name fw-semibold text-decoration-none text-reset" href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}" title="{{ pname }}">{{ pname|default:"—" }}</a>
+                </div>
+              </td>
+              <td class="npl-col" data-col="mo">{{ mo.code }}</td>
+              <td class="npl-col text-end" data-col="qty">{{ mo.qty|sx_num }}</td>
+              <td class="npl-col" data-col="inline">
+                {% if row.inline_count %}
+                <a href="{% url 'san_xuat:qc_flow_list' 'inline' %}?mo={{ mo.pk }}">{{ row.inline_count }} phiếu</a>
+                {% elif can_write_qc %}
+                <a href="{% url 'san_xuat:qc_flow_create' 'inline' %}?mo={{ mo.pk }}">Ghi nhận</a>
+                {% else %}—{% endif %}
+              </td>
+              <td class="npl-col" data-col="endline">
+                {% if row.endline %}
+                <a href="{% url 'san_xuat:qc_flow_detail' 'endline' row.endline.pk %}" class="{% if row.endline.result == 'pass' %}text-success{% elif row.endline.result == 'fail' %}text-danger{% endif %} fw-semibold">{{ row.endline.get_result_display }}</a>
+                {% elif can_write_qc %}
+                <a href="{% url 'san_xuat:qc_flow_create' 'endline' %}?mo={{ mo.pk }}">Kiểm</a>
+                {% else %}—{% endif %}
+              </td>
+              <td class="npl-col" data-col="preaudit">
+                {% if row.preaudit %}
+                <a href="{% url 'san_xuat:qc_flow_detail' 'preaudit' row.preaudit.pk %}" class="{% if row.preaudit.result == 'pass' %}text-success{% elif row.preaudit.result == 'fail' %}text-danger{% endif %} fw-semibold">{{ row.preaudit.get_result_display }}</a>
+                {% elif can_write_qc %}
+                <a href="{% url 'san_xuat:qc_flow_create' 'preaudit' %}?mo={{ mo.pk }}">Lấy mẫu</a>
+                {% else %}—{% endif %}
+              </td>
+              <td class="npl-col" data-col="order_date">{{ mo.order_date|date:"d/m/Y" }}</td>
+              <td class="npl-col" data-col="status"><span class="jp-mo-status is-{{ mo.status }}">{{ mo.get_status_display }}</span></td>
+            </tr>
+            {% endwith %}
+          {% empty %}
+            <tr>
+              <td colspan="{{ list_columns|length }}" class="text-muted small p-3">Không có lệnh trong bộ lọc này.</td>
+            </tr>
           {% endfor %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in board.rows %}
-        <tr>
-          <td>
-            {% if row.qc_inspection_id %}
-            <a href="{% url 'san_xuat:qc_sheet_detail' row.qc_inspection_id %}" class="fw-bold text-decoration-none text-reset">
-              {{ row.mo.product_name|default:row.mo.product_code }}
-            </a>
-            {% else %}
-            <a href="{% url 'san_xuat:qc_request_create' %}?mo={{ row.mo.pk }}" class="fw-bold text-decoration-none text-reset">
-              {{ row.mo.product_name|default:row.mo.product_code }}
-            </a>
-            {% endif %}
-            <div class="small text-muted">{{ row.mo.sales_order.code|default:row.mo.code }}</div>
-          </td>
-          {% for c in row.cells %}
-          <td class="text-center">
-            {% if c.qc_required %}
-              {% if c.qc_inspection_id %}
-              <a class="jp-qc-chip is-{{ c.qc_progress_kind }}" href="{% url 'san_xuat:qc_sheet_detail' c.qc_inspection_id %}?team={{ c.slug }}">{{ c.qc_progress_label }}</a>
-              {% else %}
-              <a class="jp-qc-chip is-{{ c.qc_progress_kind }}" href="{% url 'san_xuat:qc_request_create' %}?mo={{ row.mo.pk }}&amp;team={{ c.slug }}">{{ c.qc_progress_label }}</a>
-              {% endif %}
-            {% else %}
-            <span class="jp-qc-chip is-skip">—</span>
-            {% endif %}
-          </td>
-          {% endfor %}
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
-  {% else %}
-  <div class="jp-qc-empty">Chưa có lệnh đang chạy để QC theo tổ Ob.</div>
-  {% endif %}
 </div>
+{% include 'san_xuat/includes/product_image_gallery_modal.html' %}
+{% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
 {% endblock %}

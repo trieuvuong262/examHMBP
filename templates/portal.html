@@ -57,55 +57,44 @@
     <section class="jp-home-block mb-3 mb-lg-4" aria-labelledby="jp-home-todo-title">
         <div class="jp-home-block-head">
             <div class="jp-home-block-head-main">
-                <h2 id="jp-home-todo-title" class="jp-home-block-title">
-                    Việc cần làm
-                </h2>
-                <p class="jp-home-block-sub mb-0">Thông báo, công việc và báo cáo cần xử lý.</p>
+                <h2 id="jp-home-todo-title" class="jp-home-block-title mb-0">Việc cần làm</h2>
             </div>
             {% if dashboard_widgets %}
-            <span class="badge bg-hm rounded-pill">{{ dashboard_widgets|length }}</span>
+            <span class="jp-todo-total">{{ dashboard_widgets|length }}</span>
             {% endif %}
         </div>
 
         <div class="jp-home-block-body">
-            {% if dashboard_widgets %}
-            <div class="jp-dashboard-list">
-                {% for item in dashboard_widgets %}
-                {% if item.dismiss_url %}
-                <div class="jp-dashboard-item jp-dashboard-item--{{ item.level }} jp-dashboard-item--interactive">
-                    <div class="jp-dashboard-item-body">
-                        <div class="jp-dashboard-item-title">
-                            {{ item.title }}
-                            {% if item.badge %}
-                            <span class="badge rounded-pill ms-1">{{ item.badge }}</span>
-                            {% endif %}
-                        </div>
-                        <div class="jp-dashboard-item-text">{{ item.text }}</div>
-                        <div class="jp-dashboard-item-actions d-flex flex-wrap gap-2 mt-2">
-                            <a href="{{ item.url }}" class="btn btn-sm btn-hm fw-bold">{{ item.action }}</a>
-                            <form method="post" action="{{ item.dismiss_url }}" class="d-inline m-0">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-sm btn-outline-secondary">{{ item.dismiss_label }}</button>
-                            </form>
-                        </div>
+            {% if dashboard_groups %}
+            <div class="jp-dashboard-list jp-todo-list">
+                {% for group in dashboard_groups %}
+                <section class="jp-todo-group jp-todo-group--{{ group.level }}" aria-label="{{ group.label }}">
+                    <div class="jp-todo-card-head">
+                        <span class="jp-todo-name"><span class="jp-todo-name-text">{{ group.label }}</span></span>
+                        <span class="jp-todo-count">{{ group.badge }}</span>
                     </div>
-                </div>
-                {% else %}
-                <a href="{{ item.url }}" class="jp-dashboard-item jp-dashboard-item--{{ item.level }}">
-                    <div class="jp-dashboard-item-body">
-                        <div class="jp-dashboard-item-title">
-                            {{ item.title }}
-                            {% if item.badge %}
-                            <span class="badge rounded-pill ms-1">{{ item.badge }}</span>
-                            {% endif %}
+                    <div class="jp-todo-card-body">
+                        {% for item in group.items %}
+                        {% if item.dismiss_url %}
+                        <div class="jp-todo-dismiss">
+                            <span class="jp-todo-hint">{{ item.text }}</span>
+                            <span class="jp-todo-line-actions">
+                                <a href="{{ item.url }}" class="btn btn-sm btn-hm">{{ item.action }}</a>
+                                <form method="post" action="{{ item.dismiss_url }}" class="m-0">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary">{{ item.dismiss_label }}</button>
+                                </form>
+                            </span>
                         </div>
-                        <div class="jp-dashboard-item-text">{{ item.text }}</div>
+                        {% else %}
+                        <a href="{{ item.url }}" class="jp-todo-chip jp-todo-chip--{{ item.level }}" title="{{ item.text }}">
+                            <span class="jp-todo-chip-label">{% if item.label == group.label %}{{ item.text }}{% else %}{{ item.label }}{% endif %}</span>
+                            {% if item.badge %}<span class="jp-todo-count">{{ item.badge }}</span>{% endif %}
+                        </a>
+                        {% endif %}
+                        {% endfor %}
                     </div>
-                    <div class="jp-dashboard-item-action d-none d-sm-flex">
-                        {{ item.action }} 
-                    </div>
-                </a>
-                {% endif %}
+                </section>
                 {% endfor %}
             </div>
             {% else %}

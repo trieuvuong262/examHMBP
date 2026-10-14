@@ -5,8 +5,8 @@
   </div>
   <nav class="jp-sx-tools" aria-label="Công cụ">
     {% if tk_form_id %}
-    <button type="submit" form="{{ tk_form_id }}" name="submit_action" value="save" class="btn btn-outline-secondary btn-sm fw-bold"><i class="bi bi-save" aria-hidden="true"></i>Lưu nháp</button>
-    <button type="submit" form="{{ tk_form_id }}" name="submit_action" value="submit" class="btn btn-hm btn-sm fw-bold text-white"><i class="bi bi-send" aria-hidden="true"></i>Gửi duyệt đề bài</button>
+    <button type="submit" form="{{ tk_form_id }}" name="submit_action" value="save" class="btn btn-outline-secondary btn-sm fw-bold"><i class="bi bi-save" aria-hidden="true"></i>{{ tk_save_label|default:'Lưu nháp' }}</button>
+    {% if tk_show_submit != 'no' %}<button type="submit" form="{{ tk_form_id }}" name="submit_action" value="submit" class="btn btn-hm btn-sm fw-bold text-white"><i class="bi bi-send" aria-hidden="true"></i>Gửi duyệt đề bài</button>{% endif %}
     {% if back_url %}<span class="sep" aria-hidden="true"></span>{% endif %}
     {% endif %}
     {% if back_url %}

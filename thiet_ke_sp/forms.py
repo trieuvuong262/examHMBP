@@ -15,6 +15,7 @@ from .models import (
     DOSSIER_ROLE_FIELDS,
     DesignVersion,
     EvaluatorRole,
+    POOL_ROLES,
     ProductDevelopment,
     SampleEvaluation,
     SampleVersion,
@@ -80,6 +81,7 @@ ROLE_LABELS = {
     'technician': 'Kỹ thuật / Tài liệu kỹ thuật',
     'sample_maker': 'May mẫu',
     'costing_user': 'Kế hoạch / Giá thành',
+    'follower': 'Người theo dõi',
 }
 
 
@@ -111,17 +113,37 @@ def role_pool_queryset(role: str, extra_ids=()):
     ).select_related('profile').order_by('profile__full_name', 'username')
 
 
-def role_queryset(role: str, current_id=None, configured: dict | None = None):
+def role_queryset(role: str, current_id=None, configured: dict | None = None, current_ids=()):
     """Người được chọn trên hồ sơ: danh sách đã cấu hình, cộng người đang giữ vai trò."""
     if configured is None:
         configured = sla.configured_role_ids()
     allowed = list(configured.get(role) or [])
+    extras = list(current_ids or [])
     current_pk = _as_pk(current_id)
-    if current_pk and current_pk not in allowed:
-        allowed.append(current_pk)
+    if current_pk:
+        extras.append(current_pk)
+    for item in extras:
+        pk = _as_pk(item)
+        if pk and pk not in allowed:
+            allowed.append(pk)
     if not allowed:
         return active_users().none()
     return active_users().filter(pk__in=allowed)
+
+
+def follower_field(current_ids=()):
+    configured = sla.configured_role_ids()
+    field = UserMultipleChoiceField(
+        queryset=role_queryset('follower', configured=configured, current_ids=current_ids),
+        required=False,
+        label=ROLE_LABELS['follower'],
+        widget=forms.SelectMultiple(attrs={**_USER_SELECT, 'multiple': 'multiple'}),
+    )
+    if not configured.get('follower'):
+        field.help_text = 'Chưa có người trong Thiết lập → Nhân sự phụ trách.'
+    else:
+        field.help_text = 'Không bắt buộc. Chỉ xem hồ sơ và trao đổi, không duyệt hay sửa.'
+    return field
 
 
 class UserMultipleChoiceField(forms.ModelMultipleChoiceField):
@@ -196,7 +218,7 @@ class DossierForm(RoleFieldsMixin, forms.ModelForm):
             'description': _textarea(4),
         }
 
-    def __init__(self, *args, user=None, **kwargs):
+    def __init__(self, *args, user=None, lock_followers=False, **kwargs):
         super().__init__(*args, **kwargs)
         instance = self.instance
         group_choices = catalog.group_choices()
@@ -225,6 +247,15 @@ class DossierForm(RoleFieldsMixin, forms.ModelForm):
         self.new_group = None
         current = {role: getattr(instance, f'{role}_id') for role in DOSSIER_ROLE_FIELDS}
         self._add_role_fields(current)
+        self.follower_names = ''
+        if lock_followers and instance.pk:
+            names = [perms.display_name(person) for person in instance.followers.select_related('profile')]
+            self.follower_names = ', '.join(name for name in names if name)
+        else:
+            current_followers = list(instance.followers.values_list('pk', flat=True)) if instance.pk else []
+            self.fields['followers'] = follower_field(current_followers)
+            if instance.pk:
+                self.initial.setdefault('followers', current_followers)
         if not instance.pk and user is not None and not self.is_bound:
             allowed = set(sla.configured_role_ids().get('owner') or [])
             if not allowed or user.pk in allowed:
@@ -273,6 +304,9 @@ class RolesForm(RoleFieldsMixin, forms.Form):
         super().__init__(*args, initial=initial, **kwargs)
         self._add_role_fields(initial)
         self.fields['owner'].required = True
+        current_followers = list(dossier.followers.values_list('pk', flat=True))
+        self.fields['followers'] = follower_field(current_followers)
+        self.initial['followers'] = current_followers
 
 
 class DesignVersionForm(forms.ModelForm):
@@ -356,7 +390,7 @@ class RolePoolForm(forms.Form):
         current = sla.configured_role_ids(setting)
         super().__init__(*args, initial=current, **kwargs)
         multi = {'class': 'form-select jp-tksp-user-select', 'multiple': 'multiple'}
-        for role in DOSSIER_ROLE_FIELDS:
+        for role in POOL_ROLES:
             self.fields[role] = UserMultipleChoiceField(
                 queryset=role_pool_queryset(role, current.get(role) or []),
                 required=False, label=ROLE_LABELS[role],
@@ -364,11 +398,13 @@ class RolePoolForm(forms.Form):
             )
             if role == 'approver':
                 self.fields[role].help_text = 'Mọi nhân sự có quyền duyệt hồ sơ, không lọc phòng ban.'
+            elif role == 'follower':
+                self.fields[role].help_text = 'Chọn nhiều người trên mỗi hồ sơ. Họ chỉ xem và trao đổi.'
 
     def save(self, user):
         self.setting.default_roles = {
             role: [person.pk for person in (self.cleaned_data.get(role) or [])]
-            for role in DOSSIER_ROLE_FIELDS
+            for role in POOL_ROLES
         }
         self.setting.updated_by = user
         self.setting.save()

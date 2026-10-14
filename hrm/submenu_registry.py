@@ -539,6 +539,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/san-xuat/chat-luong/bo-tieu-chuan', MODULE_SAN_XUAT, 'qc_standard_set'),
     ('/san-xuat/chat-luong/loi', MODULE_SAN_XUAT, 'qc_defect'),
     ('/san-xuat/chat-luong/nhom-loi', MODULE_SAN_XUAT, 'qc_defect_group'),
+    ('/san-xuat/chat-luong/thiet-lap', MODULE_SAN_XUAT, 'qc_defect'),
     ('/san-xuat/chat-luong/tieu-chuan', MODULE_SAN_XUAT, 'qc'),
     ('/san-xuat/chat-luong/to', MODULE_SAN_XUAT, 'qc'),
     ('/san-xuat/chat-luong', MODULE_SAN_XUAT, 'qc'),
@@ -643,6 +644,8 @@ MENU_PATH_ACCESS_ALIASES: dict[tuple[str, str], tuple[str, ...]] = {
     # KHSX có bảng so giá vẫn đi được URL duyệt giá (middleware);
     # view sẽ redirect sang so-gia, không mở hàng chờ Sếp.
     (MODULE_SAN_XUAT, 'sx_price_approve'): ('sx_price_quote',),
+    (MODULE_SAN_XUAT, 'qc'): ('qc_request', 'qc_sheet', 'qc_defect'),
+    (MODULE_SAN_XUAT, 'qc_defect'): ('qc', 'qc_sheet', 'qc_request', 'qc_defect_group'),
     # Người duyệt / bộ phận nhận bàn giao mở hồ sơ từ việc được giao.
     (MODULE_THIET_KE_SP, 'dossiers'): ('approve', 'my_tasks'),
     (MODULE_THIET_KE_SP, 'dashboard'): ('dossiers', 'approve'),

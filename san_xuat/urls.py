@@ -11,6 +11,7 @@ from san_xuat import (
     views_ops,
     views_price,
     views_print,
+    views_qc_flow,
 )
 
 
@@ -140,7 +141,7 @@ urlpatterns = [
     path('dieu-phoi/tra-lai-btp/', views_hub.dispatch_wip_return, name='dispatch_wip_return'),
     path('dieu-phoi/tra-lai-btp/them/', views_hub.dispatch_wip_return_create, name='dispatch_wip_return_create'),
     path('dieu-phoi/tra-lai-btp/<int:pk>/', views_hub.dispatch_wip_return_detail, name='dispatch_wip_return_detail'),
-    path('chat-luong/', views_hub.qc_stub, name='qc_stub'),
+    path('chat-luong/', views_qc_flow.qc_home, name='qc_stub'),
     path('chat-luong/to/<slug:slug>/', views_hub.qc_team_board, name='qc_team_board'),
     path('chat-luong/tieu-chuan/', views_hub.qc_standards, name='qc_standards'),
     path('chat-luong/yeu-cau/', views_hub.qc_request, name='qc_request'),
@@ -165,6 +166,11 @@ urlpatterns = [
     path('chat-luong/loi/them/', views_hub.qc_defect_create, name='qc_defect_create'),
     path('chat-luong/nhom-loi/', views_hub.qc_defect_group, name='qc_defect_group'),
     path('chat-luong/nhom-loi/them/', views_hub.qc_defect_group_create, name='qc_defect_group_create'),
+    path('chat-luong/thiet-lap/', views_qc_flow.qc_setup, name='qc_setup'),
+    path('chat-luong/phieu-qc/<int:pk>/', views_qc_flow.qc_flow_open, name='qc_flow_open'),
+    path('chat-luong/<slug:flow>/them/', views_qc_flow.qc_flow_create, name='qc_flow_create'),
+    path('chat-luong/<slug:flow>/<int:pk>/', views_qc_flow.qc_flow_detail, name='qc_flow_detail'),
+    path('chat-luong/<slug:flow>/', views_qc_flow.qc_flow_list, name='qc_flow_list'),
     path('gia-thanh/', views_hub.redirect_costing, name='redirect_costing'),
     path('gia-thanh/dinh-muc/', views_hub.costing_norm, name='costing_norm'),
     path('gia-thanh/dinh-muc/bang/', views_hub.costing_sheet_list, name='costing_sheet_list'),

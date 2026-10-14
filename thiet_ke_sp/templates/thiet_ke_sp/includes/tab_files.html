@@ -6,26 +6,28 @@
       {% if flags.comment %}
       <form method="post" action="{% url 'thiet_ke_sp:action' dossier.pk 'comment_add' %}" class="mb-3">{% csrf_token %}
         <input type="hidden" name="return_tab" value="files">
-        <textarea name="body" class="form-control mb-2" rows="3" required></textarea>
-        <div class="d-flex gap-2">
-          <select name="scope" class="form-select form-select-sm" style="max-width: 240px;">
-            <option value="">Chung cho hồ sơ</option>
-            {% for dv in current_dvs %}<option value="d{{ dv.pk }}">Thiết kế {% if multi_options %}{{ dv.tag }}{% else %}{{ dv.label }}{% endif %}</option>{% endfor %}
-            {% if current_sv %}<option value="s{{ current_sv.pk }}">Mẫu {{ current_sv.label }}</option>{% endif %}
-          </select>
-          <button type="submit" class="btn btn-sm btn-hm text-white fw-bold ms-auto"><i class="bi bi-send me-1"></i>Gửi</button>
+        <textarea name="body" class="form-control mb-2" rows="3" required placeholder="Trao đổi cho toàn bộ hồ sơ"></textarea>
+        <div class="text-end">
+          <button type="submit" class="btn btn-sm btn-hm text-white fw-bold"><i class="bi bi-send me-1"></i>Gửi</button>
         </div>
       </form>
       {% endif %}
-      {% for c in comments %}
-      <div class="tk-comment{% if c.is_revision_request %} is-revision{% endif %}">
-        <div class="small text-muted mb-1">
-          <strong class="text-body">{{ c.author|uname }}</strong> · {{ c.created_at|date:'H:i d/m/Y' }}
-          {% if c.design_version %} <span class="tk-pill is-gray">{{ c.design_version.label }}</span>{% endif %}
-          {% if c.sample_version %} <span class="tk-pill is-gray">{{ c.sample_version.label }}</span>{% endif %}
-          {% if c.is_revision_request %} <span class="tk-pill is-red">Yêu cầu chỉnh sửa</span>{% endif %}
+      {% for c in dossier_comments %}
+      <div class="tk-comment tk-comment-item{% if c.is_revision_request %} is-revision{% endif %}">
+        {% if c.author %}
+          {% with photo=c.author|avatar_url %}
+          {% if photo %}<img class="tk-avatar" src="{{ photo }}" alt="{{ c.author|uname }}">{% else %}<span class="tk-avatar" style="background: {{ c.author.pk|avatar_tone }}">{{ c.author|initial }}</span>{% endif %}
+          {% endwith %}
+        {% else %}
+          <span class="tk-avatar is-empty">?</span>
+        {% endif %}
+        <div class="min-w-0">
+          <div class="tk-comment-meta">
+            <strong>{{ c.author|uname }}</strong>
+            <span>{{ c.created_at|date:'H:i d/m/Y' }}{% if c.is_revision_request %} · yêu cầu chỉnh sửa{% endif %}</span>
+          </div>
+          <div>{{ c.body|linebreaksbr }}</div>
         </div>
-        {{ c.body|linebreaksbr }}
       </div>
       {% empty %}
       <div class="small text-muted">Chưa có trao đổi.</div>

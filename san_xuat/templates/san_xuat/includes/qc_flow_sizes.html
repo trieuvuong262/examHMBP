@@ -1,0 +1,48 @@
+{% load sx_format %}
+<div class="card border-0 shadow-sm mb-3 jp-qc-size" data-qc-sizes>
+  <div class="card-body">
+    <div class="fw-semibold mb-1">Kiểm 100% theo size</div>
+    <p class="text-muted small mb-2">Mỗi size: SL đạt + SL sửa + SL lỗi = SL kiểm. Size chưa kiểm thì để trống. Không cần kiểm hết SL lệnh trên một phiếu.</p>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-2">
+        <thead class="table-light">
+          <tr>
+            <th>Size</th>
+            <th class="text-end">SL lệnh</th>
+            <th class="text-end">SL kiểm</th>
+            <th class="text-end">SL đạt</th>
+            <th class="text-end">SL sửa</th>
+            <th class="text-end">SL lỗi</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in size_rows %}
+          <tr data-qc-size-row>
+            <td class="fw-semibold">
+              {{ row.size_label }}
+              <input type="hidden" name="size_label" value="{{ row.size_label }}">
+              <input type="hidden" name="size_order" value="{{ row.qty_order|sx_num_input }}">
+            </td>
+            <td><input class="form-control form-control-sm text-end" value="{{ row.qty_order|sx_num_input }}" readonly tabindex="-1"></td>
+            <td><input class="form-control form-control-sm text-end" name="size_checked" inputmode="decimal" value="{{ row.qty_checked|sx_num_input }}" {% if locked %}disabled{% endif %}></td>
+            <td><input class="form-control form-control-sm text-end" name="size_pass" inputmode="decimal" value="{{ row.qty_pass|sx_num_input }}" {% if locked %}disabled{% endif %}></td>
+            <td><input class="form-control form-control-sm text-end" name="size_repair" inputmode="decimal" value="{{ row.qty_repair|sx_num_input }}" {% if locked %}disabled{% endif %}></td>
+            <td><input class="form-control form-control-sm text-end" name="size_fail" inputmode="decimal" value="{{ row.qty_fail|sx_num_input }}" {% if locked %}disabled{% endif %}></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="fw-semibold">
+            <td>Tổng phiếu</td>
+            <td class="text-end" data-qc-sum="order">0</td>
+            <td class="text-end" data-qc-sum="checked">0</td>
+            <td class="text-end" data-qc-sum="pass">0</td>
+            <td class="text-end" data-qc-sum="repair">0</td>
+            <td class="text-end" data-qc-sum="fail">0</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <p class="jp-qc-foot mb-0" data-qc-size-hint>Dòng tô cam là size chưa cân SL đạt + SL sửa + SL lỗi.</p>
+  </div>
+</div>

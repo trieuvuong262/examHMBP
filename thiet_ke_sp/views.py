@@ -52,6 +52,7 @@ from .models import (
     Priority,
     ProductDevelopment,
     Role,
+    STEPS,
     SampleEvaluation,
     SampleVersion,
     Status,
@@ -157,7 +158,7 @@ def _apply_quick(qs, quick: str, user):
 def dossier_list(request):
     user = request.user
     member_only = not perms.can_view_module(user)
-    if member_only and not perms.has_memberships(user):
+    if member_only and not (perms.has_memberships(user) or perms.has_follows(user)):
         return _deny(request, perms.MENU_DOSSIERS)
     g = request.GET
     q = (g.get('q') or '').strip()
@@ -170,7 +171,7 @@ def dossier_list(request):
 
     qs = _annotated_list_qs()
     if member_only:
-        qs = qs.filter(members__user=user)
+        qs = qs.filter(Q(members__user=user) | Q(followers=user)).distinct()
     if q:
         qs = qs.filter(Q(code__icontains=q) | Q(name__icontains=q) | Q(official_product_code__icontains=q))
     if statuses:
@@ -311,6 +312,7 @@ def dossier_create(request):
             with transaction.atomic():
                 form.create_new_group()
                 dossier = wf.create_dossier(user, fields=_brief_fields(form), submit=False)
+                wf.set_followers(dossier, form.cleaned_data.get('followers'), user)
         except wf.WorkflowError as exc:
             messages.error(request, str(exc))
         else:
@@ -338,18 +340,23 @@ def dossier_edit(request, pk):
     user = request.user
     dossier = _get_dossier(pk)
     if not perms.can_edit_brief(dossier, user):
-        messages.error(request, 'Chỉ sửa đề bài khi hồ sơ còn nháp hoặc đang được yêu cầu bổ sung.')
+        messages.error(request, 'Chỉ người đề xuất hoặc người phụ trách được sửa đề bài khi hồ sơ chưa bàn giao, hủy hoặc đóng.')
         return redirect(dossier.get_absolute_url())
-    form = f.DossierForm(request.POST or None, instance=dossier, user=user)
+    form = f.DossierForm(
+        request.POST or None, instance=dossier, user=user,
+        lock_followers=not perms.can_edit_roles(dossier, user),
+    )
     if request.method == 'POST' and form.is_valid():
         dossier.refresh_from_db()
         try:
             with transaction.atomic():
                 form.create_new_group()
                 wf.update_brief(dossier, user, fields=_brief_fields(form))
+                if perms.can_edit_roles(dossier, user):
+                    wf.set_followers(dossier, form.cleaned_data.get('followers'), user)
             for upload in request.FILES.getlist('reference_files'):
                 wf.upload_attachment(dossier, user, uploaded_file=upload, kind=AttachmentKind.REFERENCE)
-            if request.POST.get('submit_action') == 'submit':
+            if request.POST.get('submit_action') == 'submit' and dossier.status in (Status.DRAFT, Status.BRIEF_NEEDS_INFO):
                 wf.submit_brief(dossier, user, due_at=f.parse_due(request.POST.get('due_at')))
                 messages.success(request, 'Đã gửi duyệt đề bài.')
             else:
@@ -483,12 +490,25 @@ def dossier_detail(request, pk):
             c.assignee_id == user.pk or perms.is_dossier_approver(dossier, user))
 
     eval_roles = wf.evaluator_roles_for(dossier, user) if flags['evaluate'] else []
+    comment_rows = list(dossier.comments.select_related('author__profile', 'design_version', 'sample_version'))
+    step_comments = {key: [] for key, _label, _statuses in STEPS}
+    dossier_comments = []
+    for row in comment_rows:
+        if row.step and not row.design_version_id and not row.sample_version_id:
+            step_comments.setdefault(row.step, []).append(row)
+        elif not row.step and not row.design_version_id and not row.sample_version_id:
+            dossier_comments.append(row)
+    for rows in step_comments.values():
+        rows.reverse()
+    steps = presenters.stepper(dossier)
+    comment_step = next((row['key'] for row in steps if row['state'] == 'current'), 'handover')
     ctx = _common(
         request,
         dossier=dossier,
         tab=tab,
         tabs=TABS,
-        steps=presenters.stepper(dossier),
+        steps=steps,
+        comment_step=comment_step,
         roles_rail=presenters.roles_rail(dossier),
         checklist_title=checklist_title,
         checklist=checklist,
@@ -510,7 +530,9 @@ def dossier_detail(request, pk):
         approvals=list(dossier.approvals.select_related(
             'decided_by__profile', 'design_version', 'sample_version').prefetch_related('conditions')),
         conditions=conditions,
-        comments=list(dossier.comments.select_related('author__profile', 'design_version', 'sample_version')),
+        comments=comment_rows,
+        dossier_comments=dossier_comments,
+        step_comments=step_comments,
         dossier_files=dossier_files,
         product_photos=product_photos,
         can_upload_product_photo=wf.can_upload(dossier, user, AttachmentKind.PRODUCT_PHOTO),
@@ -798,7 +820,10 @@ def _run_action(request, dossier: ProductDevelopment, action: str) -> tuple[str,
             dv = DesignVersion.objects.filter(pk=int(scope[1:]), dossier=dossier).first()
         elif scope.startswith('s') and scope[1:].isdigit():
             sv = SampleVersion.objects.filter(pk=int(scope[1:]), dossier=dossier).first()
-        wf.add_comment(dossier, user, body=post.get('body', ''), design_version=dv, sample_version=sv)
+        wf.add_comment(
+            dossier, user, body=post.get('body', ''), design_version=dv, sample_version=sv,
+            step=(post.get('step') or '').strip(),
+        )
         return post.get('return_tab') or 'files', 'Đã gửi trao đổi.'
 
     if action == 'task_accept':
@@ -950,7 +975,10 @@ def _quick_context(request, dossiers) -> dict:
 @login_required
 def my_tasks(request):
     user = request.user
-    if not user_can_access_resolved_menu(user, M, perms.MENU_MY_TASKS):
+    if not user_can_access_resolved_menu(user, M, perms.MENU_MY_TASKS) and not (
+        perms.has_memberships(user) or perms.has_follows(user)
+        or perms.has_assigned_work(user) or perms.has_approval_queue(user)
+    ):
         return _deny(request, perms.MENU_MY_TASKS)
     base = Task.objects.filter(assignee=user).select_related('dossier', 'receipt', 'condition')
     open_tasks = list(base.filter(state=Task.STATE_OPEN).exclude(
@@ -981,7 +1009,7 @@ def my_tasks(request):
 @login_required
 def approve_queue(request):
     user = request.user
-    if not user_can_access_resolved_menu(user, M, perms.MENU_APPROVE):
+    if not user_can_access_resolved_menu(user, M, perms.MENU_APPROVE) and not perms.has_approval_queue(user):
         return _deny(request, perms.MENU_APPROVE)
     scope = request.GET.get('scope') or 'mine'
     qs = _annotated_list_qs().filter(status__in=presenters.APPROVAL_STATUSES + (Status.PAUSED,))
@@ -999,7 +1027,10 @@ def approve_queue(request):
 @login_required
 def notifications(request):
     user = request.user
-    if not user_can_access_resolved_menu(user, M, perms.MENU_MY_TASKS):
+    if not user_can_access_resolved_menu(user, M, perms.MENU_MY_TASKS) and not (
+        perms.has_memberships(user) or perms.has_follows(user)
+        or perms.has_assigned_work(user) or perms.has_approval_queue(user)
+    ):
         return _deny(request, perms.MENU_MY_TASKS)
     if request.method == 'POST':
         Notification.objects.filter(user=user, is_read=False).update(is_read=True)

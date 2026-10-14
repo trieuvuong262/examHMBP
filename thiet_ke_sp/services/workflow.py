@@ -39,6 +39,7 @@ from thiet_ke_sp.models import (
     MemberGroup,
     ProductDevelopment,
     Role,
+    STEPS,
     SampleEvaluation,
     SampleVersion,
     Status,
@@ -227,6 +228,11 @@ def _transition(dossier: ProductDevelopment, new_status: str, actor, action: str
     log(dossier, actor, action, summary, from_status=old_status, to_status=new_status, **payload)
     if open_tasks:
         open_step_tasks(dossier, new_status, actor, due_at=due_at, revision=revision)
+    nt.notify_many(
+        dossier.followers.all(), dossier, nt.KIND_INFO,
+        f'{dossier.code} chuyển sang {Status(new_status).label}',
+        summary, actor=actor,
+    )
 
 
 def current_main_task(dossier: ProductDevelopment) -> Task | None:
@@ -273,7 +279,8 @@ def create_dossier(user, *, fields: dict, submit: bool = False) -> ProductDevelo
 
 
 def update_brief(dossier: ProductDevelopment, user, *, fields: dict) -> None:
-    _require(perms.can_edit_brief(dossier, user), 'Chỉ sửa đề bài khi hồ sơ còn nháp hoặc đang được yêu cầu bổ sung.')
+    _require(perms.can_edit_brief(dossier, user),
+             'Chỉ người đề xuất hoặc người phụ trách được sửa đề bài khi hồ sơ chưa bàn giao, hủy hoặc đóng.')
     changed = []
     for key, value in fields.items():
         if getattr(dossier, key) != value:
@@ -1232,6 +1239,8 @@ def update_roles(dossier: ProductDevelopment, user, *, assignments: dict[str, ob
         if changed:
             dossier.save()
             log(dossier, user, 'roles_updated', f'{_name(user)} đổi nhân sự: ' + '; '.join(changed) + '.')
+        if 'followers' in assignments:
+            set_followers(dossier, assignments.get('followers'), user)
 
 
 COSTING_FIELDS = ('estimated_cost', 'post_sample_cost', 'proposed_wholesale_price', 'proposed_retail_price', 'cost_note')
@@ -1275,8 +1284,8 @@ def _upload_allowed(dossier, user, kind: str, design_version, sample_version) ->
             Role.SAMPLE_MAKER, Role.TECHNICIAN, Role.OWNER)
         return '' if perms.has_role(dossier, user, *roles) else 'Bạn không phụ trách phần việc này.'
     if kind == AttachmentKind.REFERENCE:
-        if dossier.status not in (Status.DRAFT, Status.BRIEF_NEEDS_INFO, Status.BRIEF_PENDING):
-            return 'Chỉ bổ sung tài liệu tham khảo ở bước đề xuất.'
+        if dossier.status in (*FINAL_STATUSES, Status.HANDED_OVER):
+            return 'Hồ sơ đã bàn giao, hủy hoặc đóng — không bổ sung tài liệu tham khảo.'
         return '' if perms.has_role(dossier, user, Role.PROPOSER, Role.OWNER) else 'Chỉ người đề xuất / phụ trách.'
     if kind == AttachmentKind.COST:
         if dossier.is_locked:
@@ -1371,15 +1380,63 @@ def remove_member(member: DossierMember, user) -> None:
     nt.invalidate_badges(removed_user)
 
 
-def add_comment(dossier: ProductDevelopment, user, *, body: str, design_version=None, sample_version=None) -> Comment:
+STEP_KEYS = {key for key, _label, _statuses in STEPS}
+
+
+def set_followers(dossier: ProductDevelopment, users, actor) -> None:
+    """Gán nhiều người theo dõi. Chỉ những người có trong Thiết lập, cộng người đang theo dõi."""
+    chosen = []
+    seen = set()
+    for person in users or []:
+        if person is None or person.pk in seen:
+            continue
+        seen.add(person.pk)
+        chosen.append(person)
+    old = list(dossier.followers.select_related('profile'))
+    old_ids = {person.pk for person in old}
+    new_ids = {person.pk for person in chosen}
+    if old_ids == new_ids:
+        return
+    allowed = set(sla.configured_role_ids().get(Role.FOLLOWER) or [])
+    allowed.update(old_ids)
+    blocked = [person for person in chosen if person.pk not in allowed]
+    _require(not blocked, 'Có người theo dõi không nằm trong Thiết lập → Nhân sự phụ trách.')
+    with transaction.atomic():
+        dossier.followers.set(chosen)
+
+        def _names(people) -> str:
+            return ', '.join(_name(person) for person in people) or '—'
+
+        log(dossier, actor, 'followers_updated',
+            f'{_name(actor)} đổi người theo dõi: {_names(old)} → {_names(chosen)}.')
+    added = [person for person in chosen if person.pk not in old_ids]
+    removed = [person for person in old if person.pk not in new_ids]
+    nt.notify_many(added, dossier, nt.KIND_ASSIGNED, 'Bạn được thêm theo dõi hồ sơ',
+                   f'{dossier.code} — {dossier.name}', actor=actor)
+    for person in removed:
+        nt.invalidate_badges(person)
+
+
+def add_comment(dossier: ProductDevelopment, user, *, body: str, design_version=None, sample_version=None,
+                step: str = '') -> Comment:
     _require(perms.can_view_dossier(dossier, user), 'Bạn không có quyền xem hồ sơ.')
+    _require(dossier.status not in FINAL_STATUSES, 'Hồ sơ đã hủy hoặc đóng — không trao đổi thêm.')
     body = _require_text(body, 'nội dung trao đổi')
-    comment = Comment.objects.create(dossier=dossier, author=user, body=body,
-                                     design_version=design_version, sample_version=sample_version)
+    if design_version is not None or sample_version is not None:
+        step = ''
+    elif step:
+        _require(step in STEP_KEYS, 'Bước trao đổi không hợp lệ.')
+        from thiet_ke_sp.presenters import step_is_reached
+        _require(step_is_reached(dossier, step), 'Chưa tới bước này.')
+    comment = Comment.objects.create(
+        dossier=dossier, author=user, body=body, design_version=design_version,
+        sample_version=sample_version, step=step,
+    )
     recipients = [dossier.owner]
     task = current_main_task(dossier)
     if task and task.assignee:
         recipients.append(task.assignee)
+    recipients.extend(dossier.followers.all())
     nt.notify_many(recipients, dossier, nt.KIND_COMMENT, f'{_name(user)} trao đổi trên {dossier.code}',
                    body[:200], actor=user)
     return comment

@@ -1,0 +1,159 @@
+{{ aql_bands|json_script:"qc-aql-bands" }}
+<script>
+(function () {
+  function num(value) {
+    var n = parseFloat(String(value || '').replace(',', '.'));
+    return isFinite(n) ? n : 0;
+  }
+  function text(n) {
+    return String(Math.round(n * 100) / 100);
+  }
+  var sizeRoot = document.querySelector('[data-qc-sizes]');
+  function refreshSizes() {
+    if (!sizeRoot) return;
+    var sums = {order: 0, checked: 0, pass: 0, repair: 0, fail: 0};
+    var bad = 0;
+    sizeRoot.querySelectorAll('[data-qc-size-row]').forEach(function (row) {
+      var checked = num(row.querySelector('[name="size_checked"]').value);
+      var pass = num(row.querySelector('[name="size_pass"]').value);
+      var repair = num(row.querySelector('[name="size_repair"]').value);
+      var fail = num(row.querySelector('[name="size_fail"]').value);
+      var order = num(row.querySelector('[name="size_order"]').value);
+      sums.order += order;
+      sums.checked += checked;
+      sums.pass += pass;
+      sums.repair += repair;
+      sums.fail += fail;
+      var used = checked || pass || repair || fail;
+      var off = used && Math.abs((pass + repair + fail) - checked) > 0.001;
+      row.classList.toggle('is-bad', off);
+      if (off) bad += 1;
+    });
+    Object.keys(sums).forEach(function (key) {
+      var cell = sizeRoot.querySelector('[data-qc-sum="' + key + '"]');
+      if (cell) cell.textContent = text(sums[key]);
+    });
+    var hint = sizeRoot.querySelector('[data-qc-size-hint]');
+    if (hint) {
+      hint.textContent = bad
+        ? (bad + ' size chưa cân: SL đạt + SL sửa + SL lỗi phải bằng SL kiểm.')
+        : 'Các size đã nhập đang cân. Size để trống sẽ không ghi vào phiếu.';
+    }
+  }
+  if (sizeRoot) {
+    sizeRoot.addEventListener('input', refreshSizes);
+    refreshSizes();
+  }
+
+  function refreshDefects() {
+    var sum = 0;
+    document.querySelectorAll('[name="defect_qty"]').forEach(function (input) {
+      var row = input.closest('tr');
+      var picked = row && row.querySelector('[name="defect_id"]');
+      if (picked && picked.value) sum += num(input.value);
+    });
+    var node = document.querySelector('[data-qc-defect-sum]');
+    if (node) node.textContent = text(sum);
+    var verdict = document.querySelector('[data-qc-aql-verdict]');
+    var acceptNode = document.querySelector('[data-aql-accept]');
+    if (verdict && acceptNode) {
+      var accept = num(acceptNode.textContent);
+      if (!document.querySelector('[data-aql-sample]') || document.querySelector('[data-aql-sample]').textContent === '—') {
+        verdict.textContent = 'Nhập cỡ lô để biết mẫu được phép tối đa bao nhiêu lỗi.';
+      } else if (sum > accept) {
+        verdict.textContent = 'Tổng lỗi ' + text(sum) + ' vượt mức chấp nhận ' + text(accept) + '. Phiếu này không chốt Đạt được.';
+      } else {
+        verdict.textContent = 'Tổng lỗi ' + text(sum) + ' còn trong mức chấp nhận ' + text(accept) + '.';
+      }
+    }
+  }
+  document.addEventListener('input', function (event) {
+    if (event.target && event.target.name === 'defect_qty') refreshDefects();
+  });
+  document.addEventListener('change', function (event) {
+    if (event.target && event.target.name === 'defect_id') refreshDefects();
+  });
+  var addBtn = document.querySelector('[data-qc-add-defect]');
+  if (addBtn) {
+    addBtn.addEventListener('click', function () {
+      var body = document.querySelector('[data-qc-defect-body]');
+      var last = body && body.lastElementChild;
+      if (!last) return;
+      var copy = last.cloneNode(true);
+      copy.querySelectorAll('input, select').forEach(function (el) { el.value = ''; });
+      body.appendChild(copy);
+    });
+  }
+  refreshDefects();
+
+  var bandsNode = document.getElementById('qc-aql-bands');
+  var lotInput = document.getElementById('id_qty_lot');
+  function applyPlan(lot) {
+    var sample = document.querySelector('[data-aql-sample]');
+    var accept = document.querySelector('[data-aql-accept]');
+    var reject = document.querySelector('[data-aql-reject]');
+    var letter = document.querySelector('[data-aql-letter]');
+    if (!sample || !bandsNode) return;
+    var bands = [];
+    try { bands = JSON.parse(bandsNode.textContent || '[]'); } catch (err) { bands = []; }
+    var plan = null;
+    bands.forEach(function (band) {
+      if (plan) return;
+      var upper = band.to == null ? Infinity : band.to;
+      if (lot >= band.from && lot <= upper) plan = band;
+    });
+    if (!plan || lot <= 0) {
+      sample.textContent = '—';
+      if (accept) accept.textContent = '—';
+      if (reject) reject.textContent = '—';
+      if (letter) letter.textContent = '—';
+    } else {
+      var shown = lot <= plan.sample ? lot : plan.sample;
+      sample.textContent = String(shown);
+      if (accept) accept.textContent = String(plan.accept);
+      if (reject) reject.textContent = String(plan.reject);
+      if (letter) letter.textContent = plan.letter;
+    }
+    refreshDefects();
+  }
+  if (lotInput && bandsNode) {
+    lotInput.addEventListener('input', function () { applyPlan(num(lotInput.value)); });
+    applyPlan(num(lotInput.value));
+  }
+
+  var orderSelect = document.getElementById('id_production_order');
+  if (orderSelect && document.querySelector('[data-qc-create]')) {
+    orderSelect.addEventListener('change', function () {
+      if (!orderSelect.value) return;
+      var url = new URL(window.location.href);
+      url.searchParams.set('mo', orderSelect.value);
+      window.location = url.pathname + '?mo=' + encodeURIComponent(orderSelect.value);
+    });
+  }
+
+  var stageSelect = document.getElementById('id_stage_name');
+  var teamSelect = document.getElementById('id_team_slug');
+  var stageMapNode = document.getElementById('qc-inline-stages');
+  if (stageSelect && teamSelect && stageMapNode && !stageSelect.disabled) {
+    var stageMap = {};
+    try { stageMap = JSON.parse(stageMapNode.textContent || '{}'); } catch (err) { stageMap = {}; }
+    teamSelect.addEventListener('change', function () {
+      var labels = stageMap[teamSelect.value] || [];
+      var current = stageSelect.value;
+      stageSelect.innerHTML = '';
+      var blank = document.createElement('option');
+      blank.value = '';
+      blank.textContent = labels.length ? '— Chọn công đoạn —' : '— Chọn tổ trước —';
+      stageSelect.appendChild(blank);
+      labels.forEach(function (label) {
+        var option = document.createElement('option');
+        option.value = label;
+        option.textContent = label;
+        if (label === current) option.selected = true;
+        stageSelect.appendChild(option);
+      });
+      if (labels.indexOf(current) === -1) stageSelect.value = '';
+    });
+  }
+})();
+</script>

@@ -77,9 +77,9 @@
             {% if not progress.qc_done %}
               {% if mo.status == 'in_progress' or mo.status == 'done' %}
                 {% if progress.qc_inspection_id %}
-            <a href="{% url 'san_xuat:qc_sheet_detail' progress.qc_inspection_id %}{% if progress.next_qc_slug %}?team={{ progress.next_qc_slug }}{% endif %}" class="btn btn-outline-hm fw-bold">Kiểm tra sản phẩm{% if progress.qc_total %} {{ progress.qc_passed }}/{{ progress.qc_total }}{% endif %}</a>
+            <a href="{% url 'san_xuat:qc_flow_open' progress.qc_inspection_id %}" class="btn btn-outline-hm fw-bold">QC endline</a>
                 {% else %}
-            <a href="{% url 'san_xuat:qc_stub' %}" class="btn btn-outline-hm fw-bold">Kiểm tra sản phẩm</a>
+            <a href="{% url 'san_xuat:qc_flow_create' 'endline' %}?mo={{ mo.pk }}" class="btn btn-outline-hm fw-bold">QC endline</a>
                 {% endif %}
               {% endif %}
             {% endif %}
@@ -241,12 +241,12 @@
     <div class="jp-mo-steps">
       {% for s in progress.steps %}
       {% if s.url_name and s.url_pk %}
-      <a href="{% url s.url_name s.url_pk %}{% if s.key == 'qc' and progress.next_qc_slug %}?team={{ progress.next_qc_slug }}{% endif %}" class="chip {% if s.done %}is-done{% elif s.optional %}is-optional{% endif %} text-decoration-none"{% if s.key == 'qc' and not s.done %} title="Lưu đủ tổ rồi chốt phiếu — mới được nhập thành phẩm"{% endif %}>
+      <a href="{% url s.url_name s.url_pk %}" class="chip {% if s.done %}is-done{% elif s.optional %}is-optional{% endif %} text-decoration-none"{% if s.key == 'qc' and not s.done %} title="Chốt QC endline Đạt trước khi nhập thành phẩm"{% endif %}>
         {% if s.done %}<i class="bi bi-check-lg" aria-hidden="true"></i>{% else %}<i class="bi bi-circle" aria-hidden="true"></i>{% endif %}
         {{ s.label }}
       </a>
       {% else %}
-      <span class="chip {% if s.done %}is-done{% elif s.optional %}is-optional{% endif %}"{% if s.key == 'qc' and not s.done %} title="Lưu đủ tổ rồi chốt phiếu — mới được nhập thành phẩm"{% endif %}>
+      <span class="chip {% if s.done %}is-done{% elif s.optional %}is-optional{% endif %}"{% if s.key == 'qc' and not s.done %} title="Chốt QC endline Đạt trước khi nhập thành phẩm"{% endif %}>
         {% if s.done %}<i class="bi bi-check-lg" aria-hidden="true"></i>{% else %}<i class="bi bi-circle" aria-hidden="true"></i>{% endif %}
         {{ s.label }}
       </span>
@@ -543,48 +543,41 @@
         <div class="card-body">
           <div class="jp-mo-section-head">
             <div>
-              <p class="title">Yêu cầu kiểm tra</p>
-              <div class="count">{{ qc_request_list|length }} phiếu</div>
+              <p class="title">Kiểm tra chất lượng</p>
+              <div class="count">{{ qc_flow_checks|length }} phiếu</div>
             </div>
             <div class="d-flex flex-wrap gap-1">
-              <a href="{% url 'san_xuat:qc_request' %}" class="btn btn-sm btn-outline-secondary">Danh sách</a>
-              {% if mo.status != 'draft' and mo.status != 'cancelled' and mo.status != 'done' %}
-              <a href="{% url 'san_xuat:qc_request_create' %}?mo={{ mo.pk }}" class="btn btn-sm btn-hm">Tạo</a>
+              <a href="{% url 'san_xuat:qc_stub' %}" class="btn btn-sm btn-outline-secondary">Ba luồng</a>
+              {% if mo.status != 'draft' and mo.status != 'cancelled' %}
+              <a href="{% url 'san_xuat:qc_flow_create' 'inline' %}?mo={{ mo.pk }}" class="btn btn-sm btn-outline-secondary">Inline</a>
+              <a href="{% url 'san_xuat:qc_flow_create' 'endline' %}?mo={{ mo.pk }}" class="btn btn-sm btn-hm">Endline</a>
+              <a href="{% url 'san_xuat:qc_flow_create' 'preaudit' %}?mo={{ mo.pk }}" class="btn btn-sm btn-outline-secondary">Preaudit</a>
               {% endif %}
             </div>
           </div>
-          {% if qc_request_list %}
+          {% if qc_flow_checks %}
           <div class="table-responsive">
             <table class="table table-sm table-hover mb-0 align-middle">
               <thead class="table-light">
                 <tr>
                   <th>Mã</th>
-                  <th>Ngày</th>
-                  <th>PKT</th>
+                  <th>Luồng</th>
+                  <th>KQ</th>
                   <th class="text-end"></th>
                 </tr>
               </thead>
               <tbody>
-              {% for req in qc_request_list %}
+              {% for item in qc_flow_checks %}
                 <tr>
-                  <td><a href="{% url 'san_xuat:qc_request_detail' req.pk %}" class="fw-semibold small text-decoration-none">{{ req.code }}</a></td>
-                  <td class="small text-muted">{{ req.request_date|date:"d/m/Y" }}</td>
+                  <td><a href="{% url 'san_xuat:qc_flow_detail' item.flow item.pk %}" class="fw-semibold small text-decoration-none">{{ item.code }}</a></td>
+                  <td class="small">{{ item.get_flow_display }}</td>
                   <td class="small">
-                    {% with insp=req.inspections.all.0 %}
-                      {% if insp %}
-                        {% if insp.result == 'pass' %}<span class="text-success">Đạt</span>
-                        {% elif insp.result == 'fail' %}<span class="text-danger">Không đạt</span>
-                        {% else %}{{ insp.get_result_display }}{% endif %}
-                      {% else %}Chưa có{% endif %}
-                    {% endwith %}
+                    {% if item.result == 'pass' %}<span class="text-success">Đạt</span>
+                    {% elif item.result == 'fail' %}<span class="text-danger">Không đạt</span>
+                    {% else %}{{ item.get_result_display }}{% endif %}
                   </td>
                   <td class="text-end">
-                    <div class="d-flex flex-wrap gap-1 justify-content-end">
-                      {% if not req.inspections.all %}
-                      <a href="{% url 'san_xuat:qc_sheet_create' %}?request={{ req.pk }}" class="btn btn-sm btn-outline-secondary">Lập PKT</a>
-                      {% endif %}
-                      <a href="{% url 'san_xuat:qc_request_detail' req.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
-                    </div>
+                    <a href="{% url 'san_xuat:qc_flow_detail' item.flow item.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
                   </td>
                 </tr>
               {% endfor %}
@@ -592,7 +585,7 @@
             </table>
           </div>
           {% else %}
-          <div class="text-muted small mb-0">Chưa có yêu cầu kiểm tra. Lập phiếu và QC đủ tổ trên Ob (ví dụ 6/6) trước khi nhập thành phẩm.</div>
+          <div class="text-muted small mb-0">Chưa có phiếu. QC endline Đạt thì mới nhập thành phẩm. Preaudit là mẫu AQL trước khi khách audit.</div>
           {% endif %}
           {% if open_qc_alerts %}
           <div class="mt-3 pt-3 border-top">

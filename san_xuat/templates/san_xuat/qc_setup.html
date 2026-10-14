@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+
+{% block extra_head %}
+{% include 'san_xuat/includes/qc_flow_screen_head.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Thiết lập lỗi QC</h2>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="{% url 'san_xuat:qc_stub' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Tổng quan</a>
+    </nav>
+  </div>
+  <p class="text-muted small">Danh mục này dùng cho QC inline, QC endline và QC preaudit. Lỗi ngừng dùng không hiện khi lập phiếu mới.</p>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-5">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="fw-semibold mb-2">Nhóm lỗi</div>
+          {% if can_write_qc %}
+          <form method="post" class="row g-2 mb-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_group">
+            <div class="col-4"><input class="form-control form-control-sm" name="group_code" placeholder="Mã" required></div>
+            <div class="col-5"><input class="form-control form-control-sm" name="group_name" placeholder="Tên nhóm" required></div>
+            <div class="col-3"><button class="btn btn-hm btn-sm w-100" type="submit">Thêm</button></div>
+          </form>
+          {% endif %}
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light"><tr><th>Mã</th><th>Tên</th><th></th></tr></thead>
+            <tbody>
+              {% for item in groups %}
+              <tr>
+                <td class="fw-semibold">{{ item.code }}</td>
+                <td>{{ item.name }}{% if not item.is_active %} <span class="text-muted small">ngừng</span>{% endif %}</td>
+                <td class="text-end">
+                  {% if can_write_qc %}
+                  <form method="post" class="d-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="toggle_group">
+                    <input type="hidden" name="pk" value="{{ item.pk }}">
+                    <button class="btn btn-sm btn-outline-secondary" type="submit">{% if item.is_active %}Ngừng{% else %}Dùng lại{% endif %}</button>
+                  </form>
+                  {% endif %}
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="3" class="text-muted">Chưa có nhóm.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-7">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="fw-semibold mb-2">Mã lỗi</div>
+          {% if can_write_qc %}
+          <form method="post" class="row g-2 mb-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_defect">
+            <div class="col-6 col-md-2"><input class="form-control form-control-sm" name="defect_code" placeholder="Mã" required></div>
+            <div class="col-6 col-md-3"><input class="form-control form-control-sm" name="defect_name" placeholder="Tên lỗi" required></div>
+            <div class="col-6 col-md-3">
+              <select class="form-select form-select-sm" name="defect_group" required>
+                <option value="">Nhóm</option>
+                {% for item in groups %}
+                {% if item.is_active %}<option value="{{ item.pk }}">{{ item.name }}</option>{% endif %}
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-6 col-md-2">
+              <select class="form-select form-select-sm" name="defect_severity">
+                <option value="minor">Nhẹ</option>
+                <option value="major" selected>Nặng</option>
+                <option value="critical">Nghiêm trọng</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-2"><button class="btn btn-hm btn-sm w-100" type="submit">Thêm</button></div>
+          </form>
+          {% endif %}
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light"><tr><th>Mã</th><th>Tên</th><th>Nhóm</th><th>Mức</th><th></th></tr></thead>
+            <tbody>
+              {% for item in defects %}
+              <tr>
+                <td class="fw-semibold">{{ item.code }}</td>
+                <td>{{ item.name }}{% if not item.is_active %} <span class="text-muted small">ngừng</span>{% endif %}</td>
+                <td class="small">{{ item.group.name }}</td>
+                <td class="small">
+                  {% if item.severity == 'minor' %}Nhẹ
+                  {% elif item.severity == 'critical' %}Nghiêm trọng
+                  {% elif item.severity == 'major' %}Nặng
+                  {% else %}{{ item.severity }}{% endif %}
+                </td>
+                <td class="text-end">
+                  {% if can_write_qc %}
+                  <form method="post" class="d-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="toggle_defect">
+                    <input type="hidden" name="pk" value="{{ item.pk }}">
+                    <button class="btn btn-sm btn-outline-secondary" type="submit">{% if item.is_active %}Ngừng{% else %}Dùng lại{% endif %}</button>
+                  </form>
+                  {% endif %}
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="5" class="text-muted">Chưa có mã lỗi.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

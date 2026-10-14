@@ -252,6 +252,29 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
             'created_at': 'created_at',
         },
     ),
+    'qc_board': _spec(
+        _cols(
+            _col('code', 'Đơn hàng', required=True),
+            _col('product', 'Sản phẩm', weight=180),
+            _col('mo', 'Lệnh sản xuất', weight=130),
+            _col('qty', 'SL lệnh', weight=80, align='end'),
+            _col('inline', 'QC inline', weight=100, sortable=False),
+            _col('endline', 'QC endline', weight=110, sortable=False),
+            _col('preaudit', 'QC preaudit', weight=110, sortable=False),
+            _col('order_date', 'Ngày lập', weight=90, default=False),
+            _col('status', 'Trạng thái', weight=100, default=False),
+            meta=False,
+        ),
+        {
+            'code': 'sales_order__code',
+            'product': 'product_name',
+            'mo': 'code',
+            'qty': 'qty',
+            'order_date': 'order_date',
+            'status': 'status',
+        },
+        default_sort='order_date',
+    ),
     'qc_request': _spec(
         _cols(
             _col('code', 'Mã', required=True),

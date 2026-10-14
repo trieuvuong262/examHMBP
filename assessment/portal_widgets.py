@@ -646,23 +646,179 @@ def _report_comment_widgets(user):
     return widgets
 
 
+def _sample_names(names, total: int) -> str:
+    shown = [name for name in names if name]
+    if not shown:
+        return ''
+    text = ', '.join(shown)
+    if total > len(shown):
+        text += '…'
+    return f' ({text})'
+
+
+def _recruitment_widgets(user):
+    """Việc trên menu Đánh giá ứng viên: CV, kết quả PV đã tới giờ, giám đốc duyệt."""
+    import logging
+
+    try:
+        return _recruitment_widget_items(user)
+    except Exception:
+        logging.getLogger(__name__).warning('recruitment portal widgets failed', exc_info=True)
+        return []
+
+
+def _recruitment_widget_items(user):
+    from recruitment.models import Candidate, JobPosting
+    from recruitment.permissions import (
+        can_final_approve,
+        final_queue,
+        interview_queue,
+        is_hiring_manager,
+        manager_job_filter,
+    )
+
+    widgets = []
+    if is_hiring_manager(user):
+        pending_cv = (
+            Candidate.objects.filter(
+                status=Candidate.STATUS_REVIEWING,
+                job_posting__in=JobPosting.objects.filter(manager_job_filter(user)),
+            )
+            .exclude(job_posting__skip_cv_review=True)
+            .exclude(reviews__reviewer=user)
+        )
+        cv_count = pending_cv.count()
+        if cv_count:
+            names = list(pending_cv.order_by('status_changed_at', 'pk').values_list('full_name', flat=True)[:3])
+            widgets.append({
+                'level': 'warning',
+                'icon': 'bi-person-lines-fill',
+                'title': 'Tuyển dụng — đánh giá CV',
+                'text': f'{cv_count} hồ sơ đang chờ bạn đánh giá{_sample_names(names, cv_count)}.',
+                'url': reverse('recruitment_review_list') + '?tab=cho-danh-gia',
+                'action': 'Đánh giá',
+                'badge': cv_count,
+            })
+
+    due_interviews = interview_queue(user).filter(interview__interview_time__lte=timezone.now())
+    due_count = due_interviews.count()
+    if due_count:
+        names = list(due_interviews.order_by('interview__interview_time').values_list('full_name', flat=True)[:3])
+        widgets.append({
+            'level': 'warning',
+            'icon': 'bi-camera-video',
+            'title': 'Tuyển dụng — kết quả phỏng vấn',
+            'text': f'{due_count} buổi phỏng vấn đã tới giờ, đang chờ bạn nhập kết quả{_sample_names(names, due_count)}.',
+            'url': reverse('recruitment_review_list') + '?tab=phong-van',
+            'action': 'Nhập kết quả',
+            'badge': due_count,
+        })
+
+    if can_final_approve(user):
+        finals = final_queue(user).order_by('status_changed_at', 'pk')
+        final_count = finals.count()
+        if final_count:
+            names = list(finals.values_list('full_name', flat=True)[:3])
+            widgets.append({
+                'level': 'warning',
+                'icon': 'bi-patch-check-fill',
+                'title': 'Tuyển dụng — chờ giám đốc duyệt',
+                'text': f'{final_count} hồ sơ phỏng vấn Đạt đang chờ bạn duyệt{_sample_names(names, final_count)}.',
+                'url': reverse('recruitment_review_list') + '?tab=giam-doc-duyet',
+                'action': 'Duyệt',
+                'badge': final_count,
+            })
+    return widgets
+
+
 def _thiet_ke_sp_widgets(user):
     from hrm.module_permissions import MODULE_THIET_KE_SP, user_can_access_module
+    from thiet_ke_sp.context_processors import member_only_access, user_badges
 
-    if not user_can_access_module(user, MODULE_THIET_KE_SP):
+    if not user_can_access_module(user, MODULE_THIET_KE_SP) and not member_only_access(user):
         return []
-    from thiet_ke_sp.context_processors import user_badges
+
+    from thiet_ke_sp.models import ProductDevelopment, Role, Task
+    from thiet_ke_sp.presenters import APPROVAL_STATUSES
 
     badges = user_badges(user)
     widgets = []
-    url = reverse('thiet_ke_sp:my_tasks')
-    if badges['overdue']:
+    task_url = reverse('thiet_ke_sp:my_tasks')
+    approve = badges.get('approve') or 0
+    # Việc duyệt có thẻ riêng — không đếm lại trong «việc cần làm».
+    work = Task.objects.filter(assignee=user, state=Task.STATE_OPEN).exclude(
+        dossier__status__in=('paused', 'cancelled', 'closed'),
+    )
+    if approve:
+        work = work.exclude(role=Role.APPROVER, dossier__status__in=APPROVAL_STATUSES)
+    overdue = work.filter(due_at__lt=timezone.now()).count()
+    pending = work.count() - overdue
+    if overdue:
         widgets.append({
             'level': 'danger',
             'icon': 'bi-palette-fill',
             'title': 'Thiết kế sản phẩm — quá hạn',
-            'text': f'{badges["overdue"]} việc hồ sơ thiết kế đã quá hạn.',
-            'url': url,
+            'text': f'{overdue} việc hồ sơ thiết kế đã quá hạn.',
+            'url': task_url,
+            'action': 'Xử lý',
+            'badge': overdue,
+        })
+    if pending > 0:
+        widgets.append({
+            'level': 'warning',
+            'icon': 'bi-palette',
+            'title': 'Thiết kế sản phẩm — việc cần làm',
+            'text': f'{pending} việc hồ sơ thiết kế đang chờ bạn xử lý.',
+            'url': task_url,
+            'action': 'Xem',
+            'badge': pending,
+        })
+    if approve:
+        names = list(
+            ProductDevelopment.objects.filter(approver=user, status__in=APPROVAL_STATUSES)
+            .order_by('status_changed_at', 'pk')
+            .values_list('name', flat=True)[:3]
+        )
+        widgets.append({
+            'level': 'warning',
+            'icon': 'bi-check2-circle',
+            'title': 'Thiết kế sản phẩm — chờ duyệt',
+            'text': f'{approve} hồ sơ đang chờ bạn duyệt{_sample_names(names, approve)}.',
+            'url': reverse('thiet_ke_sp:approve_queue'),
+            'action': 'Duyệt',
+            'badge': approve,
+        })
+    if badges['unread'] and not widgets:
+        widgets.append({
+            'level': 'info',
+            'icon': 'bi-palette',
+            'title': 'Thiết kế sản phẩm',
+            'text': f'{badges["unread"]} thông báo trên hồ sơ bạn được giao xem.',
+            'url': reverse('thiet_ke_sp:notifications'),
+            'action': 'Xem',
+            'badge': badges['unread'],
+        })
+    return widgets
+
+
+def _ra_mat_sp_widgets(user):
+    from hrm.module_permissions import MODULE_RA_MAT_SP, user_can_access_module
+    from ra_mat_sp.context_processors import user_badges
+    from ra_mat_sp.permissions import has_participation
+
+    if not user_can_access_module(user, MODULE_RA_MAT_SP) and not has_participation(user):
+        return []
+
+    badges = user_badges(user)
+    widgets = []
+    task_url = reverse('ra_mat_sp:my_tasks')
+    if badges['overdue']:
+        widgets.append({
+            'level': 'danger',
+            'icon': 'bi-rocket-takeoff-fill',
+            'title': 'Kế hoạch ra mắt — quá hạn',
+            'text': f'{badges["overdue"]} việc ra mắt đã quá hạn.',
+            'url': task_url,
             'action': 'Xử lý',
             'badge': badges['overdue'],
         })
@@ -670,12 +826,22 @@ def _thiet_ke_sp_widgets(user):
     if pending > 0:
         widgets.append({
             'level': 'warning',
-            'icon': 'bi-palette',
-            'title': 'Thiết kế sản phẩm',
-            'text': f'{pending} việc hồ sơ thiết kế đang chờ bạn xử lý.',
-            'url': url,
+            'icon': 'bi-rocket-takeoff',
+            'title': 'Kế hoạch ra mắt — việc cần làm',
+            'text': f'{pending} việc ra mắt đang chờ bạn xử lý.',
+            'url': task_url,
             'action': 'Xem',
             'badge': pending,
+        })
+    if badges.get('approve'):
+        widgets.append({
+            'level': 'warning',
+            'icon': 'bi-check2-circle',
+            'title': 'Kế hoạch ra mắt — chờ phê duyệt',
+            'text': f'{badges["approve"]} kế hoạch đang chờ bạn phê duyệt.',
+            'url': reverse('ra_mat_sp:approve_queue'),
+            'action': 'Duyệt',
+            'badge': badges['approve'],
         })
     return widgets
 
@@ -725,6 +891,79 @@ def invalidate_portal_badges(user) -> None:
         cache.delete(f'jp:badges:{pk}')
 
 
+_LEVEL_RANK = {'danger': 0, 'warning': 1, 'info': 2}
+
+# Nhóm trên trang chủ: nhãn, icon, thứ tự khi cùng mức gấp.
+_PORTAL_GROUPS = {
+    'announcements': ('Thông báo', 'bi-megaphone', 10),
+    'recruitment': ('Tuyển dụng', 'bi-person-badge', 20),
+    'exams': ('Bài kiểm tra', 'bi-journal-check', 30),
+    'reports': ('Báo cáo', 'bi-clipboard-check', 40),
+    'design': ('Thiết kế sản phẩm', 'bi-palette', 50),
+    'production': ('Sản xuất', 'bi-gear-wide-connected', 60),
+    'launch': ('Kế hoạch ra mắt', 'bi-rocket-takeoff', 70),
+    'tasks': ('Việc cần làm', 'bi-list-check', 80),
+    'requests': ('Đề xuất', 'bi-send', 90),
+    'support': ('Hỗ trợ', 'bi-life-preserver', 100),
+    'equipment': ('Thiết bị', 'bi-pc-display', 110),
+    'training': ('Đào tạo', 'bi-mortarboard', 120),
+    'feedback': ('Góp ý', 'bi-chat-square-text', 130),
+    'utilities': ('Tiện ích', 'bi-grid', 140),
+}
+
+
+def _mark_group(items, group):
+    for item in items:
+        item['group'] = group
+    return items
+
+
+def _short_label(title: str, group_label: str) -> str:
+    prefix = f'{group_label} — '
+    if title.startswith(prefix):
+        return title[len(prefix):]
+    if ' — ' in title:
+        head, tail = title.split(' — ', 1)
+        if head == group_label:
+            return tail
+    return title
+
+
+def group_portal_dashboard(widgets):
+    """Gộp widget cùng module, việc gấp xếp trước."""
+    buckets = {}
+    seen = []
+    for item in widgets:
+        key = item.get('group') or 'other'
+        if key not in buckets:
+            buckets[key] = []
+            seen.append(key)
+        buckets[key].append(item)
+
+    groups = []
+    for key in seen:
+        items = buckets[key]
+        items.sort(key=lambda it: _LEVEL_RANK.get(it.get('level'), 9))
+        label, icon, seq = _PORTAL_GROUPS.get(key, ('Việc khác', 'bi-dot', 500))
+        worst = min(_LEVEL_RANK.get(it.get('level'), 9) for it in items)
+        badge_sum = sum(int(it['badge']) for it in items if it.get('badge'))
+        for it in items:
+            it['label'] = _short_label(it.get('title') or '', label)
+        groups.append({
+            'key': key,
+            'label': label,
+            'icon': icon,
+            'level': next((name for name, rank in _LEVEL_RANK.items() if rank == worst), 'info'),
+            'items': items,
+            'badge': badge_sum or len(items),
+            'single': len(items) == 1,
+            'has_links': any(not it.get('dismiss_url') for it in items),
+            '_sort': seq,
+        })
+    groups.sort(key=lambda g: g['_sort'])
+    return groups
+
+
 def get_portal_dashboard(user):
     """Trả về danh sách widget nhắc việc (dict) cho trang chủ."""
     widgets = []
@@ -746,6 +985,7 @@ def get_portal_dashboard(user):
             'url': reverse('announcements:list'),
             'action': 'Đọc ngay',
             'badge': unread_count,
+            'group': 'announcements',
         })
 
     # --- Báo cáo hôm nay (cá nhân — không áp dụng Giám đốc) ---
@@ -770,19 +1010,22 @@ def get_portal_dashboard(user):
                 'text': text,
                 'url': today_url_for_user(user),
                 'action': 'Nhập báo cáo',
+                'group': 'reports',
             })
 
-    widgets.extend(_task_widgets(user))
-    widgets.extend(_training_widgets(user))
-    widgets.extend(_exam_widgets(user))
-    widgets.extend(_de_xuat_widgets(user))
-    widgets.extend(_ho_tro_widgets(user))
-    widgets.extend(_equipment_it_widgets(user))
-    widgets.extend(_feedback_widgets(user))
-    widgets.extend(_utilities_widgets(user))
-    widgets.extend(_san_xuat_widgets(user))
-    widgets.extend(_thiet_ke_sp_widgets(user))
-    widgets.extend(_report_comment_widgets(user))
+    widgets.extend(_mark_group(_task_widgets(user), 'tasks'))
+    widgets.extend(_mark_group(_recruitment_widgets(user), 'recruitment'))
+    widgets.extend(_mark_group(_training_widgets(user), 'training'))
+    widgets.extend(_mark_group(_exam_widgets(user), 'exams'))
+    widgets.extend(_mark_group(_de_xuat_widgets(user), 'requests'))
+    widgets.extend(_mark_group(_ho_tro_widgets(user), 'support'))
+    widgets.extend(_mark_group(_equipment_it_widgets(user), 'equipment'))
+    widgets.extend(_mark_group(_feedback_widgets(user), 'feedback'))
+    widgets.extend(_mark_group(_utilities_widgets(user), 'utilities'))
+    widgets.extend(_mark_group(_san_xuat_widgets(user), 'production'))
+    widgets.extend(_mark_group(_thiet_ke_sp_widgets(user), 'design'))
+    widgets.extend(_mark_group(_ra_mat_sp_widgets(user), 'launch'))
+    widgets.extend(_mark_group(_report_comment_widgets(user), 'reports'))
 
     # --- HOD / GM: team chưa nộp BC ---
     if can_view_team_reports(user):
@@ -803,6 +1046,7 @@ def get_portal_dashboard(user):
                     'url': team_pending_url_for_user(user),
                     'action': 'Xem team',
                     'badge': missing,
+                    'group': 'reports',
                 })
 
     return widgets

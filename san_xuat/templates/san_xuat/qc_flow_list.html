@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% load sx_format %}
+
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/sx_qc_compact_styles.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">{{ meta.label }}</h2>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      {% if can_write_qc %}
+      <a href="{% url 'san_xuat:qc_flow_create' flow %}{% if mo %}?mo={{ mo.pk }}{% endif %}"><i class="bi bi-plus-lg" aria-hidden="true"></i>Tạo phiếu</a>
+      <span class="sep" aria-hidden="true"></span>
+      {% endif %}
+      <a href="{% url 'san_xuat:qc_stub' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Kiểm tra chất lượng</a>
+    </nav>
+  </div>
+  <p class="text-muted small mb-3">{{ meta.blurb }}</p>
+
+  <form method="get" class="d-flex gap-2 mb-3" role="search">
+    {% if mo %}<input type="hidden" name="mo" value="{{ mo.pk }}">{% endif %}
+    <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm" placeholder="Mã phiếu / lệnh / sản phẩm…" style="max-width:22rem">
+    <button type="submit" class="btn btn-hm btn-sm">Lọc</button>
+  </form>
+
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Mã</th>
+            <th>Ngày</th>
+            <th>Lệnh</th>
+            {% if flow == 'inline' %}<th>Tổ / công đoạn</th>{% endif %}
+            <th class="text-end">SL kiểm</th>
+            {% if flow == 'endline' %}
+            <th class="text-end">Đạt</th>
+            <th class="text-end">Sửa</th>
+            {% endif %}
+            {% if flow == 'preaudit' %}
+            <th class="text-end">Mẫu</th>
+            <th class="text-end">Chấp nhận</th>
+            {% endif %}
+            <th class="text-end">Lỗi</th>
+            <th>Kết quả</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in checks %}
+          <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:qc_flow_detail' flow item.pk %}">
+            <td><a href="{% url 'san_xuat:qc_flow_detail' flow item.pk %}" class="fw-semibold text-decoration-none">{{ item.code }}</a></td>
+            <td class="small">{{ item.checked_on|date:"d/m/Y" }}</td>
+            <td class="small">{{ item.production_order.code }}<div class="text-muted">{{ item.product_name|default:item.product_code }}</div></td>
+            {% if flow == 'inline' %}
+            <td class="small">{{ item.team_label|default:"—" }}{% if item.stage_name %}<div class="text-muted">{{ item.stage_name }}</div>{% endif %}</td>
+            {% endif %}
+            <td class="text-end small">{{ item.qty_checked|sx_num }}</td>
+            {% if flow == 'endline' %}
+            <td class="text-end small">{{ item.qty_pass|sx_num }}</td>
+            <td class="text-end small">{{ item.qty_repair|sx_num }}</td>
+            {% endif %}
+            {% if flow == 'preaudit' %}
+            <td class="text-end small">{{ item.sample_size }}</td>
+            <td class="text-end small">{{ item.accept_qty }}</td>
+            {% endif %}
+            <td class="text-end small">{{ item.qty_fail|sx_num }}</td>
+            <td class="small">
+              {% if item.result == 'pass' %}<span class="text-success fw-semibold">Đạt</span>
+              {% elif item.result == 'fail' %}<span class="text-danger fw-semibold">Không đạt</span>
+              {% elif item.result == 'noted' %}Đã ghi
+              {% else %}Nháp{% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="9" class="text-center text-muted py-4">Chưa có phiếu {{ meta.label }}.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

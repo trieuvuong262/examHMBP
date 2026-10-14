@@ -1,0 +1,11 @@
+{% load sx_format %}
+{% if order %}
+<div class="jp-qc-order">
+  <div><div class="k">Lệnh</div><div class="v">{{ order.code }}</div></div>
+  <div><div class="k">Sản phẩm</div><div class="v">{{ order.product_name|default:order.product_code }}</div></div>
+  <div><div class="k">Đơn hàng</div><div class="v">{{ order.sales_order.code|default:"—" }}</div></div>
+  <div><div class="k">SL lệnh</div><div class="v">{{ order.qty|sx_num }}</div></div>
+</div>
+{% else %}
+<p class="text-muted small">Chọn lệnh sản xuất để lấy số lượng và danh sách size.</p>
+{% endif %}

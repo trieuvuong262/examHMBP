@@ -7,7 +7,11 @@
 <div class="container jp-page jp-sx-page jp-tksp py-3 py-md-4 mb-5">
   {% if dossier %}
   {% url 'thiet_ke_sp:detail' dossier.pk as back_url %}
+  {% if dossier.status == 'draft' or dossier.status == 'brief_needs_info' %}
   {% include 'thiet_ke_sp/includes/tksp_topbar.html' with tk_title='Sửa đề bài '|add:dossier.code tk_active='create' back_url=back_url back_label=dossier.code tk_form_id='tk-dossier-form' %}
+  {% else %}
+  {% include 'thiet_ke_sp/includes/tksp_topbar.html' with tk_title='Sửa đề bài '|add:dossier.code tk_active='create' back_url=back_url back_label=dossier.code tk_form_id='tk-dossier-form' tk_save_label='Lưu' tk_show_submit='no' %}
+  {% endif %}
   {% else %}
   {% url 'thiet_ke_sp:list' as back_url %}
   {% include 'thiet_ke_sp/includes/tksp_topbar.html' with tk_title='Đề xuất sản phẩm mới' tk_active='create' back_url=back_url back_label='Danh sách hồ sơ' tk_form_id='tk-dossier-form' %}
@@ -35,10 +39,12 @@
           </div>
         </div>
         {% include 'thiet_ke_sp/includes/field.html' with field=form.launch_date col='col-md-6' req=True %}
+        {% if not dossier or dossier.status == 'draft' or dossier.status == 'brief_needs_info' %}
         <div class="col-md-6">
           <label class="form-label small text-muted mb-1" for="tk-due">Hạn duyệt đề bài</label>
           <input type="date" id="tk-due" name="due_at" class="form-control form-control-sm jp-date-vn" value="{{ default_due|date:'Y-m-d' }}">
         </div>
+        {% endif %}
         {% include 'thiet_ke_sp/includes/field.html' with field=form.usage_need col='col-lg-6' req=True %}
         {% include 'thiet_ke_sp/includes/field.html' with field=form.market_need col='col-lg-6' %}
         {% include 'thiet_ke_sp/includes/field.html' with field=form.description col='col-12' %}
@@ -79,6 +85,15 @@
         {% include 'thiet_ke_sp/includes/field.html' with field=form.technician col='col-md-4' %}
         {% include 'thiet_ke_sp/includes/field.html' with field=form.sample_maker col='col-md-4' %}
         {% include 'thiet_ke_sp/includes/field.html' with field=form.costing_user col='col-md-4' %}
+        {% if form.fields.followers %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.followers col='col-12' %}
+        {% else %}
+        <div class="col-12">
+          <label class="form-label fw-bold small mb-1">Người theo dõi</label>
+          <div class="form-control form-control-sm bg-light">{{ form.follower_names|default:'Chưa chọn' }}</div>
+          <div class="form-text small">Chỉ người phụ trách chính hoặc người duyệt được đổi danh sách này.</div>
+        </div>
+        {% endif %}
       </div>
     </div>
   </form>

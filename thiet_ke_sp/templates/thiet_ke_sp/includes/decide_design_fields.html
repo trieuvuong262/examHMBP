@@ -1,8 +1,8 @@
 {% load tksp_tags %}
 <div class="d-flex flex-column gap-1 mb-2">
   <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="approved" data-due="{{ sla_due.sampling|due_input }}" data-tk-show=".tk-pick" data-tk-hide=".tk-keep" checked> <span class="form-check-label">Duyệt — chuyển sang làm mẫu</span></label>
-  <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="request_change" data-due="{{ sla_due.design_revise|due_input }}" data-tk-show=".tk-keep" data-tk-hide=".tk-pick"> <span class="form-check-label">Yêu cầu chỉnh sửa — mở phiên bản mới</span></label>
-  <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="cancelled" data-due="" data-tk-hide=".tk-pick, .tk-keep"> <span class="form-check-label text-danger">Hủy hồ sơ</span></label>
+  <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="request_change" data-due="{{ sla_due.design_revise|due_input }}" data-tk-show=".tk-keep" data-tk-hide=".tk-pick" data-comment-required="1" data-comment-label="Nội dung yêu cầu chỉnh sửa"> <span class="form-check-label">Yêu cầu chỉnh sửa — mở phiên bản mới</span></label>
+  <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="cancelled" data-due="" data-tk-hide=".tk-pick, .tk-keep" data-comment-required="1" data-comment-label="Lý do hủy"> <span class="form-check-label text-danger">Hủy hồ sơ</span></label>
 </div>
 {% if options|length > 1 %}
 <div class="tk-pick mb-2">
@@ -30,6 +30,6 @@
   </div>
 </div>
 {% endif %}
-<label class="form-label fw-bold small mb-1">Ý kiến</label>
-<textarea name="comment" class="form-control form-control-sm mb-2" rows="3"></textarea>
+<label class="form-label fw-bold small mb-1"><span class="tk-decision-comment-label" data-default-label="Ý kiến">Ý kiến</span> <span class="tk-decision-comment-star text-danger d-none">*</span></label>
+<textarea name="comment" class="form-control form-control-sm mb-2 tk-decision-comment" rows="3"></textarea>
 {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.sampling %}

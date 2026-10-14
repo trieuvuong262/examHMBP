@@ -22,7 +22,7 @@
       {% if tab == 'nhan-su' %}
       <div class="tk-section">
         <div class="tk-section-title"><i class="bi bi-people"></i>Danh sách nhân sự phụ trách</div>
-        <p class="small text-muted">Chọn những người được phép gán cho từng vai trò. Mỗi hồ sơ vẫn tự chọn một người trong danh sách này.</p>
+        <p class="small text-muted">Chọn những người được phép gán cho từng vai trò. Mỗi hồ sơ chọn một người trong danh sách này. Người theo dõi chọn được nhiều người trên một hồ sơ; họ chỉ xem và trao đổi.</p>
         <div class="row g-3">
           {% for field in form %}{% include 'thiet_ke_sp/includes/field.html' with field=field col='col-md-6' %}{% endfor %}
         </div>

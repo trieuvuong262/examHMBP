@@ -1,10 +1,28 @@
 <script>
 (function () {
+  function syncDecisionComment(modal, radio) {
+    var area = modal.querySelector('textarea.tk-decision-comment');
+    if (!area) return;
+    var required = radio.getAttribute('data-comment-required') === '1';
+    var label = modal.querySelector('.tk-decision-comment-label');
+    var star = modal.querySelector('.tk-decision-comment-star');
+    area.required = required;
+    if (label) {
+      label.textContent = radio.getAttribute('data-comment-label')
+        || label.getAttribute('data-default-label')
+        || 'Ý kiến';
+    }
+    if (star) star.classList.toggle('d-none', !required);
+    if (required) area.focus();
+  }
+
   document.querySelectorAll('.modal input[type="radio"][data-due], .modal select').forEach(function (el) {
     el.addEventListener('change', function () {
       var modal = el.closest('.modal');
+      if (!modal) return;
+      if (el.name === 'decision') syncDecisionComment(modal, el);
       var src = el.tagName === 'SELECT' ? el.options[el.selectedIndex] : el;
-      if (!src || !src.hasAttribute('data-due') || !modal) return;
+      if (!src || !src.hasAttribute('data-due')) return;
       var input = modal.querySelector('.tk-due-input');
       if (input) input.value = src.getAttribute('data-due') || '';
       var show = src.getAttribute('data-tk-show');

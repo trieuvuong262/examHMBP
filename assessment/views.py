@@ -30,7 +30,7 @@ from PortalJustPlay.pagination import paginate_queryset
 from kpi.models import MonthlyKpi
 from hrm.permissions import is_manager, is_portal_admin
 from tools.catalog import get_portal_tool_groups
-from .portal_widgets import get_portal_dashboard
+from .portal_widgets import get_portal_dashboard, group_portal_dashboard
 from .models import (
     Exam, 
     Question, 
@@ -52,9 +52,11 @@ def login_redirect_view(request):
 
 @login_required
 def home_portal(request):
+    widgets = get_portal_dashboard(request.user)
     return render(request, 'portal.html', {
         'portal_tool_groups': get_portal_tool_groups(),
-        'dashboard_widgets': get_portal_dashboard(request.user),
+        'dashboard_widgets': widgets,
+        'dashboard_groups': group_portal_dashboard(widgets),
     })
 
 def _assessment_perm_context(user):

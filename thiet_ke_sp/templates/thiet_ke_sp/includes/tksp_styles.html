@@ -225,6 +225,24 @@
 .jp-tksp .tk-comment { border: 1px solid var(--tk-line); border-radius: var(--tk-radius); padding: .6rem .75rem; font-size: .86rem; }
 .jp-tksp .tk-comment + .tk-comment { margin-top: .5rem; }
 .jp-tksp .tk-comment.is-revision { border-color: rgba(185, 28, 28, .35); background: rgba(185, 28, 28, .05); }
+.jp-tksp .tk-comment-item { display: flex; align-items: flex-start; gap: .5rem; padding: .5rem .55rem; }
+.jp-tksp .tk-comment-item .tk-avatar { width: 28px; height: 28px; font-size: .68rem; }
+.jp-tksp .tk-comment-meta { display: flex; flex-wrap: wrap; gap: .15rem .4rem; align-items: baseline; margin-bottom: .1rem; }
+.jp-tksp .tk-comment-meta strong { font-size: .78rem; }
+.jp-tksp .tk-comment-meta span { color: var(--tk-muted); font-size: .68rem; }
+.jp-tksp .tk-comments-card .accordion-item { background: transparent; border: 0; border-bottom: 1px solid var(--tk-line); }
+.jp-tksp .tk-comments-card .accordion-header { margin: 0; }
+.jp-tksp .tk-comments-card .accordion-item:last-child { border-bottom: 0; }
+.jp-tksp .tk-comments-card .accordion-button { background: transparent; color: inherit; box-shadow: none; gap: .35rem; font-size: .78rem; font-weight: 750; padding: .55rem 0; }
+.jp-tksp .tk-comments-card .accordion-button:not(.collapsed) { background: transparent; color: var(--tk-accent); box-shadow: none; }
+.jp-tksp .tk-comments-card .accordion-button:focus { box-shadow: none; }
+.jp-tksp .tk-comments-card .accordion-button::after { width: .75rem; height: .75rem; background-size: .75rem; margin-left: .35rem; }
+.jp-tksp .tk-comments-card .tk-cmt-locked { color: var(--tk-muted); cursor: default; pointer-events: none; }
+.jp-tksp .tk-comments-card .tk-cmt-locked::after { display: none; }
+.jp-tksp .tk-comments-card .accordion-body { padding: 0 0 .7rem; }
+.jp-tksp .tk-cmt-step { min-width: 0; }
+.jp-tksp .tk-cmt-marks { margin-left: auto; display: inline-flex; gap: .25rem; align-items: center; }
+.jp-tksp .tk-cmt-list { max-height: 280px; overflow: auto; }
 
 /* Cột phải */
 .jp-tksp .tk-side-card { padding: 1rem; }
@@ -386,6 +404,7 @@ body.tk-kan-dragging, body.tk-kan-dragging * { cursor: grabbing !important; user
   .jp-tksp .tk-ready-note { border-left: 0; border-top: 1px solid var(--tk-line); padding: .75rem 0 0; }
   .jp-tksp .tk-rail { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .85rem; }
   .jp-tksp .tk-rail .tk-side-card + .tk-side-card { margin-top: 0; }
+  .jp-tksp .tk-rail .tk-comments-card { grid-column: 1 / -1; }
 }
 @media (max-width: 767.98px) {
   .jp-tksp .tk-kpis, .jp-tksp .tk-cost-summary, .jp-tksp .tk-grid2, .jp-tksp .tk-grid3, .jp-tksp .tk-rail, .jp-tksp .tk-lib-grid, .jp-tksp .tk-launch-strip, .jp-tksp .tk-prod-grid, .jp-tksp .tk-streams { grid-template-columns: minmax(0, 1fr); }

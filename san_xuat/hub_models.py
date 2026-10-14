@@ -2303,6 +2303,169 @@ class SxQcAlert(DemoMarkedModel):
         return self.code
 
 
+class SxQcFlowCheck(DemoMarkedModel):
+    """Phiếu QC theo ba luồng xưởng: inline, endline, preaudit."""
+
+    FLOW_INLINE = 'inline'
+    FLOW_ENDLINE = 'endline'
+    FLOW_PREAUDIT = 'preaudit'
+    FLOW_CHOICES = [
+        (FLOW_INLINE, 'QC inline'),
+        (FLOW_ENDLINE, 'QC endline'),
+        (FLOW_PREAUDIT, 'QC preaudit'),
+    ]
+
+    RESULT_OPEN = 'open'
+    RESULT_NOTED = 'noted'
+    RESULT_PASS = 'pass'
+    RESULT_FAIL = 'fail'
+    RESULT_CHOICES = [
+        (RESULT_OPEN, 'Chưa chốt'),
+        (RESULT_NOTED, 'Đã ghi'),
+        (RESULT_PASS, 'Đạt'),
+        (RESULT_FAIL, 'Không đạt'),
+    ]
+
+    STATUS_DRAFT = 'draft'
+    STATUS_DONE = 'done'
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, 'Nháp'),
+        (STATUS_DONE, 'Đã chốt'),
+    ]
+
+    code = models.CharField(max_length=40, unique=True, verbose_name='Mã phiếu')
+    flow = models.CharField(max_length=20, choices=FLOW_CHOICES, db_index=True, verbose_name='Luồng')
+    production_order = models.ForeignKey(
+        SxProductionOrder,
+        on_delete=models.PROTECT,
+        related_name='qc_flow_checks',
+        verbose_name='Lệnh sản xuất',
+    )
+    product_code = models.CharField(max_length=60, blank=True, default='', db_index=True)
+    product_name = models.CharField(max_length=255, blank=True, default='')
+    team_slug = models.CharField(max_length=20, blank=True, default='', db_index=True, verbose_name='Tổ')
+    stage_name = models.CharField(max_length=120, blank=True, default='', verbose_name='Công đoạn')
+    checked_on = models.DateField(verbose_name='Ngày kiểm')
+    qty_lot = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal('0'), verbose_name='Cỡ lô',
+    )
+    qty_checked = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal('0'), verbose_name='SL kiểm',
+    )
+    qty_pass = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal('0'), verbose_name='SL đạt',
+    )
+    qty_repair = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal('0'), verbose_name='SL sửa',
+    )
+    qty_fail = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal('0'), verbose_name='SL lỗi',
+    )
+    aql_level = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal('2.5'), verbose_name='AQL (%)',
+    )
+    inspection_level = models.CharField(
+        max_length=5, blank=True, default='II', verbose_name='Mức kiểm',
+    )
+    sample_size = models.PositiveIntegerField(default=0, verbose_name='Cỡ mẫu')
+    accept_qty = models.PositiveIntegerField(default=0, verbose_name='Số lỗi chấp nhận')
+    result = models.CharField(
+        max_length=20, choices=RESULT_CHOICES, default=RESULT_OPEN, db_index=True, verbose_name='Kết quả',
+    )
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True, verbose_name='Trạng thái',
+    )
+    notes = models.TextField(blank=True, default='', verbose_name='Ghi chú')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-checked_on', '-pk']
+        verbose_name = 'Phiếu QC luồng'
+        verbose_name_plural = 'Phiếu QC luồng'
+
+    def __str__(self):
+        return self.code
+
+    @property
+    def team_label(self) -> str:
+        from san_xuat.services.progress_template import team_by_slug
+
+        meta = team_by_slug(self.team_slug) if self.team_slug else None
+        return (meta or {}).get('label') or ''
+
+
+class SxQcFlowDefectLine(models.Model):
+    SEVERITY_MINOR = 'minor'
+    SEVERITY_MAJOR = 'major'
+    SEVERITY_CRITICAL = 'critical'
+    SEVERITY_CHOICES = [
+        (SEVERITY_MINOR, 'Nhẹ'),
+        (SEVERITY_MAJOR, 'Nặng'),
+        (SEVERITY_CRITICAL, 'Nghiêm trọng'),
+    ]
+
+    sheet = models.ForeignKey(
+        SxQcFlowCheck, on_delete=models.CASCADE, related_name='defect_lines',
+    )
+    defect = models.ForeignKey(
+        SxQcDefect,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='flow_lines',
+        verbose_name='Mã lỗi',
+    )
+    size_label = models.CharField(max_length=40, blank=True, default='', verbose_name='Size')
+    defect_name = models.CharField(max_length=200, verbose_name='Lỗi')
+    severity = models.CharField(
+        max_length=20, choices=SEVERITY_CHOICES, default=SEVERITY_MAJOR, verbose_name='Mức',
+    )
+    qty = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('1'), verbose_name='SL')
+
+    class Meta:
+        ordering = ['id']
+        verbose_name = 'Lỗi trên phiếu QC luồng'
+        verbose_name_plural = 'Lỗi trên phiếu QC luồng'
+
+    def __str__(self):
+        return self.defect_name
+
+
+class SxQcFlowSizeLine(models.Model):
+    """Kết quả kiểm 100% theo size — dùng cho inline và endline."""
+
+    sheet = models.ForeignKey(
+        SxQcFlowCheck, on_delete=models.CASCADE, related_name='size_lines',
+    )
+    size_label = models.CharField(max_length=40, verbose_name='Size')
+    qty_order = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal('0'), verbose_name='SL lệnh',
+    )
+    qty_checked = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal('0'), verbose_name='SL kiểm',
+    )
+    qty_pass = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal('0'), verbose_name='SL đạt',
+    )
+    qty_repair = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal('0'), verbose_name='SL sửa',
+    )
+    qty_fail = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal('0'), verbose_name='SL lỗi',
+    )
+
+    class Meta:
+        ordering = ['id']
+        constraints = [
+            models.UniqueConstraint(fields=['sheet', 'size_label'], name='sx_qc_flow_size_uniq'),
+        ]
+        verbose_name = 'QC theo size'
+        verbose_name_plural = 'QC theo size'
+
+    def __str__(self):
+        return f'{self.size_label} · {self.qty_checked}'
+
+
 # --- Giá thành kế hoạch ---
 
 
