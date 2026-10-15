@@ -44,6 +44,14 @@
                             <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Đang dùng</label>
                         </div>
                     </div>
+                    {% if show_rename_skus %}
+                    <div class="col-12">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="rename_skus" id="rename_skus" value="1" checked>
+                            <label class="form-check-label" for="rename_skus">Đổi tên các SKU đang dùng tên cũ</label>
+                        </div>
+                    </div>
+                    {% endif %}
                     {% endif %}
                 </div>
                 <div class="mt-4 d-flex gap-2">

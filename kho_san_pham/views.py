@@ -155,7 +155,9 @@ def _product_list_qs(request):
     status = _list_status(request)
     product_type = _list_type(request)
     hsx = _list_hsx(request)
-    qs = Product.objects.all()
+    from kho_san_pham.library_release import exclude_held_library_products
+
+    qs = exclude_held_library_products(Product.objects.all())
     if status == 'active':
         qs = qs.filter(is_active=True)
     elif status == 'inactive':
@@ -204,6 +206,20 @@ def _group_sp_sort_key(group: dict) -> tuple:
     if not text or text == '—':
         text = group.get('code') or ''
     return (extract_sp_number(text), text.upper())
+
+
+def _held_library_redirect(request, product):
+    """SKU chưa chuyển sản xuất chỉ sửa trong Thư viện, không mở trên Danh mục."""
+    from kho_san_pham.library_release import is_held_library_style
+
+    code = (product.style_code or '').strip().upper()
+    if not is_held_library_style(code):
+        return None
+    messages.info(
+        request,
+        f'{product.code} đang trong Thư viện. Danh mục sản phẩm chỉ hiện sau khi chuyển sang sản xuất.',
+    )
+    return redirect('kho_san_pham:library_detail', code)
 
 
 def _apply_catalog_qty(product, form, *, user) -> None:
@@ -440,6 +456,9 @@ def product_detail(request, pk: int):
     from kho_san_pham.services.sync_store_stock import kv_stock_rows_for_product
 
     product = get_object_or_404(Product, pk=pk)
+    held = _held_library_redirect(request, product)
+    if held:
+        return held
     tech_doc = find_tech_doc_for_product(product)
     working_bom = get_working_bom(tech_doc) if tech_doc else None
     sx_code = (tech_doc.product_code if tech_doc else product_sx_code(product)) or product.code
@@ -468,6 +487,9 @@ def product_sync_tech_doc(request, pk: int):
     from san_xuat.services.products import TechDocSyncError, sync_tech_doc_from_catalog
 
     product = get_object_or_404(Product, pk=pk)
+    held = _held_library_redirect(request, product)
+    if held:
+        return held
     if not user_can_update_module(request.user, MODULE_SAN_XUAT):
         messages.error(request, 'Cần quyền cập nhật Sản xuất để đồng bộ hồ sơ thiết kế.')
         return redirect('kho_san_pham:product_detail', pk=product.pk)
@@ -558,6 +580,9 @@ def _clone_form_initial(source: Product) -> dict:
 @module_perm_required_methods(MODULE_KHO_SAN_PHAM, get='create', post='create')
 def product_duplicate(request, pk: int):
     source = get_object_or_404(Product, pk=pk)
+    held = _held_library_redirect(request, source)
+    if held:
+        return held
     form = ProductForm(
         request.POST or None,
         request.FILES or None,
@@ -600,6 +625,9 @@ def product_duplicate(request, pk: int):
 @module_perm_required_methods(MODULE_KHO_SAN_PHAM, get='update', post='update')
 def product_edit(request, pk: int):
     product = get_object_or_404(Product, pk=pk)
+    held = _held_library_redirect(request, product)
+    if held:
+        return held
     form = ProductForm(request.POST or None, request.FILES or None, instance=product)
     if request.method == 'POST' and form.is_valid():
         try:
@@ -624,6 +652,9 @@ def product_edit(request, pk: int):
 @module_perm_required_methods(MODULE_KHO_SAN_PHAM, get='update', post='update')
 def product_deactivate(request, pk: int):
     product = get_object_or_404(Product, pk=pk)
+    held = _held_library_redirect(request, product)
+    if held:
+        return held
     if request.method == 'POST':
         product.is_active = False
         product.save(update_fields=['is_active', 'updated_at'])
@@ -639,6 +670,9 @@ def product_deactivate(request, pk: int):
 @module_perm_required_methods(MODULE_KHO_SAN_PHAM, get='update', post='update')
 def product_reactivate(request, pk: int):
     product = get_object_or_404(Product, pk=pk)
+    held = _held_library_redirect(request, product)
+    if held:
+        return held
     if request.method == 'POST':
         product.is_active = True
         product.save(update_fields=['is_active', 'updated_at'])
@@ -671,6 +705,9 @@ def _product_delete_blockers(product: Product) -> list[str]:
 @module_perm_required_methods(MODULE_KHO_SAN_PHAM, get='delete', post='delete')
 def product_delete(request, pk: int):
     product = get_object_or_404(Product, pk=pk)
+    held = _held_library_redirect(request, product)
+    if held:
+        return held
     blockers = _product_delete_blockers(product)
     if request.method == 'POST':
         try:

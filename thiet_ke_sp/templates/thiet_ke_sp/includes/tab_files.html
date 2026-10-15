@@ -30,7 +30,42 @@
         </div>
       </div>
       {% empty %}
-      <div class="small text-muted">Chưa có trao đổi.</div>
+      <div class="small text-muted">Chưa có trao đổi chung.</div>
+      {% endfor %}
+
+      {% for s in steps %}
+      {% if s.state != 'todo' %}
+      {% with rows=step_comments|get_item:s.key %}
+      <h3 class="tk-sub mt-3">{{ s.no }}. {{ s.label }}</h3>
+      {% for c in rows %}
+      <div class="tk-comment tk-comment-item">
+        {% if c.author %}
+          {% with photo=c.author|avatar_url %}
+          {% if photo %}<img class="tk-avatar" src="{{ photo }}" alt="{{ c.author|uname }}">{% else %}<span class="tk-avatar" style="background: {{ c.author.pk|avatar_tone }}">{{ c.author|initial }}</span>{% endif %}
+          {% endwith %}
+        {% else %}
+          <span class="tk-avatar is-empty">?</span>
+        {% endif %}
+        <div class="min-w-0">
+          <div class="tk-comment-meta"><strong>{{ c.author|uname }}</strong><span>{{ c.created_at|date:'H:i d/m/Y' }}</span></div>
+          <div>{{ c.body|linebreaksbr }}</div>
+        </div>
+      </div>
+      {% empty %}
+      <div class="small text-muted mb-2">Chưa có trao đổi ở bước này.</div>
+      {% endfor %}
+      {% if flags.comment %}
+      <form method="post" action="{% url 'thiet_ke_sp:action' dossier.pk 'comment_add' %}" class="mb-2">{% csrf_token %}
+        <input type="hidden" name="step" value="{{ s.key }}">
+        <input type="hidden" name="return_tab" value="files">
+        <textarea name="body" class="form-control form-control-sm mb-1" rows="2" required placeholder="Trao đổi cho bước {{ s.label }}"></textarea>
+        <div class="text-end">
+          <button type="submit" class="btn btn-sm btn-outline-hm fw-bold">Gửi</button>
+        </div>
+      </form>
+      {% endif %}
+      {% endwith %}
+      {% endif %}
       {% endfor %}
     </div>
   </div>
@@ -58,21 +93,31 @@
       {% endif %}
     </div>
     <div class="tk-section">
-      <div class="tk-section-title"><i class="bi bi-folder2-open"></i>Tệp theo phiên bản</div>
+      <div class="tk-section-title"><i class="bi bi-folder2-open"></i>Tệp theo bước</div>
       <div class="table-responsive">
         <table class="table tk-mini-table align-middle">
-          <thead><tr><th>Phiên bản</th><th>Loại</th><th>Tệp</th><th>Người tải</th></tr></thead>
+          <thead><tr><th>Bước</th><th>Phiên bản</th><th>Loại</th><th>Tệp</th><th>Người tải</th></tr></thead>
           <tbody>
+          {% if not has_version_files %}
+          <tr><td colspan="5" class="text-muted small">Chưa có tệp theo bước.</td></tr>
+          {% endif %}
           {% for dv in design_versions %}{% for a in dv.live_atts %}{% if a.kind != 'back' %}
-            <tr{% if not a.is_current or not dv.is_current %} class="text-muted"{% endif %}><td>{{ dv.label }}</td><td>{{ a.get_kind_display }}{% if a.colorway %} · {{ a.colorway.name }}{% endif %}</td><td>{% if a.is_image %}<button type="button" class="btn btn-link p-0 align-baseline" data-sx-gallery data-sx-gallery-image="{{ a.get_absolute_url }}" data-sx-gallery-title="{{ a.display_name }}">{{ a.display_name }}</button>{% else %}<a href="{{ a.get_absolute_url }}" target="_blank" rel="noopener">{{ a.display_name }}</a>{% endif %}{% if not a.is_current %} <span class="tk-pill is-gray">đã thay</span>{% endif %}</td><td>{{ a.uploaded_by|uname }} · {{ a.uploaded_at|date:'d/m/Y' }}</td></tr>
+            {% include 'thiet_ke_sp/includes/file_line.html' with a=a step='Thiết kế' version=dv.label version_current=dv.is_current %}
           {% endif %}{% endfor %}{% endfor %}
-          {% for sv in samples %}{% for a in sv.photos %}
-            <tr{% if not sv.is_current %} class="text-muted"{% endif %}><td>{{ sv.label }}</td><td>{{ a.get_kind_display }}</td><td>{% if a.is_image %}<button type="button" class="btn btn-link p-0 align-baseline" data-sx-gallery data-sx-gallery-image="{{ a.get_absolute_url }}" data-sx-gallery-title="{{ a.display_name }}">{{ a.display_name }}</button>{% else %}<a href="{{ a.get_absolute_url }}" target="_blank" rel="noopener">{{ a.display_name }}</a>{% endif %}</td><td>{{ a.uploaded_by|uname }} · {{ a.uploaded_at|date:'d/m/Y' }}</td></tr>
-          {% endfor %}{% for a in sv.tech_files %}
-            <tr{% if not sv.is_current %} class="text-muted"{% endif %}><td>{{ sv.label }}</td><td>{{ a.get_kind_display }}</td><td>{% if a.is_image %}<button type="button" class="btn btn-link p-0 align-baseline" data-sx-gallery data-sx-gallery-image="{{ a.get_absolute_url }}" data-sx-gallery-title="{{ a.display_name }}">{{ a.display_name }}</button>{% else %}<a href="{{ a.get_absolute_url }}" target="_blank" rel="noopener">{{ a.display_name }}</a>{% endif %}</td><td>{{ a.uploaded_by|uname }} · {{ a.uploaded_at|date:'d/m/Y' }}</td></tr>
-          {% endfor %}{% for a in sv.eval_files %}
-            <tr{% if not sv.is_current %} class="text-muted"{% endif %}><td>{{ sv.label }}</td><td>{{ a.get_kind_display }}</td><td>{% if a.is_image %}<button type="button" class="btn btn-link p-0 align-baseline" data-sx-gallery data-sx-gallery-image="{{ a.get_absolute_url }}" data-sx-gallery-title="{{ a.display_name }}">{{ a.display_name }}</button>{% else %}<a href="{{ a.get_absolute_url }}" target="_blank" rel="noopener">{{ a.display_name }}</a>{% endif %}</td><td>{{ a.uploaded_by|uname }} · {{ a.uploaded_at|date:'d/m/Y' }}</td></tr>
-          {% endfor %}{% endfor %}
+          {% for sv in samples %}
+            {% for a in sv.pattern_files %}
+            {% include 'thiet_ke_sp/includes/file_line.html' with a=a step='Kỹ thuật' version=sv.label version_current=sv.is_current %}
+            {% endfor %}
+            {% for a in sv.tech_files %}
+            {% include 'thiet_ke_sp/includes/file_line.html' with a=a step='Kỹ thuật' version=sv.label version_current=sv.is_current %}
+            {% endfor %}
+            {% for a in sv.photos %}
+            {% include 'thiet_ke_sp/includes/file_line.html' with a=a step='Làm mẫu' version=sv.label version_current=sv.is_current %}
+            {% endfor %}
+            {% for a in sv.eval_files %}
+            {% include 'thiet_ke_sp/includes/file_line.html' with a=a step='Duyệt thiết kế' version=sv.label version_current=sv.is_current %}
+            {% endfor %}
+          {% endfor %}
           </tbody>
         </table>
       </div>

@@ -112,6 +112,13 @@ def days_late(value):
     return max((timezone.localdate() - timezone.localtime(value).date()).days, 1)
 
 
+@register.simple_tag
+def size_spec_cells(text):
+    from thiet_ke_sp.services.size_spec import size_cells
+
+    return size_cells(text or '')
+
+
 @register.filter
 def get_item(mapping, key):
     try:

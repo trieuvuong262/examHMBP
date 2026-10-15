@@ -9,7 +9,10 @@ from django.utils import timezone
 from thiet_ke_sp import permissions as perms
 from thiet_ke_sp.models import (
     DOSSIER_ROLE_FIELDS,
+    ROLE_PARTNER,
     FINAL_STATUSES,
+    APPROVER_DECIDE_STATUSES,
+    DESIGN_APPROVAL_STATUSES,
     STEPS,
     Attachment,
     AttachmentKind,
@@ -22,7 +25,7 @@ from thiet_ke_sp.models import (
 )
 from thiet_ke_sp.services import workflow as wf
 
-APPROVAL_STATUSES = (Status.BRIEF_PENDING, Status.DESIGN_PENDING, Status.MASTER_PENDING)
+APPROVAL_STATUSES = APPROVER_DECIDE_STATUSES
 
 
 def effective_status(dossier: ProductDevelopment) -> str:
@@ -50,7 +53,7 @@ def stepper(dossier: ProductDevelopment) -> list[dict]:
     finished = dossier.status in (Status.HANDED_OVER, Status.CLOSED)
     rows = []
     for index, (key, label, _statuses) in enumerate(STEPS):
-        if index < current or (finished and index == current and dossier.status == Status.CLOSED):
+        if index < current or (finished and index == current):
             state = 'done'
         elif index == current:
             state = 'current'
@@ -71,6 +74,9 @@ def roles_rail(dossier: ProductDevelopment) -> list[dict]:
         rows.append({'role': role, 'label': Role(role).label, 'user': getattr(dossier, role)})
         if role == Role.OWNER and dossier.co_owner_id:
             rows.append({'role': role, 'label': Role.OWNER.label, 'user': dossier.co_owner})
+        partner = ROLE_PARTNER.get(role)
+        if partner and getattr(dossier, f'{partner}_id'):
+            rows.append({'role': role, 'label': Role(role).label, 'user': getattr(dossier, partner)})
     followers = list(dossier.followers.select_related('profile'))
     if followers:
         for person in followers:
@@ -125,12 +131,12 @@ def dossier_age_days(dossier: ProductDevelopment) -> int:
 
 
 STAGE_BARS = (
-    ('Đề bài', (Status.DRAFT, Status.BRIEF_PENDING, Status.BRIEF_NEEDS_INFO)),
+    ('Đề xuất', (Status.DRAFT, Status.BRIEF_PENDING, Status.BRIEF_NEEDS_INFO)),
     ('Thiết kế', (Status.DESIGNING, Status.DESIGN_PENDING, Status.DESIGN_REVISE)),
-    ('Làm mẫu', (Status.SAMPLING, Status.SAMPLE_REVISE)),
-    ('Đánh giá', (Status.SAMPLE_EVAL_PENDING,)),
-    ('Duyệt chuẩn', (Status.MASTER_PENDING,)),
-    ('Bàn giao', (Status.APPROVED, Status.HANDED_OVER)),
+    ('Kỹ thuật', (Status.TECHNICAL, Status.TECHNICAL_REVISE)),
+    ('Làm mẫu', (Status.SAMPLING, Status.SAMPLE_REVISE, Status.LIBRARY_REOPEN)),
+    ('Duyệt thiết kế', (Status.SAMPLE_EVAL_PENDING, Status.MASTER_PENDING)),
+    ('Thư viện', (Status.APPROVED, Status.HANDED_OVER)),
 )
 
 
@@ -149,13 +155,11 @@ def stage_bars(status_rows: list[dict]) -> list[dict]:
 
 KANBAN_COLUMNS = (
     ('proposal', 'Đề xuất', (Status.DRAFT, Status.BRIEF_NEEDS_INFO)),
-    ('brief', 'Chờ duyệt đề bài', (Status.BRIEF_PENDING,)),
     ('design', 'Thiết kế', (Status.DESIGNING, Status.DESIGN_REVISE)),
-    ('design_approval', 'Chờ duyệt thiết kế', (Status.DESIGN_PENDING,)),
-    ('sample', 'Làm mẫu', (Status.SAMPLING, Status.SAMPLE_REVISE)),
-    ('evaluation', 'Đánh giá mẫu', (Status.SAMPLE_EVAL_PENDING,)),
-    ('master', 'Duyệt mẫu chuẩn', (Status.MASTER_PENDING,)),
-    ('handover', 'Duyệt SX / bàn giao', (Status.APPROVED, Status.HANDED_OVER)),
+    ('technical', 'Kỹ thuật', (Status.TECHNICAL, Status.TECHNICAL_REVISE)),
+    ('sample', 'Làm mẫu', (Status.SAMPLING, Status.SAMPLE_REVISE, Status.LIBRARY_REOPEN)),
+    ('design_approval', 'Duyệt thiết kế', (Status.SAMPLE_EVAL_PENDING, Status.MASTER_PENDING)),
+    ('handover', 'Thêm vào Thư Viện', (Status.APPROVED, Status.HANDED_OVER)),
     ('paused', 'Tạm dừng', (Status.PAUSED,)),
 )
 KANBAN_STATUSES = tuple(s for _key, _label, statuses in KANBAN_COLUMNS for s in statuses)
@@ -164,34 +168,44 @@ KANBAN_LABELS = {key: label for key, label, _statuses in KANBAN_COLUMNS}
 
 # Thao tác kéo thả: (nhãn xác nhận, bắt buộc ý kiến, cần mã chính thức).
 KANBAN_MOVE_SPECS = {
-    'submit_brief': ('Gửi duyệt đề bài', False, False),
+    'submit_brief': ('Chuyển sang thiết kế', False, False),
     'brief_approve': ('Duyệt đề bài', False, False),
     'brief_request_change': ('Yêu cầu bổ sung đề bài', True, False),
-    'design_submit': ('Gửi duyệt thiết kế', False, False),
+    'design_submit': ('Chuyển kỹ thuật', False, False),
+    'technical_submit': ('Chuyển làm mẫu', False, False),
     'design_approve': ('Duyệt thiết kế', False, False),
     'design_request_change': ('Yêu cầu chỉnh thiết kế', True, False),
-    'sample_submit': ('Gửi đánh giá mẫu', False, False),
+    'sample_submit': ('Gửi duyệt thiết kế', False, False),
     'master_submit': ('Trình duyệt mẫu chuẩn', False, False),
     'sample_fix': ('Yêu cầu sửa mẫu', True, False),
-    'master_approve': ('Duyệt mẫu chuẩn — sản xuất', False, True),
+    'master_approve': ('Duyệt thiết kế', False, True),
     'master_request_fix': ('Yêu cầu sửa mẫu', True, False),
     'eval_request_design': ('Yêu cầu chỉnh thiết kế', True, False),
+    'eval_request_technical': ('Yêu cầu chỉnh kỹ thuật', True, False),
     'master_request_design': ('Yêu cầu chỉnh thiết kế', True, False),
+    'master_request_technical': ('Yêu cầu chỉnh kỹ thuật', True, False),
     'pause': ('Tạm dừng hồ sơ', True, False),
     'resume': ('Tiếp tục hồ sơ', False, False),
+    'resubmit_approval': ('Gửi duyệt lại bước cuối', False, False),
 }
 _KANBAN_STEP_MOVES = {
-    Status.DRAFT: {'brief': 'submit_brief'},
-    Status.BRIEF_NEEDS_INFO: {'brief': 'submit_brief'},
-    Status.BRIEF_PENDING: {'design': 'brief_approve', 'proposal': 'brief_request_change'},
-    Status.DESIGNING: {'design_approval': 'design_submit'},
-    Status.DESIGN_REVISE: {'design_approval': 'design_submit'},
-    Status.DESIGN_PENDING: {'sample': 'design_approve', 'design': 'design_request_change'},
-    Status.SAMPLING: {'evaluation': 'sample_submit'},
-    Status.SAMPLE_REVISE: {'evaluation': 'sample_submit'},
-    Status.SAMPLE_EVAL_PENDING: {'master': 'master_submit', 'sample': 'sample_fix', 'design': 'eval_request_design'},
-    Status.MASTER_PENDING: {'handover': 'master_approve', 'sample': 'master_request_fix',
-                            'design': 'master_request_design'},
+    Status.DRAFT: {'design': 'submit_brief'},
+    Status.BRIEF_NEEDS_INFO: {'design': 'submit_brief'},
+    Status.DESIGNING: {'technical': 'design_submit'},
+    Status.DESIGN_REVISE: {'technical': 'design_submit'},
+    Status.TECHNICAL: {'sample': 'technical_submit'},
+    Status.TECHNICAL_REVISE: {'sample': 'technical_submit'},
+    Status.SAMPLING: {'design_approval': 'sample_submit'},
+    Status.SAMPLE_REVISE: {'design_approval': 'sample_submit'},
+    Status.SAMPLE_EVAL_PENDING: {
+        'handover': 'master_approve', 'sample': 'sample_fix', 'design': 'eval_request_design',
+        'technical': 'eval_request_technical',
+    },
+    Status.MASTER_PENDING: {
+        'handover': 'master_approve', 'sample': 'master_request_fix', 'design': 'master_request_design',
+        'technical': 'master_request_technical',
+    },
+    Status.LIBRARY_REOPEN: {'design_approval': 'resubmit_approval'},
 }
 
 
@@ -217,10 +231,15 @@ def _can_kanban_move(dossier: ProductDevelopment, user, move: str, cache: dict) 
         return perms.can_edit_brief(dossier, user)
     if move == 'design_submit':
         return perms.can_work_as(dossier, user, Role.DESIGNER, Role.OWNER)
+    if move == 'technical_submit':
+        return perms.can_work_as(dossier, user, Role.TECHNICIAN, Role.OWNER)
     if move == 'sample_submit':
         return perms.can_work_as(dossier, user, Role.SAMPLE_MAKER, Role.TECHNICIAN, Role.OWNER)
-    if move in ('master_submit', 'sample_fix', 'eval_request_design'):
-        return perms.can_work_as(dossier, user, Role.OWNER)
+    if move == 'resubmit_approval':
+        return perms.is_participant(dossier, user)
+    if move in ('sample_fix', 'eval_request_design', 'eval_request_technical', 'master_submit',
+                'master_request_technical'):
+        return approver()
     return approver()
 
 
@@ -275,14 +294,16 @@ def dashboard_alerts(data: dict, user, limit: int = 5) -> list[dict]:
     return alerts[:limit]
 
 
-def step_checklist(dossier: ProductDevelopment) -> tuple[str, list[tuple[str, bool]]]:
+def step_checklist(dossier: ProductDevelopment, user=None) -> tuple[str, list[tuple[str, bool]]]:
     status = dossier.status
-    if status in (Status.DESIGNING, Status.DESIGN_REVISE):
-        return 'Điều kiện gửi duyệt thiết kế', wf.design_checklist_all(dossier)
-    if status in (Status.SAMPLE_EVAL_PENDING, Status.MASTER_PENDING):
-        return 'Điều kiện duyệt mẫu chuẩn', wf.master_checklist(dossier)
+    if status in (Status.DESIGNING, Status.DESIGN_REVISE, Status.DESIGN_PENDING):
+        return 'Điều kiện chuyển kỹ thuật', wf.design_checklist_all(dossier)
+    if status in DESIGN_APPROVAL_STATUSES:
+        return 'Điều kiện duyệt thiết kế', wf.master_checklist(dossier, user)
+    if status == Status.LIBRARY_REOPEN:
+        return 'Điều kiện khi gửi duyệt lại', wf.master_checklist(dossier, user)
     if status in (Status.APPROVED, Status.HANDED_OVER, Status.CLOSED):
-        return 'Điều kiện bàn giao vào Thư viện', wf.handover_checklist(dossier)
+        return 'Điều kiện thêm vào Thư viện', wf.handover_checklist(dossier)
     if status in (Status.DRAFT, Status.BRIEF_NEEDS_INFO, Status.BRIEF_PENDING):
         return 'Thông tin đề bài', [
             (label, bool(getattr(dossier, field, None))) for field, label in wf.BRIEF_REQUIRED
@@ -291,25 +312,28 @@ def step_checklist(dossier: ProductDevelopment) -> tuple[str, list[tuple[str, bo
 
 
 def cover_map(dossier_ids) -> dict[int, Attachment]:
-    """Ảnh đại diện: ảnh 2 mặt của bản thiết kế hiện hành → ảnh mẫu → ảnh tham khảo."""
+    """Ảnh đại diện: ảnh 2 mặt của phương án thiết kế hiện hành; không có thì ảnh sản phẩm ở Tổng quan."""
     ids = list(dossier_ids)
     result: dict[int, Attachment] = {}
     if not ids:
         return result
-    base = Attachment.objects.filter(dossier_id__in=ids, is_deleted=False, is_current=True)
-    priority = (
-        base.filter(kind=AttachmentKind.FRONT, design_version__is_current=True),
-        base.filter(kind=AttachmentKind.FRONT),
-        base.filter(kind=AttachmentKind.SAMPLE_PHOTO, sample_version__is_current=True),
-        base.filter(kind=AttachmentKind.PRODUCT_PHOTO),
-        base.filter(kind__in=(AttachmentKind.REFERENCE, AttachmentKind.COLORWAY)),
-    )
-    for qs in priority:
-        for att in qs.order_by('-uploaded_at'):
-            if att.dossier_id not in result and att.is_image:
-                result[att.dossier_id] = att
-        if len(result) == len(ids):
-            break
+    live = Attachment.objects.filter(dossier_id__in=ids, is_deleted=False)
+    fronts = live.filter(
+        kind=AttachmentKind.FRONT, is_current=True, design_version__is_current=True,
+    ).order_by('design_version__option_no', '-uploaded_at')
+    for att in fronts:
+        if att.dossier_id not in result and att.is_image:
+            result[att.dossier_id] = att
+    missing = [pk for pk in ids if pk not in result]
+    if not missing:
+        return result
+    photos = live.filter(
+        dossier_id__in=missing, kind=AttachmentKind.PRODUCT_PHOTO,
+        design_version__isnull=True, sample_version__isnull=True,
+    ).order_by('-uploaded_at')
+    for att in photos:
+        if att.dossier_id not in result and att.is_image:
+            result[att.dossier_id] = att
     return result
 
 
@@ -320,36 +344,50 @@ def action_flags(dossier: ProductDevelopment, user) -> dict[str, bool]:
     dvs = dossier.current_design_versions()
     sv = dossier.current_sample_version()
     test_edit = wf.test_edit_after_approval(dossier)
+    reopened = s == Status.LIBRARY_REOPEN
     design_step = s in (Status.DESIGNING, Status.DESIGN_REVISE) and any(dv.is_editable for dv in dvs)
     sample_step = s in (Status.SAMPLING, Status.SAMPLE_REVISE) and sv is not None and sv.is_editable
-    design_open = design_step or (test_edit and any(dv.state == DesignVersion.STATE_APPROVED for dv in dvs))
-    sample_open = sample_step or (test_edit and sv is not None and sv.state == SampleVersion.STATE_PASSED)
+    design_open = design_step or reopened or (test_edit and any(dv.state == DesignVersion.STATE_APPROVED for dv in dvs))
+    sample_open = sample_step or (reopened and sv is not None) or (
+        test_edit and sv is not None and sv.state == SampleVersion.STATE_PASSED
+    )
+    tech_open = sv is not None and (
+        (s in (Status.TECHNICAL, Status.TECHNICAL_REVISE, Status.SAMPLING, Status.SAMPLE_REVISE) and sv.is_editable)
+        or reopened
+        or (test_edit and sv.state == SampleVersion.STATE_PASSED)
+    )
     designer = perms.can_work_as(dossier, user, Role.DESIGNER, Role.OWNER)
+    approval_step = s in APPROVER_DECIDE_STATUSES
     return {
         'edit_brief': perms.can_edit_brief(dossier, user),
         'submit_brief': s in (Status.DRAFT, Status.BRIEF_NEEDS_INFO) and perms.can_edit_brief(dossier, user),
-        'delete_draft': s == Status.DRAFT and perms.can_delete(user)
-        and perms.has_role(dossier, user, Role.PROPOSER, Role.OWNER),
+        'delete_draft': perms.can_view_dossier(dossier, user),
         'decide_brief': s == Status.BRIEF_PENDING and approver,
         'edit_design': design_open and designer,
         'submit_design': design_step and designer,
+        'submit_technical': s in (Status.TECHNICAL, Status.TECHNICAL_REVISE)
+        and perms.can_work_as(dossier, user, Role.TECHNICIAN, Role.OWNER),
         'add_design_option': design_step and designer and len(dvs) < wf.MAX_DESIGN_OPTIONS,
         'drop_design_option': design_step and designer and len(dvs) > 1,
         'decide_design': s == Status.DESIGN_PENDING and approver,
-        'request_design_change': (s == Status.SAMPLE_EVAL_PENDING and owner) or (s == Status.MASTER_PENDING and approver),
+        'request_design_change': approval_step and sv is not None and approver,
+        'request_technical': approval_step and sv is not None and approver,
         'edit_sample': sample_open and perms.can_work_as(dossier, user, Role.SAMPLE_MAKER, Role.TECHNICIAN, Role.OWNER),
-        'submit_sample': sample_step and perms.can_work_as(dossier, user, Role.SAMPLE_MAKER, Role.TECHNICIAN, Role.OWNER),
-        'edit_tech_pack': sample_open and perms.can_work_as(dossier, user, Role.TECHNICIAN, Role.OWNER),
-        'evaluate': s == Status.SAMPLE_EVAL_PENDING and perms.can_act(dossier, user)
+        'submit_sample': s in (Status.SAMPLING, Status.SAMPLE_REVISE) and sv is not None
+        and perms.can_work_as(dossier, user, Role.SAMPLE_MAKER, Role.TECHNICIAN, Role.OWNER),
+        'edit_tech_pack': tech_open and perms.can_work_as(dossier, user, Role.TECHNICIAN, Role.OWNER),
+        'evaluate': s in DESIGN_APPROVAL_STATUSES and sv is not None and perms.can_act(dossier, user)
         and bool(wf.evaluator_roles_for(dossier, user)),
-        'request_fix': (s == Status.SAMPLE_EVAL_PENDING and owner) or (s == Status.MASTER_PENDING and approver),
-        'submit_master': s == Status.SAMPLE_EVAL_PENDING and owner,
-        'decide_master': s == Status.MASTER_PENDING and approver,
+        'request_fix': approval_step and sv is not None and approver,
+        'submit_master': False,
+        'decide_master': approval_step and sv is not None and approver,
         'edit_costing': (not dossier.is_locked or test_edit) and s not in (Status.DRAFT, *FINAL_STATUSES)
         and perms.can_work_as(dossier, user, Role.COSTING, Role.OWNER),
         'test_edit': test_edit,
         'handover': s == Status.APPROVED and perms.can_work_as(dossier, user, Role.OWNER, Role.TECHNICIAN),
-        'close': s == Status.HANDED_OVER and owner and getattr(getattr(dossier, 'handover', None), 'is_transferred', False),
+        'reopen_completion': s == Status.HANDED_OVER and perms.is_participant(dossier, user),
+        'resubmit_approval': reopened and perms.is_participant(dossier, user),
+        'close': False,
         'change_request': s == Status.APPROVED and (approver or owner),
         'pause': s in wf.PAUSABLE and approver,
         'resume': s == Status.PAUSED and approver,

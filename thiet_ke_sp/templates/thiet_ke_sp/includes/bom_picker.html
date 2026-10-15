@@ -117,10 +117,13 @@
       },
       onChange: function (value) {
         var hidden = row && row.querySelector('input[name=line_material]');
-        if (hidden) hidden.value = value || '';
+        var legacy = row && row.querySelector('input[name=line_legacy_name]');
+        var warehouse = /^\d+$/.test(String(value || ''));
+        if (hidden) hidden.value = warehouse ? value : '';
+        if (legacy && warehouse) legacy.value = '';
         if (!picked && String(value || '') === initial) return;
         picked = true;
-        var opt = value ? this.options[value] : null;
+        var opt = warehouse ? this.options[value] : null;
         if (!opt || !row) return;
         row.dataset.basePrice = String(opt.base_price || 0);
         fillUnits(row, unitsOf(opt));

@@ -17,6 +17,8 @@ from .models import (
     EvaluatorRole,
     POOL_ROLES,
     ProductDevelopment,
+    ROLE_PARTNER,
+    Role,
     SampleEvaluation,
     SampleVersion,
     TechnicalPack,
@@ -151,19 +153,22 @@ class UserMultipleChoiceField(forms.ModelMultipleChoiceField):
         return perms.display_name(obj)
 
 
-def _order_owners(people, primary=None, secondary=None):
-    """Giữ người phụ trách đang có làm người nhận việc; người còn lại là người thứ hai."""
+def _order_pair(people, primary=None, secondary=None):
+    """Giữ người đang nhận việc ở vị trí đầu; người còn lại là người thứ hai."""
     if not people:
         return []
     by_pk = {person.pk: person for person in people}
     if primary is not None and getattr(primary, 'pk', None) in by_pk:
-        owner = by_pk[primary.pk]
+        first = by_pk[primary.pk]
     elif secondary is not None and getattr(secondary, 'pk', None) in by_pk:
-        owner = by_pk[secondary.pk]
+        first = by_pk[secondary.pk]
     else:
-        owner = people[0]
-    rest = [person for person in people if person.pk != owner.pk]
-    return [owner, rest[0]] if rest else [owner]
+        first = people[0]
+    rest = [person for person in people if person.pk != first.pk]
+    return [first, rest[0]] if rest else [first]
+
+
+PAIR_FORM_FIELDS = {role: f'{role}s' for role in ROLE_PARTNER}
 
 
 class RoleFieldsMixin:
@@ -181,12 +186,14 @@ class RoleFieldsMixin:
             field.help_text = 'Chọn 1 hoặc 2 người. Chưa có người trong Thiết lập → Nhân sự phụ trách.'
         self.fields['owners'] = field
 
-    def _add_role_fields(self, current: dict | None = None, owner_ids=()):
+    def _add_role_fields(self, current: dict | None = None, owner_ids=(), pair_ids=None):
         current = current or {}
         configured = sla.configured_role_ids()
         self._add_owner_field(owner_ids)
+        for role in ROLE_PARTNER:
+            self._add_pair_field(role, (pair_ids or {}).get(role, ()))
         for role in DOSSIER_ROLE_FIELDS:
-            if role == 'owner':
+            if role == 'owner' or role in ROLE_PARTNER:
                 continue
             field = user_field(
                 ROLE_LABELS[role],
@@ -207,7 +214,44 @@ class RoleFieldsMixin:
             secondary = dossier.co_owner
         elif getattr(self, '_actor', None) is not None:
             primary = self._actor
-        return _order_owners(people, primary, secondary)
+        return _order_pair(people, primary, secondary)
+
+    def _add_pair_field(self, role: str, current_ids=()):
+        configured = sla.configured_role_ids()
+        ids = [pk for pk in current_ids if pk]
+        field = UserMultipleChoiceField(
+            queryset=role_queryset(role, configured=configured, current_ids=ids),
+            required=False,
+            label=ROLE_LABELS[role],
+            widget=forms.SelectMultiple(attrs={**_USER_SELECT, 'multiple': 'multiple', 'data-max-items': '2'}),
+        )
+        field.help_text = 'Chọn 1 hoặc 2 người. Không bắt buộc.'
+        if not configured.get(role):
+            field.help_text = 'Chọn 1 hoặc 2 người. Chưa có người trong Thiết lập → Nhân sự phụ trách.'
+        self.fields[PAIR_FORM_FIELDS[role]] = field
+
+    def _clean_pair(self, form_name: str, role: str):
+        people = list(self.cleaned_data.get(form_name) or [])
+        if len(people) > 2:
+            raise forms.ValidationError(f'Chỉ chọn tối đa 2 người cho {ROLE_LABELS[role]}.')
+        primary = secondary = None
+        dossier = getattr(self, 'dossier', None) or getattr(self, 'instance', None)
+        if getattr(dossier, 'pk', None):
+            primary = getattr(dossier, role, None)
+            secondary = getattr(dossier, ROLE_PARTNER[role], None)
+        return _order_pair(people, primary, secondary)
+
+    def clean_designers(self):
+        return self._clean_pair('designers', Role.DESIGNER)
+
+    def clean_technicians(self):
+        return self._clean_pair('technicians', Role.TECHNICIAN)
+
+    def clean_sample_makers(self):
+        return self._clean_pair('sample_makers', Role.SAMPLE_MAKER)
+
+    def clean_costing_users(self):
+        return self._clean_pair('costing_users', Role.COSTING)
 
 
 NEW_GROUP = '__new__'
@@ -245,7 +289,7 @@ class DossierForm(RoleFieldsMixin, forms.ModelForm):
             'target_customer', 'usage_need', 'market_need', 'expected_qty',
             'target_wholesale_price', 'target_retail_price', 'target_cost',
             'reference_links', 'description',
-            *[role for role in DOSSIER_ROLE_FIELDS if role != 'owner'],
+            *[role for role in DOSSIER_ROLE_FIELDS if role != 'owner' and role not in ROLE_PARTNER],
         ]
         widgets = {
             'name': forms.TextInput(attrs=_INPUT),
@@ -293,7 +337,11 @@ class DossierForm(RoleFieldsMixin, forms.ModelForm):
         self._actor = user
         current = {role: getattr(instance, f'{role}_id') for role in DOSSIER_ROLE_FIELDS}
         owner_ids = [pk for pk in (instance.owner_id, instance.co_owner_id) if pk] if instance.pk else []
-        self._add_role_fields(current, owner_ids=owner_ids)
+        pair_ids = {}
+        if instance.pk:
+            for role, partner in ROLE_PARTNER.items():
+                pair_ids[role] = [pk for pk in (getattr(instance, f'{role}_id'), getattr(instance, f'{partner}_id')) if pk]
+        self._add_role_fields(current, owner_ids=owner_ids, pair_ids=pair_ids)
         self.follower_names = ''
         if lock_followers and instance.pk:
             names = [perms.display_name(person) for person in instance.followers.select_related('profile')]
@@ -314,6 +362,8 @@ class DossierForm(RoleFieldsMixin, forms.ModelForm):
                 if not allowed or user.pk in allowed:
                     owner_ids = [user.pk]
             self.initial['owners'] = owner_ids
+            for role in ROLE_PARTNER:
+                self.initial[PAIR_FORM_FIELDS[role]] = pair_ids.get(role, [])
         for field in self.fields.values():
             _widget_sm(field.widget)
 
@@ -358,9 +408,15 @@ class RolesForm(RoleFieldsMixin, forms.Form):
         initial = {role: getattr(dossier, f'{role}_id') for role in DOSSIER_ROLE_FIELDS}
         super().__init__(*args, initial=initial, **kwargs)
         owner_ids = [pk for pk in (dossier.owner_id, dossier.co_owner_id) if pk]
-        self._add_role_fields(initial, owner_ids=owner_ids)
+        pair_ids = {
+            role: [pk for pk in (getattr(dossier, f'{role}_id'), getattr(dossier, f'{partner}_id')) if pk]
+            for role, partner in ROLE_PARTNER.items()
+        }
+        self._add_role_fields(initial, owner_ids=owner_ids, pair_ids=pair_ids)
         if not self.is_bound:
             self.initial['owners'] = owner_ids
+            for role, ids in pair_ids.items():
+                self.initial[PAIR_FORM_FIELDS[role]] = ids
         current_followers = list(dossier.followers.values_list('pk', flat=True))
         self.fields['followers'] = follower_field(current_followers)
         self.initial['followers'] = current_followers
@@ -396,8 +452,9 @@ class SampleForm(forms.ModelForm):
 class TechPackForm(forms.ModelForm):
     class Meta:
         model = TechnicalPack
-        fields = ['size_spec', 'cutting_req', 'sewing_req', 'decoration_req', 'finishing_req', 'packing_req']
+        fields = ['pattern_note', 'size_spec', 'cutting_req', 'sewing_req', 'decoration_req', 'finishing_req', 'packing_req']
         widgets = {
+            'pattern_note': _textarea(3),
             'size_spec': _textarea(4),
             'cutting_req': _textarea(2),
             'sewing_req': _textarea(2),
@@ -471,7 +528,7 @@ class RolePoolForm(forms.Form):
 class SettingsForm(forms.Form):
     test_mode = forms.BooleanField(
         required=False, label='Trạng thái test',
-        help_text='Bật thì đang thử: trình duyệt mẫu chuẩn không bắt bảng thông số, BOM, ảnh mẫu và giá thành; hồ sơ đã duyệt vẫn sửa được thiết kế, mẫu, kỹ thuật và giá thành. Tắt để về quy tắc chính thức.',
+        help_text='Bật thì đang thử: duyệt thiết kế không bắt bảng thông số, BOM, ảnh mẫu và giá thành; hồ sơ đã duyệt vẫn sửa được thiết kế, mẫu, kỹ thuật và giá thành. Tắt để về quy tắc chính thức.',
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input', 'role': 'switch'}),
     )
     due_hour = forms.IntegerField(

@@ -7,8 +7,9 @@ from django.db.models import (
     Count, DateTimeField, DecimalField, Exists, F, IntegerField, Max, Min, OuterRef, Q, Subquery, Sum,
 )
 from django.db.models.functions import Coalesce, Greatest
+from django.db import transaction
 from django.http import Http404
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
@@ -70,6 +71,24 @@ def _sku_agg(expr, output):
     return Subquery(sub, output_field=output)
 
 
+def _shelf_codes():
+    """Style đang hiện trong Thư viện: hồ sơ đã thêm hoặc đã đóng."""
+    from thiet_ke_sp.models import Handover, Status
+
+    return Handover.objects.filter(
+        dossier__status__in=(Status.HANDED_OVER, Status.CLOSED),
+    ).values('product_code')
+
+
+def _off_shelf_redirect(request, code):
+    """Style đã gỡ để chỉnh hồ sơ thì không mở trang Thư viện."""
+    handover = _handovers_by_code([code]).get((code or '').strip().upper())
+    if handover is None or handover.dossier.status in ('handed_over', 'closed'):
+        return None
+    messages.info(request, 'Style đang được chỉnh trên hồ sơ thiết kế nên tạm ẩn khỏi Thư viện.')
+    return redirect(handover.dossier.get_absolute_url())
+
+
 def _handovers_by_code(codes) -> dict:
     from thiet_ke_sp.models import Handover
 
@@ -92,11 +111,13 @@ def library_list(request):
     q = (g.get('q') or '').strip()
     group = (g.get('group') or '').strip().upper()
 
-    base = ProductStyle.objects.filter(source=STYLE_SOURCE_DESIGN)
+    base = ProductStyle.objects.filter(source=STYLE_SOURCE_DESIGN, code__in=_shelf_codes())
     transferred = Exists(Handover.objects.filter(product_code=OuterRef('code'), tech_doc__isnull=False))
+    has_handover = Exists(Handover.objects.filter(product_code=OuterRef('code')))
     qs = base.select_related('product_type').annotate(
         style_code=F('code'),
         transferred=transferred,
+        has_handover=has_handover,
         sku_count=Coalesce(_sku_agg(Count('pk'), IntegerField()), 0),
         min_price=_sku_agg(Min('base_price'), DecimalField(max_digits=18, decimal_places=2)),
         qty_total=_sku_agg(Sum('qty_on_hand'), DecimalField(max_digits=18, decimal_places=3)),
@@ -127,11 +148,15 @@ def library_list(request):
     items = [{
         'style_code': s.code, 'sku_count': s.sku_count, 'min_price': s.min_price, 'qty_total': s.qty_total,
         'kv_count': s.kv_count, 'transferred': s.transferred, 'style_active': s.is_active,
+        'can_transfer': bool(s.is_active and s.has_handover and not s.transferred),
     } for s in styles.values()]
     reps: dict[str, Product] = {}
     colors: dict[str, list[str]] = {}
     sizes: dict[str, list[str]] = {}
+    ready_codes: set[str] = set()
     for p in Product.objects.filter(style_code__in=codes).select_related('catalog_type').order_by('style_code', 'pk'):
+        if (p.color_code or '').strip() and (p.size_label or '').strip():
+            ready_codes.add(p.style_code)
         rep = reps.get(p.style_code)
         if rep is None or (not rep.display_image_url and p.display_image_url):
             reps[p.style_code] = p
@@ -147,6 +172,7 @@ def library_list(request):
         style = styles[code]
         rep = reps.get(code)
         dossier = dossiers.get(code.upper())
+        r['can_transfer'] = r['can_transfer'] and code in ready_codes
         r['name'] = style.name or (rep.name if rep else code)
         r['type_code'] = style.product_type.code
         r['group_label'] = catalog.group_label(catalog.group_code(style.product_type.code))
@@ -185,6 +211,9 @@ def library_detail(request, style):
         if style_obj is None and not Product.objects.filter(style_code=code).exists():
             raise Http404('Không có Style này trong thư viện.')
         return redirect(f"{reverse('kho_san_pham:product_list')}?q={code}&status=all")
+    hidden = _off_shelf_redirect(request, code)
+    if hidden:
+        return hidden
     products = list(Product.objects.filter(style_code=code).select_related('catalog_type', 'created_by__profile'))
     handover = _handovers_by_code([code]).get(code)
     receipts = list(handover.receipts.select_related('receiver__profile')) if handover else []
@@ -244,16 +273,21 @@ def library_detail(request, style):
         ('Hồ sơ thiết kế', bool(dossier)),
         ('Đã chuyển sản xuất', bool(handover and handover.is_transferred)),
     ]
+    from kho_san_pham.library_release import style_transfer_block
+
     perms_ctx = perm_context(request.user, 'products')
+    transfer_block = style_transfer_block(code) if handover and not handover.is_transferred else ''
     can_transfer = bool(
         perms_ctx['can_update'] and handover and not handover.is_transferred
         and handover.dossier.status == 'handed_over' and style_obj.is_active
+        and not transfer_block
     )
     return render(request, 'kho_san_pham/library_detail.html', {
         **perms_ctx,
         'handover': handover,
         'receipts': receipts,
         'can_transfer': can_transfer,
+        'transfer_block': transfer_block,
         'code': code,
         'style': style_obj,
         'products': products,
@@ -287,6 +321,9 @@ def library_transfer(request, style):
     from thiet_ke_sp.services import workflow as wf
 
     code = (style or '').strip().upper()
+    hidden = _off_shelf_redirect(request, code)
+    if hidden:
+        return hidden
     detail_url = reverse('kho_san_pham:library_detail', args=[code])
     handover = _handovers_by_code([code]).get(code)
     if handover is None or not ProductStyle.objects.filter(
@@ -300,3 +337,292 @@ def library_transfer(request, style):
         return redirect(detail_url)
     messages.success(request, f'Đã chuyển {code} sang sản xuất — tạo hồ sơ sản phẩm SX {tech_doc.product_code}.')
     return redirect(detail_url)
+
+
+def _design_style(code: str) -> ProductStyle:
+    code = (code or '').strip().upper()
+    style = (
+        ProductStyle.objects.filter(code=code, source=STYLE_SOURCE_DESIGN)
+        .select_related('product_type')
+        .first()
+    )
+    if style is None:
+        raise Http404('Không có Style này trong thư viện.')
+    return style
+
+
+def _library_tab(code: str, tab: str = 'sku') -> str:
+    return f"{reverse('kho_san_pham:library_detail', args=[code])}?tab={tab}"
+
+
+def _library_product(style: ProductStyle, pk: int) -> Product:
+    return get_object_or_404(Product, pk=pk, style_code=style.code)
+
+
+def _sku_initial(style: ProductStyle, source: Product | None = None) -> dict:
+    from thiet_ke_sp import catalog
+
+    from kho_san_pham.choices import PRODUCT_TYPE_THANH_PHAM, goods_product_type
+    from kho_san_pham.views import _clone_form_initial
+
+    if source is not None:
+        initial = _clone_form_initial(source)
+        initial['style_code'] = style.code
+        if style.name:
+            initial['name'] = style.name
+        return initial
+    type_code = style.product_type.code if style.product_type_id else ''
+    return {
+        'is_active': True,
+        'product_type': goods_product_type(catalog_type_code=type_code) if type_code else PRODUCT_TYPE_THANH_PHAM,
+        'catalog_type': style.product_type_id,
+        'style_code': style.code,
+        'name': style.name,
+        'full_name': style.name,
+        'category_name': catalog.group_label(catalog.group_code(type_code)) if type_code else '',
+    }
+
+
+def _library_form_page(request, form, style: ProductStyle, **extra):
+    return render(request, 'kho_san_pham/product_form.html', {
+        **perm_context(request.user, 'products'),
+        'form': form,
+        'library_code': style.code,
+        'cancel_url': _library_tab(style.code),
+        **extra,
+    })
+
+
+def _save_library_sku(form, request, *, source: Product | None = None) -> Product:
+    from kho_san_pham.choices import SYNC_SOURCE_MANUAL
+    from kho_san_pham.services.barcode import allocate_barcode
+    from kho_san_pham.views import _apply_catalog_qty
+
+    product = form.save(commit=False)
+    if form.locked_style:
+        product.style_code = form.locked_style
+    if not product.pk:
+        product.sync_source = SYNC_SOURCE_MANUAL
+        product.created_by = request.user
+        if source is not None:
+            product.gender = source.gender
+            product.category_path = source.category_path
+            product.allows_sale = source.allows_sale
+            if not product.image and source.image:
+                product.image = source.image
+            if not (product.image_url or '').strip():
+                product.image_url = source.image_url or ''
+        if not (product.bar_code or '').strip():
+            product.bar_code = allocate_barcode()
+    product.save()
+    _apply_catalog_qty(product, form, user=request.user)
+    return product
+
+
+@module_perm_required_methods(MODULE_KHO_SAN_PHAM, get='update', post='update')
+def library_style_edit(request, style):
+    from kho_san_pham.catalog_forms import ProductStyleEditForm
+
+    hidden = _off_shelf_redirect(request, style)
+    if hidden:
+        return hidden
+    obj = _design_style(style)
+    old_name = obj.name
+    form = ProductStyleEditForm(request.POST or None, instance=obj)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        renamed = 0
+        if request.POST.get('rename_skus') and old_name != obj.name:
+            from django.utils import timezone
+            renamed = Product.objects.filter(style_code=obj.code, name=old_name).update(
+                name=obj.name, updated_at=timezone.now(),
+            )
+        msg = f'Đã cập nhật tên {obj.code}.'
+        if renamed:
+            msg += f' Đổi tên {renamed} SKU.'
+        messages.success(request, msg)
+        return redirect(_library_tab(obj.code, 'data'))
+    return render(request, 'kho_san_pham/style_form.html', {
+        **perm_context(request.user, 'products'),
+        'form': form,
+        'is_edit': True,
+        'style': obj,
+        'show_rename_skus': Product.objects.filter(style_code=obj.code).exists(),
+        'cancel_url': _library_tab(obj.code, 'data'),
+    })
+
+
+@module_perm_required_methods(MODULE_KHO_SAN_PHAM, get='create', post='create')
+def library_sku_create(request, style):
+    from kho_san_pham.forms import ProductForm
+    from kho_san_pham.services.stock import StockMovementError
+
+    hidden = _off_shelf_redirect(request, style)
+    if hidden:
+        return hidden
+    obj = _design_style(style)
+    source = Product.objects.filter(style_code=obj.code).order_by('pk').first()
+    form = ProductForm(
+        request.POST or None,
+        request.FILES or None,
+        initial=_sku_initial(obj, source),
+        clone_from=source,
+        locked_style=obj.code,
+    )
+    if request.method == 'POST' and form.is_valid():
+        try:
+            with transaction.atomic():
+                product = _save_library_sku(form, request, source=source)
+        except StockMovementError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, f'Đã thêm SKU {product.code} vào Thư viện.')
+            return redirect(_library_tab(obj.code))
+    return _library_form_page(
+        request, form, obj,
+        is_edit=False,
+        suggest_variant=source is not None,
+        source_product=source,
+    )
+
+
+@module_perm_required_methods(MODULE_KHO_SAN_PHAM, get='update', post='update')
+def library_sku_edit(request, style, pk: int):
+    from kho_san_pham.forms import ProductForm
+    from kho_san_pham.services.stock import StockMovementError
+
+    hidden = _off_shelf_redirect(request, style)
+    if hidden:
+        return hidden
+    obj = _design_style(style)
+    product = _library_product(obj, pk)
+    form = ProductForm(
+        request.POST or None, request.FILES or None, instance=product, locked_style=obj.code,
+    )
+    if request.method == 'POST' and form.is_valid():
+        try:
+            with transaction.atomic():
+                product = _save_library_sku(form, request)
+        except StockMovementError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, f'Đã cập nhật {product.code}.')
+            return redirect(_library_tab(obj.code))
+    return _library_form_page(request, form, obj, is_edit=True, product=product)
+
+
+@module_perm_required_methods(MODULE_KHO_SAN_PHAM, get='create', post='create')
+def library_sku_duplicate(request, style, pk: int):
+    from kho_san_pham.forms import ProductForm
+    from kho_san_pham.services.stock import StockMovementError
+
+    hidden = _off_shelf_redirect(request, style)
+    if hidden:
+        return hidden
+    obj = _design_style(style)
+    source = _library_product(obj, pk)
+    form = ProductForm(
+        request.POST or None,
+        request.FILES or None,
+        initial=_sku_initial(obj, source),
+        clone_from=source,
+        locked_style=obj.code,
+    )
+    if request.method == 'POST' and form.is_valid():
+        try:
+            with transaction.atomic():
+                product = _save_library_sku(form, request, source=source)
+        except StockMovementError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, f'Đã nhân bản {source.code} thành {product.code}.')
+            return redirect(_library_tab(obj.code))
+    return _library_form_page(
+        request, form, obj, is_edit=False, is_duplicate=True, source_product=source,
+    )
+
+
+@module_perm_required_methods(MODULE_KHO_SAN_PHAM, get='update', post='update')
+def library_sku_deactivate(request, style, pk: int):
+    hidden = _off_shelf_redirect(request, style)
+    if hidden:
+        return hidden
+    obj = _design_style(style)
+    product = _library_product(obj, pk)
+    back = _library_tab(obj.code)
+    if request.method == 'POST':
+        product.is_active = False
+        product.save(update_fields=['is_active', 'updated_at'])
+        messages.success(request, f'Đã ngừng dùng {product.code}.')
+        return redirect(back)
+    return render(request, 'kho_san_pham/product_confirm_deactivate.html', {
+        **perm_context(request.user, 'products'),
+        'product': product,
+        'cancel_url': back,
+    })
+
+
+@module_perm_required_methods(MODULE_KHO_SAN_PHAM, get='update', post='update')
+def library_sku_reactivate(request, style, pk: int):
+    hidden = _off_shelf_redirect(request, style)
+    if hidden:
+        return hidden
+    obj = _design_style(style)
+    product = _library_product(obj, pk)
+    back = _library_tab(obj.code)
+    if request.method == 'POST':
+        product.is_active = True
+        product.save(update_fields=['is_active', 'updated_at'])
+        messages.success(request, f'Đã dùng lại {product.code}.')
+        return redirect(back)
+    return render(request, 'kho_san_pham/product_confirm_reactivate.html', {
+        **perm_context(request.user, 'products'),
+        'product': product,
+        'cancel_url': back,
+    })
+
+
+@module_perm_required_methods(MODULE_KHO_SAN_PHAM, get='delete', post='delete')
+def library_sku_delete(request, style, pk: int):
+    from django.db.models.deletion import ProtectedError
+
+    from kho_san_pham.views import _product_delete_blockers
+
+    hidden = _off_shelf_redirect(request, style)
+    if hidden:
+        return hidden
+    obj = _design_style(style)
+    product = _library_product(obj, pk)
+    back = _library_tab(obj.code)
+    blockers = _product_delete_blockers(product)
+    if request.method == 'POST':
+        try:
+            with transaction.atomic():
+                product = get_object_or_404(Product.objects.select_for_update(), pk=pk, style_code=obj.code)
+                blockers = _product_delete_blockers(product)
+                if blockers:
+                    messages.error(
+                        request,
+                        f'Không thể xóa {product.code} vì đã có dữ liệu phát sinh. '
+                        'Hãy dùng “Ngừng dùng” để giữ lịch sử.',
+                    )
+                    return redirect(back)
+                code = product.code
+                image = product.image
+                product.stock_balances.filter(qty_on_hand=0).delete()
+                product.delete()
+                if image:
+                    transaction.on_commit(lambda: image.delete(save=False))
+        except ProtectedError:
+            messages.error(request, f'Không thể xóa {product.code} vì đang được dữ liệu khác sử dụng.')
+            return redirect(back)
+        messages.success(request, f'Đã xóa {code} khỏi Thư viện.')
+        return redirect(back)
+    return render(request, 'kho_san_pham/product_confirm_delete.html', {
+        **perm_context(request.user, 'products'),
+        'product': product,
+        'delete_blockers': blockers,
+        'cancel_url': back,
+        'deactivate_url': reverse('kho_san_pham:library_sku_deactivate', args=[obj.code, product.pk]),
+        'scope_label': 'Thư viện',
+    })

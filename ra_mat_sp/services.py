@@ -45,12 +45,14 @@ PRODUCTION_STATE_LABELS = {
 
 def production_state(dossier) -> str:
     """transferred: đã có hồ sơ SX · pending: đã vào Thư viện, chờ chuyển · design: chưa bàn giao."""
-    if dossier.status not in (DossierStatus.HANDED_OVER, DossierStatus.CLOSED):
-        return 'design'
     handover = getattr(dossier, 'handover', None)
-    if handover is None:
-        return 'design'
-    return 'transferred' if handover.is_transferred else 'pending'
+    if handover is not None and handover.is_transferred:
+        return 'transferred'
+    if handover is not None and dossier.status in (
+        DossierStatus.HANDED_OVER, DossierStatus.CLOSED, DossierStatus.LIBRARY_REOPEN,
+    ):
+        return 'pending'
+    return 'design'
 
 
 class WorkflowError(Exception):

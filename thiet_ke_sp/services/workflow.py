@@ -15,8 +15,12 @@ from django.db import transaction
 from django.utils import timezone
 
 from thiet_ke_sp import permissions as perms
+from thiet_ke_sp.services.size_spec import filled_sizes
 from thiet_ke_sp.models import (
     DOSSIER_ROLE_FIELDS,
+    ROLE_PARTNER,
+    APPROVER_DECIDE_STATUSES,
+    DESIGN_APPROVAL_STATUSES,
     FINAL_STATUSES,
     IMAGE_EXTENSIONS,
     SINGLE_CURRENT_KINDS,
@@ -127,21 +131,18 @@ def _step_tasks(dossier: ProductDevelopment, status: str) -> list[StepTask]:
         Status.DESIGNING: [StepTask(Role.DESIGNER, f'Thiết kế phiên bản {dv_label}')],
         Status.DESIGN_REVISE: [StepTask(Role.DESIGNER, f'Chỉnh thiết kế — phiên bản {dv_label}')],
         Status.DESIGN_PENDING: [StepTask(Role.APPROVER, f'Duyệt thiết kế {dv_label}', fallback_owner=False)],
-        Status.SAMPLING: [
-            StepTask(Role.SAMPLE_MAKER, f'Làm mẫu {sv_label}'),
-            StepTask(Role.TECHNICIAN, f'Lập thông số kỹ thuật & BOM mẫu {sv_label}', is_main=False),
-        ],
-        Status.SAMPLE_REVISE: [
-            StepTask(Role.SAMPLE_MAKER, f'Sửa mẫu — lần {sv_label}'),
-            StepTask(Role.TECHNICIAN, f'Cập nhật thông số kỹ thuật & BOM mẫu {sv_label}', is_main=False),
-        ],
+        Status.TECHNICAL: [StepTask(Role.TECHNICIAN, 'Cập nhật rập, thông số kỹ thuật & BOM')],
+        Status.TECHNICAL_REVISE: [StepTask(Role.TECHNICIAN, 'Chỉnh rập, thông số kỹ thuật & BOM')],
+        Status.SAMPLING: [StepTask(Role.SAMPLE_MAKER, f'Làm mẫu {sv_label}')],
+        Status.SAMPLE_REVISE: [StepTask(Role.SAMPLE_MAKER, f'Sửa mẫu — lần {sv_label}')],
         Status.SAMPLE_EVAL_PENDING: [
-            StepTask(Role.OWNER, f'Tổng hợp đánh giá mẫu {sv_label} và trình duyệt mẫu chuẩn'),
+            StepTask(Role.APPROVER, f'Duyệt thiết kế {sv_label}', fallback_owner=False),
             StepTask(Role.COSTING, f'Đánh giá giá thành mẫu {sv_label}', is_main=False, fallback_owner=False),
         ],
-        Status.MASTER_PENDING: [StepTask(Role.APPROVER, f'Duyệt mẫu chuẩn {sv_label}', fallback_owner=False)],
-        Status.APPROVED: [StepTask(Role.OWNER, 'Bàn giao sản phẩm vào Thư viện')],
-        Status.HANDED_OVER: [StepTask(Role.OWNER, 'Theo dõi chuyển sản xuất và đóng hồ sơ')],
+        Status.MASTER_PENDING: [StepTask(Role.APPROVER, f'Duyệt thiết kế {sv_label}', fallback_owner=False)],
+        Status.APPROVED: [StepTask(Role.OWNER, 'Thêm sản phẩm vào Thư viện')],
+        Status.HANDED_OVER: [],
+        Status.LIBRARY_REOPEN: [StepTask(Role.OWNER, 'Chỉnh hồ sơ và gửi duyệt lại')],
     }
     return mapping.get(status, [])
 
@@ -191,14 +192,53 @@ def open_step_tasks(dossier: ProductDevelopment, status: str, actor, *, due_at=N
     created = []
     for spec in _step_tasks(dossier, status):
         assignee = _role_assignee(dossier, spec.role, spec.fallback_owner)
-        if assignee is None and not spec.is_main:
-            continue
-        created.append(_create_task(
-            dossier, step=status, role=spec.role, title=spec.title, assignee=assignee,
-            due_at=due_at, is_main=spec.is_main, actor=actor,
-            notify_kind=_task_notify_kind(spec.role, revision),
-        ))
+        if assignee is not None or spec.is_main:
+            created.append(_create_task(
+                dossier, step=status, role=spec.role, title=spec.title, assignee=assignee,
+                due_at=due_at, is_main=spec.is_main, actor=actor,
+                notify_kind=_task_notify_kind(spec.role, revision),
+            ))
+        partner_task = _open_partner_task(
+            dossier, spec.role, actor=actor, due_at=due_at, revision=revision, title=spec.title,
+        )
+        if partner_task is not None:
+            created.append(partner_task)
     return created
+
+
+def backfill_partner_tasks() -> int:
+    """Mở việc phụ cho người thứ hai trên hồ sơ đang chạy, nếu chưa có."""
+    created = 0
+    qs = ProductDevelopment.objects.exclude(status__in=(
+        Status.DRAFT, Status.PAUSED, Status.CANCELLED, Status.CLOSED, Status.HANDED_OVER,
+    ))
+    for dossier in qs.iterator():
+        for spec in _step_tasks(dossier, dossier.status):
+            task = _open_partner_task(
+                dossier, spec.role, actor=dossier.proposer,
+                due_at=sla.due_at_for(dossier.status), revision=False, title=spec.title,
+            )
+            if task is not None:
+                created += 1
+    return created
+
+
+def _open_partner_task(dossier, role: str, *, actor, due_at, revision: bool, title: str):
+    """Việc phụ cho người thứ hai. Việc chính vẫn một người."""
+    field = ROLE_PARTNER.get(role)
+    partner = getattr(dossier, field, None) if field else None
+    if partner is None:
+        return None
+    primary = _role_assignee(dossier, role, fallback_owner=True)
+    if primary is not None and primary.pk == partner.pk:
+        return None
+    if dossier.tasks.filter(state=Task.STATE_OPEN, role=role, assignee=partner).exists():
+        return None
+    return _create_task(
+        dossier, step=dossier.status, role=role, title=title, assignee=partner,
+        due_at=due_at, is_main=False, actor=actor,
+        notify_kind=_task_notify_kind(role, revision),
+    )
 
 
 def _close_step_tasks(dossier: ProductDevelopment, step: str, actor) -> None:
@@ -304,17 +344,18 @@ def update_brief(dossier: ProductDevelopment, user, *, fields: dict) -> None:
 
 def submit_brief(dossier: ProductDevelopment, user, *, due_at=None) -> None:
     _require(dossier.status in (Status.DRAFT, Status.BRIEF_NEEDS_INFO), 'Hồ sơ không ở bước đề xuất.')
-    _require(perms.can_edit_brief(dossier, user), 'Chỉ người đề xuất hoặc người phụ trách được gửi duyệt đề bài.')
+    _require(perms.can_edit_brief(dossier, user), 'Chỉ người đề xuất hoặc người phụ trách được chuyển sang thiết kế.')
     missing = [label for field, label in BRIEF_REQUIRED if not getattr(dossier, field, None)]
     _require(not missing, 'Chưa đủ thông tin đề bài: ' + ', '.join(missing) + '.')
     _require(perms.has_approve_permission(dossier.approver), 'Người duyệt được chọn không có quyền duyệt hồ sơ.')
     first_submit = dossier.submitted_at is None
     with transaction.atomic():
         dossier.submitted_at = timezone.now()
-        resubmit = dossier.status == Status.BRIEF_NEEDS_INFO
+        if not dossier.design_versions.exists():
+            DesignVersion.objects.create(dossier=dossier, version_no=1, created_by=user)
         _transition(
-            dossier, Status.BRIEF_PENDING, user, 'brief_submitted',
-            f'{_name(user)} {"gửi lại" if resubmit else "gửi"} đề bài chờ duyệt.', due_at=due_at,
+            dossier, Status.DESIGNING, user, 'brief_submitted',
+            f'{_name(user)} gửi đề xuất, chuyển sang thiết kế.', due_at=due_at,
         )
     if first_submit:
         _notify_assigned_roles(dossier, user, [r for r in DOSSIER_ROLE_FIELDS if r != Role.APPROVER])
@@ -334,6 +375,9 @@ def _notify_assigned_roles(dossier: ProductDevelopment, actor, roles) -> None:
     for role in roles:
         label = Role(role).label
         _add(dossier.role_user(role), label)
+        partner = ROLE_PARTNER.get(role)
+        if partner:
+            _add(getattr(dossier, partner, None), label)
         if role == Role.OWNER:
             _add(dossier.co_owner, label)
     for person, labels in per_user.values():
@@ -392,7 +436,7 @@ def _approved_sample_editable(dossier, sv: SampleVersion) -> bool:
 def _require_design_editable(dossier, dv: DesignVersion, user) -> None:
     _require(dv.dossier_id == dossier.pk, 'Phiên bản không thuộc hồ sơ.')
     if not _approved_design_editable(dossier, dv):
-        _require(dossier.status in (Status.DESIGNING, Status.DESIGN_REVISE) and dv.is_editable,
+        _require(dossier.status in (Status.DESIGNING, Status.DESIGN_REVISE, Status.LIBRARY_REOPEN) and dv.is_editable,
                  'Phiên bản thiết kế này đã gửi duyệt hoặc đã lưu trữ — không sửa được.')
     _require(perms.can_work_as(dossier, user, Role.DESIGNER, Role.OWNER),
              'Chỉ Thiết kế / R&D hoặc người phụ trách được cập nhật thiết kế.')
@@ -434,7 +478,7 @@ def _live(qs):
 
 
 def design_checklist(dv: DesignVersion | None) -> list[tuple[str, bool]]:
-    """Quy tắc 1: điều kiện gửi duyệt thiết kế."""
+    """Điều kiện của phương án được chọn trước khi chuyển kỹ thuật."""
     if dv is None:
         return [('Có phiên bản thiết kế', False)]
     atts = _live(dv.attachments.all())
@@ -457,23 +501,37 @@ def design_checklist_all(dossier: ProductDevelopment) -> list[tuple[str, bool]]:
     return [(f'PA {dv.option_letter}: {label}', ok) for dv in dvs for label, ok in design_checklist(dv)]
 
 
-def submit_design(dossier: ProductDevelopment, user, *, due_at=None) -> None:
+def submit_design(dossier: ProductDevelopment, user, *, due_at=None, option_id=None) -> None:
+    """Chọn một phương án rồi chuyển sang kỹ thuật. Phương án còn lại đóng."""
     _require(dossier.status in (Status.DESIGNING, Status.DESIGN_REVISE), 'Hồ sơ không ở bước thiết kế.')
     dvs = dossier.current_design_versions()
     _require(bool(dvs), 'Chưa có phiên bản thiết kế.')
-    for dv in dvs:
-        _require_design_editable(dossier, dv, user)
-    missing = [label for label, ok in design_checklist_all(dossier) if not ok]
-    _require(not missing, 'Chưa đủ điều kiện gửi duyệt thiết kế: ' + ', '.join(missing) + '.')
-    no_note = [dv.tag for dv in dvs if not dv.change_note.strip() and needs_change_note(dv)]
-    _require(not no_note, 'Nhập nội dung thay đổi so với phiên bản trước: ' + ', '.join(no_note) + '.')
-    scope = design_scope_label(dossier)
+    if len(dvs) == 1:
+        chosen = dvs[0]
+    else:
+        chosen = next((dv for dv in dvs if str(dv.pk) == str(option_id or '')), None)
+        _require(chosen is not None, 'Chọn một phương án để chuyển kỹ thuật.')
+    _require_design_editable(dossier, chosen, user)
+    missing = [label for label, ok in design_checklist(chosen) if not ok]
+    _require(not missing, 'Chưa đủ điều kiện chuyển kỹ thuật: ' + ', '.join(missing) + '.')
+    if needs_change_note(chosen) and not chosen.change_note.strip():
+        _require(False, f'Nhập nội dung thay đổi so với phiên bản trước: {chosen.tag}.')
+    others = [dv for dv in dvs if dv.pk != chosen.pk]
     with transaction.atomic():
-        DesignVersion.objects.filter(pk__in=[dv.pk for dv in dvs]).update(
-            state=DesignVersion.STATE_SUBMITTED, updated_at=timezone.now(),
-        )
-        _transition(dossier, Status.DESIGN_PENDING, user, 'design_submitted',
-                    f'{_name(user)} gửi duyệt thiết kế {scope}.', due_at=due_at, version=scope)
+        chosen.state = DesignVersion.STATE_APPROVED
+        chosen.save(update_fields=['state', 'updated_at'])
+        _retire_design_versions(others, DesignVersion.STATE_NOT_SELECTED)
+        dossier.approved_design_version = chosen
+        previous_sample = dossier.sample_versions.order_by('-version_no').first()
+        _new_sample_version(dossier, chosen, user, source=previous_sample)
+        label = chosen.tag if len(dvs) > 1 else chosen.label
+        _transition(dossier, Status.TECHNICAL, user, 'design_to_technical',
+                    f'{_name(user)} chọn {label}, chuyển sang kỹ thuật.',
+                    due_at=due_at, version=label)
+        nt.notify_many(
+            [dossier.owner, dossier.co_owner, dossier.technician, dossier.co_technician, dossier.proposer],
+                       dossier, nt.KIND_TASK, f'{label} chuyển sang kỹ thuật',
+                       f'{dossier.code} — {dossier.name}', actor=user)
 
 
 def needs_change_note(dv: DesignVersion) -> bool:
@@ -587,7 +645,7 @@ def _new_sample_version(dossier, design_version: DesignVersion, user, source: Sa
     if source is not None:
         old_pack = getattr(source, 'tech_pack', None)
         if old_pack is not None:
-            for field in ('size_spec', 'cutting_req', 'sewing_req', 'decoration_req', 'finishing_req', 'packing_req'):
+            for field in ('pattern_note', 'size_spec', 'cutting_req', 'sewing_req', 'decoration_req', 'finishing_req', 'packing_req'):
                 setattr(pack, field, getattr(old_pack, field))
             pack.save()
             MaterialLine.objects.bulk_create([
@@ -600,7 +658,8 @@ def _new_sample_version(dossier, design_version: DesignVersion, user, source: Sa
                 for line in old_pack.material_lines.all()
             ])
         _clone_attachments(
-            source.attachments.filter(kind=AttachmentKind.TECH_SPEC), dossier=dossier, sample_version=new,
+            source.attachments.filter(kind__in=(AttachmentKind.TECH_SPEC, AttachmentKind.PATTERN)),
+            dossier=dossier, sample_version=new,
         )
     return new
 
@@ -628,10 +687,11 @@ def decide_design(dossier: ProductDevelopment, user, *, decision: str, comment: 
             previous_sample = dossier.sample_versions.order_by('-version_no').first()
             _new_sample_version(dossier, dv, user, source=previous_sample)
             label = dv.tag if multi else dv.label
-            _transition(dossier, Status.SAMPLING, user, 'design_approved',
-                        f'{_name(user)} duyệt thiết kế {label}, chuyển sang làm mẫu.',
+            _transition(dossier, Status.TECHNICAL, user, 'design_approved',
+                        f'{_name(user)} duyệt thiết kế {label}, chuyển sang kỹ thuật.',
                         due_at=due_at, version=label, comment=comment)
-            nt.notify_many([dossier.owner, dossier.co_owner, dossier.designer, dossier.proposer], dossier, nt.KIND_APPROVED,
+            nt.notify_many(
+            [dossier.owner, dossier.co_owner, dossier.technician, dossier.co_technician, dossier.proposer], dossier, nt.KIND_APPROVED,
                            f'Thiết kế {label} đã được duyệt', f'{dossier.code} — {dossier.name}', actor=user)
         elif decision == ApprovalDecision.REQUEST_CHANGE:
             comment = _require_text(comment, 'nội dung yêu cầu chỉnh sửa')
@@ -668,10 +728,28 @@ def decide_design(dossier: ProductDevelopment, user, *, decision: str, comment: 
 # Bước 5–6: làm mẫu, hồ sơ kỹ thuật, đánh giá mẫu
 # ---------------------------------------------------------------------------
 
+TECH_EDIT_STATUSES = (
+    Status.TECHNICAL,
+    Status.TECHNICAL_REVISE,
+    Status.SAMPLING,
+    Status.SAMPLE_REVISE,
+    Status.LIBRARY_REOPEN,
+)
+
+
+def _require_tech_editable(dossier, sv: SampleVersion, user) -> None:
+    _require(sv.dossier_id == dossier.pk, 'Mẫu không thuộc hồ sơ.')
+    if not _approved_sample_editable(dossier, sv):
+        _require(dossier.status in TECH_EDIT_STATUSES and sv.is_editable,
+                 'Hồ sơ kỹ thuật đã khóa hoặc đã lưu trữ — không sửa được.')
+    _require(perms.can_work_as(dossier, user, Role.TECHNICIAN, Role.OWNER),
+             'Chỉ Kỹ thuật / Tài liệu kỹ thuật hoặc người phụ trách được cập nhật.')
+
+
 def _require_sample_editable(dossier, sv: SampleVersion, user, *roles) -> None:
     _require(sv.dossier_id == dossier.pk, 'Mẫu không thuộc hồ sơ.')
     if not _approved_sample_editable(dossier, sv):
-        _require(dossier.status in (Status.SAMPLING, Status.SAMPLE_REVISE) and sv.is_editable,
+        _require(dossier.status in (Status.SAMPLING, Status.SAMPLE_REVISE, Status.LIBRARY_REOPEN) and sv.is_editable,
                  'Mẫu này đã gửi đánh giá hoặc đã lưu trữ — không sửa được.')
     _require(perms.can_work_as(dossier, user, *roles), 'Bạn không phụ trách phần việc này trên hồ sơ.')
 
@@ -687,7 +765,7 @@ def save_sample(sv: SampleVersion, user, *, fields: dict) -> None:
 
 def save_tech_pack(sv: SampleVersion, user, *, fields: dict, lines: list[dict]) -> None:
     dossier = sv.dossier
-    _require_sample_editable(dossier, sv, user, Role.TECHNICIAN, Role.OWNER)
+    _require_tech_editable(dossier, sv, user)
     pack, _ = TechnicalPack.objects.get_or_create(sample_version=sv)
     with transaction.atomic():
         for key, value in fields.items():
@@ -702,21 +780,42 @@ def save_tech_pack(sv: SampleVersion, user, *, fields: dict, lines: list[dict]) 
 
 
 def submit_sample(dossier: ProductDevelopment, user, *, due_at=None) -> None:
+    """May mẫu xong thì dừng ở cột Duyệt thiết kế. Người duyệt chốt ở bước đó."""
     _require(dossier.status in (Status.SAMPLING, Status.SAMPLE_REVISE), 'Hồ sơ không ở bước làm mẫu.')
+    _require(perms.can_work_as(dossier, user, Role.SAMPLE_MAKER, Role.TECHNICIAN, Role.OWNER),
+             'Chỉ May mẫu, Kỹ thuật hoặc người phụ trách được gửi duyệt thiết kế.')
     sv = dossier.current_sample_version()
-    _require(sv is not None, 'Chưa có phiên bản mẫu.')
-    _require_sample_editable(dossier, sv, user, Role.SAMPLE_MAKER, Role.TECHNICIAN, Role.OWNER)
-    if not perms.has_full_dossier_access(user):
-        _require(_live(sv.attachments.filter(kind=AttachmentKind.SAMPLE_PHOTO)).exists(),
-                 'Tải lên ít nhất một ảnh mẫu thực tế trước khi gửi đánh giá.')
-    if sv.version_no > 1:
-        _require(bool(sv.change_note.strip()), 'Nhập nội dung sửa so với lần mẫu trước.')
+    _require(sv is not None, 'Chưa có mẫu để gửi duyệt.')
     with transaction.atomic():
-        sv.state = SampleVersion.STATE_SUBMITTED
-        sv.completed_date = sv.completed_date or timezone.localdate()
-        sv.save(update_fields=['state', 'completed_date', 'updated_at'])
+        if sv.state != SampleVersion.STATE_SUBMITTED:
+            sv.state = SampleVersion.STATE_SUBMITTED
+            sv.save(update_fields=['state', 'updated_at'])
         _transition(dossier, Status.SAMPLE_EVAL_PENDING, user, 'sample_submitted',
-                    f'{_name(user)} hoàn thành mẫu {sv.label}, gửi đánh giá.', due_at=due_at, version=sv.label)
+                    f'{_name(user)} gửi duyệt thiết kế {sv.label}.',
+                    due_at=due_at, version=sv.label)
+
+
+def submit_technical(dossier: ProductDevelopment, user, *, due_at=None) -> None:
+    """Kỹ thuật tự chốt rập, thông số và BOM rồi chuyển làm mẫu. Không bắt đủ file."""
+    _require(dossier.status in (Status.TECHNICAL, Status.TECHNICAL_REVISE), 'Hồ sơ không ở bước kỹ thuật.')
+    _require(perms.can_work_as(dossier, user, Role.TECHNICIAN, Role.OWNER),
+             'Chỉ Kỹ thuật / Tài liệu kỹ thuật hoặc người phụ trách được chuyển làm mẫu.')
+    sv = dossier.current_sample_version()
+    with transaction.atomic():
+        if sv is None:
+            dv = dossier.approved_design_version or dossier.current_design_version()
+            _require(dv is not None, 'Chưa có thiết kế để làm mẫu.')
+            sv = _new_sample_version(dossier, dv, user)
+        elif sv.state != SampleVersion.STATE_IN_PROGRESS:
+            sv.state = SampleVersion.STATE_IN_PROGRESS
+            sv.save(update_fields=['state', 'updated_at'])
+        _transition(dossier, Status.SAMPLING, user, 'technical_to_sample',
+                    f'{_name(user)} chuyển sang làm mẫu {sv.label}.',
+                    due_at=due_at, version=sv.label)
+        nt.notify_many(
+            [dossier.owner, dossier.co_owner, dossier.sample_maker, dossier.co_sample_maker, dossier.proposer],
+                       dossier, nt.KIND_TASK, f'Chuyển làm mẫu {sv.label}',
+                       f'{dossier.code} — {dossier.name}', actor=user)
 
 
 def evaluator_roles_for(dossier: ProductDevelopment, user) -> list[str]:
@@ -735,11 +834,14 @@ def evaluator_roles_for(dossier: ProductDevelopment, user) -> list[str]:
 
 def add_evaluation(dossier: ProductDevelopment, user, *, role: str, result: str, conclusion: str = '',
                    defects: str = '', fix_owner=None, fix_due=None, items: dict[str, tuple[str, str]]) -> SampleEvaluation:
-    _require(dossier.status == Status.SAMPLE_EVAL_PENDING, 'Hồ sơ không ở bước đánh giá mẫu.')
+    _require(dossier.status in DESIGN_APPROVAL_STATUSES, 'Hồ sơ không ở bước làm mẫu hoặc duyệt thiết kế.')
     _require(perms.can_act(dossier, user), 'Bạn không có quyền cập nhật hồ sơ.')
     _require(role in evaluator_roles_for(dossier, user), 'Bạn không được đánh giá mẫu với vai trò này.')
     sv = dossier.current_sample_version()
-    _require(sv is not None and sv.state == SampleVersion.STATE_SUBMITTED, 'Không có mẫu đang chờ đánh giá.')
+    _require(
+        sv is not None and sv.state in (SampleVersion.STATE_IN_PROGRESS, SampleVersion.STATE_SUBMITTED),
+        'Không có mẫu đang làm để đánh giá.',
+    )
     if result == SampleEvaluation.RESULT_FAIL or fix_owner is not None:
         defects = _require_text(defects, 'lỗi / nội dung phải chỉnh')
     if fix_owner is not None:
@@ -801,22 +903,38 @@ def complete_fix(ev: SampleEvaluation, user, *, note: str = '') -> None:
                    ev.defects.strip()[:200], actor=user)
 
 
+def request_technical_change(dossier: ProductDevelopment, user, *, comment: str, due_at=None) -> None:
+    """Duyệt thiết kế trả về bước kỹ thuật, giữ mẫu và BOM hiện tại."""
+    _require(dossier.status in APPROVER_DECIDE_STATUSES, 'Hồ sơ chưa ở bước duyệt thiết kế.')
+    _require(perms.is_dossier_approver(dossier, user), 'Chỉ người duyệt của hồ sơ được ra quyết định.')
+    comment = _require_text(comment, 'nội dung cần chỉnh kỹ thuật')
+    sv = dossier.current_sample_version()
+    _require(sv is not None, 'Chưa có hồ sơ kỹ thuật để chỉnh.')
+    with transaction.atomic():
+        Approval.objects.create(
+            dossier=dossier, stage=ApprovalStage.MASTER, decision=ApprovalDecision.REQUEST_CHANGE,
+            comment=comment, sample_version=sv, decided_by=user,
+        )
+        Comment.objects.create(dossier=dossier, sample_version=sv, author=user, body=comment, is_revision_request=True)
+        if sv.state != SampleVersion.STATE_IN_PROGRESS:
+            sv.state = SampleVersion.STATE_IN_PROGRESS
+            sv.save(update_fields=['state', 'updated_at'])
+        _transition(dossier, Status.TECHNICAL_REVISE, user, 'technical_returned',
+                    f'{_name(user)} yêu cầu chỉnh kỹ thuật từ mẫu {sv.label}: {comment}',
+                    due_at=due_at, revision=True, version=sv.label)
+
+
 def request_design_change_from_sample(dossier: ProductDevelopment, user, *, comment: str, due_at=None) -> None:
-    """Mẫu lộ lỗi thiết kế: quay về bước 3, mở phiên bản mới từ thiết kế đã duyệt."""
-    if dossier.status == Status.SAMPLE_EVAL_PENDING:
-        _require(perms.can_work_as(dossier, user, Role.OWNER), 'Chỉ người phụ trách chính được yêu cầu chỉnh thiết kế.')
-    elif dossier.status == Status.MASTER_PENDING:
-        _require(perms.is_dossier_approver(dossier, user), 'Chỉ người duyệt của hồ sơ được ra quyết định.')
-    else:
-        raise WorkflowError('Hồ sơ không ở bước đánh giá / duyệt mẫu.')
+    """Mẫu lộ lỗi thiết kế: quay về thiết kế, mở phiên bản mới từ thiết kế đang làm mẫu."""
+    _require(dossier.status in APPROVER_DECIDE_STATUSES, 'Hồ sơ chưa ở bước duyệt thiết kế.')
+    _require(perms.is_dossier_approver(dossier, user), 'Chỉ người duyệt của hồ sơ được ra quyết định.')
     comment = _require_text(comment, 'nội dung cần chỉnh thiết kế')
     sv = dossier.current_sample_version()
     dv = sv.design_version
     with transaction.atomic():
-        if dossier.status == Status.MASTER_PENDING:
-            Approval.objects.create(dossier=dossier, stage=ApprovalStage.MASTER,
-                                    decision=ApprovalDecision.REQUEST_CHANGE, comment=comment,
-                                    design_version=dv, sample_version=sv, decided_by=user)
+        Approval.objects.create(dossier=dossier, stage=ApprovalStage.MASTER,
+                                decision=ApprovalDecision.REQUEST_CHANGE, comment=comment,
+                                design_version=dv, sample_version=sv, decided_by=user)
         Comment.objects.create(dossier=dossier, sample_version=sv, author=user, body=comment, is_revision_request=True)
         Comment.objects.create(dossier=dossier, design_version=dv, author=user, body=comment, is_revision_request=True)
         sv.state = SampleVersion.STATE_FAILED
@@ -829,19 +947,14 @@ def request_design_change_from_sample(dossier: ProductDevelopment, user, *, comm
 
 
 def request_sample_fix(dossier: ProductDevelopment, user, *, comment: str, due_at=None) -> None:
-    if dossier.status == Status.SAMPLE_EVAL_PENDING:
-        _require(perms.can_work_as(dossier, user, Role.OWNER), 'Chỉ người phụ trách chính được yêu cầu sửa mẫu.')
-    elif dossier.status == Status.MASTER_PENDING:
-        _require(perms.is_dossier_approver(dossier, user), 'Chỉ người duyệt của hồ sơ được ra quyết định.')
-    else:
-        raise WorkflowError('Hồ sơ không ở bước đánh giá / duyệt mẫu.')
+    _require(dossier.status in APPROVER_DECIDE_STATUSES, 'Hồ sơ chưa ở bước duyệt thiết kế.')
+    _require(perms.is_dossier_approver(dossier, user), 'Chỉ người duyệt của hồ sơ được ra quyết định.')
     comment = _require_text(comment, 'nội dung cần sửa mẫu')
     sv = dossier.current_sample_version()
     with transaction.atomic():
-        if dossier.status == Status.MASTER_PENDING:
-            Approval.objects.create(dossier=dossier, stage=ApprovalStage.MASTER,
-                                    decision=ApprovalDecision.REQUEST_CHANGE, comment=comment,
-                                    sample_version=sv, decided_by=user)
+        Approval.objects.create(dossier=dossier, stage=ApprovalStage.MASTER,
+                                decision=ApprovalDecision.REQUEST_CHANGE, comment=comment,
+                                sample_version=sv, decided_by=user)
         Comment.objects.create(dossier=dossier, sample_version=sv, author=user, body=comment, is_revision_request=True)
         sv.state = SampleVersion.STATE_FAILED
         sv.save(update_fields=['state', 'updated_at'])
@@ -851,10 +964,11 @@ def request_sample_fix(dossier: ProductDevelopment, user, *, comment: str, due_a
                     due_at=due_at, revision=True, version=new.label)
 
 
-def master_checklist(dossier: ProductDevelopment) -> list[tuple[str, bool]]:
-    """Điều kiện trình duyệt mẫu chuẩn.
+def master_checklist(dossier: ProductDevelopment, user=None) -> list[tuple[str, bool]]:
+    """Điều kiện duyệt thiết kế.
 
     Trạng thái test bật: không bắt bảng thông số, BOM, ảnh mẫu thực tế và giá thành.
+    vuong-admin và ductn không bị chặn bởi ảnh mẫu thực tế.
     """
     sv = dossier.current_sample_version()
     if sv is None:
@@ -867,25 +981,20 @@ def master_checklist(dossier: ProductDevelopment) -> list[tuple[str, bool]]:
         return items
     pack = getattr(sv, 'tech_pack', None)
     atts = _live(sv.attachments.all())
-    return [
+    rows = [
         ('Bảng thông số kỹ thuật', bool(pack and pack.size_spec.strip())
          or atts.filter(kind=AttachmentKind.TECH_SPEC).exists()),
         ('BOM có nguyên phụ liệu chính', bool(pack and pack.material_lines.filter(is_main=True).exists())),
-        ('Ảnh mẫu thực tế', atts.filter(kind=AttachmentKind.SAMPLE_PHOTO).exists()),
-        *items,
-        ('Giá thành dự kiến hoặc sau mẫu', dossier.estimated_cost is not None or dossier.post_sample_cost is not None),
     ]
+    if not (user is not None and perms.has_full_dossier_access(user)):
+        rows.append(('Ảnh mẫu thực tế', atts.filter(kind=AttachmentKind.SAMPLE_PHOTO).exists()))
+    rows.extend(items)
+    rows.append(('Giá thành dự kiến hoặc sau mẫu', dossier.estimated_cost is not None or dossier.post_sample_cost is not None))
+    return rows
 
 
 def submit_master(dossier: ProductDevelopment, user, *, due_at=None) -> None:
-    _require(dossier.status == Status.SAMPLE_EVAL_PENDING, 'Hồ sơ không ở bước đánh giá mẫu.')
-    _require(perms.can_work_as(dossier, user, Role.OWNER), 'Chỉ người phụ trách chính được trình duyệt mẫu chuẩn.')
-    missing = [label for label, ok in master_checklist(dossier) if not ok]
-    _require(not missing, 'Chưa đủ điều kiện trình duyệt mẫu chuẩn: ' + ', '.join(missing) + '.')
-    sv = dossier.current_sample_version()
-    with transaction.atomic():
-        _transition(dossier, Status.MASTER_PENDING, user, 'master_submitted',
-                    f'{_name(user)} trình duyệt mẫu chuẩn {sv.label}.', due_at=due_at, version=sv.label)
+    raise WorkflowError('Duyệt thiết kế không còn bước trình riêng. Người duyệt chốt ngay trên hồ sơ.')
 
 
 # ---------------------------------------------------------------------------
@@ -898,7 +1007,13 @@ def official_code_conflict(code: str, *, exclude_dossier_id=None) -> str:
     code = (code or '').strip()
     if not code:
         return ''
-    if ProductTechDoc.objects.filter(product_code__iexact=code).exists():
+    docs = ProductTechDoc.objects.filter(product_code__iexact=code)
+    if exclude_dossier_id:
+        own_doc_ids = Handover.objects.filter(
+            dossier_id=exclude_dossier_id, tech_doc__isnull=False,
+        ).values('tech_doc_id')
+        docs = docs.exclude(pk__in=own_doc_ids)
+    if docs.exists():
         return f'Mã {code} đã có hồ sơ kỹ thuật bên Sản xuất.'
     other = ProductDevelopment.objects.filter(official_product_code__iexact=code).exclude(
         status=Status.CANCELLED,
@@ -920,8 +1035,10 @@ class ConditionInput:
 
 def decide_master(dossier: ProductDevelopment, user, *, official_code: str, comment: str = '',
                   conditions: list[ConditionInput] | None = None, due_at=None) -> None:
-    _require(dossier.status == Status.MASTER_PENDING, 'Hồ sơ không ở bước chờ duyệt mẫu chuẩn.')
+    _require(dossier.status in APPROVER_DECIDE_STATUSES, 'Hồ sơ chưa ở bước duyệt thiết kế.')
     _require(perms.is_dossier_approver(dossier, user), 'Chỉ người duyệt của hồ sơ được ra quyết định.')
+    missing = [label for label, ok in master_checklist(dossier, user) if not ok]
+    _require(not missing, 'Chưa đủ điều kiện duyệt thiết kế: ' + ', '.join(missing) + '.')
     code = _require_text(official_code, 'mã sản phẩm chính thức').upper()
     conflict = official_code_conflict(code, exclude_dossier_id=dossier.pk)
     _require(not conflict, conflict)
@@ -930,6 +1047,7 @@ def decide_master(dossier: ProductDevelopment, user, *, official_code: str, comm
         _require(bool(cond.content.strip()) and cond.assignee is not None and cond.due_at is not None,
                  'Mỗi điều kiện cần nội dung, người xử lý và hạn.')
     sv = dossier.current_sample_version()
+    _require(sv is not None, 'Chưa có mẫu để duyệt thiết kế.')
     decision = ApprovalDecision.APPROVED_CONDITIONAL if conditions else ApprovalDecision.APPROVED
     with transaction.atomic():
         approval = Approval.objects.create(
@@ -937,13 +1055,14 @@ def decide_master(dossier: ProductDevelopment, user, *, official_code: str, comm
             design_version=sv.design_version, sample_version=sv, decided_by=user,
         )
         sv.state = SampleVersion.STATE_PASSED
-        sv.save(update_fields=['state', 'updated_at'])
+        sv.completed_date = sv.completed_date or timezone.localdate()
+        sv.save(update_fields=['state', 'completed_date', 'updated_at'])
         dossier.official_product_code = code
         dossier.final_sample_version = sv
         dossier.approved_design_version = sv.design_version
         dossier.approved_at = timezone.now()
         dossier.is_locked = True
-        summary = f'{_name(user)} duyệt mẫu chuẩn {sv.label} — mã chính thức {code}'
+        summary = f'{_name(user)} duyệt thiết kế {sv.label} — mã chính thức {code}'
         if conditions:
             summary += f', kèm {len(conditions)} điều kiện'
         _transition(dossier, Status.APPROVED, user, 'master_approved', summary + '.', due_at=due_at,
@@ -956,8 +1075,10 @@ def decide_master(dossier: ProductDevelopment, user, *, official_code: str, comm
             _create_task(dossier, step=Status.APPROVED, role=Role.CONDITION,
                          title=f'Điều kiện duyệt: {obj.content}', assignee=obj.assignee, due_at=obj.due_at,
                          is_main=False, actor=user, condition=obj)
-    nt.notify_many([dossier.owner, dossier.co_owner, dossier.designer, dossier.technician, dossier.proposer], dossier,
-                   nt.KIND_APPROVED, f'Mẫu chuẩn {sv.label} đã được duyệt sản xuất',
+    nt.notify_many(
+        [dossier.owner, dossier.co_owner, dossier.designer, dossier.co_designer,
+         dossier.technician, dossier.co_technician, dossier.proposer], dossier,
+                   nt.KIND_APPROVED, f'Đã duyệt thiết kế {sv.label}',
                    f'{dossier.code} — {dossier.name} · Mã {code}', actor=user)
 
 
@@ -985,9 +1106,9 @@ def complete_condition(cond: ApprovalCondition, user, *, note: str = '') -> None
 # ---------------------------------------------------------------------------
 
 def handover_checklist(dossier: ProductDevelopment) -> list[tuple[str, bool]]:
-    """Quy tắc 3: điều kiện bàn giao sản xuất."""
+    """Điều kiện thêm Style vào Thư viện."""
     return [
-        ('Đã duyệt mẫu chuẩn', dossier.status in (Status.APPROVED, Status.HANDED_OVER, Status.CLOSED)),
+        ('Đã duyệt thiết kế', dossier.status in (Status.APPROVED, Status.HANDED_OVER, Status.CLOSED)),
         ('Có mã sản phẩm chính thức', bool(dossier.official_product_code)),
         ('Có phiên bản thiết kế cuối', dossier.approved_design_version_id is not None),
         ('Có mẫu chuẩn cuối', dossier.final_sample_version_id is not None),
@@ -1078,36 +1199,233 @@ def _library_style(dossier: ProductDevelopment, user):
     )
 
 
+def _colorway_code(name: str) -> str:
+    """Mã màu ngắn từ tên phối màu thiết kế (bỏ dấu) để ghép SKU."""
+    import unicodedata
+
+    from san_xuat.services.sku_catalog import normalize_token
+
+    folded = unicodedata.normalize('NFD', name or '')
+    folded = ''.join(ch for ch in folded if unicodedata.category(ch) != 'Mn')
+    folded = folded.replace('đ', 'd').replace('Đ', 'D')
+    return normalize_token(folded, max_len=12)
+
+
+def _library_sizes(dossier: ProductDevelopment) -> list[str]:
+    """Size đã nhập ở bảng thông số của mẫu cuối — đó là size đưa vào Thư viện."""
+    sv = dossier.final_sample_version or dossier.current_sample_version()
+    pack = getattr(sv, 'tech_pack', None) if sv is not None else None
+    return filled_sizes(getattr(pack, 'size_spec', '') or '')
+
+
+def seed_library_color_skus(dossier: ProductDevelopment, style, user) -> int:
+    """Tạo SKU theo màu thiết kế. Size lấy từ ô thông số đã nhập; chưa nhập thì để trống."""
+    from kho_san_pham.choices import (
+        PRODUCT_TYPE_THANH_PHAM,
+        SYNC_SOURCE_MANUAL,
+        goods_product_type,
+    )
+    from kho_san_pham.models import Product
+    from kho_san_pham.services.barcode import allocate_barcode
+    from san_xuat.hub_models import SxColor
+    from san_xuat.services.sku_catalog import SkuError, compose_sku_code, ensure_color, ensure_size
+
+    from thiet_ke_sp import catalog
+
+    dv = dossier.approved_design_version
+    if dv is None:
+        return 0
+    sizes = _library_sizes(dossier)
+    type_code = style.product_type.code if style.product_type_id else ''
+    product_type = goods_product_type(catalog_type_code=type_code) if type_code else PRODUCT_TYPE_THANH_PHAM
+    category = catalog.group_label(catalog.group_code(type_code)) if type_code else ''
+    description = _tech_doc_description(dossier)
+    name = (style.name or dossier.name or style.code)[:500]
+    created = 0
+    seen_colors: set[str] = set()
+    for cw in dv.colorways.all():
+        label = (cw.name or '').strip() or (cw.color_codes or '').strip()
+        if not label:
+            continue
+        known = SxColor.objects.filter(name__iexact=label).first()
+        if known:
+            color_code, color_label = known.code, (known.name or label)[:80]
+        else:
+            base = _colorway_code(label) or 'MAU'
+            color_code = base
+            n = 2
+            while color_code in seen_colors or Product.objects.filter(
+                style_code=style.code, color_code=color_code,
+            ).exists():
+                color_code = f'{base[:10]}{n}'
+                n += 1
+            ensure_color(code=color_code, name=label[:80], user=user)
+            color_label = label[:80]
+        if color_code in seen_colors:
+            continue
+        seen_colors.add(color_code)
+        for size in (sizes or ['']):
+            if Product.objects.filter(
+                style_code=style.code, color_code=color_code, size_label=size,
+            ).exists():
+                continue
+            if size:
+                try:
+                    sku_code = compose_sku_code(
+                        style_code=style.code, color_code=color_code, size_label=size,
+                    )
+                except SkuError:
+                    continue
+                ensure_size(code=size, name=size, user=user)
+            else:
+                sku_code = f'{style.code}-{color_code}'
+            if Product.objects.filter(code__iexact=sku_code).exists():
+                continue
+            Product.objects.create(
+                product_type=product_type,
+                catalog_type=style.product_type,
+                style_code=style.code,
+                color_code=color_code,
+                color_label=color_label,
+                size_label=size,
+                code=sku_code,
+                name=name,
+                full_name=name,
+                unit='Cái',
+                category_name=category[:255],
+                description=description,
+                bar_code=allocate_barcode(),
+                sync_source=SYNC_SOURCE_MANUAL,
+                is_active=True,
+                created_by=user if getattr(user, 'pk', None) else None,
+            )
+            created += 1
+    return created
+
+
 def handover(dossier: ProductDevelopment, user, *, note: str = '', due_at=None):
-    """Bàn giao vào Thư viện: tạo Style nguồn Thiết kế. Sản xuất chỉ nhận khi Thư viện chuyển sang."""
-    _require(dossier.status == Status.APPROVED, 'Hồ sơ chưa được duyệt sản xuất hoặc đã bàn giao.')
+    """Thêm Style vào Thư viện. Chuyển sản xuất làm bên Thư viện, hồ sơ thiết kế dừng tại đây."""
+    _require(dossier.status == Status.APPROVED, 'Hồ sơ chưa được duyệt hoặc đã thêm vào Thư viện.')
     _require(perms.can_work_as(dossier, user, Role.OWNER, Role.TECHNICIAN),
-             'Chỉ người phụ trách chính hoặc Kỹ thuật được bàn giao.')
+             'Chỉ người phụ trách chính hoặc Kỹ thuật được thêm vào Thư viện.')
     missing = [label for label, ok in handover_checklist(dossier) if not ok]
-    _require(not missing, 'Chưa đủ điều kiện bàn giao: ' + ', '.join(missing) + '.')
+    _require(not missing, 'Chưa đủ điều kiện thêm vào Thư viện: ' + ', '.join(missing) + '.')
     conflict = official_code_conflict(dossier.official_product_code, exclude_dossier_id=dossier.pk)
     _require(not conflict, conflict)
-    due_at = due_at or sla.due_at_for(Status.HANDED_OVER)
     with transaction.atomic():
         style = _library_style(dossier, user)
-        record = Handover.objects.create(
-            dossier=dossier, product_code=style.code,
-            design_version=dossier.approved_design_version, sample_version=dossier.final_sample_version,
-            note=note, handed_by=user,
-        )
-        _transition(dossier, Status.HANDED_OVER, user, 'handed_over',
-                    f'{_name(user)} bàn giao vào Thư viện — Style {style.code}, chờ chuyển sang sản xuất.',
-                    due_at=due_at, style_code=style.code)
+        seeded = seed_library_color_skus(dossier, style, user)
+        try:
+            record = dossier.handover
+        except Handover.DoesNotExist:
+            record = None
+        if record is None:
+            record = Handover.objects.create(
+                dossier=dossier, product_code=style.code,
+                design_version=dossier.approved_design_version, sample_version=dossier.final_sample_version,
+                note=note, handed_by=user,
+            )
+        else:
+            record.product_code = style.code
+            record.design_version = dossier.approved_design_version
+            record.sample_version = dossier.final_sample_version
+            record.note = note
+            record.handed_by = user
+            record.handed_at = timezone.now()
+            record.save()
+        text = f'{_name(user)} thêm vào Thư viện — Style {style.code}.'
+        if seeded and _library_sizes(dossier):
+            text += f' Tạo {seeded} SKU theo màu thiết kế và size đã nhập ở bảng thông số.'
+        elif seeded:
+            text += f' Tạo {seeded} SKU theo màu thiết kế — bổ sung size trước khi chuyển sản xuất.'
+        elif record.tech_doc_id:
+            text += ' Giữ SKU và hồ sơ sản xuất đã có.'
+        _transition(dossier, Status.HANDED_OVER, user, 'handed_over', text,
+                    open_tasks=False, style_code=style.code)
     return record
+
+
+def reopen_completion(dossier: ProductDevelopment, user, *, reason: str) -> None:
+    """Gỡ khỏi Thư viện ngay. Người tham gia sửa theo vai trò, rồi gửi duyệt lại bước cuối."""
+    _require(dossier.status == Status.HANDED_OVER, 'Chỉ huỷ hoàn thành khi hồ sơ đã thêm vào Thư viện.')
+    _require(perms.is_participant(dossier, user), 'Chỉ người tham gia hồ sơ được huỷ hoàn thành.')
+    reason = _require_text(reason, 'lý do mở lại')
+    with transaction.atomic():
+        for dv in dossier.design_versions.filter(is_current=True, state=DesignVersion.STATE_APPROVED):
+            dv.state = DesignVersion.STATE_DRAFT
+            dv.save(update_fields=['state', 'updated_at'])
+        for sv in dossier.sample_versions.filter(is_current=True, state=SampleVersion.STATE_PASSED):
+            sv.state = SampleVersion.STATE_IN_PROGRESS
+            sv.save(update_fields=['state', 'updated_at'])
+        dossier.is_locked = False
+        _transition(
+            dossier, Status.LIBRARY_REOPEN, user, 'completion_reopened',
+            f'{_name(user)} huỷ hoàn thành, gỡ Style khỏi Thư viện để chỉnh: {reason}',
+            revision=True, open_tasks=True,
+        )
+    nt.notify(
+        dossier.approver, dossier, nt.KIND_INFO, 'Hồ sơ được mở lại sau khi vào Thư viện',
+        f'{dossier.code} — {reason}', actor=user,
+    )
+
+
+def resubmit_after_reopen(dossier: ProductDevelopment, user, *, due_at=None) -> None:
+    """Chỉnh xong: gửi người duyệt làm lại bước Duyệt thiết kế."""
+    _require(dossier.status == Status.LIBRARY_REOPEN, 'Hồ sơ không ở bước đang chỉnh sau hoàn thành.')
+    _require(perms.is_participant(dossier, user), 'Chỉ người tham gia hồ sơ được gửi duyệt lại.')
+    with transaction.atomic():
+        current_designs = list(dossier.design_versions.filter(is_current=True))
+        for dv in current_designs:
+            if dv.state == DesignVersion.STATE_DRAFT:
+                dv.state = DesignVersion.STATE_APPROVED
+                dv.save(update_fields=['state', 'updated_at'])
+        if dossier.approved_design_version_id is None and current_designs:
+            dossier.approved_design_version = current_designs[0]
+        for sv in dossier.sample_versions.filter(is_current=True, state=SampleVersion.STATE_IN_PROGRESS):
+            sv.state = SampleVersion.STATE_SUBMITTED
+            sv.save(update_fields=['state', 'updated_at'])
+        _transition(
+            dossier, Status.SAMPLE_EVAL_PENDING, user, 'reopen_submitted',
+            f'{_name(user)} gửi duyệt lại bước cuối sau khi chỉnh.',
+            due_at=due_at,
+        )
+    nt.notify(
+        dossier.approver, dossier, nt.KIND_APPROVAL_REQUEST, 'Cần duyệt lại thiết kế',
+        f'{dossier.code} — {dossier.name}', actor=user,
+    )
+
+
+def _library_doc_text(record: Handover, dossier: ProductDevelopment) -> tuple[str, str, str]:
+    """Tên, mô tả và ảnh http lấy từ Thư viện tại thời điểm chuyển sản xuất."""
+    from kho_san_pham.catalog_models import ProductStyle
+    from kho_san_pham.models import Product
+
+    style = ProductStyle.objects.filter(code__iexact=record.product_code).first()
+    name = ((style.name if style else '') or dossier.name or record.product_code).strip()
+    products = list(Product.objects.filter(style_code__iexact=record.product_code).order_by('pk'))
+    parts = []
+    image = ''
+    for product in products:
+        text = (product.description or '').strip()
+        if text and text not in parts:
+            parts.append(text)
+        url = (product.image_url or '').strip()
+        if not image and url.startswith('http'):
+            image = url[:500]
+    description = '\n\n'.join(parts) if parts else _tech_doc_description(dossier)
+    return name[:255], description, image
 
 
 def transfer_to_production(record: Handover, user):
     """Thư viện chuyển sản phẩm sang Sản xuất: tạo hồ sơ sản phẩm SX và sao tệp."""
+    from kho_san_pham.library_release import style_transfer_block
     from san_xuat.models import ProductTechDoc
 
     dossier = record.dossier
     _require(dossier.status == Status.HANDED_OVER, 'Hồ sơ thiết kế không ở bước chờ chuyển sản xuất.')
     _require(not record.is_transferred, 'Sản phẩm đã được chuyển sang sản xuất.')
+    block = style_transfer_block(record.product_code)
+    _require(not block, block)
     _require(not ProductTechDoc.objects.filter(product_code__iexact=record.product_code).exists(),
              f'Mã {record.product_code} đã có hồ sơ sản phẩm bên Sản xuất.')
     pack = getattr(record.sample_version, 'tech_pack', None)
@@ -1115,13 +1433,15 @@ def transfer_to_production(record: Handover, user):
     if pack:
         main_line = pack.material_lines.filter(is_main=True).first()
         main_material = main_line.material_name if main_line else ''
+    product_name, description, image_url = _library_doc_text(record, dossier)
     with transaction.atomic():
         tech_doc = ProductTechDoc.objects.create(
             product_code=record.product_code,
-            product_name=dossier.name,
+            product_name=product_name,
+            product_image_url=image_url,
             season=dossier.collection[:80],
             main_material=main_material[:120],
-            description=_tech_doc_description(dossier),
+            description=description,
             created_by=user,
         )
         copied = _copy_files_to_tech_doc(dossier, tech_doc, user)
@@ -1256,6 +1576,14 @@ def update_roles(dossier: ProductDevelopment, user, *, assignments: dict[str, ob
         _require(len(people) <= 2, 'Chỉ chọn tối đa 2 người phụ trách chính.')
         assignments[Role.OWNER] = people[0]
         assignments['co_owner'] = people[1] if len(people) > 1 else None
+    for role, partner in ROLE_PARTNER.items():
+        form_name = f'{role}s'
+        if form_name not in assignments:
+            continue
+        people = list(assignments.pop(form_name) or [])
+        _require(len(people) <= 2, f'Chỉ chọn tối đa 2 người cho {Role(role).label}.')
+        assignments[role] = people[0] if people else None
+        assignments[partner] = people[1] if len(people) > 1 else None
     new_approver = assignments.get(Role.APPROVER, dossier.approver)
     if new_approver is not None and new_approver != dossier.approver:
         _require(perms.has_approve_permission(new_approver), 'Người duyệt được chọn không có quyền duyệt hồ sơ.')
@@ -1274,7 +1602,10 @@ def update_roles(dossier: ProductDevelopment, user, *, assignments: dict[str, ob
             changed.append(f'{Role(role).label}: {_name(old_user) or "—"} → {_name(new_user) or "—"}')
             if new_user is None:
                 continue
-            open_tasks = list(dossier.tasks.filter(state=Task.STATE_OPEN, role=role))
+            open_tasks = [
+                task for task in dossier.tasks.filter(state=Task.STATE_OPEN, role=role)
+                if task.assignee_id is None or task.assignee_id == getattr(old_user, 'pk', None)
+            ]
             if role == Role.OWNER and old_user is not None:
                 unassigned_roles = [r for r in DOSSIER_ROLE_FIELDS if r != Role.OWNER
                                     and getattr(dossier, f'{r}_id') is None]
@@ -1292,19 +1623,39 @@ def update_roles(dossier: ProductDevelopment, user, *, assignments: dict[str, ob
                           f'{dossier.code} — {dossier.name}', actor=user)
             if old_user is not None:
                 nt.invalidate_badges(old_user)
-        if 'co_owner' in assignments:
-            new_user = assignments['co_owner']
-            old_user = dossier.co_owner
-            if old_user != new_user:
-                dossier.co_owner = new_user
-                changed.append(
-                    f'Người phụ trách chính (2): {_name(old_user) or "—"} → {_name(new_user) or "—"}',
-                )
-                if new_user is not None and dossier.status != Status.DRAFT:
-                    nt.notify(new_user, dossier, nt.KIND_ASSIGNED, 'Bạn được giao: Người phụ trách chính',
-                              f'{dossier.code} — {dossier.name}', actor=user)
-                if old_user is not None:
+        partner_labels = {'co_owner': 'Người phụ trách chính'}
+        partner_labels.update({partner: Role(role).label for role, partner in ROLE_PARTNER.items()})
+        for field, label in partner_labels.items():
+            if field not in assignments:
+                continue
+            new_user = assignments[field]
+            old_user = getattr(dossier, field)
+            if old_user == new_user:
+                continue
+            setattr(dossier, field, new_user)
+            changed.append(f'{label} (2): {_name(old_user) or "—"} → {_name(new_user) or "—"}')
+            role = next((item for item, name in ROLE_PARTNER.items() if name == field), None)
+            if role and old_user is not None and (new_user is None or old_user.pk != new_user.pk):
+                if dossier.tasks.filter(
+                    state=Task.STATE_OPEN, role=role, assignee=old_user, is_main=False,
+                ).update(state=Task.STATE_CANCELLED, completed_at=timezone.now()):
                     nt.invalidate_badges(old_user)
+            opened = None
+            if role and new_user is not None and dossier.status not in (
+                Status.DRAFT, Status.PAUSED, Status.HANDED_OVER, *FINAL_STATUSES,
+            ):
+                spec = next((item for item in _step_tasks(dossier, dossier.status) if item.role == role), None)
+                if spec is not None:
+                    due = dossier.tasks.filter(state=Task.STATE_OPEN, role=role).values_list('due_at', flat=True).first()
+                    opened = _open_partner_task(
+                        dossier, role, actor=user, due_at=due or sla.due_at_for(dossier.status),
+                        revision=False, title=spec.title,
+                    )
+            if new_user is not None and dossier.status != Status.DRAFT and opened is None:
+                nt.notify(new_user, dossier, nt.KIND_ASSIGNED, f'Bạn được giao: {label}',
+                          f'{dossier.code} — {dossier.name}', actor=user)
+            if old_user is not None:
+                nt.invalidate_badges(old_user)
         if changed:
             dossier.save()
             log(dossier, user, 'roles_updated', f'{_name(user)} đổi nhân sự: ' + '; '.join(changed) + '.')
@@ -1340,30 +1691,36 @@ def _upload_allowed(dossier, user, kind: str, design_version, sample_version) ->
     if design_version is not None:
         if _approved_design_editable(dossier, design_version):
             return '' if perms.has_role(dossier, user, Role.DESIGNER, Role.OWNER) else 'Chỉ Thiết kế / R&D tải tệp thiết kế.'
-        if not design_version.is_editable or dossier.status not in (Status.DESIGNING, Status.DESIGN_REVISE):
+        if not design_version.is_editable or dossier.status not in (
+            Status.DESIGNING, Status.DESIGN_REVISE, Status.LIBRARY_REOPEN,
+        ):
             return 'Phiên bản thiết kế đã gửi duyệt hoặc lưu trữ — không thêm tệp được.'
         return '' if perms.has_role(dossier, user, Role.DESIGNER, Role.OWNER) else 'Chỉ Thiết kế / R&D tải tệp thiết kế.'
     if sample_version is not None:
         if not sample_version.is_current:
             return 'Mẫu đã lưu trữ — không thêm tệp được.'
+        tech_file = kind in (AttachmentKind.TECH_SPEC, AttachmentKind.PATTERN)
         if _approved_sample_editable(dossier, sample_version):
             if kind == AttachmentKind.EVALUATION:
                 return 'Không thêm biên bản đánh giá sau khi hồ sơ đã duyệt.'
-            roles = (Role.TECHNICIAN, Role.OWNER) if kind == AttachmentKind.TECH_SPEC else (
+            roles = (Role.TECHNICIAN, Role.OWNER) if tech_file else (
                 Role.SAMPLE_MAKER, Role.TECHNICIAN, Role.OWNER)
             return '' if perms.has_role(dossier, user, *roles) else 'Bạn không phụ trách phần việc này.'
         if kind == AttachmentKind.EVALUATION:
-            if dossier.status != Status.SAMPLE_EVAL_PENDING:
-                return 'Chỉ tải biên bản đánh giá khi mẫu đang chờ đánh giá.'
+            if dossier.status not in DESIGN_APPROVAL_STATUSES:
+                return 'Chỉ tải biên bản đánh giá khi hồ sơ đang làm mẫu hoặc chờ duyệt thiết kế.'
             return '' if evaluator_roles_for(dossier, user) else 'Bạn không tham gia đánh giá mẫu.'
-        if not sample_version.is_editable or dossier.status not in (Status.SAMPLING, Status.SAMPLE_REVISE):
+        allowed = TECH_EDIT_STATUSES if tech_file else (
+            Status.SAMPLING, Status.SAMPLE_REVISE, Status.LIBRARY_REOPEN,
+        )
+        if not sample_version.is_editable or dossier.status not in allowed:
             return 'Mẫu đã gửi đánh giá — không thêm ảnh / tài liệu kỹ thuật được.'
-        roles = (Role.TECHNICIAN, Role.OWNER) if kind == AttachmentKind.TECH_SPEC else (
+        roles = (Role.TECHNICIAN, Role.OWNER) if tech_file else (
             Role.SAMPLE_MAKER, Role.TECHNICIAN, Role.OWNER)
         return '' if perms.has_role(dossier, user, *roles) else 'Bạn không phụ trách phần việc này.'
     if kind == AttachmentKind.REFERENCE:
         if dossier.status in (*FINAL_STATUSES, Status.HANDED_OVER):
-            return 'Hồ sơ đã bàn giao, hủy hoặc đóng — không bổ sung tài liệu tham khảo.'
+            return 'Hồ sơ đã thêm vào Thư viện, hủy hoặc đóng — không bổ sung tài liệu tham khảo.'
         return '' if perms.has_role(dossier, user, Role.PROPOSER, Role.OWNER) else 'Chỉ người đề xuất / phụ trách.'
     if kind == AttachmentKind.COST:
         if dossier.is_locked and not test_edit_after_approval(dossier):
@@ -1377,7 +1734,9 @@ def can_upload(dossier, user, kind: str, design_version=None, sample_version=Non
 
 
 def upload_attachment(dossier: ProductDevelopment, user, *, uploaded_file, kind: str, design_version=None,
-                      sample_version=None, colorway=None, note: str = '') -> Attachment:
+                      sample_version=None, colorway=None, note: str = '', tab: str = '') -> Attachment:
+    from thiet_ke_sp.services.nas_layout import ensure_dossier_folders, folder_for_kind, folder_for_tab
+
     _require(kind in AttachmentKind.values, 'Loại tệp không hợp lệ.')
     reason = _upload_allowed(dossier, user, kind, design_version, sample_version)
     _require(not reason, reason)
@@ -1386,6 +1745,10 @@ def upload_attachment(dossier: ProductDevelopment, user, *, uploaded_file, kind:
     if kind == AttachmentKind.COLORWAY:
         _require(colorway is not None and design_version is not None and colorway.design_version_id == design_version.pk,
                  'Chọn colorway cho ảnh.')
+    try:
+        ensure_dossier_folders(dossier)
+    except OSError:
+        pass
     with transaction.atomic():
         if kind in SINGLE_CURRENT_KINDS:
             Attachment.objects.filter(
@@ -1397,6 +1760,7 @@ def upload_attachment(dossier: ProductDevelopment, user, *, uploaded_file, kind:
             colorway=colorway, kind=kind, note=note[:255], uploaded_by=user,
             original_name=os.path.basename(uploaded_file.name)[:255], size=uploaded_file.size or 0,
         )
+        att.nas_folder = folder_for_tab(tab) or folder_for_kind(kind)
         att.file.save(uploaded_file.name, uploaded_file, save=False)
         att.save()
         scope = design_version.label if design_version else (sample_version.label if sample_version else 'hồ sơ')
@@ -1557,7 +1921,5 @@ def update_task_due(task: Task, user, *, due_at) -> None:
 
 
 def delete_draft(dossier: ProductDevelopment, user) -> None:
-    _require(dossier.status == Status.DRAFT, 'Chỉ xóa được hồ sơ nháp.')
-    _require(perms.can_delete(user) and perms.has_role(dossier, user, Role.PROPOSER, Role.OWNER),
-             'Bạn không có quyền xóa hồ sơ nháp này.')
+    _require(perms.can_view_dossier(dossier, user), 'Bạn không có quyền xóa hồ sơ này.')
     dossier.delete()

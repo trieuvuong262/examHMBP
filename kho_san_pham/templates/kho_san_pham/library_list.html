@@ -25,7 +25,8 @@
 
     <div class="tk-lib-grid">
       {% for r in items %}
-      <a class="tk-lib-card" href="{% url 'kho_san_pham:library_detail' r.style_code %}">
+      <article class="tk-lib-card">
+      <a class="tk-lib-main" href="{% url 'kho_san_pham:library_detail' r.style_code %}">
         <div class="tk-lib-art">
           {% if not r.style_active %}<span class="status tk-pill is-gray">Ngừng dùng</span>
           {% elif r.transferred %}<span class="status tk-pill is-green">Đã chuyển SX</span>
@@ -50,6 +51,14 @@
           </div>
         </div>
       </a>
+      {% if can_update and r.can_transfer %}
+      <div class="tk-lib-actions">
+        <form method="post" action="{% url 'kho_san_pham:library_transfer' r.style_code %}" onsubmit="return confirm('Chuyển {{ r.style_code }} sang sản xuất theo tên, mô tả và SKU đang có trong Thư viện?');">{% csrf_token %}
+          <button type="submit" class="btn btn-hm btn-sm fw-bold w-100"><i class="bi bi-box-arrow-right"></i>Chuyển sang sản xuất</button>
+        </form>
+      </div>
+      {% endif %}
+      </article>
       {% empty %}
       <div class="tk-card tk-panel text-muted" style="grid-column:1/-1">Không có Style phù hợp. Sản phẩm vào Thư viện khi hồ sơ Thiết kế được bàn giao; hàng hiện có xem ở <a href="{% url 'kho_san_pham:product_list' %}">Danh mục SKU</a>.</div>
       {% endfor %}

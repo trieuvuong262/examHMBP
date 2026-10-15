@@ -9,8 +9,10 @@
     <span class="tk-pill {% if sv.state == 'passed' %}is-green{% elif sv.state == 'submitted' %}is-amber{% elif sv.state == 'failed' %}is-red{% else %}is-blue{% endif %}">{{ sv.get_state_display }}</span>
     <span class="tk-section-sub">theo thiết kế {{ sv.design_version.label }}</span>
     <span class="ms-auto d-flex gap-1">
+      {% if flags.submit_sample %}<button type="button" class="btn btn-sm btn-hm text-white fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalSubmitSample">Gửi duyệt thiết kế</button>{% endif %}
       {% if flags.submit_master %}<button type="button" class="btn btn-sm btn-hm text-white fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalSubmitMaster">Trình duyệt mẫu chuẩn</button>{% endif %}
       {% if flags.request_fix %}<button type="button" class="btn btn-sm btn-outline-danger fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalSampleFix">Yêu cầu sửa mẫu</button>{% endif %}
+      {% if flags.request_technical %}<button type="button" class="btn btn-sm btn-outline-danger fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalTechnicalChange">Yêu cầu chỉnh kỹ thuật</button>{% endif %}
       {% if flags.request_design_change %}<button type="button" class="btn btn-sm btn-outline-danger fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalDesignChange">Yêu cầu chỉnh thiết kế</button>{% endif %}
     </span>
   </div>

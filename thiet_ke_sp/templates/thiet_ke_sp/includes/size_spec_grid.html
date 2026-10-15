@@ -1,0 +1,18 @@
+{% load tksp_tags %}
+<div class="tk-size-block">
+  <div class="tk-sub">Bảng thông số kích thước</div>
+  <p class="tk-size-hint">Size có nội dung sẽ là size của sản phẩm khi thêm vào Thư viện.</p>
+  <div class="tk-size-grid">
+    {% size_spec_cells spec as cells %}
+    {% for cell in cells %}
+    <div class="tk-size-cell">
+      <label for="id_size_{{ cell.code }}">{{ cell.code }}</label>
+      {% if editable %}
+      <input id="id_size_{{ cell.code }}" type="text" name="size_note_{{ cell.code }}" class="form-control form-control-sm" value="{{ cell.note }}" maxlength="255">
+      {% else %}
+      <span class="v">{{ cell.note|default:'—' }}</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>

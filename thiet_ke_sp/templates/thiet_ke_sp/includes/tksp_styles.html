@@ -68,6 +68,32 @@
 .jp-tksp .tk-progress.is-amber i { background: var(--tk-amber); }
 .jp-tksp .tk-progress.is-red i { background: var(--tk-red); }
 .jp-tksp .tk-progress.is-green i { background: var(--tk-green); }
+.jp-tksp .tk-steps { display: flex; align-items: center; gap: 0; margin: 0; padding: 0; list-style: none; }
+.jp-tksp .tk-steps li { position: relative; display: flex; align-items: center; }
+.jp-tksp .tk-steps li + li::before { content: ''; width: .85rem; height: 2px; background: #e2e8f0; }
+.jp-tksp .tk-steps li.is-done + li::before,
+.jp-tksp .tk-steps li.is-done + li.is-current::before,
+.jp-tksp .tk-steps li.is-done + li.is-closed::before { background: #10b981; }
+.jp-tksp .tk-steps .dot {
+  width: .7rem; height: .7rem; border-radius: 50%; background: #fff; border: 2px solid #cbd5e1; display: block;
+}
+.jp-tksp .tk-steps li.is-done .dot { background: #10b981; border-color: #10b981; }
+.jp-tksp .tk-steps li.is-current .dot { border-color: #2563eb; background: #2563eb; box-shadow: 0 0 0 3px #dbeafe; }
+.jp-tksp .tk-steps li.is-closed .dot { border-color: #94a3b8; background: #94a3b8; position: relative; }
+.jp-tksp .tk-steps li.is-closed .dot::after {
+  content: '×'; position: absolute; inset: -.28rem 0 0; color: #fff; font-size: .62rem; font-weight: 700; text-align: center; line-height: .7rem;
+}
+.jp-tksp .tk-stage {
+  display: inline-flex; align-items: center; gap: .25rem; padding: .15rem .5rem; border-radius: 999px;
+  font-size: .72rem; font-weight: 600; line-height: 1.4; border: 1px solid transparent; white-space: nowrap;
+}
+.jp-tksp .tk-stage.is-gray { background: #f1f5f9; color: #334155; border-color: #e2e8f0; }
+.jp-tksp .tk-stage.is-blue { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+.jp-tksp .tk-stage.is-amber { background: #fffbeb; color: #a16207; border-color: #fde68a; }
+.jp-tksp .tk-stage.is-green { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+.jp-tksp .tk-stage.is-red { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+.jp-tksp .tk-stage.is-purple { background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe; }
+.jp-tksp .tk-stage.is-dark { background: #f8fafc; color: #64748b; border-color: #e2e8f0; }
 .jp-tksp .tk-late { color: var(--tk-red); font-weight: 800; }
 
 /* Bộ lọc dạng thanh công cụ */
@@ -79,25 +105,59 @@
 .jp-tksp .tk-chips { display: flex; flex-wrap: wrap; gap: .35rem; }
 .jp-tksp .tk-chips .btn { border-radius: 999px; }
 
-/* Header chi tiết */
-.jp-tksp .tk-hero { background: linear-gradient(120deg, var(--tk-navy), var(--tk-navy2)); color: #fff; border-radius: 18px; padding: 1.15rem 1.3rem; position: relative; overflow: hidden; }
-.jp-tksp .tk-hero::after { content: ""; position: absolute; width: 260px; height: 260px; border: 52px solid rgba(220, 38, 38, .14); border-radius: 50%; right: -115px; top: -130px; pointer-events: none; }
-.jp-tksp .tk-hero-meta { display: flex; flex-wrap: wrap; gap: 1.4rem 1.8rem; margin-top: 1rem; position: relative; z-index: 1; }
-.jp-tksp .tk-hero-meta small { display: block; color: #91a6c0; font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; font-weight: 700; }
-.jp-tksp .tk-hero-meta b { font-size: .82rem; color: #fff; }
-.jp-tksp .tk-hero-main { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 1rem; align-items: center; position: relative; z-index: 1; }
-.jp-tksp .tk-hero-main.is-2 { grid-template-columns: minmax(0, 1fr) auto; }
-.jp-tksp .tk-hero-thumb { width: 72px; height: 82px; border-radius: var(--tk-radius); overflow: hidden; display: grid; place-items: center; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .18); font-size: 1.8rem; color: rgba(255, 255, 255, .55); }
-.jp-tksp .tk-hero-thumb img { width: 100%; height: 100%; object-fit: cover; }
-.jp-tksp .tk-hero-code { font-size: .72rem; color: #9fb0c5; font-weight: 700; letter-spacing: .03em; }
-.jp-tksp .tk-hero h1 { font-size: 1.35rem; font-weight: 800; margin: .3rem 0 .2rem; color: #fff; }
-.jp-tksp .tk-hero-sub { margin: 0; color: #aebfd2; font-size: .85rem; }
-.jp-tksp .tk-hero .tk-pill.is-gray { background: rgba(255, 255, 255, .14); color: #e5e5e5; }
-.jp-tksp .tk-hero-actions { display: flex; flex-wrap: wrap; gap: .45rem; justify-content: flex-end; align-items: center; }
-.jp-tksp .tk-hero-actions form { display: inline-flex; margin: 0; }
-.jp-tksp .btn-tk-ghost { background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .24); color: #fff; }
-.jp-tksp .btn-tk-ghost:hover, .jp-tksp .btn-tk-ghost:focus { background: rgba(255, 255, 255, .16); border-color: rgba(255, 255, 255, .4); color: #fff; }
-.jp-tksp .tk-hero-actions .btn { display: inline-flex; align-items: center; justify-content: center; gap: .3rem; line-height: 1; }
+/* Hồ sơ chi tiết */
+.jp-tksp.jp-sx-page .jp-npl-mat-topbar.jp-sx-detail-topbar { flex-wrap: wrap; align-items: center; }
+.jp-tksp .tk-detail-tools { flex-wrap: wrap; justify-content: flex-end; row-gap: .4rem; max-width: 100%; }
+.jp-tksp .tk-detail-tools form { display: inline-flex; margin: 0; }
+.jp-tksp .tk-detail-tools .btn,
+.jp-sx-module .jp-tksp .tk-tabs-head .jp-portal-pills .nav-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0 !important;
+  padding: 0.5rem 1.25rem !important;
+  color: #475569 !important;
+  background: #fff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: var(--jp-btn-radius) !important;
+  font-size: 0.8125rem !important;
+  font-weight: 400 !important;
+  letter-spacing: normal;
+  line-height: 1.25;
+  box-shadow: none !important;
+  transform: none;
+}
+.jp-tksp .tk-detail-tools .btn:hover,
+.jp-sx-module .jp-tksp .tk-tabs-head .jp-portal-pills .nav-link:hover {
+  color: var(--hm-primary) !important;
+  background: var(--hm-primary-soft) !important;
+  border-color: rgba(220, 38, 38, 0.25) !important;
+  transform: none;
+}
+.jp-tksp .tk-detail-tools .btn-hm,
+.jp-tksp .tk-detail-tools .btn-hm:hover,
+.jp-tksp .tk-detail-tools .btn-hm:focus,
+.jp-sx-module .jp-tksp .tk-tabs-head .jp-portal-pills .nav-link.active,
+.jp-sx-module .jp-tksp .tk-tabs-head .jp-portal-pills .nav-link.active:hover {
+  background: var(--hm-primary) !important;
+  border-color: var(--hm-primary) !important;
+  color: #fff !important;
+}
+.jp-tksp .tk-sheet { background: var(--tk-surface); border: 1px solid var(--tk-line); border-radius: var(--tk-radius); overflow: hidden; }
+.jp-tksp .tk-sheet-main {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 1rem; align-items: center;
+  padding: 1.05rem 1.15rem .95rem;
+  background: linear-gradient(180deg, #f7f8fa 0%, #e8edf2 100%);
+}
+.jp-tksp .tk-sheet-thumb { width: 84px; height: 96px; border-radius: 12px; overflow: hidden; display: grid; place-items: center; background: #fff; border: 1px solid rgba(15, 23, 42, .08); box-shadow: 0 1px 2px rgba(15, 23, 42, .04); color: var(--tk-muted); font-size: 1.6rem; }
+.jp-tksp .tk-sheet-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.jp-tksp .tk-sheet-kicker { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; }
+.jp-tksp .tk-sheet-code { font-size: .75rem; font-weight: 700; color: var(--tk-muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.jp-tksp .tk-sheet h1 { font-size: 1.35rem; font-weight: 800; letter-spacing: -.02em; margin: .35rem 0 .15rem; line-height: 1.25; }
+.jp-tksp .tk-sheet-meta { display: flex; flex-wrap: wrap; gap: .2rem .9rem; margin-top: .35rem; }
+.jp-tksp .tk-sheet-meta span { font-size: .78rem; color: var(--tk-muted); }
+.jp-tksp .tk-sheet-meta b { color: var(--bs-body-color); font-weight: 700; }
+.jp-tksp .tk-sheet .tk-stepper { border: 0; border-top: 1px solid var(--tk-line); border-radius: 0; margin: 0; background: #fff; }
 
 /* Thanh 8 bước */
 .jp-tksp .tk-stepper { background: var(--tk-surface); border: 1px solid var(--tk-line); border-radius: var(--tk-radius); padding: 1rem 1.1rem .8rem; display: flex; overflow-x: auto; }
@@ -141,6 +201,10 @@
 .jp-tksp .tk-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.5rem; }
 .jp-tksp .tk-grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 1.25rem; }
 .jp-tksp .tk-sub { font-size: .82rem; font-weight: 850; margin: 0 0 .4rem; }
+.jp-tksp .tk-size-hint { margin: 0 0 .55rem; font-size: .75rem; color: var(--tk-muted); }
+.jp-tksp .tk-size-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: .55rem; }
+.jp-tksp .tk-size-cell label { display: block; margin: 0 0 .2rem; font-size: .72rem; font-weight: 800; letter-spacing: .03em; }
+.jp-tksp .tk-size-cell .v { display: block; min-height: 31px; padding: .3rem .45rem; border: 1px solid var(--tk-line); border-radius: 6px; background: var(--tk-surface-2); font-size: .8rem; white-space: pre-line; }
 .jp-tksp .tk-field { border-bottom: 1px dashed var(--tk-line); padding: .5rem 0; }
 .jp-tksp .tk-field label { display: block; color: var(--tk-muted); font-size: .66rem; text-transform: uppercase; letter-spacing: .04em; font-weight: 700; margin: 0; }
 .jp-tksp .tk-field strong, .jp-tksp .tk-field .v { display: block; margin-top: .15rem; font-weight: 650; white-space: pre-line; }
@@ -192,9 +256,9 @@
 .jp-tksp .tk-version-preview { height: 62px; border-radius: 6px; overflow: hidden; display: grid; place-items: center; background: var(--tk-dark); color: rgba(255, 255, 255, .6); font-size: 1.3rem; }
 .jp-tksp .tk-version-preview img { width: 100%; height: 100%; object-fit: cover; }
 .jp-tksp .tk-version-preview .tk-thumb-zoom,
-.jp-tksp .tk-hero-thumb .tk-thumb-zoom,
+.jp-tksp .tk-sheet-thumb .tk-thumb-zoom,
 .jp-tksp .tk-option-thumb.tk-thumb-zoom { height: 100%; }
-.jp-tksp .tk-hero-thumb .tk-thumb-zoom img,
+.jp-tksp .tk-sheet-thumb .tk-thumb-zoom img,
 .jp-tksp .tk-option-thumb.tk-thumb-zoom img { width: 100%; height: 100%; object-fit: cover; }
 .jp-tksp .tk-version b { font-size: .86rem; }
 .jp-tksp .tk-version p { margin: .1rem 0; font-size: .78rem; color: var(--tk-muted); }
@@ -333,8 +397,12 @@ body.tk-kan-dragging, body.tk-kan-dragging * { cursor: grabbing !important; user
 
 /* Thư viện — lưới thẻ */
 .jp-tksp .tk-lib-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .85rem; }
-.jp-tksp .tk-lib-card { display: block; border: 1px solid var(--tk-line); border-radius: 13px; background: var(--tk-surface); overflow: hidden; color: inherit; text-decoration: none; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.jp-tksp .tk-lib-card { display: flex; flex-direction: column; border: 1px solid var(--tk-line); border-radius: 13px; background: var(--tk-surface); overflow: hidden; color: inherit; text-decoration: none; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.jp-tksp a.tk-lib-main { display: block; color: inherit; text-decoration: none; flex: 1; }
 .jp-tksp .tk-lib-card:hover { color: inherit; border-color: var(--tk-accent); transform: translateY(-3px); box-shadow: 0 10px 24px rgba(7, 24, 47, .08); }
+.jp-tksp .tk-lib-card:hover a.tk-lib-main { color: inherit; }
+.jp-tksp .tk-lib-actions { padding: 0 .8rem .8rem; }
+.jp-tksp .tk-lib-actions form { margin: 0; }
 .jp-tksp .tk-lib-art { height: 168px; background: linear-gradient(145deg, #f1f4f6, #dfe6eb); display: grid; place-items: center; position: relative; color: #94a3b8; font-size: 2rem; }
 .jp-tksp .tk-lib-art img { width: 100%; height: 100%; object-fit: cover; }
 .jp-tksp .tk-lib-art .status { position: absolute; left: .55rem; top: .55rem; }
@@ -403,7 +471,26 @@ body.tk-kan-dragging, body.tk-kan-dragging * { cursor: grabbing !important; user
 [data-theme="dark"] .jp-tksp .tk-pill.is-amber, [data-theme="dark"] .jp-tksp .tk-miss { color: #fcd34d; }
 [data-theme="dark"] .jp-tksp .tk-pill.is-red, [data-theme="dark"] .jp-tksp .tk-late, [data-theme="dark"] .jp-tksp .tk-bad { color: #fca5a5; }
 [data-theme="dark"] .jp-tksp .tk-pill.is-purple { color: #c4b5fd; }
-[data-theme="dark"] .jp-tksp .tk-hero, [data-theme="dark"] .jp-tksp .tk-prod-thumb, [data-theme="dark"] .jp-tksp .tk-version-preview, [data-theme="dark"] .jp-tksp .tk-bar { border: 1px solid rgba(255, 255, 255, .08); }
+[data-theme="dark"] .jp-tksp .tk-steps li + li::before { background: #334155; }
+[data-theme="dark"] .jp-tksp .tk-steps .dot { background: #0f172a; border-color: #64748b; }
+[data-theme="dark"] .jp-tksp .tk-steps li.is-current .dot { box-shadow: 0 0 0 3px rgba(37, 99, 235, .35); }
+[data-theme="dark"] .jp-tksp .tk-stage.is-gray,
+[data-theme="dark"] .jp-tksp .tk-stage.is-dark { background: #1e293b; color: #cbd5e1; border-color: #334155; }
+[data-theme="dark"] .jp-tksp .tk-stage.is-blue { background: rgba(37, 99, 235, .18); color: #93c5fd; border-color: #1d4ed8; }
+[data-theme="dark"] .jp-tksp .tk-stage.is-amber { background: rgba(180, 83, 9, .18); color: #fcd34d; border-color: #b45309; }
+[data-theme="dark"] .jp-tksp .tk-stage.is-green { background: rgba(4, 120, 87, .2); color: #86efac; border-color: #047857; }
+[data-theme="dark"] .jp-tksp .tk-stage.is-red { background: rgba(185, 28, 28, .2); color: #fca5a5; border-color: #b91c1c; }
+[data-theme="dark"] .jp-tksp .tk-stage.is-purple { background: rgba(109, 40, 217, .2); color: #c4b5fd; border-color: #6d28d9; }
+[data-theme="dark"] .jp-tksp .tk-sheet, [data-theme="dark"] .jp-tksp .tk-prod-thumb, [data-theme="dark"] .jp-tksp .tk-version-preview, [data-theme="dark"] .jp-tksp .tk-bar { border: 1px solid rgba(255, 255, 255, .08); }
+[data-theme="dark"] .jp-sx-module .jp-tksp .tk-tabs-head .jp-portal-pills .nav-link:not(.active),
+[data-theme="dark"] .jp-tksp .tk-detail-tools .btn:not(.btn-hm) {
+  background: var(--jp-surface-bg) !important;
+  color: var(--jp-text-secondary) !important;
+  border-color: var(--jp-surface-border) !important;
+}
+[data-theme="dark"] .jp-tksp .tk-sheet-main { background: linear-gradient(180deg, #1c2430 0%, #151b24 100%); }
+[data-theme="dark"] .jp-tksp .tk-sheet .tk-stepper { background: transparent; }
+[data-theme="dark"] .jp-tksp .tk-sheet-thumb { background: #0f172a; border-color: rgba(255, 255, 255, .08); }
 
 @media (max-width: 1199.98px) {
   .jp-tksp .tk-kpis, .jp-tksp .tk-cost-summary, .jp-tksp .tk-lib-grid, .jp-tksp .tk-launch-strip, .jp-tksp .tk-prod-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -415,10 +502,7 @@ body.tk-kan-dragging, body.tk-kan-dragging * { cursor: grabbing !important; user
 }
 @media (max-width: 767.98px) {
   .jp-tksp .tk-kpis, .jp-tksp .tk-cost-summary, .jp-tksp .tk-grid2, .jp-tksp .tk-grid3, .jp-tksp .tk-rail, .jp-tksp .tk-lib-grid, .jp-tksp .tk-launch-strip, .jp-tksp .tk-prod-grid, .jp-tksp .tk-streams { grid-template-columns: minmax(0, 1fr); }
-  .jp-tksp .tk-hero-main { grid-template-columns: auto minmax(0, 1fr); }
-  .jp-tksp .tk-hero-actions { grid-column: 1 / -1; justify-content: stretch; }
-  .jp-tksp .tk-hero-actions .btn { flex: 1; }
-  .jp-tksp .tk-hero-thumb { width: 58px; height: 66px; }
+  .jp-tksp .tk-sheet-thumb { width: 64px; height: 74px; }
   .jp-tksp .tk-pipeline { min-width: 420px; }
   .jp-tksp .tk-toolbar .tk-search { max-width: none; }
 }

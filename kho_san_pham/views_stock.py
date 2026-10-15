@@ -149,7 +149,9 @@ def _kv_column_sets(wh_scope: str) -> tuple[list[dict], list[dict], list[dict], 
 def _stock_product_queryset(request):
     search_query = get_search_query(request)
     status = _list_status(request)
-    qs = Product.objects.all()
+    from kho_san_pham.library_release import exclude_held_library_products
+
+    qs = exclude_held_library_products(Product.objects.all())
     if status == 'active':
         qs = qs.filter(is_active=True)
     elif status == 'inactive':

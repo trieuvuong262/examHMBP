@@ -6,13 +6,13 @@
   <nav class="jp-sx-tools" aria-label="Công cụ">
     {% if tk_form_id %}
     <button type="submit" form="{{ tk_form_id }}" name="submit_action" value="save" class="btn btn-outline-secondary btn-sm fw-bold"><i class="bi bi-save" aria-hidden="true"></i>{{ tk_save_label|default:'Lưu nháp' }}</button>
-    {% if tk_show_submit != 'no' %}<button type="submit" form="{{ tk_form_id }}" name="submit_action" value="submit" class="btn btn-hm btn-sm fw-bold text-white"><i class="bi bi-send" aria-hidden="true"></i>Gửi duyệt đề bài</button>{% endif %}
+    {% if tk_show_submit != 'no' %}<button type="submit" form="{{ tk_form_id }}" name="submit_action" value="submit" class="btn btn-hm btn-sm fw-bold text-white"><i class="bi bi-send" aria-hidden="true"></i>Chuyển sang thiết kế</button>{% endif %}
     {% if back_url %}<span class="sep" aria-hidden="true"></span>{% endif %}
     {% endif %}
     {% if back_url %}
     <a href="{{ back_url }}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>{{ back_label|default:'Quay lại' }}</a>
     {% endif %}
-    {% if not tk_form_id %}
+    {% if not tk_form_id and tk_nav != 'off' %}
     {% if tksp_menu.dashboard and tk_active != 'dashboard' %}<a href="{% url 'thiet_ke_sp:dashboard' %}"><i class="bi bi-grid-1x2" aria-hidden="true"></i>Tổng quan</a>{% endif %}
     {% if tksp_menu.dossiers and tk_active != 'list' %}<a href="{% url 'thiet_ke_sp:list' %}"><i class="bi bi-journal-richtext" aria-hidden="true"></i>Hồ sơ sản phẩm</a>{% endif %}
     {% if tksp_menu.kanban and tk_active != 'kanban' %}<a href="{% url 'thiet_ke_sp:kanban' %}"><i class="bi bi-kanban" aria-hidden="true"></i>Tiến độ Kanban</a>{% endif %}

@@ -1,10 +1,10 @@
 {% load tksp_tags %}
 {% if flags.submit_brief %}
-{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalSubmitBrief' modal_action='submit_brief' modal_title='Gửi duyệt đề bài' %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalSubmitBrief' modal_action='submit_brief' modal_title='Chuyển sang thiết kế' %}
   {% include 'thiet_ke_sp/includes/checklist_block.html' with items=checklist %}
-  <div class="small my-2">Người duyệt: <strong>{{ dossier.approver|uname }}</strong></div>
-  {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.brief_pending due_label_text='Hạn duyệt đề bài' %}
-{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Gửi duyệt' %}
+  <div class="small my-2">Người duyệt ở bước sau: <strong>{{ dossier.approver|uname }}</strong></div>
+  {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.designing due_label_text='Hạn thiết kế' %}
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Chuyển sang thiết kế' %}
 {% endif %}
 
 {% if flags.decide_brief %}
@@ -14,10 +14,25 @@
 {% endif %}
 
 {% if flags.submit_design %}
-{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalSubmitDesign' modal_action='design_submit' modal_title='Gửi duyệt thiết kế '|add:design_scope %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalSubmitDesign' modal_action='design_submit' modal_title='Chuyển kỹ thuật' %}
+  {% if current_dvs|length > 1 %}
+  <div class="fw-bold small mb-1">Chọn phương án chuyển kỹ thuật <span class="text-danger">*</span></div>
+  {% for dv in current_dvs %}
+  <label class="form-check"><input class="form-check-input" type="radio" name="option_id" value="{{ dv.pk }}" {% if forloop.first %}checked{% endif %}> <span class="form-check-label">{{ dv.tag }}</span></label>
+  {% endfor %}
+  <p class="small text-muted mt-2 mb-2">Phương án không chọn sẽ đóng. Chỉ phương án được chọn cần đủ ảnh 2 mặt, colorway và file thiết kế gốc.</p>
+  {% else %}
   {% include 'thiet_ke_sp/includes/checklist_block.html' with items=checklist %}
-  {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.design_pending due_label_text='Hạn duyệt thiết kế' %}
-{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Gửi duyệt' %}
+  {% endif %}
+  {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.technical due_label_text='Hạn kỹ thuật' %}
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Chuyển kỹ thuật' %}
+{% endif %}
+
+{% if flags.submit_technical %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalSubmitTechnical' modal_action='technical_submit' modal_title='Chuyển làm mẫu' %}
+  <p class="small text-muted mb-2">Rập, thông số và BOM giữ nguyên sang bước làm mẫu. Kỹ thuật vẫn sửa được BOM khi đang làm mẫu.</p>
+  {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.sampling due_label_text='Hạn làm mẫu' %}
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Chuyển làm mẫu' %}
 {% endif %}
 
 {% if flags.add_design_option %}
@@ -36,6 +51,14 @@
 {% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Ghi nhận quyết định' %}
 {% endif %}
 
+{% if flags.request_technical %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalTechnicalChange' modal_action='technical_change' modal_title='Yêu cầu chỉnh kỹ thuật — mẫu '|add:current_sv.label %}
+  <label class="form-label fw-bold small mb-1">Nội dung cần chỉnh kỹ thuật <span class="text-danger">*</span></label>
+  <textarea name="comment" class="form-control form-control-sm mb-2" rows="4" required></textarea>
+  {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.technical_revise due_label_text='Hạn chỉnh kỹ thuật' %}
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Yêu cầu chỉnh' submit_class='btn-danger' %}
+{% endif %}
+
 {% if flags.request_design_change %}
 {% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalDesignChange' modal_action='design_change' modal_title='Yêu cầu chỉnh thiết kế — mẫu '|add:current_sv.label %}
   <label class="form-label fw-bold small mb-1">Nội dung cần chỉnh thiết kế <span class="text-danger">*</span></label>
@@ -45,12 +68,12 @@
 {% endif %}
 
 {% if flags.submit_sample %}
-{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalSubmitSample' modal_action='sample_submit' modal_title='Hoàn thành mẫu '|add:current_sv.label %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalSubmitSample' modal_action='sample_submit' modal_title='Gửi duyệt thiết kế — mẫu '|add:current_sv.label %}
   {% if not flags.full_access %}
   <div class="small mb-2 {% if current_sv.photos %}text-success{% else %}text-danger{% endif %}"><i class="bi {% if current_sv.photos %}bi-check-circle-fill{% else %}bi-x-circle{% endif %} me-1"></i>Ảnh mẫu thực tế ({{ current_sv.photos|length }})</div>
   {% endif %}
-  {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.sample_eval_pending due_label_text='Hạn đánh giá mẫu' %}
-{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Gửi đánh giá' %}
+  {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.sample_eval_pending due_label_text='Hạn duyệt thiết kế' %}
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Gửi duyệt' %}
 {% endif %}
 
 {% if flags.submit_master %}
@@ -69,13 +92,14 @@
 {% endif %}
 
 {% if flags.decide_master %}
-{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalMaster' modal_action='master_decide' modal_title='Duyệt mẫu chuẩn '|add:current_sv.label modal_size='modal-xl' %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalMaster' modal_action='master_decide' modal_title='Duyệt thiết kế '|add:current_sv.label modal_size='modal-xl' %}
   <div class="row g-3">
     <div class="col-lg-4">
       {% include 'thiet_ke_sp/includes/checklist_block.html' with items=checklist %}
       <div class="d-flex flex-column gap-1 my-3">
-        <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="approved" data-due="{{ sla_due.approved|due_input }}" data-tk-show="#tkMasterApproveBox" checked> <span class="form-check-label">Duyệt sản xuất</span></label>
+        <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="approved" data-due="{{ sla_due.approved|due_input }}" data-tk-show="#tkMasterApproveBox" checked> <span class="form-check-label">Duyệt thiết kế</span></label>
         <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="request_fix" data-due="{{ sla_due.sample_revise|due_input }}" data-tk-hide="#tkMasterApproveBox" data-comment-required="1" data-comment-label="Nội dung cần sửa mẫu"> <span class="form-check-label">Yêu cầu sửa mẫu</span></label>
+        <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="request_technical" data-due="{{ sla_due.technical_revise|due_input }}" data-tk-hide="#tkMasterApproveBox" data-comment-required="1" data-comment-label="Nội dung cần chỉnh kỹ thuật"> <span class="form-check-label">Yêu cầu chỉnh kỹ thuật</span></label>
         <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="request_design" data-due="{{ sla_due.design_revise|due_input }}" data-tk-hide="#tkMasterApproveBox" data-comment-required="1" data-comment-label="Nội dung cần chỉnh thiết kế"> <span class="form-check-label">Yêu cầu chỉnh thiết kế</span></label>
         <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="cancelled" data-due="" data-tk-hide="#tkMasterApproveBox" data-comment-required="1" data-comment-label="Lý do hủy"> <span class="form-check-label text-danger">Hủy hồ sơ</span></label>
       </div>
@@ -108,15 +132,29 @@
 {% endif %}
 
 {% if flags.handover and handover_form %}
-{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalHandover' modal_action='handover' modal_title='Bàn giao vào Thư viện — '|add:dossier.official_product_code modal_size='modal-lg' %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalHandover' modal_action='handover' modal_title='Thêm vào Thư viện — '|add:dossier.official_product_code modal_size='modal-lg' %}
   {% include 'thiet_ke_sp/includes/checklist_block.html' with items=checklist %}
-  <p class="small text-muted mt-2 mb-0">Sản phẩm vào Thư viện dưới dạng Style. Sản xuất chỉ nhận hồ sơ khi Thư viện bấm «Chuyển sang sản xuất».</p>
+  <p class="small text-muted mt-2 mb-0">Hiện Style trong Thư viện. Hồ sơ thiết kế hoàn tất tại đây. SKU và hồ sơ sản xuất đã có được giữ nguyên. Chuyển sang sản xuất làm bên Thư viện.</p>
   {% if dossier.product_type %}<p class="small mt-2 mb-0">Loại mã: <strong>{{ dossier.product_type }}</strong></p>{% endif %}
   <div class="row g-2 mt-2">
     {% include 'thiet_ke_sp/includes/field.html' with field=handover_form.note col='col-12' %}
   </div>
-  <div class="mt-2">{% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.handed_over %}</div>
-{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Bàn giao' %}
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Thêm vào Thư viện' %}
+{% endif %}
+
+{% if flags.reopen_completion %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalReopen' modal_action='reopen_completion' modal_title='Huỷ hoàn thành' %}
+  <p class="small mb-2">Style ẩn khỏi Thư viện ngay. SKU đã nhập và hồ sơ sản xuất (nếu đã chuyển) vẫn giữ. Mỗi người chỉ sửa phần đúng vai trò của mình trên hồ sơ này. Sau khi chỉnh xong cần gửi duyệt lại bước cuối.</p>
+  <label class="form-label fw-bold small mb-1">Lý do <span class="text-danger">*</span></label>
+  <textarea name="comment" class="form-control form-control-sm" rows="3" required></textarea>
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Huỷ hoàn thành' submit_class='btn-secondary' %}
+{% endif %}
+
+{% if flags.resubmit_approval %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalResubmit' modal_action='resubmit_approval' modal_title='Gửi duyệt lại bước cuối' %}
+  <p class="small mb-2">Người duyệt làm lại bước Duyệt thiết kế. Khi được duyệt, hồ sơ về «Chờ thêm vào Thư viện» — bấm Thêm vào Thư viện để hiện Style trở lại.</p>
+  {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.sample_eval_pending %}
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Gửi duyệt lại' %}
 {% endif %}
 
 {% if flags.change_request %}
@@ -159,7 +197,7 @@
 {% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalRoles' modal_action='roles_save' modal_title='Nhân sự hồ sơ' modal_size='modal-lg' %}
   <div class="row g-2">
     {% for field in roles_form %}
-      {% if field.name == 'followers' or field.name == 'owners' %}
+      {% if field.name == 'followers' or field.name == 'owners' or field.name == 'designers' or field.name == 'technicians' or field.name == 'sample_makers' or field.name == 'costing_users' %}
         {% include 'thiet_ke_sp/includes/field.html' with field=field col='col-12' req=field.field.required %}
       {% else %}
         {% include 'thiet_ke_sp/includes/field.html' with field=field %}

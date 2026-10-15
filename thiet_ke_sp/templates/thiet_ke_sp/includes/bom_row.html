@@ -3,11 +3,15 @@
     <input type="hidden" name="line_material" value="{% if ln.material_id %}{{ ln.material_id }}{% endif %}">
     <div class="jp-npl-material-field">
       <select class="form-select form-select-sm jp-npl-material-select" data-placeholder="Gõ tên NPL…">
-        {% if not ln.material_id %}<option value="" selected></option>{% endif %}
-        {% if ln.material_id %}<option value="{{ ln.material_id }}" selected>{{ ln.material.name }}</option>{% endif %}
+        {% if ln.material_id %}
+        <option value="{{ ln.material_id }}" selected>{{ ln.material.name }}</option>
+        {% elif ln.material_name %}
+        <option value="__saved__" selected>{{ ln.material_name }}</option>
+        {% else %}
+        <option value="" selected></option>
+        {% endif %}
       </select>
     </div>
-    {% if ln.material_name and not ln.material_id %}<div class="small text-muted mt-1">Chưa gắn kho NPL: {{ ln.material_name }}</div>{% endif %}
     <input type="hidden" name="line_legacy_name" value="{% if ln.material_name and not ln.material_id %}{{ ln.material_name }}{% endif %}">
   </td>
   <td><input type="text" name="line_consumption" class="form-control form-control-sm text-end" value="{{ ln.consumption|sx_num_input }}" inputmode="decimal"></td>

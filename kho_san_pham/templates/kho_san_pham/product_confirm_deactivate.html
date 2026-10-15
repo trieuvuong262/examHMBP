@@ -7,7 +7,7 @@
     <form method="post">
         {% csrf_token %}
         <button type="submit" class="btn btn-danger btn-sm fw-bold">Ngừng dùng</button>
-        <a href="{% url 'kho_san_pham:product_detail' product.pk %}" class="btn btn-outline-secondary btn-sm">Hủy</a>
+        <a href="{% if cancel_url %}{{ cancel_url }}{% else %}{% url 'kho_san_pham:product_detail' product.pk %}{% endif %}" class="btn btn-outline-secondary btn-sm">Hủy</a>
     </form>
 </div>
 {% endblock %}

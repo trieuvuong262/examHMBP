@@ -389,11 +389,15 @@ def plan_detail(request, pk):
     official = {(l.dossier.official_product_code or '').strip().upper() for l in links} - {''}
     in_library = set()
     if official:
-        from kho_san_pham.catalog_models import ProductStyle
-        from kho_san_pham.models import Product
+        from thiet_ke_sp.models import Handover, Status
 
-        in_library = set(ProductStyle.objects.filter(code__in=official).values_list('code', flat=True))
-        in_library |= set(Product.objects.filter(style_code__in=official).values_list('style_code', flat=True))
+        in_library = {
+            (code or '').upper()
+            for code in Handover.objects.filter(
+                product_code__in=official,
+                dossier__status__in=(Status.HANDED_OVER, Status.CLOSED),
+            ).values_list('product_code', flat=True)
+        }
     for link in links:
         link.cover = covers.get(link.dossier_id)
         link.library_code = (link.dossier.official_product_code or '').strip().upper()

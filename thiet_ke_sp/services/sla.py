@@ -10,20 +10,18 @@ from thiet_ke_sp.models import ModuleSetting, POOL_ROLES, Status
 
 # (bước, nhãn, số ngày mặc định)
 SLA_STEPS = (
-    (Status.BRIEF_PENDING, 'Duyệt đề bài', 2),
-    (Status.BRIEF_NEEDS_INFO, 'Bổ sung đề bài', 2),
     (Status.DESIGNING, 'Thiết kế / chỉnh thiết kế', 7),
-    (Status.DESIGN_PENDING, 'Duyệt thiết kế', 2),
+    (Status.TECHNICAL, 'Kỹ thuật', 5),
     (Status.SAMPLING, 'Làm mẫu / sửa mẫu', 7),
-    (Status.SAMPLE_EVAL_PENDING, 'Đánh giá mẫu', 3),
-    (Status.MASTER_PENDING, 'Duyệt mẫu chuẩn', 2),
-    (Status.APPROVED, 'Bàn giao sản xuất', 2),
-    (Status.HANDED_OVER, 'Chờ chuyển sang sản xuất', 2),
+    (Status.SAMPLE_EVAL_PENDING, 'Duyệt thiết kế', 3),
+    (Status.APPROVED, 'Thêm vào Thư viện', 2),
 )
 DEFAULT_SLA_DAYS = {step: days for step, _label, days in SLA_STEPS}
 SLA_ALIASES = {
     Status.DESIGN_REVISE: Status.DESIGNING,
+    Status.TECHNICAL_REVISE: Status.TECHNICAL,
     Status.SAMPLE_REVISE: Status.SAMPLING,
+    Status.LIBRARY_REOPEN: Status.SAMPLING,
 }
 DEFAULT_DUE_HOUR = 17
 

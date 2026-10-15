@@ -41,7 +41,7 @@
         {% include 'thiet_ke_sp/includes/field.html' with field=form.launch_date col='col-md-6' req=True %}
         {% if not dossier or dossier.status == 'draft' or dossier.status == 'brief_needs_info' %}
         <div class="col-md-6">
-          <label class="form-label small text-muted mb-1" for="tk-due">Hạn duyệt đề bài</label>
+          <label class="form-label small text-muted mb-1" for="tk-due">Hạn thiết kế</label>
           <input type="date" id="tk-due" name="due_at" class="form-control form-control-sm jp-date-vn" value="{{ default_due|date:'Y-m-d' }}">
         </div>
         {% endif %}
@@ -88,10 +88,10 @@
       <div class="row g-2">
         {% include 'thiet_ke_sp/includes/field.html' with field=form.owners col='col-12' req=True %}
         {% include 'thiet_ke_sp/includes/field.html' with field=form.approver col='col-md-4' req=True %}
-        {% include 'thiet_ke_sp/includes/field.html' with field=form.designer col='col-md-4' %}
-        {% include 'thiet_ke_sp/includes/field.html' with field=form.technician col='col-md-4' %}
-        {% include 'thiet_ke_sp/includes/field.html' with field=form.sample_maker col='col-md-4' %}
-        {% include 'thiet_ke_sp/includes/field.html' with field=form.costing_user col='col-md-4' %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.designers col='col-md-6' %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.technicians col='col-md-6' %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.sample_makers col='col-md-6' %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=form.costing_users col='col-md-6' %}
         {% if form.fields.followers %}
         {% include 'thiet_ke_sp/includes/field.html' with field=form.followers col='col-12' %}
         {% else %}

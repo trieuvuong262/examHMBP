@@ -6,8 +6,11 @@
     <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-center gap-2">
         <div>
             <h2 class="fw-bold text-hm mb-0 jp-page-title">
-                {% if is_edit %}Sửa sản phẩm{% elif is_duplicate %}Nhân bản sản phẩm{% else %}Thêm sản phẩm{% endif %}
+                {% if library_code %}Thư viện {{ library_code }} — {% endif %}{% if is_edit %}Sửa sản phẩm{% elif is_duplicate %}Nhân bản sản phẩm{% else %}Thêm sản phẩm{% endif %}
             </h2>
+            {% if library_code %}
+            <div class="small text-muted mt-1">Cập nhật màu, SKU, tên và chi tiết trong Thư viện. Chưa tạo hồ sơ sản xuất.</div>
+            {% endif %}
             {% if is_duplicate and source_product %}
             <div class="small text-muted mt-1">Từ SKU <code>{{ source_product.code }}</code> — đổi màu hoặc size rồi lưu</div>
             {% endif %}
@@ -27,6 +30,13 @@
         <div class="card-body p-3 p-md-4">
                 {% csrf_token %}
                 {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+                {% if suggest_variant and source_product and not is_duplicate %}
+                <div class="alert alert-info py-2 mb-3">
+                    Style đã có SKU <code>{{ source_product.code }}</code>.
+                    Đổi <strong>màu</strong> hoặc <strong>size</strong> để tạo SKU mới.
+                    Tên, giá và mô tả lấy sẵn — sửa được trước khi lưu.
+                </div>
+                {% endif %}
                 {% if is_duplicate and source_product %}
                 <div class="alert alert-info py-2 mb-3">
                     Nhân bản từ <code>{{ source_product.code }}</code>
@@ -51,18 +61,19 @@
                     <div class="col-md-3">
                         <label class="form-label fw-bold small" for="{{ form.style_code.id_for_label }}">Style</label>
                         {{ form.style_code }}
+                        {% if library_code %}<div class="form-text">Mã Style của Thư viện, không đổi.</div>{% endif %}
                         {% if form.style_code.errors %}<div class="text-danger small">{{ form.style_code.errors }}</div>{% endif %}
                     </div>
-                    <div class="col-md-3{% if is_duplicate %} rounded px-2 py-1 bg-light{% endif %}">
+                    <div class="col-md-3{% if is_duplicate or suggest_variant %} rounded px-2 py-1 bg-light{% endif %}">
                         <label class="form-label fw-bold small" for="{{ form.color_code.id_for_label }}">
-                            Màu{% if is_duplicate %} <span class="text-hm">*</span>{% endif %}
+                            Màu{% if is_duplicate or suggest_variant %} <span class="text-hm">*</span>{% endif %}
                         </label>
                         {{ form.color_code }}
                         {% if form.color_code.errors %}<div class="text-danger small">{{ form.color_code.errors }}</div>{% endif %}
                     </div>
-                    <div class="col-md-3{% if is_duplicate %} rounded px-2 py-1 bg-light{% endif %}">
+                    <div class="col-md-3{% if is_duplicate or suggest_variant %} rounded px-2 py-1 bg-light{% endif %}">
                         <label class="form-label fw-bold small" for="{{ form.size_label.id_for_label }}">
-                            Size{% if is_duplicate %} <span class="text-hm">*</span>{% endif %}
+                            Size{% if is_duplicate or suggest_variant %} <span class="text-hm">*</span>{% endif %}
                         </label>
                         {{ form.size_label }}
                         {% if form.size_label.errors %}<div class="text-danger small">{{ form.size_label.errors }}</div>{% endif %}

@@ -1,12 +1,12 @@
 """Quyền module Thiết kế sản phẩm = quyền menu (Phân quyền) × vai trò trên từng hồ sơ.
 
 Tài khoản quản trị không được vượt vai trò: muốn duyệt / thao tác phải được gán đúng vai trò trên hồ sơ.
-Ngoại lệ: ``vuong-admin`` thao tác được mọi bước trên mọi hồ sơ.
+Ngoại lệ: ``vuong-admin`` và ``ductn`` thao tác được mọi bước trên mọi hồ sơ.
 
 Thành viên hồ sơ (Sản xuất / R&D / Kế hoạch SX / Giám đốc) được xem và thao tác trên hồ sơ mình tham gia
 theo vai trò tương ứng, kể cả khi không có quyền menu module.
 
-- Menu «Hồ sơ sản phẩm»: Xem / Thêm (tạo đề xuất) / Sửa (cập nhật nội dung theo vai trò) / Xóa (xóa nháp).
+- Menu «Hồ sơ sản phẩm»: Xem / Thêm (tạo đề xuất) / Sửa (cập nhật nội dung theo vai trò). Ai xem được hồ sơ thì xóa được hồ sơ đó.
 - Menu «Chờ tôi duyệt»: Sửa = được chọn làm Người duyệt và ra quyết định duyệt.
 - Menu «Thiết lập»: Sửa = cấu hình số ngày chuẩn và danh sách nhân sự được chọn trên hồ sơ.
 """
@@ -26,6 +26,8 @@ from hrm.module_permissions import MODULE_THIET_KE_SP, bypass_department_modules
 
 from .models import (
     DOSSIER_ROLE_FIELDS,
+    ROLE_PARTNER,
+    APPROVER_DECIDE_STATUSES,
     FINAL_STATUSES,
     MEMBER_GROUP_ROLES,
     DossierMember,
@@ -43,13 +45,13 @@ MENU_REPORTS = 'reports'
 MENU_SETTINGS = 'settings'
 
 # Thao tác mọi bước trên mọi hồ sơ, không cần được gán vai trò.
-FULL_DOSSIER_USERNAME = 'vuong-admin'
+FULL_DOSSIER_USERNAMES = frozenset({'vuong-admin', 'ductn'})
 
 
 def has_full_dossier_access(user) -> bool:
     if not getattr(user, 'is_authenticated', False):
         return False
-    return (getattr(user, 'username', '') or '').lower() == FULL_DOSSIER_USERNAME
+    return (getattr(user, 'username', '') or '').lower() in FULL_DOSSIER_USERNAMES
 
 
 def is_admin(user) -> bool:
@@ -135,7 +137,7 @@ def has_approval_queue(user) -> bool:
         return False
     return ProductDevelopment.objects.filter(
         approver=user,
-        status__in=(Status.BRIEF_PENDING, Status.DESIGN_PENDING, Status.MASTER_PENDING),
+        status__in=APPROVER_DECIDE_STATUSES,
     ).exists()
 
 
@@ -145,7 +147,7 @@ def is_follower(dossier: ProductDevelopment, user) -> bool:
     return dossier.followers.filter(pk=user.pk).exists()
 
 
-MEMBER_DOSSIER_URLS = frozenset({'detail', 'action', 'upload'})
+MEMBER_DOSSIER_URLS = frozenset({'detail', 'action', 'upload', 'delete'})
 MEMBER_FILE_URLS = frozenset({'attachment_serve', 'attachment_delete'})
 
 
@@ -213,6 +215,9 @@ def user_roles(dossier: ProductDevelopment, user) -> set[str]:
             roles.add(field)
     if dossier.co_owner_id == user.pk:
         roles.add(Role.OWNER)
+    for role, partner in ROLE_PARTNER.items():
+        if getattr(dossier, f'{partner}_id') == user.pk:
+            roles.add(role)
     group = member_group(dossier, user)
     if group:
         roles.add(Role.MEMBER)

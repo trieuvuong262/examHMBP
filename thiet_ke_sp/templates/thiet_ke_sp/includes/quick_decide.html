@@ -16,12 +16,13 @@
   {% include 'thiet_ke_sp/includes/decide_design_fields.html' with options=d.quick_options %}
 {% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Ghi nhận quyết định' submit_class='' %}
 {% elif d.quick_kind == 'master' %}
-{% include 'thiet_ke_sp/includes/modal_open.html' with dossier=d modal_id=d.quick_modal_id modal_action='master_decide' modal_title='Duyệt mẫu chuẩn — '|add:d.name modal_next=quick_next modal_size='' modal_confirm='' tab='' %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with dossier=d modal_id=d.quick_modal_id modal_action='master_decide' modal_title='Duyệt thiết kế — '|add:d.name modal_next=quick_next modal_size='' modal_confirm='' tab='' %}
   {% include 'thiet_ke_sp/includes/quick_head.html' %}
   {% include 'thiet_ke_sp/includes/checklist_block.html' with items=d.quick_checklist %}
   <div class="d-flex flex-column gap-1 my-2">
-    <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="approved" data-due="{{ sla_due.approved|due_input }}" data-tk-show=".tk-master-approve" checked> <span class="form-check-label">Duyệt sản xuất</span></label>
+    <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="approved" data-due="{{ sla_due.approved|due_input }}" data-tk-show=".tk-master-approve" checked> <span class="form-check-label">Duyệt thiết kế</span></label>
     <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="request_fix" data-due="{{ sla_due.sample_revise|due_input }}" data-tk-hide=".tk-master-approve" data-comment-required="1" data-comment-label="Nội dung cần sửa mẫu"> <span class="form-check-label">Yêu cầu sửa mẫu</span></label>
+    <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="request_technical" data-due="{{ sla_due.technical_revise|due_input }}" data-tk-hide=".tk-master-approve" data-comment-required="1" data-comment-label="Nội dung cần chỉnh kỹ thuật"> <span class="form-check-label">Yêu cầu chỉnh kỹ thuật</span></label>
     <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="request_design" data-due="{{ sla_due.design_revise|due_input }}" data-tk-hide=".tk-master-approve" data-comment-required="1" data-comment-label="Nội dung cần chỉnh thiết kế"> <span class="form-check-label">Yêu cầu chỉnh thiết kế</span></label>
     <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="cancelled" data-due="" data-tk-hide=".tk-master-approve" data-comment-required="1" data-comment-label="Lý do hủy"> <span class="form-check-label text-danger">Hủy hồ sơ</span></label>
   </div>

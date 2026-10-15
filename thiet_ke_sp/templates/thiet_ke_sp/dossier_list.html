@@ -46,9 +46,9 @@
             <td class="npl-col fw-bold small" data-col="code">{{ d.code }}</td>
             <td class="npl-col small" data-col="group">{{ d.get_product_group_display }}</td>
             <td class="npl-col small" data-col="collection">{{ d.collection|default:'—' }}</td>
-            <td class="npl-col" data-col="status"><span class="tk-pill is-{{ d.status_tone }}">{{ d.get_status_display }}</span></td>
-            <td class="npl-col small" data-col="owner">{{ d|owner_names }}</td>
+            <td class="npl-col" data-col="status"><span class="tk-stage is-{{ d.status_tone }}">{{ d.get_status_display }}</span></td>
             <td class="npl-col" data-col="progress">{% include 'thiet_ke_sp/includes/progress_cell.html' %}</td>
+            <td class="npl-col small" data-col="owner">{{ d|owner_names }}</td>
             <td class="npl-col small" data-col="assignee">{{ d.step_assignee_name|default:'—' }}</td>
             <td class="npl-col small" data-col="step_due">{% include 'thiet_ke_sp/includes/step_due_cell.html' %}</td>
             <td class="npl-col small text-end" data-col="late">{% if d.step_late_days %}<span class="tk-late">{{ d.step_late_days }} ngày</span>{% else %}—{% endif %}</td>

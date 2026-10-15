@@ -1,2 +1,5 @@
-<b class="small">Bước {{ d.step_no }}/{{ d.step_total }}</b>
-<div class="tk-progress{% if d.status_tone == 'red' %} is-red{% elif d.status_tone == 'green' or d.status_tone == 'dark' %} is-green{% endif %}"><i style="width: {{ d.step_pct }}%"></i></div>
+<ol class="tk-steps" aria-label="Tiến độ {{ d.get_status_display }}">
+  {% for s in d.list_steps %}
+  <li class="is-{{ s.state }}" title="{{ s.label }}"><span class="dot"></span><span class="visually-hidden">{{ s.label }}</span></li>
+  {% endfor %}
+</ol>

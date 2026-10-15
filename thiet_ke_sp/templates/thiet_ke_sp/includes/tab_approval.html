@@ -1,7 +1,7 @@
 {% load sx_format tksp_tags %}
 {% if checklist %}
 <div class="tk-section">
-  <div class="tk-section-title"><i class="bi bi-clipboard2-check"></i>Phiếu trình duyệt · {{ dossier.get_status_display }}
+  <div class="tk-section-title"><i class="bi bi-clipboard2-check"></i>Điều kiện bước · {{ dossier.get_status_display }}
     {% if checklist_ok %}<span class="tk-pill is-green">Đủ điều kiện</span>{% else %}<span class="tk-pill is-amber">Còn thiếu</span>{% endif %}
   </div>
   <div class="tk-grid2">
@@ -22,9 +22,10 @@
   <b><i class="bi bi-hourglass-split me-1"></i>Hồ sơ đang chờ bạn ra quyết định.</b>
   <span class="ms-auto d-flex flex-wrap gap-1">
     {% if flags.decide_brief %}<button type="button" class="btn btn-sm btn-hm text-white fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalBrief">Duyệt đề bài</button>{% endif %}
-    {% if flags.decide_design %}<button type="button" class="btn btn-sm btn-hm text-white fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalDesign">Duyệt thiết kế</button>{% endif %}
-    {% if flags.decide_master %}<button type="button" class="btn btn-sm btn-hm text-white fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalMaster">Duyệt mẫu chuẩn</button>{% endif %}
+    {% if flags.decide_design %}<button type="button" class="btn btn-sm btn-hm text-white fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalDesign">Chọn phương án</button>{% endif %}
+    {% if flags.decide_master %}<button type="button" class="btn btn-sm btn-hm text-white fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalMaster">Duyệt thiết kế</button>{% endif %}
     {% if flags.request_fix and flags.decide_master %}<button type="button" class="btn btn-sm btn-outline-danger fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalSampleFix">Yêu cầu sửa mẫu</button>{% endif %}
+    {% if flags.request_technical and flags.decide_master %}<button type="button" class="btn btn-sm btn-outline-danger fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalTechnicalChange">Yêu cầu chỉnh kỹ thuật</button>{% endif %}
     {% if flags.request_design_change and flags.decide_master %}<button type="button" class="btn btn-sm btn-outline-danger fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalDesignChange">Yêu cầu chỉnh thiết kế</button>{% endif %}
     {% if flags.resume %}<button type="button" class="btn btn-sm btn-hm text-white fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalResume">Tiếp tục</button>{% endif %}
   </span>

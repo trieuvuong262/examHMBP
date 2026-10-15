@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import uuid
 from datetime import timedelta
 from decimal import Decimal
 
@@ -11,7 +10,6 @@ from django.conf import settings
 from django.db import models
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.text import get_valid_filename
 from django_cleanup import cleanup
 
 from san_xuat.design_nas_storage import DesignDocNasStorage
@@ -26,12 +24,15 @@ class Status(models.TextChoices):
     DESIGNING = 'designing', 'Đang thiết kế'
     DESIGN_PENDING = 'design_pending', 'Chờ duyệt thiết kế'
     DESIGN_REVISE = 'design_revise', 'Cần chỉnh thiết kế'
+    TECHNICAL = 'technical', 'Đang kỹ thuật'
+    TECHNICAL_REVISE = 'technical_revise', 'Cần chỉnh kỹ thuật'
     SAMPLING = 'sampling', 'Đang làm mẫu'
-    SAMPLE_EVAL_PENDING = 'sample_eval_pending', 'Chờ đánh giá mẫu'
+    SAMPLE_EVAL_PENDING = 'sample_eval_pending', 'Chờ duyệt thiết kế'
     SAMPLE_REVISE = 'sample_revise', 'Cần sửa mẫu'
     MASTER_PENDING = 'master_pending', 'Chờ duyệt mẫu chuẩn'
-    APPROVED = 'approved', 'Đã duyệt sản xuất'
-    HANDED_OVER = 'handed_over', 'Đã bàn giao'
+    APPROVED = 'approved', 'Chờ thêm vào Thư viện'
+    HANDED_OVER = 'handed_over', 'Đã thêm vào Thư viện'
+    LIBRARY_REOPEN = 'library_reopen', 'Đang chỉnh sau hoàn thành'
     PAUSED = 'paused', 'Tạm dừng'
     CANCELLED = 'cancelled', 'Đã hủy'
     CLOSED = 'closed', 'Đã đóng hồ sơ'
@@ -41,9 +42,24 @@ IN_PROGRESS_STATUSES = (
     Status.DESIGNING,
     Status.DESIGN_PENDING,
     Status.DESIGN_REVISE,
+    Status.TECHNICAL,
+    Status.TECHNICAL_REVISE,
     Status.SAMPLING,
     Status.SAMPLE_EVAL_PENDING,
     Status.SAMPLE_REVISE,
+    Status.MASTER_PENDING,
+    Status.LIBRARY_REOPEN,
+)
+# Làm mẫu và cột Duyệt thiết kế — còn đánh giá, ảnh mẫu, BOM.
+DESIGN_APPROVAL_STATUSES = (
+    Status.SAMPLING,
+    Status.SAMPLE_REVISE,
+    Status.SAMPLE_EVAL_PENDING,
+    Status.MASTER_PENDING,
+)
+# Người duyệt chỉ chốt khi hồ sơ đã dừng ở cột Duyệt thiết kế.
+APPROVER_DECIDE_STATUSES = (
+    Status.SAMPLE_EVAL_PENDING,
     Status.MASTER_PENDING,
 )
 DONE_STATUSES = (Status.HANDED_OVER, Status.CLOSED)
@@ -57,12 +73,15 @@ STATUS_BADGES = {
     Status.DESIGNING: 'primary',
     Status.DESIGN_PENDING: 'warning',
     Status.DESIGN_REVISE: 'danger',
+    Status.TECHNICAL: 'primary',
+    Status.TECHNICAL_REVISE: 'danger',
     Status.SAMPLING: 'primary',
     Status.SAMPLE_EVAL_PENDING: 'warning',
     Status.SAMPLE_REVISE: 'danger',
     Status.MASTER_PENDING: 'warning',
     Status.APPROVED: 'success',
     Status.HANDED_OVER: 'success',
+    Status.LIBRARY_REOPEN: 'warning',
     Status.PAUSED: 'secondary',
     Status.CANCELLED: 'dark',
     Status.CLOSED: 'dark',
@@ -75,27 +94,40 @@ STATUS_TONES = {
     Status.DESIGNING: 'blue',
     Status.DESIGN_PENDING: 'amber',
     Status.DESIGN_REVISE: 'red',
+    Status.TECHNICAL: 'blue',
+    Status.TECHNICAL_REVISE: 'red',
     Status.SAMPLING: 'blue',
     Status.SAMPLE_EVAL_PENDING: 'amber',
     Status.SAMPLE_REVISE: 'red',
     Status.MASTER_PENDING: 'purple',
     Status.APPROVED: 'green',
     Status.HANDED_OVER: 'green',
+    Status.LIBRARY_REOPEN: 'amber',
     Status.PAUSED: 'gray',
     Status.CANCELLED: 'gray',
     Status.CLOSED: 'dark',
 }
 
-# Thứ tự 8 bước trên thanh tiến trình (mục 3 tài liệu nghiệp vụ).
+# Thanh tiến trình: Đề xuất → Thiết kế → Kỹ thuật → Làm mẫu → Duyệt thiết kế → Thêm vào Thư Viện.
 STEPS = (
-    ('proposal', 'Đề xuất', (Status.DRAFT, Status.BRIEF_NEEDS_INFO)),
-    ('brief', 'Duyệt đề bài', (Status.BRIEF_PENDING,)),
-    ('design', 'Thiết kế', (Status.DESIGNING, Status.DESIGN_REVISE)),
-    ('design_approval', 'Duyệt thiết kế', (Status.DESIGN_PENDING,)),
-    ('sample', 'Làm mẫu', (Status.SAMPLING, Status.SAMPLE_REVISE)),
-    ('evaluation', 'Đánh giá mẫu', (Status.SAMPLE_EVAL_PENDING,)),
-    ('master', 'Duyệt mẫu chuẩn', (Status.MASTER_PENDING,)),
-    ('handover', 'Bàn giao SX', (Status.APPROVED, Status.HANDED_OVER, Status.CLOSED)),
+    ('proposal', 'Đề xuất', (Status.DRAFT, Status.BRIEF_NEEDS_INFO, Status.BRIEF_PENDING)),
+    ('design', 'Thiết kế', (Status.DESIGNING, Status.DESIGN_REVISE, Status.DESIGN_PENDING)),
+    ('technical', 'Kỹ thuật', (Status.TECHNICAL, Status.TECHNICAL_REVISE)),
+    ('sample', 'Làm mẫu', (Status.SAMPLING, Status.SAMPLE_REVISE, Status.LIBRARY_REOPEN)),
+    ('design_approval', 'Duyệt thiết kế', (Status.SAMPLE_EVAL_PENDING, Status.MASTER_PENDING)),
+    ('handover', 'Thêm vào Thư Viện', (Status.APPROVED, Status.HANDED_OVER, Status.CLOSED)),
+)
+# Nhãn góp ý cũ vẫn giữ để trao đổi đã lưu không mất tên bước.
+COMMENT_STEPS = (
+    ('proposal', 'Đề xuất'),
+    ('brief', 'Duyệt đề bài'),
+    ('design', 'Thiết kế'),
+    ('technical', 'Kỹ thuật'),
+    ('design_approval', 'Duyệt thiết kế'),
+    ('sample', 'Làm mẫu'),
+    ('evaluation', 'Đánh giá mẫu'),
+    ('master', 'Duyệt mẫu chuẩn'),
+    ('handover', 'Thêm vào Thư Viện'),
 )
 
 
@@ -154,6 +186,13 @@ DOSSIER_ROLE_FIELDS = (
     Role.SAMPLE_MAKER,
     Role.COSTING,
 )
+# Người thứ hai cùng vai trò. Người đứng đầu vẫn là người nhận việc.
+ROLE_PARTNER = {
+    Role.DESIGNER: 'co_designer',
+    Role.TECHNICIAN: 'co_technician',
+    Role.SAMPLE_MAKER: 'co_sample_maker',
+    Role.COSTING: 'co_costing_user',
+}
 # Người theo dõi chọn nhiều người; không gán việc và không có quyền thao tác.
 POOL_ROLES = (*DOSSIER_ROLE_FIELDS, Role.FOLLOWER)
 
@@ -206,13 +245,25 @@ class ProductDevelopment(models.Model):
         USER, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='tksp_designing', verbose_name='Thiết kế / R&D',
     )
+    co_designer = models.ForeignKey(
+        USER, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='tksp_co_designing', verbose_name='Thiết kế / R&D (2)',
+    )
     technician = models.ForeignKey(
         USER, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='tksp_technical', verbose_name='Kỹ thuật / Tài liệu kỹ thuật',
     )
+    co_technician = models.ForeignKey(
+        USER, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='tksp_co_technical', verbose_name='Kỹ thuật / Tài liệu kỹ thuật (2)',
+    )
     sample_maker = models.ForeignKey(
         USER, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='tksp_sampling', verbose_name='May mẫu',
+    )
+    co_sample_maker = models.ForeignKey(
+        USER, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='tksp_co_sampling', verbose_name='May mẫu (2)',
     )
     qa_user = models.ForeignKey(
         USER, on_delete=models.SET_NULL, null=True, blank=True,
@@ -221,6 +272,10 @@ class ProductDevelopment(models.Model):
     costing_user = models.ForeignKey(
         USER, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='tksp_costing', verbose_name='Kế hoạch / Giá thành',
+    )
+    co_costing_user = models.ForeignKey(
+        USER, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='tksp_co_costing', verbose_name='Kế hoạch / Giá thành (2)',
     )
     followers = models.ManyToManyField(
         USER, blank=True, related_name='tksp_following', verbose_name='Người theo dõi',
@@ -484,6 +539,7 @@ class SampleVersion(models.Model):
 
 class TechnicalPack(models.Model):
     sample_version = models.OneToOneField(SampleVersion, on_delete=models.CASCADE, related_name='tech_pack')
+    pattern_note = models.TextField(blank=True, default='', verbose_name='Ghi chú rập')
     size_spec = models.TextField(blank=True, default='', verbose_name='Bảng thông số kích thước')
     cutting_req = models.TextField(blank=True, default='', verbose_name='Yêu cầu cắt')
     sewing_req = models.TextField(blank=True, default='', verbose_name='Yêu cầu may')
@@ -628,7 +684,7 @@ class EvaluationItem(models.Model):
 class ApprovalStage(models.TextChoices):
     BRIEF = 'brief', 'Duyệt đề bài'
     DESIGN = 'design', 'Duyệt thiết kế'
-    MASTER = 'master', 'Duyệt mẫu chuẩn'
+    MASTER = 'master', 'Duyệt thiết kế'
     STOP = 'stop', 'Tạm dừng / Hủy / Tiếp tục'
     CHANGE = 'change', 'Yêu cầu thay đổi sau duyệt'
 
@@ -748,7 +804,8 @@ class AttachmentKind(models.TextChoices):
     DESIGN_SOURCE = 'design_source', 'File thiết kế gốc'
     DESIGN_PREVIEW = 'design_preview', 'File xem nhanh'
     COLORWAY = 'colorway', 'Ảnh colorway'
-    TECH_SPEC = 'tech_spec', 'Bảng thông số / tài liệu kỹ thuật'
+    TECH_SPEC = 'tech_spec', 'Tài liệu kỹ thuật'
+    PATTERN = 'pattern', 'File rập'
     SAMPLE_PHOTO = 'sample_photo', 'Ảnh mẫu thực tế'
     EVALUATION = 'evaluation', 'Biên bản đánh giá'
     COST = 'cost', 'Bảng giá thành'
@@ -785,10 +842,9 @@ IMAGE_EXTENSIONS = frozenset({'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'})
 
 
 def attachment_upload_to(instance, filename: str) -> str:
-    dossier = getattr(instance, 'dossier', None)
-    code = (getattr(dossier, 'code', '') or 'unknown').replace('/', '-')
-    safe = get_valid_filename(os.path.basename(filename)) or 'file'
-    return f'thiet_ke_sp/{code}/{uuid.uuid4().hex[:12]}_{safe}'
+    from thiet_ke_sp.services.nas_layout import upload_relpath
+
+    return upload_relpath(instance, filename)
 
 
 @cleanup.ignore
@@ -857,7 +913,7 @@ class Comment(models.Model):
     )
     step = models.CharField(
         max_length=30, blank=True, default='',
-        choices=[('', 'Cả hồ sơ'), *[(key, label) for key, label, _statuses in STEPS]],
+        choices=[('', 'Cả hồ sơ'), *COMMENT_STEPS],
         verbose_name='Bước',
     )
     author = models.ForeignKey(USER, on_delete=models.SET_NULL, null=True, related_name='+')
@@ -920,8 +976,8 @@ class Handover(models.Model):
     transferred_at = models.DateTimeField(null=True, blank=True, verbose_name='Chuyển sản xuất lúc')
 
     class Meta:
-        verbose_name = 'Bàn giao sản xuất'
-        verbose_name_plural = 'Bàn giao sản xuất'
+        verbose_name = 'Thêm vào Thư viện'
+        verbose_name_plural = 'Thêm vào Thư viện'
 
     @property
     def is_transferred(self) -> bool:
@@ -980,7 +1036,7 @@ class ModuleSetting(models.Model):
     due_hour = models.PositiveSmallIntegerField(default=17, verbose_name='Giờ chốt hạn')
     test_mode = models.BooleanField(
         default=True, verbose_name='Trạng thái test',
-        help_text='Bật: bỏ bớt điều kiện trình duyệt mẫu chuẩn, và cho sửa hồ sơ đã duyệt. Tắt: về quy tắc chính thức.',
+        help_text='Bật: bỏ bớt điều kiện duyệt thiết kế, và cho sửa hồ sơ đã duyệt. Tắt: về quy tắc chính thức.',
     )
     default_receivers = models.JSONField(default=dict, blank=True, verbose_name='Người nhận bàn giao mặc định')
     default_roles = models.JSONField(default=dict, blank=True, verbose_name='Danh sách nhân sự phụ trách')

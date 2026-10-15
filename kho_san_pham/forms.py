@@ -208,8 +208,9 @@ class ProductForm(forms.ModelForm):
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
-    def __init__(self, *args, clone_from=None, **kwargs):
+    def __init__(self, *args, clone_from=None, locked_style=None, **kwargs):
         self.clone_from = clone_from
+        self.locked_style = (locked_style or '').strip().upper() or None
         super().__init__(*args, **kwargs)
         from kho_san_pham.catalog_models import ProductType
         from san_xuat.hub_models import SxColor, SxSize
@@ -282,6 +283,10 @@ class ProductForm(forms.ModelForm):
                 self.clone_from.color_code.upper(),
                 self.clone_from.color_label or self.clone_from.color_code,
             )
+        if self.locked_style:
+            self.fields['style_code'].initial = self.locked_style
+            self.fields['style_code'].widget.attrs['readonly'] = 'readonly'
+            self.fields['code'].required = False
 
     def clean_code(self):
         return (self.cleaned_data.get('code') or '').strip().upper()
@@ -321,7 +326,7 @@ class ProductForm(forms.ModelForm):
 
         from san_xuat.services.sku_catalog import SkuError, compose_sku_code, normalize_style, normalize_token
 
-        style = normalize_style(cleaned.get('style_code') or '')
+        style = self.locked_style or normalize_style(cleaned.get('style_code') or '')
         color = normalize_token(cleaned.get('color_code') or '')
         size = normalize_token(cleaned.get('size_label') or '')
         code = (cleaned.get('code') or '').strip().upper()
@@ -335,7 +340,11 @@ class ProductForm(forms.ModelForm):
                 composed = compose_sku_code(style_code=style, color_code=color, size_label=size)
             except SkuError as exc:
                 raise forms.ValidationError(str(exc)) from exc
-            if not code or code == composed:
+            if self.locked_style:
+                has_size = code.endswith(f'-{size}') or f'-{size}-' in code
+                if not code or code == composed or not has_size:
+                    code = composed
+            elif not code or code == composed:
                 code = composed
             cleaned['code'] = code
             cleaned['color_label'] = self._color_name_map.get(color, '') or color if color else ''

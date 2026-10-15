@@ -12,6 +12,7 @@ from django.utils import timezone
 from thiet_ke_sp import catalog
 from thiet_ke_sp import permissions as perms
 from thiet_ke_sp.models import (
+    APPROVER_DECIDE_STATUSES,
     DONE_STATUSES,
     IN_PROGRESS_STATUSES,
     STATUS_BADGES,
@@ -123,8 +124,7 @@ def dashboard_data() -> dict:
         'status_rows': status_rows,
         'total': sum(counts.values()),
         'in_progress': sum(counts.get(s, 0) for s in IN_PROGRESS_STATUSES),
-        'waiting_approval': sum(counts.get(s, 0) for s in (
-            Status.BRIEF_PENDING, Status.DESIGN_PENDING, Status.MASTER_PENDING)),
+        'waiting_approval': sum(counts.get(s, 0) for s in APPROVER_DECIDE_STATUSES),
         'done': sum(counts.get(s, 0) for s in DONE_STATUSES),
         'overdue_tasks': overdue[:30],
         'overdue_count': len(overdue),

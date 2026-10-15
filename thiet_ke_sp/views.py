@@ -51,6 +51,7 @@ from .models import (
     Notification,
     Priority,
     ProductDevelopment,
+    ROLE_PARTNER,
     Role,
     STEPS,
     SampleEvaluation,
@@ -62,17 +63,18 @@ from .models import (
 from .services import notify as nt
 from .services import reports, sla
 from .services import workflow as wf
+from .services.size_spec import size_spec_from_post
 
 M = MODULE_THIET_KE_SP
 
 TABS = (
     ('overview', 'Tổng quan', 'bi-info-circle'),
-    ('design', 'Thiết kế & phiên bản', 'bi-palette'),
-    ('technical', 'Kỹ thuật / BOM', 'bi-rulers'),
-    ('sample', 'Mẫu & đánh giá', 'bi-scissors'),
+    ('design', 'Thiết kế', 'bi-palette'),
+    ('technical', 'Kỹ thuật', 'bi-rulers'),
+    ('sample', 'May mẫu', 'bi-scissors'),
     ('costing', 'Giá thành', 'bi-cash-coin'),
     ('approval', 'Phê duyệt', 'bi-check2-circle'),
-    ('files', 'Trao đổi & tệp', 'bi-chat-dots'),
+    ('files', 'Trao đổi', 'bi-chat-dots'),
     ('history', 'Lịch sử', 'bi-clock-history'),
 )
 TAB_KEYS = {t[0] for t in TABS}
@@ -85,7 +87,8 @@ def _deny(request, menu: str):
 def _dossier_qs():
     return ProductDevelopment.objects.select_related(
         'proposer__profile', 'owner__profile', 'co_owner__profile', 'approver__profile', 'designer__profile',
-        'technician__profile', 'sample_maker__profile', 'qa_user__profile', 'costing_user__profile',
+        'co_designer__profile', 'technician__profile', 'co_technician__profile', 'sample_maker__profile',
+        'co_sample_maker__profile', 'qa_user__profile', 'costing_user__profile', 'co_costing_user__profile',
         'approved_design_version', 'final_sample_version', 'product_type',
     )
 
@@ -279,6 +282,12 @@ def _decorate_rows(rows: list) -> list:
         d.step_late_days = 0
         if d.step_due_at and d.step_due_at < now and d.status not in (*STOPPED_STATUSES, Status.CLOSED):
             d.step_late_days = max((timezone.localdate() - timezone.localtime(d.step_due_at).date()).days, 1)
+        steps = presenters.stepper(d)
+        if d.status == Status.CANCELLED:
+            for step in steps:
+                if step['state'] == 'current':
+                    step['state'] = 'closed'
+        d.list_steps = steps
     return rows
 
 
@@ -301,6 +310,12 @@ def _brief_fields(form) -> dict:
         people = list(form.cleaned_data.get('owners') or [])
         fields['owner'] = people[0] if people else None
         fields['co_owner'] = people[1] if len(people) > 1 else None
+    for role, form_name in f.PAIR_FORM_FIELDS.items():
+        if form_name not in form.cleaned_data:
+            continue
+        people = list(form.cleaned_data.get(form_name) or [])
+        fields[role] = people[0] if people else None
+        fields[ROLE_PARTNER[role]] = people[1] if len(people) > 1 else None
     return fields
 
 
@@ -322,20 +337,20 @@ def dossier_create(request):
         else:
             for upload in request.FILES.getlist('reference_files'):
                 try:
-                    wf.upload_attachment(dossier, user, uploaded_file=upload, kind=AttachmentKind.REFERENCE)
+                    wf.upload_attachment(dossier, user, uploaded_file=upload, kind=AttachmentKind.REFERENCE, tab='overview')
                 except wf.WorkflowError as exc:
                     messages.warning(request, f'{upload.name}: {exc}')
             if submit:
                 try:
                     wf.submit_brief(dossier, user, due_at=f.parse_due(request.POST.get('due_at')))
-                    messages.success(request, f'Đã tạo {dossier.code} và gửi duyệt đề bài.')
+                    messages.success(request, f'Đã tạo {dossier.code} và chuyển sang thiết kế.')
                 except wf.WorkflowError as exc:
-                    messages.warning(request, f'Đã lưu nháp {dossier.code}. Chưa gửi duyệt: {exc}')
+                    messages.warning(request, f'Đã lưu nháp {dossier.code}. Chưa chuyển thiết kế: {exc}')
             else:
                 messages.success(request, f'Đã lưu nháp {dossier.code}.')
             return redirect(dossier.get_absolute_url())
     return render(request, 'thiet_ke_sp/dossier_form.html', _common(
-        request, form=form, dossier=None, default_due=sla.due_at_for(Status.BRIEF_PENDING),
+        request, form=form, dossier=None, default_due=sla.due_at_for(Status.DESIGNING),
     ))
 
 
@@ -359,17 +374,17 @@ def dossier_edit(request, pk):
                 if perms.can_edit_roles(dossier, user):
                     wf.set_followers(dossier, form.cleaned_data.get('followers'), user)
             for upload in request.FILES.getlist('reference_files'):
-                wf.upload_attachment(dossier, user, uploaded_file=upload, kind=AttachmentKind.REFERENCE)
+                wf.upload_attachment(dossier, user, uploaded_file=upload, kind=AttachmentKind.REFERENCE, tab='overview')
             if request.POST.get('submit_action') == 'submit' and dossier.status in (Status.DRAFT, Status.BRIEF_NEEDS_INFO):
                 wf.submit_brief(dossier, user, due_at=f.parse_due(request.POST.get('due_at')))
-                messages.success(request, 'Đã gửi duyệt đề bài.')
+                messages.success(request, 'Đã chuyển sang thiết kế.')
             else:
                 messages.success(request, 'Đã lưu đề bài.')
         except wf.WorkflowError as exc:
             messages.error(request, str(exc))
         return redirect(dossier.get_absolute_url())
     return render(request, 'thiet_ke_sp/dossier_form.html', _common(
-        request, form=form, dossier=dossier, default_due=sla.due_at_for(Status.BRIEF_PENDING),
+        request, form=form, dossier=dossier, default_due=sla.due_at_for(Status.DESIGNING),
         references=dossier.attachments.filter(kind=AttachmentKind.REFERENCE, is_deleted=False),
     ))
 
@@ -384,7 +399,7 @@ def dossier_delete(request, pk):
     except wf.WorkflowError as exc:
         messages.error(request, str(exc))
         return redirect(dossier.get_absolute_url())
-    messages.success(request, f'Đã xóa hồ sơ nháp {code}.')
+    messages.success(request, f'Đã xóa hồ sơ {code}.')
     return redirect('thiet_ke_sp:list')
 
 
@@ -446,6 +461,7 @@ def dossier_detail(request, pk):
     for sv in samples:
         live = _live_atts(sv.attachments.all())
         sv.photos = [a for a in live if a.kind == AttachmentKind.SAMPLE_PHOTO]
+        sv.pattern_files = [a for a in live if a.kind == AttachmentKind.PATTERN]
         sv.tech_files = [a for a in live if a.kind == AttachmentKind.TECH_SPEC]
         sv.eval_files = [a for a in live if a.kind == AttachmentKind.EVALUATION]
         pack = getattr(sv, 'tech_pack', None)
@@ -469,7 +485,7 @@ def dossier_detail(request, pk):
         dv.can_upload = wf.can_upload(dossier, user, AttachmentKind.FRONT, design_version=dv)
         dv.needs_note = dv.can_edit and wf.needs_change_note(dv)
     submitted_dvs = [dv for dv in current_dvs if dv.state == DesignVersion.STATE_SUBMITTED]
-    checklist_title, checklist = presenters.step_checklist(dossier)
+    checklist_title, checklist = presenters.step_checklist(dossier, user)
     main_task = wf.current_main_task(dossier)
     open_tasks = list(
         dossier.tasks.filter(state=Task.STATE_OPEN).select_related('assignee__profile', 'receipt', 'condition')
@@ -490,7 +506,9 @@ def dossier_detail(request, pk):
     for a in product_photos:
         a.can_delete = a.uploaded_by_id == user.pk or perms.has_role(dossier, user, Role.OWNER)
     members = list(dossier.members.select_related('user__profile', 'added_by__profile'))
-    handover = getattr(dossier, 'handover', None) if dossier.status in (Status.HANDED_OVER, Status.CLOSED) else None
+    handover = getattr(dossier, 'handover', None) if dossier.status in (
+        Status.HANDED_OVER, Status.CLOSED, Status.LIBRARY_REOPEN,
+    ) else None
     conditions = list(dossier.conditions.select_related('assignee__profile', 'done_by__profile'))
     for c in conditions:
         c.can_complete = not c.is_done and dossier.status == Status.APPROVED and (
@@ -499,10 +517,11 @@ def dossier_detail(request, pk):
     eval_roles = wf.evaluator_roles_for(dossier, user) if flags['evaluate'] else []
     comment_rows = list(dossier.comments.select_related('author__profile', 'design_version', 'sample_version'))
     step_comments = {key: [] for key, _label, _statuses in STEPS}
+    legacy_steps = {'brief': 'proposal', 'evaluation': 'design_approval', 'master': 'design_approval'}
     dossier_comments = []
     for row in comment_rows:
         if row.step and not row.design_version_id and not row.sample_version_id:
-            step_comments.setdefault(row.step, []).append(row)
+            step_comments.setdefault(legacy_steps.get(row.step, row.step), []).append(row)
         elif not row.step and not row.design_version_id and not row.sample_version_id:
             dossier_comments.append(row)
     for rows in step_comments.values():
@@ -534,6 +553,10 @@ def dossier_detail(request, pk):
         design_modal_size='modal-lg' if len(submitted_dvs) > 1 else '',
         samples=samples,
         current_sv=current_sv,
+        has_version_files=(
+            any(a.kind != AttachmentKind.BACK for dv in design_versions for a in dv.live_atts)
+            or any(sv.pattern_files or sv.tech_files or sv.photos or sv.eval_files for sv in samples)
+        ),
         approvals=list(dossier.approvals.select_related(
             'decided_by__profile', 'design_version', 'sample_version').prefetch_related('conditions')),
         conditions=conditions,
@@ -570,6 +593,7 @@ def dossier_detail(request, pk):
         can_upload_cost=wf.can_upload(dossier, user, AttachmentKind.COST),
         can_upload_sample=bool(current_sv) and wf.can_upload(dossier, user, AttachmentKind.SAMPLE_PHOTO, sample_version=current_sv),
         can_upload_tech=bool(current_sv) and wf.can_upload(dossier, user, AttachmentKind.TECH_SPEC, sample_version=current_sv),
+        can_upload_pattern=bool(current_sv) and wf.can_upload(dossier, user, AttachmentKind.PATTERN, sample_version=current_sv),
         can_upload_eval=bool(current_sv) and wf.can_upload(dossier, user, AttachmentKind.EVALUATION, sample_version=current_sv),
         material_total=sum((ln.line_cost or 0) for ln in (current_sv.lines if current_sv else [])),
         user_is_participant=perms.is_participant(dossier, user),
@@ -581,17 +605,20 @@ def dossier_detail(request, pk):
 
 
 _NEXT_STEP = {
-    Status.DRAFT: Status.BRIEF_PENDING,
-    Status.BRIEF_NEEDS_INFO: Status.BRIEF_PENDING,
+    Status.DRAFT: Status.DESIGNING,
+    Status.BRIEF_NEEDS_INFO: Status.DESIGNING,
     Status.BRIEF_PENDING: Status.DESIGNING,
-    Status.DESIGNING: Status.DESIGN_PENDING,
-    Status.DESIGN_REVISE: Status.DESIGN_PENDING,
-    Status.DESIGN_PENDING: Status.SAMPLING,
+    Status.DESIGNING: Status.TECHNICAL,
+    Status.DESIGN_REVISE: Status.TECHNICAL,
+    Status.DESIGN_PENDING: Status.TECHNICAL,
+    Status.TECHNICAL: Status.SAMPLING,
+    Status.TECHNICAL_REVISE: Status.SAMPLING,
     Status.SAMPLING: Status.SAMPLE_EVAL_PENDING,
     Status.SAMPLE_REVISE: Status.SAMPLE_EVAL_PENDING,
-    Status.SAMPLE_EVAL_PENDING: Status.MASTER_PENDING,
+    Status.SAMPLE_EVAL_PENDING: Status.APPROVED,
     Status.MASTER_PENDING: Status.APPROVED,
     Status.APPROVED: Status.HANDED_OVER,
+    Status.LIBRARY_REOPEN: Status.SAMPLE_EVAL_PENDING,
 }
 
 
@@ -661,7 +688,7 @@ def _run_action(request, dossier: ProductDevelopment, action: str) -> tuple[str,
 
     if action == 'submit_brief':
         wf.submit_brief(dossier, user, due_at=due)
-        return 'overview', 'Đã gửi duyệt đề bài.'
+        return 'design', 'Đã chuyển sang thiết kế.'
     if action == 'brief_decide':
         wf.decide_brief(dossier, user, decision=post.get('decision', ''), comment=comment, due_at=due)
         return 'approval', 'Đã ghi nhận quyết định duyệt đề bài.'
@@ -682,7 +709,7 @@ def _run_action(request, dossier: ProductDevelopment, action: str) -> tuple[str,
         upload = request.FILES.get('colorway_file')
         if upload:
             wf.upload_attachment(dossier, user, uploaded_file=upload, kind=AttachmentKind.COLORWAY,
-                                 design_version=dv, colorway=cw)
+                                 design_version=dv, colorway=cw, tab='design')
         return 'design', f'Đã thêm colorway «{cw.name}».'
     if action == 'colorway_delete':
         cw = get_object_or_404(Colorway, pk=post.get('colorway_id'), design_version__dossier=dossier)
@@ -699,8 +726,8 @@ def _run_action(request, dossier: ProductDevelopment, action: str) -> tuple[str,
         wf.drop_design_option(dv, user)
         return 'design', f'Đã bỏ {dv.option_label}.'
     if action == 'design_submit':
-        wf.submit_design(dossier, user, due_at=due)
-        return 'design', 'Đã gửi duyệt thiết kế.'
+        wf.submit_design(dossier, user, due_at=due, option_id=post.get('option_id'))
+        return 'technical', 'Đã chuyển sang kỹ thuật.'
     if action == 'design_decide':
         wf.decide_design(dossier, user, decision=post.get('decision', ''), comment=comment, due_at=due,
                          option_id=post.get('option_id'), keep_ids=post.getlist('keep_ids'))
@@ -708,6 +735,12 @@ def _run_action(request, dossier: ProductDevelopment, action: str) -> tuple[str,
     if action == 'design_change':
         wf.request_design_change_from_sample(dossier, user, comment=comment, due_at=due)
         return 'design', 'Đã yêu cầu chỉnh thiết kế — mở phiên bản thiết kế mới.'
+    if action == 'technical_change':
+        wf.request_technical_change(dossier, user, comment=comment, due_at=due)
+        return 'technical', 'Đã yêu cầu chỉnh kỹ thuật.'
+    if action == 'technical_submit':
+        wf.submit_technical(dossier, user, due_at=due)
+        return 'sample', 'Đã chuyển sang làm mẫu.'
 
     if action == 'sample_save':
         sv = get_object_or_404(SampleVersion, pk=post.get('sample_version_id'), dossier=dossier)
@@ -721,12 +754,14 @@ def _run_action(request, dossier: ProductDevelopment, action: str) -> tuple[str,
         form = f.TechPackForm(post)
         if not form.is_valid():
             raise wf.WorkflowError(_form_error_text(form))
-        wf.save_tech_pack(sv, user, fields={k: form.cleaned_data[k] for k in form.Meta.fields},
-                          lines=_material_lines(post))
+        wf.save_tech_pack(sv, user, fields={
+            **{k: form.cleaned_data[k] for k in form.Meta.fields},
+            'size_spec': size_spec_from_post(post),
+        }, lines=_material_lines(post))
         return 'technical', f'Đã lưu hồ sơ kỹ thuật mẫu {sv.label}.'
     if action == 'sample_submit':
         wf.submit_sample(dossier, user, due_at=due)
-        return 'sample', 'Đã gửi mẫu đi đánh giá.'
+        return 'approval', 'Đã gửi duyệt thiết kế. Hồ sơ dừng ở bước Duyệt thiết kế.'
     if action == 'evaluation_add':
         form = f.EvaluationForm(post, allowed_roles=wf.evaluator_roles_for(dossier, user))
         if not form.is_valid():
@@ -743,7 +778,7 @@ def _run_action(request, dossier: ProductDevelopment, action: str) -> tuple[str,
         upload = request.FILES.get('evaluation_file')
         if upload:
             wf.upload_attachment(dossier, user, uploaded_file=upload, kind=AttachmentKind.EVALUATION,
-                                 sample_version=dossier.current_sample_version())
+                                 sample_version=dossier.current_sample_version(), tab='sample')
         return 'sample', 'Đã lưu đánh giá mẫu.'
     if action == 'fix_done':
         ev = get_object_or_404(SampleEvaluation, pk=post.get('evaluation_id'), sample_version__dossier=dossier)
@@ -763,6 +798,9 @@ def _run_action(request, dossier: ProductDevelopment, action: str) -> tuple[str,
         if decision == 'request_design':
             wf.request_design_change_from_sample(dossier, user, comment=comment, due_at=due)
             return 'design', 'Đã yêu cầu chỉnh thiết kế — mở phiên bản thiết kế mới.'
+        if decision == 'request_technical':
+            wf.request_technical_change(dossier, user, comment=comment, due_at=due)
+            return 'technical', 'Đã yêu cầu chỉnh kỹ thuật.'
         if decision == ApprovalDecision.CANCELLED:
             wf.cancel(dossier, user, reason=comment, stage=ApprovalStage.MASTER)
             return 'overview', 'Đã hủy hồ sơ.'
@@ -770,7 +808,7 @@ def _run_action(request, dossier: ProductDevelopment, action: str) -> tuple[str,
             raise wf.WorkflowError('Quyết định không hợp lệ.')
         wf.decide_master(dossier, user, official_code=post.get('official_code', ''), comment=comment,
                          conditions=_conditions(post), due_at=due)
-        return 'approval', 'Đã duyệt mẫu chuẩn.'
+        return 'approval', 'Đã duyệt thiết kế.'
     if action == 'condition_done':
         cond = get_object_or_404(ApprovalCondition, pk=post.get('condition_id'), dossier=dossier)
         wf.complete_condition(cond, user, note=post.get('note', ''))
@@ -781,7 +819,13 @@ def _run_action(request, dossier: ProductDevelopment, action: str) -> tuple[str,
         if not form.is_valid():
             raise wf.WorkflowError(_form_error_text(form))
         record = wf.handover(dossier, user, note=form.cleaned_data['note'], due_at=due)
-        return 'overview', f'Đã bàn giao — Style {record.product_code} đã vào Thư viện.'
+        return 'overview', f'Đã thêm Style {record.product_code} vào Thư viện.'
+    if action == 'reopen_completion':
+        wf.reopen_completion(dossier, user, reason=comment)
+        return 'overview', 'Đã huỷ hoàn thành. Style ẩn khỏi Thư viện — mỗi người sửa đúng phần của mình, rồi gửi duyệt lại.'
+    if action == 'resubmit_approval':
+        wf.resubmit_after_reopen(dossier, user, due_at=due)
+        return 'approval', 'Đã gửi duyệt lại bước cuối. Sau khi duyệt, bấm Thêm vào Thư viện để hiện Style trở lại.'
     if action == 'close':
         wf.close_dossier(dossier, user)
         return 'overview', 'Đã đóng hồ sơ.'
@@ -892,7 +936,7 @@ def attachment_upload(request, pk):
     for upload in files:
         try:
             wf.upload_attachment(dossier, user, uploaded_file=upload, kind=kind, design_version=dv,
-                                 sample_version=sv, colorway=cw, note=post.get('note', ''))
+                                 sample_version=sv, colorway=cw, note=post.get('note', ''), tab=tab)
             done += 1
         except wf.WorkflowError as exc:
             messages.error(request, f'{upload.name}: {exc}')
@@ -943,7 +987,7 @@ def attachment_serve(request, att_pk):
 # Việc của tôi / duyệt / thông báo / tổng quan / thiết lập
 # ---------------------------------------------------------------------------
 
-QUICK_KINDS = {Status.BRIEF_PENDING: 'brief', Status.DESIGN_PENDING: 'design', Status.MASTER_PENDING: 'master'}
+QUICK_KINDS = {Status.SAMPLE_EVAL_PENDING: 'master', Status.MASTER_PENDING: 'master'}
 
 
 def _prepare_quick(dossiers, user) -> list:
@@ -968,7 +1012,7 @@ def _prepare_quick(dossiers, user) -> list:
                 dv.current_atts = {'front': fronts.get(dv.pk)}
             d.quick_options = options
         elif kind == 'master':
-            d.quick_checklist = wf.master_checklist(d)
+            d.quick_checklist = wf.master_checklist(d, user)
         ready.append(d)
     return ready
 
@@ -1147,6 +1191,7 @@ def _run_kanban_move(dossier, user, move: str, *, comment: str, official_code: s
         'brief_approve': lambda: wf.decide_brief(dossier, user, decision=approved, comment=comment),
         'brief_request_change': lambda: wf.decide_brief(dossier, user, decision=change, comment=comment),
         'design_submit': lambda: wf.submit_design(dossier, user),
+        'technical_submit': lambda: wf.submit_technical(dossier, user),
         'design_approve': lambda: wf.decide_design(dossier, user, decision=approved, comment=comment),
         'design_request_change': lambda: wf.decide_design(dossier, user, decision=change, comment=comment),
         'sample_submit': lambda: wf.submit_sample(dossier, user),
@@ -1155,10 +1200,15 @@ def _run_kanban_move(dossier, user, move: str, *, comment: str, official_code: s
         'master_request_fix': lambda: wf.request_sample_fix(dossier, user, comment=comment),
         'master_approve': lambda: wf.decide_master(dossier, user, official_code=official_code, comment=comment),
         'eval_request_design': lambda: wf.request_design_change_from_sample(dossier, user, comment=comment),
+        'eval_request_technical': lambda: wf.request_technical_change(dossier, user, comment=comment),
         'master_request_design': lambda: wf.request_design_change_from_sample(dossier, user, comment=comment),
+        'master_request_technical': lambda: wf.request_technical_change(dossier, user, comment=comment),
         'pause': lambda: wf.pause(dossier, user, reason=comment),
         'resume': lambda: wf.resume(dossier, user, comment=comment),
+        'resubmit_approval': lambda: wf.resubmit_after_reopen(dossier, user),
     }
+    if move == 'design_submit' and len(dossier.current_design_versions()) > 1:
+        raise wf.WorkflowError('Hồ sơ có nhiều phương án thiết kế — mở hồ sơ để chọn phương án chuyển kỹ thuật.')
     if move in ('design_approve', 'design_request_change') and len(dossier.current_design_versions()) > 1:
         raise wf.WorkflowError('Hồ sơ có nhiều phương án thiết kế — mở hồ sơ để chọn phương án.')
     runners[move]()

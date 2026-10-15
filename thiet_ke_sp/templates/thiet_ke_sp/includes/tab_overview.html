@@ -1,19 +1,19 @@
 {% load sx_format tksp_tags %}
 {% if handover %}
 <div class="tk-section">
-  <div class="tk-section-title"><i class="bi bi-box-arrow-right"></i>Bàn giao vào Thư viện
+  <div class="tk-section-title"><i class="bi bi-box-arrow-right"></i>Thêm vào Thư viện
     <span class="tk-pill is-green">{{ handover.handed_at|date:'H:i d/m/Y' }}</span>
-    {% if handover.is_transferred %}<span class="tk-pill is-green">Đã chuyển sản xuất</span>{% else %}<span class="tk-pill is-amber">Chờ chuyển sản xuất</span>{% endif %}
+    {% if dossier.status == 'library_reopen' %}<span class="tk-pill is-amber">Đã gỡ khỏi Thư viện</span>{% elif handover.is_transferred %}<span class="tk-pill is-green">Đã chuyển sản xuất</span>{% else %}<span class="tk-pill is-green">Trong Thư viện</span>{% endif %}
     <span class="ms-auto d-flex gap-2">
-      <a class="btn btn-sm btn-outline-hm" href="{% url 'kho_san_pham:library_detail' handover.product_code %}"><i class="bi bi-collection me-1"></i>Style trong Thư viện</a>
+      {% if dossier.status != 'library_reopen' %}<a class="btn btn-sm btn-outline-hm" href="{% url 'kho_san_pham:library_detail' handover.product_code %}"><i class="bi bi-collection me-1"></i>Style trong Thư viện</a>{% endif %}
       {% if handover.tech_doc_id %}<a class="btn btn-sm btn-outline-hm" href="{% url 'san_xuat:doc_detail' handover.tech_doc_id %}"><i class="bi bi-box-arrow-up-right me-1"></i>Hồ sơ sản phẩm SX</a>{% endif %}
     </span>
   </div>
   <div class="tk-grid3 mb-3">
     <div class="tk-field"><label>Mã sản phẩm</label><strong>{{ handover.product_code }}</strong></div>
     <div class="tk-field"><label>Thiết kế / mẫu chuẩn</label><strong>{{ handover.design_version.label }} / {{ handover.sample_version.label }}</strong></div>
-    <div class="tk-field"><label>Người bàn giao</label><strong>{{ handover.handed_by|uname }}</strong></div>
-    <div class="tk-field"><label>Chuyển sản xuất</label><strong>{% if handover.is_transferred %}{{ handover.transferred_at|date:'H:i d/m/Y' }} · {{ handover.transferred_by|uname }}{% else %}Chờ Thư viện chuyển{% endif %}</strong></div>
+    <div class="tk-field"><label>Người thêm</label><strong>{{ handover.handed_by|uname }}</strong></div>
+    <div class="tk-field"><label>Chuyển sản xuất</label><strong>{% if handover.is_transferred %}{{ handover.transferred_at|date:'H:i d/m/Y' }} · {{ handover.transferred_by|uname }}{% else %}Làm bên Thư viện khi cần{% endif %}</strong></div>
   </div>
   {% if handover.note %}<div class="tk-field mb-0"><label>Nội dung</label><span class="v">{{ handover.note }}</span></div>{% endif %}
 </div>

@@ -1,0 +1,14 @@
+{% load tksp_tags %}<tr{% if not version_current or not a.is_current %} class="text-muted"{% endif %}>
+  <td>{{ step }}</td>
+  <td>{{ version }}</td>
+  <td>{{ a.get_kind_display }}{% if a.colorway %} · {{ a.colorway.name }}{% endif %}</td>
+  <td>
+    {% if a.is_image %}
+    <button type="button" class="btn btn-link p-0 align-baseline" data-sx-gallery data-sx-gallery-image="{{ a.get_absolute_url }}" data-sx-gallery-title="{{ a.display_name }}">{{ a.display_name }}</button>
+    {% else %}
+    <a href="{{ a.get_absolute_url }}" target="_blank" rel="noopener">{{ a.display_name }}</a>
+    {% endif %}
+    {% if not a.is_current %} <span class="tk-pill is-gray">đã thay</span>{% endif %}
+  </td>
+  <td>{{ a.uploaded_by|uname }} · {{ a.uploaded_at|date:'d/m/Y' }}</td>
+</tr>
