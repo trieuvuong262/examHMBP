@@ -1,7 +1,7 @@
 {% if route_stats and route_stats.stages %}
 <tbody class="jp-route-sum" data-open="0" data-jp-route-sum="both">
   <tr class="jp-route-sum-head">
-    <td class="jp-route-sum-head-cell" colspan="7">
+    <td class="jp-route-sum-head-cell" colspan="4">
       <button type="button" class="jp-route-sum-toggle" data-jp-route-sum-toggle aria-expanded="false">
         <i class="bi bi-chevron-down" aria-hidden="true"></i>
         Thống kê
@@ -15,10 +15,7 @@
   {% for stage in route_stats.stages %}
   <tr class="jp-route-sum-row jp-tl-orow" data-team-slug="{{ stage.slug }}">
     <td class="c-stt jp-route-sum-spacer"></td>
-    <td class="c-prio jp-route-sum-spacer"></td>
-    <td class="c-img jp-route-sum-spacer"></td>
-    <td class="c-name jp-route-sum-spacer"></td>
-    <td class="c-po jp-route-sum-spacer"></td>
+    <td class="c-product jp-route-sum-spacer"></td>
     <td class="c-dept jp-stage-{{ stage.slug }}" title="{{ stage.label }}">
       <span class="jp-tl-dept-name">{{ stage.label }}</span>
     </td>

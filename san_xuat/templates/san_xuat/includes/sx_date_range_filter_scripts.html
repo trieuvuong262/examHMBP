@@ -26,6 +26,15 @@ document.addEventListener('DOMContentLoaded', function () {
       : 'form-control';
   }
 
+  function parseJpDate(datestr) {
+    var raw = String(datestr || '').trim();
+    var iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (iso) return new Date(+iso[1], +iso[2] - 1, +iso[3]);
+    var vn = raw.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/);
+    if (vn) return new Date(+vn[3], +vn[2] - 1, +vn[1]);
+    return undefined;
+  }
+
   function initJpDateVn(el, opts) {
     if (!el || el._flatpickr) return;
     if (!window.flatpickr) return;
@@ -35,6 +44,7 @@ document.addEventListener('DOMContentLoaded', function () {
       altFormat: 'd/m/Y',
       allowInput: true,
       altInputClass: altInputClassFor(el),
+      parseDate: parseJpDate,
     };
     if (opts) {
       Object.keys(opts).forEach(function (k) { base[k] = opts[k]; });

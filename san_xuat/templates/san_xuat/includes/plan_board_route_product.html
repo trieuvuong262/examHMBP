@@ -1,0 +1,31 @@
+<div class="jp-sheet-product" title="{{ row.order.code }}{% if row.product_name_label %} · {{ row.product_name_label }}{% endif %}">
+  <div class="jp-sheet-product-head">
+    <span class="jp-tl-prio is-{{ row.order.plan_priority }}">{{ row.order.get_plan_priority_display }}</span>
+    <a class="jp-tl-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
+    {% if can_view_team_work_goods %}
+    <a class="jp-tl-hh" href="{% url 'san_xuat:team_work_goods' %}?q={{ row.order.code|urlencode }}" title="Tiến độ hàng hoá của đơn">Tiến độ</a>
+    {% endif %}
+  </div>
+  <div class="jp-sheet-product-lines">
+    {% for img in row.product_images %}
+    <div class="jp-sheet-product-line">
+      {% if img.url %}
+      <button type="button" class="jp-tl-product" data-sx-gallery
+              data-sx-gallery-title="{{ img.name }}"
+              data-sx-gallery-images="{{ img.urls_json }}"
+              title="{{ img.name }}">
+        <img src="{{ img.url }}" alt="{{ img.name }}" loading="lazy">
+      </button>
+      {% else %}
+      <span class="jp-tl-product is-empty" title="{{ img.name|default:'Chưa có ảnh' }}"><i class="bi bi-image" aria-hidden="true"></i></span>
+      {% endif %}
+      <span class="jp-sheet-product-name" title="{{ img.name }}">{{ img.name|default:"—" }}</span>
+    </div>
+    {% empty %}
+    <div class="jp-sheet-product-line">
+      <span class="jp-tl-product is-empty" title="Chưa có ảnh"><i class="bi bi-image" aria-hidden="true"></i></span>
+      <span class="jp-sheet-product-name">{{ row.product_name_label|default:"—" }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</div>

@@ -596,7 +596,8 @@ def sales_order_create(request):
             else:
                 messages.success(request, f'Đã tạo đơn {order.code}.')
                 return redirect('san_xuat:sales_order_detail', pk=order.pk)
-        messages.error(request, 'Không tạo được đơn — kiểm tra lại form.')
+        else:
+            messages.error(request, 'Không tạo được đơn — kiểm tra lại form.')
 
     return render(request, 'san_xuat/sales_order_form.html', {
         **_perm_ctx(request),
@@ -634,6 +635,7 @@ def sales_order_edit(request, pk: int):
     header = SalesOrderHeaderForm(
         request.POST or None,
         request.FILES or None,
+        order_pk=order.pk,
         initial={
             'code': order.code,
             'customer_name': order.customer_name,
@@ -667,7 +669,8 @@ def sales_order_edit(request, pk: int):
             else:
                 messages.success(request, f'Đã cập nhật đơn {order.code}.')
                 return redirect('san_xuat:sales_order_detail', pk=order.pk)
-        messages.error(request, 'Không lưu được đơn — kiểm tra lại form.')
+        else:
+            messages.error(request, 'Không lưu được đơn — kiểm tra lại form.')
 
     creator = order.created_by
     creator_label = (
@@ -1504,12 +1507,15 @@ def plan_board(request):
                 if gc_team_filter:
                     params['gc_team'] = gc_team_filter
         elif tab == 'route':
+            route_set = (request.GET.get('route_set') or request.POST.get('route_set') or '').strip()
             route_from_raw = (request.GET.get('route_from') or request.POST.get('route_from') or '').strip()
-            route_months_raw = (request.GET.get('route_months') or request.POST.get('route_months') or '').strip()
-            if route_from_raw:
-                params['route_from'] = route_from_raw
-            if route_months_raw:
-                params['route_months'] = route_months_raw
+            route_to_raw = (request.GET.get('route_to') or request.POST.get('route_to') or '').strip()
+            if route_set == '1':
+                params['route_set'] = '1'
+                if route_from_raw:
+                    params['route_from'] = route_from_raw
+                if route_to_raw:
+                    params['route_to'] = route_to_raw
             if route_team_filter:
                 params['team'] = route_team_filter
             if priority_filter:
@@ -2177,7 +2183,6 @@ def plan_board(request):
     filter_next_to = None
     filter_month_label = ''
     filter_is_current_month = False
-    route_months = 1
     route_board = None
     route_dept_choices: list[tuple[str, str]] = []
     route_team_choices: list[dict] = []
@@ -2371,24 +2376,26 @@ def plan_board(request):
         route_stats = None
     elif tab == 'route':
         from san_xuat.list_filters import parse_sx_date
-        from san_xuat.services.plan_board import _clamp_route_months, _months_bounds, _shift_month
+        from san_xuat.services.plan_board import resolve_route_range
 
-        route_from = parse_sx_date((request.GET.get('route_from') or '').strip())
-        route_months = _clamp_route_months(request.GET.get('route_months'))
-        win_start, win_end = _months_bounds(route_from or timezone.localdate(), route_months)
-        pad_start, _pad_end = _months_bounds(_shift_month(win_start, -1), 1)
+        route_dates_chosen = (request.GET.get('route_set') or '').strip() == '1'
+        route_from, route_to = resolve_route_range(
+            parse_sx_date((request.GET.get('route_from') or '').strip()) if route_dates_chosen else None,
+            parse_sx_date((request.GET.get('route_to') or '').strip()) if route_dates_chosen else None,
+            timezone.localdate(),
+        )
         route_rows = build_plan_board_rows(
             include_released=True,
             search=q,
-            date_from=pad_start,
-            date_to=win_end,
+            date_from=route_from,
+            date_to=route_to,
             date_mode='range',
             persist_side_effects=False,
         )
         route_board = build_order_timeline(
             route_rows,
             range_from=route_from,
-            months=route_months,
+            range_to=route_to,
         )
         route_team_choices = route_team_filter_choices(route_board)
         route_board = filter_route_timeline(
@@ -2397,7 +2404,6 @@ def plan_board(request):
             include_unassigned_team=route_team_unassigned,
         )
         route_board = _apply_route_board_filters(route_board)
-        today_start, today_end_month = _months_bounds(timezone.localdate(), route_months)
         route_stats = build_route_stats(route_board)
 
     from san_xuat.hub_models import SxProductionCancelRequest
@@ -2473,7 +2479,6 @@ def plan_board(request):
         'priority_choices': SxSalesOrder.PRIORITY_CHOICES,
         'route_board': route_board,
         'route_stats': route_stats,
-        'route_months': route_months,
         'route_dept_filter': route_dept_filter,
         'route_team_filter': route_team_filter,
         'route_dept_choices': route_dept_choices,

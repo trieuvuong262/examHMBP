@@ -4,6 +4,13 @@
          data-range-start="{{ route_board.range_start|date:'Y-m-d' }}"
          oncontextmenu="event.preventDefault(); event.stopPropagation(); if (window.jpShowRouteCtx) window.jpShowRouteCtx(event); return false;">
   {% csrf_token %}
+  <div class="jp-route-full-bar">
+    <span class="jp-route-full-title">Lộ trình sản xuất</span>
+    <button type="button" class="jp-route-full-exit" id="jpRouteFullscreenExit" title="Thu nhỏ bảng lộ trình">
+      <i class="bi bi-fullscreen-exit" aria-hidden="true"></i>
+      <span>Thu nhỏ</span>
+    </button>
+  </div>
   {% for row in route_board.rows %}
     {% if row.duration_script_id %}{{ row.duration_detail|json_script:row.duration_script_id }}{% endif %}
   {% endfor %}
@@ -13,10 +20,7 @@
       <table class="jp-tl-sheet">
         <colgroup>
           <col class="c-stt">
-          <col class="c-prio">
-          <col class="c-img">
-          <col class="c-name">
-          <col class="c-po">
+          <col class="c-product">
           <col class="c-dept">
           <col class="c-team">
           {% for d in route_board.days %}
@@ -27,10 +31,7 @@
         <thead>
           <tr>
             <th class="c-stt">STT</th>
-            <th class="c-prio">Ưu tiên</th>
-            <th class="c-img">Ảnh</th>
-            <th class="c-name">Tên sản phẩm</th>
-            <th class="c-po">Mã đơn</th>
+            <th class="c-product">Thông tin sản phẩm</th>
             <th class="c-dept">Bộ phận</th>
             <th class="c-team">Tổ</th>
             {% for d in route_board.days %}
@@ -41,6 +42,7 @@
             <th class="c-total" title="Trên: tổng số lượng dự kiến. Dưới: tổng số lượng đã thực hiện">Tổng</th>
           </tr>
         </thead>
+      {% include 'san_xuat/includes/plan_board_route_stats.html' %}
           {% for row in route_board.rows %}
           <tbody class="jp-sheet-order" data-order-id="{{ row.order.pk }}">
             {% with stt=forloop.counter %}
@@ -60,39 +62,8 @@
                 <span class="jp-stt-num">{{ stt }}</span>
                 {% endif %}
               </td>
-              <td class="c-prio" rowspan="{{ row.stage_rows|length }}"><span class="jp-tl-prio is-{{ row.order.plan_priority }}">{{ row.order.get_plan_priority_display }}</span></td>
-              <td class="c-img" rowspan="{{ row.stage_rows|length }}">
-                <div class="jp-sheet-thumbs">
-                  {% for img in row.product_images %}
-                    {% if img.url %}
-                    <button type="button" class="jp-tl-product" data-sx-gallery
-                            data-sx-gallery-title="{{ img.name }}"
-                            data-sx-gallery-images="{{ img.urls_json }}"
-                            title="{{ img.name }}">
-                      <img src="{{ img.url }}" alt="{{ img.name }}" loading="lazy">
-                    </button>
-                    {% else %}
-                    <span class="jp-tl-product is-empty" title="{{ img.name|default:'Chưa có ảnh' }}"><i class="bi bi-image" aria-hidden="true"></i></span>
-                    {% endif %}
-                  {% empty %}
-                  <span class="jp-tl-product is-empty" title="Chưa có ảnh"><i class="bi bi-image" aria-hidden="true"></i></span>
-                  {% endfor %}
-                </div>
-              </td>
-              <td class="c-name" rowspan="{{ row.stage_rows|length }}" title="{{ row.product_name_label|default:row.subtitle }}">
-                <div class="jp-sheet-names">
-                  {% for img in row.product_images %}
-                  <span title="{{ img.name }}">{{ img.name|default:"—" }}</span>
-                  {% empty %}
-                  <span>{{ row.product_name_label|default:"—" }}</span>
-                  {% endfor %}
-                </div>
-              </td>
-              <td class="c-po" rowspan="{{ row.stage_rows|length }}">
-                <a class="jp-tl-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
-                {% if can_view_team_work_goods %}
-                <a class="jp-tl-hh" href="{% url 'san_xuat:team_work_goods' %}?q={{ row.order.code|urlencode }}" title="Tiến độ hàng hoá của đơn">HH</a>
-                {% endif %}
+              <td class="c-product" rowspan="{{ row.stage_rows|length }}">
+                {% include 'san_xuat/includes/plan_board_route_product.html' %}
               </td>
               {% endif %}
               <td class="c-dept jp-stage-{{ stage.slug }}{% if stage.gc_hired %} is-gc{% endif %}"
@@ -216,35 +187,9 @@
                 <span class="jp-stt-num">{{ stt }}</span>
                 {% endif %}
               </td>
-              <td class="c-prio"><span class="jp-tl-prio is-{{ row.order.plan_priority }}">{{ row.order.get_plan_priority_display }}</span></td>
-              <td class="c-img">
-                <div class="jp-sheet-thumbs">
-                  {% for img in row.product_images %}
-                    {% if img.url %}
-                    <button type="button" class="jp-tl-product" data-sx-gallery
-                            data-sx-gallery-title="{{ img.name }}"
-                            data-sx-gallery-images="{{ img.urls_json }}"
-                            title="{{ img.name }}">
-                      <img src="{{ img.url }}" alt="{{ img.name }}" loading="lazy">
-                    </button>
-                    {% else %}
-                    <span class="jp-tl-product is-empty" title="{{ img.name|default:'Chưa có ảnh' }}"><i class="bi bi-image" aria-hidden="true"></i></span>
-                    {% endif %}
-                  {% empty %}
-                  <span class="jp-tl-product is-empty"><i class="bi bi-image" aria-hidden="true"></i></span>
-                  {% endfor %}
-                </div>
+              <td class="c-product">
+                {% include 'san_xuat/includes/plan_board_route_product.html' %}
               </td>
-              <td class="c-name">
-                <div class="jp-sheet-names">
-                  {% for img in row.product_images %}
-                  <span title="{{ img.name }}">{{ img.name|default:"—" }}</span>
-                  {% empty %}
-                  <span>{{ row.product_name_label|default:"—" }}</span>
-                  {% endfor %}
-                </div>
-              </td>
-              <td class="c-po"><a class="jp-tl-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>{% if can_view_team_work_goods %} <a class="jp-tl-hh" href="{% url 'san_xuat:team_work_goods' %}?q={{ row.order.code|urlencode }}" title="Tiến độ hàng hoá">HH</a>{% endif %}</td>
               <td class="c-dept">—</td>
               <td class="c-team">—</td>
               {% for d in route_board.days %}
@@ -261,7 +206,6 @@
             {% endwith %}
           </tbody>
           {% endfor %}
-      {% include 'san_xuat/includes/plan_board_route_stats.html' %}
       </table>
     </div>
     {% else %}
@@ -269,7 +213,7 @@
       {% if search_query or route_team_filter or priority_filter or deadline_filter %}
         Không có đơn khớp bộ lọc. Đổi bộ phận, ưu tiên hoặc xóa lọc để xem lại.
       {% else %}
-        Không có đơn trong {{ route_board.month_label }}. Đổi tháng hiển thị để xem.
+        Không có đơn trong {{ route_board.month_label }}. Đổi khoảng ngày để xem.
       {% endif %}
     </div>
     {% endif %}

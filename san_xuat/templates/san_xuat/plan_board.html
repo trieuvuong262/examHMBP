@@ -1901,6 +1901,90 @@
     height: 100%;
     overflow: auto;
   }
+  .jp-pb-route-zoom {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: flex-end;
+  }
+  .jp-pb-zoom-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .4rem;
+    height: 31px;
+    padding: 0 .8rem;
+    border: 1px solid #fecaca;
+    border-radius: .5rem;
+    background: #fff;
+    color: #b91c1c;
+    font-size: .8125rem;
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+    box-shadow: 0 1px 2px rgba(220, 38, 38, .08);
+  }
+  .jp-pb-zoom-btn:hover,
+  .jp-pb-zoom-btn:focus-visible {
+    background: #fef2f2;
+    border-color: #f87171;
+    color: #991b1b;
+  }
+  .jp-pb-zoom-btn .bi { font-size: .95rem; line-height: 1; }
+  .jp-route-full-bar { display: none; }
+  #lo-trinh.is-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 1045;
+    display: flex;
+    flex-direction: column;
+    width: 100vw;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    padding: 10px 12px 12px;
+    box-sizing: border-box;
+    background: #f8fafc;
+  }
+  #lo-trinh.is-fullscreen .jp-route-full-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    flex: 0 0 auto;
+    margin: 0 0 8px;
+  }
+  .jp-route-full-title {
+    font-size: .95rem;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -.02em;
+  }
+  .jp-route-full-exit {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    height: 32px;
+    padding: 0 .8rem;
+    border: 0;
+    border-radius: .5rem;
+    background: #dc2626;
+    color: #fff;
+    font-size: .8125rem;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .jp-route-full-exit:hover,
+  .jp-route-full-exit:focus-visible {
+    background: #b91c1c;
+    color: #fff;
+  }
+  #lo-trinh.is-fullscreen .jp-tl-wrap {
+    flex: 1 1 auto;
+    height: auto !important;
+    min-height: 0;
+    max-height: none;
+  }
+  body.jp-route-fullscreen { overflow: hidden; }
   .jp-pb.is-route .jp-tl-empty {
     min-height: 100%;
     display: flex;
@@ -1973,7 +2057,7 @@
          aria-selected="{% if tab == 'team' %}true{% else %}false{% endif %}">Tổ SX</a>
       <a role="tab"
          class="btn btn-sm fw-bold {% if tab == 'route' %}btn-hm{% else %}btn-outline-secondary{% endif %}"
-         href="{% url 'san_xuat:plan_board' %}?mode=list&tab=route{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}{% if tab == 'route' and route_board %}&route_from={{ route_board.range_start|date:'Y-m-d' }}&route_months={{ route_months }}{% endif %}"
+         href="{% url 'san_xuat:plan_board' %}?mode=list&tab=route{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}{% if tab == 'route' and route_board %}&route_set=1&route_from={{ route_board.range_start|date:'Y-m-d' }}&route_to={{ route_board.range_end|date:'Y-m-d' }}{% endif %}"
          {% if tab != 'route' %}data-loading-message="Đang tải lộ trình…"{% endif %}
          aria-selected="{% if tab == 'route' %}true{% else %}false{% endif %}">Lộ trình</a>
       {% if tab == 'team' and team_report %}
@@ -2006,6 +2090,22 @@
           <input type="date" id="jp-pb-date-to" name="date_to"
                  class="form-control form-control-sm jp-date-vn"
                  value="{{ filter_date_to|date:'Y-m-d' }}">
+        </div>
+      </div>
+      {% elif tab == 'route' and route_board %}
+      <input type="hidden" name="route_set" value="1">
+      <div class="jp-team-filter-dates">
+        <div>
+          <label class="form-label fw-bold small mb-1" for="jp-pb-route-from">Từ ngày</label>
+          <input type="date" id="jp-pb-route-from" name="route_from"
+                 class="form-control form-control-sm jp-date-vn"
+                 value="{{ route_board.range_start|date:'Y-m-d' }}">
+        </div>
+        <div>
+          <label class="form-label fw-bold small mb-1" for="jp-pb-route-to">Đến ngày</label>
+          <input type="date" id="jp-pb-route-to" name="route_to"
+                 class="form-control form-control-sm jp-date-vn"
+                 value="{{ route_board.range_end|date:'Y-m-d' }}">
         </div>
       </div>
       {% endif %}
@@ -2103,13 +2203,18 @@
             {% endfor %}
           </select>
         </div>
-        <input type="hidden" name="route_from" value="{% if route_board %}{{ route_board.range_start|date:'Y-m-d' }}{% endif %}">
-        <input type="hidden" name="route_months" value="{{ route_months|default:1 }}">
+        <div class="jp-pb-route-zoom">
+          <button type="button" class="jp-pb-zoom-btn" id="jpRouteFullscreen"
+                  aria-pressed="false" title="Phóng to bảng lộ trình">
+            <i class="bi bi-arrows-fullscreen" aria-hidden="true"></i>
+            <span>Phóng to</span>
+          </button>
+        </div>
         {% endif %}
       </div>
       {% if search_query or priority_filter or npl_filter or tech_filter or deadline_filter or route_team_filter %}
       <div class="jp-team-filter-actions">
-        <a href="?mode={{ mode }}&amp;tab={{ tab }}&amp;sx_reset=1{% if tab == 'route' %}{% if route_board %}&amp;route_from={{ route_board.range_start|date:'Y-m-d' }}&amp;route_months={{ route_months }}{% endif %}{% endif %}"
+        <a href="?mode={{ mode }}&amp;tab={{ tab }}&amp;sx_reset=1{% if tab == 'route' %}{% if route_board %}&amp;route_set=1&amp;route_from={{ route_board.range_start|date:'Y-m-d' }}&amp;route_to={{ route_board.range_end|date:'Y-m-d' }}{% endif %}{% endif %}"
            class="btn btn-light border btn-sm" title="Xóa bộ lọc">
           <i class="bi bi-x-lg"></i> Xóa lọc
         </a>
@@ -2141,34 +2246,10 @@
            data-loading-message="Đang tải sản lượng tổ…" title="Về tháng hiện tại">Tháng này</a>
         {% endif %}
       </div>
-      {% elif tab == 'route' %}{% if route_board %}
-      <div class="jp-pb-date-shift" aria-label="Chuyển tháng">
-        <a href="?mode={{ mode }}&amp;tab={{ tab }}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}&amp;route_from={{ route_board.prev_from|date:'Y-m-d' }}&amp;route_months={{ route_months }}"
-           title="Tháng trước"><i class="bi bi-chevron-left"></i></a>
-        <span title="{{ route_board.range_start|date:'d/m/Y' }} – {{ route_board.range_end|date:'d/m/Y' }}">{{ route_board.month_label }}</span>
-        <a href="?mode={{ mode }}&amp;tab={{ tab }}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}&amp;route_from={{ route_board.next_from|date:'Y-m-d' }}&amp;route_months={{ route_months }}"
-           title="Tháng sau"><i class="bi bi-chevron-right"></i></a>
-        <span class="jp-pb-span-switch" role="group" aria-label="Hiển thị lưới">
-          <a href="?mode={{ mode }}&amp;tab={{ tab }}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}&amp;route_from={{ route_board.range_start|date:'Y-m-d' }}&amp;route_months=1"
-             class="{% if route_months == 1 %}is-on{% endif %}" title="Lưới 1 tháng">1 tháng</a>
-          <a href="?mode={{ mode }}&amp;tab={{ tab }}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}&amp;route_from={{ route_board.range_start|date:'Y-m-d' }}&amp;route_months=2"
-             class="{% if route_months == 2 %}is-on{% endif %}" title="Lưới 2 tháng">2 tháng</a>
-          <a href="?mode={{ mode }}&amp;tab={{ tab }}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}&amp;route_from={{ route_board.range_start|date:'Y-m-d' }}&amp;route_months=3"
-             class="{% if route_months == 3 %}is-on{% endif %}" title="Lưới 3 tháng">3 tháng</a>
-        </span>
-        {% if not route_board.is_current_month and this_month_from %}
-        <a class="jp-pb-month-now"
-           href="?mode={{ mode }}&amp;tab={{ tab }}{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}&amp;route_from={{ this_month_from|date:'Y-m-d' }}&amp;route_months={{ route_months }}"
-           title="Về tháng hiện tại">Tháng này</a>
-        {% endif %}
-      </div>
-      {% endif %}{% endif %}
+      {% endif %}
     </div>
   </form>
 
-  {% if tab == 'route' %}
-  {% include 'san_xuat/includes/plan_stage_legend.html' %}
-  {% endif %}
   {% if tab == 'team' and team_report %}
   {% include 'san_xuat/includes/plan_board_team_report.html' %}
   {% endif %}
@@ -5094,6 +5175,52 @@
       if (!el.tomselect || typeof el.tomselect.sync !== 'function') return;
       el.tomselect.sync();
     });
+  });
+})();
+(function () {
+  var sheet = document.getElementById('lo-trinh');
+  var openBtn = document.getElementById('jpRouteFullscreen');
+  var closeBtn = document.getElementById('jpRouteFullscreenExit');
+  if (!sheet || !openBtn) return;
+
+  function sync() {
+    var on = sheet.classList.contains('is-fullscreen');
+    openBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    document.body.classList.toggle('jp-route-fullscreen', on);
+  }
+  function enter() {
+    sheet.classList.add('is-fullscreen');
+    sync();
+    var root = document.documentElement;
+    var req = root.requestFullscreen || root.webkitRequestFullscreen;
+    if (req && !document.fullscreenElement) {
+      Promise.resolve(req.call(root)).catch(function () {});
+    }
+    if (closeBtn) closeBtn.focus();
+  }
+  function leave() {
+    sheet.classList.remove('is-fullscreen');
+    sync();
+    if (document.fullscreenElement && document.exitFullscreen) {
+      Promise.resolve(document.exitFullscreen()).catch(function () {});
+    }
+  }
+  openBtn.addEventListener('click', function () {
+    if (sheet.classList.contains('is-fullscreen')) leave();
+    else enter();
+  });
+  if (closeBtn) closeBtn.addEventListener('click', leave);
+  document.addEventListener('fullscreenchange', function () {
+    if (!document.fullscreenElement && sheet.classList.contains('is-fullscreen')) {
+      sheet.classList.remove('is-fullscreen');
+      sync();
+    }
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Escape' || !sheet.classList.contains('is-fullscreen')) return;
+    if (document.querySelector('.modal.show')) return;
+    if (document.fullscreenElement) return;
+    leave();
   });
 })();
 </script>

@@ -17,6 +17,7 @@ class SalesOrderHeaderForm(forms.Form):
         widget=forms.TextInput(attrs={
             'class': 'form-control form-control-sm',
             'placeholder': 'Để trống = tự sinh',
+            'autocomplete': 'off',
         }),
     )
     customer_name = forms.CharField(
@@ -50,7 +51,8 @@ class SalesOrderHeaderForm(forms.Form):
         }),
     )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, order_pk=None, **kwargs):
+        self.order_pk = order_pk
         super().__init__(*args, **kwargs)
         extra = ''
         data = args[0] if args else None
@@ -62,6 +64,21 @@ class SalesOrderHeaderForm(forms.Form):
         choices = [(extra, extra)] if extra else []
         self.fields['customer_name'].widget.choices = choices
         self.fields['customer_name'].choices = choices
+
+    def clean_code(self):
+        code = (self.cleaned_data.get('code') or '').strip()
+        if not code:
+            return ''
+        from san_xuat.hub_models import SxSalesOrder
+
+        qs = SxSalesOrder.objects.filter(code=code)
+        if self.order_pk:
+            qs = qs.exclude(pk=self.order_pk)
+        if qs.exists():
+            raise forms.ValidationError(
+                f'Số đơn «{code}» đã tồn tại. Nhập số khác, hoặc sửa đơn đã có để thêm sản phẩm.'
+            )
+        return code
 
 
 class SalesOrderLineForm(forms.Form):

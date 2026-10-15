@@ -728,6 +728,55 @@ _LEGACY_SLUG_RANK = {
 }
 
 
+def _qc_rank_place() -> int:
+    for index, keys in enumerate(_ROUTE_DEPT_ORDER):
+        if 'qc' in keys:
+            return index
+    return _LEGACY_SLUG_RANK['qc']
+
+
+def _is_qc_route_slug(slug: str, rank: dict[str, int]) -> bool:
+    key = (slug or '').strip().lower()
+    if key == 'qc':
+        return True
+    return key.startswith('d') and key[1:].isdigit() and rank.get(key) == _qc_rank_place()
+
+
+def _may_rank_place() -> int:
+    for index, keys in enumerate(_ROUTE_DEPT_ORDER):
+        if 'may' in keys:
+            return index
+    return _LEGACY_SLUG_RANK['may']
+
+
+def _is_may_route_slug(slug: str, rank: dict[str, int]) -> bool:
+    key = (slug or '').strip().lower()
+    if key == 'may':
+        return True
+    return key.startswith('d') and key[1:].isdigit() and rank.get(key) == _may_rank_place()
+
+
+def _place_qc_after_may(slugs: list[str], rank: dict[str, int] | None = None) -> list[str]:
+    """Đưa mọi dòng QC lên ngay dưới May."""
+    if rank is None:
+        rank = _factory_slug_rank()
+    qc = [slug for slug in slugs if _is_qc_route_slug(slug, rank)]
+    if not qc:
+        return slugs
+    qc_set = set(qc)
+    rest = [slug for slug in slugs if slug not in qc_set]
+    index = None
+    for pos, slug in enumerate(rest):
+        if not _is_may_route_slug(slug, rank):
+            if index is not None:
+                break
+            continue
+        index = pos + 1
+    if index is None:
+        index = rest.index('ht') if 'ht' in rest else len(rest)
+    return rest[:index] + qc + rest[index:]
+
+
 def _factory_slug_rank() -> dict[str, int]:
     """Thứ tự dòng lộ trình: Cắt → In nhiệt → Ép logo → May → Ủi → Gấp xếp → QC."""
     from san_xuat.services.capacity_from_hrm import _fold, hr_divisions_for_ie_groups
@@ -3865,29 +3914,36 @@ def _month_label(d: date) -> str:
     return f'Tháng {d.month}/{d.year}'
 
 
-def _clamp_route_months(value) -> int:
-    try:
-        n = int(value)
-    except (TypeError, ValueError):
-        n = 1
-    return n if n in (1, 2, 3) else 1
+ROUTE_LOOKBACK_DAYS = 15
+ROUTE_LOOKAHEAD_DAYS = 30
 
 
-def _months_bounds(start: date, months: int = 1) -> tuple[date, date]:
-    """Đầu tháng của ``start`` đến cuối tháng sau ``months - 1`` tháng."""
-    months = _clamp_route_months(months)
-    first = start.replace(day=1)
-    last_start = _shift_month(first, months - 1)
-    _, last = _month_bounds(last_start)
-    return first, last
+def route_default_bounds(today: date | None = None) -> tuple[date, date]:
+    """Lưới lộ trình mặc định: đúng 15 ngày trước hôm nay đến đúng 30 ngày sau hôm nay."""
+    anchor = today or timezone.localdate()
+    return (
+        anchor - timedelta(days=ROUTE_LOOKBACK_DAYS),
+        anchor + timedelta(days=ROUTE_LOOKAHEAD_DAYS),
+    )
 
 
-def _months_span_label(start: date, end: date) -> str:
-    if start.year == end.year and start.month == end.month:
-        return f'Tháng {start.month}/{start.year}'
-    if start.year == end.year:
-        return f'Tháng {start.month}–{end.month}/{start.year}'
-    return f'{start.month}/{start.year} – {end.month}/{end.year}'
+def resolve_route_range(
+    start: date | None,
+    end: date | None,
+    today: date | None = None,
+) -> tuple[date, date]:
+    """Khoảng ngày lộ trình. Thiếu một đầu thì giữ độ dài cửa sổ mặc định."""
+    default_from, default_to = route_default_bounds(today)
+    span = (default_to - default_from).days
+    if start and end:
+        if end < start:
+            start, end = end, start
+        return start, end
+    if start:
+        return start, start + timedelta(days=span)
+    if end:
+        return end - timedelta(days=span), end
+    return default_from, default_to
 
 
 def _span_bounds(start: date, *, days: int = ROUTE_TIMELINE_DAYS) -> tuple[date, date]:
@@ -4075,11 +4131,12 @@ _SHEET_STAGE_LABELS = {
     'inep': 'In - Ép',
     'theu': 'Thêu',
     'may': 'May',
+    'qc': 'QC',
     'ht': 'Ủi - Gấp xếp',
     'gh': 'Giao hàng thành phẩm',
     'kho': 'Nhập kho',
 }
-_SHEET_STAGE_ORDER = ('cat', 'inep', 'theu', 'may', 'ht', 'gh', 'kho')
+_SHEET_STAGE_ORDER = ('cat', 'inep', 'theu', 'may', 'qc', 'ht', 'gh', 'kho')
 
 
 def _stage_sheet_label(slug: str, full_label: str = '') -> str:
@@ -4131,17 +4188,19 @@ def plan_stage_legend_items(*, queue_rows=None, route_board=None) -> list[dict]:
                     getattr(stage, 'label', '') or getattr(stage, 'short_label', ''),
                 )
 
-    ordered: list[dict] = []
+    keys: list[str] = []
     seen: set[str] = set()
     for key in _SHEET_STAGE_ORDER:
         if key in items:
-            spec = palette.get(key) or stage_color_spec(key)
-            ordered.append({**spec, 'slug': key, 'label': items[key]})
+            keys.append(key)
             seen.add(key)
-    for key, label in items.items():
+    for key in items:
         if key not in seen:
-            spec = palette.get(key) or stage_color_spec(key)
-            ordered.append({**spec, 'slug': key, 'label': label})
+            keys.append(key)
+    ordered: list[dict] = []
+    for key in _place_qc_after_may(keys):
+        spec = palette.get(key) or stage_color_spec(key)
+        ordered.append({**spec, 'slug': key, 'label': items[key]})
     return ordered
 
 
@@ -4162,16 +4221,16 @@ def route_dept_filter_choices(board=None) -> list[tuple[str, str]]:
                 or _stage_sheet_label(slug, getattr(stage, 'label', ''))
                 or slug
             )
-    ordered: list[tuple[str, str]] = []
+    keys: list[str] = []
     seen: set[str] = set()
     for key in _SHEET_STAGE_ORDER:
         if key in by_slug:
-            ordered.append((key, by_slug[key]))
+            keys.append(key)
             seen.add(key)
-    for slug, label in by_slug.items():
+    for slug in by_slug:
         if slug not in seen:
-            ordered.append((slug, label))
-    return ordered
+            keys.append(slug)
+    return [(slug, by_slug[slug]) for slug in _place_qc_after_may(keys)]
 
 
 def route_team_filter_choices(board=None) -> list[dict]:
@@ -4310,6 +4369,7 @@ def _stage_rows_from_bars(
         if key not in seen_slugs:
             slugs.append(key)
             seen_slugs.add(key)
+    slugs = _place_qc_after_may(slugs, rank)
 
     ordered: list[tuple[str, int]] = []
     seen_keys: set[tuple[str, int]] = set()
@@ -5125,14 +5185,10 @@ def build_order_timeline(
     *,
     range_from: date | None = None,
     range_to: date | None = None,
-    months: int = 1,
 ) -> MoTimelineBoard:
-    """Timeline đơn trên KHSX — lưới 1/2/3 tháng, mặc định tháng hiện tại."""
+    """Timeline đơn trên KHSX theo khoảng ngày. Mặc định 15 ngày trước đến 30 ngày sau."""
     today = timezone.localdate()
-    months = _clamp_route_months(months)
-    if range_from and range_to and range_to < range_from:
-        range_from, range_to = range_to, range_from
-    start, end = _months_bounds(range_from or today, months)
+    start, end = resolve_route_range(range_from, range_to, today)
     axis_days, month_spans, span = _timeline_axis(start, end, today)
 
     accepts_by_order = _accepted_teams_by_order_ids([r.order.pk for r in plan_rows])
@@ -5467,9 +5523,12 @@ def build_order_timeline(
         ))
 
     today_col = (today - start).days + 1 if start <= today <= end else None
-    default_from, default_to = _months_bounds(today, months)
-    prev_from, prev_to = _months_bounds(_shift_month(start, -1), months)
-    next_from, next_to = _months_bounds(_shift_month(start, 1), months)
+    span_days = (end - start).days + 1
+    default_from, default_to = route_default_bounds(today)
+    prev_to = start - timedelta(days=1)
+    prev_from = prev_to - timedelta(days=span_days - 1)
+    next_from = end + timedelta(days=1)
+    next_to = next_from + timedelta(days=span_days - 1)
     return MoTimelineBoard(
         range_start=start,
         range_end=end,
@@ -5484,9 +5543,9 @@ def build_order_timeline(
         next_to=next_to,
         unscheduled=unscheduled[:80],
         search='',
-        month_label=_months_span_label(start, end),
+        month_label=_range_label(start, end),
         is_current_month=(start == default_from and end == default_to),
-        months=months,
+        months=1,
     )
 
 
@@ -5561,10 +5620,15 @@ def _stage_stat_label(stage) -> str:
     return _team_display_label(slug)
 
 
-def _stage_stat_rank(key: str) -> tuple[int, str]:
+def _stage_stat_rank(key: str) -> tuple[int, int, str]:
     slug = (key.split(':', 1)[0] if key else '')
     rank = _factory_slug_rank()
-    return (rank.get(slug, 99), key)
+    may_place = _may_rank_place()
+    if _is_may_route_slug(slug, rank):
+        return (may_place, 0, key)
+    if _is_qc_route_slug(slug, rank):
+        return (may_place, 1, key)
+    return (rank.get(slug, 99), 2, key)
 
 
 def build_route_stats(board) -> RouteStatsBoard:

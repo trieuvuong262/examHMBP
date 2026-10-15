@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Count, Q, Sum
 from django.utils import timezone
 
@@ -346,8 +346,13 @@ def create_sales_order(
     attachment=None,
 ) -> SxSalesOrder:
     req = request_date or timezone.localdate()
+    new_code = (code or '').strip()
+    if new_code and SxSalesOrder.objects.filter(code=new_code).exists():
+        raise PlanningError(
+            f'Số đơn «{new_code}» đã tồn tại. Nhập số khác, hoặc sửa đơn đã có để thêm sản phẩm.'
+        )
     order = SxSalesOrder(
-        code=(code or '').strip() or next_sales_order_code(),
+        code=new_code or next_sales_order_code(),
         customer_name=(customer_name or '').strip()[:255],
         request_date=req,
         due_date=due_date,
@@ -361,7 +366,14 @@ def create_sales_order(
     )
     if attachment is not None:
         order.attachment = attachment
-    order.save()
+    try:
+        order.save()
+    except IntegrityError as exc:
+        if 'san_xuat_sxsalesorder_code' in str(exc):
+            raise PlanningError(
+                f'Số đơn «{order.code}» đã tồn tại. Nhập số khác, hoặc sửa đơn đã có để thêm sản phẩm.'
+            ) from exc
+        raise
     if lines:
         _replace_lines(order, lines)
     return order
