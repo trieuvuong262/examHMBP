@@ -46,7 +46,9 @@
 
 {% if flags.edit_sample %}
 {% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalSubmitSample' modal_action='sample_submit' modal_title='Hoàn thành mẫu '|add:current_sv.label %}
+  {% if not flags.full_access %}
   <div class="small mb-2 {% if current_sv.photos %}text-success{% else %}text-danger{% endif %}"><i class="bi {% if current_sv.photos %}bi-check-circle-fill{% else %}bi-x-circle{% endif %} me-1"></i>Ảnh mẫu thực tế ({{ current_sv.photos|length }})</div>
+  {% endif %}
   {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.sample_eval_pending due_label_text='Hạn đánh giá mẫu' %}
 {% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Gửi đánh giá' %}
 {% endif %}

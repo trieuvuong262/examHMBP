@@ -347,4 +347,5 @@ def action_flags(dossier: ProductDevelopment, user) -> dict[str, bool]:
         'edit_roles': perms.can_edit_roles(dossier, user),
         'manage_due': s not in FINAL_STATUSES and (perms.has_role(dossier, user, Role.OWNER) or approver),
         'comment': perms.can_view_dossier(dossier, user) and s not in FINAL_STATUSES,
+        'full_access': perms.has_full_dossier_access(user),
     }

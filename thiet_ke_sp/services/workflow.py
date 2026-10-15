@@ -664,8 +664,9 @@ def submit_sample(dossier: ProductDevelopment, user, *, due_at=None) -> None:
     sv = dossier.current_sample_version()
     _require(sv is not None, 'Chưa có phiên bản mẫu.')
     _require_sample_editable(dossier, sv, user, Role.SAMPLE_MAKER, Role.TECHNICIAN, Role.OWNER)
-    _require(_live(sv.attachments.filter(kind=AttachmentKind.SAMPLE_PHOTO)).exists(),
-             'Tải lên ít nhất một ảnh mẫu thực tế trước khi gửi đánh giá.')
+    if not perms.has_full_dossier_access(user):
+        _require(_live(sv.attachments.filter(kind=AttachmentKind.SAMPLE_PHOTO)).exists(),
+                 'Tải lên ít nhất một ảnh mẫu thực tế trước khi gửi đánh giá.')
     if sv.version_no > 1:
         _require(bool(sv.change_note.strip()), 'Nhập nội dung sửa so với lần mẫu trước.')
     with transaction.atomic():
