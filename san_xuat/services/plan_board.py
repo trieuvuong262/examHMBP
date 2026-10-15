@@ -177,6 +177,20 @@ BOARD_LIST_STATUSES = QUEUE_STATUSES + (
     SxSalesOrder.PLAN_DONE,
 )
 
+# Bộ lọc trạng thái tab Kế hoạch. Mặc định: chưa hoàn thành.
+QUEUE_STATUS_FILTER_CHOICES = (
+    ('open', 'Chưa hoàn thành'),
+    (SxSalesOrder.PLAN_DONE, 'Hoàn thành'),
+)
+
+
+def queue_statuses_for_filter(key: str | None) -> tuple[str, ...]:
+    """Trạng thái đơn trên tab Kế hoạch. ``done`` = đã hoàn thành, còn lại = chưa hoàn thành."""
+    raw = (key or '').strip()
+    if raw == SxSalesOrder.PLAN_DONE:
+        return (SxSalesOrder.PLAN_DONE,)
+    return tuple(status for status in BOARD_LIST_STATUSES if status != SxSalesOrder.PLAN_DONE)
+
 ACTIVE_MO_STATUSES = (
     SxProductionOrder.STATUS_DRAFT,
     SxProductionOrder.STATUS_RELEASED,

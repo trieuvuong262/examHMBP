@@ -1388,11 +1388,24 @@ class ApprovedIssueResult:
     stock_issue: StockIssue
 
 
+# Xuất NPL, QC endline và nhập thành phẩm không chặn nút Hoàn thành lệnh.
+_DONE_OPTIONAL_STEP_KEYS = frozenset({'issue', 'qc', 'fg'})
+
+
+def _done_lock_complete(progress) -> bool:
+    """Đủ bước bắt buộc để khoá Hoàn thành (bỏ phiếu xuất NPL, QC, nhập thành phẩm)."""
+    tracked = [
+        step for step in progress.steps
+        if not step.optional and step.key not in _DONE_OPTIONAL_STEP_KEYS
+    ]
+    return bool(tracked) and all(step.done for step in tracked)
+
+
 def _recompute_mo_progress(mo: SxProductionOrder) -> SxProductionOrder:
     """Cập nhật qty_done và trạng thái đang SX.
 
-    Không tự khoá Hoàn thành — user bấm nút khi checklist 100%.
-    Nếu lệnh đang khoá (done) mà checklist tụt dưới 100% thì mở lại.
+    Không tự khoá Hoàn thành — user bấm nút khi checklist bắt buộc đủ.
+    Phiếu xuất NPL, QC và nhập thành phẩm không làm mở lại lệnh đã hoàn thành.
     """
     from san_xuat.services.mo_progress import build_mo_progress
     from san_xuat.services.progress_template import progress_steps
@@ -1437,7 +1450,7 @@ def _recompute_mo_progress(mo: SxProductionOrder) -> SxProductionOrder:
         mo.status = SxProductionOrder.STATUS_IN_PROGRESS
 
     progress = build_mo_progress(mo)
-    steps_complete = bool(progress.total_steps) and progress.pct_complete >= 100
+    steps_complete = _done_lock_complete(progress)
 
     if mo.status == SxProductionOrder.STATUS_DONE and not steps_complete:
         mo.status = (
@@ -1458,7 +1471,7 @@ def _recompute_mo_progress(mo: SxProductionOrder) -> SxProductionOrder:
 
 @transaction.atomic
 def complete_production_order(*, mo_id: int, user=None) -> SxProductionOrder:
-    """Khoá LSX = Hoàn thành. Chỉ khi checklist 100%."""
+    """Khoá LSX = Hoàn thành. Không bắt phiếu xuất NPL, QC hay nhập thành phẩm."""
     from san_xuat.services.gates import check_packing_before_done
     from san_xuat.services.mo_progress import build_mo_progress
 
@@ -1473,10 +1486,15 @@ def complete_production_order(*, mo_id: int, user=None) -> SxProductionOrder:
     mo = _recompute_mo_progress(mo)
     mo = SxProductionOrder.objects.select_for_update().get(pk=mo.pk)
     progress = build_mo_progress(mo)
-    if not progress.total_steps or progress.pct_complete < 100:
-        raise DispatchError(
-            f'Chỉ hoàn thành khi đủ {progress.done_count}/{progress.total_steps} bước (100%).'
-        )
+    if not _done_lock_complete(progress):
+        missing = [
+            step.label for step in progress.steps
+            if not step.optional
+            and step.key not in _DONE_OPTIONAL_STEP_KEYS
+            and not step.done
+        ]
+        detail = ', '.join(missing) if missing else 'chưa đủ bước bắt buộc'
+        raise DispatchError(f'Chỉ hoàn thành khi đã phát hành và có thống kê sản xuất. Còn thiếu: {detail}.')
     packing_gate = check_packing_before_done(mo=mo)
     if packing_gate.should_block:
         raise DispatchError(packing_gate.message)

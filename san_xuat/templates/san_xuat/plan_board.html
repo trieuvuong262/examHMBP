@@ -2047,7 +2047,7 @@
     <nav class="jp-sx-tools jp-pb-top-tabs" aria-label="Tab kế hoạch" role="tablist">
       <a role="tab"
          class="btn btn-sm fw-bold {% if tab == 'queue' %}btn-hm{% else %}btn-outline-secondary{% endif %}"
-         href="{% url 'san_xuat:plan_board' %}?mode=list&tab=queue{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if tab == 'queue' and filter_date_from %}&date_from={{ filter_date_from|date:'Y-m-d' }}{% endif %}{% if tab == 'queue' and filter_date_to %}&date_to={{ filter_date_to|date:'Y-m-d' }}{% endif %}"
+         href="{% url 'san_xuat:plan_board' %}?mode=list&tab=queue{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if tab == 'queue' and plan_status_filter and plan_status_filter != 'open' %}&plan_status={{ plan_status_filter|urlencode }}{% endif %}{% if tab == 'queue' and filter_date_from %}&date_set=1&date_from={{ filter_date_from|date:'Y-m-d' }}{% endif %}{% if tab == 'queue' and filter_date_to %}&date_to={{ filter_date_to|date:'Y-m-d' }}{% endif %}"
          {% if tab != 'queue' %}data-loading-message="Đang tải kế hoạch sản xuất…"{% endif %}
          aria-selected="{% if tab == 'queue' %}true{% else %}false{% endif %}">Kế hoạch</a>
       <a role="tab"
@@ -2092,6 +2092,9 @@
                  value="{{ filter_date_to|date:'Y-m-d' }}">
         </div>
       </div>
+      {% if tab == 'queue' %}
+      <input type="hidden" name="date_set" value="1">
+      {% endif %}
       {% elif tab == 'route' and route_board %}
       <input type="hidden" name="route_set" value="1">
       <div class="jp-team-filter-dates">
@@ -2117,6 +2120,14 @@
                  placeholder="Mã đơn, khách, sản phẩm, nguyên phụ liệu…" autocomplete="off">
         </div>
         {% if tab == 'queue' %}
+        <div class="jp-team-filter-org">
+          <label class="form-label fw-bold small mb-1" for="jp-pb-filter-status">Trạng thái</label>
+          <select id="jp-pb-filter-status" name="plan_status" class="form-select form-select-sm">
+            {% for value, label in plan_status_choices %}
+            <option value="{{ value }}" {% if plan_status_filter == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
         <div class="jp-team-filter-org">
           <label class="form-label fw-bold small mb-1" for="jp-pb-filter-priority">Mức độ gấp</label>
           <select id="jp-pb-filter-priority" name="priority_filter" class="form-select form-select-sm">
@@ -2212,7 +2223,7 @@
         </div>
         {% endif %}
       </div>
-      {% if search_query or priority_filter or npl_filter or tech_filter or deadline_filter or route_team_filter %}
+      {% if search_query or priority_filter or npl_filter or tech_filter or deadline_filter or route_team_filter or plan_status_filter != 'open' and tab == 'queue' %}
       <div class="jp-team-filter-actions">
         <a href="?mode={{ mode }}&amp;tab={{ tab }}&amp;sx_reset=1{% if tab == 'route' %}{% if route_board %}&amp;route_set=1&amp;route_from={{ route_board.range_start|date:'Y-m-d' }}&amp;route_to={{ route_board.range_end|date:'Y-m-d' }}{% endif %}{% endif %}"
            class="btn btn-light border btn-sm" title="Xóa bộ lọc">
@@ -2220,20 +2231,7 @@
         </a>
       </div>
       {% endif %}
-      {% if tab == 'queue' and filter_date_from and filter_date_to %}
-      <div class="jp-pb-date-shift" aria-label="Chuyển tháng">
-        <a href="?mode={{ mode }}&amp;tab=queue{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% if priority_filter %}&amp;priority_filter={{ priority_filter|urlencode }}{% endif %}{% if npl_filter %}&amp;npl_status={{ npl_filter|urlencode }}{% endif %}{% if tech_filter %}&amp;tech={{ tech_filter|urlencode }}{% endif %}{% if deadline_filter %}&amp;deadline={{ deadline_filter|urlencode }}{% endif %}&amp;date_from={{ filter_prev_from|date:'Y-m-d' }}&amp;date_to={{ filter_prev_to|date:'Y-m-d' }}"
-           title="Tháng trước"><i class="bi bi-chevron-left"></i></a>
-        <span title="{{ filter_date_from|date:'d/m/Y' }} – {{ filter_date_to|date:'d/m/Y' }}">{{ filter_month_label }}</span>
-        <a href="?mode={{ mode }}&amp;tab=queue{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% if priority_filter %}&amp;priority_filter={{ priority_filter|urlencode }}{% endif %}{% if npl_filter %}&amp;npl_status={{ npl_filter|urlencode }}{% endif %}{% if tech_filter %}&amp;tech={{ tech_filter|urlencode }}{% endif %}{% if deadline_filter %}&amp;deadline={{ deadline_filter|urlencode }}{% endif %}&amp;date_from={{ filter_next_from|date:'Y-m-d' }}&amp;date_to={{ filter_next_to|date:'Y-m-d' }}"
-           title="Tháng sau"><i class="bi bi-chevron-right"></i></a>
-        {% if not filter_is_current_month and this_month_from and this_month_to %}
-        <a class="jp-pb-month-now"
-           href="?mode={{ mode }}&amp;tab=queue{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% if priority_filter %}&amp;priority_filter={{ priority_filter|urlencode }}{% endif %}{% if npl_filter %}&amp;npl_status={{ npl_filter|urlencode }}{% endif %}{% if tech_filter %}&amp;tech={{ tech_filter|urlencode }}{% endif %}{% if deadline_filter %}&amp;deadline={{ deadline_filter|urlencode }}{% endif %}&amp;date_from={{ this_month_from|date:'Y-m-d' }}&amp;date_to={{ this_month_to|date:'Y-m-d' }}"
-           title="Về tháng hiện tại">Tháng này</a>
-        {% endif %}
-      </div>
-      {% elif tab == 'team' and filter_date_from and filter_date_to %}
+      {% if tab == 'team' and filter_date_from and filter_date_to %}
       <div class="jp-pb-date-shift" aria-label="Chuyển tháng">
         <a href="?mode={{ mode }}&amp;tab=team{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;date_from={{ filter_prev_from|date:'Y-m-d' }}&amp;date_to={{ filter_prev_to|date:'Y-m-d' }}"
            data-loading-message="Đang tải sản lượng tổ…" title="Tháng trước"><i class="bi bi-chevron-left"></i></a>
@@ -2487,10 +2485,10 @@
     </article>
     {% empty %}
     <div class="jp-pb-empty">
-      {% if search_query or priority_filter or npl_filter or tech_filter or deadline_filter %}
+      {% if search_query or priority_filter or npl_filter or tech_filter or deadline_filter or plan_status_filter != 'open' %}
         Không có đơn khớp bộ lọc.
       {% else %}
-        Không có đơn chờ xếp hoặc đơn sản xuất trong tháng này.
+        Không có đơn trong khoảng {{ filter_date_from|date:'d/m/Y' }} – {{ filter_date_to|date:'d/m/Y' }}.
         <a href="{% url 'san_xuat:sales_order_confirm_list' %}">Xác nhận đơn đặt hàng</a>
       {% endif %}
     </div>

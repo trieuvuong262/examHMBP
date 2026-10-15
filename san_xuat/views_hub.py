@@ -1371,6 +1371,7 @@ def plan_board(request):
         BOARD_LIST_STATUSES,
         PLAN_STATUS_LABELS,
         PRIORITY_LABELS,
+        QUEUE_STATUS_FILTER_CHOICES,
         attach_plan_line_tech,
         build_order_timeline,
         build_plan_board_rows,
@@ -1443,6 +1444,9 @@ def plan_board(request):
     npl_filter = (request.GET.get('npl_status') or request.POST.get('npl_status') or '').strip()
     tech_filter = (request.GET.get('tech') or request.POST.get('tech') or '').strip()
     deadline_filter = (request.GET.get('deadline') or request.POST.get('deadline') or '').strip()
+    plan_status_filter = (request.GET.get('plan_status') or request.POST.get('plan_status') or '').strip()
+    if plan_status_filter != 'done':
+        plan_status_filter = 'open'
     gc_status_filter = (request.GET.get('gc_status') or request.POST.get('gc_status') or '').strip()
     gc_team_filter = (request.GET.get('gc_team') or request.POST.get('gc_team') or '').strip().lower()
 
@@ -1496,16 +1500,27 @@ def plan_board(request):
                 params['tech'] = tech_filter
             if deadline_filter:
                 params['deadline'] = deadline_filter
-        if tab in {'queue', 'subcontract'}:
+            if plan_status_filter and plan_status_filter != 'open':
+                params['plan_status'] = plan_status_filter
+            date_set = (request.GET.get('date_set') or request.POST.get('date_set') or '').strip()
+            keep_dates = date_set == '1' or (
+                request.method == 'POST' and (date_from_raw or date_to_raw)
+            )
+            if keep_dates:
+                params['date_set'] = '1'
+                if date_from_raw:
+                    params['date_from'] = date_from_raw
+                if date_to_raw:
+                    params['date_to'] = date_to_raw
+        if tab == 'subcontract':
             if date_from_raw:
                 params['date_from'] = date_from_raw
             if date_to_raw:
                 params['date_to'] = date_to_raw
-            if tab == 'subcontract':
-                if gc_status_filter:
-                    params['gc_status'] = gc_status_filter
-                if gc_team_filter:
-                    params['gc_team'] = gc_team_filter
+            if gc_status_filter:
+                params['gc_status'] = gc_status_filter
+            if gc_team_filter:
+                params['gc_team'] = gc_team_filter
         elif tab == 'route':
             route_set = (request.GET.get('route_set') or request.POST.get('route_set') or '').strip()
             route_from_raw = (request.GET.get('route_from') or request.POST.get('route_from') or '').strip()
@@ -2246,31 +2261,16 @@ def plan_board(request):
 
     if tab == 'queue':
         from san_xuat.list_filters import parse_sx_date
-        from san_xuat.services.plan_board import (
-            _month_bounds,
-            _month_label,
-            _shift_month,
-        )
+        from san_xuat.services.plan_board import queue_statuses_for_filter, resolve_route_range
 
         today = timezone.localdate()
-        filter_date_from = parse_sx_date(date_from_raw)
-        filter_date_to = parse_sx_date(date_to_raw)
-        if not filter_date_from and not filter_date_to:
-            filter_date_from, filter_date_to = _month_bounds(today)
-        elif filter_date_from and not filter_date_to:
-            filter_date_from, filter_date_to = _month_bounds(filter_date_from)
-        elif filter_date_to and not filter_date_from:
-            filter_date_from, filter_date_to = _month_bounds(filter_date_to)
-        elif filter_date_from > filter_date_to:
-            filter_date_from, filter_date_to = filter_date_to, filter_date_from
-
-        today_start, today_end_month = _month_bounds(today)
-        filter_month_label = _month_label(filter_date_from)
-        filter_is_current_month = (
-            filter_date_from == today_start and filter_date_to == today_end_month
+        dates_chosen = (request.GET.get('date_set') or '').strip() == '1'
+        filter_date_from, filter_date_to = resolve_route_range(
+            parse_sx_date(date_from_raw) if dates_chosen else None,
+            parse_sx_date(date_to_raw) if dates_chosen else None,
+            today,
         )
-        filter_prev_from, filter_prev_to = _month_bounds(_shift_month(filter_date_from, -1))
-        filter_next_from, filter_next_to = _month_bounds(_shift_month(filter_date_from, 1))
+        queue_statuses = queue_statuses_for_filter(plan_status_filter)
 
         if ticket_id:
             queue_rows = build_plan_board_rows(
@@ -2285,11 +2285,12 @@ def plan_board(request):
                 return HttpResponseNotFound('Đơn không còn trên kế hoạch — tải lại trang.')
         else:
             queue_rows = build_plan_board_rows(
-                statuses=BOARD_LIST_STATUSES,
+                statuses=queue_statuses,
                 search=q,
                 include_released=True,
                 date_from=filter_date_from,
                 date_to=filter_date_to,
+                date_mode='range',
                 persist_side_effects=False,
             )
             queue_rows = _apply_board_filters(queue_rows)
@@ -2477,6 +2478,8 @@ def plan_board(request):
         'plan_status_labels': PLAN_STATUS_LABELS,
         'priority_labels': PRIORITY_LABELS,
         'priority_choices': SxSalesOrder.PRIORITY_CHOICES,
+        'plan_status_filter': plan_status_filter,
+        'plan_status_choices': QUEUE_STATUS_FILTER_CHOICES,
         'route_board': route_board,
         'route_stats': route_stats,
         'route_dept_filter': route_dept_filter,
