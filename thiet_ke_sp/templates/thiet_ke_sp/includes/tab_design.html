@@ -42,24 +42,8 @@
   <div class="tk-version-list">
     {% for dv in design_versions %}
     <div class="tk-version{% if dv.is_current %} is-current{% endif %}">
-      {% with front=dv.current_atts|get_item:'front' back=dv.current_atts|get_item:'back' %}
-      <div class="tk-version-preview">
-        {% if front.is_image or back.is_image %}
-        <button type="button" class="tk-thumb-zoom" data-sx-gallery
-          {% if front.is_image and back.is_image %}
-            data-sx-gallery-image="{% url 'thiet_ke_sp:two_side' dossier.pk dv.pk %}" data-sx-gallery-title="Ảnh 2 mặt — {{ dv.label }}"
-          {% elif front.is_image %}
-            data-sx-gallery-image="{{ front.get_absolute_url }}" data-sx-gallery-title="{{ dv.label }}"
-          {% else %}
-            data-sx-gallery-image="{{ back.get_absolute_url }}" data-sx-gallery-title="{{ dv.label }}"
-          {% endif %}>
-          <span class="pair{% if not front.is_image or not back.is_image %} is-single{% endif %}">
-            {% if front.is_image %}<img src="{{ front.get_absolute_url }}" alt="Mặt trước" loading="lazy">{% endif %}
-            {% if back.is_image %}<img src="{{ back.get_absolute_url }}" alt="Mặt sau" loading="lazy">{% endif %}
-          </span>
-        </button>
-        {% else %}<i class="bi bi-palette"></i>{% endif %}
-      </div>
+      {% with front=dv.current_atts|get_item:'front' %}
+      <div class="tk-version-preview">{% if front and front.is_image %}<button type="button" class="tk-thumb-zoom" data-sx-gallery data-sx-gallery-image="{{ front.get_absolute_url }}" data-sx-gallery-title="{{ dv.label }}"><img src="{{ front.get_absolute_url }}" alt="" loading="lazy"></button>{% else %}<i class="bi bi-palette"></i>{% endif %}</div>
       {% endwith %}
       <div class="min-w-0">
         <b>{% if has_options %}{{ dv.tag }}{% else %}{{ dv.label }}{% endif %}{% if dossier.approved_design_version_id == dv.pk %} · được duyệt{% elif dv.is_current %} · hiện hành{% endif %}</b>
@@ -75,7 +59,7 @@
     <div id="tkDv{{ dv.pk }}" class="collapse">
       <div class="tk-card p-3">
         {% include 'thiet_ke_sp/includes/design_kv.html' with dv=dv %}
-        <div class="tk-thumbs mt-3">{% for a in dv.live_atts %}{% if a.is_current %}{% include 'thiet_ke_sp/includes/thumb.html' with a=a label='' missing=False can_delete=False %}{% endif %}{% endfor %}</div>
+        <div class="tk-thumbs mt-3">{% for a in dv.live_atts %}{% if a.is_current and a.kind != 'back' %}{% include 'thiet_ke_sp/includes/thumb.html' with a=a label='' missing=False can_delete=False %}{% endif %}{% endfor %}</div>
         {% if dv.colorway_rows %}
         <div class="tk-colorways mt-3">
           {% for cw, images in dv.colorway_rows %}

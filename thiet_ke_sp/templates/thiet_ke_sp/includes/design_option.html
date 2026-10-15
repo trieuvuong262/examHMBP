@@ -34,9 +34,9 @@
 </div>
 
 <div class="tk-section">
-  <div class="tk-section-title"><i class="bi bi-images"></i>Bản vẽ &amp; file thiết kế <span class="tk-section-sub">Mặt trước và mặt sau gộp thành ảnh 2 mặt</span></div>
+  <div class="tk-section-title"><i class="bi bi-images"></i>Bản vẽ &amp; file thiết kế</div>
   <div class="tk-thumbs mb-3">
-    {% include 'thiet_ke_sp/includes/two_side_card.html' with can_delete=dv.can_edit %}
+    {% include 'thiet_ke_sp/includes/thumb.html' with a=dv.current_atts|get_item:'front' label='Ảnh 2 mặt' missing=True can_delete=dv.can_edit %}
     {% include 'thiet_ke_sp/includes/thumb.html' with a=dv.current_atts|get_item:'design_source' label='File thiết kế gốc' missing=True can_delete=dv.can_edit %}
     {% include 'thiet_ke_sp/includes/thumb.html' with a=dv.current_atts|get_item:'design_preview' label='File xem nhanh' missing=False can_delete=dv.can_edit %}
     {% for a in dv.detail_atts %}{% include 'thiet_ke_sp/includes/thumb.html' with a=a label='Ảnh chi tiết' missing=False can_delete=dv.can_edit %}{% endfor %}
@@ -55,7 +55,7 @@
   {% endif %}
   {% if dv.archived_atts %}
   <details class="mt-3 small"><summary class="text-muted">Bản cũ đã thay thế ({{ dv.archived_atts|length }})</summary>
-    <div class="tk-thumbs mt-2">{% for a in dv.archived_atts %}{% include 'thiet_ke_sp/includes/thumb.html' with a=a label='' missing=False can_delete=False %}{% endfor %}</div>
+    <div class="tk-thumbs mt-2">{% for a in dv.archived_atts %}{% if a.kind != 'back' %}{% include 'thiet_ke_sp/includes/thumb.html' with a=a label='' missing=False can_delete=False %}{% endif %}{% endfor %}</div>
   </details>
   {% endif %}
 </div>

@@ -287,7 +287,7 @@ def step_checklist(dossier: ProductDevelopment) -> tuple[str, list[tuple[str, bo
 
 
 def cover_map(dossier_ids) -> dict[int, Attachment]:
-    """Ảnh đại diện: mặt trước của bản thiết kế hiện hành → ảnh mẫu → ảnh tham khảo."""
+    """Ảnh đại diện: ảnh 2 mặt của bản thiết kế hiện hành → ảnh mẫu → ảnh tham khảo."""
     ids = list(dossier_ids)
     result: dict[int, Attachment] = {}
     if not ids:

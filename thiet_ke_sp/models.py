@@ -738,7 +738,7 @@ class Task(models.Model):
 
 class AttachmentKind(models.TextChoices):
     REFERENCE = 'reference', 'Tham khảo'
-    FRONT = 'front', 'Ảnh mặt trước'
+    FRONT = 'front', 'Ảnh 2 mặt'
     BACK = 'back', 'Ảnh mặt sau'
     DETAIL = 'detail', 'Ảnh chi tiết'
     DESIGN_SOURCE = 'design_source', 'File thiết kế gốc'
@@ -755,7 +755,6 @@ class AttachmentKind(models.TextChoices):
 # Loại tệp chỉ có một bản hiện hành trong cùng phạm vi — tải bản mới thì bản cũ thành lưu trữ.
 SINGLE_CURRENT_KINDS = frozenset({
     AttachmentKind.FRONT,
-    AttachmentKind.BACK,
     AttachmentKind.DESIGN_SOURCE,
     AttachmentKind.DESIGN_PREVIEW,
     AttachmentKind.TECH_SPEC,
@@ -763,7 +762,6 @@ SINGLE_CURRENT_KINDS = frozenset({
 })
 DESIGN_KINDS = (
     AttachmentKind.FRONT,
-    AttachmentKind.BACK,
     AttachmentKind.DETAIL,
     AttachmentKind.DESIGN_SOURCE,
     AttachmentKind.DESIGN_PREVIEW,

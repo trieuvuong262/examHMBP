@@ -135,7 +135,7 @@ def is_follower(dossier: ProductDevelopment, user) -> bool:
     return dossier.followers.filter(pk=user.pk).exists()
 
 
-MEMBER_DOSSIER_URLS = frozenset({'detail', 'action', 'upload', 'two_side'})
+MEMBER_DOSSIER_URLS = frozenset({'detail', 'action', 'upload'})
 MEMBER_FILE_URLS = frozenset({'attachment_serve', 'attachment_delete'})
 
 

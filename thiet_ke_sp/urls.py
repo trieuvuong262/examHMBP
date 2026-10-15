@@ -17,7 +17,6 @@ urlpatterns = [
     path('ho-so/<int:pk>/xoa/', views.dossier_delete, name='delete'),
     path('ho-so/<int:pk>/thao-tac/<slug:action>/', views.dossier_action, name='action'),
     path('ho-so/<int:pk>/tai-tep/', views.attachment_upload, name='upload'),
-    path('ho-so/<int:pk>/thiet-ke/<int:dv_pk>/anh-2-mat/', views.two_side_image, name='two_side'),
     path('tep/<int:att_pk>/', views.attachment_serve, name='attachment_serve'),
     path('tep/<int:att_pk>/xoa/', views.attachment_delete, name='attachment_delete'),
     path('cho-toi/', views.my_tasks, name='my_tasks'),
