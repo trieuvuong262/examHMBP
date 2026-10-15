@@ -1,5 +1,6 @@
-# syntax=docker/dockerfile:1
 # Tag 3.13-slim (ổn định trên Hub). VPS: chỉ pull khi thiếu image local (deploy.sh).
+# Không khai báo syntax=docker/dockerfile:1 — BuildKit sẽ hỏi Docker Hub lấy frontend
+# image và deploy fail khi TLS timeout. Docker Engine 23+ đã hỗ trợ cache mount.
 ARG PYTHON_BASE_IMAGE=python:3.13-slim
 FROM ${PYTHON_BASE_IMAGE}
 
