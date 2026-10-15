@@ -486,7 +486,21 @@ class Interview(models.Model):
 
     @property
     def awaiting_final(self) -> bool:
-        return self.result == self.RESULT_PASS and self.final_result == self.FINAL_PENDING
+        """Còn chờ giám đốc: phỏng vấn Đạt, hồ sơ vẫn ở bước Phỏng vấn."""
+        return (
+            self.result == self.RESULT_PASS
+            and self.final_result == self.FINAL_PENDING
+            and self.candidate.status == Candidate.STATUS_INTERVIEWING
+        )
+
+    @property
+    def shows_director_decision(self) -> bool:
+        """Dòng «Giám đốc duyệt». «Chờ duyệt» chỉ hiện khi còn thực sự phải duyệt."""
+        if not self.final_result:
+            return False
+        if self.final_result == self.FINAL_PENDING:
+            return self.awaiting_final
+        return True
 
     @property
     def is_approved(self) -> bool:

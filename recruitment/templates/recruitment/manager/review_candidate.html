@@ -185,7 +185,7 @@
               <span class="jp-rc-kv-value">{% for u in interview.interviewers.all %}{{ u.profile.full_name|default:u.username }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</span>
             </div>
             {% if interview.result_notes %}<div class="small mt-2" style="white-space: pre-line;">{{ interview.result_notes }}</div>{% endif %}
-            {% if interview.final_result %}
+            {% if interview.shows_director_decision %}
             <div class="jp-rc-kv mt-2"><span class="jp-rc-kv-label">Giám đốc duyệt</span>
               <span class="jp-rc-kv-value">
                 <span class="jp-rc-badge is-{% if interview.final_result == 'pending' %}reviewing{% else %}{{ interview.final_result }}{% endif %}">{{ interview.get_final_result_display }}</span>

@@ -229,7 +229,7 @@
             {% if interview.result_notes %}
             <div class="col-12"><dt>Nhận xét</dt><dd style="white-space: pre-line;">{{ interview.result_notes }}</dd></div>
             {% endif %}
-            {% if interview.final_result %}
+            {% if interview.shows_director_decision %}
             <div class="col-12"><dt>Giám đốc duyệt (cấp 2)</dt>
               <dd>
                 <span class="jp-rc-badge is-{% if interview.final_result == 'pending' %}reviewing{% else %}{{ interview.final_result }}{% endif %}">{{ interview.get_final_result_display }}</span>

@@ -452,6 +452,22 @@ INTERVIEW_MIN_MINUTES = 15
 INTERVIEW_MAX_MINUTES = 8 * 60
 
 
+def _cancel_pending_director(candidate, *, actor) -> None:
+    """Loại thì không còn chờ giám đốc duyệt."""
+    interview = candidate.interview_or_none
+    if not interview or interview.final_result != Interview.FINAL_PENDING:
+        return
+    interview.final_result = Interview.FINAL_NONE
+    interview.final_notes = ''
+    interview.final_by = None
+    interview.final_at = None
+    interview.save(update_fields=['final_result', 'final_notes', 'final_by', 'final_at'])
+    _log(
+        candidate, CandidateEvent.KIND_INTERVIEW, actor=actor,
+        message='Hủy chờ giám đốc duyệt — hồ sơ đã loại.',
+    )
+
+
 def validate_interview_slot(start, end):
     if not start:
         raise RecruitmentError('Cần chọn thời gian bắt đầu phỏng vấn.')
@@ -531,6 +547,8 @@ def transition(candidate, to_status: str, *, actor, reason: str = '',
         candidate.reject_reason = ''
         fields.append('reject_reason')
     candidate.save(update_fields=fields)
+    if to_status == C.STATUS_REJECTED:
+        _cancel_pending_director(candidate, actor=actor)
 
     message = reason
     if to_status == C.STATUS_INTERVIEWING:
