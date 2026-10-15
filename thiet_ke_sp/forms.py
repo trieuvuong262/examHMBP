@@ -417,6 +417,11 @@ class RolePoolForm(forms.Form):
 
 
 class SettingsForm(forms.Form):
+    test_mode = forms.BooleanField(
+        required=False, label='Trạng thái test',
+        help_text='Bật thì đang thử: trình duyệt mẫu chuẩn không bắt bảng thông số, BOM, ảnh mẫu và giá thành; hồ sơ đã duyệt vẫn sửa được thiết kế, mẫu, kỹ thuật và giá thành. Tắt để về quy tắc chính thức.',
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input', 'role': 'switch'}),
+    )
     due_hour = forms.IntegerField(
         min_value=0, max_value=23, label='Giờ chốt hạn trong ngày',
         widget=forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'max': 23}),
@@ -425,6 +430,7 @@ class SettingsForm(forms.Form):
     def __init__(self, *args, setting, **kwargs):
         super().__init__(*args, **kwargs)
         self.setting = setting
+        self.initial['test_mode'] = setting.test_mode
         self.initial['due_hour'] = setting.due_hour
         for step, label, _days in sla.SLA_STEPS:
             self.fields[f'sla_{step}'] = forms.IntegerField(
@@ -438,6 +444,7 @@ class SettingsForm(forms.Form):
 
     def save(self, user):
         data = self.cleaned_data
+        self.setting.test_mode = data['test_mode']
         self.setting.due_hour = data['due_hour']
         self.setting.sla_days = {step: data[f'sla_{step}'] for step, _l, _d in sla.SLA_STEPS}
         self.setting.updated_by = user

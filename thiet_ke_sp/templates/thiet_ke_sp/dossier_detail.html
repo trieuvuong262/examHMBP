@@ -15,7 +15,7 @@
         <div class="d-flex flex-wrap align-items-center gap-2">
           <span class="tk-pill {% if dossier.status_tone == 'gray' or dossier.status_tone == 'dark' %}is-gray{% else %}is-accent{% endif %}">{{ dossier.get_status_display }}</span>
           <span class="tk-hero-code">{{ dossier.code }}{% if dossier.official_product_code %} · Mã chính thức {{ dossier.official_product_code }}{% endif %}</span>
-          {% if dossier.is_locked %}<span class="tk-hero-code"><i class="bi bi-lock-fill"></i> Đã khóa</span>{% endif %}
+          {% if dossier.is_locked and not flags.test_edit %}<span class="tk-hero-code"><i class="bi bi-lock-fill"></i> Đã khóa</span>{% endif %}
           {% if dossier.priority == 'urgent' or dossier.priority == 'high' %}<span class="tk-hero-code text-warning"><i class="bi bi-flag-fill"></i> {{ dossier.get_priority_display }}</span>{% endif %}
         </div>
         <h1>{{ dossier.name }}</h1>
@@ -27,9 +27,9 @@
         {% if flags.change_request %}<button type="button" class="btn btn-sm fw-bold btn-tk-ghost" data-bs-toggle="modal" data-bs-target="#tkModalChange"><i class="bi bi-pencil-square"></i>Yêu cầu thay đổi</button>{% endif %}
         {% if flags.submit_brief %}<button type="button" class="btn btn-hm btn-sm fw-bold text-white" data-bs-toggle="modal" data-bs-target="#tkModalSubmitBrief"><i class="bi bi-send"></i>Gửi duyệt đề bài</button>{% endif %}
         {% if flags.decide_brief %}<button type="button" class="btn btn-hm btn-sm fw-bold text-white" data-bs-toggle="modal" data-bs-target="#tkModalBrief"><i class="bi bi-check2-circle"></i>Duyệt đề bài</button>{% endif %}
-        {% if flags.edit_design %}<button type="button" class="btn btn-hm btn-sm fw-bold text-white" data-bs-toggle="modal" data-bs-target="#tkModalSubmitDesign"><i class="bi bi-send"></i>Gửi duyệt thiết kế</button>{% endif %}
+        {% if flags.submit_design %}<button type="button" class="btn btn-hm btn-sm fw-bold text-white" data-bs-toggle="modal" data-bs-target="#tkModalSubmitDesign"><i class="bi bi-send"></i>Gửi duyệt thiết kế</button>{% endif %}
         {% if flags.decide_design %}<button type="button" class="btn btn-hm btn-sm fw-bold text-white" data-bs-toggle="modal" data-bs-target="#tkModalDesign"><i class="bi bi-check2-circle"></i>Duyệt thiết kế</button>{% endif %}
-        {% if flags.edit_sample %}<button type="button" class="btn btn-hm btn-sm fw-bold text-white" data-bs-toggle="modal" data-bs-target="#tkModalSubmitSample"><i class="bi bi-send"></i>Gửi đánh giá mẫu</button>{% endif %}
+        {% if flags.submit_sample %}<button type="button" class="btn btn-hm btn-sm fw-bold text-white" data-bs-toggle="modal" data-bs-target="#tkModalSubmitSample"><i class="bi bi-send"></i>Gửi đánh giá mẫu</button>{% endif %}
         {% if flags.submit_master %}<button type="button" class="btn btn-hm btn-sm fw-bold text-white" data-bs-toggle="modal" data-bs-target="#tkModalSubmitMaster"><i class="bi bi-send"></i>Trình duyệt mẫu chuẩn</button>{% endif %}
         {% if flags.decide_master %}<button type="button" class="btn btn-hm btn-sm fw-bold text-white" data-bs-toggle="modal" data-bs-target="#tkModalMaster"><i class="bi bi-check2"></i>Duyệt mẫu chuẩn</button>{% endif %}
         {% if flags.handover %}<button type="button" class="btn btn-hm btn-sm fw-bold text-white" data-bs-toggle="modal" data-bs-target="#tkModalHandover"><i class="bi bi-box-arrow-right"></i>Bàn giao vào Thư viện</button>{% endif %}

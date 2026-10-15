@@ -974,6 +974,10 @@ class ModuleSetting(models.Model):
 
     sla_days = models.JSONField(default=dict, blank=True, verbose_name='Số ngày chuẩn theo bước')
     due_hour = models.PositiveSmallIntegerField(default=17, verbose_name='Giờ chốt hạn')
+    test_mode = models.BooleanField(
+        default=True, verbose_name='Trạng thái test',
+        help_text='Bật: bỏ bớt điều kiện trình duyệt mẫu chuẩn, và cho sửa hồ sơ đã duyệt. Tắt: về quy tắc chính thức.',
+    )
     default_receivers = models.JSONField(default=dict, blank=True, verbose_name='Người nhận bàn giao mặc định')
     default_roles = models.JSONField(default=dict, blank=True, verbose_name='Danh sách nhân sự phụ trách')
     updated_by = models.ForeignKey(USER, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')

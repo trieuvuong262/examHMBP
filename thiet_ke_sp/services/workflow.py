@@ -349,10 +349,32 @@ def decide_brief(dossier: ProductDevelopment, user, *, decision: str, comment: s
 # Bước 3–4: thiết kế & duyệt thiết kế
 # ---------------------------------------------------------------------------
 
+def test_edit_after_approval(dossier: ProductDevelopment) -> bool:
+    """Trạng thái test: hồ sơ đã duyệt sản xuất vẫn sửa được, không cần yêu cầu thay đổi."""
+    return dossier.status == Status.APPROVED and bool(sla.get_settings().test_mode)
+
+
+def _approved_design_editable(dossier, dv: DesignVersion) -> bool:
+    return (
+        test_edit_after_approval(dossier)
+        and dv.is_current
+        and dv.state == DesignVersion.STATE_APPROVED
+    )
+
+
+def _approved_sample_editable(dossier, sv: SampleVersion) -> bool:
+    return (
+        test_edit_after_approval(dossier)
+        and sv.is_current
+        and sv.state == SampleVersion.STATE_PASSED
+    )
+
+
 def _require_design_editable(dossier, dv: DesignVersion, user) -> None:
     _require(dv.dossier_id == dossier.pk, 'Phiên bản không thuộc hồ sơ.')
-    _require(dossier.status in (Status.DESIGNING, Status.DESIGN_REVISE) and dv.is_editable,
-             'Phiên bản thiết kế này đã gửi duyệt hoặc đã lưu trữ — không sửa được.')
+    if not _approved_design_editable(dossier, dv):
+        _require(dossier.status in (Status.DESIGNING, Status.DESIGN_REVISE) and dv.is_editable,
+                 'Phiên bản thiết kế này đã gửi duyệt hoặc đã lưu trữ — không sửa được.')
     _require(perms.can_work_as(dossier, user, Role.DESIGNER, Role.OWNER),
              'Chỉ Thiết kế / R&D hoặc người phụ trách được cập nhật thiết kế.')
 
@@ -629,8 +651,9 @@ def decide_design(dossier: ProductDevelopment, user, *, decision: str, comment: 
 
 def _require_sample_editable(dossier, sv: SampleVersion, user, *roles) -> None:
     _require(sv.dossier_id == dossier.pk, 'Mẫu không thuộc hồ sơ.')
-    _require(dossier.status in (Status.SAMPLING, Status.SAMPLE_REVISE) and sv.is_editable,
-             'Mẫu này đã gửi đánh giá hoặc đã lưu trữ — không sửa được.')
+    if not _approved_sample_editable(dossier, sv):
+        _require(dossier.status in (Status.SAMPLING, Status.SAMPLE_REVISE) and sv.is_editable,
+                 'Mẫu này đã gửi đánh giá hoặc đã lưu trữ — không sửa được.')
     _require(perms.can_work_as(dossier, user, *roles), 'Bạn không phụ trách phần việc này trên hồ sơ.')
 
 
@@ -812,16 +835,28 @@ def request_sample_fix(dossier: ProductDevelopment, user, *, comment: str, due_a
 
 
 def master_checklist(dossier: ProductDevelopment) -> list[tuple[str, bool]]:
-    """Điều kiện còn lại khi trình duyệt mẫu chuẩn.
+    """Điều kiện trình duyệt mẫu chuẩn.
 
-    Bảng thông số, BOM, ảnh mẫu thực tế và giá thành không chặn bước này.
+    Trạng thái test bật: không bắt bảng thông số, BOM, ảnh mẫu thực tế và giá thành.
     """
     sv = dossier.current_sample_version()
     if sv is None:
         return [('Có mẫu', False)]
     evaluations = list(sv.evaluations.all())
-    return [
+    items = [
         ('Không còn đánh giá Không đạt', not any(e.result == SampleEvaluation.RESULT_FAIL for e in evaluations)),
+    ]
+    if sla.get_settings().test_mode:
+        return items
+    pack = getattr(sv, 'tech_pack', None)
+    atts = _live(sv.attachments.all())
+    return [
+        ('Bảng thông số kỹ thuật', bool(pack and pack.size_spec.strip())
+         or atts.filter(kind=AttachmentKind.TECH_SPEC).exists()),
+        ('BOM có nguyên phụ liệu chính', bool(pack and pack.material_lines.filter(is_main=True).exists())),
+        ('Ảnh mẫu thực tế', atts.filter(kind=AttachmentKind.SAMPLE_PHOTO).exists()),
+        *items,
+        ('Giá thành dự kiến hoặc sau mẫu', dossier.estimated_cost is not None or dossier.post_sample_cost is not None),
     ]
 
 
@@ -1244,7 +1279,8 @@ COSTING_FIELDS = ('estimated_cost', 'post_sample_cost', 'proposed_wholesale_pric
 
 
 def update_costing(dossier: ProductDevelopment, user, *, fields: dict) -> None:
-    _require(not dossier.is_locked, 'Hồ sơ đã khóa sau duyệt — thay đổi giá thành qua yêu cầu thay đổi.')
+    if not test_edit_after_approval(dossier):
+        _require(not dossier.is_locked, 'Hồ sơ đã khóa sau duyệt — thay đổi giá thành qua yêu cầu thay đổi.')
     _require(dossier.status not in (Status.DRAFT, *FINAL_STATUSES), 'Chưa cập nhật giá thành ở bước này.')
     _require(perms.can_work_as(dossier, user, Role.COSTING, Role.OWNER),
              'Chỉ Kế hoạch / Giá thành hoặc người phụ trách được cập nhật giá thành.')
@@ -1265,12 +1301,20 @@ def _upload_allowed(dossier, user, kind: str, design_version, sample_version) ->
     if not perms.can_act(dossier, user):
         return 'Bạn không có quyền cập nhật hồ sơ.'
     if design_version is not None:
+        if _approved_design_editable(dossier, design_version):
+            return '' if perms.has_role(dossier, user, Role.DESIGNER, Role.OWNER) else 'Chỉ Thiết kế / R&D tải tệp thiết kế.'
         if not design_version.is_editable or dossier.status not in (Status.DESIGNING, Status.DESIGN_REVISE):
             return 'Phiên bản thiết kế đã gửi duyệt hoặc lưu trữ — không thêm tệp được.'
         return '' if perms.has_role(dossier, user, Role.DESIGNER, Role.OWNER) else 'Chỉ Thiết kế / R&D tải tệp thiết kế.'
     if sample_version is not None:
         if not sample_version.is_current:
             return 'Mẫu đã lưu trữ — không thêm tệp được.'
+        if _approved_sample_editable(dossier, sample_version):
+            if kind == AttachmentKind.EVALUATION:
+                return 'Không thêm biên bản đánh giá sau khi hồ sơ đã duyệt.'
+            roles = (Role.TECHNICIAN, Role.OWNER) if kind == AttachmentKind.TECH_SPEC else (
+                Role.SAMPLE_MAKER, Role.TECHNICIAN, Role.OWNER)
+            return '' if perms.has_role(dossier, user, *roles) else 'Bạn không phụ trách phần việc này.'
         if kind == AttachmentKind.EVALUATION:
             if dossier.status != Status.SAMPLE_EVAL_PENDING:
                 return 'Chỉ tải biên bản đánh giá khi mẫu đang chờ đánh giá.'
@@ -1285,7 +1329,7 @@ def _upload_allowed(dossier, user, kind: str, design_version, sample_version) ->
             return 'Hồ sơ đã bàn giao, hủy hoặc đóng — không bổ sung tài liệu tham khảo.'
         return '' if perms.has_role(dossier, user, Role.PROPOSER, Role.OWNER) else 'Chỉ người đề xuất / phụ trách.'
     if kind == AttachmentKind.COST:
-        if dossier.is_locked:
+        if dossier.is_locked and not test_edit_after_approval(dossier):
             return 'Hồ sơ đã khóa sau duyệt.'
         return '' if perms.has_role(dossier, user, Role.COSTING, Role.OWNER) else 'Chỉ Kế hoạch / Giá thành.'
     return '' if perms.is_participant(dossier, user) else 'Chỉ người tham gia hồ sơ được tải tệp.'

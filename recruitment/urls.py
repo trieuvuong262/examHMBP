@@ -12,6 +12,7 @@ urlpatterns = [
     path('admin/recruitment/jobs/<int:pk>/delete/', views.job_posting_delete, name='job_posting_delete'),
     # Thiết lập danh mục (menu «settings»)
     path('admin/recruitment/settings/', views.recruitment_settings, name='recruitment_settings'),
+    path('admin/recruitment/settings/test-mode/', views.recruitment_test_mode, name='recruitment_test_mode'),
     path('admin/recruitment/settings/<slug:tab>/add/', views.recruitment_settings_add, name='recruitment_settings_add'),
     path('admin/recruitment/settings/<slug:tab>/<int:pk>/edit/', views.recruitment_settings_edit, name='recruitment_settings_edit'),
     path('admin/recruitment/settings/<slug:tab>/<int:pk>/toggle/', views.recruitment_settings_toggle, name='recruitment_settings_toggle'),

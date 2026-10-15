@@ -14,8 +14,10 @@ from thiet_ke_sp.models import (
     Attachment,
     AttachmentKind,
     AuditLog,
+    DesignVersion,
     ProductDevelopment,
     Role,
+    SampleVersion,
     Status,
 )
 from thiet_ke_sp.services import workflow as wf
@@ -315,8 +317,11 @@ def action_flags(dossier: ProductDevelopment, user) -> dict[str, bool]:
     owner = perms.can_work_as(dossier, user, Role.OWNER)
     dvs = dossier.current_design_versions()
     sv = dossier.current_sample_version()
-    design_open = s in (Status.DESIGNING, Status.DESIGN_REVISE) and any(dv.is_editable for dv in dvs)
-    sample_open = s in (Status.SAMPLING, Status.SAMPLE_REVISE) and sv is not None and sv.is_editable
+    test_edit = wf.test_edit_after_approval(dossier)
+    design_step = s in (Status.DESIGNING, Status.DESIGN_REVISE) and any(dv.is_editable for dv in dvs)
+    sample_step = s in (Status.SAMPLING, Status.SAMPLE_REVISE) and sv is not None and sv.is_editable
+    design_open = design_step or (test_edit and any(dv.state == DesignVersion.STATE_APPROVED for dv in dvs))
+    sample_open = sample_step or (test_edit and sv is not None and sv.state == SampleVersion.STATE_PASSED)
     designer = perms.can_work_as(dossier, user, Role.DESIGNER, Role.OWNER)
     return {
         'edit_brief': perms.can_edit_brief(dossier, user),
@@ -325,19 +330,22 @@ def action_flags(dossier: ProductDevelopment, user) -> dict[str, bool]:
         and perms.has_role(dossier, user, Role.PROPOSER, Role.OWNER),
         'decide_brief': s == Status.BRIEF_PENDING and approver,
         'edit_design': design_open and designer,
-        'add_design_option': design_open and designer and len(dvs) < wf.MAX_DESIGN_OPTIONS,
-        'drop_design_option': design_open and designer and len(dvs) > 1,
+        'submit_design': design_step and designer,
+        'add_design_option': design_step and designer and len(dvs) < wf.MAX_DESIGN_OPTIONS,
+        'drop_design_option': design_step and designer and len(dvs) > 1,
         'decide_design': s == Status.DESIGN_PENDING and approver,
         'request_design_change': (s == Status.SAMPLE_EVAL_PENDING and owner) or (s == Status.MASTER_PENDING and approver),
         'edit_sample': sample_open and perms.can_work_as(dossier, user, Role.SAMPLE_MAKER, Role.TECHNICIAN, Role.OWNER),
+        'submit_sample': sample_step and perms.can_work_as(dossier, user, Role.SAMPLE_MAKER, Role.TECHNICIAN, Role.OWNER),
         'edit_tech_pack': sample_open and perms.can_work_as(dossier, user, Role.TECHNICIAN, Role.OWNER),
         'evaluate': s == Status.SAMPLE_EVAL_PENDING and perms.can_act(dossier, user)
         and bool(wf.evaluator_roles_for(dossier, user)),
         'request_fix': (s == Status.SAMPLE_EVAL_PENDING and owner) or (s == Status.MASTER_PENDING and approver),
         'submit_master': s == Status.SAMPLE_EVAL_PENDING and owner,
         'decide_master': s == Status.MASTER_PENDING and approver,
-        'edit_costing': not dossier.is_locked and s not in (Status.DRAFT, *FINAL_STATUSES)
+        'edit_costing': (not dossier.is_locked or test_edit) and s not in (Status.DRAFT, *FINAL_STATUSES)
         and perms.can_work_as(dossier, user, Role.COSTING, Role.OWNER),
+        'test_edit': test_edit,
         'handover': s == Status.APPROVED and perms.can_work_as(dossier, user, Role.OWNER, Role.TECHNICIAN),
         'close': s == Status.HANDED_OVER and owner and getattr(getattr(dossier, 'handover', None), 'is_transferred', False),
         'change_request': s == Status.APPROVED and (approver or owner),

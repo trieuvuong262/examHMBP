@@ -460,7 +460,9 @@ def dossier_detail(request, pk):
     flags = presenters.action_flags(dossier, user)
     multi_options = len(current_dvs) > 1
     for dv in current_dvs:
-        dv.can_edit = flags['edit_design'] and dv.is_editable
+        dv.can_edit = flags['edit_design'] and (
+            dv.is_editable or dv.state == DesignVersion.STATE_APPROVED
+        )
         dv.form = f.DesignVersionForm(instance=dv, auto_id=f'id_dv{dv.pk}_%s') if dv.can_edit else None
         dv.can_upload = wf.can_upload(dossier, user, AttachmentKind.FRONT, design_version=dv)
         dv.needs_note = dv.can_edit and wf.needs_change_note(dv)

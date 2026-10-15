@@ -89,6 +89,46 @@ class CandidateSource(RecruitmentOption):
         verbose_name_plural = 'Nguồn hồ sơ'
 
 
+class RecruitmentSetting(models.Model):
+    """Một dòng cấu hình. Bật trạng thái test để dùng các quy tắc đang thử."""
+
+    test_mode = models.BooleanField(default=True, verbose_name='Trạng thái test')
+    updated_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+        verbose_name='Người cập nhật',
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Thiết lập tuyển dụng'
+        verbose_name_plural = 'Thiết lập tuyển dụng'
+
+
+_TEST_MODE_CACHE_KEY = 'recruitment:test-mode'
+
+
+def test_mode_enabled() -> bool:
+    cached = cache.get(_TEST_MODE_CACHE_KEY)
+    if cached is not None:
+        return bool(cached)
+    setting = RecruitmentSetting.objects.order_by('pk').first()
+    enabled = True if setting is None else bool(setting.test_mode)
+    cache.set(_TEST_MODE_CACHE_KEY, enabled, None)
+    return enabled
+
+
+def set_test_mode(enabled: bool, *, actor) -> RecruitmentSetting:
+    setting = RecruitmentSetting.objects.order_by('pk').first()
+    if setting is None:
+        setting = RecruitmentSetting.objects.create(test_mode=enabled, updated_by=actor)
+    else:
+        setting.test_mode = enabled
+        setting.updated_by = actor
+        setting.save(update_fields=['test_mode', 'updated_by', 'updated_at'])
+    cache.set(_TEST_MODE_CACHE_KEY, bool(enabled), None)
+    return setting
+
+
 class CandidateFileKind(RecruitmentOption):
     """Mã ``code`` lưu vào ``CandidateFile.kind``; ``is_cv`` = dùng cho nút «Xem CV»."""
 
@@ -486,12 +526,15 @@ class Interview(models.Model):
 
     @property
     def awaiting_final(self) -> bool:
-        """Còn chờ giám đốc: phỏng vấn Đạt, hồ sơ vẫn ở bước Phỏng vấn."""
-        return (
-            self.result == self.RESULT_PASS
-            and self.final_result == self.FINAL_PENDING
-            and self.candidate.status == Candidate.STATUS_INTERVIEWING
-        )
+        """Còn chờ giám đốc khi phỏng vấn Đạt.
+
+        Trạng thái test bật: hồ sơ đã Loại thì không còn chờ duyệt.
+        """
+        if self.result != self.RESULT_PASS or self.final_result != self.FINAL_PENDING:
+            return False
+        if test_mode_enabled() and self.candidate.status != Candidate.STATUS_INTERVIEWING:
+            return False
+        return True
 
     @property
     def shows_director_decision(self) -> bool:

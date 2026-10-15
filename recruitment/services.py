@@ -28,6 +28,7 @@ from .models import (
     Interview,
     InterviewLocation,
     JobPosting,
+    test_mode_enabled,
 )
 
 logger = logging.getLogger(__name__)
@@ -547,7 +548,7 @@ def transition(candidate, to_status: str, *, actor, reason: str = '',
         candidate.reject_reason = ''
         fields.append('reject_reason')
     candidate.save(update_fields=fields)
-    if to_status == C.STATUS_REJECTED:
+    if to_status == C.STATUS_REJECTED and test_mode_enabled():
         _cancel_pending_director(candidate, actor=actor)
 
     message = reason

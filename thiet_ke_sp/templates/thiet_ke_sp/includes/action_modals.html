@@ -13,7 +13,7 @@
 {% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Ghi nhận quyết định' %}
 {% endif %}
 
-{% if flags.edit_design %}
+{% if flags.submit_design %}
 {% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalSubmitDesign' modal_action='design_submit' modal_title='Gửi duyệt thiết kế '|add:design_scope %}
   {% include 'thiet_ke_sp/includes/checklist_block.html' with items=checklist %}
   {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.design_pending due_label_text='Hạn duyệt thiết kế' %}
@@ -44,7 +44,7 @@
 {% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Yêu cầu chỉnh' submit_class='btn-danger' %}
 {% endif %}
 
-{% if flags.edit_sample %}
+{% if flags.submit_sample %}
 {% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalSubmitSample' modal_action='sample_submit' modal_title='Hoàn thành mẫu '|add:current_sv.label %}
   {% if not flags.full_access %}
   <div class="small mb-2 {% if current_sv.photos %}text-success{% else %}text-danger{% endif %}"><i class="bi {% if current_sv.photos %}bi-check-circle-fill{% else %}bi-x-circle{% endif %} me-1"></i>Ảnh mẫu thực tế ({{ current_sv.photos|length }})</div>

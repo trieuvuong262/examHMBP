@@ -60,6 +60,8 @@ from .models import (
     Interview,
     InterviewLocation,
     JobPosting,
+    set_test_mode,
+    test_mode_enabled,
 )
 from .permissions import (
     can_candidates,
@@ -1457,7 +1459,20 @@ def recruitment_settings(request, create_form=None, create_tab=None):
         'can_create': can_settings(user, 'create'),
         'can_update': can_settings(user, 'update'),
         'can_delete': can_settings(user, 'delete'),
+        'test_mode': test_mode_enabled(),
     })
+
+
+@login_required
+@require_POST
+def recruitment_test_mode(request):
+    if not can_settings(request.user, 'update'):
+        messages.error(request, 'Bạn không có quyền sửa thiết lập tuyển dụng.')
+        return redirect('recruitment_settings')
+    enabled = request.POST.get('test_mode') == '1'
+    set_test_mode(enabled, actor=request.user)
+    messages.success(request, 'Đã bật trạng thái test.' if enabled else 'Đã tắt trạng thái test. Hồ sơ Loại vẫn giữ bước chờ giám đốc duyệt.')
+    return redirect('recruitment_settings')
 
 
 def _settings_item(tab, pk):

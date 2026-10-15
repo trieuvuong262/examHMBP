@@ -28,6 +28,14 @@
         </div>
       </div>
       {% else %}
+      <div class="tk-section mb-3">
+        <div class="tk-section-title"><i class="bi bi-toggles"></i>Trạng thái test</div>
+        <div class="form-check form-switch mb-2">
+          {{ form.test_mode }}
+          <label class="form-check-label fw-bold" for="{{ form.test_mode.id_for_label }}">{{ form.test_mode.label }}</label>
+        </div>
+        <p class="small text-muted mb-0">{{ form.test_mode.help_text }}</p>
+      </div>
       <div class="tk-section">
         <div class="tk-section-title"><i class="bi bi-alarm"></i>Số ngày chuẩn từng bước</div>
         <div class="row g-3">
