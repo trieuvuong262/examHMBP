@@ -5,23 +5,20 @@ Thiết Kế Sản Phẩm / {tên sản phẩm} ({mã}) / Tổng Quan | Thiết 
 
 from __future__ import annotations
 
+import logging
 import os
 import re
-import shutil
 import subprocess
 import uuid
 from django.db import transaction
 from django.db.models.signals import post_save, pre_save
 from django.utils.text import get_valid_filename
 
-from san_xuat.design_nas_storage import (
-    design_nas_abs_root,
-    design_nas_rel_base,
-    pending_exists,
-    pending_path,
-)
+from san_xuat.design_nas_storage import design_nas_rel_base
 
+logger = logging.getLogger(__name__)
 _ILLEGAL = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
+_OBJECT_COUNT = re.compile(r'Total objects:\s+(\d+)')
 
 TAB_FOLDERS = {
     'overview': 'Tổng Quan',
@@ -60,8 +57,12 @@ def safe_segment(value: str, fallback: str) -> str:
     return (text or fallback)[:80]
 
 
+def folder_name_for(name: str, code: str) -> str:
+    return f'{safe_segment(name, "ho-so")} ({safe_segment(code, "ma")})'
+
+
 def dossier_folder_name(dossier) -> str:
-    return f'{safe_segment(dossier.name, "ho-so")} ({safe_segment(dossier.code, "ma")})'
+    return folder_name_for(dossier.name, dossier.code)
 
 
 def dossier_prefix(dossier) -> str:
@@ -96,79 +97,97 @@ def ensure_dossier_folders(dossier) -> None:
         persist_app_nas_mkdir(_design_rel(f'{prefix}/{folder}'))
 
 
-def _target_rel(dossier, att) -> str | None:
-    old = (att.file.name or '').replace('\\', '/').lstrip('/')
-    parts = old.split('/')
-    if len(parts) < 3 or parts[0] not in LEGACY_NAS_ROOTS or not parts[-1]:
-        return None
-    current = dossier_folder_name(dossier)
-    if len(parts) >= 4 and parts[2] in ALL_FOLDERS:
-        if parts[0] == NAS_ROOT and parts[1] == current:
-            return None
-        parts[0] = NAS_ROOT
-        parts[1] = current
-        return '/'.join(parts)
-    if len(parts) == 3:
-        return f'{NAS_ROOT}/{current}/{folder_for_kind(att.kind)}/{parts[2]}'
-    return None
-
-
-def _move_stored(old_rel: str, new_rel: str) -> bool:
-    if old_rel == new_rel:
-        return True
-    if pending_exists(old_rel):
-        dest = pending_path(new_rel)
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(pending_path(old_rel)), str(dest))
-        return True
-    from nas_storage.nas_mount_health import mount_io_safe
-
-    src = design_nas_abs_root() / old_rel
-    dest = design_nas_abs_root() / new_rel
-    if mount_io_safe(src.parent):
-        try:
-            if src.is_file():
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                shutil.move(str(src), str(dest))
-                return True
-        except OSError:
-            pass
-    from nas_storage.app_nas_storage import persist_app_nas_mkdir
+def _rclone(verb: str, *rels: str) -> subprocess.CompletedProcess:
     from nas_storage.nas_paths import _rclone_env, app_storage_rclone_target
 
-    persist_app_nas_mkdir(_design_rel(new_rel.rsplit('/', 1)[0]))
-    proc = subprocess.run(
-        [
-            'rclone', 'moveto',
-            app_storage_rclone_target(design_nas_rel_base(), old_rel),
-            app_storage_rclone_target(design_nas_rel_base(), new_rel),
-        ],
+    args = ['rclone', verb]
+    args.extend(app_storage_rclone_target(design_nas_rel_base(), rel) for rel in rels)
+    args.extend(['--contimeout', '15s', '--timeout', '90s', '--retries', '2'])
+    return subprocess.run(
+        args,
         capture_output=True,
         text=True,
-        timeout=120,
+        timeout=100,
         check=False,
         env=_rclone_env(),
     )
+
+
+def _rclone_text(proc: subprocess.CompletedProcess) -> str:
+    return ((proc.stderr or '') + '\n' + (proc.stdout or '')).strip()
+
+
+def _require_rclone(proc: subprocess.CompletedProcess) -> None:
     if proc.returncode != 0:
-        err = (proc.stderr or proc.stdout or '').strip()
-        raise OSError(err[:200] or 'move failed')
-    return True
+        raise OSError(_rclone_text(proc)[:300] or 'rclone failed')
 
 
-def relocate_dossier_files(dossier) -> int:
-    """Đưa file cũ vào cây thư mục theo tab, và đổi tên thư mục khi tên sản phẩm đổi."""
-    ensure_dossier_folders(dossier)
-    attachments = list(dossier.attachments.exclude(file=''))
-    planned: dict[str, str] = {}
-    for att in attachments:
-        old = (att.file.name or '').replace('\\', '/').lstrip('/')
-        new = _target_rel(dossier, att)
-        if new and new != old:
-            planned.setdefault(old, new)
+def _tree_state(rel: str) -> str:
+    """missing | empty | files. Không stat mount FUSE — mount lỗi sẽ treo request."""
+    proc = _rclone('size', rel)
+    if proc.returncode != 0:
+        return 'missing'
+    match = _OBJECT_COUNT.search(proc.stdout or '')
+    count = int(match.group(1)) if match else 0
+    return 'files' if count else 'empty'
+
+
+def _take_folder(old_rel: str, new_rel: str) -> None:
+    """Đổi tên cả thư mục hồ sơ. Thư mục đích đã tồn tại thì gộp file rồi xóa thư mục cũ."""
+    if old_rel == new_rel:
+        return
+    old_state = _tree_state(old_rel)
+    if old_state == 'missing':
+        return
+    new_state = _tree_state(new_rel)
+    if new_state == 'missing':
+        _require_rclone(_rclone('moveto', old_rel, new_rel))
+        return
+    if new_state == 'empty':
+        _require_rclone(_rclone('purge', new_rel))
+        _require_rclone(_rclone('moveto', old_rel, new_rel))
+        return
+    if old_state == 'files':
+        _require_rclone(_rclone('move', old_rel, new_rel))
+    _require_rclone(_rclone('purge', old_rel))
+
+
+def _rewrite_folder_prefix(dossier, old_folder: str, new_folder: str) -> int:
+    updated = 0
+    new_prefix = f'{NAS_ROOT}/{new_folder}/'
+    for root in LEGACY_NAS_ROOTS:
+        old_prefix = f'{root}/{old_folder}/'
+        rows = dossier.attachments.filter(file__startswith=old_prefix)
+        for att in rows.iterator():
+            name = (att.file.name or '').replace('\\', '/')
+            if not name.startswith(old_prefix):
+                continue
+            dossier.attachments.filter(pk=att.pk).update(file=new_prefix + name[len(old_prefix):])
+            updated += 1
+    return updated
+
+
+def relocate_dossier_files(dossier, previous_name: str | None = None) -> int:
+    """Đổi tên thư mục NAS theo tên sản phẩm, rồi xóa thư mục tên cũ."""
+    current = dossier_folder_name(dossier)
+    folders: set[str] = set()
+    if previous_name and previous_name != dossier.name:
+        folders.add(folder_name_for(previous_name, dossier.code))
+    for name in dossier.attachments.exclude(file='').values_list('file', flat=True):
+        parts = (name or '').replace('\\', '/').lstrip('/').split('/')
+        if len(parts) >= 2 and parts[0] in LEGACY_NAS_ROOTS and parts[1] and parts[1] != current:
+            folders.add(parts[1])
+    folders.discard(current)
     moved = 0
-    for old, new in planned.items():
-        _move_stored(old, new)
-        moved += dossier.attachments.filter(file=old).update(file=new)
+    for old_folder in folders:
+        new_rel = f'{NAS_ROOT}/{current}'
+        for root in LEGACY_NAS_ROOTS:
+            _take_folder(f'{root}/{old_folder}', new_rel)
+        moved += _rewrite_folder_prefix(dossier, old_folder, current)
+    try:
+        ensure_dossier_folders(dossier)
+    except OSError:
+        logger.exception('Không tạo đủ thư mục tab cho hồ sơ %s', dossier.pk)
     return moved
 
 
@@ -196,9 +215,11 @@ def connect_signals() -> None:
                 if created:
                     ensure_dossier_folders(dossier)
                 elif prev != name:
-                    relocate_dossier_files(dossier)
+                    relocate_dossier_files(dossier, previous_name=prev)
             except OSError:
-                return
+                logger.exception('Không đổi được thư mục NAS của hồ sơ %s', pk)
+                if not created and prev != name:
+                    raise
 
         transaction.on_commit(run)
 

@@ -382,6 +382,8 @@ def dossier_edit(request, pk):
                 messages.success(request, 'Đã lưu đề bài.')
         except wf.WorkflowError as exc:
             messages.error(request, str(exc))
+        except OSError:
+            messages.warning(request, 'Đã lưu đề bài. Chưa đổi được tên thư mục trên NAS, hãy lưu lại tên một lần nữa.')
         return redirect(dossier.get_absolute_url())
     return render(request, 'thiet_ke_sp/dossier_form.html', _common(
         request, form=form, dossier=dossier, default_due=sla.due_at_for(Status.DESIGNING),
