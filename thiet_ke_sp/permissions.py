@@ -1,6 +1,7 @@
 """Quyền module Thiết kế sản phẩm = quyền menu (Phân quyền) × vai trò trên từng hồ sơ.
 
 Tài khoản quản trị không được vượt vai trò: muốn duyệt / thao tác phải được gán đúng vai trò trên hồ sơ.
+Ngoại lệ: ``vuong-admin`` thao tác được mọi bước trên mọi hồ sơ.
 
 Thành viên hồ sơ (Sản xuất / R&D / Kế hoạch SX / Giám đốc) được xem và thao tác trên hồ sơ mình tham gia
 theo vai trò tương ứng, kể cả khi không có quyền menu module.
@@ -40,6 +41,15 @@ MENU_MY_TASKS = 'my_tasks'
 MENU_APPROVE = 'approve'
 MENU_REPORTS = 'reports'
 MENU_SETTINGS = 'settings'
+
+# Thao tác mọi bước trên mọi hồ sơ, không cần được gán vai trò.
+FULL_DOSSIER_USERNAME = 'vuong-admin'
+
+
+def has_full_dossier_access(user) -> bool:
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    return (getattr(user, 'username', '') or '').lower() == FULL_DOSSIER_USERNAME
 
 
 def is_admin(user) -> bool:
@@ -179,17 +189,22 @@ def member_path_allowed(user, path: str) -> bool:
 
 
 def can_view_dossier(dossier: ProductDevelopment, user) -> bool:
-    return can_view_module(user) or is_member(dossier, user) or is_follower(dossier, user)
+    return has_full_dossier_access(user) or can_view_module(user) or is_member(dossier, user) or is_follower(dossier, user)
 
 
 def can_act(dossier: ProductDevelopment, user) -> bool:
     """Quyền Sửa menu hồ sơ, hoặc là thành viên của chính hồ sơ này."""
-    return can_update(user) or is_member(dossier, user)
+    return has_full_dossier_access(user) or can_update(user) or is_member(dossier, user)
 
 
 def user_roles(dossier: ProductDevelopment, user) -> set[str]:
     if not getattr(user, 'is_authenticated', False):
         return set()
+    if has_full_dossier_access(user):
+        return {
+            Role.PROPOSER, Role.OWNER, Role.APPROVER, Role.DESIGNER, Role.TECHNICIAN,
+            Role.SAMPLE_MAKER, Role.QA, Role.COSTING, Role.MEMBER,
+        }
     roles = set()
     if dossier.proposer_id == user.pk:
         roles.add(Role.PROPOSER)
@@ -212,24 +227,32 @@ def can_work_as(dossier: ProductDevelopment, user, *roles: str) -> bool:
     """Thao tác nghiệp vụ: cần quyền Sửa menu hồ sơ + đúng vai trò trên hồ sơ."""
     if dossier.status in FINAL_STATUSES:
         return False
+    if has_full_dossier_access(user):
+        return True
     return can_act(dossier, user) and has_role(dossier, user, *roles)
 
 
 def is_dossier_approver(dossier: ProductDevelopment, user) -> bool:
     if dossier.status in FINAL_STATUSES:
         return False
+    if has_full_dossier_access(user):
+        return True
     return dossier.approver_id == user.pk and has_approve_permission(user)
 
 
 def can_edit_brief(dossier: ProductDevelopment, user) -> bool:
     if dossier.status in (*FINAL_STATUSES, Status.HANDED_OVER):
         return False
+    if has_full_dossier_access(user):
+        return True
     return can_update(user) and has_role(dossier, user, Role.PROPOSER, Role.OWNER)
 
 
 def can_edit_roles(dossier: ProductDevelopment, user) -> bool:
     if dossier.status in FINAL_STATUSES:
         return False
+    if has_full_dossier_access(user):
+        return True
     return can_update(user) and (has_role(dossier, user, Role.OWNER) or is_dossier_approver(dossier, user))
 
 

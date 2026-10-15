@@ -741,7 +741,8 @@ def complete_fix(ev: SampleEvaluation, user, *, note: str = '') -> None:
     dossier = ev.sample_version.dossier
     _require(ev.needs_fix, 'Lỗi này đã được xác nhận sửa.')
     _require(dossier.status not in FINAL_STATUSES, 'Hồ sơ đã đóng / hủy.')
-    _require(ev.fix_owner_id == user.pk, 'Chỉ người chịu trách nhiệm sửa được xác nhận.')
+    _require(ev.fix_owner_id == user.pk or perms.has_full_dossier_access(user),
+             'Chỉ người chịu trách nhiệm sửa được xác nhận.')
     with transaction.atomic():
         ev.fix_done_at = timezone.now()
         ev.fix_done_by = user
@@ -1443,7 +1444,8 @@ def add_comment(dossier: ProductDevelopment, user, *, body: str, design_version=
 
 def accept_task(task: Task, user) -> None:
     _require(task.state == Task.STATE_OPEN, 'Công việc đã đóng.')
-    _require(task.assignee_id == user.pk, 'Chỉ người được giao mới nhận việc.')
+    _require(task.assignee_id == user.pk or perms.has_full_dossier_access(user),
+             'Chỉ người được giao mới nhận việc.')
     if task.accepted_at is None:
         task.accepted_at = timezone.now()
         task.save(update_fields=['accepted_at'])

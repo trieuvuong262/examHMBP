@@ -450,7 +450,8 @@ def dossier_detail(request, pk):
         sv.pack = pack
         sv.lines = list(pack.material_lines.all()) if pack else []
         for ev in sv.evaluations.all():
-            ev.can_fix = can_close_fix and ev.needs_fix and ev.fix_owner_id == user.pk
+            ev.can_fix = can_close_fix and ev.needs_fix and (
+                ev.fix_owner_id == user.pk or perms.has_full_dossier_access(user))
             ev.fix_late = ev.needs_fix and ev.fix_due is not None and ev.fix_due < today
 
     current_dvs = sorted((dv for dv in design_versions if dv.is_current), key=lambda dv: dv.option_no)
