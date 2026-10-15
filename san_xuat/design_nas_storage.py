@@ -240,7 +240,7 @@ class DesignDocNasStorage(FileSystemStorage):
                 pk = Product.objects.filter(image=name).values_list('pk', flat=True).first()
                 if pk:
                     return reverse('kho_san_pham:product_image', args=[pk])
-            if name.startswith('thiet_ke_sp/'):
+            if name.startswith('thiet_ke_sp/') or name.startswith('Thiết Kế Sản Phẩm/'):
                 from thiet_ke_sp.models import Attachment
 
                 pk = Attachment.objects.filter(file=name).values_list('pk', flat=True).first()

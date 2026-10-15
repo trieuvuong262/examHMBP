@@ -1,6 +1,6 @@
 """Cây thư mục NAS của hồ sơ thiết kế.
 
-thiet_ke_sp / {tên sản phẩm} ({mã}) / Tổng Quan | Thiết Kế | Kỹ Thuật | May Mẫu | Trao Đổi | Giá Thành
+Thiết Kế Sản Phẩm / {tên sản phẩm} ({mã}) / Tổng Quan | Thiết Kế | Kỹ Thuật | May Mẫu | Trao Đổi | Giá Thành
 """
 
 from __future__ import annotations
@@ -50,6 +50,8 @@ KIND_FOLDERS = {
 ALL_FOLDERS = (
     'Tổng Quan', 'Thiết Kế', 'Kỹ Thuật', 'May Mẫu', 'Trao Đổi', 'Giá Thành',
 )
+NAS_ROOT = 'Thiết Kế Sản Phẩm'
+LEGACY_NAS_ROOTS = frozenset({'thiet_ke_sp', NAS_ROOT})
 
 
 def safe_segment(value: str, fallback: str) -> str:
@@ -63,7 +65,7 @@ def dossier_folder_name(dossier) -> str:
 
 
 def dossier_prefix(dossier) -> str:
-    return f'thiet_ke_sp/{dossier_folder_name(dossier)}'
+    return f'{NAS_ROOT}/{dossier_folder_name(dossier)}'
 
 
 def folder_for_tab(tab: str) -> str:
@@ -97,16 +99,17 @@ def ensure_dossier_folders(dossier) -> None:
 def _target_rel(dossier, att) -> str | None:
     old = (att.file.name or '').replace('\\', '/').lstrip('/')
     parts = old.split('/')
-    if len(parts) < 3 or parts[0] != 'thiet_ke_sp' or not parts[-1]:
+    if len(parts) < 3 or parts[0] not in LEGACY_NAS_ROOTS or not parts[-1]:
         return None
     current = dossier_folder_name(dossier)
     if len(parts) >= 4 and parts[2] in ALL_FOLDERS:
-        if parts[1] == current:
+        if parts[0] == NAS_ROOT and parts[1] == current:
             return None
+        parts[0] = NAS_ROOT
         parts[1] = current
         return '/'.join(parts)
     if len(parts) == 3:
-        return f'thiet_ke_sp/{current}/{folder_for_kind(att.kind)}/{parts[2]}'
+        return f'{NAS_ROOT}/{current}/{folder_for_kind(att.kind)}/{parts[2]}'
     return None
 
 
