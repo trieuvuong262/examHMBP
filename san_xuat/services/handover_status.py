@@ -495,25 +495,12 @@ def _fetch_mos_for_sales_orders(ids: list[int]) -> list[SxProductionOrder]:
 
 
 def done_qty_by_order_team(order_ids: list[int]) -> dict[tuple[int, str], Decimal]:
-    """SL đạt TEAM_OUTPUT theo (sales_order_id, team_slug) — cộng các LSX của đơn.
-
-    Cùng công thức tiến độ hàng hoá / bàn giao: Cắt = min CĐ bắt buộc,
-    May = may_giao, Ủi = ht_gap, GH = gh_tp.
-    """
-    mos = _mos_for_sales_orders(order_ids)
-    if not mos:
-        return {}
+    """Tổng SL đạt theo đúng tổ đã nhập tiến độ — cùng khóa với thống kê theo ngày."""
     out: dict[tuple[int, str], Decimal] = {}
-    for row in build_mo_handover_rows(mos):
-        oid = int(row.mo.sales_order_id or 0)
-        if not oid:
-            continue
-        for cell in row.cells:
-            slug = (cell.slug or "").strip().lower()
-            if not slug:
-                continue
-            key = (oid, slug)
-            out[key] = out.get(key, Decimal("0")) + _q(cell.done)
+    for (oid, slug), by_day in done_qty_by_order_team_day(order_ids).items():
+        total = sum((_q(qty) for qty in by_day.values()), Decimal("0"))
+        if total > 0:
+            out[(oid, slug)] = total
     return out
 
 
@@ -576,13 +563,89 @@ def stage_progress_by_order(order_ids: list[int]) -> dict[int, list[OrderStagePr
     }
 
 
+def _recording_team_index() -> tuple[dict[str, dict], dict[str, dict]]:
+    """Tên tổ trên TKSX → slug bộ phận HR, và slug → công đoạn KHSX."""
+    from san_xuat.services.team_division_map import all_hr_team_items
+
+    by_label: dict[str, dict] = {}
+    by_slug: dict[str, dict] = {}
+    for item in all_hr_team_items():
+        slug = (item.get("slug") or "").strip().lower()
+        label = (item.get("label") or "").strip()
+        rec = {"slug": slug, "stage": (item.get("stage_slug") or "").strip().lower()}
+        if slug:
+            by_slug[slug] = rec
+        if label:
+            by_label[label.casefold()] = rec
+    return by_label, by_slug
+
+
+def _merge_day_qty(
+    dest: dict[str, dict[date, Decimal]],
+    slug: str,
+    days: dict[date, Decimal],
+) -> None:
+    key = (slug or "").strip().lower()
+    if not key:
+        return
+    slot = dest.setdefault(key, {})
+    for day, qty in days.items():
+        amount = _q(qty)
+        if not day or amount <= 0:
+            continue
+        slot[day] = slot.get(day, Decimal("0")) + amount
+
+
+def _team_output_deltas_by_stage(
+    mo: SxProductionOrder,
+    stats: list[SxProductionStat],
+    *,
+    sizes,
+    mo_steps: list[ProgressStepDef],
+    stage_by_label: dict[str, str],
+) -> dict[str, dict[date, Decimal]]:
+    """Delta TEAM_OUTPUT theo ngày, tách theo công đoạn — không cộng dồn xuyên ngày sai."""
+    by_date: dict[date, list[SxProductionStat]] = {}
+    for st in stats:
+        day = getattr(st, "stat_date", None)
+        if not day:
+            continue
+        by_date.setdefault(day, []).append(st)
+    out: dict[str, dict[date, Decimal]] = {}
+    if not by_date:
+        return out
+    participating = _participating_slugs(mo)
+    acc: dict[tuple[str, str], Decimal] = {}
+    prev: dict[str, Decimal] = {}
+    for day in sorted(by_date):
+        day_acc = _accumulate_stats(by_date[day], sizes, mo_steps, stage_by_label)
+        for key, qty in day_acc.items():
+            acc[key] = acc.get(key, Decimal("0")) + qty
+        current = _team_done_by_slug(
+            mo,
+            sizes=sizes,
+            step_size_qty=acc,
+            all_steps=mo_steps,
+            participating_slugs=participating,
+        )
+        for slug, tot in current.items():
+            delta = tot - prev.get(slug, Decimal("0"))
+            if delta <= 0:
+                continue
+            slot = out.setdefault(slug, {})
+            slot[day] = slot.get(day, Decimal("0")) + delta
+        prev = current
+    return out
+
+
 def done_qty_by_order_team_day(
     order_ids: list[int],
 ) -> dict[tuple[int, str], dict[date, Decimal]]:
-    """Delta TEAM_OUTPUT theo ngày báo cáo TKSX — (đơn, slug) → {ngày: SL}.
+    """Delta TEAM_OUTPUT theo ngày báo cáo TKSX — (đơn, slug tổ) → {ngày: SL}.
 
-    Đi từng `stat_date`: TEAM_OUTPUT lũy kế đến ngày đó trừ ngày trước.
-    Cắt áo một ngày / quần ngày sau chỉ ghi SL bộ vào ngày đủ min.
+    Mỗi tổ nhập tiến độ chỉ tính SL của mình. Hai tổ cùng công đoạn không cộng
+    thành một dòng (500 + 500 = 1.000). Tổ có ô kế hoạch riêng giữ slug `d{id}`;
+    tổ không có ô thì dồn vào slug công đoạn trên lộ trình (vd. `ht`).
     """
     mos = _mos_for_sales_orders(order_ids)
     if not mos:
@@ -594,44 +657,67 @@ def done_qty_by_order_team_day(
         status=SxProductionStat.STATUS_CONFIRMED,
     ).only("production_order_id", "process_name", "size_label", "qty_good", "stat_date", "team_label"):
         stats_by_mo.setdefault(st.production_order_id, []).append(st)
-    stage_by_label = hr_team_stage_by_label()
+    by_label, by_slug = _recording_team_index()
+    stage_by_label = {
+        label: rec["stage"]
+        for label, rec in by_label.items()
+        if rec.get("stage")
+    }
+    plan_slugs: dict[int, set[str]] = {}
+    for oid, slug in SxOrderTeamDayPlan.objects.filter(
+        sales_order_id__in=[int(x) for x in order_ids if x],
+    ).values_list("sales_order_id", "team_slug"):
+        key = (slug or "").strip().lower()
+        if key:
+            plan_slugs.setdefault(int(oid), set()).add(key)
 
     out: dict[tuple[int, str], dict[date, Decimal]] = {}
     for mo in mos:
         oid = int(mo.sales_order_id or 0)
         if not oid:
             continue
+        stats = stats_by_mo.get(mo.pk) or []
+        if not stats:
+            continue
         sizes = _size_plans(mo)
         mo_steps = _output_steps_for_mo(mo)
-        participating = _participating_slugs(mo)
-        by_date: dict[date, list[SxProductionStat]] = {}
-        for st in stats_by_mo.get(mo.pk, []):
-            day = getattr(st, "stat_date", None)
-            if not day:
+        planned = plan_slugs.get(oid, set())
+        buckets: dict[str, list[SxProductionStat]] = {}
+        for st in stats:
+            label = (getattr(st, "team_label", "") or "").strip().casefold()
+            rec = by_label.get(label)
+            buckets.setdefault(rec["slug"] if rec else "", []).append(st)
+
+        direct: dict[str, dict[date, Decimal]] = {}
+        stage_pool: dict[str, list[SxProductionStat]] = {}
+        for bucket, rows in buckets.items():
+            rec = by_slug.get(bucket)
+            stage = (rec or {}).get("stage") or ""
+            if bucket and stage and bucket not in planned and stage in planned:
+                stage_pool.setdefault(stage, []).extend(rows)
                 continue
-            by_date.setdefault(day, []).append(st)
-        if not by_date:
-            continue
-        acc: dict[tuple[str, str], Decimal] = {}
-        prev: dict[str, Decimal] = {}
-        for day in sorted(by_date):
-            day_acc = _accumulate_stats(by_date[day], sizes, mo_steps, stage_by_label)
-            for key, qty in day_acc.items():
-                acc[key] = acc.get(key, Decimal("0")) + qty
-            current = _team_done_by_slug(
-                mo,
-                sizes=sizes,
-                step_size_qty=acc,
-                all_steps=mo_steps,
-                participating_slugs=participating,
+            deltas = _team_output_deltas_by_stage(
+                mo, rows, sizes=sizes, mo_steps=mo_steps, stage_by_label=stage_by_label,
             )
-            for slug, tot in current.items():
-                delta = tot - prev.get(slug, Decimal("0"))
-                if delta <= 0:
-                    continue
-                slot = out.setdefault((oid, slug), {})
-                slot[day] = slot.get(day, Decimal("0")) + delta
-            prev = current
+            if bucket:
+                series = deltas.get(stage, {}) if stage else {}
+                if not stage:
+                    for days in deltas.values():
+                        _merge_day_qty(direct, bucket, days)
+                else:
+                    _merge_day_qty(direct, bucket, series)
+                continue
+            for stage_slug, days in deltas.items():
+                _merge_day_qty(direct, stage_slug, days)
+        for stage, rows in stage_pool.items():
+            deltas = _team_output_deltas_by_stage(
+                mo, rows, sizes=sizes, mo_steps=mo_steps, stage_by_label=stage_by_label,
+            )
+            _merge_day_qty(direct, stage, deltas.get(stage, {}))
+        for slug, days in direct.items():
+            slot = out.setdefault((oid, slug), {})
+            for day, qty in days.items():
+                slot[day] = slot.get(day, Decimal("0")) + qty
     return out
 
 

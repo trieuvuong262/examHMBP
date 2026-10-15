@@ -812,20 +812,16 @@ def request_sample_fix(dossier: ProductDevelopment, user, *, comment: str, due_a
 
 
 def master_checklist(dossier: ProductDevelopment) -> list[tuple[str, bool]]:
-    """Quy tắc 2: điều kiện trình duyệt mẫu chuẩn."""
+    """Điều kiện còn lại khi trình duyệt mẫu chuẩn.
+
+    Bảng thông số, BOM, ảnh mẫu thực tế và giá thành không chặn bước này.
+    """
     sv = dossier.current_sample_version()
     if sv is None:
         return [('Có mẫu', False)]
-    pack = getattr(sv, 'tech_pack', None)
-    atts = _live(sv.attachments.all())
     evaluations = list(sv.evaluations.all())
     return [
-        ('Bảng thông số kỹ thuật', bool(pack and pack.size_spec.strip())
-         or atts.filter(kind=AttachmentKind.TECH_SPEC).exists()),
-        ('BOM có nguyên phụ liệu chính', bool(pack and pack.material_lines.filter(is_main=True).exists())),
-        ('Ảnh mẫu thực tế', atts.filter(kind=AttachmentKind.SAMPLE_PHOTO).exists()),
         ('Không còn đánh giá Không đạt', not any(e.result == SampleEvaluation.RESULT_FAIL for e in evaluations)),
-        ('Giá thành dự kiến hoặc sau mẫu', dossier.estimated_cost is not None or dossier.post_sample_cost is not None),
     ]
 
 
