@@ -411,10 +411,44 @@ def find_tech_doc_for_code(product_code: str):
     return get_or_set(('tech_doc_for_code', raw.casefold()), _lookup)
 
 
+_PRODUCT_SEARCH_FIELDS = (
+    'style_code', 'code', 'name', 'full_name', 'bar_code',
+    'kiotviet_code', 'color_label', 'color_code',
+)
+_STYLE_SEARCH_FIELDS = ('code', 'name', 'root_kiotviet_code')
+
+
+def _tokens_match_q(q: str, fields: tuple[str, ...]) -> Q:
+    """Mỗi từ phải khớp một cột. Tên và màu nằm ở cột khác nhau."""
+    tokens = [part for part in (q or '').split() if part]
+    if not tokens:
+        return Q()
+    combined = Q()
+    for token in tokens:
+        part = Q()
+        for field in fields:
+            part |= Q(**{f'{field}__icontains': token})
+        combined &= part
+    return combined
+
+
+def _display_name_with_color(name: str, colors: list[str]) -> str:
+    """Style một màu: gắn màu vào tên để chọn được «SC04 xanh đen»."""
+    label = (name or '').strip()
+    if len(colors) != 1:
+        return label
+    color = (colors[0] or '').strip()
+    if not color or color.casefold() in ('nocolor', 'none', '-'):
+        return label
+    if color.casefold() in label.casefold():
+        return label
+    return f'{label} — {color}' if label else color
+
+
 def search_products(q: str = '', *, limit: int = 30) -> list[dict]:
     """TomSelect: danh sách mã SX từ kho SP (gom nhiều SKU theo style_code)."""
     q = _norm(q)
-    limit = max(1, min(int(limit or 30), 50))
+    limit = max(1, min(int(limit or 30), 80))
     try:
         from kho_san_pham.models import Product, ProductStyle
     except ImportError:
@@ -475,16 +509,7 @@ def search_products(q: str = '', *, limit: int = 30) -> list[dict]:
         "COALESCE(NULLIF(BTRIM(style_code), ''), code)",
     ).order_by('-_sp_num', 'style_code', 'code')
     if q:
-        prod_qs = prod_qs.filter(
-            Q(style_code__icontains=q)
-            | Q(code__icontains=q)
-            | Q(name__icontains=q)
-            | Q(full_name__icontains=q)
-            | Q(bar_code__icontains=q)
-            | Q(kiotviet_code__icontains=q)
-            | Q(color_label__icontains=q)
-            | Q(color_code__icontains=q),
-        )
+        prod_qs = prod_qs.filter(_tokens_match_q(q, _PRODUCT_SEARCH_FIELDS))
 
     for product in prod_qs[: limit * 8]:
         style = (product.style_code or '').strip() or (product.code or '').strip()
@@ -517,11 +542,7 @@ def search_products(q: str = '', *, limit: int = 30) -> list[dict]:
             'code',
         ).order_by('-_sp_num', 'code')
         if q:
-            style_qs = style_qs.filter(
-                Q(code__icontains=q)
-                | Q(name__icontains=q)
-                | Q(root_kiotviet_code__icontains=q),
-            )
+            style_qs = style_qs.filter(_tokens_match_q(q, _STYLE_SEARCH_FIELDS))
         for style in style_qs[:limit]:
             if _touch((style.code or '').strip(), name=(style.name or '').strip()):
                 break
@@ -535,9 +556,9 @@ def search_products(q: str = '', *, limit: int = 30) -> list[dict]:
     rows: list[dict] = []
     for key in order:
         g = groups[key]
-        name = g['name']
         code = g['code']
         color = ', '.join(g['colors'])
+        name = _display_name_with_color(g['name'], g['colors'])
         rows.append({
             'id': code,
             'code': code,

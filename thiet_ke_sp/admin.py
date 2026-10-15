@@ -36,10 +36,10 @@ class SampleVersionInline(admin.TabularInline):
 
 @admin.register(ProductDevelopment)
 class ProductDevelopmentAdmin(admin.ModelAdmin):
-    list_display = ('code', 'name', 'status', 'product_group', 'owner', 'approver', 'official_product_code', 'is_demo')
+    list_display = ('code', 'name', 'status', 'product_group', 'owner', 'co_owner', 'approver', 'official_product_code', 'is_demo')
     list_filter = ('status', 'product_group', 'priority', 'is_demo')
     search_fields = ('code', 'name', 'official_product_code')
-    raw_id_fields = ('proposer', 'owner', 'approver', 'designer', 'technician', 'sample_maker', 'qa_user', 'costing_user')
+    raw_id_fields = ('proposer', 'owner', 'co_owner', 'approver', 'designer', 'technician', 'sample_maker', 'qa_user', 'costing_user')
     readonly_fields = ('code', 'status', 'status_changed_at', 'approved_design_version', 'final_sample_version',
                        'approved_at', 'closed_at', 'created_at', 'updated_at')
     inlines = [DesignVersionInline, SampleVersionInline]

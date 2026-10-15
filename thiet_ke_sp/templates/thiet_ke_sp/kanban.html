@@ -57,7 +57,9 @@
         <span class="tk-pill is-{{ d.status_tone }}">{{ d.get_status_display }}</span>
         <div class="tk-kan-foot">
           <span class="d-inline-flex align-items-center gap-1 min-w-0">
-            {% if d.owner %}<span class="tk-avatar" style="background: {{ d.owner_id|avatar_tone }}" title="{{ d.owner|uname }}">{{ d.owner|initial }}</span>{% else %}<span class="tk-avatar is-empty"><i class="bi bi-person"></i></span>{% endif %}
+            {% if d.owner %}<span class="tk-avatar" style="background: {{ d.owner_id|avatar_tone }}" title="{{ d.owner|uname }}">{{ d.owner|initial }}</span>{% endif %}
+            {% if d.co_owner %}<span class="tk-avatar" style="background: {{ d.co_owner_id|avatar_tone }}" title="{{ d.co_owner|uname }}">{{ d.co_owner|initial }}</span>{% endif %}
+            {% if not d.owner and not d.co_owner %}<span class="tk-avatar is-empty"><i class="bi bi-person"></i></span>{% endif %}
             <span class="text-muted text-truncate">{{ d.step_assignee_name|default:'' }}</span>
           </span>
           {% if d.step_due_at %}<span class="text-nowrap {% if d.step_late_days %}tk-late{% else %}text-muted{% endif %}">{% if d.step_late_days %}Trễ {{ d.step_late_days }} ngày{% else %}Hạn {{ d.step_due_at|date:'d/m' }}{% endif %}</span>{% endif %}

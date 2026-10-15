@@ -69,6 +69,8 @@ def roles_rail(dossier: ProductDevelopment) -> list[dict]:
     rows = [{'role': Role.PROPOSER, 'label': Role.PROPOSER.label, 'user': dossier.proposer}]
     for role in DOSSIER_ROLE_FIELDS:
         rows.append({'role': role, 'label': Role(role).label, 'user': getattr(dossier, role)})
+        if role == Role.OWNER and dossier.co_owner_id:
+            rows.append({'role': role, 'label': Role.OWNER.label, 'user': dossier.co_owner})
     followers = list(dossier.followers.select_related('profile'))
     if followers:
         for person in followers:

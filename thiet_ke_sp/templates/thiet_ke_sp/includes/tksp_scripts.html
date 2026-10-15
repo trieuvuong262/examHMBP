@@ -10,6 +10,8 @@
       if (multiple) {
         opts.plugins = ['remove_button'];
         opts.placeholder = 'Tìm và chọn nhân sự…';
+        var maxItems = parseInt(el.getAttribute('data-max-items') || '', 10);
+        if (maxItems > 0) opts.maxItems = maxItems;
       }
       new TomSelect(el, opts);
     });

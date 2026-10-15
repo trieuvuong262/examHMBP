@@ -159,8 +159,8 @@
 {% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalRoles' modal_action='roles_save' modal_title='Nhân sự hồ sơ' modal_size='modal-lg' %}
   <div class="row g-2">
     {% for field in roles_form %}
-      {% if field.name == 'followers' %}
-        {% include 'thiet_ke_sp/includes/field.html' with field=field col='col-12' %}
+      {% if field.name == 'followers' or field.name == 'owners' %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=field col='col-12' req=field.field.required %}
       {% else %}
         {% include 'thiet_ke_sp/includes/field.html' with field=field %}
       {% endif %}

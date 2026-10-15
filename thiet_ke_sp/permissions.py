@@ -211,6 +211,8 @@ def user_roles(dossier: ProductDevelopment, user) -> set[str]:
     for field in DOSSIER_ROLE_FIELDS:
         if getattr(dossier, f'{field}_id') == user.pk:
             roles.add(field)
+    if dossier.co_owner_id == user.pk:
+        roles.add(Role.OWNER)
     group = member_group(dossier, user)
     if group:
         roles.add(Role.MEMBER)

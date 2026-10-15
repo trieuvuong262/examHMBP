@@ -155,6 +155,17 @@ def _role_assignee(dossier: ProductDevelopment, role: str, fallback_owner: bool)
     return user
 
 
+def _owners(dossier: ProductDevelopment):
+    people = []
+    seen = set()
+    for person in (dossier.owner, dossier.co_owner):
+        if person is None or person.pk in seen:
+            continue
+        seen.add(person.pk)
+        people.append(person)
+    return people
+
+
 def _task_notify_kind(role: str, revision: bool) -> str:
     if role == Role.APPROVER:
         return nt.KIND_APPROVAL_REQUEST
@@ -312,11 +323,19 @@ def submit_brief(dossier: ProductDevelopment, user, *, due_at=None) -> None:
 def _notify_assigned_roles(dossier: ProductDevelopment, actor, roles) -> None:
     """Báo cho từng người được gán vai trò trên hồ sơ (gộp nhiều vai trò của cùng một người)."""
     per_user: dict[int, tuple[object, list[str]]] = {}
-    for role in roles:
-        person = dossier.role_user(role)
+
+    def _add(person, label: str) -> None:
         if person is None:
-            continue
-        per_user.setdefault(person.pk, (person, []))[1].append(Role(role).label)
+            return
+        labels = per_user.setdefault(person.pk, (person, []))[1]
+        if label not in labels:
+            labels.append(label)
+
+    for role in roles:
+        label = Role(role).label
+        _add(dossier.role_user(role), label)
+        if role == Role.OWNER:
+            _add(dossier.co_owner, label)
     for person, labels in per_user.values():
         nt.notify(person, dossier, nt.KIND_ASSIGNED, f'Bạn được giao: {", ".join(labels)}',
                   f'{dossier.code} — {dossier.name}', actor=actor)
@@ -612,7 +631,7 @@ def decide_design(dossier: ProductDevelopment, user, *, decision: str, comment: 
             _transition(dossier, Status.SAMPLING, user, 'design_approved',
                         f'{_name(user)} duyệt thiết kế {label}, chuyển sang làm mẫu.',
                         due_at=due_at, version=label, comment=comment)
-            nt.notify_many([dossier.owner, dossier.designer, dossier.proposer], dossier, nt.KIND_APPROVED,
+            nt.notify_many([dossier.owner, dossier.co_owner, dossier.designer, dossier.proposer], dossier, nt.KIND_APPROVED,
                            f'Thiết kế {label} đã được duyệt', f'{dossier.code} — {dossier.name}', actor=user)
         elif decision == ApprovalDecision.REQUEST_CHANGE:
             comment = _require_text(comment, 'nội dung yêu cầu chỉnh sửa')
@@ -741,9 +760,8 @@ def add_evaluation(dossier: ProductDevelopment, user, *, role: str, result: str,
             _open_fix_task(dossier, ev, actor=user)
         log(dossier, user, 'sample_evaluated',
             f'{_name(user)} đánh giá mẫu {sv.label} ({EvaluatorRole(role).label}): {ev.get_result_display()}.')
-    if dossier.owner_id and dossier.owner_id != user.pk:
-        nt.notify(dossier.owner, dossier, nt.KIND_INFO, f'Có đánh giá mới cho mẫu {sv.label}',
-                  f'{_name(user)} — {ev.get_result_display()}', actor=user)
+    nt.notify_many(_owners(dossier), dossier, nt.KIND_INFO, f'Có đánh giá mới cho mẫu {sv.label}',
+                   f'{_name(user)} — {ev.get_result_display()}', actor=user)
     return ev
 
 
@@ -779,9 +797,8 @@ def complete_fix(ev: SampleEvaluation, user, *, note: str = '') -> None:
         log(dossier, user, 'fix_done',
             f'{_name(user)} xác nhận đã sửa lỗi mẫu {ev.sample_version.label}: {ev.defects.strip()[:200]}'
             + (f' — {ev.fix_done_note}' if ev.fix_done_note else ''))
-    if dossier.owner_id and dossier.owner_id != user.pk:
-        nt.notify(dossier.owner, dossier, nt.KIND_INFO, f'Đã sửa lỗi mẫu {ev.sample_version.label}',
-                  ev.defects.strip()[:200], actor=user)
+    nt.notify_many(_owners(dossier), dossier, nt.KIND_INFO, f'Đã sửa lỗi mẫu {ev.sample_version.label}',
+                   ev.defects.strip()[:200], actor=user)
 
 
 def request_design_change_from_sample(dossier: ProductDevelopment, user, *, comment: str, due_at=None) -> None:
@@ -939,7 +956,7 @@ def decide_master(dossier: ProductDevelopment, user, *, official_code: str, comm
             _create_task(dossier, step=Status.APPROVED, role=Role.CONDITION,
                          title=f'Điều kiện duyệt: {obj.content}', assignee=obj.assignee, due_at=obj.due_at,
                          is_main=False, actor=user, condition=obj)
-    nt.notify_many([dossier.owner, dossier.designer, dossier.technician, dossier.proposer], dossier,
+    nt.notify_many([dossier.owner, dossier.co_owner, dossier.designer, dossier.technician, dossier.proposer], dossier,
                    nt.KIND_APPROVED, f'Mẫu chuẩn {sv.label} đã được duyệt sản xuất',
                    f'{dossier.code} — {dossier.name} · Mã {code}', actor=user)
 
@@ -960,7 +977,7 @@ def complete_condition(cond: ApprovalCondition, user, *, note: str = '') -> None
         ) and cond.assignee:
             nt.invalidate_badges(cond.assignee)
         log(dossier, user, 'condition_done', f'{_name(user)} hoàn thành điều kiện duyệt: {cond.content}.')
-    nt.notify(dossier.owner, dossier, nt.KIND_INFO, 'Điều kiện duyệt đã hoàn thành', cond.content, actor=user)
+    nt.notify_many(_owners(dossier), dossier, nt.KIND_INFO, 'Điều kiện duyệt đã hoàn thành', cond.content, actor=user)
 
 
 # ---------------------------------------------------------------------------
@@ -1115,8 +1132,8 @@ def transfer_to_production(record: Handover, user):
         log(dossier, user, 'transferred',
             f'{_name(user)} chuyển {record.product_code} từ Thư viện sang sản xuất — tạo hồ sơ sản phẩm SX '
             f'({copied} tệp).', tech_doc_id=tech_doc.pk)
-        nt.notify(dossier.owner, dossier, nt.KIND_INFO, f'{record.product_code} đã chuyển sang sản xuất',
-                  f'{dossier.code} — {dossier.name}', actor=user)
+        nt.notify_many(_owners(dossier), dossier, nt.KIND_INFO, f'{record.product_code} đã chuyển sang sản xuất',
+                       f'{dossier.code} — {dossier.name}', actor=user)
     return tech_doc
 
 
@@ -1148,7 +1165,7 @@ def pause(dossier: ProductDevelopment, user, *, reason: str) -> None:
         dossier.stop_reason = reason
         _transition(dossier, Status.PAUSED, user, 'paused', f'{_name(user)} tạm dừng hồ sơ: {reason}',
                     open_tasks=False)
-    nt.notify_many([dossier.owner, dossier.proposer], dossier, nt.KIND_INFO, 'Hồ sơ bị tạm dừng', reason, actor=user)
+    nt.notify_many([dossier.owner, dossier.co_owner, dossier.proposer], dossier, nt.KIND_INFO, 'Hồ sơ bị tạm dừng', reason, actor=user)
 
 
 def resume(dossier: ProductDevelopment, user, *, comment: str = '', due_at=None) -> None:
@@ -1186,7 +1203,7 @@ def cancel(dossier: ProductDevelopment, user, *, reason: str, stage: str = Appro
         dossier.closed_at = timezone.now()
         _transition(dossier, Status.CANCELLED, user, 'cancelled', f'{_name(user)} hủy hồ sơ: {reason}',
                     open_tasks=False)
-    nt.notify_many([dossier.owner, dossier.proposer], dossier, nt.KIND_INFO, 'Hồ sơ đã bị hủy', reason, actor=user)
+    nt.notify_many([dossier.owner, dossier.co_owner, dossier.proposer], dossier, nt.KIND_INFO, 'Hồ sơ đã bị hủy', reason, actor=user)
 
 
 CHANGE_TARGET_DESIGN = 'design'
@@ -1232,6 +1249,13 @@ def request_change_after_approval(dossier: ProductDevelopment, user, *, target: 
 
 def update_roles(dossier: ProductDevelopment, user, *, assignments: dict[str, object]) -> None:
     _require(perms.can_edit_roles(dossier, user), 'Chỉ người phụ trách chính hoặc người duyệt được đổi nhân sự.')
+    assignments = dict(assignments)
+    if 'owners' in assignments:
+        people = list(assignments.pop('owners') or [])
+        _require(people, 'Hồ sơ phải có người phụ trách chính.')
+        _require(len(people) <= 2, 'Chỉ chọn tối đa 2 người phụ trách chính.')
+        assignments[Role.OWNER] = people[0]
+        assignments['co_owner'] = people[1] if len(people) > 1 else None
     new_approver = assignments.get(Role.APPROVER, dossier.approver)
     if new_approver is not None and new_approver != dossier.approver:
         _require(perms.has_approve_permission(new_approver), 'Người duyệt được chọn không có quyền duyệt hồ sơ.')
@@ -1268,6 +1292,19 @@ def update_roles(dossier: ProductDevelopment, user, *, assignments: dict[str, ob
                           f'{dossier.code} — {dossier.name}', actor=user)
             if old_user is not None:
                 nt.invalidate_badges(old_user)
+        if 'co_owner' in assignments:
+            new_user = assignments['co_owner']
+            old_user = dossier.co_owner
+            if old_user != new_user:
+                dossier.co_owner = new_user
+                changed.append(
+                    f'Người phụ trách chính (2): {_name(old_user) or "—"} → {_name(new_user) or "—"}',
+                )
+                if new_user is not None and dossier.status != Status.DRAFT:
+                    nt.notify(new_user, dossier, nt.KIND_ASSIGNED, 'Bạn được giao: Người phụ trách chính',
+                              f'{dossier.code} — {dossier.name}', actor=user)
+                if old_user is not None:
+                    nt.invalidate_badges(old_user)
         if changed:
             dossier.save()
             log(dossier, user, 'roles_updated', f'{_name(user)} đổi nhân sự: ' + '; '.join(changed) + '.')
@@ -1473,7 +1510,7 @@ def add_comment(dossier: ProductDevelopment, user, *, body: str, design_version=
         dossier=dossier, author=user, body=body, design_version=design_version,
         sample_version=sample_version, step=step,
     )
-    recipients = [dossier.owner]
+    recipients = [dossier.owner, dossier.co_owner]
     task = current_main_task(dossier)
     if task and task.assignee:
         recipients.append(task.assignee)

@@ -151,11 +151,43 @@ class UserMultipleChoiceField(forms.ModelMultipleChoiceField):
         return perms.display_name(obj)
 
 
+def _order_owners(people, primary=None, secondary=None):
+    """Giữ người phụ trách đang có làm người nhận việc; người còn lại là người thứ hai."""
+    if not people:
+        return []
+    by_pk = {person.pk: person for person in people}
+    if primary is not None and getattr(primary, 'pk', None) in by_pk:
+        owner = by_pk[primary.pk]
+    elif secondary is not None and getattr(secondary, 'pk', None) in by_pk:
+        owner = by_pk[secondary.pk]
+    else:
+        owner = people[0]
+    rest = [person for person in people if person.pk != owner.pk]
+    return [owner, rest[0]] if rest else [owner]
+
+
 class RoleFieldsMixin:
-    def _add_role_fields(self, current: dict | None = None):
+    def _add_owner_field(self, current_ids=()):
+        configured = sla.configured_role_ids()
+        ids = [pk for pk in current_ids if pk]
+        field = UserMultipleChoiceField(
+            queryset=role_queryset('owner', configured=configured, current_ids=ids),
+            required=True,
+            label=ROLE_LABELS['owner'],
+            widget=forms.SelectMultiple(attrs={**_USER_SELECT, 'multiple': 'multiple', 'data-max-items': '2'}),
+        )
+        field.help_text = 'Chọn 1 hoặc 2 người.'
+        if not configured.get('owner'):
+            field.help_text = 'Chọn 1 hoặc 2 người. Chưa có người trong Thiết lập → Nhân sự phụ trách.'
+        self.fields['owners'] = field
+
+    def _add_role_fields(self, current: dict | None = None, owner_ids=()):
         current = current or {}
         configured = sla.configured_role_ids()
+        self._add_owner_field(owner_ids)
         for role in DOSSIER_ROLE_FIELDS:
+            if role == 'owner':
+                continue
             field = user_field(
                 ROLE_LABELS[role],
                 queryset=role_queryset(role, current.get(role), configured),
@@ -163,6 +195,19 @@ class RoleFieldsMixin:
             if not configured.get(role):
                 field.help_text = 'Chưa có người trong Thiết lập → Nhân sự phụ trách.'
             self.fields[role] = field
+
+    def clean_owners(self):
+        people = list(self.cleaned_data.get('owners') or [])
+        if len(people) > 2:
+            raise forms.ValidationError('Chỉ chọn tối đa 2 người phụ trách chính.')
+        primary = secondary = None
+        dossier = getattr(self, 'dossier', None) or getattr(self, 'instance', None)
+        if getattr(dossier, 'pk', None):
+            primary = dossier.owner
+            secondary = dossier.co_owner
+        elif getattr(self, '_actor', None) is not None:
+            primary = self._actor
+        return _order_owners(people, primary, secondary)
 
 
 NEW_GROUP = '__new__'
@@ -200,7 +245,7 @@ class DossierForm(RoleFieldsMixin, forms.ModelForm):
             'target_customer', 'usage_need', 'market_need', 'expected_qty',
             'target_wholesale_price', 'target_retail_price', 'target_cost',
             'reference_links', 'description',
-            *DOSSIER_ROLE_FIELDS,
+            *[role for role in DOSSIER_ROLE_FIELDS if role != 'owner'],
         ]
         widgets = {
             'name': forms.TextInput(attrs=_INPUT),
@@ -245,8 +290,10 @@ class DossierForm(RoleFieldsMixin, forms.ModelForm):
         )
         self.fields['product_type'].label_from_instance = lambda t: f'{t.code} — {t.name}'
         self.new_group = None
+        self._actor = user
         current = {role: getattr(instance, f'{role}_id') for role in DOSSIER_ROLE_FIELDS}
-        self._add_role_fields(current)
+        owner_ids = [pk for pk in (instance.owner_id, instance.co_owner_id) if pk] if instance.pk else []
+        self._add_role_fields(current, owner_ids=owner_ids)
         self.follower_names = ''
         if lock_followers and instance.pk:
             names = [perms.display_name(person) for person in instance.followers.select_related('profile')]
@@ -261,10 +308,12 @@ class DossierForm(RoleFieldsMixin, forms.ModelForm):
             self.fields['followers'] = follower_field(current_followers)
             if instance.pk or not self.is_bound:
                 self.initial.setdefault('followers', current_followers)
-        if not instance.pk and user is not None and not self.is_bound:
-            allowed = set(sla.configured_role_ids().get('owner') or [])
-            if not allowed or user.pk in allowed:
-                self.initial.setdefault('owner', user.pk)
+        if not self.is_bound:
+            if not instance.pk and user is not None:
+                allowed = set(sla.configured_role_ids().get('owner') or [])
+                if not allowed or user.pk in allowed:
+                    owner_ids = [user.pk]
+            self.initial['owners'] = owner_ids
         for field in self.fields.values():
             _widget_sm(field.widget)
 
@@ -305,10 +354,13 @@ class DossierForm(RoleFieldsMixin, forms.ModelForm):
 
 class RolesForm(RoleFieldsMixin, forms.Form):
     def __init__(self, *args, dossier: ProductDevelopment, **kwargs):
+        self.dossier = dossier
         initial = {role: getattr(dossier, f'{role}_id') for role in DOSSIER_ROLE_FIELDS}
         super().__init__(*args, initial=initial, **kwargs)
-        self._add_role_fields(initial)
-        self.fields['owner'].required = True
+        owner_ids = [pk for pk in (dossier.owner_id, dossier.co_owner_id) if pk]
+        self._add_role_fields(initial, owner_ids=owner_ids)
+        if not self.is_bound:
+            self.initial['owners'] = owner_ids
         current_followers = list(dossier.followers.values_list('pk', flat=True))
         self.fields['followers'] = follower_field(current_followers)
         self.initial['followers'] = current_followers

@@ -1867,7 +1867,7 @@ def design_file_preview(request, pk):
 @require_GET
 def product_code_search(request):
     q = (request.GET.get('q') or '').strip()
-    return JsonResponse({'results': search_products(q, limit=30)})
+    return JsonResponse({'results': search_products(q, limit=80)})
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')

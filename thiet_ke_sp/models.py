@@ -194,6 +194,10 @@ class ProductDevelopment(models.Model):
         USER, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='tksp_owned', verbose_name='Người phụ trách chính',
     )
+    co_owner = models.ForeignKey(
+        USER, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='tksp_co_owned', verbose_name='Người phụ trách chính (2)',
+    )
     approver = models.ForeignKey(
         USER, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='tksp_approving', verbose_name='Người duyệt',

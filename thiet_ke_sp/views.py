@@ -84,7 +84,7 @@ def _deny(request, menu: str):
 
 def _dossier_qs():
     return ProductDevelopment.objects.select_related(
-        'proposer__profile', 'owner__profile', 'approver__profile', 'designer__profile',
+        'proposer__profile', 'owner__profile', 'co_owner__profile', 'approver__profile', 'designer__profile',
         'technician__profile', 'sample_maker__profile', 'qa_user__profile', 'costing_user__profile',
         'approved_design_version', 'final_sample_version', 'product_type',
     )
@@ -183,7 +183,8 @@ def dossier_list(request):
     if collection:
         qs = qs.filter(collection=collection)
     if owner_id.isdigit():
-        qs = qs.filter(owner_id=int(owner_id))
+        pk = int(owner_id)
+        qs = qs.filter(Q(owner_id=pk) | Q(co_owner_id=pk))
     if approver_id.isdigit():
         qs = qs.filter(approver_id=int(approver_id))
     qs = _apply_quick(qs, quick, user)
@@ -221,7 +222,7 @@ def dossier_list(request):
         has_filters=has_filters,
         status_choices=Status.choices,
         group_choices=catalog.group_choices(),
-        owner_choices=_people_with('tksp_owned'),
+        owner_choices=_owner_choices(),
         date_kind_choices=[(k, label) for k, (label, _f) in LIST_DATE_FIELDS.items()],
         filter_date_kind=date_kind, date_from=date_from, date_to=date_to,
         range_all=not (date_from or date_to),
@@ -288,18 +289,19 @@ def _collection_choices() -> list[str]:
     )
 
 
-def _people_with(related: str):
+def _owner_choices():
     return list(
-        f.active_users().filter(**{f'{related}__isnull': False}).distinct()
+        f.active_users().filter(Q(tksp_owned__isnull=False) | Q(tksp_co_owned__isnull=False)).distinct()
     )
 
 
-# ---------------------------------------------------------------------------
-# Tạo / sửa đề bài
-# ---------------------------------------------------------------------------
-
 def _brief_fields(form) -> dict:
-    return {name: form.cleaned_data[name] for name in form.Meta.fields if name in form.cleaned_data}
+    fields = {name: form.cleaned_data[name] for name in form.Meta.fields if name in form.cleaned_data}
+    if 'owners' in form.cleaned_data:
+        people = list(form.cleaned_data.get('owners') or [])
+        fields['owner'] = people[0] if people else None
+        fields['co_owner'] = people[1] if len(people) > 1 else None
+    return fields
 
 
 @login_required
@@ -1110,7 +1112,8 @@ def kanban(request):
     if collection:
         qs = qs.filter(collection=collection)
     if owner_id.isdigit():
-        qs = qs.filter(owner_id=int(owner_id))
+        pk = int(owner_id)
+        qs = qs.filter(Q(owner_id=pk) | Q(co_owner_id=pk))
     if quick in ('mine', 'overdue'):
         qs = _apply_quick(qs, quick, user)
     rows = _decorate_rows(list(qs.order_by(F('step_due_at').asc(nulls_last=True), 'pk')))
@@ -1133,7 +1136,7 @@ def kanban(request):
         has_filters=any([q, quick, group, collection, owner_id]),
         group_choices=catalog.group_choices(),
         collection_choices=_collection_choices(),
-        owner_choices=_people_with('tksp_owned'),
+        owner_choices=_owner_choices(),
     ))
 
 

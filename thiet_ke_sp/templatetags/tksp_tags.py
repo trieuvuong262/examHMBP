@@ -18,6 +18,16 @@ def uname(user):
 
 
 @register.filter
+def owner_names(dossier):
+    names = []
+    for person in (getattr(dossier, 'owner', None), getattr(dossier, 'co_owner', None)):
+        name = display_name(person)
+        if name and name not in names:
+            names.append(name)
+    return ', '.join(names) if names else '-'
+
+
+@register.filter
 def avatar_url(user):
     """Ảnh đại diện trên hồ sơ nhân sự. Rỗng nếu chưa có ảnh."""
     if not getattr(user, 'pk', None):
