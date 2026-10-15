@@ -9,8 +9,17 @@
 {% include 'thiet_ke_sp/includes/modal_open.html' with dossier=d modal_id=d.quick_modal_id modal_action='design_decide' modal_title='Duyệt thiết kế — '|add:d.name modal_next=quick_next modal_size='modal-lg' modal_confirm='' tab='' %}
   {% include 'thiet_ke_sp/includes/quick_head.html' %}
   {% if d.quick_options|length == 1 %}
-  {% with dv=d.quick_options.0 %}{% with front=dv.current_atts|get_item:'front' %}
-  {% if front and front.is_image %}<button type="button" class="tk-option-thumb is-lg mb-2 tk-thumb-zoom" data-sx-gallery data-sx-gallery-image="{{ front.get_absolute_url }}" data-sx-gallery-title="{{ d.name }}"><img src="{{ front.get_absolute_url }}" alt="" loading="lazy"></button>{% endif %}
+  {% with dv=d.quick_options.0 %}{% with front=dv.current_atts|get_item:'front' back=dv.current_atts|get_item:'back' %}
+  {% if front.is_image and back.is_image %}
+  <button type="button" class="tk-option-thumb is-lg is-pair mb-2 tk-thumb-zoom" data-sx-gallery data-sx-gallery-image="{% url 'thiet_ke_sp:two_side' d.pk dv.pk %}" data-sx-gallery-title="Ảnh 2 mặt — {{ d.name }}">
+    <img src="{{ front.get_absolute_url }}" alt="Mặt trước" loading="lazy">
+    <img src="{{ back.get_absolute_url }}" alt="Mặt sau" loading="lazy">
+  </button>
+  {% elif front.is_image %}
+  <button type="button" class="tk-option-thumb is-lg mb-2 tk-thumb-zoom" data-sx-gallery data-sx-gallery-image="{{ front.get_absolute_url }}" data-sx-gallery-title="{{ d.name }}"><img src="{{ front.get_absolute_url }}" alt="" loading="lazy"></button>
+  {% elif back.is_image %}
+  <button type="button" class="tk-option-thumb is-lg mb-2 tk-thumb-zoom" data-sx-gallery data-sx-gallery-image="{{ back.get_absolute_url }}" data-sx-gallery-title="{{ d.name }}"><img src="{{ back.get_absolute_url }}" alt="" loading="lazy"></button>
+  {% endif %}
   {% endwith %}{% endwith %}
   {% endif %}
   {% include 'thiet_ke_sp/includes/decide_design_fields.html' with options=d.quick_options %}

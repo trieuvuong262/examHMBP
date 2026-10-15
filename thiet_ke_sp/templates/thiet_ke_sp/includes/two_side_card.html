@@ -1,0 +1,47 @@
+{% load tksp_tags %}
+{% with front=dv.current_atts|get_item:'front' back=dv.current_atts|get_item:'back' %}
+<div class="tk-thumb tk-two-side{% if not front.is_image or not back.is_image %} is-missing{% endif %}">
+  {% if front.is_image and back.is_image %}
+  <button type="button" class="tk-thumb-zoom" data-sx-gallery data-sx-gallery-image="{% url 'thiet_ke_sp:two_side' dossier.pk dv.pk %}" data-sx-gallery-title="Ảnh 2 mặt — {{ dv.label }}">
+    <div class="img"><img src="{% url 'thiet_ke_sp:two_side' dossier.pk dv.pk %}" alt="Ảnh 2 mặt" loading="lazy"></div>
+  </button>
+  <div class="tk-two-side-legend"><span>Mặt trước</span><span>Mặt sau</span></div>
+  {% elif front.is_image or back.is_image %}
+  <button type="button" class="tk-thumb-zoom" data-sx-gallery
+    {% if front.is_image %}
+      data-sx-gallery-image="{{ front.get_absolute_url }}"
+      data-sx-gallery-title="Ảnh mặt trước — {{ dv.label }}"
+    {% else %}
+      data-sx-gallery-image="{{ back.get_absolute_url }}"
+      data-sx-gallery-title="Ảnh mặt sau — {{ dv.label }}"
+    {% endif %}>
+    {% include 'thiet_ke_sp/includes/two_side_split.html' %}
+  </button>
+  {% else %}
+  {% include 'thiet_ke_sp/includes/two_side_split.html' %}
+  {% endif %}
+  <div class="cap">
+    <div class="k">Ảnh 2 mặt</div>
+    <div class="n{% if not front.is_image or not back.is_image %} text-danger{% endif %}">
+      {% if front.is_image and back.is_image %}
+      <a href="{% url 'thiet_ke_sp:two_side' dossier.pk dv.pk %}?download=1">Tải ảnh</a>
+      {% elif not front.is_image and not back.is_image %}Chưa có
+      {% elif not front.is_image %}Thiếu mặt trước
+      {% else %}Thiếu mặt sau
+      {% endif %}
+    </div>
+  </div>
+  {% if can_delete and front %}
+  <form method="post" action="{% url 'thiet_ke_sp:attachment_delete' front.pk %}" class="del del-front" data-tk-confirm="Xóa ảnh mặt trước {{ front.display_name }}?">{% csrf_token %}
+    <input type="hidden" name="return_tab" value="design">
+    <button type="submit" class="btn btn-sm btn-light border py-0 px-1" title="Xóa mặt trước">Trước <i class="bi bi-x"></i></button>
+  </form>
+  {% endif %}
+  {% if can_delete and back %}
+  <form method="post" action="{% url 'thiet_ke_sp:attachment_delete' back.pk %}" class="del del-back" data-tk-confirm="Xóa ảnh mặt sau {{ back.display_name }}?">{% csrf_token %}
+    <input type="hidden" name="return_tab" value="design">
+    <button type="submit" class="btn btn-sm btn-light border py-0 px-1" title="Xóa mặt sau">Sau <i class="bi bi-x"></i></button>
+  </form>
+  {% endif %}
+</div>
+{% endwith %}

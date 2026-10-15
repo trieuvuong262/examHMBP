@@ -11,7 +11,7 @@
     {% for dv in options %}
     <label class="tk-option-pick">
       <input class="form-check-input" type="radio" name="option_id" value="{{ dv.pk }}">
-      {% with front=dv.current_atts|get_item:'front' %}<span class="tk-option-thumb">{% if front and front.is_image %}<img src="{{ front.get_absolute_url }}" alt="" loading="lazy">{% else %}<i class="bi bi-palette"></i>{% endif %}</span>{% endwith %}
+      {% include 'thiet_ke_sp/includes/two_side_option.html' %}
       <span class="fw-bold small">{{ dv.tag }}</span>
     </label>
     {% endfor %}
@@ -23,7 +23,7 @@
     {% for dv in options %}
     <label class="tk-option-pick">
       <input class="form-check-input" type="checkbox" name="keep_ids" value="{{ dv.pk }}" checked>
-      {% with front=dv.current_atts|get_item:'front' %}<span class="tk-option-thumb">{% if front and front.is_image %}<img src="{{ front.get_absolute_url }}" alt="" loading="lazy">{% else %}<i class="bi bi-palette"></i>{% endif %}</span>{% endwith %}
+      {% include 'thiet_ke_sp/includes/two_side_option.html' %}
       <span class="fw-bold small">{{ dv.tag }}</span>
     </label>
     {% endfor %}

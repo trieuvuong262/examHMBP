@@ -11,7 +11,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Case, F, IntegerField, OuterRef, Prefetch, Q, Subquery, Value, When
-from django.http import FileResponse, Http404, HttpResponseForbidden, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -913,6 +913,52 @@ def attachment_delete(request, att_pk):
     return _redirect_tab(att.dossier, tab if tab in TAB_KEYS else 'files')
 
 
+def _current_side(dv: DesignVersion, kind: str) -> Attachment | None:
+    return Attachment.objects.filter(
+        design_version=dv, kind=kind, is_current=True, is_deleted=False,
+    ).order_by('-uploaded_at').first()
+
+
+@login_required
+def two_side_image(request, pk, dv_pk):
+    """Ảnh JPEG ghép mặt trước (trái) và mặt sau (phải)."""
+    from .services.two_side import compose_two_side_jpeg
+
+    dossier = _get_dossier(pk)
+    if not perms.can_view_dossier(dossier, request.user):
+        return HttpResponseForbidden('Không có quyền xem tệp.')
+    dv = get_object_or_404(DesignVersion, pk=dv_pk, dossier=dossier)
+    front = _current_side(dv, AttachmentKind.FRONT)
+    back = _current_side(dv, AttachmentKind.BACK)
+    if not front or not back or not front.is_image or not back.is_image:
+        raise Http404('Chưa đủ ảnh mặt trước và mặt sau.')
+    front_path = design_file_abs_path(front)
+    back_path = design_file_abs_path(back)
+    if not front_path or not back_path:
+        raise Http404('Không tìm thấy ảnh trên NAS.')
+    etag = (
+        f'"{front.pk}-{int(front.uploaded_at.timestamp())}-'
+        f'{back.pk}-{int(back.uploaded_at.timestamp())}"'
+    )
+    if etag in {part.strip() for part in request.META.get('HTTP_IF_NONE_MATCH', '').split(',') if part.strip()}:
+        response = HttpResponse(status=304)
+        response['ETag'] = etag
+        response['Cache-Control'] = 'private, max-age=86400'
+        return response
+    try:
+        data = compose_two_side_jpeg(front_path, back_path)
+    except OSError:
+        raise Http404('Không ghép được ảnh 2 mặt.')
+    response = HttpResponse(data, content_type='image/jpeg')
+    safe_code = (dossier.code or 'ho-so').replace('/', '-').replace('\\', '-')
+    filename = f'anh-2-mat-{safe_code}.jpg'
+    disposition = 'attachment' if request.GET.get('download') == '1' else 'inline'
+    response['Content-Disposition'] = f"{disposition}; filename*=UTF-8''{quote(filename)}"
+    response['ETag'] = etag
+    response['Cache-Control'] = 'private, max-age=86400'
+    return response
+
+
 @login_required
 def attachment_serve(request, att_pk):
     from reports.nas_pending_sync import maybe_auto_sync
@@ -954,13 +1000,16 @@ def _prepare_quick(dossiers, user) -> list:
         d.quick_checklist = []
         if kind == 'design':
             options = [dv for dv in d.current_design_versions() if dv.state == DesignVersion.STATE_SUBMITTED]
-            fronts = {
-                a.design_version_id: a for a in Attachment.objects.filter(
-                    design_version__in=options, kind=AttachmentKind.FRONT, is_current=True, is_deleted=False,
-                )
-            }
+            sides: dict[int, dict] = {}
+            for att in Attachment.objects.filter(
+                design_version__in=options,
+                kind__in=(AttachmentKind.FRONT, AttachmentKind.BACK),
+                is_current=True,
+                is_deleted=False,
+            ).order_by('-uploaded_at'):
+                sides.setdefault(att.design_version_id, {}).setdefault(att.kind, att)
             for dv in options:
-                dv.current_atts = {'front': fronts.get(dv.pk)}
+                dv.current_atts = sides.get(dv.pk, {})
             d.quick_options = options
         elif kind == 'master':
             d.quick_checklist = wf.master_checklist(d)

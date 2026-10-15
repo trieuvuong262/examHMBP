@@ -173,6 +173,17 @@
 .jp-tksp .tk-thumb .cap .n { color: var(--tk-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .jp-tksp .tk-thumb.is-missing { border-style: dashed; }
 .jp-tksp .tk-thumb .del { position: absolute; top: .25rem; right: .25rem; }
+.jp-tksp .tk-thumb.tk-two-side { width: 280px; }
+.jp-tksp .tk-thumb.tk-two-side .img { height: 168px; display: block; padding: 0; }
+.jp-tksp .tk-thumb.tk-two-side .tk-thumb-zoom { height: auto; }
+.jp-tksp .tk-two-side-split { display: grid; grid-template-columns: 1fr 1fr; width: 100%; height: 100%; gap: 1px; background: var(--tk-line); }
+.jp-tksp .tk-two-side-split > span { position: relative; min-width: 0; display: grid; place-items: center; background: var(--tk-surface-2); overflow: hidden; color: #94a3b8; }
+.jp-tksp .tk-two-side-split img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+.jp-tksp .tk-two-side-split small { position: absolute; left: .3rem; bottom: .25rem; font-size: .62rem; font-weight: 800; line-height: 1.3; color: #334155; background: rgba(255, 255, 255, .9); border-radius: 4px; padding: 0 .28rem; }
+.jp-tksp .tk-thumb.tk-two-side .img img { object-fit: contain; background: #fff; }
+.jp-tksp .tk-two-side-legend { display: grid; grid-template-columns: 1fr 1fr; font-size: .62rem; font-weight: 800; color: var(--tk-muted); text-align: center; padding: .2rem .3rem 0; }
+.jp-tksp .tk-thumb.tk-two-side .del-front { right: auto; left: .25rem; }
+.jp-tksp .tk-thumb.tk-two-side .del-back { right: .25rem; }
 
 /* Colorway */
 .jp-tksp .tk-colorways { display: flex; flex-wrap: wrap; gap: .7rem; }
@@ -187,10 +198,13 @@
 
 /* Danh sách phiên bản */
 .jp-tksp .tk-version-list { display: grid; gap: .6rem; }
-.jp-tksp .tk-version { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: .8rem; align-items: center; border: 1px solid var(--tk-line); padding: .6rem; border-radius: var(--tk-radius); background: var(--tk-surface); }
+.jp-tksp .tk-version { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; gap: .8rem; align-items: center; border: 1px solid var(--tk-line); padding: .6rem; border-radius: var(--tk-radius); background: var(--tk-surface); }
 .jp-tksp .tk-version.is-current { border-color: rgba(220, 38, 38, .45); background: var(--tk-accent-soft); }
-.jp-tksp .tk-version-preview { height: 62px; border-radius: 6px; overflow: hidden; display: grid; place-items: center; background: var(--tk-dark); color: rgba(255, 255, 255, .6); font-size: 1.3rem; }
+.jp-tksp .tk-version-preview { height: 78px; border-radius: 6px; overflow: hidden; display: grid; place-items: center; background: var(--tk-dark); color: rgba(255, 255, 255, .6); font-size: 1.3rem; }
 .jp-tksp .tk-version-preview img { width: 100%; height: 100%; object-fit: cover; }
+.jp-tksp .tk-version-preview .pair { display: grid; grid-template-columns: 1fr 1fr; width: 100%; height: 100%; gap: 2px; }
+.jp-tksp .tk-version-preview .pair.is-single { grid-template-columns: 1fr; }
+.jp-tksp .tk-version-preview .pair img { object-fit: contain; background: #fff; }
 .jp-tksp .tk-version-preview .tk-thumb-zoom,
 .jp-tksp .tk-hero-thumb .tk-thumb-zoom,
 .jp-tksp .tk-option-thumb.tk-thumb-zoom { height: 100%; }
@@ -208,7 +222,10 @@
 .tk-option-pick .form-check-input { margin: 0; align-self: flex-start; }
 .tk-option-thumb { width: 100%; height: 110px; border-radius: 6px; overflow: hidden; display: grid; place-items: center; background: #0f172a; color: rgba(255, 255, 255, .6); font-size: 1.4rem; }
 .tk-option-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.tk-option-thumb.is-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+.tk-option-thumb.is-pair img { width: 100%; height: 100%; object-fit: contain; background: #0f172a; }
 .tk-option-thumb.is-lg { display: block; height: 220px; }
+.tk-option-thumb.is-lg.is-pair { display: grid; grid-template-columns: 1fr 1fr; }
 .tk-option-thumb.is-lg img { object-fit: contain; background: #0f172a; }
 [data-theme="dark"] .tk-option-pick { border-color: rgba(148, 163, 184, .3); }
 

@@ -975,7 +975,44 @@ def _copy_files_to_tech_doc(dossier: ProductDevelopment, tech_doc, user) -> int:
             item.file.save(att.display_name, File(fh), save=False)
         item.save()
         copied += 1
+    merged = _two_side_jpeg(dv)
+    if merged:
+        from django.core.files.base import ContentFile
+
+        safe_code = (dossier.code or 'ho-so').replace('/', '-').replace('\\', '-')
+        item = TechDocDesignFile(
+            tech_doc=tech_doc,
+            title=f'Ảnh 2 mặt ({dv.label})'[:200],
+            notes=f'Bàn giao từ hồ sơ {dossier.code}',
+            purpose='gallery',
+            sort_order=copied + 1,
+            uploaded_by=user,
+        )
+        item.file.save(f'anh-2-mat-{safe_code}.jpg', ContentFile(merged), save=False)
+        item.save()
+        copied += 1
     return copied
+
+
+def _two_side_jpeg(dv: DesignVersion) -> bytes | None:
+    """JPEG mặt trước (trái) + mặt sau (phải), hoặc None nếu thiếu một mặt."""
+    from san_xuat.design_nas_storage import design_file_abs_path
+
+    from .two_side import compose_two_side_jpeg
+
+    sides = {}
+    for att in _live(dv.attachments.filter(kind__in=(AttachmentKind.FRONT, AttachmentKind.BACK))).order_by('-uploaded_at'):
+        sides.setdefault(att.kind, att)
+    front, back = sides.get(AttachmentKind.FRONT), sides.get(AttachmentKind.BACK)
+    if not front or not back or not front.is_image or not back.is_image:
+        return None
+    front_path, back_path = design_file_abs_path(front), design_file_abs_path(back)
+    if not front_path or not back_path:
+        return None
+    try:
+        return compose_two_side_jpeg(front_path, back_path)
+    except OSError as exc:
+        raise WorkflowError('Không ghép được ảnh 2 mặt từ mặt trước và mặt sau.') from exc
 
 
 def _tech_doc_description(dossier: ProductDevelopment) -> str:
