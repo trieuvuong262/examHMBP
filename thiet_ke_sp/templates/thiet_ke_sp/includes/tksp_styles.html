@@ -227,7 +227,7 @@ body > .ts-dropdown {
 .jp-tksp .tk-hero-main.is-2 { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "copy actions"; align-items: center; }
 .jp-tksp .tk-hero-thumb { grid-area: thumb; position: relative; width: 132px; aspect-ratio: 3 / 4; height: auto; border-radius: 12px; overflow: hidden; display: grid; place-items: center; background: #f4f6f8; border: 1px solid rgba(15, 23, 42, .08); box-shadow: 0 1px 2px rgba(15, 23, 42, .04); color: var(--tk-muted); font-size: 1.6rem; align-self: start; }
 .jp-tksp .tk-hero-thumb .tk-thumb-zoom { position: absolute; inset: 0; width: 100%; height: 100%; }
-.jp-tksp .tk-hero-thumb img { position: absolute; inset: 8px; width: auto; height: auto; max-width: none; max-height: none; object-fit: contain; object-position: center; }
+.jp-tksp .tk-hero-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
 .jp-tksp .tk-hero-main > .min-w-0 { grid-area: copy; }
 .jp-tksp .tk-hero h1 { font-size: 1.35rem; font-weight: 800; letter-spacing: -.02em; margin: .3rem 0 .1rem; line-height: 1.25; }
 .jp-tksp .tk-hero-code { font-size: .75rem; font-weight: 700; color: var(--tk-muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
@@ -488,7 +488,7 @@ body.tk-kan-dragging, body.tk-kan-dragging * { cursor: grabbing !important; user
 .jp-tksp .tk-lib-actions { padding: 0 .8rem .8rem; }
 .jp-tksp .tk-lib-actions form { margin: 0; }
 .jp-tksp .tk-lib-art { aspect-ratio: 1 / 1; height: auto; overflow: hidden; background: linear-gradient(180deg, #f7f8fa 0%, #e8edf2 100%); display: grid; place-items: center; position: relative; color: #94a3b8; font-size: 2rem; }
-.jp-tksp .tk-lib-art img { position: absolute; inset: 12px; width: auto; height: auto; max-width: none; max-height: none; object-fit: contain; object-position: center; }
+.jp-tksp .tk-lib-art img { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; object-fit: cover; object-position: center; }
 .jp-tksp .tk-lib-art .status { position: absolute; left: .55rem; top: .55rem; z-index: 1; }
 .jp-tksp .tk-lib-body { padding: .75rem .8rem .85rem; }
 .jp-tksp .tk-lib-body h3 { font-size: .86rem; font-weight: 850; margin: 0 0 .15rem; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.6em; }

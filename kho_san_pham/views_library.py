@@ -49,6 +49,17 @@ def _dossier_covers(dossiers) -> dict[int, str]:
     return {pk: att.get_absolute_url() for pk, att in cover_map(ids).items() if att} if ids else {}
 
 
+def _style_avatar_url(dossier, rep, covers: dict[int, str] | None = None) -> str:
+    """Ảnh đại diện Style: ảnh hồ sơ thiết kế, không có thì ảnh SKU."""
+    if dossier is not None:
+        if covers is None:
+            covers = _dossier_covers([dossier])
+        cover = covers.get(dossier.pk, '')
+        if cover:
+            return cover
+    return (rep.display_image_url if rep else '') or ''
+
+
 def _dossiers_by_style(codes) -> dict[str, object]:
     from thiet_ke_sp.models import ProductDevelopment
 
@@ -176,7 +187,7 @@ def library_list(request):
         r['name'] = style.name or (rep.name if rep else code)
         r['type_code'] = style.product_type.code
         r['group_label'] = catalog.group_label(catalog.group_code(style.product_type.code))
-        r['image_url'] = (rep.display_image_url if rep else '') or (covers.get(dossier.pk, '') if dossier else '')
+        r['image_url'] = _style_avatar_url(dossier, rep, covers)
         r['colors'] = colors.get(code, [])
         r['sizes'] = sizes.get(code, [])
         r['dossier'] = dossier
@@ -240,6 +251,9 @@ def library_detail(request, style):
         if p.size_label and p.size_label not in sizes:
             sizes.append(p.size_label)
     dossier = handover.dossier if handover else _dossiers_by_style([code]).get(code)
+    cover_url = _style_avatar_url(dossier, rep)
+    if cover_url and all(img['url'] != cover_url for img in images):
+        images.insert(0, {'url': cover_url, 'label': 'Ảnh đại diện', 'sku': code})
     launches = []
     if dossier:
         from ra_mat_sp.models import LaunchPlan
@@ -310,8 +324,7 @@ def library_detail(request, style):
         'tabs': DETAIL_TABS,
         'completeness_items': completeness_items,
         'completeness': round(100 * sum(1 for _, ok in completeness_items if ok) / len(completeness_items)),
-        'cover_url': (rep.display_image_url if rep else '') or (
-            _dossier_covers([dossier]).get(dossier.pk, '') if dossier else ''),
+        'cover_url': cover_url,
     })
 
 
