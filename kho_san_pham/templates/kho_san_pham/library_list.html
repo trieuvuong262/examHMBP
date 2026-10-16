@@ -35,26 +35,21 @@
         </div>
         <div class="tk-lib-body">
           <h3>{{ r.name }}</h3>
-          <p>{{ r.style_code }}{% if r.group_label %} · {{ r.group_label }}{% endif %}</p>
+          <p>
+            <span class="code">{{ r.style_code }}{% if r.group_label %} · {{ r.group_label }}{% endif %}</span>
+            {% if r.dossier %}<span class="tk-ch" title="Hồ sơ thiết kế">TK</span>{% endif %}
+          </p>
           <div class="tk-lib-meta">
             <div><small>SKU</small><b>{{ r.sku_count|sx_num }}</b></div>
-            <div><small>Tồn xưởng</small><b>{{ r.qty_total|default:0|sx_num }}</b></div>
-            <div><small>Giá bán</small><b>{% if r.min_price %}{{ r.min_price|sx_num:0 }}{% else %}—{% endif %}</b></div>
-          </div>
-          <div class="tk-lib-foot">
-            <div class="tk-lib-channels">
-              <span class="tk-ch{% if not r.kv_count %} is-off{% endif %}" title="KiotViet">KV</span>
-              {% if r.dossier %}<span class="tk-ch" title="Hồ sơ thiết kế">TK</span>{% else %}<span class="tk-ch is-off" title="Chưa có hồ sơ">TK</span>{% endif %}
-              <span class="tk-ch{% if not r.colors %} is-off{% endif %}" title="{{ r.colors|join:', '|default:'Chưa có màu' }}">{{ r.colors|length }}M</span>
-            </div>
-            <span class="tk-link">Xem →</span>
+            <div><small>Màu</small><b>{{ r.colors|length|sx_num }}</b></div>
+            <div><small>Giá</small><b>{% if r.min_price %}{{ r.min_price|sx_num:0 }}{% else %}—{% endif %}</b></div>
           </div>
         </div>
       </a>
       {% if can_update and r.can_transfer %}
       <div class="tk-lib-actions">
         <form method="post" action="{% url 'kho_san_pham:library_transfer' r.style_code %}" onsubmit="return confirm('Chuyển {{ r.style_code }} sang sản xuất theo tên, mô tả và SKU đang có trong Thư viện?');">{% csrf_token %}
-          <button type="submit" class="btn btn-hm btn-sm fw-bold w-100"><i class="bi bi-box-arrow-right"></i>Chuyển sang sản xuất</button>
+          <button type="submit" class="btn btn-hm btn-sm fw-bold"><i class="bi bi-box-arrow-right"></i>Chuyển SX</button>
         </form>
       </div>
       {% endif %}

@@ -1,4 +1,4 @@
-{# Giữ ngữ cảnh Thư viện khi mở Danh mục SKU / Thiết lập mã (dùng chung với Sản xuất). Không còn popup. #}
+{# Giữ ngữ cảnh Thư viện khi mở Thiết lập mã (dùng chung với Sản xuất). Không còn popup. #}
 <script>
 (function () {
   var CTX_KEY = 'jp_qlsp_ctx';
@@ -26,7 +26,7 @@
 
   if (!hasSx || ctx() !== 'library') return;
   var path = (window.location.pathname || '').replace(/\/+$/, '') || '/';
-  var shared = path.indexOf('/kho-san-pham/danh-muc') === 0 || path.indexOf('/kho-san-pham/thiet-lap-ma') === 0;
+  var shared = path.indexOf('/kho-san-pham/thiet-lap-ma') === 0;
   if (!shared) return;
   document.querySelectorAll('#jp-sidebar-qlsp-submenu').forEach(function (menu) {
     var group = menu.closest('.jp-qlsp-group');

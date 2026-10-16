@@ -11,17 +11,16 @@
   <div class="tk-hero mb-3">
     <div class="tk-hero-main">
       <div class="tk-hero-thumb">{% if cover_url %}<button type="button" class="tk-thumb-zoom" data-sx-gallery data-sx-gallery-image="{{ cover_url }}" data-sx-gallery-title="{{ code }}"><img src="{{ cover_url }}" alt=""></button>{% else %}<i class="bi bi-image"></i>{% endif %}</div>
-      <div class="min-w-0">
+      <div class="tk-hero-copy">
         <div class="d-flex flex-wrap align-items-center gap-2">
           {% if not style.is_active %}<span class="tk-pill is-gray">Ngừng dùng</span>
-          {% elif handover.is_transferred %}<span class="tk-pill is-green">Đã chuyển SX</span>
+          {% elif handover and handover.is_transferred %}<span class="tk-pill is-green">Đã chuyển SX</span>
           {% else %}<span class="tk-pill is-amber">Chờ chuyển SX</span>{% endif %}
           <span class="tk-hero-code">{{ code }}</span>
           {% if ptype %}<span class="tk-hero-code">{{ ptype.code }} — {{ ptype.name }}</span>{% endif %}
         </div>
         <h1>{{ name }}</h1>
-        <p class="tk-hero-sub">{{ group_label|default:'Chưa xác định nhóm' }} · {{ products|length }} SKU · {{ colors|length }} màu · {{ sizes|length }} size{% if kv_count %} · {{ kv_count }} SKU trên KiotViet{% endif %}</p>
-      </div>
+        <p class="tk-hero-sub">{{ group_label|default:'Chưa xác định nhóm' }} · {{ products|length }} SKU · {{ colors|length }} màu · {{ sizes|length }} size</p>
       <div class="tk-hero-actions">
         {% if can_update %}
         <a href="{% url 'kho_san_pham:library_style_edit' code %}" class="btn btn-sm fw-bold btn-tk-ghost"><i class="bi bi-pencil"></i>Sửa tên</a>
@@ -36,18 +35,17 @@
         {% elif transfer_block %}
         <span class="small text-muted">{{ transfer_block }}</span>
         {% endif %}
-        {% if handover.tech_doc_id %}<a href="{% url 'san_xuat:doc_detail' handover.tech_doc_id %}" class="btn btn-sm fw-bold btn-tk-ghost"><i class="bi bi-journal-text"></i>Hồ sơ sản phẩm SX</a>{% endif %}
+        {% if handover and handover.tech_doc_id %}<a href="{% url 'san_xuat:doc_detail' handover.tech_doc_id %}" class="btn btn-sm fw-bold btn-tk-ghost"><i class="bi bi-journal-text"></i>Hồ sơ sản phẩm SX</a>{% endif %}
         {% if dossier %}<a href="{{ dossier.get_absolute_url }}" class="btn btn-sm fw-bold btn-tk-ghost"><i class="bi bi-palette"></i>Hồ sơ {{ dossier.code }}</a>{% endif %}
-        {% if handover.is_transferred %}<a href="{% url 'kho_san_pham:product_list' %}?q={{ code|urlencode }}&status=all" class="btn btn-sm fw-bold btn-tk-ghost"><i class="bi bi-tags"></i>Mở trong Danh mục SKU</a>{% endif %}
+        {% if handover and handover.is_transferred %}<a href="{% url 'kho_san_pham:product_list' %}?q={{ code|urlencode }}&status=all" class="btn btn-sm fw-bold btn-tk-ghost"><i class="bi bi-tags"></i>Mở trong Danh mục SKU</a>{% endif %}
+      </div>
       </div>
     </div>
-    <div class="tk-hero-meta">
+    <div class="tk-hero-meta is-4">
       <div><small>SKU</small><b>{{ products|length|sx_num }}</b></div>
       <div><small>Màu</small><b>{{ colors|length|sx_num }}</b></div>
       <div><small>Size</small><b>{{ sizes|length|sx_num }}</b></div>
       <div><small>Giá bán</small><b>{% if min_price %}{{ min_price|sx_num:0 }}{% if max_price != min_price %} – {{ max_price|sx_num:0 }}{% endif %}{% else %}—{% endif %}</b></div>
-      <div><small>Tồn xưởng</small><b>{{ qty_total|sx_num }}</b></div>
-      <div><small>KiotViet</small><b>{{ kv_count|sx_num }} SKU</b></div>
     </div>
   </div>
 
@@ -70,13 +68,10 @@
           <div class="tk-field"><label>Loại mã · nhóm</label><span class="v">{% if ptype %}{{ ptype.code }} — {{ ptype.name }}{% else %}—{% endif %}{% if group_label %}<br><small class="text-muted">{{ group_label }}</small>{% endif %}</span></div>
           <div class="tk-field"><label>Brand · năm</label><span class="v">{{ style.brand|default:'—' }} · {{ style.year|default:'—' }}</span></div>
           <div class="tk-field"><label>Nguồn Style</label><span class="v">{% if style %}{{ style.get_source_display }}{% else %}Chưa đăng ký Style{% endif %}</span></div>
-          <div class="tk-field"><label>Mã KiotViet gốc</label><span class="v">{{ style.root_kiotviet_code|default:'—' }}</span></div>
-          <div class="tk-field"><label>Nhóm hàng (KiotViet)</label><span class="v">{{ rep.category_name|default:'—' }}</span></div>
           <div class="tk-field"><label>Đơn vị tính</label><span class="v">{{ rep.unit|default:'—' }}</span></div>
           <div class="tk-field"><label>Giá bán</label><span class="v">{% if min_price %}{{ min_price|sx_num:0 }}{% if max_price != min_price %} – {{ max_price|sx_num:0 }}{% endif %} đ{% else %}—{% endif %}</span></div>
           <div class="tk-field"><label>Màu</label><span class="v">{{ colors|join:', '|default:'—' }}</span></div>
           <div class="tk-field"><label>Size</label><span class="v">{{ sizes|join:' · '|default:'—' }}</span></div>
-          <div class="tk-field"><label>Tồn xưởng (tham khảo)</label><span class="v">{{ qty_total|sx_num }}</span></div>
         </div>
         {% if rep.description %}<div class="tk-callout is-muted">{{ rep.description|striptags|truncatechars:600 }}</div>{% endif %}
       </div>
@@ -105,7 +100,7 @@
       </div>
       <div class="table-responsive">
         <table class="table table-hover tk-mini-table align-middle mb-0">
-          <thead><tr><th>SKU</th><th>Màu</th><th>Size</th><th>Giới tính</th><th>Mã vạch</th><th>Mã kế toán</th><th>Mã KiotViet</th><th class="text-end">Giá</th><th class="text-end">Tồn xưởng</th><th>Trạng thái</th><th></th></tr></thead>
+          <thead><tr><th>SKU</th><th>Màu</th><th>Size</th><th>Giới tính</th><th>Mã vạch</th><th>Mã kế toán</th><th class="text-end">Giá</th><th>Trạng thái</th><th></th></tr></thead>
           <tbody>
           {% for p in products %}
             <tr>
@@ -115,9 +110,7 @@
               <td>{{ p.get_gender_display|default:'—' }}</td>
               <td class="small">{{ p.bar_code|default:'—' }}</td>
               <td class="small">{{ p.accounting_code|default:'—' }}</td>
-              <td class="small">{{ p.kiotviet_code|default:'—' }}</td>
               <td class="text-end">{% if p.base_price is not None %}{{ p.base_price|sx_num:0 }}{% else %}—{% endif %}</td>
-              <td class="text-end">{{ p.qty_on_hand|sx_num }}</td>
               <td><span class="tk-pill {% if p.is_active %}is-green{% else %}is-gray{% endif %}">{% if p.is_active %}Đang dùng{% else %}Ngừng{% endif %}</span></td>
               <td class="text-end text-nowrap">
                 {% if can_update %}<a href="{% url 'kho_san_pham:library_sku_edit' code p.pk %}" class="btn btn-sm btn-outline-hm">Sửa</a>{% endif %}
@@ -128,47 +121,39 @@
               </td>
             </tr>
           {% empty %}
-            <tr><td colspan="11" class="text-center text-muted py-3">Style chưa có SKU. Thêm màu, size và tên tại đây — hồ sơ sản xuất chỉ tạo khi bấm Chuyển sang sản xuất.</td></tr>
+            <tr><td colspan="9" class="text-center text-muted py-3">Style chưa có SKU. Thêm màu, size và tên tại đây — hồ sơ sản xuất chỉ tạo khi bấm Chuyển sang sản xuất.</td></tr>
           {% endfor %}
           </tbody>
         </table>
       </div>
     {% elif tab == 'images' %}
-      <div class="tk-lib-gallery">
-        {% for img in images %}
-        <button type="button" class="tk-lib-shot" data-sx-gallery data-sx-gallery-image="{{ img.url }}" data-sx-gallery-title="{{ img.label }}">
-          <span class="shot"><img src="{{ img.url }}" alt="" loading="lazy"></span>
-          <span class="cap"><span class="k">{{ img.label }}</span><span class="n">{{ img.sku }}</span></span>
-        </button>
-        {% empty %}
-        <div class="small text-muted">Chưa có hình ảnh.</div>
-        {% endfor %}
-      </div>
-    {% elif tab == 'channels' %}
-      <div class="table-responsive">
-        <table class="table table-hover tk-mini-table align-middle mb-0">
-          <thead><tr><th>SKU</th><th>Mã KiotViet</th><th>ID KiotViet</th><th>Cho phép bán</th><th>Nguồn</th><th>KV sửa lúc</th><th>Đồng bộ lúc</th></tr></thead>
-          <tbody>
-          {% for p in products %}
-            <tr>
-              <td class="fw-semibold">{{ p.code }}</td>
-              <td>{{ p.kiotviet_code|default:'—' }}</td>
-              <td class="small">{{ p.kiotviet_id|default_if_none:'—' }}</td>
-              <td>{% if p.allows_sale is None %}—{% elif p.allows_sale %}<span class="tk-ok">Có</span>{% else %}<span class="tk-bad">Không</span>{% endif %}</td>
-              <td>{{ p.get_sync_source_display }}</td>
-              <td class="small">{{ p.kv_modified_at|date:'d/m/Y H:i'|default:'—' }}</td>
-              <td class="small">{{ p.synced_at|date:'d/m/Y H:i'|default:'—' }}</td>
-            </tr>
+      <div class="tk-section">
+        <div class="tk-section-title"><i class="bi bi-images"></i>Hình ảnh <span class="tk-section-sub">{{ images|length }} ảnh</span></div>
+        <div class="tk-thumbs tk-lib-thumbs">
+          {% for img in images %}
+          <div class="tk-thumb">
+            <button type="button" class="tk-thumb-zoom" data-sx-gallery data-sx-gallery-image="{{ img.url }}" data-sx-gallery-title="{{ img.label }}">
+              <div class="img"><img src="{{ img.url }}" alt="" loading="lazy"></div>
+            </button>
+            <div class="cap"><div class="k">{{ img.label }}</div><div class="n">{{ img.sku }}</div></div>
+          </div>
+          {% empty %}
+          <span class="small text-muted">Chưa có hình ảnh.</span>
           {% endfor %}
-          </tbody>
-        </table>
+        </div>
       </div>
     {% else %}
-      <ul class="tk-timeline">
-        {% for h in history %}
-        <li><strong>{{ h.text }}</strong> · <span class="t">{{ h.at|date:'d/m/Y H:i' }}{% if h.user %} · {{ h.user.profile.full_name|default:h.user.username }}{% endif %}</span></li>
-        {% empty %}<li>Chưa có lịch sử.</li>{% endfor %}
-      </ul>
+      <div class="tk-section">
+        <div class="tk-section-title"><i class="bi bi-clock-history"></i>Nhật ký</div>
+        <ul class="tk-timeline">
+          {% for h in history %}
+          <li class="{% if h.status %}is-status{% endif %}">
+            <strong>{{ h.text }}</strong>
+            <div class="t">{% if h.user %}{{ h.user|uname }} · {% endif %}{{ h.at|date:'H:i d/m/Y' }}</div>
+          </li>
+          {% empty %}<li>Chưa có lịch sử.</li>{% endfor %}
+        </ul>
+      </div>
     {% endif %}
     </div>
   </div>
@@ -206,7 +191,7 @@
           {% empty %}
           <li><i class="bi bi-rocket-takeoff"></i>Chưa gắn kế hoạch ra mắt</li>
           {% endfor %}
-          <li><i class="bi bi-tags"></i>{% if handover.is_transferred %}<a href="{% url 'kho_san_pham:product_list' %}?q={{ code|urlencode }}&status=all">Danh mục SKU</a>{% else %}Danh mục SKU hiện sau khi chuyển sản xuất{% endif %}</li>
+          <li><i class="bi bi-tags"></i>{% if handover and handover.is_transferred %}<a href="{% url 'kho_san_pham:product_list' %}?q={{ code|urlencode }}&status=all">Danh mục SKU</a>{% else %}Danh mục SKU hiện sau khi chuyển sản xuất{% endif %}</li>
         </ul>
       </div>
     </aside>

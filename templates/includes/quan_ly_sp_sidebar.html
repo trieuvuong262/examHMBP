@@ -246,13 +246,6 @@
                         <i class="bi bi-collection"></i><span>Thư viện sản phẩm</span>
                     </a>
                 </li>
-                <li>
-                    <a href="{% url 'kho_san_pham:product_list' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if '/kho-san-pham/danh-muc' in request.path %}active{% endif %}"
-                       data-loading-message="Đang tải danh mục SKU…">
-                        <i class="bi bi-tags"></i><span>Danh mục SKU</span>
-                    </a>
-                </li>
                 {% endif %}
                 {% if jp_can_qlsp_codes %}
                 <li>

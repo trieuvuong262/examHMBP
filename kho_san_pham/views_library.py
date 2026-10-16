@@ -36,7 +36,6 @@ DETAIL_TABS = (
     ('data', 'Dữ liệu chuẩn', 'bi-card-text'),
     ('sku', 'SKU', 'bi-upc-scan'),
     ('images', 'Hình ảnh', 'bi-images'),
-    ('channels', 'Kênh bán', 'bi-shop'),
     ('history', 'Lịch sử', 'bi-clock-history'),
 )
 DETAIL_TAB_KEYS = {t[0] for t in DETAIL_TABS}
@@ -267,23 +266,24 @@ def library_detail(request, style):
             history.append({'at': style_obj.updated_at, 'text': 'Cập nhật thông tin Style', 'user': None})
     for p in products:
         history.append({'at': p.created_at, 'text': f'Tạo SKU {p.code}', 'user': p.created_by})
-        if p.synced_at:
-            history.append({'at': p.synced_at, 'text': f'Đồng bộ KiotViet {p.code}', 'user': None})
         if p.updated_at and p.updated_at != p.created_at:
             history.append({'at': p.updated_at, 'text': f'Cập nhật SKU {p.code}', 'user': None})
     if handover:
-        history.append({'at': handover.handed_at, 'text': 'Thiết kế bàn giao vào Thư viện', 'user': handover.handed_by})
+        history.append({
+            'at': handover.handed_at, 'text': 'Thiết kế bàn giao vào Thư viện',
+            'user': handover.handed_by, 'status': True,
+        })
         if handover.transferred_at:
-            history.append({'at': handover.transferred_at, 'text': 'Chuyển sang sản xuất',
-                            'user': handover.transferred_by})
+            history.append({
+                'at': handover.transferred_at, 'text': 'Chuyển sang sản xuất',
+                'user': handover.transferred_by, 'status': True,
+            })
     history.sort(key=lambda h: h['at'], reverse=True)
-    kv_count = sum(1 for p in products if p.kiotviet_id)
     completeness_items = [
         ('Hình ảnh', bool(images)),
         ('Giá bán', bool(prices)),
         ('Màu', bool(colors)),
         ('Size', bool(sizes)),
-        ('KiotViet', bool(kv_count)),
         ('Hồ sơ thiết kế', bool(dossier)),
         ('Đã chuyển sản xuất', bool(handover and handover.is_transferred)),
     ]
@@ -315,8 +315,6 @@ def library_detail(request, style):
         'colors': colors,
         'sizes': sizes,
         'active_count': sum(1 for p in products if p.is_active),
-        'kv_count': kv_count,
-        'qty_total': sum((p.qty_on_hand or 0) for p in products),
         'dossier': dossier,
         'launches': launches,
         'history': history[:100],
