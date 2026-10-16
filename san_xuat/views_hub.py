@@ -1418,7 +1418,7 @@ def plan_board(request):
     )
 
     mode = (request.GET.get('mode') or request.POST.get('mode') or 'list').strip()
-    tab = (request.GET.get('tab') or request.POST.get('tab') or 'queue').strip()
+    tab = (request.GET.get('tab') or request.POST.get('tab') or 'route').strip()
     if mode == 'route' or tab in {'lo-trinh', 'timeline', 'stats'}:
         tab = 'route'
     mode = 'list'
@@ -1432,7 +1432,7 @@ def plan_board(request):
     if tab == 'released':
         tab = 'queue'
     if tab not in {'queue', 'route', 'subcontract', 'cancel', 'team'}:
-        tab = 'queue'
+        tab = 'route'
     if tab == 'cancel':
         return redirect('san_xuat:sx_cancel_approve')
     q = (request.GET.get('q') or request.POST.get('q') or '').strip()

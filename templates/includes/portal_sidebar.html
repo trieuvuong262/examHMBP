@@ -852,7 +852,7 @@
                 {% if jp_can_san_xuat_plan or jp_can_san_xuat_plan_board or jp_can_san_xuat_cancel_approve or jp_can_san_xuat_capacity or jp_can_san_xuat_plan_inter %}
                 <li class="jp-sidebar-nested-group{% if '/san-xuat/nang-luc' in request.path or 'thue-gia-cong' in request.path or '/san-xuat/ke-hoach/' in request.path %} is-open{% endif %}"
                     data-sx-area="plan" data-sx-icon="bi-calendar3" data-sx-label="Kế hoạch SX"
-                    data-sx-href="{% if jp_can_san_xuat_plan_board or jp_can_san_xuat_plan %}{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=queue{% elif jp_can_san_xuat_cancel_approve %}{% url 'san_xuat:sx_cancel_approve' %}{% elif jp_can_san_xuat_plan_inter %}{% url 'san_xuat:plan_inter_step' %}{% else %}{% url 'san_xuat:capacity_list' %}{% endif %}">
+                    data-sx-href="{% if jp_can_san_xuat_plan_board or jp_can_san_xuat_plan %}{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=route{% elif jp_can_san_xuat_cancel_approve %}{% url 'san_xuat:sx_cancel_approve' %}{% elif jp_can_san_xuat_plan_inter %}{% url 'san_xuat:plan_inter_step' %}{% else %}{% url 'san_xuat:capacity_list' %}{% endif %}">
                     <button type="button"
                             class="jp-sidebar-nested-toggle"
                             data-jp-sidebar-group-toggle
@@ -866,7 +866,7 @@
                     <ul class="jp-sidebar-nested-submenu" id="jp-sidebar-san-xuat-plan-submenu">
                         {% if jp_can_san_xuat_plan_board or jp_can_san_xuat_plan %}
                         <li>
-                            <a href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=queue"
+                            <a href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=route"
                                class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'plan_stub' or request.resolver_match.url_name == 'plan_progress_monitor' or request.resolver_match.url_name == 'order_progress_sheet' or request.resolver_match.url_name == 'order_progress_order' or 'plan_overall' in request.resolver_match.url_name or 'plan_detail' in request.resolver_match.url_name or request.resolver_match.url_name == 'plan_board' and request.GET.tab != 'subcontract' %}active{% endif %}">
                                 <i class="bi bi-kanban"></i><span>Kế hoạch sản xuất</span>
                             </a>
