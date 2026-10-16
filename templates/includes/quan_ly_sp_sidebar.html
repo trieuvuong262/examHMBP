@@ -224,49 +224,32 @@
         </li>
         {% endif %}
 
-        {# —— 3. Thư viện sản phẩm (master theo Style) —— #}
+        {# —— 3. Thư viện sản phẩm — một mục, không xổ thêm cấp —— #}
         {% if jp_can_qlsp_library %}
-        <li class="jp-sidebar-nested-group{% if '/kho-san-pham/thu-vien' in request.path %} is-open{% endif %}"
-            data-qlsp-area="library" data-qlsp-icon="bi-collection" data-qlsp-label="Thư viện sản phẩm"
-            data-qlsp-href="{% url 'kho_san_pham:library' %}">
-            <button type="button" class="jp-sidebar-nested-toggle" data-jp-sidebar-group-toggle
-                    aria-expanded="{% if '/kho-san-pham/thu-vien' in request.path %}true{% else %}false{% endif %}"
-                    aria-controls="jp-sidebar-qlsp-library-submenu">
-                <span class="jp-sidebar-nested-toggle-main">
-                    <i class="bi bi-collection"></i><span>Thư viện sản phẩm</span>
-                </span>
-                <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
-            </button>
-            <ul class="jp-sidebar-nested-submenu" id="jp-sidebar-qlsp-library-submenu">
-                {% if jp_can_qlsp_library %}
-                <li>
-                    <a href="{% url 'kho_san_pham:library' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if '/kho-san-pham/thu-vien' in request.path %}active{% endif %}">
-                        <i class="bi bi-collection"></i><span>Thư viện sản phẩm</span>
-                    </a>
-                </li>
-                {% endif %}
-                {% if not jp_can_san_xuat %}
-                {# Không có module Sản xuất: tồn kho / phiếu nhập thành phẩm vẫn mở từ đây. #}
-                {% if jp_can_qlsp_stock %}
-                <li>
-                    <a href="{% url 'kho_san_pham:stock_list' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if '/kho-san-pham/ton-kho' in request.path %}active{% endif %}">
-                        <i class="bi bi-boxes"></i><span>Tồn kho</span>
-                    </a>
-                </li>
-                {% endif %}
-                {% if jp_can_qlsp_receipts %}
-                <li>
-                    <a href="{% url 'kho_san_pham:receipt_list' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if '/kho-san-pham/phieu-nhap' in request.path %}active{% endif %}">
-                        <i class="bi bi-box-arrow-in-down"></i><span>Phiếu nhập</span>
-                    </a>
-                </li>
-                {% endif %}
-                {% endif %}
-            </ul>
+        <li data-qlsp-area="library">
+            <a href="{% url 'kho_san_pham:library' %}"
+               class="jp-sidebar-link jp-sidebar-sublink {% if '/kho-san-pham/thu-vien' in request.path %}active{% endif %}">
+                <i class="bi bi-collection"></i><span>Thư viện sản phẩm</span>
+            </a>
         </li>
+        {% if not jp_can_san_xuat %}
+        {% if jp_can_qlsp_stock %}
+        <li>
+            <a href="{% url 'kho_san_pham:stock_list' %}"
+               class="jp-sidebar-link jp-sidebar-sublink {% if '/kho-san-pham/ton-kho' in request.path %}active{% endif %}">
+                <i class="bi bi-boxes"></i><span>Tồn kho</span>
+            </a>
+        </li>
+        {% endif %}
+        {% if jp_can_qlsp_receipts %}
+        <li>
+            <a href="{% url 'kho_san_pham:receipt_list' %}"
+               class="jp-sidebar-link jp-sidebar-sublink {% if '/kho-san-pham/phieu-nhap' in request.path %}active{% endif %}">
+                <i class="bi bi-box-arrow-in-down"></i><span>Phiếu nhập</span>
+            </a>
+        </li>
+        {% endif %}
+        {% endif %}
         {% endif %}
     </ul>
 </li>
