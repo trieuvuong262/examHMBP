@@ -120,7 +120,7 @@
       <template id="tkCondTpl">
         <tr>
           <td><input type="text" name="cond_content" class="form-control form-control-sm" maxlength="500"></td>
-          <td><select name="cond_assignee" class="form-select form-select-sm jp-tksp-user-select"><option value="">— Chọn —</option>{% for u in condition_users %}<option value="{{ u.pk }}">{{ u|uname }}</option>{% endfor %}</select></td>
+          <td><select name="cond_assignee" class="form-select form-select-sm jp-tksp-user-select"><option value="">— Chọn —</option>{% for u in condition_users %}<option value="{{ u.pk }}" data-avatar="{{ u|avatar_url }}" data-initial="{{ u|initial }}" data-tone="{{ u.pk|avatar_tone }}">{{ u|uname }}</option>{% endfor %}</select></td>
           <td><input type="datetime-local" name="cond_due" class="form-control form-control-sm" value="{{ sla_due.approved|due_input }}"></td>
           <td><button type="button" class="btn btn-sm btn-light border" data-tk-del-row><i class="bi bi-x"></i></button></td>
         </tr>
@@ -194,16 +194,29 @@
 {% endif %}
 
 {% if roles_form %}
-{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalRoles' modal_action='roles_save' modal_title='Nhân sự hồ sơ' modal_size='modal-lg' %}
-  <div class="row g-2">
-    {% for field in roles_form %}
-      {% if field.name == 'followers' or field.name == 'owners' or field.name == 'designers' or field.name == 'technicians' or field.name == 'sample_makers' or field.name == 'costing_users' %}
-        {% include 'thiet_ke_sp/includes/field.html' with field=field col='col-12' req=field.field.required %}
-      {% else %}
-        {% include 'thiet_ke_sp/includes/field.html' with field=field %}
-      {% endif %}
-    {% endfor %}
-  </div>
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalRoles' modal_action='roles_save' modal_title='Nhân sự hồ sơ' modal_size='modal-lg' modal_class='tk-roles-modal' modal_lead='Người đứng đầu mỗi vai trò nhận việc. Có thể chọn thêm một người.' %}
+  <section class="tk-roles-group">
+    <h6>Điều phối</h6>
+    <div class="tk-role-grid">
+      {% include 'thiet_ke_sp/includes/role_field.html' with field=roles_form.owners %}
+      {% include 'thiet_ke_sp/includes/role_field.html' with field=roles_form.approver %}
+    </div>
+  </section>
+  <section class="tk-roles-group">
+    <h6>Làm hồ sơ</h6>
+    <div class="tk-role-grid">
+      {% include 'thiet_ke_sp/includes/role_field.html' with field=roles_form.designers %}
+      {% include 'thiet_ke_sp/includes/role_field.html' with field=roles_form.technicians %}
+      {% include 'thiet_ke_sp/includes/role_field.html' with field=roles_form.sample_makers %}
+      {% include 'thiet_ke_sp/includes/role_field.html' with field=roles_form.costing_users %}
+    </div>
+  </section>
+  <section class="tk-roles-group">
+    <h6>Theo dõi</h6>
+    <div class="tk-role-grid">
+      {% include 'thiet_ke_sp/includes/role_field.html' with field=roles_form.followers wide=True %}
+    </div>
+  </section>
 {% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Lưu' %}
 {% endif %}
 
@@ -214,7 +227,7 @@
       <label class="form-label fw-bold small mb-1">Người <span class="text-danger">*</span></label>
       <select name="member_id" class="form-select form-select-sm jp-tksp-user-select" required>
         <option value="">— Chọn —</option>
-        {% for u in member_users %}<option value="{{ u.pk }}">{{ u|uname }}</option>{% endfor %}
+        {% for u in member_users %}<option value="{{ u.pk }}" data-avatar="{{ u|avatar_url }}" data-initial="{{ u|initial }}" data-tone="{{ u.pk|avatar_tone }}">{{ u|uname }}</option>{% endfor %}
       </select>
     </div>
     <div class="col-md-5">

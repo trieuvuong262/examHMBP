@@ -2,6 +2,48 @@
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
 <style>
+/* Tom Select gắn body — nổi trên modal Bootstrap (1055), nếu không danh sách chọn bị chìm sau popup */
+body > .ts-dropdown {
+  z-index: 2000;
+}
+.tk-user-opt { display: flex; align-items: center; gap: .45rem; min-width: 0; }
+.tk-user-opt > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tk-user-opt-avatar {
+  width: 22px; height: 22px; border-radius: 50%; flex: 0 0 22px; object-fit: cover;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #fff; font-size: .64rem; font-weight: 800; line-height: 1;
+}
+.ts-wrapper .item .tk-user-opt-avatar { width: 18px; height: 18px; flex-basis: 18px; font-size: .58rem; }
+
+/* Modal Nhân sự hồ sơ (nằm ngoài .jp-tksp) */
+.tk-roles-modal .modal-header { align-items: flex-start; gap: .75rem; padding: .85rem 1.1rem; }
+.tk-roles-modal .tk-modal-lead { margin-top: .2rem; font-size: .75rem; font-weight: 600; color: var(--jp-text-muted, #64748b); }
+.tk-roles-modal .modal-body { padding: .9rem 1.1rem 1.05rem; background: var(--jp-page-bg, #f8fafc); }
+.tk-roles-modal .modal-footer { padding: .7rem 1.1rem; }
+.tk-roles-modal .tk-roles-group + .tk-roles-group { margin-top: .95rem; }
+.tk-roles-modal .tk-roles-group h6 {
+  margin: 0 0 .45rem; font-size: .68rem; font-weight: 800; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--jp-text-muted, #64748b);
+}
+.tk-roles-modal .tk-role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+.tk-roles-modal .tk-role-field {
+  min-width: 0; background: var(--jp-surface-bg, #fff); border: 1px solid var(--jp-surface-border, #e2e8f0);
+  border-radius: 12px; padding: .7rem .75rem .65rem;
+}
+.tk-roles-modal .tk-role-field.is-wide { grid-column: 1 / -1; }
+.tk-roles-modal .tk-role-field label {
+  display: block; margin-bottom: .4rem;
+  font-size: .78rem; font-weight: 800; color: var(--jp-text-primary, #0f172a);
+}
+.tk-roles-modal .tk-role-field label em { font-style: normal; color: var(--hm-primary, #dc2626); }
+.tk-roles-modal .tk-role-field p { margin: .35rem 0 0; font-size: .7rem; line-height: 1.35; color: var(--jp-text-muted, #64748b); }
+.tk-roles-modal .ts-wrapper { width: 100%; }
+.tk-roles-modal .ts-wrapper.form-select { padding: 0; height: auto; background-image: none; border-radius: 8px; }
+.tk-roles-modal .ts-wrapper .ts-control { border: 0; box-shadow: none; min-height: 2rem; border-radius: 8px; background: transparent; }
+@media (max-width: 767.98px) {
+  .tk-roles-modal .tk-role-grid { grid-template-columns: 1fr; }
+  .tk-roles-modal .tk-role-field.is-wide { grid-column: auto; }
+}
 .jp-tksp {
   --tk-accent: var(--hm-primary, #dc2626);
   --tk-accent-soft: var(--hm-primary-soft, rgba(220, 38, 38, .08));

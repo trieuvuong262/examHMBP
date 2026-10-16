@@ -28,6 +28,30 @@ from .services import sla
 _INPUT = {'class': 'form-control'}
 _SELECT = {'class': 'form-select'}
 _USER_SELECT = {'class': 'form-select jp-tksp-user-select'}
+
+
+class _UserOptionAttrs:
+    """Gắn ảnh đại diện lên từng <option> để Tom Select vẽ avatar."""
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex, attrs)
+        user = getattr(value, 'instance', None)
+        if user is None:
+            return option
+        option['attrs']['data-avatar'] = perms.user_avatar_url(user)
+        option['attrs']['data-initial'] = perms.user_initial(user)
+        option['attrs']['data-tone'] = perms.avatar_tone_for(user.pk)
+        return option
+
+
+class UserSelect(_UserOptionAttrs, forms.Select):
+    pass
+
+
+class UserSelectMultiple(_UserOptionAttrs, forms.SelectMultiple):
+    pass
+
+
 _DATE = {'class': 'form-control jp-date-vn', 'type': 'date'}
 _MONEY = {'class': 'form-control text-end', 'inputmode': 'numeric', 'min': '0', 'step': '1'}
 
@@ -51,7 +75,7 @@ def user_field(label: str, *, required: bool = False, queryset=None) -> UserChoi
     return UserChoiceField(
         queryset=queryset if queryset is not None else active_users(),
         required=required, label=label, empty_label='— Chọn —',
-        widget=forms.Select(attrs=_USER_SELECT),
+        widget=UserSelect(attrs=_USER_SELECT),
     )
 
 
@@ -139,7 +163,7 @@ def follower_field(current_ids=()):
         queryset=role_queryset('follower', configured=configured, current_ids=current_ids),
         required=False,
         label=ROLE_LABELS['follower'],
-        widget=forms.SelectMultiple(attrs={**_USER_SELECT, 'multiple': 'multiple'}),
+        widget=UserSelectMultiple(attrs={**_USER_SELECT, 'multiple': 'multiple'}),
     )
     if not configured.get('follower'):
         field.help_text = 'Chưa có người trong Thiết lập → Nhân sự phụ trách.'
@@ -179,11 +203,10 @@ class RoleFieldsMixin:
             queryset=role_queryset('owner', configured=configured, current_ids=ids),
             required=True,
             label=ROLE_LABELS['owner'],
-            widget=forms.SelectMultiple(attrs={**_USER_SELECT, 'multiple': 'multiple', 'data-max-items': '2'}),
+            widget=UserSelectMultiple(attrs={**_USER_SELECT, 'multiple': 'multiple', 'data-max-items': '2'}),
         )
-        field.help_text = 'Chọn 1 hoặc 2 người.'
         if not configured.get('owner'):
-            field.help_text = 'Chọn 1 hoặc 2 người. Chưa có người trong Thiết lập → Nhân sự phụ trách.'
+            field.help_text = 'Chưa có người trong Thiết lập → Nhân sự phụ trách.'
         self.fields['owners'] = field
 
     def _add_role_fields(self, current: dict | None = None, owner_ids=(), pair_ids=None):
@@ -223,11 +246,10 @@ class RoleFieldsMixin:
             queryset=role_queryset(role, configured=configured, current_ids=ids),
             required=False,
             label=ROLE_LABELS[role],
-            widget=forms.SelectMultiple(attrs={**_USER_SELECT, 'multiple': 'multiple', 'data-max-items': '2'}),
+            widget=UserSelectMultiple(attrs={**_USER_SELECT, 'multiple': 'multiple', 'data-max-items': '2'}),
         )
-        field.help_text = 'Chọn 1 hoặc 2 người. Không bắt buộc.'
         if not configured.get(role):
-            field.help_text = 'Chọn 1 hoặc 2 người. Chưa có người trong Thiết lập → Nhân sự phụ trách.'
+            field.help_text = 'Chưa có người trong Thiết lập → Nhân sự phụ trách.'
         self.fields[PAIR_FORM_FIELDS[role]] = field
 
     def _clean_pair(self, form_name: str, role: str):
@@ -508,7 +530,7 @@ class RolePoolForm(forms.Form):
             self.fields[role] = UserMultipleChoiceField(
                 queryset=role_pool_queryset(role, current.get(role) or []),
                 required=False, label=ROLE_LABELS[role],
-                widget=forms.SelectMultiple(attrs=multi),
+                widget=UserSelectMultiple(attrs=multi),
             )
             if role == 'approver':
                 self.fields[role].help_text = 'Mọi nhân sự có quyền duyệt hồ sơ, không lọc phòng ban.'

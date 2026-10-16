@@ -1,12 +1,30 @@
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
 <script>
 (function () {
+  function renderUserOption(data, escape) {
+    var name = escape(data.text || '');
+    if (!data.initial && !data.avatar) return '<div>' + name + '</div>';
+    var avatar = data.avatar
+      ? '<img class="tk-user-opt-avatar" src="' + escape(data.avatar) + '" alt="">'
+      : '<span class="tk-user-opt-avatar" style="background:' + escape(data.tone || '#64748b') + '">' + escape(data.initial || '?') + '</span>';
+    return '<div class="tk-user-opt">' + avatar + '<span>' + name + '</span></div>';
+  }
+
   function initUserSelects(root) {
     if (typeof TomSelect === 'undefined') return;
     (root || document).querySelectorAll('select.jp-tksp-user-select').forEach(function (el) {
       if (el.tomselect || el.closest('template')) return;
       var multiple = !!el.multiple;
-      var opts = { create: false, maxOptions: 300, allowEmptyOption: !multiple, dropdownParent: 'body' };
+      var opts = {
+        create: false,
+        maxOptions: 300,
+        allowEmptyOption: !multiple,
+        dropdownParent: 'body',
+        render: {
+          option: renderUserOption,
+          item: renderUserOption,
+        },
+      };
       if (multiple) {
         opts.plugins = ['remove_button'];
         opts.placeholder = 'Tìm và chọn nhân sự…';
@@ -18,6 +36,10 @@
   }
   window.jpTkspInitUserSelects = initUserSelects;
   document.addEventListener('DOMContentLoaded', function () { initUserSelects(document); });
+  /* Dropdown nằm ngoài modal; chặn focus trap của Bootstrap kéo focus về popup khi bấm một dòng. */
+  document.addEventListener('focusin', function (e) {
+    if (e.target && e.target.closest && e.target.closest('.ts-dropdown')) e.stopImmediatePropagation();
+  }, true);
 
   document.addEventListener('click', function (e) {
     var addBtn = e.target.closest('[data-tk-add-row]');

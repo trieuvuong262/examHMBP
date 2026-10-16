@@ -307,3 +307,33 @@ def display_name(user) -> str:
     profile = getattr(user, 'profile', None)
     name = (getattr(profile, 'full_name', '') or '').strip() if profile else ''
     return name or (user.get_full_name() or '').strip() or user.username
+
+
+AVATAR_TONES = ('#dc2626', '#262626', '#0369a1', '#15803d', '#b45309', '#6d28d9', '#be185d', '#475569')
+
+
+def user_avatar_url(user) -> str:
+    if not getattr(user, 'pk', None):
+        return ''
+    profile = getattr(user, 'profile', None)
+    avatar = getattr(profile, 'avatar', None) if profile is not None else None
+    if not avatar:
+        return ''
+    try:
+        return avatar.url or ''
+    except (ValueError, OSError):
+        return ''
+
+
+def user_initial(user) -> str:
+    name = display_name(user)
+    if not name:
+        return '?'
+    return name.split()[-1][:1].upper()
+
+
+def avatar_tone_for(value) -> str:
+    try:
+        return AVATAR_TONES[int(value) % len(AVATAR_TONES)]
+    except (TypeError, ValueError):
+        return AVATAR_TONES[0]

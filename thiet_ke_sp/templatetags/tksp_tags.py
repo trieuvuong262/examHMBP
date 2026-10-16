@@ -1,15 +1,13 @@
 import re
 
 from django import template
-from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 
-from thiet_ke_sp.permissions import display_name
+from thiet_ke_sp.permissions import avatar_tone_for, display_name, user_avatar_url, user_initial
 
 register = template.Library()
 
 _HEX = re.compile(r'#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b')
-AVATAR_TONES = ('#dc2626', '#262626', '#0369a1', '#15803d', '#b45309', '#6d28d9', '#be185d', '#475569')
 
 
 @register.filter
@@ -30,34 +28,17 @@ def owner_names(dossier):
 @register.filter
 def avatar_url(user):
     """Ảnh đại diện trên hồ sơ nhân sự. Rỗng nếu chưa có ảnh."""
-    if not getattr(user, 'pk', None):
-        return ''
-    try:
-        avatar = user.profile.avatar
-    except ObjectDoesNotExist:
-        return ''
-    if not avatar:
-        return ''
-    try:
-        return avatar.url or ''
-    except (ValueError, OSError):
-        return ''
+    return user_avatar_url(user)
 
 
 @register.filter
 def initial(user):
-    name = display_name(user)
-    if not name:
-        return '?'
-    return name.split()[-1][:1].upper()
+    return user_initial(user)
 
 
 @register.filter
 def avatar_tone(value):
-    try:
-        return AVATAR_TONES[int(value) % len(AVATAR_TONES)]
-    except (TypeError, ValueError):
-        return AVATAR_TONES[0]
+    return avatar_tone_for(value)
 
 
 @register.filter
