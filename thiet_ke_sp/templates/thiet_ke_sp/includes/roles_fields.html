@@ -1,0 +1,30 @@
+<section class="tk-roles-group">
+  <h6>Điều phối</h6>
+  <div class="tk-role-grid">
+    {% include 'thiet_ke_sp/includes/role_field.html' with field=roles_form.owners %}
+    {% include 'thiet_ke_sp/includes/role_field.html' with field=roles_form.approver %}
+  </div>
+</section>
+<section class="tk-roles-group">
+  <h6>Làm hồ sơ</h6>
+  <div class="tk-role-grid">
+    {% include 'thiet_ke_sp/includes/role_field.html' with field=roles_form.designers %}
+    {% include 'thiet_ke_sp/includes/role_field.html' with field=roles_form.technicians %}
+    {% include 'thiet_ke_sp/includes/role_field.html' with field=roles_form.sample_makers %}
+    {% include 'thiet_ke_sp/includes/role_field.html' with field=roles_form.costing_users %}
+  </div>
+</section>
+<section class="tk-roles-group">
+  <h6>Theo dõi</h6>
+  <div class="tk-role-grid">
+    {% if roles_form.fields.followers %}
+    {% include 'thiet_ke_sp/includes/role_field.html' with field=roles_form.followers wide=True %}
+    {% else %}
+    <div class="tk-role-field is-wide">
+      <label>Người theo dõi</label>
+      <div class="tk-role-locked">{{ roles_form.follower_names|default:'Chưa chọn' }}</div>
+      <p>Chỉ người phụ trách chính hoặc người duyệt được đổi danh sách này.</p>
+    </div>
+    {% endif %}
+  </div>
+</section>

@@ -195,28 +195,9 @@
 
 {% if roles_form %}
 {% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalRoles' modal_action='roles_save' modal_title='Nhân sự hồ sơ' modal_size='modal-lg' modal_class='tk-roles-modal' modal_lead='Người đứng đầu mỗi vai trò nhận việc. Có thể chọn thêm một người.' %}
-  <section class="tk-roles-group">
-    <h6>Điều phối</h6>
-    <div class="tk-role-grid">
-      {% include 'thiet_ke_sp/includes/role_field.html' with field=roles_form.owners %}
-      {% include 'thiet_ke_sp/includes/role_field.html' with field=roles_form.approver %}
-    </div>
-  </section>
-  <section class="tk-roles-group">
-    <h6>Làm hồ sơ</h6>
-    <div class="tk-role-grid">
-      {% include 'thiet_ke_sp/includes/role_field.html' with field=roles_form.designers %}
-      {% include 'thiet_ke_sp/includes/role_field.html' with field=roles_form.technicians %}
-      {% include 'thiet_ke_sp/includes/role_field.html' with field=roles_form.sample_makers %}
-      {% include 'thiet_ke_sp/includes/role_field.html' with field=roles_form.costing_users %}
-    </div>
-  </section>
-  <section class="tk-roles-group">
-    <h6>Theo dõi</h6>
-    <div class="tk-role-grid">
-      {% include 'thiet_ke_sp/includes/role_field.html' with field=roles_form.followers wide=True %}
-    </div>
-  </section>
+  <div class="tk-roles">
+    {% include 'thiet_ke_sp/includes/roles_fields.html' %}
+  </div>
 {% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Lưu' %}
 {% endif %}
 

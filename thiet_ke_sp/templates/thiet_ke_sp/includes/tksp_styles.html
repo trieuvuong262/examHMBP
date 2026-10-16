@@ -20,29 +20,35 @@ body > .ts-dropdown {
 .tk-roles-modal .tk-modal-lead { margin-top: .2rem; font-size: .75rem; font-weight: 600; color: var(--jp-text-muted, #64748b); }
 .tk-roles-modal .modal-body { padding: .9rem 1.1rem 1.05rem; background: var(--jp-page-bg, #f8fafc); }
 .tk-roles-modal .modal-footer { padding: .7rem 1.1rem; }
-.tk-roles-modal .tk-roles-group + .tk-roles-group { margin-top: .95rem; }
-.tk-roles-modal .tk-roles-group h6 {
+.jp-tksp .tk-section.tk-roles { background: var(--jp-page-bg, #f8fafc); }
+.tk-roles .tk-roles-lead { margin: -.35rem 0 .85rem; font-size: .75rem; font-weight: 600; color: var(--jp-text-muted, #64748b); }
+.tk-roles .tk-roles-group + .tk-roles-group { margin-top: .95rem; }
+.tk-roles .tk-roles-group h6 {
   margin: 0 0 .45rem; font-size: .68rem; font-weight: 800; letter-spacing: .06em;
   text-transform: uppercase; color: var(--jp-text-muted, #64748b);
 }
-.tk-roles-modal .tk-role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
-.tk-roles-modal .tk-role-field {
+.tk-roles .tk-role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+.tk-roles .tk-role-field {
   min-width: 0; background: var(--jp-surface-bg, #fff); border: 1px solid var(--jp-surface-border, #e2e8f0);
   border-radius: 12px; padding: .7rem .75rem .65rem;
 }
-.tk-roles-modal .tk-role-field.is-wide { grid-column: 1 / -1; }
-.tk-roles-modal .tk-role-field label {
+.tk-roles .tk-role-field.is-wide { grid-column: 1 / -1; }
+.tk-roles .tk-role-field label {
   display: block; margin-bottom: .4rem;
   font-size: .78rem; font-weight: 800; color: var(--jp-text-primary, #0f172a);
 }
-.tk-roles-modal .tk-role-field label em { font-style: normal; color: var(--hm-primary, #dc2626); }
-.tk-roles-modal .tk-role-field p { margin: .35rem 0 0; font-size: .7rem; line-height: 1.35; color: var(--jp-text-muted, #64748b); }
-.tk-roles-modal .ts-wrapper { width: 100%; }
-.tk-roles-modal .ts-wrapper.form-select { padding: 0; height: auto; background-image: none; border-radius: 8px; }
-.tk-roles-modal .ts-wrapper .ts-control { border: 0; box-shadow: none; min-height: 2rem; border-radius: 8px; background: transparent; }
+.tk-roles .tk-role-field label em { font-style: normal; color: var(--hm-primary, #dc2626); }
+.tk-roles .tk-role-field p { margin: .35rem 0 0; font-size: .7rem; line-height: 1.35; color: var(--jp-text-muted, #64748b); }
+.tk-roles .tk-role-locked {
+  min-height: 2rem; padding: .35rem .6rem; border-radius: 8px; font-size: .84rem;
+  background: var(--jp-surface-muted, #f8fafc); border: 1px solid var(--jp-surface-border, #e2e8f0);
+}
+.tk-roles .ts-wrapper { width: 100%; }
+.tk-roles .ts-wrapper.form-select { padding: 0; height: auto; background-image: none; border-radius: 8px; }
+.tk-roles .ts-wrapper .ts-control { border: 0; box-shadow: none; min-height: 2rem; border-radius: 8px; background: transparent; }
 @media (max-width: 767.98px) {
-  .tk-roles-modal .tk-role-grid { grid-template-columns: 1fr; }
-  .tk-roles-modal .tk-role-field.is-wide { grid-column: auto; }
+  .tk-roles .tk-role-grid { grid-template-columns: 1fr; }
+  .tk-roles .tk-role-field.is-wide { grid-column: auto; }
 }
 .jp-tksp {
   --tk-accent: var(--hm-primary, #dc2626);
@@ -185,6 +191,15 @@ body > .ts-dropdown {
   background: var(--hm-primary) !important;
   border-color: var(--hm-primary) !important;
   color: #fff !important;
+}
+.jp-sx-module .jp-tksp .tk-tabs-head .jp-portal-pills .nav-link.is-locked,
+.jp-sx-module .jp-tksp .tk-tabs-head .jp-portal-pills .nav-link.is-locked:hover {
+  color: #94a3b8 !important;
+  background: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  opacity: .72;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 .jp-tksp .tk-sheet { background: var(--tk-surface); border: 1px solid var(--tk-line); border-radius: var(--tk-radius); overflow: hidden; }
 .jp-tksp .tk-sheet-main {
@@ -525,7 +540,13 @@ body.tk-kan-dragging, body.tk-kan-dragging * { cursor: grabbing !important; user
 [data-theme="dark"] .jp-tksp .tk-stage.is-red { background: rgba(185, 28, 28, .2); color: #fca5a5; border-color: #b91c1c; }
 [data-theme="dark"] .jp-tksp .tk-stage.is-purple { background: rgba(109, 40, 217, .2); color: #c4b5fd; border-color: #6d28d9; }
 [data-theme="dark"] .jp-tksp .tk-sheet, [data-theme="dark"] .jp-tksp .tk-prod-thumb, [data-theme="dark"] .jp-tksp .tk-version-preview, [data-theme="dark"] .jp-tksp .tk-bar { border: 1px solid rgba(255, 255, 255, .08); }
-[data-theme="dark"] .jp-sx-module .jp-tksp .tk-tabs-head .jp-portal-pills .nav-link:not(.active),
+[data-theme="dark"] .jp-sx-module .jp-tksp .tk-tabs-head .jp-portal-pills .nav-link.is-locked,
+[data-theme="dark"] .jp-sx-module .jp-tksp .tk-tabs-head .jp-portal-pills .nav-link.is-locked:hover {
+  color: #64748b !important;
+  background: #0f172a !important;
+  border-color: #334155 !important;
+}
+[data-theme="dark"] .jp-sx-module .jp-tksp .tk-tabs-head .jp-portal-pills .nav-link:not(.active):not(.is-locked),
 [data-theme="dark"] .jp-tksp .tk-detail-tools .btn:not(.btn-hm) {
   background: var(--jp-surface-bg) !important;
   color: var(--jp-text-secondary) !important;

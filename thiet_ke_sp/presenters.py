@@ -68,6 +68,21 @@ def step_is_reached(dossier: ProductDevelopment, step: str) -> bool:
     return any(row['key'] == step and row['state'] != 'todo' for row in stepper(dossier))
 
 
+# Tab công đoạn chỉ mở khi hồ sơ đã tới bước đó. Các tab còn lại luôn mở.
+_TAB_STEP = {
+    'design': 'design',
+    'technical': 'technical',
+    'sample': 'sample',
+}
+
+
+def tab_is_open(dossier: ProductDevelopment, key: str) -> bool:
+    step = _TAB_STEP.get(key)
+    if step is None:
+        return True
+    return step_is_reached(dossier, step)
+
+
 def roles_rail(dossier: ProductDevelopment) -> list[dict]:
     rows = [{'role': Role.PROPOSER, 'label': Role.PROPOSER.label, 'user': dossier.proposer}]
     for role in DOSSIER_ROLE_FIELDS:

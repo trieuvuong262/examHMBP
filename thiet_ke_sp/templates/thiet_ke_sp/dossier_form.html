@@ -83,25 +83,10 @@
       </div>
     </div>
 
-    <div class="tk-section">
+    <div class="tk-section tk-roles">
       <div class="tk-section-title"><i class="bi bi-people"></i>Nhân sự phụ trách</div>
-      <div class="row g-2">
-        {% include 'thiet_ke_sp/includes/field.html' with field=form.owners col='col-12' req=True %}
-        {% include 'thiet_ke_sp/includes/field.html' with field=form.approver col='col-md-4' req=True %}
-        {% include 'thiet_ke_sp/includes/field.html' with field=form.designers col='col-md-6' %}
-        {% include 'thiet_ke_sp/includes/field.html' with field=form.technicians col='col-md-6' %}
-        {% include 'thiet_ke_sp/includes/field.html' with field=form.sample_makers col='col-md-6' %}
-        {% include 'thiet_ke_sp/includes/field.html' with field=form.costing_users col='col-md-6' %}
-        {% if form.fields.followers %}
-        {% include 'thiet_ke_sp/includes/field.html' with field=form.followers col='col-12' %}
-        {% else %}
-        <div class="col-12">
-          <label class="form-label fw-bold small mb-1">Người theo dõi</label>
-          <div class="form-control form-control-sm bg-light">{{ form.follower_names|default:'Chưa chọn' }}</div>
-          <div class="form-text small">Chỉ người phụ trách chính hoặc người duyệt được đổi danh sách này.</div>
-        </div>
-        {% endif %}
-      </div>
+      <p class="tk-roles-lead">Người đứng đầu mỗi vai trò nhận việc. Có thể chọn thêm một người.</p>
+      {% include 'thiet_ke_sp/includes/roles_fields.html' with roles_form=form %}
     </div>
   </form>
   {% endwith %}

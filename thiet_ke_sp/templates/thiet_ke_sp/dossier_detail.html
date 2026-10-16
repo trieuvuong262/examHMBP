@@ -85,8 +85,14 @@
     <div class="tk-card min-w-0">
       <div class="tk-tabs-head">
         <ul class="nav nav-pills jp-portal-pills gap-2 flex-wrap">
-          {% for key, label, icon in tabs %}
-          <li class="nav-item"><a class="nav-link{% if tab == key %} active{% endif %}" href="?tab={{ key }}">{{ label }}</a></li>
+          {% for t in tabs %}
+          <li class="nav-item">
+            {% if t.open %}
+            <a class="nav-link{% if tab == t.key %} active{% endif %}" href="?tab={{ t.key }}"{% if tab == t.key %} aria-current="page"{% endif %}>{{ t.label }}</a>
+            {% else %}
+            <span class="nav-link is-locked" aria-disabled="true" title="Chưa tới bước này">{{ t.label }}</span>
+            {% endif %}
+          </li>
           {% endfor %}
         </ul>
       </div>

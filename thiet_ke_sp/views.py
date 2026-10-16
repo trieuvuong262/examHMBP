@@ -98,6 +98,8 @@ def _get_dossier(pk):
 
 
 def _redirect_tab(dossier, tab: str = ''):
+    if tab and not presenters.tab_is_open(dossier, tab):
+        tab = ''
     url = dossier.get_absolute_url()
     return redirect(f'{url}?tab={tab}' if tab else url)
 
@@ -422,6 +424,8 @@ def dossier_detail(request, pk):
     tab = request.GET.get('tab') or 'overview'
     if tab not in TAB_KEYS:
         tab = 'overview'
+    elif not presenters.tab_is_open(dossier, tab):
+        return redirect(dossier.get_absolute_url())
 
     att_qs = Attachment.objects.select_related('uploaded_by__profile', 'colorway').order_by('kind', '-uploaded_at')
     design_versions = list(
@@ -534,7 +538,10 @@ def dossier_detail(request, pk):
         request,
         dossier=dossier,
         tab=tab,
-        tabs=TABS,
+        tabs=[
+            {'key': key, 'label': label, 'open': presenters.tab_is_open(dossier, key)}
+            for key, label, _icon in TABS
+        ],
         steps=steps,
         comment_step=comment_step,
         roles_rail=presenters.roles_rail(dossier),
