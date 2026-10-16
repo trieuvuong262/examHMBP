@@ -134,11 +134,11 @@
         </table>
       </div>
     {% elif tab == 'images' %}
-      <div class="tk-thumbs">
+      <div class="tk-lib-gallery">
         {% for img in images %}
-        <button type="button" class="tk-thumb tk-thumb-zoom text-reset" data-sx-gallery data-sx-gallery-image="{{ img.url }}" data-sx-gallery-title="{{ img.label }}">
-          <div class="img"><img src="{{ img.url }}" alt="" loading="lazy"></div>
-          <div class="cap"><div class="k">{{ img.label }}</div><div class="n">{{ img.sku }}</div></div>
+        <button type="button" class="tk-lib-shot" data-sx-gallery data-sx-gallery-image="{{ img.url }}" data-sx-gallery-title="{{ img.label }}">
+          <span class="shot"><img src="{{ img.url }}" alt="" loading="lazy"></span>
+          <span class="cap"><span class="k">{{ img.label }}</span><span class="n">{{ img.sku }}</span></span>
         </button>
         {% empty %}
         <div class="small text-muted">Chưa có hình ảnh.</div>
