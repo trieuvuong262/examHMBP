@@ -1038,7 +1038,7 @@ class ModuleSetting(models.Model):
     due_hour = models.PositiveSmallIntegerField(default=17, verbose_name='Giờ chốt hạn')
     test_mode = models.BooleanField(
         default=True, verbose_name='Trạng thái test',
-        help_text='Bật: bỏ bớt điều kiện duyệt thiết kế, và cho sửa hồ sơ đã duyệt. Tắt: về quy tắc chính thức.',
+        help_text='Bật: chuyển kỹ thuật không bắt ảnh 2 mặt, colorway và file thiết kế gốc; duyệt thiết kế bỏ bớt điều kiện; hồ sơ đã duyệt vẫn sửa được. Tắt: về quy tắc chính thức.',
     )
     default_receivers = models.JSONField(default=dict, blank=True, verbose_name='Người nhận bàn giao mặc định')
     default_roles = models.JSONField(default=dict, blank=True, verbose_name='Danh sách nhân sự phụ trách')

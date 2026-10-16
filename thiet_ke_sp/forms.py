@@ -53,6 +53,9 @@ class UserSelectMultiple(_UserOptionAttrs, forms.SelectMultiple):
 
 
 _DATE = {'class': 'form-control jp-date-vn', 'type': 'date'}
+_DATE_SM = {'class': 'form-control form-control-sm jp-date-vn', 'type': 'date'}
+_SELECT_SM = {'class': 'form-select form-select-sm'}
+_USER_SELECT_SM = {'class': 'form-select form-select-sm jp-tksp-user-select'}
 _MONEY = {'class': 'form-control text-end', 'inputmode': 'numeric', 'min': '0', 'step': '1'}
 
 
@@ -467,11 +470,35 @@ class SampleForm(forms.ModelForm):
         model = SampleVersion
         fields = ['maker', 'assigned_date', 'completed_date', 'progress_note', 'change_note']
         widgets = {
-            'assigned_date': forms.DateInput(attrs=_DATE, format='%Y-%m-%d'),
-            'completed_date': forms.DateInput(attrs=_DATE, format='%Y-%m-%d'),
-            'progress_note': _textarea(2),
-            'change_note': _textarea(2),
+            'assigned_date': forms.DateInput(attrs=_DATE_SM, format='%Y-%m-%d'),
+            'completed_date': forms.DateInput(attrs=_DATE_SM, format='%Y-%m-%d'),
+            'progress_note': forms.Textarea(attrs={'class': 'form-control form-control-sm', 'rows': 1}),
+            'change_note': forms.Textarea(attrs={'class': 'form-control form-control-sm', 'rows': 1}),
         }
+
+    def __init__(self, *args, dossier=None, maker_locked=True, **kwargs):
+        super().__init__(*args, **kwargs)
+        people = []
+        if dossier is not None:
+            for person in (dossier.sample_maker, dossier.co_sample_maker):
+                if person is not None and all(person.pk != other.pk for other in people):
+                    people.append(person)
+        ids = [person.pk for person in people]
+        self.show_maker_select = not maker_locked and bool(ids)
+        if not self.show_maker_select:
+            del self.fields['maker']
+            return
+        self.fields['maker'].queryset = active_users().filter(pk__in=ids)
+        self.fields['maker'].empty_label = None
+        self.fields['maker'].required = True
+        self.fields['maker'].widget.attrs['class'] = _USER_SELECT_SM['class']
+
+    def clean_maker(self):
+        maker = self.cleaned_data.get('maker')
+        allowed = set(self.fields['maker'].queryset.values_list('pk', flat=True))
+        if maker is None or maker.pk not in allowed:
+            raise forms.ValidationError('Người làm chỉ chọn trong danh sách May mẫu của hồ sơ.')
+        return maker
 
 
 class TechPackForm(forms.ModelForm):
@@ -490,18 +517,25 @@ class TechPackForm(forms.ModelForm):
 
 
 class EvaluationForm(forms.Form):
-    role = forms.ChoiceField(label='Vai trò đánh giá', widget=forms.Select(attrs=_SELECT))
+    role = forms.ChoiceField(label='Vai trò đánh giá', widget=forms.Select(attrs=_SELECT_SM))
     result = forms.ChoiceField(
-        label='Kết luận', choices=SampleEvaluation.RESULT_CHOICES, widget=forms.Select(attrs=_SELECT),
+        label='Kết luận', choices=SampleEvaluation.RESULT_CHOICES, widget=forms.Select(attrs=_SELECT_SM),
     )
-    conclusion = forms.CharField(required=False, label='Nhận xét chung', widget=_textarea(2))
-    defects = forms.CharField(required=False, label='Lỗi / nội dung phải chỉnh', widget=_textarea(2))
+    conclusion = forms.CharField(
+        required=False, label='Nhận xét chung',
+        widget=forms.Textarea(attrs={'class': 'form-control form-control-sm', 'rows': 1}),
+    )
+    defects = forms.CharField(
+        required=False, label='Lỗi / nội dung phải chỉnh',
+        widget=forms.Textarea(attrs={'class': 'form-control form-control-sm', 'rows': 1}),
+    )
     fix_owner = user_field('Người chịu trách nhiệm sửa')
-    fix_due = forms.DateField(required=False, label='Hạn sửa', widget=forms.DateInput(attrs=_DATE))
+    fix_due = forms.DateField(required=False, label='Hạn sửa', widget=forms.DateInput(attrs=_DATE_SM))
 
     def __init__(self, *args, allowed_roles: list[str], **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['role'].choices = [(r, EvaluatorRole(r).label) for r in allowed_roles]
+        self.fields['fix_owner'].widget.attrs['class'] = _USER_SELECT_SM['class']
 
 
 class CostingForm(forms.ModelForm):
@@ -553,7 +587,7 @@ class RolePoolForm(forms.Form):
 class SettingsForm(forms.Form):
     test_mode = forms.BooleanField(
         required=False, label='Trạng thái test',
-        help_text='Bật thì đang thử: duyệt thiết kế không bắt bảng thông số, BOM, ảnh mẫu và giá thành; hồ sơ đã duyệt vẫn sửa được thiết kế, mẫu, kỹ thuật và giá thành. Tắt để về quy tắc chính thức.',
+        help_text='Bật thì đang thử: chuyển kỹ thuật không bắt ảnh 2 mặt, colorway có mã màu và file thiết kế gốc; duyệt thiết kế không bắt bảng thông số, BOM, ảnh mẫu và giá thành; hồ sơ đã duyệt vẫn sửa được. Tắt để về quy tắc chính thức.',
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input', 'role': 'switch'}),
     )
     due_hour = forms.IntegerField(

@@ -311,7 +311,7 @@ body > .ts-dropdown {
 .jp-tksp .tk-req-row textarea { min-height: 2rem; height: 2rem; padding: .25rem .55rem; font-size: .8rem; resize: vertical; }
 .jp-tksp .tk-req-row .v { display: block; min-height: 2rem; padding: .3rem .55rem; border-radius: 8px; background: var(--tk-surface-2); font-size: .8rem; font-weight: 650; white-space: pre-line; }
 .jp-tksp .tk-design-head { margin-bottom: .65rem; }
-.jp-tksp .tk-design-actions { margin-left: auto; display: inline-flex; align-items: center; gap: .35rem; }
+.jp-tksp .tk-design-actions { margin-left: auto; display: inline-flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: .35rem; }
 .jp-tksp .tk-design-actions form { margin: 0; display: inline-flex; }
 .jp-tksp .tk-design-actions .btn { display: inline-flex; align-items: center; justify-content: center; gap: .3rem; line-height: 1; }
 .jp-tksp .tk-brief { display: grid; gap: .35rem; }
@@ -320,9 +320,17 @@ body > .ts-dropdown {
 .jp-tksp .tk-brief-row > span:first-child em { font-style: normal; color: var(--hm-primary, #dc2626); }
 .jp-tksp .tk-brief-field { display: block; min-width: 0; }
 .jp-tksp .tk-brief-row textarea { min-height: 2.35rem; height: 2.35rem; padding: .4rem .6rem; font-size: .82rem; line-height: 1.35; resize: vertical; border-radius: 8px; }
-.jp-tksp .tk-brief.is-read .v { display: block; min-height: 2.35rem; padding: .4rem .6rem; border-radius: 8px; background: var(--tk-surface-2); font-size: .82rem; font-weight: 650; white-space: pre-line; }
+.jp-tksp .tk-brief.is-read .v,
+.jp-tksp .tk-brief-row.is-read .v { display: block; min-height: 2.35rem; padding: .4rem .6rem; border-radius: 8px; background: var(--tk-surface-2); font-size: .82rem; font-weight: 650; white-space: pre-line; }
 .jp-tksp .tk-brief-foot { display: flex; justify-content: flex-end; }
 .jp-tksp .tk-brief-foot .btn { display: inline-flex; align-items: center; justify-content: center; gap: .3rem; line-height: 1; }
+.jp-tksp .tk-brief.is-wide .tk-brief-row { grid-template-columns: 6.6rem minmax(0, 1fr); }
+.jp-tksp .tk-brief-row.is-line { align-items: center; }
+.jp-tksp .tk-brief-row.is-line > span:first-child { padding-top: 0; }
+.jp-tksp .tk-brief-row .form-control:not(textarea),
+.jp-tksp .tk-brief-row .form-select { min-height: var(--jp-sx-ctl-h-sm, 38px); }
+.jp-tksp .tk-eval { border-top: 1px solid var(--tk-line); padding-top: 1rem; }
+.jp-tksp .tk-draw-up.is-pair { grid-template-columns: minmax(0, 1fr) auto; }
 .jp-tksp .tk-field { border-bottom: 1px dashed var(--tk-line); padding: .5rem 0; }
 .jp-tksp .tk-field label { display: block; color: var(--tk-muted); font-size: .66rem; text-transform: uppercase; letter-spacing: .04em; font-weight: 700; margin: 0; }
 .jp-tksp .tk-field strong, .jp-tksp .tk-field .v { display: block; margin-top: .15rem; font-weight: 650; white-space: pre-line; }
@@ -357,6 +365,7 @@ body > .ts-dropdown {
 .jp-tksp .tk-thumb .del { position: absolute; top: .25rem; right: .25rem; }
 .jp-tksp .tk-thumb .del .btn { display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; padding: 0; line-height: 1; }
 .jp-tksp .tk-draw { display: grid; grid-template-columns: repeat(2, minmax(0, 240px)); gap: .7rem; }
+.jp-tksp .tk-draw.is-gallery { grid-template-columns: repeat(auto-fill, minmax(148px, 180px)); }
 .jp-tksp .tk-draw .tk-thumb { width: 100%; }
 .jp-tksp .tk-draw .tk-thumb .img { aspect-ratio: 4 / 3; height: auto; background: #fff; }
 .jp-tksp .tk-draw .tk-thumb .img img { object-fit: contain; padding: .45rem; }
@@ -687,7 +696,8 @@ body.tk-kan-dragging, body.tk-kan-dragging * { cursor: grabbing !important; user
   .jp-tksp .tk-sheet-thumb { width: 64px; height: 74px; }
   .jp-tksp .tk-size-groups { grid-template-columns: minmax(0, 1fr); }
   .jp-tksp .tk-req-row { grid-template-columns: 6.4rem minmax(0, 1fr); }
-  .jp-tksp .tk-brief-row { grid-template-columns: 4.8rem minmax(0, 1fr); }
+  .jp-tksp .tk-brief-row,
+  .jp-tksp .tk-brief.is-wide .tk-brief-row { grid-template-columns: 5.4rem minmax(0, 1fr); }
   .jp-tksp .tk-draw,
   .jp-tksp .tk-draw-up { grid-template-columns: minmax(0, 1fr); }
   .jp-tksp .tk-design-actions { margin-left: 0; width: 100%; }

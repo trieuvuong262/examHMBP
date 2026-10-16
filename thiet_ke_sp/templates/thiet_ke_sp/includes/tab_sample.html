@@ -4,12 +4,11 @@
 {% else %}
 {% with sv=current_sv %}
 <div class="tk-section">
-  <div class="tk-section-title">
+  <div class="tk-section-title tk-design-head">
     <span class="tk-version-pill"><i class="bi bi-scissors"></i>Mẫu {{ sv.label }}</span>
     <span class="tk-pill {% if sv.state == 'passed' %}is-green{% elif sv.state == 'submitted' %}is-amber{% elif sv.state == 'failed' %}is-red{% else %}is-blue{% endif %}">{{ sv.get_state_display }}</span>
     <span class="tk-section-sub">theo thiết kế {{ sv.design_version.label }}</span>
-    <span class="ms-auto d-flex gap-1">
-      {% if flags.submit_sample %}<button type="button" class="btn btn-sm btn-hm text-white fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalSubmitSample">Gửi duyệt thiết kế</button>{% endif %}
+    <span class="tk-design-actions">
       {% if flags.submit_master %}<button type="button" class="btn btn-sm btn-hm text-white fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalSubmitMaster">Trình duyệt mẫu chuẩn</button>{% endif %}
       {% if flags.request_fix %}<button type="button" class="btn btn-sm btn-outline-danger fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalSampleFix">Yêu cầu sửa mẫu</button>{% endif %}
       {% if flags.request_technical %}<button type="button" class="btn btn-sm btn-outline-danger fw-bold" data-bs-toggle="modal" data-bs-target="#tkModalTechnicalChange">Yêu cầu chỉnh kỹ thuật</button>{% endif %}
@@ -17,31 +16,38 @@
     </span>
   </div>
   {% if sample_form %}
-  <form method="post" action="{% url 'thiet_ke_sp:action' dossier.pk 'sample_save' %}">{% csrf_token %}
+  <form method="post" action="{% url 'thiet_ke_sp:action' dossier.pk 'sample_save' %}" class="tk-brief is-wide">{% csrf_token %}
     <input type="hidden" name="sample_version_id" value="{{ sv.pk }}"><input type="hidden" name="return_tab" value="sample">
-    <div class="row g-3">
-      {% include 'thiet_ke_sp/includes/field.html' with field=sample_form.maker col='col-md-4' %}
-      {% include 'thiet_ke_sp/includes/field.html' with field=sample_form.assigned_date col='col-md-4' %}
-      {% include 'thiet_ke_sp/includes/field.html' with field=sample_form.completed_date col='col-md-4' %}
-      {% include 'thiet_ke_sp/includes/field.html' with field=sample_form.progress_note %}
-      {% if sv.version_no > 1 %}{% include 'thiet_ke_sp/includes/field.html' with field=sample_form.change_note req=True %}{% endif %}
-    </div>
-    <div class="text-end mt-2"><button type="submit" class="btn btn-sm btn-outline-hm fw-bold"><i class="bi bi-save me-1"></i>Lưu tiến độ</button></div>
+    {% if sample_form.show_maker_select %}
+    <label class="tk-brief-row is-line" for="{{ sample_form.maker.id_for_label }}"><span>Người làm</span><span class="tk-brief-field">{{ sample_form.maker }}{% if sample_form.maker.errors %}<span class="invalid-feedback d-block">{{ sample_form.maker.errors|join:' ' }}</span>{% endif %}</span></label>
+    {% else %}
+    <div class="tk-brief-row is-line is-read"><span>Người làm</span><span class="v">{{ sv.maker|uname }}</span></div>
+    {% endif %}
+    <label class="tk-brief-row is-line" for="{{ sample_form.assigned_date.id_for_label }}"><span>Ngày giao</span><span class="tk-brief-field">{{ sample_form.assigned_date }}{% if sample_form.assigned_date.errors %}<span class="invalid-feedback d-block">{{ sample_form.assigned_date.errors|join:' ' }}</span>{% endif %}</span></label>
+    <label class="tk-brief-row is-line" for="{{ sample_form.completed_date.id_for_label }}"><span>Hoàn thành</span><span class="tk-brief-field">{{ sample_form.completed_date }}{% if sample_form.completed_date.errors %}<span class="invalid-feedback d-block">{{ sample_form.completed_date.errors|join:' ' }}</span>{% endif %}</span></label>
+    <label class="tk-brief-row" for="{{ sample_form.progress_note.id_for_label }}"><span>Tiến độ</span><span class="tk-brief-field">{{ sample_form.progress_note }}{% if sample_form.progress_note.errors %}<span class="invalid-feedback d-block">{{ sample_form.progress_note.errors|join:' ' }}</span>{% endif %}</span></label>
+    {% if sv.version_no > 1 %}
+    <label class="tk-brief-row" for="{{ sample_form.change_note.id_for_label }}"><span>Thay đổi <em>*</em></span><span class="tk-brief-field">{{ sample_form.change_note }}{% if sample_form.change_note.errors %}<span class="invalid-feedback d-block">{{ sample_form.change_note.errors|join:' ' }}</span>{% endif %}</span></label>
+    {% endif %}
+    <div class="tk-brief-foot"><button type="submit" class="btn btn-sm btn-outline-hm fw-bold"><i class="bi bi-save"></i>Lưu</button></div>
   </form>
   {% else %}
   {% include 'thiet_ke_sp/includes/sample_kv.html' with sv=sv %}
   {% endif %}
+</div>
 
-  <h3 class="tk-sub mt-3">Ảnh mẫu thực tế</h3>
-  <div class="tk-thumbs mb-2">
-    {% for a in sv.photos %}{% include 'thiet_ke_sp/includes/thumb.html' with a=a label='' missing=False can_delete=flags.edit_sample %}{% empty %}{% include 'thiet_ke_sp/includes/thumb.html' with a=None label='Ảnh mẫu' missing=True %}{% endfor %}
+<div class="tk-section">
+  <div class="tk-section-title"><i class="bi bi-images"></i>Ảnh mẫu thực tế</div>
+  <div class="tk-draw is-gallery">
+    {% for a in sv.photos %}{% include 'thiet_ke_sp/includes/thumb.html' with a=a label='Ảnh mẫu' missing=False can_delete=flags.edit_sample tab='sample' %}{% empty %}{% include 'thiet_ke_sp/includes/thumb.html' with a=None label='Ảnh mẫu' missing=True %}{% endfor %}
   </div>
   {% if can_upload_sample %}
-  <form method="post" action="{% url 'thiet_ke_sp:upload' dossier.pk %}" enctype="multipart/form-data" class="row g-2 align-items-end">{% csrf_token %}
+  <form method="post" action="{% url 'thiet_ke_sp:upload' dossier.pk %}" enctype="multipart/form-data" class="tk-draw-up is-pair">{% csrf_token %}
     <input type="hidden" name="sample_version_id" value="{{ sv.pk }}"><input type="hidden" name="kind" value="sample_photo"><input type="hidden" name="return_tab" value="sample">
-    <div class="col-md-7"><input type="file" name="files" class="form-control form-control-sm" accept="image/*" multiple required></div>
-    <div class="col-md-3"><input type="text" name="note" class="form-control form-control-sm" placeholder="Ghi chú" maxlength="255"></div>
-    <div class="col-md-2"><button type="submit" class="btn btn-sm btn-hm text-white w-100 fw-bold"><i class="bi bi-upload me-1"></i>Tải ảnh</button></div>
+    <label class="tk-draw-field"><span>Ảnh</span>
+      <input type="file" name="files" class="form-control form-control-sm" accept="image/*" multiple required>
+    </label>
+    <button type="submit" class="btn btn-sm btn-hm text-white fw-bold"><i class="bi bi-upload"></i>Tải ảnh</button>
   </form>
   {% endif %}
 </div>
@@ -50,15 +56,15 @@
   <div class="tk-section-title"><i class="bi bi-clipboard-check"></i>Đánh giá mẫu {{ sv.label }}</div>
   {% include 'thiet_ke_sp/includes/evaluations.html' with evaluations=sv.evaluations.all %}
   {% if sv.eval_files %}
-  <div class="tk-thumbs mt-2">{% for a in sv.eval_files %}{% include 'thiet_ke_sp/includes/thumb.html' with a=a label='Biên bản đánh giá' missing=False can_delete=False %}{% endfor %}</div>
+  <div class="tk-draw is-gallery mt-2">{% for a in sv.eval_files %}{% include 'thiet_ke_sp/includes/thumb.html' with a=a label='Biên bản đánh giá' missing=False can_delete=False %}{% endfor %}</div>
   {% endif %}
 
   {% if evaluation_form %}
-  <form method="post" action="{% url 'thiet_ke_sp:action' dossier.pk 'evaluation_add' %}" enctype="multipart/form-data" class="tk-card p-3 mt-3">{% csrf_token %}
+  <form method="post" action="{% url 'thiet_ke_sp:action' dossier.pk 'evaluation_add' %}" enctype="multipart/form-data" class="tk-eval mt-3">{% csrf_token %}
     <input type="hidden" name="return_tab" value="sample">
     <h3 class="tk-sub">Nhập đánh giá</h3>
     <div class="table-responsive">
-      <table class="table tk-mini-table align-middle mb-2 tk-crit">
+      <table class="tk-mini-table tk-crit mb-3">
         <thead><tr><th>Tiêu chí</th><th class="text-center">Đạt</th><th class="text-center">Không đạt</th><th class="text-center">Không đánh giá</th><th>Ghi chú</th></tr></thead>
         <tbody>
         {% for key, label in criteria %}
@@ -73,19 +79,20 @@
         </tbody>
       </table>
     </div>
-    <div class="row g-2">
-      {% include 'thiet_ke_sp/includes/field.html' with field=evaluation_form.role col='col-md-4' %}
-      {% include 'thiet_ke_sp/includes/field.html' with field=evaluation_form.result col='col-md-4' req=True %}
-      <div class="col-md-4">
-        <label class="form-label fw-bold small mb-1">Biên bản đánh giá</label>
-        <input type="file" name="evaluation_file" class="form-control form-control-sm">
-      </div>
-      {% include 'thiet_ke_sp/includes/field.html' with field=evaluation_form.conclusion %}
-      {% include 'thiet_ke_sp/includes/field.html' with field=evaluation_form.defects %}
-      {% include 'thiet_ke_sp/includes/field.html' with field=evaluation_form.fix_owner %}
-      {% include 'thiet_ke_sp/includes/field.html' with field=evaluation_form.fix_due %}
+    <div class="tk-brief is-wide">
+      <label class="tk-brief-row is-line" for="{{ evaluation_form.role.id_for_label }}"><span>Vai trò</span><span class="tk-brief-field">{{ evaluation_form.role }}{% if evaluation_form.role.errors %}<span class="invalid-feedback d-block">{{ evaluation_form.role.errors|join:' ' }}</span>{% endif %}</span></label>
+      <label class="tk-brief-row is-line" for="{{ evaluation_form.result.id_for_label }}"><span>Kết luận <em>*</em></span><span class="tk-brief-field">{{ evaluation_form.result }}{% if evaluation_form.result.errors %}<span class="invalid-feedback d-block">{{ evaluation_form.result.errors|join:' ' }}</span>{% endif %}</span></label>
+      <label class="tk-brief-row" for="{{ evaluation_form.conclusion.id_for_label }}"><span>Nhận xét</span><span class="tk-brief-field">{{ evaluation_form.conclusion }}{% if evaluation_form.conclusion.errors %}<span class="invalid-feedback d-block">{{ evaluation_form.conclusion.errors|join:' ' }}</span>{% endif %}</span></label>
+      <label class="tk-brief-row" for="{{ evaluation_form.defects.id_for_label }}"><span>Cần chỉnh</span><span class="tk-brief-field">{{ evaluation_form.defects }}{% if evaluation_form.defects.errors %}<span class="invalid-feedback d-block">{{ evaluation_form.defects.errors|join:' ' }}</span>{% endif %}</span></label>
+      <label class="tk-brief-row is-line" for="{{ evaluation_form.fix_owner.id_for_label }}"><span>Người sửa</span><span class="tk-brief-field">{{ evaluation_form.fix_owner }}{% if evaluation_form.fix_owner.errors %}<span class="invalid-feedback d-block">{{ evaluation_form.fix_owner.errors|join:' ' }}</span>{% endif %}</span></label>
+      <label class="tk-brief-row is-line" for="{{ evaluation_form.fix_due.id_for_label }}"><span>Hạn sửa</span><span class="tk-brief-field">{{ evaluation_form.fix_due }}{% if evaluation_form.fix_due.errors %}<span class="invalid-feedback d-block">{{ evaluation_form.fix_due.errors|join:' ' }}</span>{% endif %}</span></label>
     </div>
-    <div class="text-end mt-2"><button type="submit" class="btn btn-sm btn-hm text-white fw-bold"><i class="bi bi-save me-1"></i>Lưu đánh giá</button></div>
+    <div class="tk-draw-up is-pair">
+      <label class="tk-draw-field"><span>Biên bản</span>
+        <input type="file" name="evaluation_file" class="form-control form-control-sm">
+      </label>
+      <button type="submit" class="btn btn-sm btn-hm text-white fw-bold"><i class="bi bi-save"></i>Lưu đánh giá</button>
+    </div>
   </form>
   {% endif %}
 </div>
@@ -117,7 +124,7 @@
     <div id="tkSv{{ sv.pk }}" class="collapse">
       <div class="tk-card p-3">
         {% include 'thiet_ke_sp/includes/sample_kv.html' with sv=sv %}
-        <div class="tk-thumbs mt-2">{% for a in sv.photos %}{% include 'thiet_ke_sp/includes/thumb.html' with a=a label='' missing=False can_delete=False %}{% endfor %}</div>
+        <div class="tk-draw is-gallery mt-2">{% for a in sv.photos %}{% include 'thiet_ke_sp/includes/thumb.html' with a=a label='Ảnh mẫu' missing=False can_delete=False %}{% endfor %}</div>
         <div class="mt-3">{% include 'thiet_ke_sp/includes/evaluations.html' with evaluations=sv.evaluations.all %}</div>
         {% if sv.lines %}<h3 class="tk-sub mt-3">BOM</h3>{% include 'thiet_ke_sp/includes/bom_table.html' with lines=sv.lines %}{% endif %}
       </div>

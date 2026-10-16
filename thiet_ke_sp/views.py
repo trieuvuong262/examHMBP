@@ -586,6 +586,7 @@ def dossier_detail(request, pk):
         handover=handover,
         due_default=status_due_default,
         sla_due=sla_due,
+        test_mode=setting.test_mode,
         design_kinds=[
             (k, AttachmentKind(k).label)
             for k in (AttachmentKind.FRONT, AttachmentKind.DESIGN_SOURCE)
@@ -594,7 +595,10 @@ def dossier_detail(request, pk):
         dossier_kinds=[(k, AttachmentKind(k).label) for k in DOSSIER_KINDS],
         criteria=Criterion.choices,
         colorway_form=f.ColorwayForm() if flags['edit_design'] else None,
-        sample_form=f.SampleForm(instance=current_sv) if flags['edit_sample'] and current_sv else None,
+        sample_form=f.SampleForm(
+            instance=current_sv, dossier=dossier,
+            maker_locked=not perms.can_work_as(dossier, user, Role.OWNER),
+        ) if flags['edit_sample'] and current_sv else None,
         tech_pack_form=(
             f.TechPackForm(instance=current_sv.pack or TechnicalPack(sample_version=current_sv))
             if flags['edit_tech_pack'] and current_sv else None
@@ -750,10 +754,13 @@ def _run_action(request, dossier: ProductDevelopment, action: str) -> tuple[str,
 
     if action == 'sample_save':
         sv = get_object_or_404(SampleVersion, pk=post.get('sample_version_id'), dossier=dossier)
-        form = f.SampleForm(post, instance=SampleVersion.objects.get(pk=sv.pk))
+        form = f.SampleForm(
+            post, instance=SampleVersion.objects.get(pk=sv.pk), dossier=dossier,
+            maker_locked=not perms.can_work_as(dossier, user, Role.OWNER),
+        )
         if not form.is_valid():
             raise wf.WorkflowError(_form_error_text(form))
-        wf.save_sample(sv, user, fields={k: form.cleaned_data[k] for k in form.Meta.fields})
+        wf.save_sample(sv, user, fields={k: form.cleaned_data[k] for k in form.Meta.fields if k in form.cleaned_data})
         return 'sample', f'Đã lưu tiến độ mẫu {sv.label}.'
     if action == 'techpack_save':
         sv = get_object_or_404(SampleVersion, pk=post.get('sample_version_id'), dossier=dossier)

@@ -1,7 +1,6 @@
 {% load tksp_tags %}
 <div class="tk-size-block">
   <div class="tk-sub">Bảng thông số kích thước</div>
-  {% if editable %}<p class="tk-size-hint">Tick size cần có. Thông số không bắt buộc. Size được tick sẽ vào Thư viện.</p>{% endif %}
   {% size_spec_groups spec editable as groups %}
   {% if groups %}
   <div class="tk-size-groups">

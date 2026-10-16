@@ -1,8 +1,8 @@
 {% load tksp_tags %}
-<div class="tk-grid3">
-  <div class="tk-field"><label>Người làm mẫu</label><strong>{{ sv.maker|uname }}</strong></div>
-  <div class="tk-field"><label>Ngày giao</label><strong>{{ sv.assigned_date|date:'d/m/Y'|default:'—' }}</strong></div>
-  <div class="tk-field"><label>Ngày hoàn thành</label><strong>{{ sv.completed_date|date:'d/m/Y'|default:'—' }}</strong></div>
+<div class="tk-brief is-read is-wide">
+  <div class="tk-brief-row"><span>Người làm</span><span class="v">{{ sv.maker|uname }}</span></div>
+  <div class="tk-brief-row"><span>Ngày giao</span><span class="v">{{ sv.assigned_date|date:'d/m/Y'|default:'—' }}</span></div>
+  <div class="tk-brief-row"><span>Hoàn thành</span><span class="v">{{ sv.completed_date|date:'d/m/Y'|default:'—' }}</span></div>
+  <div class="tk-brief-row"><span>Tiến độ</span><span class="v">{{ sv.progress_note|default:'—' }}</span></div>
+  {% if sv.version_no > 1 %}<div class="tk-brief-row"><span>Thay đổi</span><span class="v">{{ sv.change_note|default:'—' }}</span></div>{% endif %}
 </div>
-<div class="tk-field"><label>Tiến độ / ghi chú</label><span class="v">{{ sv.progress_note|default:'—' }}</span></div>
-{% if sv.version_no > 1 %}<div class="tk-field"><label>Sửa so với lần trước</label><span class="v">{{ sv.change_note|default:'—' }}</span></div>{% endif %}

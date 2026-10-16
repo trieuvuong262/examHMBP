@@ -20,7 +20,7 @@
   {% for dv in current_dvs %}
   <label class="form-check"><input class="form-check-input" type="radio" name="option_id" value="{{ dv.pk }}" {% if forloop.first %}checked{% endif %}> <span class="form-check-label">{{ dv.tag }}</span></label>
   {% endfor %}
-  <p class="small text-muted mt-2 mb-2">Phương án không chọn sẽ đóng. Chỉ phương án được chọn cần đủ ảnh 2 mặt, colorway và file thiết kế gốc.</p>
+  <p class="small text-muted mt-2 mb-2">Phương án không chọn sẽ đóng.{% if not test_mode %} Chỉ phương án được chọn cần đủ ảnh 2 mặt, colorway và file thiết kế gốc.{% endif %}</p>
   {% else %}
   {% include 'thiet_ke_sp/includes/checklist_block.html' with items=checklist %}
   {% endif %}
@@ -144,7 +144,6 @@
 
 {% if flags.reopen_completion %}
 {% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalReopen' modal_action='reopen_completion' modal_title='Huỷ hoàn thành' %}
-  <p class="small mb-2">Style ẩn khỏi Thư viện ngay. SKU đã nhập và hồ sơ sản xuất (nếu đã chuyển) vẫn giữ. Mỗi người chỉ sửa phần đúng vai trò của mình trên hồ sơ này. Sau khi chỉnh xong cần gửi duyệt lại bước cuối.</p>
   <label class="form-label fw-bold small mb-1">Lý do <span class="text-danger">*</span></label>
   <textarea name="comment" class="form-control form-control-sm" rows="3" required></textarea>
 {% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Huỷ hoàn thành' submit_class='btn-secondary' %}
@@ -152,7 +151,6 @@
 
 {% if flags.resubmit_approval %}
 {% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalResubmit' modal_action='resubmit_approval' modal_title='Gửi duyệt lại bước cuối' %}
-  <p class="small mb-2">Người duyệt làm lại bước Duyệt thiết kế. Khi được duyệt, sản phẩm hiện lại trong Thư viện.</p>
   {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.sample_eval_pending %}
 {% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Gửi duyệt lại' %}
 {% endif %}

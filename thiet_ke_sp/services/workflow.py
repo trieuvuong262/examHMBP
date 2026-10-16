@@ -505,7 +505,12 @@ def _live(qs):
 
 
 def design_checklist(dv: DesignVersion | None) -> list[tuple[str, bool]]:
-    """Điều kiện của phương án được chọn trước khi chuyển kỹ thuật."""
+    """Điều kiện của phương án được chọn trước khi chuyển kỹ thuật.
+
+    Trạng thái test bật: không bắt ảnh 2 mặt, colorway có mã màu và file thiết kế gốc.
+    """
+    if sla.get_settings().test_mode:
+        return []
     if dv is None:
         return [('Có phiên bản thiết kế', False)]
     atts = _live(dv.attachments.all())
@@ -782,6 +787,11 @@ def _require_sample_editable(dossier, sv: SampleVersion, user, *roles) -> None:
 def save_sample(sv: SampleVersion, user, *, fields: dict) -> None:
     dossier = sv.dossier
     _require_sample_editable(dossier, sv, user, Role.SAMPLE_MAKER, Role.TECHNICIAN, Role.OWNER)
+    if 'maker' in fields:
+        maker_id = getattr(fields.get('maker'), 'pk', None)
+        allowed = {pk for pk in (dossier.sample_maker_id, dossier.co_sample_maker_id) if pk}
+        if not perms.can_work_as(dossier, user, Role.OWNER) or maker_id not in allowed:
+            raise WorkflowError('Chỉ người phụ trách chính được đổi người làm, trong danh sách May mẫu của hồ sơ.')
     for key, value in fields.items():
         setattr(sv, key, value)
     sv.save()
