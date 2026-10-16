@@ -135,20 +135,22 @@
           </div>
           {% if can_onboard %}
           <hr>
-          <form method="post" action="{% url 'candidate_onboard' candidate.pk %}" class="row g-2 align-items-start" novalidate
+          <form method="post" action="{% url 'candidate_onboard' candidate.pk %}" id="rcOnboardForm"
+                class="row g-2 align-items-start jp-rc-onboard{% if not onboard_form.errors %} is-locked{% endif %}" novalidate
                 onsubmit="return confirm('Tạo tài khoản nhân viên cho {{ candidate.full_name|escapejs }}?');">
             {% csrf_token %}
-            <div class="col-12 small fw-semibold text-muted">Thông tin tài khoản nhân viên — kiểm tra / bổ sung trước khi tạo</div>
+            <div class="col-12 d-flex flex-wrap justify-content-between align-items-center gap-2">
+              <div class="small fw-semibold text-muted mb-0">Thông tin tài khoản nhân viên — kiểm tra / bổ sung trước khi tạo</div>
+              <button type="button" class="btn btn-outline-hm btn-sm fw-bold" id="rcOnboardEdit"{% if onboard_form.errors %} hidden{% endif %}>
+                <i class="bi bi-pencil" aria-hidden="true"></i>Sửa
+              </button>
+            </div>
             {% include 'recruitment/includes/field.html' with field=onboard_form.email col='col-md-6' %}
             {% include 'recruitment/includes/field.html' with field=onboard_form.join_date col='col-md-6' %}
             {% include 'recruitment/includes/field.html' with field=onboard_form.gender col='col-md-6' %}
             {% include 'recruitment/includes/field.html' with field=onboard_form.date_of_birth col='col-md-6' %}
             <div class="col-12">
               <button type="submit" class="btn btn-hm btn-sm fw-bold"><i class="bi bi-person-badge"></i>Onboard — tạo nhân viên</button>
-            </div>
-            <div class="col-12 small text-muted">
-              Phòng ban {{ job.department_label }} · Nhóm quyền {{ onboarding_group.name|default:"(chưa có)" }}
-              · Khóa {{ onboarding_course.title|default:"Đào tạo hội nhập (chưa có)" }}
             </div>
           </form>
           {% endif %}
@@ -259,6 +261,46 @@
 </div>
 {% endwith %}
 {% if can_update %}{% include 'recruitment/includes/transition_modal.html' %}{% endif %}
-{% if can_onboard %}{% include 'recruitment/includes/rc_date_scripts.html' %}{% endif %}
+{% if can_onboard %}{% include 'recruitment/includes/rc_date_scripts.html' %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var form = document.getElementById('rcOnboardForm');
+  var editBtn = document.getElementById('rcOnboardEdit');
+  if (!form) return;
+
+  function setLocked(locked) {
+    form.classList.toggle('is-locked', locked);
+    form.querySelectorAll('input, select, textarea').forEach(function (el) {
+      if (el.type === 'hidden' || el.name === 'csrfmiddlewaretoken') return;
+      if (el.tagName !== 'SELECT') el.readOnly = locked;
+      el.tabIndex = locked ? -1 : 0;
+    });
+    form.querySelectorAll('input.jp-date-vn').forEach(function (el) {
+      var fp = el._flatpickr;
+      if (!fp) return;
+      fp.set('clickOpens', !locked);
+      fp.set('allowInput', !locked);
+      if (fp.altInput) {
+        fp.altInput.readOnly = locked;
+        fp.altInput.tabIndex = locked ? -1 : 0;
+      }
+    });
+  }
+
+  setLocked(form.classList.contains('is-locked'));
+  form.addEventListener('keydown', function (e) {
+    if (form.classList.contains('is-locked') && e.target && e.target.tagName === 'SELECT') e.preventDefault();
+  });
+  if (editBtn) {
+    editBtn.addEventListener('click', function () {
+      setLocked(false);
+      editBtn.hidden = true;
+      var email = form.querySelector('[name="email"]');
+      if (email) email.focus();
+    });
+  }
+});
+</script>
+{% endif %}
 {% include 'recruitment/includes/cv_viewer.html' %}
 {% endblock %}

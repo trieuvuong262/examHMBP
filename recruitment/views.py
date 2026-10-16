@@ -904,12 +904,7 @@ def _detail_context(request, candidate, *, manager_view=False, onboard_form=None
         ),
         'interview_started': bool(interview and interview.interview_time <= timezone.now()),
         'can_onboard': show_onboard,
-        'onboard_form': (onboard_form or OnboardForm(
-            candidate=candidate,
-            suggested_email='' if candidate.email else services.suggest_email(candidate.full_name),
-        )) if show_onboard else None,
-        'onboarding_course': services.onboarding_course() if candidate.status == C.STATUS_OFFERED else None,
-        'onboarding_group': services.onboarding_permission_group() if candidate.status == C.STATUS_OFFERED else None,
+        'onboard_form': (onboard_form or OnboardForm(candidate=candidate)) if show_onboard else None,
         'filled': services.filled_count(candidate.job_posting),
     }
 

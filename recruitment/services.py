@@ -902,21 +902,12 @@ def onboarding_permission_group():
     return get_probation_permission_group() or default_group_for_role(ROLE_EMPLOYEE)
 
 
-def suggest_email(full_name: str) -> str:
-    """Email công ty gợi ý theo họ tên (tên.họ@justplay.vn) — cùng quy tắc form Thêm nhân viên."""
-    from PortalJustPlay.utils import generate_hm_email, generate_hm_username
-
-    full_name = (full_name or '').strip()
-    return generate_hm_email(generate_hm_username(full_name)) if full_name else ''
-
-
 def onboard_candidate(candidate, *, actor, join_date=None, email=None, gender=None,
                       date_of_birth=None) -> OnboardResult:
     """Tạo tài khoản nhân viên. ``email`` / ``gender`` / ``date_of_birth`` (nếu truyền) ghi đè hồ sơ ứng viên."""
     from hrm.models import Profile
     from hrm.permissions import ROLE_EMPLOYEE
     from PortalJustPlay.utils import (
-        generate_hm_email,
         generate_hm_username,
         generate_secure_password,
         next_employee_code,
@@ -949,7 +940,7 @@ def onboard_candidate(candidate, *, actor, join_date=None, email=None, gender=No
         try:
             user = User.objects.create_user(
                 username=username,
-                email=candidate.email or generate_hm_email(username),
+                email=(candidate.email or '').strip(),
                 password=password,
                 first_name=candidate.full_name,
             )

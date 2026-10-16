@@ -377,10 +377,10 @@ class OnboardForm(forms.Form):
         widget=forms.DateInput(attrs={**_ctl('jp-date-vn'), 'type': 'date'}, format='%Y-%m-%d'),
     )
 
-    def __init__(self, *args, candidate=None, suggested_email='', **kwargs):
+    def __init__(self, *args, candidate=None, **kwargs):
         if candidate is not None and not kwargs.get('data') and not args:
             kwargs.setdefault('initial', {
-                'email': candidate.email or suggested_email,
+                'email': candidate.email,
                 'gender': candidate.gender,
                 'date_of_birth': candidate.date_of_birth,
             })

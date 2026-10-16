@@ -76,6 +76,18 @@
   .jp-rc-timeline-msg { white-space: pre-line; font-size: .85rem; }
   .jp-rc-dl dt { font-size: .75rem; color: #64748b; font-weight: 600; }
   .jp-rc-dl dd { margin-bottom: .6rem; }
+  .jp-rc-onboard.is-locked .form-control,
+  .jp-rc-onboard.is-locked .form-select,
+  .jp-rc-onboard.is-locked .flatpickr-input {
+    pointer-events: none;
+    background-color: #f8fafc;
+    cursor: default;
+  }
+  [data-theme="dark"] .jp-rc-onboard.is-locked .form-control,
+  [data-theme="dark"] .jp-rc-onboard.is-locked .form-select,
+  [data-theme="dark"] .jp-rc-onboard.is-locked .flatpickr-input {
+    background-color: transparent;
+  }
 
   /* Form theo khối có đánh số — cùng ngôn ngữ với form Gửi đề xuất */
   .jp-rc-card { border-radius: .75rem; }
