@@ -37,7 +37,7 @@
     </div>
     <h3 class="tk-sub mt-3">BOM nguyên phụ liệu</h3>
     <div class="table-responsive">
-      <table class="table tk-mini-table align-middle mb-2">
+      <table class="table tk-mini-table align-middle mb-2 tk-bom-edit">
         <thead><tr><th style="min-width: 240px;">Nguyên phụ liệu</th><th style="width: 100px;">Định mức</th><th style="width: 110px;">ĐVT</th><th style="width: 120px;">Đơn giá</th><th style="width: 44px;"></th></tr></thead>
         <tbody id="tkBomBody">
           {% for ln in sv.lines %}{% include 'thiet_ke_sp/includes/bom_row.html' with ln=ln %}{% empty %}{% include 'thiet_ke_sp/includes/bom_row.html' with ln=None %}{% endfor %}

@@ -1,0 +1,523 @@
+{# Mobile — toàn module Thiết kế sản phẩm #}
+<style>
+@media (max-width: 1199.98px) {
+  .jp-tksp > * { min-width: 0; max-width: 100%; }
+  .jp-tksp .tk-dash-grid > *,
+  .jp-tksp .tk-detail-layout > *,
+  .jp-tksp .tk-card,
+  .jp-tksp .tk-kanban,
+  .jp-tksp .tk-stepper,
+  .jp-tksp .table-responsive,
+  .jp-tksp .jp-npl-mat-grid-wrap,
+  .jp-tksp .overflow-auto { min-width: 0; max-width: 100%; }
+  .jp-tksp .tk-kanban,
+  .jp-tksp .tk-stepper { width: 100%; }
+  .jp-tksp .tk-toolbar.is-nowrap { flex-wrap: wrap; }
+  .jp-tksp .tk-toolbar .tk-search { min-width: 0; }
+  .jp-tksp .tk-toolbar .jp-team-filter-span { min-width: 0; }
+}
+
+@media (max-width: 991.98px) {
+  .jp-tksp .nav-pills,
+  .jp-tksp .nav.flex-wrap,
+  .jp-tksp .tk-tabs-head .jp-portal-pills {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    max-width: 100%;
+  }
+  .jp-tksp .nav-pills::-webkit-scrollbar,
+  .jp-tksp .tk-tabs-head .jp-portal-pills::-webkit-scrollbar { display: none; }
+  .jp-tksp .nav-pills .nav-item,
+  .jp-tksp .nav-pills .nav-link { flex-shrink: 0; white-space: nowrap; }
+
+  .jp-tksp .tk-detail-tools {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    width: 100%;
+    max-width: 100%;
+  }
+  .jp-tksp .tk-detail-tools::-webkit-scrollbar { display: none; }
+  .jp-tksp .tk-detail-tools .btn,
+  .jp-tksp .tk-detail-tools form { flex-shrink: 0; }
+  .jp-sx-module .jp-tksp .jp-sx-tools:has(.dropdown.show) { overflow: visible; }
+}
+
+@media (max-width: 767.98px) {
+  .jp-tksp.jp-sx-page {
+    padding-left: max(0.75rem, env(safe-area-inset-left)) !important;
+    padding-right: max(0.75rem, env(safe-area-inset-right)) !important;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
+  }
+
+  .jp-tksp .tk-panel,
+  .jp-tksp .tk-section,
+  .jp-tksp .tk-side-card,
+  .jp-tksp .tk-tab-body { padding: 0.8rem 0.75rem; }
+  .jp-tksp .tk-sheet-main { padding: 0.8rem 0.75rem 0.7rem; gap: 0.7rem; }
+  .jp-tksp .tk-sheet h1 { font-size: 1.12rem; overflow-wrap: anywhere; }
+  .jp-tksp .tk-sheet-meta { gap: 0.15rem 0.7rem; }
+
+  /* KPI: 2 cột, số nhỏ hơn */
+  .jp-tksp .tk-kpis,
+  .jp-tksp .tk-cost-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
+  .jp-tksp .tk-kpi { padding: 0.7rem 0.75rem; gap: 0.45rem; }
+  .jp-tksp .tk-kpi .num { font-size: 1.35rem; letter-spacing: -0.03em; }
+  .jp-tksp .tk-kpi .cap,
+  .jp-tksp .tk-kpi .sub { overflow-wrap: anywhere; }
+  .jp-tksp .tk-kpi .ico { width: 2rem; height: 2rem; font-size: 0.95rem; }
+  .jp-tksp .tk-costbox { padding: 0.65rem 0.7rem; }
+  .jp-tksp .tk-costbox b { font-size: 1rem; overflow-wrap: anywhere; }
+
+  .jp-tksp .tk-panel-head { flex-wrap: wrap; align-items: flex-start; }
+  .jp-tksp .tk-panel-head .tk-link { margin-left: auto; }
+  .jp-tksp .tk-panel-head .nav { width: 100%; }
+
+  .jp-tksp .tk-section-title { align-items: flex-start; }
+  .jp-tksp .tk-section-title > .ms-auto,
+  .jp-tksp .tk-callout > .ms-auto {
+    margin-left: 0 !important;
+    flex: 1 1 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .jp-tksp .tk-section-title > .ms-auto .btn,
+  .jp-tksp .tk-section-title > .ms-auto a.btn,
+  .jp-tksp .tk-callout > .ms-auto .btn {
+    flex: 1 1 100%;
+    min-height: 40px;
+    justify-content: center;
+  }
+
+  /* Bộ lọc xếp dọc, ô đủ rộng để gõ */
+  .jp-tksp .tk-toolbar,
+  .jp-tksp .tk-toolbar.is-nowrap {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+  .jp-tksp .tk-toolbar .form-control,
+  .jp-tksp .tk-toolbar .form-select,
+  .jp-tksp .tk-toolbar .tk-search,
+  .jp-tksp .tk-toolbar .jp-team-filter-span,
+  .jp-tksp .tk-toolbar .jp-team-filter-span .form-select,
+  .jp-tksp .tk-toolbar .flatpickr-input {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    flex: 1 1 auto;
+  }
+  .jp-tksp .tk-dates {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    width: 100%;
+  }
+  .jp-tksp .tk-dates .form-control,
+  .jp-tksp .tk-dates .flatpickr-input { width: 100%; min-width: 0; }
+  .jp-tksp .tk-toolbar > a.btn { align-self: flex-start; min-width: 40px; min-height: 40px; }
+  .jp-tksp .tk-toolbar .tk-count { margin-left: 0; width: 100%; }
+  .jp-tksp .tk-toolbar > .tk-chips {
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .jp-tksp .tk-chips::-webkit-scrollbar { display: none; }
+  .jp-tksp .tk-chips .btn { flex-shrink: 0; min-height: 36px; }
+
+  .jp-tksp .form-control,
+  .jp-tksp .form-select,
+  .jp-tksp .ts-control,
+  .jp-tksp .ts-control input {
+    font-size: 16px;
+  }
+  .jp-tksp .form-control:not(textarea),
+  .jp-tksp .form-select,
+  .jp-tksp .ts-control { min-height: 42px; }
+  .jp-tksp .btn-sm {
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Danh sách hồ sơ: mỗi dòng là một thẻ */
+  .jp-tksp.jp-npl-material-catalog-page .jp-npl-mat-grid-wrap { overflow: visible; }
+  .jp-tksp .tk-card.overflow-hidden {
+    overflow: visible;
+    background: transparent;
+    border: 0;
+  }
+  .jp-sx-page.jp-tksp table.jp-npl-mat-grid {
+    display: block;
+    min-width: 0 !important;
+    width: 100% !important;
+    table-layout: auto;
+    background: transparent;
+  }
+  .jp-sx-page.jp-tksp table.jp-npl-mat-grid thead { display: none; }
+  .jp-sx-page.jp-tksp table.jp-npl-mat-grid tbody { display: block; }
+  .jp-sx-page.jp-tksp table.jp-npl-mat-grid tr {
+    display: block;
+    background: var(--tk-surface);
+    border: 1px solid var(--tk-line);
+    border-radius: 14px;
+    padding: 0.7rem 0.8rem;
+    margin-bottom: 0.55rem;
+  }
+  .jp-sx-page.jp-tksp table.jp-npl-mat-grid td.npl-col {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.65rem;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    padding: 0.28rem 0 !important;
+    border: 0 !important;
+    overflow: visible !important;
+    text-overflow: unset !important;
+    white-space: normal !important;
+    text-align: right !important;
+  }
+  .jp-sx-page.jp-tksp table.jp-npl-mat-grid td.npl-col::before {
+    flex: 0 0 38%;
+    text-align: left;
+    color: var(--tk-muted);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  .jp-sx-page.jp-tksp table.jp-npl-mat-grid td[data-col="name"] {
+    display: block;
+    text-align: left !important;
+    padding-bottom: 0.35rem !important;
+  }
+  .jp-sx-page.jp-tksp table.jp-npl-mat-grid td[data-col="name"]::before { content: none; }
+  .jp-sx-page.jp-tksp table.jp-npl-mat-grid td[data-col="code"]::before { content: "Mã hồ sơ"; }
+  .jp-sx-page.jp-tksp table.jp-npl-mat-grid td[data-col="group"]::before { content: "Nhóm"; }
+  .jp-sx-page.jp-tksp table.jp-npl-mat-grid td[data-col="collection"]::before { content: "Mùa"; }
+  .jp-sx-page.jp-tksp table.jp-npl-mat-grid td[data-col="status"]::before { content: "Giai đoạn"; }
+  .jp-sx-page.jp-tksp table.jp-npl-mat-grid td[data-col="progress"]::before { content: "Tiến độ"; }
+  .jp-sx-page.jp-tksp table.jp-npl-mat-grid td[data-col="owner"]::before { content: "Phụ trách"; }
+  .jp-sx-page.jp-tksp table.jp-npl-mat-grid td[data-col="assignee"]::before { content: "Đang chờ"; }
+  .jp-sx-page.jp-tksp table.jp-npl-mat-grid td[data-col="step_due"]::before { content: "Hạn bước"; }
+  .jp-sx-page.jp-tksp table.jp-npl-mat-grid td[data-col="late"]::before { content: "Trễ"; }
+  .jp-sx-page.jp-tksp table.jp-npl-mat-grid td[data-col="launch_date"]::before { content: "Ra mắt"; }
+  .jp-sx-page.jp-tksp table.jp-npl-mat-grid td[data-col="priority"]::before { content: "Ưu tiên"; }
+  .jp-sx-page.jp-tksp table.jp-npl-mat-grid td[data-col="official_code"]::before { content: "Mã chính thức"; }
+  .jp-sx-page.jp-tksp table.jp-npl-mat-grid td[data-col="created_by"]::before { content: "Người tạo"; }
+  .jp-sx-page.jp-tksp table.jp-npl-mat-grid td[data-col="created_at"]::before { content: "Ngày tạo"; }
+  .jp-sx-page.jp-tksp table.jp-npl-mat-grid td[colspan] {
+    display: block;
+    width: auto !important;
+    text-align: center !important;
+    white-space: normal !important;
+  }
+  .jp-tksp .tk-prod strong,
+  .jp-tksp .tk-prod small,
+  .jp-tksp .tk-kan-card strong { overflow-wrap: anywhere; }
+  .jp-tksp .tk-steps { min-width: 0; max-width: 100%; }
+
+  /* Bảng nhỏ: nhãn trái, giá trị phải */
+  .jp-tksp .table-responsive:has(.tk-m-stack),
+  .jp-tksp .table-responsive:has(.tk-bom-edit),
+  .jp-tksp .table-responsive:has(.tk-crit) { overflow: visible; }
+  .jp-tksp table.tk-m-stack { display: block; min-width: 0; }
+  .jp-tksp table.tk-m-stack thead { display: none; }
+  .jp-tksp table.tk-m-stack tbody { display: block; }
+  .jp-tksp table.tk-m-stack tr {
+    display: flex;
+    flex-direction: column;
+    padding: 0.65rem 0;
+    border-bottom: 1px solid var(--tk-line);
+  }
+  .jp-tksp table.tk-m-stack td.tk-m-title { order: -1; }
+  .jp-tksp table.tk-m-stack tr:last-child { border-bottom: 0; padding-bottom: 0; }
+  .jp-tksp table.tk-m-stack td {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.65rem;
+    width: auto !important;
+    padding: 0.28rem 0 !important;
+    border: 0 !important;
+    text-align: right !important;
+    white-space: normal !important;
+  }
+  .jp-tksp table.tk-m-stack td[data-label]::before {
+    content: attr(data-label);
+    flex: 0 0 38%;
+    text-align: left;
+    color: var(--tk-muted);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  .jp-tksp table.tk-m-stack td.tk-m-title,
+  .jp-tksp table.tk-m-stack td[data-label=""] {
+    display: block;
+    text-align: left !important;
+  }
+  .jp-tksp table.tk-m-stack td.tk-m-title::before,
+  .jp-tksp table.tk-m-stack td[data-label=""]::before,
+  .jp-tksp table.tk-m-stack td[colspan]::before { content: none; }
+  .jp-tksp table.tk-m-stack td[colspan] { display: block; text-align: center !important; }
+  .jp-tksp table.tk-m-stack td.tk-m-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.35rem;
+    white-space: normal !important;
+    padding-top: 0.4rem !important;
+  }
+  .jp-tksp table.tk-m-stack td.tk-m-actions::before { content: none; }
+  .jp-tksp table.tk-m-stack td.tk-m-actions > form { display: inline-flex; margin: 0; }
+  .jp-tksp table.tk-m-stack td.tk-m-actions .btn { min-height: 36px; }
+  .jp-tksp table.tk-m-stack td .tk-meter-row { flex: 1; min-width: 0; margin: 0; }
+  .jp-tksp .tk-inline-form {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    width: 100%;
+  }
+  .jp-tksp .tk-inline-form .form-control { max-width: none !important; width: 100% !important; }
+
+  /* BOM sửa: mỗi dòng một thẻ */
+  .jp-tksp table.tk-bom-edit,
+  .jp-tksp table.tk-bom-edit tbody { display: block; min-width: 0; }
+  .jp-tksp table.tk-bom-edit thead { display: none; }
+  .jp-tksp .tk-bom-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.45rem 0.5rem;
+    border: 1px solid var(--tk-line);
+    border-radius: 12px;
+    padding: 0.65rem;
+    margin: 0 0 0.55rem;
+  }
+  .jp-tksp .tk-bom-row td {
+    display: block;
+    width: auto !important;
+    min-width: 0 !important;
+    border: 0;
+    padding: 0;
+  }
+  .jp-tksp .tk-bom-row td:first-child,
+  .jp-tksp .tk-bom-row td:nth-child(4),
+  .jp-tksp .tk-bom-row td:last-child { grid-column: 1 / -1; }
+  .jp-tksp .tk-bom-row td:nth-child(2)::before { content: "Định mức"; }
+  .jp-tksp .tk-bom-row td:nth-child(3)::before { content: "ĐVT"; }
+  .jp-tksp .tk-bom-row td:nth-child(4)::before { content: "Đơn giá"; }
+  .jp-tksp .tk-bom-row td:nth-child(2)::before,
+  .jp-tksp .tk-bom-row td:nth-child(3)::before,
+  .jp-tksp .tk-bom-row td:nth-child(4)::before {
+    display: block;
+    margin-bottom: 0.15rem;
+    color: var(--tk-muted);
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  .jp-tksp .tk-section form > .d-flex.justify-content-between {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 0.5rem;
+  }
+  .jp-tksp .tk-section form > .d-flex.justify-content-between .btn,
+  .jp-tksp .tk-section form > .text-end > .btn,
+  .jp-tksp fieldset > .d-flex.justify-content-between {
+    width: 100%;
+  }
+  .jp-tksp fieldset > .d-flex.justify-content-between {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 0.55rem;
+  }
+  .jp-tksp fieldset > .d-flex.justify-content-between .btn,
+  .jp-tksp .tk-section form > .d-flex.justify-content-between .btn,
+  .jp-tksp .tk-section form > .text-end > .btn { min-height: 42px; }
+  .jp-tksp form.text-end .btn { width: 100%; min-height: 40px; }
+
+  /* Tiêu chí đánh giá: radio có chữ, không cần 5 cột */
+  .jp-tksp table.tk-crit,
+  .jp-tksp table.tk-crit tbody { display: block; }
+  .jp-tksp table.tk-crit thead { display: none; }
+  .jp-tksp table.tk-crit tr {
+    display: block;
+    border: 1px solid var(--tk-line);
+    border-radius: 12px;
+    padding: 0.6rem 0.7rem 0.45rem;
+    margin-bottom: 0.5rem;
+  }
+  .jp-tksp table.tk-crit td {
+    display: block;
+    width: auto !important;
+    border: 0;
+    padding: 0.15rem 0;
+    text-align: left !important;
+  }
+  .jp-tksp table.tk-crit td:nth-child(n+2):nth-child(-n+4) {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    width: auto;
+    min-height: 2rem;
+    margin-right: 0.85rem;
+  }
+  .jp-tksp table.tk-crit td:nth-child(2)::after { content: "Đạt"; }
+  .jp-tksp table.tk-crit td:nth-child(3)::after { content: "Không đạt"; }
+  .jp-tksp table.tk-crit td:nth-child(4)::after { content: "Không đánh giá"; }
+  .jp-tksp table.tk-crit td:nth-child(n+2):nth-child(-n+4)::after { font-size: 0.78rem; font-weight: 700; }
+  .jp-tksp .form-check-input { width: 1.15rem; height: 1.15rem; }
+
+  /* Thanh bước, phiên bản, Kanban */
+  .jp-tksp .tk-stepper { padding: 0.75rem 0.45rem 0.6rem; scroll-snap-type: x proximity; }
+  .jp-tksp .tk-step {
+    min-width: 4.4rem;
+    font-size: 0.65rem;
+    line-height: 1.15;
+    white-space: normal;
+    padding-top: 1.55rem;
+    scroll-snap-align: center;
+  }
+  .jp-tksp .tk-version {
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: 0.55rem;
+  }
+  .jp-tksp .tk-version > .d-flex {
+    grid-column: 1 / -1;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between;
+  }
+  .jp-tksp .tk-meter-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .jp-tksp .tk-meter-row > span { grid-column: 1 / -1; }
+  .jp-tksp td > .tk-meter-row { min-width: 0; }
+  .jp-tksp .tk-ms { grid-template-columns: 52px 20px minmax(0, 1fr); }
+  .jp-tksp .tk-ms:before { left: 61px; }
+  .jp-tksp .tk-ms-content,
+  .jp-tksp .tk-ms-side { grid-column: 3; }
+  .jp-tksp .tk-ms-side { white-space: normal; }
+
+  .jp-tksp .tk-kanban {
+    grid-auto-columns: 88%;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 0.15rem;
+  }
+  .jp-tksp .tk-kan-col { scroll-snap-align: start; min-height: 120px; }
+  .jp-tksp .tk-thumb { width: calc(50% - 0.3rem); max-width: 168px; }
+  .jp-tksp .tk-color-card { width: calc(50% - 0.35rem); max-width: 180px; }
+  .jp-tksp .tk-size-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .jp-tksp .list-group-item.d-flex {
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.15rem 0.75rem;
+    align-items: start;
+  }
+  .jp-tksp .list-group-item .text-nowrap {
+    grid-column: 2;
+    white-space: normal !important;
+  }
+  .jp-tksp .page-link {
+    min-width: 2.4rem;
+    min-height: 2.4rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .jp-tksp .tk-detail-tools .btn { min-height: 40px; white-space: nowrap; }
+  .jp-tksp .jp-npl-mat-col-menu {
+    max-width: min(18rem, calc(100vw - 1.5rem));
+    max-height: 60vh;
+    overflow: auto;
+  }
+}
+
+@media (max-width: 399.98px) {
+  .jp-tksp .tk-kpis,
+  .jp-tksp .tk-cost-summary,
+  .jp-tksp .tk-dates { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Modal nằm ngoài .jp-tksp */
+@media (max-width: 767.98px) {
+  .modal-dialog,
+  .modal-dialog.modal-lg,
+  .modal-dialog.modal-xl {
+    width: calc(100% - 1rem);
+    max-width: calc(100% - 1rem);
+    margin: 0.5rem auto;
+  }
+  .modal-title { white-space: normal; line-height: 1.35; padding-right: 0.75rem; }
+  .modal .form-control:not(textarea),
+  .modal .form-select { min-height: 42px; font-size: 16px; }
+  .modal textarea.form-control { font-size: 16px; }
+  .modal-footer { flex-wrap: wrap; gap: 0.4rem; }
+  .modal-footer .btn { flex: 1 1 auto; min-height: 42px; }
+  .tk-option-thumb.is-lg { height: min(42vh, 220px); }
+  .tk-cond-edit,
+  .tk-cond-edit tbody { display: block; }
+  .tk-cond-edit thead { display: none; }
+  .tk-cond-edit tr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.4rem;
+    border: 1px solid var(--bs-border-color, #e2e8f0);
+    border-radius: 12px;
+    padding: 0.6rem;
+    margin-bottom: 0.5rem;
+  }
+  .tk-cond-edit td { display: block; border: 0; padding: 0; width: auto !important; }
+  .tk-cond-edit td:nth-child(-n+3) { grid-column: 1 / -1; }
+  .tk-cond-edit td:nth-child(1)::before { content: "Điều kiện"; }
+  .tk-cond-edit td:nth-child(2)::before { content: "Người xử lý"; }
+  .tk-cond-edit td:nth-child(3)::before { content: "Hạn"; }
+  .tk-cond-edit td:nth-child(-n+3)::before {
+    display: block;
+    margin-bottom: 0.15rem;
+    color: var(--tk-muted, #64748b);
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  #tkModalMaster [data-tk-add-row] { width: 100%; min-height: 40px; }
+  .modal .table-responsive:has(.tk-cond-edit) { overflow: visible; }
+}
+
+@media (max-width: 767.98px) and (hover: none) {
+  .jp-tksp .tk-kan-card:hover,
+  .jp-tksp .tk-lib-card:hover,
+  .jp-tksp .tk-kpi:hover { transform: none; }
+}
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  if (!window.matchMedia('(max-width: 991.98px)').matches) return;
+  function reveal(el) {
+    var scroller = el.closest('.tk-stepper, .nav, .tk-chips');
+    if (!scroller) return;
+    var box = scroller.getBoundingClientRect();
+    var item = el.getBoundingClientRect();
+    if (item.left >= box.left + 8 && item.right <= box.right - 8) return;
+    scroller.scrollLeft += item.left - box.left - (box.width - item.width) / 2;
+  }
+  document.querySelectorAll('.jp-tksp .nav-link.active, .jp-tksp .tk-step.current, .jp-tksp .tk-chips .btn-hm').forEach(reveal);
+});
+</script>

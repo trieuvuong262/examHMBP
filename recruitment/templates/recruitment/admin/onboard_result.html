@@ -16,9 +16,9 @@
     <div class="card-body">
       <div class="alert alert-warning small mb-3">Mật khẩu chỉ hiển thị một lần. Nhân viên phải đổi mật khẩu khi đăng nhập lần đầu.</div>
       <dl class="jp-rc-dl row mb-0">
-        <div class="col-sm-4"><dt>Tên đăng nhập</dt><dd class="fs-5 fw-bold" id="rcUser">{{ result.user.username }}</dd></div>
-        <div class="col-sm-4"><dt>Mật khẩu</dt><dd class="fs-5 fw-bold font-monospace" id="rcPass">{{ result.password }}</dd></div>
-        <div class="col-sm-4"><dt>Mã nhân viên</dt><dd class="fs-5 fw-bold">{{ result.employee_code }}</dd></div>
+        <div class="col-sm-6 col-lg-4"><dt>Tên đăng nhập</dt><dd class="fs-5 fw-bold user-select-all" id="rcUser">{{ result.user.username }}</dd></div>
+        <div class="col-sm-6 col-lg-4"><dt>Mật khẩu</dt><dd class="fs-5 fw-bold font-monospace user-select-all" id="rcPass">{{ result.password }}</dd></div>
+        <div class="col-sm-6 col-lg-4"><dt>Mã nhân viên</dt><dd class="fs-5 fw-bold user-select-all">{{ result.employee_code }}</dd></div>
         <div class="col-sm-4"><dt>Email</dt><dd id="rcEmail">{{ result.user.email }}</dd></div>
         <div class="col-sm-4"><dt>Giới tính</dt><dd>{{ result.user.profile.get_gender_display|default:"—" }}</dd></div>
         <div class="col-sm-4"><dt>Ngày sinh</dt><dd>{{ result.user.profile.date_of_birth|date:"d/m/Y"|default:"—" }}</dd></div>

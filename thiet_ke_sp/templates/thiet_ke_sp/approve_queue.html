@@ -18,18 +18,18 @@
       {% endif %}
     </div>
     <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0 tk-mini-table">
+      <table class="table table-hover align-middle mb-0 tk-mini-table tk-m-stack">
         <thead><tr><th>Sản phẩm</th><th>Chờ duyệt</th><th>Phụ trách</th><th>Người duyệt</th><th>Tiến độ</th><th>Hạn</th><th></th></tr></thead>
         <tbody>
         {% for d in rows %}
           <tr class="jp-npl-catalog-row" data-href="{{ d.get_absolute_url }}?tab=approval">
-            <td>{% include 'thiet_ke_sp/includes/prod_cell.html' %}</td>
-            <td><span class="tk-pill is-{{ d.status_tone }}">{{ d.get_status_display }}</span></td>
-            <td class="small">{{ d|owner_names }}</td>
-            <td class="small">{{ d.approver|uname }}</td>
-            <td>{% include 'thiet_ke_sp/includes/progress_cell.html' %}</td>
-            <td class="small">{% include 'thiet_ke_sp/includes/step_due_cell.html' %}</td>
-            <td class="text-end text-nowrap">
+            <td class="tk-m-title" data-label="">{% include 'thiet_ke_sp/includes/prod_cell.html' %}</td>
+            <td data-label="Chờ duyệt"><span class="tk-pill is-{{ d.status_tone }}">{{ d.get_status_display }}</span></td>
+            <td class="small" data-label="Phụ trách">{{ d|owner_names }}</td>
+            <td class="small" data-label="Người duyệt">{{ d.approver|uname }}</td>
+            <td data-label="Tiến độ">{% include 'thiet_ke_sp/includes/progress_cell.html' %}</td>
+            <td class="small" data-label="Hạn">{% include 'thiet_ke_sp/includes/step_due_cell.html' %}</td>
+            <td class="tk-m-actions" data-label="">
               {% if d.quick_modal_id %}<button type="button" class="btn btn-sm btn-outline-hm fw-bold py-0" data-bs-toggle="modal" data-bs-target="#{{ d.quick_modal_id }}">Duyệt nhanh</button>{% endif %}
               <a class="btn btn-sm btn-hm text-white fw-bold py-0" href="{{ d.get_absolute_url }}?tab=approval">Xem duyệt</a>
             </td>

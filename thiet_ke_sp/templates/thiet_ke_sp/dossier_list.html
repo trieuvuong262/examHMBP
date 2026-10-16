@@ -28,8 +28,10 @@
         {% for val, label in date_kind_choices %}<option value="{{ val }}" {% if filter_date_kind == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
       </select>
       {% include 'includes/date_range_span_select.html' with span_id='tk-span' span_class='tk-span' compact=True select_sm=True allow_all=True %}
-      <input type="date" name="from" class="form-control form-control-sm jp-date-vn tk-date" value="{{ date_from|date:'Y-m-d' }}" placeholder="Từ ngày" aria-label="Từ ngày">
-      <input type="date" name="to" class="form-control form-control-sm jp-date-vn tk-date" value="{{ date_to|date:'Y-m-d' }}" placeholder="Đến ngày" aria-label="Đến ngày">
+      <div class="tk-dates">
+        <input type="date" name="from" class="form-control form-control-sm jp-date-vn tk-date" value="{{ date_from|date:'Y-m-d' }}" placeholder="Từ ngày" aria-label="Từ ngày">
+        <input type="date" name="to" class="form-control form-control-sm jp-date-vn tk-date" value="{{ date_to|date:'Y-m-d' }}" placeholder="Đến ngày" aria-label="Đến ngày">
+      </div>
       {% if has_filters %}<a href="{% url 'thiet_ke_sp:list' %}" class="btn btn-light border btn-sm" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>{% endif %}
       <span class="tk-count">{{ total_count|sx_num }} hồ sơ</span>
     </div>

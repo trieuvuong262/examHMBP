@@ -35,10 +35,10 @@
   <div class="tk-card tk-panel">
     <div class="tk-panel-head"><div class="tk-panel-title text-muted"><i class="bi bi-check2-all me-1"></i>Đã hoàn thành gần đây</div></div>
     <div class="table-responsive">
-      <table class="table tk-mini-table align-middle">
+      <table class="table tk-mini-table align-middle tk-m-stack">
         <tbody>
         {% for t in recent_done %}
-          <tr class="jp-npl-catalog-row" data-href="{{ t.dossier.get_absolute_url }}"><td class="fw-semibold">{{ t.title }}</td><td>{{ t.dossier.name }} <span class="text-muted small">· {{ t.dossier.code }}</span></td><td class="text-nowrap text-muted text-end">{{ t.completed_at|date:'H:i d/m/Y' }}</td></tr>
+          <tr class="jp-npl-catalog-row" data-href="{{ t.dossier.get_absolute_url }}"><td class="tk-m-title fw-semibold" data-label="">{{ t.title }}</td><td data-label="Hồ sơ">{{ t.dossier.name }} <span class="text-muted small">· {{ t.dossier.code }}</span></td><td class="text-muted text-end" data-label="Hoàn thành">{{ t.completed_at|date:'H:i d/m/Y' }}</td></tr>
         {% endfor %}
         </tbody>
       </table>

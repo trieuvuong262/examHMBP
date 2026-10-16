@@ -14,6 +14,12 @@
   .jp-rc-cv-head-tools .btn { display: inline-flex; align-items: center; gap: .3rem; }
   .jp-rc-cv-title { min-width: 0; }
   .jp-rc-cv-title .small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  @media (max-width: 575.98px) {
+    .jp-rc-cv-panel .offcanvas-header { flex-wrap: wrap; align-items: flex-start; }
+    .jp-rc-cv-title { flex: 1 1 calc(100% - 2.5rem); }
+    .jp-rc-cv-head-tools { margin-left: auto; }
+    .jp-rc-cv-head-tools .btn { min-width: 2.25rem; min-height: 2.25rem; justify-content: center; padding-left: .45rem; padding-right: .45rem; }
+  }
 </style>
 <div class="offcanvas offcanvas-end jp-rc-cv-panel" tabindex="-1" id="rcCvPanel" aria-labelledby="rcCvTitle"
      data-bs-backdrop="false" data-bs-scroll="true">

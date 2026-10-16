@@ -9,6 +9,10 @@
         {{ candidate.full_name }}
         <span class="jp-rc-badge is-{{ candidate.status }} align-middle ms-1">{{ candidate.get_status_display }}</span>
       </h2>
+      <p class="mb-0 mt-1 d-lg-none text-break">
+        <a href="tel:{{ candidate.phone }}" class="fw-semibold text-decoration-none"><i class="bi bi-telephone" aria-hidden="true"></i> {{ candidate.phone }}</a>
+        {% if candidate.email %}<span class="text-muted"> · </span><a href="mailto:{{ candidate.email }}" class="small">{{ candidate.email }}</a>{% endif %}
+      </p>
     </div>
     <div class="jp-rc-tools">
       {% include 'recruitment/includes/cv_button.html' with f=candidate.primary_file label='Xem CV' cls='btn btn-hm btn-sm fw-bold' %}
@@ -30,8 +34,8 @@
     </div>
   </div>
 
-  <div class="row g-3">
-    <div class="col-lg-4">
+  <div class="row g-3 jp-rc-detail">
+    <div class="col-lg-4 jp-rc-detail-side">
       <div class="card border-0 shadow-sm mb-3">
         <div class="card-header bg-white fw-bold">Hồ sơ</div>
         <div class="card-body">
@@ -39,8 +43,8 @@
             <dt>Giới tính</dt><dd>{{ candidate.get_gender_display|default:"—" }}</dd>
             <dt>Ngày sinh</dt><dd>{{ candidate.date_of_birth|date:"d/m/Y"|default:"—" }}</dd>
             <dt>Ngày nhận việc</dt><dd>{{ candidate.join_date|date:"d/m/Y"|default:"—" }}</dd>
-            <dt>Số điện thoại</dt><dd>{{ candidate.phone }}</dd>
-            <dt>Email</dt><dd>{{ candidate.email|default:"—" }}</dd>
+            <dt>Số điện thoại</dt><dd><a href="tel:{{ candidate.phone }}">{{ candidate.phone }}</a></dd>
+            <dt>Email</dt><dd>{% if candidate.email %}<a href="mailto:{{ candidate.email }}">{{ candidate.email }}</a>{% else %}—{% endif %}</dd>
             <dt>Ghi chú</dt><dd style="white-space: pre-line;">{{ candidate.note|default:"—" }}</dd>
             <dt>Nguồn hồ sơ</dt>
             <dd>
@@ -116,7 +120,7 @@
       {% endif %}
     </div>
 
-    <div class="col-lg-8">
+    <div class="col-lg-8 jp-rc-detail-main">
       {% if can_update and targets or can_onboard %}
       <div class="card border-0 shadow-sm mb-3" id="onboard">
         <div class="card-header bg-white fw-bold">Bước tiếp theo</div>

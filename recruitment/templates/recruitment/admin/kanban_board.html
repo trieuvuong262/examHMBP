@@ -20,7 +20,22 @@
   }
   .jp-rc-drop-hint { position: sticky; left: 0; }
   @media (max-width: 767.98px) {
-    .jp-rc-board .jp-rc-col, .jp-rc-board .jp-rc-col.is-closed-col { flex: 0 0 80vw; }
+    .jp-rc-board {
+      scroll-snap-type: x mandatory;
+      scroll-padding-inline: .2rem;
+    }
+    .jp-rc-board .jp-rc-col,
+    .jp-rc-board .jp-rc-col.is-closed-col {
+      flex: 0 0 84vw;
+      max-width: 84vw;
+      scroll-snap-align: start;
+      max-height: min(68dvh, 34rem);
+    }
+    .jp-rc-board .jp-rc-col-body {
+      overflow-y: auto;
+      min-height: 0;
+      -webkit-overflow-scrolling: touch;
+    }
   }
 </style>
 {% endblock %}
@@ -58,6 +73,8 @@
       </form>
     </div>
   </div>
+
+  <p class="d-md-none small text-muted mb-2"><i class="bi bi-arrow-left-right" aria-hidden="true"></i> Vuốt ngang để xem các bước{% if can_move %}. Nhấn giữ thẻ để chuyển bước{% endif %}.</p>
 
   <div class="alert alert-warning py-2 small d-none jp-rc-drop-hint" id="rcDropHint" role="status"></div>
 

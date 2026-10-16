@@ -35,15 +35,15 @@
         <div><div class="tk-panel-title">Tỷ lệ mẫu lần đầu đạt theo nhóm</div><div class="tk-panel-sub">Toàn bộ: {% if data.first_pass_rate is not None %}{{ data.first_pass_rate|sx_num }}%{% else %}—{% endif %} · {{ data.first_pass_base|sx_num }} hồ sơ có mẫu chuẩn</div></div>
       </div>
       <div class="table-responsive">
-        <table class="table tk-mini-table align-middle">
+        <table class="table tk-mini-table align-middle tk-m-stack">
           <thead><tr><th>Nhóm</th><th class="text-end">Số hồ sơ</th><th class="text-end">Đạt lần đầu</th><th class="text-end">Số vòng mẫu TB</th></tr></thead>
           <tbody>
           {% for r in data.first_pass_by_group %}
             <tr>
-              <td class="fw-semibold">{{ r.label }}</td>
-              <td class="text-end">{{ r.total|sx_num }}</td>
-              <td class="text-end"><b class="{% if r.rate >= 70 %}tk-ok{% elif r.rate < 50 %}tk-bad{% endif %}">{{ r.rate|sx_num }}%</b></td>
-              <td class="text-end">{{ r.avg_rounds|sx_num }}</td>
+              <td class="tk-m-title fw-semibold" data-label="">{{ r.label }}</td>
+              <td class="text-end" data-label="Số hồ sơ">{{ r.total|sx_num }}</td>
+              <td class="text-end" data-label="Đạt lần đầu"><b class="{% if r.rate >= 70 %}tk-ok{% elif r.rate < 50 %}tk-bad{% endif %}">{{ r.rate|sx_num }}%</b></td>
+              <td class="text-end" data-label="Vòng mẫu TB">{{ r.avg_rounds|sx_num }}</td>
             </tr>
           {% empty %}
             <tr><td colspan="4" class="text-muted small">Chưa có hồ sơ có mẫu chuẩn.</td></tr>
@@ -66,12 +66,12 @@
     <div class="col-xl-4">
       <div class="tk-card tk-panel h-100">
         <div class="tk-panel-head"><div class="tk-panel-title">Hồ sơ theo trạng thái</div></div>
-        <table class="table tk-mini-table align-middle">
+        <table class="table tk-mini-table align-middle tk-m-stack">
           <tbody>
           {% for r in data.status_rows %}
             <tr class="jp-npl-catalog-row" data-href="{% url 'thiet_ke_sp:list' %}?status={{ r.value }}{% if filter_group %}&group={{ filter_group }}{% endif %}{% if filter_collection %}&collection={{ filter_collection|urlencode }}{% endif %}">
-              <td><span class="tk-pill is-{{ r.tone }}">{{ r.label }}</span></td>
-              <td class="text-end fw-bold">{{ r.count|sx_num }}</td>
+              <td class="tk-m-title" data-label=""><span class="tk-pill is-{{ r.tone }}">{{ r.label }}</span></td>
+              <td class="text-end fw-bold" data-label="Số hồ sơ">{{ r.count|sx_num }}</td>
             </tr>
           {% empty %}<tr><td class="text-muted small">Chưa có hồ sơ.</td></tr>{% endfor %}
           </tbody>
@@ -101,12 +101,12 @@
           <div class="tk-panel-title">Chênh lệch giá thành</div>
           {% if data.avg_cost_variance_pct is not None %}<span class="tk-pill is-gray">TB {{ data.avg_cost_variance_pct|sx_num }}%</span>{% endif %}
         </div>
-        <table class="table tk-mini-table align-middle">
+        <table class="table tk-mini-table align-middle tk-m-stack">
           <tbody>
           {% for d in data.variance_rows %}
             <tr class="jp-npl-catalog-row" data-href="{{ d.get_absolute_url }}?tab=costing">
-              <td><b>{{ d.name|truncatechars:30 }}</b><div class="small text-muted">{{ d.code }}</div></td>
-              <td class="text-end {% if d.cost_variance > 0 %}tk-bad{% else %}tk-ok{% endif %}">{% if d.cost_variance > 0 %}+{% endif %}{{ d.cost_variance_pct|sx_num }}%</td>
+              <td class="tk-m-title" data-label=""><b>{{ d.name|truncatechars:30 }}</b><div class="small text-muted">{{ d.code }}</div></td>
+              <td class="text-end {% if d.cost_variance > 0 %}tk-bad{% else %}tk-ok{% endif %}" data-label="Chênh lệch">{% if d.cost_variance > 0 %}+{% endif %}{{ d.cost_variance_pct|sx_num }}%</td>
             </tr>
           {% empty %}<tr><td class="text-muted small">Chưa có hồ sơ có giá thành.</td></tr>{% endfor %}
           </tbody>
@@ -121,17 +121,17 @@
       {% if data.overdue_count > data.overdue_tasks|length %}<span class="tk-panel-sub">{{ data.overdue_tasks|length }} / {{ data.overdue_count }} việc trễ lâu nhất</span>{% endif %}
     </div>
     <div class="table-responsive">
-      <table class="table table-hover tk-mini-table align-middle">
+      <table class="table table-hover tk-mini-table align-middle tk-m-stack">
         <thead><tr><th>Hồ sơ</th><th>Công việc</th><th>Người giữ việc</th><th>Hạn</th><th class="text-end">Trễ</th><th>Nguyên nhân chậm</th></tr></thead>
         <tbody>
         {% for t in data.overdue_tasks %}
           <tr class="jp-npl-catalog-row" data-href="{{ t.dossier.get_absolute_url }}">
-            <td><b>{{ t.dossier.name|truncatechars:34 }}</b><div class="small text-muted">{{ t.dossier.code }}</div></td>
-            <td class="small">{{ t.title }}</td>
-            <td class="small">{{ t.assignee|uname }}</td>
-            <td class="small text-nowrap">{{ t.due_at|due_short }}</td>
-            <td class="text-end"><span class="tk-late">{{ t.days_late }} ngày</span></td>
-            <td class="small">{% if t.delay_reason %}{{ t.delay_reason }}{% else %}<span class="tk-miss">Chưa ghi</span>{% endif %}</td>
+            <td class="tk-m-title" data-label=""><b>{{ t.dossier.name|truncatechars:34 }}</b><div class="small text-muted">{{ t.dossier.code }}</div></td>
+            <td class="small" data-label="Công việc">{{ t.title }}</td>
+            <td class="small" data-label="Người giữ việc">{{ t.assignee|uname }}</td>
+            <td class="small" data-label="Hạn">{{ t.due_at|due_short }}</td>
+            <td class="text-end" data-label="Trễ"><span class="tk-late">{{ t.days_late }} ngày</span></td>
+            <td class="small" data-label="Nguyên nhân chậm">{% if t.delay_reason %}{{ t.delay_reason }}{% else %}<span class="tk-miss">Chưa ghi</span>{% endif %}</td>
           </tr>
         {% empty %}
           <tr><td colspan="6" class="text-muted small">Không có việc trễ.</td></tr>

@@ -1,18 +1,18 @@
 {% load tksp_tags %}
 <div class="table-responsive">
-  <table class="table table-hover align-middle mb-0 tk-mini-table">
+  <table class="table table-hover align-middle mb-0 tk-mini-table tk-m-stack">
     <thead><tr><th>Sản phẩm</th><th>Nhóm</th><th>Giai đoạn</th><th>Phụ trách</th><th>Tiến độ</th><th>Hạn bước</th><th>Ra mắt</th>{% if row_tab %}<th></th>{% endif %}</tr></thead>
     <tbody>
     {% for d in rows %}
       <tr class="jp-npl-catalog-row" data-href="{{ d.get_absolute_url }}{% if row_tab %}?tab={{ row_tab }}{% endif %}">
-        <td>{% include 'thiet_ke_sp/includes/prod_cell.html' %}</td>
-        <td class="small">{{ d.get_product_group_display }}</td>
-        <td><span class="tk-stage is-{{ d.status_tone }}">{{ d.get_status_display }}</span></td>
-        <td class="small">{{ d|owner_names }}</td>
-        <td>{% include 'thiet_ke_sp/includes/progress_cell.html' %}</td>
-        <td class="small">{% include 'thiet_ke_sp/includes/step_due_cell.html' %}</td>
-        <td class="small">{{ d.launch_date|date:'d/m/Y'|default:'—' }}</td>
-        {% if row_tab %}<td class="text-end"><a class="tk-link" href="{{ d.get_absolute_url }}?tab={{ row_tab }}">Xem <i class="bi bi-arrow-right"></i></a></td>{% endif %}
+        <td class="tk-m-title" data-label="">{% include 'thiet_ke_sp/includes/prod_cell.html' %}</td>
+        <td class="small" data-label="Nhóm">{{ d.get_product_group_display }}</td>
+        <td data-label="Giai đoạn"><span class="tk-stage is-{{ d.status_tone }}">{{ d.get_status_display }}</span></td>
+        <td class="small" data-label="Phụ trách">{{ d|owner_names }}</td>
+        <td data-label="Tiến độ">{% include 'thiet_ke_sp/includes/progress_cell.html' %}</td>
+        <td class="small" data-label="Hạn bước">{% include 'thiet_ke_sp/includes/step_due_cell.html' %}</td>
+        <td class="small" data-label="Ra mắt">{{ d.launch_date|date:'d/m/Y'|default:'—' }}</td>
+        {% if row_tab %}<td class="tk-m-actions" data-label=""><a class="tk-link" href="{{ d.get_absolute_url }}?tab={{ row_tab }}">Xem <i class="bi bi-arrow-right"></i></a></td>{% endif %}
       </tr>
     {% empty %}
       <tr><td colspan="8" class="text-muted text-center small py-4">Không có hồ sơ.</td></tr>

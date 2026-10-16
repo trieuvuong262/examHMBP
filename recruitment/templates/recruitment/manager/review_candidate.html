@@ -10,6 +10,10 @@
         {{ candidate.full_name }}
         <span class="jp-rc-badge is-{{ candidate.status }} align-middle ms-1">{{ candidate.get_status_display }}</span>
       </h2>
+      <div class="jp-rc-sub mt-1 d-xl-none">
+        <a href="tel:{{ candidate.phone }}">{{ candidate.phone }}</a>
+        · {{ job.title }}
+      </div>
     </div>
     <div class="jp-rc-tools">
       {% if skip_candidate and review_form or skip_candidate and can_final %}
@@ -138,7 +142,7 @@
               </fieldset>
               <fieldset class="mb-3">
                 <legend class="form-label fw-semibold small mb-1">Điểm hồ sơ</legend>
-                <div class="d-flex align-items-center gap-2">
+                <div class="d-flex align-items-center flex-wrap gap-2">
                   <div class="jp-rc-stars">
                     {% for i in "54321" %}
                     <input type="radio" name="rating" id="rcStar{{ i }}" value="{{ i }}"{% if review_form.rating.value|stringformat:"s" == i %} checked{% endif %}>

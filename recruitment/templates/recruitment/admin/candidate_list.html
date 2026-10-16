@@ -40,7 +40,7 @@
           <input type="date" name="to" id="clTo" class="form-control jp-date-vn" data-autosubmit
                  value="{{ filters.date_to|date:'Y-m-d' }}">
         </div>
-        <div class="col-6 col-md-2">
+        <div class="col-12 col-md-2">
           <label class="form-label small fw-bold text-muted mb-1" for="clSort">Sắp xếp</label>
           <select name="sort" id="clSort" class="form-select" onchange="this.form.submit()">
             {% for key, label in sort_options %}
@@ -58,12 +58,12 @@
     </div>
   </div>
 
-  <div class="card border-0 shadow-sm overflow-hidden">
+  <div class="card border-0 shadow-sm overflow-hidden jp-rc-list-card">
     <div class="card-header bg-white">
       <span class="fw-bold">{{ page_obj.paginator.count }} ứng viên</span>
     </div>
     <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0 jp-rc-table">
+      <table class="table table-hover align-middle mb-0 jp-rc-table jp-table-stack">
         <thead class="table-light">
           <tr class="small text-muted">
             <th class="ps-3">Ứng viên</th>
@@ -79,12 +79,12 @@
           {% for cand in candidates %}
           {% with job=cand.job_posting step=cand.next_step inv=cand.interview_or_none %}
           <tr class="{% if step.tone == 'action' or step.tone == 'alert' %}is-need{% endif %}">
-            <td class="ps-3">
+            <td class="ps-3 jp-td-primary">
               <div class="jp-rc-person">
                 <span class="jp-rc-avatar" aria-hidden="true">{{ cand.full_name|slice:":1"|upper }}</span>
                 <div class="min-w-0">
                   <a href="{% url 'candidate_detail' cand.pk %}" class="jp-rc-person-name">{{ cand.full_name }}</a>
-                  <div class="jp-rc-sub">{{ cand.phone }}{% if cand.email %} · {{ cand.email }}{% endif %}</div>
+                  <div class="jp-rc-sub"><a href="tel:{{ cand.phone }}">{{ cand.phone }}</a>{% if cand.email %} · {{ cand.email }}{% endif %}</div>
                   <div class="jp-rc-sub">
                     {% if cand.referred_by %}<i class="bi bi-person-check" aria-hidden="true"></i> {{ cand.referred_by.profile.full_name|default:cand.referred_by.username }}
                     {% else %}{{ cand.source_label }}{% endif %}
@@ -92,11 +92,11 @@
                 </div>
               </div>
             </td>
-            <td>
+            <td class="jp-td-block" data-label="Vị trí">
               <div class="fw-semibold small">{{ job.title }}</div>
               <div class="jp-rc-sub">{{ job.department_label }}</div>
             </td>
-            <td>
+            <td class="jp-td-block" data-label="Tiến trình">
               <ol class="jp-rc-steps" aria-label="Tiến trình tuyển dụng">
                 {% for s in cand.progress %}
                 <li class="is-{{ s.state }}" title="{{ s.label }}"><span class="dot"></span><span class="visually-hidden">{{ s.label }}</span></li>
@@ -105,14 +105,14 @@
               <span class="jp-rc-badge is-{{ cand.status }}">{{ cand.get_status_display }}</span>
               {% if inv and inv.result != 'pending' %}<span class="jp-rc-badge is-{{ inv.result }}">PV {{ inv.get_result_display|lower }}</span>{% endif %}
             </td>
-            <td class="text-nowrap small">{{ cand.join_date|date:"d/m/Y"|default:"—" }}</td>
-            <td class="text-nowrap small">{{ cand.applied_at|date:"d/m/Y" }}</td>
-            <td>
+            <td class="small" data-label="Ngày nhận việc">{{ cand.join_date|date:"d/m/Y"|default:"—" }}</td>
+            <td class="small" data-label="Ngày nộp">{{ cand.applied_at|date:"d/m/Y" }}</td>
+            <td class="jp-td-block" data-label="Bước tiếp theo">
               <div class="jp-rc-next is-{{ step.tone }}">
                 <div class="jp-rc-next-label">{{ step.label }}</div>
               </div>
             </td>
-            <td class="text-end pe-3">
+            <td class="text-end pe-3 jp-td-actions">
               <div class="jp-rc-row-actions">
                 {% if step.action == 'move' and can_move %}
                 <button type="button" class="btn btn-hm btn-sm fw-bold" data-rc-transition
@@ -140,7 +140,7 @@
           </tr>
           {% endwith %}
           {% empty %}
-          <tr><td colspan="7">
+          <tr><td colspan="7" class="jp-td-empty">
             <div class="jp-rc-empty">
               {% if filters.status == 'can-xu-ly' %}
               <i class="bi bi-check2-circle" aria-hidden="true"></i>

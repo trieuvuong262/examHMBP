@@ -63,15 +63,15 @@
       <div><div class="tk-panel-title">Đề xuất · duyệt sản xuất · hủy theo tháng</div><div class="tk-panel-sub">{{ data.monthly|length }} tháng gần nhất</div></div>
     </div>
     <div class="table-responsive">
-      <table class="table tk-mini-table align-middle">
+      <table class="table tk-mini-table align-middle tk-m-stack">
         <thead><tr><th>Tháng</th><th>Đề xuất</th><th>Duyệt sản xuất</th><th>Hủy</th></tr></thead>
         <tbody>
         {% for m in data.monthly %}
           <tr>
-            <td class="fw-semibold text-nowrap">{{ m.label }}</td>
-            <td><div class="tk-meter-row my-0"><div class="tk-meter"><i style="width: {{ m.w_proposed }}%"></i></div><b class="text-end">{{ m.proposed|sx_num }}</b></div></td>
-            <td><div class="tk-meter-row my-0"><div class="tk-meter is-green"><i style="width: {{ m.w_approved }}%"></i></div><b class="text-end">{{ m.approved|sx_num }}</b></div></td>
-            <td><div class="tk-meter-row my-0"><div class="tk-meter is-gray"><i style="width: {{ m.w_cancelled }}%"></i></div><b class="text-end">{{ m.cancelled|sx_num }}</b></div></td>
+            <td class="tk-m-title fw-semibold" data-label="">{{ m.label }}</td>
+            <td data-label="Đề xuất"><div class="tk-meter-row my-0"><div class="tk-meter"><i style="width: {{ m.w_proposed }}%"></i></div><b class="text-end">{{ m.proposed|sx_num }}</b></div></td>
+            <td data-label="Duyệt sản xuất"><div class="tk-meter-row my-0"><div class="tk-meter is-green"><i style="width: {{ m.w_approved }}%"></i></div><b class="text-end">{{ m.approved|sx_num }}</b></div></td>
+            <td data-label="Hủy"><div class="tk-meter-row my-0"><div class="tk-meter is-gray"><i style="width: {{ m.w_cancelled }}%"></i></div><b class="text-end">{{ m.cancelled|sx_num }}</b></div></td>
           </tr>
         {% endfor %}
         </tbody>

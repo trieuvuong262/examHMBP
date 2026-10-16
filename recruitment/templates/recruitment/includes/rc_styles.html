@@ -34,7 +34,10 @@
   a.jp-rc-stat { text-decoration: none; display: block; }
   a.jp-rc-stat:hover { border-color: #94a3b8; }
 
-  .jp-rc-board { display: flex; gap: .65rem; overflow-x: auto; padding-bottom: .75rem; align-items: flex-start; }
+  .jp-rc-board {
+    display: flex; gap: .65rem; overflow-x: auto; padding-bottom: .75rem; align-items: flex-start;
+    overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch;
+  }
   .jp-rc-col {
     flex: 0 0 15rem; max-width: 15rem; background: #f8fafc;
     border: 1px solid #e8edf3; border-radius: .75rem; display: flex; flex-direction: column; min-height: 14rem;
@@ -75,7 +78,7 @@
   }
   .jp-rc-timeline-msg { white-space: pre-line; font-size: .85rem; }
   .jp-rc-dl dt { font-size: .75rem; color: #64748b; font-weight: 600; }
-  .jp-rc-dl dd { margin-bottom: .6rem; }
+  .jp-rc-dl dd { margin-bottom: .6rem; overflow-wrap: anywhere; }
 
   /* Form theo khối có đánh số — cùng ngôn ngữ với form Gửi đề xuất */
   .jp-rc-card { border-radius: .75rem; }
@@ -113,10 +116,10 @@
   .jp-rc-flow-label { font-weight: 600; font-size: .9rem; }
   .jp-rc-flow-note { font-size: .78rem; color: #64748b; }
 
-  .jp-rc-kv { display: flex; justify-content: space-between; gap: .75rem; padding: .45rem 0; border-bottom: 1px dashed #e2e8f0; font-size: .88rem; }
+  .jp-rc-kv { display: flex; justify-content: space-between; align-items: baseline; gap: .35rem .75rem; padding: .45rem 0; border-bottom: 1px dashed #e2e8f0; font-size: .88rem; }
   .jp-rc-kv:last-child { border-bottom: 0; }
-  .jp-rc-kv-label { color: #64748b; }
-  .jp-rc-kv-value { font-weight: 600; text-align: right; }
+  .jp-rc-kv-label { color: #64748b; flex: 0 0 auto; }
+  .jp-rc-kv-value { font-weight: 600; text-align: right; min-width: 0; overflow-wrap: anywhere; }
   .jp-rc-progress { height: .45rem; border-radius: 999px; background: #eef2f7; overflow: hidden; }
   .jp-rc-progress > span { display: block; height: 100%; background: #059669; border-radius: 999px; }
 
@@ -139,8 +142,9 @@
   .jp-rc-empty { text-align: center; padding: 2.5rem 1rem; color: #64748b; }
   .jp-rc-empty i { font-size: 2rem; color: #cbd5e1; display: block; margin-bottom: .5rem; }
   @media (max-width: 575.98px) {
-    .jp-rc-row { flex-wrap: wrap; }
-    .jp-rc-row-side { width: 100%; justify-content: flex-start; padding-left: 3.25rem; }
+    .jp-rc-row { flex-wrap: wrap; align-items: flex-start; gap: .65rem; padding: .75rem .85rem; }
+    .jp-rc-row-side { width: 100%; justify-content: flex-start; padding-left: 0; }
+    .jp-rc-row-side .btn { min-height: 2.25rem; }
   }
 
   /* Kết quả phỏng vấn — 2 lựa chọn dạng thẻ */
@@ -161,7 +165,10 @@
   .btn-check:checked + .jp-rc-result-opt.is-fail i { color: #dc2626; }
 
   /* Danh sách ứng viên — chip trạng thái */
-  .jp-rc-chips { display: flex; gap: .4rem; overflow-x: auto; padding-bottom: .15rem; scrollbar-width: thin; }
+  .jp-rc-chips {
+    display: flex; gap: .4rem; overflow-x: auto; padding-bottom: .15rem; scrollbar-width: thin;
+    overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch;
+  }
   .jp-rc-chip {
     display: inline-flex; align-items: center; gap: .4rem; flex: 0 0 auto;
     padding: .35rem .75rem; border-radius: 999px; border: 1px solid #e2e8f0; background: #fff;
@@ -288,4 +295,180 @@
   [data-theme="dark"] .jp-rc-kv { border-color: #334155; }
   [data-theme="dark"] .jp-rc-progress { background: #334155; }
   [data-theme="dark"] .jp-rc-avatar { background: rgba(220, 38, 38, .18); }
+
+  /* --- Mobile --- */
+  @media (max-width: 991.98px) {
+    .jp-rc-aside { position: static; }
+    .jp-rc-detail-main { order: 1; }
+    .jp-rc-detail-side { order: 2; }
+  }
+
+  @media (max-width: 1199.98px) {
+    .jp-rc-embed { height: 52vh; min-height: 16rem; max-height: 26rem; }
+  }
+
+  @media (max-width: 767.98px) {
+    .jp-page-header.align-items-end { align-items: stretch !important; }
+
+    .jp-rc-tools { width: 100%; }
+    .jp-rc-tools > .btn,
+    .jp-rc-tools > a,
+    .jp-rc-tools > form { flex: 1 1 9.5rem; }
+    .jp-rc-tools > form { display: flex !important; }
+    .jp-rc-tools > form .btn { flex: 1; width: 100%; }
+    .jp-rc-tools .btn,
+    .jp-rc-actions .btn,
+    .jp-rc-row-side .btn,
+    .modal-footer .btn { min-height: 2.5rem; }
+
+    .jp-rc-actions { width: 100%; }
+    .jp-rc-actions > .btn,
+    .jp-rc-actions > a.btn { flex: 1 1 8.5rem; }
+    .jp-rc-actions > .btn-link,
+    .jp-rc-actions > button.btn-link {
+      flex: 1 1 100%;
+      margin-left: 0 !important;
+      justify-content: center;
+    }
+
+    .jp-rc-stat { padding: .65rem .7rem; }
+    .jp-rc-stat-value { font-size: 1.35rem; }
+    .jp-rc-stat-label { line-height: 1.3; }
+
+    .jp-rc-chips { scrollbar-width: none; scroll-snap-type: x proximity; }
+    .jp-rc-chips::-webkit-scrollbar { display: none; }
+    .jp-rc-chip { scroll-snap-align: start; min-height: 2.25rem; }
+
+    ul.jp-portal-pills {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: .15rem;
+    }
+    ul.jp-portal-pills::-webkit-scrollbar { display: none; }
+    ul.jp-portal-pills > .nav-item { flex: 0 0 auto; }
+    ul.jp-portal-pills .nav-link { white-space: nowrap; }
+
+    .jp-rc-list-card.overflow-hidden,
+    .jp-rc-list-card > .table-responsive { overflow: visible !important; }
+    .jp-rc-list-card {
+      background: transparent !important;
+      box-shadow: none !important;
+    }
+    .jp-rc-list-card > .card-header,
+    .jp-rc-list-card > .card-footer {
+      background: transparent !important;
+      border: 0;
+      padding-left: .15rem;
+      padding-right: .15rem;
+    }
+    .jp-rc-list-card .jp-table-stack,
+    .jp-rc-list-card .jp-table-stack tbody {
+      display: block;
+      width: 100%;
+      min-width: 0;
+    }
+    .jp-rc-list-card .jp-table-stack tbody tr {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      max-width: 100%;
+    }
+    .jp-rc-list-card .jp-table-stack tbody td { min-width: 0; max-width: 100%; }
+    .jp-rc-sort { display: none !important; }
+    .jp-table-stack tbody td.jp-td-actions:not(:has(a, button)) { display: none; }
+    .jp-rc-list-card .jp-table-stack tbody { padding: .15rem; }
+    .jp-table-stack tbody td.jp-td-primary {
+      display: block;
+      text-align: left !important;
+      padding-bottom: .55rem;
+      margin-bottom: .15rem;
+      border-bottom: 1px dashed #e2e8f0;
+    }
+    .jp-table-stack tbody td.jp-td-primary::before { display: none; }
+    .jp-table-stack tbody td.jp-td-block {
+      display: block;
+      text-align: left !important;
+    }
+    .jp-table-stack tbody td.jp-td-block::before {
+      display: block;
+      max-width: none;
+      margin-bottom: .2rem;
+    }
+    .jp-table-stack tbody td.jp-td-empty {
+      display: block;
+      text-align: center !important;
+      justify-content: center;
+    }
+    .jp-table-stack tbody td.jp-td-empty::before { display: none; }
+    .jp-table-stack tbody td.jp-td-actions {
+      justify-content: flex-start;
+      flex-wrap: wrap;
+      gap: .35rem;
+      white-space: normal !important;
+    }
+    .jp-table-stack tbody td.jp-td-actions > form,
+    .jp-table-stack tbody td.jp-td-actions .jp-rc-row-actions > form { display: inline-flex !important; }
+    .jp-table-stack tbody td.jp-td-actions .jp-rc-row-actions {
+      display: flex;
+      flex-wrap: wrap;
+      width: 100%;
+      justify-content: flex-start;
+    }
+    .jp-table-stack tbody td.jp-td-actions .btn.fw-bold { flex: 1 1 auto; }
+
+    .jp-rc-person,
+    .jp-rc-next,
+    .jp-rc-quota { min-width: 0; max-width: none; width: 100%; }
+    .jp-rc-sub,
+    .jp-rc-person-name,
+    .jp-rc-card-name,
+    .jp-rc-card-meta { overflow-wrap: anywhere; }
+
+    .jp-rc-kv { flex-direction: column; align-items: flex-start; gap: .1rem; }
+    .jp-rc-kv-value { text-align: left; }
+
+    .jp-rc-embed { height: 46vh; min-height: 14rem; max-height: 22rem; }
+    .jp-rc-viewer-card > .card-header > .btn { flex-shrink: 0; }
+    .jp-rc-file-tabs { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+    .jp-rc-file-tabs::-webkit-scrollbar { display: none; }
+    .jp-rc-file-tab { flex: 0 0 auto; }
+    #rcEmbedName { flex: 1 1 100%; }
+    .jp-rc-stars label { font-size: 1.85rem; padding: .1rem .15rem; }
+
+    .list-group-item > .btn,
+    .list-group-item > a.btn,
+    .list-group-item > form,
+    .list-group-item > .d-inline-flex { flex-shrink: 0; }
+    .list-group-item.d-flex.justify-content-between {
+      flex-wrap: wrap;
+      align-items: flex-start !important;
+    }
+    .list-group-item .text-nowrap { white-space: normal !important; }
+
+    .jp-rc-salary .input-group { flex-wrap: nowrap; }
+    .jp-rc-field .form-control,
+    .jp-rc-field .form-select,
+    .jp-rc-field .input-group { max-width: 100%; }
+    input[type="date"],
+    input[type="datetime-local"],
+    input[type="time"] { min-width: 0; max-width: 100%; }
+
+    .modal-dialog {
+      margin: .75rem auto;
+      max-width: calc(100% - 1.5rem);
+    }
+    .modal-content { max-height: calc(100dvh - 1.5rem); }
+    .modal-body { overflow-y: auto; min-height: 0; }
+    .modal-footer { flex-wrap: wrap; gap: .5rem; }
+    .modal-footer > .btn { flex: 1 1 auto; margin: 0; }
+
+    .jp-rc-result-opt { padding: .65rem .7rem; }
+    .jp-rc-result-opt small,
+    .jp-rc-result-opt strong { overflow-wrap: anywhere; }
+  }
+
+  [data-theme="dark"] .jp-table-stack tbody td.jp-td-primary { border-bottom-color: #334155; }
 </style>

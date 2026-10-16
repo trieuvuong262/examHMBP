@@ -42,7 +42,7 @@
 
   <div class="row g-3">
     {% if can_create %}
-    <div class="col-lg-4 order-lg-2">
+    <div class="col-lg-4 order-2 order-lg-2">
       <div class="card border-0 shadow-sm jp-rc-card">
         <div class="card-body">
           <div class="jp-rc-section-title"><i class="bi bi-plus-circle" aria-hidden="true"></i> Thêm {{ spec.singular }}</div>
@@ -72,10 +72,10 @@
     </div>
     {% endif %}
 
-    <div class="{% if can_create %}col-lg-8 order-lg-1{% else %}col-12{% endif %}">
-      <div class="card border-0 shadow-sm overflow-hidden">
+    <div class="{% if can_create %}col-lg-8 order-1 order-lg-1{% else %}col-12{% endif %}">
+      <div class="card border-0 shadow-sm overflow-hidden jp-rc-list-card">
         <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
+          <table class="table table-hover align-middle mb-0 jp-rc-table jp-table-stack">
             <thead class="table-light">
               <tr class="small text-muted">
                 <th class="ps-3" style="width: 3.5rem;">TT</th>
@@ -88,21 +88,22 @@
             <tbody>
               {% for item in items %}
               <tr class="{% if not item.is_active %}text-muted{% endif %}">
-                <td class="ps-3 small">{{ item.sort_order }}</td>
-                <td>
+                <td class="ps-3 small jp-rc-sort" data-label="Thứ tự">{{ item.sort_order }}</td>
+                <td class="jp-td-primary">
                   <div class="fw-semibold">
                     {{ item.name }}
                     {% if item.is_system %}<span class="jp-rc-badge is-draft ms-1" title="Mục hệ thống — không xóa / ngừng dùng được"><i class="bi bi-lock-fill" aria-hidden="true"></i> Hệ thống</span>{% endif %}
                     {% if item.is_cv %}<span class="jp-rc-badge is-interviewing ms-1">Là CV</span>{% endif %}
                   </div>
+                  <div class="jp-rc-sub d-md-none">Thứ tự {{ item.sort_order }}</div>
                   {% if item.note %}<div class="small text-muted">{{ item.note }}</div>{% endif %}
                 </td>
-                <td class="text-center small">{% if item.usage %}{{ item.usage }} {% if tab == 'dia-diem' %}buổi PV{% elif tab == 'loai-ho-so' %}file{% else %}hồ sơ{% endif %}{% else %}<span class="text-muted">—</span>{% endif %}</td>
-                <td class="text-center">
+                <td class="text-center small" data-label="Đã dùng">{% if item.usage %}{{ item.usage }} {% if tab == 'dia-diem' %}buổi PV{% elif tab == 'loai-ho-so' %}file{% else %}hồ sơ{% endif %}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                <td class="text-center" data-label="Trạng thái">
                   {% if item.is_active %}<span class="jp-rc-badge is-open">Đang dùng</span>
                   {% else %}<span class="jp-rc-badge is-closed">Ngừng dùng</span>{% endif %}
                 </td>
-                <td class="text-end pe-3 text-nowrap">
+                <td class="text-end pe-3 jp-td-actions">
                   {% if can_update %}
                   <button type="button" class="btn btn-light btn-sm border" title="Sửa" aria-label="Sửa {{ item.name }}"
                           data-rc-opt-edit data-url="{% url 'recruitment_settings_edit' tab item.pk %}"
@@ -134,7 +135,7 @@
                 </td>
               </tr>
               {% empty %}
-              <tr><td colspan="5">
+              <tr><td colspan="5" class="jp-td-empty">
                 <div class="jp-rc-empty">
                   <i class="bi {{ spec.icon }}" aria-hidden="true"></i>
                   <div class="fw-semibold">Chưa có {{ spec.singular }} nào</div>
