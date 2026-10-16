@@ -448,7 +448,10 @@ class DesignVersionForm(forms.ModelForm):
     class Meta:
         model = DesignVersion
         fields = ['style_description', 'pattern_description', 'logo_placement', 'materials', 'highlights', 'change_note']
-        widgets = {f: _textarea(2) for f in fields}
+        widgets = {
+            f: forms.Textarea(attrs={'class': 'form-control form-control-sm', 'rows': 1})
+            for f in fields
+        }
 
 
 class ColorwayForm(forms.Form):

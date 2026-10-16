@@ -30,7 +30,6 @@ from . import presenters
 from .services.official_code import official_code_suggestion
 from .list_grid import LIST_KEY
 from .models import (
-    DESIGN_KINDS,
     DONE_STATUSES,
     DOSSIER_KINDS,
     FINAL_STATUSES,
@@ -587,7 +586,10 @@ def dossier_detail(request, pk):
         handover=handover,
         due_default=status_due_default,
         sla_due=sla_due,
-        design_kinds=[(k, AttachmentKind(k).label) for k in DESIGN_KINDS if k != AttachmentKind.COLORWAY],
+        design_kinds=[
+            (k, AttachmentKind(k).label)
+            for k in (AttachmentKind.FRONT, AttachmentKind.DESIGN_SOURCE)
+        ],
         sample_kinds=[(k, AttachmentKind(k).label) for k in SAMPLE_KINDS if k != AttachmentKind.EVALUATION],
         dossier_kinds=[(k, AttachmentKind(k).label) for k in DOSSIER_KINDS],
         criteria=Criterion.choices,
@@ -932,6 +934,9 @@ def attachment_upload(request, pk):
         cw = get_object_or_404(Colorway, pk=post['colorway_id'], design_version__dossier=dossier)
     files = request.FILES.getlist('files')
     tab = post.get('return_tab') or 'files'
+    if dv is not None and kind in (AttachmentKind.DETAIL, AttachmentKind.DESIGN_PREVIEW):
+        messages.error(request, 'Bản vẽ chỉ nhận Ảnh 2 mặt và File thiết kế gốc.')
+        return _redirect_tab(dossier, tab)
     if not files:
         messages.error(request, 'Chọn tệp cần tải lên.')
         return _redirect_tab(dossier, tab)

@@ -59,7 +59,7 @@
     <div id="tkDv{{ dv.pk }}" class="collapse">
       <div class="tk-card p-3">
         {% include 'thiet_ke_sp/includes/design_kv.html' with dv=dv %}
-        <div class="tk-thumbs mt-3">{% for a in dv.live_atts %}{% if a.is_current and a.kind != 'back' %}{% include 'thiet_ke_sp/includes/thumb.html' with a=a label='' missing=False can_delete=False %}{% endif %}{% endfor %}</div>
+        <div class="tk-thumbs mt-3">{% for a in dv.live_atts %}{% if a.is_current and a.kind == 'front' or a.is_current and a.kind == 'design_source' %}{% include 'thiet_ke_sp/includes/thumb.html' with a=a label='' missing=False can_delete=False %}{% endif %}{% endfor %}</div>
         {% if dv.colorway_rows %}
         <div class="tk-colorways mt-3">
           {% for cw, images in dv.colorway_rows %}
