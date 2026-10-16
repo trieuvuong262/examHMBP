@@ -63,7 +63,7 @@
         {% if dv.colorway_rows %}
         <div class="tk-colorways mt-3">
           {% for cw, images in dv.colorway_rows %}
-          <div class="tk-color-card">{% with img=images|first %}{% if img %}<button type="button" class="tk-swatch d-block tk-thumb-zoom" data-sx-gallery data-sx-gallery-image="{{ img.get_absolute_url }}" data-sx-gallery-title="{{ cw.name }}"><img src="{{ img.get_absolute_url }}" alt="" loading="lazy"></button>{% else %}<div class="tk-swatch" style="background: {{ cw.color_codes|cw_swatch }}"></div>{% endif %}{% endwith %}<div class="cap"><b>{{ cw.name }}</b><span>{{ cw.color_codes }}</span></div></div>
+          <div class="tk-color-card"><div class="tk-swatch" style="background: {{ cw.color_codes|cw_swatch }}"></div><div class="cap"><b>{{ cw.name }}</b><span>{{ cw.color_codes }}</span></div></div>
           {% endfor %}
         </div>
         {% endif %}

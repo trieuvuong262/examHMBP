@@ -1,0 +1,16 @@
+<div class="tk-req">
+  <div class="tk-req-head">Yêu cầu</div>
+  {% if editable %}
+  <label class="tk-req-row" for="{{ form.cutting_req.id_for_label }}"><span>Cắt</span>{{ form.cutting_req }}</label>
+  <label class="tk-req-row" for="{{ form.sewing_req.id_for_label }}"><span>May</span>{{ form.sewing_req }}</label>
+  <label class="tk-req-row" for="{{ form.decoration_req.id_for_label }}"><span>In / ép / thêu</span>{{ form.decoration_req }}</label>
+  <label class="tk-req-row" for="{{ form.finishing_req.id_for_label }}"><span>Hoàn thiện</span>{{ form.finishing_req }}</label>
+  <label class="tk-req-row" for="{{ form.packing_req.id_for_label }}"><span>Đóng gói</span>{{ form.packing_req }}</label>
+  {% else %}
+  <div class="tk-req-row"><span>Cắt</span><span class="v">{{ pack.cutting_req|default:'—' }}</span></div>
+  <div class="tk-req-row"><span>May</span><span class="v">{{ pack.sewing_req|default:'—' }}</span></div>
+  <div class="tk-req-row"><span>In / ép / thêu</span><span class="v">{{ pack.decoration_req|default:'—' }}</span></div>
+  <div class="tk-req-row"><span>Hoàn thiện</span><span class="v">{{ pack.finishing_req|default:'—' }}</span></div>
+  <div class="tk-req-row"><span>Đóng gói</span><span class="v">{{ pack.packing_req|default:'—' }}</span></div>
+  {% endif %}
+</div>

@@ -1,18 +1,60 @@
 {% load tksp_tags %}
 <div class="tk-size-block">
   <div class="tk-sub">Bảng thông số kích thước</div>
-  <p class="tk-size-hint">Size có nội dung sẽ là size của sản phẩm khi thêm vào Thư viện.</p>
-  <div class="tk-size-grid">
-    {% size_spec_cells spec as cells %}
-    {% for cell in cells %}
-    <div class="tk-size-cell">
-      <label for="id_size_{{ cell.code }}">{{ cell.code }}</label>
+  {% if editable %}<p class="tk-size-hint">Tick size cần có. Thông số không bắt buộc. Size được tick sẽ vào Thư viện.</p>{% endif %}
+  {% size_spec_groups spec editable as groups %}
+  {% if groups %}
+  <div class="tk-size-groups">
+    {% for group in groups %}
+    <section class="tk-size-panel">
+      <div class="tk-size-panel-head">{{ group.label }}</div>
       {% if editable %}
-      <input id="id_size_{{ cell.code }}" type="text" name="size_note_{{ cell.code }}" class="form-control form-control-sm" value="{{ cell.note }}" maxlength="255">
+      <div class="tk-size-picks">
+        {% for cell in group.cells %}
+        <label class="tk-size-pick">
+          <input type="checkbox" name="size_on_{{ cell.code }}"{% if cell.on %} checked{% endif %}>
+          <span>{{ cell.code }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      <div class="tk-size-notes">
+        {% for cell in group.cells %}
+        <div class="tk-size-row" data-size="{{ cell.code }}"{% if not cell.on %} hidden{% endif %}>
+          <span>{{ cell.code }}</span>
+          <input id="id_size_{{ cell.code }}" type="text" name="size_note_{{ cell.code }}" class="form-control form-control-sm" value="{{ cell.note }}" maxlength="255" placeholder="Thông số" aria-label="Thông số size {{ cell.code }}">
+        </div>
+        {% endfor %}
+      </div>
       {% else %}
-      <span class="v">{{ cell.note|default:'—' }}</span>
+      <div class="tk-size-notes is-read">
+        {% for cell in group.cells %}
+        <div class="tk-size-row">
+          <span>{{ cell.code }}</span>
+          <b>{{ cell.note|default:'—' }}</b>
+        </div>
+        {% endfor %}
+      </div>
       {% endif %}
-    </div>
+    </section>
     {% endfor %}
   </div>
+  {% else %}
+  <p class="small text-muted mb-0">Chưa chọn size.</p>
+  {% endif %}
 </div>
+{% if editable %}
+<script>
+(function () {
+  document.querySelectorAll('.tk-size-panel').forEach(function (panel) {
+    function sync() {
+      panel.querySelectorAll('.tk-size-pick input').forEach(function (box) {
+        var row = panel.querySelector('.tk-size-row[data-size="' + box.name.slice(8) + '"]');
+        if (row) row.hidden = !box.checked;
+      });
+    }
+    panel.addEventListener('change', sync);
+    sync();
+  });
+})();
+</script>
+{% endif %}

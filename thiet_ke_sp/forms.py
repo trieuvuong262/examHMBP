@@ -478,11 +478,11 @@ class TechPackForm(forms.ModelForm):
         widgets = {
             'pattern_note': _textarea(3),
             'size_spec': _textarea(4),
-            'cutting_req': _textarea(2),
-            'sewing_req': _textarea(2),
-            'decoration_req': _textarea(2),
-            'finishing_req': _textarea(2),
-            'packing_req': _textarea(2),
+            'cutting_req': _textarea(1),
+            'sewing_req': _textarea(1),
+            'decoration_req': _textarea(1),
+            'finishing_req': _textarea(1),
+            'packing_req': _textarea(1),
         }
 
 

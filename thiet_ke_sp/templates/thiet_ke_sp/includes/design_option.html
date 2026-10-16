@@ -64,28 +64,11 @@
   <div class="tk-section-title"><i class="bi bi-droplet-half"></i>Colorway <span class="tk-section-sub">{{ dv.colorway_rows|length }} phối màu</span></div>
   <div class="tk-colorways mb-3">
     {% for cw, images in dv.colorway_rows %}
-    <div class="tk-color-card{% if not images %} is-missing{% endif %}">
-      {% with img=images|first %}
-      {% if img %}
-      <button type="button" class="tk-swatch d-block tk-thumb-zoom" data-sx-gallery data-sx-gallery-image="{{ img.get_absolute_url }}" data-sx-gallery-title="{{ cw.name }}"><img src="{{ img.get_absolute_url }}" alt="{{ cw.name }}" loading="lazy"></button>
-      {% else %}
+    <div class="tk-color-card">
       <div class="tk-swatch" style="background: {{ cw.color_codes|cw_swatch }}"></div>
-      {% endif %}
-      {% endwith %}
-      <div class="cap"><b>{{ cw.name }}</b><span>{{ cw.color_codes }}</span>{% if cw.note %}<div class="text-muted">{{ cw.note }}</div>{% endif %}{% if not images %}<div class="tk-bad">Chưa có ảnh</div>{% elif images|length > 1 %}<div class="text-muted">{{ images|length }} ảnh</div>{% endif %}</div>
+      <div class="cap"><b>{{ cw.name }}</b><span>{{ cw.color_codes }}</span>{% if cw.note %}<div class="text-muted">{{ cw.note }}</div>{% endif %}</div>
       {% if dv.can_edit %}
       <div class="tools">
-        <form method="post" action="{% url 'thiet_ke_sp:upload' dossier.pk %}" enctype="multipart/form-data" class="m-0">{% csrf_token %}
-          <input type="hidden" name="design_version_id" value="{{ dv.pk }}"><input type="hidden" name="colorway_id" value="{{ cw.pk }}">
-          <input type="hidden" name="kind" value="colorway"><input type="hidden" name="return_tab" value="design">
-          <label class="btn btn-sm btn-light border py-0 px-2 mb-0" title="Tải ảnh"><i class="bi bi-upload"></i><input type="file" name="files" accept="image/*" class="d-none" onchange="this.form.requestSubmit()"></label>
-        </form>
-        {% for a in images %}
-        <form method="post" action="{% url 'thiet_ke_sp:attachment_delete' a.pk %}" class="m-0" data-tk-confirm="Xóa ảnh {{ a.display_name }}?">{% csrf_token %}
-          <input type="hidden" name="return_tab" value="design">
-          <button type="submit" class="btn btn-sm btn-light border py-0 px-2" title="Xóa ảnh {{ forloop.counter }}"><i class="bi bi-image"></i><i class="bi bi-x"></i></button>
-        </form>
-        {% endfor %}
         <form method="post" action="{% url 'thiet_ke_sp:action' dossier.pk 'colorway_delete' %}" class="m-0 ms-auto" data-tk-confirm="Xóa colorway {{ cw.name }}?">{% csrf_token %}
           <input type="hidden" name="colorway_id" value="{{ cw.pk }}"><input type="hidden" name="return_tab" value="design">
           <button type="submit" class="btn btn-sm btn-light border py-0 px-2" title="Xóa colorway"><i class="bi bi-trash"></i></button>
@@ -98,12 +81,11 @@
     {% endfor %}
   </div>
   {% if dv.can_edit %}
-  <form method="post" action="{% url 'thiet_ke_sp:action' dossier.pk 'colorway_add' %}" enctype="multipart/form-data" class="row g-2 align-items-end">{% csrf_token %}
+  <form method="post" action="{% url 'thiet_ke_sp:action' dossier.pk 'colorway_add' %}" class="row g-2 align-items-end">{% csrf_token %}
     <input type="hidden" name="design_version_id" value="{{ dv.pk }}"><input type="hidden" name="return_tab" value="design">
-    <div class="col-md-3"><label class="form-label fw-bold small mb-1">Tên phối màu</label><input type="text" name="name" class="form-control form-control-sm" maxlength="120" required></div>
+    <div class="col-md-4"><label class="form-label fw-bold small mb-1">Tên phối màu</label><input type="text" name="name" class="form-control form-control-sm" maxlength="120" required></div>
     <div class="col-md-3"><label class="form-label fw-bold small mb-1">Mã màu</label><input type="text" name="color_codes" class="form-control form-control-sm" maxlength="255" placeholder="#111111 / #dc2626" required></div>
-    <div class="col-md-2"><label class="form-label fw-bold small mb-1">Ghi chú</label><input type="text" name="note" class="form-control form-control-sm" maxlength="255"></div>
-    <div class="col-md-2"><label class="form-label fw-bold small mb-1">Ảnh</label><input type="file" name="colorway_file" class="form-control form-control-sm" accept="image/*"></div>
+    <div class="col-md-3"><label class="form-label fw-bold small mb-1">Ghi chú</label><input type="text" name="note" class="form-control form-control-sm" maxlength="255"></div>
     <div class="col-md-2"><button type="submit" class="btn btn-sm btn-hm text-white w-100 fw-bold"><i class="bi bi-plus-lg me-1"></i>Thêm</button></div>
   </form>
   {% endif %}

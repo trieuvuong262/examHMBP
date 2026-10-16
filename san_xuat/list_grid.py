@@ -831,6 +831,31 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
         {'routing_id': 'routing_id', 'style_code': 'style_code', 'routing_rev': 'routing_rev'},
         default_sort='style_code',
     ),
+    'sales_order': _spec(
+        _cols(
+            _col('code', 'Số đơn', required=True, weight=110),
+            _col('products', 'Sản phẩm', weight=180, sortable=False),
+            _col('customer', 'Khách hàng', weight=130),
+            _col('placed_date', 'Ngày lên đơn', weight=110),
+            _col('request_date', 'Ngày dự kiến thực hiện', weight=130),
+            _col('due_date', 'Ngày dự kiến hoàn thành', weight=140),
+            _col('line_count', 'Dòng', weight=70, align='end', sortable=False),
+            _col('qty', 'SL', weight=80, align='end', sortable=False),
+            _col('confirm', 'Xác nhận', weight=120),
+            actions=False,
+        ),
+        {
+            'code': 'code',
+            'customer': 'customer_name',
+            'placed_date': 'created_at',
+            'request_date': 'request_date',
+            'due_date': 'due_date',
+            'confirm': 'confirm_status',
+            'created_by': 'created_by__username',
+            'created_at': 'created_at',
+        },
+        default_sort='placed_date',
+    ),
 }
 
 

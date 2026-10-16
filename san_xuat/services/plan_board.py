@@ -2433,6 +2433,18 @@ def build_plan_board_rows(
     return rows
 
 
+def sort_plan_rows_by_placed_date(rows: list) -> list:
+    """Ngày lên đơn mới nhất trước — cùng thứ tự danh sách đơn hàng."""
+    def _key(row):
+        created = getattr(getattr(row, 'order', None), 'created_at', None)
+        stamp = created.timestamp() if created is not None else float('-inf')
+        pk = int(getattr(getattr(row, 'order', None), 'pk', 0) or 0)
+        return (stamp, pk)
+
+    rows.sort(key=_key, reverse=True)
+    return rows
+
+
 def _fill_stage_progress(rows: list[PlanBoardRow]) -> None:
     from san_xuat.services.handover_status import stage_progress_by_order
 

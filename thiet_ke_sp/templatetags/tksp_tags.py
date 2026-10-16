@@ -94,10 +94,10 @@ def days_late(value):
 
 
 @register.simple_tag
-def size_spec_cells(text):
-    from thiet_ke_sp.services.size_spec import size_cells
+def size_spec_groups(text, editable=False):
+    from thiet_ke_sp.services.size_spec import size_groups
 
-    return size_cells(text or '')
+    return size_groups(text or '', selected_only=not editable)
 
 
 @register.filter

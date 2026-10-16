@@ -473,6 +473,7 @@ def dossier_detail(request, pk):
         pack = getattr(sv, 'tech_pack', None)
         sv.pack = pack
         sv.lines = list(pack.material_lines.all()) if pack else []
+        sv.design = next((dv for dv in design_versions if dv.pk == sv.design_version_id), None)
         for ev in sv.evaluations.all():
             ev.can_fix = can_close_fix and ev.needs_fix and (
                 ev.fix_owner_id == user.pk or perms.has_full_dossier_access(user))
@@ -714,16 +715,24 @@ def _run_action(request, dossier: ProductDevelopment, action: str) -> tuple[str,
         form = f.ColorwayForm(post)
         if not form.is_valid():
             raise wf.WorkflowError(_form_error_text(form))
-        cw = wf.add_colorway(dv, user, **form.cleaned_data)
-        upload = request.FILES.get('colorway_file')
-        if upload:
-            wf.upload_attachment(dossier, user, uploaded_file=upload, kind=AttachmentKind.COLORWAY,
-                                 design_version=dv, colorway=cw, tab='design')
-        return 'design', f'Đã thêm colorway «{cw.name}».'
+        wf.add_colorway(dv, user, **form.cleaned_data)
+        return 'design', f'Đã thêm colorway «{form.cleaned_data["name"]}».'
     if action == 'colorway_delete':
         cw = get_object_or_404(Colorway, pk=post.get('colorway_id'), design_version__dossier=dossier)
         wf.delete_colorway(cw, user)
         return 'design', 'Đã xóa colorway.'
+    if action == 'tech_colorway_add':
+        sv = get_object_or_404(SampleVersion, pk=post.get('sample_version_id'), dossier=dossier)
+        form = f.ColorwayForm(post)
+        if not form.is_valid():
+            raise wf.WorkflowError(_form_error_text(form))
+        cw = wf.add_technical_colorway(sv, user, **form.cleaned_data)
+        return 'technical', f'Đã thêm màu «{cw.name}».'
+    if action == 'tech_colorway_delete':
+        sv = get_object_or_404(SampleVersion, pk=post.get('sample_version_id'), dossier=dossier)
+        cw = get_object_or_404(Colorway, pk=post.get('colorway_id'), design_version__dossier=dossier)
+        wf.delete_technical_colorway(sv, cw, user)
+        return 'technical', 'Đã xóa màu.'
     if action == 'design_option_add':
         source = None
         if (post.get('copy_from') or '').isdigit():

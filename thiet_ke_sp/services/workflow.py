@@ -466,10 +466,37 @@ def add_colorway(dv: DesignVersion, user, *, name: str, color_codes: str, note: 
 def delete_colorway(cw: Colorway, user) -> None:
     dv = cw.design_version
     _require_design_editable(dv.dossier, dv, user)
+    _delete_colorway(cw, user, 'khỏi ' + dv.label)
+
+
+def add_technical_colorway(sv: SampleVersion, user, *, name: str, color_codes: str, note: str = '') -> Colorway:
+    """Thêm màu ở bước kỹ thuật vào phương án thiết kế của mẫu."""
+    dossier = sv.dossier
+    _require_tech_editable(dossier, sv, user)
+    dv = sv.design_version
+    _require(dv is not None, 'Mẫu chưa gắn phương án thiết kế.')
+    order = dv.colorways.count() + 1
+    cw = Colorway.objects.create(
+        design_version=dv, name=_require_text(name, 'tên phối màu'),
+        color_codes=_require_text(color_codes, 'mã màu'), note=note, sort_order=order,
+    )
+    log(dossier, user, 'colorway_added', f'{_name(user)} thêm màu «{cw.name}» ở bước kỹ thuật.')
+    return cw
+
+
+def delete_technical_colorway(sv: SampleVersion, cw: Colorway, user) -> None:
+    dossier = sv.dossier
+    _require_tech_editable(dossier, sv, user)
+    _require(cw.design_version_id == sv.design_version_id, 'Màu không thuộc thiết kế của mẫu này.')
+    _delete_colorway(cw, user, 'ở bước kỹ thuật')
+
+
+def _delete_colorway(cw: Colorway, user, where: str) -> None:
+    dv = cw.design_version
     Attachment.objects.filter(colorway=cw, is_deleted=False).update(
         is_deleted=True, deleted_by=user, deleted_at=timezone.now(),
     )
-    log(dv.dossier, user, 'colorway_deleted', f'{_name(user)} xóa colorway «{cw.name}» khỏi {dv.label}.')
+    log(dv.dossier, user, 'colorway_deleted', f'{_name(user)} xóa màu «{cw.name}» {where}.')
     cw.delete()
 
 
@@ -484,11 +511,9 @@ def design_checklist(dv: DesignVersion | None) -> list[tuple[str, bool]]:
     atts = _live(dv.attachments.all())
     kinds = set(atts.values_list('kind', flat=True))
     colorways = list(dv.colorways.all())
-    with_image = set(atts.filter(kind=AttachmentKind.COLORWAY).values_list('colorway_id', flat=True))
     return [
         ('Ảnh 2 mặt', AttachmentKind.FRONT in kinds),
         ('Ít nhất một colorway có mã màu', bool(colorways) and all(c.color_codes.strip() for c in colorways)),
-        ('Mỗi colorway có ảnh', bool(colorways) and all(c.pk in with_image for c in colorways)),
         ('File thiết kế gốc', AttachmentKind.DESIGN_SOURCE in kinds),
     ]
 
@@ -1212,14 +1237,14 @@ def _colorway_code(name: str) -> str:
 
 
 def _library_sizes(dossier: ProductDevelopment) -> list[str]:
-    """Size đã nhập ở bảng thông số của mẫu cuối — đó là size đưa vào Thư viện."""
+    """Size đã tick ở bảng thông số của mẫu cuối — đó là size đưa vào Thư viện."""
     sv = dossier.final_sample_version or dossier.current_sample_version()
     pack = getattr(sv, 'tech_pack', None) if sv is not None else None
     return filled_sizes(getattr(pack, 'size_spec', '') or '')
 
 
 def seed_library_color_skus(dossier: ProductDevelopment, style, user) -> int:
-    """Tạo SKU theo màu thiết kế. Size lấy từ ô thông số đã nhập; chưa nhập thì để trống."""
+    """Tạo SKU theo màu thiết kế. Size lấy từ size đã tick; chưa tick thì để trống."""
     from kho_san_pham.choices import (
         PRODUCT_TYPE_THANH_PHAM,
         SYNC_SOURCE_MANUAL,
@@ -1689,6 +1714,19 @@ def _upload_allowed(dossier, user, kind: str, design_version, sample_version) ->
     if not perms.can_act(dossier, user):
         return 'Bạn không có quyền cập nhật hồ sơ.'
     if design_version is not None:
+        if kind == AttachmentKind.COLORWAY:
+            sv = dossier.current_sample_version()
+            tech_open = (
+                sv is not None
+                and sv.design_version_id == design_version.pk
+                and sv.is_editable
+                and (dossier.status in TECH_EDIT_STATUSES or _approved_sample_editable(dossier, sv))
+            )
+            if tech_open:
+                return (
+                    '' if perms.has_role(dossier, user, Role.TECHNICIAN, Role.OWNER)
+                    else 'Chỉ Kỹ thuật / Tài liệu kỹ thuật hoặc người phụ trách được cập nhật màu.'
+                )
         if _approved_design_editable(dossier, design_version):
             return '' if perms.has_role(dossier, user, Role.DESIGNER, Role.OWNER) else 'Chỉ Thiết kế / R&D tải tệp thiết kế.'
         if not design_version.is_editable or dossier.status not in (

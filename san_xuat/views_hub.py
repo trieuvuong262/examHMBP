@@ -497,9 +497,15 @@ def sales_order_list(request):
     from san_xuat.hub_models import SxSalesOrder
     from san_xuat.services.products import product_gallery_map
 
+    from san_xuat.list_grid import apply_sx_list_sort, sx_list_grid_context
+
     q = (request.GET.get('q') or '').strip()
     confirm = (request.GET.get('confirm') or '').strip()
-    qs = SxSalesOrder.objects.filter(is_demo=False).prefetch_related('lines')
+    qs = (
+        SxSalesOrder.objects.filter(is_demo=False)
+        .select_related('created_by')
+        .prefetch_related('lines')
+    )
     if q:
         from django.db.models import Q
 
@@ -516,7 +522,7 @@ def sales_order_list(request):
     }:
         qs = qs.filter(confirm_status=confirm)
 
-    orders = list(qs.order_by('-request_date', '-id')[:300])
+    orders = list(apply_sx_list_sort(qs, request, 'sales_order')[:300])
     product_codes = [
         ln.product_code
         for o in orders
@@ -550,6 +556,7 @@ def sales_order_list(request):
 
     return render(request, 'san_xuat/sales_order_list.html', {
         **_perm_ctx(request),
+        **sx_list_grid_context(request, 'sales_order'),
         'rows': rows,
         'search_query': q,
         'confirm_filter': confirm,
@@ -1391,6 +1398,7 @@ def plan_board(request):
         build_route_stats,
         set_plan_priority,
         set_plan_color,
+        sort_plan_rows_by_placed_date,
         reorder_plan_orders,
         unhold_plan_order,
         unrelease_order_from_production,
@@ -2293,7 +2301,7 @@ def plan_board(request):
                 date_mode='range',
                 persist_side_effects=False,
             )
-            queue_rows = _apply_board_filters(queue_rows)
+            queue_rows = sort_plan_rows_by_placed_date(_apply_board_filters(queue_rows))
         route_board = None
         route_stats = None
     elif tab == 'team':
@@ -2385,14 +2393,14 @@ def plan_board(request):
             parse_sx_date((request.GET.get('route_to') or '').strip()) if route_dates_chosen else None,
             timezone.localdate(),
         )
-        route_rows = build_plan_board_rows(
+        route_rows = sort_plan_rows_by_placed_date(build_plan_board_rows(
             include_released=True,
             search=q,
             date_from=route_from,
             date_to=route_to,
             date_mode='range',
             persist_side_effects=False,
-        )
+        ))
         route_board = build_order_timeline(
             route_rows,
             range_from=route_from,

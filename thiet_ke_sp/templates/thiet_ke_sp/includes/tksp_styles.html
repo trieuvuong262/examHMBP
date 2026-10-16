@@ -288,10 +288,28 @@ body > .ts-dropdown {
 .jp-tksp .tk-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.5rem; }
 .jp-tksp .tk-grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 1.25rem; }
 .jp-tksp .tk-sub { font-size: .82rem; font-weight: 850; margin: 0 0 .4rem; }
-.jp-tksp .tk-size-hint { margin: 0 0 .55rem; font-size: .75rem; color: var(--tk-muted); }
-.jp-tksp .tk-size-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: .55rem; }
-.jp-tksp .tk-size-cell label { display: block; margin: 0 0 .2rem; font-size: .72rem; font-weight: 800; letter-spacing: .03em; }
-.jp-tksp .tk-size-cell .v { display: block; min-height: 31px; padding: .3rem .45rem; border: 1px solid var(--tk-line); border-radius: 6px; background: var(--tk-surface-2); font-size: .8rem; white-space: pre-line; }
+.jp-tksp .tk-size-hint { margin: 0 0 .65rem; font-size: .75rem; color: var(--tk-muted); }
+.jp-tksp .tk-size-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.jp-tksp .tk-size-panel { border: 1px solid var(--tk-line); border-radius: 12px; background: var(--tk-surface); padding: .75rem .8rem .8rem; min-width: 0; }
+.jp-tksp .tk-size-panel-head { margin: 0 0 .55rem; font-size: .68rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--tk-muted); }
+.jp-tksp .tk-size-picks { display: flex; flex-wrap: wrap; gap: .4rem; }
+.jp-tksp .tk-size-pick { position: relative; margin: 0; }
+.jp-tksp .tk-size-pick input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.jp-tksp .tk-size-pick span { display: inline-flex; align-items: center; justify-content: center; min-width: 2.35rem; height: 2rem; padding: 0 .5rem; border: 1px solid var(--tk-line); border-radius: 8px; background: var(--tk-surface-2); font-size: .78rem; font-weight: 800; cursor: pointer; }
+.jp-tksp .tk-size-pick input:checked + span { border-color: var(--hm-primary); background: var(--hm-primary-soft); color: var(--hm-primary); }
+.jp-tksp .tk-size-pick input:focus-visible + span { outline: 2px solid var(--hm-primary); outline-offset: 2px; }
+.jp-tksp .tk-size-notes { display: grid; gap: .4rem; margin-top: .7rem; }
+.jp-tksp .tk-size-notes:not(:has(.tk-size-row:not([hidden]))) { display: none; }
+.jp-tksp .tk-size-row { display: grid; grid-template-columns: 2.6rem minmax(0, 1fr); gap: .45rem; align-items: center; }
+.jp-tksp .tk-size-row > span { font-size: .78rem; font-weight: 800; }
+.jp-tksp .tk-size-notes.is-read .tk-size-row > b { font-size: .8rem; font-weight: 650; }
+.jp-tksp .tk-req { border: 1px solid var(--tk-line); border-radius: 12px; background: var(--tk-surface); padding: .7rem .8rem .75rem; }
+.jp-tksp .tk-req-head { margin: 0 0 .45rem; font-size: .68rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--tk-muted); }
+.jp-tksp .tk-req-row { display: grid; grid-template-columns: 7.2rem minmax(0, 1fr); gap: .4rem; align-items: center; margin: 0; }
+.jp-tksp .tk-req-row + .tk-req-row { margin-top: .3rem; }
+.jp-tksp .tk-req-row > span:first-child { font-size: .75rem; font-weight: 800; }
+.jp-tksp .tk-req-row textarea { min-height: 2rem; height: 2rem; padding: .25rem .55rem; font-size: .8rem; resize: vertical; }
+.jp-tksp .tk-req-row .v { display: block; min-height: 2rem; padding: .3rem .55rem; border-radius: 8px; background: var(--tk-surface-2); font-size: .8rem; font-weight: 650; white-space: pre-line; }
 .jp-tksp .tk-field { border-bottom: 1px dashed var(--tk-line); padding: .5rem 0; }
 .jp-tksp .tk-field label { display: block; color: var(--tk-muted); font-size: .66rem; text-transform: uppercase; letter-spacing: .04em; font-weight: 700; margin: 0; }
 .jp-tksp .tk-field strong, .jp-tksp .tk-field .v { display: block; margin-top: .15rem; font-weight: 650; white-space: pre-line; }
@@ -611,6 +629,8 @@ body.tk-kan-dragging, body.tk-kan-dragging * { cursor: grabbing !important; user
 @media (max-width: 767.98px) {
   .jp-tksp .tk-kpis, .jp-tksp .tk-cost-summary, .jp-tksp .tk-grid2, .jp-tksp .tk-grid3, .jp-tksp .tk-rail, .jp-tksp .tk-launch-strip, .jp-tksp .tk-prod-grid, .jp-tksp .tk-streams { grid-template-columns: minmax(0, 1fr); }
   .jp-tksp .tk-sheet-thumb { width: 64px; height: 74px; }
+  .jp-tksp .tk-size-groups { grid-template-columns: minmax(0, 1fr); }
+  .jp-tksp .tk-req-row { grid-template-columns: 6.4rem minmax(0, 1fr); }
   .jp-tksp .tk-hero-main { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "thumb copy"; }
   .jp-tksp .tk-hero-main.is-2 { grid-template-columns: minmax(0, 1fr); grid-template-areas: "copy" "actions"; }
   .jp-tksp .tk-hero-thumb { width: 96px; }

@@ -3,6 +3,7 @@
 {% load sx_format %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
 <style>
   .jp-so-list {
     --so-ink: #172033;
@@ -40,24 +41,9 @@
   .jp-so-list .jp-so-search input {
     padding-left: 2.25rem;
   }
-  .jp-so-list .jp-so-table {
-    min-width: 1020px;
-  }
-  .jp-so-list .jp-so-table thead th {
-    padding: 0.8rem 0.9rem;
-    color: #6b7484;
-    font-size: 0.69rem;
-    font-weight: 700;
-    letter-spacing: 0.055em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    border-bottom: 1px solid var(--so-border);
-    background: var(--so-soft);
-  }
-  .jp-so-list .jp-so-table tbody td {
-    padding: 0.85rem 0.9rem;
-    color: #3f4858;
-    border-color: #edf0f4;
+  .jp-so-list .jp-npl-mat-grid td.npl-col[data-col="products"] {
+    white-space: normal;
+    overflow: visible;
   }
   .jp-so-list .jp-so-row {
     transition: background-color 0.14s ease, box-shadow 0.14s ease;
@@ -212,7 +198,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-sx-page jp-so-list py-3 py-md-4 mb-5">
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page jp-so-list py-3 py-md-4 mb-5">
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
       <h2 class="jp-npl-mat-topbar-title w-100">Đơn đặt hàng</h2>
@@ -224,6 +210,7 @@
         <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Lên đơn
       </a>
       {% endif %}
+      {% include 'san_xuat/includes/sx_list_col_picker.html' %}
     </nav>
   </div>
 
@@ -253,35 +240,29 @@
         <button type="submit" class="btn btn-hm btn-sm px-3">
           <i class="bi bi-funnel me-1" aria-hidden="true"></i>Lọc
         </button>
+        <input type="hidden" name="sort" value="{{ sort_key }}">
+        <input type="hidden" name="dir" value="{{ sort_dir }}">
       </div>
     </div>
   </form>
 
-  <div class="card jp-so-table-card overflow-hidden">
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0 jp-so-table">
-        <thead>
+  <div class="card border-0 shadow-sm overflow-hidden jp-so-table-card">
+    <div class="jp-npl-mat-grid-wrap">
+      <table class="table table-hover align-middle mb-0 jp-npl-mat-grid" id="{{ sx_list_table_id }}">
+        <thead class="table-light">
           <tr>
-            <th>Số đơn</th>
-            <th>Sản phẩm</th>
-            <th>Khách hàng</th>
-            <th>Ngày dự kiến thực hiện</th>
-            <th>Ngày dự kiến hoàn thành</th>
-            <th class="text-end">Dòng</th>
-            <th class="text-end">SL</th>
-            <th>Xác nhận</th>
-            <th aria-label="Mở"></th>
+            {% include 'san_xuat/includes/sx_list_grid_head.html' %}
           </tr>
         </thead>
         <tbody>
         {% for row in rows %}
-          <tr class="jp-so-row" style="cursor:pointer" onclick="location.href='{% url 'san_xuat:sales_order_detail' row.order.pk %}'">
-            <td>
+          <tr class="jp-so-row jp-npl-catalog-row" data-href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">
+            <td class="npl-col" data-col="code">
               <a href="{% url 'san_xuat:sales_order_detail' row.order.pk %}" class="jp-so-code">
                 {{ row.order.code }}
               </a>
             </td>
-            <td onclick="event.stopPropagation()">
+            <td class="npl-col" data-col="products">
               {% if row.products %}
               <div class="jp-so-products" aria-label="Sản phẩm trên đơn">
                 {% for p in row.products %}
@@ -311,21 +292,22 @@
               <span class="small text-muted">—</span>
               {% endif %}
             </td>
-            <td class="small fw-semibold">{{ row.order.customer_name|default:"—" }}</td>
-            <td class="small jp-so-date">{{ row.order.request_date|date:"d/m/Y" }}</td>
-            <td class="small jp-so-date">{% if row.order.due_date %}{{ row.order.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
-            <td class="text-end jp-so-number">{{ row.line_count }}</td>
-            <td class="text-end jp-so-number">{{ row.total_qty|sx_num }}</td>
-            <td>
+            <td class="npl-col small fw-semibold" data-col="customer">{{ row.order.customer_name|default:"—" }}</td>
+            <td class="npl-col small jp-so-date" data-col="placed_date">{{ row.order.created_at|date:"d/m/Y" }}</td>
+            <td class="npl-col small jp-so-date" data-col="request_date">{{ row.order.request_date|date:"d/m/Y" }}</td>
+            <td class="npl-col small jp-so-date" data-col="due_date">{% if row.order.due_date %}{{ row.order.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+            <td class="npl-col text-end jp-so-number" data-col="line_count">{{ row.line_count }}</td>
+            <td class="npl-col text-end jp-so-number" data-col="qty">{{ row.total_qty|sx_num }}</td>
+            <td class="npl-col" data-col="confirm">
               <span class="jp-so-status {% if row.order.confirm_status == 'confirmed' %}is-confirmed{% elif row.order.confirm_status == 'rejected' %}is-rejected{% else %}is-draft{% endif %}">
                 {{ row.order.get_confirm_status_display }}
               </span>
             </td>
-            <td class="text-end"><i class="bi bi-chevron-right jp-so-open" aria-hidden="true"></i></td>
+            {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=row.order %}
           </tr>
         {% empty %}
           <tr>
-            <td colspan="9" class="jp-so-empty text-center">
+            <td colspan="{{ list_columns|length }}" class="jp-so-empty text-center">
               <span class="jp-so-empty-icon"><i class="bi bi-inbox" aria-hidden="true"></i></span>
               <div class="fw-semibold text-dark">Chưa có đơn đặt hàng</div>
               <div class="small text-muted mt-1">
@@ -340,4 +322,5 @@
   </div>
 </div>
 {% include 'san_xuat/includes/product_image_gallery_modal.html' %}
+{% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
 {% endblock %}

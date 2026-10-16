@@ -82,6 +82,7 @@
         btn.addEventListener('click', function (e) {
             e.stopPropagation();
             var sort = btn.getAttribute('data-sort');
+            if (!sort) return;
             var params = new URLSearchParams(window.location.search);
             var curSort = params.get('sort') || '{{ default_sort_key }}';
             var curDir = params.get('dir') || 'desc';
