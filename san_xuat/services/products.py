@@ -56,6 +56,41 @@ def find_product(product_code: str):
     return None
 
 
+_NO_COLOR = frozenset({'', 'nocolor', 'none', '-'})
+
+
+def _product_color_label(product) -> str:
+    color = (
+        getattr(product, 'color_label', None)
+        or getattr(product, 'color_code', None)
+        or ''
+    ).strip()
+    if color.casefold() in _NO_COLOR:
+        return ''
+    return color
+
+
+def _colors_label(products) -> str:
+    """Các màu của một mã SX, cùng quy tắc dropdown thêm hồ sơ."""
+    labels: list[str] = []
+    seen: set[str] = set()
+    ordered = sorted(
+        products,
+        key=lambda product: (
+            (getattr(product, 'code', None) or '').upper(),
+            (getattr(product, 'color_code', None) or '').upper(),
+        ),
+    )
+    for product in ordered:
+        color = _product_color_label(product)
+        key = color.casefold()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        labels.append(color)
+    return ', '.join(labels)
+
+
 def _append_unique_url(urls: list[str], seen: dict[str, bool], url: str | None) -> None:
     value = (url or '').strip()
     if not value or value in seen:
@@ -93,6 +128,8 @@ def fill_tech_doc_display_images(docs) -> None:
             urls = galleries[id(doc)]
             doc._display_image_urls = urls
             doc._display_image_url = urls[0] if urls else ''
+            if not hasattr(doc, '_display_color'):
+                doc._display_color = ''
 
     try:
         from kho_san_pham.models import Product
@@ -102,7 +139,10 @@ def fill_tech_doc_display_images(docs) -> None:
 
     codes = {(d.product_code or '').strip() for d in docs if (d.product_code or '').strip()}
     lookup = _lookup_code_set(codes)
-    product_fields = ('code', 'style_code', 'kiotviet_code', 'kiotviet_id', 'image', 'image_url')
+    product_fields = (
+        'code', 'style_code', 'kiotviet_code', 'kiotviet_id', 'image', 'image_url',
+        'color_code', 'color_label',
+    )
     products = []
     if lookup:
         products = list(
@@ -215,6 +255,7 @@ def fill_tech_doc_display_images(docs) -> None:
         if code_key:
             for url in kv_images_by_code.get(code_key, []):
                 _append_unique_url(urls, seen, url)
+        doc._display_color = _colors_label(matched)
 
     _apply_galleries()
 

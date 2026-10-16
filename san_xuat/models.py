@@ -101,6 +101,10 @@ class ProductTechDoc(models.Model):
     def display_image_urls_json(self) -> str:
         return json.dumps(self.display_image_urls, ensure_ascii=False)
 
+    @property
+    def display_color(self) -> str:
+        return (getattr(self, '_display_color', '') or '').strip()
+
 
 class TechDocDesignFile(models.Model):
     """Tài liệu thiết kế đính kèm hồ sơ SX (PDF, ảnh, CAD...)."""
