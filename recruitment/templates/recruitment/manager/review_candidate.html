@@ -89,6 +89,7 @@
                 {{ interview.time_range_label }} ·
                 {% for u in interview.interviewers.all %}{{ u.profile.full_name|default:u.username }}{% if not forloop.last %}, {% endif %}{% empty %}Chưa giao người PV{% endfor %}
               </div>
+              <div class="jp-rc-sub mt-1">Ngày nhận việc {{ candidate.join_date|date:"d/m/Y"|default:"—" }}</div>
               {% if interview.result_notes %}<div class="small mt-2" style="white-space: pre-line;">{{ interview.result_notes }}</div>{% endif %}
             </div>
             <form method="post" action="{% url 'recruitment_review_final_decision' candidate.pk %}" id="rcFinalForm">
@@ -173,7 +174,7 @@
         {% endif %}
 
         {% if interview %}
-        <div class="card border-0 shadow-sm">
+        <div class="card border-0 shadow-sm" id="ket-qua-pv">
           <div class="card-header bg-white d-flex justify-content-between align-items-center gap-2">
             <span class="fw-bold">Phỏng vấn</span>
             <span class="jp-rc-badge is-{{ interview.result }}">{{ interview.get_result_display }}</span>
@@ -184,6 +185,9 @@
             <div class="jp-rc-kv"><span class="jp-rc-kv-label">Người phỏng vấn</span>
               <span class="jp-rc-kv-value">{% for u in interview.interviewers.all %}{{ u.profile.full_name|default:u.username }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</span>
             </div>
+            {% if candidate.join_date and not result_form or candidate.join_date and not interview_started %}
+            <div class="jp-rc-kv"><span class="jp-rc-kv-label">Ngày nhận việc</span><span class="jp-rc-kv-value">{{ candidate.join_date|date:"d/m/Y" }}</span></div>
+            {% endif %}
             {% if interview.result_notes %}<div class="small mt-2" style="white-space: pre-line;">{{ interview.result_notes }}</div>{% endif %}
             {% if interview.shows_director_decision %}
             <div class="jp-rc-kv mt-2"><span class="jp-rc-kv-label">Giám đốc duyệt</span>
@@ -200,6 +204,9 @@
               {% csrf_token %}
               <input type="hidden" name="next" value="{{ request.path }}">
               {% include 'recruitment/includes/interview_result_fields.html' with uid='rcResultM' %}
+              <label class="form-label fw-semibold small mt-3" for="rcJoinDate">Ngày nhận việc</label>
+              <input type="date" name="join_date" id="rcJoinDate" class="form-control jp-date-vn" placeholder="dd/mm/yyyy"
+                     value="{% if candidate.join_date %}{{ candidate.join_date|date:'Y-m-d' }}{% endif %}">
               <button type="submit" class="btn btn-hm fw-bold w-100 mt-3"><i class="bi bi-check2-square" aria-hidden="true"></i> Lưu kết quả</button>
             </form>
             {% else %}
@@ -241,6 +248,7 @@
             <div class="jp-rc-kv"><span class="jp-rc-kv-label">Ghi chú</span><span class="jp-rc-kv-value" style="white-space: pre-line;">{{ candidate.note|default:"—" }}</span></div>
             <div class="jp-rc-kv"><span class="jp-rc-kv-label">Giới tính</span><span class="jp-rc-kv-value">{{ candidate.get_gender_display|default:"—" }}</span></div>
             <div class="jp-rc-kv"><span class="jp-rc-kv-label">Ngày sinh</span><span class="jp-rc-kv-value">{{ candidate.date_of_birth|date:"d/m/Y"|default:"—" }}</span></div>
+            <div class="jp-rc-kv"><span class="jp-rc-kv-label">Ngày nhận việc</span><span class="jp-rc-kv-value">{{ candidate.join_date|date:"d/m/Y"|default:"—" }}</span></div>
             <div class="jp-rc-kv"><span class="jp-rc-kv-label">Nguồn hồ sơ</span>
               <span class="jp-rc-kv-value">{{ candidate.source_label }}{% if candidate.referred_by %} · {{ candidate.referred_by.profile.full_name|default:candidate.referred_by.username }}{% endif %}</span>
             </div>
@@ -345,4 +353,5 @@
   });
 })();
 </script>
+{% if result_form and interview_started %}{% include 'recruitment/includes/rc_date_scripts.html' %}{% endif %}
 {% endblock %}

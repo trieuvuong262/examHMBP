@@ -284,10 +284,18 @@ class CandidateForm(forms.Form):
     files = MultipleFileField(label='CV / hồ sơ (PDF, Word, ảnh)')
     note = forms.CharField(label='Ghi chú', required=False, widget=forms.Textarea(attrs={**_ctl(), 'rows': 3}))
 
-    def __init__(self, *args, jobs=None, referral=False, editing=False, current_source='', **kwargs):
+    def __init__(self, *args, jobs=None, referral=False, editing=False, current_source='',
+                 join_date_required=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['job_posting'].queryset = jobs if jobs is not None else JobPosting.objects.none()
         if editing:
+            self.fields['join_date'] = forms.DateField(
+                label='Ngày nhận việc', required=join_date_required,
+                widget=forms.DateInput(
+                    attrs={**_ctl('jp-date-vn'), 'type': 'date', 'placeholder': 'dd/mm/yyyy'},
+                    format='%Y-%m-%d',
+                ),
+            )
             self.fields['files'].label = 'Thêm CV / hồ sơ (PDF, Word, ảnh)'
             self.fields['kind'] = forms.ChoiceField(
                 label='Loại file', required=False,
@@ -295,7 +303,7 @@ class CandidateForm(forms.Form):
                 choices=list(CandidateFileKind.objects.filter(is_active=True).values_list('code', 'name')),
             )
         if referral:
-            # Quản lý đề xuất — nguồn cố định; HR bổ sung giới tính khi onboard.
+            # Quản lý đề xuất — nguồn cố định. HR sửa giới tính trên hồ sơ trước khi onboard.
             del self.fields['source']
             self.fields['gender'].required = False
         else:
@@ -364,36 +372,6 @@ class ReviewForm(forms.Form):
         widget=forms.Select(attrs={'class': 'form-select'}),
     )
     comment = forms.CharField(label='Nhận xét', required=False, widget=forms.Textarea(attrs={**_ctl(), 'rows': 3}))
-
-
-class OnboardForm(forms.Form):
-    """Xác nhận thông tin tài khoản — điền sẵn từ hồ sơ ứng viên, HR sửa / bổ sung trước khi tạo."""
-
-    email = forms.EmailField(label='Email tài khoản', widget=forms.EmailInput(attrs={**_ctl(), 'autocomplete': 'off'}))
-    gender = _gender_field()
-    date_of_birth = _dob_field()
-    join_date = forms.DateField(
-        label='Ngày nhận việc', initial=timezone.localdate,
-        widget=forms.DateInput(attrs={**_ctl('jp-date-vn'), 'type': 'date'}, format='%Y-%m-%d'),
-    )
-
-    def __init__(self, *args, candidate=None, **kwargs):
-        if candidate is not None and not kwargs.get('data') and not args:
-            kwargs.setdefault('initial', {
-                'email': candidate.email,
-                'gender': candidate.gender,
-                'date_of_birth': candidate.date_of_birth,
-            })
-        super().__init__(*args, **kwargs)
-
-    def clean_email(self):
-        email = (self.cleaned_data.get('email') or '').strip()
-        if User.objects.filter(email__iexact=email).exists():
-            raise forms.ValidationError(f'Email {email} đã thuộc một tài khoản khác.')
-        return email
-
-    def clean_date_of_birth(self):
-        return _validate_dob(self.cleaned_data.get('date_of_birth'))
 
 
 # ---------------------------------------------------------------- Thiết lập

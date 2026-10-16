@@ -315,6 +315,7 @@ class Candidate(models.Model):
     full_name = models.CharField(max_length=255, verbose_name='Họ và tên')
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES, blank=True, verbose_name='Giới tính')
     date_of_birth = models.DateField(null=True, blank=True, verbose_name='Ngày sinh')
+    join_date = models.DateField(null=True, blank=True, verbose_name='Ngày nhận việc')
     email = models.EmailField(blank=True, verbose_name='Email')
     phone = models.CharField(max_length=20, verbose_name='Số điện thoại')
     note = models.TextField(blank=True, verbose_name='Ghi chú')

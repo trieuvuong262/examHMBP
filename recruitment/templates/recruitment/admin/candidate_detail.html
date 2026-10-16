@@ -38,6 +38,7 @@
           <dl class="jp-rc-dl mb-0">
             <dt>Giới tính</dt><dd>{{ candidate.get_gender_display|default:"—" }}</dd>
             <dt>Ngày sinh</dt><dd>{{ candidate.date_of_birth|date:"d/m/Y"|default:"—" }}</dd>
+            <dt>Ngày nhận việc</dt><dd>{{ candidate.join_date|date:"d/m/Y"|default:"—" }}</dd>
             <dt>Số điện thoại</dt><dd>{{ candidate.phone }}</dd>
             <dt>Email</dt><dd>{{ candidate.email|default:"—" }}</dd>
             <dt>Ghi chú</dt><dd style="white-space: pre-line;">{{ candidate.note|default:"—" }}</dd>
@@ -135,24 +136,19 @@
           </div>
           {% if can_onboard %}
           <hr>
-          <form method="post" action="{% url 'candidate_onboard' candidate.pk %}" id="rcOnboardForm"
-                class="row g-2 align-items-start jp-rc-onboard{% if not onboard_form.errors %} is-locked{% endif %}" novalidate
-                onsubmit="return confirm('Tạo tài khoản nhân viên cho {{ candidate.full_name|escapejs }}?');">
-            {% csrf_token %}
-            <div class="col-12 d-flex flex-wrap justify-content-between align-items-center gap-2">
-              <div class="small fw-semibold text-muted mb-0">Thông tin tài khoản nhân viên — kiểm tra / bổ sung trước khi tạo</div>
-              <button type="button" class="btn btn-outline-hm btn-sm fw-bold" id="rcOnboardEdit"{% if onboard_form.errors %} hidden{% endif %}>
-                <i class="bi bi-pencil" aria-hidden="true"></i>Sửa
-              </button>
+          <div class="d-flex flex-wrap align-items-end gap-3">
+            <div>
+              <div class="form-label fw-semibold mb-1">Ngày nhận việc <span class="text-danger" aria-hidden="true">*</span></div>
+              <div class="form-control bg-light" style="min-width: 12rem;">{{ candidate.join_date|date:"d/m/Y"|default:"—" }}</div>
             </div>
-            {% include 'recruitment/includes/field.html' with field=onboard_form.email col='col-md-6' %}
-            {% include 'recruitment/includes/field.html' with field=onboard_form.join_date col='col-md-6' %}
-            {% include 'recruitment/includes/field.html' with field=onboard_form.gender col='col-md-6' %}
-            {% include 'recruitment/includes/field.html' with field=onboard_form.date_of_birth col='col-md-6' %}
-            <div class="col-12">
+            {% if candidate.join_date %}
+            <form method="post" action="{% url 'candidate_onboard' candidate.pk %}" class="mb-0"
+                  onsubmit="return confirm('Tạo tài khoản nhân viên cho {{ candidate.full_name|escapejs }}? Ngày nhận việc {{ candidate.join_date|date:'d/m/Y' }}.');">
+              {% csrf_token %}
               <button type="submit" class="btn btn-hm btn-sm fw-bold"><i class="bi bi-person-badge"></i>Onboard — tạo nhân viên</button>
-            </div>
-          </form>
+            </form>
+            {% endif %}
+          </div>
           {% endif %}
         </div>
       </div>
@@ -261,46 +257,5 @@
 </div>
 {% endwith %}
 {% if can_update %}{% include 'recruitment/includes/transition_modal.html' %}{% endif %}
-{% if can_onboard %}{% include 'recruitment/includes/rc_date_scripts.html' %}
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-  var form = document.getElementById('rcOnboardForm');
-  var editBtn = document.getElementById('rcOnboardEdit');
-  if (!form) return;
-
-  function setLocked(locked) {
-    form.classList.toggle('is-locked', locked);
-    form.querySelectorAll('input, select, textarea').forEach(function (el) {
-      if (el.type === 'hidden' || el.name === 'csrfmiddlewaretoken') return;
-      if (el.tagName !== 'SELECT') el.readOnly = locked;
-      el.tabIndex = locked ? -1 : 0;
-    });
-    form.querySelectorAll('input.jp-date-vn').forEach(function (el) {
-      var fp = el._flatpickr;
-      if (!fp) return;
-      fp.set('clickOpens', !locked);
-      fp.set('allowInput', !locked);
-      if (fp.altInput) {
-        fp.altInput.readOnly = locked;
-        fp.altInput.tabIndex = locked ? -1 : 0;
-      }
-    });
-  }
-
-  setLocked(form.classList.contains('is-locked'));
-  form.addEventListener('keydown', function (e) {
-    if (form.classList.contains('is-locked') && e.target && e.target.tagName === 'SELECT') e.preventDefault();
-  });
-  if (editBtn) {
-    editBtn.addEventListener('click', function () {
-      setLocked(false);
-      editBtn.hidden = true;
-      var email = form.querySelector('[name="email"]');
-      if (email) email.focus();
-    });
-  }
-});
-</script>
-{% endif %}
 {% include 'recruitment/includes/cv_viewer.html' %}
 {% endblock %}

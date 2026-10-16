@@ -43,6 +43,9 @@
               {% include 'recruitment/includes/field.html' with field=form.date_of_birth col='col-md-3 col-6' %}
               {% include 'recruitment/includes/field.html' with field=form.phone col='col-md-6' %}
               {% include 'recruitment/includes/field.html' with field=form.email col='col-md-6' %}
+              {% if form.join_date %}
+              {% include 'recruitment/includes/field.html' with field=form.join_date col='col-md-6' %}
+              {% endif %}
             </div>
           </div>
         </div>

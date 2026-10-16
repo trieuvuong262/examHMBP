@@ -277,6 +277,7 @@ class CandidateInput:
     email: str = ''
     gender: str = ''
     date_of_birth: date | None = None
+    join_date: date | None = None
     files: list = field(default_factory=list)
     note: str = ''
     source: str = C.SOURCE_HR
@@ -417,12 +418,13 @@ def update_candidate(candidate, job: JobPosting, data: CandidateInput, *, actor)
     candidate.full_name = full_name
     candidate.gender = data.gender or ''
     candidate.date_of_birth = data.date_of_birth
+    candidate.join_date = data.join_date
     candidate.phone = phone
     candidate.email = email
     candidate.note = note
     candidate.source = data.source or candidate.source
     candidate.save(update_fields=[
-        'job_posting', 'full_name', 'gender', 'date_of_birth', 'phone', 'email', 'note', 'source',
+        'job_posting', 'full_name', 'gender', 'date_of_birth', 'join_date', 'phone', 'email', 'note', 'source',
     ])
     if note != old_note:
         _log(
@@ -902,9 +904,8 @@ def onboarding_permission_group():
     return get_probation_permission_group() or default_group_for_role(ROLE_EMPLOYEE)
 
 
-def onboard_candidate(candidate, *, actor, join_date=None, email=None, gender=None,
-                      date_of_birth=None) -> OnboardResult:
-    """Tạo tài khoản nhân viên. ``email`` / ``gender`` / ``date_of_birth`` (nếu truyền) ghi đè hồ sơ ứng viên."""
+def onboard_candidate(candidate, *, actor, join_date=None) -> OnboardResult:
+    """Tạo tài khoản nhân viên từ hồ sơ ứng viên. Email không tự sinh."""
     from hrm.models import Profile
     from hrm.permissions import ROLE_EMPLOYEE
     from PortalJustPlay.utils import (
@@ -921,12 +922,6 @@ def onboard_candidate(candidate, *, actor, join_date=None, email=None, gender=No
             raise RecruitmentError('Chỉ onboard ứng viên đang ở bước «Trúng tuyển».')
         if candidate.employee_id:
             raise RecruitmentError('Ứng viên đã có tài khoản nhân viên.')
-        if email is not None:
-            candidate.email = email.strip()
-        if gender is not None:
-            candidate.gender = gender
-        if date_of_birth is not None:
-            candidate.date_of_birth = date_of_birth
         if candidate.email and User.objects.filter(email__iexact=candidate.email).exists():
             raise RecruitmentError(f'Email {candidate.email} đã thuộc một tài khoản khác.')
         job = candidate.job_posting

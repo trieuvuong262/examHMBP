@@ -21,7 +21,7 @@
     <div class="card-body py-3">
       <form method="get" class="row g-2 align-items-end" role="search">
         {% if filters.status %}<input type="hidden" name="status" value="{{ filters.status }}">{% endif %}
-        <div class="col-md-4 col-lg-3">
+        <div class="col-md-3">
           <label class="form-label small fw-bold text-muted mb-1" for="clJob">Vị trí</label>
           <select name="job_id" id="clJob" class="form-select" onchange="this.form.submit()">
             <option value="">Tất cả vị trí</option>
@@ -31,13 +31,14 @@
           </select>
         </div>
         <div class="col-6 col-md-2">
-          <label class="form-label small fw-bold text-muted mb-1" for="clSource">Nguồn</label>
-          <select name="source" id="clSource" class="form-select" onchange="this.form.submit()">
-            <option value="">Tất cả</option>
-            {% for key, label in source_choices %}
-            <option value="{{ key }}"{% if filters.source == key %} selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
+          <label class="form-label small fw-bold text-muted mb-1" for="clFrom">Từ ngày</label>
+          <input type="date" name="from" id="clFrom" class="form-control jp-date-vn" data-autosubmit
+                 value="{{ filters.date_from|date:'Y-m-d' }}">
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label small fw-bold text-muted mb-1" for="clTo">Đến ngày</label>
+          <input type="date" name="to" id="clTo" class="form-control jp-date-vn" data-autosubmit
+                 value="{{ filters.date_to|date:'Y-m-d' }}">
         </div>
         <div class="col-6 col-md-2">
           <label class="form-label small fw-bold text-muted mb-1" for="clSort">Sắp xếp</label>
@@ -47,7 +48,7 @@
             {% endfor %}
           </select>
         </div>
-        <div class="col-md-4 col-lg-5">
+        <div class="col-md-3">
           <label class="form-label small fw-bold text-muted mb-1" for="clQ">Tìm ứng viên</label>
           <div class="input-group jp-hrm-search">
             {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Họ tên, SĐT, email…' clear_url=request.path %}
@@ -68,6 +69,8 @@
             <th class="ps-3">Ứng viên</th>
             <th>Vị trí</th>
             <th>Tiến trình</th>
+            <th>Ngày nhận việc</th>
+            <th>Ngày nộp</th>
             <th>Bước tiếp theo</th>
             <th class="text-end pe-3"><span class="visually-hidden">Thao tác</span></th>
           </tr>
@@ -84,7 +87,7 @@
                   <div class="jp-rc-sub">{{ cand.phone }}{% if cand.email %} · {{ cand.email }}{% endif %}</div>
                   <div class="jp-rc-sub">
                     {% if cand.referred_by %}<i class="bi bi-person-check" aria-hidden="true"></i> {{ cand.referred_by.profile.full_name|default:cand.referred_by.username }}
-                    {% else %}{{ cand.source_label }}{% endif %} · Nộp {{ cand.applied_at|date:"d/m/Y" }}
+                    {% else %}{{ cand.source_label }}{% endif %}
                   </div>
                 </div>
               </div>
@@ -102,6 +105,8 @@
               <span class="jp-rc-badge is-{{ cand.status }}">{{ cand.get_status_display }}</span>
               {% if inv and inv.result != 'pending' %}<span class="jp-rc-badge is-{{ inv.result }}">PV {{ inv.get_result_display|lower }}</span>{% endif %}
             </td>
+            <td class="text-nowrap small">{{ cand.join_date|date:"d/m/Y"|default:"—" }}</td>
+            <td class="text-nowrap small">{{ cand.applied_at|date:"d/m/Y" }}</td>
             <td>
               <div class="jp-rc-next is-{{ step.tone }}">
                 <div class="jp-rc-next-label">{{ step.label }}</div>
@@ -135,7 +140,7 @@
           </tr>
           {% endwith %}
           {% empty %}
-          <tr><td colspan="5">
+          <tr><td colspan="7">
             <div class="jp-rc-empty">
               {% if filters.status == 'can-xu-ly' %}
               <i class="bi bi-check2-circle" aria-hidden="true"></i>
@@ -158,6 +163,7 @@
     {% endif %}
   </div>
 </div>
+{% include 'recruitment/includes/rc_date_scripts.html' %}
 {% include 'recruitment/includes/transition_modal.html' %}
 {% include 'recruitment/includes/interview_result_modal.html' %}
 {% include 'recruitment/includes/cv_viewer.html' %}

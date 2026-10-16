@@ -39,6 +39,7 @@
           <i class="bi bi-person-video3" aria-hidden="true"></i> PV {{ inv.time_range_label }}
           · {% for u in inv.interviewers.all %}{{ u.profile.full_name|default:u.username }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}
         </div>
+        <div class="jp-rc-row-meta">Ngày nhận việc {{ cand.join_date|date:"d/m/Y"|default:"—" }}</div>
         {% if inv.result_notes %}<div class="jp-rc-row-meta text-truncate" title="{{ inv.result_notes }}"><i class="bi bi-chat-left-text" aria-hidden="true"></i> {{ inv.result_notes }}</div>{% endif %}
       </div>
       <div class="jp-rc-row-side">
@@ -64,12 +65,9 @@
       <div class="jp-rc-row-side">
         {% include 'recruitment/includes/cv_button.html' with candidate=cand f=cand.primary_file label='CV' %}
         {% if inv.interview_time <= now %}
-        <button type="button" class="btn btn-hm btn-sm fw-bold" data-rc-result
-                data-url="{% url 'recruitment_review_interview_result' cand.pk %}"
-                data-name="{{ cand.full_name }}" data-time="{{ inv.time_range_label }}"
-                data-next="{{ request.get_full_path }}">
+        <a href="{% url 'recruitment_review_candidate' cand.pk %}#ket-qua-pv" class="btn btn-hm btn-sm fw-bold">
           <i class="bi bi-clipboard-check" aria-hidden="true"></i> Nhập kết quả
-        </button>
+        </a>
         {% endif %}
       </div>
     </div>
@@ -117,6 +115,5 @@
     {% endif %}
   </div>
 </div>
-{% if current_tab == 'phong-van' %}{% include 'recruitment/includes/interview_result_modal.html' %}{% endif %}
 {% include 'recruitment/includes/cv_viewer.html' %}
 {% endblock %}

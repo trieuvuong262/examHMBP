@@ -45,7 +45,6 @@ from .forms import (
     InterviewLocationForm,
     InterviewResultForm,
     JobPostingForm,
-    OnboardForm,
     RescheduleForm,
     ReviewForm,
     TransitionForm,
@@ -448,14 +447,29 @@ def job_posting_delete(request, pk):
 
 # ================================================================ Ứng viên — Danh sách & Kanban
 
+def _parse_filter_date(raw):
+    raw = (raw or '').strip()
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw, '%Y-%m-%d').date()
+    except ValueError:
+        return None
+
+
 def _candidate_filters(request):
     """Bộ lọc dùng chung cho tab Danh sách / Kanban / xuất Excel."""
+    date_from = _parse_filter_date(request.GET.get('from'))
+    date_to = _parse_filter_date(request.GET.get('to'))
+    if date_from and date_to and date_from > date_to:
+        date_from, date_to = date_to, date_from
     return {
         'q': get_search_query(request),
         'job_id': (request.GET.get('job_id') or '').strip(),
         'status': (request.GET.get('status') or '').strip(),
-        'source': (request.GET.get('source') or '').strip(),
         'sort': (request.GET.get('sort') or '').strip(),
+        'date_from': date_from,
+        'date_to': date_to,
     }
 
 
@@ -470,14 +484,16 @@ def _filtered_candidates(request, f, *, include_closed_jobs=False, open_jobs_onl
         qs = qs.filter(job_posting_id=int(f['job_id']))
     elif not include_closed_jobs:
         qs = qs.exclude(job_posting__status=JobPosting.STATUS_CLOSED)
-    if f['source']:
-        qs = qs.filter(source=f['source'])
+    if f['date_from']:
+        qs = qs.filter(applied_at__date__gte=f['date_from'])
+    if f['date_to']:
+        qs = qs.filter(applied_at__date__lte=f['date_to'])
     return apply_term_search(qs, f['q'], 'full_name__icontains', 'phone__icontains', 'email__icontains')
 
 
 def _view_tabs(request, current):
     """Tab Danh sách | Kanban — giữ bộ lọc vị trí + tìm kiếm khi chuyển tab."""
-    keep = {k: v for k, v in request.GET.items() if k in ('job_id', 'q') and v}
+    keep = {k: v for k, v in request.GET.items() if k in ('job_id', 'q', 'from', 'to') and v}
     from urllib.parse import urlencode
 
     suffix = f'?{urlencode(keep)}' if keep else ''
@@ -675,7 +691,6 @@ def candidate_list(request):
         'page_obj': page_obj,
         'query_string': query_string,
         'status_chips': status_chips,
-        'source_choices': CandidateSource.objects.values_list('code', 'name'),
         'sort_options': [(k, v[0]) for k, v in CANDIDATE_SORTS.items()],
         'current_sort': sort_key,
         'can_onboard': onboard_ok,
@@ -800,6 +815,9 @@ def candidate_edit(request, pk):
         'full_name': candidate.full_name,
         'gender': candidate.gender,
         'date_of_birth': candidate.date_of_birth,
+        'join_date': candidate.join_date or (
+            timezone.localdate() if candidate.status == Candidate.STATUS_OFFERED else None
+        ),
         'phone': candidate.phone,
         'email': candidate.email,
         'note': candidate.note,
@@ -807,6 +825,7 @@ def candidate_edit(request, pk):
     form = CandidateForm(
         request.POST or None, request.FILES or None, jobs=jobs, editing=True,
         current_source=candidate.source, initial=initial,
+        join_date_required=candidate.status == Candidate.STATUS_OFFERED,
     )
     if request.method == 'POST' and form.is_valid():
         d = form.cleaned_data
@@ -816,6 +835,7 @@ def candidate_edit(request, pk):
                 services.CandidateInput(
                     full_name=d['full_name'], phone=d['phone'], email=d['email'],
                     gender=d['gender'], date_of_birth=d['date_of_birth'],
+                    join_date=d.get('join_date'),
                     note=d['note'], source=d['source'],
                 ),
                 actor=request.user,
@@ -855,7 +875,7 @@ def candidate_delete(request, pk):
 
 # ================================================================ Ứng viên — chi tiết & thao tác
 
-def _detail_context(request, candidate, *, manager_view=False, onboard_form=None):
+def _detail_context(request, candidate, *, manager_view=False):
     user = request.user
     interview = candidate.interview_or_none
     reviews = candidate.reviews.select_related('reviewer__profile')
@@ -904,7 +924,6 @@ def _detail_context(request, candidate, *, manager_view=False, onboard_form=None
         ),
         'interview_started': bool(interview and interview.interview_time <= timezone.now()),
         'can_onboard': show_onboard,
-        'onboard_form': (onboard_form or OnboardForm(candidate=candidate)) if show_onboard else None,
         'filled': services.filled_count(candidate.job_posting),
     }
 
@@ -943,6 +962,22 @@ def candidate_transition(request, pk):
     return redirect(back)
 
 
+def _posted_join_date(request):
+    """Ngày nhận việc quản lý gửi kèm kết quả phỏng vấn. Trống → None."""
+    from django.core.exceptions import ValidationError
+    from django.forms import DateField
+
+    if 'join_date' not in request.POST:
+        return None
+    raw = (request.POST.get('join_date') or '').strip()
+    if not raw:
+        return None
+    try:
+        return DateField(input_formats=['%Y-%m-%d', '%d/%m/%Y']).clean(raw)
+    except ValidationError as exc:
+        raise ValidationError('Ngày nhận việc không hợp lệ.') from exc
+
+
 def _save_interview_result(request, candidate):
     form = InterviewResultForm(request.POST)
     if not form.is_valid():
@@ -979,16 +1014,12 @@ def candidate_onboard(request, pk):
     if not can_onboard(request.user):
         messages.error(request, 'Onboard cần thêm quyền «Thêm» ở Danh sách nhân viên (Nhân sự).')
         return redirect('candidate_detail', pk=pk)
-    form = OnboardForm(request.POST, candidate=candidate)
-    if not form.is_valid():
-        messages.error(request, 'Kiểm tra lại thông tin onboard.')
-        return render(request, 'recruitment/admin/candidate_detail.html',
-                      _detail_context(request, candidate, onboard_form=form))
-    d = form.cleaned_data
+    if not candidate.join_date:
+        messages.error(request, 'Nhập ngày nhận việc ở Sửa trước khi tạo tài khoản.')
+        return redirect('candidate_detail', pk=pk)
     try:
         result = services.onboard_candidate(
-            candidate, actor=request.user, join_date=d['join_date'],
-            email=d['email'], gender=d['gender'], date_of_birth=d['date_of_birth'],
+            candidate, actor=request.user, join_date=candidate.join_date,
         )
     except services.RecruitmentError as exc:
         return _fail(request, exc, reverse('candidate_detail', args=[pk]))
@@ -1296,9 +1327,19 @@ def review_final_decision(request, pk):
 @login_required
 @require_POST
 def review_interview_result(request, pk):
+    from django.core.exceptions import ValidationError
+
     candidate = _reviewer_candidate(request, pk)
-    _save_interview_result(request, candidate)
-    return redirect(_safe_next(request, f'{reverse("recruitment_review_list")}?tab=phong-van'))
+    back = _safe_next(request, f'{reverse("recruitment_review_list")}?tab=phong-van')
+    try:
+        join_date = _posted_join_date(request)
+    except ValidationError as exc:
+        messages.error(request, exc.messages[0])
+        return redirect(back)
+    if _save_interview_result(request, candidate) and join_date:
+        candidate.join_date = join_date
+        candidate.save(update_fields=['join_date'])
+    return redirect(back)
 
 
 def _managed_candidates(user):

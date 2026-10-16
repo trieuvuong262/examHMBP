@@ -31,6 +31,8 @@
   <div class="card border-0 shadow-sm mb-3">
     <div class="card-body py-3">
       <form method="get" class="row g-2 align-items-end" role="search">
+        {% if filters.date_from %}<input type="hidden" name="from" value="{{ filters.date_from|date:'Y-m-d' }}">{% endif %}
+        {% if filters.date_to %}<input type="hidden" name="to" value="{{ filters.date_to|date:'Y-m-d' }}">{% endif %}
         <div class="col-md-4">
           <label class="form-label small fw-bold text-muted mb-1" for="kbJob">Vị trí</label>
           <select name="job_id" id="kbJob" class="form-select" onchange="this.form.submit()">
