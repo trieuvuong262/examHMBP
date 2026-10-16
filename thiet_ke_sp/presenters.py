@@ -64,8 +64,12 @@ def stepper(dossier: ProductDevelopment) -> list[dict]:
 
 
 def step_is_reached(dossier: ProductDevelopment, step: str) -> bool:
-    """Bước đã đi tới (đang làm hoặc đã xong) thì mới được góp ý."""
-    return any(row['key'] == step and row['state'] != 'todo' for row in stepper(dossier))
+    """Bước đã đi tới (đang làm, đã xong, hoặc từng tới rồi quay lại) thì mới mở tab."""
+    if any(row['key'] == step and row['state'] != 'todo' for row in stepper(dossier)):
+        return True
+    furthest = wf._rewind_rank_seen(dossier)
+    index = next((i for i, (key, _label, _statuses) in enumerate(STEPS) if key == step), None)
+    return furthest is not None and index is not None and index <= furthest
 
 
 # Tab công đoạn chỉ mở khi hồ sơ đã tới bước đó. Các tab còn lại luôn mở.
@@ -361,21 +365,26 @@ def action_flags(dossier: ProductDevelopment, user) -> dict[str, bool]:
     reopened = s == Status.LIBRARY_REOPEN
     design_step = s in (Status.DESIGNING, Status.DESIGN_REVISE) and any(dv.is_editable for dv in dvs)
     sample_step = s in (Status.SAMPLING, Status.SAMPLE_REVISE) and sv is not None and sv.is_editable
-    design_open = design_step or reopened or (test_edit and any(dv.state == DesignVersion.STATE_APPROVED for dv in dvs))
+    design_open = design_step or reopened or (test_edit and any(dv.state == DesignVersion.STATE_APPROVED for dv in dvs)) or any(
+        wf.design_reopened(dossier, dv) for dv in dvs
+    )
     sample_open = sample_step or (reopened and sv is not None) or (
         test_edit and sv is not None and sv.state == SampleVersion.STATE_PASSED
-    )
+    ) or wf.sample_reopened(dossier, sv)
     tech_open = sv is not None and (
         (s in (Status.TECHNICAL, Status.TECHNICAL_REVISE, Status.SAMPLING, Status.SAMPLE_REVISE) and sv.is_editable)
         or reopened
         or (test_edit and sv.state == SampleVersion.STATE_PASSED)
+        or wf.tech_reopened(dossier, sv)
     )
     designer = perms.can_work_as(dossier, user, Role.DESIGNER, Role.OWNER)
     approval_step = s in APPROVER_DECIDE_STATUSES
     return {
         'edit_brief': perms.can_edit_brief(dossier, user),
+        'edit_proposal': s in (Status.DRAFT, Status.BRIEF_NEEDS_INFO, Status.BRIEF_PENDING)
+        and perms.can_edit_brief(dossier, user),
         'submit_brief': s in (Status.DRAFT, Status.BRIEF_NEEDS_INFO) and perms.can_edit_brief(dossier, user),
-        'delete_draft': perms.can_view_dossier(dossier, user),
+        'delete_draft': perms.can_delete_dossier(dossier, user),
         'decide_brief': s == Status.BRIEF_PENDING and approver,
         'edit_design': design_open and designer,
         'submit_design': design_step and designer,

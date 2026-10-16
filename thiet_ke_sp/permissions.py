@@ -147,7 +147,7 @@ def is_follower(dossier: ProductDevelopment, user) -> bool:
     return dossier.followers.filter(pk=user.pk).exists()
 
 
-MEMBER_DOSSIER_URLS = frozenset({'detail', 'action', 'upload', 'delete'})
+MEMBER_DOSSIER_URLS = frozenset({'detail', 'action', 'upload', 'delete', 'edit'})
 MEMBER_FILE_URLS = frozenset({'attachment_serve', 'attachment_delete'})
 
 
@@ -182,21 +182,57 @@ def member_path_allowed(user, path: str) -> bool:
         return False
     if not dossier_id:
         return False
+    dossier = ProductDevelopment.objects.filter(pk=dossier_id).first()
+    assigned = bool(dossier and holds_dossier_role(dossier, user))
     if name == 'upload' or name == 'attachment_delete':
-        return DossierMember.objects.filter(dossier_id=dossier_id, user=user).exists()
+        return assigned or DossierMember.objects.filter(dossier_id=dossier_id, user=user).exists()
+    if name == 'delete':
+        return (
+            DossierMember.objects.filter(dossier_id=dossier_id, user=user).exists()
+            or ProductDevelopment.objects.filter(pk=dossier_id, followers=user).exists()
+        )
     return (
-        DossierMember.objects.filter(dossier_id=dossier_id, user=user).exists()
+        assigned
+        or DossierMember.objects.filter(dossier_id=dossier_id, user=user).exists()
         or ProductDevelopment.objects.filter(pk=dossier_id, followers=user).exists()
     )
 
 
 def can_view_dossier(dossier: ProductDevelopment, user) -> bool:
-    return has_full_dossier_access(user) or can_view_module(user) or is_member(dossier, user) or is_follower(dossier, user)
+    return (
+        has_full_dossier_access(user)
+        or can_view_module(user)
+        or is_member(dossier, user)
+        or is_follower(dossier, user)
+        or holds_dossier_role(dossier, user)
+    )
+
+
+def can_delete_dossier(dossier: ProductDevelopment, user) -> bool:
+    """Xóa theo quyền xem menu / thành viên / người theo dõi. Gán vai trò chưa đủ để xóa."""
+    return (
+        has_full_dossier_access(user)
+        or can_view_module(user)
+        or is_member(dossier, user)
+        or is_follower(dossier, user)
+    )
+
+
+def holds_dossier_role(dossier: ProductDevelopment, user) -> bool:
+    """Được gán một vai trò làm việc trên hồ sơ (không tính thành viên chỉ xem)."""
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    return bool(user_roles(dossier, user) - {Role.MEMBER})
 
 
 def can_act(dossier: ProductDevelopment, user) -> bool:
-    """Quyền Sửa menu hồ sơ, hoặc là thành viên của chính hồ sơ này."""
-    return has_full_dossier_access(user) or can_update(user) or is_member(dossier, user)
+    """Quyền Sửa menu, thành viên hồ sơ, hoặc người được gán đúng vai trò trên hồ sơ."""
+    return (
+        has_full_dossier_access(user)
+        or can_update(user)
+        or is_member(dossier, user)
+        or holds_dossier_role(dossier, user)
+    )
 
 
 def user_roles(dossier: ProductDevelopment, user) -> set[str]:
@@ -252,7 +288,7 @@ def can_edit_brief(dossier: ProductDevelopment, user) -> bool:
         return False
     if has_full_dossier_access(user):
         return True
-    return can_update(user) and has_role(dossier, user, Role.PROPOSER, Role.OWNER)
+    return has_role(dossier, user, Role.PROPOSER, Role.OWNER)
 
 
 def can_edit_roles(dossier: ProductDevelopment, user) -> bool:

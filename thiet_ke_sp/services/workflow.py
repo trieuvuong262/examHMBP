@@ -435,7 +435,7 @@ def _approved_sample_editable(dossier, sv: SampleVersion) -> bool:
 
 def _require_design_editable(dossier, dv: DesignVersion, user) -> None:
     _require(dv.dossier_id == dossier.pk, 'Phiên bản không thuộc hồ sơ.')
-    if not _approved_design_editable(dossier, dv):
+    if not _approved_design_editable(dossier, dv) and not design_reopened(dossier, dv):
         _require(dossier.status in (Status.DESIGNING, Status.DESIGN_REVISE, Status.LIBRARY_REOPEN) and dv.is_editable,
                  'Phiên bản thiết kế này đã gửi duyệt hoặc đã lưu trữ — không sửa được.')
     _require(perms.can_work_as(dossier, user, Role.DESIGNER, Role.OWNER),
@@ -769,7 +769,7 @@ TECH_EDIT_STATUSES = (
 
 def _require_tech_editable(dossier, sv: SampleVersion, user) -> None:
     _require(sv.dossier_id == dossier.pk, 'Mẫu không thuộc hồ sơ.')
-    if not _approved_sample_editable(dossier, sv):
+    if not _approved_sample_editable(dossier, sv) and not tech_reopened(dossier, sv):
         _require(dossier.status in TECH_EDIT_STATUSES and sv.is_editable,
                  'Hồ sơ kỹ thuật đã khóa hoặc đã lưu trữ — không sửa được.')
     _require(perms.can_work_as(dossier, user, Role.TECHNICIAN, Role.OWNER),
@@ -778,7 +778,7 @@ def _require_tech_editable(dossier, sv: SampleVersion, user) -> None:
 
 def _require_sample_editable(dossier, sv: SampleVersion, user, *roles) -> None:
     _require(sv.dossier_id == dossier.pk, 'Mẫu không thuộc hồ sơ.')
-    if not _approved_sample_editable(dossier, sv):
+    if not _approved_sample_editable(dossier, sv) and not sample_reopened(dossier, sv):
         _require(dossier.status in (Status.SAMPLING, Status.SAMPLE_REVISE, Status.LIBRARY_REOPEN) and sv.is_editable,
                  'Mẫu này đã gửi đánh giá hoặc đã lưu trữ — không sửa được.')
     _require(perms.can_work_as(dossier, user, *roles), 'Bạn không phụ trách phần việc này trên hồ sơ.')
@@ -1629,6 +1629,45 @@ def _rewind_rank_seen(dossier: ProductDevelopment) -> int | None:
     return max(ranks)
 
 
+def backtrack_span(dossier: ProductDevelopment) -> tuple[int, int] | None:
+    """Hồ sơ đã quay về bước trước: (bước hiện tại, bước xa nhất đã tới)."""
+    cached = dossier.__dict__.get('_tk_backtrack')
+    if cached is not None:
+        return cached[0]
+    current = _REWIND_RANK.get(dossier.status)
+    furthest = _rewind_rank_seen(dossier)
+    span = (current, furthest) if current is not None and furthest is not None and furthest > current else None
+    dossier.__dict__['_tk_backtrack'] = (span,)
+    return span
+
+
+def design_reopened(dossier: ProductDevelopment, dv: DesignVersion) -> bool:
+    """Quay về Tổng quan / Thiết kế thì mở lại phiên bản thiết kế đang nháp."""
+    span = backtrack_span(dossier)
+    if span is None or dv is None:
+        return False
+    current, _furthest = span
+    return current <= 1 and dv.is_current and dv.is_editable
+
+
+def tech_reopened(dossier: ProductDevelopment, sv: SampleVersion | None) -> bool:
+    """Bước kỹ thuật đã tới, và hồ sơ đang đứng từ bước đó trở về trước."""
+    span = backtrack_span(dossier)
+    if span is None or sv is None:
+        return False
+    current, furthest = span
+    return current <= 2 and furthest >= 2 and sv.is_editable
+
+
+def sample_reopened(dossier: ProductDevelopment, sv: SampleVersion | None) -> bool:
+    """Bước may mẫu đã tới, và hồ sơ đang đứng từ bước đó trở về trước."""
+    span = backtrack_span(dossier)
+    if span is None or sv is None:
+        return False
+    current, furthest = span
+    return current <= 3 and furthest >= 3 and sv.is_editable
+
+
 def rewind_choices(dossier: ProductDevelopment) -> list[tuple[str, str]]:
     """Chỉ các bước hồ sơ đã đi qua, trừ bước đang đứng.
 
@@ -1666,12 +1705,12 @@ def rewind_to(dossier: ProductDevelopment, user, *, step: str) -> None:
                 state__in=(DesignVersion.STATE_APPROVED, DesignVersion.STATE_SUBMITTED),
             ).update(state=DesignVersion.STATE_DRAFT, updated_at=timezone.now())
             dossier.approved_design_version = None
+        sv = dossier.current_sample_version()
         if step in ('technical', 'sample'):
-            sv = dossier.current_sample_version()
             _require(sv is not None, 'Chưa có mẫu để quay lại bước này.')
-            if sv.state != SampleVersion.STATE_IN_PROGRESS:
-                sv.state = SampleVersion.STATE_IN_PROGRESS
-                sv.save(update_fields=['state', 'updated_at'])
+        if sv is not None and sv.state != SampleVersion.STATE_IN_PROGRESS:
+            sv.state = SampleVersion.STATE_IN_PROGRESS
+            sv.save(update_fields=['state', 'updated_at'])
         dossier.is_locked = False
         dossier.approved_at = None
         dossier.final_sample_version = None
@@ -1679,6 +1718,7 @@ def rewind_to(dossier: ProductDevelopment, user, *, step: str) -> None:
             dossier, target, user, 'rewound',
             f'{_name(user)} quay lại bước {label}.',
         )
+        dossier.__dict__.pop('_tk_backtrack', None)
 
 
 PAUSABLE = frozenset(Status.values) - {Status.DRAFT, Status.PAUSED, Status.HANDED_OVER, *FINAL_STATUSES}
@@ -1893,14 +1933,18 @@ def _upload_allowed(dossier, user, kind: str, design_version, sample_version) ->
                 sv is not None
                 and sv.design_version_id == design_version.pk
                 and sv.is_editable
-                and (dossier.status in TECH_EDIT_STATUSES or _approved_sample_editable(dossier, sv))
+                and (
+                    dossier.status in TECH_EDIT_STATUSES
+                    or _approved_sample_editable(dossier, sv)
+                    or tech_reopened(dossier, sv)
+                )
             )
             if tech_open:
                 return (
                     '' if perms.has_role(dossier, user, Role.TECHNICIAN, Role.OWNER)
                     else 'Chỉ Kỹ thuật / Tài liệu kỹ thuật hoặc người phụ trách được cập nhật màu.'
                 )
-        if _approved_design_editable(dossier, design_version):
+        if _approved_design_editable(dossier, design_version) or design_reopened(dossier, design_version):
             return '' if perms.has_role(dossier, user, Role.DESIGNER, Role.OWNER) else 'Chỉ Thiết kế / R&D tải tệp thiết kế.'
         if not design_version.is_editable or dossier.status not in (
             Status.DESIGNING, Status.DESIGN_REVISE, Status.LIBRARY_REOPEN,
@@ -1924,6 +1968,11 @@ def _upload_allowed(dossier, user, kind: str, design_version, sample_version) ->
         allowed = TECH_EDIT_STATUSES if tech_file else (
             Status.SAMPLING, Status.SAMPLE_REVISE, Status.LIBRARY_REOPEN,
         )
+        reopened_file = tech_reopened(dossier, sample_version) if tech_file else sample_reopened(dossier, sample_version)
+        if reopened_file:
+            roles = (Role.TECHNICIAN, Role.OWNER) if tech_file else (
+                Role.SAMPLE_MAKER, Role.TECHNICIAN, Role.OWNER)
+            return '' if perms.has_role(dossier, user, *roles) else 'Bạn không phụ trách phần việc này.'
         if not sample_version.is_editable or dossier.status not in allowed:
             return 'Mẫu đã gửi đánh giá — không thêm ảnh / tài liệu kỹ thuật được.'
         roles = (Role.TECHNICIAN, Role.OWNER) if tech_file else (
@@ -2132,5 +2181,5 @@ def update_task_due(task: Task, user, *, due_at) -> None:
 
 
 def delete_draft(dossier: ProductDevelopment, user) -> None:
-    _require(perms.can_view_dossier(dossier, user), 'Bạn không có quyền xóa hồ sơ này.')
+    _require(perms.can_delete_dossier(dossier, user), 'Bạn không có quyền xóa hồ sơ này.')
     dossier.delete()
