@@ -99,7 +99,6 @@
     <label class="tk-decide"><input type="radio" name="decision" value="request_fix" data-tk-hide="#tkMasterApproveBox" data-comment-required="1" data-comment-label="Nội dung cần sửa mẫu"><span>Yêu cầu sửa mẫu</span></label>
     <label class="tk-decide"><input type="radio" name="decision" value="request_technical" data-tk-hide="#tkMasterApproveBox" data-comment-required="1" data-comment-label="Nội dung cần chỉnh kỹ thuật"><span>Yêu cầu chỉnh kỹ thuật</span></label>
     <label class="tk-decide"><input type="radio" name="decision" value="request_design" data-tk-hide="#tkMasterApproveBox" data-comment-required="1" data-comment-label="Nội dung cần chỉnh thiết kế"><span>Yêu cầu chỉnh thiết kế</span></label>
-    <label class="tk-decide is-no"><input type="radio" name="decision" value="cancelled" data-tk-hide="#tkMasterApproveBox" data-comment-required="1" data-comment-label="Lý do hủy"><span>Hủy hồ sơ</span></label>
   </div>
   <label class="form-label fw-bold small mb-1"><span class="tk-decision-comment-label" data-default-label="Ý kiến">Ý kiến</span> <span class="tk-decision-comment-star text-danger d-none">*</span></label>
   <textarea name="comment" class="form-control form-control-sm mb-2 tk-decision-comment" rows="2"></textarea>
@@ -184,11 +183,14 @@
 {% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Tiếp tục' %}
 {% endif %}
 
-{% if flags.cancel %}
-{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalCancel' modal_action='cancel' modal_title='Hủy hồ sơ '|add:dossier.code modal_confirm='Hủy hồ sơ — không thể hoàn tác. Tiếp tục?' %}
-  <label class="form-label fw-bold small mb-1">Lý do hủy <span class="text-danger">*</span></label>
-  <textarea name="comment" class="form-control form-control-sm" rows="3" required></textarea>
-{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Hủy hồ sơ' submit_class='btn-danger' %}
+{% if flags.rewind %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalRewind' modal_action='rewind' modal_title='Quay lại bước' modal_class='jp-tksp' %}
+  <div class="tk-rewind-list">
+    {% for key, label in rewind_steps %}
+    <label class="tk-decide"><input type="radio" name="step" value="{{ key }}" {% if forloop.first %}checked{% endif %}><span>{{ label }}</span></label>
+    {% endfor %}
+  </div>
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Quay lại' %}
 {% endif %}
 
 {% if roles_form %}

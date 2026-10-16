@@ -405,9 +405,10 @@ def action_flags(dossier: ProductDevelopment, user) -> dict[str, bool]:
         'change_request': s == Status.APPROVED and (approver or owner),
         'pause': s in wf.PAUSABLE and approver,
         'resume': s == Status.PAUSED and approver,
-        'cancel': s not in (*FINAL_STATUSES, Status.DRAFT, Status.HANDED_OVER) and approver,
+        'cancel': False,
         'edit_roles': perms.can_edit_roles(dossier, user),
         'manage_due': s not in FINAL_STATUSES and (perms.has_role(dossier, user, Role.OWNER) or approver),
         'comment': perms.can_view_dossier(dossier, user) and s not in FINAL_STATUSES,
         'full_access': perms.has_full_dossier_access(user),
+        'rewind': bool(wf.rewind_choices(dossier)) and perms.can_work_as(dossier, user, Role.OWNER),
     }

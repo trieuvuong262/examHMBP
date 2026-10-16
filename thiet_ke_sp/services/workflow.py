@@ -1582,6 +1582,105 @@ def close_dossier(dossier: ProductDevelopment, user) -> None:
 # Tạm dừng / hủy / tiếp tục / thay đổi sau duyệt
 # ---------------------------------------------------------------------------
 
+# Quay lại các bước đã đi qua. Thứ tự đúng với nút trên hồ sơ.
+REWIND_STEPS = (
+    ('overview', 'Tổng quan', Status.DRAFT),
+    ('design', 'Thiết kế', Status.DESIGNING),
+    ('technical', 'Kỹ thuật', Status.TECHNICAL),
+    ('sample', 'May mẫu', Status.SAMPLING),
+)
+_REWIND_RANK = {
+    Status.DRAFT: 0,
+    Status.BRIEF_NEEDS_INFO: 0,
+    Status.BRIEF_PENDING: 0,
+    Status.DESIGNING: 1,
+    Status.DESIGN_REVISE: 1,
+    Status.DESIGN_PENDING: 1,
+    Status.TECHNICAL: 2,
+    Status.TECHNICAL_REVISE: 2,
+    Status.SAMPLING: 3,
+    Status.SAMPLE_REVISE: 3,
+    Status.SAMPLE_EVAL_PENDING: 4,
+    Status.MASTER_PENDING: 4,
+    Status.APPROVED: 4,
+    Status.HANDED_OVER: 4,
+    Status.LIBRARY_REOPEN: 4,
+}
+
+
+def _rewind_rank_seen(dossier: ProductDevelopment) -> int | None:
+    """Bước xa nhất hồ sơ đã đứng, kể cả sau khi quay lại một bước trước."""
+    ranks = []
+    current = _REWIND_RANK.get(dossier.status)
+    if current is not None:
+        ranks.append(current)
+    paused = _REWIND_RANK.get(getattr(dossier, 'paused_from_status', '') or '')
+    if paused is not None:
+        ranks.append(paused)
+    if getattr(dossier, 'pk', None):
+        seen = AuditLog.objects.filter(dossier=dossier).values_list('from_status', 'to_status')
+        for origin, target in seen:
+            for status in (origin, target):
+                rank = _REWIND_RANK.get(status)
+                if rank is not None:
+                    ranks.append(rank)
+    if not ranks:
+        return None
+    return max(ranks)
+
+
+def rewind_choices(dossier: ProductDevelopment) -> list[tuple[str, str]]:
+    """Chỉ các bước hồ sơ đã đi qua, trừ bước đang đứng.
+
+    Chưa tới May mẫu thì không có mục May mẫu. Đã từng tới rồi quay về Thiết kế
+    thì Kỹ thuật và May mẫu vẫn chọn được.
+    """
+    current = _REWIND_RANK.get(dossier.status)
+    furthest = _rewind_rank_seen(dossier)
+    if current is None or furthest is None:
+        return []
+    return [
+        (key, label)
+        for index, (key, label, _status) in enumerate(REWIND_STEPS)
+        if index <= furthest and index != current
+    ]
+
+
+def rewind_to(dossier: ProductDevelopment, user, *, step: str) -> None:
+    """Đưa hồ sơ về một bước đã qua, mở lại phần đang khóa để sửa tiếp."""
+    _require(perms.can_work_as(dossier, user, Role.OWNER), 'Chỉ người phụ trách chính được quay lại bước.')
+    choices = dict(rewind_choices(dossier))
+    _require(step in choices, 'Không quay lại được bước này.')
+    try:
+        handover = dossier.handover
+    except Handover.DoesNotExist:
+        handover = None
+    if handover is not None and handover.is_transferred:
+        raise WorkflowError('Sản phẩm đã chuyển sang sản xuất — không quay lại bước được.')
+    target = next(status for key, _label, status in REWIND_STEPS if key == step)
+    label = choices[step]
+    with transaction.atomic():
+        if step in ('overview', 'design'):
+            dossier.design_versions.filter(
+                is_current=True,
+                state__in=(DesignVersion.STATE_APPROVED, DesignVersion.STATE_SUBMITTED),
+            ).update(state=DesignVersion.STATE_DRAFT, updated_at=timezone.now())
+            dossier.approved_design_version = None
+        if step in ('technical', 'sample'):
+            sv = dossier.current_sample_version()
+            _require(sv is not None, 'Chưa có mẫu để quay lại bước này.')
+            if sv.state != SampleVersion.STATE_IN_PROGRESS:
+                sv.state = SampleVersion.STATE_IN_PROGRESS
+                sv.save(update_fields=['state', 'updated_at'])
+        dossier.is_locked = False
+        dossier.approved_at = None
+        dossier.final_sample_version = None
+        _transition(
+            dossier, target, user, 'rewound',
+            f'{_name(user)} quay lại bước {label}.',
+        )
+
+
 PAUSABLE = frozenset(Status.values) - {Status.DRAFT, Status.PAUSED, Status.HANDED_OVER, *FINAL_STATUSES}
 
 
@@ -1622,20 +1721,7 @@ def resume(dossier: ProductDevelopment, user, *, comment: str = '', due_at=None)
 
 
 def cancel(dossier: ProductDevelopment, user, *, reason: str, stage: str = ApprovalStage.STOP) -> None:
-    _require(dossier.status not in (*FINAL_STATUSES, Status.DRAFT, Status.HANDED_OVER),
-             'Không hủy được hồ sơ ở trạng thái này.')
-    _require(perms.is_dossier_approver(dossier, user), 'Chỉ người duyệt của hồ sơ được hủy.')
-    reason = _require_text(reason, 'lý do hủy')
-    with transaction.atomic():
-        Approval.objects.create(dossier=dossier, stage=stage, decision=ApprovalDecision.CANCELLED,
-                                comment=reason, decided_by=user)
-        _cancel_all_open_tasks(dossier)
-        dossier.stop_reason = reason
-        dossier.is_locked = True
-        dossier.closed_at = timezone.now()
-        _transition(dossier, Status.CANCELLED, user, 'cancelled', f'{_name(user)} hủy hồ sơ: {reason}',
-                    open_tasks=False)
-    nt.notify_many([dossier.owner, dossier.co_owner, dossier.proposer], dossier, nt.KIND_INFO, 'Hồ sơ đã bị hủy', reason, actor=user)
+    raise WorkflowError('Hồ sơ không còn trạng thái hủy. Dùng Tạm dừng hoặc Xóa.')
 
 
 CHANGE_TARGET_DESIGN = 'design'

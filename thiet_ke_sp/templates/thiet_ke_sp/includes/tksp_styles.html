@@ -183,6 +183,20 @@ body > .ts-dropdown {
   border-color: rgba(220, 38, 38, 0.25) !important;
   transform: none;
 }
+.jp-tksp .tk-detail-tools .btn.tk-rewind-btn,
+.jp-tksp .tk-detail-tools .btn.tk-rewind-btn:hover,
+.jp-tksp .tk-detail-tools .btn.tk-rewind-btn:focus {
+  gap: .35rem;
+  color: #1e293b !important;
+  background: #f1f5f9 !important;
+  border-color: #94a3b8 !important;
+  font-weight: 650 !important;
+}
+.jp-tksp .tk-detail-tools .btn.tk-rewind-btn:hover {
+  color: var(--hm-primary) !important;
+  background: #fff !important;
+  border-color: rgba(220, 38, 38, .4) !important;
+}
 .jp-tksp .tk-detail-tools .btn-hm,
 .jp-tksp .tk-detail-tools .btn-hm:hover,
 .jp-tksp .tk-detail-tools .btn-hm:focus,
@@ -396,6 +410,11 @@ body > .ts-dropdown {
 .jp-tksp .tk-sku-group-head b { font-size: .8rem; }
 .jp-tksp .tk-sku-prefix { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .72rem; font-weight: 700; color: var(--tk-muted); }
 .jp-tksp .tk-sku-dot { width: .7rem; height: .7rem; border-radius: 50%; border: 1px solid var(--tk-line); flex: 0 0 auto; }
+#tkModalRewind .tk-rewind-list { display: grid; gap: .35rem; }
+#tkModalRewind .tk-decide { display: flex; align-items: center; gap: .55rem; margin: 0; min-height: 2.4rem; padding: .45rem .7rem; border: 1px solid var(--tk-line, #e2e8f0); border-radius: 8px; background: var(--tk-surface, #fff); cursor: pointer; font-size: .84rem; font-weight: 700; }
+#tkModalRewind .tk-decide input { width: 1rem; height: 1rem; margin: 0; flex: 0 0 auto; }
+#tkModalRewind .tk-decide span { display: inline-flex; align-items: center; line-height: 1.2; }
+#tkModalRewind .tk-decide:has(input:checked) { border-color: var(--hm-primary, #dc2626); background: var(--hm-primary-soft, #fee2e2); color: var(--hm-primary, #dc2626); }
 #tkModalMaster .tk-decide-list { display: flex; flex-wrap: nowrap; gap: .35rem; }
 #tkModalMaster .tk-decide { display: flex; align-items: center; justify-content: center; gap: .4rem; flex: 1 1 0; min-width: 0; min-height: 2.4rem; margin: 0; padding: .35rem .4rem; border: 1px solid var(--tk-line); border-radius: 8px; background: var(--tk-surface); cursor: pointer; font-size: .75rem; font-weight: 700; text-align: center; }
 #tkModalMaster .tk-decide input { width: 1rem; height: 1rem; margin: 0; flex: 0 0 auto; }
@@ -668,6 +687,17 @@ body.tk-kan-dragging, body.tk-kan-dragging * { cursor: grabbing !important; user
   background: var(--jp-surface-bg) !important;
   color: var(--jp-text-secondary) !important;
   border-color: var(--jp-surface-border) !important;
+}
+[data-theme="dark"] .jp-tksp .tk-detail-tools .btn.tk-rewind-btn,
+[data-theme="dark"] .jp-tksp .tk-detail-tools .btn.tk-rewind-btn:focus {
+  background: #1e293b !important;
+  color: #e2e8f0 !important;
+  border-color: #64748b !important;
+}
+[data-theme="dark"] .jp-tksp .tk-detail-tools .btn.tk-rewind-btn:hover {
+  color: #fecaca !important;
+  background: #1e293b !important;
+  border-color: rgba(248, 113, 113, .55) !important;
 }
 [data-theme="dark"] .jp-tksp .tk-sheet-main,
 [data-theme="dark"] .jp-tksp .tk-hero-main { background: linear-gradient(180deg, #1c2430 0%, #151b24 100%); }

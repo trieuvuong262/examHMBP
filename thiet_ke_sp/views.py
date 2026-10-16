@@ -555,6 +555,7 @@ def dossier_detail(request, pk):
         main_task=main_task,
         open_tasks=open_tasks,
         flags=flags,
+        rewind_steps=wf.rewind_choices(dossier) if flags['rewind'] else [],
         cover=presenters.cover_map([dossier.pk]).get(dossier.pk),
         design_versions=design_versions,
         current_dv=current_dv,
@@ -854,6 +855,11 @@ def _run_action(request, dossier: ProductDevelopment, action: str) -> tuple[str,
     if action == 'change_request':
         wf.request_change_after_approval(dossier, user, target=post.get('target', ''), reason=comment, due_at=due)
         return 'overview', 'Đã mở phiên bản mới theo yêu cầu thay đổi.'
+    if action == 'rewind':
+        step = (post.get('step') or '').strip()
+        wf.rewind_to(dossier, user, step=step)
+        labels = {key: label for key, label, _status in wf.REWIND_STEPS}
+        return step if step in TAB_KEYS else 'overview', f'Đã quay lại {labels.get(step, "bước trước")}.'
 
     if action == 'roles_save':
         form = f.RolesForm(post, dossier=dossier)

@@ -2,7 +2,6 @@
 <div class="d-flex flex-column gap-1 mb-2">
   <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="approved" data-due="{{ sla_due.designing|due_input }}" checked> <span class="form-check-label">Duyệt — chuyển sang thiết kế</span></label>
   <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="request_change" data-due="{{ sla_due.brief_needs_info|due_input }}" data-comment-required="1" data-comment-label="Nội dung cần bổ sung"> <span class="form-check-label">Yêu cầu bổ sung đề bài</span></label>
-  <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="cancelled" data-due="" data-comment-required="1" data-comment-label="Lý do hủy"> <span class="form-check-label text-danger">Hủy hồ sơ</span></label>
 </div>
 <label class="form-label fw-bold small mb-1"><span class="tk-decision-comment-label" data-default-label="Ý kiến">Ý kiến</span> <span class="tk-decision-comment-star text-danger d-none">*</span></label>
 <textarea name="comment" class="form-control form-control-sm mb-2 tk-decision-comment" rows="3"></textarea>
