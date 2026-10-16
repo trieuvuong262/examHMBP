@@ -2848,6 +2848,65 @@ def save_plan_hops(*, order_id: int, hops: list[dict]) -> list[SxSalesOrderPlanS
     return list(order.plan_steps.order_by('sequence', 'id'))
 
 
+def _assigned_step_slug(steps, fallback: str) -> str:
+    """Slug lộ trình sau khi bước đã gắn tổ mới (bộ phận dùng chung → d{id})."""
+    from san_xuat.services.inter_step_times import _group_slug_scope
+
+    with _group_slug_scope():
+        for step in steps:
+            slug = _plan_step_team_slug(step)
+            if slug:
+                return slug
+    return fallback
+
+
+def _retarget_day_plans_after_team_change(
+    order: SxSalesOrder,
+    *,
+    old_slug: str,
+    new_slug: str,
+    source_wc_id: int,
+) -> None:
+    """Đưa phân bổ ngày theo slug cũ khi đổi tổ làm mã bộ phận đổi (d25 → d39)."""
+    old_slug = (old_slug or '').strip().lower()
+    new_slug = (new_slug or '').strip().lower()
+    if not old_slug or not new_slug or old_slug == new_slug:
+        return
+    from san_xuat.services.team_division_map import team_slug_aliases
+
+    aliases = [a for a in team_slug_aliases(old_slug) if a and a != new_slug]
+    if old_slug not in aliases:
+        aliases.append(old_slug)
+    qs = SxOrderTeamDayPlan.objects.filter(sales_order=order, team_slug__in=aliases)
+    src = int(source_wc_id or 0)
+    extras = qs.exclude(work_center_id__isnull=True)
+    if src:
+        extras = extras.exclude(work_center_id=src)
+    for row in list(extras):
+        clash = (
+            SxOrderTeamDayPlan.objects.filter(
+                sales_order=order,
+                team_slug=new_slug,
+                plan_date=row.plan_date,
+                work_center_id=row.work_center_id,
+            )
+            .exclude(pk=row.pk)
+            .first()
+        )
+        if clash is not None:
+            clash.qty = _q(clash.qty) + _q(row.qty)
+            clash.save(update_fields=['qty'])
+            row.delete()
+            continue
+        row.team_slug = new_slug
+        row.save(update_fields=['team_slug'])
+    primary = qs.filter(work_center_id__isnull=True)
+    if src:
+        primary = qs.filter(Q(work_center_id__isnull=True) | Q(work_center_id=src))
+    primary.delete()
+    _clear_day_plan_cache(order)
+
+
 @transaction.atomic
 def assign_plan_team(
     *,
@@ -2932,8 +2991,15 @@ def assign_plan_team(
     if cache is not None:
         cache.pop('plan_steps', None)
         cache.pop('lines', None)
-    apply_auto_team_day_splits(order, only_slug=slug, replace_existing=True)
-    _reflow_order_from(order, origin_slug=slug)
+    # Tổ may/in… dùng chung một công đoạn nhưng mỗi bộ phận HR một slug (d25, d39).
+    # Sau khi gắn tổ mới, xếp lại theo slug đó — slug cũ không còn trên đơn.
+    new_slug = _assigned_step_slug(matched, slug)
+    if new_slug != slug:
+        _retarget_day_plans_after_team_change(
+            order, old_slug=slug, new_slug=new_slug, source_wc_id=src_wc,
+        )
+    apply_auto_team_day_splits(order, only_slug=new_slug, replace_existing=True)
+    _reflow_order_from(order, origin_slug=new_slug)
     return order, wc
 
 

@@ -28,4 +28,25 @@
     </div>
     {% endfor %}
   </div>
+  <div class="jp-sheet-product-meta">
+    <div class="jp-sheet-product-dates">
+      <div class="jp-sheet-product-date" title="Ngày dự kiến thực hiện">
+        <span class="k">Thực hiện</span>
+        <strong>{% if row.order.request_date %}{{ row.order.request_date|date:"d/m/Y" }}{% else %}—{% endif %}</strong>
+      </div>
+      <span class="jp-sheet-product-arrow" aria-hidden="true"><i class="bi bi-arrow-right"></i></span>
+      <div class="jp-sheet-product-date is-end{% if row.is_late and row.order.due_date %} is-late{% endif %}" title="Ngày dự kiến hoàn thành">
+        <span class="k">Hoàn thành</span>
+        <strong>{% if row.order.due_date %}{{ row.order.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</strong>
+      </div>
+    </div>
+    <div class="jp-sheet-product-dur" title="Tổng thời gian làm đơn (SMV × SL mọi mã + kiểm/VC)">
+      <i class="bi bi-clock" aria-hidden="true"></i>
+      <span>{% if row.duration_label %}{{ row.duration_label }}{% else %}Chưa có thời gian đơn{% endif %}</span>
+      {% if row.duration_script_id %}
+      <button type="button" class="jp-pb-dur-btn" data-jp-duration-open
+              data-detail-id="{{ row.duration_script_id }}">Chi tiết</button>
+      {% endif %}
+    </div>
+  </div>
 </div>

@@ -887,7 +887,7 @@
     --sheet-brand: var(--hm-primary, #dc2626);
     --sheet-brand-soft: #fef2f2;
     --sheet-brand-line: #fecaca;
-    --sheet-product: 304px;
+    --sheet-product: 336px;
   }
   .jp-tl-is-sheet .jp-tl-wrap {
     background: #fff;
@@ -968,7 +968,7 @@
     min-width: var(--sheet-product);
     max-width: var(--sheet-product);
     text-align: left;
-    padding: 6px 8px;
+    padding: 8px 10px;
     overflow: visible;
     white-space: normal;
   }
@@ -1045,7 +1045,7 @@
   .jp-tl-sheet .jp-sheet-product {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 7px;
     min-width: 0;
   }
   .jp-tl-sheet .jp-sheet-product-head {
@@ -1058,27 +1058,114 @@
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
+    letter-spacing: -.02em;
   }
   .jp-tl-sheet .jp-sheet-product-lines {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 5px;
   }
   .jp-tl-sheet .jp-sheet-product-line {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     min-width: 0;
   }
   .jp-tl-sheet .jp-sheet-product-name {
     flex: 1 1 auto;
     min-width: 0;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal;
+    font-size: 12px;
     font-weight: 650;
+    line-height: 1.25;
     color: #0f172a;
     text-align: left;
+  }
+  .jp-tl-sheet .jp-sheet-product-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    padding: 7px 8px 6px;
+    border: 1px solid #e8edf3;
+    border-radius: 8px;
+    background: #f8fafc;
+  }
+  .jp-tl-sheet .jp-sheet-product-dates {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 14px minmax(0, 1fr);
+    align-items: end;
+    gap: 4px;
+  }
+  .jp-tl-sheet .jp-sheet-product-date {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+  }
+  .jp-tl-sheet .jp-sheet-product-date.is-end {
+    align-items: flex-end;
+    text-align: right;
+  }
+  .jp-tl-sheet .jp-sheet-product-date .k {
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: #64748b;
+    white-space: normal;
+  }
+  .jp-tl-sheet .jp-sheet-product-date strong {
+    font-size: 12px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -.02em;
+    color: #0f172a;
+    line-height: 1.2;
+  }
+  .jp-tl-sheet .jp-sheet-product-date.is-late strong {
+    color: #b91c1c;
+  }
+  .jp-tl-sheet .jp-sheet-product-arrow {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    height: 100%;
+    padding-bottom: 1px;
+    color: #cbd5e1;
+    font-size: 11px;
+    line-height: 1;
+  }
+  .jp-tl-sheet .jp-sheet-product-dur {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    padding-top: 6px;
+    border-top: 1px dashed #e2e8f0;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.3;
+    color: #334155;
+  }
+  .jp-tl-sheet .jp-sheet-product-dur .bi-clock {
+    flex: 0 0 auto;
+    color: #94a3b8;
+    font-size: 12px;
+  }
+  .jp-tl-sheet .jp-sheet-product-dur > span {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .jp-tl-sheet .jp-sheet-product-dur .jp-pb-dur-btn {
+    flex: 0 0 auto;
+    height: 1.25rem;
+    margin-left: 0;
+    padding: 0 .45rem;
+    font-size: 10px;
   }
   .jp-tl-sheet tbody td.c-stt {
     vertical-align: top;
@@ -1122,7 +1209,7 @@
     cursor: grabbing !important;
   }
   .jp-tl-sheet td.c-product .jp-tl-code {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 800;
     color: var(--sheet-brand);
     text-decoration: none;
@@ -1165,13 +1252,14 @@
     vertical-align: top;
   }
   .jp-tl-sheet .c-product .jp-tl-product {
-    width: 32px;
-    height: 32px;
-    flex: 0 0 32px;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
     margin: 0;
-    border-radius: .4rem;
+    border-radius: 8px;
     border: 1px solid #e2e8f0;
-    background: #f8fafc;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
     overflow: hidden;
   }
   .jp-tl-sheet .c-product .jp-tl-product img {
