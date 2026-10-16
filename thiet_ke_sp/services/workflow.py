@@ -1029,9 +1029,21 @@ def submit_master(dossier: ProductDevelopment, user, *, due_at=None) -> None:
 def official_code_conflict(code: str, *, exclude_dossier_id=None) -> str:
     from san_xuat.models import ProductTechDoc
 
+    from thiet_ke_sp.services.official_code import style_taken_in_catalog
+
     code = (code or '').strip()
     if not code:
         return ''
+    own = bool(
+        exclude_dossier_id
+        and ProductDevelopment.objects.filter(
+            pk=exclude_dossier_id, official_product_code__iexact=code,
+        ).exists()
+    )
+    if not own:
+        taken = style_taken_in_catalog(code)
+        if taken:
+            return taken
     docs = ProductTechDoc.objects.filter(product_code__iexact=code)
     if exclude_dossier_id:
         own_doc_ids = Handover.objects.filter(
@@ -1090,21 +1102,27 @@ def decide_master(dossier: ProductDevelopment, user, *, official_code: str, comm
         summary = f'{_name(user)} duyệt thiết kế {sv.label} — mã chính thức {code}'
         if conditions:
             summary += f', kèm {len(conditions)} điều kiện'
-        _transition(dossier, Status.APPROVED, user, 'master_approved', summary + '.', due_at=due_at,
-                    official_code=code, comment=comment)
+        style, seeded, _record = _publish_to_library(dossier, user, note=comment)
+        summary += f'. Đưa vào Thư viện — Style {style.code}'
+        if seeded and _library_sizes(dossier):
+            summary += f', {seeded} SKU theo màu và size đã chọn'
+        elif seeded:
+            summary += f', {seeded} SKU theo màu thiết kế'
+        _transition(dossier, Status.HANDED_OVER, user, 'master_approved', summary + '.', due_at=due_at,
+                    open_tasks=False, official_code=code, comment=comment, style_code=style.code)
         for cond in conditions:
             obj = ApprovalCondition.objects.create(
                 dossier=dossier, approval=approval, content=cond.content.strip(),
                 assignee=cond.assignee, due_at=cond.due_at,
             )
-            _create_task(dossier, step=Status.APPROVED, role=Role.CONDITION,
+            _create_task(dossier, step=Status.HANDED_OVER, role=Role.CONDITION,
                          title=f'Điều kiện duyệt: {obj.content}', assignee=obj.assignee, due_at=obj.due_at,
                          is_main=False, actor=user, condition=obj)
     nt.notify_many(
         [dossier.owner, dossier.co_owner, dossier.designer, dossier.co_designer,
          dossier.technician, dossier.co_technician, dossier.proposer], dossier,
                    nt.KIND_APPROVED, f'Đã duyệt thiết kế {sv.label}',
-                   f'{dossier.code} — {dossier.name} · Mã {code}', actor=user)
+                   f'{dossier.code} — {dossier.name} · Mã {code} đã vào Thư viện', actor=user)
 
 
 def complete_condition(cond: ApprovalCondition, user, *, note: str = '') -> None:
@@ -1243,8 +1261,63 @@ def _library_sizes(dossier: ProductDevelopment) -> list[str]:
     return filled_sizes(getattr(pack, 'size_spec', '') or '')
 
 
+def preview_library_skus(dossier: ProductDevelopment, style_code: str) -> list[dict]:
+    """SKU size sẽ vào Thư viện. Mã là {mã gốc}-{size}; màu là thuộc tính của mã gốc."""
+    from kho_san_pham.models import Product
+    from san_xuat.hub_models import SxColor
+    from san_xuat.services.sku_catalog import SkuError, compose_sku_code
+
+    style_code = (style_code or '').strip().upper()
+    sv = dossier.current_sample_version()
+    dv = sv.design_version if sv is not None else None
+    if dv is None:
+        return []
+    sizes = _library_sizes(dossier)
+    rows: list[dict] = []
+    seen: set[str] = set()
+    for cw in dv.colorways.all():
+        label = (cw.name or '').strip() or (cw.color_codes or '').strip()
+        if not label:
+            continue
+        known = SxColor.objects.filter(name__iexact=label).first()
+        if known:
+            color_code = known.code
+            color_label = (known.name or label)[:80]
+        else:
+            base = _colorway_code(label) or 'MAU'
+            color_code = base
+            n = 2
+            while color_code in seen or (
+                style_code and Product.objects.filter(style_code=style_code, color_code=color_code).exists()
+            ):
+                color_code = f'{base[:10]}{n}'
+                n += 1
+            color_label = label[:80]
+        if color_code in seen:
+            continue
+        seen.add(color_code)
+        for size in (sizes or ['']):
+            if size and style_code:
+                try:
+                    sku = compose_sku_code(style_code=style_code, color_code='', size_label=size)
+                except SkuError:
+                    continue
+            else:
+                sku = style_code
+            code = (color_code or '').upper()
+            rows.append({
+                'sku': sku,
+                'color': color_label,
+                'color_code': code,
+                'size': (size or '').upper(),
+                'swatch': cw.color_codes or '',
+                'prefix': style_code,
+            })
+    return rows
+
+
 def seed_library_color_skus(dossier: ProductDevelopment, style, user) -> int:
-    """Tạo SKU theo màu thiết kế. Size lấy từ size đã tick; chưa tick thì để trống."""
+    """Tạo SKU {mã gốc}-{size}. Mỗi màu là thuộc tính color_code của cùng mã gốc."""
     from kho_san_pham.choices import (
         PRODUCT_TYPE_THANH_PHAM,
         SYNC_SOURCE_MANUAL,
@@ -1297,15 +1370,13 @@ def seed_library_color_skus(dossier: ProductDevelopment, style, user) -> int:
             if size:
                 try:
                     sku_code = compose_sku_code(
-                        style_code=style.code, color_code=color_code, size_label=size,
+                        style_code=style.code, color_code='', size_label=size,
                     )
                 except SkuError:
                     continue
                 ensure_size(code=size, name=size, user=user)
             else:
-                sku_code = f'{style.code}-{color_code}'
-            if Product.objects.filter(code__iexact=sku_code).exists():
-                continue
+                sku_code = style.code
             Product.objects.create(
                 product_type=product_type,
                 catalog_type=style.product_type,
@@ -1328,8 +1399,33 @@ def seed_library_color_skus(dossier: ProductDevelopment, style, user) -> int:
     return created
 
 
+def _publish_to_library(dossier: ProductDevelopment, user, *, note: str = ''):
+    """Tạo Style và SKU trong Thư viện theo mã gốc, màu và size đang có trên hồ sơ."""
+    style = _library_style(dossier, user)
+    seeded = seed_library_color_skus(dossier, style, user)
+    try:
+        record = dossier.handover
+    except Handover.DoesNotExist:
+        record = None
+    if record is None:
+        record = Handover.objects.create(
+            dossier=dossier, product_code=style.code,
+            design_version=dossier.approved_design_version, sample_version=dossier.final_sample_version,
+            note=note, handed_by=user,
+        )
+    else:
+        record.product_code = style.code
+        record.design_version = dossier.approved_design_version
+        record.sample_version = dossier.final_sample_version
+        record.note = note
+        record.handed_by = user
+        record.handed_at = timezone.now()
+        record.save()
+    return style, seeded, record
+
+
 def handover(dossier: ProductDevelopment, user, *, note: str = '', due_at=None):
-    """Thêm Style vào Thư viện. Chuyển sản xuất làm bên Thư viện, hồ sơ thiết kế dừng tại đây."""
+    """Hồ sơ đã duyệt từ trước, còn chờ vào Thư viện. Luồng mới vào Thư viện ngay khi duyệt."""
     _require(dossier.status == Status.APPROVED, 'Hồ sơ chưa được duyệt hoặc đã thêm vào Thư viện.')
     _require(perms.can_work_as(dossier, user, Role.OWNER, Role.TECHNICIAN),
              'Chỉ người phụ trách chính hoặc Kỹ thuật được thêm vào Thư viện.')
@@ -1338,26 +1434,7 @@ def handover(dossier: ProductDevelopment, user, *, note: str = '', due_at=None):
     conflict = official_code_conflict(dossier.official_product_code, exclude_dossier_id=dossier.pk)
     _require(not conflict, conflict)
     with transaction.atomic():
-        style = _library_style(dossier, user)
-        seeded = seed_library_color_skus(dossier, style, user)
-        try:
-            record = dossier.handover
-        except Handover.DoesNotExist:
-            record = None
-        if record is None:
-            record = Handover.objects.create(
-                dossier=dossier, product_code=style.code,
-                design_version=dossier.approved_design_version, sample_version=dossier.final_sample_version,
-                note=note, handed_by=user,
-            )
-        else:
-            record.product_code = style.code
-            record.design_version = dossier.approved_design_version
-            record.sample_version = dossier.final_sample_version
-            record.note = note
-            record.handed_by = user
-            record.handed_at = timezone.now()
-            record.save()
+        style, seeded, record = _publish_to_library(dossier, user, note=note)
         text = f'{_name(user)} thêm vào Thư viện — Style {style.code}.'
         if seeded and _library_sizes(dossier):
             text += f' Tạo {seeded} SKU theo màu thiết kế và size đã nhập ở bảng thông số.'

@@ -1,9 +1,14 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}{% if library_code %}{% include 'thiet_ke_sp/includes/tksp_styles.html' %}{% endif %}{% endblock %}
+
 {% block content %}
-<div class="container jp-page py-3 py-md-4 mb-5">
-    <div class="card border-0 shadow-sm">
-        <div class="card-body p-4" style="max-width:640px">
+<div class="{% if library_code %}container-fluid jp-page jp-sx-page jp-tksp py-3 py-md-4 mb-5 px-3 px-lg-4{% else %}container jp-page py-3 py-md-4 mb-5{% endif %}">
+    {% if library_code %}
+    {% include 'kho_san_pham/includes/library_topbar.html' with lib_title='Xóa SKU' back_url=cancel_url %}
+    {% endif %}
+    <div class="{% if library_code %}tk-card tk-lib-form{% else %}card border-0 shadow-sm{% endif %}">
+        <div class="{% if library_code %}tk-panel{% else %}card-body p-4{% endif %}"{% if not library_code %} style="max-width:640px"{% endif %}>
             <h2 class="fw-bold text-danger h5 mb-3">Xóa {{ product.code }}?</h2>
             <p class="text-muted mb-3">{{ product.name }} — thao tác không hoàn tác.</p>
 

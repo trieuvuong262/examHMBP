@@ -46,7 +46,7 @@
       <a class="tk-kan-card{% if d.step_late_days %} is-late{% endif %}" href="{{ d.get_absolute_url }}" draggable="false"
          data-movable="{% if d.kanban_moves_json != '{}' %}1{% else %}0{% endif %}" data-col="{{ col.key }}"
          data-status="{{ d.status }}" data-status-label="{{ d.get_status_display }}" data-name="{{ d.name }}"
-         data-moves="{{ d.kanban_moves_json }}" data-url="{% url 'thiet_ke_sp:kanban_move' d.pk %}">
+         data-moves="{{ d.kanban_moves_json }}" data-url="{% url 'thiet_ke_sp:kanban_move' d.pk %}" data-suggest-code="{{ d.suggested_official_code }}">
         <div class="tk-kan-top">
           <div class="tk-prod-thumb">{% if d.cover %}<img src="{{ d.cover.get_absolute_url }}" alt="" loading="lazy">{% else %}<i class="bi bi-palette"></i>{% endif %}</div>
           <div class="min-w-0">
@@ -153,6 +153,7 @@
       '«' + card.dataset.name + '»: ' + card.dataset.statusLabel + ' → ' + colLabel(colKey) + '.';
     codeGroup.classList.toggle('d-none', !spec.code);
     codeEl.required = !!spec.code;
+    codeEl.value = spec.code ? (card.dataset.suggestCode || '') : '';
     commentEl.required = !!spec.comment;
     document.getElementById('tkKanMoveCommentStar').classList.toggle('d-none', !spec.comment);
     document.getElementById('tkKanMoveCommentLabel').textContent = spec.comment ? 'Lý do / nội dung' : 'Ý kiến';

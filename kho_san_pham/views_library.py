@@ -224,7 +224,11 @@ def library_detail(request, style):
     hidden = _off_shelf_redirect(request, code)
     if hidden:
         return hidden
-    products = list(Product.objects.filter(style_code=code).select_related('catalog_type', 'created_by__profile'))
+    products = list(
+        Product.objects.filter(style_code=code)
+        .select_related('catalog_type', 'created_by__profile')
+        .order_by('color_code', 'size_label', 'code')
+    )
     handover = _handovers_by_code([code]).get(code)
     receipts = list(handover.receipts.select_related('receiver__profile')) if handover else []
     tab = request.GET.get('tab') or 'data'
@@ -460,6 +464,7 @@ def library_style_edit(request, style):
         'style': obj,
         'show_rename_skus': Product.objects.filter(style_code=obj.code).exists(),
         'cancel_url': _library_tab(obj.code, 'data'),
+        'library_code': obj.code,
     })
 
 
@@ -570,6 +575,7 @@ def library_sku_deactivate(request, style, pk: int):
         **perm_context(request.user, 'products'),
         'product': product,
         'cancel_url': back,
+        'library_code': obj.code,
     })
 
 
@@ -590,6 +596,7 @@ def library_sku_reactivate(request, style, pk: int):
         **perm_context(request.user, 'products'),
         'product': product,
         'cancel_url': back,
+        'library_code': obj.code,
     })
 
 
@@ -636,4 +643,5 @@ def library_sku_delete(request, style, pk: int):
         'cancel_url': back,
         'deactivate_url': reverse('kho_san_pham:library_sku_deactivate', args=[obj.code, product.pk]),
         'scope_label': 'Thư viện',
+        'library_code': obj.code,
     })

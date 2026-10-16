@@ -1,16 +1,22 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}{% if library_code %}{% include 'thiet_ke_sp/includes/tksp_styles.html' %}{% endif %}{% endblock %}
+
 {% block content %}
-<div class="container jp-page py-3 py-md-4 mb-5">
+<div class="{% if library_code %}container-fluid jp-page jp-sx-page jp-tksp py-3 py-md-4 mb-5 px-3 px-lg-4{% else %}container jp-page py-3 py-md-4 mb-5{% endif %}">
+    {% if library_code %}
+    {% include 'kho_san_pham/includes/library_topbar.html' with lib_title='Sửa tên' back_url=cancel_url %}
+    {% else %}
     <div class="jp-page-header mb-3 d-flex justify-content-between align-items-start gap-2">
         <div>
             <h2 class="fw-bold text-hm mb-0 jp-page-title">{% if is_edit %}Sửa Style{% else %}Tạo Style{% endif %}</h2>
             {% if style %}<div class="small text-muted mt-1">{{ style.code }}</div>{% endif %}
         </div>
-        <a href="{{ cancel_url }}" class="btn btn-outline-secondary btn-sm">Quay lại</a>
+        <a href="{{ cancel_url }}" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center justify-content-center">Quay lại</a>
     </div>
-    <div class="card border-0 shadow-sm">
-        <div class="card-body">
+    {% endif %}
+    <div class="{% if library_code %}tk-card tk-lib-form{% else %}card border-0 shadow-sm{% endif %}">
+        <div class="{% if library_code %}tk-panel{% else %}card-body{% endif %}">
             <form method="post" novalidate>
                 {% csrf_token %}
                 {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
@@ -54,9 +60,9 @@
                     {% endif %}
                     {% endif %}
                 </div>
-                <div class="mt-4 d-flex gap-2">
+                <div class="mt-3 d-flex gap-2">
                     <button type="submit" class="btn btn-hm btn-sm fw-bold">Lưu</button>
-                    <a href="{{ cancel_url }}" class="btn btn-outline-secondary btn-sm">Hủy</a>
+                    {% if not library_code %}<a href="{{ cancel_url }}" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center justify-content-center">Hủy</a>{% endif %}
                 </div>
             </form>
         </div>

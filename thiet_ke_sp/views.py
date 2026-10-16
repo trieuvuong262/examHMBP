@@ -27,6 +27,7 @@ from . import catalog
 from . import forms as f
 from . import permissions as perms
 from . import presenters
+from .services.official_code import official_code_suggestion
 from .list_grid import LIST_KEY
 from .models import (
     DESIGN_KINDS,
@@ -533,8 +534,11 @@ def dossier_detail(request, pk):
             dossier_comments.append(row)
     for rows in step_comments.values():
         rows.reverse()
+    show_approval = flags['decide_master'] or (tab == 'approval' and presenters.tab_is_open(dossier, 'approval'))
+    suggested_official_code = official_code_suggestion(dossier) if show_approval else ''
+    library_skus = wf.preview_library_skus(dossier, suggested_official_code) if show_approval else []
     steps = presenters.stepper(dossier)
-    comment_step = next((row['key'] for row in steps if row['state'] == 'current'), 'handover')
+    comment_step = next((row['key'] for row in steps if row['state'] == 'current'), 'design_approval')
     ctx = _common(
         request,
         dossier=dossier,
@@ -597,7 +601,8 @@ def dossier_detail(request, pk):
         costing_form=f.CostingForm(instance=dossier) if flags['edit_costing'] else None,
         roles_form=f.RolesForm(dossier=dossier) if flags['edit_roles'] else None,
         handover_form=f.HandoverForm() if flags['handover'] else None,
-        condition_users=list(f.active_users()) if flags['decide_master'] else [],
+        suggested_official_code=suggested_official_code,
+        library_skus=library_skus,
         can_upload_dossier_other=wf.can_upload(dossier, user, AttachmentKind.OTHER),
         can_upload_reference=wf.can_upload(dossier, user, AttachmentKind.REFERENCE),
         can_upload_cost=wf.can_upload(dossier, user, AttachmentKind.COST),
@@ -664,25 +669,6 @@ def npl_material_search(request):
 
     request.stock_domain = STOCK_DOMAIN_NPL
     return material_search_response(request)
-
-
-def _conditions(post) -> list[wf.ConditionInput]:
-    contents = post.getlist('cond_content')
-    assignees = post.getlist('cond_assignee')
-    dues = post.getlist('cond_due')
-    users = {u.pk: u for u in f.active_users().filter(pk__in=[a for a in assignees if a.isdigit()])}
-    rows = []
-    for i, content in enumerate(contents):
-        content = (content or '').strip()
-        if not content:
-            continue
-        assignee_id = assignees[i] if i < len(assignees) else ''
-        rows.append(wf.ConditionInput(
-            content=content[:500],
-            assignee=users.get(int(assignee_id)) if assignee_id.isdigit() else None,
-            due_at=f.parse_due(dues[i] if i < len(dues) else ''),
-        ))
-    return rows
 
 
 def _task_of(dossier, post) -> Task:
@@ -824,9 +810,8 @@ def _run_action(request, dossier: ProductDevelopment, action: str) -> tuple[str,
             return 'overview', 'Đã hủy hồ sơ.'
         if decision != ApprovalDecision.APPROVED:
             raise wf.WorkflowError('Quyết định không hợp lệ.')
-        wf.decide_master(dossier, user, official_code=post.get('official_code', ''), comment=comment,
-                         conditions=_conditions(post), due_at=due)
-        return 'approval', 'Đã duyệt thiết kế.'
+        wf.decide_master(dossier, user, official_code=post.get('official_code', ''), comment=comment, due_at=due)
+        return 'overview', 'Đã duyệt thiết kế và đưa vào Thư viện.'
     if action == 'condition_done':
         cond = get_object_or_404(ApprovalCondition, pk=post.get('condition_id'), dossier=dossier)
         wf.complete_condition(cond, user, note=post.get('note', ''))
@@ -843,7 +828,7 @@ def _run_action(request, dossier: ProductDevelopment, action: str) -> tuple[str,
         return 'overview', 'Đã huỷ hoàn thành. Style ẩn khỏi Thư viện — mỗi người sửa đúng phần của mình, rồi gửi duyệt lại.'
     if action == 'resubmit_approval':
         wf.resubmit_after_reopen(dossier, user, due_at=due)
-        return 'approval', 'Đã gửi duyệt lại bước cuối. Sau khi duyệt, bấm Thêm vào Thư viện để hiện Style trở lại.'
+        return 'approval', 'Đã gửi duyệt lại. Khi được duyệt, sản phẩm hiện lại trong Thư viện.'
     if action == 'close':
         wf.close_dossier(dossier, user)
         return 'overview', 'Đã đóng hồ sơ.'
@@ -1011,6 +996,7 @@ QUICK_KINDS = {Status.SAMPLE_EVAL_PENDING: 'master', Status.MASTER_PENDING: 'mas
 def _prepare_quick(dossiers, user) -> list:
     """Hồ sơ người dùng được ra quyết định ngay trên danh sách (modal duyệt nhanh)."""
     ready = []
+    code_cache: dict = {}
     for d in dossiers:
         kind = QUICK_KINDS.get(d.status)
         if not kind or not perms.is_dossier_approver(d, user):
@@ -1031,6 +1017,7 @@ def _prepare_quick(dossiers, user) -> list:
             d.quick_options = options
         elif kind == 'master':
             d.quick_checklist = wf.master_checklist(d, user)
+            d.suggested_official_code = official_code_suggestion(d, code_cache)
         ready.append(d)
     return ready
 
@@ -1179,8 +1166,13 @@ def kanban(request):
     if quick in ('mine', 'overdue'):
         qs = _apply_quick(qs, quick, user)
     rows = _decorate_rows(list(qs.order_by(F('step_due_at').asc(nulls_last=True), 'pk')))
+    code_cache: dict = {}
     for d in rows:
         d.kanban_moves_json = json.dumps(presenters.kanban_moves(d, user))
+        d.suggested_official_code = (
+            official_code_suggestion(d, code_cache)
+            if d.status in (Status.SAMPLE_EVAL_PENDING, Status.MASTER_PENDING) else ''
+        )
     columns = presenters.kanban_columns(rows)
     move_specs = {
         key: {'label': label, 'comment': needs_comment, 'code': needs_code}

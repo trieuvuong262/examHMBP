@@ -8,7 +8,7 @@
   {% include 'kho_san_pham/includes/library_topbar.html' with lib_title='Thư viện sản phẩm' %}
 
   <div class="jp-sx-page-body">
-    <form method="get" id="libFilter" class="tk-card tk-panel mb-3" role="search" aria-label="Bộ lọc thư viện">
+    <form method="get" id="libFilter" class="tk-card tk-panel tk-lib-filter mb-3" role="search" aria-label="Bộ lọc thư viện">
       <div class="tk-toolbar">
         <input type="search" id="lib-q" name="q" value="{{ q }}" class="form-control form-control-sm tk-search" placeholder="Tìm Style, tên, SKU…" autocomplete="off" aria-label="Tìm kiếm">
         <select name="group" class="form-select form-select-sm lib-auto" aria-label="Nhóm sản phẩm">
@@ -18,44 +18,40 @@
         <select name="status" class="form-select form-select-sm lib-auto" aria-label="Trạng thái">
           {% for key, label in status_choices %}<option value="{{ key }}"{% if status == key %} selected{% endif %}>{{ label }}</option>{% endfor %}
         </select>
-        {% if has_filters %}<a href="{% url 'kho_san_pham:library' %}" class="btn btn-light border btn-sm" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>{% endif %}
-        <span class="tk-count">{{ matched_count|sx_num }} / {{ total_styles|sx_num }} Style{% if pending_count %} · <a href="?status=pending" class="text-reset">{{ pending_count|sx_num }} chờ chuyển SX</a>{% endif %}</span>
+        {% if has_filters %}<a href="{% url 'kho_san_pham:library' %}" class="btn btn-light border btn-sm tk-icon-btn" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>{% endif %}
+        <span class="tk-count">{{ matched_count|sx_num }} / {{ total_styles|sx_num }} Style{% if pending_count %} · <a href="?status=pending">{{ pending_count|sx_num }} chờ chuyển SX</a>{% endif %}</span>
       </div>
     </form>
 
     <div class="tk-lib-grid">
       {% for r in items %}
       <article class="tk-lib-card">
-      <a class="tk-lib-main" href="{% url 'kho_san_pham:library_detail' r.style_code %}">
-        <div class="tk-lib-art">
-          {% if not r.style_active %}<span class="status tk-pill is-gray">Ngừng dùng</span>
-          {% elif r.transferred %}<span class="status tk-pill is-green">Đã chuyển SX</span>
-          {% else %}<span class="status tk-pill is-amber">Chờ chuyển SX</span>{% endif %}
-          {% if r.image_url %}<img src="{{ r.image_url }}" alt="" loading="lazy">{% else %}<i class="bi bi-image"></i>{% endif %}
-        </div>
-        <div class="tk-lib-body">
-          <h3>{{ r.name }}</h3>
-          <p>
-            <span class="code">{{ r.style_code }}{% if r.group_label %} · {{ r.group_label }}{% endif %}</span>
-            {% if r.dossier %}<span class="tk-ch" title="Hồ sơ thiết kế">TK</span>{% endif %}
-          </p>
-          <div class="tk-lib-meta">
-            <div><small>SKU</small><b>{{ r.sku_count|sx_num }}</b></div>
-            <div><small>Màu</small><b>{{ r.colors|length|sx_num }}</b></div>
-            <div><small>Giá</small><b>{% if r.min_price %}{{ r.min_price|sx_num:0 }}{% else %}—{% endif %}</b></div>
+        <a class="tk-lib-main" href="{% url 'kho_san_pham:library_detail' r.style_code %}">
+          <div class="tk-lib-art">
+            {% if r.image_url %}<img src="{{ r.image_url }}" alt="" loading="lazy">{% else %}<i class="bi bi-image"></i>{% endif %}
           </div>
+          <div class="tk-lib-body">
+            <div class="tk-lib-kicker">
+              {% if not r.style_active %}<span class="tk-pill is-gray">Ngừng dùng</span>
+              {% elif r.transferred %}<span class="tk-pill is-green">Đã chuyển SX</span>
+              {% else %}<span class="tk-pill is-amber">Chờ chuyển SX</span>{% endif %}
+              {% if r.dossier %}<span class="tk-ch" title="Hồ sơ thiết kế">TK</span>{% endif %}
+            </div>
+            <h3>{{ r.name }}</h3>
+            <p><span class="code">{{ r.style_code }}{% if r.group_label %} · {{ r.group_label }}{% endif %}</span></p>
+            <p class="tk-lib-line">{{ r.sku_count|sx_num }} SKU · {{ r.colors|length|sx_num }} màu{% if r.min_price %} · {{ r.min_price|sx_num:0 }}{% endif %}</p>
+          </div>
+        </a>
+        {% if can_update and r.can_transfer %}
+        <div class="tk-lib-actions">
+          <form method="post" action="{% url 'kho_san_pham:library_transfer' r.style_code %}" onsubmit="return confirm('Chuyển {{ r.style_code }} sang sản xuất?');">{% csrf_token %}
+            <button type="submit" class="btn btn-hm btn-sm fw-bold"><i class="bi bi-box-arrow-right"></i>Chuyển SX</button>
+          </form>
         </div>
-      </a>
-      {% if can_update and r.can_transfer %}
-      <div class="tk-lib-actions">
-        <form method="post" action="{% url 'kho_san_pham:library_transfer' r.style_code %}" onsubmit="return confirm('Chuyển {{ r.style_code }} sang sản xuất theo tên, mô tả và SKU đang có trong Thư viện?');">{% csrf_token %}
-          <button type="submit" class="btn btn-hm btn-sm fw-bold"><i class="bi bi-box-arrow-right"></i>Chuyển SX</button>
-        </form>
-      </div>
-      {% endif %}
+        {% endif %}
       </article>
       {% empty %}
-      <div class="tk-card tk-panel text-muted" style="grid-column:1/-1">Không có Style phù hợp. Sản phẩm vào Thư viện khi hồ sơ Thiết kế được bàn giao; hàng hiện có xem ở <a href="{% url 'kho_san_pham:product_list' %}">Danh mục SKU</a>.</div>
+      <div class="tk-card tk-panel text-muted" style="grid-column:1/-1">Không có Style phù hợp.</div>
       {% endfor %}
     </div>
     <div class="mt-3">{% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}</div>

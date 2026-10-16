@@ -183,7 +183,7 @@ class ProductForm(forms.ModelForm):
             'size_label': forms.Select(attrs={**FORM_SELECT, 'id': 'id_size_label'}),
             'code': forms.TextInput(attrs={
                 **FORM_CONTROL,
-                'placeholder': 'Tự ghép Style-[Màu-]Size',
+                'placeholder': 'Tự ghép Style-Size',
                 'id': 'id_code',
             }),
             'accounting_code': forms.TextInput(attrs={**FORM_CONTROL, 'placeholder': 'Mã kế toán'}),
@@ -337,7 +337,7 @@ class ProductForm(forms.ModelForm):
 
         if style and size:
             try:
-                composed = compose_sku_code(style_code=style, color_code=color, size_label=size)
+                composed = compose_sku_code(style_code=style, color_code='', size_label=size)
             except SkuError as exc:
                 raise forms.ValidationError(str(exc)) from exc
             if self.locked_style:
@@ -350,18 +350,26 @@ class ProductForm(forms.ModelForm):
             cleaned['color_label'] = self._color_name_map.get(color, '') or color if color else ''
         elif not code:
             raise forms.ValidationError(
-                'Nhập Style + Size để ghép SKU (màu tùy chọn), hoặc nhập SKU thủ công.',
+                'Nhập Style + Size để ghép SKU, hoặc nhập SKU thủ công. Màu là thuộc tính của mã gốc.',
             )
         else:
             cleaned['code'] = code
 
-        qs = Product.objects.filter(code__iexact=cleaned['code'])
-        if self.instance.pk:
-            qs = qs.exclude(pk=self.instance.pk)
-        if qs.exists():
-            if self.clone_from and cleaned['code'] == (self.clone_from.code or '').strip().upper():
-                self.add_error('code', 'Đổi màu hoặc size để tạo SKU khác sản phẩm gốc.')
-            else:
+        if style and size:
+            dup = Product.objects.filter(
+                style_code__iexact=style,
+                color_code__iexact=color,
+                size_label__iexact=size,
+            )
+            if self.instance.pk:
+                dup = dup.exclude(pk=self.instance.pk)
+            if dup.exists():
+                self.add_error('color_code', 'Màu và size này đã có trong Style.')
+        else:
+            qs = Product.objects.filter(code__iexact=cleaned['code'])
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
                 self.add_error('code', 'SKU đã tồn tại.')
 
         if not (cleaned.get('name') or '').strip():
@@ -376,18 +384,18 @@ class ProductForm(forms.ModelForm):
         if product.style_code and product.size_label:
             try:
                 from san_xuat.services.sku_catalog import get_or_create_sku
+                display_code = product.code
                 sx = get_or_create_sku(
                     style_code=product.style_code,
                     color_code=product.color_code or '',
                     size_label=product.size_label,
                     color_label=product.color_label,
                     style_name=product.name,
-                    sku_code=product.code,
                     gender=product.gender,
                     user=getattr(product, 'created_by', None),
                 )
                 product.sx_sku = sx
-                product.code = sx.sku_code
+                product.code = display_code
             except Exception:  # noqa: BLE001
                 pass
         if commit:

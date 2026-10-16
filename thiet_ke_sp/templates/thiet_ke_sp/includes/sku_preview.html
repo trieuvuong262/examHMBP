@@ -1,0 +1,27 @@
+{% load sx_format tksp_tags %}
+<div class="tk-sku-board"{% if preview_id %} id="{{ preview_id }}"{% endif %}>
+  <div class="tk-sku-preview-head"><b>SKU vào Thư viện</b><span>{{ library_skus|length|sx_num }} SKU</span></div>
+  {% if library_skus %}
+  <div class="tk-sku-scroll">
+    {% regroup library_skus by color_code as color_groups %}
+    {% for group in color_groups %}
+    {% with row=group.list.0 %}
+    <section class="tk-size-panel tk-sku-group" data-color="{{ group.grouper }}">
+      <div class="tk-sku-group-head">
+        <i class="tk-sku-dot" style="background: {{ row.swatch|cw_swatch }}"></i>
+        <b>{{ row.color }}</b>
+        <span class="tk-sku-prefix" data-prefix>{{ row.prefix|default:'—' }}</span>
+      </div>
+      <div class="tk-size-picks">
+        {% for item in group.list %}
+        <span class="tk-size-static" data-size="{{ item.size }}" title="{{ item.sku }}">{{ item.size|default:'—' }}</span>
+        {% endfor %}
+      </div>
+    </section>
+    {% endwith %}
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="small text-muted mb-0">Chưa có màu để tạo SKU.</p>
+  {% endif %}
+</div>

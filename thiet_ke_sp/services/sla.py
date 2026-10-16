@@ -14,7 +14,6 @@ SLA_STEPS = (
     (Status.TECHNICAL, 'Kỹ thuật', 5),
     (Status.SAMPLING, 'Làm mẫu / sửa mẫu', 7),
     (Status.SAMPLE_EVAL_PENDING, 'Duyệt thiết kế', 3),
-    (Status.APPROVED, 'Thêm vào Thư viện', 2),
 )
 DEFAULT_SLA_DAYS = {step: days for step, _label, days in SLA_STEPS}
 SLA_ALIASES = {

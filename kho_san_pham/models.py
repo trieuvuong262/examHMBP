@@ -30,9 +30,10 @@ def product_image_upload_to(instance, filename: str) -> str:
 
 
 class Product(models.Model):
-    """Danh mục kho sản phẩm — 1 dòng = 1 SKU (Style–Màu–Size), như hồ sơ thiết kế.
+    """Danh mục kho sản phẩm — 1 dòng = 1 SKU.
 
-    ``code`` = SKU ghép: ``{style}-{color}-{size}`` (vd. JP-TEE-260001-NVY-M).
+    Mã gốc là ``style_code``. SKU từ hồ sơ thiết kế là ``{style}-{size}``
+    (vd. JP-TEE-00-SP8516975-L). Màu nằm ở ``color_code`` / ``color_label``.
     """
 
     product_type = models.CharField(
@@ -73,9 +74,9 @@ class Product(models.Model):
     )
     code = models.CharField(
         max_length=100,
-        unique=True,
+        db_index=True,
         verbose_name='SKU',
-        help_text='SKU = Style-Màu-Size (vd. JP-TEE-260001-NVY-M).',
+        help_text='SKU từ thiết kế = Style-Size (vd. JP-TEE-00-SP8516975-L). Màu là thuộc tính của mã gốc.',
     )
     legacy_code = models.CharField(
         max_length=100,

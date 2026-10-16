@@ -108,14 +108,14 @@ STATUS_TONES = {
     Status.CLOSED: 'dark',
 }
 
-# Thanh tiến trình: Đề xuất → Thiết kế → Kỹ thuật → Làm mẫu → Duyệt thiết kế → Thêm vào Thư Viện.
+# Thanh tiến trình: Đề xuất → Thiết kế → Kỹ thuật → Làm mẫu → Duyệt thiết kế.
+# Duyệt xong thì vào Thư viện luôn, không còn bước riêng.
 STEPS = (
     ('proposal', 'Đề xuất', (Status.DRAFT, Status.BRIEF_NEEDS_INFO, Status.BRIEF_PENDING)),
     ('design', 'Thiết kế', (Status.DESIGNING, Status.DESIGN_REVISE, Status.DESIGN_PENDING)),
     ('technical', 'Kỹ thuật', (Status.TECHNICAL, Status.TECHNICAL_REVISE)),
     ('sample', 'Làm mẫu', (Status.SAMPLING, Status.SAMPLE_REVISE, Status.LIBRARY_REOPEN)),
     ('design_approval', 'Duyệt thiết kế', (Status.SAMPLE_EVAL_PENDING, Status.MASTER_PENDING)),
-    ('handover', 'Thêm vào Thư Viện', (Status.APPROVED, Status.HANDED_OVER, Status.CLOSED)),
 )
 # Nhãn góp ý cũ vẫn giữ để trao đổi đã lưu không mất tên bước.
 COMMENT_STEPS = (
@@ -365,6 +365,8 @@ class ProductDevelopment(models.Model):
     @property
     def step_no(self) -> int:
         status = self.paused_from_status if self.status == Status.PAUSED and self.paused_from_status else self.status
+        if status in (Status.APPROVED, Status.HANDED_OVER, Status.CLOSED):
+            return len(STEPS)
         for index, (_key, _label, statuses) in enumerate(STEPS, start=1):
             if status in statuses:
                 return index

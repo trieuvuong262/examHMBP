@@ -497,7 +497,39 @@
     letter-spacing: 0.03em;
     text-transform: uppercase;
   }
-  #tkModalMaster [data-tk-add-row] { width: 100%; min-height: 40px; }
+  #tkModalMaster .modal-dialog {
+    width: calc(100% - .75rem);
+    max-width: calc(100% - .75rem);
+    margin: .4rem auto;
+    max-height: calc(100% - .8rem);
+  }
+  #tkModalMaster .modal-body { padding: .7rem .7rem .55rem; }
+  #tkModalMaster .tk-decide-list {
+    gap: .3rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  #tkModalMaster .tk-decide-list::-webkit-scrollbar { display: none; }
+  #tkModalMaster .tk-decide {
+    flex: 0 0 auto;
+    min-height: 2.4rem;
+    padding: 0 .55rem;
+    font-size: .75rem;
+    white-space: nowrap;
+  }
+  #tkModalMaster .tk-decide span { white-space: nowrap; }
+  #tkModalMaster .tk-sku-group-head { flex-wrap: wrap; }
+  #tkModalMaster .tk-sku-prefix { margin-left: 0; white-space: normal; overflow: visible; text-overflow: unset; }
+  #tkModalMaster .tk-sku-scroll { max-height: 42vh; }
+  #tkModalMaster .tk-size-static { min-width: 1.9rem; height: 1.7rem; padding: 0 .3rem; font-size: .7rem; }
+  #tkModalMaster .modal-footer { flex-wrap: nowrap; }
+  #tkModalMaster .modal-footer .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1 1 0;
+  }
   .modal .table-responsive:has(.tk-cond-edit) { overflow: visible; }
 }
 
@@ -505,6 +537,12 @@
   .jp-tksp .tk-kan-card:hover,
   .jp-tksp .tk-lib-card:hover,
   .jp-tksp .tk-kpi:hover { transform: none; }
+}
+
+@media (max-width: 767.98px) {
+  .jp-tksp .tk-lib-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+  .jp-tksp .tk-lib-body h3 { font-size: .74rem; }
+  .jp-tksp .tk-lib-filter .tk-count { margin-left: 0; white-space: normal; }
 }
 </style>
 <script>

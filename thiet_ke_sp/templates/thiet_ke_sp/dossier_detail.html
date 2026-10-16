@@ -76,7 +76,7 @@
   {% elif dossier.status == 'cancelled' %}
   <div class="tk-callout is-muted mt-0"><b><i class="bi bi-x-octagon me-1"></i>Đã hủy:</b> {{ dossier.stop_reason }}</div>
   {% elif dossier.status == 'library_reopen' %}
-  <div class="tk-callout is-muted mt-0"><b><i class="bi bi-arrow-counterclockwise me-1"></i>Đang chỉnh sau hoàn thành.</b> Style đã ẩn khỏi Thư viện. Mỗi người sửa đúng phần vai trò của mình, rồi gửi duyệt lại bước cuối. Sau khi duyệt, bấm Thêm vào Thư viện để hiện lại.</div>
+  <div class="tk-callout is-muted mt-0"><b><i class="bi bi-arrow-counterclockwise me-1"></i>Đang chỉnh sau hoàn thành.</b> Style đã ẩn khỏi Thư viện. Mỗi người sửa đúng phần vai trò của mình, rồi gửi duyệt lại. Khi được duyệt, sản phẩm hiện lại trong Thư viện.</div>
   {% elif dossier.status == 'brief_needs_info' or dossier.status == 'design_revise' or dossier.status == 'technical_revise' or dossier.status == 'sample_revise' %}
   {% with last=approvals|first %}{% if last and last.comment %}<div class="tk-callout is-danger mt-0"><b><i class="bi bi-arrow-counterclockwise me-1"></i>Yêu cầu chỉnh sửa:</b> {{ last.comment }}</div>{% endif %}{% endwith %}
   {% endif %}

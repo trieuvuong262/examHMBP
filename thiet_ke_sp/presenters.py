@@ -1,4 +1,4 @@
-"""Dữ liệu hiển thị: thanh 8 bước, cột thông tin bên phải, ảnh đại diện, cờ quyền từng nút."""
+"""Dữ liệu hiển thị: thanh 5 bước, cột thông tin bên phải, ảnh đại diện, cờ quyền từng nút."""
 
 from __future__ import annotations
 
@@ -45,12 +45,12 @@ def effective_status(dossier: ProductDevelopment) -> str:
 
 def stepper(dossier: ProductDevelopment) -> list[dict]:
     status = effective_status(dossier)
-    current = 0
+    current = len(STEPS)
     for index, (_key, _label, statuses) in enumerate(STEPS):
         if status in statuses:
             current = index
             break
-    finished = dossier.status in (Status.HANDED_OVER, Status.CLOSED)
+    finished = current >= len(STEPS)
     rows = []
     for index, (key, label, _statuses) in enumerate(STEPS):
         if index < current or (finished and index == current):
@@ -73,6 +73,7 @@ _TAB_STEP = {
     'design': 'design',
     'technical': 'technical',
     'sample': 'sample',
+    'approval': 'design_approval',
 }
 
 
@@ -151,7 +152,6 @@ STAGE_BARS = (
     ('Kỹ thuật', (Status.TECHNICAL, Status.TECHNICAL_REVISE)),
     ('Làm mẫu', (Status.SAMPLING, Status.SAMPLE_REVISE, Status.LIBRARY_REOPEN)),
     ('Duyệt thiết kế', (Status.SAMPLE_EVAL_PENDING, Status.MASTER_PENDING)),
-    ('Thư viện', (Status.APPROVED, Status.HANDED_OVER)),
 )
 
 
@@ -174,7 +174,6 @@ KANBAN_COLUMNS = (
     ('technical', 'Kỹ thuật', (Status.TECHNICAL, Status.TECHNICAL_REVISE)),
     ('sample', 'Làm mẫu', (Status.SAMPLING, Status.SAMPLE_REVISE, Status.LIBRARY_REOPEN)),
     ('design_approval', 'Duyệt thiết kế', (Status.SAMPLE_EVAL_PENDING, Status.MASTER_PENDING)),
-    ('handover', 'Thêm vào Thư Viện', (Status.APPROVED, Status.HANDED_OVER)),
     ('paused', 'Tạm dừng', (Status.PAUSED,)),
 )
 KANBAN_STATUSES = tuple(s for _key, _label, statuses in KANBAN_COLUMNS for s in statuses)
@@ -213,11 +212,11 @@ _KANBAN_STEP_MOVES = {
     Status.SAMPLING: {'design_approval': 'sample_submit'},
     Status.SAMPLE_REVISE: {'design_approval': 'sample_submit'},
     Status.SAMPLE_EVAL_PENDING: {
-        'handover': 'master_approve', 'sample': 'sample_fix', 'design': 'eval_request_design',
+        'sample': 'sample_fix', 'design': 'eval_request_design',
         'technical': 'eval_request_technical',
     },
     Status.MASTER_PENDING: {
-        'handover': 'master_approve', 'sample': 'master_request_fix', 'design': 'master_request_design',
+        'sample': 'master_request_fix', 'design': 'master_request_design',
         'technical': 'master_request_technical',
     },
     Status.LIBRARY_REOPEN: {'design_approval': 'resubmit_approval'},

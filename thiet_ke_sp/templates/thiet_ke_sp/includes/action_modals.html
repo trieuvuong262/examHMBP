@@ -92,42 +92,42 @@
 {% endif %}
 
 {% if flags.decide_master %}
-{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalMaster' modal_action='master_decide' modal_title='Duyệt thiết kế '|add:current_sv.label modal_size='modal-xl' %}
-  <div class="row g-3">
-    <div class="col-lg-4">
-      {% include 'thiet_ke_sp/includes/checklist_block.html' with items=checklist %}
-      <div class="d-flex flex-column gap-1 my-3">
-        <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="approved" data-due="{{ sla_due.approved|due_input }}" data-tk-show="#tkMasterApproveBox" checked> <span class="form-check-label">Duyệt thiết kế</span></label>
-        <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="request_fix" data-due="{{ sla_due.sample_revise|due_input }}" data-tk-hide="#tkMasterApproveBox" data-comment-required="1" data-comment-label="Nội dung cần sửa mẫu"> <span class="form-check-label">Yêu cầu sửa mẫu</span></label>
-        <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="request_technical" data-due="{{ sla_due.technical_revise|due_input }}" data-tk-hide="#tkMasterApproveBox" data-comment-required="1" data-comment-label="Nội dung cần chỉnh kỹ thuật"> <span class="form-check-label">Yêu cầu chỉnh kỹ thuật</span></label>
-        <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="request_design" data-due="{{ sla_due.design_revise|due_input }}" data-tk-hide="#tkMasterApproveBox" data-comment-required="1" data-comment-label="Nội dung cần chỉnh thiết kế"> <span class="form-check-label">Yêu cầu chỉnh thiết kế</span></label>
-        <label class="form-check"><input class="form-check-input" type="radio" name="decision" value="cancelled" data-due="" data-tk-hide="#tkMasterApproveBox" data-comment-required="1" data-comment-label="Lý do hủy"> <span class="form-check-label text-danger">Hủy hồ sơ</span></label>
-      </div>
-      <label class="form-label fw-bold small mb-1"><span class="tk-decision-comment-label" data-default-label="Ý kiến">Ý kiến</span> <span class="tk-decision-comment-star text-danger d-none">*</span></label>
-      <textarea name="comment" class="form-control form-control-sm mb-2 tk-decision-comment" rows="3"></textarea>
-      {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.approved %}
-    </div>
-    <div class="col-lg-8" id="tkMasterApproveBox">
-      <label class="form-label fw-bold small mb-1">Mã sản phẩm chính thức <span class="text-danger">*</span></label>
-      <input type="text" name="official_code" class="form-control mb-3 text-uppercase" maxlength="60" value="{{ dossier.official_product_code }}">
-      <div class="fw-bold small mb-1">Điều kiện kèm theo</div>
-      <div class="table-responsive">
-        <table class="table table-sm align-middle mb-2 tk-cond-edit">
-          <thead class="table-light"><tr><th>Điều kiện</th><th style="width: 30%;">Người xử lý</th><th style="width: 190px;">Hạn</th><th style="width: 44px;"></th></tr></thead>
-          <tbody id="tkCondBody"></tbody>
-        </table>
-      </div>
-      <template id="tkCondTpl">
-        <tr>
-          <td><input type="text" name="cond_content" class="form-control form-control-sm" maxlength="500"></td>
-          <td><select name="cond_assignee" class="form-select form-select-sm jp-tksp-user-select"><option value="">— Chọn —</option>{% for u in condition_users %}<option value="{{ u.pk }}" data-avatar="{{ u|avatar_url }}" data-initial="{{ u|initial }}" data-tone="{{ u.pk|avatar_tone }}">{{ u|uname }}</option>{% endfor %}</select></td>
-          <td><input type="datetime-local" name="cond_due" class="form-control form-control-sm" value="{{ sla_due.approved|due_input }}"></td>
-          <td><button type="button" class="btn btn-sm btn-light border" data-tk-del-row><i class="bi bi-x"></i></button></td>
-        </tr>
-      </template>
-      <button type="button" class="btn btn-sm btn-light border" data-tk-add-row="#tkCondBody" data-tk-template="#tkCondTpl"><i class="bi bi-plus-lg me-1"></i>Thêm điều kiện</button>
-    </div>
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalMaster' modal_action='master_decide' modal_title='Duyệt thiết kế '|add:current_sv.label modal_size='modal-lg' modal_class='jp-tksp' %}
+  <h3 class="tk-sub">Quyết định</h3>
+  <div class="tk-decide-list mb-3">
+    <label class="tk-decide"><input type="radio" name="decision" value="approved" data-tk-show="#tkMasterApproveBox" checked><span>Duyệt thiết kế</span></label>
+    <label class="tk-decide"><input type="radio" name="decision" value="request_fix" data-tk-hide="#tkMasterApproveBox" data-comment-required="1" data-comment-label="Nội dung cần sửa mẫu"><span>Yêu cầu sửa mẫu</span></label>
+    <label class="tk-decide"><input type="radio" name="decision" value="request_technical" data-tk-hide="#tkMasterApproveBox" data-comment-required="1" data-comment-label="Nội dung cần chỉnh kỹ thuật"><span>Yêu cầu chỉnh kỹ thuật</span></label>
+    <label class="tk-decide"><input type="radio" name="decision" value="request_design" data-tk-hide="#tkMasterApproveBox" data-comment-required="1" data-comment-label="Nội dung cần chỉnh thiết kế"><span>Yêu cầu chỉnh thiết kế</span></label>
+    <label class="tk-decide is-no"><input type="radio" name="decision" value="cancelled" data-tk-hide="#tkMasterApproveBox" data-comment-required="1" data-comment-label="Lý do hủy"><span>Hủy hồ sơ</span></label>
   </div>
+  <label class="form-label fw-bold small mb-1"><span class="tk-decision-comment-label" data-default-label="Ý kiến">Ý kiến</span> <span class="tk-decision-comment-star text-danger d-none">*</span></label>
+  <textarea name="comment" class="form-control form-control-sm mb-2 tk-decision-comment" rows="2"></textarea>
+  <div id="tkMasterApproveBox" class="mt-2">
+    <label class="form-label fw-bold small mb-1" for="tkOfficialCode">Mã sản phẩm chính thức <span class="text-danger">*</span></label>
+    <input type="text" name="official_code" id="tkOfficialCode" class="form-control form-control-sm tk-official-code mb-3 text-uppercase" maxlength="60" value="{{ suggested_official_code }}" autocomplete="off">
+    {% include 'thiet_ke_sp/includes/sku_preview.html' with preview_id='tkSkuPreview' %}
+  </div>
+  <script>
+  (function () {
+    var input = document.getElementById('tkOfficialCode');
+    var box = document.getElementById('tkSkuPreview');
+    if (!input || !box) return;
+    function paint() {
+      var style = (input.value || '').trim().toUpperCase();
+      box.querySelectorAll('.tk-sku-group').forEach(function (group) {
+        var node = group.querySelector('[data-prefix]');
+        if (!node) return;
+        node.textContent = style || '—';
+      });
+      box.querySelectorAll('.tk-size-static').forEach(function (pill) {
+        var size = pill.getAttribute('data-size') || '';
+        pill.title = style && size ? style + '-' + size : '';
+      });
+    }
+    input.addEventListener('input', paint);
+  })();
+  </script>
 {% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Ghi nhận quyết định' %}
 {% endif %}
 
@@ -152,7 +152,7 @@
 
 {% if flags.resubmit_approval %}
 {% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalResubmit' modal_action='resubmit_approval' modal_title='Gửi duyệt lại bước cuối' %}
-  <p class="small mb-2">Người duyệt làm lại bước Duyệt thiết kế. Khi được duyệt, hồ sơ về «Chờ thêm vào Thư viện» — bấm Thêm vào Thư viện để hiện Style trở lại.</p>
+  <p class="small mb-2">Người duyệt làm lại bước Duyệt thiết kế. Khi được duyệt, sản phẩm hiện lại trong Thư viện.</p>
   {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.sample_eval_pending %}
 {% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Gửi duyệt lại' %}
 {% endif %}

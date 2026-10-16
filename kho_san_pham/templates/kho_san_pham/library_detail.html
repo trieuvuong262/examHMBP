@@ -12,15 +12,14 @@
     <div class="tk-hero-main">
       <div class="tk-hero-thumb">{% if cover_url %}<button type="button" class="tk-thumb-zoom" data-sx-gallery data-sx-gallery-image="{{ cover_url }}" data-sx-gallery-title="{{ code }}"><img src="{{ cover_url }}" alt=""></button>{% else %}<i class="bi bi-image"></i>{% endif %}</div>
       <div class="tk-hero-copy">
-        <div class="d-flex flex-wrap align-items-center gap-2">
+        <div class="tk-sheet-kicker">
           {% if not style.is_active %}<span class="tk-pill is-gray">Ngừng dùng</span>
           {% elif handover and handover.is_transferred %}<span class="tk-pill is-green">Đã chuyển SX</span>
           {% else %}<span class="tk-pill is-amber">Chờ chuyển SX</span>{% endif %}
           <span class="tk-hero-code">{{ code }}</span>
-          {% if ptype %}<span class="tk-hero-code">{{ ptype.code }} — {{ ptype.name }}</span>{% endif %}
         </div>
         <h1>{{ name }}</h1>
-        <p class="tk-hero-sub">{{ group_label|default:'Chưa xác định nhóm' }} · {{ products|length }} SKU · {{ colors|length }} màu · {{ sizes|length }} size</p>
+        <p class="tk-hero-sub">{% if ptype %}{{ ptype.code }} — {{ ptype.name }}{% endif %}{% if ptype and group_label %} · {% endif %}{{ group_label|default:'Chưa xác định nhóm' }}</p>
       <div class="tk-hero-actions">
         {% if can_update %}
         <a href="{% url 'kho_san_pham:library_style_edit' code %}" class="btn btn-sm fw-bold btn-tk-ghost"><i class="bi bi-pencil"></i>Sửa tên</a>
@@ -94,38 +93,54 @@
         {% endfor %}
       </div>
     {% elif tab == 'sku' %}
-      <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
-        <div class="small text-muted">Màu lấy từ thiết kế. Thêm size để có SKU đủ điều kiện chuyển sản xuất. Sửa tên, giá, mô tả, ảnh như danh mục.</div>
+      <div class="tk-sku-preview-head mb-3">
+        <b>{{ products|length|sx_num }} SKU</b>
         {% if can_create %}<a href="{% url 'kho_san_pham:library_sku_create' code %}" class="btn btn-hm btn-sm fw-bold"><i class="bi bi-plus-lg"></i>Thêm SKU</a>{% endif %}
       </div>
-      <div class="table-responsive">
-        <table class="table table-hover tk-mini-table align-middle mb-0">
-          <thead><tr><th>SKU</th><th>Màu</th><th>Size</th><th>Giới tính</th><th>Mã vạch</th><th>Mã kế toán</th><th class="text-end">Giá</th><th>Trạng thái</th><th></th></tr></thead>
-          <tbody>
-          {% for p in products %}
-            <tr>
-              <td>{% if can_update %}<a href="{% url 'kho_san_pham:library_sku_edit' code p.pk %}" class="fw-semibold">{{ p.code }}</a>{% else %}<a href="{% url 'kho_san_pham:product_detail' p.pk %}" class="fw-semibold">{{ p.code }}</a>{% endif %}</td>
-              <td>{{ p.color_label|default:p.color_code|default:'—' }}</td>
-              <td>{{ p.size_label|default:'—' }}</td>
-              <td>{{ p.get_gender_display|default:'—' }}</td>
-              <td class="small">{{ p.bar_code|default:'—' }}</td>
-              <td class="small">{{ p.accounting_code|default:'—' }}</td>
-              <td class="text-end">{% if p.base_price is not None %}{{ p.base_price|sx_num:0 }}{% else %}—{% endif %}</td>
-              <td><span class="tk-pill {% if p.is_active %}is-green{% else %}is-gray{% endif %}">{% if p.is_active %}Đang dùng{% else %}Ngừng{% endif %}</span></td>
-              <td class="text-end text-nowrap">
-                {% if can_update %}<a href="{% url 'kho_san_pham:library_sku_edit' code p.pk %}" class="btn btn-sm btn-outline-hm">Sửa</a>{% endif %}
-                {% if can_create %}<a href="{% url 'kho_san_pham:library_sku_duplicate' code p.pk %}" class="btn btn-sm btn-outline-secondary" title="Nhân bản — đổi màu hoặc size"><i class="bi bi-copy"></i></a>{% endif %}
-                {% if can_update and p.is_active %}<a href="{% url 'kho_san_pham:library_sku_deactivate' code p.pk %}" class="btn btn-sm btn-outline-secondary" title="Ngừng dùng"><i class="bi bi-slash-circle"></i></a>
-                {% elif can_update %}<a href="{% url 'kho_san_pham:library_sku_reactivate' code p.pk %}" class="btn btn-sm btn-outline-success" title="Dùng lại"><i class="bi bi-check-circle"></i></a>{% endif %}
-                {% if can_delete %}<a href="{% url 'kho_san_pham:library_sku_delete' code p.pk %}" class="btn btn-sm btn-outline-danger" title="Xóa"><i class="bi bi-trash3"></i></a>{% endif %}
-              </td>
-            </tr>
-          {% empty %}
-            <tr><td colspan="9" class="text-center text-muted py-3">Style chưa có SKU. Thêm màu, size và tên tại đây — hồ sơ sản xuất chỉ tạo khi bấm Chuyển sang sản xuất.</td></tr>
-          {% endfor %}
-          </tbody>
-        </table>
+      {% if products %}
+      <div class="tk-lib-colors">
+        {% regroup products by color_code as color_groups %}
+        {% for group in color_groups %}
+        {% with row=group.list.0 %}
+        <section class="tk-size-panel tk-sku-group">
+          <div class="tk-sku-group-head">
+            <b>{{ row.color_label|default:row.color_code|default:'Không màu' }}</b>
+            <span class="tk-sku-prefix">{{ group.list|length|sx_num }} SKU</span>
+          </div>
+          <div class="table-responsive">
+            <table class="tk-mini-table tk-lib-sku mb-0">
+              <thead><tr><th>SKU</th><th>Size</th><th class="d-none d-lg-table-cell">Giới tính</th><th class="d-none d-xl-table-cell">Mã vạch</th><th class="d-none d-xl-table-cell">Mã kế toán</th><th class="text-end">Giá</th><th>Trạng thái</th><th></th></tr></thead>
+              <tbody>
+              {% for p in group.list %}
+              <tr>
+                <td class="tk-sku-code">{% if can_update %}<a href="{% url 'kho_san_pham:library_sku_edit' code p.pk %}">{{ p.code }}</a>{% else %}<a href="{% url 'kho_san_pham:product_detail' p.pk %}">{{ p.code }}</a>{% endif %}</td>
+                <td>{% if p.size_label %}<span class="tk-size-static">{{ p.size_label }}</span>{% else %}—{% endif %}</td>
+                <td class="d-none d-lg-table-cell">{{ p.get_gender_display|default:'—' }}</td>
+                <td class="d-none d-xl-table-cell tk-sku-code">{{ p.bar_code|default:'—' }}</td>
+                <td class="d-none d-xl-table-cell tk-sku-code">{{ p.accounting_code|default:'—' }}</td>
+                <td class="text-end">{% if p.base_price is not None %}{{ p.base_price|sx_num:0 }}{% else %}—{% endif %}</td>
+                <td><span class="tk-pill {% if p.is_active %}is-green{% else %}is-gray{% endif %}">{% if p.is_active %}Đang dùng{% else %}Ngừng{% endif %}</span></td>
+                <td class="text-end">
+                  <div class="tk-row-actions">
+                    {% if can_update %}<a href="{% url 'kho_san_pham:library_sku_edit' code p.pk %}" class="btn btn-sm btn-outline-hm" title="Sửa"><i class="bi bi-pencil"></i></a>{% endif %}
+                    {% if can_create %}<a href="{% url 'kho_san_pham:library_sku_duplicate' code p.pk %}" class="btn btn-sm btn-outline-secondary" title="Nhân bản"><i class="bi bi-copy"></i></a>{% endif %}
+                    {% if can_update and p.is_active %}<a href="{% url 'kho_san_pham:library_sku_deactivate' code p.pk %}" class="btn btn-sm btn-outline-secondary" title="Ngừng dùng"><i class="bi bi-slash-circle"></i></a>
+                    {% elif can_update %}<a href="{% url 'kho_san_pham:library_sku_reactivate' code p.pk %}" class="btn btn-sm btn-outline-success" title="Dùng lại"><i class="bi bi-check-circle"></i></a>{% endif %}
+                    {% if can_delete %}<a href="{% url 'kho_san_pham:library_sku_delete' code p.pk %}" class="btn btn-sm btn-outline-danger" title="Xóa"><i class="bi bi-trash3"></i></a>{% endif %}
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+        {% endwith %}
+        {% endfor %}
       </div>
+      {% else %}
+      <p class="small text-muted mb-0">Chưa có SKU.</p>
+      {% endif %}
     {% elif tab == 'images' %}
       <div class="tk-section">
         <div class="tk-section-title"><i class="bi bi-images"></i>Hình ảnh <span class="tk-section-sub">{{ images|length }} ảnh</span></div>
@@ -191,7 +206,7 @@
           {% empty %}
           <li><i class="bi bi-rocket-takeoff"></i>Chưa gắn kế hoạch ra mắt</li>
           {% endfor %}
-          <li><i class="bi bi-tags"></i>{% if handover and handover.is_transferred %}<a href="{% url 'kho_san_pham:product_list' %}?q={{ code|urlencode }}&status=all">Danh mục SKU</a>{% else %}Danh mục SKU hiện sau khi chuyển sản xuất{% endif %}</li>
+          <li><i class="bi bi-tags"></i>{% if handover and handover.is_transferred %}<a href="{% url 'kho_san_pham:product_list' %}?q={{ code|urlencode }}&status=all">Danh mục</a>{% else %}Chưa chuyển sản xuất{% endif %}</li>
         </ul>
       </div>
     </aside>
