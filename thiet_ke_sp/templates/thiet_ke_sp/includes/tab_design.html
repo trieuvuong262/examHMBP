@@ -63,7 +63,7 @@
         {% if dv.colorway_rows %}
         <div class="tk-colorways mt-3">
           {% for cw, images in dv.colorway_rows %}
-          <div class="tk-color-card"><div class="tk-swatch" style="background: {{ cw.color_codes|cw_swatch }}"></div><div class="cap"><b>{{ cw.name }}</b><span>{{ cw.color_codes }}</span></div></div>
+          <div class="tk-color-card"><div class="tk-swatch"{% if not images %} style="background: {{ cw.color_codes|cw_swatch }}"{% endif %}>{% if images %}<img src="{{ images.0.get_absolute_url }}" alt="">{% endif %}</div><div class="cap"><b>{{ cw.name }}</b>{% if cw.color_codes %}<span>{{ cw.color_codes }}</span>{% endif %}</div></div>
           {% endfor %}
         </div>
         {% endif %}

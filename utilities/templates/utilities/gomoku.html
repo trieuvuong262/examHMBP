@@ -4,7 +4,7 @@
 {% block title %}Caro — Just Play Portal{% endblock %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/gomoku.css' %}?v=20261017p">
+<link rel="stylesheet" href="{% static 'css/gomoku.css' %}?v=20261017s">
 {% endblock %}
 
 {% block content %}
@@ -39,9 +39,7 @@
                 </div>
 
                 <div id="gomoku-match" class="gomoku-match d-none">
-                    <div class="gomoku-seats" id="gomoku-players"></div>
                     <div id="gomoku-banner" class="gomoku-banner d-none" role="status"></div>
-                    <div class="gomoku-result" id="gomoku-result" hidden></div>
 
                     <div class="gomoku-board-wrap">
                         <div class="gomoku-play">
@@ -74,6 +72,29 @@
                         </div>
                     </div>
                     <div class="gomoku-actions" id="gomoku-actions"></div>
+                </div>
+                <div class="gomoku-popup" id="gomoku-result" hidden>
+                    <div class="gomoku-popup-card" role="dialog" aria-modal="true" aria-labelledby="gomoku-popup-title">
+                        <div class="gomoku-popup-mark" id="gomoku-popup-mark" aria-hidden="true"></div>
+                        <p class="gomoku-popup-kicker">Kết quả</p>
+                        <h3 id="gomoku-popup-title"></h3>
+                        <p class="gomoku-popup-reason" id="gomoku-popup-reason"></p>
+                        <p class="gomoku-popup-elo" id="gomoku-popup-elo"></p>
+                        <button type="button" class="btn btn-hm" id="gomoku-popup-close">Xem bàn cờ</button>
+                    </div>
+                </div>
+                <div class="gomoku-popup" id="gomoku-ask" hidden>
+                    <div class="gomoku-popup-card" role="dialog" aria-modal="true" aria-labelledby="gomoku-ask-title">
+                        <div class="gomoku-popup-mark" id="gomoku-ask-mark" aria-hidden="true"></div>
+                        <p class="gomoku-popup-kicker" id="gomoku-ask-kicker"></p>
+                        <h3 id="gomoku-ask-title"></h3>
+                        <p class="gomoku-popup-reason" id="gomoku-ask-reason"></p>
+                        <div class="gomoku-popup-actions">
+                            <button type="button" class="btn btn-hm" id="gomoku-ask-yes"></button>
+                            <button type="button" class="btn btn-outline-secondary" id="gomoku-ask-no"></button>
+                        </div>
+                        <button type="button" class="gomoku-popup-later" id="gomoku-ask-later"></button>
+                    </div>
                 </div>
                 <div id="gomoku-toast" class="gomoku-toast d-none" role="alert"></div>
             </section>
@@ -142,5 +163,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{% static 'js/gomoku.js' %}?v=20261017o"></script>
+<script src="{% static 'js/gomoku.js' %}?v=20261017s"></script>
 {% endblock %}

@@ -452,14 +452,24 @@ def save_design_version(dv: DesignVersion, user, *, fields: dict) -> None:
     log(dossier, user, 'design_saved', f'{_name(user)} cập nhật nội dung thiết kế {dv.label}.')
 
 
-def add_colorway(dv: DesignVersion, user, *, name: str, color_codes: str, note: str = '') -> Colorway:
+def add_colorway(dv: DesignVersion, user, *, name: str, color_codes: str = '', note: str = '',
+                 uploaded_file=None) -> Colorway:
+    """Thêm phối màu ở tab Thiết kế. Ảnh lưu lên NAS, mã SKU vẫn lấy từ tên phối màu."""
     _require_design_editable(dv.dossier, dv, user)
-    order = dv.colorways.count() + 1
-    cw = Colorway.objects.create(
-        design_version=dv, name=_require_text(name, 'tên phối màu'),
-        color_codes=_require_text(color_codes, 'mã màu'), note=note, sort_order=order,
-    )
-    log(dv.dossier, user, 'colorway_added', f'{_name(user)} thêm colorway «{cw.name}» vào {dv.label}.')
+    _require(uploaded_file is not None, 'Chọn file ảnh phối màu.')
+    ext = os.path.splitext(uploaded_file.name)[1].lower()
+    _require(ext in IMAGE_EXTENSIONS, 'Ảnh phối màu phải là tệp ảnh.')
+    with transaction.atomic():
+        order = dv.colorways.count() + 1
+        cw = Colorway.objects.create(
+            design_version=dv, name=_require_text(name, 'tên phối màu'),
+            color_codes=(color_codes or '').strip(), note=note, sort_order=order,
+        )
+        upload_attachment(
+            dv.dossier, user, uploaded_file=uploaded_file, kind=AttachmentKind.COLORWAY,
+            design_version=dv, colorway=cw, tab='design',
+        )
+        log(dv.dossier, user, 'colorway_added', f'{_name(user)} thêm colorway «{cw.name}» vào {dv.label}.')
     return cw
 
 
@@ -507,7 +517,7 @@ def _live(qs):
 def design_checklist(dv: DesignVersion | None) -> list[tuple[str, bool]]:
     """Điều kiện của phương án được chọn trước khi chuyển kỹ thuật.
 
-    Trạng thái test bật: không bắt ảnh 2 mặt, colorway có mã màu và file thiết kế gốc.
+    Trạng thái test bật: không bắt ảnh 2 mặt, ảnh phối màu và file thiết kế gốc.
     """
     if sla.get_settings().test_mode:
         return []
@@ -516,9 +526,14 @@ def design_checklist(dv: DesignVersion | None) -> list[tuple[str, bool]]:
     atts = _live(dv.attachments.all())
     kinds = set(atts.values_list('kind', flat=True))
     colorways = list(dv.colorways.all())
+    with_image = set(atts.filter(
+        kind=AttachmentKind.COLORWAY, colorway_id__isnull=False,
+    ).values_list('colorway_id', flat=True))
     return [
         ('Ảnh 2 mặt', AttachmentKind.FRONT in kinds),
-        ('Ít nhất một colorway có mã màu', bool(colorways) and all(c.color_codes.strip() for c in colorways)),
+        ('Ảnh phối màu', bool(colorways) and all(
+            cw.pk in with_image or (cw.color_codes or '').strip() for cw in colorways
+        )),
         ('File thiết kế gốc', AttachmentKind.DESIGN_SOURCE in kinds),
     ]
 
@@ -1929,6 +1944,14 @@ def _upload_allowed(dossier, user, kind: str, design_version, sample_version) ->
     if design_version is not None:
         if kind == AttachmentKind.COLORWAY:
             sv = dossier.current_sample_version()
+            design_open = (
+                _approved_design_editable(dossier, design_version)
+                or design_reopened(dossier, design_version)
+                or (
+                    design_version.is_editable
+                    and dossier.status in (Status.DESIGNING, Status.DESIGN_REVISE, Status.LIBRARY_REOPEN)
+                )
+            )
             tech_open = (
                 sv is not None
                 and sv.design_version_id == design_version.pk
@@ -1939,10 +1962,15 @@ def _upload_allowed(dossier, user, kind: str, design_version, sample_version) ->
                     or tech_reopened(dossier, sv)
                 )
             )
-            if tech_open:
+            if design_open or tech_open:
+                roles = []
+                if design_open:
+                    roles.extend((Role.DESIGNER, Role.OWNER))
+                if tech_open:
+                    roles.extend((Role.TECHNICIAN, Role.OWNER))
                 return (
-                    '' if perms.has_role(dossier, user, Role.TECHNICIAN, Role.OWNER)
-                    else 'Chỉ Kỹ thuật / Tài liệu kỹ thuật hoặc người phụ trách được cập nhật màu.'
+                    '' if perms.has_role(dossier, user, *roles)
+                    else 'Chỉ người phụ trách thiết kế hoặc kỹ thuật được tải ảnh phối màu.'
                 )
         if _approved_design_editable(dossier, design_version) or design_reopened(dossier, design_version):
             return '' if perms.has_role(dossier, user, Role.DESIGNER, Role.OWNER) else 'Chỉ Thiết kế / R&D tải tệp thiết kế.'

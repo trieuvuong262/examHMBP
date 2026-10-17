@@ -705,11 +705,14 @@ def _run_action(request, dossier: ProductDevelopment, action: str) -> tuple[str,
         return 'design', f'Đã lưu nội dung thiết kế {dv.label}.'
     if action == 'colorway_add':
         dv = get_object_or_404(DesignVersion, pk=post.get('design_version_id'), dossier=dossier)
-        form = f.ColorwayForm(post)
-        if not form.is_valid():
-            raise wf.WorkflowError(_form_error_text(form))
-        wf.add_colorway(dv, user, **form.cleaned_data)
-        return 'design', f'Đã thêm colorway «{form.cleaned_data["name"]}».'
+        try:
+            cw = wf.add_colorway(
+                dv, user, name=post.get('name', ''), note=post.get('note', ''),
+                uploaded_file=request.FILES.get('image'),
+            )
+        except OSError:
+            raise wf.WorkflowError('Không ghi được ảnh lên NAS — kiểm tra kết nối NAS.')
+        return 'design', f'Đã thêm colorway «{cw.name}».'
     if action == 'colorway_delete':
         cw = get_object_or_404(Colorway, pk=post.get('colorway_id'), design_version__dossier=dossier)
         wf.delete_colorway(cw, user)

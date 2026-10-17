@@ -393,7 +393,9 @@ body > .ts-dropdown {
 .jp-tksp .tk-colorways { display: flex; flex-wrap: wrap; gap: .7rem; }
 .jp-tksp .tk-color-card { width: 150px; border: 1px solid var(--tk-line); border-radius: var(--tk-radius); overflow: hidden; background: var(--tk-surface); position: relative; }
 .jp-tksp .tk-swatch { height: 86px; display: grid; place-items: center; color: rgba(255, 255, 255, .85); font-size: 1.5rem; }
-.jp-tksp .tk-swatch img { width: 100%; height: 100%; object-fit: cover; }
+.jp-tksp .tk-swatch .tk-thumb-zoom { display: block; width: 100%; height: 100%; padding: 0; border: 0; background: transparent; }
+.jp-tksp .tk-swatch img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.jp-tksp .tk-color-add { grid-template-columns: minmax(8rem, 1fr) minmax(10rem, 1.3fr) minmax(7rem, .8fr) auto; }
 .jp-tksp .tk-color-card .cap { padding: .45rem .55rem; font-size: .74rem; }
 .jp-tksp .tk-color-card .cap b { display: block; font-size: .78rem; }
 .jp-tksp .tk-color-card .cap span { color: var(--tk-muted); }

@@ -24,8 +24,10 @@
   <div class="tk-colorways mb-3">
     {% for cw, images in sv.design.colorway_rows %}
     <div class="tk-color-card">
-      <div class="tk-swatch" style="background: {{ cw.color_codes|cw_swatch }}"></div>
-      <div class="cap"><b>{{ cw.name }}</b><span>{{ cw.color_codes }}</span>{% if cw.note %}<div class="text-muted">{{ cw.note }}</div>{% endif %}</div>
+      <div class="tk-swatch"{% if not images %} style="background: {{ cw.color_codes|cw_swatch }}"{% endif %}>
+        {% if images %}<button type="button" class="tk-thumb-zoom" data-sx-gallery data-sx-gallery-image="{{ images.0.get_absolute_url }}" data-sx-gallery-title="{{ cw.name }}"><img src="{{ images.0.get_absolute_url }}" alt=""></button>{% endif %}
+      </div>
+      <div class="cap"><b>{{ cw.name }}</b>{% if cw.color_codes %}<span>{{ cw.color_codes }}</span>{% endif %}{% if cw.note %}<div class="text-muted">{{ cw.note }}</div>{% endif %}</div>
       {% if flags.edit_tech_pack %}
       <div class="tools">
         <form method="post" action="{% url 'thiet_ke_sp:action' dossier.pk 'tech_colorway_delete' %}" class="m-0 ms-auto" data-tk-confirm="Xóa màu {{ cw.name }}?">{% csrf_token %}

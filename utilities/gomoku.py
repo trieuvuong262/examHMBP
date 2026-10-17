@@ -560,6 +560,7 @@ def room_payload(room: GomokuRoom | None, user, now=None) -> dict | None:
         if game is not None:
             outcome, before, after = _outcome_for(game, user)
             result = {
+                'game_id': game.id,
                 'outcome': outcome,
                 'outcome_label': {'win': 'Bạn thắng', 'loss': 'Bạn thua', 'draw': 'Hòa'}[outcome],
                 'reason': game.reason,

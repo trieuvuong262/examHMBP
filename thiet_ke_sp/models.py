@@ -478,7 +478,7 @@ class DesignVersion(models.Model):
 class Colorway(models.Model):
     design_version = models.ForeignKey(DesignVersion, on_delete=models.CASCADE, related_name='colorways')
     name = models.CharField(max_length=120, verbose_name='Tên phối màu')
-    color_codes = models.CharField(max_length=255, verbose_name='Mã màu')
+    color_codes = models.CharField(max_length=255, blank=True, default='', verbose_name='Mã màu')
     note = models.CharField(max_length=255, blank=True, default='', verbose_name='Ghi chú')
     sort_order = models.PositiveIntegerField(default=0)
 

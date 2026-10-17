@@ -71,14 +71,6 @@
         }).then(readPayload);
     }
 
-    function opposite(color) {
-        return color === 'black' ? 'white' : 'black';
-    }
-
-    function colorLabel(color) {
-        return color === 'black' ? 'Đen' : 'Trắng';
-    }
-
     function pad(n) {
         return n < 10 ? '0' + n : String(n);
     }
@@ -284,33 +276,7 @@
         };
     }
 
-    function seatHtml(name, color, active, waiting) {
-        var state = waiting ? ' is-wait' : (active ? ' is-turn' : '');
-        var note = waiting ? 'Đang chờ' : (colorLabel(color) + (active ? ' · đang đi' : ''));
-        return '<div class="gomoku-seat' + state + '">' +
-            '<span class="gomoku-stone-icon ' + color + '"></span>' +
-            '<span><strong>' + escapeHtml(name) + '</strong><span>' + escapeHtml(note) + '</span></span>' +
-            '</div>';
-    }
-
-    function renderPlayers() {
-        var box = $('gomoku-players');
-        var waiting = room.status === 'waiting' || !room.opponent_name;
-        var key = waiting ? 'waiting' : [room.your_name, room.opponent_name, room.your_color, room.your_turn, room.status].join('|');
-        if (key === playersKey) return;
-        playersKey = key;
-        if (waiting) {
-            box.innerHTML = '';
-            box.classList.add('d-none');
-            return;
-        }
-        box.classList.remove('d-none');
-        var youActive = room.status === 'playing' && room.your_turn;
-        var oppActive = room.status === 'playing' && !room.your_turn;
-        box.innerHTML =
-            seatHtml(room.your_name, room.your_color, youActive, false) +
-            seatHtml(room.opponent_name, opposite(room.your_color), oppActive, false);
-    }
+    function renderPlayers() {}
 
     function renderBanner() {
         var banner = $('gomoku-banner');
@@ -322,13 +288,6 @@
         } else if (room && room.status === 'playing' && room.draw_offer === 'opponent') {
             tone = 'is-info';
             text = 'Đối thủ xin hòa. Đồng hồ lượt vẫn chạy.';
-        } else if (room && room.status === 'finished' && room.result) {
-            var result = room.result;
-            tone = 'is-' + result.outcome;
-            text = result.outcome_label + ' · ' + result.reason_label + '. Elo ' +
-                result.elo_before + ' → ' + result.elo_after + ' (' + deltaText(result.elo_delta) + ')';
-            if (room.you_rematch && !room.opponent_rematch) text += ' Đang chờ đối thủ chơi lại.';
-            else if (room.opponent_rematch && !room.you_rematch) text += ' Đối thủ muốn chơi lại.';
         }
         var key = tone + '|' + text;
         if (key === bannerKey) return;
@@ -342,19 +301,110 @@
         banner.textContent = text;
     }
 
+    var resultDismissed = '';
+
+    function resultStamp() {
+        if (!room || !room.result) return '';
+        var result = room.result;
+        return [result.game_id, result.outcome, result.reason_label, result.elo_before, result.elo_after].join('|');
+    }
+
     function renderResult() {
         var box = $('gomoku-result');
         if (!box) return;
         if (!room || room.status !== 'finished' || !room.result) {
             box.hidden = true;
-            box.textContent = '';
+            resultDismissed = '';
+            return;
+        }
+        var stamp = resultStamp();
+        if (stamp === resultDismissed) {
+            box.hidden = true;
             return;
         }
         var result = room.result;
+        var titles = { win: 'Bạn đã thắng', loss: 'Bạn đã thua', draw: 'Ván hòa' };
+        var marks = { win: '✓', loss: '✕', draw: '=' };
         box.hidden = false;
-        box.className = 'gomoku-result is-' + result.outcome;
-        box.innerHTML = '<strong>' + escapeHtml(result.outcome_label) + '</strong><span>' +
-            escapeHtml(result.reason_label) + ' · ' + deltaText(result.elo_delta) + ' Elo</span>';
+        box.className = 'gomoku-popup is-' + result.outcome;
+        $('gomoku-popup-mark').textContent = marks[result.outcome] || '•';
+        $('gomoku-popup-title').textContent = titles[result.outcome] || result.outcome_label;
+        $('gomoku-popup-reason').textContent = result.reason_label;
+        $('gomoku-popup-elo').textContent = result.elo_before + ' → ' + result.elo_after + '  (' + deltaText(result.elo_delta) + ' Elo)';
+    }
+
+    var askDismissed = '';
+    var askShown = '';
+
+    function askKind() {
+        if (!room) return '';
+        if (room.status === 'playing' && room.draw_offer === 'opponent') return 'draw';
+        if (room.status === 'finished' && room.opponent_rematch && !room.you_rematch) {
+            return 'rematch:' + ((room.result && room.result.game_id) || '');
+        }
+        return '';
+    }
+
+    function drawAskNote() {
+        var left = secondsLeft();
+        return 'Đồng hồ lượt vẫn chạy.' + (left == null ? '' : ' Còn ' + formatClock(left) + '.');
+    }
+
+    function resultVisible() {
+        var box = $('gomoku-result');
+        return !!(box && !box.hidden);
+    }
+
+    function fillAsk(kind) {
+        var draw = kind === 'draw';
+        var box = $('gomoku-ask');
+        box.className = 'gomoku-popup ' + (draw ? 'is-ask-draw' : 'is-ask-rematch');
+        $('gomoku-ask-mark').textContent = draw ? '=' : '↻';
+        $('gomoku-ask-kicker').textContent = draw ? 'Xin hòa' : 'Chơi lại';
+        $('gomoku-ask-title').textContent = draw ? 'Đối thủ xin hòa' : 'Đối thủ muốn chơi lại';
+        $('gomoku-ask-reason').textContent = draw ? drawAskNote() : 'Ván mới đổi màu quân.';
+        $('gomoku-ask-yes').textContent = draw ? 'Đồng ý hòa' : 'Chơi lại';
+        $('gomoku-ask-no').textContent = draw ? 'Từ chối' : 'Rời phòng';
+        $('gomoku-ask-later').textContent = draw ? 'Xem bàn cờ' : 'Để sau';
+    }
+
+    function renderAsk() {
+        var box = $('gomoku-ask');
+        if (!box) return;
+        var kind = askKind();
+        if (!kind) {
+            box.hidden = true;
+            askDismissed = '';
+            askShown = '';
+            return;
+        }
+        if (askDismissed === kind || resultVisible()) {
+            box.hidden = true;
+            return;
+        }
+        if (askShown !== kind) {
+            askShown = kind;
+            fillAsk(kind);
+        }
+        box.hidden = false;
+    }
+
+    function dismissAsk() {
+        askDismissed = askKind();
+        var box = $('gomoku-ask');
+        if (box) box.hidden = true;
+    }
+
+    function answerAsk(accept) {
+        if (!room || acting) return;
+        if (room.status === 'playing' && room.draw_offer === 'opponent') {
+            act(boot.urls.draw, { action: accept ? 'accept' : 'decline' });
+            return;
+        }
+        if (room.status === 'finished' && room.opponent_rematch && !room.you_rematch) {
+            if (accept) act(boot.urls.rematch, {});
+            else act(boot.urls.leave, {}, { silentClose: true });
+        }
     }
 
     function celebrate(outcome) {
@@ -458,6 +508,11 @@
             } else {
                 deadlineArmed = false;
             }
+            var askReason = $('gomoku-ask-reason');
+            var ask = $('gomoku-ask');
+            if (askReason && ask && !ask.hidden && askKind() === 'draw') {
+                askReason.textContent = drawAskNote();
+            }
             return;
         }
         label.textContent = 'Ván đã kết thúc';
@@ -551,6 +606,13 @@
             var frameIdle = $('gomoku-frame');
             if (frameIdle) frameIdle.classList.remove('is-your-turn');
             collapsePlay();
+            var askBox = $('gomoku-ask');
+            if (askBox) askBox.hidden = true;
+            var resultBox = $('gomoku-result');
+            if (resultBox) resultBox.hidden = true;
+            askDismissed = '';
+            askShown = '';
+            resultDismissed = '';
             schedulePoll();
             return;
         }
@@ -560,6 +622,7 @@
         renderPlayers();
         renderBanner();
         renderResult();
+        renderAsk();
         renderBoard();
         renderActions();
         renderClock();
@@ -650,6 +713,38 @@
             $('gomoku-join').click();
         }
     });
+    $('gomoku-popup-close').addEventListener('click', dismissResult);
+    $('gomoku-result').addEventListener('click', function (event) {
+        if (event.target === this) dismissResult();
+    });
+    document.addEventListener('keydown', function (event) {
+        if (event.key !== 'Escape') return;
+        var askBox = $('gomoku-ask');
+        if (askBox && !askBox.hidden) {
+            event.preventDefault();
+            dismissAsk();
+            return;
+        }
+        var box = $('gomoku-result');
+        if (!box || box.hidden) return;
+        event.preventDefault();
+        dismissResult();
+    });
+
+    function dismissResult() {
+        resultDismissed = resultStamp();
+        var box = $('gomoku-result');
+        if (box) box.hidden = true;
+        renderAsk();
+    }
+
+    $('gomoku-ask-yes').addEventListener('click', function () { answerAsk(true); });
+    $('gomoku-ask-no').addEventListener('click', function () { answerAsk(false); });
+    $('gomoku-ask-later').addEventListener('click', dismissAsk);
+    $('gomoku-ask').addEventListener('click', function (event) {
+        if (event.target === this) dismissAsk();
+    });
+
     $('gomoku-copy').addEventListener('click', function () {
         if (!room) return;
         var done = function () { showError(''); };
