@@ -1,27 +1,54 @@
 .gomoku-page {
     --gomoku-wood-line: #6a4324;
     --gomoku-ink: #141414;
+    --gomoku-side-l: 4.35rem;
+    --gomoku-side-r: 2.75rem;
+    --gomoku-play-gap: 0.55rem;
+    --gomoku-board-max: 640px;
 }
 
-.gomoku-hero {
-    margin-bottom: 1rem;
+.gomoku-lobby {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
 }
 
-.gomoku-kicker {
-    margin: 0 0 0.15rem;
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--hm-primary);
+.gomoku-lobby-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    min-width: 0;
+    padding: 1rem 1rem 0.9rem;
+    border-radius: 12px;
+    background: var(--jp-surface-muted);
+    border: 1px solid var(--jp-surface-border);
 }
 
-.gomoku-title {
+.gomoku-lobby-card h3 {
     margin: 0;
-    font-size: 1.85rem;
+    font-size: 1.02rem;
     font-weight: 700;
-    letter-spacing: -0.03em;
-    color: var(--jp-text-primary);
+}
+
+.gomoku-lobby-card p,
+.gomoku-lobby-card .form-label {
+    margin: 0;
+    color: var(--jp-text-muted);
+    font-size: 0.88rem;
+}
+
+.gomoku-lobby-card > .btn,
+.gomoku-join-row {
+    margin-top: auto;
+}
+
+.gomoku-lobby-card > .btn,
+.gomoku-join-row .btn {
+    min-height: 2.75rem;
+}
+
+.gomoku-lobby-card > .btn {
+    width: 100%;
 }
 
 .gomoku-lead,
@@ -54,52 +81,103 @@
 
 .gomoku-panel-title {
     margin: 0 0 0.75rem;
+    padding-bottom: 0.55rem;
+    border-bottom: 1px solid var(--jp-surface-border);
     font-size: 0.95rem;
     font-weight: 700;
 }
 
-.gomoku-lobby {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 0.85rem;
+.gomoku-rules-card,
+.gomoku-rules-block {
+    grid-column: 1 / -1;
 }
 
-.gomoku-lobby-card {
-    padding: 1.1rem 1rem 1rem;
-    border-radius: 14px;
-    background:
-        radial-gradient(circle at 100% 0%, rgba(220, 38, 38, 0.12), transparent 42%),
-        var(--jp-surface-muted);
-    border: 1px solid var(--jp-surface-border);
+.gomoku-rules-block {
+    margin-top: 0.25rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--jp-surface-border);
 }
 
-.gomoku-lobby-card h3 {
-    margin: 0.55rem 0 0.35rem;
-    font-size: 1.05rem;
+.gomoku-rules-block h3 {
+    margin: 0 0 0.65rem;
+    font-size: 0.95rem;
     font-weight: 700;
 }
 
-.gomoku-lobby-card p,
-.gomoku-lobby-card .form-label {
-    margin-bottom: 0.75rem;
-    color: var(--jp-text-muted);
-    font-size: 0.88rem;
+.gomoku-rules-list {
+    margin: 0;
+    padding-left: 1.15rem;
+    color: var(--jp-text-secondary);
+    font-size: 0.9rem;
 }
 
-.gomoku-lobby-icon {
-    width: 2.4rem;
-    height: 2.4rem;
-    display: grid;
-    place-items: center;
-    border-radius: 10px;
-    background: var(--hm-primary);
-    color: #fff;
-    font-size: 1.1rem;
+.gomoku-rules-list li + li {
+    margin-top: 0.35rem;
+}
+
+.gomoku-rules-fold {
+    margin-top: 0.75rem;
+    border: 1px solid var(--jp-surface-border);
+    border-radius: 12px;
+    background: var(--jp-surface-muted);
+}
+
+.gomoku-rules-fold summary {
+    padding: 0.7rem 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    list-style: none;
+}
+
+.gomoku-rules-fold summary::-webkit-details-marker {
+    display: none;
+}
+
+.gomoku-rules-fold summary::after {
+    content: "Hiện";
+    float: right;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--jp-text-muted);
+}
+
+.gomoku-rules-fold[open] summary::after {
+    content: "Ẩn";
+}
+
+.gomoku-panel.gomoku-rules-fold {
+    margin-top: 0;
+    padding: 0.9rem;
+    background: var(--jp-surface-bg);
+}
+
+.gomoku-panel.gomoku-rules-fold summary {
+    padding: 0;
+    margin: 0;
+}
+
+.gomoku-panel.gomoku-rules-fold[open] summary {
+    margin-bottom: 0.75rem;
+}
+
+.gomoku-panel.gomoku-rules-fold .gomoku-rules-list {
+    padding: 0 0 0.15rem 1.15rem;
 }
 
 .gomoku-join-row {
     display: flex;
+    align-items: stretch;
     gap: 0.5rem;
+}
+
+.gomoku-join-row .btn {
+    flex: 0 0 auto;
+    min-width: 4.75rem;
+}
+
+.gomoku-join-row .gomoku-code-input {
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .gomoku-code-input {
@@ -110,12 +188,11 @@
     font-variant-numeric: tabular-nums;
 }
 
-.gomoku-match-top {
+.gomoku-room-row {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    gap: 1rem;
-    margin-bottom: 0.85rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
 }
 
 .gomoku-meta-label {
@@ -143,17 +220,82 @@
     font-variant-numeric: tabular-nums;
 }
 
+.gomoku-play,
+.gomoku-actions {
+    display: grid;
+    grid-template-columns: var(--gomoku-side-l) minmax(0, var(--gomoku-board-max)) var(--gomoku-side-r);
+    justify-content: center;
+    align-items: center;
+    column-gap: var(--gomoku-play-gap);
+    width: 100%;
+    min-width: 0;
+}
+
+.gomoku-expand {
+    flex: 0 0 auto;
+    width: 2.75rem;
+    height: 2.75rem;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid var(--jp-surface-border);
+    border-radius: 12px;
+    background: var(--jp-surface-bg);
+    color: var(--jp-text-primary);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+    font-size: 1.15rem;
+    line-height: 1;
+}
+
+.gomoku-expand:hover,
+.gomoku-expand:focus-visible {
+    background: var(--jp-surface-muted);
+    color: var(--jp-text-primary);
+    outline: 2px solid rgba(220, 38, 38, 0.35);
+    outline-offset: 2px;
+}
+
+.gomoku-expand-icon {
+    width: 1.15rem;
+    height: 1.15rem;
+    display: block;
+}
+
+.gomoku-expand-leave {
+    display: none;
+}
+
+.gomoku-page.is-expanded .gomoku-expand-enter {
+    display: none;
+}
+
+.gomoku-page.is-expanded .gomoku-expand-leave {
+    display: block;
+}
+
 .gomoku-timer {
+    flex: 0 0 auto;
     display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 0.3rem;
+    align-items: center;
+    justify-content: center;
+}
+
+.gomoku-turn {
+    margin-top: 0.45rem;
+    padding: 0.32rem 0.6rem;
+    border-radius: 999px;
+    text-align: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #fff8ee;
+    background: rgba(32, 16, 6, 0.28);
 }
 
 .gomoku-timer-ring {
     --p: 1;
-    width: 4.6rem;
-    height: 4.6rem;
+    width: 4.35rem;
+    height: 4.35rem;
     display: grid;
     place-items: center;
     border-radius: 50%;
@@ -257,11 +399,9 @@
 
 .gomoku-board-frame {
     position: relative;
-    width: min(100%, 640px);
+    width: 100%;
     min-width: 0;
-    max-width: 100%;
-    margin-inline: auto;
-    padding: 0.85rem;
+    padding: 0.7rem 0.7rem 0.5rem;
     border-radius: 18px;
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 30%),
@@ -280,6 +420,9 @@
 
 .gomoku-board {
     display: grid;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
     grid-template-columns: repeat(15, minmax(0, 1fr));
     aspect-ratio: 1;
     border-radius: 8px;
@@ -475,10 +618,36 @@
 }
 
 .gomoku-actions {
-    display: flex;
-    flex-wrap: wrap;
+    align-items: stretch;
+    row-gap: 0.45rem;
+    margin-top: 0.55rem;
+}
+
+.gomoku-actions > * {
+    grid-column: 2;
+    min-width: 0;
+}
+
+.gomoku-actions-row {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
     gap: 0.5rem;
-    margin-top: 0.9rem;
+}
+
+.gomoku-actions .btn {
+    width: 100%;
+    min-height: 2.75rem;
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
 }
 
 .gomoku-toast {
@@ -487,10 +656,29 @@
     font-size: 0.88rem;
 }
 
-.gomoku-elo-block { margin-bottom: 0.8rem; }
+.gomoku-mine {
+    display: grid;
+    grid-template-columns: 5.6rem minmax(0, 1fr);
+    gap: 0.55rem;
+    align-items: stretch;
+    margin-bottom: 0.45rem;
+}
+
+.gomoku-elo-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    margin: 0;
+    padding: 0.55rem 0.3rem;
+    border-radius: 12px;
+    background: var(--jp-surface-muted);
+    border: 1px solid var(--jp-surface-border);
+}
 
 .gomoku-elo {
-    font-size: 2.15rem;
+    font-size: 1.65rem;
     font-weight: 700;
     line-height: 1;
     letter-spacing: -0.04em;
@@ -498,16 +686,21 @@
 
 .gomoku-record {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.4rem;
-    margin-bottom: 0.7rem;
+    margin: 0;
 }
 
 .gomoku-record div {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 100%;
     padding: 0.45rem 0.2rem 0.4rem;
     border-radius: 10px;
     text-align: center;
     background: var(--jp-surface-muted);
+    border: 1px solid var(--jp-surface-border);
 }
 
 .gomoku-record strong {
@@ -616,12 +809,16 @@
 
 @media (max-width: 991.98px) {
     .gomoku-page.is-match {
+        --gomoku-side-l: 3.35rem;
+        --gomoku-side-r: 2.5rem;
+        --gomoku-play-gap: 0.3rem;
+        --gomoku-board-max: calc(100dvh - var(--jp-topbar-h) - 12.5rem);
         padding: 0.35rem 0.4rem 0.75rem !important;
     }
 
-    .gomoku-page.is-match .gomoku-hero,
-    .gomoku-page.is-match .gomoku-aside,
-    .gomoku-page.is-match .gomoku-history {
+    .gomoku-page.is-match .gomoku-page-head,
+    .gomoku-page.is-match .gomoku-history,
+    .gomoku-page.is-match .gomoku-aside .gomoku-panel:not(.gomoku-room-card) {
         display: none;
     }
 
@@ -633,14 +830,27 @@
     }
 
     .gomoku-page.is-match .gomoku-board-frame {
-        width: min(100%, calc(100dvh - var(--jp-topbar-h) - 11rem));
-        padding: 0.4rem;
+        width: 100%;
+        padding: 0.4rem 0.4rem 0.32rem;
         border-radius: 14px;
     }
 
-    .gomoku-match-top {
-        gap: 0.55rem;
-        margin-bottom: 0.45rem;
+    .gomoku-actions .btn {
+        min-height: 2.75rem;
+        font-size: 0.88rem;
+        padding-inline: 0.4rem;
+    }
+
+    .gomoku-turn {
+        margin-top: 0.28rem;
+        padding: 0.2rem 0.4rem;
+        font-size: 0.72rem;
+    }
+
+    .gomoku-expand {
+        width: 2.5rem;
+        height: 2.5rem;
+        font-size: 1.05rem;
     }
 
     .gomoku-code span {
@@ -685,16 +895,16 @@
         bottom: 0.35rem;
         z-index: 6;
         margin-top: 0.55rem;
-        padding: 0.35rem;
-        border-radius: 12px;
-        background: var(--jp-surface-bg);
-        background: color-mix(in srgb, var(--jp-surface-bg) 94%, transparent);
-        backdrop-filter: blur(8px);
+        padding: 0;
+        background: transparent;
     }
 
     .gomoku-actions .btn {
-        flex: 1 1 8rem;
-        min-height: 44px;
+        min-height: 2.75rem;
+    }
+
+    .gomoku-page.is-match .gomoku-rules-fold {
+        margin-bottom: 0.75rem;
     }
 
     .gomoku-code-input {
@@ -708,8 +918,55 @@
         display: none;
     }
 
-    .gomoku-page.is-match .gomoku-board-frame {
-        width: min(100%, calc(100dvh - var(--jp-topbar-h) - 7.25rem));
+    .gomoku-page.is-match {
+        --gomoku-board-max: calc(100dvh - var(--jp-topbar-h) - 8.5rem);
+    }
+}
+
+.gomoku-page.is-expanded .gomoku-stage {
+    position: fixed;
+    inset: 0;
+    z-index: 2100;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: safe center;
+    padding:
+        max(0.55rem, env(safe-area-inset-top))
+        max(0.5rem, env(safe-area-inset-right))
+        max(0.7rem, env(safe-area-inset-bottom))
+        max(0.5rem, env(safe-area-inset-left));
+    background: var(--jp-surface-bg);
+}
+
+.gomoku-page.is-expanded .gomoku-match {
+    width: min(1100px, 100%);
+    margin-inline: auto;
+}
+
+.gomoku-page.is-expanded {
+    --gomoku-board-max: min(860px, calc(100dvh - 12rem));
+}
+
+.gomoku-stage:fullscreen,
+.gomoku-stage:-webkit-full-screen {
+    background: var(--jp-surface-bg);
+}
+
+body:has(.gomoku-page.is-expanded) {
+    overflow: hidden;
+}
+
+@media (max-width: 991.98px) {
+    .gomoku-page.is-expanded {
+        --gomoku-board-max: min(640px, calc(100dvh - 11rem));
     }
 }
 

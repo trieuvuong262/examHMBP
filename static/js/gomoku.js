@@ -294,24 +294,29 @@
     }
 
     function renderPlayers() {
-        var key = [room.your_name, room.opponent_name, room.your_color, room.your_turn, room.status].join('|');
+        var box = $('gomoku-players');
+        var waiting = room.status === 'waiting' || !room.opponent_name;
+        var key = waiting ? 'waiting' : [room.your_name, room.opponent_name, room.your_color, room.your_turn, room.status].join('|');
         if (key === playersKey) return;
         playersKey = key;
+        if (waiting) {
+            box.innerHTML = '';
+            box.classList.add('d-none');
+            return;
+        }
+        box.classList.remove('d-none');
         var youActive = room.status === 'playing' && room.your_turn;
-        var oppActive = room.status === 'playing' && !room.your_turn && !!room.opponent_name;
-        $('gomoku-players').innerHTML =
+        var oppActive = room.status === 'playing' && !room.your_turn;
+        box.innerHTML =
             seatHtml(room.your_name, room.your_color, youActive, false) +
-            seatHtml(room.opponent_name || 'Chưa có người', opposite(room.your_color), oppActive, !room.opponent_name);
+            seatHtml(room.opponent_name, opposite(room.your_color), oppActive, false);
     }
 
     function renderBanner() {
         var banner = $('gomoku-banner');
         var text = '';
         var tone = '';
-        if (room && room.status === 'waiting') {
-            tone = '';
-            text = 'Đọc mã phòng cho đồng nghiệp. Không có người vào thì phòng tự hủy.';
-        } else if (room && room.status === 'playing' && room.draw_offer === 'you') {
+        if (room && room.status === 'playing' && room.draw_offer === 'you') {
             tone = 'is-info';
             text = 'Bạn đã xin hòa. Đồng hồ lượt vẫn chạy.';
         } else if (room && room.status === 'playing' && room.draw_offer === 'opponent') {
@@ -372,6 +377,7 @@
         if (key === actionsKey) return;
         actionsKey = key;
         var box = $('gomoku-actions');
+        box.className = 'gomoku-actions';
         box.textContent = '';
         if (!room) return;
         if (room.status === 'waiting') {
@@ -381,33 +387,43 @@
             return;
         }
         if (room.status === 'playing') {
-            if (room.draw_offer === 'opponent') {
-                box.appendChild(button('Đồng ý hòa', 'btn btn-outline-secondary', function () {
-                    act(boot.urls.draw, { action: 'accept' });
-                }));
-                box.appendChild(button('Từ chối', 'btn btn-outline-secondary', function () {
-                    act(boot.urls.draw, { action: 'decline' });
-                }));
-            } else if (room.draw_offer !== 'you') {
-                box.appendChild(button('Xin hòa', 'btn btn-outline-secondary', function () {
-                    act(boot.urls.draw, { action: 'offer' });
-                }));
-            }
-            box.appendChild(button('Đầu hàng', 'btn btn-outline-danger', function () {
+            var row = document.createElement('div');
+            row.className = 'gomoku-actions-row';
+            var resign = button('Đầu hàng', 'btn btn-outline-danger', function () {
                 if (!window.confirm('Đầu hàng ván này?')) return;
                 act(boot.urls.resign, {});
-            }));
+            });
+            if (room.draw_offer === 'opponent') {
+                row.appendChild(button('Đồng ý hòa', 'btn btn-hm', function () {
+                    act(boot.urls.draw, { action: 'accept' });
+                }));
+                row.appendChild(button('Từ chối', 'btn btn-outline-secondary', function () {
+                    act(boot.urls.draw, { action: 'decline' });
+                }));
+                row.appendChild(resign);
+            } else if (room.draw_offer === 'you') {
+                row.appendChild(resign);
+            } else {
+                row.appendChild(button('Xin hòa', 'btn btn-outline-secondary', function () {
+                    act(boot.urls.draw, { action: 'offer' });
+                }));
+                row.appendChild(resign);
+            }
+            box.appendChild(row);
             return;
         }
         if (room.status === 'finished') {
+            var done = document.createElement('div');
+            done.className = 'gomoku-actions-row';
             var again = button(room.you_rematch ? 'Đang chờ đối thủ' : 'Chơi lại', 'btn btn-hm', function () {
                 act(boot.urls.rematch, {});
             });
             again.disabled = room.you_rematch;
-            box.appendChild(again);
-            box.appendChild(button('Rời phòng', 'btn btn-outline-secondary', function () {
+            done.appendChild(again);
+            done.appendChild(button('Rời phòng', 'btn btn-outline-secondary', function () {
                 act(boot.urls.leave, {}, { silentClose: true });
             }));
+            box.appendChild(done);
         }
     }
 
@@ -460,12 +476,73 @@
         });
     }
 
+    function nativeFullscreenElement() {
+        return document.fullscreenElement || document.webkitFullscreenElement || null;
+    }
+
+    var expandNative = false;
+
+    function setExpanded(on) {
+        var page = document.querySelector('.gomoku-page');
+        if (page) page.classList.toggle('is-expanded', on);
+        var expandBtn = $('gomoku-expand');
+        if (!expandBtn) return;
+        expandBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        expandBtn.setAttribute('aria-label', on ? 'Thu nhỏ' : 'Phóng to màn hình');
+        expandBtn.title = on ? 'Thu nhỏ' : 'Phóng to';
+    }
+
+    function collapsePlay() {
+        var page = document.querySelector('.gomoku-page');
+        var expanded = page && page.classList.contains('is-expanded');
+        var native = nativeFullscreenElement();
+        if (!expanded && !native) return;
+        expandNative = false;
+        setExpanded(false);
+        var exit = document.exitFullscreen || document.webkitExitFullscreen;
+        if (native && exit) {
+            var pending = exit.call(document);
+            if (pending && pending.catch) pending.catch(function () {});
+        }
+    }
+
+    function toggleExpand() {
+        var page = document.querySelector('.gomoku-page');
+        var stage = $('gomoku-stage');
+        var on = (page && page.classList.contains('is-expanded')) || nativeFullscreenElement();
+        if (on) {
+            collapsePlay();
+            return;
+        }
+        setExpanded(true);
+        var req = stage && (stage.requestFullscreen || stage.webkitRequestFullscreen);
+        if (!req) return;
+        try {
+            var pending = req.call(stage);
+            if (pending && pending.then) {
+                pending.then(function () {
+                    expandNative = true;
+                }).catch(function () {
+                    expandNative = false;
+                });
+            } else {
+                expandNative = !!nativeFullscreenElement();
+            }
+        } catch (err) {
+            expandNative = false;
+        }
+    }
+
     function render() {
         var inRoom = !!room;
         var page = document.querySelector('.gomoku-page');
         if (page) page.classList.toggle('is-match', inRoom);
         $('gomoku-lobby').classList.toggle('d-none', inRoom);
         $('gomoku-match').classList.toggle('d-none', !inRoom);
+        var pageHead = $('gomoku-page-head');
+        if (pageHead) pageHead.classList.toggle('d-none', inRoom);
+        var roomCard = $('gomoku-room-card');
+        if (roomCard) roomCard.classList.toggle('d-none', !inRoom);
         if (!inRoom) {
             boardKey = '';
             playersKey = '';
@@ -473,6 +550,7 @@
             actionsKey = '';
             var frameIdle = $('gomoku-frame');
             if (frameIdle) frameIdle.classList.remove('is-your-turn');
+            collapsePlay();
             schedulePoll();
             return;
         }
@@ -592,6 +670,21 @@
         }
         showError('Mã phòng là ' + room.code + '.');
     });
+    function onFullscreenChange() {
+        if (nativeFullscreenElement()) {
+            expandNative = true;
+            setExpanded(true);
+            return;
+        }
+        if (expandNative) {
+            expandNative = false;
+            setExpanded(false);
+        }
+    }
+
+    $('gomoku-expand').addEventListener('click', toggleExpand);
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
 
     renderMe(boot.me);
     renderRanks(boot.leaderboard);

@@ -156,6 +156,7 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'meal_ordering', 'label': 'Đặt cơm', 'icon': 'bi-cup-hot'},
         {'key': 'salary_advance', 'label': 'Ứng lương', 'icon': 'bi-cash-coin'},
         {'key': 'schedule_reminder', 'label': 'Nhắc lịch', 'icon': 'bi-alarm'},
+        {'key': 'caro', 'label': 'Caro', 'icon': 'bi-grid-3x3', 'perm_view_only': True},
         {
             'key': 'trip_schedule',
             'label': 'Đăng ký du lịch',
@@ -419,6 +420,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/tien-ich/ung-luong', MODULE_UTILITIES, 'salary_advance'),
     ('/tien-ich/dat-com', MODULE_UTILITIES, 'meal_ordering'),
     ('/tien-ich/nhac-lich', MODULE_UTILITIES, 'schedule_reminder'),
+    ('/tien-ich/caro', MODULE_UTILITIES, 'caro'),
     ('/tien-ich/dat-lich', MODULE_UTILITIES, 'trip_schedule'),
     ('/cong-cu/nhac-lich', MODULE_UTILITIES, 'schedule_reminder'),
     # Góp ý

@@ -616,7 +616,8 @@
                     </a>
                 </li>
                 {% endif %}
-                {% if jp_can_utilities %}
+                {% jp_can_menu 'utilities' 'caro' as jp_can_utilities_caro %}
+                {% if jp_can_utilities_caro %}
                 <li>
                     <a href="{% url 'utilities:gomoku' %}"
                        class="jp-sidebar-link jp-sidebar-sublink {% if '/tien-ich/caro' in request.path %}active{% endif %}">
