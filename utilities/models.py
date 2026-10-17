@@ -518,3 +518,186 @@ class ScheduleReminderPushLog(models.Model):
 
     def __str__(self):
         return f'{self.reminder_id} · {self.fire_date:%d/%m/%Y}'
+
+
+def gomoku_empty_board():
+    """Bàn caro 15×15, 0 = ô trống."""
+    return [[0 for _ in range(15)] for _ in range(15)]
+
+
+class GomokuStats(models.Model):
+    """Thắng, thua, hòa và Elo của một nhân viên."""
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='gomoku_stats',
+        verbose_name='Nhân viên',
+    )
+    wins = models.PositiveIntegerField(default=0, verbose_name='Thắng')
+    losses = models.PositiveIntegerField(default=0, verbose_name='Thua')
+    draws = models.PositiveIntegerField(default=0, verbose_name='Hòa')
+    elo = models.PositiveIntegerField(default=1000, verbose_name='Elo')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Điểm Caro'
+        verbose_name_plural = 'Điểm Caro'
+
+    def __str__(self):
+        return f'{self.user_id} · {self.elo}'
+
+
+class GomokuRoom(models.Model):
+    """Phòng đang chờ, đang chơi, hoặc vừa kết thúc và còn chờ chơi lại."""
+
+    STATUS_WAITING = 'waiting'
+    STATUS_PLAYING = 'playing'
+    STATUS_FINISHED = 'finished'
+    STATUS_CLOSED = 'closed'
+    STATUS_CHOICES = [
+        (STATUS_WAITING, 'Đang chờ'),
+        (STATUS_PLAYING, 'Đang chơi'),
+        (STATUS_FINISHED, 'Đã kết thúc'),
+        (STATUS_CLOSED, 'Đã đóng'),
+    ]
+    OPEN_STATUSES = (STATUS_WAITING, STATUS_PLAYING, STATUS_FINISHED)
+
+    COLOR_BLACK = 'black'
+    COLOR_WHITE = 'white'
+    COLOR_CHOICES = [
+        (COLOR_BLACK, 'Đen'),
+        (COLOR_WHITE, 'Trắng'),
+    ]
+
+    code = models.CharField(max_length=4, db_index=True, verbose_name='Mã phòng')
+    host = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='gomoku_rooms_hosted',
+        verbose_name='Chủ phòng',
+    )
+    guest = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='gomoku_rooms_joined',
+        null=True,
+        blank=True,
+        verbose_name='Người vào',
+    )
+    status = models.CharField(
+        max_length=16,
+        choices=STATUS_CHOICES,
+        default=STATUS_WAITING,
+        db_index=True,
+        verbose_name='Trạng thái',
+    )
+    board = models.JSONField(default=gomoku_empty_board, verbose_name='Bàn cờ')
+    host_color = models.CharField(
+        max_length=8,
+        choices=COLOR_CHOICES,
+        default=COLOR_BLACK,
+        verbose_name='Màu chủ phòng',
+    )
+    turn = models.CharField(
+        max_length=8,
+        choices=COLOR_CHOICES,
+        default=COLOR_BLACK,
+        verbose_name='Lượt đi',
+    )
+    move_count = models.PositiveIntegerField(default=0, verbose_name='Số nước')
+    last_row = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name='Hàng nước cuối')
+    last_col = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name='Cột nước cuối')
+    turn_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Hết giờ lượt')
+    draw_offer_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+        verbose_name='Người xin hòa',
+    )
+    host_rematch = models.BooleanField(default=False, verbose_name='Chủ phòng muốn chơi lại')
+    guest_rematch = models.BooleanField(default=False, verbose_name='Khách muốn chơi lại')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Phòng Caro'
+        verbose_name_plural = 'Phòng Caro'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['code'],
+                condition=models.Q(status__in=['waiting', 'playing', 'finished']),
+                name='utilities_gomoku_open_code_uniq',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['host', 'status'], name='util_gomoku_host_status_idx'),
+            models.Index(fields=['guest', 'status'], name='util_gomoku_guest_status_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.code} · {self.get_status_display()}'
+
+
+class GomokuGame(models.Model):
+    """Một ván đã kết thúc — dùng cho lịch sử và Elo."""
+
+    RESULT_BLACK = 'black'
+    RESULT_WHITE = 'white'
+    RESULT_DRAW = 'draw'
+    RESULT_CHOICES = [
+        (RESULT_BLACK, 'Đen thắng'),
+        (RESULT_WHITE, 'Trắng thắng'),
+        (RESULT_DRAW, 'Hòa'),
+    ]
+    REASON_FIVE = 'five'
+    REASON_RESIGN = 'resign'
+    REASON_TIMEOUT = 'timeout'
+    REASON_DRAW = 'draw'
+    REASON_CHOICES = [
+        (REASON_FIVE, 'Năm quân'),
+        (REASON_RESIGN, 'Đầu hàng'),
+        (REASON_TIMEOUT, 'Hết giờ'),
+        (REASON_DRAW, 'Xin hòa'),
+    ]
+
+    room = models.ForeignKey(
+        GomokuRoom,
+        on_delete=models.CASCADE,
+        related_name='games',
+        verbose_name='Phòng',
+    )
+    black = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='gomoku_games_as_black',
+        verbose_name='Quân đen',
+    )
+    white = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='gomoku_games_as_white',
+        verbose_name='Quân trắng',
+    )
+    result = models.CharField(max_length=8, choices=RESULT_CHOICES, verbose_name='Kết quả')
+    reason = models.CharField(max_length=16, choices=REASON_CHOICES, verbose_name='Lý do')
+    black_elo_before = models.PositiveIntegerField(verbose_name='Elo đen trước ván')
+    black_elo_after = models.PositiveIntegerField(verbose_name='Elo đen sau ván')
+    white_elo_before = models.PositiveIntegerField(verbose_name='Elo trắng trước ván')
+    white_elo_after = models.PositiveIntegerField(verbose_name='Elo trắng sau ván')
+    finished_at = models.DateTimeField(auto_now_add=True, verbose_name='Kết thúc')
+
+    class Meta:
+        verbose_name = 'Ván Caro'
+        verbose_name_plural = 'Ván Caro'
+        ordering = ['-finished_at', '-id']
+        indexes = [
+            models.Index(fields=['black', 'finished_at'], name='util_gomoku_black_played_idx'),
+            models.Index(fields=['white', 'finished_at'], name='util_gomoku_white_played_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.black_id} vs {self.white_id} · {self.result}'

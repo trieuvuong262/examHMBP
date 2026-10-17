@@ -1,11 +1,21 @@
 from django.urls import path
 
-from utilities import portal_actions, push_views, views
+from utilities import gomoku_views, portal_actions, push_views, views
 
 app_name = 'utilities'
 
 urlpatterns = [
     path('', views.utilities_hub, name='hub'),
+    path('caro/', gomoku_views.gomoku_home, name='gomoku'),
+    path('caro/state/', gomoku_views.gomoku_state, name='gomoku_state'),
+    path('caro/lists/', gomoku_views.gomoku_lists, name='gomoku_lists'),
+    path('caro/create/', gomoku_views.gomoku_create, name='gomoku_create'),
+    path('caro/join/', gomoku_views.gomoku_join, name='gomoku_join'),
+    path('caro/move/', gomoku_views.gomoku_move, name='gomoku_move'),
+    path('caro/resign/', gomoku_views.gomoku_resign, name='gomoku_resign'),
+    path('caro/draw/', gomoku_views.gomoku_draw, name='gomoku_draw'),
+    path('caro/rematch/', gomoku_views.gomoku_rematch, name='gomoku_rematch'),
+    path('caro/leave/', gomoku_views.gomoku_leave, name='gomoku_leave'),
     path('push/vapid-public-key/', push_views.vapid_public_key, name='push_vapid_public_key'),
     path('push/subscribe/', push_views.push_subscribe, name='push_subscribe'),
     path('push/unsubscribe/', push_views.push_unsubscribe, name='push_unsubscribe'),

@@ -1,6 +1,9 @@
 from django.contrib import admin
 
 from utilities.models import (
+    GomokuGame,
+    GomokuRoom,
+    GomokuStats,
     MealDayOffering,
     MealDish,
     MealEligibleEmployee,
@@ -172,3 +175,28 @@ class ScheduleReminderPushLogAdmin(admin.ModelAdmin):
     list_filter = ('fire_date',)
     raw_id_fields = ('reminder',)
     ordering = ('-sent_at',)
+
+
+@admin.register(GomokuStats)
+class GomokuStatsAdmin(admin.ModelAdmin):
+    list_display = ('user', 'elo', 'wins', 'losses', 'draws', 'updated_at')
+    search_fields = ('user__username', 'user__profile__full_name')
+    raw_id_fields = ('user',)
+    ordering = ('-elo',)
+
+
+@admin.register(GomokuRoom)
+class GomokuRoomAdmin(admin.ModelAdmin):
+    list_display = ('code', 'host', 'guest', 'status', 'turn', 'move_count', 'created_at')
+    list_filter = ('status',)
+    search_fields = ('code', 'host__username', 'guest__username')
+    raw_id_fields = ('host', 'guest', 'draw_offer_by')
+    ordering = ('-created_at',)
+
+
+@admin.register(GomokuGame)
+class GomokuGameAdmin(admin.ModelAdmin):
+    list_display = ('finished_at', 'black', 'white', 'result', 'reason', 'black_elo_after', 'white_elo_after')
+    list_filter = ('result', 'reason')
+    raw_id_fields = ('room', 'black', 'white')
+    ordering = ('-finished_at',)

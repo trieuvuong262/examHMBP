@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Caro — Just Play Portal{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/gomoku.css' %}?v=20261017e">
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5 gomoku-page">
+    <div class="gomoku-hero">
+        <div>
+            <p class="gomoku-kicker">Tiện ích</p>
+            <h2 class="gomoku-title">Caro</h2>
+            <p class="gomoku-lead">Đấu online với đồng nghiệp. Tạo phòng, đưa mã 4 số, người kia nhập để vào bàn.</p>
+        </div>
+    </div>
+
+    <div class="row g-3 align-items-start">
+        <div class="col-lg-8">
+            <section class="gomoku-stage" id="gomoku-stage">
+                <div id="gomoku-lobby" class="gomoku-lobby">
+                    <article class="gomoku-lobby-card">
+                        <span class="gomoku-lobby-icon" aria-hidden="true"><i class="bi bi-plus-lg"></i></span>
+                        <h3>Tạo phòng</h3>
+                        <p>Bạn cầm quân đen và đi trước. Mỗi lượt có 60 giây.</p>
+                        <button type="button" class="btn btn-hm" id="gomoku-create">Tạo phòng</button>
+                    </article>
+                    <article class="gomoku-lobby-card">
+                        <span class="gomoku-lobby-icon" aria-hidden="true"><i class="bi bi-door-open"></i></span>
+                        <h3>Vào phòng</h3>
+                        <label class="form-label" for="gomoku-code">Mã 4 số</label>
+                        <div class="gomoku-join-row">
+                            <input id="gomoku-code" class="form-control gomoku-code-input" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="1234" aria-label="Mã phòng">
+                            <button type="button" class="btn btn-outline-hm" id="gomoku-join">Vào</button>
+                        </div>
+                    </article>
+                </div>
+
+                <div id="gomoku-match" class="gomoku-match d-none">
+                    <div class="gomoku-match-top">
+                        <div>
+                            <div class="gomoku-meta-label">Mã phòng</div>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <div class="gomoku-code" id="gomoku-room-code" aria-live="polite">----</div>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="gomoku-copy">Sao chép</button>
+                            </div>
+                        </div>
+                        <div class="gomoku-timer" id="gomoku-timer">
+                            <div class="gomoku-timer-ring" id="gomoku-clock-ring">
+                                <span id="gomoku-clock">—</span>
+                            </div>
+                            <div class="gomoku-meta-label" id="gomoku-turn-label">Đang chờ</div>
+                        </div>
+                    </div>
+
+                    <div class="gomoku-seats" id="gomoku-players"></div>
+                    <div id="gomoku-banner" class="gomoku-banner d-none" role="status"></div>
+                    <div class="gomoku-result" id="gomoku-result" hidden></div>
+
+                    <div class="gomoku-board-wrap">
+                        <div class="gomoku-board-frame" id="gomoku-frame">
+                            <div class="gomoku-confetti" id="gomoku-confetti" aria-hidden="true"></div>
+                            <div class="gomoku-board" id="gomoku-board" role="grid" aria-label="Bàn cờ caro 15 nhân 15"></div>
+                        </div>
+                    </div>
+                    <div class="gomoku-actions" id="gomoku-actions"></div>
+                </div>
+                <div id="gomoku-toast" class="gomoku-toast d-none" role="alert"></div>
+            </section>
+        </div>
+
+        <div class="col-lg-4 gomoku-aside">
+            <section class="gomoku-panel mb-3">
+                <h3 class="gomoku-panel-title">Của tôi</h3>
+                <div class="gomoku-elo-block">
+                    <div class="gomoku-elo" id="gomoku-my-elo">{{ me.elo }}</div>
+                    <div class="gomoku-meta-label">Elo</div>
+                </div>
+                <div class="gomoku-record">
+                    <div><strong id="gomoku-wins">{{ me.wins }}</strong><span>Thắng</span></div>
+                    <div><strong id="gomoku-draws">{{ me.draws }}</strong><span>Hòa</span></div>
+                    <div><strong id="gomoku-losses">{{ me.losses }}</strong><span>Thua</span></div>
+                </div>
+            </section>
+            <section class="gomoku-panel">
+                <h3 class="gomoku-panel-title">Bảng xếp hạng</h3>
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0 align-middle gomoku-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Tên</th>
+                                <th class="text-end">Elo</th>
+                                <th class="text-end" title="Thắng / Hòa / Thua">T/H/B</th>
+                            </tr>
+                        </thead>
+                        <tbody id="gomoku-ranks"></tbody>
+                    </table>
+                </div>
+                <p class="gomoku-empty d-none" id="gomoku-ranks-empty">Chưa có ván nào.</p>
+            </section>
+        </div>
+    </div>
+
+    <section class="gomoku-panel gomoku-history mt-3">
+        <h3 class="gomoku-panel-title">Lịch sử của tôi</h3>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0 align-middle gomoku-table">
+                <thead>
+                    <tr>
+                        <th>Thời điểm</th>
+                        <th>Đối thủ</th>
+                        <th>Kết quả</th>
+                        <th class="text-end">Elo</th>
+                    </tr>
+                </thead>
+                <tbody id="gomoku-history"></tbody>
+            </table>
+        </div>
+        <p class="gomoku-empty d-none" id="gomoku-history-empty">Bạn chưa chơi ván nào.</p>
+    </section>
+</div>
+{{ boot|json_script:"gomoku-boot" }}
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/gomoku.js' %}?v=20261017e"></script>
+{% endblock %}

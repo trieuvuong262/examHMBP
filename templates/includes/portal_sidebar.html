@@ -616,6 +616,14 @@
                     </a>
                 </li>
                 {% endif %}
+                {% if jp_can_utilities %}
+                <li>
+                    <a href="{% url 'utilities:gomoku' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if '/tien-ich/caro' in request.path %}active{% endif %}">
+                        <i class="bi bi-grid-3x3"></i><span>Caro</span>
+                    </a>
+                </li>
+                {% endif %}
                 {% if jp_can_trip_register %}
                 <li>
                     <a href="{% url 'company_trip:register' %}"
