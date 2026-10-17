@@ -13,7 +13,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import F, Q
 from django.utils import timezone
 
-from utilities.models import GomokuGame, GomokuRoom, GomokuStats, gomoku_empty_board
+from utilities.models import GomokuGame, GomokuMessage, GomokuRoom, GomokuStats, gomoku_empty_board
 
 BOARD_SIZE = 15
 WIN_LENGTH = 5
@@ -21,6 +21,8 @@ TURN_SECONDS = 60
 WAITING_SECONDS = 15 * 60
 ELO_START = 1000
 ELO_K = 32
+CHAT_KEEP = 40
+CHAT_MAX_LEN = 300
 STONE_BLACK = 1
 STONE_WHITE = 2
 _DIRECTIONS = ((1, 0), (0, 1), (1, 1), (1, -1))
@@ -43,6 +45,32 @@ def display_name(user) -> str:
             profile = None
     name = (getattr(profile, 'full_name', '') or '').strip()
     return name or user.get_username()
+
+
+def _profile(user):
+    profile = getattr(user, 'profile', None)
+    if profile is not None:
+        return profile
+    try:
+        return user.profile
+    except Exception:
+        return None
+
+
+def avatar_url(user) -> str:
+    profile = _profile(user)
+    avatar = getattr(profile, 'avatar', None) if profile is not None else None
+    if not avatar:
+        return ''
+    try:
+        return avatar.url or ''
+    except (ValueError, OSError):
+        return ''
+
+
+def name_initial(user) -> str:
+    name = display_name(user)
+    return name[:1].upper() if name else '?'
 
 
 def opposite_color(color: str) -> str:
@@ -116,7 +144,7 @@ def _lock_user(user):
 def _locked_room(pk: int) -> GomokuRoom:
     return (
         GomokuRoom.objects.select_for_update(of=('self',))
-        .select_related('host__profile', 'guest__profile', 'draw_offer_by')
+        .select_related('host__profile', 'guest__profile', 'draw_offer_by', 'undo_offer_by')
         .get(pk=pk)
     )
 
@@ -131,7 +159,7 @@ def _open_rooms(user):
 def open_room_for(user) -> GomokuRoom | None:
     return (
         _open_rooms(user)
-        .select_related('host__profile', 'guest__profile', 'draw_offer_by')
+        .select_related('host__profile', 'guest__profile', 'draw_offer_by', 'undo_offer_by')
         .order_by('-id')
         .first()
     )
@@ -161,6 +189,7 @@ def _begin_round(room: GomokuRoom, *, swap: bool, now) -> None:
     room.status = GomokuRoom.STATUS_PLAYING
     room.turn_deadline = now + timedelta(seconds=TURN_SECONDS)
     room.draw_offer_by = None
+    room.undo_offer_by = None
     room.host_rematch = False
     room.guest_rematch = False
 
@@ -223,6 +252,7 @@ def _finish(room: GomokuRoom, *, result: str, reason: str, now) -> GomokuGame:
     room.status = GomokuRoom.STATUS_FINISHED
     room.turn_deadline = None
     room.draw_offer_by = None
+    room.undo_offer_by = None
     room.host_rematch = False
     room.guest_rematch = False
     room.save()
@@ -347,6 +377,7 @@ def place_move(user, row: int, col: int, now=None) -> GomokuRoom:
         room.last_col = col
         room.move_count += 1
         room.draw_offer_by = None
+        room.undo_offer_by = None
         if has_five(board, row, col):
             _finish(room, result=color, reason=GomokuGame.REASON_FIVE, now=now)
             return room
@@ -383,6 +414,11 @@ def offer_draw(user, now=None) -> GomokuRoom:
         if room.status != GomokuRoom.STATUS_PLAYING:
             raise GomokuError('Không có ván để xin hòa.')
         _ensure_player(room, user)
+        if room.undo_offer_by_id:
+            raise GomokuError(
+                'Bạn đã xin đi lại.' if room.undo_offer_by_id == user.pk
+                else 'Đối thủ đã xin đi lại. Hãy đồng ý hoặc từ chối.'
+            )
         if room.draw_offer_by_id == user.pk:
             raise GomokuError('Bạn đã xin hòa.')
         if room.draw_offer_by_id:
@@ -411,6 +447,73 @@ def respond_draw(user, accept: bool, now=None) -> GomokuRoom:
             room.save(update_fields=['draw_offer_by', 'updated_at'])
             return room
         _finish(room, result=GomokuGame.RESULT_DRAW, reason=GomokuGame.REASON_DRAW, now=now)
+        return room
+
+    return _mutate(user, _respond, now)
+
+
+def offer_undo(user, now=None) -> GomokuRoom:
+    def _offer(now):
+        room = _locked_room(_require_open(user).pk)
+        if _apply_clock(room, now):
+            return room
+        if room.status != GomokuRoom.STATUS_PLAYING:
+            raise GomokuError('Không có ván để đi lại.')
+        _ensure_player(room, user)
+        if room.move_count < 1 or room.last_row is None or room.last_col is None:
+            raise GomokuError('Chưa có nước để đi lại.')
+        if room.draw_offer_by_id:
+            raise GomokuError(
+                'Bạn đã xin hòa.' if room.draw_offer_by_id == user.pk
+                else 'Đối thủ đã xin hòa. Hãy đồng ý hoặc từ chối.'
+            )
+        if room.undo_offer_by_id == user.pk:
+            raise GomokuError('Bạn đã xin đi lại.')
+        if room.undo_offer_by_id:
+            raise GomokuError('Đối thủ đã xin đi lại. Hãy đồng ý hoặc từ chối.')
+        room.undo_offer_by = user
+        room.save(update_fields=['undo_offer_by', 'updated_at'])
+        return room
+
+    return _mutate(user, _offer, now)
+
+
+def respond_undo(user, accept: bool, now=None) -> GomokuRoom:
+    def _respond(now):
+        room = _locked_room(_require_open(user).pk)
+        if _apply_clock(room, now):
+            return room
+        if room.status != GomokuRoom.STATUS_PLAYING:
+            raise GomokuError('Không có lời xin đi lại.')
+        _ensure_player(room, user)
+        if not room.undo_offer_by_id:
+            raise GomokuError('Chưa có lời xin đi lại.')
+        if room.undo_offer_by_id == user.pk:
+            raise GomokuError('Đối thủ chưa trả lời lời xin đi lại của bạn.')
+        if not accept:
+            room.undo_offer_by = None
+            room.save(update_fields=['undo_offer_by', 'updated_at'])
+            return room
+        if room.move_count < 1 or room.last_row is None or room.last_col is None:
+            room.undo_offer_by = None
+            room.save(update_fields=['undo_offer_by', 'updated_at'])
+            raise GomokuError('Không còn nước để đi lại.')
+        board = _copy_board(room.board)
+        stone = board[room.last_row][room.last_col]
+        if stone not in (STONE_BLACK, STONE_WHITE):
+            room.undo_offer_by = None
+            room.save(update_fields=['undo_offer_by', 'updated_at'])
+            raise GomokuError('Không còn nước để đi lại.')
+        board[room.last_row][room.last_col] = 0
+        room.board = board
+        room.turn = color_for_stone(stone)
+        room.last_row = None
+        room.last_col = None
+        room.move_count -= 1
+        room.turn_deadline = now + timedelta(seconds=TURN_SECONDS)
+        room.undo_offer_by = None
+        room.draw_offer_by = None
+        room.save()
         return room
 
     return _mutate(user, _respond, now)
@@ -451,6 +554,46 @@ def leave_room(user, now=None) -> None:
     return _mutate(user, _leave, now)
 
 
+def post_chat(user, body: str, now=None) -> GomokuRoom:
+    text = ' '.join(str(body or '').split())
+    if not text:
+        raise GomokuError('Nhập nội dung tin nhắn.')
+    if len(text) > CHAT_MAX_LEN:
+        raise GomokuError('Tin nhắn tối đa 300 ký tự.')
+
+    def _send(now):
+        room = _locked_room(_require_open(user).pk)
+        _apply_clock(room, now)
+        if room.status not in (GomokuRoom.STATUS_PLAYING, GomokuRoom.STATUS_FINISHED):
+            raise GomokuError('Chưa có đối thủ để nhắn.')
+        _ensure_player(room, user)
+        GomokuMessage.objects.create(room=room, sender=user, body=text)
+        stale = list(
+            room.messages.order_by('-id').values_list('id', flat=True)[CHAT_KEEP:]
+        )
+        if stale:
+            GomokuMessage.objects.filter(pk__in=stale).delete()
+        return room
+
+    return _mutate(user, _send, now)
+
+
+def _chat_rows(room: GomokuRoom, user) -> list[dict]:
+    rows = list(
+        room.messages.select_related('sender__profile').order_by('-id')[:CHAT_KEEP]
+    )
+    rows.reverse()
+    return [
+        {
+            'id': msg.id,
+            'mine': msg.sender_id == user.pk,
+            'name': display_name(msg.sender),
+            'body': msg.body,
+        }
+        for msg in rows
+    ]
+
+
 def stats_for(user) -> dict:
     stats, _ = GomokuStats.objects.get_or_create(user=user, defaults={'elo': ELO_START})
     return {
@@ -474,6 +617,8 @@ def leaderboard(user, limit: int = 50) -> list[dict]:
         result.append({
             'rank': index,
             'name': display_name(row.user),
+            'avatar_url': avatar_url(row.user),
+            'initial': name_initial(row.user),
             'elo': row.elo,
             'wins': row.wins,
             'losses': row.losses,
@@ -554,6 +699,12 @@ def room_payload(room: GomokuRoom | None, user, now=None) -> dict | None:
         draw_offer = 'opponent'
     else:
         draw_offer = 'none'
+    if room.undo_offer_by_id == user.pk:
+        undo_offer = 'you'
+    elif room.undo_offer_by_id:
+        undo_offer = 'opponent'
+    else:
+        undo_offer = 'none'
     result = None
     if room.status == GomokuRoom.STATUS_FINISHED:
         game = room.games.select_related('black__profile', 'white__profile').order_by('-id').first()
@@ -585,11 +736,13 @@ def room_payload(room: GomokuRoom | None, user, now=None) -> dict | None:
         'turn_deadline': room.turn_deadline,
         'waiting_seconds_left': waiting_left,
         'draw_offer': draw_offer,
+        'undo_offer': undo_offer,
         'you_rematch': you_rematch,
         'opponent_rematch': opponent_rematch,
         'move_count': room.move_count,
         'last_move': [room.last_row, room.last_col] if room.last_row is not None else None,
         'result': result,
+        'messages': _chat_rows(room, user),
         'server_now': now,
     }
 

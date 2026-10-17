@@ -2,6 +2,7 @@ from django.contrib import admin
 
 from utilities.models import (
     GomokuGame,
+    GomokuMessage,
     GomokuRoom,
     GomokuStats,
     MealDayOffering,
@@ -190,7 +191,15 @@ class GomokuRoomAdmin(admin.ModelAdmin):
     list_display = ('code', 'host', 'guest', 'status', 'turn', 'move_count', 'created_at')
     list_filter = ('status',)
     search_fields = ('code', 'host__username', 'guest__username')
-    raw_id_fields = ('host', 'guest', 'draw_offer_by')
+    raw_id_fields = ('host', 'guest', 'draw_offer_by', 'undo_offer_by')
+    ordering = ('-created_at',)
+
+
+@admin.register(GomokuMessage)
+class GomokuMessageAdmin(admin.ModelAdmin):
+    list_display = ('created_at', 'room', 'sender', 'body')
+    search_fields = ('body', 'sender__username', 'room__code')
+    raw_id_fields = ('room', 'sender')
     ordering = ('-created_at',)
 
 

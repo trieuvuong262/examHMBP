@@ -21,6 +21,7 @@
     var playersKey = '';
     var bannerKey = '';
     var actionsKey = '';
+    var chatKey = '';
     var deadlineArmed = false;
     var reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -139,9 +140,12 @@
             var medal = row.rank <= 3
                 ? '<span class="gomoku-medal is-' + row.rank + '">' + row.rank + '</span>'
                 : String(row.rank);
+            var avatar = row.avatar_url
+                ? '<img class="gomoku-avatar" src="' + escapeHtml(row.avatar_url) + '" alt="">'
+                : '<span class="gomoku-avatar is-fallback" aria-hidden="true">' + escapeHtml(row.initial || '?') + '</span>';
             tr.innerHTML =
                 '<td>' + medal + '</td>' +
-                '<td>' + escapeHtml(row.name) + '</td>' +
+                '<td><span class="gomoku-person">' + avatar + '<span>' + escapeHtml(row.name) + '</span></span></td>' +
                 '<td class="text-end fw-semibold">' + row.elo + '</td>' +
                 '<td class="text-end">' + row.wins + '/' + row.draws + '/' + row.losses + '</td>';
             body.appendChild(tr);
@@ -282,7 +286,13 @@
         var banner = $('gomoku-banner');
         var text = '';
         var tone = '';
-        if (room && room.status === 'playing' && room.draw_offer === 'you') {
+        if (room && room.status === 'playing' && room.undo_offer === 'you') {
+            tone = 'is-info';
+            text = 'Bạn đã xin đi lại. Đồng hồ lượt vẫn chạy.';
+        } else if (room && room.status === 'playing' && room.undo_offer === 'opponent') {
+            tone = 'is-info';
+            text = 'Đối thủ xin đi lại. Đồng hồ lượt vẫn chạy.';
+        } else if (room && room.status === 'playing' && room.draw_offer === 'you') {
             tone = 'is-info';
             text = 'Bạn đã xin hòa. Đồng hồ lượt vẫn chạy.';
         } else if (room && room.status === 'playing' && room.draw_offer === 'opponent') {
@@ -339,6 +349,7 @@
 
     function askKind() {
         if (!room) return '';
+        if (room.status === 'playing' && room.undo_offer === 'opponent') return 'undo';
         if (room.status === 'playing' && room.draw_offer === 'opponent') return 'draw';
         if (room.status === 'finished' && room.opponent_rematch && !room.you_rematch) {
             return 'rematch:' + ((room.result && room.result.game_id) || '');
@@ -378,6 +389,17 @@
             $('gomoku-ask-reason').textContent = resignNote();
             yes.textContent = 'Đầu hàng';
             $('gomoku-ask-no').textContent = 'Chơi tiếp';
+            return;
+        }
+        if (kind === 'undo') {
+            box.className = 'gomoku-popup is-ask-undo';
+            $('gomoku-ask-mark').textContent = '↺';
+            $('gomoku-ask-kicker').textContent = 'Đi lại';
+            $('gomoku-ask-title').textContent = 'Đối thủ xin đi lại';
+            $('gomoku-ask-reason').textContent = drawAskNote();
+            yes.textContent = 'Đồng ý';
+            $('gomoku-ask-no').textContent = 'Từ chối';
+            later.textContent = 'Quay lại';
             return;
         }
         box.className = 'gomoku-popup ' + (draw ? 'is-ask-draw' : 'is-ask-rematch');
@@ -446,6 +468,10 @@
             act(boot.urls.resign, {});
             return;
         }
+        if (room.status === 'playing' && room.undo_offer === 'opponent') {
+            act(boot.urls.undo, { action: accept ? 'accept' : 'decline' });
+            return;
+        }
         if (room.status === 'playing' && room.draw_offer === 'opponent') {
             act(boot.urls.draw, { action: accept ? 'accept' : 'decline' });
             return;
@@ -472,7 +498,7 @@
     }
 
     function renderActions() {
-        var key = [room.status, room.draw_offer, room.you_rematch, room.opponent_rematch].join('|');
+        var key = [room.status, room.draw_offer, room.undo_offer, room.move_count, room.you_rematch, room.opponent_rematch].join('|');
         if (key === actionsKey) return;
         actionsKey = key;
         var box = $('gomoku-actions');
@@ -493,7 +519,22 @@
                 askShown = '';
                 renderAsk();
             });
-            if (room.draw_offer === 'opponent') {
+            var undo = button(room.undo_offer === 'you' ? 'Đang chờ' : 'Đi lại', 'btn btn-outline-secondary', function () {
+                act(boot.urls.undo, { action: 'offer' });
+            });
+            undo.disabled = room.undo_offer === 'you' || !room.move_count;
+            if (room.undo_offer === 'opponent') {
+                row.appendChild(button('Đồng ý', 'btn btn-hm', function () {
+                    act(boot.urls.undo, { action: 'accept' });
+                }));
+                row.appendChild(button('Từ chối', 'btn btn-outline-secondary', function () {
+                    act(boot.urls.undo, { action: 'decline' });
+                }));
+                row.appendChild(resign);
+            } else if (room.undo_offer === 'you' || room.draw_offer === 'you') {
+                if (room.undo_offer === 'you') row.appendChild(undo);
+                row.appendChild(resign);
+            } else if (room.draw_offer === 'opponent') {
                 row.appendChild(button('Đồng ý hòa', 'btn btn-hm', function () {
                     act(boot.urls.draw, { action: 'accept' });
                 }));
@@ -501,9 +542,8 @@
                     act(boot.urls.draw, { action: 'decline' });
                 }));
                 row.appendChild(resign);
-            } else if (room.draw_offer === 'you') {
-                row.appendChild(resign);
             } else {
+                row.appendChild(undo);
                 row.appendChild(button('Xin hòa', 'btn btn-outline-secondary', function () {
                     act(boot.urls.draw, { action: 'offer' });
                 }));
@@ -547,7 +587,9 @@
             return;
         }
         if (room.status === 'playing') {
-            label.textContent = room.your_turn ? 'Lượt của bạn' : 'Lượt của đối thủ';
+            label.textContent = room.your_turn
+                ? 'Lượt của bạn'
+                : ('Lượt của: ' + (room.opponent_name || 'đối thủ'));
             var turnLeft = secondsLeft();
             paintClock(turnLeft, 60, 10);
             if (turnLeft === 0) {
@@ -560,7 +602,8 @@
             }
             var askReason = $('gomoku-ask-reason');
             var ask = $('gomoku-ask');
-            if (askReason && ask && !ask.hidden && (resignOpen || askKind() === 'draw')) {
+            var askKindNow = askKind();
+            if (askReason && ask && !ask.hidden && (resignOpen || askKindNow === 'draw' || askKindNow === 'undo')) {
                 askReason.textContent = resignOpen ? resignNote() : drawAskNote();
             }
             return;
@@ -638,6 +681,42 @@
         }
     }
 
+    function renderChat() {
+        var box = $('gomoku-chat');
+        if (!box) return;
+        var open = room && room.opponent_name && (room.status === 'playing' || room.status === 'finished');
+        box.hidden = !open;
+        if (!open) {
+            chatKey = '';
+            return;
+        }
+        var messages = room.messages || [];
+        var key = messages.map(function (msg) { return msg.id; }).join(',');
+        if (key === chatKey) return;
+        var log = $('gomoku-chat-log');
+        var stick = !chatKey || log.scrollHeight - log.scrollTop - log.clientHeight < 48;
+        log.textContent = '';
+        if (!messages.length) {
+            var empty = document.createElement('p');
+            empty.className = 'gomoku-chat-empty';
+            empty.textContent = 'Nhắn cho đối thủ.';
+            log.appendChild(empty);
+        }
+        messages.forEach(function (msg) {
+            var item = document.createElement('div');
+            item.className = 'gomoku-chat-msg' + (msg.mine ? ' is-mine' : '');
+            var name = document.createElement('strong');
+            name.textContent = msg.mine ? 'Bạn' : (msg.name || 'Đối thủ');
+            var body = document.createElement('span');
+            body.textContent = msg.body;
+            item.appendChild(name);
+            item.appendChild(body);
+            log.appendChild(item);
+        });
+        if (stick) log.scrollTop = log.scrollHeight;
+        chatKey = key;
+    }
+
     function render() {
         var inRoom = !!room;
         var page = document.querySelector('.gomoku-page');
@@ -664,6 +743,7 @@
             askShown = '';
             resignOpen = false;
             resultDismissed = '';
+            chatKey = '';
             schedulePoll();
             return;
         }
@@ -675,6 +755,7 @@
         renderResult();
         renderAsk();
         renderBoard();
+        renderChat();
         renderActions();
         renderClock();
         schedulePoll();
@@ -794,6 +875,15 @@
     $('gomoku-ask-later').addEventListener('click', dismissAsk);
     $('gomoku-ask').addEventListener('click', function (event) {
         if (event.target === this) dismissAsk();
+    });
+
+    $('gomoku-chat-form').addEventListener('submit', function (event) {
+        event.preventDefault();
+        var input = $('gomoku-chat-input');
+        var text = input.value.trim();
+        if (!text || !room || acting) return;
+        input.value = '';
+        act(boot.urls.chat, { body: text });
     });
 
     $('gomoku-copy').addEventListener('click', function () {

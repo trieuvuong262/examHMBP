@@ -617,6 +617,14 @@ class GomokuRoom(models.Model):
         related_name='+',
         verbose_name='Người xin hòa',
     )
+    undo_offer_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+        verbose_name='Người xin đi lại',
+    )
     host_rematch = models.BooleanField(default=False, verbose_name='Chủ phòng muốn chơi lại')
     guest_rematch = models.BooleanField(default=False, verbose_name='Khách muốn chơi lại')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -701,3 +709,33 @@ class GomokuGame(models.Model):
 
     def __str__(self):
         return f'{self.black_id} vs {self.white_id} · {self.result}'
+
+
+class GomokuMessage(models.Model):
+    """Tin nhắn giữa hai người trong một phòng."""
+
+    room = models.ForeignKey(
+        GomokuRoom,
+        on_delete=models.CASCADE,
+        related_name='messages',
+        verbose_name='Phòng',
+    )
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='+',
+        verbose_name='Người gửi',
+    )
+    body = models.CharField(max_length=300, verbose_name='Nội dung')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Gửi lúc')
+
+    class Meta:
+        verbose_name = 'Tin nhắn Caro'
+        verbose_name_plural = 'Tin nhắn Caro'
+        ordering = ['id']
+        indexes = [
+            models.Index(fields=['room', 'id'], name='util_gomoku_msg_room_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.room_id} · {self.sender_id}'

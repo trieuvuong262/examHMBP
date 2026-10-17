@@ -18,10 +18,13 @@ from utilities.gomoku import (
     leave_room,
     lists_for,
     offer_draw,
+    offer_undo,
     place_move,
+    post_chat,
     request_rematch,
     resign,
     respond_draw,
+    respond_undo,
     state_for,
     stats_for,
 )
@@ -72,6 +75,8 @@ def gomoku_home(request):
             'move': reverse('utilities:gomoku_move'),
             'resign': reverse('utilities:gomoku_resign'),
             'draw': reverse('utilities:gomoku_draw'),
+            'undo': reverse('utilities:gomoku_undo'),
+            'chat': reverse('utilities:gomoku_chat'),
             'rematch': reverse('utilities:gomoku_rematch'),
             'leave': reverse('utilities:gomoku_leave'),
         },
@@ -151,6 +156,34 @@ def gomoku_draw(request):
             respond_draw(user, False)
         else:
             raise GomokuError('Thao tác hòa không hợp lệ.')
+
+    return _act(request, _run)
+
+
+@login_required
+@require_POST
+@module_perm_required(MODULE_UTILITIES, 'view')
+def gomoku_undo(request):
+    def _run(user, data):
+        action = data.get('action')
+        if action == 'offer':
+            offer_undo(user)
+        elif action == 'accept':
+            respond_undo(user, True)
+        elif action == 'decline':
+            respond_undo(user, False)
+        else:
+            raise GomokuError('Thao tác đi lại không hợp lệ.')
+
+    return _act(request, _run)
+
+
+@login_required
+@require_POST
+@module_perm_required(MODULE_UTILITIES, 'view')
+def gomoku_chat(request):
+    def _run(user, data):
+        post_chat(user, data.get('body', ''))
 
     return _act(request, _run)
 

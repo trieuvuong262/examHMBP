@@ -4,7 +4,7 @@
 {% block title %}Caro — Just Play Portal{% endblock %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/gomoku.css' %}?v=20261017v">
+<link rel="stylesheet" href="{% static 'css/gomoku.css' %}?v=20261018a">
 {% endblock %}
 
 {% block content %}
@@ -72,6 +72,13 @@
                         </div>
                     </div>
                     <div class="gomoku-actions" id="gomoku-actions"></div>
+                    <section class="gomoku-chat" id="gomoku-chat" hidden>
+                        <div class="gomoku-chat-log" id="gomoku-chat-log" role="log"></div>
+                        <form class="gomoku-chat-form" id="gomoku-chat-form">
+                            <input type="text" id="gomoku-chat-input" maxlength="300" placeholder="Nhắn đối thủ..." autocomplete="off" enterkeyhint="send">
+                            <button type="submit" class="btn btn-hm">Gửi</button>
+                        </form>
+                    </section>
                 </div>
                 <div class="gomoku-popup" id="gomoku-result" hidden>
                     <div class="gomoku-popup-card" role="dialog" aria-modal="true" aria-labelledby="gomoku-popup-title">
@@ -163,5 +170,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{% static 'js/gomoku.js' %}?v=20261017w"></script>
+<script src="{% static 'js/gomoku.js' %}?v=20261018a"></script>
 {% endblock %}
