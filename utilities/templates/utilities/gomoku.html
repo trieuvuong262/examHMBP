@@ -4,7 +4,7 @@
 {% block title %}Caro — Just Play Portal{% endblock %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/gomoku.css' %}?v=20261017s">
+<link rel="stylesheet" href="{% static 'css/gomoku.css' %}?v=20261017v">
 {% endblock %}
 
 {% block content %}
@@ -80,7 +80,7 @@
                         <h3 id="gomoku-popup-title"></h3>
                         <p class="gomoku-popup-reason" id="gomoku-popup-reason"></p>
                         <p class="gomoku-popup-elo" id="gomoku-popup-elo"></p>
-                        <button type="button" class="btn btn-hm" id="gomoku-popup-close">Xem bàn cờ</button>
+                        <button type="button" class="btn btn-hm" id="gomoku-popup-close">Quay lại</button>
                     </div>
                 </div>
                 <div class="gomoku-popup" id="gomoku-ask" hidden>
@@ -113,7 +113,7 @@
                 <div class="gomoku-mine">
                     <div class="gomoku-elo-block">
                         <div class="gomoku-elo" id="gomoku-my-elo">{{ me.elo }}</div>
-                        <div class="gomoku-meta-label">Elo</div>
+                        <div class="gomoku-meta-label">Điểm</div>
                     </div>
                     <div class="gomoku-record">
                         <div><strong id="gomoku-wins">{{ me.wins }}</strong><span>Thắng</span></div>
@@ -130,7 +130,7 @@
                             <tr>
                                 <th>#</th>
                                 <th>Tên</th>
-                                <th class="text-end">Elo</th>
+                                <th class="text-end">Điểm</th>
                                 <th class="text-end" title="Thắng / Hòa / Thua">T/H/B</th>
                             </tr>
                         </thead>
@@ -148,7 +148,7 @@
                                 <th>Thời điểm</th>
                                 <th>Đối thủ</th>
                                 <th>Kết quả</th>
-                                <th class="text-end">Elo</th>
+                                <th class="text-end">Điểm</th>
                             </tr>
                         </thead>
                         <tbody id="gomoku-history"></tbody>
@@ -163,5 +163,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{% static 'js/gomoku.js' %}?v=20261017s"></script>
+<script src="{% static 'js/gomoku.js' %}?v=20261017w"></script>
 {% endblock %}

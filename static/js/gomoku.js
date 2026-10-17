@@ -330,11 +330,12 @@
         $('gomoku-popup-mark').textContent = marks[result.outcome] || '•';
         $('gomoku-popup-title').textContent = titles[result.outcome] || result.outcome_label;
         $('gomoku-popup-reason').textContent = result.reason_label;
-        $('gomoku-popup-elo').textContent = result.elo_before + ' → ' + result.elo_after + '  (' + deltaText(result.elo_delta) + ' Elo)';
+        $('gomoku-popup-elo').textContent = result.elo_before + ' → ' + result.elo_after + '  (' + deltaText(result.elo_delta) + ' điểm)';
     }
 
     var askDismissed = '';
     var askShown = '';
+    var resignOpen = false;
 
     function askKind() {
         if (!room) return '';
@@ -355,22 +356,52 @@
         return !!(box && !box.hidden);
     }
 
+    function resignNote() {
+        var left = secondsLeft();
+        var clock = left == null ? '' : ' Còn ' + formatClock(left) + '.';
+        return 'Bạn thua ngay.' + clock;
+    }
+
     function fillAsk(kind) {
         var draw = kind === 'draw';
+        var resign = kind === 'resign';
         var box = $('gomoku-ask');
+        var yes = $('gomoku-ask-yes');
+        var later = $('gomoku-ask-later');
+        later.hidden = resign;
+        yes.className = resign ? 'btn btn-danger' : 'btn btn-hm';
+        if (resign) {
+            box.className = 'gomoku-popup is-ask-resign';
+            $('gomoku-ask-mark').textContent = '✕';
+            $('gomoku-ask-kicker').textContent = 'Xác nhận';
+            $('gomoku-ask-title').textContent = 'Đầu hàng ván này?';
+            $('gomoku-ask-reason').textContent = resignNote();
+            yes.textContent = 'Đầu hàng';
+            $('gomoku-ask-no').textContent = 'Chơi tiếp';
+            return;
+        }
         box.className = 'gomoku-popup ' + (draw ? 'is-ask-draw' : 'is-ask-rematch');
         $('gomoku-ask-mark').textContent = draw ? '=' : '↻';
         $('gomoku-ask-kicker').textContent = draw ? 'Xin hòa' : 'Chơi lại';
         $('gomoku-ask-title').textContent = draw ? 'Đối thủ xin hòa' : 'Đối thủ muốn chơi lại';
         $('gomoku-ask-reason').textContent = draw ? drawAskNote() : 'Ván mới đổi màu quân.';
-        $('gomoku-ask-yes').textContent = draw ? 'Đồng ý hòa' : 'Chơi lại';
+        yes.textContent = draw ? 'Đồng ý hòa' : 'Chơi lại';
         $('gomoku-ask-no').textContent = draw ? 'Từ chối' : 'Rời phòng';
-        $('gomoku-ask-later').textContent = draw ? 'Xem bàn cờ' : 'Để sau';
+        later.textContent = draw ? 'Quay lại' : 'Để sau';
     }
 
     function renderAsk() {
         var box = $('gomoku-ask');
         if (!box) return;
+        if (resignOpen && room && room.status === 'playing') {
+            if (askShown !== 'resign') {
+                askShown = 'resign';
+                fillAsk('resign');
+            }
+            box.hidden = false;
+            return;
+        }
+        resignOpen = false;
         var kind = askKind();
         if (!kind) {
             box.hidden = true;
@@ -390,6 +421,12 @@
     }
 
     function dismissAsk() {
+        if (resignOpen) {
+            resignOpen = false;
+            askShown = '';
+            renderAsk();
+            return;
+        }
         askDismissed = askKind();
         var box = $('gomoku-ask');
         if (box) box.hidden = true;
@@ -397,6 +434,18 @@
 
     function answerAsk(accept) {
         if (!room || acting) return;
+        if (resignOpen) {
+            resignOpen = false;
+            askShown = '';
+            if (!accept) {
+                renderAsk();
+                return;
+            }
+            var askBox = $('gomoku-ask');
+            if (askBox) askBox.hidden = true;
+            act(boot.urls.resign, {});
+            return;
+        }
         if (room.status === 'playing' && room.draw_offer === 'opponent') {
             act(boot.urls.draw, { action: accept ? 'accept' : 'decline' });
             return;
@@ -440,8 +489,9 @@
             var row = document.createElement('div');
             row.className = 'gomoku-actions-row';
             var resign = button('Đầu hàng', 'btn btn-outline-danger', function () {
-                if (!window.confirm('Đầu hàng ván này?')) return;
-                act(boot.urls.resign, {});
+                resignOpen = true;
+                askShown = '';
+                renderAsk();
             });
             if (room.draw_offer === 'opponent') {
                 row.appendChild(button('Đồng ý hòa', 'btn btn-hm', function () {
@@ -510,8 +560,8 @@
             }
             var askReason = $('gomoku-ask-reason');
             var ask = $('gomoku-ask');
-            if (askReason && ask && !ask.hidden && askKind() === 'draw') {
-                askReason.textContent = drawAskNote();
+            if (askReason && ask && !ask.hidden && (resignOpen || askKind() === 'draw')) {
+                askReason.textContent = resignOpen ? resignNote() : drawAskNote();
             }
             return;
         }
@@ -612,6 +662,7 @@
             if (resultBox) resultBox.hidden = true;
             askDismissed = '';
             askShown = '';
+            resignOpen = false;
             resultDismissed = '';
             schedulePoll();
             return;

@@ -655,6 +655,9 @@
 
 .gomoku-popup.is-ask-draw .gomoku-popup-mark { background: #1d4ed8; }
 .gomoku-popup.is-ask-rematch .gomoku-popup-mark { background: var(--hm-primary); }
+.gomoku-popup.is-ask-resign .gomoku-popup-mark { background: #b91c1c; }
+
+.gomoku-popup-later[hidden] { display: none !important; }
 
 .gomoku-popup-actions {
     display: grid;
@@ -884,10 +887,10 @@
 
 @media (max-width: 991.98px) {
     .gomoku-page.is-match {
-        --gomoku-side-l: 2.6rem;
-        --gomoku-side-r: 2.45rem;
-        --gomoku-play-gap: 0.2rem;
-        --gomoku-board-max: calc(100dvh - var(--jp-topbar-h) - 11.6rem);
+        --gomoku-side-l: 0;
+        --gomoku-side-r: 0;
+        --gomoku-play-gap: 0.35rem;
+        --gomoku-board-max: calc(100dvh - var(--jp-topbar-h) - 14.4rem);
         max-width: none;
         margin-bottom: 0 !important;
         padding: 0.3rem 0.3rem max(0.4rem, env(safe-area-inset-bottom)) !important;
@@ -936,6 +939,33 @@
         border: 0;
         box-shadow: none;
         background: transparent;
+    }
+
+    .gomoku-page.is-match .gomoku-play,
+    .gomoku-page.is-match .gomoku-actions {
+        width: min(100%, var(--gomoku-board-max));
+        margin-inline: auto;
+    }
+
+    .gomoku-page.is-match .gomoku-play {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-areas:
+            "clock . expand"
+            "board board board";
+        row-gap: 0.28rem;
+        align-items: center;
+    }
+
+    .gomoku-page.is-match .gomoku-timer { grid-area: clock; }
+    .gomoku-page.is-match .gomoku-expand { grid-area: expand; justify-self: end; }
+    .gomoku-page.is-match .gomoku-board-frame { grid-area: board; }
+
+    .gomoku-page.is-match .gomoku-actions {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .gomoku-page.is-match .gomoku-actions > * {
+        grid-column: 1;
     }
 
     .gomoku-page.is-match .gomoku-play,
@@ -1031,7 +1061,7 @@
     }
 
     .gomoku-page.is-match {
-        --gomoku-board-max: calc(100dvh - var(--jp-topbar-h) - 6.25rem);
+        --gomoku-board-max: calc(100dvh - var(--jp-topbar-h) - 9.25rem);
     }
 }
 
@@ -1078,7 +1108,7 @@ body:has(.gomoku-page.is-expanded) {
 
 @media (max-width: 991.98px) {
     .gomoku-page.is-expanded {
-        --gomoku-board-max: min(640px, calc(100dvh - 11rem));
+        --gomoku-board-max: min(640px, calc(100dvh - 13rem));
     }
 }
 
