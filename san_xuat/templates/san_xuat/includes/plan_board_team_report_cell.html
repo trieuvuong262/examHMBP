@@ -8,7 +8,9 @@
     {% elif c.has_value %}
     <span class="jp-tr-qty jp-stage-{{ row.stage_slug }}{% if not c.plan %} is-actual{% endif %}"><span class="jp-tr-plan">{{ c.plan|default:0|sx_num }}</span><span class="jp-tr-done{% if c.state %} is-{{ c.state }}{% endif %}">{{ c.qty|sx_num }}</span></span>
     {% endif %}
-  {% elif team_report.by_order and row.entry_mos %}
+  {% elif team_report.by_order and not c.is_past %}
+    {% if c.has_value %}<span class="jp-tr-qty jp-stage-{{ row.stage_slug }}{% if not c.plan %} is-actual{% endif %}" title="Chưa tới ngày"><span class="jp-tr-plan">{{ c.plan|default:0|sx_num }}</span><span class="jp-tr-done{% if c.state %} is-{{ c.state }}{% endif %}">{{ c.qty|sx_num }}</span></span>{% endif %}
+  {% elif team_report.by_order and row.entry_mos and c.is_past %}
     {% if row.entry_mos|length > 1 %}
     <button type="button" class="jp-tr-day-hit" data-jp-entry-pick
             data-day="{{ c.day|date:'Y-m-d' }}"

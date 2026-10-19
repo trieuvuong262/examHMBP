@@ -6914,11 +6914,20 @@ def team_work_progress(request, slug: str, mo_id: int):
             return text or '0'
 
         order = mo.sales_order
+        from san_xuat.services.products import product_gallery_map
+
+        images = product_gallery_map([mo.product_code]).get((mo.product_code or '').casefold(), [])
+        from san_xuat.services.team_progress_log import log_to_dict, team_day_logs
+
+        history_by_size: dict[str, list] = {}
+        for log in reversed(team_day_logs(mo_id=mo.pk, team_slug=slug).get(ngay, [])):
+            history_by_size.setdefault(log.size_label, []).append(log_to_dict(log))
         return JsonResponse({
             'ok': True,
             'mo_id': mo.pk,
             'order_code': (order.code if order else '') or mo.code,
             'product': mo.product_name or mo.product_code or '',
+            'image': images[0] if images else '',
             'date': ngay.isoformat(),
             'label': ngay.strftime('%d/%m/%Y'),
             'future': ngay > timezone.localdate(),
@@ -6932,6 +6941,7 @@ def team_work_progress(request, slug: str, mo_id: int):
                     'plan': _plain((totals.get(cell['size']) or {}).get('plan')),
                     'qty': _plain(cell['qty']),
                     'done': _plain((totals.get(cell['size']) or {}).get('done')),
+                    'history': history_by_size.get(cell['size'], []),
                 }
                 for cell in day['cells']
             ],

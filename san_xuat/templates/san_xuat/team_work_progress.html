@@ -728,32 +728,11 @@ document.addEventListener('DOMContentLoaded', function () {
     setTimeout(function () { td.classList.remove('is-ok'); }, 900);
   }
 
-  function confirmOverPlan(inp, qty) {
-    var col = colOf(inp);
-    var plan = plans[col];
-    var old = num(inp.getAttribute('data-qty'));
-    var doneCell = cell('size-done', col);
-    if (!(plan > 0) || !doneCell || qty <= old) return true;
-    var after = num(doneCell.getAttribute('data-val')) - old + qty;
-    if (after <= plan) return true;
-    return window.confirm(
-      'Size ' + (inp.getAttribute('data-size') || '') + ' vượt kế hoạch.\n'
-      + 'Kế hoạch: ' + show(plan) + '\n'
-      + 'Tổng sau khi lưu: ' + show(after) + ' (vượt ' + show(after - plan) + ', ' + pctNum(qtyToPct(after, plan)) + ')\n\n'
-      + 'Vẫn lưu?'
-    );
-  }
-
   function save(inp) {
     var td = inp.closest('td');
     var tr = inp.closest('tr');
     var qty = liveQty(inp);
     if (qty === num(inp.getAttribute('data-qty'))) {
-      paintInput(inp);
-      refreshDay(tr);
-      return;
-    }
-    if (!confirmOverPlan(inp, qty)) {
       paintInput(inp);
       refreshDay(tr);
       return;

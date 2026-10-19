@@ -305,7 +305,8 @@
   }
   .jp-tr-plan { background: var(--st-fill, #bfdbfe); color: var(--st-ink, #1e3a8a); }
   .jp-tr-done { background: var(--st-soft, #fff); color: var(--st-ink, #64748b); }
-  .jp-tr-qty.is-actual .jp-tr-plan { opacity: .42; }
+  .jp-tr-qty.is-actual .jp-tr-plan { display: none; }
+  .jp-tr-qty.is-actual > .jp-tr-done { flex: 1 1 100%; }
   .jp-tr-done.is-met { color: #047857; font-weight: 800; }
   .jp-tr-done.is-under { color: #b45309; font-weight: 800; }
   .jp-tr-done.is-miss { color: #b91c1c; font-weight: 800; }
@@ -368,7 +369,7 @@
     line-height: 1.25; white-space: normal;
   }
   .jp-tr-grid.is-by-order .jp-tw-order-code { color: var(--sheet-brand, #dc2626); font-weight: 800; }
-  .jp-tr-grid.is-by-order .jp-tw-order-code:hover { color: var(--hm-primary-dark, #b91c1c); }
+  .jp-tr-grid.is-by-order td.jp-tr-day:not([data-past]) { cursor: default; }
   .jp-tr-grid.is-by-order .jp-tr-day-hit,
   .jp-tr-grid.is-by-order .jp-tr-qty { height: 52px; }
   .jp-tr-grid.is-by-order .jp-tr-sum {
@@ -461,7 +462,7 @@
               <span class="jp-tw-order-thumb is-empty" aria-hidden="true"><i class="bi bi-image"></i></span>
               {% endif %}
               <span class="jp-tw-order-text">
-                {% if row.href %}<a class="jp-tw-order-code" href="{{ row.href }}">{{ row.label }}</a>{% else %}<span class="jp-tw-order-code">{{ row.label }}</span>{% endif %}
+                <span class="jp-tw-order-code">{{ row.label }}</span>
                 {% if row.note %}<span class="jp-tw-order-name">{{ row.note }}</span>{% endif %}
               </span>
             </span>
