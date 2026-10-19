@@ -11,18 +11,46 @@
     border-color: #157347 !important;
     box-shadow: 0 4px 12px rgba(25, 135, 84, 0.28);
   }
-  .jp-tr-wrap {
+  .jp-tr-shell {
     --sheet-brand: var(--hm-primary, #dc2626);
     --sheet-brand-soft: #fef2f2;
     --sheet-brand-line: #fecaca;
     --sheet-line: #e8edf3;
-    background: #fff;
-    overflow: auto;
-    max-height: calc(100vh - 13rem);
-    border-radius: .9rem;
-    border: 1px solid rgba(220, 38, 38, .12);
-    box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 10px 28px rgba(220, 38, 38, .06);
   }
+  .jp-tr-pin {
+    position: sticky;
+    top: var(--jp-topbar-h, 3.75rem);
+    z-index: 40;
+    background: #fff;
+    border: 1px solid rgba(220, 38, 38, .12);
+    border-bottom: 0;
+    border-radius: .9rem .9rem 0 0;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+  }
+  .jp-tr-xbar {
+    overflow-x: auto;
+    overflow-y: hidden;
+    height: 14px;
+    background: #f8fafc;
+    border-bottom: 1px solid var(--sheet-line);
+  }
+  .jp-tr-xbar [data-jp-tr-sizer] { height: 1px; }
+  .jp-tr-headscroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+  .jp-tr-headscroll::-webkit-scrollbar { height: 0; display: none; }
+  .jp-tr-wrap {
+    background: #fff;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-radius: 0 0 .9rem .9rem;
+    border: 1px solid rgba(220, 38, 38, .12);
+    border-top: 0;
+    box-shadow: 0 10px 28px rgba(220, 38, 38, .06);
+  }
+  .jp-tr-wrap > .jp-tr-grid > thead { display: none; }
   .jp-tr-grid {
     border-collapse: separate;
     border-spacing: 0;
@@ -98,6 +126,7 @@
     background: transparent;
     color: inherit;
     cursor: pointer;
+    text-decoration: none;
   }
   .jp-tr-day-hit:hover .jp-tr-qty,
   .jp-tr-day-hit:focus-visible .jp-tr-qty {
@@ -105,12 +134,135 @@
     outline-offset: -2px;
   }
   .jp-tr-day-modal .jp-tr-day-meta { color: #64748b; font-size: .82rem; }
-  .jp-tr-day-modal table { font-size: .84rem; }
-  .jp-tr-day-modal th { font-size: .72rem; letter-spacing: .03em; text-transform: uppercase; color: #64748b; }
-  .jp-tr-day-modal td { vertical-align: middle; }
-  .jp-tr-day-modal .jp-tr-day-code { font-weight: 800; color: inherit; text-decoration: none; }
-  .jp-tr-day-modal .jp-tr-day-code:hover { color: var(--hm-primary-dark, #b91c1c); }
-  .jp-tr-day-modal .jp-tr-day-product { color: #334155; }
+  .jp-tr-day-modal .modal-header { align-items: flex-start; gap: .75rem; }
+  .jp-tr-day-modal .jp-tr-day-shot { flex: 0 0 auto; }
+  .jp-tr-day-modal.is-shot .modal-dialog,
+  .jp-tr-day-modal.is-shot .modal-content,
+  .jp-tr-day-modal.is-shot .modal-body {
+    transform: none !important;
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .jp-tr-day-modal.is-shot .jp-tr-day-shot,
+  .jp-tr-day-modal.is-shot .btn-close { visibility: hidden; }
+  .jp-tr-day-modal .modal-body { padding: 0; }
+  .jp-tr-day-sheet {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+    margin: 0;
+    font: 650 12px/1.3 var(--jp-font-sans, system-ui, sans-serif);
+    color: #111;
+  }
+  .jp-tr-day-sheet th,
+  .jp-tr-day-sheet td {
+    border-right: 1px solid #e8edf3;
+    border-bottom: 1px solid #e8edf3;
+    padding: 4px 8px;
+    background: #fff;
+    vertical-align: middle;
+    box-sizing: border-box;
+  }
+  .jp-tr-day-sheet thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    height: 32px;
+    padding: 0 8px;
+    background: #fef2f2;
+    color: #0f172a;
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+    text-align: center;
+    border-bottom: 1px solid #fecaca;
+  }
+  .jp-tr-day-sheet .c-stt { width: 68px; min-width: 68px; padding: 0; text-align: center; }
+  .jp-tr-day-sheet .c-code { width: 120px; white-space: nowrap; }
+  .jp-tr-day-sheet .c-prio { width: 96px; text-align: center; white-space: nowrap; }
+  .jp-tr-day-sheet .c-photo { width: 56px; text-align: center; }
+  .jp-tr-day-sheet .c-name { text-align: left; white-space: normal; }
+  .jp-tr-day-sheet .c-qty,
+  .jp-tr-day-sheet .c-done,
+  .jp-tr-day-sheet .c-due {
+    width: 96px;
+    text-align: center;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .jp-tr-day-sheet .jp-tr-day-code { font-weight: 800; color: inherit; text-decoration: none; }
+  .jp-tr-day-sheet .jp-tr-day-code:hover { color: var(--hm-primary-dark, #b91c1c); }
+  .jp-tr-day-sheet .c-prio .jp-tl-prio { margin: 0; }
+  .jp-tr-day-sheet tbody tr.is-order-dragging td { background: #fff7f7; }
+  .jp-tr-day-sheet tbody tr.is-drop-before td { box-shadow: inset 0 2px 0 #dc2626; }
+  .jp-tr-day-sheet.is-saving { opacity: .72; pointer-events: none; }
+  .jp-tr-day-sheet .jp-stt-ctrl {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1px;
+    width: 100%;
+    padding: 4px 3px 5px;
+  }
+  .jp-tr-day-sheet .jp-stt-step,
+  .jp-tr-day-sheet .jp-stt-grip {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #64748b;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .jp-tr-day-sheet .jp-stt-step { height: 16px; border-radius: 4px; }
+  .jp-tr-day-sheet .jp-stt-step .bi { font-size: 12px; }
+  .jp-tr-day-sheet .jp-stt-step:hover:not(:disabled) { background: #f1f5f9; color: #0f172a; }
+  .jp-tr-day-sheet .jp-stt-step:disabled { opacity: .28; cursor: default; }
+  .jp-tr-day-sheet .jp-stt-mid {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    min-width: 0;
+  }
+  .jp-tr-day-sheet .jp-stt-grip {
+    flex: 0 0 14px;
+    width: 14px;
+    height: 22px;
+    cursor: grab;
+    touch-action: none;
+    color: #94a3b8;
+  }
+  .jp-tr-day-sheet .jp-stt-grip .bi { font-size: 13px; }
+  .jp-tr-day-sheet .jp-stt-grip:active,
+  .jp-tr-day-sheet .jp-stt-grip.is-dragging { cursor: grabbing; }
+  .jp-tr-day-sheet .jp-stt-num {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    height: 22px;
+    margin: 0;
+    padding: 0 2px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: #0f172a;
+    font: 800 12px/20px var(--jp-font-sans, system-ui, sans-serif);
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  .jp-tr-day-sheet span.jp-stt-num { display: inline-flex; align-items: center; justify-content: center; width: 100%; }
+  .jp-tr-day-sheet input.jp-stt-num:hover,
+  .jp-tr-day-sheet input.jp-stt-num:focus {
+    outline: 1px solid #fecaca;
+    background: #fff;
+    border-radius: 4px;
+  }
   .jp-tr-day-photo {
     width: 44px;
     height: 44px;
@@ -175,40 +327,167 @@
   .jp-tr-rate.is-good { color: #047857; }
   .jp-tr-rate.is-warn { color: #b45309; }
   .jp-tr-rate.is-bad { color: #b91c1c; }
+
+  .jp-tr-grid.is-by-order tbody td { height: 52px; color: #111; }
+  .jp-tr-grid.is-by-order tbody td.jp-tr-stt,
+  .jp-tr-grid.is-by-order tbody td.jp-tr-team,
+  .jp-tr-grid.is-by-order tbody td.jp-tr-prio { background: #fff; }
+  .jp-tr-grid.is-by-order .jp-tr-stt {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    width: 52px;
+    min-width: 52px;
+    max-width: 52px;
+    padding: 0;
+    font-weight: 800;
+  }
+  .jp-tr-grid.is-by-order thead th.jp-tr-stt { z-index: 7; }
+  .jp-tr-grid.is-by-order .jp-tr-team {
+    left: 52px;
+    width: 248px;
+    min-width: 248px;
+    max-width: 248px;
+    box-shadow: none;
+    white-space: normal;
+  }
+  .jp-tr-grid.is-by-order .jp-tr-prio {
+    position: sticky;
+    left: 300px;
+    z-index: 3;
+    width: 168px;
+    min-width: 168px;
+    max-width: 168px;
+    padding: 2px 4px;
+    box-shadow: 6px 0 10px -8px rgba(15, 23, 42, .22);
+  }
+  .jp-tr-grid.is-by-order thead th.jp-tr-prio { z-index: 6; }
+  .jp-tr-grid.is-by-order .jp-tr-prio .jp-tl-prio { height: 1.35rem; padding: 0 .45rem; font-size: .66rem; }
+  .jp-tw-prio-block {
+    display: block; margin-top: .15rem; color: #9a3412; font-size: .68rem; font-weight: 700;
+    line-height: 1.25; white-space: normal;
+  }
+  .jp-tr-grid.is-by-order .jp-tw-order-code { color: var(--sheet-brand, #dc2626); font-weight: 800; }
+  .jp-tr-grid.is-by-order .jp-tw-order-code:hover { color: var(--hm-primary-dark, #b91c1c); }
+  .jp-tr-grid.is-by-order .jp-tr-day-hit,
+  .jp-tr-grid.is-by-order .jp-tr-qty { height: 52px; }
+  .jp-tr-grid.is-by-order .jp-tr-sum {
+    right: 0;
+    width: 84px;
+    min-width: 84px;
+    max-width: 84px;
+    background: #fff;
+    border-left: 1px solid var(--sheet-brand-line, #fecaca);
+    box-shadow: -6px 0 10px -8px rgba(15, 23, 42, .22);
+  }
+  .jp-tr-grid.is-by-order thead th.jp-tr-sum { background: var(--sheet-brand-soft, #fef2f2); color: #0f172a; }
+  .jp-tr-grid.is-by-order tr.is-total td { background: #fff; border-bottom: 2px solid var(--sheet-brand-line); cursor: default; }
+  .jp-tw-order { display: flex; align-items: center; gap: .45rem; min-width: 0; }
+  .jp-tw-order-thumb {
+    width: 36px; height: 36px; flex: 0 0 36px; border-radius: 8px; overflow: hidden;
+    border: 1px solid #e2e8f0; background: #fff;
+    display: inline-flex; align-items: center; justify-content: center; color: #94a3b8;
+  }
+  .jp-tw-order-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .jp-tw-order-text { min-width: 0; }
 </style>
 
-<div class="jp-tr-wrap">
-    <table class="jp-tr-grid" aria-label="Sản lượng tổ theo ngày">
-      <thead>
+<div class="jp-tr-shell">
+  <div class="jp-tr-pin">
+    <div class="jp-tr-xbar" data-jp-tr-xbar aria-label="Cuộn ngang ngày">
+      <div data-jp-tr-sizer></div>
+    </div>
+    <div class="jp-tr-headscroll" data-jp-tr-head>
+      <table class="jp-tr-grid jp-tr-headgrid{% if team_report.by_order %} is-by-order{% endif %}">
+        <thead>
+          <tr>
+            {% if team_report.by_order %}<th class="jp-tr-stt" scope="col">STT</th>{% endif %}
+            <th class="jp-tr-team" scope="col">{% if team_report.by_order %}Đơn{% else %}Tổ{% endif %}</th>
+            {% if team_report.by_order %}<th class="jp-tr-prio" scope="col">Gấp</th>{% endif %}
+            {% for c in team_report.days %}
+            <th class="jp-tr-day{% if not c.is_workday %} is-off{% endif %}{% if c.is_today %} is-today{% endif %}" scope="col" data-day="{{ c.day|date:'Y-m-d' }}" title="{{ c.day|date:'d/m/Y' }}">{{ c.day|date:'d-m' }}</th>
+            {% endfor %}
+            {% if team_report.by_order %}
+            <th class="jp-tr-sum is-total-col" scope="col">Cộng</th>
+            {% else %}
+            <th class="jp-tr-sum is-r4 is-first" scope="col">Cả kỳ</th>
+            <th class="jp-tr-sum is-r3" scope="col">% KH</th>
+            <th class="jp-tr-sum is-r2" scope="col">TB/ngày</th>
+            <th class="jp-tr-sum is-r1" scope="col">Cao nhất</th>
+            <th class="jp-tr-sum is-r0" scope="col">Số ngày</th>
+            {% endif %}
+          </tr>
+        </thead>
+      </table>
+    </div>
+  </div>
+<div class="jp-tr-wrap" data-jp-tr-body>
+    <table class="jp-tr-grid{% if team_report.by_order %} is-by-order{% endif %}" aria-label="{% if team_report.by_order %}Sản lượng đơn theo ngày{% else %}Sản lượng tổ theo ngày{% endif %}">
+      <thead aria-hidden="true">
         <tr>
-          <th class="jp-tr-team" scope="col">Tổ</th>
+          {% if team_report.by_order %}<th class="jp-tr-stt" scope="col">STT</th>{% endif %}
+          <th class="jp-tr-team" scope="col">{% if team_report.by_order %}Đơn{% else %}Tổ{% endif %}</th>
+          {% if team_report.by_order %}<th class="jp-tr-prio" scope="col">Gấp</th>{% endif %}
           {% for c in team_report.days %}
-          <th class="jp-tr-day{% if not c.is_workday %} is-off{% endif %}{% if c.is_today %} is-today{% endif %}" scope="col" title="{{ c.day|date:'d/m/Y' }}">{{ c.day|date:'d-m' }}</th>
+          <th class="jp-tr-day{% if not c.is_workday %} is-off{% endif %}{% if c.is_today %} is-today{% endif %}" scope="col" data-day="{{ c.day|date:'Y-m-d' }}">{{ c.day|date:'d-m' }}</th>
           {% endfor %}
+          {% if team_report.by_order %}
+          <th class="jp-tr-sum is-total-col" scope="col">Cộng</th>
+          {% else %}
           <th class="jp-tr-sum is-r4 is-first" scope="col">Cả kỳ</th>
           <th class="jp-tr-sum is-r3" scope="col">% KH</th>
           <th class="jp-tr-sum is-r2" scope="col">TB/ngày</th>
           <th class="jp-tr-sum is-r1" scope="col">Cao nhất</th>
           <th class="jp-tr-sum is-r0" scope="col">Số ngày</th>
+          {% endif %}
         </tr>
       </thead>
       <tbody>
         {% for row in team_report.rows %}
-        <tr class="jp-stage-{{ row.color_slug|default:row.stage_slug }}{% if not row.total %} is-idle{% endif %}">
-          <td class="jp-tr-team" title="{{ row.label }}{% if row.order_count %} · {{ row.order_count }} lệnh{% endif %}"><a href="{% url 'san_xuat:team_work_board' row.slug %}">{{ row.label }}</a></td>
+        <tr class="{% if team_report.by_order %}{% if row.is_total %}is-total{% endif %}{% else %}jp-stage-{{ row.color_slug|default:row.stage_slug }}{% if not row.total %} is-idle{% endif %}{% endif %}">
+          {% if team_report.by_order %}<td class="jp-tr-stt">{% if not row.is_total %}{{ forloop.counter0 }}{% endif %}</td>{% endif %}
+          <td class="jp-tr-team" title="{{ row.note|default:row.label }}">
+            {% if row.is_total %}
+            <strong>{{ row.label }}</strong>
+            {% elif team_report.by_order %}
+            <span class="jp-tw-order">
+              {% if row.image_url %}
+              <button type="button" class="sx-doc-thumb jp-tw-order-thumb" data-sx-gallery
+                      data-sx-gallery-title="{{ row.note|default:row.label }}"
+                      data-sx-gallery-images="{{ row.image_urls_json|escape }}">
+                <img src="{{ row.image_url }}" alt="">
+              </button>
+              {% else %}
+              <span class="jp-tw-order-thumb is-empty" aria-hidden="true"><i class="bi bi-image"></i></span>
+              {% endif %}
+              <span class="jp-tw-order-text">
+                {% if row.href %}<a class="jp-tw-order-code" href="{{ row.href }}">{{ row.label }}</a>{% else %}<span class="jp-tw-order-code">{{ row.label }}</span>{% endif %}
+                {% if row.note %}<span class="jp-tw-order-name">{{ row.note }}</span>{% endif %}
+              </span>
+            </span>
+            {% else %}
+            <a href="{% url 'san_xuat:team_work_board' row.slug %}">{{ row.label }}</a>
+            {% endif %}
+          </td>
+          {% if team_report.by_order %}
+          <td class="jp-tr-prio">{% if not row.is_total %}{% if row.priority %}<span class="jp-tl-prio is-{{ row.priority }}">{{ row.priority_label }}</span>{% endif %}{% if row.progress_block %}<span class="jp-tw-prio-block">({{ row.progress_block }})</span>{% endif %}{% endif %}</td>
+          {% endif %}
           {% for c in row.cells %}{% include 'san_xuat/includes/plan_board_team_report_cell.html' with c=c slug=row.color_slug|default:row.stage_slug team_slug=row.slug %}{% endfor %}
-          <td class="jp-tr-sum is-r4 is-first is-stack"><span class="jp-tr-qty{% if not row.plan_total %} is-actual{% endif %}"><span class="jp-tr-plan">{{ row.plan_total|sx_num }}</span><span class="jp-tr-done">{{ row.total|sx_num }}</span></span></td>
+          <td class="jp-tr-sum {% if team_report.by_order %}is-total-col{% else %}is-r4 is-first{% endif %} is-stack" data-done="{{ row.total|sx_num_input }}"><span class="jp-tr-qty{% if team_report.by_order %} jp-stage-{{ row.stage_slug }}{% endif %}{% if not row.plan_total %} is-actual{% endif %}"><span class="jp-tr-plan">{{ row.plan_total|sx_num }}</span><span class="jp-tr-done">{{ row.total|sx_num }}</span></span></td>
+          {% if not team_report.by_order %}
           <td class="jp-tr-sum is-r3">{% with rate=row.plan_rate %}{% if rate is not None %}<span class="jp-tr-rate {% if rate >= 95 %}is-good{% elif rate >= 75 %}is-warn{% else %}is-bad{% endif %}">{{ rate }}%</span>{% else %}<span class="jp-tr-muted">—</span>{% endif %}{% endwith %}</td>
           <td class="jp-tr-sum is-r2">{% if row.avg_per_day %}{{ row.avg_per_day|sx_num }}{% else %}<span class="jp-tr-muted">—</span>{% endif %}</td>
           <td class="jp-tr-sum is-r1"{% if row.best_day %} title="{{ row.best_day|date:'d/m/Y' }}"{% endif %}>{% if row.best_qty %}{{ row.best_qty|sx_num }}{% else %}<span class="jp-tr-muted">—</span>{% endif %}</td>
           <td class="jp-tr-sum is-r0">{% if row.active_days %}{{ row.active_days }}{% else %}<span class="jp-tr-muted">—</span>{% endif %}</td>
+          {% endif %}
         </tr>
         {% endfor %}
       </tbody>
     </table>
 </div>
+</div>
 {{ team_report.day_details|json_script:"jp-team-day-details" }}
-<div class="modal fade jp-tr-day-modal" id="jpTeamDayModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade jp-tr-day-modal" id="jpTeamDayModal" tabindex="-1" aria-hidden="true" data-can-schedule="{% if can_schedule %}1{% else %}0{% endif %}">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
@@ -216,12 +495,18 @@
           <h5 class="modal-title mb-0" id="jpTeamDayTitle">Đơn trong ngày</h5>
           <div class="jp-tr-day-meta" id="jpTeamDayMeta"></div>
         </div>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        <div class="d-flex align-items-center gap-2">
+          <button type="button" class="btn btn-outline-secondary btn-sm jp-tr-day-shot" id="jpTeamDayShot">
+            <i class="bi bi-camera me-1"></i>Chụp ảnh
+          </button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        </div>
       </div>
       <div class="modal-body" id="jpTeamDayBody"></div>
     </div>
   </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   var raw = document.getElementById('jp-team-day-details');
@@ -233,6 +518,18 @@ document.addEventListener('DOMContentLoaded', function () {
   var title = document.getElementById('jpTeamDayTitle');
   var meta = document.getElementById('jpTeamDayMeta');
   var body = document.getElementById('jpTeamDayBody');
+  var canEdit = modalEl.getAttribute('data-can-schedule') === '1';
+  var openItem = null;
+  var dragging = null;
+  var skipInput = null;
+  var saveChain = Promise.resolve();
+
+  function csrfToken() {
+    var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    if (m) return decodeURIComponent(m[1]);
+    var metaCsrf = document.querySelector('meta[name="csrf-token"]');
+    return metaCsrf ? metaCsrf.getAttribute('content') || '' : '';
+  }
 
   function esc(value) {
     return String(value || '').replace(/[&<>"']/g, function (ch) {
@@ -240,29 +537,174 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  function render(item) {
-    var html = '';
-    if (item.orders && item.orders.length) {
-      html += '<div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr>';
-      html += '<th>Đơn</th><th>Khách</th><th></th><th>Sản phẩm</th><th class="text-end">SL</th><th class="text-end">Đã thực hiện</th><th>Hạn</th>';
-      html += '</tr></thead><tbody>';
-      item.orders.forEach(function (order) {
-        var images = order.images && order.images.length ? order.images : (order.image ? [order.image] : []);
-        var photo = images.length
-          ? '<button type="button" class="jp-tr-day-photo" data-sx-gallery data-sx-gallery-title="' + esc(order.product || order.code) + '" data-sx-gallery-images="' + esc(JSON.stringify(images)) + '"><img src="' + esc(images[0]) + '" alt=""></button>'
-          : '<span class="jp-tr-day-photo" aria-hidden="true"><i class="bi bi-image"></i></span>';
-        html += '<tr><td><a class="jp-tr-day-code" href="' + esc(order.url) + '">' + esc(order.code) + '</a></td>';
-        html += '<td>' + esc(order.customer || '—') + '</td>';
-        html += '<td>' + photo + '</td>';
-        html += '<td class="jp-tr-day-product">' + esc(order.product || '—') + '</td>';
-        html += '<td class="text-end fw-bold">' + esc(order.qty) + '</td>';
-        html += '<td class="text-end fw-bold">' + esc(order.done || '0') + '</td>';
-        html += '<td>' + esc(order.due || '—') + '</td></tr>';
+  function sheet() {
+    return body.querySelector('table.jp-tr-day-sheet');
+  }
+  function groups() {
+    var table = sheet();
+    return table ? Array.from(table.querySelectorAll('tbody tr[data-order-id]')) : [];
+  }
+  function idsOf(list) {
+    return list.map(function (row) { return row.getAttribute('data-order-id') || ''; }).filter(Boolean);
+  }
+  function renumber() {
+    var list = groups();
+    list.forEach(function (row, i) {
+      var n = String(i + 1);
+      var last = i === list.length - 1;
+      row.querySelectorAll('[data-jp-stt-up]').forEach(function (btn) { btn.disabled = i === 0; });
+      row.querySelectorAll('[data-jp-stt-down]').forEach(function (btn) { btn.disabled = last; });
+      row.querySelectorAll('.jp-stt-num').forEach(function (el) {
+        if (el.tagName === 'INPUT') {
+          if (el === document.activeElement && el.dataset.editing === '1') return;
+          el.value = n;
+        } else {
+          el.textContent = n;
+        }
+        el.setAttribute('aria-label', 'Thứ tự ' + n);
       });
-      html += '</tbody></table></div>';
-    } else {
-      html += '<p class="jp-tr-day-empty mb-0">Không có đơn phân bổ cho tổ này trong ngày.</p>';
+    });
+  }
+  function moveRowTo(row, oneBased) {
+    var list = groups();
+    var from = list.indexOf(row);
+    if (from < 0) return false;
+    var n = parseInt(oneBased, 10);
+    if (!n || n < 1) n = 1;
+    if (n > list.length) n = list.length;
+    var to = n - 1;
+    if (to === from) return false;
+    var tbody = row.parentNode;
+    if (to < from) tbody.insertBefore(row, list[to]);
+    else tbody.insertBefore(row, list[to].nextSibling);
+    return true;
+  }
+  function rememberOrder(ids) {
+    if (!openItem || !openItem.orders) return;
+    var byId = {};
+    openItem.orders.forEach(function (order) { byId[String(order.id)] = order; });
+    var next = ids.map(function (id) { return byId[String(id)]; }).filter(Boolean);
+    if (next.length === openItem.orders.length) openItem.orders = next;
+  }
+  function saveOrder(orderIds) {
+    var table = sheet();
+    var csrf = csrfToken();
+    if (!table || !openItem || !csrf) {
+      alert('Thiếu mã bảo mật — tải lại trang rồi sắp xếp lại.');
+      body.innerHTML = render(openItem);
+      return;
     }
+    var snapshot = orderIds.slice();
+    saveChain = saveChain.then(function () {
+      var form = new URLSearchParams();
+      form.set('action', 'reorder_team_day_orders');
+      form.set('order_ids', snapshot.join(','));
+      form.set('team_slug', openItem.slug || '');
+      form.set('plan_date', openItem.iso || '');
+      form.set('mode', 'list');
+      form.set('tab', 'team');
+      form.set('csrfmiddlewaretoken', csrf);
+      table.classList.add('is-saving');
+      return fetch(window.location.pathname + window.location.search, {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json',
+          'X-CSRFToken': csrf,
+        },
+        body: form,
+        credentials: 'same-origin',
+      }).then(function (res) {
+        return res.json().then(function (data) {
+          if (!res.ok || !data.ok) throw new Error((data && data.error) || 'Không lưu được thứ tự.');
+          table.classList.remove('is-saving');
+          rememberOrder(snapshot);
+        });
+      }).catch(function (err) {
+        table.classList.remove('is-saving');
+        alert(err.message || 'Không lưu được thứ tự.');
+        body.innerHTML = render(openItem);
+        return new Promise(function () {});
+      });
+    });
+  }
+  function applyMove(row, oneBased) {
+    var before = idsOf(groups());
+    if (!moveRowTo(row, oneBased)) {
+      renumber();
+      return;
+    }
+    renumber();
+    var after = idsOf(groups());
+    if (after.join(',') !== before.join(',')) saveOrder(after);
+  }
+  function clearDrop() {
+    groups().forEach(function (row) { row.classList.remove('is-drop-before'); });
+  }
+  function placeRow(row, clientY) {
+    var list = groups().filter(function (item) { return item !== row; });
+    var target = null;
+    var before = true;
+    for (var i = 0; i < list.length; i++) {
+      var box = list[i].getBoundingClientRect();
+      var mid = box.top + box.height / 2;
+      if (clientY < mid) {
+        target = list[i];
+        before = true;
+        break;
+      }
+      target = list[i];
+      before = false;
+    }
+    if (!target) return;
+    if (before) target.parentNode.insertBefore(row, target);
+    else target.parentNode.insertBefore(row, target.nextSibling);
+    clearDrop();
+    if (before) target.classList.add('is-drop-before');
+    renumber();
+  }
+
+  function sttCell(index, total) {
+    if (!canEdit) return '<td class="c-stt"><span class="jp-stt-num">' + index + '</span></td>';
+    var upOff = index === 1 ? ' disabled' : '';
+    var downOff = index === total ? ' disabled' : '';
+    return '<td class="c-stt"><div class="jp-stt-ctrl">'
+      + '<button type="button" class="jp-stt-step" data-jp-stt-up' + upOff + ' title="Chuyển lên 1" aria-label="Chuyển thứ tự ' + index + ' lên 1"><i class="bi bi-chevron-up" aria-hidden="true"></i></button>'
+      + '<div class="jp-stt-mid">'
+      + '<button type="button" class="jp-stt-grip" data-jp-order-drag title="Kéo để đổi thứ tự đơn" aria-label="Kéo thứ tự ' + index + '"><i class="bi bi-grip-vertical" aria-hidden="true"></i></button>'
+      + '<input type="text" class="jp-stt-num" data-jp-stt-input inputmode="numeric" autocomplete="off" spellcheck="false" value="' + index + '" title="Nhập số thứ tự rồi Enter" aria-label="Thứ tự ' + index + ', nhập số để chuyển">'
+      + '</div>'
+      + '<button type="button" class="jp-stt-step" data-jp-stt-down' + downOff + ' title="Chuyển xuống 1" aria-label="Chuyển thứ tự ' + index + ' xuống 1"><i class="bi bi-chevron-down" aria-hidden="true"></i></button>'
+      + '</div></td>';
+  }
+
+  function render(item) {
+    var orders = item.orders || [];
+    if (!orders.length) {
+      return '<p class="jp-tr-day-empty mb-0 p-3">Không có đơn phân bổ cho tổ này trong ngày.</p>';
+    }
+    var html = '<table class="jp-tr-day-sheet"><thead><tr>';
+    html += '<th class="c-stt">STT</th><th class="c-code">Đơn</th><th class="c-prio">Mức độ gấp</th><th class="c-photo">Ảnh</th><th class="c-name">Sản phẩm</th><th class="c-qty">SL</th><th class="c-done">Đã thực hiện</th><th class="c-due">Hạn</th>';
+    html += '</tr></thead><tbody>';
+    orders.forEach(function (order, index) {
+      var images = order.images && order.images.length ? order.images : (order.image ? [order.image] : []);
+      var photo = images.length
+        ? '<button type="button" class="jp-tr-day-photo" data-sx-gallery data-sx-gallery-title="' + esc(order.product || order.code) + '" data-sx-gallery-images="' + esc(JSON.stringify(images)) + '"><img src="' + esc(images[0]) + '" alt=""></button>'
+        : '<span class="jp-tr-day-photo" aria-hidden="true"><i class="bi bi-image"></i></span>';
+      var prio = order.priority
+        ? '<span class="jp-tl-prio is-' + esc(order.priority) + '">' + esc(order.priority_label || order.priority) + '</span>'
+        : '—';
+      html += '<tr data-order-id="' + esc(order.id) + '">';
+      html += sttCell(index + 1, orders.length);
+      html += '<td class="c-code"><a class="jp-tr-day-code" href="' + esc(order.url) + '">' + esc(order.code) + '</a></td>';
+      html += '<td class="c-prio">' + prio + '</td>';
+      html += '<td class="c-photo">' + photo + '</td>';
+      html += '<td class="c-name">' + esc(order.product || '—') + '</td>';
+      html += '<td class="c-qty">' + esc(order.qty) + '</td>';
+      html += '<td class="c-done">' + esc(order.done || '0') + '</td>';
+      html += '<td class="c-due">' + esc(order.due || '—') + '</td></tr>';
+    });
+    html += '</tbody></table>';
     return html;
   }
 
@@ -271,10 +713,240 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!btn) return;
     var item = details[btn.getAttribute('data-jp-team-day') || ''];
     if (!item) return;
+    openItem = item;
     title.textContent = item.team;
     meta.textContent = item.weekday + ', ' + item.date + ' · Dự kiến ' + item.plan + ' · Thực hiện ' + item.done;
     body.innerHTML = render(item);
     modal.show();
   });
+
+  var shotBtn = document.getElementById('jpTeamDayShot');
+  if (shotBtn) {
+    shotBtn.addEventListener('click', function () {
+      var card = modalEl.querySelector('.modal-content');
+      if (!card) return;
+      if (typeof html2canvas === 'undefined') {
+        alert('Thư viện chụp ảnh chưa tải được. Vui lòng tải lại trang.');
+        return;
+      }
+      var original = shotBtn.innerHTML;
+      shotBtn.disabled = true;
+      shotBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang chụp...';
+      modalEl.classList.add('is-shot');
+
+      var w = Math.max(card.scrollWidth, card.offsetWidth, 1);
+      var h = Math.max(card.scrollHeight, card.offsetHeight, 1);
+      var maxPixels = 16000000;
+      var maxSide = 8192;
+      var scale = 2;
+      while (scale > 1 && (w * scale > maxSide || h * scale > maxSide || w * scale * h * scale > maxPixels)) {
+        scale -= 0.25;
+      }
+      if (scale < 1) scale = 1;
+
+      function restoreUi() {
+        modalEl.classList.remove('is-shot');
+        shotBtn.disabled = false;
+      }
+
+      html2canvas(card, {
+        backgroundColor: '#ffffff',
+        scale: scale,
+        useCORS: true,
+        logging: false,
+        scrollX: 0,
+        scrollY: -window.scrollY,
+        width: w,
+        height: h,
+        windowWidth: Math.max(document.documentElement.clientWidth, w),
+        windowHeight: Math.max(document.documentElement.clientHeight, h),
+        onclone: function (doc) {
+          var node = doc.getElementById('jpTeamDayModal');
+          if (!node) return;
+          node.classList.add('is-shot', 'show');
+          node.style.position = 'static';
+          node.style.display = 'block';
+          node.style.overflow = 'visible';
+          node.style.height = 'auto';
+          var dialog = node.querySelector('.modal-dialog');
+          var content = node.querySelector('.modal-content');
+          var sheetBody = node.querySelector('.modal-body');
+          [dialog, content, sheetBody].forEach(function (el) {
+            if (!el) return;
+            el.style.transform = 'none';
+            el.style.maxHeight = 'none';
+            el.style.height = 'auto';
+            el.style.overflow = 'visible';
+          });
+        },
+      }).then(function (canvas) {
+        if (!navigator.clipboard || !window.ClipboardItem) {
+          throw new Error('Trình duyệt không cho copy ảnh vào clipboard.');
+        }
+        return new Promise(function (resolve, reject) {
+          canvas.toBlob(function (blob) {
+            if (!blob) {
+              reject(new Error('Không tạo được ảnh. Hãy thử lại.'));
+              return;
+            }
+            navigator.clipboard.write([
+              new ClipboardItem({ 'image/png': blob })
+            ]).then(resolve).catch(function () {
+              reject(new Error('Không copy được ảnh vào clipboard.'));
+            });
+          }, 'image/png');
+        });
+      }).then(function () {
+        shotBtn.innerHTML = '<i class="bi bi-clipboard-check me-1"></i>Đã copy';
+        setTimeout(function () { shotBtn.innerHTML = original; }, 2000);
+      }).catch(function (err) {
+        alert((err && err.message) ? err.message : 'Không chụp được ảnh, vui lòng thử lại.');
+        shotBtn.innerHTML = original;
+      }).finally(restoreUi);
+    });
+  }
+
+  if (!canEdit) return;
+
+  modalEl.addEventListener('pointerdown', function (ev) {
+    if (ev.button !== 0) return;
+    var t = ev.target;
+    if (t && t.nodeType === 3) t = t.parentElement;
+    var handle = t && t.closest ? t.closest('[data-jp-order-drag]') : null;
+    if (!handle || !modalEl.contains(handle)) return;
+    var row = handle.closest('tr[data-order-id]');
+    if (!row) return;
+    ev.preventDefault();
+    dragging = {
+      row: row,
+      handle: handle,
+      pointerId: ev.pointerId,
+      startY: ev.clientY,
+      moved: false,
+      startIds: idsOf(groups()),
+    };
+  });
+
+  function onMove(ev) {
+    if (!dragging || ev.pointerId !== dragging.pointerId) return;
+    if (!dragging.moved && Math.abs(ev.clientY - dragging.startY) < 4) return;
+    if (!dragging.moved) {
+      dragging.moved = true;
+      dragging.row.classList.add('is-order-dragging');
+      dragging.handle.classList.add('is-dragging');
+      try { dragging.handle.setPointerCapture(ev.pointerId); } catch (err) {}
+    }
+    ev.preventDefault();
+    placeRow(dragging.row, ev.clientY);
+  }
+  function onUp(ev) {
+    if (!dragging || ev.pointerId !== dragging.pointerId) return;
+    var payload = dragging;
+    dragging = null;
+    try { payload.handle.releasePointerCapture(ev.pointerId); } catch (err) {}
+    payload.row.classList.remove('is-order-dragging');
+    payload.handle.classList.remove('is-dragging');
+    clearDrop();
+    renumber();
+    if (!payload.moved) return;
+    var nextIds = idsOf(groups());
+    if (nextIds.join(',') === payload.startIds.join(',')) return;
+    saveOrder(nextIds);
+  }
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onUp);
+  document.addEventListener('pointercancel', onUp);
+
+  modalEl.addEventListener('pointerdown', function (ev) {
+    var step = ev.target && ev.target.closest ? ev.target.closest('[data-jp-stt-up], [data-jp-stt-down]') : null;
+    var active = document.activeElement;
+    if (
+      step && active && active.matches && active.matches('[data-jp-stt-input]')
+      && step.closest('tr') === active.closest('tr')
+    ) {
+      skipInput = active;
+    }
+  }, true);
+
+  modalEl.addEventListener('click', function (ev) {
+    var up = ev.target && ev.target.closest ? ev.target.closest('[data-jp-stt-up]') : null;
+    var down = !up && ev.target && ev.target.closest ? ev.target.closest('[data-jp-stt-down]') : null;
+    var btn = up || down;
+    if (!btn || !modalEl.contains(btn) || btn.disabled) return;
+    var row = btn.closest('tr[data-order-id]');
+    if (!row) return;
+    ev.preventDefault();
+    var from = groups().indexOf(row);
+    if (from < 0) return;
+    applyMove(row, from + 1 + (up ? -1 : 1));
+  });
+
+  modalEl.addEventListener('focusin', function (ev) {
+    var input = ev.target;
+    if (!input.matches || !input.matches('[data-jp-stt-input]')) return;
+    input.dataset.editing = '1';
+    input.dataset.prev = input.value;
+    input.select();
+  });
+  modalEl.addEventListener('keydown', function (ev) {
+    var input = ev.target;
+    if (!input.matches || !input.matches('[data-jp-stt-input]')) return;
+    if (ev.key === 'Enter') {
+      ev.preventDefault();
+      input.blur();
+    } else if (ev.key === 'Escape') {
+      ev.preventDefault();
+      input.dataset.revert = '1';
+      input.blur();
+    }
+  });
+  modalEl.addEventListener('focusout', function (ev) {
+    var input = ev.target;
+    if (!input.matches || !input.matches('[data-jp-stt-input]')) return;
+    var row = input.closest('tr[data-order-id]');
+    var revert = input.dataset.revert === '1' || skipInput === input;
+    var prev = input.dataset.prev || '';
+    if (skipInput === input) skipInput = null;
+    delete input.dataset.editing;
+    delete input.dataset.revert;
+    delete input.dataset.prev;
+    if (!row || revert) {
+      renumber();
+      return;
+    }
+    var typed = String(input.value || '').trim();
+    if (!/^\d+$/.test(typed) || String(parseInt(typed, 10)) === String(parseInt(prev, 10))) {
+      renumber();
+      return;
+    }
+    applyMove(row, parseInt(typed, 10));
+  });
+});
+
+document.querySelectorAll('.jp-tr-shell').forEach(function (shell) {
+  var bar = shell.querySelector('[data-jp-tr-xbar]');
+  var head = shell.querySelector('[data-jp-tr-head]');
+  var body = shell.querySelector('[data-jp-tr-body]');
+  var sizer = shell.querySelector('[data-jp-tr-sizer]');
+  var table = body && body.querySelector('table');
+  if (!bar || !head || !body || !sizer || !table) return;
+  function size() {
+    sizer.style.width = table.scrollWidth + 'px';
+  }
+  var lock = false;
+  function follow(from) {
+    if (lock) return;
+    lock = true;
+    var x = from.scrollLeft;
+    if (bar !== from) bar.scrollLeft = x;
+    if (head !== from) head.scrollLeft = x;
+    if (body !== from) body.scrollLeft = x;
+    lock = false;
+  }
+  bar.addEventListener('scroll', function () { follow(bar); });
+  head.addEventListener('scroll', function () { follow(head); });
+  body.addEventListener('scroll', function () { follow(body); });
+  size();
+  window.addEventListener('resize', size);
 });
 </script>

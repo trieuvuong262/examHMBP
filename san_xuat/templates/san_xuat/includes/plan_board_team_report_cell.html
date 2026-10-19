@@ -1,1 +1,36 @@
-{% load sx_format %}<td class="jp-tr-day{% if not c.is_workday %} is-off{% endif %}{% if c.is_today %} is-today{% endif %}">{% if c.plan_orders or c.orders %}<button type="button" class="jp-tr-day-hit" data-jp-team-day="{{ team_slug }}|{{ c.day|date:'Y-m-d' }}" title="Đơn cần làm {{ c.day|date:'d/m/Y' }}"><span class="jp-tr-qty jp-stage-{{ slug }}{% if not c.plan %} is-actual{% endif %}"><span class="jp-tr-plan">{{ c.plan|default:0|sx_num }}</span><span class="jp-tr-done{% if c.state %} is-{{ c.state }}{% endif %}">{{ c.qty|sx_num }}</span></span></button>{% elif c.has_value %}<span class="jp-tr-qty jp-stage-{{ slug }}{% if not c.plan %} is-actual{% endif %}"><span class="jp-tr-plan">{{ c.plan|default:0|sx_num }}</span><span class="jp-tr-done{% if c.state %} is-{{ c.state }}{% endif %}">{{ c.qty|sx_num }}</span></span>{% endif %}</td>
+{% load sx_format %}
+<td class="jp-tr-day{% if not c.is_workday %} is-off{% endif %}{% if c.is_today %} is-today{% endif %}" data-day="{{ c.day|date:'Y-m-d' }}" data-done="{{ c.qty|sx_num_input }}"{% if c.plan is not None %} data-plan="{{ c.plan|sx_num_input }}"{% endif %}{% if c.is_past %} data-past="1"{% endif %}>
+  {% if row.is_total %}
+    {% if c.plan_orders or c.actual_orders or c.orders %}
+    <button type="button" class="jp-tr-day-hit" data-jp-day-group data-day="{{ c.day|date:'Y-m-d' }}" data-label="{{ c.day|date:'d/m/Y' }}" title="Gom đơn ngày {{ c.day|date:'d/m/Y' }}">
+      {% if c.has_value %}<span class="jp-tr-qty jp-stage-{{ row.stage_slug }}{% if not c.plan %} is-actual{% endif %}"><span class="jp-tr-plan">{{ c.plan|default:0|sx_num }}</span><span class="jp-tr-done{% if c.state %} is-{{ c.state }}{% endif %}">{{ c.qty|sx_num }}</span></span>{% endif %}
+    </button>
+    {% elif c.has_value %}
+    <span class="jp-tr-qty jp-stage-{{ row.stage_slug }}{% if not c.plan %} is-actual{% endif %}"><span class="jp-tr-plan">{{ c.plan|default:0|sx_num }}</span><span class="jp-tr-done{% if c.state %} is-{{ c.state }}{% endif %}">{{ c.qty|sx_num }}</span></span>
+    {% endif %}
+  {% elif team_report.by_order and row.entry_mos %}
+    {% if row.entry_mos|length > 1 %}
+    <button type="button" class="jp-tr-day-hit" data-jp-entry-pick
+            data-day="{{ c.day|date:'Y-m-d' }}"
+            data-label="{{ c.day|date:'d/m/Y' }}"
+            data-order="{{ row.label }}"
+            data-mos="{{ row.entry_mos_json|escape }}"
+            title="Nhập sản lượng {{ c.day|date:'d/m/Y' }}">
+      {% if c.has_value %}<span class="jp-tr-qty jp-stage-{{ row.stage_slug }}{% if not c.plan %} is-actual{% endif %}"><span class="jp-tr-plan">{{ c.plan|default:0|sx_num }}</span><span class="jp-tr-done{% if c.state %} is-{{ c.state }}{% endif %}">{{ c.qty|sx_num }}</span></span>{% endif %}
+    </button>
+    {% else %}
+    <button type="button" class="jp-tr-day-hit" data-jp-day-entry
+            data-mo="{{ row.entry_mos.0.id }}"
+            data-day="{{ c.day|date:'Y-m-d' }}"
+            data-label="{{ c.day|date:'d/m/Y' }}"
+            data-order="{{ row.label }}"
+            title="Nhập sản lượng {{ c.day|date:'d/m/Y' }}">
+      {% if c.has_value %}<span class="jp-tr-qty jp-stage-{{ row.stage_slug }}{% if not c.plan %} is-actual{% endif %}"><span class="jp-tr-plan">{{ c.plan|default:0|sx_num }}</span><span class="jp-tr-done{% if c.state %} is-{{ c.state }}{% endif %}">{{ c.qty|sx_num }}</span></span>{% endif %}
+    </button>
+    {% endif %}
+  {% elif c.plan_orders or c.orders %}
+  <button type="button" class="jp-tr-day-hit" data-jp-team-day="{{ team_slug }}|{{ c.day|date:'Y-m-d' }}" title="Đơn cần làm {{ c.day|date:'d/m/Y' }}"><span class="jp-tr-qty jp-stage-{% if team_report.by_order %}{{ row.stage_slug }}{% else %}{{ slug }}{% endif %}{% if not c.plan %} is-actual{% endif %}"><span class="jp-tr-plan">{{ c.plan|default:0|sx_num }}</span><span class="jp-tr-done{% if c.state %} is-{{ c.state }}{% endif %}">{{ c.qty|sx_num }}</span></span></button>
+  {% elif c.has_value %}
+  <span class="jp-tr-qty jp-stage-{% if team_report.by_order %}{{ row.stage_slug }}{% else %}{{ slug }}{% endif %}{% if not c.plan %} is-actual{% endif %}"><span class="jp-tr-plan">{{ c.plan|default:0|sx_num }}</span><span class="jp-tr-done{% if c.state %} is-{{ c.state }}{% endif %}">{{ c.qty|sx_num }}</span></span>
+  {% endif %}
+</td>

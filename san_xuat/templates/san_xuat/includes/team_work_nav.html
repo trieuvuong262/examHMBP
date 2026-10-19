@@ -1,8 +1,20 @@
 <div class="jp-tw-topbar-actions" role="navigation" aria-label="Chức năng tổ">
   <a href="{% url 'san_xuat:team_work_board' team.slug %}"
      class="btn btn-sm fw-bold{% if tw_section == 'work' %} btn-hm{% else %} btn-outline-hm{% endif %}">Công việc</a>
+  {% if can_assign %}
+    {% if tw_section == 'work' %}
+    <button type="button" class="btn btn-sm fw-bold btn-outline-hm" data-bs-toggle="modal" data-bs-target="#jpTwAssignPick">Phân công</button>
+    {% else %}
+    <a href="{% url 'san_xuat:team_work_board' team.slug %}?phan-cong=1" class="btn btn-sm fw-bold btn-outline-hm">Phân công</a>
+    {% endif %}
+  {% endif %}
   <a href="{% url 'san_xuat:team_work_personnel' team.slug %}"
      class="btn btn-sm fw-bold{% if tw_section == 'personnel' %} btn-hm{% else %} btn-outline-hm{% endif %}">Quản lý nhân sự</a>
   <a href="{% url 'san_xuat:team_work_goods' %}"
      class="btn btn-sm fw-bold{% if tw_section == 'goods' %} btn-hm{% else %} btn-outline-hm{% endif %}">Tiến độ hàng hoá</a>
+  {% if sheet_export_url %}
+  <a href="{{ sheet_export_url }}" class="btn btn-sx-export btn-sm fw-bold" title="Xuất Excel">
+    <i class="bi bi-download me-1"></i>Excel
+  </a>
+  {% endif %}
 </div>

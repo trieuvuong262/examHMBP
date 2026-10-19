@@ -96,6 +96,7 @@ class TeamWorkJob:
     khsx_start: object | None = None
     khsx_end: object | None = None
     khsx_team_label: str = ''
+    khsx_day_plans: list = field(default_factory=list)
     khsx_is_late: bool = False
     product_image_url: str = ''
     product_image_urls_json: str = '[]'
@@ -105,6 +106,131 @@ class TeamWorkJob:
     def unassigned_count(self) -> int:
         n = self.step_count - self.assigned_count
         return n if n > 0 else 0
+
+
+def _plan_work_center_for_team(team: dict):
+    """Tổ năng lực KHSX của đúng bộ phận HR (HRD-{division})."""
+    from san_xuat.hub_models import SxWorkCenter
+
+    div_id = int(team.get('division_id') or 0)
+    code = (team.get('work_center_code') or '').strip()
+    qs = SxWorkCenter.objects.filter(is_demo=False, is_active=True)
+    if div_id:
+        found = qs.filter(division_id=div_id).first()
+        if found:
+            return found
+    if code:
+        return qs.filter(code__iexact=code).first()
+    return None
+
+
+def _stage_plan_center_ids(stage_slug: str) -> set[int]:
+    """Mọi tổ năng lực cùng công đoạn. May có hai nhà máy thì tập này có hai mã."""
+    from san_xuat.hub_models import SxWorkCenter
+    from san_xuat.services.capacity_from_hrm import hr_divisions_for_ie_groups
+    from san_xuat.services.team_division_map import _stage_slug_for_division
+
+    stage = (stage_slug or '').strip().lower()
+    if not stage:
+        return set()
+    div_ids = [
+        int(div.pk)
+        for div in hr_divisions_for_ie_groups()
+        if (_stage_slug_for_division(div) or '').strip().lower() == stage
+    ]
+    if not div_ids:
+        return set()
+    return set(
+        SxWorkCenter.objects.filter(
+            division_id__in=div_ids,
+            is_demo=False,
+            is_active=True,
+        ).values_list('pk', flat=True)
+    )
+
+
+def apply_own_plan_team(jobs: list[TeamWorkJob], *, team: dict) -> list[TeamWorkJob]:
+    """Gắn tên tổ và sản lượng ngày của đúng tổ năng lực trên KHSX.
+
+    Công đoạn có nhiều tổ (hai tổ May) thì trang này chỉ còn đơn được gán cho tổ đó.
+    """
+    from san_xuat.hub_models import SxOrderTeamDayPlan, SxSalesOrderPlanStep
+
+    wc = _plan_work_center_for_team(team)
+    if wc is None or not jobs:
+        return jobs
+    stage_ids = _stage_plan_center_ids(team.get('stage_slug') or '')
+    strict = len(stage_ids) > 1 and wc.pk in stage_ids
+    order_ids = [int(job.mo.sales_order_id) for job in jobs if job.mo.sales_order_id]
+    if not order_ids:
+        return [] if strict else jobs
+
+    sibling_ids = stage_ids or {wc.pk}
+    centers_by_order: dict[int, set[int]] = {}
+    for oid, center_id in SxSalesOrderPlanStep.objects.filter(
+        sales_order_id__in=order_ids,
+        work_center_id__in=sibling_ids,
+    ).values_list('sales_order_id', 'work_center_id'):
+        centers_by_order.setdefault(int(oid), set()).add(int(center_id))
+    assigned = {oid for oid, centers in centers_by_order.items() if wc.pk in centers}
+    own_slug = (team.get('slug') or '').strip().lower()
+    stage_slug = (team.get('stage_slug') or '').strip().lower()
+    loose_slugs = {s for s in (own_slug, stage_slug) if s}
+
+    by_order: dict[int, dict[date, Decimal]] = {}
+
+    def _add_day(oid: int, day, qty) -> None:
+        if not day:
+            return
+        bucket = by_order.setdefault(int(oid), {})
+        bucket[day] = bucket.get(day, Decimal('0')) + _q(qty)
+
+    for oid, day, qty, center_id, team_slug in SxOrderTeamDayPlan.objects.filter(
+        sales_order_id__in=order_ids,
+        qty__gt=0,
+    ).values_list('sales_order_id', 'plan_date', 'qty', 'work_center_id', 'team_slug'):
+        oid = int(oid)
+        centers = centers_by_order.get(oid, set())
+        slug = (team_slug or '').strip().lower()
+        if center_id:
+            if int(center_id) != wc.pk:
+                continue
+            _add_day(oid, day, qty)
+            assigned.add(oid)
+            continue
+        if slug not in loose_slugs:
+            continue
+        if centers == {wc.pk}:
+            _add_day(oid, day, qty)
+
+    label = (wc.team_label or wc.name or wc.code or '').strip()
+    today = timezone.localdate()
+    kept: list[TeamWorkJob] = []
+    for job in jobs:
+        oid = int(job.mo.sales_order_id or 0)
+        if strict and oid not in assigned:
+            continue
+        if oid in assigned:
+            days = [
+                {'date': day, 'qty': qty}
+                for day, qty in sorted(by_order.get(oid, {}).items())
+            ]
+            job.khsx_team_label = label
+            job.khsx_day_plans = days
+            if days:
+                job.khsx_start = days[0]['date']
+                job.khsx_end = days[-1]['date']
+                job.khsx_is_late = bool(
+                    not job.closed
+                    and job.mo.status != SxProductionOrder.STATUS_DONE
+                    and today > days[-1]['date']
+                )
+            elif strict:
+                job.khsx_start = None
+                job.khsx_end = None
+                job.khsx_is_late = False
+        kept.append(job)
+    return kept
 
 
 def group_team_work_jobs(rows: list[TeamWorkRow]) -> list[TeamWorkJob]:

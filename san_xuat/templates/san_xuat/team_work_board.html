@@ -5,6 +5,8 @@
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/team_work_topbar_styles.html' %}
 {% include 'san_xuat/includes/sx_plan_urgency_styles.html' %}
+{% include 'san_xuat/includes/plan_timeline_styles.html' %}
+{% if stage_color_css %}<style id="jp-stage-color-vars">{{ stage_color_css|safe }}</style>{% endif %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
 <style>
   .jp-tw {
@@ -27,6 +29,33 @@
   .jp-tw-due strong { color: var(--tw-ink); font-weight: 800; }
   .jp-tw-due.is-late { color: #b91c1c; }
   .jp-tw-due.is-late strong { color: #b91c1c; }
+  .jp-tw-sheet { margin: 0 0 1.25rem; }
+  .jp-tw-sheet-bar {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+    gap: .5rem .75rem; margin: 0 0 .55rem;
+  }
+  .jp-tw-sheet-title { margin: 0; font-size: 1rem; font-weight: 800; color: var(--tw-ink); }
+  .jp-tw-sheet-tools { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; }
+  .jp-tw-sheet-shift {
+    display: inline-flex; align-items: center; gap: .35rem;
+    font-weight: 800; color: var(--tw-ink);
+  }
+  .jp-tw-sheet-shift a {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 1.85rem; height: 1.85rem; border-radius: .4rem;
+    border: 1px solid var(--tw-line); color: inherit; text-decoration: none; background: #fff;
+  }
+  .jp-tw-sheet-shift a:hover { border-color: #fecaca; color: #b91c1c; }
+  .jp-tw-sheet-now { font-size: .78rem; font-weight: 800; }
+  .jp-tw-sheet .jp-tr-grid.is-by-order .jp-tr-team {
+    width: 248px; min-width: 248px; max-width: 248px; white-space: normal;
+  }
+  .jp-tw-sheet .jp-tw-order-code,
+  .jp-tw-sheet .jp-tw-order-name {
+    display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.15;
+  }
+  .jp-tw-sheet .jp-tw-order-name { font-size: 10px; font-weight: 650; color: #64748b; }
+  .jp-tw-sheet tr.is-total td { font-weight: 800; }
   .jp-tw-toolbar {
     display: flex; flex-wrap: wrap; align-items: center; gap: .65rem;
     margin: 0 0 1rem;
@@ -167,6 +196,9 @@
   .jp-tw-prog.is-zero .jp-tw-prog-pct { color: #94a3b8; }
   .jp-tw-job.is-closed { opacity: .92; }
   .jp-tw-job.is-closed .jp-tw-job-head { background: #f8fafc; }
+  .jp-portal-pills.jp-tw-filter-pills { margin-top: 1rem; }
+  .jp-tw .jp-tw-history-filter .jp-team-filter-dates { flex: 0 1 auto; }
+  .jp-tw .jp-tw-history-filter .jp-team-filter-dates > div { width: 11rem; flex: 0 0 11rem; }
   .jp-portal-pills.jp-tw-filter-pills .nav-link .jp-tw-count {
     margin-left: .25rem;
     font-weight: 700;
@@ -247,7 +279,7 @@
     }
     .jp-portal-pills.jp-tw-filter-pills {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       width: 100%;
     }
     .jp-portal-pills.jp-tw-filter-pills .nav-link {
@@ -421,6 +453,33 @@
       touch-action: none;
     }
   }
+  .jp-tw-day-modal .modal-dialog { max-width: 36rem; }
+  .jp-tw-day-head { color: #64748b; font-size: .84rem; font-weight: 650; }
+  .jp-tw-day-head strong { color: #0f172a; }
+  .jp-tw-day-sizes { display: flex; flex-wrap: wrap; gap: .65rem; margin-top: .75rem; }
+  .jp-tw-day-size { flex: 1 1 7rem; min-width: 7rem; }
+  .jp-tw-day-size label { display: block; margin-bottom: .2rem; font-size: .75rem; font-weight: 800; }
+  .jp-tw-day-size .form-control { font-variant-numeric: tabular-nums; }
+  .jp-tw-day-alt { display: block; min-height: 1rem; margin-top: .15rem; color: #64748b; font-size: .72rem; font-weight: 700; }
+  .jp-tw-day-note { margin-top: .85rem; }
+  .jp-tw-day-modal .jp-seg { display: inline-flex; border: 1px solid #e8edf3; border-radius: .5rem; overflow: hidden; }
+  .jp-tw-day-modal .jp-seg button {
+    border: 0; background: #fff; padding: .2rem .65rem; font-size: .75rem; font-weight: 800;
+  }
+  .jp-tw-day-modal .jp-seg button.is-on { background: #dc2626; color: #fff; }
+  .jp-tr-grid tr.is-day-hidden { display: none; }
+  .jp-tr-grid [data-day].is-day-on { position: relative; z-index: 1; }
+  .jp-tr-grid [data-day].is-day-on::after {
+    content: "";
+    position: absolute;
+    z-index: 5;
+    pointer-events: none;
+    inset: 0;
+    border-left: 2px solid #f43f5e;
+    border-right: 2px solid #f43f5e;
+  }
+  .jp-tr-headgrid th[data-day].is-day-on::after { border-top: 2px solid #f43f5e; }
+  .jp-tr-grid td[data-day].is-day-foot::after { border-bottom: 2px solid #f43f5e; }
 </style>
 {% endblock %}
 
@@ -448,30 +507,73 @@
 
   {% include 'san_xuat/includes/team_work_status_nav.html' %}
 
-  <form method="get" class="jp-tw-toolbar">
-    {% if show_closed %}<input type="hidden" name="show" value="closed">{% endif %}
-    <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm jp-tw-search"
-           placeholder="Tìm lệnh sản xuất / mã SP / đơn hàng…" autocomplete="off">
-    <button type="submit" class="btn btn-outline-secondary btn-sm">Lọc</button>
-    {% if search_query %}
-    <a href="{% url 'san_xuat:team_work_board' team.slug %}?sx_reset=1{% if show_closed %}&show=closed{% endif %}" class="btn btn-link btn-sm text-decoration-none">Xóa lọc</a>
-    {% endif %}
+  <form method="get" id="jpTwHistoryFilter" class="card border-0 shadow-sm mb-3 jp-team-filter-form jp-tw-history-filter" role="search" aria-label="Bộ lọc đơn">
+    <div class="card-body p-3 jp-team-filter-body">
+      {% if sheet_status == 'done' %}<input type="hidden" name="show" value="closed">{% elif sheet_status == 'cancelled' %}<input type="hidden" name="show" value="cancelled">{% endif %}
+      {% if sheet_status != 'open' %}
+      <div class="jp-team-filter-dates">
+        <div>
+          <label class="form-label fw-bold small mb-1" for="jp-tw-date-from">Từ ngày</label>
+          <input type="date" id="jp-tw-date-from" name="date_from"
+                 class="form-control form-control-sm jp-date-vn"
+                 value="{{ filter_date_from|date:'Y-m-d' }}">
+        </div>
+        <div>
+          <label class="form-label fw-bold small mb-1" for="jp-tw-date-to">Đến ngày</label>
+          <input type="date" id="jp-tw-date-to" name="date_to"
+                 class="form-control form-control-sm jp-date-vn"
+                 value="{{ filter_date_to|date:'Y-m-d' }}">
+        </div>
+      </div>
+      {% endif %}
+      <div class="jp-team-filter-org-search">
+        <div class="jp-team-filter-org">
+          <label class="form-label fw-bold small mb-1" for="jp-tw-filter-q">Tìm kiếm</label>
+          <input type="search" id="jp-tw-filter-q" name="q" value="{{ search_query }}"
+                 class="form-control form-control-sm"
+                 placeholder="Mã đơn, khách, sản phẩm…" autocomplete="off">
+        </div>
+        <div class="jp-team-filter-org">
+          <label class="form-label fw-bold small mb-1" for="jp-tw-filter-priority">Mức độ gấp</label>
+          <select id="jp-tw-filter-priority" name="priority_filter" class="form-select form-select-sm">
+            <option value="">Tất cả</option>
+            {% for value, label in priority_choices %}
+            <option value="{{ value }}" {% if priority_filter == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="jp-team-filter-org">
+          <label class="form-label fw-bold small mb-1" for="jp-tw-filter-deadline">Hạn đơn</label>
+          <select id="jp-tw-filter-deadline" name="deadline" class="form-select form-select-sm">
+            <option value="">Tất cả</option>
+            <option value="overdue" {% if deadline_filter == 'overdue' %}selected{% endif %}>Đã quá hạn</option>
+            <option value="due_soon" {% if deadline_filter == 'due_soon' %}selected{% endif %}>Còn tối đa 3 ngày</option>
+            <option value="on_time" {% if deadline_filter == 'on_time' %}selected{% endif %}>Còn hạn</option>
+          </select>
+        </div>
+      </div>
+      {% if sheet_filters_active %}
+      <div class="jp-team-filter-actions">
+        <a href="{% url 'san_xuat:team_work_board' team.slug %}{% if sheet_status == 'done' %}?show=closed{% elif sheet_status == 'cancelled' %}?show=cancelled{% endif %}"
+           class="btn btn-light border btn-sm" title="Xóa bộ lọc">
+          <i class="bi bi-x-lg"></i> Xóa lọc
+        </a>
+      </div>
+      {% endif %}
+    </div>
   </form>
 
-  {% if jobs %}
-  <div class="jp-tw-jobs">
-    {% for job in jobs %}
-    {% include 'san_xuat/includes/team_work_job.html' %}
-    {% endfor %}
-  </div>
-  {% for job in jobs %}
-  {% if not job.subcontract %}{% include 'san_xuat/includes/team_work_steps_modal.html' %}{% endif %}
-  {% endfor %}
-  {% else %}
-  <div class="jp-tw-empty-board">
-    {% if show_closed %}Chưa có lệnh nào tổ này đã hoàn thành.{% else %}Chưa có lệnh sản xuất đang chạy cho tổ này.{% endif %}
-  </div>
-  {% endif %}
+  <section class="jp-tw-sheet" aria-label="Sản lượng theo đơn">
+    <div class="jp-tw-sheet-bar">
+      <h3 class="jp-tw-sheet-title">{% if sheet_status == 'done' %}Đơn đã hoàn thành{% elif sheet_status == 'cancelled' %}Đơn đã hủy{% else %}Đơn đang làm{% endif %}</h3>
+      <button type="button" class="btn btn-sm btn-light border fw-bold" id="jpTwDayGroupClear" hidden>Hiện tất cả đơn</button>
+    </div>
+    {% if team_report and team_report.rows or sheet_status != 'open' %}
+    {% include 'san_xuat/includes/plan_board_team_report.html' %}
+    {% else %}
+    <div class="jp-tw-empty-board">Chưa có đơn đang làm.</div>
+    {% endif %}
+  </section>
 </div>
 
 {% if can_assign %}
@@ -505,6 +607,62 @@
 </div>
 {% endif %}
 {% include 'san_xuat/includes/product_image_gallery_modal.html' %}
+
+{% if can_assign %}
+<div class="modal fade jp-tw-modal" id="jpTwAssignPick" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Phân công</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body p-0">
+        {% if assign_jobs %}
+        <div class="list-group list-group-flush">
+          {% for job in assign_jobs %}
+          <button type="button" class="list-group-item list-group-item-action text-start" data-jp-open-steps="jpTwSteps{{ job.mo.pk }}">
+            <strong>{{ job.mo.sales_order.code|default:job.mo.code }}</strong>
+            <span class="d-block small text-muted">{{ job.mo.product_name|default:job.mo.product_code }} · {{ job.mo.code }}</span>
+          </button>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted small mb-0 p-3">Chưa có lệnh đang mở để phân công.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% for job in assign_jobs %}
+{% include 'san_xuat/includes/team_work_steps_modal.html' %}
+{% endfor %}
+{% endif %}
+
+<div class="modal fade" id="jpTwEntryPick" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="jpTwEntryPickTitle">Chọn lệnh</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body p-0" id="jpTwEntryPickBody"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade jp-tw-day-modal" id="jpTwDayEntry" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="jpTwDayTitle">Nhập tiến độ</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body" id="jpTwDayBody">
+        {% csrf_token %}
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -608,4 +766,386 @@
 })();
 </script>
 {% endif %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  if (typeof bootstrap === 'undefined') return;
+  document.querySelectorAll('[data-jp-open-steps]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var pick = document.getElementById('jpTwAssignPick');
+      var steps = document.getElementById(btn.getAttribute('data-jp-open-steps') || '');
+      if (!steps) return;
+      var openSteps = function () { bootstrap.Modal.getOrCreateInstance(steps).show(); };
+      if (pick && pick.classList.contains('show')) {
+        pick.addEventListener('hidden.bs.modal', openSteps, { once: true });
+        bootstrap.Modal.getOrCreateInstance(pick).hide();
+      } else {
+        openSteps();
+      }
+    });
+  });
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('phan-cong') === '1') {
+    var assignPick = document.getElementById('jpTwAssignPick');
+    if (assignPick) bootstrap.Modal.getOrCreateInstance(assignPick).show();
+  }
+  var entryPick = document.getElementById('jpTwEntryPick');
+  var entryBody = document.getElementById('jpTwEntryPickBody');
+  var entryTitle = document.getElementById('jpTwEntryPickTitle');
+  var dayModal = document.getElementById('jpTwDayEntry');
+  var dayTitle = document.getElementById('jpTwDayTitle');
+  var dayBody = document.getElementById('jpTwDayBody');
+  var progressBase = '{% url "san_xuat:team_work_progress" team.slug 0 %}';
+  var sourceCell = null;
+
+  function progressUrl(id) {
+    return progressBase.replace('/0/', '/' + id + '/');
+  }
+  function num(v) {
+    var x = Number(String(v == null ? '' : v).replace(',', '.').trim());
+    return isFinite(x) ? x : 0;
+  }
+  function plain(n) { return String(Math.round(num(n) * 100) / 100); }
+  function show(n) { return num(n).toLocaleString('vi-VN', { maximumFractionDigits: 2 }); }
+  function qtyToPct(q, plan) { return plan > 0 ? Math.round(q * 1000 / plan) / 10 : 0; }
+  function pctToQty(p, plan) { return Math.round(plan * p / 100); }
+  function csrfToken() {
+    var input = dayBody && dayBody.querySelector('[name=csrfmiddlewaretoken]');
+    return (input && input.value) || (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
+  }
+  function writeDone(el, n) {
+    if (!el) return;
+    el.setAttribute('data-done', plain(n));
+    var node = el.querySelector('.jp-tr-done');
+    if (!node && num(n)) {
+      var host = el.querySelector('.jp-tr-day-hit') || el;
+      var plan = num(el.getAttribute('data-plan'));
+      host.insertAdjacentHTML('beforeend', '<span class="jp-tr-qty"><span class="jp-tr-plan"></span><span class="jp-tr-done"></span></span>');
+      var planNode = host.querySelector('.jp-tr-plan');
+      if (planNode) planNode.textContent = show(plan);
+      node = host.querySelector('.jp-tr-done');
+    }
+    if (node) {
+      node.textContent = show(n);
+      node.classList.remove('is-met', 'is-under', 'is-miss');
+      var planQty = num(el.getAttribute('data-plan'));
+      if (el.hasAttribute('data-past') && planQty > 0) {
+        node.classList.add(num(n) >= planQty ? 'is-met' : (num(n) > 0 ? 'is-under' : 'is-miss'));
+      }
+    }
+  }
+  function bump(el, delta) {
+    if (!el || !delta) return;
+    writeDone(el, num(el.getAttribute('data-done')) + delta);
+  }
+  function applyDayTotal(cell, nextTotal) {
+    if (!cell) return;
+    var prev = num(cell.getAttribute('data-done'));
+    var delta = nextTotal - prev;
+    writeDone(cell, nextTotal);
+    var row = cell.closest('tr');
+    if (row) bump(row.querySelector('td.jp-tr-sum'), delta);
+    var totalRow = document.querySelector('tr.is-total');
+    if (!totalRow) return;
+    var day = cell.getAttribute('data-day') || '';
+    bump(totalRow.querySelector('td[data-day="' + day + '"]'), delta);
+    bump(totalRow.querySelector('td.jp-tr-sum'), delta);
+  }
+
+  function openDay(moId, day, label, orderCode, cell) {
+    if (!dayModal || !dayBody) return;
+    sourceCell = cell || null;
+    if (dayTitle) dayTitle.textContent = (orderCode || 'Tiến độ') + ' · ' + (label || day);
+    var token = csrfToken();
+    dayBody.innerHTML = '<div class="text-muted small">Đang tải…</div>';
+    bootstrap.Modal.getOrCreateInstance(dayModal).show();
+    fetch(progressUrl(moId) + '?ngay=' + encodeURIComponent(day), {
+      headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+      credentials: 'same-origin'
+    }).then(function (r) {
+      return r.json().then(function (j) {
+        if (!r.ok || !j.ok) throw new Error(j.error || 'Không mở được phiếu ngày.');
+        return j;
+      });
+    }).then(function (data) {
+      renderDay(data, token);
+    }).catch(function (err) {
+      dayBody.textContent = err.message || 'Không mở được phiếu ngày.';
+    });
+  }
+
+  function renderDay(data, token) {
+    var mode = 'qty';
+    var html = '<input type="hidden" name="csrfmiddlewaretoken" value="' + token + '">';
+    html += '<div class="jp-tw-day-head"><strong></strong></div>';
+    if (data.future) html += '<div class="alert alert-warning py-2 px-3 mt-2 small mb-0">Chưa tới ngày này.</div>';
+    if (data.closed) html += '<div class="alert alert-success py-2 px-3 mt-2 small mb-0">Tổ đã hoàn thành lệnh này.</div>';
+    if (data.day_plan) html += '<div class="jp-tw-day-head mt-2">Kế hoạch ngày <strong></strong></div>';
+    html += '<div class="d-flex justify-content-between align-items-center mt-3"><span class="small fw-bold">Size</span>';
+    if (data.can_update) {
+      html += '<div class="jp-seg" role="group"><button type="button" data-mode="qty" class="is-on">SL</button><button type="button" data-mode="pct">%</button></div>';
+    }
+    html += '</div><div class="jp-tw-day-sizes"></div>';
+    if (data.can_update || data.note) {
+      html += '<div class="jp-tw-day-note"><label class="form-label fw-bold small mb-1" for="jpTwDayNote">Ghi chú</label><textarea id="jpTwDayNote" class="form-control" maxlength="500" rows="2"' + (data.can_update ? '' : ' readonly') + '></textarea></div>';
+    }
+    dayBody.innerHTML = html;
+    dayBody.querySelector('.jp-tw-day-head strong').textContent = data.product || '';
+    var planStrong = dayBody.querySelectorAll('.jp-tw-day-head strong')[1];
+    if (planStrong) planStrong.textContent = show(data.day_plan);
+    var box = dayBody.querySelector('.jp-tw-day-sizes');
+    (data.sizes || []).forEach(function (size, index) {
+      var wrap = document.createElement('div');
+      wrap.className = 'jp-tw-day-size';
+      wrap.innerHTML = '<label></label><input class="form-control form-control-sm" inputmode="decimal"><span class="jp-tw-day-alt"></span>';
+      wrap.querySelector('label').textContent = size.label + (num(size.plan) ? ' · KH ' + show(size.plan) : '');
+      var input = wrap.querySelector('input');
+      input.setAttribute('data-size', size.label);
+      input.setAttribute('data-plan', size.plan || '0');
+      input.setAttribute('data-qty', size.qty || '0');
+      input.setAttribute('data-done', size.done || '0');
+      input.setAttribute('data-col', String(index));
+      if (!data.can_update) input.readOnly = true;
+      box.appendChild(wrap);
+    });
+    var note = dayBody.querySelector('#jpTwDayNote');
+    if (note) {
+      note.value = data.note || '';
+      note.setAttribute('data-orig', data.note || '');
+    }
+    function inputs() { return Array.prototype.slice.call(dayBody.querySelectorAll('.jp-tw-day-size input')); }
+    function paint(input) {
+      var q = num(input.getAttribute('data-qty'));
+      var plan = num(input.getAttribute('data-plan'));
+      var pct = mode === 'pct';
+      input.value = q ? plain(pct && plan > 0 ? qtyToPct(q, plan) : q) : '';
+      var alt = input.parentNode.querySelector('.jp-tw-day-alt');
+      if (alt) alt.textContent = pct ? (q ? show(q) + ' SL' : '') : (plan > 0 && q ? qtyToPct(q, plan).toLocaleString('vi-VN', { maximumFractionDigits: 1 }) + '%' : '');
+    }
+    function live(input) {
+      var v = Math.max(0, num(input.value));
+      return mode === 'pct' ? pctToQty(v, num(input.getAttribute('data-plan'))) : v;
+    }
+    function dayTotal() {
+      return inputs().reduce(function (sum, input) { return sum + num(input.getAttribute('data-qty')); }, 0);
+    }
+    function post(fields) {
+      fields.csrfmiddlewaretoken = csrfToken();
+      return fetch(progressUrl(data.mo_id), {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json',
+          'X-CSRFToken': csrfToken()
+        },
+        body: new URLSearchParams(fields),
+        credentials: 'same-origin'
+      }).then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (j) {
+          if (!r.ok || !j.ok) throw new Error(j.error || 'Không lưu được.');
+          return j;
+        });
+      });
+    }
+    inputs().forEach(paint);
+    if (!data.can_update) return;
+    dayBody.querySelectorAll('.jp-seg button').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        mode = btn.getAttribute('data-mode') === 'pct' ? 'pct' : 'qty';
+        dayBody.querySelectorAll('.jp-seg button').forEach(function (b) {
+          b.classList.toggle('is-on', b === btn);
+        });
+        inputs().forEach(paint);
+      });
+    });
+    inputs().forEach(function (input) {
+      input.addEventListener('input', function () { paintLive(input); });
+      input.addEventListener('change', function () { saveSize(input); });
+    });
+    function paintLive(input) {
+      var alt = input.parentNode.querySelector('.jp-tw-day-alt');
+      if (!alt) return;
+      var q = live(input);
+      var plan = num(input.getAttribute('data-plan'));
+      alt.textContent = mode === 'pct'
+        ? (q ? show(q) + ' SL' : '')
+        : (plan > 0 && q ? qtyToPct(q, plan).toLocaleString('vi-VN', { maximumFractionDigits: 1 }) + '%' : '');
+    }
+    function saveSize(input) {
+      var qty = live(input);
+      var old = num(input.getAttribute('data-qty'));
+      if (qty === old) { paint(input); return; }
+      var plan = num(input.getAttribute('data-plan'));
+      var done = num(input.getAttribute('data-done'));
+      var after = done - old + qty;
+      if (plan > 0 && after > plan && !window.confirm(
+        'Size ' + (input.getAttribute('data-size') || '') + ' vượt kế hoạch.\nKế hoạch: ' + show(plan) + '\nTổng sau khi lưu: ' + show(after) + '\n\nVẫn lưu?'
+      )) {
+        paint(input);
+        return;
+      }
+      input.disabled = true;
+      post({
+        action: 'set_day',
+        stat_date: data.date,
+        size_label: input.getAttribute('data-size') || '',
+        qty: String(qty)
+      }).then(function (j) {
+        input.disabled = false;
+        input.setAttribute('data-qty', plain(j.day_done));
+        input.setAttribute('data-done', plain(j.size_done));
+        paint(input);
+        applyDayTotal(sourceCell, dayTotal());
+      }).catch(function (err) {
+        input.disabled = false;
+        paint(input);
+        alert(err.message || 'Không lưu được SL.');
+      });
+    }
+    if (note) {
+      note.addEventListener('change', function () {
+        var val = (note.value || '').trim();
+        if (val === (note.getAttribute('data-orig') || '').trim()) return;
+        post({ action: 'set_note', stat_date: data.date, notes: val }).then(function (j) {
+          note.value = j.notes || '';
+          note.setAttribute('data-orig', j.notes || '');
+        }).catch(function (err) {
+          alert(err.message || 'Không lưu được ghi chú.');
+        });
+      });
+    }
+  }
+
+  var groupedDay = '';
+  function orderOnDay(row, day) {
+    var cell = row.querySelector('td[data-day="' + day + '"]');
+    if (!cell) return false;
+    if (cell.hasAttribute('data-plan')) return true;
+    return num(cell.getAttribute('data-done')) > 0;
+  }
+  function applyDayGroup(day, label) {
+    var rows = document.querySelectorAll('.jp-tr-wrap tbody tr');
+    document.querySelectorAll('.jp-tr-grid [data-day].is-day-on').forEach(function (el) {
+      el.classList.remove('is-day-on', 'is-day-foot');
+    });
+    var clearBtn = document.getElementById('jpTwDayGroupClear');
+    if (!day || groupedDay === day) {
+      groupedDay = '';
+      rows.forEach(function (row) { row.classList.remove('is-day-hidden'); });
+      var n = 0;
+      rows.forEach(function (row) {
+        if (row.classList.contains('is-total')) return;
+        n += 1;
+        var stt = row.querySelector('.jp-tr-stt');
+        if (stt) stt.textContent = String(n);
+      });
+      if (clearBtn) clearBtn.hidden = true;
+      return;
+    }
+    groupedDay = day;
+    var shown = 0;
+    rows.forEach(function (row) {
+      if (row.classList.contains('is-total')) return;
+      var keep = orderOnDay(row, day);
+      row.classList.toggle('is-day-hidden', !keep);
+      if (!keep) return;
+      shown += 1;
+      var stt = row.querySelector('.jp-tr-stt');
+      if (stt) stt.textContent = String(shown);
+    });
+    document.querySelectorAll('.jp-tr-grid [data-day="' + day + '"]').forEach(function (el) {
+      el.classList.add('is-day-on');
+    });
+    var foot = null;
+    rows.forEach(function (row) {
+      if (row.classList.contains('is-day-hidden')) return;
+      var cell = row.querySelector('td[data-day="' + day + '"]');
+      if (cell) foot = cell;
+    });
+    if (foot) foot.classList.add('is-day-foot');
+    if (clearBtn) {
+      clearBtn.hidden = false;
+      clearBtn.textContent = 'Đang gom ' + (label || day) + ' · ' + shown + ' đơn';
+    }
+  }
+
+  document.addEventListener('click', function (ev) {
+    var group = ev.target.closest('[data-jp-day-group]');
+    if (group) {
+      applyDayGroup(group.getAttribute('data-day') || '', group.getAttribute('data-label') || '');
+      return;
+    }
+    var entry = ev.target.closest('[data-jp-day-entry]');
+    if (entry) {
+      openDay(entry.getAttribute('data-mo'), entry.getAttribute('data-day'), entry.getAttribute('data-label'), entry.getAttribute('data-order'), entry.closest('td'));
+      return;
+    }
+    var btn = ev.target.closest('[data-jp-entry-pick]');
+    if (!btn || !entryPick || !entryBody) return;
+    var mos = [];
+    try { mos = JSON.parse(btn.getAttribute('data-mos') || '[]'); } catch (e) { mos = []; }
+    var day = btn.getAttribute('data-day') || '';
+    var label = btn.getAttribute('data-label') || day;
+    var orderCode = btn.getAttribute('data-order') || '';
+    var cell = btn.closest('td');
+    if (entryTitle) entryTitle.textContent = 'Chọn lệnh · ' + label;
+    entryBody.textContent = '';
+    var list = document.createElement('div');
+    list.className = 'list-group list-group-flush';
+    mos.forEach(function (mo) {
+      var pick = document.createElement('button');
+      pick.type = 'button';
+      pick.className = 'list-group-item list-group-item-action text-start';
+      pick.innerHTML = '<strong></strong><span class="d-block small text-muted"></span>';
+      pick.querySelector('strong').textContent = mo.code || '';
+      pick.querySelector('span').textContent = mo.label || '';
+      pick.addEventListener('click', function () {
+        bootstrap.Modal.getOrCreateInstance(entryPick).hide();
+        openDay(mo.id, day, label, orderCode || mo.code, cell);
+      });
+      list.appendChild(pick);
+    });
+    entryBody.appendChild(list);
+    bootstrap.Modal.getOrCreateInstance(entryPick).show();
+  });
+
+  var openParams = new URLSearchParams(window.location.search);
+  var openMo = openParams.get('tien-do');
+  var openNgay = openParams.get('ngay');
+  if (openMo && openNgay) {
+    var preset = document.querySelector('[data-jp-day-entry][data-mo="' + openMo + '"][data-day="' + openNgay + '"]');
+    openDay(openMo, openNgay, preset ? preset.getAttribute('data-label') : openNgay, preset ? preset.getAttribute('data-order') : '', preset ? preset.closest('td') : null);
+    openParams.delete('tien-do');
+    openParams.delete('ngay');
+    var next = window.location.pathname + (openParams.toString() ? '?' + openParams.toString() : '');
+    window.history.replaceState(null, '', next);
+  }
+  var clearGroup = document.getElementById('jpTwDayGroupClear');
+  if (clearGroup) clearGroup.addEventListener('click', function () { applyDayGroup('', ''); });
+});
+</script>
+<script>
+(function () {
+  var form = document.getElementById('jpTwHistoryFilter');
+  if (!form) return;
+  function submitFilter() {
+    if (typeof form.requestSubmit === 'function') form.requestSubmit();
+    else form.submit();
+  }
+  form.querySelectorAll('select').forEach(function (field) {
+    field.addEventListener('change', submitFilter);
+  });
+  var search = form.querySelector('input[name="q"]');
+  if (!search) return;
+  var timer = null;
+  var last = search.value;
+  search.addEventListener('input', function () {
+    if (timer) window.clearTimeout(timer);
+    timer = window.setTimeout(function () {
+      if (search.value === last) return;
+      last = search.value;
+      submitFilter();
+    }, 400);
+  });
+})();
+</script>
 {% endblock %}

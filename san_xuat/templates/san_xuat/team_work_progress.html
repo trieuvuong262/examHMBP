@@ -225,14 +225,7 @@
       <h2 class="jp-npl-mat-topbar-title w-100">Tiến độ tổ · {{ team.label }}</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
-      {% if can_accept %}
-        <form method="post" class="d-inline" onsubmit="return confirm('Nhận sản xuất {{ mo.sales_order.code|default:mo.code }}?\nTrạng thái KHSX sẽ chuyển sang Đang sản xuất.');">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="accept">
-          <button type="submit" class="btn btn-sm btn-hm fw-bold">Nhận sản xuất</button>
-        </form>
-        <span class="sep" aria-hidden="true"></span>
-      {% elif can_close %}
+      {% if can_close %}
         {% if job_closed %}
         <form method="post" class="d-inline">
           {% csrf_token %}
@@ -254,7 +247,7 @@
 
   {% if not accepted %}
   <div class="alert alert-warning py-2 px-3 mb-3 small">
-    Lệnh chưa nhận sản xuất — bấm <strong>Nhận sản xuất</strong> để chuyển KHSX sang Đang sản xuất, rồi mới ghi tiến độ / hoàn thành.
+    Đơn chưa có công đoạn của tổ này nên chưa nhập được tiến độ.
   </div>
   {% endif %}
 
@@ -447,6 +440,14 @@
 {% endblock %}
 
 {% block scripts %}
+{% if focus_day %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var row = document.querySelector('tr.day-in[data-date="{{ focus_day|date:"Y-m-d" }}"]');
+  if (row) row.scrollIntoView({ block: 'center', inline: 'nearest' });
+});
+</script>
+{% endif %}
 <script>
 (function () {
   var table = document.getElementById('jpOpsTable');

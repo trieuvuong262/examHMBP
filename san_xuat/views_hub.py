@@ -1499,7 +1499,6 @@ def plan_board(request):
         confirmed_order_qty_summary,
         hold_plan_order,
         reload_plan_order_tech,
-        release_order_to_production,
         reschedule_order_team_start,
         save_plan_hops,
         assign_plan_team,
@@ -1515,7 +1514,6 @@ def plan_board(request):
         sort_plan_rows_by_placed_date,
         reorder_plan_orders,
         unhold_plan_order,
-        unrelease_order_from_production,
     )
     from san_xuat.services.planning import PlanningError
 
@@ -1968,31 +1966,45 @@ def plan_board(request):
 
                     return JsonResponse({'ok': True, 'updated': updated})
                 messages.success(request, 'Đã cập nhật thứ tự đơn trên KHSX.')
-            elif action == 'release' and can_release and order_id:
-                bom_by_product: dict[str, int] = {}
-                routing_by_product: dict[str, int] = {}
-                for key, val in request.POST.items():
-                    raw = (val or '').strip()
-                    if key.startswith('bom_for__'):
-                        code = key[len('bom_for__'):].strip()
-                        if code and raw.isdigit():
-                            bom_by_product[code] = int(raw)
-                    elif key.startswith('routing_for__'):
-                        code = key[len('routing_for__'):].strip()
-                        if code and raw.isdigit():
-                            routing_by_product[code] = int(raw)
-                created = release_order_to_production(
-                    order_id=order_id,
-                    user=request.user,
-                    bom_by_product=bom_by_product,
-                    routing_by_product=routing_by_product,
+            elif action == 'reorder_team_day_orders' and can_schedule:
+                from san_xuat.list_filters import parse_sx_date
+                from san_xuat.services.team_output_report import reorder_team_day_orders
+
+                raw_ids = request.POST.get('order_ids') or ''
+                if isinstance(raw_ids, str) and raw_ids.strip().startswith('['):
+                    import json as _json
+                    try:
+                        parsed_ids = _json.loads(raw_ids)
+                    except _json.JSONDecodeError as exc:
+                        raise PlanningError('Danh sách thứ tự đơn không hợp lệ.') from exc
+                    ordered_ids = parsed_ids if isinstance(parsed_ids, list) else []
+                else:
+                    ordered_ids = [
+                        part for part in str(raw_ids).replace(';', ',').split(',') if part.strip()
+                    ] or request.POST.getlist('order_ids')
+                plan_day = parse_sx_date(request.POST.get('plan_date') or '')
+                if plan_day is None:
+                    raise PlanningError('Ngày không hợp lệ.')
+                updated = reorder_team_day_orders(
+                    team_slug=(request.POST.get('team_slug') or '').strip(),
+                    plan_date=plan_day,
+                    ordered_ids=ordered_ids,
                 )
-                messages.success(
+                wants_json = (
+                    (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
+                    or 'application/json' in (request.headers.get('Accept') or '')
+                )
+                if wants_json:
+                    from django.http import JsonResponse
+
+                    return JsonResponse({'ok': True, 'updated': updated})
+                messages.success(request, 'Đã cập nhật thứ tự đơn trong ngày.')
+            elif action == 'release' and order_id:
+                messages.error(
                     request,
-                    f'Đã chuyển xuống SX — tạo {len(created)} lệnh sản xuất (đã phát hành vào Công việc tổ). '
-                    'BOM / OB / NPL trên KHSX đã khoá.',
+                    'Đã tắt Chuyển SX. Có đơn là nhập tiến độ trên Công việc tổ.',
                 )
-                return redirect(f"{reverse('san_xuat:plan_board')}?mode=list&tab=queue")
+                return _board_redirect()
             elif action in ('approve_cancel', 'reject_cancel') and user_can_update_menu(
                 request.user, MODULE_SAN_XUAT, 'sx_cancel_approve',
             ):
@@ -2034,13 +2046,9 @@ def plan_board(request):
                         )
                         return redirect('san_xuat:sx_cancel_approve')
                 return _board_redirect()
-            elif action == 'unrelease' and can_release and order_id:
-                order, n = unrelease_order_from_production(order_id=order_id)
-                messages.success(
-                    request,
-                    f'Đã hủy chuyển SX {order.code} — hủy {n} lệnh. Đơn về hàng đợi để sửa.',
-                )
-                return redirect(f"{reverse('san_xuat:plan_board')}?mode=list&tab=queue")
+            elif action == 'unrelease' and order_id:
+                messages.error(request, 'Đã tắt Chuyển SX.')
+                return _board_redirect()
             elif action == 'receive_gc':
                 from san_xuat.services.phase3 import Phase3Error, receive_subcontract_goods
 
@@ -2257,7 +2265,7 @@ def plan_board(request):
             else:
                 if action:
                     if (
-                        action in ('reschedule_route', 'split_team_days', 'split_team_in_two', 'assign_plan_team', 'add_plan_team', 'save_plan_team_capacity', 'reorder_plan_orders')
+                        action in ('reschedule_route', 'split_team_days', 'split_team_in_two', 'assign_plan_team', 'add_plan_team', 'save_plan_team_capacity', 'reorder_plan_orders', 'reorder_team_day_orders')
                         and (
                             (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
                             or 'application/json' in (request.headers.get('Accept') or '')
@@ -2266,13 +2274,20 @@ def plan_board(request):
                         from django.http import JsonResponse
 
                         return JsonResponse(
-                            {'ok': False, 'error': 'Bạn không có quyền xếp lịch lộ trình.'},
+                            {
+                                'ok': False,
+                                'error': (
+                                    'Bạn không có quyền sắp xếp đơn của tổ.'
+                                    if action == 'reorder_team_day_orders'
+                                    else 'Bạn không có quyền xếp lịch lộ trình.'
+                                ),
+                            },
                             status=403,
                         )
                     messages.error(request, 'Bạn không có quyền thực hiện thao tác này.')
         except PlanningError as exc:
             if (
-                (request.POST.get('action') or '').strip() in ('reschedule_route', 'split_team_days', 'split_team_in_two', 'assign_plan_team', 'add_plan_team', 'save_plan_team_capacity', 'reorder_plan_orders')
+                (request.POST.get('action') or '').strip() in ('reschedule_route', 'split_team_days', 'split_team_in_two', 'assign_plan_team', 'add_plan_team', 'save_plan_team_capacity', 'reorder_plan_orders', 'reorder_team_day_orders')
                 and (
                     (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
                     or 'application/json' in (request.headers.get('Accept') or '')
@@ -2284,7 +2299,7 @@ def plan_board(request):
             messages.error(request, str(exc))
         except Exception as exc:
             if (
-                (request.POST.get('action') or '').strip() in ('reschedule_route', 'split_team_days', 'split_team_in_two', 'assign_plan_team', 'add_plan_team', 'save_plan_team_capacity', 'reorder_plan_orders')
+                (request.POST.get('action') or '').strip() in ('reschedule_route', 'split_team_days', 'split_team_in_two', 'assign_plan_team', 'add_plan_team', 'save_plan_team_capacity', 'reorder_plan_orders', 'reorder_team_day_orders')
                 and (
                     (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
                     or 'application/json' in (request.headers.get('Accept') or '')
@@ -6314,6 +6329,7 @@ def team_work_board(request, slug: str):
         assignee_candidate_options,
         assign_team_work,
         attach_job_product_images,
+        apply_own_plan_team,
         attach_team_job_closes,
         build_team_work_rows,
         close_team_job,
@@ -6337,6 +6353,11 @@ def team_work_board(request, slug: str):
         or user_can_update_menu(request.user, MODULE_SAN_XUAT, 'team_work')
         or user_can_create_menu(request.user, MODULE_SAN_XUAT, menu_key)
     )
+    can_edit_team_sheet = (
+        can_assign
+        or user_can_update_menu(request.user, MODULE_SAN_XUAT, 'plan_board')
+        or user_can_update_menu(request.user, MODULE_SAN_XUAT, 'plan')
+    )
 
     def _board_qs(**extra) -> str:
         from urllib.parse import urlencode
@@ -6346,12 +6367,49 @@ def team_work_board(request, slug: str):
         show = (request.GET.get('show') or request.POST.get('show') or '').strip()
         if qv:
             params['q'] = qv
-        if show == 'closed':
-            params['show'] = 'closed'
+        if show in ('closed', 'cancelled'):
+            params['show'] = show
+        for key in ('date_from', 'date_to', 'priority_filter', 'deadline'):
+            val = (request.GET.get(key) or request.POST.get(key) or '').strip()
+            if val:
+                params[key] = val
         params.update({k: v for k, v in extra.items() if v})
         qs = urlencode(params)
         url = reverse('san_xuat:team_work_board', kwargs={'slug': slug})
         return f'{url}?{qs}' if qs else url
+
+    if request.method == 'POST' and (request.POST.get('action') or '').strip() == 'reorder_team_day_orders':
+        from django.http import JsonResponse
+
+        from san_xuat.list_filters import parse_sx_date
+        from san_xuat.services.team_output_report import reorder_team_day_orders
+
+        if not can_edit_team_sheet:
+            return JsonResponse({'ok': False, 'error': 'Bạn không có quyền sắp xếp đơn của tổ.'}, status=403)
+        raw_ids = request.POST.get('order_ids') or ''
+        if isinstance(raw_ids, str) and raw_ids.strip().startswith('['):
+            import json as _json
+            try:
+                parsed_ids = _json.loads(raw_ids)
+            except _json.JSONDecodeError:
+                return JsonResponse({'ok': False, 'error': 'Danh sách thứ tự đơn không hợp lệ.'}, status=400)
+            ordered_ids = parsed_ids if isinstance(parsed_ids, list) else []
+        else:
+            ordered_ids = [
+                part for part in str(raw_ids).replace(';', ',').split(',') if part.strip()
+            ] or request.POST.getlist('order_ids')
+        plan_day = parse_sx_date(request.POST.get('plan_date') or '')
+        if plan_day is None:
+            return JsonResponse({'ok': False, 'error': 'Ngày không hợp lệ.'}, status=400)
+        try:
+            updated = reorder_team_day_orders(
+                team_slug=slug,
+                plan_date=plan_day,
+                ordered_ids=ordered_ids,
+            )
+        except PlanningError as exc:
+            return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
+        return JsonResponse({'ok': True, 'updated': updated})
 
     if request.method == 'POST' and can_assign:
         action = (request.POST.get('action') or '').strip()
@@ -6459,7 +6517,17 @@ def team_work_board(request, slug: str):
             return redirect(_board_qs())
 
     q = (request.GET.get('q') or '').strip()
-    show_closed = (request.GET.get('show') or '').strip() == 'closed'
+    show = (request.GET.get('show') or '').strip()
+    sheet_status = 'done' if show == 'closed' else ('cancelled' if show == 'cancelled' else 'open')
+    from san_xuat.hub_models import SxSalesOrder
+
+    valid_priorities = {value for value, _label in SxSalesOrder.PRIORITY_CHOICES}
+    priority_filter = (request.GET.get('priority_filter') or '').strip()
+    if priority_filter not in valid_priorities:
+        priority_filter = ''
+    deadline_filter = (request.GET.get('deadline') or '').strip()
+    if deadline_filter not in ('overdue', 'due_soon', 'on_time'):
+        deadline_filter = ''
     try:
         team, rows = build_team_work_rows(slug=slug, search=q)
     except PlanningError as exc:
@@ -6482,20 +6550,84 @@ def team_work_board(request, slug: str):
                     assignee_candidates.append({'id': a['id'], 'label': a['label']})
                     seen.add(a['id'])
 
-    jobs = attach_team_job_closes(group_team_work_jobs(rows), slug=slug)
+    jobs = apply_own_plan_team(
+        attach_team_job_closes(group_team_work_jobs(rows), slug=slug),
+        team=team,
+    )
     attach_job_product_images(jobs)
-    closed_count = sum(1 for j in jobs if j.closed)
-    open_count = len(jobs) - closed_count
-    visible = [j for j in jobs if j.closed] if show_closed else [j for j in jobs if not j.closed]
+    assign_jobs = [j for j in jobs if not j.closed and not j.subcontract]
+
+    from urllib.parse import urlencode
+
+    from san_xuat.services.team_output_report import (
+        build_team_output_report,
+        attach_sheet_entry_mos,
+        expand_team_report_by_order,
+        export_team_output_xlsx,
+        restrict_team_output_report,
+        retain_order_ids,
+        team_sheet_tab,
+    )
+    from san_xuat.services.team_stage_colors import team_stage_color_css
+
+    today = timezone.localdate()
+    filter_date_from, filter_date_to, open_count, closed_count, cancelled_count, keep_ids = team_sheet_tab(
+        today, slug, status=sheet_status, search=q, priority=priority_filter, deadline=deadline_filter,
+    )
+    if sheet_status != 'open':
+        from san_xuat.list_filters import parse_sx_date
+
+        picked_from = parse_sx_date(request.GET.get('date_from') or '')
+        picked_to = parse_sx_date(request.GET.get('date_to') or '')
+        if picked_from and picked_to and picked_from > picked_to:
+            picked_from, picked_to = picked_to, picked_from
+        if picked_from:
+            filter_date_from = picked_from
+        if picked_to:
+            filter_date_to = picked_to
+        if filter_date_from > filter_date_to:
+            filter_date_from, filter_date_to = filter_date_to, filter_date_from
+    team_report = attach_sheet_entry_mos(expand_team_report_by_order(retain_order_ids(restrict_team_output_report(
+        build_team_output_report(
+            date_from=filter_date_from,
+            date_to=filter_date_to,
+            search=q,
+            today=today,
+        ),
+        slug,
+    ), keep_ids)), team)
+    if (request.GET.get('export') or '').strip() == 'xlsx':
+        return export_team_output_xlsx(team_report)
+
+    def _sheet_href(**extra) -> str:
+        params = {}
+        if q:
+            params['q'] = q
+        if priority_filter:
+            params['priority_filter'] = priority_filter
+        if deadline_filter:
+            params['deadline'] = deadline_filter
+        if sheet_status == 'done':
+            params['show'] = 'closed'
+        elif sheet_status == 'cancelled':
+            params['show'] = 'cancelled'
+        if sheet_status != 'open':
+            params['date_from'] = filter_date_from.isoformat()
+            params['date_to'] = filter_date_to.isoformat()
+        params.update({k: v for k, v in extra.items() if v})
+        base = reverse('san_xuat:team_work_board', kwargs={'slug': slug})
+        return f'{base}?{urlencode(params)}' if params else base
 
     return render(request, 'san_xuat/team_work_board.html', {
         **_perm_ctx(request),
         'team': team,
-        'jobs': visible,
+        'assign_jobs': assign_jobs,
         'search_query': q,
-        'show_closed': show_closed,
+        'sheet_status': sheet_status,
+        'show_closed': sheet_status == 'done',
         'open_count': open_count,
         'closed_count': closed_count,
+        'cancelled_count': cancelled_count,
         'can_assign': can_assign,
         'can_map_divisions': can_map,
         'team_has_division_map': mapped,
@@ -6510,6 +6642,40 @@ def team_work_board(request, slug: str):
             user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan_board')
             or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan')
         ),
+        'can_schedule': can_edit_team_sheet,
+        'team_report': team_report,
+        'stage_color_css': team_stage_color_css([slug, (team.get('stage_slug') or '')]),
+        'filter_date_from': filter_date_from,
+        'filter_date_to': filter_date_to,
+        'priority_filter': priority_filter,
+        'deadline_filter': deadline_filter,
+        'priority_choices': SxSalesOrder.PRIORITY_CHOICES,
+        'filter_qs': urlencode({
+            key: value for key, value in {
+                'q': q,
+                'priority_filter': priority_filter,
+                'deadline': deadline_filter,
+            }.items() if value
+        }),
+        'history_qs': urlencode({
+            key: value for key, value in {
+                'q': q,
+                'priority_filter': priority_filter,
+                'deadline': deadline_filter,
+                'date_from': filter_date_from.isoformat() if sheet_status != 'open' else '',
+                'date_to': filter_date_to.isoformat() if sheet_status != 'open' else '',
+            }.items() if value
+        }),
+        'sheet_filters_active': bool(
+            q or priority_filter or deadline_filter
+            or (
+                sheet_status != 'open' and (
+                    (request.GET.get('date_from') or '').strip()
+                    or (request.GET.get('date_to') or '').strip()
+                )
+            )
+        ),
+        'sheet_export_url': _sheet_href(export='xlsx'),
     })
 
 
@@ -6699,6 +6865,78 @@ def team_work_progress(request, slug: str, mo_id: int):
     if accepted:
         ensure_team_accept(mo_id=mo.pk, team_slug=slug, user=request.user)
 
+    if request.method != 'POST':
+        from urllib.parse import urlencode
+
+        from django.http import JsonResponse
+        from django.utils.dateparse import parse_date
+
+        wants_json = (
+            request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or 'application/json' in (request.headers.get('Accept') or '')
+        )
+        try:
+            ngay = parse_date((request.GET.get('ngay') or '').strip())
+        except ValueError:
+            ngay = None
+        if not wants_json:
+            params = {'tien-do': mo.pk}
+            if ngay:
+                params['ngay'] = ngay.isoformat()
+            board = reverse('san_xuat:team_work_board', kwargs={'slug': slug})
+            return redirect(f'{board}?{urlencode(params)}')
+        if not ngay:
+            return JsonResponse({'ok': False, 'error': 'Thiếu ngày.'}, status=400)
+        if not team_steps:
+            return JsonResponse({'ok': False, 'error': 'Đơn chưa có công đoạn của tổ này.'}, status=400)
+        from san_xuat.hub_models import SxTeamWorkDayNote
+        from san_xuat.services.order_progress_sheet import build_team_day_grid, team_plan_days
+
+        sheet = build_progress_sheet(mo, team=team_meta)
+        grid = build_team_day_grid(
+            sheet,
+            steps=team_steps,
+            plan_days=team_plan_days(mo, team_meta),
+            extra_days=[ngay],
+            notes=dict(
+                SxTeamWorkDayNote.objects.filter(production_order=mo, team_slug=slug)
+                .values_list('note_date', 'notes')
+            ),
+        )
+        day = next((row for row in grid['days'] if row['date'] == ngay), None)
+        if not day:
+            return JsonResponse({'ok': False, 'error': 'Không lấy được tiến độ ngày này.'}, status=400)
+        totals = {item['size']: item for item in grid['totals']}
+
+        def _plain(value) -> str:
+            q = Decimal(str(value or 0))
+            text = format(q.quantize(Decimal('0.01')), 'f').rstrip('0').rstrip('.')
+            return text or '0'
+
+        order = mo.sales_order
+        return JsonResponse({
+            'ok': True,
+            'mo_id': mo.pk,
+            'order_code': (order.code if order else '') or mo.code,
+            'product': mo.product_name or mo.product_code or '',
+            'date': ngay.isoformat(),
+            'label': ngay.strftime('%d/%m/%Y'),
+            'future': ngay > timezone.localdate(),
+            'closed': job_closed,
+            'can_update': bool(can_update and team_steps and not job_closed and ngay <= timezone.localdate()),
+            'day_plan': _plain(day['plan_qty']) if day.get('plan_qty') else '',
+            'note': day.get('note') or '',
+            'sizes': [
+                {
+                    'label': cell['size'],
+                    'plan': _plain((totals.get(cell['size']) or {}).get('plan')),
+                    'qty': _plain(cell['qty']),
+                    'done': _plain((totals.get(cell['size']) or {}).get('done')),
+                }
+                for cell in day['cells']
+            ],
+        })
+
     if request.method == 'POST' and can_update:
         from django.http import JsonResponse
 
@@ -6737,11 +6975,14 @@ def team_work_progress(request, slug: str, mo_id: int):
             return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
         if action in ('record', 'set_done', 'set_total', 'set_day', 'set_note'):
             if not accepted:
-                msg = 'Cần nhận sản xuất trước khi ghi tiến độ.'
-                if wants_json:
-                    return JsonResponse({'ok': False, 'error': msg}, status=400)
-                messages.error(request, msg)
-                return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
+                try:
+                    mo = accept_production(mo_id=mo.pk, team_slug=slug, user=request.user)
+                    accepted = True
+                except PlanningError as exc:
+                    if wants_json:
+                        return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
+                    messages.error(request, str(exc))
+                    return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
             if job_closed:
                 msg = 'Tổ đã hoàn thành lệnh này — mở lại nếu cần sửa SL.'
                 if wants_json:
@@ -6893,8 +7134,6 @@ def team_work_progress(request, slug: str, mo_id: int):
         extra_day = parse_date((request.GET.get('ngay') or '').strip())
     except ValueError:
         extra_day = None
-    if extra_day and extra_day > timezone.localdate():
-        extra_day = None
     day_notes = dict(
         SxTeamWorkDayNote.objects.filter(production_order=mo, team_slug=slug)
         .values_list('note_date', 'notes')
@@ -6930,11 +7169,12 @@ def team_work_progress(request, slug: str, mo_id: int):
         'grid': grid,
         'history': history,
         'flat_steps': team_steps,
-        'accepted': accepted,
-        'can_update': can_update and accepted and not job_closed,
-        'can_close': can_update and accepted,
-        'can_accept': can_update and not accepted,
+        'accepted': bool(team_steps) or accepted,
+        'can_update': can_update and bool(team_steps) and not job_closed,
+        'can_close': can_update and bool(team_steps),
+        'can_accept': False,
         'job_closed': job_closed,
+        'focus_day': extra_day,
         'today': timezone.localdate(),
     })
 

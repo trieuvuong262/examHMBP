@@ -38,13 +38,10 @@
         {% else %}
         <span class="jp-tw-due">Hạn —</span>
         {% endif %}
-        {% if job.khsx_start or job.khsx_team_label %}
+        {% if job.khsx_start %}
         <span class="jp-tw-due{% if job.khsx_is_late %} is-late{% endif %}" title="Lịch tổ trên lộ trình KHSX">
           KHSX
-          {% if job.khsx_start %}
           <strong>{{ job.khsx_start|date:"d/m" }}{% if job.khsx_end and job.khsx_end != job.khsx_start %}–{{ job.khsx_end|date:"d/m" }}{% endif %}</strong>
-          {% endif %}
-          {% if job.khsx_team_label %} · {{ job.khsx_team_label }}{% endif %}
           {% if job.khsx_is_late %} · trễ kế hoạch{% endif %}
         </span>
         {% endif %}
@@ -63,16 +60,10 @@
       {% endif %}
       {% endwith %}
       {% if job.closed %}
-        {% if can_assign %}
-        <form method="post" class="d-inline">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="reopen">
-          <input type="hidden" name="mo_id" value="{{ job.mo.pk }}">
-          <input type="hidden" name="q" value="{{ search_query }}">
-          <input type="hidden" name="show" value="closed">
-          <button type="submit" class="btn btn-outline-secondary btn-sm"
-                  title="{% if job.subcontract %}Huỷ nhận hàng GC và mở lại tổ{% else %}Mở lại công việc tổ{% endif %}">Mở lại</button>
-        </form>
+        {% if not job.subcontract %}
+        <a href="{% url 'san_xuat:team_work_progress' team.slug job.mo.pk %}"
+           class="btn btn-hm btn-sm fw-bold"
+           title="Phiếu nhập sản lượng — mở lại lệnh tại đây">Tiến độ</a>
         {% endif %}
       {% elif job.subcontract %}
         {% if can_receive_gc and job.subcontract.status != 'done' and job.subcontract.status != 'received' and job.subcontract.status != 'cancelled' %}
@@ -108,18 +99,7 @@
       <a href="{% url 'san_xuat:team_work_progress' team.slug job.mo.pk %}"
          class="btn btn-hm btn-sm fw-bold"
          title="Ghi SL tổ — lên lộ trình KHSX theo ngày báo cáo">Tiến độ</a>
-      {% include 'san_xuat/includes/team_work_steps_btn.html' %}
-      {% if can_assign %}
-        <form method="post" class="d-inline" onsubmit="return confirm('Hoàn thành lệnh này cho tổ?\nCác size / công đoạn chưa đủ SL sẽ được tự điền phần còn thiếu vào hôm nay. SL đã nhập giữ nguyên.');">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="complete">
-          <input type="hidden" name="mo_id" value="{{ job.mo.pk }}">
-          <input type="hidden" name="q" value="{{ search_query }}">
-          <button type="submit" class="btn btn-outline-hm btn-sm fw-bold">Hoàn thành</button>
-        </form>
       {% endif %}
-      {% endif %}
-      {% if job.closed or not job.accepted %}{% include 'san_xuat/includes/team_work_steps_btn.html' %}{% endif %}
       {% if not job.subcontract and not job.closed %}
       {% if job.run_count %}<span class="jp-tw-stat-pill">Đang làm <strong>{{ job.run_count }}</strong></span>{% endif %}
       {% endif %}

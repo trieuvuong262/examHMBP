@@ -416,6 +416,105 @@ def team_stat_label(team: dict | None) -> str:
     return (team.get('label') or '').strip()
 
 
+def ensure_order_progress_mos(order, *, user=None) -> list:
+    """Mở lệnh để nhập tiến độ từ công đoạn của đơn, không qua Chuyển SX.
+
+    Đơn đã hoàn thành, đã hủy hoặc đang tạm giữ thì giữ nguyên.
+    Lệnh đã có công đoạn thì không ghi đè.
+    """
+    from san_xuat.hub_models import SxSalesOrder
+    from san_xuat.services.dispatch import _next_mo_code_for_product, sync_mo_process_steps
+    from san_xuat.services.order_routing import steps_dicts_from_order_line
+
+    with transaction.atomic():
+        order = (
+            SxSalesOrder.objects.select_for_update()
+            .get(pk=order.pk, is_demo=False)
+        )
+        if order.confirm_status != SxSalesOrder.CONFIRM_CONFIRMED:
+            return []
+        if order.plan_status in (
+            SxSalesOrder.PLAN_DONE,
+            SxSalesOrder.PLAN_CANCELLED,
+            SxSalesOrder.PLAN_ON_HOLD,
+        ):
+            return []
+
+        lines = list(order.lines.filter(qty__gt=0).order_by('sort_order', 'id'))
+        if not lines:
+            return []
+
+        plan_fallback: list[dict] | None = None
+
+        def line_steps(ln) -> list[dict]:
+            nonlocal plan_fallback
+            steps = steps_dicts_from_order_line(ln)
+            if steps:
+                return steps
+            if plan_fallback is None:
+                plan_fallback = []
+                for i, step in enumerate(order.plan_steps.all()):
+                    name = (step.process_name or '').strip()
+                    if not name:
+                        continue
+                    plan_fallback.append({
+                        'sequence': step.sequence or ((i + 1) * 10),
+                        'process_name': name,
+                        'work_center_id': step.work_center_id,
+                        'manager_id': None,
+                        'count_minutes': step.count_minutes or 0,
+                        'transfer_minutes': step.transfer_minutes or 0,
+                        'planned_date': step.planned_date,
+                    })
+            return list(plan_fallback)
+
+        opened: list[SxProductionOrder] = []
+        for ln in lines:
+            code = (ln.product_code or '').strip()
+            if not code:
+                continue
+            existing = (
+                order.production_orders.filter(is_demo=False, product_code__iexact=code)
+                .exclude(status=SxProductionOrder.STATUS_CANCELLED)
+                .order_by('-pk')
+                .first()
+            )
+            steps = line_steps(ln)
+            if existing is not None:
+                needs_steps = not existing.mo_process_steps.exists()
+                if needs_steps and steps:
+                    sync_mo_process_steps(existing, steps)
+                if (
+                    existing.status == SxProductionOrder.STATUS_DRAFT
+                    and existing.mo_process_steps.exists()
+                ):
+                    existing.status = SxProductionOrder.STATUS_RELEASED
+                    existing.save(update_fields=['status'])
+                opened.append(existing)
+                continue
+            qty = ln.qty_to_produce
+            if not steps or qty <= 0:
+                continue
+            mo = SxProductionOrder.objects.create(
+                code=_next_mo_code_for_product(code),
+                product_code=code[:60],
+                product_name=(ln.product_name or '')[:255],
+                qty=qty,
+                order_date=timezone.localdate(),
+                due_date=ln.due_date or order.due_date,
+                planned_start=order.plan_start_date,
+                status=SxProductionOrder.STATUS_RELEASED,
+                sales_order=order,
+                bom_version_id=ln.bom_version_id,
+                routing_id=ln.routing_id,
+                notes=f'Từ đơn {order.code}',
+                created_by=user if getattr(user, 'is_authenticated', False) else None,
+            )
+            sync_mo_process_steps(mo, steps)
+            opened.append(mo)
+        return opened
+
+
 def stats_for_team(stats, team: dict | None) -> list:
     own = team_stat_label(team).casefold()
     if not own:

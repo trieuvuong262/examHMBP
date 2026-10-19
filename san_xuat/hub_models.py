@@ -679,6 +679,34 @@ class SxOrderTeamDayPlan(models.Model):
         return f'{self.sales_order_id}:{self.team_slug}@{self.plan_date}={self.qty}'
 
 
+class SxTeamDayModalRank(models.Model):
+    """Thứ tự dòng khi mở một ngày trên tab Tổ SX. Không tham gia lộ trình."""
+
+    team_slug = models.CharField(max_length=40, db_index=True, verbose_name='Slug tổ')
+    plan_date = models.DateField(db_index=True, verbose_name='Ngày')
+    sales_order = models.ForeignKey(
+        SxSalesOrder,
+        on_delete=models.CASCADE,
+        related_name='team_day_modal_ranks',
+        verbose_name='Đơn đặt hàng',
+    )
+    sort_order = models.PositiveIntegerField(default=0, verbose_name='Thứ tự')
+
+    class Meta:
+        ordering = ['sort_order', 'id']
+        verbose_name = 'Thứ tự đơn trong ngày tổ'
+        verbose_name_plural = 'Thứ tự đơn trong ngày tổ'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['team_slug', 'plan_date', 'sales_order'],
+                name='sx_team_day_modal_rank_uniq',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.team_slug}@{self.plan_date}#{self.sort_order}:{self.sales_order_id}'
+
+
 # --- Kế hoạch ---
 
 
