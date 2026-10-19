@@ -824,7 +824,7 @@
             <thead>
               <tr>
                 <th>Size</th>
-                <th>KH</th>
+                <th id="jpTwDayKhHead">KH</th>
                 <th>Đã làm</th>
                 <th>Còn lại</th>
                 <th id="jpTwDayQtyHead">SL</th>
@@ -1198,7 +1198,14 @@ document.addEventListener('DOMContentLoaded', function () {
     dayData = data;
     dayMode = 'qty';
     var sub = document.getElementById('jpTwDaySub');
-    if (sub) sub.textContent = data.product || '';
+    if (sub) {
+      var bits = [];
+      if (data.product) bits.push(data.product);
+      if (data.scope === 'day' && data.day_plan !== '') bits.push('KH ngày ' + show(data.day_plan));
+      sub.textContent = bits.join(' · ');
+    }
+    var khHead = document.getElementById('jpTwDayKhHead');
+    if (khHead) khHead.textContent = data.scope === 'day' ? 'KH ngày' : 'KH';
     var photo = document.getElementById('jpTwDayPhoto');
     if (photo) {
       if (data.image) {
@@ -1279,7 +1286,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }).then(function (j) {
       input.disabled = false;
       input.setAttribute('data-qty', plain(j.day_done));
-      input.setAttribute('data-done', plain(j.size_done));
+      input.setAttribute('data-done', plain(dayData && dayData.scope === 'day' ? j.day_done : j.size_done));
       paintInput(input, false);
       fillSums(false);
       applyDayTotal(sourceCell, daySums(false).day);

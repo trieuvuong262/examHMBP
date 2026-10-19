@@ -679,6 +679,39 @@ def _pct(part: Decimal, whole: Decimal) -> Decimal:
     return (part * Decimal('100') / whole).quantize(Decimal('0.1'))
 
 
+def allocate_qty_by_weight(total: Decimal, weights: list[tuple[str, Decimal]]) -> dict[str, Decimal]:
+    """Chia `total` theo trọng số size, tổng khớp đúng `total`.
+
+    Số nguyên khi đầu vào là số nguyên (phần dư dồn vào size có phần lẻ lớn nhất).
+    """
+    total = _q(total)
+    out = {key: Decimal('0') for key, _weight in weights}
+    if total <= 0 or not weights:
+        return out
+    clean = [(key, _q(weight)) for key, weight in weights if _q(weight) > 0]
+    if not clean:
+        clean = [(key, Decimal('1')) for key, _weight in weights]
+    whole = total == total.to_integral_value() and all(
+        weight == weight.to_integral_value() for _key, weight in clean
+    )
+    scale = Decimal('1') if whole else Decimal('100')
+    units = int((total * scale).to_integral_value())
+    weight_sum = sum((weight for _key, weight in clean), Decimal('0'))
+    parts: list[list] = []
+    for key, weight in clean:
+        exact = (weight / weight_sum) * Decimal(units)
+        base = int(exact)
+        parts.append([key, base, exact - Decimal(base)])
+    leftover = units - sum(part[1] for part in parts)
+    order = sorted(range(len(parts)), key=lambda i: (parts[i][2], parts[i][1]), reverse=True)
+    for n in range(max(leftover, 0)):
+        parts[order[n % len(parts)]][1] += 1
+    quantum = Decimal('1') if whole else Decimal('0.01')
+    for key, base, _frac in parts:
+        out[key] = (Decimal(base) / scale).quantize(quantum)
+    return out
+
+
 def team_plan_days(mo: SxProductionOrder, team: dict) -> dict[date, Decimal | None]:
     """Ngày kế hoạch KHSX của tổ trên đơn → SL dự kiến ngày (None nếu KHSX không tách SL).
 
@@ -799,18 +832,26 @@ def build_team_day_grid(
         total = sum(vals, zero)
         bf_sizes = {lg.size_label for lg in logs.get(d, []) if lg.is_backfill}
         hist_sizes = {lg.size_label for lg in logs.get(d, [])}
+        plan_qty = plan_days.get(d)
+        shares: dict[str, Decimal] = {}
+        if plan_qty is not None:
+            shares = allocate_qty_by_weight(
+                _q(plan_qty),
+                [(r.size_label, _q(r.qty)) for r in sizes],
+            )
         days.append({
             'date': d,
             'is_today': d == today,
             'is_future': d > today,
             'is_backfill': bool(bf_sizes),
             'in_plan': d in plan_days,
-            'plan_qty': plan_days.get(d),
+            'plan_qty': plan_qty,
             'cells': [
                 {
                     'size': r.size_label,
                     'qty': v,
-                    'pct': _pct(v, r.qty),
+                    'day_plan': shares.get(r.size_label) if plan_qty is not None else None,
+                    'pct': _pct(v, shares[r.size_label] if plan_qty is not None else r.qty),
                     'is_backfill': r.size_label in bf_sizes,
                     'has_history': r.size_label in hist_sizes,
                 }

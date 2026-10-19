@@ -6933,14 +6933,23 @@ def team_work_progress(request, slug: str, mo_id: int):
             'future': ngay > timezone.localdate(),
             'closed': job_closed,
             'can_update': bool(can_update and team_steps and not job_closed and ngay <= timezone.localdate()),
-            'day_plan': _plain(day['plan_qty']) if day.get('plan_qty') else '',
+            'day_plan': _plain(day['plan_qty']) if day.get('plan_qty') is not None else '',
+            'scope': 'day' if day.get('plan_qty') is not None else 'order',
             'note': day.get('note') or '',
             'sizes': [
                 {
                     'label': cell['size'],
-                    'plan': _plain((totals.get(cell['size']) or {}).get('plan')),
+                    'plan': _plain(
+                        cell['day_plan']
+                        if day.get('plan_qty') is not None
+                        else (totals.get(cell['size']) or {}).get('plan')
+                    ),
                     'qty': _plain(cell['qty']),
-                    'done': _plain((totals.get(cell['size']) or {}).get('done')),
+                    'done': _plain(
+                        cell['qty']
+                        if day.get('plan_qty') is not None
+                        else (totals.get(cell['size']) or {}).get('done')
+                    ),
                     'history': history_by_size.get(cell['size'], []),
                 }
                 for cell in day['cells']

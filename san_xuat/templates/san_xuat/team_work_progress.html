@@ -333,6 +333,7 @@
                    value="{% if c.qty %}{{ c.qty|sx_num_input }}{% endif %}"
                    data-qty="{{ c.qty|sx_num_input }}"
                    data-size="{{ c.size }}" data-col="{{ forloop.counter0 }}"
+                   {% if c.day_plan != None %}data-day-plan="{{ c.day_plan|sx_num_input }}" title="KH ngày {{ c.day_plan|sx_num }}"{% endif %}
                    {% if day.is_future %}data-locked disabled {% endif %}aria-label="{{ day.date|date:'d/m' }} size {{ c.size }}">{% if c.has_history %}{% include "san_xuat/includes/team_progress_hist_btn.html" %}{% endif %}</span>
             {% elif c.has_history %}<span class="in-wrap is-ro">{{ c.qty|sx_num }}{% include "san_xuat/includes/team_progress_hist_btn.html" %}</span>
             {% elif c.qty %}{{ c.qty|sx_num }}{% endif %}
@@ -584,14 +585,19 @@ document.addEventListener('DOMContentLoaded', function () {
       b.classList.toggle('is-on', b.getAttribute('data-mode') === mode);
     });
   }
+  function planOf(inp) {
+    var raw = inp.getAttribute('data-day-plan');
+    if (raw != null && raw !== '') return num(raw);
+    return plans[colOf(inp)];
+  }
   function liveQty(inp) {
     var v = Math.max(0, num(inp.value));
-    return modeOf(inp.closest('tr')) === 'pct' ? pctToQty(v, plans[colOf(inp)]) : v;
+    return modeOf(inp.closest('tr')) === 'pct' ? pctToQty(v, planOf(inp)) : v;
   }
 
   function paintInput(inp) {
     var q = num(inp.getAttribute('data-qty'));
-    var plan = plans[colOf(inp)];
+    var plan = planOf(inp);
     var pct = modeOf(inp.closest('tr')) === 'pct';
     inp.disabled = inp.hasAttribute('data-locked') || (pct && !(plan > 0));
     inp.step = pct ? '0.1' : 'any';
@@ -608,7 +614,7 @@ document.addEventListener('DOMContentLoaded', function () {
       var q = liveQty(inp);
       total += q;
       if (altCells[col]) {
-        var t = pct ? (q ? qtyText(q) + ' SL' : '') : pctText(q, plans[col]);
+        var t = pct ? (q ? qtyText(q) + ' SL' : '') : pctText(q, planOf(inp));
         altCells[col].textContent = t ? '= ' + t : '';
       }
     });
