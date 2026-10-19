@@ -849,6 +849,55 @@ def team_size_rollups(
     return out
 
 
+def team_size_qty_by_day(
+    mo: SxProductionOrder,
+    *,
+    steps: list[ProgressStepDef],
+    team: dict | None,
+) -> dict[date, dict[str, Decimal]]:
+    """SL tổ theo ngày × size = min các công đoạn của tổ trong ngày đó."""
+    sizes = _size_plans(mo)
+    own_label = team_stat_label(team)
+    qs = SxProductionStat.objects.filter(
+        production_order=mo,
+        is_demo=False,
+        status=SxProductionStat.STATUS_CONFIRMED,
+    )
+    if own_label:
+        qs = qs.filter(team_label__iexact=own_label)
+    label_to_key = {s.label.casefold(): s.key for s in steps}
+    single_total = len(sizes) == 1 and sizes[0].size_label == 'Tổng'
+    acc: dict[date, dict[tuple[str, str], Decimal]] = {}
+    for stat_date, process_name, size_label, qty in qs.values_list(
+        'stat_date', 'process_name', 'size_label', 'qty_good',
+    ):
+        key = label_to_key.get((process_name or '').strip().casefold())
+        if not key:
+            continue
+        size = (size_label or '').strip()
+        if single_total:
+            size = 'Tổng'
+        elif not size:
+            continue
+        amount = _q(qty)
+        if amount <= 0:
+            continue
+        cells = acc.setdefault(stat_date, {})
+        cell = (size, key)
+        cells[cell] = cells.get(cell, Decimal('0')) + amount
+    out: dict[date, dict[str, Decimal]] = {}
+    for day, cells in acc.items():
+        bucket: dict[str, Decimal] = {}
+        for row in sizes:
+            dones = [cells.get((row.size_label, step.key), Decimal('0')) for step in steps]
+            done = min(dones) if dones else Decimal('0')
+            if done > 0:
+                bucket[row.size_label] = done
+        if bucket:
+            out[day] = bucket
+    return out
+
+
 def team_day_qty(sheet: ProgressSheet, *, steps: list[ProgressStepDef], day: date) -> dict[str, Decimal]:
     vals = _team_day_values(sheet, [s.key for s in steps]).get(day)
     return {
@@ -1232,10 +1281,13 @@ def set_team_day_qtys(
     user=None,
     team_slug: str | None = None,
     stat_date: date | None = None,
+    only_increase: bool = False,
+    allow_future: bool = False,
 ) -> list[dict]:
     """Đặt SL cho nhiều size, ghi đều mọi công đoạn của tổ, tính lại tiến độ một lần.
 
     Có ``stat_date``: chỉ sửa ngày đó. Không có: đặt tổng mọi ngày (phần tăng ghi vào hôm nay).
+    ``only_increase``: công đoạn đã cao hơn mức mới thì giữ nguyên.
     """
     from san_xuat.services.dispatch import _recompute_mo_progress
     from san_xuat.services.progress_template import team_by_slug
@@ -1244,7 +1296,7 @@ def set_team_day_qtys(
     keys = [key for key in process_keys if key]
     if not keys:
         raise PlanningError('Tổ này chưa có công đoạn trên lệnh.')
-    if stat_date and stat_date > timezone.localdate():
+    if stat_date and stat_date > timezone.localdate() and not allow_future:
         raise PlanningError('Không ghi tiến độ cho ngày tương lai.')
 
     mo = SxProductionOrder.objects.select_for_update().get(pk=mo_id, is_demo=False)
@@ -1336,7 +1388,7 @@ def set_team_day_qtys(
             bucket = grouped.get(((step.label or '').strip().casefold(), size_key), [])
             current = sum((_q(stat.qty_good) for stat in bucket), Decimal('0'))
             step_old.append(current)
-            if qty == current:
+            if qty == current or (only_increase and qty < current):
                 continue
             changed = True
             if qty > current:
@@ -1355,9 +1407,12 @@ def set_team_day_qtys(
                     stat.qty_good = good - need_cut
                     stat.save(update_fields=['qty_good'])
                     need_cut = Decimal('0')
+        done_qty = qty
+        if only_increase and step_old:
+            done_qty = min(max(current, qty) for current in step_old)
         results.append({
             'size': (raw_size or '').strip(),
-            'done': qty,
+            'done': done_qty,
             'old': min(step_old) if step_old else Decimal('0'),
             'changed': changed,
         })

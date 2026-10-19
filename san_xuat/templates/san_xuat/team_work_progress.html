@@ -233,7 +233,7 @@
           <button type="submit" class="btn btn-sm btn-outline-secondary">Mở lại</button>
         </form>
         {% else %}
-        <form method="post" class="d-inline" onsubmit="return confirm('Hoàn thành lệnh này cho tổ?\nCác size / công đoạn chưa đủ SL sẽ được tự điền phần còn thiếu vào hôm nay. SL đã nhập giữ nguyên.');">
+        <form method="post" class="d-inline" onsubmit="return confirm('Hoàn thành lệnh này cho tổ?\nSL còn thiếu sẽ được điền cho khớp kế hoạch từng ngày. Phần còn lại ghi vào hôm nay. SL đã nhập giữ nguyên.');">
           {% csrf_token %}
           <input type="hidden" name="action" value="complete">
           <button type="submit" class="btn btn-sm btn-outline-hm fw-bold">Hoàn thành</button>

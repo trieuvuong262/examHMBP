@@ -6314,7 +6314,7 @@ def _complete_message(filled: Decimal) -> str:
     if filled > 0:
         from san_xuat.templatetags.sx_format import sx_num
 
-        msg += f' Đã tự điền {sx_num(filled)} SL còn thiếu vào hôm nay (loại Hoàn thành).'
+        msg += f' Đã tự điền {sx_num(filled)} SL còn thiếu cho khớp kế hoạch.'
     return msg
 
 

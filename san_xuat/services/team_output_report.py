@@ -848,6 +848,29 @@ def _route_span_fallbacks(teams, *, covered: set[tuple[str, int]]):
     return out
 
 
+def _team_closed_sales_order_ids(team_slug: str) -> set[int]:
+    """Đơn mà tổ này đã bấm Hoàn thành — chuyển sang tab Đã hoàn thành."""
+    from san_xuat.hub_models import SxProductionOrder, SxTeamWorkClose
+    from san_xuat.services.team_division_map import team_slug_aliases
+
+    slug = (team_slug or '').strip().lower()
+    if not slug:
+        return set()
+    mo_ids = SxTeamWorkClose.objects.filter(
+        team_slug__in=team_slug_aliases(slug),
+        is_demo=False,
+    ).values_list('production_order_id', flat=True)
+    return set(
+        SxProductionOrder.objects.filter(
+            pk__in=mo_ids,
+            is_demo=False,
+            sales_order_id__isnull=False,
+        ).exclude(
+            status=SxProductionOrder.STATUS_CANCELLED,
+        ).values_list('sales_order_id', flat=True)
+    )
+
+
 def _team_plan_hits(team_slug: str) -> list[tuple[date, int, str]]:
     """(ngày, id đơn, trạng thái) của đơn được gán cho đúng tổ này.
 
@@ -901,7 +924,13 @@ def _team_plan_hits(team_slug: str) -> list[tuple[date, int, str]]:
     for team, day, oid, status, _qty in _route_span_fallbacks(_team_columns(), covered=covered):
         if team == slug:
             hits.append((day, oid, status))
-    return hits
+    closed_orders = _team_closed_sales_order_ids(slug)
+    if not closed_orders:
+        return hits
+    return [
+        (day, oid, 'done' if status == 'open' and oid in closed_orders else status)
+        for day, oid, status in hits
+    ]
 
 
 def unfinished_sheet_bounds(today: date, team_slug: str) -> tuple[date, date]:
