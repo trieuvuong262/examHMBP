@@ -4,7 +4,7 @@
 {% block title %}Caro — Just Play Portal{% endblock %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/gomoku.css' %}?v=20261018a">
+<link rel="stylesheet" href="{% static 'css/gomoku.css' %}?v=20261019f">
 {% endblock %}
 
 {% block content %}
@@ -12,7 +12,7 @@
     <div class="jp-page-header gomoku-page-head mb-3" id="gomoku-page-head">
         <div class="jp-page-header-main">
             <h2 class="jp-page-title fw-bold">Caro</h2>
-            <p class="jp-page-subtitle mb-0">Tạo phòng mới hoặc nhập mã 4 số để vào bàn.</p>
+            <p class="jp-page-subtitle mb-0">Tạo phòng công khai để mọi người vào, hoặc phòng bí mật bằng mã 4 số.</p>
         </div>
     </div>
     <div class="row g-3 align-items-start">
@@ -21,17 +21,25 @@
                 <div id="gomoku-lobby" class="gomoku-lobby">
                         <article class="gomoku-lobby-card">
                             <h3>Tạo phòng</h3>
-                            <p>Bạn cầm quân đen và đi trước. Mỗi lượt có 60 giây.</p>
-                            <button type="button" class="btn btn-hm" id="gomoku-create">Tạo phòng</button>
+                            <p>Bạn cầm quân X và đi trước. Mỗi lượt có 60 giây.</p>
+                            <div class="gomoku-create-row">
+                                <button type="button" class="btn btn-hm" id="gomoku-create-public">Công khai</button>
+                                <button type="button" class="btn btn-outline-hm" id="gomoku-create-private">Bí mật</button>
+                            </div>
                         </article>
                         <article class="gomoku-lobby-card">
-                            <h3>Vào phòng</h3>
+                            <h3>Vào phòng bí mật</h3>
                             <p>Nhập mã 4 số do chủ phòng gửi.</p>
                             <div class="gomoku-join-row">
                                 <input id="gomoku-code" class="form-control gomoku-code-input" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="1234" aria-label="Mã phòng">
                                 <button type="button" class="btn btn-outline-hm" id="gomoku-join">Vào</button>
                             </div>
                         </article>
+                        <section class="gomoku-public-block">
+                            <h3>Danh sách phòng</h3>
+                            <div class="gomoku-public-list" id="gomoku-public-list"></div>
+                            <p class="gomoku-empty d-none" id="gomoku-public-empty">Chưa có phòng nào đang chờ.</p>
+                        </section>
                         <section class="gomoku-rules-block">
                             <h3>Luật chơi</h3>
                             {% include 'utilities/includes/gomoku_rules.html' %}
@@ -53,22 +61,6 @@
                                 <div class="gomoku-board" id="gomoku-board" role="grid" aria-label="Bàn cờ caro 15 nhân 15"></div>
                                 <div class="gomoku-turn" id="gomoku-turn-label">Đang chờ</div>
                             </div>
-                            <button type="button" class="gomoku-expand" id="gomoku-expand" aria-label="Phóng to màn hình" aria-pressed="false" title="Phóng to">
-                                <svg class="gomoku-expand-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                    <g class="gomoku-expand-enter" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M9 3H3v6"></path>
-                                        <path d="M15 3h6v6"></path>
-                                        <path d="M21 15v6h-6"></path>
-                                        <path d="M3 15v6h6"></path>
-                                    </g>
-                                    <g class="gomoku-expand-leave" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M9 4v5H4"></path>
-                                        <path d="M15 4v5h5"></path>
-                                        <path d="M20 15h-5v5"></path>
-                                        <path d="M4 15h5v5"></path>
-                                    </g>
-                                </svg>
-                            </button>
                         </div>
                     </div>
                     <div class="gomoku-actions" id="gomoku-actions"></div>
@@ -170,5 +162,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{% static 'js/gomoku.js' %}?v=20261018a"></script>
+<script src="{% static 'js/gomoku.js' %}?v=20261019f"></script>
 {% endblock %}

@@ -592,6 +592,7 @@ class GomokuRoom(models.Model):
         db_index=True,
         verbose_name='Trạng thái',
     )
+    is_public = models.BooleanField(default=False, verbose_name='Phòng công khai')
     board = models.JSONField(default=gomoku_empty_board, verbose_name='Bàn cờ')
     host_color = models.CharField(
         max_length=8,

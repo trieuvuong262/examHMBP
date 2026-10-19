@@ -13,6 +13,8 @@ from utilities.gomoku import (
     GomokuError,
     create_room,
     history_for,
+    join_public_room,
+    public_rooms,
     join_room,
     leaderboard,
     leave_room,
@@ -67,6 +69,7 @@ def gomoku_home(request):
         'serverNow': state['server_now'],
         'leaderboard': leaderboard(request.user),
         'history': history_for(request.user),
+        'public_rooms': public_rooms(request.user),
         'urls': {
             'state': reverse('utilities:gomoku_state'),
             'lists': reverse('utilities:gomoku_lists'),
@@ -106,8 +109,8 @@ def gomoku_lists(request):
 @require_POST
 @module_perm_required(MODULE_UTILITIES, 'view')
 def gomoku_create(request):
-    def _run(user, _data):
-        create_room(user)
+    def _run(user, data):
+        create_room(user, public=data.get('visibility') == 'public')
 
     return _act(request, _run)
 
@@ -117,7 +120,10 @@ def gomoku_create(request):
 @module_perm_required(MODULE_UTILITIES, 'view')
 def gomoku_join(request):
     def _run(user, data):
-        join_room(user, data.get('code', ''))
+        if data.get('room_id') is not None:
+            join_public_room(user, data.get('room_id'))
+        else:
+            join_room(user, data.get('code', ''))
 
     return _act(request, _run)
 

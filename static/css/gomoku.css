@@ -2,7 +2,7 @@
     --gomoku-wood-line: #6a4324;
     --gomoku-ink: #141414;
     --gomoku-side-l: 4.35rem;
-    --gomoku-side-r: 2.75rem;
+    --gomoku-side-r: 4.35rem;
     --gomoku-play-gap: 0.55rem;
     --gomoku-board-max: 640px;
 }
@@ -38,8 +38,20 @@
 }
 
 .gomoku-lobby-card > .btn,
-.gomoku-join-row {
+.gomoku-join-row,
+.gomoku-create-row {
     margin-top: auto;
+}
+
+.gomoku-create-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+}
+
+.gomoku-create-row .btn {
+    width: 100%;
+    min-height: 2.75rem;
 }
 
 .gomoku-lobby-card > .btn,
@@ -88,8 +100,56 @@
 }
 
 .gomoku-rules-card,
-.gomoku-rules-block {
+.gomoku-rules-block,
+.gomoku-public-block {
     grid-column: 1 / -1;
+}
+
+.gomoku-public-block h3 {
+    margin: 0 0 0.65rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.gomoku-public-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.gomoku-public-room {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid var(--jp-surface-border);
+    border-radius: 12px;
+    background: var(--jp-surface-bg);
+}
+
+.gomoku-public-meta {
+    flex: 1;
+    min-width: 0;
+}
+
+.gomoku-public-meta strong {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--jp-text-primary);
+}
+
+.gomoku-public-meta span {
+    color: var(--jp-text-muted);
+    font-size: 0.78rem;
+}
+
+.gomoku-public-room .btn {
+    margin-left: auto;
+    flex: 0 0 auto;
+    min-height: 2.4rem;
 }
 
 .gomoku-rules-block {
@@ -231,48 +291,6 @@
     min-width: 0;
 }
 
-.gomoku-expand {
-    flex: 0 0 auto;
-    width: 2.75rem;
-    height: 2.75rem;
-    display: grid;
-    place-items: center;
-    padding: 0;
-    border: 1px solid var(--jp-surface-border);
-    border-radius: 12px;
-    background: var(--jp-surface-bg);
-    color: var(--jp-text-primary);
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
-    font-size: 1.15rem;
-    line-height: 1;
-}
-
-.gomoku-expand:hover,
-.gomoku-expand:focus-visible {
-    background: var(--jp-surface-muted);
-    color: var(--jp-text-primary);
-    outline: 2px solid rgba(220, 38, 38, 0.35);
-    outline-offset: 2px;
-}
-
-.gomoku-expand-icon {
-    width: 1.15rem;
-    height: 1.15rem;
-    display: block;
-}
-
-.gomoku-expand-leave {
-    display: none;
-}
-
-.gomoku-page.is-expanded .gomoku-expand-enter {
-    display: none;
-}
-
-.gomoku-page.is-expanded .gomoku-expand-leave {
-    display: block;
-}
-
 .gomoku-timer {
     flex: 0 0 auto;
     display: flex;
@@ -364,19 +382,16 @@
 .gomoku-stone-icon {
     width: 1.7rem;
     height: 1.7rem;
-    border-radius: 50%;
+    display: grid;
+    place-items: center;
     flex: 0 0 auto;
+    font-weight: 800;
+    font-size: 1.15rem;
+    line-height: 1;
 }
 
-.gomoku-stone-icon.black {
-    background: radial-gradient(circle at 35% 32%, #666, #111 64%);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.28);
-}
-
-.gomoku-stone-icon.white {
-    background: radial-gradient(circle at 35% 32%, #fff, #dedede 72%);
-    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22), 0 2px 4px rgba(0, 0, 0, 0.12);
-}
+.gomoku-stone-icon.black::after { content: "X"; color: #dc2626; }
+.gomoku-stone-icon.white::after { content: "O"; color: #1d4ed8; }
 
 .gomoku-banner {
     margin-bottom: 0.85rem;
@@ -437,6 +452,7 @@
 
 .gomoku-cell {
     position: relative;
+    container-type: size;
     border: 0;
     padding: 0;
     margin: 0;
@@ -502,24 +518,27 @@
 .gomoku-stone,
 .gomoku-ghost {
     position: absolute;
-    border-radius: 50%;
     z-index: 1;
+    display: grid;
+    place-items: center;
+    font-weight: 800;
+    line-height: 0.85;
+    font-family: "Segoe UI", Arial, sans-serif;
     pointer-events: none;
+    user-select: none;
 }
 
 .gomoku-stone {
-    inset: 11%;
-    box-shadow: 0 2px 3px rgba(0, 0, 0, 0.28);
+    inset: 2%;
+    font-size: 78cqmin;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
 }
 
-.gomoku-stone.black {
-    background: radial-gradient(circle at 34% 30%, #6a6a6a, #1a1a1a 42%, #050505 78%);
-}
+.gomoku-stone.is-x,
+.gomoku-ghost.is-x { color: #dc2626; }
 
-.gomoku-stone.white {
-    background: radial-gradient(circle at 34% 30%, #fff, #f4f4f4 40%, #cfcfcf 80%);
-    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18), 0 2px 3px rgba(0, 0, 0, 0.2);
-}
+.gomoku-stone.is-o,
+.gomoku-ghost.is-o { color: #1d4ed8; }
 
 .gomoku-stone.is-new {
     animation: gomoku-drop 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -528,19 +547,19 @@
 .gomoku-cell.last .gomoku-stone::after {
     content: "";
     position: absolute;
-    width: 24%;
-    height: 24%;
-    left: 38%;
-    top: 38%;
-    border-radius: 50%;
-    background: #dc2626;
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35);
+    width: 18%;
+    height: 18%;
+    right: 2%;
+    top: 2%;
+    border-radius: 2px;
+    background: #111;
+    box-shadow: 0 0 0 1px #fff;
 }
 
 .gomoku-cell.win .gomoku-stone {
-    box-shadow:
-        0 0 0 3px #f5c451,
-        0 0 12px rgba(245, 196, 81, 0.95);
+    background: rgba(245, 196, 81, 0.55);
+    border-radius: 4px;
+    box-shadow: 0 0 0 2px #f5c451, 0 0 10px rgba(245, 196, 81, 0.9);
 }
 
 .gomoku-cell.win::before,
@@ -549,7 +568,8 @@
 }
 
 .gomoku-ghost {
-    inset: 16%;
+    inset: 2%;
+    font-size: 78cqmin;
     opacity: 0;
     transition: opacity 0.12s ease;
 }
@@ -565,11 +585,6 @@
     }
 }
 
-.gomoku-ghost.black { background: #111; }
-.gomoku-ghost.white {
-    background: #fff;
-    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.28);
-}
 
 .gomoku-popup {
     position: fixed;
@@ -657,6 +672,10 @@
 .gomoku-popup.is-ask-rematch .gomoku-popup-mark { background: var(--hm-primary); }
 .gomoku-popup.is-ask-resign .gomoku-popup-mark { background: #b91c1c; }
 .gomoku-popup.is-ask-undo .gomoku-popup-mark { background: #b45309; }
+.gomoku-popup.is-ask-declined .gomoku-popup-mark { background: #64748b; }
+
+.gomoku-popup-actions button[hidden] { display: none !important; }
+.gomoku-popup-actions:has(> button[hidden]) { grid-template-columns: 1fr; }
 
 .gomoku-popup-later[hidden] { display: none !important; }
 
@@ -1005,10 +1024,14 @@
         --gomoku-side-l: 0;
         --gomoku-side-r: 0;
         --gomoku-play-gap: 0.35rem;
-        --gomoku-board-max: calc(100dvh - var(--jp-topbar-h) - 21.6rem);
+        --gomoku-board-max: min(100%, calc(100dvh - var(--jp-topbar-h) - 16.5rem));
         max-width: none;
         margin-bottom: 0 !important;
-        padding: 0.3rem 0.3rem max(0.4rem, env(safe-area-inset-bottom)) !important;
+        padding:
+            0.2rem
+            max(0.15rem, env(safe-area-inset-right))
+            max(0.4rem, env(safe-area-inset-bottom))
+            max(0.15rem, env(safe-area-inset-left)) !important;
     }
 
     .gomoku-page.is-match .row {
@@ -1025,6 +1048,10 @@
     .gomoku-page.is-match .gomoku-aside {
         order: -1;
         width: 100%;
+    }
+
+    .gomoku-page.is-match .gomoku-aside:not(:has(#gomoku-room-card:not(.d-none))) {
+        display: none;
     }
 
     .gomoku-page.is-match .gomoku-room-card {
@@ -1057,26 +1084,28 @@
     }
 
     .gomoku-page.is-match .gomoku-play,
-    .gomoku-page.is-match .gomoku-actions {
+    .gomoku-page.is-match .gomoku-actions,
+    .gomoku-page.is-match .gomoku-chat {
         width: min(100%, var(--gomoku-board-max));
         margin-inline: auto;
     }
 
     .gomoku-page.is-match .gomoku-play {
-        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-columns: minmax(0, 1fr);
         grid-template-areas:
-            "clock . expand"
-            "board board board";
+            "clock"
+            "board";
         row-gap: 0.28rem;
         align-items: center;
     }
 
-    .gomoku-page.is-match .gomoku-timer { grid-area: clock; }
-    .gomoku-page.is-match .gomoku-expand { grid-area: expand; justify-self: end; }
-    .gomoku-page.is-match .gomoku-board-frame { grid-area: board; }
+    .gomoku-page.is-match .gomoku-timer { grid-area: clock; justify-self: start; }
+    .gomoku-page.is-match .gomoku-board-frame { grid-area: board; width: 100%; }
 
     .gomoku-page.is-match .gomoku-actions {
         grid-template-columns: minmax(0, 1fr);
+        position: static;
+        margin-top: 0.35rem;
     }
 
     .gomoku-page.is-match .gomoku-actions > * {
@@ -1109,12 +1138,6 @@
         font-size: 0.68rem;
         line-height: 1.15;
         overflow-wrap: anywhere;
-    }
-
-    .gomoku-expand {
-        width: 2.35rem;
-        height: 2.35rem;
-        font-size: 1rem;
     }
 
     .gomoku-page.is-match .gomoku-code span {
@@ -1154,17 +1177,12 @@
         margin-bottom: 0.3rem;
     }
 
-    .gomoku-page.is-match .gomoku-chat-log {
-        height: 5.5rem;
+    .gomoku-page.is-match .gomoku-chat {
+        margin-top: 0.4rem;
     }
 
-    .gomoku-actions {
-        position: sticky;
-        bottom: max(0.2rem, env(safe-area-inset-bottom));
-        z-index: 6;
-        margin-top: 0.35rem;
-        padding: 0;
-        background: transparent;
+    .gomoku-page.is-match .gomoku-chat-log {
+        height: 4.75rem;
     }
 
     .gomoku-code-input {
@@ -1175,60 +1193,16 @@
 
 @media (max-width: 991.98px) and (max-height: 520px) {
     .gomoku-page.is-match .gomoku-seats,
-    .gomoku-page.is-match .gomoku-room-card,
-    .gomoku-page.is-match .gomoku-chat {
+    .gomoku-page.is-match .gomoku-room-card {
         display: none;
     }
 
-    .gomoku-page.is-match {
-        --gomoku-board-max: calc(100dvh - var(--jp-topbar-h) - 9.25rem);
+    .gomoku-page.is-match .gomoku-chat-log {
+        height: 3.25rem;
     }
-}
 
-.gomoku-page.is-expanded .gomoku-stage {
-    position: fixed;
-    inset: 0;
-    z-index: 2100;
-    width: 100%;
-    height: 100%;
-    max-width: none;
-    margin: 0;
-    border: 0;
-    border-radius: 0;
-    box-shadow: none;
-    overflow: auto;
-    display: flex;
-    flex-direction: column;
-    justify-content: safe center;
-    padding:
-        max(0.55rem, env(safe-area-inset-top))
-        max(0.5rem, env(safe-area-inset-right))
-        max(0.7rem, env(safe-area-inset-bottom))
-        max(0.5rem, env(safe-area-inset-left));
-    background: var(--jp-surface-bg);
-}
-
-.gomoku-page.is-expanded .gomoku-match {
-    width: min(1100px, 100%);
-    margin-inline: auto;
-}
-
-.gomoku-page.is-expanded {
-    --gomoku-board-max: min(860px, calc(100dvh - 12rem));
-}
-
-.gomoku-stage:fullscreen,
-.gomoku-stage:-webkit-full-screen {
-    background: var(--jp-surface-bg);
-}
-
-body:has(.gomoku-page.is-expanded) {
-    overflow: hidden;
-}
-
-@media (max-width: 991.98px) {
-    .gomoku-page.is-expanded {
-        --gomoku-board-max: min(640px, calc(100dvh - 13rem));
+    .gomoku-page.is-match {
+        --gomoku-board-max: min(100%, calc(100dvh - var(--jp-topbar-h) - 12.5rem));
     }
 }
 

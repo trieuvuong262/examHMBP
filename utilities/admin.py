@@ -188,8 +188,8 @@ class GomokuStatsAdmin(admin.ModelAdmin):
 
 @admin.register(GomokuRoom)
 class GomokuRoomAdmin(admin.ModelAdmin):
-    list_display = ('code', 'host', 'guest', 'status', 'turn', 'move_count', 'created_at')
-    list_filter = ('status',)
+    list_display = ('code', 'host', 'guest', 'status', 'is_public', 'turn', 'move_count', 'created_at')
+    list_filter = ('status', 'is_public')
     search_fields = ('code', 'host__username', 'guest__username')
     raw_id_fields = ('host', 'guest', 'draw_offer_by', 'undo_offer_by')
     ordering = ('-created_at',)

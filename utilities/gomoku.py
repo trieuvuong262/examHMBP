@@ -1,7 +1,7 @@
 """Caro online: phòng mã 4 số, lượt 60 giây, Elo K=32.
 
 Bàn 15×15, năm quân liên tiếp là thắng (sáu quân vẫn thắng). Không cấm nước.
-Ván đầu chủ phòng cầm đen. Chơi lại thì đổi màu.
+Ván đầu chủ phòng cầm X. Chơi lại thì đổi quân.
 """
 
 from __future__ import annotations
@@ -302,7 +302,7 @@ def _mutate(user, fn, now=None):
         return fn(now)
 
 
-def create_room(user, now=None) -> GomokuRoom:
+def create_room(user, *, public: bool = False, now=None) -> GomokuRoom:
     def _create(now):
         if _open_rooms(user).exists():
             raise GomokuError('Bạn đang ở một phòng. Hãy rời phòng trước khi tạo phòng mới.')
@@ -311,7 +311,7 @@ def create_room(user, now=None) -> GomokuRoom:
             code = f'{secrets.randbelow(10000):04d}'
             try:
                 with transaction.atomic():
-                    return GomokuRoom.objects.create(code=code, host=user)
+                    return GomokuRoom.objects.create(code=code, host=user, is_public=bool(public))
             except IntegrityError:
                 continue
         raise GomokuError('Không tạo được mã phòng. Thử lại.')
@@ -342,6 +342,40 @@ def join_room(user, code: str, now=None) -> GomokuRoom:
         _apply_clock(room, now)
         if room.status == GomokuRoom.STATUS_CLOSED:
             raise GomokuError('Phòng đã hết hạn.')
+        if room.status != GomokuRoom.STATUS_WAITING or room.guest_id:
+            raise GomokuError('Phòng không còn chờ người.')
+        room.guest = user
+        _begin_round(room, swap=False, now=now)
+        room.save()
+        return room
+
+    return _mutate(user, _join, now)
+
+
+def join_public_room(user, room_id, now=None) -> GomokuRoom:
+    if isinstance(room_id, bool) or not isinstance(room_id, int):
+        raise GomokuError('Phòng không hợp lệ.')
+
+    def _join(now):
+        if _open_rooms(user).exists():
+            raise GomokuError('Bạn đang ở một phòng. Hãy rời phòng trước khi vào phòng khác.')
+        expire_waiting_rooms(now)
+        room = (
+            GomokuRoom.objects.select_for_update(of=('self',))
+            .select_related('host__profile', 'guest__profile')
+            .filter(
+                pk=room_id,
+                is_public=True,
+                status=GomokuRoom.STATUS_WAITING,
+                guest__isnull=True,
+            )
+            .first()
+        )
+        if room is None:
+            raise GomokuError('Phòng không còn trống.')
+        if room.host_id == user.pk:
+            raise GomokuError('Đây là phòng của bạn.')
+        _apply_clock(room, now)
         if room.status != GomokuRoom.STATUS_WAITING or room.guest_id:
             raise GomokuError('Phòng không còn chờ người.')
         room.guest = user
@@ -725,6 +759,7 @@ def room_payload(room: GomokuRoom | None, user, now=None) -> dict | None:
         waiting_left = _seconds_left(room.created_at + timedelta(seconds=WAITING_SECONDS), now)
     return {
         'code': room.code,
+        'is_public': room.is_public,
         'status': room.status,
         'board': room.board,
         'your_color': color,
@@ -759,9 +794,36 @@ def state_for(user, now=None) -> dict:
     }
 
 
+def public_rooms(user, now=None) -> list[dict]:
+    now = _now(now)
+    expire_waiting_rooms(now)
+    cutoff = now - timedelta(seconds=WAITING_SECONDS)
+    rows = (
+        GomokuRoom.objects.filter(
+            is_public=True,
+            status=GomokuRoom.STATUS_WAITING,
+            guest__isnull=True,
+            created_at__gt=cutoff,
+        )
+        .exclude(host=user)
+        .select_related('host__profile')
+        .order_by('created_at')[:40]
+    )
+    return [
+        {
+            'id': room.id,
+            'host': display_name(room.host),
+            'avatar_url': avatar_url(room.host),
+            'initial': name_initial(room.host),
+        }
+        for room in rows
+    ]
+
+
 def lists_for(user) -> dict:
     return {
         'me': stats_for(user),
         'leaderboard': leaderboard(user),
         'history': history_for(user),
+        'public_rooms': public_rooms(user),
     }
