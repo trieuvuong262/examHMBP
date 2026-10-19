@@ -251,6 +251,12 @@
         return btn;
     }
 
+    function endsBlocked(board, row, col, stone) {
+        if (row < 0 || col < 0 || row >= SIZE || col >= SIZE) return true;
+        var other = board[row][col];
+        return other !== 0 && other !== stone;
+    }
+
     function winningMarks(board, last) {
         var marks = {};
         if (!last || !board[last[0]]) return marks;
@@ -261,6 +267,7 @@
         var dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
         dirs.forEach(function (dir) {
             var cells = [[row, col]];
+            var ends = [];
             [1, -1].forEach(function (sign) {
                 var r = row + dir[0] * sign;
                 var c = col + dir[1] * sign;
@@ -269,8 +276,11 @@
                     r += dir[0] * sign;
                     c += dir[1] * sign;
                 }
+                ends.push([r, c]);
             });
-            if (cells.length >= 5) {
+            var blocked = endsBlocked(board, ends[0][0], ends[0][1], stone)
+                && endsBlocked(board, ends[1][0], ends[1][1], stone);
+            if (cells.length > 5 || (cells.length === 5 && !blocked)) {
                 cells.forEach(function (cell) {
                     marks[cell[0] + ',' + cell[1]] = 1;
                 });

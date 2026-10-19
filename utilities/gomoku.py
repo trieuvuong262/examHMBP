@@ -1,6 +1,7 @@
 """Caro online: phòng mã 4 số, lượt 60 giây, Elo K=32.
 
-Bàn 15×15, năm quân liên tiếp là thắng (sáu quân vẫn thắng). Không cấm nước.
+Bàn 15×15. Năm quân liên tiếp thắng nếu chưa bị chặn cả hai đầu.
+Sáu quân trở lên vẫn thắng. Không cấm nước.
 Ván đầu chủ phòng cầm X. Chơi lại thì đổi quân.
 """
 
@@ -88,14 +89,27 @@ def color_for_stone(stone: int) -> str:
     return GomokuRoom.COLOR_BLACK if stone == STONE_BLACK else GomokuRoom.COLOR_WHITE
 
 
+def _end_blocked(board, row: int, col: int, stone: int) -> bool:
+    """Đầu dãy bị chặn khi sát quân đối phương hoặc sát mép bàn."""
+    size = len(board)
+    if row < 0 or col < 0 or row >= size or col >= len(board[row]):
+        return True
+    other = board[row][col]
+    return other != 0 and other != stone
+
+
 def has_five(board, row: int, col: int) -> bool:
-    """Quân vừa đánh tạo ít nhất một dãy 5 liên tiếp."""
+    """Quân vừa đánh tạo dãy thắng.
+
+    Đúng 5 quân bị chặn cả hai đầu thì chưa thắng. Sáu quân trở lên vẫn thắng.
+    """
     stone = board[row][col]
     if stone not in (STONE_BLACK, STONE_WHITE):
         return False
     size = len(board)
     for dr, dc in _DIRECTIONS:
         count = 1
+        ends = []
         for sign in (1, -1):
             r = row + dr * sign
             c = col + dc * sign
@@ -103,7 +117,10 @@ def has_five(board, row: int, col: int) -> bool:
                 count += 1
                 r += dr * sign
                 c += dc * sign
-        if count >= WIN_LENGTH:
+            ends.append((r, c))
+        if count > WIN_LENGTH:
+            return True
+        if count == WIN_LENGTH and not all(_end_blocked(board, r, c, stone) for r, c in ends):
             return True
     return False
 
@@ -116,6 +133,13 @@ def elo_change(player_elo: int, opponent_elo: int, score: float) -> int:
     """score: 1 thắng, 0.5 hòa, 0 thua."""
     expected = 1 / (1 + 10 ** ((opponent_elo - player_elo) / 400))
     return int(round(ELO_K * (score - expected)))
+
+
+def half_loss(delta: int) -> int:
+    """Đầu hàng chỉ chịu một nửa số điểm bị trừ. Điểm tăng giữ nguyên."""
+    if delta >= 0:
+        return delta
+    return -(abs(delta) // 2)
 
 
 def user_color(room: GomokuRoom, user) -> str | None:
@@ -236,8 +260,15 @@ def _finish(room: GomokuRoom, *, result: str, reason: str, now) -> GomokuGame:
         black_stats.losses += 1
     black_before = black_stats.elo
     white_before = white_stats.elo
-    black_stats.elo = max(0, black_before + elo_change(black_before, white_before, score_black))
-    white_stats.elo = max(0, white_before + elo_change(white_before, black_before, 1 - score_black))
+    black_delta = elo_change(black_before, white_before, score_black)
+    white_delta = elo_change(white_before, black_before, 1 - score_black)
+    if reason == GomokuGame.REASON_RESIGN:
+        if result == GomokuGame.RESULT_WHITE:
+            black_delta = half_loss(black_delta)
+        elif result == GomokuGame.RESULT_BLACK:
+            white_delta = half_loss(white_delta)
+    black_stats.elo = max(0, black_before + black_delta)
+    white_stats.elo = max(0, white_before + white_delta)
     black_stats.save(update_fields=['wins', 'losses', 'draws', 'elo', 'updated_at'])
     white_stats.save(update_fields=['wins', 'losses', 'draws', 'elo', 'updated_at'])
     game = GomokuGame.objects.create(
