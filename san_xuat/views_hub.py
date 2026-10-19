@@ -6809,6 +6809,12 @@ def team_work_progress(request, slug: str, mo_id: int):
         set_progress_done_qty,
         set_team_total_done_qty,
     )
+    if request.method == 'POST':
+        from hrm.request_cache import begin, is_active
+
+        # Tra bộ phận HR lặp rất nhiều khi ghi SL. Cache chỉ sống trong request này.
+        if not is_active():
+            begin(enabled=True)
     from san_xuat.services.planning import PlanningError
     from san_xuat.services.progress_template import team_by_slug
     from san_xuat.services.team_work import (
@@ -6992,7 +6998,7 @@ def team_work_progress(request, slug: str, mo_id: int):
             except PlanningError as exc:
                 messages.error(request, str(exc))
             return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
-        if action in ('record', 'set_done', 'set_total', 'set_day', 'set_note'):
+        if action in ('record', 'set_done', 'set_total', 'set_day', 'set_day_sheet', 'set_note'):
             if not accepted:
                 try:
                     mo = accept_production(mo_id=mo.pk, team_slug=slug, user=request.user)
@@ -7011,7 +7017,7 @@ def team_work_progress(request, slug: str, mo_id: int):
             from django.utils.dateparse import parse_date
 
             stat_date = None
-            if action in ('set_day', 'set_note'):
+            if action in ('set_day', 'set_day_sheet', 'set_note'):
                 try:
                     stat_date = parse_date((request.POST.get('stat_date') or '').strip())
                 except ValueError:
@@ -7040,6 +7046,107 @@ def team_work_progress(request, slug: str, mo_id: int):
                 if wants_json:
                     return JsonResponse({'ok': True, 'notes': note})
                 return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
+            if action == 'set_day_sheet':
+                import json as _json
+
+                from san_xuat.hub_models import SxTeamWorkDayNote
+                from san_xuat.services.order_progress_sheet import set_team_day_qtys, team_size_rollups
+                from san_xuat.services.team_progress_log import log_day_change, log_to_dict
+
+                try:
+                    payload = _json.loads(request.POST.get('sizes') or '[]')
+                except (TypeError, ValueError):
+                    payload = None
+                if not isinstance(payload, list):
+                    msg = 'Danh sách size không hợp lệ.'
+                    if wants_json:
+                        return JsonResponse({'ok': False, 'error': msg}, status=400)
+                    messages.error(request, msg)
+                    return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
+                size_qtys: list[tuple[str, Decimal]] = []
+                for item in payload:
+                    if not isinstance(item, dict):
+                        continue
+                    label = str(item.get('size') or '').strip()
+                    try:
+                        item_qty = Decimal(str(item.get('qty') or '0').replace(',', '').strip() or '0')
+                    except (InvalidOperation, ValueError):
+                        item_qty = Decimal('0')
+                    size_qtys.append((label, item_qty))
+                if size_qtys and not team_steps:
+                    msg = 'Đơn chưa có công đoạn của tổ này.'
+                    if wants_json:
+                        return JsonResponse({'ok': False, 'error': msg}, status=400)
+                    messages.error(request, msg)
+                    return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
+                try:
+                    written = (
+                        set_team_day_qtys(
+                            mo_id=mo.pk,
+                            process_keys=[s.key for s in team_steps],
+                            size_qtys=size_qtys,
+                            user=request.user,
+                            team_slug=slug,
+                            stat_date=stat_date,
+                        )
+                        if size_qtys else []
+                    )
+                except PlanningError as exc:
+                    if wants_json:
+                        return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
+                    messages.error(request, str(exc))
+                    return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
+                except Exception as exc:
+                    if wants_json:
+                        return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
+                    messages.error(request, str(exc))
+                    return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
+                rollups = (
+                    team_size_rollups(mo, steps=team_steps, team=team_meta) if written else {}
+                )
+                sizes_out = []
+                for row in written:
+                    info = rollups.get(row['size']) or {}
+                    day_log = None
+                    if row['changed']:
+                        logged = log_day_change(
+                            mo=mo,
+                            team_slug=slug,
+                            work_date=stat_date,
+                            size_label=row['size'],
+                            old_qty=Decimal(str(row.get('old') or 0)),
+                            new_qty=Decimal(str(row['done'] or 0)),
+                            user=request.user,
+                        )
+                        day_log = log_to_dict(logged) if logged else None
+                    sizes_out.append({
+                        'size': row['size'],
+                        'day_done': str(row['done'] or 0),
+                        'size_done': str(info.get('done') or 0),
+                        'size_pct': str(info.get('pct') or 0),
+                        'size_remain': str(info.get('remain') or 0),
+                        'log': day_log,
+                    })
+                saved_note = None
+                if request.POST.get('save_note') == '1':
+                    saved_note = (request.POST.get('notes') or '').strip()[:500]
+                    if saved_note:
+                        SxTeamWorkDayNote.objects.update_or_create(
+                            production_order=mo,
+                            team_slug=slug,
+                            note_date=stat_date,
+                            defaults={'notes': saved_note, 'created_by': request.user},
+                        )
+                    else:
+                        SxTeamWorkDayNote.objects.filter(
+                            production_order=mo, team_slug=slug, note_date=stat_date,
+                        ).delete()
+                if wants_json:
+                    body = {'ok': True, 'sizes': sizes_out}
+                    if saved_note is not None:
+                        body['notes'] = saved_note
+                    return JsonResponse(body)
+                return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
             process_key = (request.POST.get('process_key') or '').strip()
             size_label = (request.POST.get('size_label') or '').strip()
             try:
@@ -7052,13 +7159,6 @@ def team_work_progress(request, slug: str, mo_id: int):
                     return JsonResponse({'ok': False, 'error': msg}, status=400)
                 messages.error(request, msg)
                 return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
-            old_day_qty = None
-            if action == 'set_day':
-                from san_xuat.services.order_progress_sheet import team_day_qty
-
-                old_day_qty = team_day_qty(
-                    build_progress_sheet(mo, team=team_meta), steps=team_steps, day=stat_date,
-                ).get(size_label, Decimal('0'))
             try:
                 if action in ('set_total', 'set_day'):
                     result = set_team_total_done_qty(
@@ -7098,36 +7198,31 @@ def team_work_progress(request, slug: str, mo_id: int):
                     team_slug=slug,
                     work_date=stat_date,
                     size_label=size_label,
-                    old_qty=old_day_qty,
+                    old_qty=Decimal(str(result.get('old') or 0)),
                     new_qty=Decimal(str(result['done'] or 0)),
                     user=request.user,
                 )
                 day_log = log_to_dict(day_log) if day_log else None
             if wants_json and action == 'set_day':
-                size_row = next(
-                    (
-                        r for r in build_progress_sheet(mo, team=team_meta).done_rows
-                        if r['size_label'] == size_label
-                    ),
-                    None,
-                ) or {}
+                from san_xuat.services.order_progress_sheet import team_size_rollups
+
+                info = team_size_rollups(mo, steps=team_steps, team=team_meta).get(size_label) or {}
                 return JsonResponse({
                     'ok': True,
                     'changed': result['changed'],
                     'day_done': str(result['done'] or 0),
-                    'size_done': str(size_row.get('total_done') or 0),
-                    'size_pct': str(size_row.get('total_pct') or 0),
-                    'size_remain': str(size_row.get('total_remain') or 0),
+                    'size_done': str(info.get('done') or 0),
+                    'size_pct': str(info.get('pct') or 0),
+                    'size_remain': str(info.get('remain') or 0),
                     'log': day_log,
                 })
             if wants_json:
-                plan_qty = Decimal('0')
-                for row in build_progress_sheet(mo, team=team_meta).done_rows:
-                    if row['size_label'] == size_label or (
-                        size_label == 'Tổng' and row['size_label'] == 'Tổng'
-                    ):
-                        plan_qty = Decimal(str(row['qty'] or 0))
-                        break
+                from san_xuat.services.order_progress_sheet import team_size_rollups
+
+                plan_qty = Decimal(str(
+                    (team_size_rollups(mo, steps=team_steps, team=team_meta).get(size_label) or {}).get('plan')
+                    or 0
+                ))
                 done = Decimal(str(result['done'] or 0))
                 remain = plan_qty - done
                 if remain < 0:

@@ -99,6 +99,14 @@ def standard_work_centers_qs():
 
 
 def work_center_map() -> dict[str, SxWorkCenter]:
+    from hrm.request_cache import get_or_set, is_active
+
+    if not is_active():
+        return _work_center_map()
+    return get_or_set(('sx_work_center_map',), _work_center_map)
+
+
+def _work_center_map() -> dict[str, SxWorkCenter]:
     ensure_progress_work_centers()
     codes = {s.work_center_code for s in progress_steps()}
     return {
@@ -204,7 +212,23 @@ def _ob_team_slug_by_label(mo: SxProductionOrder) -> dict[str, str]:
 
 
 def progress_steps_for_mo(mo: SxProductionOrder) -> list[ProgressStepDef]:
-    """Công đoạn phiếu tiến độ = Ob/LSX của lệnh, không lấy catalog mẫu 50 CĐ."""
+    """Công đoạn phiếu tiến độ = Ob/LSX của lệnh, không lấy catalog mẫu 50 CĐ.
+
+    Trong một request đọc (hoặc request ghi đã bật cache), danh sách này không đổi
+    nên chỉ dựng một lần — tránh lặp tra bộ phận HR cho từng công đoạn.
+    """
+    from hrm.request_cache import get_or_set, is_active
+
+    if not getattr(mo, 'pk', None) or not is_active():
+        return _progress_steps_for_mo(mo)
+    cached = get_or_set(
+        ('sx_progress_steps_mo', mo.pk),
+        lambda: tuple(_progress_steps_for_mo(mo)),
+    )
+    return list(cached)
+
+
+def _progress_steps_for_mo(mo: SxProductionOrder) -> list[ProgressStepDef]:
     if 'mo_process_steps' in getattr(mo, '_prefetched_objects_cache', {}):
         source_lines: list = list(mo.mo_process_steps.all())
     else:
@@ -777,6 +801,54 @@ def _team_day_values(sheet: ProgressSheet, keys: list[str]) -> dict[date, list[D
     return per_day
 
 
+def team_size_rollups(
+    mo: SxProductionOrder,
+    *,
+    steps: list[ProgressStepDef],
+    team: dict | None,
+) -> dict[str, dict]:
+    """SL tổ theo size = min các công đoạn của tổ. Một query thống kê, không dựng cả phiếu."""
+    sizes = _size_plans(mo)
+    own_label = team_stat_label(team)
+    qs = SxProductionStat.objects.filter(
+        production_order=mo,
+        is_demo=False,
+        status=SxProductionStat.STATUS_CONFIRMED,
+    )
+    if own_label:
+        qs = qs.filter(team_label__iexact=own_label)
+    label_to_key = {s.label.casefold(): s.key for s in steps}
+    single_total = len(sizes) == 1 and sizes[0].size_label == 'Tổng'
+    acc: dict[tuple[str, str], Decimal] = {}
+    for process_name, size_label, qty in qs.values_list('process_name', 'size_label', 'qty_good'):
+        key = label_to_key.get((process_name or '').strip().casefold())
+        if not key:
+            continue
+        size = (size_label or '').strip()
+        if single_total:
+            size = 'Tổng'
+        elif not size:
+            continue
+        amount = _q(qty)
+        if amount <= 0:
+            continue
+        cell = (size, key)
+        acc[cell] = acc.get(cell, Decimal('0')) + amount
+    out: dict[str, dict] = {}
+    for row in sizes:
+        dones = [acc.get((row.size_label, step.key), Decimal('0')) for step in steps]
+        done = min(dones) if dones else Decimal('0')
+        remain = row.qty - done
+        if remain < 0:
+            remain = Decimal('0')
+        pct = (
+            (done * Decimal('100') / row.qty).quantize(Decimal('0.1'))
+            if row.qty > 0 else Decimal('0')
+        )
+        out[row.size_label] = {'done': done, 'remain': remain, 'pct': pct, 'plan': row.qty}
+    return out
+
+
 def team_day_qty(sheet: ProgressSheet, *, steps: list[ProgressStepDef], day: date) -> dict[str, Decimal]:
     vals = _team_day_values(sheet, [s.key for s in steps]).get(day)
     return {
@@ -1118,6 +1190,212 @@ def set_progress_done_qty(
     return {'done': done, 'changed': True}
 
 
+def _cell_size_key(raw: str) -> str:
+    text = (raw or '').strip()
+    if text.casefold() == 'tổng':
+        return ''
+    return text.casefold()
+
+
+def _alloc_stat_codes(count: int) -> list[str]:
+    """Lấy một dải mã TKSX. Một lần đọc mã trong năm, không quét lại cho từng công đoạn."""
+    if count <= 0:
+        return []
+    from san_xuat.services.sx_settings import sx_prefix
+
+    prefix = sx_prefix('stat', 'TKSX')
+    year = timezone.localdate().year
+    base = f'{prefix}-{year}-'
+    seq = 0
+    taken: set[str] = set()
+    for raw in SxProductionStat.objects.filter(code__startswith=base).values_list('code', flat=True):
+        taken.add(raw)
+        suffix = (raw or '').rsplit('-', 1)[-1]
+        if suffix.isdigit():
+            seq = max(seq, int(suffix))
+    out: list[str] = []
+    while len(out) < count:
+        seq += 1
+        candidate = f'{base}{seq:04d}'
+        if candidate not in taken:
+            taken.add(candidate)
+            out.append(candidate)
+    return out
+
+
+@transaction.atomic
+def set_team_day_qtys(
+    *,
+    mo_id: int,
+    process_keys: list[str],
+    size_qtys: list[tuple[str, Decimal]],
+    user=None,
+    team_slug: str | None = None,
+    stat_date: date | None = None,
+) -> list[dict]:
+    """Đặt SL cho nhiều size, ghi đều mọi công đoạn của tổ, tính lại tiến độ một lần.
+
+    Có ``stat_date``: chỉ sửa ngày đó. Không có: đặt tổng mọi ngày (phần tăng ghi vào hôm nay).
+    """
+    from san_xuat.services.dispatch import _recompute_mo_progress
+    from san_xuat.services.progress_template import team_by_slug
+    from san_xuat.services.sku_catalog import SkuError, resolve_sku_fields
+
+    keys = [key for key in process_keys if key]
+    if not keys:
+        raise PlanningError('Tổ này chưa có công đoạn trên lệnh.')
+    if stat_date and stat_date > timezone.localdate():
+        raise PlanningError('Không ghi tiến độ cho ngày tương lai.')
+
+    mo = SxProductionOrder.objects.select_for_update().get(pk=mo_id, is_demo=False)
+    if mo.status == SxProductionOrder.STATUS_CANCELLED:
+        raise PlanningError('Lệnh sản xuất đã hủy.')
+    if mo.status == SxProductionOrder.STATUS_DRAFT:
+        raise PlanningError('Lệnh sản xuất còn nháp — phát hành trước khi ghi tiến độ.')
+
+    by_key = {step.key: step for step in progress_steps_for_mo(mo)}
+    steps = []
+    for key in keys:
+        step = by_key.get(key)
+        if not step:
+            raise PlanningError('Công đoạn không thuộc lệnh này.')
+        steps.append(step)
+
+    meta = team_by_slug(team_slug) if team_slug else None
+    own_label = team_stat_label(meta) if team_slug else ''
+    shared_label = (meta.get('label') or '').strip() if meta else ''
+    wc_labels: dict[str, str] = {}
+    if not shared_label:
+        centers = work_center_map()
+        for step in steps:
+            wc = centers.get(step.work_center_code)
+            wc_labels[step.key] = (
+                (wc.team_label or wc.name or wc.code or '').strip() if wc else ''
+            )
+
+    def _team_label(step: ProgressStepDef) -> str:
+        return shared_label or wc_labels.get(step.key, '')
+
+    qs = SxProductionStat.objects.filter(
+        production_order=mo,
+        is_demo=False,
+        status=SxProductionStat.STATUS_CONFIRMED,
+    )
+    if own_label:
+        qs = qs.filter(team_label__iexact=own_label)
+    if stat_date:
+        qs = qs.filter(stat_date=stat_date)
+    grouped: dict[tuple[str, str], list[SxProductionStat]] = {}
+    for stat in qs.order_by('-stat_date', '-pk'):
+        grouped.setdefault(
+            ((stat.process_name or '').strip().casefold(), _cell_size_key(stat.size_label)),
+            [],
+        ).append(stat)
+
+    line_by_size: dict[str, SxProductionOrderLine] = {}
+    for ln in SxProductionOrderLine.objects.filter(production_order=mo).order_by('id'):
+        line_by_size.setdefault((ln.size_label or '').strip().casefold(), ln)
+
+    day = stat_date or timezone.localdate()
+    creates: list[tuple[ProgressStepDef, str, Decimal]] = []
+    delete_ids: list[int] = []
+    results: list[dict] = []
+    sku_cache: dict[str, object] = {}
+
+    def _sku(size: str):
+        if size in sku_cache:
+            return sku_cache[size]
+        ln = line_by_size.get(size.casefold())
+        try:
+            resolved = resolve_sku_fields(
+                style_code=mo.product_code,
+                style_name=mo.product_name or '',
+                sku_code='',
+                color_code=(ln.color_code if ln else '') or '',
+                color_label=(ln.color_label if ln else '') or '',
+                size_label=size,
+                user=user,
+                create_if_missing=bool(size),
+            )
+        except SkuError:
+            resolved = None
+        sku_cache[size] = resolved
+        return resolved
+
+    for raw_size, raw_qty in size_qtys:
+        qty = _q(raw_qty)
+        if qty < 0:
+            raise PlanningError('SL không được âm.')
+        size = (raw_size or '').strip()
+        if size == 'Tổng':
+            size = ''
+        size_key = _cell_size_key(size)
+        step_old: list[Decimal] = []
+        changed = False
+        for step in steps:
+            bucket = grouped.get(((step.label or '').strip().casefold(), size_key), [])
+            current = sum((_q(stat.qty_good) for stat in bucket), Decimal('0'))
+            step_old.append(current)
+            if qty == current:
+                continue
+            changed = True
+            if qty > current:
+                creates.append((step, size, qty - current))
+                continue
+            need_cut = current - qty
+            for stat in bucket:
+                if need_cut <= 0:
+                    break
+                good = _q(stat.qty_good)
+                if good <= need_cut:
+                    need_cut -= good
+                    delete_ids.append(stat.pk)
+                    stat.qty_good = Decimal('0')
+                else:
+                    stat.qty_good = good - need_cut
+                    stat.save(update_fields=['qty_good'])
+                    need_cut = Decimal('0')
+        results.append({
+            'size': (raw_size or '').strip(),
+            'done': qty,
+            'old': min(step_old) if step_old else Decimal('0'),
+            'changed': changed,
+        })
+
+    if delete_ids:
+        SxProductionStat.objects.filter(pk__in=delete_ids).delete()
+    if creates:
+        codes = _alloc_stat_codes(len(creates))
+        rows = []
+        for code, (step, size, delta) in zip(codes, creates):
+            resolved = _sku(size)
+            ln = line_by_size.get(size.casefold())
+            color_code = (ln.color_code if ln else '') or ''
+            color_label = (ln.color_label if ln else '') or ''
+            rows.append(SxProductionStat(
+                code=code,
+                production_order=mo,
+                stat_date=day,
+                process_name=step.label,
+                qty_good=delta,
+                qty_defect=Decimal('0'),
+                team_label=_team_label(step),
+                sku=resolved.sku if resolved else None,
+                size_label=size or (resolved.size_label if resolved else '') or '',
+                sku_code=(resolved.sku_code if resolved else '') or '',
+                color_label=(resolved.color_label if resolved else color_label) or '',
+                color_code=(resolved.color_code if resolved else color_code) or '',
+                status=SxProductionStat.STATUS_CONFIRMED,
+                notes='Từ phiếu tiến độ',
+                is_demo=False,
+                created_at=timezone.now(),
+            ))
+        SxProductionStat.objects.bulk_create(rows)
+    if any(row['changed'] for row in results):
+        _recompute_mo_progress(mo)
+    return results
+
+
 @transaction.atomic
 def set_team_total_done_qty(
     *,
@@ -1133,29 +1411,15 @@ def set_team_total_done_qty(
 
     KHSX tính SL tổ theo bộ (min các công đoạn) nên ghi đều mỗi CĐ = SL tổng.
     """
-    from san_xuat.services.dispatch import _recompute_mo_progress
-
-    keys = [k for k in process_keys if k]
-    if not keys:
-        raise PlanningError('Tổ này chưa có công đoạn trên lệnh.')
-    changed = False
-    dones: list[Decimal] = []
-    for key in keys:
-        res = set_progress_done_qty(
-            mo_id=mo_id,
-            process_key=key,
-            size_label=size_label,
-            qty=qty,
-            user=user,
-            team_slug=team_slug,
-            stat_date=stat_date,
-            recompute=False,
-        )
-        changed = changed or bool(res['changed'])
-        dones.append(_q(res['done']))
-    if changed:
-        _recompute_mo_progress(SxProductionOrder.objects.get(pk=mo_id))
-    return {'done': min(dones), 'changed': changed}
+    row = set_team_day_qtys(
+        mo_id=mo_id,
+        process_keys=process_keys,
+        size_qtys=[(size_label, qty)],
+        user=user,
+        team_slug=team_slug,
+        stat_date=stat_date,
+    )[0]
+    return {'done': row['done'], 'changed': row['changed'], 'old': row['old']}
 
 
 def seed_order_plan_steps_from_template(order) -> list:

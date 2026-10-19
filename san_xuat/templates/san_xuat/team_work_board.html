@@ -1318,17 +1318,54 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   function saveSheet() {
     if (daySaving || !dayData || dayBody.getAttribute('data-can') !== '1') return;
-    var inputs = dayInputs();
+    var note = document.getElementById('jpTwDayNote');
+    var noteVal = note ? (note.value || '').trim() : '';
+    var noteChanged = !!(note && noteVal !== (note.getAttribute('data-orig') || '').trim());
+    var rows = [];
+    dayInputs().forEach(function (input) {
+      var qty = liveQty(input);
+      if (plain(qty) === plain(num(input.getAttribute('data-qty')))) return;
+      rows.push({ size: input.getAttribute('data-size') || '', qty: String(qty) });
+    });
+    if (!rows.length && !noteChanged) {
+      setDayStatus('Đã lưu.', 'ok');
+      return;
+    }
     daySaving = true;
     var btn = document.getElementById('jpTwDaySave');
     if (btn) btn.disabled = true;
     showQtyLoading(true);
     setDayStatus('');
-    var chain = Promise.resolve();
-    inputs.forEach(function (input) {
-      chain = chain.then(function () { return saveSize(input); });
-    });
-    chain.then(function () { return saveNote(); }).then(function () {
+    postDay({
+      action: 'set_day_sheet',
+      stat_date: dayData.date,
+      sizes: JSON.stringify(rows),
+      save_note: noteChanged ? '1' : '0',
+      notes: noteChanged ? noteVal : ''
+    }).then(function (j) {
+      (j.sizes || []).forEach(function (row) {
+        var input = null;
+        dayInputs().forEach(function (el) {
+          if ((el.getAttribute('data-size') || '') === (row.size || '')) input = el;
+        });
+        if (!input) return;
+        input.setAttribute('data-qty', plain(row.day_done));
+        input.setAttribute('data-done', plain(dayData && dayData.scope === 'day' ? row.day_done : row.size_done));
+        paintInput(input, false);
+        if (row.log) {
+          var sizeKey = input.getAttribute('data-size') || '';
+          dayLogs[sizeKey] = dayLogs[sizeKey] || [];
+          dayLogs[sizeKey].unshift(row.log);
+          var histBtn = input.closest('tr').querySelector('[data-jp-day-hist]');
+          if (histBtn) histBtn.classList.add('has-log');
+        }
+      });
+      fillSums(false);
+      applyDayTotal(sourceCell, daySums(false).day);
+      if (note && j.notes != null) {
+        note.value = j.notes || '';
+        note.setAttribute('data-orig', j.notes || '');
+      }
       setDayStatus('Đã lưu.', 'ok');
     }).catch(function (err) {
       setDayStatus(err.message || 'Không lưu được SL.', 'err');
