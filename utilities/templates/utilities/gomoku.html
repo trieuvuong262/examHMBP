@@ -4,7 +4,7 @@
 {% block title %}Caro — Just Play Portal{% endblock %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/gomoku.css' %}?v=20261019f">
+<link rel="stylesheet" href="{% static 'css/gomoku.css' %}?v=20261019h">
 {% endblock %}
 
 {% block content %}
@@ -137,6 +137,7 @@
                     </table>
                 </div>
                 <p class="gomoku-empty d-none" id="gomoku-ranks-empty">Chưa có ván nào.</p>
+                <button type="button" class="gomoku-more d-none" id="gomoku-ranks-more" aria-expanded="false">Xem thêm</button>
             </section>
             <section class="gomoku-panel gomoku-history">
                 <h3 class="gomoku-panel-title">Lịch sử của tôi</h3>
@@ -154,6 +155,7 @@
                     </table>
                 </div>
                 <p class="gomoku-empty d-none" id="gomoku-history-empty">Bạn chưa chơi ván nào.</p>
+                <button type="button" class="gomoku-more d-none" id="gomoku-history-more" aria-expanded="false">Xem thêm</button>
             </section>
         </div>
     </div>
@@ -162,5 +164,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{% static 'js/gomoku.js' %}?v=20261019f"></script>
+<script src="{% static 'js/gomoku.js' %}?v=20261019h"></script>
 {% endblock %}

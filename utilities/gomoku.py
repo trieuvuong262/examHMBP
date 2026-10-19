@@ -6,6 +6,7 @@ Ván đầu chủ phòng cầm X. Chơi lại thì đổi quân.
 
 from __future__ import annotations
 
+import math
 import secrets
 from datetime import timedelta
 
@@ -188,6 +189,7 @@ def _begin_round(room: GomokuRoom, *, swap: bool, now) -> None:
     room.last_col = None
     room.status = GomokuRoom.STATUS_PLAYING
     room.turn_deadline = now + timedelta(seconds=TURN_SECONDS)
+    room.turn_hold = None
     room.draw_offer_by = None
     room.undo_offer_by = None
     room.host_rematch = False
@@ -251,6 +253,7 @@ def _finish(room: GomokuRoom, *, result: str, reason: str, now) -> GomokuGame:
     )
     room.status = GomokuRoom.STATUS_FINISHED
     room.turn_deadline = None
+    room.turn_hold = None
     room.draw_offer_by = None
     room.undo_offer_by = None
     room.host_rematch = False
@@ -269,6 +272,8 @@ def _apply_clock(room: GomokuRoom, now) -> bool:
         room.closed_at = now
         room.save(update_fields=['status', 'closed_at', 'updated_at'])
         return True
+    if room.draw_offer_by_id or room.undo_offer_by_id or room.turn_hold is not None:
+        return False
     if (
         room.status == GomokuRoom.STATUS_PLAYING
         and room.turn_deadline
@@ -412,6 +417,7 @@ def place_move(user, row: int, col: int, now=None) -> GomokuRoom:
         room.move_count += 1
         room.draw_offer_by = None
         room.undo_offer_by = None
+        room.turn_hold = None
         if has_five(board, row, col):
             _finish(room, result=color, reason=GomokuGame.REASON_FIVE, now=now)
             return room
@@ -457,8 +463,9 @@ def offer_draw(user, now=None) -> GomokuRoom:
             raise GomokuError('Bạn đã xin hòa.')
         if room.draw_offer_by_id:
             raise GomokuError('Đối thủ đã xin hòa. Hãy đồng ý hoặc từ chối.')
+        _hold_clock(room, now)
         room.draw_offer_by = user
-        room.save(update_fields=['draw_offer_by', 'updated_at'])
+        room.save(update_fields=['draw_offer_by', 'turn_hold', 'updated_at'])
         return room
 
     return _mutate(user, _offer, now)
@@ -477,8 +484,9 @@ def respond_draw(user, accept: bool, now=None) -> GomokuRoom:
         if room.draw_offer_by_id == user.pk:
             raise GomokuError('Đối thủ chưa trả lời lời xin hòa của bạn.')
         if not accept:
+            _release_clock(room, now)
             room.draw_offer_by = None
-            room.save(update_fields=['draw_offer_by', 'updated_at'])
+            room.save(update_fields=['draw_offer_by', 'turn_deadline', 'turn_hold', 'updated_at'])
             return room
         _finish(room, result=GomokuGame.RESULT_DRAW, reason=GomokuGame.REASON_DRAW, now=now)
         return room
@@ -505,8 +513,9 @@ def offer_undo(user, now=None) -> GomokuRoom:
             raise GomokuError('Bạn đã xin đi lại.')
         if room.undo_offer_by_id:
             raise GomokuError('Đối thủ đã xin đi lại. Hãy đồng ý hoặc từ chối.')
+        _hold_clock(room, now)
         room.undo_offer_by = user
-        room.save(update_fields=['undo_offer_by', 'updated_at'])
+        room.save(update_fields=['undo_offer_by', 'turn_hold', 'updated_at'])
         return room
 
     return _mutate(user, _offer, now)
@@ -525,18 +534,21 @@ def respond_undo(user, accept: bool, now=None) -> GomokuRoom:
         if room.undo_offer_by_id == user.pk:
             raise GomokuError('Đối thủ chưa trả lời lời xin đi lại của bạn.')
         if not accept:
+            _release_clock(room, now)
             room.undo_offer_by = None
-            room.save(update_fields=['undo_offer_by', 'updated_at'])
+            room.save(update_fields=['undo_offer_by', 'turn_deadline', 'turn_hold', 'updated_at'])
             return room
         if room.move_count < 1 or room.last_row is None or room.last_col is None:
+            _release_clock(room, now)
             room.undo_offer_by = None
-            room.save(update_fields=['undo_offer_by', 'updated_at'])
+            room.save(update_fields=['undo_offer_by', 'turn_deadline', 'turn_hold', 'updated_at'])
             raise GomokuError('Không còn nước để đi lại.')
         board = _copy_board(room.board)
         stone = board[room.last_row][room.last_col]
         if stone not in (STONE_BLACK, STONE_WHITE):
+            _release_clock(room, now)
             room.undo_offer_by = None
-            room.save(update_fields=['undo_offer_by', 'updated_at'])
+            room.save(update_fields=['undo_offer_by', 'turn_deadline', 'turn_hold', 'updated_at'])
             raise GomokuError('Không còn nước để đi lại.')
         board[room.last_row][room.last_col] = 0
         room.board = board
@@ -545,6 +557,7 @@ def respond_undo(user, accept: bool, now=None) -> GomokuRoom:
         room.last_col = None
         room.move_count -= 1
         room.turn_deadline = now + timedelta(seconds=TURN_SECONDS)
+        room.turn_hold = None
         room.undo_offer_by = None
         room.draw_offer_by = None
         room.save()
@@ -711,6 +724,24 @@ def history_for(user, limit: int = 30) -> list[dict]:
     return rows
 
 
+def _hold_clock(room: GomokuRoom, now) -> None:
+    """Giữ số giây còn lại. Hết giờ không tính trong lúc xin hòa hoặc xin đi lại."""
+    if room.turn_hold is not None:
+        return
+    if room.turn_deadline is None:
+        room.turn_hold = TURN_SECONDS
+        return
+    room.turn_hold = max(0, math.ceil((room.turn_deadline - now).total_seconds()))
+
+
+def _release_clock(room: GomokuRoom, now) -> None:
+    """Chạy lại đồng hồ với đúng số giây đã giữ."""
+    if room.turn_hold is None:
+        return
+    room.turn_deadline = now + timedelta(seconds=int(room.turn_hold))
+    room.turn_hold = None
+
+
 def _seconds_left(deadline, now) -> int | None:
     if deadline is None:
         return None
@@ -767,7 +798,12 @@ def room_payload(room: GomokuRoom | None, user, now=None) -> dict | None:
         'your_turn': room.status == GomokuRoom.STATUS_PLAYING and color == room.turn,
         'your_name': display_name(user),
         'opponent_name': display_name(opponent) if opponent else None,
-        'seconds_left': _seconds_left(room.turn_deadline, now) if room.status == GomokuRoom.STATUS_PLAYING else None,
+        'seconds_left': (
+            room.turn_hold
+            if room.status == GomokuRoom.STATUS_PLAYING and room.turn_hold is not None
+            else _seconds_left(room.turn_deadline, now) if room.status == GomokuRoom.STATUS_PLAYING else None
+        ),
+        'clock_paused': room.status == GomokuRoom.STATUS_PLAYING and room.turn_hold is not None,
         'turn_deadline': room.turn_deadline,
         'waiting_seconds_left': waiting_left,
         'draw_offer': draw_offer,

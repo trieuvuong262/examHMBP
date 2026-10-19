@@ -610,6 +610,11 @@ class GomokuRoom(models.Model):
     last_row = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name='Hàng nước cuối')
     last_col = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name='Cột nước cuối')
     turn_deadline = models.DateTimeField(null=True, blank=True, verbose_name='Hết giờ lượt')
+    turn_hold = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name='Giây còn lại khi tạm dừng',
+    )
     draw_offer_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

@@ -340,6 +340,10 @@
     color: #dc2626;
 }
 
+.gomoku-timer-ring.is-paused {
+    animation: none;
+}
+
 .gomoku-seats {
     display: grid;
     grid-template-columns: 1fr;
@@ -908,6 +912,25 @@
 }
 
 .gomoku-table td { font-size: 0.86rem; }
+
+.gomoku-more {
+    display: block;
+    width: 100%;
+    margin-top: 0.35rem;
+    padding: 0.45rem 0.5rem 0.15rem;
+    border: 0;
+    border-top: 1px solid var(--jp-surface-border);
+    background: transparent;
+    color: var(--jp-text-muted);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.gomoku-more:hover,
+.gomoku-more:focus-visible {
+    color: var(--jp-text-primary);
+    outline: none;
+}
 
 .gomoku-person {
     display: flex;

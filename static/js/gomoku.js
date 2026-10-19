@@ -110,6 +110,9 @@
     function secondsLeft() {
         if (!room) return null;
         var now = Date.now() - skew;
+        if (room.status === 'playing' && room.clock_paused && room.seconds_left != null) {
+            return room.seconds_left;
+        }
         if (room.status === 'playing' && room.turn_deadline) {
             return Math.max(0, Math.ceil((Date.parse(room.turn_deadline) - now) / 1000));
         }
@@ -127,16 +130,34 @@
         $('gomoku-draws').textContent = me.draws;
     }
 
+    var LIST_LIMIT = 10;
+    var rankRows = [];
+    var historyRows = [];
+    var ranksOpen = false;
+    var historyOpen = false;
+
+    function syncMore(id, total, open) {
+        var btn = $(id);
+        if (!btn) return;
+        var extra = total - LIST_LIMIT;
+        btn.classList.toggle('d-none', extra <= 0);
+        btn.textContent = open ? 'Thu gọn' : 'Xem thêm';
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
     function renderRanks(rows) {
+        rankRows = rows || [];
         var body = $('gomoku-ranks');
         var empty = $('gomoku-ranks-empty');
         body.textContent = '';
-        if (!rows || !rows.length) {
+        if (!rankRows.length) {
             empty.classList.remove('d-none');
+            syncMore('gomoku-ranks-more', 0, false);
             return;
         }
         empty.classList.add('d-none');
-        rows.forEach(function (row) {
+        var shown = ranksOpen ? rankRows : rankRows.slice(0, LIST_LIMIT);
+        shown.forEach(function (row) {
             var tr = document.createElement('tr');
             if (row.is_me) tr.className = 'is-me';
             var medal = row.rank <= 3
@@ -150,18 +171,22 @@
                 '<td class="text-end">' + row.wins + '/' + row.draws + '/' + row.losses + '</td>';
             body.appendChild(tr);
         });
+        syncMore('gomoku-ranks-more', rankRows.length, ranksOpen);
     }
 
     function renderHistory(rows) {
+        historyRows = rows || [];
         var body = $('gomoku-history');
         var empty = $('gomoku-history-empty');
         body.textContent = '';
-        if (!rows || !rows.length) {
+        if (!historyRows.length) {
             empty.classList.remove('d-none');
+            syncMore('gomoku-history-more', 0, false);
             return;
         }
         empty.classList.add('d-none');
-        rows.forEach(function (row) {
+        var shown = historyOpen ? historyRows : historyRows.slice(0, LIST_LIMIT);
+        shown.forEach(function (row) {
             var tr = document.createElement('tr');
             var tone = row.outcome === 'win' ? 'text-success' : (row.outcome === 'loss' ? 'text-danger' : 'text-muted');
             tr.innerHTML =
@@ -173,6 +198,7 @@
                 ' <span class="' + tone + '">(' + deltaText(row.elo_delta) + ')</span></td>';
             body.appendChild(tr);
         });
+        syncMore('gomoku-history-more', historyRows.length, historyOpen);
     }
 
     function avatarHtml(url, initial) {
@@ -326,16 +352,16 @@
         var tone = '';
         if (room && room.status === 'playing' && room.undo_offer === 'you') {
             tone = 'is-info';
-            text = 'Bạn đã xin đi lại. Đồng hồ lượt vẫn chạy.';
+            text = 'Bạn đã xin đi lại. Đồng hồ tạm dừng.';
         } else if (room && room.status === 'playing' && room.undo_offer === 'opponent') {
             tone = 'is-info';
-            text = 'Đối thủ xin đi lại. Đồng hồ lượt vẫn chạy.';
+            text = 'Đối thủ xin đi lại. Đồng hồ tạm dừng.';
         } else if (room && room.status === 'playing' && room.draw_offer === 'you') {
             tone = 'is-info';
-            text = 'Bạn đã xin hòa. Đồng hồ lượt vẫn chạy.';
+            text = 'Bạn đã xin hòa. Đồng hồ tạm dừng.';
         } else if (room && room.status === 'playing' && room.draw_offer === 'opponent') {
             tone = 'is-info';
-            text = 'Đối thủ xin hòa. Đồng hồ lượt vẫn chạy.';
+            text = 'Đối thủ xin hòa. Đồng hồ tạm dừng.';
         }
         var key = tone + '|' + text;
         if (key === bannerKey) return;
@@ -398,7 +424,7 @@
 
     function drawAskNote() {
         var left = secondsLeft();
-        return 'Đồng hồ lượt vẫn chạy.' + (left == null ? '' : ' Còn ' + formatClock(left) + '.');
+        return 'Đồng hồ tạm dừng.' + (left == null ? '' : ' Còn ' + formatClock(left) + '.');
     }
 
     function resultVisible() {
@@ -414,7 +440,7 @@
 
     function declineNote() {
         var left = secondsLeft();
-        return 'Ván tiếp tục. Đồng hồ lượt vẫn chạy.' + (left == null ? '' : ' Còn ' + formatClock(left) + '.');
+        return 'Ván tiếp tục. Đồng hồ chạy lại.' + (left == null ? '' : ' Còn ' + formatClock(left) + '.');
     }
 
     function fillAsk(kind) {
@@ -652,8 +678,12 @@
         var ratio = seconds == null || !total ? 0 : Math.max(0, Math.min(1, seconds / total));
         if (ring) ring.style.setProperty('--p', String(ratio));
         clock.textContent = seconds == null ? '—' : formatClock(seconds);
-        var low = seconds != null && seconds <= lowAt;
-        if (ring) ring.classList.toggle('is-low', low);
+        var paused = !!(room && room.status === 'playing' && room.clock_paused);
+        var low = seconds != null && seconds <= lowAt && !paused;
+        if (ring) {
+            ring.classList.toggle('is-low', low);
+            ring.classList.toggle('is-paused', paused);
+        }
         clock.classList.toggle('is-low', low);
     }
 
@@ -671,7 +701,7 @@
                 : ('Lượt của: ' + (room.opponent_name || 'đối thủ'));
             var turnLeft = secondsLeft();
             paintClock(turnLeft, 60, 10);
-            if (turnLeft === 0) {
+            if (turnLeft === 0 && !room.clock_paused) {
                 if (!deadlineArmed) {
                     deadlineArmed = true;
                     pollSoon();
@@ -962,6 +992,15 @@
         showError('Mã phòng là ' + room.code + '.');
     });
     renderMe(boot.me);
+    $('gomoku-ranks-more').addEventListener('click', function () {
+        ranksOpen = !ranksOpen;
+        renderRanks(rankRows);
+    });
+    $('gomoku-history-more').addEventListener('click', function () {
+        historyOpen = !historyOpen;
+        renderHistory(historyRows);
+    });
+
     renderRanks(boot.leaderboard);
     renderHistory(boot.history);
     renderPublicRooms(boot.public_rooms);
