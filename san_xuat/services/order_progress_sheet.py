@@ -692,15 +692,20 @@ def team_plan_days(mo: SxProductionOrder, team: dict) -> dict[date, Decimal | No
     so = getattr(mo, 'sales_order', None)
     if not so:
         return {}
-    stage = (team.get('stage_slug') or team.get('slug') or '').strip().lower()
-    if not stage:
+    own_slug = (team.get('slug') or '').strip().lower()
+    stage = (team.get('stage_slug') or own_slug).strip().lower()
+    lookup = [slug for slug in (own_slug, stage) if slug]
+    if not lookup:
         return {}
 
     rows = list(
-        SxOrderTeamDayPlan.objects.filter(sales_order=so, team_slug__iexact=stage)
+        SxOrderTeamDayPlan.objects.filter(sales_order=so, team_slug__in=lookup)
         .select_related('work_center')
         .order_by('plan_date', 'id')
     )
+    # Đơn đã chia ngày cho đúng tổ (d25) thì không cộng slug công đoạn cũ (may).
+    if own_slug and any((r.team_slug or '').strip().lower() == own_slug for r in rows):
+        rows = [r for r in rows if (r.team_slug or '').strip().lower() == own_slug]
     wc_code = (team.get('work_center_code') or '').strip().upper()
     own = [r for r in rows if r.work_center and (r.work_center.code or '').upper() == wc_code]
     if own:
@@ -713,7 +718,10 @@ def team_plan_days(mo: SxProductionOrder, team: dict) -> dict[date, Decimal | No
             out[r.plan_date] = (out.get(r.plan_date) or Decimal('0')) + _q(r.qty)
         return out
 
-    span = next((sp for sp in team_khsx_spans(so) if sp.slug == stage), None)
+    spans = team_khsx_spans(so)
+    span = next((sp for sp in spans if (sp.slug or '').strip().lower() == own_slug), None)
+    if span is None:
+        span = next((sp for sp in spans if (sp.slug or '').strip().lower() == stage), None)
     if not span or not span.start or not span.end:
         return {}
     days = working_days(span.start, span.end) or [span.start]

@@ -343,6 +343,29 @@
     padding: 0;
     font-weight: 800;
   }
+  .jp-tr-grid.is-by-order .jp-tr-stt-hit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 52px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .jp-tr-grid.is-by-order .jp-tr-stt-hit:hover,
+  .jp-tr-grid.is-by-order .jp-tr-stt-hit:focus-visible {
+    background: #fef2f2;
+    color: #b91c1c;
+    outline: 0;
+  }
+  .jp-tr-grid.is-by-order tr.is-row-on .jp-tr-stt-hit { color: #b91c1c; background: #fef2f2; }
   .jp-tr-grid.is-by-order thead th.jp-tr-stt { z-index: 7; }
   .jp-tr-grid.is-by-order .jp-tr-team {
     left: 52px;
@@ -382,6 +405,7 @@
     box-shadow: -6px 0 10px -8px rgba(15, 23, 42, .22);
   }
   .jp-tr-grid.is-by-order thead th.jp-tr-sum { background: var(--sheet-brand-soft, #fef2f2); color: #0f172a; }
+  .jp-tr-grid .jp-tr-day.is-day-col-hidden { display: none; }
   .jp-tr-grid.is-by-order tr.is-total td { background: #fff; border-bottom: 2px solid var(--sheet-brand-line); cursor: default; }
   .jp-tw-order { display: flex; align-items: center; gap: .45rem; min-width: 0; }
   .jp-tw-order-thumb {
@@ -446,7 +470,7 @@
       <tbody>
         {% for row in team_report.rows %}
         <tr class="{% if team_report.by_order %}{% if row.is_total %}is-total{% endif %}{% else %}jp-stage-{{ row.color_slug|default:row.stage_slug }}{% if not row.total %} is-idle{% endif %}{% endif %}">
-          {% if team_report.by_order %}<td class="jp-tr-stt">{% if not row.is_total %}{{ forloop.counter0 }}{% endif %}</td>{% endif %}
+          {% if team_report.by_order %}<td class="jp-tr-stt">{% if not row.is_total %}<button type="button" class="jp-tr-stt-hit" data-jp-row-group title="Gom ngày của đơn" aria-pressed="false">{{ forloop.counter0 }}</button>{% endif %}</td>{% endif %}
           <td class="jp-tr-team" title="{{ row.note|default:row.label }}">
             {% if row.is_total %}
             <strong>{{ row.label }}</strong>

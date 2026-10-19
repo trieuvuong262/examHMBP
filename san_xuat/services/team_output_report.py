@@ -242,6 +242,28 @@ def _day_plan_team_maps(teams):
     return by_slug, by_wc, teams_by_stage
 
 
+def _stage_claims_from_member_rows(rows, *, by_slug: dict, teams_by_stage: dict[str, list[str]]) -> dict[str, set[int]]:
+    """Đơn đã có phân bổ ngày trên một tổ cụ thể của công đoạn.
+
+    Slug cũ của công đoạn (``may``) không được cộng thêm vào tổ đó.
+    """
+    stage_of: dict[str, list[str]] = {}
+    for stage, members in teams_by_stage.items():
+        for member in members:
+            stage_of.setdefault(member, []).append(stage)
+    claimed: dict[str, set[int]] = {}
+    for row in rows:
+        key = (getattr(row, 'team_slug', '') or '').strip().lower()
+        if key not in by_slug:
+            continue
+        oid = int(getattr(row, 'sales_order_id', 0) or 0)
+        if not oid:
+            continue
+        for stage in stage_of.get(key, ()):
+            claimed.setdefault(stage, set()).add(oid)
+    return claimed
+
+
 def _attribute_day_plan_team(
     team_slug: str,
     work_center_code: str,
@@ -251,11 +273,13 @@ def _attribute_day_plan_team(
     by_wc: dict[str, str],
     teams_by_stage: dict[str, list[str]],
     order_teams: dict[int, set[str]],
+    stage_claims: dict[str, set[int]] | None = None,
 ) -> str:
     """Dòng ngày KHSX thuộc tổ HR nào.
 
     Mã `d{id}` hoặc mã tổ năng lực vào đúng bộ phận. Slug công đoạn cũ chỉ
     gom khi công đoạn còn một tổ, hoặc đơn chỉ được gán một tổ trong công đoạn.
+    Đơn đã có ngày của tổ cụ thể thì bỏ slug cũ, không cộng đè.
     """
     key = (team_slug or '').strip().lower()
     if key in by_slug:
@@ -268,6 +292,8 @@ def _attribute_day_plan_team(
     # Slug chung (may) không còn là dòng trên lộ trình: lộ trình dùng d25 / d39.
     if stage_slug_is_shared(key):
         return ''
+    if order_id in (stage_claims or {}).get(key, ()):
+        return ''
     members = teams_by_stage.get(key) or []
     if len(members) == 1:
         return members[0]
@@ -275,6 +301,72 @@ def _attribute_day_plan_team(
     if len(candidates) == 1:
         return candidates[0]
     return ''
+
+
+def retire_legacy_may_day_plans() -> dict[str, int]:
+    """Bỏ slug ``may``. Đơn đã có tổ cụ thể thì xóa dòng cũ; đơn chỉ còn ``may`` thì chuyển sang đúng một tổ may."""
+    from django.db import transaction
+    from django.db.models import Q
+
+    from san_xuat.hub_models import SxOrderTeamDayPlan, SxSalesOrderPlanStep
+    from san_xuat.services.goods_progress import _team_columns
+
+    _by_slug, by_wc, teams_by_stage = _day_plan_team_maps(_team_columns())
+    members = set(teams_by_stage.get('may') or [])
+    may_ids = set(
+        SxOrderTeamDayPlan.objects.filter(team_slug__iexact='may')
+        .values_list('sales_order_id', flat=True)
+    )
+    if not may_ids:
+        return {'deleted': 0, 'moved': 0, 'left': 0}
+    specific_ids = set()
+    if members:
+        specific_ids = set(
+            SxOrderTeamDayPlan.objects.filter(
+                sales_order_id__in=may_ids,
+                team_slug__in=members,
+            ).values_list('sales_order_id', flat=True)
+        )
+    deleted = 0
+    moved = 0
+    with transaction.atomic():
+        if specific_ids:
+            deleted = SxOrderTeamDayPlan.objects.filter(
+                sales_order_id__in=specific_ids,
+                team_slug__iexact='may',
+            ).delete()[0]
+        for oid in sorted(may_ids - specific_ids):
+            teams = set()
+            for code in SxSalesOrderPlanStep.objects.filter(
+                sales_order_id=oid,
+            ).values_list('work_center__code', flat=True):
+                team = by_wc.get((code or '').strip().upper())
+                if team in members:
+                    teams.add(team)
+            rows = SxOrderTeamDayPlan.objects.filter(sales_order_id=oid, team_slug__iexact='may')
+            if len(teams) != 1:
+                deleted += rows.delete()[0]
+                continue
+            target = next(iter(teams))
+            for row in list(rows):
+                clash = SxOrderTeamDayPlan.objects.filter(
+                    sales_order_id=oid,
+                    team_slug=target,
+                    plan_date=row.plan_date,
+                ).filter(
+                    Q(work_center_id=row.work_center_id) if row.work_center_id else Q(work_center__isnull=True)
+                ).exclude(pk=row.pk).first()
+                if clash is not None:
+                    clash.qty = _q(clash.qty) + _q(row.qty)
+                    clash.save(update_fields=['qty'])
+                    row.delete()
+                    deleted += 1
+                    continue
+                row.team_slug = target
+                row.save(update_fields=['team_slug'])
+                moved += 1
+    left = SxOrderTeamDayPlan.objects.filter(team_slug__iexact='may').count()
+    return {'deleted': deleted, 'moved': moved, 'left': left}
 
 
 def _plan_by_team_day(
@@ -331,6 +423,9 @@ def _plan_by_team_day(
     by_team: dict[str, dict[date, Decimal]] = {}
     by_stage: dict[str, dict[date, Decimal]] = {}
     orders: dict[str, dict[date, dict[int, dict]]] = {}
+    stage_claims = _stage_claims_from_member_rows(
+        rows, by_slug=by_slug, teams_by_stage=teams_by_stage,
+    )
 
     def _add(bucket: dict, key: str, day: date, qty: Decimal) -> None:
         inner = bucket.setdefault(key, {})
@@ -345,6 +440,7 @@ def _plan_by_team_day(
             by_wc=by_wc,
             teams_by_stage=teams_by_stage,
             order_teams=order_teams,
+            stage_claims=stage_claims,
         )
         if not team:
             continue
@@ -778,6 +874,9 @@ def _team_plan_hits(team_slug: str) -> list[tuple[date, int, str]]:
             team = by_wc.get((code or '').strip().upper())
             if team:
                 order_teams.setdefault(oid, set()).add(team)
+    stage_claims = _stage_claims_from_member_rows(
+        rows, by_slug=by_slug, teams_by_stage=teams_by_stage,
+    )
     hits: list[tuple[date, int, str]] = []
     for row in rows:
         if _attribute_day_plan_team(
@@ -788,6 +887,7 @@ def _team_plan_hits(team_slug: str) -> list[tuple[date, int, str]]:
             by_wc=by_wc,
             teams_by_stage=teams_by_stage,
             order_teams=order_teams,
+            stage_claims=stage_claims,
         ) != slug:
             continue
         if row.sales_order.plan_status == SxSalesOrder.PLAN_CANCELLED:

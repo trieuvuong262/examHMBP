@@ -603,6 +603,22 @@
   }
   .jp-tr-headgrid th[data-day].is-day-on::after { border-top: 2px solid #f43f5e; }
   .jp-tr-grid td[data-day].is-day-foot::after { border-bottom: 2px solid #f43f5e; }
+  .jp-tr-grid [data-day].is-hband { position: relative; z-index: 1; }
+  .jp-tr-grid [data-day].is-hband::after {
+    content: "";
+    position: absolute;
+    z-index: 5;
+    pointer-events: none;
+    inset: 0;
+  }
+  .jp-tr-headgrid th[data-day].is-hband::after { border-top: 2px solid #f43f5e; }
+  .jp-tr-grid [data-day].is-hband-start::after { border-left: 2px solid #f43f5e; }
+  .jp-tr-grid [data-day].is-hband-end::after { border-right: 2px solid #f43f5e; }
+  .jp-tr-grid td[data-day].is-hband-foot::after { border-bottom: 2px solid #f43f5e; }
+  .jp-tr-grid tr.is-row-on td[data-day].is-hband::after {
+    border-top: 2px solid #f43f5e;
+    border-bottom: 2px solid #f43f5e;
+  }
 </style>
 {% endblock %}
 
@@ -1414,47 +1430,76 @@ document.addEventListener('DOMContentLoaded', function () {
   if (saveBtn) saveBtn.addEventListener('click', saveSheet);
 
   var groupedDay = '';
+  var groupedRow = null;
   function orderOnDay(row, day) {
     var cell = row.querySelector('td[data-day="' + day + '"]');
     if (!cell) return false;
     if (cell.hasAttribute('data-plan')) return true;
     return num(cell.getAttribute('data-done')) > 0;
   }
-  function applyDayGroup(day, label) {
-    var rows = document.querySelectorAll('.jp-tr-wrap tbody tr');
-    document.querySelectorAll('.jp-tr-grid [data-day].is-day-on').forEach(function (el) {
-      el.classList.remove('is-day-on', 'is-day-foot');
+  function cellHasWork(cell) {
+    if (!cell) return false;
+    return num(cell.getAttribute('data-plan')) > 0 || num(cell.getAttribute('data-done')) > 0;
+  }
+  function orderRows() {
+    return document.querySelectorAll('.jp-tr-wrap tbody tr');
+  }
+  function sttButton(row) {
+    return row.querySelector('.jp-tr-stt-hit');
+  }
+  function renumberAll() {
+    var n = 0;
+    orderRows().forEach(function (row) {
+      row.classList.remove('is-day-hidden');
+      if (row.classList.contains('is-total')) return;
+      n += 1;
+      var stt = sttButton(row);
+      if (stt) stt.textContent = String(n);
     });
+  }
+  function clearGroupMarks() {
+    document.querySelectorAll('.jp-tr-grid [data-day]').forEach(function (el) {
+      el.classList.remove('is-day-on', 'is-day-foot', 'is-day-col-hidden', 'is-hband', 'is-hband-start', 'is-hband-end', 'is-hband-foot');
+    });
+    orderRows().forEach(function (row) { row.classList.remove('is-row-on'); });
+    document.querySelectorAll('[data-jp-row-group]').forEach(function (btn) {
+      btn.setAttribute('aria-pressed', 'false');
+    });
+  }
+  function refreshDayScroll() {
+    document.querySelectorAll('[data-jp-tr-xbar], [data-jp-tr-head], [data-jp-tr-body]').forEach(function (el) {
+      el.scrollLeft = 0;
+    });
+    window.dispatchEvent(new Event('resize'));
+  }
+  function applyDayGroup(day, label) {
+    var colsHidden = !!document.querySelector('.jp-tr-grid .is-day-col-hidden');
+    groupedRow = null;
+    clearGroupMarks();
     var clearBtn = document.getElementById('jpTwDayGroupClear');
     if (!day || groupedDay === day) {
       groupedDay = '';
-      rows.forEach(function (row) { row.classList.remove('is-day-hidden'); });
-      var n = 0;
-      rows.forEach(function (row) {
-        if (row.classList.contains('is-total')) return;
-        n += 1;
-        var stt = row.querySelector('.jp-tr-stt');
-        if (stt) stt.textContent = String(n);
-      });
+      renumberAll();
       if (clearBtn) clearBtn.hidden = true;
+      if (colsHidden) refreshDayScroll();
       return;
     }
     groupedDay = day;
     var shown = 0;
-    rows.forEach(function (row) {
+    orderRows().forEach(function (row) {
       if (row.classList.contains('is-total')) return;
       var keep = orderOnDay(row, day);
       row.classList.toggle('is-day-hidden', !keep);
       if (!keep) return;
       shown += 1;
-      var stt = row.querySelector('.jp-tr-stt');
+      var stt = sttButton(row);
       if (stt) stt.textContent = String(shown);
     });
     document.querySelectorAll('.jp-tr-grid [data-day="' + day + '"]').forEach(function (el) {
       el.classList.add('is-day-on');
     });
     var foot = null;
-    rows.forEach(function (row) {
+    orderRows().forEach(function (row) {
       if (row.classList.contains('is-day-hidden')) return;
       var cell = row.querySelector('td[data-day="' + day + '"]');
       if (cell) foot = cell;
@@ -1464,9 +1509,79 @@ document.addEventListener('DOMContentLoaded', function () {
       clearBtn.hidden = false;
       clearBtn.textContent = 'Đang gom ' + (label || day) + ' · ' + shown + ' đơn';
     }
+    if (colsHidden) refreshDayScroll();
+  }
+  function applyRowGroup(row) {
+    var days = [];
+    if (row) {
+      row.querySelectorAll('td[data-day]').forEach(function (cell) {
+        if (cellHasWork(cell)) days.push(cell.getAttribute('data-day') || '');
+      });
+      days = days.filter(Boolean);
+    }
+    var same = !!(row && groupedRow === row);
+    if (row && !same && !days.length) return;
+    var colsHidden = !!document.querySelector('.jp-tr-grid .is-day-col-hidden');
+    groupedDay = '';
+    groupedRow = null;
+    clearGroupMarks();
+    renumberAll();
+    var clearBtn = document.getElementById('jpTwDayGroupClear');
+    if (!row || same) {
+      if (clearBtn) clearBtn.hidden = true;
+      if (colsHidden) refreshDayScroll();
+      return;
+    }
+    groupedRow = row;
+    var keep = {};
+    days.forEach(function (day) { keep[day] = true; });
+    var firstDay = days[0];
+    var lastDay = days[days.length - 1];
+    function markBand(el, day) {
+      if (!el) return;
+      el.classList.add('is-hband');
+      if (day === firstDay) el.classList.add('is-hband-start');
+      if (day === lastDay) el.classList.add('is-hband-end');
+    }
+    document.querySelectorAll('.jp-tr-grid [data-day]').forEach(function (el) {
+      var day = el.getAttribute('data-day') || '';
+      if (!keep[day]) el.classList.add('is-day-col-hidden');
+    });
+    var footRow = null;
+    orderRows().forEach(function (bandRow) { footRow = bandRow; });
+    days.forEach(function (day) {
+      document.querySelectorAll('.jp-tr-headgrid th[data-day="' + day + '"]').forEach(function (el) {
+        markBand(el, day);
+      });
+      orderRows().forEach(function (bandRow) {
+        var cell = bandRow.querySelector('td[data-day="' + day + '"]');
+        if (!cell) return;
+        if (bandRow === row || day === firstDay || day === lastDay) markBand(cell, day);
+      });
+      if (footRow) {
+        var footCell = footRow.querySelector('td[data-day="' + day + '"]');
+        markBand(footCell, day);
+        if (footCell) footCell.classList.add('is-hband-foot');
+      }
+    });
+    row.classList.add('is-row-on');
+    var hit = sttButton(row);
+    if (hit) hit.setAttribute('aria-pressed', 'true');
+    var codeEl = row.querySelector('.jp-tw-order-code');
+    var code = codeEl ? codeEl.textContent.trim() : '';
+    if (clearBtn) {
+      clearBtn.hidden = false;
+      clearBtn.textContent = 'Đang gom ' + (code || 'đơn') + ' · ' + days.length + ' ngày';
+    }
+    refreshDayScroll();
   }
 
   document.addEventListener('click', function (ev) {
+    var rowHit = ev.target.closest('[data-jp-row-group]');
+    if (rowHit) {
+      applyRowGroup(rowHit.closest('tr'));
+      return;
+    }
     var group = ev.target.closest('[data-jp-day-group]');
     if (group) {
       applyDayGroup(group.getAttribute('data-day') || '', group.getAttribute('data-label') || '');
@@ -1526,7 +1641,10 @@ document.addEventListener('DOMContentLoaded', function () {
     window.history.replaceState(null, '', next);
   }
   var clearGroup = document.getElementById('jpTwDayGroupClear');
-  if (clearGroup) clearGroup.addEventListener('click', function () { applyDayGroup('', ''); });
+  if (clearGroup) clearGroup.addEventListener('click', function () {
+    applyDayGroup('', '');
+    applyRowGroup(null);
+  });
 });
 </script>
 <script>
