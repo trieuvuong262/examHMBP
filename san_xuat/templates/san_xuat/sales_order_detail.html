@@ -403,7 +403,7 @@
 <div class="modal fade" id="rejectSalesOrderModal" tabindex="-1"
      aria-labelledby="rejectSalesOrderModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
-    <form method="post" action="?review=1" class="modal-content">
+    <form method="post" class="modal-content">
       {% csrf_token %}
       <input type="hidden" name="action" value="reject">
       <div class="modal-header">

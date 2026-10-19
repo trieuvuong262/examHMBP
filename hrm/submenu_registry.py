@@ -642,6 +642,8 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
 # URL gắn menu A vẫn vào được nếu user có một trong các menu thay thế.
 MENU_PATH_ACCESS_ALIASES: dict[tuple[str, str], tuple[str, ...]] = {
     (MODULE_SAN_XUAT, 'subcontract'): ('plan_board', 'plan'),
+    # Xác nhận làm trên danh sách / chi tiết; người chỉ có menu xác nhận vẫn vào được danh sách.
+    (MODULE_SAN_XUAT, 'orders'): ('order_confirm',),
     (MODULE_SAN_XUAT, 'capacity'): ('plan', 'plan_board'),
     # KHSX có bảng so giá vẫn đi được URL duyệt giá (middleware);
     # view sẽ redirect sang so-gia, không mở hàng chờ Sếp.

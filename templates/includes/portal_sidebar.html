@@ -705,14 +705,14 @@
                     </a>
                 </li>
                 {% endif %}
-                {# Đơn đặt hàng SX (SoT Portal) — nhóm con: danh sách / lên đơn / xác nhận #}
+                {# Đơn đặt hàng SX — danh sách / lên đơn. Xác nhận làm trên danh sách và chi tiết. #}
                 {% jp_can_menu 'san_xuat' 'orders' as jp_can_san_xuat_orders %}
                 {% jp_can_menu 'san_xuat' 'order_create' as jp_can_san_xuat_order_create %}
                 {% jp_can_menu 'san_xuat' 'order_confirm' as jp_can_san_xuat_order_confirm %}
                 {% if jp_can_san_xuat_orders or jp_can_san_xuat_order_create or jp_can_san_xuat_order_confirm %}
                 <li class="jp-sidebar-nested-group{% if '/san-xuat/don-hang' in request.path %} is-open{% endif %}"
                     data-sx-area="orders" data-sx-icon="bi-cart-check" data-sx-label="Đơn hàng"
-                    data-sx-href="{% if jp_can_san_xuat_orders %}{% url 'san_xuat:sales_order_list' %}{% elif jp_can_san_xuat_order_create %}{% url 'san_xuat:sales_order_create' %}{% else %}{% url 'san_xuat:sales_order_confirm_list' %}{% endif %}">
+                    data-sx-href="{% if jp_can_san_xuat_orders or jp_can_san_xuat_order_confirm %}{% url 'san_xuat:sales_order_list' %}{% else %}{% url 'san_xuat:sales_order_create' %}{% endif %}">
                     <button type="button"
                             class="jp-sidebar-nested-toggle"
                             data-jp-sidebar-group-toggle
@@ -724,10 +724,10 @@
                         <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
                     </button>
                     <ul class="jp-sidebar-nested-submenu" id="jp-sidebar-san-xuat-orders-submenu">
-                        {% if jp_can_san_xuat_orders %}
+                        {% if jp_can_san_xuat_orders or jp_can_san_xuat_order_confirm %}
                         <li>
                             <a href="{% url 'san_xuat:sales_order_list' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'sales_order_list' or request.resolver_match.url_name == 'sales_order_detail' or request.resolver_match.url_name == 'redirect_orders' %}active{% endif %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'sales_order_list' or request.resolver_match.url_name == 'sales_order_detail' or request.resolver_match.url_name == 'sales_order_confirm_list' or request.resolver_match.url_name == 'redirect_orders' %}active{% endif %}"
                                data-jp-npl-catalog-nav
                                data-loading-message="Đang tải danh sách đơn…">
                                 <i class="bi bi-list-ul"></i><span>Danh sách đơn</span>
@@ -741,16 +741,6 @@
                                data-jp-npl-catalog-nav
                                data-loading-message="Đang mở form lên đơn…">
                                 <i class="bi bi-cart-plus"></i><span>Lên đơn hàng</span>
-                            </a>
-                        </li>
-                        {% endif %}
-                        {% if jp_can_san_xuat_order_confirm %}
-                        <li>
-                            <a href="{% url 'san_xuat:sales_order_confirm_list' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'sales_order_confirm_list' %}active{% endif %}"
-                               data-jp-npl-catalog-nav
-                               data-loading-message="Đang tải xác nhận đơn…">
-                                <i class="bi bi-check2-square"></i><span>Xác nhận đơn hàng</span>
                             </a>
                         </li>
                         {% endif %}

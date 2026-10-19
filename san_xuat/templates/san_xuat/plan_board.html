@@ -2489,7 +2489,7 @@
         Không có đơn khớp bộ lọc.
       {% else %}
         Không có đơn trong khoảng {{ filter_date_from|date:'d/m/Y' }} – {{ filter_date_to|date:'d/m/Y' }}.
-        <a href="{% url 'san_xuat:sales_order_confirm_list' %}">Xác nhận đơn đặt hàng</a>
+        <a href="{% url 'san_xuat:sales_order_list' %}?confirm=draft">Xác nhận đơn đặt hàng</a>
       {% endif %}
     </div>
     {% endfor %}

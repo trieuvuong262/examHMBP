@@ -357,6 +357,92 @@ def _user_can_sales_order_page(user) -> bool:
     )
 
 
+def _user_can_confirm_sales_order(user) -> bool:
+    """Quyền Xem «Xác nhận đơn hàng» là đủ để thấy và bấm Xác nhận / Từ chối."""
+    return user_can_access_menu(user, MODULE_SAN_XUAT, 'order_confirm')
+
+
+def _user_can_open_sales_order_list(user) -> bool:
+    return (
+        user_can_access_menu(user, MODULE_SAN_XUAT, 'orders')
+        or _user_can_confirm_sales_order(user)
+    )
+
+
+def _sales_order_list_return_url(request) -> str:
+    from urllib.parse import urlencode
+
+    params = {}
+    for key in ('q', 'confirm', 'sort', 'dir'):
+        val = (request.GET.get(key) or request.POST.get(key) or '').strip()
+        if val:
+            params[key] = val
+    url = reverse('san_xuat:sales_order_list')
+    if params:
+        url = f'{url}?{urlencode(params)}'
+    return url
+
+
+def _sales_order_detail_return_url(pk: int, *, review: bool) -> str:
+    url = reverse('san_xuat:sales_order_detail', kwargs={'pk': pk})
+    if review:
+        return f'{url}?review=1'
+    return url
+
+
+def _post_sales_order_list_decision(request):
+    """Xác nhận / từ chối ngay trên danh sách.
+
+    Trả về (response, reject_form, reject_order).
+    response is None khi form từ chối chưa hợp lệ — view render lại danh sách.
+    """
+    from san_xuat.forms_sales_order import SalesOrderRejectForm
+    from san_xuat.hub_models import SxSalesOrder
+    from san_xuat.services.sales_orders import confirm_sales_order, reject_sales_order
+
+    action = (request.POST.get('action') or '').strip()
+    if action not in {'confirm', 'reject'}:
+        return None, None, None
+    try:
+        order_id = int(request.POST.get('order_id') or 0)
+    except (TypeError, ValueError):
+        order_id = 0
+    order = (
+        SxSalesOrder.objects.filter(pk=order_id, is_demo=False).first()
+        if order_id else None
+    )
+    back = _sales_order_list_return_url(request)
+    if order is None:
+        messages.error(request, 'Không tìm thấy đơn cần xử lý.')
+        return redirect(back), None, None
+    if order.confirm_status != SxSalesOrder.CONFIRM_DRAFT:
+        messages.error(request, f'Đơn {order.code} không còn chờ xác nhận.')
+        return redirect(back), None, None
+
+    if action == 'confirm':
+        try:
+            confirm_sales_order(order_id=order.pk, user=request.user)
+        except PlanningError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, f'Đã xác nhận đơn {order.code}.')
+        return redirect(back), None, None
+
+    form = SalesOrderRejectForm(request.POST)
+    if not form.is_valid():
+        return None, form, order
+    try:
+        reject_sales_order(
+            order_id=order.pk,
+            reason=form.cleaned_data.get('reason') or '',
+        )
+    except PlanningError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, f'Đã từ chối đơn {order.code}.')
+    return redirect(back), None, None
+
+
 def _user_can_mutate_sales_order(user) -> bool:
     """Màn Lên đơn: vào được thì lưu/sửa được — không tách Xem với Thêm/Sửa."""
     return user_can_access_menu(user, MODULE_SAN_XUAT, 'order_create')
@@ -491,13 +577,27 @@ def _order_creator_label(user) -> str:
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def sales_order_list(request):
     """Danh sách đơn đặt hàng sản xuất (SoT Portal)."""
-    if not user_can_access_menu(request.user, MODULE_SAN_XUAT, 'orders'):
+    if not _user_can_open_sales_order_list(request.user):
         return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'orders')
 
+    from san_xuat.forms_sales_order import SalesOrderRejectForm
     from san_xuat.hub_models import SxSalesOrder
     from san_xuat.services.products import product_gallery_map
 
     from san_xuat.list_grid import apply_sx_list_sort, sx_list_grid_context
+
+    can_confirm_order = _user_can_confirm_sales_order(request.user)
+    reject_form = SalesOrderRejectForm()
+    reject_order = None
+    if request.method == 'POST':
+        if not can_confirm_order:
+            return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'order_confirm')
+        response, invalid_form, invalid_order = _post_sales_order_list_decision(request)
+        if response is not None:
+            return response
+        if invalid_form is not None:
+            reject_form = invalid_form
+            reject_order = invalid_order
 
     q = (request.GET.get('q') or '').strip()
     confirm = (request.GET.get('confirm') or '').strip()
@@ -554,13 +654,31 @@ def sales_order_list(request):
         request.user, MODULE_SAN_XUAT, 'order_create',
     ) or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'order_create')
 
+    grid = sx_list_grid_context(request, 'sales_order')
+    if can_confirm_order:
+        cols = list(grid['list_columns'])
+        cols.append({
+            'key': 'actions',
+            'label': 'Thao tác',
+            'weight': 168,
+            'default': True,
+            'required': True,
+            'sortable': False,
+            'align': 'end',
+        })
+        grid['list_columns'] = cols
+        grid['total_col_weight'] = sum(c['weight'] for c in cols) or 1
+
     return render(request, 'san_xuat/sales_order_list.html', {
         **_perm_ctx(request),
-        **sx_list_grid_context(request, 'sales_order'),
+        **grid,
         'rows': rows,
         'search_query': q,
         'confirm_filter': confirm,
         'can_create_order': can_create_order,
+        'can_confirm_order': can_confirm_order,
+        'reject_form': reject_form,
+        'reject_order': reject_order,
     })
 
 
@@ -916,12 +1034,8 @@ def sales_order_detail(request, pk: int):
         pk=pk,
         is_demo=False,
     )
-    can_confirm = user_can_update_menu(request.user, MODULE_SAN_XUAT, 'order_confirm')
-    review_mode = (
-        request.GET.get('review') == '1'
-        and user_can_access_menu(request.user, MODULE_SAN_XUAT, 'order_confirm')
-    )
-    can_review_order = can_confirm and review_mode
+    can_confirm = _user_can_confirm_sales_order(request.user)
+    review_mode = request.GET.get('review') == '1' and can_confirm
     can_edit_routing = user_can_edit_order_routing(request.user)
     can_attach_routing = can_edit_routing or user_can_update_menu(
         request.user, MODULE_SAN_XUAT, 'order_create',
@@ -938,7 +1052,7 @@ def sales_order_detail(request, pk: int):
         except OrderRoutingError as exc:
             messages.error(request, str(exc))
             return redirect('san_xuat:sales_order_detail', pk=order.pk)
-        if action in {'confirm', 'reject'} and not can_review_order:
+        if action in {'confirm', 'reject'} and not can_confirm:
             return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'order_confirm')
         if action == 'confirm' and order.confirm_status == SxSalesOrder.CONFIRM_DRAFT:
             try:
@@ -947,7 +1061,7 @@ def sales_order_detail(request, pk: int):
                 messages.error(request, str(exc))
             else:
                 messages.success(request, f'Đã xác nhận đơn {order.code}.')
-                return redirect('san_xuat:sales_order_confirm_list')
+                return redirect(_sales_order_detail_return_url(order.pk, review=review_mode))
         elif action == 'reject':
             reject_form = SalesOrderRejectForm(request.POST)
             if reject_form.is_valid():
@@ -960,7 +1074,7 @@ def sales_order_detail(request, pk: int):
                     messages.error(request, str(exc))
                 else:
                     messages.success(request, f'Đã từ chối đơn {order.code}.')
-                    return redirect('san_xuat:sales_order_confirm_list')
+                    return redirect(_sales_order_detail_return_url(order.pk, review=review_mode))
 
     prod_status = production_status_summary(order)
     can_edit_order = (
@@ -996,7 +1110,7 @@ def sales_order_detail(request, pk: int):
     return render(request, 'san_xuat/sales_order_detail.html', {
         **_perm_ctx(request),
         'order': order,
-        'can_confirm': can_review_order,
+        'can_confirm': can_confirm,
         'review_mode': review_mode,
         'can_edit_order_routing': can_edit_routing and tech_editable,
         'can_attach_routing': can_attach_routing and tech_editable,

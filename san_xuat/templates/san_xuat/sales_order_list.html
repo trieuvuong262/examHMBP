@@ -186,6 +186,23 @@
     border-radius: 50%;
     background: #f1f3f6;
   }
+  .jp-so-list .jp-so-row-actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.35rem;
+  }
+  .jp-so-list .jp-so-row-actions form {
+    margin: 0;
+  }
+  .jp-so-list .jp-so-row-actions .btn {
+    height: 1.75rem;
+    padding: 0 0.55rem;
+    font-size: 0.75rem;
+    font-weight: 650;
+    line-height: 1;
+    white-space: nowrap;
+  }
   @media (max-width: 767.98px) {
     .jp-so-list .jp-so-filter-actions {
       width: 100%;
@@ -304,6 +321,24 @@
               </span>
             </td>
             {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=row.order %}
+            {% if can_confirm_order %}
+            <td class="npl-col text-end" data-col="actions">
+              {% if row.order.confirm_status == 'draft' %}
+              <div class="jp-so-row-actions">
+                <form method="post" action="{% url 'san_xuat:sales_order_list' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="confirm">
+                  <input type="hidden" name="order_id" value="{{ row.order.pk }}">
+                  <button type="submit" class="btn btn-hm btn-sm">Xác nhận</button>
+                </form>
+                <button type="button" class="btn btn-outline-danger btn-sm"
+                        data-bs-toggle="modal" data-bs-target="#rejectSalesOrderModal"
+                        data-order-id="{{ row.order.pk }}"
+                        data-order-code="{{ row.order.code }}">Từ chối</button>
+              </div>
+              {% endif %}
+            </td>
+            {% endif %}
           </tr>
         {% empty %}
           <tr>
@@ -323,4 +358,55 @@
 </div>
 {% include 'san_xuat/includes/product_image_gallery_modal.html' %}
 {% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
+{% if can_confirm_order %}
+<div class="modal fade" id="rejectSalesOrderModal" tabindex="-1"
+     aria-labelledby="rejectSalesOrderModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="post" action="{% url 'san_xuat:sales_order_list' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="modal-content">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="reject">
+      <input type="hidden" name="order_id" value="{{ reject_order.pk|default:'' }}">
+      <div class="modal-header">
+        <h5 class="modal-title" id="rejectSalesOrderModalLabel">Từ chối đơn {{ reject_order.code|default:"" }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <label for="{{ reject_form.reason.id_for_label }}" class="form-label">Lý do từ chối</label>
+        {{ reject_form.reason }}
+        {% for error in reject_form.reason.errors %}
+        <div class="text-danger small mt-1">{{ error }}</div>
+        {% endfor %}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+        <button type="submit" class="btn btn-danger">Xác nhận từ chối</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+(function () {
+  var modal = document.getElementById('rejectSalesOrderModal');
+  if (!modal) return;
+  modal.addEventListener('show.bs.modal', function (event) {
+    var btn = event.relatedTarget;
+    if (!btn) return;
+    var idInput = modal.querySelector('[name="order_id"]');
+    if (idInput) idInput.value = btn.getAttribute('data-order-id') || '';
+    var title = document.getElementById('rejectSalesOrderModalLabel');
+    if (title) title.textContent = 'Từ chối đơn ' + (btn.getAttribute('data-order-code') || '');
+  });
+})();
+</script>
+{% if reject_form.reason.errors %}
+<script>
+  window.addEventListener('load', function () {
+    var el = document.getElementById('rejectSalesOrderModal');
+    if (el && typeof bootstrap !== 'undefined') {
+      bootstrap.Modal.getOrCreateInstance(el).show();
+    }
+  });
+</script>
+{% endif %}
+{% endif %}
 {% endblock %}
