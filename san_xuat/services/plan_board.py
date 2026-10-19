@@ -439,6 +439,8 @@ class TeamKhsxSpan:
     member_labels: list[str] = field(default_factory=list)
     member_wc_ids: list[int] = field(default_factory=list)
     buffer_days: int = 0
+    dept_label: str = ''
+    team_label: str = ''
 
 
 @dataclass
@@ -479,6 +481,8 @@ class TicketTimelineStep:
     smv_seconds: Decimal = field(default_factory=lambda: Decimal('0'))
     qty_per_day: Decimal = field(default_factory=lambda: Decimal('0'))
     planned_qty: Decimal = field(default_factory=lambda: Decimal('0'))
+    dept_label: str = ''
+    team_label: str = ''
 
     @property
     def unhired_product_groups(self) -> list[dict]:
@@ -1118,6 +1122,7 @@ def _team_loads_from_order(
     # Bộ phận thực tế (tổ trên SMV đơn) trong mỗi slug — slug gộp nhiều tổ (Ủi + Gấp xếp…).
     routing_members: dict[str, dict[int, list]] = {}
     plan_members: dict[str, dict[int, list]] = {}
+    dept_labels: dict[str, str] = {}
     lines = [ln for ln in order.lines.all() if (ln.qty or 0) > 0]
     with _group_slug_scope():
         for ln in lines:
@@ -1181,6 +1186,9 @@ def _team_loads_from_order(
                 if ov_e is not None:
                     cur['efficiency_pct'] = _q(ov_e)
                 overrides[slug] = cur
+            frozen_dept = (getattr(step, 'dept_label', None) or '').strip()
+            if frozen_dept and slug not in dept_labels:
+                dept_labels[slug] = frozen_dept
 
     members: dict[str, list[SxWorkCenter]] = {}
     for slug in work:
@@ -1271,6 +1279,8 @@ def _team_loads_from_order(
             'qty': qty_n,
             'smv_seconds': smv_sec,
             'qty_per_day': qpd,
+            'dept_label': dept_labels.get(slug, ''),
+            'team_label': wc_label,
         })
     return out
 
@@ -1289,6 +1299,69 @@ def _plan_step_team_slug(step) -> str:
     if slug:
         return slug
     return (_team_slug_from_folded(_fold(name)) or '').strip().lower()
+
+
+def _route_process_keys(order: SxSalesOrder) -> dict[str, set[tuple[str, str]]]:
+    """(tên công đoạn, mã nhóm) của từng slug trên routing.
+
+    Tên trùng hai bộ phận thì bỏ, tránh gán nhầm công đoạn.
+    """
+    from san_xuat.services.inter_step_times import _group_slug_scope, _step_team_slug
+    from san_xuat.services.order_routing import sales_order_line_routing
+
+    found: dict[str, set[tuple[str, str]]] = {}
+    with _group_slug_scope():
+        for ln in order.lines.all():
+            if (getattr(ln, 'qty', 0) or 0) <= 0:
+                continue
+            for st in sales_order_line_routing(ln).steps:
+                slug = (_step_team_slug(st) or '').strip().lower()
+                name = (getattr(st, 'process_name', None) or '').strip().casefold()
+                group = (getattr(st, 'group_code', None) or '').strip()
+                if not slug or not name:
+                    continue
+                found.setdefault(slug, set()).add((name, group))
+    owner: dict[tuple[str, str], str] = {}
+    ambiguous: set[tuple[str, str]] = set()
+    for slug, keys in found.items():
+        for key in keys:
+            prev = owner.get(key)
+            if prev and prev != slug:
+                ambiguous.add(key)
+            else:
+                owner[key] = slug
+    if ambiguous:
+        for slug in found:
+            found[slug] = {key for key in found[slug] if key not in ambiguous}
+    return found
+
+
+def _plan_steps_for_slug(order: SxSalesOrder, steps, slug: str) -> list:
+    """Bước kế hoạch của đúng dòng bộ phận trên bảng.
+
+    Slug routing (d25) và slug bước kế hoạch (d39) có thể khác nhau dù cùng
+    một công đoạn. Khi không khớp slug, lấy các bước có cùng tên + nhóm.
+    """
+    from san_xuat.services.inter_step_times import _group_slug_scope
+
+    slug = (slug or '').strip().lower()
+    direct: list = []
+    with _group_slug_scope():
+        for step in steps or []:
+            if _plan_step_team_slug(step) == slug:
+                direct.append(step)
+    if direct or not slug:
+        return direct
+    keys = _route_process_keys(order).get(slug) or set()
+    if not keys:
+        return []
+    matched = []
+    for step in steps or []:
+        name = (getattr(step, 'process_name', None) or '').strip().casefold()
+        group = (getattr(step, 'group_code', None) or '').strip()
+        if (name, group) in keys:
+            matched.append(step)
+    return matched
 
 
 def _pinned_starts_from_steps(plan_steps) -> dict[str, date]:
@@ -1421,6 +1494,8 @@ def team_khsx_spans(
             member_labels=list(row.get('member_labels') or []),
             member_wc_ids=list(row.get('member_wc_ids') or []),
             buffer_days=buffer_days,
+            dept_label=(row.get('dept_label') or '').strip(),
+            team_label=(row.get('team_label') or '').strip(),
         ))
     return npl_spans + spans
 
@@ -1430,20 +1505,32 @@ def _write_team_planned_dates(steps, starts_by_slug: dict[str, date], *, require
 
     written = 0
     wrote_required = not require_slug
+    require_slug = (require_slug or '').strip().lower()
+    route_keys: set[tuple[str, str]] = set()
+    if require_slug and require_slug in starts_by_slug and steps:
+        order = getattr(steps[0], 'sales_order', None)
+        if order is not None:
+            route_keys = _route_process_keys(order).get(require_slug) or set()
     with _group_slug_scope():
         for step in steps:
             st = _plan_step_team_slug(step)
-            if st not in starts_by_slug:
+            name = (getattr(step, 'process_name', None) or '').strip().casefold()
+            group = (getattr(step, 'group_code', None) or '').strip()
+            via_route = bool(route_keys) and (name, group) in route_keys
+            target = st if st in starts_by_slug else ''
+            if not target and via_route:
+                target = require_slug
+            if not target:
                 continue
-            if step.planned_date != starts_by_slug[st]:
+            if step.planned_date != starts_by_slug[target]:
                 fields = ['planned_date']
-                step.planned_date = starts_by_slug[st]
+                step.planned_date = starts_by_slug[target]
                 gc = (getattr(step, 'group_code', None) or '').strip()
                 if gc:
                     fields.append('group_code')
                 step.save(update_fields=fields)
             written += 1
-            if require_slug and st == require_slug:
+            if require_slug and (st == require_slug or via_route):
                 wrote_required = True
     if require_slug and not wrote_required:
         return 0
@@ -1517,18 +1604,21 @@ def _rebase_team_day_plans(order: SxSalesOrder, slug: str, new_start: date) -> d
         return rows[-1].plan_date
     qtys = [_q(r.qty) for r in rows]
     offsets = [_workday_offset(old_start, r.plan_date) for r in rows]
+    wc_ids = [r.work_center_id for r in rows]
     occupied: set[date] = set()
-    assigned: list[tuple[date, Decimal]] = []
-    for off, q in zip(offsets, qtys):
+    assigned: list[tuple[date, Decimal, int | None]] = []
+    for off, q, wc_id in zip(offsets, qtys, wc_ids):
         day = add_working_days(new_start, off)
         while day in occupied:
             day = add_working_days(day, 1)
         occupied.add(day)
-        assigned.append((day, q))
+        assigned.append((day, q, wc_id))
     SxOrderTeamDayPlan.objects.filter(sales_order=order, team_slug=slug).delete()
     SxOrderTeamDayPlan.objects.bulk_create([
-        SxOrderTeamDayPlan(sales_order=order, team_slug=slug, plan_date=d, qty=q)
-        for d, q in assigned
+        SxOrderTeamDayPlan(
+            sales_order=order, team_slug=slug, plan_date=d, qty=q, work_center_id=wc_id,
+        )
+        for d, q, wc_id in assigned
     ])
     _clear_day_plan_cache(order)
     return assigned[-1][0]
@@ -1790,6 +1880,8 @@ def build_ticket_timeline_steps(
     if teams:
         for index, s in enumerate(teams):
             meta = team_meta.get((s.slug or '').strip().lower(), {})
+            dept_name = (getattr(s, 'dept_label', '') or '').strip()
+            team_name = (getattr(s, 'team_label', '') or '').strip()
             qty_total = Decimal('0')
             for pg in meta.get('product_groups') or []:
                 qty_total += _q(pg.get('qty'))
@@ -1807,6 +1899,8 @@ def build_ticket_timeline_steps(
                         slug=s.slug,
                         kind='team',
                         label=s.label or 'Công đoạn',
+                        dept_label=dept_name,
+                        team_label=team_name,
                         start=piece.plan_date,
                         end=piece.plan_date,
                         duration_label=s.duration_label if i == 0 else '',
@@ -1834,6 +1928,8 @@ def build_ticket_timeline_steps(
                 slug=s.slug,
                 kind='team',
                 label=s.label or 'Công đoạn',
+                dept_label=dept_name,
+                team_label=team_name,
                 start=s.start,
                 end=s.end,
                 duration_label=s.duration_label,
@@ -2978,40 +3074,61 @@ def assign_plan_team(
         _clear_day_plan_cache(order)
         return order, wc
     steps = _load_schedule_steps(order)
-    matched: list[SxSalesOrderPlanStep] = []
-    with _group_slug_scope():
-        for step in steps:
-            if _plan_step_team_slug(step) == slug:
-                matched.append(step)
+    matched = _plan_steps_for_slug(order, steps, slug)
     if not matched:
         raise PlanningError('Không tìm thấy công đoạn tương ứng trên đơn.')
+    shown_dept = ''
+    if src_wc:
+        src_center = SxWorkCenter.objects.filter(pk=src_wc).first()
+        if src_center is not None:
+            shown_dept = (src_center.team_label or src_center.name or src_center.code or '').strip()
     for step in matched:
+        # Ghim chữ bộ phận đang hiện trên dòng, rồi mới gắn tổ năng lực mới.
+        if not (step.board_slug or '').strip():
+            step.board_slug = slug[:40]
+        if not (step.dept_label or '').strip():
+            old = step.work_center
+            own = ''
+            if old is not None:
+                own = (old.team_label or old.name or old.code or '').strip()
+            step.dept_label = (shown_dept or own or _team_display_label(slug))[:120]
         step.work_center = wc
         step.khsx_headcount = None
         step.khsx_efficiency_pct = None
-        step.save(update_fields=['work_center', 'khsx_headcount', 'khsx_efficiency_pct'])
+        step.save(update_fields=[
+            'work_center', 'khsx_headcount', 'khsx_efficiency_pct',
+            'board_slug', 'dept_label',
+        ])
     with _group_slug_scope():
         for ln in order.lines.all():
             for rl in ln.routing_lines.select_related('work_center', 'operation__group').all():
                 rl_slug = (_step_team_slug(rl) or '').strip().lower()
                 if rl_slug != slug:
                     continue
+                if not (getattr(rl, 'board_slug', '') or '').strip():
+                    rl.board_slug = slug[:40]
                 rl.work_center = wc
                 rl.work_center_code = (wc.code if wc else '')[:40]
-                rl.save(update_fields=['work_center', 'work_center_code'])
+                rl.save(update_fields=['work_center', 'work_center_code', 'board_slug'])
     cache = getattr(order, '_prefetched_objects_cache', None)
     if cache is not None:
         cache.pop('plan_steps', None)
         cache.pop('lines', None)
-    # Tổ may/in… dùng chung một công đoạn nhưng mỗi bộ phận HR một slug (d25, d39).
-    # Sau khi gắn tổ mới, xếp lại theo slug đó — slug cũ không còn trên đơn.
-    new_slug = _assigned_step_slug(matched, slug)
-    if new_slug != slug:
-        _retarget_day_plans_after_team_change(
-            order, old_slug=slug, new_slug=new_slug, source_wc_id=src_wc,
+    # Ngày của đúng tổ đang sửa chuyển sang tổ mới. Tổ khác cùng bộ phận giữ nguyên.
+    owned = day_qs.filter(work_center_id__isnull=True)
+    if src_wc:
+        owned = day_qs.filter(Q(work_center_id__isnull=True) | Q(work_center_id=src_wc))
+    if wc is not None:
+        clash_dates = set(
+            day_qs.filter(work_center_id=wc.pk).values_list('plan_date', flat=True)
         )
-    apply_auto_team_day_splits(order, only_slug=new_slug, replace_existing=True)
-    _reflow_order_from(order, origin_slug=new_slug)
+        if clash_dates and owned.filter(plan_date__in=clash_dates).exists():
+            raise PlanningError('Tổ mới trùng ngày với tổ đã gán — đổi ngày rồi thử lại.')
+    owned.update(work_center=wc)
+    _clear_day_plan_cache(order)
+    # Tổ năng lực đổi để tính người/phút. Slug bộ phận (may, d25, …) giữ nguyên.
+    apply_auto_team_day_splits(order, only_slug=slug, replace_existing=True)
+    _reflow_order_from(order, origin_slug=slug)
     return order, wc
 
 
@@ -3044,11 +3161,7 @@ def save_plan_team_capacity(
     if load < 1 or load > 200:
         raise PlanningError('Hệ số tải từ 1% đến 200%.')
     steps = _load_schedule_steps(order)
-    matched: list[SxSalesOrderPlanStep] = []
-    with _group_slug_scope():
-        for step in steps:
-            if _plan_step_team_slug(step) == slug:
-                matched.append(step)
+    matched = _plan_steps_for_slug(order, steps, slug)
     if not matched:
         raise PlanningError('Không tìm thấy công đoạn tương ứng trên đơn.')
     for step in matched:
@@ -3891,6 +4004,7 @@ class RouteStageRow:
     slug: str
     label: str
     short_label: str
+    team_label: str = ''
     work_center_id: int = 0
     team_qty_total: str = ''
     total_label: str = ''
@@ -4487,7 +4601,12 @@ def _stage_rows_from_bars(
                 ordered.append(key)
                 seen_keys.add(key)
 
-    wc_names = _work_center_label_map([wc for _slug, wc in ordered if wc])
+    name_ids = [wc for _slug, wc in ordered if wc]
+    for span in plan_by_slug.values():
+        wid = int(getattr(span, 'work_center_id', 0) or 0)
+        if wid:
+            name_ids.append(wid)
+    wc_names = _work_center_label_map(name_ids)
     out: list[RouteStageRow] = []
     for slug, wc_id in ordered:
         items = grouped.get((slug, wc_id)) or []
@@ -4514,27 +4633,24 @@ def _stage_rows_from_bars(
         last_date = max(by_day) if by_day else (sample.end if sample else None)
         cap_src = sample if sample is not None else plan
         cap = _timeline_bar_capacity(cap_src) if cap_src is not None else {}
-        dept_label = _stage_sheet_label(
-            slug,
-            (getattr(plan, 'label', None) or '').strip() if plan is not None else '',
-        )
-        wc_label = wc_names.get(wc_id, '')
-        bar_label = (sample.label if sample else '') or ''
-        full_label = wc_label or bar_label or dept_label or slug
+        sheet_fallback = (getattr(plan, 'label', None) or '').strip() if plan is not None else ''
+        frozen_dept = (getattr(plan, 'dept_label', None) or '').strip() if plan is not None else ''
+        if not wc_id and plan is not None:
+            wc_id = int(getattr(plan, 'work_center_id', 0) or 0)
+        primary_wc = int(getattr(plan, 'work_center_id', 0) or 0) if plan is not None else 0
+        home_name = (wc_names.get(primary_wc, '') or '').strip()
+        row_team = (wc_names.get(wc_id, '') or '').strip() if wc_id else ''
+        if frozen_dept:
+            shown_dept = frozen_dept
+        elif home_name:
+            shown_dept = home_name
+        else:
+            shown_dept = row_team or (sample.label if sample else '') or sheet_fallback or slug
+        dept_label = _stage_sheet_label(slug, frozen_dept or sheet_fallback)
         qty_total = (sample.team_qty_total if sample else '') or ''
         if not qty_total and plan is not None and not items:
             qty_n = _q(getattr(plan, 'planned_qty', 0) or 0)
             qty_total = format_sx_num_input(qty_n) if qty_n > 0 else ''
-        if not wc_id and plan is not None:
-            wc_id = int(getattr(plan, 'work_center_id', 0) or 0)
-            if wc_id:
-                full_label = wc_names.get(wc_id) or full_label
-        if (
-            plan is not None
-            and len(getattr(plan, 'member_labels', None) or []) > 1
-            and wc_id == int(getattr(plan, 'work_center_id', 0) or 0)
-        ):
-            full_label = plan.label
         done_label = ''
         if sample is not None:
             done_label = (getattr(sample, 'done_qty_total', '') or '').strip()
@@ -4545,8 +4661,9 @@ def _stage_rows_from_bars(
             done_label = format_sx_num_input(done_sum) if done_sum > 0 else '0'
         out.append(RouteStageRow(
             slug=slug,
-            label=full_label,
+            label=shown_dept,
             short_label=dept_label or slug,
+            team_label=row_team,
             work_center_id=wc_id,
             team_qty_total=qty_total,
             total_label=qty_total or (sample.qty_label if sample else '') or '',

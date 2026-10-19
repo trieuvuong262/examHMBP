@@ -34,7 +34,12 @@
               data-jp-stage-capacity
               aria-haspopup="dialog">
         <span class="jp-pb-tl-name jp-pb-tl-team">
+          {% if step.dept_label and step.team_label and step.dept_label != step.team_label %}
+          <span class="jp-pb-tl-dept">{{ step.dept_label }}</span>
+          Tổ: {{ step.team_label }}{% if step.split_count > 1 %} {{ step.split_index }}/{{ step.split_count }}{% endif %}
+          {% else %}
           Tổ: {{ step.label }}{% if step.split_count > 1 %} {{ step.split_index }}/{{ step.split_count }}{% endif %}
+          {% endif %}
         </span>
         <span class="jp-pb-tl-meta">
           <span class="jp-pb-tl-k">Bắt đầu</span>
@@ -134,7 +139,7 @@
             {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
             {% if filter_date_from %}<input type="hidden" name="date_from" value="{{ filter_date_from|date:'Y-m-d' }}">{% endif %}
             {% if filter_date_to %}<input type="hidden" name="date_to" value="{{ filter_date_to|date:'Y-m-d' }}">{% endif %}
-            <p class="jp-pb-hop-pop-title">{{ step.label }} → công đoạn sau</p>
+            <p class="jp-pb-hop-pop-title">{{ step.dept_label|default:step.label }} → công đoạn sau</p>
             <label>
               Kiểm đếm (phút)
               <input type="number" name="count_minutes" min="0" step="0.01"
@@ -160,7 +165,7 @@
              class="jp-pb-stage-panel" data-jp-stage-panel hidden>
       <div class="jp-pb-stage-panel-head">
         <div>
-          <strong>{{ step.label }}{% if step.split_count > 1 %} {{ step.split_index }}/{{ step.split_count }}{% endif %}</strong>
+          <strong>{% if step.dept_label and step.team_label and step.dept_label != step.team_label %}{{ step.dept_label }} · {{ step.team_label }}{% else %}{{ step.label }}{% endif %}{% if step.split_count > 1 %} {{ step.split_index }}/{{ step.split_count }}{% endif %}</strong>
           {% if step.start or step.qty_label %}
           <p class="jp-pb-stage-pick-hint">{% if step.start %}{{ step.start|date:'d/m' }}{% endif %}{% if step.qty_label %} · SL {{ step.qty_label }}{% endif %}</p>
           {% endif %}
@@ -216,7 +221,7 @@
             </div>
           </div>
           <div class="jp-pb-stage-team-title">
-            <strong>{{ step.label }}</strong>
+            <strong>{% if step.dept_label and step.team_label and step.dept_label != step.team_label %}{{ step.dept_label }} · Tổ {{ step.team_label }}{% else %}{{ step.label }}{% endif %}</strong>
             <span>{{ product_group.process_names|length }}</span>
           </div>
           <div class="jp-pb-stage-ops">

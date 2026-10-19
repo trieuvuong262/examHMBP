@@ -310,6 +310,10 @@ def _step_team_slug(step) -> str | None:
     """
     if step is None:
         return None
+    # Đổi tổ năng lực không được kéo bộ phận sang slug HR khác (d25 → d39).
+    pinned = _norm_slug(_step_attr(step, 'board_slug'))
+    if pinned:
+        return pinned
     group_slug = None
     group_code = _step_group_code(step)
     if group_code:

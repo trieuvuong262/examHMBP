@@ -539,6 +539,7 @@ def sales_order_line_routing(order_line: SxSalesOrderLine):
                 count_minutes=_q(getattr(line, 'count_minutes', 0)),
                 transfer_minutes=_q(getattr(line, 'transfer_minutes', 0)),
                 group_code=group_code,
+                board_slug=(getattr(line, 'board_slug', '') or '').strip().lower(),
             )
         )
     if rows:

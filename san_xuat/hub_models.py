@@ -465,6 +465,13 @@ class SxSalesOrderRoutingLine(models.Model):
         verbose_name='Bộ phận chịu trách nhiệm',
     )
     work_center_code = models.CharField(max_length=40, blank=True, default='', verbose_name='Bộ phận (mã)')
+    board_slug = models.CharField(
+        max_length=40,
+        blank=True,
+        default='',
+        verbose_name='Slug bộ phận trên bảng',
+        help_text='Ghim khi đổi tổ năng lực. Trống = tính theo công đoạn như mặc định.',
+    )
     skill_level_label = models.CharField(max_length=60, blank=True, default='', verbose_name='Bậc kỹ năng')
     critical_qc = models.BooleanField(default=False, verbose_name='QC trọng yếu')
     notes = models.CharField(max_length=255, blank=True, default='', verbose_name='Mô tả')
@@ -553,6 +560,20 @@ class SxSalesOrderPlanStep(models.Model):
         blank=True,
         related_name='sales_order_plan_steps',
         verbose_name='Tổ / bộ phận',
+    )
+    board_slug = models.CharField(
+        max_length=40,
+        blank=True,
+        default='',
+        verbose_name='Slug bộ phận trên bảng',
+        help_text='Ghim khi đổi tổ năng lực để cột Bộ phận không đổi slug.',
+    )
+    dept_label = models.CharField(
+        max_length=120,
+        blank=True,
+        default='',
+        verbose_name='Tên bộ phận trên bảng',
+        help_text='Chữ cột Bộ phận trước lần đổi tổ. Trống = đang hiện theo mặc định.',
     )
     planned_date = models.DateField(null=True, blank=True, db_index=True, verbose_name='Ngày kế hoạch')
     minutes_per_unit = models.DecimalField(

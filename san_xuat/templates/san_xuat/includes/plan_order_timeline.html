@@ -120,12 +120,12 @@
                   data-can-split="{% if can_schedule and stage.can_split %}1{% else %}0{% endif %}"
                   title="{{ stage.short_label }} · {{ row.order.code }}">
                 <span class="jp-sheet-side">
-                  <span class="jp-sheet-team-name">{% if stage.work_center_id %}{{ stage.label }}{% else %}—{% endif %}</span>
+                  <span class="jp-sheet-team-name">{% if stage.work_center_id %}{{ stage.team_label|default:stage.label }}{% else %}—{% endif %}</span>
                   {% if can_schedule and stage.slug and stage.slug != 'npl' %}
                   <button type="button" class="jp-sheet-team{% if stage.work_center_id %} is-on{% endif %}"
                           data-jp-stage-team
-                          title="{% if stage.work_center_id %}{{ stage.label }} — bấm để đổi tổ{% else %}Chọn tổ năng lực SX{% endif %}"
-                          aria-label="{% if stage.work_center_id %}Đổi tổ {{ stage.label }}{% else %}Chọn tổ {{ stage.short_label }}{% endif %}">
+                          title="{% if stage.work_center_id %}{{ stage.team_label|default:stage.label }} — bấm để đổi tổ{% else %}Chọn tổ năng lực SX{% endif %}"
+                          aria-label="{% if stage.work_center_id %}Đổi tổ {{ stage.team_label|default:stage.label }}{% else %}Chọn tổ {{ stage.label }}{% endif %}">
                     <i class="bi bi-pencil-square" aria-hidden="true"></i>
                   </button>
                   {% endif %}

@@ -52,6 +52,7 @@ class RoutingStep:
     count_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
     transfer_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
     group_code: str = ''
+    board_slug: str = ''
 
     @property
     def work_center_id(self) -> int | None:
