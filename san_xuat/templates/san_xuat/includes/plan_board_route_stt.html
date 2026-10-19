@@ -1,0 +1,23 @@
+{% if can_schedule %}
+<div class="jp-stt-ctrl">
+  <button type="button" class="jp-stt-step" data-jp-stt-up
+          title="Chuyển lên 1" aria-label="Chuyển thứ tự {{ stt }} lên 1"{% if stt == 1 %} disabled{% endif %}>
+    <i class="bi bi-chevron-up" aria-hidden="true"></i>
+  </button>
+  <div class="jp-stt-mid">
+    <button type="button" class="jp-stt-grip" data-jp-order-drag draggable="false"
+            title="Kéo để đổi thứ tự đơn" aria-label="Kéo thứ tự {{ stt }}">
+      <i class="bi bi-grip-vertical" aria-hidden="true"></i>
+    </button>
+    <input type="text" class="jp-stt-num" data-jp-stt-input inputmode="numeric"
+           autocomplete="off" spellcheck="false" value="{{ stt }}"
+           title="Nhập số thứ tự rồi Enter" aria-label="Thứ tự {{ stt }}, nhập số để chuyển">
+  </div>
+  <button type="button" class="jp-stt-step" data-jp-stt-down
+          title="Chuyển xuống 1" aria-label="Chuyển thứ tự {{ stt }} xuống 1">
+    <i class="bi bi-chevron-down" aria-hidden="true"></i>
+  </button>
+</div>
+{% else %}
+<span class="jp-stt-num">{{ stt }}</span>
+{% endif %}

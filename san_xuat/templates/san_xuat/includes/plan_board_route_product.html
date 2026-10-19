@@ -29,6 +29,10 @@
     {% endfor %}
   </div>
   <div class="jp-sheet-product-meta">
+    <div class="jp-sheet-product-placed" title="Ngày lên đơn">
+      <span class="k">Lên đơn</span>
+      <strong>{% if row.order.created_at %}{{ row.order.created_at|date:"d/m/Y" }}{% else %}—{% endif %}</strong>
+    </div>
     <div class="jp-sheet-product-dates">
       <div class="jp-sheet-product-date" title="Ngày dự kiến thực hiện">
         <span class="k">Thực hiện</span>

@@ -52,15 +52,7 @@
                 data-team-slug="{{ stage.slug }}">
               {% if forloop.first %}
               <td class="c-stt" rowspan="{{ row.stage_rows|length }}">
-                {% if can_schedule %}
-                <button type="button" class="jp-sheet-stt" data-jp-order-drag draggable="false"
-                        title="Kéo để đổi thứ tự đơn" aria-label="Thứ tự {{ stt }} — kéo để đổi">
-                  <i class="bi bi-grip-vertical" aria-hidden="true"></i>
-                  <span class="jp-stt-num">{{ stt }}</span>
-                </button>
-                {% else %}
-                <span class="jp-stt-num">{{ stt }}</span>
-                {% endif %}
+                {% include 'san_xuat/includes/plan_board_route_stt.html' %}
               </td>
               <td class="c-product" rowspan="{{ row.stage_rows|length }}">
                 {% include 'san_xuat/includes/plan_board_route_product.html' %}
@@ -177,15 +169,7 @@
             {% empty %}
             <tr class="jp-tl-orow is-order-start" data-order-id="{{ row.order.pk }}">
               <td class="c-stt">
-                {% if can_schedule %}
-                <button type="button" class="jp-sheet-stt" data-jp-order-drag draggable="false"
-                        title="Kéo để đổi thứ tự đơn" aria-label="Thứ tự {{ stt }} — kéo để đổi">
-                  <i class="bi bi-grip-vertical" aria-hidden="true"></i>
-                  <span class="jp-stt-num">{{ stt }}</span>
-                </button>
-                {% else %}
-                <span class="jp-stt-num">{{ stt }}</span>
-                {% endif %}
+                {% include 'san_xuat/includes/plan_board_route_stt.html' %}
               </td>
               <td class="c-product">
                 {% include 'san_xuat/includes/plan_board_route_product.html' %}

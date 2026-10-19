@@ -34,6 +34,8 @@
   document.querySelectorAll('.jp-sx-module table tbody tr').forEach(function (tr) {
     if (tr.querySelector('td[colspan]')) return;
     if (tr.classList.contains('jp-sx-row-wired')) return;
+    // Bảng lộ trình: ngày trống không được mở đơn / lệnh.
+    if (tr.closest('#lo-trinh, .jp-tl-sheet')) return;
     // Hàng đã có data-href + jp-npl-catalog-row: catalog_page_loading.js xử lý
     if (tr.classList.contains('jp-npl-catalog-row') && tr.getAttribute('data-href')) {
       tr.classList.add('jp-sx-row-click', 'jp-sx-row-wired');

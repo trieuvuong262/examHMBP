@@ -4668,10 +4668,44 @@
     return list.map(function (g) { return g.getAttribute('data-order-id') || ''; }).filter(Boolean);
   }
   function renumber() {
-    groups().forEach(function (g, i) {
+    var list = groups();
+    list.forEach(function (g, i) {
       var n = String(i + 1);
-      g.querySelectorAll('.jp-stt-num').forEach(function (el) { el.textContent = n; });
+      var last = i === list.length - 1;
+      g.querySelectorAll('[data-jp-stt-up]').forEach(function (btn) { btn.disabled = i === 0; });
+      g.querySelectorAll('[data-jp-stt-down]').forEach(function (btn) { btn.disabled = last; });
+      g.querySelectorAll('.jp-stt-num').forEach(function (el) {
+        if (el.tagName === 'INPUT') {
+          if (el === document.activeElement && el.dataset.editing === '1') return;
+          el.value = n;
+        } else {
+          el.textContent = n;
+        }
+      });
     });
+  }
+  function moveGroupTo(group, oneBased) {
+    var list = groups();
+    var from = list.indexOf(group);
+    if (from < 0) return false;
+    var n = parseInt(oneBased, 10);
+    if (!n || n < 1) n = 1;
+    if (n > list.length) n = list.length;
+    var to = n - 1;
+    if (to === from) return false;
+    if (to < from) table.insertBefore(group, list[to]);
+    else table.insertBefore(group, list[to].nextSibling);
+    return true;
+  }
+  function applyMove(group, oneBased) {
+    var before = idsOf(groups());
+    if (!moveGroupTo(group, oneBased)) {
+      renumber();
+      return;
+    }
+    renumber();
+    var after = idsOf(groups());
+    if (after.join(',') !== before.join(',')) saveOrder(after);
   }
   function clearDrop() {
     groups().forEach(function (g) { g.classList.remove('is-drop-before'); });
@@ -4698,38 +4732,43 @@
     if (before) target.classList.add('is-drop-before');
     renumber();
   }
+  var saveChain = Promise.resolve();
   function saveOrder(orderIds) {
     if (!csrf) {
       alert('Thiếu mã bảo mật — tải lại trang rồi kéo lại.');
       return;
     }
-    var body = new URLSearchParams();
-    body.set('action', 'reorder_plan_orders');
-    body.set('order_ids', orderIds.join(','));
-    body.set('mode', 'list');
-    body.set('tab', 'route');
-    body.set('csrfmiddlewaretoken', csrf);
-    table.classList.add('is-saving');
-    fetch(window.location.pathname + window.location.search, {
-      method: 'POST',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-        'Accept': 'application/json',
-        'X-CSRFToken': csrf,
-      },
-      body: body,
-      credentials: 'same-origin',
-    }).then(function (res) {
-      return res.json().then(function (data) {
-        if (!res.ok || !data.ok) {
-          throw new Error((data && data.error) || 'Không lưu được thứ tự.');
-        }
+    var snapshot = orderIds.slice();
+    saveChain = saveChain.then(function () {
+      var body = new URLSearchParams();
+      body.set('action', 'reorder_plan_orders');
+      body.set('order_ids', snapshot.join(','));
+      body.set('mode', 'list');
+      body.set('tab', 'route');
+      body.set('csrfmiddlewaretoken', csrf);
+      table.classList.add('is-saving');
+      return fetch(window.location.pathname + window.location.search, {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json',
+          'X-CSRFToken': csrf,
+        },
+        body: body,
+        credentials: 'same-origin',
+      }).then(function (res) {
+        return res.json().then(function (data) {
+          if (!res.ok || !data.ok) {
+            throw new Error((data && data.error) || 'Không lưu được thứ tự.');
+          }
+          table.classList.remove('is-saving');
+        });
+      }).catch(function (err) {
         table.classList.remove('is-saving');
+        alert(err.message || 'Không lưu được thứ tự.');
+        window.location.reload();
+        return new Promise(function () {});
       });
-    }).catch(function (err) {
-      table.classList.remove('is-saving');
-      alert(err.message || 'Không lưu được thứ tự.');
-      window.location.reload();
     });
   }
 
@@ -4784,6 +4823,73 @@
   document.addEventListener('pointermove', onMove);
   document.addEventListener('pointerup', onUp);
   document.addEventListener('pointercancel', onUp);
+
+  var skipInput = null;
+  root.addEventListener('pointerdown', function (ev) {
+    var step = ev.target && ev.target.closest ? ev.target.closest('[data-jp-stt-up], [data-jp-stt-down]') : null;
+    var active = document.activeElement;
+    if (
+      step && active && active.matches && active.matches('[data-jp-stt-input]')
+      && step.closest('tbody.jp-sheet-order') === active.closest('tbody.jp-sheet-order')
+    ) {
+      skipInput = active;
+    }
+  }, true);
+
+  root.addEventListener('click', function (ev) {
+    var up = ev.target && ev.target.closest ? ev.target.closest('[data-jp-stt-up]') : null;
+    var down = !up && ev.target && ev.target.closest ? ev.target.closest('[data-jp-stt-down]') : null;
+    var btn = up || down;
+    if (!btn || !root.contains(btn) || btn.disabled) return;
+    var group = btn.closest('tbody.jp-sheet-order');
+    if (!group) return;
+    ev.preventDefault();
+    var from = groups().indexOf(group);
+    if (from < 0) return;
+    applyMove(group, from + 1 + (up ? -1 : 1));
+  });
+
+  root.addEventListener('focusin', function (ev) {
+    var input = ev.target;
+    if (!input.matches || !input.matches('[data-jp-stt-input]')) return;
+    input.dataset.editing = '1';
+    input.dataset.prev = input.value;
+    input.select();
+  });
+  root.addEventListener('keydown', function (ev) {
+    var input = ev.target;
+    if (!input.matches || !input.matches('[data-jp-stt-input]')) return;
+    if (ev.key === 'Enter') {
+      ev.preventDefault();
+      input.blur();
+    } else if (ev.key === 'Escape') {
+      ev.preventDefault();
+      input.dataset.revert = '1';
+      input.blur();
+    }
+  });
+  root.addEventListener('focusout', function (ev) {
+    var input = ev.target;
+    if (!input.matches || !input.matches('[data-jp-stt-input]')) return;
+    var group = input.closest('tbody.jp-sheet-order');
+    var revert = input.dataset.revert === '1' || skipInput === input;
+    var prev = input.dataset.prev || '';
+    if (skipInput === input) skipInput = null;
+    delete input.dataset.editing;
+    delete input.dataset.revert;
+    delete input.dataset.prev;
+    if (!group || revert) {
+      renumber();
+      return;
+    }
+    var raw = String(input.value || '').trim();
+    if (!/^\d+$/.test(raw) || String(parseInt(raw, 10)) === String(parseInt(prev, 10))) {
+      renumber();
+      return;
+    }
+    applyMove(group, parseInt(raw, 10));
+  });
+  renumber();
 })();
 
 (function () {

@@ -887,6 +887,7 @@
     --sheet-brand: var(--hm-primary, #dc2626);
     --sheet-brand-soft: #fef2f2;
     --sheet-brand-line: #fecaca;
+    --sheet-stt: 68px;
     --sheet-product: 336px;
   }
   .jp-tl-is-sheet .jp-tl-wrap {
@@ -920,7 +921,7 @@
     color: var(--sheet-ink);
     background: #fff;
   }
-  .jp-tl-sheet col.c-stt { width: 44px; }
+  .jp-tl-sheet col.c-stt { width: var(--sheet-stt); }
   .jp-tl-sheet col.c-product { width: var(--sheet-product); }
   .jp-tl-sheet col.c-dept { width: 148px; }
   .jp-tl-sheet col.c-team { width: 88px; }
@@ -962,7 +963,7 @@
     height: 32px;
     border-bottom: 1px solid var(--sheet-brand-line);
   }
-  .jp-tl-sheet .c-stt { width: 44px; min-width: 44px; max-width: 44px; padding: 0; }
+  .jp-tl-sheet .c-stt { width: var(--sheet-stt); min-width: var(--sheet-stt); max-width: var(--sheet-stt); padding: 0; }
   .jp-tl-sheet .c-product {
     width: var(--sheet-product);
     min-width: var(--sheet-product);
@@ -976,11 +977,14 @@
   .jp-tl-sheet .c-team { width: 88px; min-width: 88px; max-width: 88px; padding: 2px 4px; }
   .jp-tl-sheet tbody td.c-dept,
   .jp-tl-sheet tbody td.c-team { text-align: left; }
+  .jp-tl-sheet thead th.c-stt,
+  .jp-tl-sheet tbody td.c-stt { position: sticky; left: 0; z-index: 4; }
+  .jp-tl-sheet thead th.c-stt { z-index: 7; background: var(--sheet-brand-soft); }
   .jp-tl-sheet thead th.c-product,
-  .jp-tl-sheet tbody td.c-product { position: sticky; left: 0; overflow: visible; }
+  .jp-tl-sheet tbody td.c-product { position: sticky; left: var(--sheet-stt); overflow: visible; }
   .jp-tl-sheet thead th.c-product { white-space: nowrap; }
   .jp-tl-sheet thead th.c-dept,
-  .jp-tl-sheet tbody td.c-dept { position: sticky; left: var(--sheet-product); overflow: visible; box-shadow: 6px 0 10px -8px rgba(15, 23, 42, .22); }
+  .jp-tl-sheet tbody td.c-dept { position: sticky; left: calc(var(--sheet-stt) + var(--sheet-product)); overflow: visible; box-shadow: 6px 0 10px -8px rgba(15, 23, 42, .22); }
   .jp-tl-sheet tbody td.c-stt,
   .jp-tl-sheet tbody td.c-product,
   .jp-tl-sheet tbody td.c-team { background: #fff; }
@@ -1095,6 +1099,29 @@
     border-radius: 8px;
     background: #f8fafc;
   }
+  .jp-tl-sheet .jp-sheet-product-placed {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+    padding-bottom: 6px;
+    border-bottom: 1px dashed #e2e8f0;
+  }
+  .jp-tl-sheet .jp-sheet-product-placed .k {
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: #64748b;
+  }
+  .jp-tl-sheet .jp-sheet-product-placed strong {
+    font-size: 12px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -.02em;
+    color: #0f172a;
+    line-height: 1.2;
+  }
   .jp-tl-sheet .jp-sheet-product-dates {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 14px minmax(0, 1fr);
@@ -1171,33 +1198,82 @@
     vertical-align: top;
     overflow: visible;
   }
-  .jp-tl-sheet .jp-sheet-stt {
+  .jp-tl-sheet .jp-stt-ctrl {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1px;
+    width: 100%;
+    padding: 4px 3px 5px;
+  }
+  .jp-tl-sheet .jp-stt-step,
+  .jp-tl-sheet .jp-stt-grip {
     appearance: none;
     -webkit-appearance: none;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0;
-    width: 100%;
-    min-height: 38px;
     margin: 0;
-    padding: 4px 0;
+    padding: 0;
     border: 0;
-    border-radius: 0;
+    background: transparent;
+    color: #64748b;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .jp-tl-sheet .jp-stt-step {
+    height: 16px;
+    border-radius: 4px;
+  }
+  .jp-tl-sheet .jp-stt-step .bi { font-size: 12px; }
+  .jp-tl-sheet .jp-stt-step:hover:not(:disabled) { background: #f1f5f9; color: #0f172a; }
+  .jp-tl-sheet .jp-stt-step:disabled { opacity: .28; cursor: default; }
+  .jp-tl-sheet .jp-stt-mid {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    min-width: 0;
+  }
+  .jp-tl-sheet .jp-stt-grip {
+    flex: 0 0 14px;
+    width: 14px;
+    height: 22px;
+    cursor: grab;
+    touch-action: none;
+    color: #94a3b8;
+  }
+  .jp-tl-sheet .jp-stt-grip .bi { font-size: 13px; }
+  .jp-tl-sheet .jp-stt-grip:active,
+  .jp-tl-sheet .jp-stt-grip.is-dragging { cursor: grabbing; }
+  .jp-tl-sheet .jp-stt-num {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    height: 22px;
+    margin: 0;
+    padding: 0 2px;
+    border: 1px solid transparent;
+    border-radius: 4px;
     background: transparent;
     color: #0f172a;
     font: inherit;
-    font-weight: 700;
+    font-weight: 800;
     font-variant-numeric: tabular-nums;
-    cursor: grab;
-    touch-action: none;
-    user-select: none;
-    -webkit-user-select: none;
+    text-align: center;
+    line-height: 20px;
   }
-  .jp-tl-sheet .jp-sheet-stt:active,
-  .jp-tl-sheet .jp-sheet-stt.is-dragging { cursor: grabbing; }
-  .jp-tl-sheet .jp-sheet-stt .bi { font-size: 12px; color: #94a3b8; }
-  .jp-tl-sheet .jp-stt-num { min-width: 1.1em; text-align: center; }
+  .jp-tl-sheet span.jp-stt-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+  }
+  .jp-tl-sheet input.jp-stt-num:hover,
+  .jp-tl-sheet input.jp-stt-num:focus {
+    border-color: #cbd5e1;
+    background: #fff;
+    outline: none;
+  }
   .jp-tl-sheet tbody.jp-sheet-order.is-order-dragging {
     opacity: .55;
   }
