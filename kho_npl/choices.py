@@ -57,11 +57,84 @@ ISSUE_TYPE_CHOICES = [
 ISSUE_TYPE_LEGACY_LABELS = dict(ISSUE_TYPE_CHOICES)
 
 
-def issue_type_display(value):
-    """Hiển thị lý do xuất: text tự do hoặc nhãn cũ nếu còn mã legacy."""
+_reason_cache = None
+
+
+def clear_issue_reason_cache():
+    global _reason_cache
+    _reason_cache = None
+
+
+def _issue_reason_rows():
+    """(code, name, is_active) từ Thiết lập. Không gồm lý do cố định Xuất cho sản xuất."""
+    global _reason_cache
+    if _reason_cache is None:
+        from kho_npl.models import IssueReason
+
+        _reason_cache = list(
+            IssueReason.objects.order_by('sort_order', 'name').values_list('code', 'name', 'is_active')
+        )
+    return _reason_cache
+
+
+def issue_type_form_choices(*, extra_code: str = '') -> list[tuple[str, str]]:
+    """Lý do trên phiếu xuất: cố định Xuất cho sản xuất, rồi các lý do đang dùng trong Thiết lập."""
+    rows = [('', 'Chọn lý do xuất'), (ISSUE_TYPE_PRODUCTION, 'Xuất cho sản xuất')]
+    seen = {ISSUE_TYPE_PRODUCTION, ''}
+    for code, name, is_active in _issue_reason_rows():
+        if not is_active or code in seen:
+            continue
+        rows.append((code, name))
+        seen.add(code)
+    extra = (extra_code or '').strip()
+    if extra and extra not in seen:
+        rows.append((extra, issue_type_display(extra)))
+    return rows
+
+
+def issue_type_code(value):
+    """Mã lý do xuất. Nhận cả mã (`production`) lẫn nhãn đã lưu (`Xuất cho sản xuất`)."""
     text = (value or '').strip()
     if not text:
         return ''
+    if text == ISSUE_TYPE_PRODUCTION or text.casefold() == 'xuất cho sản xuất':
+        return ISSUE_TYPE_PRODUCTION
+    if text in ISSUE_TYPE_LEGACY_LABELS:
+        return text
+    folded = text.casefold()
+    for code, label in ISSUE_TYPE_CHOICES:
+        if folded == label.casefold():
+            return code
+    for code, name, _active in _issue_reason_rows():
+        if text == code or folded == (name or '').casefold():
+            return code
+    return ''
+
+
+def issue_type_display(value):
+    """Hiển thị lý do xuất: tên trong Thiết lập, nhãn cố định, hoặc chữ đã lưu."""
+    text = (value or '').strip()
+    if not text:
+        return ''
+    if text == ISSUE_TYPE_PRODUCTION or text.casefold() == 'xuất cho sản xuất':
+        return 'Xuất cho sản xuất'
+    for code, name, _active in _issue_reason_rows():
+        if text == code:
+            return name
+    code = ''
+    if text in ISSUE_TYPE_LEGACY_LABELS:
+        code = text
+    else:
+        folded = text.casefold()
+        for legacy_code, label in ISSUE_TYPE_CHOICES:
+            if folded == label.casefold():
+                code = legacy_code
+                break
+    if code:
+        for reason_code, name, _active in _issue_reason_rows():
+            if reason_code == code:
+                return name
+        return ISSUE_TYPE_LEGACY_LABELS.get(code, text)
     return ISSUE_TYPE_LEGACY_LABELS.get(text, text)
 
 ADJUST_STATUS_PENDING = 'pending'

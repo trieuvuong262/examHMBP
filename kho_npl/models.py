@@ -16,6 +16,7 @@ from kho_npl.choices import (
     DOC_STATUS_LABELS,
     ISSUE_STATUS_LABELS,
     RECEIPT_STATUS_LABELS,
+    issue_type_display,
     STOCKTAKE_STATUS_DRAFT,
     STOCKTAKE_STATUS_LABELS,
     TRANSFER_STATUS_DRAFT,
@@ -65,6 +66,55 @@ class MaterialCategory(StockDomainMixin, models.Model):
 
     def __str__(self):
         return self.name
+
+
+class IssueReason(models.Model):
+    """Lý do xuất do người dùng khai trong Thiết lập. Không gồm «Xuất cho sản xuất»."""
+
+    code = models.SlugField(max_length=40, unique=True, verbose_name='Mã')
+    name = models.CharField(max_length=120, verbose_name='Lý do xuất')
+    sort_order = models.PositiveIntegerField(default=0, verbose_name='Thứ tự')
+    is_active = models.BooleanField(default=True, verbose_name='Đang dùng')
+
+    class Meta:
+        ordering = ['sort_order', 'name']
+        verbose_name = 'Lý do xuất'
+        verbose_name_plural = 'Lý do xuất'
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        from django.utils.text import slugify
+
+        from kho_npl.choices import ISSUE_TYPE_PRODUCTION, clear_issue_reason_cache
+
+        code = (self.code or '').strip()
+        if not code:
+            base = (slugify(self.name) or 'ly-do')[:40]
+            if base == ISSUE_TYPE_PRODUCTION:
+                base = 'ly-do'
+            code = base
+            taken = IssueReason.objects.all()
+            if self.pk:
+                taken = taken.exclude(pk=self.pk)
+            n = 2
+            while code == ISSUE_TYPE_PRODUCTION or taken.filter(code=code).exists():
+                suffix = f'-{n}'
+                code = f'{base[:40 - len(suffix)]}{suffix}'
+                n += 1
+        if code == ISSUE_TYPE_PRODUCTION:
+            raise ValidationError('Không dùng mã của lý do Xuất cho sản xuất.')
+        self.code = code
+        super().save(*args, **kwargs)
+        clear_issue_reason_cache()
+
+    def delete(self, *args, **kwargs):
+        from kho_npl.choices import clear_issue_reason_cache
+
+        result = super().delete(*args, **kwargs)
+        clear_issue_reason_cache()
+        return result
 
 
 class Unit(models.Model):
@@ -622,6 +672,22 @@ class StockIssue(StockDomainMixin, models.Model):
         verbose_name='Lý do xuất',
     )
     production_order = models.CharField(max_length=60, blank=True, verbose_name='Lệnh sản xuất')
+    sales_order = models.ForeignKey(
+        'san_xuat.SxSalesOrder',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='npl_stock_issues',
+        verbose_name='Đơn hàng',
+    )
+    work_center = models.ForeignKey(
+        'san_xuat.SxWorkCenter',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='npl_stock_issues',
+        verbose_name='Tổ trên lộ trình',
+    )
     product_code = models.CharField(max_length=60, blank=True, verbose_name='Mã sản phẩm')
     recipient_department = models.CharField(max_length=120, blank=True, verbose_name='Bộ phận nhận')
     recipient_name = models.CharField(max_length=120, blank=True, verbose_name='Người nhận')
@@ -670,6 +736,10 @@ class StockIssue(StockDomainMixin, models.Model):
 
     def __str__(self):
         return self.number
+
+    @property
+    def issue_type_label(self) -> str:
+        return issue_type_display(self.issue_type)
 
     @property
     def display_recipient_name(self) -> str:

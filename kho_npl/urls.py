@@ -61,6 +61,8 @@ urlpatterns = [
     path('api/tim-npl/', StockRedirectView.as_view(pattern_name='kho_npl:material_search', permanent=True)),
     path('api/tim-hang/', views_material.material_search, name='material_search'),
     path('api/tim-ma-sp/', views_issue.product_code_search, name='product_code_search'),
+    path('api/tim-don-hang/', views_issue.sales_order_search, name='sales_order_search'),
+    path('api/to-lo-trinh/', views_issue.route_team_options, name='route_team_options'),
     path('api/tim-nhan-vien/', views_issue.recipient_search, name='recipient_search'),
     path('api/tim-ncc/', views_supplier.supplier_search, name='supplier_search'),
     path('api/them-ncc/', views_supplier.supplier_quick_create, name='supplier_quick_create'),

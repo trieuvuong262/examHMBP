@@ -1,4 +1,5 @@
 from kho_npl.forms import (
+    IssueReasonForm,
     MaterialCategoryForm,
     MaterialColorForm,
     MaterialSpecificationForm,
@@ -7,6 +8,7 @@ from kho_npl.forms import (
     WarehouseLocationForm,
 )
 from kho_npl.models import (
+    IssueReason,
     MaterialCategory,
     MaterialColor,
     MaterialSpecification,
@@ -79,6 +81,18 @@ SETTINGS_SECTIONS = {
         'list_columns': (
             ('code', 'Mã'),
             ('name', 'Tên vị trí'),
+        ),
+    },
+    'ly-do-xuat': {
+        'title': 'Lý do xuất',
+        'icon': 'bi-box-arrow-up',
+        'model': IssueReason,
+        'form_class': IssueReasonForm,
+        'search_fields': ('name',),
+        'order_by': ('sort_order', 'name'),
+        'list_columns': (
+            ('name', 'Lý do xuất'),
+            ('sort_order', 'Thứ tự'),
         ),
     },
     'ncc': {

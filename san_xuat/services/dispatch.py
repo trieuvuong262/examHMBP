@@ -1267,13 +1267,17 @@ def create_team_stock_issue(
         selections=selections,
     )
     mo = req.production_order
+    from kho_npl.services.issue_route import work_center_recipient_label
+
     issue = StockIssue.objects.create(
         number=next_issue_number(),
         issue_date=timezone.localdate(),
         issue_type=ISSUE_TYPE_PRODUCTION,
         production_order=mo.code,
         product_code=mo.product_code,
-        recipient_department=(req.work_center.name if req.work_center_id else "")[:120],
+        sales_order_id=mo.sales_order_id,
+        work_center_id=req.work_center_id,
+        recipient_department=work_center_recipient_label(req.work_center),
         created_by=user,
         notes=" — ".join(p for p in (f"Xuất NPL cho {req.work_center.name}" if req.work_center_id else "", notes) if p),
     )
@@ -1558,7 +1562,9 @@ def approve_material_issue(
     existing = req.stock_issue
     issue: StockIssue
     is_supplement = False
-    recipient_department = (req.work_center.name if req.work_center_id else "")[:120]
+    from kho_npl.services.issue_route import work_center_recipient_label
+
+    recipient_department = work_center_recipient_label(req.work_center)
 
     if existing_id := req.stock_issue_id:
         existing = StockIssue.objects.select_for_update().get(pk=existing_id)
@@ -1576,6 +1582,8 @@ def approve_material_issue(
                 issue_type=ISSUE_TYPE_PRODUCTION,
                 production_order=mo.code,
                 product_code=mo.product_code,
+                sales_order_id=mo.sales_order_id,
+                work_center_id=req.work_center_id,
                 issued_by=user,
                 created_by=user,
                 recipient=user,
@@ -1593,6 +1601,12 @@ def approve_material_issue(
             if recipient_department and issue.recipient_department != recipient_department:
                 issue.recipient_department = recipient_department
                 update_fields.append("recipient_department")
+            if mo.sales_order_id and issue.sales_order_id != mo.sales_order_id:
+                issue.sales_order_id = mo.sales_order_id
+                update_fields.append("sales_order")
+            if req.work_center_id and issue.work_center_id != req.work_center_id:
+                issue.work_center_id = req.work_center_id
+                update_fields.append("work_center")
             if attachment is not None:
                 issue.attachment = attachment
                 update_fields.append("attachment")
@@ -1609,6 +1623,8 @@ def approve_material_issue(
             issue_type=ISSUE_TYPE_PRODUCTION,
             production_order=mo.code,
             product_code=mo.product_code,
+            sales_order_id=mo.sales_order_id,
+            work_center_id=req.work_center_id,
             issued_by=user,
             created_by=user,
             recipient=user,

@@ -22,6 +22,40 @@
     const qtyFieldSuffix = form.dataset.qtyFieldSuffix || 'quantity';
     const defaultQtyOnMaterial = form.dataset.defaultQtyOnMaterial || '';
     const showLineUnit = form.dataset.showLineUnit === '1';
+
+    function bomOrderFilter() {
+        const type = form.querySelector('[data-jp-issue-type]');
+        if (!type || type.value !== 'production') return null;
+        const order = form.querySelector('[name="sales_order"]');
+        return (order && order.value || '').trim();
+    }
+
+    function materialSearchKey() {
+        const bom = bomOrderFilter();
+        if (bom === null) return 'all';
+        return 'bom:' + bom;
+    }
+
+    function syncBomQtyColumn() {
+        form.classList.toggle('is-production-issue', bomOrderFilter() !== null);
+    }
+
+    function setLineBomQty(row, option) {
+        const el = row?.querySelector('.jp-npl-bom-qty');
+        if (!el) return;
+        if (bomOrderFilter() === null || !option || option.bom_qty == null || option.bom_qty === '') {
+            el.textContent = '—';
+            return;
+        }
+        const num = Number(option.bom_qty);
+        if (!Number.isFinite(num)) {
+            el.textContent = '—';
+            return;
+        }
+        const text = num.toLocaleString('vi-VN', { maximumFractionDigits: 3 });
+        const unit = option.unit_name || option.unit || '';
+        el.textContent = unit ? text + ' ' + unit : text;
+    }
     const transferWarehouseLock = form.dataset.transferWarehouseLock !== undefined;
     const warehouseLockedInitial = form.dataset.warehouseLocked === '1';
     const materialInstances = new WeakMap();
@@ -522,6 +556,13 @@
         el.textContent = text || '—';
     }
 
+    function setLineDepartment(row, value) {
+        const el = row?.querySelector('.jp-npl-line-department');
+        if (!el) return;
+        const text = String(value || '').trim();
+        el.textContent = text || '—';
+    }
+
     function setStockDisplay(row, value, text) {
         if (stockTarget === 'none') return;
         const el = rowStockEl(row);
@@ -542,6 +583,7 @@
         if (!materialId || !locationId || !balanceUrl) {
             setStockDisplay(row, '', '—');
             if (showLineUnit) setLineUnit(row, '');
+            if (!materialId) setLineDepartment(row, '');
             return Promise.resolve();
         }
         return fetch(
@@ -566,6 +608,8 @@
                             code: ts.options[materialId]?.code || '',
                             name: data.name || ts.options[materialId]?.name || '',
                             unit: data.unit || ts.options[materialId]?.unit || '',
+                            department: data.department || ts.options[materialId]?.department || '',
+                            bom_qty: ts.options[materialId]?.bom_qty,
                             qty_label: data.qty_label || materialStockLabel(data),
                             base_price: data.base_price,
                             stock_unit_price: data.stock_unit_price,
@@ -580,6 +624,7 @@
                 if (showLineUnit && (data.unit_name || data.unit)) {
                     setLineUnit(row, data.unit_name || data.unit, data.units || []);
                 }
+                if (data.department != null) setLineDepartment(row, data.department);
                 if (priceMode !== 'input' && (data.base_price != null || data.stock_unit_price != null)) {
                     setUnitPriceDisplay(row, catalogOrStockPrice(data));
                     updateLineAmount(row);
@@ -681,7 +726,35 @@
         const label = materialDisplay === 'name-stock'
             ? materialSelectedLabel(data)
             : (data.text || data.name || '');
-        return '<div class="jp-npl-material-item"><span class="jp-npl-material-item-name">' + escape(label) + '</span></div>';
+        return '<div class="jp-npl-material-item" title="' + escape(label) + '"><span class="jp-npl-material-item-name">' + escape(label) + '</span></div>';
+    }
+
+    function placeMaterialDropdown(widget) {
+        const dropdown = widget.dropdown;
+        const control = widget.control;
+        if (!dropdown || !control) return;
+        const rect = control.getBoundingClientRect();
+        const margin = 8;
+        const spaceBelow = window.innerHeight - rect.bottom - margin;
+        const spaceAbove = rect.top - margin;
+        const openUp = spaceBelow < 220 && spaceAbove > spaceBelow;
+        const room = Math.max(0, openUp ? spaceAbove : spaceBelow);
+        const maxH = Math.min(240, room || 160);
+        const content = dropdown.querySelector('.ts-dropdown-content');
+        dropdown.style.maxHeight = maxH + 'px';
+        if (content) content.style.maxHeight = maxH + 'px';
+        const width = Math.min(Math.max(rect.width, 280), window.innerWidth - margin * 2);
+        let left = rect.left;
+        if (left + width > window.innerWidth - margin) {
+            left = Math.max(margin, window.innerWidth - margin - width);
+        }
+        dropdown.style.width = width + 'px';
+        dropdown.style.left = (left + window.scrollX) + 'px';
+        dropdown.style.zIndex = '2000';
+        if (openUp) {
+            const height = dropdown.offsetHeight || maxH;
+            dropdown.style.top = (rect.top + window.scrollY - height - 4) + 'px';
+        }
     }
 
     function renderBatchOption(data, escape) {
@@ -822,20 +895,24 @@
             searchField: searchUrl ? [] : ['name'],
             placeholder: select.dataset.placeholder || 'Gõ tên NPL...',
             dropdownParent: 'body',
+            dropdownClass: 'ts-dropdown jp-npl-material-dropdown',
             openOnFocus: true,
             loadThrottle: 220,
             shouldLoad: function () {
+                if (bomOrderFilter() === '') return false;
                 return !!rowLocationId(row);
             },
             load: function (query, callback) {
                 const locationId = rowLocationId(row);
-                if (!searchUrl || !locationId) {
+                const bomOrder = bomOrderFilter();
+                if (!searchUrl || !locationId || bomOrder === '') {
                     callback();
                     return;
                 }
-                const url = searchUrl + '?q=' + encodeURIComponent(query || '')
+                let url = searchUrl + '?q=' + encodeURIComponent(query || '')
                     + '&location_id=' + encodeURIComponent(locationId)
                     + (inStockOnly ? '&in_stock_only=1' : '');
+                if (bomOrder) url += '&sales_order_id=' + encodeURIComponent(bomOrder);
                 fetch(url, { headers: { 'Accept': 'application/json' } })
                     .then(function (r) { return r.json(); })
                     .then(function (data) { callback(data.results || []); })
@@ -845,8 +922,14 @@
                 option: renderMaterialOption,
                 item: renderMaterialItem,
                 no_results: function () {
+                    if (bomOrderFilter() === '') {
+                        return '<div class="px-2 py-2 text-muted small">Chọn đơn hàng trước khi tìm NPL</div>';
+                    }
                     if (!rowLocationId(row)) {
                         return '<div class="px-2 py-2 text-muted small">' + locationRequiredMessage() + '</div>';
+                    }
+                    if (bomOrderFilter()) {
+                        return '<div class="px-2 py-2 text-muted small">Không có NPL trong BOM của đơn tại vị trí này</div>';
                     }
                     const msg = inStockOnly
                         ? 'Không có NPL có tồn tại vị trí này — thử tên khác'
@@ -879,6 +962,11 @@
                     const option = materialId ? this.options[materialId] : null;
                     setLineUnit(row, unit, option?.units || []);
                 }
+                const materialOption = materialId ? this.options[materialId] : null;
+                if (!materialId || (materialOption && materialOption.department != null)) {
+                    setLineDepartment(row, materialOption ? materialOption.department : '');
+                }
+                setLineBomQty(row, materialOption);
                 applyDefaultLocationOnMaterial(row, materialId ? this.options[materialId] : null);
                 applyDefaultQtyOnMaterial(row);
                 fetchStock(row);
@@ -923,12 +1011,31 @@
         if (browseOnOpen) {
             tsOptions.preload = 'focus';
             tsOptions.onDropdownOpen = function () {
-                if (!rowLocationId(row)) return;
+                if (bomOrderFilter() === '' || !rowLocationId(row)) return;
+                const key = materialSearchKey();
+                if (select.dataset.materialSearchKey !== key) {
+                    const current = String(this.getValue() || '');
+                    const currentOption = current && this.options[current]
+                        ? Object.assign({}, this.options[current])
+                        : null;
+                    this.loadedSearches = {};
+                    this.clearOptions();
+                    if (currentOption) {
+                        this.addOption(currentOption);
+                        this.setValue(current, true);
+                    }
+                    select.dataset.materialSearchKey = key;
+                }
                 const query = (this.control_input.value || '').trim();
                 this.load(query);
             };
         }
         const ts = new TomSelect(select, tsOptions);
+        const placeNative = ts.positionDropdown.bind(ts);
+        ts.positionDropdown = function () {
+            placeNative();
+            placeMaterialDropdown(ts);
+        };
         materialInstances.set(select, ts);
         if (select.value) {
             fetchStock(row);
@@ -945,14 +1052,35 @@
         const materialSelect = row?.querySelector('select.jp-npl-material-select');
         const ts = materialSelect ? materialInstances.get(materialSelect) : null;
         if (ts) {
+            ts.loadedSearches = {};
             ts.clearOptions();
             ts.clear(true);
         } else if (materialSelect) {
             materialSelect.value = '';
         }
+        if (materialSelect) materialSelect.dataset.materialSearchKey = '';
         setStockDisplay(row, '', '—');
         setQtyInvalidState(rowQtyInput(row), false);
         setLineUnit(row, '');
+        setLineDepartment(row, '');
+        setLineBomQty(row, null);
+    }
+
+    function resetMaterialSearch(row) {
+        const select = row?.querySelector('select.jp-npl-material-select');
+        const ts = select ? materialInstances.get(select) : null;
+        if (!ts) return;
+        const current = String(ts.getValue() || '');
+        const currentOption = current && ts.options[current] ? Object.assign({}, ts.options[current]) : null;
+        ts.close();
+        ts.loadedSearches = {};
+        ts.clearOptions();
+        if (select) select.dataset.materialSearchKey = materialSearchKey();
+        if (currentOption) {
+            ts.addOption(currentOption);
+            ts.setValue(current, true);
+        }
+        setLineBomQty(row, null);
     }
 
     function onLocationChange(row) {
@@ -1063,6 +1191,20 @@
     }
 
     document.addEventListener('jp-npl-validation-modal-hidden', refreshAllQtyInvalidStates);
+
+    form.querySelector('[name="sales_order"]')?.addEventListener('change', function () {
+        if (bomOrderFilter() === null) return;
+        body.querySelectorAll('.line-row').forEach(clearRowMaterial);
+    });
+    form.querySelector('[data-jp-issue-type]')?.addEventListener('change', function () {
+        syncBomQtyColumn();
+        if (this.value === 'production') {
+            body.querySelectorAll('.line-row').forEach(clearRowMaterial);
+            return;
+        }
+        body.querySelectorAll('.line-row').forEach(resetMaterialSearch);
+    });
+    syncBomQtyColumn();
 
     form.addEventListener('submit', function (e) {
         syncTransferWarehouseLock();

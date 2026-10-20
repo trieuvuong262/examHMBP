@@ -102,6 +102,32 @@ def next_working_day(day: date) -> date:
     return d
 
 
+def working_days_before(
+    day: date,
+    count: int,
+    *,
+    pattern: str | None = None,
+    holidays: set[date] | None = None,
+) -> list[date]:
+    """``count`` ngày làm việc liền trước ``day``, không gồm ``day``, tăng dần."""
+    if not day or count <= 0:
+        return []
+    bits = normalize_workdays(pattern) if pattern else workdays_pattern()
+    if holidays is None:
+        span = max(int(count) * 3, 60)
+        holidays = holiday_dates(day - timedelta(days=span), day)
+    found: list[date] = []
+    cursor = day
+    guard = 0
+    while len(found) < int(count) and guard < 900:
+        cursor -= timedelta(days=1)
+        guard += 1
+        if is_working_day(cursor, pattern=bits, holidays=holidays):
+            found.append(cursor)
+    found.reverse()
+    return found
+
+
 def add_working_days(start: date, days: int) -> date:
     """Cộng ``days`` ngày làm việc *sau* ``start`` (không tính chính start).
 

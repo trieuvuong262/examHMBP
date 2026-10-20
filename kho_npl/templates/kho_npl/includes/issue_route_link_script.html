@@ -1,0 +1,203 @@
+<style>
+.jp-npl-order-option,
+.jp-npl-order-item { display: flex; align-items: center; gap: .6rem; min-width: 0; }
+.jp-npl-order-thumb {
+    width: 44px; height: 44px; flex: 0 0 44px; border-radius: 6px; object-fit: cover;
+    background: #f1f3f5; border: 1px solid #e9ecef; display: inline-flex; align-items: center;
+    justify-content: center; color: #adb5bd; font-size: 1.1rem;
+}
+.jp-npl-order-item .jp-npl-order-thumb { width: 28px; height: 28px; flex-basis: 28px; font-size: .85rem; }
+.jp-npl-order-text { min-width: 0; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jp-npl-order-text .name { font-weight: 600; }
+.jp-npl-order-text .code { color: #6c757d; font-size: .85em; font-weight: 400; margin-left: .35rem; }
+.jp-npl-doc-form .ts-control .jp-npl-order-item { gap: .45rem; max-width: 100%; min-width: 0; }
+.jp-npl-doc-form .ts-control .jp-npl-order-thumb {
+    width: 22px; height: 22px; flex-basis: 22px; font-size: .75rem;
+}
+.jp-npl-doc-form .ts-control .jp-npl-order-text {
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+</style>
+<script>
+(function () {
+    const form = document.getElementById('issue-form');
+    if (!form || !form.querySelector('[data-jp-issue-route]')) return;
+    const typeSelect = form.querySelector('[data-jp-issue-type]');
+    const orderSelect = form.querySelector('.jp-npl-sales-order-select');
+    const teamSelect = form.querySelector('[data-jp-route-team]');
+    const searchUrl = form.dataset.salesOrderSearchUrl || '';
+    const teamUrl = form.dataset.routeTeamUrl || '';
+
+    function routeFields() {
+        return form.querySelectorAll('[data-jp-issue-route]');
+    }
+
+    function syncRouteVisibility() {
+        const on = typeSelect && typeSelect.value === 'production';
+        routeFields().forEach(function (el) {
+            el.hidden = !on;
+        });
+    }
+
+    function teamWidget() {
+        return teamSelect && teamSelect.tomselect ? teamSelect.tomselect : null;
+    }
+
+    function ensureTeamWidget() {
+        if (!teamSelect || teamSelect.tomselect || typeof TomSelect === 'undefined') return;
+        new TomSelect(teamSelect, {
+            maxItems: 1,
+            allowEmptyOption: true,
+            dropdownParent: 'body',
+            openOnFocus: true,
+            placeholder: 'Chọn tổ',
+        });
+    }
+
+    function writeTeamOptions(rows, keep) {
+        const widget = teamWidget();
+        const selected = String(keep || '');
+        if (widget) {
+            widget.clear(true);
+            widget.clearOptions();
+            rows.forEach(function (row) {
+                widget.addOption({ value: String(row.id), text: row.text || '' });
+            });
+            widget.refreshOptions(false);
+            if (selected && rows.some(function (row) { return String(row.id) === selected; })) {
+                widget.setValue(selected, true);
+            }
+            return;
+        }
+        teamSelect.innerHTML = '';
+        const empty = document.createElement('option');
+        empty.value = '';
+        empty.textContent = 'Chọn tổ';
+        teamSelect.appendChild(empty);
+        rows.forEach(function (row) {
+            const opt = document.createElement('option');
+            opt.value = String(row.id);
+            opt.textContent = row.text || '';
+            if (String(row.id) === selected) opt.selected = true;
+            teamSelect.appendChild(opt);
+        });
+    }
+
+    function fillTeams(orderId, selectedId) {
+        if (!teamSelect) return;
+        const keep = selectedId || (teamWidget() ? teamWidget().getValue() : teamSelect.value) || '';
+        if (!orderId || !teamUrl) {
+            writeTeamOptions([], '');
+            return;
+        }
+        fetch(teamUrl + '?order=' + encodeURIComponent(orderId), { headers: { 'Accept': 'application/json' } })
+            .then(function (r) { return r.json(); })
+            .then(function (data) { writeTeamOptions(data.results || [], keep); })
+            .catch(function () { writeTeamOptions([], ''); });
+    }
+
+    function bindOrder(control) {
+        const current = control.getValue ? control.getValue() : control.value;
+        if (current) fillTeams(current, teamSelect ? teamSelect.value : '');
+        if (control.on) {
+            control.on('change', function (value) {
+                fillTeams(value || '', '');
+            });
+        } else {
+            control.addEventListener('change', function () {
+                fillTeams(control.value || '', '');
+            });
+        }
+    }
+
+    if (typeSelect) {
+        typeSelect.addEventListener('change', syncRouteVisibility);
+        syncRouteVisibility();
+    }
+
+    ensureTeamWidget();
+    if (!orderSelect) return;
+    if (typeof TomSelect === 'undefined') {
+        bindOrder(orderSelect);
+        return;
+    }
+    if (orderSelect.tomselect) {
+        bindOrder(orderSelect.tomselect);
+        return;
+    }
+
+    const initialValue = (orderSelect.value || '').trim();
+    const initialLabel = orderSelect.options[orderSelect.selectedIndex]
+        ? orderSelect.options[orderSelect.selectedIndex].textContent.trim()
+        : initialValue;
+
+    function thumb(data, escape) {
+        const url = (data.image_url || '').trim();
+        if (url) {
+            return '<img class="jp-npl-order-thumb" src="' + escape(url) + '" alt="" loading="lazy">';
+        }
+        return '<span class="jp-npl-order-thumb"><i class="bi bi-image"></i></span>';
+    }
+
+    function body(data, escape) {
+        const name = (data.name || '').trim();
+        const code = (data.code || '').trim();
+        let html = '<span class="jp-npl-order-text">';
+        if (name) html += '<span class="name">' + escape(name) + '</span>';
+        if (code) html += '<span class="code">' + escape(code) + '</span>';
+        if (!name && !code) html += '<span class="name">' + escape(data.text || '') + '</span>';
+        return html + '</span>';
+    }
+
+    const widget = new TomSelect(orderSelect, {
+        maxOptions: 40,
+        maxItems: 1,
+        valueField: 'id',
+        labelField: 'text',
+        searchField: ['text', 'code', 'name', 'customer'],
+        placeholder: orderSelect.dataset.placeholder || 'Gõ số đơn, khách hoặc mã hàng...',
+        allowEmptyOption: false,
+        dropdownParent: 'body',
+        openOnFocus: true,
+        preload: 'focus',
+        loadThrottle: 220,
+        load: function (query, callback) {
+            if (!searchUrl) {
+                callback();
+                return;
+            }
+            fetch(searchUrl + '?q=' + encodeURIComponent(query || ''), {
+                headers: { 'Accept': 'application/json' },
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (data) { callback(data.results || []); })
+                .catch(function () { callback(); });
+        },
+        render: {
+            option: function (data, escape) {
+                return '<div class="jp-npl-order-option">' + thumb(data, escape) + body(data, escape) + '</div>';
+            },
+            item: function (data, escape) {
+                return '<div class="jp-npl-order-item">' + thumb(data, escape) + body(data, escape) + '</div>';
+            },
+        },
+        onInitialize: function () {
+            if (!initialValue) return;
+            const option = {
+                id: initialValue,
+                code: orderSelect.dataset.initialCode || '',
+                name: orderSelect.dataset.initialName || '',
+                image_url: orderSelect.dataset.initialImage || '',
+                text: initialLabel || initialValue,
+            };
+            if (this.options[initialValue]) {
+                this.updateOption(initialValue, option);
+            } else {
+                this.addOption(option);
+            }
+            this.setValue(initialValue, true);
+        },
+    });
+    bindOrder(widget);
+})();
+</script>

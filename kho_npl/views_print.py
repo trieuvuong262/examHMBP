@@ -100,6 +100,8 @@ def print_issue(request, pk: int):
                 'created_by',
                 'recipient',
                 'recipient__profile',
+                'sales_order',
+                'work_center',
             ).prefetch_related(
                 'lines__material',
                 'lines__material__unit',

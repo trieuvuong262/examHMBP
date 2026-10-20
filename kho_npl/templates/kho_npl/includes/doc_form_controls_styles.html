@@ -50,4 +50,55 @@
     max-width: 100%;
     min-width: 0;
 }
+
+#issue-form .jp-npl-bom-qty-col {
+    display: none;
+}
+
+#issue-form.is-production-issue .jp-npl-bom-qty-col {
+    display: table-cell;
+}
+
+#issue-form .jp-npl-lines-table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+#issue-form .jp-npl-lines-table .ts-wrapper,
+#issue-form .jp-npl-lines-table .form-control,
+#issue-form .jp-npl-lines-table .form-select,
+#issue-form .jp-npl-lines-table .jp-npl-material-field {
+    max-width: 100%;
+    min-width: 0;
+}
+
+#issue-form .jp-npl-lines-table .jp-npl-material-ts .ts-control {
+    overflow: hidden;
+    flex-wrap: nowrap;
+}
+
+#issue-form .jp-npl-lines-table .jp-npl-material-ts .ts-control > .item {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+}
+
+#issue-form .jp-npl-material-item,
+#issue-form .jp-npl-material-item-name {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+body > .ts-dropdown.jp-npl-material-dropdown {
+    z-index: 2000;
+    box-sizing: border-box;
+}
+
+body > .ts-dropdown.jp-npl-material-dropdown .ts-dropdown-content {
+    overflow-y: auto;
+}
 </style>

@@ -1,0 +1,16 @@
+---
+description: Thứ tự hiển thị sản phẩm — ảnh, tên, mã đơn
+alwaysApply: true
+---
+
+# Hiển thị sản phẩm
+
+Khi một dòng, ô chọn, thẻ hoặc danh sách vừa có sản phẩm vừa có đơn hàng, xếp **từ trái sang phải** theo thứ tự:
+
+1. **Ảnh sản phẩm**
+2. **Tên sản phẩm**
+3. **Mã đơn**
+
+Tên sản phẩm là chữ chính. Mã đơn đứng sau, nhỏ hơn hoặc nhạt hơn. Không đưa mã đơn lên trước tên.
+
+Không có tên thì dùng mã sản phẩm thay chỗ tên, vẫn đứng trước mã đơn. Không có ảnh thì giữ ô ảnh trống, không đảo thứ tự chữ.

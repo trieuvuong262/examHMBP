@@ -61,7 +61,7 @@
                             <a href="{% url 'kho_npl:issue_detail' issue.pk %}" class="text-decoration-none fw-semibold">{{ issue.number }}</a>
                         </td>
                         <td class="npl-col" data-col="issue_date">{{ issue.issue_date|date:'d/m/Y' }}</td>
-                        <td class="npl-col" data-col="issue_type">{{ issue.issue_type|default:"—" }}</td>
+                        <td class="npl-col" data-col="issue_type">{{ issue.issue_type_label|default:"—" }}</td>
                         <td class="npl-col" data-col="status">{{ issue.get_status_display }}</td>
                         <td class="npl-col" data-col="issued_by">{% if issue.issued_by %}{{ issue.issued_by.get_full_name|default:issue.issued_by.username }}{% else %}—{% endif %}</td>
                     </tr>

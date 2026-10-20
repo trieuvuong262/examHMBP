@@ -52,18 +52,14 @@ def _issue_print_url(pk: int) -> str:
 
 
 def _redirect_after_issue_save(request, doc, *, action: str):
-    if action == 'post':
-        try:
-            post_stock_issue(doc, request.user)
-            messages.success(request, f'Phiếu {doc.number} đã xuất kho và trừ tồn.')
-        except IssueWorkflowError as exc:
-            messages.error(request, str(exc))
-            return redirect('kho_npl:issue_edit', pk=doc.pk)
-        return redirect('kho_npl:issue_detail', pk=doc.pk)
+    try:
+        post_stock_issue(doc, request.user)
+    except IssueWorkflowError as exc:
+        messages.error(request, str(exc))
+        return redirect('kho_npl:issue_edit', pk=doc.pk)
+    messages.success(request, f'Phiếu {doc.number} đã xuất kho và trừ tồn.')
     if action == 'save_print':
-        messages.success(request, f'Đã lưu nháp phiếu {doc.number}.')
         return redirect(_issue_print_url(doc.pk))
-    messages.success(request, f'Đã lưu nháp phiếu {doc.number}.')
     return redirect('kho_npl:issue_detail', pk=doc.pk)
 
 
@@ -100,6 +96,37 @@ def recipient_search(request):
 
 
 @module_perm_required(MODULE_KHO_NPL, 'view')
+def sales_order_search(request):
+    from kho_npl.services.issue_route import search_route_sales_orders
+
+    q = (request.GET.get('q') or '').strip()
+    return JsonResponse({'results': search_route_sales_orders(q)})
+
+
+@module_perm_required(MODULE_KHO_NPL, 'view')
+def route_team_options(request):
+    from kho_npl.services.issue_route import open_production_order, route_teams_for_order
+    from san_xuat.hub_models import SxSalesOrder
+
+    raw = (request.GET.get('order') or '').strip()
+    if not raw.isdigit():
+        return JsonResponse({'results': [], 'production_order': ''})
+    order = (
+        SxSalesOrder.objects.filter(pk=int(raw), is_demo=False)
+        .exclude(plan_status=SxSalesOrder.PLAN_CANCELLED)
+        .exclude(confirm_status=SxSalesOrder.CONFIRM_REJECTED)
+        .first()
+    )
+    if order is None:
+        return JsonResponse({'results': [], 'production_order': ''})
+    mo = open_production_order(order)
+    return JsonResponse({
+        'results': route_teams_for_order(order),
+        'production_order': mo.code if mo else '',
+    })
+
+
+@module_perm_required(MODULE_KHO_NPL, 'view')
 def issue_list(request):
     search_query = get_search_query(request)
     status = doc_status_filter(request, choices=ISSUE_STATUS_FILTER_CHOICES)
@@ -120,6 +147,11 @@ def issue_list(request):
                 'recipient__username',
                 'recipient__profile__full_name',
                 'recipient__profile__employee_code',
+                'sales_order__code',
+                'work_center__name',
+                'work_center__team_label',
+                'production_order',
+                'recipient_department',
             ),
         )
     qs = qs.order_by(order, '-pk')
@@ -148,7 +180,10 @@ def issue_notes_editable(issue: StockIssue) -> bool:
 def issue_detail(request, pk):
     issue = get_object_or_404(
         docs_for_domain(
-            StockIssue.objects.select_related('issued_by', 'created_by', 'recipient', 'recipient__profile')
+            StockIssue.objects.select_related(
+                'issued_by', 'created_by', 'recipient', 'recipient__profile',
+                'sales_order', 'work_center',
+            )
             .prefetch_related('lines__material', 'lines__location', 'ycx_requests__production_order')
         ),
         pk=pk,
@@ -200,7 +235,6 @@ def issue_create(request):
         form_initial = {}
         initial_lines = bom_lines
         if product_code:
-            form_initial['issue_type'] = f'Xuất theo BOM {product_code}'
             form_initial['notes'] = f'Prefill từ hồ sơ SX · BOM mã {product_code}'
         if not initial_lines:
             material_id = parse_doc_material_id(request)

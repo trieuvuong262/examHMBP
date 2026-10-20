@@ -6,13 +6,16 @@
 <div class="meta-grid">
   <div><span class="label">Trạng thái:</span> {{ issue.get_status_display }}</div>
   <div><span class="label">Ngày xuất:</span> {{ issue.issue_date|date:"d/m/Y" }}</div>
-  <div class="full"><span class="label">Lý do xuất:</span> {{ issue.issue_type|default:"—" }}</div>
+  <div class="full"><span class="label">Lý do xuất:</span> {{ issue.issue_type_label|default:"—" }}</div>
   <div><span class="label">Người xuất:</span> {% if issue.issued_by %}{{ issue.issued_by.get_full_name|default:issue.issued_by.username }}{% else %}—{% endif %}</div>
   <div><span class="label">Người nhận:</span>
     {{ issue.display_recipient_name|default:"—" }}
   </div>
   {% if issue.recipient_department %}
   <div class="full"><span class="label">Bộ phận nhận:</span> {{ issue.recipient_department }}</div>
+  {% endif %}
+  {% if issue.sales_order_id %}
+  <div><span class="label">Đơn hàng:</span> {{ issue.sales_order.code }}</div>
   {% endif %}
   {% if issue.production_order %}
   <div><span class="label">Lệnh SX:</span> {{ issue.production_order }}</div>

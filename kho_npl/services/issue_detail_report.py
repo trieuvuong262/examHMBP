@@ -103,7 +103,7 @@ def _line_row(line: StockIssueLine) -> dict:
         'unit_price': line.selected_unit_price,
         'amount': line.amount,
         'recipient': issue.display_recipient_name or '',
-        'issue_type': issue.issue_type or '',
+        'issue_type': issue.issue_type_label or '',
         'notes': line.notes or '',
     }
 

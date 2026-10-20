@@ -12,6 +12,7 @@ from django.forms import BaseInlineFormSet, inlineformset_factory
 from django.utils import timezone
 
 from kho_npl.models import (
+    IssueReason,
     Material,
     MaterialCategory,
     MaterialColor,
@@ -50,17 +51,23 @@ from kho_npl.doc_attachment import (
     validate_doc_attachment_list,
 )
 from kho_npl.catalog_labels import color_label, spec_label, unit_label
-from kho_npl.choices import WAREHOUSE_SCRAP_CODE
+from kho_npl.stock_domain import (
+    STOCK_DOMAIN_NPL,
+    STOCK_DOMAIN_VAT_TU,
+    domain_from_current_request,
+    item_label,
+)
 from kho_npl.services.scrap_warehouse import (
     fallback_stock_location,
     is_scrap_location,
     material_default_location,
     source_locations_qs,
 )
-from kho_npl.stock_domain import (
-    STOCK_DOMAIN_VAT_TU,
-    domain_from_current_request,
-    item_label,
+from kho_npl.choices import (
+    ISSUE_TYPE_PRODUCTION,
+    WAREHOUSE_SCRAP_CODE,
+    issue_type_code,
+    issue_type_form_choices,
 )
 from kho_npl.services.adjustments import balance_qty
 from kho_npl.services.uom import (
@@ -111,10 +118,14 @@ ISSUE_EMPLOYEE_SELECT = {
     'data-placeholder': 'Gõ tên hoặc mã nhân viên...',
 }
 DOC_EMPLOYEE_SELECT = ISSUE_EMPLOYEE_SELECT
-ISSUE_PRODUCT_CODE_SELECT = {
+ISSUE_SALES_ORDER_SELECT = {
     **FORM_SEARCH_SELECT,
-    'class': 'form-select jp-npl-search-select jp-npl-product-code-select',
-    'data-placeholder': 'Gõ mã hoặc tên sản phẩm...',
+    'class': 'form-select jp-npl-search-select jp-npl-sales-order-select',
+    'data-placeholder': 'Gõ số đơn, khách hoặc mã hàng...',
+}
+ISSUE_ROUTE_TEAM_SELECT = {
+    'class': 'form-select',
+    'data-jp-route-team': '1',
 }
 SUPPLIER_SELECT = {
     **FORM_SEARCH_SELECT,
@@ -890,18 +901,20 @@ class StockIssueForm(DocAttachmentsFormMixin, forms.ModelForm):
         fields = [
             'issue_date',
             'issue_type',
-            'product_code',
+            'sales_order',
+            'work_center',
             'issued_by',
             'recipient_name',
             'notes',
         ]
         widgets = {
             'issue_date': forms.DateInput(attrs=DOC_DATE_INPUT, format=DOC_DATE_DISPLAY_FORMAT),
-            'product_code': forms.Select(attrs=ISSUE_PRODUCT_CODE_SELECT),
             'issue_type': forms.TextInput(attrs={
                 **FORM_CONTROL,
                 'placeholder': 'VD: Xuất cho sản xuất, làm mẫu...',
             }),
+            'sales_order': forms.Select(attrs=ISSUE_SALES_ORDER_SELECT),
+            'work_center': forms.Select(attrs=ISSUE_ROUTE_TEAM_SELECT),
             'issued_by': forms.Select(attrs=ISSUE_EMPLOYEE_SELECT),
             'recipient_name': forms.TextInput(attrs={
                 **FORM_CONTROL,
@@ -913,6 +926,10 @@ class StockIssueForm(DocAttachmentsFormMixin, forms.ModelForm):
 
     def __init__(self, *args, operator=None, **kwargs):
         instance = kwargs.get('instance')
+        if instance is not None and getattr(instance, 'pk', None):
+            self.route_link = instance.stock_domain == STOCK_DOMAIN_NPL
+        else:
+            self.route_link = domain_from_current_request() == STOCK_DOMAIN_NPL
         if (
             instance is not None
             and not instance.pk
@@ -946,33 +963,147 @@ class StockIssueForm(DocAttachmentsFormMixin, forms.ModelForm):
             required=True,
         )
         self.fields['issue_type'].required = True
-        self._init_product_code_choices()
+        self._init_route_link_fields()
         self._init_doc_attachments_field()
         self.fields['issue_date'].input_formats = DOC_DATE_INPUT_FORMATS
 
-    def _init_product_code_choices(self):
-        from kho_npl.product_codes import product_code_display
-
+    def _selected_pk(self, name):
         if self.is_bound:
-            code = (self.data.get(self.add_prefix('product_code')) or '').strip()
-        else:
-            code = (self.initial.get('product_code') or self.instance.product_code or '').strip()
-        choices = [('', '')]
-        if code:
-            row = product_code_display(code)
-            choices.append((code, row.get('text') or code))
-            self.fields['product_code'].widget.attrs['data-initial-image'] = row.get('image_url') or ''
-            self.fields['product_code'].widget.attrs['data-initial-name'] = row.get('name') or ''
-        self.fields['product_code'].widget.choices = choices
+            raw = str(self.data.get(self.add_prefix(name)) or '').strip()
+            return int(raw) if raw.isdigit() else None
+        initial = self.initial.get(name)
+        if hasattr(initial, 'pk'):
+            return initial.pk
+        if isinstance(initial, int):
+            return initial
+        if isinstance(initial, str) and initial.isdigit():
+            return int(initial)
+        return getattr(self.instance, f'{name}_id', None)
 
-    def clean_product_code(self):
-        return (self.cleaned_data.get('product_code') or '').strip()
+    def _init_route_link_fields(self):
+        if not self.route_link:
+            self.fields.pop('sales_order', None)
+            self.fields.pop('work_center', None)
+            return
+        current = issue_type_code(
+            self.initial.get('issue_type') or getattr(self.instance, 'issue_type', '')
+        )
+        if not self.is_bound and current:
+            self.initial['issue_type'] = current
+        self.fields['issue_type'] = forms.ChoiceField(
+            choices=issue_type_form_choices(extra_code=current),
+            required=True,
+            initial=current,
+            label='Lý do xuất',
+            widget=forms.Select(attrs={'class': 'form-select', 'data-jp-issue-type': '1'}),
+            error_messages={'required': 'Vui lòng chọn lý do xuất.'},
+        )
+        from django.db.models import Case, When
+
+        from kho_npl.services.issue_route import (
+            _order_product,
+            route_teams_for_order,
+            sales_order_option_text,
+            sales_order_search_row,
+        )
+        from san_xuat.hub_models import SxSalesOrder, SxWorkCenter
+        from san_xuat.services.products import product_gallery_map
+
+        order_id = self._selected_pk('sales_order')
+        order = SxSalesOrder.objects.filter(pk=order_id).prefetch_related('lines').first() if order_id else None
+        if order is not None:
+            self.fields['sales_order'].queryset = SxSalesOrder.objects.filter(pk=order.pk)
+            self.fields['sales_order'].label_from_instance = sales_order_option_text
+            product_code, _product_name = _order_product(order)
+            galleries = product_gallery_map([product_code]) if product_code else {}
+            row = sales_order_search_row(order, galleries)
+            self.fields['sales_order'].widget.attrs['data-initial-image'] = row['image_url']
+            self.fields['sales_order'].widget.attrs['data-initial-name'] = row['name']
+            self.fields['sales_order'].widget.attrs['data-initial-code'] = row['code']
+        else:
+            self.fields['sales_order'].queryset = SxSalesOrder.objects.none()
+        self.fields['sales_order'].empty_label = None
+        self.fields['sales_order'].required = False
+
+        teams = route_teams_for_order(order)
+        labels = {int(row['id']): row['text'] for row in teams}
+        team_ids = list(labels)
+        posted_team = self._selected_pk('work_center')
+        if posted_team and posted_team not in labels:
+            team_ids.append(posted_team)
+        if team_ids:
+            preserved = Case(*[When(pk=pk, then=pos) for pos, pk in enumerate(team_ids)])
+            self.fields['work_center'].queryset = SxWorkCenter.objects.filter(
+                pk__in=team_ids,
+            ).order_by(preserved)
+        else:
+            self.fields['work_center'].queryset = SxWorkCenter.objects.none()
+        self.fields['work_center'].label_from_instance = (
+            lambda wc, names=labels: names.get(wc.pk, (wc.team_label or wc.name or wc.code))
+        )
+        self.fields['work_center'].empty_label = 'Chọn tổ'
+        self.fields['work_center'].required = False
+
+    @property
+    def is_production_issue(self) -> bool:
+        if not self.route_link:
+            return False
+        if self.is_bound:
+            raw = self.data.get(self.add_prefix('issue_type')) or ''
+            return issue_type_code(raw) == ISSUE_TYPE_PRODUCTION
+        current = self.initial.get('issue_type') or getattr(self.instance, 'issue_type', '')
+        return issue_type_code(current) == ISSUE_TYPE_PRODUCTION
 
     def clean_issue_type(self):
         value = (self.cleaned_data.get('issue_type') or '').strip()
-        if not value:
-            raise ValidationError('Vui lòng nhập lý do xuất.')
-        return value
+        if not self.route_link:
+            if not value:
+                raise ValidationError('Vui lòng nhập lý do xuất.')
+            return value
+        code = issue_type_code(value)
+        if not code:
+            raise ValidationError('Vui lòng chọn lý do xuất.')
+        if code != ISSUE_TYPE_PRODUCTION:
+            from kho_npl.choices import _issue_reason_rows
+
+            active = {reason_code for reason_code, _name, is_active in _issue_reason_rows() if is_active}
+            current = issue_type_code(getattr(self.instance, 'issue_type', '') or '')
+            if code not in active and code != current:
+                raise ValidationError('Lý do xuất này đã ngừng dùng.')
+        return code
+
+    def clean(self):
+        cleaned = super().clean()
+        if not self.route_link:
+            return cleaned
+        if cleaned.get('issue_type') != ISSUE_TYPE_PRODUCTION:
+            cleaned['sales_order'] = None
+            cleaned['work_center'] = None
+            self._errors.pop('sales_order', None)
+            self._errors.pop('work_center', None)
+            return cleaned
+        from san_xuat.hub_models import SxSalesOrder
+
+        from kho_npl.services.issue_route import route_teams_for_order
+
+        order = cleaned.get('sales_order')
+        team = cleaned.get('work_center')
+        if order is None:
+            self.add_error('sales_order', 'Chọn đơn hàng trên lộ trình.')
+        elif (
+            order.is_demo
+            or order.plan_status == SxSalesOrder.PLAN_CANCELLED
+            or order.confirm_status == SxSalesOrder.CONFIRM_REJECTED
+        ):
+            self.add_error('sales_order', 'Đơn này không còn trên lộ trình.')
+            order = None
+        if team is None:
+            self.add_error('work_center', 'Chọn tổ trên lộ trình của đơn.')
+        elif order is not None:
+            allowed = {int(row['id']) for row in route_teams_for_order(order)}
+            if team.pk not in allowed:
+                self.add_error('work_center', 'Tổ không thuộc lộ trình của đơn đã chọn.')
+        return cleaned
 
     def clean_recipient_name(self):
         return (self.cleaned_data.get('recipient_name') or '').strip()
@@ -985,8 +1116,19 @@ class StockIssueForm(DocAttachmentsFormMixin, forms.ModelForm):
         super().full_clean()
 
     def save(self, commit=True):
+        from kho_npl.services.issue_route import stamp_route_link
+
         instance = super().save(commit=False)
         instance.recipient = None
+        if self.route_link:
+            if instance.issue_type != ISSUE_TYPE_PRODUCTION:
+                stamp_route_link(instance, sales_order=None, work_center=None, unlink=True)
+            else:
+                stamp_route_link(
+                    instance,
+                    sales_order=instance.sales_order,
+                    work_center=instance.work_center,
+                )
         if commit:
             instance.save()
         return instance
@@ -1049,16 +1191,29 @@ class StockIssueLineForm(MultiLevelUomLineFormMixin, forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.department_label = ''
+        self.bom_qty_label = ''
         material_id = None
-        if self.instance.pk and self.instance.material_id:
+        if self.is_bound:
+            raw = str(self.data.get(self.add_prefix('material')) or '').strip()
+            if raw.isdigit():
+                material_id = int(raw)
+        if material_id is None and self.instance.pk and self.instance.material_id:
             material_id = self.instance.material_id
-        elif self.initial.get('material'):
+        elif material_id is None and self.initial.get('material'):
             material_id = self.initial['material']
+        material = None
         if material_id:
+            material = (
+                Material.objects.filter(pk=material_id)
+                .select_related('unit', 'primary_location')
+                .first()
+            )
+            self.department_label = ((material.department if material else '') or '').strip()
             self.fields['material'].queryset = (
                 Material.objects.filter(pk=material_id).select_related('unit')
             )
-            self.fields['material'].label_from_instance = lambda material: material.name
+            self.fields['material'].label_from_instance = lambda obj: obj.name
         else:
             self.fields['material'].queryset = Material.objects.none()
         self.fields['material'].empty_label = None
@@ -1066,10 +1221,7 @@ class StockIssueLineForm(MultiLevelUomLineFormMixin, forms.ModelForm):
         self.fields['location'].label_from_instance = lambda obj: obj.display_label()
         self.fields['notes'].required = False
         if not self.instance.pk:
-            loc = material_default_location(
-                Material.objects.filter(pk=material_id).select_related('primary_location').first()
-                if material_id else None
-            )
+            loc = material_default_location(material)
             if loc:
                 self.initial.setdefault('location', loc.pk)
 
@@ -1100,6 +1252,51 @@ class StockIssueLineForm(MultiLevelUomLineFormMixin, forms.ModelForm):
 
 
 class BaseStockIssueLineFormSet(BaseInlineFormSet):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._fill_bom_qty_labels()
+
+    def _fill_bom_qty_labels(self):
+        from kho_npl.catalog_labels import unit_label
+        from kho_npl.choices import ISSUE_TYPE_PRODUCTION, issue_type_code
+        from kho_npl.services.issue_route import sales_order_bom_qty_caps
+        from kho_npl.stock_domain import STOCK_DOMAIN_NPL, domain_from_current_request
+        from kho_npl.templatetags.npl_extras import format_npl_qty
+        from san_xuat.hub_models import SxSalesOrder
+
+        for form in self.forms:
+            form.bom_qty_label = ''
+        if domain_from_current_request() != STOCK_DOMAIN_NPL:
+            return
+        if self.is_bound:
+            issue_type = self.data.get('issue_type') or ''
+            raw_order = str(self.data.get('sales_order') or '').strip()
+            order_id = int(raw_order) if raw_order.isdigit() else None
+        else:
+            issue_type = getattr(self.instance, 'issue_type', '') or ''
+            order_id = getattr(self.instance, 'sales_order_id', None)
+        if issue_type_code(issue_type) != ISSUE_TYPE_PRODUCTION or not order_id:
+            return
+        order = SxSalesOrder.objects.filter(pk=order_id, is_demo=False).first()
+        if order is None:
+            return
+        caps = sales_order_bom_qty_caps(order)
+        if not caps:
+            return
+        for form in self.forms:
+            material = None
+            if form.is_bound:
+                raw = str(form.data.get(form.add_prefix('material')) or '').strip()
+                if raw.isdigit():
+                    material = Material.objects.select_related('unit').filter(pk=int(raw)).first()
+            elif getattr(form.instance, 'material_id', None):
+                material = Material.objects.select_related('unit').filter(pk=form.instance.material_id).first()
+            if material is None or material.pk not in caps:
+                continue
+            unit = unit_label(material.unit) if material.unit_id else ''
+            label = format_npl_qty(caps[material.pk])
+            form.bom_qty_label = f'{label} {unit}'.strip()
+
     def clean(self):
         super().clean()
         if any(self.errors):
@@ -1118,6 +1315,38 @@ class BaseStockIssueLineFormSet(BaseInlineFormSet):
             qty = line.get('quantity')
             if qty is None or qty <= 0:
                 raise ValidationError('Số lượng xuất phải lớn hơn 0 cho mỗi dòng NPL.')
+        self._limit_production_to_order_bom()
+
+    def _limit_production_to_order_bom(self):
+        from kho_npl.choices import ISSUE_TYPE_PRODUCTION, issue_type_code
+        from kho_npl.services.issue_route import sales_order_bom_qty_caps
+        from kho_npl.stock_domain import STOCK_DOMAIN_NPL, domain_from_current_request
+        from san_xuat.hub_models import SxSalesOrder
+
+        if domain_from_current_request() != STOCK_DOMAIN_NPL:
+            return
+        if issue_type_code(self.data.get('issue_type')) != ISSUE_TYPE_PRODUCTION:
+            return
+        raw_order = str(self.data.get('sales_order') or '').strip()
+        if not raw_order.isdigit():
+            return
+        order = SxSalesOrder.objects.filter(pk=int(raw_order), is_demo=False).first()
+        if order is None:
+            return
+        allowed = set(sales_order_bom_qty_caps(order))
+        if not allowed:
+            raise ValidationError(f'Đơn {order.code} chưa có NPL trên BOM.')
+        for form in self.forms:
+            cleaned = form.cleaned_data
+            if not cleaned or cleaned.get('DELETE'):
+                continue
+            material = cleaned.get('material')
+            if material is None or material.pk in allowed:
+                continue
+            form.add_error(
+                'material',
+                f'{material.name} không có trong BOM của đơn {order.code}.',
+            )
 
 
 StockIssueLineFormSet = inlineformset_factory(
@@ -1865,6 +2094,38 @@ class MaterialSpecificationForm(forms.ModelForm):
                     rebase_material_base(material, material.unit, factor)
             specification.materials.update(unit=new_unit)
         return specification
+
+
+class IssueReasonForm(forms.ModelForm):
+    class Meta:
+        model = IssueReason
+        fields = ['name', 'sort_order', 'is_active']
+        widgets = {
+            'name': forms.TextInput(attrs=FORM_CONTROL),
+            'sort_order': forms.NumberInput(attrs=FORM_CONTROL),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['is_active'].required = False
+        self.fields['sort_order'].required = False
+        if not self.instance.pk:
+            from django.db.models import Max
+
+            last = IssueReason.objects.aggregate(last=Max('sort_order'))['last'] or 0
+            self.fields['sort_order'].initial = last + 10
+
+    def clean_name(self):
+        name = (self.cleaned_data.get('name') or '').strip()
+        if not name:
+            raise ValidationError('Vui lòng nhập lý do xuất.')
+        if name.casefold() == 'xuất cho sản xuất':
+            raise ValidationError('Xuất cho sản xuất là lý do cố định, không thêm trong Thiết lập.')
+        return name
+
+    def clean_sort_order(self):
+        return self.cleaned_data.get('sort_order') or 0
 
 
 class UnitForm(forms.ModelForm):

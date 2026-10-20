@@ -1536,4 +1536,42 @@
     color: transparent;
     font-weight: 600;
   }
+  .jp-tl-sheet .jp-sheet-npl {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 40px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font: inherit;
+    font-size: .62rem;
+    font-weight: 800;
+    letter-spacing: .02em;
+    background: #fde68a;
+    color: #92400e;
+    cursor: pointer;
+  }
+  .jp-tl-sheet .jp-sheet-npl.is-done {
+    background: #6ee7b7;
+    color: #064e3b;
+  }
+  .jp-tl-sheet .jp-sheet-npl.is-late {
+    background: #fca5a5;
+    color: #7f1d1d;
+  }
+  .jp-tl-sheet .jp-sheet-qty.has-npl-mark.is-npl-open {
+    box-shadow: inset 0 3px 0 #f59e0b;
+  }
+  .jp-tl-sheet .jp-sheet-qty.has-npl-mark.is-npl-done {
+    box-shadow: inset 0 3px 0 #059669;
+  }
+  .jp-tl-sheet .jp-sheet-qty.has-npl-mark.is-npl-late {
+    box-shadow: inset 0 3px 0 #dc2626;
+  }
+  .jp-npl-need-table tr.is-short td:last-child {
+    color: #991b1b;
+    font-weight: 800;
+  }
 </style>

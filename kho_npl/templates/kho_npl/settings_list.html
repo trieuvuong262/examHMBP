@@ -12,6 +12,9 @@
             <h2 class="fw-bold text-hm mb-1 jp-page-title">
                 {{ section.title }}
             </h2>
+            {% if section.key == 'ly-do-xuat' %}
+            <p class="text-muted small mb-0">Xuất cho sản xuất là lý do cố định trên phiếu, không sửa tại đây.</p>
+            {% endif %}
         </div>
         <div class="d-flex gap-2">
             {% if can_create %}

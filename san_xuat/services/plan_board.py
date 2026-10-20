@@ -3995,6 +3995,11 @@ class RouteDayCell:
     is_week_start: bool = False
     is_off: bool = False
     bar: TeamTimelineBar | None = None
+    npl_prep: bool = False
+    npl_issued: bool = False
+    npl_late: bool = False
+    npl_label: str = ''
+    npl_title: str = ''
 
 
 @dataclass
@@ -4029,6 +4034,12 @@ class RouteStageRow:
     gc_title: str = ''
     progress_mo_id: int = 0
     progress_slug: str = ''
+    is_npl_prep: bool = False
+    schedule_start: date | None = None
+    npl_state: str = ''
+    npl_title: str = ''
+    npl_range: str = ''
+    npl_status: str = ''
 
 
 @dataclass
@@ -4067,6 +4078,8 @@ class PlanTimelineRow:
     qty_label: str = ''
     product_name_label: str = ''
     stage_rows: list[RouteStageRow] = field(default_factory=list)
+    npl_needs: list = field(default_factory=list)
+    npl_script_id: str = ''
 
 
 @dataclass
@@ -4389,6 +4402,8 @@ def plan_stage_legend_items(*, queue_rows=None, route_board=None) -> list[dict]:
     if board is not None:
         for row in getattr(board, 'rows', None) or []:
             for stage in getattr(row, 'stage_rows', None) or []:
+                if getattr(stage, 'is_npl_prep', False):
+                    continue
                 _add(
                     getattr(stage, 'slug', ''),
                     getattr(stage, 'label', '') or getattr(stage, 'short_label', ''),
@@ -4417,6 +4432,8 @@ def route_dept_filter_choices(board=None) -> list[tuple[str, str]]:
     by_slug: OrderedDict[str, str] = OrderedDict()
     for row in getattr(board, 'rows', None) or []:
         for stage in getattr(row, 'stage_rows', None) or []:
+            if getattr(stage, 'is_npl_prep', False):
+                continue
             slug = (getattr(stage, 'slug', '') or '').strip().lower()
             if not slug or slug in {'npl', 'ops'}:
                 continue
@@ -4445,6 +4462,8 @@ def route_team_filter_choices(board=None) -> list[dict]:
     has_unassigned = False
     for row in getattr(board, 'rows', None) or []:
         for stage in getattr(row, 'stage_rows', None) or []:
+            if getattr(stage, 'is_npl_prep', False):
+                continue
             wc_id = int(getattr(stage, 'work_center_id', 0) or 0)
             if wc_id <= 0:
                 has_unassigned = True
@@ -4509,6 +4528,184 @@ def _color_from_product_code(code: str) -> str:
     if 1 <= len(tail) <= 3:
         return tail
     return ''
+
+
+def npl_prep_window_dates(
+    *,
+    stage_start: date,
+    kit_days: int,
+    issue_date: date | None,
+    pattern: str,
+    holidays: set[date],
+) -> tuple[list[date], bool, bool]:
+    """Khoảng chuẩn bị NPL ngay trước một công đoạn.
+
+    Chưa xuất: đúng ``kit_days`` ngày làm việc liền trước ngày công đoạn.
+    Đã xuất: kết thúc tại ``issue_date``. Trễ khi ngày xuất sau ngày kitting cuối.
+    """
+    from san_xuat.services.work_calendar import is_working_day, working_days_before
+
+    kit = max(0, int(kit_days or 0))
+    planned = working_days_before(
+        stage_start, kit, pattern=pattern, holidays=holidays,
+    ) if stage_start and kit else []
+    if issue_date is None:
+        return planned, False, False
+    if not planned:
+        return [issue_date], True, False
+    planned_start = planned[0]
+    planned_end = planned[-1]
+    if issue_date < planned_start:
+        return [issue_date], True, False
+    late = issue_date > planned_end
+    days: list[date] = []
+    cursor = planned_start
+    guard = 0
+    while cursor <= issue_date and guard < 900:
+        if is_working_day(cursor, pattern=pattern, holidays=holidays) or cursor == issue_date:
+            days.append(cursor)
+        cursor += timedelta(days=1)
+        guard += 1
+    return days, True, late
+
+
+def _posted_npl_issue_dates(order_ids: list[int]) -> dict[int, dict[int, date]]:
+    """Ngày xuất muộn nhất (phiếu đã xuất kho) theo (đơn, tổ nhận)."""
+    from kho_npl.choices import DOC_STATUS_POSTED
+
+    from san_xuat.hub_models import SxMaterialIssueRequest
+
+    ids = [int(x) for x in order_ids if x]
+    if not ids:
+        return {}
+    out: dict[int, dict[int, date]] = {}
+
+    def _put(oid, wc, issued) -> None:
+        if not oid or not wc or not issued:
+            return
+        by_wc = out.setdefault(int(oid), {})
+        prev = by_wc.get(int(wc))
+        if prev is None or issued > prev:
+            by_wc[int(wc)] = issued
+
+    base = SxMaterialIssueRequest.objects.filter(
+        is_demo=False,
+        production_order__sales_order_id__in=ids,
+        work_center_id__isnull=False,
+    )
+    m2m = base.filter(stock_issues__status=DOC_STATUS_POSTED).values_list(
+        'production_order__sales_order_id',
+        'work_center_id',
+        'stock_issues__issue_date',
+    )
+    for oid, wc, issued in m2m:
+        _put(oid, wc, issued)
+    fk_rows = base.filter(stock_issue__status=DOC_STATUS_POSTED).values_list(
+        'production_order__sales_order_id',
+        'work_center_id',
+        'stock_issue__issue_date',
+    )
+    for oid, wc, issued in fk_rows:
+        _put(oid, wc, issued)
+
+    from kho_npl.models import StockIssue
+    from kho_npl.stock_domain import STOCK_DOMAIN_NPL
+
+    direct = StockIssue.objects.filter(
+        status=DOC_STATUS_POSTED,
+        stock_domain=STOCK_DOMAIN_NPL,
+        sales_order_id__in=ids,
+        work_center_id__isnull=False,
+    ).values_list('sales_order_id', 'work_center_id', 'issue_date')
+    for oid, wc, issued in direct:
+        _put(oid, wc, issued)
+    return out
+
+
+def _npl_need_payload(order) -> list[dict]:
+    """Nhu cầu NPL của đơn để mở khi bấm ô chuẩn bị trên lộ trình."""
+    if not getattr(order, 'pk', None):
+        return []
+    payload = []
+    for ln in order.npl_lines.all():
+        payload.append({
+            'code': (ln.material_code or '').strip(),
+            'name': (ln.material_name or '').strip(),
+            'unit': (ln.unit or '').strip(),
+            'qty': format_sx_num_input(ln.qty_required),
+            'stock': format_sx_num_input(ln.qty_available),
+            'short': format_sx_num_input(ln.qty_shortfall),
+        })
+    return payload
+
+
+def _format_npl_span(dates: list[date]) -> str:
+    if not dates:
+        return ''
+    start = dates[0].strftime('%d/%m')
+    end = dates[-1].strftime('%d/%m')
+    if start == end:
+        return start
+    return f'{start}–{end}'
+
+
+def _attach_npl_prep(
+    stage_rows: list[RouteStageRow],
+    *,
+    kit_days: int,
+    issue_by_wc: dict[int, date],
+    pattern: str,
+    holidays: set[date],
+) -> list[RouteStageRow]:
+    """Gắn thời gian chuẩn bị NPL lên đúng hàng công đoạn. Không thêm hàng, không đổi ngày sản xuất."""
+    if kit_days <= 0:
+        return stage_rows
+    for stage in stage_rows:
+        anchor = stage.schedule_start or stage.first_date
+        if anchor is None:
+            continue
+        wc_id = int(stage.work_center_id or 0)
+        issue_date = issue_by_wc.get(wc_id) if wc_id else None
+        dates, issued, late = npl_prep_window_dates(
+            stage_start=anchor,
+            kit_days=kit_days,
+            issue_date=issue_date,
+            pattern=pattern,
+            holidays=holidays,
+        )
+        if not dates:
+            continue
+        stage.npl_range = _format_npl_span(dates)
+        if issued and issue_date is not None:
+            when = issue_date.strftime('%d/%m/%Y')
+            if late:
+                stage.npl_state = 'late'
+                stage.npl_status = 'Trễ'
+                stage.npl_title = (
+                    f'Chuẩn bị NPL · đã xuất {when} · trễ so với {int(kit_days)} ngày kitting'
+                )
+            else:
+                stage.npl_state = 'done'
+                stage.npl_status = 'Đã xuất'
+                stage.npl_title = f'Chuẩn bị NPL · đã xuất {when}'
+        else:
+            stage.npl_state = 'open'
+            stage.npl_status = 'Chưa xuất'
+            stage.npl_title = (
+                f'Chuẩn bị NPL · {int(kit_days)} ngày làm việc · chưa xuất'
+            )
+        by_date = {cell.date: cell for cell in stage.cells}
+        visible = [day for day in dates if day in by_date]
+        free = [day for day in visible if not getattr(by_date[day], 'bar', None)]
+        picked = (free or visible)[-1] if (free or visible) else None
+        if picked is not None:
+            cell = by_date[picked]
+            cell.npl_prep = True
+            cell.npl_issued = issued
+            cell.npl_late = late
+            cell.npl_title = stage.npl_title
+            cell.npl_label = 'NPL'
+    return stage_rows
 
 
 def _stage_day_cells(
@@ -4659,6 +4856,19 @@ def _stage_rows_from_bars(
             for bar in items:
                 done_sum += _q(getattr(bar, 'done_qty_label', 0) or 0)
             done_label = format_sx_num_input(done_sum) if done_sum > 0 else '0'
+        raw_dates = []
+        for bar in items:
+            if not getattr(bar, 'placed', True):
+                continue
+            raw = getattr(bar, 'plan_date', None) or getattr(bar, 'start', None)
+            if raw:
+                raw_dates.append(raw)
+        if plan is not None and getattr(plan, 'start', None) and wc_id == primary_wc:
+            schedule_start = plan.start
+        elif raw_dates:
+            schedule_start = min(raw_dates)
+        else:
+            schedule_start = first_date
         out.append(RouteStageRow(
             slug=slug,
             label=shown_dept,
@@ -4673,6 +4883,7 @@ def _stage_rows_from_bars(
             first_date=first_date,
             last_date=last_date,
             cells=_stage_day_cells(axis_days, by_day),
+            schedule_start=schedule_start,
             **cap,
         ))
     return out
@@ -5419,6 +5630,26 @@ def build_order_timeline(
         for pk, w in wc_map.items()
     }
 
+    from san_xuat.services.plan_order_npl import kit_days_for_order
+    from san_xuat.services.work_calendar import holiday_dates, workdays_pattern
+
+    order_ids = [r.order.pk for r in plan_rows]
+    issues_by_order = _posted_npl_issue_dates(order_ids)
+    span_starts = [
+        ts.start
+        for r in plan_rows
+        for ts in (r.team_spans or [])
+        if getattr(ts, 'slug', '') != 'npl' and getattr(ts, 'start', None)
+    ]
+    prep_from = min(span_starts) if span_starts else start
+    issue_dates = [d for by_wc in issues_by_order.values() for d in by_wc.values()]
+    prep_to = max([end, *issue_dates]) if issue_dates else end
+    prep_pattern = workdays_pattern()
+    prep_holidays = holiday_dates(
+        prep_from - timedelta(days=400),
+        prep_to + timedelta(days=14),
+    )
+
     rows: list[PlanTimelineRow] = []
     unscheduled: list = []
     grid_row = 3
@@ -5696,6 +5927,13 @@ def build_order_timeline(
             if wid and wid not in wc_board_slugs:
                 wc_board_slugs[wid] = board_slug_from_work_center_id(wid)
             stage.progress_slug = wc_board_slugs.get(wid) or (stage.slug or '').strip().lower()
+        _attach_npl_prep(
+            stage_rows,
+            kit_days=kit_days_for_order(r.order),
+            issue_by_wc=issues_by_order.get(int(r.order.pk), {}),
+            pattern=prep_pattern,
+            holidays=prep_holidays,
+        )
         rows.append(PlanTimelineRow(
             order=r.order,
             start=bar_start,
@@ -5729,6 +5967,8 @@ def build_order_timeline(
             color_label=color_label,
             qty_label=qty_label,
             stage_rows=stage_rows,
+            npl_needs=_npl_need_payload(r.order),
+            npl_script_id=f'jp-npl-need-{r.order.pk}',
         ))
 
     today_col = (today - start).days + 1 if start <= today <= end else None
@@ -5858,6 +6098,8 @@ def build_route_stats(board) -> RouteStatsBoard:
 
     for row in rows:
         for stage in list(getattr(row, 'stage_rows', None) or []):
+            if getattr(stage, 'is_npl_prep', False):
+                continue
             slug = (getattr(stage, 'slug', '') or '').strip().lower()
             if not slug or slug == 'npl':
                 continue

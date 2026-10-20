@@ -3,6 +3,7 @@
     if (typeof TomSelect === 'undefined') return;
     document.querySelectorAll('select.jp-npl-search-select[data-placeholder]').forEach(function (el) {
         if (el.classList.contains('jp-npl-product-code-select')) return;
+        if (el.classList.contains('jp-npl-sales-order-select')) return;
         if (el.classList.contains('jp-npl-employee-select')) return;
         if (el.classList.contains('jp-npl-supplier-select')) return;
         if (el.classList.contains('jp-npl-location-select')) return;

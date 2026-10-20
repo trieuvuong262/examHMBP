@@ -10,7 +10,6 @@
     <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title">
-                
                 {% if is_edit %}Sửa phiếu xuất {{ issue.number }}{% else %}Tạo phiếu xuất kho{% endif %}
             </h2>
         </div>
@@ -35,7 +34,8 @@
           data-material-browse-on-open="1"
           data-balance-url="{% url 'kho_npl:balance_lookup' %}"
           data-employee-search-url="{% url 'kho_npl:recipient_search' %}"
-          data-product-code-search-url="{% url 'kho_npl:product_code_search' %}"
+          data-sales-order-search-url="{% url 'kho_npl:sales_order_search' %}"
+          data-route-team-url="{% url 'kho_npl:route_team_options' %}"
           data-location-mode="row"
           data-stock-target="text"
           data-validate-qty-stock="1"
@@ -63,17 +63,30 @@
                         {{ form.issued_by }}
                         {% if form.issued_by.errors %}<div class="text-danger small">{{ form.issued_by.errors }}</div>{% endif %}
                     </div>
+                </div>
+                {% if form.route_link %}
+                <div class="row g-3 mt-0" data-jp-issue-route {% if not form.is_production_issue %}hidden{% endif %}>
                     <div class="col-md-6">
-                        <label class="form-label fw-bold small" for="{{ form.product_code.id_for_label }}">Sản phẩm (xuất để SX cho mẫu)</label>
-                        {{ form.product_code }}
-                        {% if form.product_code.errors %}<div class="text-danger small">{{ form.product_code.errors }}</div>{% endif %}
+                        <label class="form-label fw-bold small" for="{{ form.sales_order.id_for_label }}">Đơn hàng <span class="text-danger">*</span></label>
+                        {{ form.sales_order }}
+                        {% if form.sales_order.errors %}<div class="text-danger small">{{ form.sales_order.errors }}</div>{% endif %}
                     </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small" for="{{ form.work_center.id_for_label }}">Tổ trên lộ trình <span class="text-danger">*</span></label>
+                        {{ form.work_center }}
+                        {% if form.work_center.errors %}<div class="text-danger small">{{ form.work_center.errors }}</div>{% endif %}
+                    </div>
+                </div>
+                {% endif %}
+                <div class="row g-3 jp-npl-receipt-assign-row mt-0">
                     <div class="col-md-6">
                         <label class="form-label fw-bold small" for="{{ form.recipient_name.id_for_label }}">Người nhận</label>
                         {{ form.recipient_name }}
                         {% if form.recipient_name.errors %}<div class="text-danger small">{{ form.recipient_name.errors }}</div>{% endif %}
                     </div>
                     {% include 'kho_npl/includes/doc_attachment_field.html' with field=form.attachments required=True col_class='col-md-6' existing_attachments=existing_attachments %}
+                </div>
+                <div class="row g-3 mt-0">
                     <div class="col-12">
                         <label class="form-label fw-bold small">Ghi chú</label>
                         {{ form.notes }}
@@ -88,17 +101,19 @@
                 <h5 class="mb-0 fw-bold">Chi tiết xuất <span class="text-danger">*</span></h5>
             </div>
             <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0">
+                <table class="table table-sm align-middle mb-0 jp-npl-lines-table">
                     <thead class="table-light">
                         <tr>
-                            <th style="min-width:130px">Vị trí</th>
-                            <th style="min-width:220px">Nguyên phụ liệu</th>
-                            <th style="width:100px" class="text-end">SL xuất</th>
-                            <th style="width:100px">ĐVT</th>
-                            <th style="width:130px" class="text-end">Giá cơ bản / ĐVT chọn</th>
-                            <th style="width:110px" class="text-end">Thành tiền</th>
+                            <th style="width:13%">Vị trí</th>
+                            <th style="width:22%">Nguyên phụ liệu</th>
+                            <th style="width:12%">Bộ phận</th>
+                            <th class="text-end jp-npl-bom-qty-col" style="width:9%">SL yêu cầu</th>
+                            <th style="width:8%" class="text-end">SL xuất</th>
+                            <th style="width:8%">ĐVT</th>
+                            <th style="width:9%" class="text-end">Đơn giá</th>
+                            <th style="width:9%" class="text-end">Thành tiền</th>
                             <th>Ghi chú</th>
-                            <th style="width:40px"></th>
+                            <th style="width:2.5rem"></th>
                         </tr>
                     </thead>
                     <tbody id="lines-body">
@@ -107,6 +122,8 @@
                             {% for hidden in line_form.hidden_fields %}{{ hidden }}{% endfor %}
                             <td>{{ line_form.location }}{% if line_form.location.errors %}<div class="text-danger small">{{ line_form.location.errors }}</div>{% endif %}</td>
                             <td class="jp-npl-material-cell"><div class="jp-npl-material-field">{{ line_form.material }}{% if line_form.material.errors %}<div class="text-danger small">{{ line_form.material.errors }}</div>{% endif %}</div></td>
+                            <td class="jp-npl-line-department">{{ line_form.department_label|default:"—" }}</td>
+                            <td class="text-end jp-npl-bom-qty-col"><span class="jp-npl-bom-qty">{{ line_form.bom_qty_label|default:"—" }}</span></td>
                             <td class="text-end"><span class="jp-npl-stock-qty d-none">—</span>{{ line_form.quantity }}{% if line_form.quantity.errors %}<div class="text-danger small">{{ line_form.quantity.errors }}</div>{% endif %}</td>
                             <td class="jp-npl-line-unit-cell">{{ line_form.line_unit }}{% if line_form.line_unit.errors %}<div class="text-danger small">{{ line_form.line_unit.errors }}</div>{% endif %}</td>
                             <td class="text-end"><span class="jp-npl-unit-price-display text-muted small">—</span></td>
@@ -134,13 +151,6 @@
         {% if formset.non_form_errors %}
         <div class="alert alert-danger">{{ formset.non_form_errors }}</div>
         {% endif %}
-
-        <div class="d-flex flex-wrap gap-2">
-            <button type="submit" name="action" value="post" class="btn btn-hm fw-bold px-4">
-                <i class="bi bi-check2-circle me-1"></i>Xuất kho
-            </button>
-            <a href="{{ cancel_url }}" class="btn btn-outline-secondary">Huỷ</a>
-        </div>
     </form>
 </div>
 
@@ -150,6 +160,8 @@
         {% for hidden in line_form.hidden_fields %}{{ hidden }}{% endfor %}
         <td>{{ line_form.location }}</td>
         <td class="jp-npl-material-cell"><div class="jp-npl-material-field">{{ line_form.material }}</div></td>
+        <td class="jp-npl-line-department">{{ line_form.department_label|default:"—" }}</td>
+        <td class="text-end jp-npl-bom-qty-col"><span class="jp-npl-bom-qty">—</span></td>
         <td class="text-end"><span class="jp-npl-stock-qty d-none">—</span>{{ line_form.quantity }}</td>
         <td class="jp-npl-line-unit-cell">{{ line_form.line_unit }}</td>
         <td class="text-end"><span class="jp-npl-unit-price-display text-muted small">—</span></td>
@@ -166,5 +178,5 @@
 {% include 'kho_npl/includes/npl_doc_line_scripts.html' %}
 {% include 'kho_npl/includes/material_form_search_select_script.html' %}
 {% include 'kho_npl/includes/issue_employee_select_script.html' %}
-{% include 'kho_npl/includes/issue_product_code_select_script.html' %}
+{% include 'kho_npl/includes/issue_route_link_script.html' %}
 {% endblock %}

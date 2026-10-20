@@ -112,11 +112,31 @@ def _parse_positive_int(value):
     return parsed if parsed > 0 else None
 
 
+def _sales_order_bom_caps(request):
+    """None = không lọc BOM. Dict rỗng = đơn không có NPL được xuất."""
+    raw = (request.GET.get('sales_order_id') or '').strip()
+    if not raw:
+        return None
+    if not raw.isdigit():
+        return {}
+    from kho_npl.services.issue_route import sales_order_bom_qty_caps
+    from san_xuat.hub_models import SxSalesOrder
+
+    order = SxSalesOrder.objects.filter(pk=int(raw), is_demo=False).first()
+    if order is None:
+        return {}
+    return sales_order_bom_qty_caps(order)
+
+
 def material_search_response(request):
     q = (request.GET.get('q') or '').strip()
     location_id = _parse_positive_int(request.GET.get('location_id'))
     in_stock_only = (request.GET.get('in_stock_only') or '').strip().lower() in ('1', 'true', 'yes')
     limit_param = _parse_positive_int(request.GET.get('limit'))
+    bom_caps = _sales_order_bom_caps(request)
+    bom_material_ids = None if bom_caps is None else list(bom_caps)
+    if bom_material_ids is not None and not bom_material_ids:
+        return JsonResponse({'results': []})
     if location_id and in_stock_only:
         qs = (
             Material.objects.filter(
@@ -128,6 +148,8 @@ def material_search_response(request):
             .prefetch_related('specification__levels__unit')
             .distinct()
         )
+        if bom_material_ids is not None:
+            qs = qs.filter(pk__in=bom_material_ids)
         if q:
             qs = apply_material_search_strict(qs, q)
         browse_limit = 1000 if not q else 50
@@ -145,6 +167,8 @@ def material_search_response(request):
         qs = Material.objects.filter(is_active=True).select_related(
             'unit', 'color', 'specification', 'category', 'primary_location',
         ).prefetch_related('specification__levels__unit')
+        if bom_material_ids is not None:
+            qs = qs.filter(pk__in=bom_material_ids)
         if not location_id:
             qs = qs.filter(materials_catalog_q())
         if q:
@@ -229,6 +253,8 @@ def material_search_response(request):
             'color': color_label(material.color) if material.color_id else '',
             'variant_group': material.variant_group or '',
             'category': material.category.name if material.category_id else '',
+            'department': material.department or '',
+            'bom_qty': float(bom_caps.get(material.pk) or 0) if bom_caps is not None else None,
             'primary_location_id': material.primary_location_id or '',
             'image_url': image_url,
             'base_price': float(material.base_price or 0),
@@ -285,6 +311,7 @@ def balance_lookup(request):
         'qty_label': _material_qty_label(material, qty),
         'text': _material_stock_label(material, qty),
         'name': material.name,
+        'department': material.department or '',
         'base_price': float(material.base_price or 0),
         'stock_unit_price': float(stock_unit_price or 0),
         'units': material_units(material),

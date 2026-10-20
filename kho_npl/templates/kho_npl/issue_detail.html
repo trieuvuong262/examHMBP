@@ -10,7 +10,7 @@
                 {{ issue.number }}
             </h2>
             <p class="text-muted mb-0">
-                {{ issue.get_status_display }} · {{ issue.issue_type|default:"—" }}
+                {{ issue.get_status_display }} · {{ issue.issue_type_label|default:"—" }}
                 · {{ issue.issue_date|date:'d/m/Y' }}
                 {% if issue.posted_at %}· Xuất kho {{ issue.posted_at|date:'d/m/Y H:i' }}{% endif %}
             </p>
@@ -78,6 +78,10 @@
                 <dd class="col-sm-9">{{ issue.production_order }}</dd>
                 {% endif %}
                 {% endwith %}
+                {% if issue.sales_order_id %}
+                <dt class="col-sm-3 text-muted">Đơn hàng</dt>
+                <dd class="col-sm-9">{{ issue.sales_order.code }}</dd>
+                {% endif %}
                 <dt class="col-sm-3 text-muted">Bộ phận nhận</dt>
                 <dd class="col-sm-9">{{ issue.recipient_department|default:"—" }}</dd>
                 <dt class="col-sm-3 text-muted">Người nhận</dt>
