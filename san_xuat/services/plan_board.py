@@ -4783,21 +4783,47 @@ def _stamp_npl_departments(payload: list[dict]) -> None:
 
 
 def _fill_stage_npl_counts(stage_rows: list[RouteStageRow], needs: list[dict]) -> None:
-    """Số mã đã xuất đủ / tổng mã NPL của bộ phận trên từng hàng tổ."""
+    """Số mã đã xuất đủ / tổng mã NPL của bộ phận trên từng hàng tổ.
+
+    NPL còn nhãn gộp ``MAY`` gắn vào tổ ``MAY (152A VĨNH LỘC)`` / ``MAY (19 CHIẾN LƯỢC)``
+    nếu có trên lộ trình (ưu tiên 152A), không đếm trùng hai hàng.
+    """
     from kho_npl.material_department import normalize_material_department
+    from san_xuat.services.capacity_from_hrm import IE_GROUP_MAY_SOURCE_LABELS
 
     buckets: dict[str, list[dict]] = {}
+    bare_may: list[dict] = []
     for item in needs:
         key = (item.get('department') or '').strip().casefold()
         if not key:
             continue
+        if key == 'may':
+            bare_may.append(item)
+            continue
         buckets.setdefault(key, []).append(item)
+
+    stage_by_key: dict[str, RouteStageRow] = {}
     for stage in stage_rows:
         label = normalize_material_department(stage.label) or (stage.label or '').strip()
         rows = buckets.get(label.casefold(), [])
         stage.npl_dept = label
         stage.npl_total = len(rows)
         stage.npl_ready = sum(1 for row in rows if (row.get('short') or '') == '0')
+        stage_by_key.setdefault(label.casefold(), stage)
+
+    if not bare_may:
+        return
+    target = None
+    for label in IE_GROUP_MAY_SOURCE_LABELS:
+        target = stage_by_key.get(label.casefold())
+        if target is not None:
+            break
+    if target is None:
+        target = stage_by_key.get('may')
+    if target is None:
+        return
+    target.npl_total += len(bare_may)
+    target.npl_ready += sum(1 for row in bare_may if (row.get('short') or '') == '0')
 
 
 def _format_npl_span(dates: list[date]) -> str:

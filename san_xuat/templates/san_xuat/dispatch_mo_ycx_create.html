@@ -193,10 +193,12 @@
       document.querySelectorAll('input[data-ycx-row]').forEach(function (cb) {
         if (!on) {
           cb.checked = false;
-          return;
+        } else {
+          var tr = cb.closest('tr');
+          cb.checked = !!(tr && tr.getAttribute('data-ycx-open') === '1');
         }
-        var tr = cb.closest('tr');
-        cb.checked = !!(tr && tr.getAttribute('data-ycx-open') === '1');
+        var row = cb.closest('tr');
+        if (row) refreshLine(row);
       });
     });
   });
@@ -226,29 +228,43 @@
     var after = tr.querySelector('[data-ycx-after]');
     var stockCell = tr.querySelector('[data-ycx-stock]');
     var input = tr.querySelector('.qty-input');
+    var cb = tr.querySelector('input[data-ycx-row]');
     if (!after || !stockCell) return;
     var stock = Number(stockCell.getAttribute('data-base')) / factor;
-    var qty = input ? parseNum(input.value) : 0;
-    if (isNaN(qty) || qty < 0) qty = 0;
+    var picked = !!(cb && cb.checked);
+    var qty = 0;
+    if (picked && input) {
+      qty = parseNum(input.value);
+      if (isNaN(qty) || qty < 0) qty = 0;
+    }
     var left = round3(stock - qty);
     after.textContent = fmt.format(left);
-    after.classList.toggle('is-negative', left < 0);
-    if (input) input.classList.toggle('is-invalid', left < 0 || (input.value.trim() !== '' && parseNum(input.value) <= 0));
+    after.classList.toggle('is-negative', picked && left < 0);
+    if (input) {
+      var qtyVal = input.value.trim() === '' ? NaN : parseNum(input.value);
+      input.classList.toggle(
+        'is-invalid',
+        picked && (left < 0 || isNaN(qtyVal) || qtyVal <= 0)
+      );
+    }
   }
 
   document.querySelectorAll('tr[data-ycx-line]').forEach(function (tr) {
     var input = tr.querySelector('.qty-input');
     var unitSel = tr.querySelector('select[data-ycx-unit]');
+    var cb = tr.querySelector('input[data-ycx-row]');
     if (input) {
       input.addEventListener('input', function () {
         sanitizeQtyInput(input);
-        var cb = tr.querySelector('input[data-ycx-row]');
         if (cb && !cb.disabled && input.value.trim() !== '') cb.checked = true;
         refreshLine(tr);
       });
       input.addEventListener('keydown', function (e) {
         if (e.key === '-' || e.key === 'Subtract') e.preventDefault();
       });
+    }
+    if (cb) {
+      cb.addEventListener('change', function () { refreshLine(tr); });
     }
     if (unitSel) {
       unitSel.addEventListener('change', function () {
@@ -270,9 +286,9 @@
   if (form) {
     form.addEventListener('submit', function (e) {
       var bad = [];
-      form.querySelectorAll('tr[data-ycx-line][data-ycx-open="1"]').forEach(function (tr) {
+      form.querySelectorAll('tr[data-ycx-line]').forEach(function (tr) {
         var cb = tr.querySelector('input[data-ycx-row]');
-        if (!cb || !cb.checked) return;
+        if (!cb || !cb.checked || cb.disabled) return;
         var input = tr.querySelector('.qty-input');
         var stockCell = tr.querySelector('[data-ycx-stock]');
         var factor = Number(tr.getAttribute('data-factor')) || 1;

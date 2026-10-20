@@ -335,9 +335,14 @@
       try { lines = JSON.parse(script.textContent || '[]'); } catch (err) { lines = []; }
     }
     var dept = (btn.getAttribute('data-npl-dept') || '').trim().toLowerCase();
+    var mayFactories = ['may (152a vĩnh lộc)', 'may (19 chiến lược)'];
     if (dept) {
       lines = (lines || []).filter(function (ln) {
-        return String(ln.department || '').trim().toLowerCase() === dept;
+        var d = String(ln.department || '').trim().toLowerCase();
+        if (d === dept) return true;
+        if (d === 'may' && mayFactories.indexOf(dept) >= 0) return true;
+        if (dept === 'may' && mayFactories.indexOf(d) >= 0) return true;
+        return false;
       });
     }
     var titleEl = document.getElementById('jpNplNeedTitle');
