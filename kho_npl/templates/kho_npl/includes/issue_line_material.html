@@ -1,0 +1,13 @@
+<div class="jp-npl-issue-mat">
+    {% if line.material.image %}
+    <button type="button" class="jp-npl-issue-mthumb" data-npl-material-image="{{ line.material.image.url }}" data-npl-material-image-title="{{ line.material.name }}">
+        <img src="{{ line.material.image.url }}" alt="{{ line.material.name }}">
+    </button>
+    {% else %}
+    <span class="jp-npl-issue-mthumb" aria-hidden="true"><i class="bi bi-image"></i></span>
+    {% endif %}
+    <div class="min-w-0">
+        <div class="jp-npl-issue-mat-name">{{ line.material.name|default:line.material.code }}</div>
+        {% if line.material.name %}<div class="jp-npl-issue-mat-code">{{ line.material.code }}</div>{% endif %}
+    </div>
+</div>

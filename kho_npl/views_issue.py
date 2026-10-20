@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Q
@@ -184,7 +186,10 @@ def issue_detail(request, pk):
                 'issued_by', 'created_by', 'recipient', 'recipient__profile',
                 'sales_order', 'work_center',
             )
-            .prefetch_related('lines__material', 'lines__location', 'ycx_requests__production_order')
+            .prefetch_related(
+                'lines__material', 'lines__location', 'lines__line_unit',
+                'ycx_requests__production_order',
+            )
         ),
         pk=pk,
     )
@@ -198,6 +203,7 @@ def issue_detail(request, pk):
     )
     notes_form = StockIssueNotesForm(instance=issue) if can_edit_notes else None
     line_notes_formset = StockIssueLineNotesFormSet(instance=issue) if can_edit_notes else None
+    issue_amount_total = sum((line.amount for line in issue.lines.all()), Decimal('0'))
     return render(request, 'kho_npl/issue_detail.html', {
         **nav_context('issues', user=request.user),
         **perms,
@@ -211,6 +217,7 @@ def issue_detail(request, pk):
         'notes_form': notes_form,
         'line_notes_formset': line_notes_formset,
         'issue_print_url': _issue_print_url(issue.pk),
+        'issue_amount_total': issue_amount_total,
     })
 
 

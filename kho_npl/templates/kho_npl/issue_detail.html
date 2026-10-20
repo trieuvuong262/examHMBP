@@ -1,16 +1,84 @@
 {% extends 'base.html' %}
-{% load npl_extras %}
+{% load npl_extras sx_format %}
+
+{% block extra_head %}
+<style>
+.jp-npl-issue-page .jp-npl-issue-product {
+    display: flex;
+    align-items: center;
+    gap: .85rem;
+    margin-bottom: 1.1rem;
+}
+.jp-npl-issue-page .jp-npl-issue-thumb,
+.jp-npl-issue-page .jp-npl-issue-mthumb {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    background: #f8f9fa;
+    color: #adb5bd;
+}
+.jp-npl-issue-page .jp-npl-issue-thumb { width: 64px; height: 64px; }
+.jp-npl-issue-page .jp-npl-issue-mthumb { width: 40px; height: 40px; }
+.jp-npl-issue-page .jp-npl-issue-thumb img,
+.jp-npl-issue-page .jp-npl-issue-mthumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.jp-npl-issue-page .jp-npl-issue-name {
+    font-weight: 700;
+    font-size: 1.15rem;
+    line-height: 1.3;
+}
+.jp-npl-issue-page .jp-npl-issue-order {
+    color: #6c757d;
+    font-size: .9rem;
+    margin-top: .15rem;
+}
+.jp-npl-issue-page .jp-npl-issue-facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+    gap: .85rem 1.25rem;
+    margin-bottom: 1rem;
+}
+.jp-npl-issue-page .jp-npl-issue-k {
+    display: block;
+    color: #6c757d;
+    font-size: .75rem;
+    margin-bottom: .1rem;
+}
+.jp-npl-issue-page .jp-npl-issue-mat {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    min-width: 0;
+}
+.jp-npl-issue-page .jp-npl-issue-mat-name { font-weight: 600; line-height: 1.3; }
+.jp-npl-issue-page .jp-npl-issue-mat-code { color: #6c757d; font-size: .8rem; }
+.jp-npl-issue-page .jp-npl-issue-lines th,
+.jp-npl-issue-page .jp-npl-issue-lines td { vertical-align: middle; }
+.jp-npl-issue-page .jp-npl-issue-lines th.text-start,
+.jp-npl-issue-page .jp-npl-issue-lines td.text-start { text-align: left; }
+.jp-npl-issue-page .jp-npl-issue-lines th.text-end,
+.jp-npl-issue-page .jp-npl-issue-lines td.text-end { text-align: right; }
+.jp-npl-issue-page .jp-npl-issue-lines tfoot td { font-weight: 700; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container jp-page py-3 py-md-4 mb-5">
+<div class="container jp-page jp-npl-issue-page py-3 py-md-4 mb-5">
 
     <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
         <div>
-            <h2 class="fw-bold text-hm mb-1 jp-page-title">
-                {{ issue.number }}
-            </h2>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ issue.number }}</h2>
             <p class="text-muted mb-0">
-                {{ issue.get_status_display }} · {{ issue.issue_type_label|default:"—" }}
+                <span class="badge {% if issue.status == 'posted' %}text-bg-success{% elif issue.status == 'cancelled' %}text-bg-secondary{% else %}text-bg-warning{% endif %}">{{ issue.get_status_display }}</span>
+                · {{ issue.issue_type_label|default:"—" }}
                 · {{ issue.issue_date|date:'d/m/Y' }}
                 {% if issue.posted_at %}· Xuất kho {{ issue.posted_at|date:'d/m/Y H:i' }}{% endif %}
             </p>
@@ -46,50 +114,60 @@
 
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
-            <dl class="row mb-0">
-                <dt class="col-sm-3 text-muted">Sản phẩm (mẫu)</dt>
-                <dd class="col-sm-9">
+            {% if issue_product or issue.sales_order_id %}
+            <div class="jp-npl-issue-product">
+                {% if issue_product.image_url %}
+                <button type="button" class="jp-npl-issue-thumb" data-npl-material-image="{{ issue_product.image_url }}" data-npl-material-image-title="{{ issue_product.name|default:issue_product.code }}">
+                    <img src="{{ issue_product.image_url }}" alt="{{ issue_product.name|default:issue_product.code }}">
+                </button>
+                {% else %}
+                <span class="jp-npl-issue-thumb" aria-hidden="true"><i class="bi bi-image"></i></span>
+                {% endif %}
+                <div class="min-w-0">
                     {% if issue_product %}
-                    <div class="d-flex align-items-center gap-2">
-                        {% if issue_product.image_url %}
-                        <a href="{{ issue_product.image_url }}" target="_blank" rel="noopener">
-                            <img src="{{ issue_product.image_url }}" alt="{{ issue_product.code }}" style="width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid #e9ecef">
-                        </a>
-                        {% endif %}
-                        <div>
-                            <div class="fw-semibold">{{ issue_product.code }}</div>
-                            {% if issue_product.name %}<div class="text-muted small">{{ issue_product.name }}</div>{% endif %}
-                        </div>
-                    </div>
-                    {% else %}
-                    —
+                    <div class="jp-npl-issue-name">{{ issue_product.name|default:issue_product.code }}</div>
                     {% endif %}
-                </dd>
+                    {% if issue.sales_order_id %}
+                    <div class="jp-npl-issue-order">{{ issue.sales_order.code }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="jp-npl-issue-facts">
                 {% with ycx_list=issue.ycx_requests.all %}
-                {% if ycx_list %}
-                <dt class="col-sm-3 text-muted">Lệnh sản xuất</dt>
-                <dd class="col-sm-9">
+                {% if ycx_list or issue.production_order %}
+                <div>
+                    <span class="jp-npl-issue-k">Lệnh sản xuất</span>
+                    {% if ycx_list %}
                     {% for ycx in ycx_list %}
-                    <a href="{% url 'san_xuat:dispatch_mo_detail' ycx.production_order_id %}" class="fw-semibold">{{ ycx.production_order.code }}</a>{% if not forloop.last %}<br>{% endif %}
+                    <a href="{% url 'san_xuat:dispatch_mo_detail' ycx.production_order_id %}" class="fw-semibold d-block">{{ ycx.production_order.code }}</a>
                     {% endfor %}
-                </dd>
-                {% elif issue.production_order %}
-                <dt class="col-sm-3 text-muted">Lệnh sản xuất</dt>
-                <dd class="col-sm-9">{{ issue.production_order }}</dd>
+                    {% else %}
+                    <span>{{ issue.production_order }}</span>
+                    {% endif %}
+                </div>
                 {% endif %}
                 {% endwith %}
-                {% if issue.sales_order_id %}
-                <dt class="col-sm-3 text-muted">Đơn hàng</dt>
-                <dd class="col-sm-9">{{ issue.sales_order.code }}</dd>
-                {% endif %}
-                <dt class="col-sm-3 text-muted">Bộ phận nhận</dt>
-                <dd class="col-sm-9">{{ issue.recipient_department|default:"—" }}</dd>
-                <dt class="col-sm-3 text-muted">Người nhận</dt>
-                <dd class="col-sm-9">{{ issue.display_recipient_name|default:"—" }}</dd>
-                <dt class="col-sm-3 text-muted">Người xuất</dt>
-                <dd class="col-sm-9">{% if issue.issued_by %}{{ issue.issued_by.get_full_name|default:issue.issued_by.username }}{% else %}—{% endif %}</dd>
-                <dt class="col-sm-3 text-muted">Người tạo</dt>
-                <dd class="col-sm-9">{% if issue.created_by %}{{ issue.created_by.get_full_name|default:issue.created_by.username }}{% else %}—{% endif %}</dd>
+                <div>
+                    <span class="jp-npl-issue-k">Bộ phận nhận</span>
+                    <span>{{ issue.recipient_department|default:"—" }}</span>
+                </div>
+                <div>
+                    <span class="jp-npl-issue-k">Người nhận</span>
+                    <span>{{ issue.display_recipient_name|default:"—" }}</span>
+                </div>
+                <div>
+                    <span class="jp-npl-issue-k">Người xuất</span>
+                    <span>{% if issue.issued_by %}{{ issue.issued_by.get_full_name|default:issue.issued_by.username }}{% else %}—{% endif %}</span>
+                </div>
+                <div>
+                    <span class="jp-npl-issue-k">Người tạo</span>
+                    <span>{% if issue.created_by %}{{ issue.created_by.get_full_name|default:issue.created_by.username }}{% else %}—{% endif %}</span>
+                </div>
+            </div>
+
+            <dl class="row mb-0">
                 <dt class="col-sm-3 text-muted">Ghi chú</dt>
                 <dd class="col-sm-9">
                     {% if can_edit_notes and notes_form %}
@@ -118,29 +196,27 @@
             {% csrf_token %}
             {{ line_notes_formset.management_form }}
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+                <table class="table table-hover align-middle mb-0 jp-npl-issue-lines">
                     <thead class="table-light">
                         <tr>
-                            <th>Mã NPL</th>
-                            <th>Tên</th>
+                            <th class="text-start">Nguyên phụ liệu</th>
                             <th class="text-end">Số lượng</th>
-                            <th class="text-end">Giá cơ bản / ĐVT xuất</th>
+                            <th class="text-end">Đơn giá</th>
                             <th class="text-end">Thành tiền</th>
-                            <th>Vị trí</th>
-                            <th>Ghi chú</th>
+                            <th class="text-start">Vị trí</th>
+                            <th class="text-start">Ghi chú</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for line_form in line_notes_formset %}
                         {% with line=line_form.instance %}
                         <tr>
-                            <td class="fw-semibold">{{ line.material.code }}</td>
-                            <td>{{ line.material.name }}</td>
-                            <td class="text-end">{{ line.quantity|npl_qty_with_unit:line.line_unit }}</td>
+                            <td class="text-start">{% include 'kho_npl/includes/issue_line_material.html' %}</td>
+                            <td class="text-end">{{ line.quantity|sx_num }}{% if line.line_unit %} {{ line.line_unit|npl_unit }}{% endif %}</td>
                             <td class="text-end" title="{{ line.selected_unit_price|npl_money_exact }}">{{ line.selected_unit_price|npl_money_exact }}</td>
                             <td class="text-end" title="{{ line.amount|npl_money_exact }}">{{ line.amount|npl_money }}</td>
-                            <td>{{ line.location.name }}</td>
-                            <td>
+                            <td class="text-start">{{ line.location.name }}</td>
+                            <td class="text-start">
                                 {{ line_form.id }}
                                 {{ line_form.notes }}
                                 {% if line_form.notes.errors %}
@@ -150,9 +226,18 @@
                         </tr>
                         {% endwith %}
                         {% empty %}
-                        <tr><td colspan="8" class="text-center text-muted py-4">Chưa có dòng chi tiết.</td></tr>
+                        <tr><td colspan="6" class="text-center text-muted py-4">Chưa có dòng chi tiết.</td></tr>
                         {% endfor %}
                     </tbody>
+                    {% if line_notes_formset.forms %}
+                    <tfoot>
+                        <tr>
+                            <td class="text-start" colspan="3">Tổng</td>
+                            <td class="text-end">{{ issue_amount_total|npl_money }}</td>
+                            <td class="text-start" colspan="2"></td>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
                 </table>
             </div>
             {% if line_notes_formset.forms %}
@@ -165,36 +250,44 @@
         </form>
         {% else %}
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0 jp-npl-issue-lines">
                 <thead class="table-light">
                     <tr>
-                        <th>Mã NPL</th>
-                        <th>Tên</th>
+                        <th class="text-start">Nguyên phụ liệu</th>
                         <th class="text-end">Số lượng</th>
-                        <th class="text-end">Giá cơ bản / ĐVT xuất</th>
+                        <th class="text-end">Đơn giá</th>
                         <th class="text-end">Thành tiền</th>
-                        <th>Vị trí</th>
-                        <th>Ghi chú</th>
+                        <th class="text-start">Vị trí</th>
+                        <th class="text-start">Ghi chú</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for line in issue.lines.all %}
                     <tr>
-                        <td class="fw-semibold">{{ line.material.code }}</td>
-                        <td>{{ line.material.name }}</td>
-                        <td class="text-end">{{ line.quantity|npl_qty_with_unit:line.line_unit }}</td>
+                        <td class="text-start">{% include 'kho_npl/includes/issue_line_material.html' %}</td>
+                        <td class="text-end">{{ line.quantity|sx_num }}{% if line.line_unit %} {{ line.line_unit|npl_unit }}{% endif %}</td>
                         <td class="text-end" title="{{ line.selected_unit_price|npl_money_exact }}">{{ line.selected_unit_price|npl_money_exact }}</td>
                         <td class="text-end" title="{{ line.amount|npl_money_exact }}">{{ line.amount|npl_money }}</td>
-                        <td>{{ line.location.name }}</td>
-                        <td>{{ line.notes|default:'—' }}</td>
+                        <td class="text-start">{{ line.location.name }}</td>
+                        <td class="text-start">{{ line.notes|default:'—' }}</td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="8" class="text-center text-muted py-4">Chưa có dòng chi tiết.</td></tr>
+                    <tr><td colspan="6" class="text-center text-muted py-4">Chưa có dòng chi tiết.</td></tr>
                     {% endfor %}
                 </tbody>
+                {% if issue.lines.all %}
+                <tfoot>
+                    <tr>
+                        <td class="text-start" colspan="3">Tổng</td>
+                        <td class="text-end">{{ issue_amount_total|npl_money }}</td>
+                        <td class="text-start" colspan="2"></td>
+                    </tr>
+                </tfoot>
+                {% endif %}
             </table>
         </div>
         {% endif %}
     </div>
 </div>
+{% include 'kho_npl/includes/material_image_modal.html' %}
 {% endblock %}
