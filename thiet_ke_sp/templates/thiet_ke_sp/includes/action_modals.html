@@ -142,16 +142,36 @@
 {% endif %}
 
 {% if flags.reopen_completion %}
-{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalReopen' modal_action='reopen_completion' modal_title='Huỷ hoàn thành' %}
-  <label class="form-label fw-bold small mb-1">Lý do <span class="text-danger">*</span></label>
-  <textarea name="comment" class="form-control form-control-sm" rows="3" required></textarea>
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalReopen' modal_action='reopen_completion' modal_title='Huỷ hoàn thành' modal_class='jp-tksp' modal_lead='Gỡ khỏi Thư viện, mở đúng một công đoạn để sửa rồi gửi duyệt thiết kế.' %}
+  <h3 class="tk-sub">Công đoạn cần sửa</h3>
+  <div class="tk-reopen-steps mb-3">
+    <label class="tk-reopen-step">
+      <input type="radio" name="edit_step" value="overview" checked required>
+      <span class="tk-reopen-step-body"><b>Tổng quan</b><small>Đề bài, ảnh sản phẩm, tham khảo</small></span>
+    </label>
+    <label class="tk-reopen-step">
+      <input type="radio" name="edit_step" value="design" required>
+      <span class="tk-reopen-step-body"><b>Thiết kế</b><small>Ảnh, colorway, tài liệu thiết kế</small></span>
+    </label>
+    <label class="tk-reopen-step">
+      <input type="radio" name="edit_step" value="technical" required>
+      <span class="tk-reopen-step-body"><b>Kỹ thuật</b><small>Rập, thông số, BOM</small></span>
+    </label>
+    <label class="tk-reopen-step">
+      <input type="radio" name="edit_step" value="sample" required>
+      <span class="tk-reopen-step-body"><b>May mẫu</b><small>Ảnh mẫu, tiến độ làm mẫu</small></span>
+    </label>
+  </div>
+  <label class="form-label fw-bold small mb-1" for="tkReopenReason">Lý do <span class="text-danger">*</span></label>
+  <textarea name="comment" id="tkReopenReason" class="form-control form-control-sm" rows="3" required placeholder="Vì sao cần mở lại công đoạn này?"></textarea>
 {% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Huỷ hoàn thành' submit_class='btn-secondary' %}
 {% endif %}
 
 {% if flags.resubmit_approval %}
-{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalResubmit' modal_action='resubmit_approval' modal_title='Gửi duyệt lại bước cuối' %}
+{% include 'thiet_ke_sp/includes/modal_open.html' with modal_id='tkModalResubmit' modal_action='resubmit_approval' modal_title='Gửi duyệt thiết kế' %}
+  {% if reopen_edit_step_label %}<div class="small mb-2">Đã chỉnh «{{ reopen_edit_step_label }}» — chuyển thẳng sang duyệt thiết kế.</div>{% endif %}
   {% include 'thiet_ke_sp/includes/due_field.html' with due_value=sla_due.sample_eval_pending %}
-{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Gửi duyệt lại' %}
+{% include 'thiet_ke_sp/includes/modal_close.html' with submit_label='Gửi duyệt thiết kế' %}
 {% endif %}
 
 {% if flags.change_request %}

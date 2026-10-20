@@ -396,6 +396,8 @@ body > .ts-dropdown {
 .jp-tksp .tk-swatch .tk-thumb-zoom { display: block; width: 100%; height: 100%; padding: 0; border: 0; background: transparent; }
 .jp-tksp .tk-swatch img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .jp-tksp .tk-color-add { grid-template-columns: minmax(8rem, 1fr) minmax(10rem, 1.3fr) minmax(7rem, .8fr) auto; }
+.jp-tksp .tk-color-add-form { margin-top: .75rem; }
+.jp-tksp .tk-color-add-form .tk-mini-table { --bs-table-bg: transparent; }
 .jp-tksp .tk-color-card .cap { padding: .45rem .55rem; font-size: .74rem; }
 .jp-tksp .tk-color-card .cap b { display: block; font-size: .78rem; }
 .jp-tksp .tk-color-card .cap span { color: var(--tk-muted); }
@@ -417,6 +419,27 @@ body > .ts-dropdown {
 #tkModalRewind .tk-decide input { width: 1rem; height: 1rem; margin: 0; flex: 0 0 auto; }
 #tkModalRewind .tk-decide span { display: inline-flex; align-items: center; line-height: 1.2; }
 #tkModalRewind .tk-decide:has(input:checked) { border-color: var(--hm-primary, #dc2626); background: var(--hm-primary-soft, #fee2e2); color: var(--hm-primary, #dc2626); }
+
+#tkModalReopen .tk-modal-lead { margin-top: .25rem; font-size: .78rem; font-weight: 600; color: var(--tk-muted, #64748b); line-height: 1.35; }
+#tkModalReopen .tk-sub { margin: 0 0 .55rem; font-size: .78rem; font-weight: 800; color: var(--tk-muted, #64748b); letter-spacing: .01em; text-transform: uppercase; }
+#tkModalReopen .tk-reopen-steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; }
+#tkModalReopen .tk-reopen-step {
+  display: block; margin: 0; padding: .7rem .8rem; min-height: 3.6rem;
+  border: 1px solid var(--tk-line, #e2e8f0); border-radius: 10px; background: var(--tk-surface, #fff);
+  cursor: pointer; transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+#tkModalReopen .tk-reopen-step input { position: absolute; opacity: 0; pointer-events: none; }
+#tkModalReopen .tk-reopen-step-body { display: grid; gap: .18rem; min-width: 0; }
+#tkModalReopen .tk-reopen-step-body b { font-size: .84rem; font-weight: 800; line-height: 1.2; color: inherit; }
+#tkModalReopen .tk-reopen-step-body small { font-size: .72rem; font-weight: 600; line-height: 1.25; color: var(--tk-muted, #64748b); }
+#tkModalReopen .tk-reopen-step:hover { border-color: rgba(220, 38, 38, .35); }
+#tkModalReopen .tk-reopen-step:has(input:checked) {
+  border-color: var(--hm-primary, #dc2626); background: var(--hm-primary-soft, rgba(220, 38, 38, .08));
+  box-shadow: inset 0 0 0 1px rgba(220, 38, 38, .12);
+}
+#tkModalReopen .tk-reopen-step:has(input:checked) .tk-reopen-step-body b { color: var(--hm-primary, #dc2626); }
+#tkModalReopen .tk-reopen-step:has(input:checked) .tk-reopen-step-body small { color: rgba(185, 28, 28, .75); }
+#tkModalReopen #tkReopenReason { min-height: 5.2rem; resize: vertical; }
 #tkModalMaster .tk-decide-list { display: flex; flex-wrap: nowrap; gap: .35rem; }
 #tkModalMaster .tk-decide { display: flex; align-items: center; justify-content: center; gap: .4rem; flex: 1 1 0; min-width: 0; min-height: 2.4rem; margin: 0; padding: .35rem .4rem; border: 1px solid var(--tk-line); border-radius: 8px; background: var(--tk-surface); cursor: pointer; font-size: .75rem; font-weight: 700; text-align: center; }
 #tkModalMaster .tk-decide input { width: 1rem; height: 1rem; margin: 0; flex: 0 0 auto; }
@@ -611,6 +634,98 @@ body.tk-kan-dragging, body.tk-kan-dragging * { cursor: grabbing !important; user
 .jp-tksp .tk-lib-form .d-flex.gap-2 .btn,
 .jp-tksp .tk-sku-preview-head .btn,
 .jp-tksp .tk-hero-actions .btn { display: inline-flex; align-items: center; justify-content: center; gap: .3rem; line-height: 1; }
+
+/* Thêm nhiều SKU — Màu | Size đồng bộ */
+.jp-tksp .ksp-sku-live {
+  display: inline-flex; align-items: baseline; gap: .45rem;
+  padding: .45rem .7rem; border-radius: 10px; white-space: nowrap;
+  background: var(--tk-surface-2); border: 1px solid var(--tk-line);
+}
+.jp-tksp .ksp-sku-live small {
+  font-size: .68rem; font-weight: 800; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--tk-muted);
+}
+.jp-tksp .ksp-sku-live b { font-size: .95rem; font-weight: 900; color: var(--tk-navy); }
+.jp-tksp .ksp-sku-live.is-ready {
+  border-color: rgba(220, 38, 38, .28);
+  background: var(--hm-primary-soft, rgba(220, 38, 38, .06));
+}
+.jp-tksp .ksp-sku-live.is-ready b { color: var(--hm-primary, #dc2626); }
+.jp-tksp .ksp-sku-pair {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .85rem; align-items: stretch; margin-bottom: .25rem;
+}
+.jp-tksp .ksp-sku-pane {
+  display: flex; flex-direction: column; min-width: 0; min-height: 0;
+}
+.jp-tksp .ksp-sku-pane-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: .5rem; min-height: 1.5rem; margin-bottom: .45rem;
+}
+.jp-tksp .ksp-sku-pane-head label {
+  font-size: .72rem; font-weight: 800; color: var(--tk-muted);
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.jp-tksp .ksp-sku-pane-body {
+  flex: 1; min-height: 9.5rem; max-height: 12rem;
+  border: 1px solid var(--tk-line); border-radius: 10px;
+  background: #fff; overflow: auto;
+}
+.jp-tksp .ksp-sku-pane-body.is-input {
+  display: flex; padding: 0; overflow: hidden;
+}
+.jp-tksp .ksp-sku-pane-body.is-input textarea,
+.jp-tksp .ksp-sku-pane-body.is-input .form-control {
+  flex: 1; width: 100%; height: 100%; min-height: 9.5rem; max-height: 12rem;
+  border: 0; border-radius: 10px; resize: none; box-shadow: none;
+  padding: .7rem .8rem; font-size: .86rem; font-weight: 650; line-height: 1.45;
+}
+.jp-tksp .ksp-sku-pane-body.is-input textarea:focus,
+.jp-tksp .ksp-sku-pane-body.is-input .form-control:focus {
+  box-shadow: none; outline: 2px solid rgba(220, 38, 38, .28); outline-offset: -2px;
+}
+.jp-tksp .ksp-sku-checks {
+  height: 100%; min-height: 9.5rem; padding: .55rem .6rem; border: 0; background: transparent;
+}
+/* Django 5 CheckboxSelectMultiple: div#id_… > div > label */
+.jp-tksp .ksp-sku-checks > div {
+  display: flex; flex-wrap: wrap; gap: .4rem; align-content: flex-start;
+}
+.jp-tksp .ksp-sku-checks > div > div { margin: 0; width: auto; flex: 0 0 auto; }
+.jp-tksp .ksp-sku-checks ul {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-wrap: wrap; gap: .4rem;
+}
+.jp-tksp .ksp-sku-checks li { margin: 0; width: auto; flex: 0 0 auto; }
+.jp-tksp .ksp-sku-checks label {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  margin: 0 !important; cursor: pointer; user-select: none; width: auto;
+}
+.jp-tksp .ksp-sku-checks label input {
+  position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none;
+}
+.jp-tksp .ksp-sku-checks.is-size label {
+  min-width: 2.5rem; height: 2.15rem; padding: 0 .55rem;
+  border: 1px solid var(--tk-line); border-radius: 8px;
+  background: var(--tk-surface-2); font-size: .8rem; font-weight: 800;
+}
+.jp-tksp .ksp-sku-checks.is-color label {
+  min-height: 2.15rem; padding: .35rem .7rem;
+  border: 1px solid var(--tk-line); border-radius: 8px;
+  background: var(--tk-surface-2); font-size: .76rem; font-weight: 700;
+}
+.jp-tksp .ksp-sku-checks label:hover { border-color: rgba(220, 38, 38, .35); background: #fff; }
+.jp-tksp .ksp-sku-checks label:has(input:checked) {
+  border-color: var(--hm-primary, #dc2626);
+  background: var(--hm-primary-soft, rgba(220, 38, 38, .08));
+  color: var(--hm-primary, #dc2626);
+}
+.jp-tksp .ksp-sku-checks label:has(input:focus-visible) {
+  outline: 2px solid var(--hm-primary, #dc2626); outline-offset: 2px;
+}
+@media (max-width: 991.98px) {
+  .jp-tksp .ksp-sku-pair { grid-template-columns: minmax(0, 1fr); }
+}
 .jp-tksp .tk-ch { min-width: 1.5rem; height: 1.5rem; padding: 0 .3rem; border-radius: 6px; background: rgba(29, 78, 216, .1); color: var(--tk-blue); display: grid; place-items: center; font-size: .58rem; font-weight: 900; }
 .jp-tksp .tk-ch.is-off { background: #edf0f2; color: #9aa4ae; }
 
@@ -740,6 +855,8 @@ body.tk-kan-dragging, body.tk-kan-dragging * { cursor: grabbing !important; user
   .jp-tksp .tk-hero-meta.is-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .jp-tksp .tk-pipeline { min-width: 420px; }
   .jp-tksp .tk-toolbar .tk-search { max-width: none; }
+  #tkModalReopen .tk-reopen-steps { grid-template-columns: minmax(0, 1fr); }
+  #tkModalReopen .tk-reopen-step { min-height: 0; }
 }
 </style>
 {% include 'thiet_ke_sp/includes/tksp_mobile_styles.html' %}

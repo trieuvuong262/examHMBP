@@ -35,6 +35,7 @@ STATUS_CHOICES = (
 DETAIL_TABS = (
     ('data', 'Dữ liệu chuẩn', 'bi-card-text'),
     ('sku', 'SKU', 'bi-upc-scan'),
+    ('prices', 'Giá bán', 'bi-cash-coin'),
     ('images', 'Hình ảnh', 'bi-images'),
     ('history', 'Lịch sử', 'bi-clock-history'),
 )
@@ -330,6 +331,62 @@ def library_detail(request, style):
     })
 
 
+@module_perm_required_methods(MODULE_KHO_SAN_PHAM, get='update', post='update')
+@require_POST
+def library_prices_save(request, style):
+    """Lưu giá bán hàng loạt theo từng SKU của Style."""
+    from decimal import Decimal
+
+    from django.utils import timezone
+
+    from kho_san_pham.forms import parse_vnd_integer
+
+    hidden = _off_shelf_redirect(request, style)
+    if hidden:
+        return hidden
+    obj = _design_style(style)
+    products = {
+        p.pk: p
+        for p in Product.objects.filter(style_code=obj.code).only('pk', 'code', 'base_price')
+    }
+    if not products:
+        messages.warning(request, 'Style chưa có SKU để chỉnh giá.')
+        return redirect(_library_tab(obj.code, 'prices'))
+
+    updated = 0
+    errors = []
+    now = timezone.now()
+    with transaction.atomic():
+        for pk, product in products.items():
+            raw = (request.POST.get(f'price_{pk}') or '').strip()
+            if not raw:
+                continue
+            try:
+                value = parse_vnd_integer(raw)
+            except (ValueError, TypeError):
+                errors.append(product.code)
+                continue
+            if value is None:
+                value = Decimal('0')
+            if value < 0:
+                errors.append(product.code)
+                continue
+            if product.base_price == value:
+                continue
+            product.base_price = value
+            product.updated_at = now
+            product.save(update_fields=['base_price', 'updated_at'])
+            updated += 1
+
+    if errors:
+        messages.error(request, 'Giá không hợp lệ cho: ' + ', '.join(errors[:8]) + ('…' if len(errors) > 8 else ''))
+    if updated:
+        messages.success(request, f'Đã cập nhật giá bán {updated} SKU.')
+    elif not errors:
+        messages.info(request, 'Không có thay đổi giá bán.')
+    return redirect(_library_tab(obj.code, 'prices'))
+
+
 @module_perm_required_methods(MODULE_KHO_SAN_PHAM, post='update')
 @require_POST
 def library_transfer(request, style):
@@ -403,6 +460,7 @@ def _library_form_page(request, form, style: ProductStyle, **extra):
         **perm_context(request.user, 'products'),
         'form': form,
         'library_code': style.code,
+        'library_style': style,
         'cancel_url': _library_tab(style.code),
         **extra,
     })
@@ -432,6 +490,82 @@ def _save_library_sku(form, request, *, source: Product | None = None) -> Produc
     product.save()
     _apply_catalog_qty(product, form, user=request.user)
     return product
+
+
+def _save_library_sku_variants(form, request, *, source: Product | None = None) -> tuple[list[Product], list[dict]]:
+    """Tạo nhiều SKU theo tổ hợp màu × size đã chọn."""
+    from decimal import Decimal
+
+    from kho_san_pham.choices import SYNC_SOURCE_MANUAL
+    from kho_san_pham.services.barcode import allocate_barcode
+    from kho_san_pham.views import _apply_catalog_qty
+
+    cd = form.cleaned_data
+    create_rows = cd.get('variant_create') or []
+    skip_rows = cd.get('variant_skip') or []
+    created: list[Product] = []
+    shared_image = None
+    uploaded = form.files.get('image') if getattr(form, 'files', None) else None
+
+    for index, row in enumerate(create_rows):
+        product = Product(
+            product_type=cd.get('product_type'),
+            catalog_type=cd.get('catalog_type'),
+            style_code=form.locked_style or cd.get('style_code') or '',
+            color_code=row['color_code'],
+            color_label=row['color_label'],
+            size_label=row['size_label'],
+            code=row['code'],
+            accounting_code=cd.get('accounting_code') or '',
+            kiotviet_code=cd.get('kiotviet_code') or '',
+            name=(cd.get('name') or '').strip() or (form.locked_style or row['code']),
+            full_name=cd.get('full_name') or '',
+            unit=cd.get('unit') or '',
+            category_name=cd.get('category_name') or '',
+            base_price=cd.get('base_price') if cd.get('base_price') is not None else Decimal('0'),
+            description=cd.get('description') or '',
+            notes=cd.get('notes') or '',
+            is_active=bool(cd.get('is_active', True)),
+            sync_source=SYNC_SOURCE_MANUAL,
+            created_by=request.user,
+            bar_code=allocate_barcode(),
+        )
+        if source is not None:
+            product.gender = source.gender
+            product.category_path = source.category_path
+            product.allows_sale = source.allows_sale
+            if not (product.image_url or '').strip():
+                product.image_url = source.image_url or ''
+        if index == 0 and uploaded is not None:
+            product.image = uploaded
+        elif shared_image:
+            product.image = shared_image
+        elif source is not None and source.image:
+            product.image = source.image
+        product.save()
+        if index == 0:
+            shared_image = product.image or (source.image if source is not None else None)
+        if product.style_code and product.size_label:
+            try:
+                from san_xuat.services.sku_catalog import get_or_create_sku
+                display_code = product.code
+                sx = get_or_create_sku(
+                    style_code=product.style_code,
+                    color_code=product.color_code or '',
+                    size_label=product.size_label,
+                    color_label=product.color_label,
+                    style_name=product.name,
+                    gender=product.gender,
+                    user=request.user,
+                )
+                product.sx_sku = sx
+                product.code = display_code
+                product.save(update_fields=['sx_sku', 'code', 'updated_at'])
+            except Exception:  # noqa: BLE001
+                pass
+        _apply_catalog_qty(product, form, user=request.user)
+        created.append(product)
+    return created, skip_rows
 
 
 @module_perm_required_methods(MODULE_KHO_SAN_PHAM, get='update', post='update')
@@ -484,21 +618,26 @@ def library_sku_create(request, style):
         initial=_sku_initial(obj, source),
         clone_from=source,
         locked_style=obj.code,
+        multi_variant=True,
     )
     if request.method == 'POST' and form.is_valid():
         try:
             with transaction.atomic():
-                product = _save_library_sku(form, request, source=source)
+                created, skipped = _save_library_sku_variants(form, request, source=source)
         except StockMovementError as exc:
             messages.error(request, str(exc))
         else:
-            messages.success(request, f'Đã thêm SKU {product.code} vào Thư viện.')
+            msg = f'Đã thêm {len(created)} SKU vào Thư viện.'
+            if skipped:
+                msg += f' Bỏ qua {len(skipped)} tổ hợp đã có.'
+            messages.success(request, msg)
             return redirect(_library_tab(obj.code))
     return _library_form_page(
         request, form, obj,
         is_edit=False,
         suggest_variant=source is not None,
         source_product=source,
+        multi_variant=True,
     )
 
 

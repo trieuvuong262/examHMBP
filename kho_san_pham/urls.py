@@ -20,6 +20,7 @@ urlpatterns = [
     path('thu-vien/<path:style>/sku/<int:pk>/ngung/', views_library.library_sku_deactivate, name='library_sku_deactivate'),
     path('thu-vien/<path:style>/sku/<int:pk>/dung-lai/', views_library.library_sku_reactivate, name='library_sku_reactivate'),
     path('thu-vien/<path:style>/sku/<int:pk>/xoa/', views_library.library_sku_delete, name='library_sku_delete'),
+    path('thu-vien/<path:style>/gia-ban/', views_library.library_prices_save, name='library_prices_save'),
     path('thu-vien/<path:style>/sua/', views_library.library_style_edit, name='library_style_edit'),
     path('thu-vien/<path:style>/', views_library.library_detail, name='library_detail'),
     path('danh-muc/', views.product_list, name='product_list'),

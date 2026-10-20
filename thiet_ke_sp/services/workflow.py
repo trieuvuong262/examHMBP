@@ -142,7 +142,7 @@ def _step_tasks(dossier: ProductDevelopment, status: str) -> list[StepTask]:
         Status.MASTER_PENDING: [StepTask(Role.APPROVER, f'Duyệt thiết kế {sv_label}', fallback_owner=False)],
         Status.APPROVED: [StepTask(Role.OWNER, 'Thêm sản phẩm vào Thư viện')],
         Status.HANDED_OVER: [],
-        Status.LIBRARY_REOPEN: [StepTask(Role.OWNER, 'Chỉnh hồ sơ và gửi duyệt lại')],
+        Status.LIBRARY_REOPEN: [StepTask(Role.OWNER, 'Chỉnh công đoạn và gửi duyệt thiết kế')],
     }
     return mapping.get(status, [])
 
@@ -332,6 +332,8 @@ def create_dossier(user, *, fields: dict, submit: bool = False) -> ProductDevelo
 def update_brief(dossier: ProductDevelopment, user, *, fields: dict) -> None:
     _require(perms.can_edit_brief(dossier, user),
              'Chỉ người đề xuất hoặc người phụ trách được sửa đề bài khi hồ sơ chưa bàn giao, hủy hoặc đóng.')
+    if dossier.status == Status.LIBRARY_REOPEN:
+        _require(allows_reopen_overview(dossier), 'Công đoạn đang mở không phải Tổng quan — không sửa đề bài được.')
     changed = []
     for key, value in fields.items():
         if getattr(dossier, key) != value:
@@ -436,8 +438,12 @@ def _approved_sample_editable(dossier, sv: SampleVersion) -> bool:
 def _require_design_editable(dossier, dv: DesignVersion, user) -> None:
     _require(dv.dossier_id == dossier.pk, 'Phiên bản không thuộc hồ sơ.')
     if not _approved_design_editable(dossier, dv) and not design_reopened(dossier, dv):
-        _require(dossier.status in (Status.DESIGNING, Status.DESIGN_REVISE, Status.LIBRARY_REOPEN) and dv.is_editable,
-                 'Phiên bản thiết kế này đã gửi duyệt hoặc đã lưu trữ — không sửa được.')
+        if dossier.status == Status.LIBRARY_REOPEN:
+            _require(allows_reopen_design(dossier) and dv.is_editable,
+                     'Công đoạn đang mở không phải Thiết kế — không sửa được.')
+        else:
+            _require(dossier.status in (Status.DESIGNING, Status.DESIGN_REVISE) and dv.is_editable,
+                     'Phiên bản thiết kế này đã gửi duyệt hoặc đã lưu trữ — không sửa được.')
     _require(perms.can_work_as(dossier, user, Role.DESIGNER, Role.OWNER),
              'Chỉ Thiết kế / R&D hoặc người phụ trách được cập nhật thiết kế.')
 
@@ -454,23 +460,50 @@ def save_design_version(dv: DesignVersion, user, *, fields: dict) -> None:
 
 def add_colorway(dv: DesignVersion, user, *, name: str, color_codes: str = '', note: str = '',
                  uploaded_file=None) -> Colorway:
-    """Thêm phối màu ở tab Thiết kế. Ảnh lưu lên NAS, mã SKU vẫn lấy từ tên phối màu."""
+    """Thêm một phối màu ở tab Thiết kế."""
+    created = add_colorways(dv, user, rows=[{
+        'name': name, 'color_codes': color_codes, 'note': note, 'uploaded_file': uploaded_file,
+    }])
+    return created[0]
+
+
+def add_colorways(dv: DesignVersion, user, *, rows: list[dict]) -> list[Colorway]:
+    """Thêm nhiều phối màu ở tab Thiết kế trong một lần lưu. Ảnh lưu lên NAS."""
     _require_design_editable(dv.dossier, dv, user)
-    _require(uploaded_file is not None, 'Chọn file ảnh phối màu.')
-    ext = os.path.splitext(uploaded_file.name)[1].lower()
-    _require(ext in IMAGE_EXTENSIONS, 'Ảnh phối màu phải là tệp ảnh.')
+    _require(bool(rows), 'Thêm ít nhất một phối màu.')
+    prepared = []
+    for index, row in enumerate(rows, start=1):
+        name = _require_text(row.get('name'), f'tên phối màu (dòng {index})')
+        uploaded_file = row.get('uploaded_file')
+        _require(uploaded_file is not None, f'Chọn file ảnh phối màu (dòng {index}).')
+        ext = os.path.splitext(uploaded_file.name)[1].lower()
+        _require(ext in IMAGE_EXTENSIONS, f'Ảnh phối màu phải là tệp ảnh (dòng {index}).')
+        prepared.append({
+            'name': name,
+            'color_codes': (row.get('color_codes') or '').strip(),
+            'note': (row.get('note') or '').strip(),
+            'uploaded_file': uploaded_file,
+        })
+    created: list[Colorway] = []
     with transaction.atomic():
-        order = dv.colorways.count() + 1
-        cw = Colorway.objects.create(
-            design_version=dv, name=_require_text(name, 'tên phối màu'),
-            color_codes=(color_codes or '').strip(), note=note, sort_order=order,
+        order = dv.colorways.count()
+        for row in prepared:
+            order += 1
+            cw = Colorway.objects.create(
+                design_version=dv, name=row['name'],
+                color_codes=row['color_codes'], note=row['note'], sort_order=order,
+            )
+            upload_attachment(
+                dv.dossier, user, uploaded_file=row['uploaded_file'], kind=AttachmentKind.COLORWAY,
+                design_version=dv, colorway=cw, tab='design',
+            )
+            created.append(cw)
+        labels = ', '.join(f'«{cw.name}»' for cw in created)
+        log(
+            dv.dossier, user, 'colorway_added',
+            f'{_name(user)} thêm {len(created)} colorway vào {dv.label}: {labels}.',
         )
-        upload_attachment(
-            dv.dossier, user, uploaded_file=uploaded_file, kind=AttachmentKind.COLORWAY,
-            design_version=dv, colorway=cw, tab='design',
-        )
-        log(dv.dossier, user, 'colorway_added', f'{_name(user)} thêm colorway «{cw.name}» vào {dv.label}.')
-    return cw
+    return created
 
 
 def delete_colorway(cw: Colorway, user) -> None:
@@ -785,8 +818,12 @@ TECH_EDIT_STATUSES = (
 def _require_tech_editable(dossier, sv: SampleVersion, user) -> None:
     _require(sv.dossier_id == dossier.pk, 'Mẫu không thuộc hồ sơ.')
     if not _approved_sample_editable(dossier, sv) and not tech_reopened(dossier, sv):
-        _require(dossier.status in TECH_EDIT_STATUSES and sv.is_editable,
-                 'Hồ sơ kỹ thuật đã khóa hoặc đã lưu trữ — không sửa được.')
+        if dossier.status == Status.LIBRARY_REOPEN:
+            _require(allows_reopen_technical(dossier) and sv.is_editable,
+                     'Công đoạn đang mở không phải Kỹ thuật — không sửa được.')
+        else:
+            _require(dossier.status in TECH_EDIT_STATUSES and sv.is_editable,
+                     'Hồ sơ kỹ thuật đã khóa hoặc đã lưu trữ — không sửa được.')
     _require(perms.can_work_as(dossier, user, Role.TECHNICIAN, Role.OWNER),
              'Chỉ Kỹ thuật / Tài liệu kỹ thuật hoặc người phụ trách được cập nhật.')
 
@@ -794,8 +831,12 @@ def _require_tech_editable(dossier, sv: SampleVersion, user) -> None:
 def _require_sample_editable(dossier, sv: SampleVersion, user, *roles) -> None:
     _require(sv.dossier_id == dossier.pk, 'Mẫu không thuộc hồ sơ.')
     if not _approved_sample_editable(dossier, sv) and not sample_reopened(dossier, sv):
-        _require(dossier.status in (Status.SAMPLING, Status.SAMPLE_REVISE, Status.LIBRARY_REOPEN) and sv.is_editable,
-                 'Mẫu này đã gửi đánh giá hoặc đã lưu trữ — không sửa được.')
+        if dossier.status == Status.LIBRARY_REOPEN:
+            _require(allows_reopen_sample(dossier) and sv.is_editable,
+                     'Công đoạn đang mở không phải May mẫu — không sửa được.')
+        else:
+            _require(dossier.status in (Status.SAMPLING, Status.SAMPLE_REVISE) and sv.is_editable,
+                     'Mẫu này đã gửi đánh giá hoặc đã lưu trữ — không sửa được.')
     _require(perms.can_work_as(dossier, user, *roles), 'Bạn không phụ trách phần việc này trên hồ sơ.')
 
 
@@ -1124,6 +1165,7 @@ def decide_master(dossier: ProductDevelopment, user, *, official_code: str, comm
         dossier.approved_design_version = sv.design_version
         dossier.approved_at = timezone.now()
         dossier.is_locked = True
+        dossier.reopen_edit_step = ''
         summary = f'{_name(user)} duyệt thiết kế {sv.label} — mã chính thức {code}'
         if conditions:
             summary += f', kèm {len(conditions)} điều kiện'
@@ -1472,34 +1514,77 @@ def handover(dossier: ProductDevelopment, user, *, note: str = '', due_at=None):
     return record
 
 
-def reopen_completion(dossier: ProductDevelopment, user, *, reason: str) -> None:
-    """Gỡ khỏi Thư viện ngay. Người tham gia sửa theo vai trò, rồi gửi duyệt lại bước cuối."""
+REOPEN_EDIT_STEPS = (
+    ('overview', 'Tổng quan'),
+    ('design', 'Thiết kế'),
+    ('technical', 'Kỹ thuật'),
+    ('sample', 'May mẫu'),
+)
+
+
+def reopen_edit_step(dossier: ProductDevelopment) -> str:
+    """Công đoạn được mở sửa khi đang chỉnh sau hoàn thành (rỗng = chưa chọn / hồ sơ cũ)."""
+    if dossier.status != Status.LIBRARY_REOPEN:
+        return ''
+    return (dossier.reopen_edit_step or '').strip()
+
+
+def allows_reopen_overview(dossier: ProductDevelopment) -> bool:
+    step = reopen_edit_step(dossier)
+    return dossier.status == Status.LIBRARY_REOPEN and (not step or step == 'overview')
+
+
+def allows_reopen_design(dossier: ProductDevelopment) -> bool:
+    step = reopen_edit_step(dossier)
+    return dossier.status == Status.LIBRARY_REOPEN and (not step or step == 'design')
+
+
+def allows_reopen_technical(dossier: ProductDevelopment) -> bool:
+    step = reopen_edit_step(dossier)
+    return dossier.status == Status.LIBRARY_REOPEN and (not step or step == 'technical')
+
+
+def allows_reopen_sample(dossier: ProductDevelopment) -> bool:
+    step = reopen_edit_step(dossier)
+    return dossier.status == Status.LIBRARY_REOPEN and (not step or step == 'sample')
+
+
+def reopen_completion(dossier: ProductDevelopment, user, *, reason: str, edit_step: str) -> None:
+    """Gỡ khỏi Thư viện, chỉ mở đúng một công đoạn để sửa rồi gửi duyệt thiết kế."""
     _require(dossier.status == Status.HANDED_OVER, 'Chỉ huỷ hoàn thành khi hồ sơ đã thêm vào Thư viện.')
     _require(perms.is_participant(dossier, user), 'Chỉ người tham gia hồ sơ được huỷ hoàn thành.')
+    labels = dict(REOPEN_EDIT_STEPS)
+    _require(edit_step in labels, 'Chọn công đoạn cần sửa.')
     reason = _require_text(reason, 'lý do mở lại')
     with transaction.atomic():
-        for dv in dossier.design_versions.filter(is_current=True, state=DesignVersion.STATE_APPROVED):
-            dv.state = DesignVersion.STATE_DRAFT
-            dv.save(update_fields=['state', 'updated_at'])
-        for sv in dossier.sample_versions.filter(is_current=True, state=SampleVersion.STATE_PASSED):
-            sv.state = SampleVersion.STATE_IN_PROGRESS
-            sv.save(update_fields=['state', 'updated_at'])
+        if edit_step == 'design':
+            for dv in dossier.design_versions.filter(is_current=True, state=DesignVersion.STATE_APPROVED):
+                dv.state = DesignVersion.STATE_DRAFT
+                dv.save(update_fields=['state', 'updated_at'])
+        elif edit_step in ('technical', 'sample'):
+            sv = dossier.current_sample_version()
+            _require(sv is not None, 'Chưa có mẫu để mở công đoạn này.')
+            if sv.state != SampleVersion.STATE_IN_PROGRESS:
+                sv.state = SampleVersion.STATE_IN_PROGRESS
+                sv.save(update_fields=['state', 'updated_at'])
         dossier.is_locked = False
+        dossier.reopen_edit_step = edit_step
         _transition(
             dossier, Status.LIBRARY_REOPEN, user, 'completion_reopened',
-            f'{_name(user)} huỷ hoàn thành, gỡ Style khỏi Thư viện để chỉnh: {reason}',
-            revision=True, open_tasks=True,
+            f'{_name(user)} huỷ hoàn thành, mở sửa «{labels[edit_step]}»: {reason}',
+            revision=True, open_tasks=True, edit_step=edit_step,
         )
     nt.notify(
         dossier.approver, dossier, nt.KIND_INFO, 'Hồ sơ được mở lại sau khi vào Thư viện',
-        f'{dossier.code} — {reason}', actor=user,
+        f'{dossier.code} — sửa {labels[edit_step]}: {reason}', actor=user,
     )
 
 
 def resubmit_after_reopen(dossier: ProductDevelopment, user, *, due_at=None) -> None:
-    """Chỉnh xong: gửi người duyệt làm lại bước Duyệt thiết kế."""
+    """Chỉnh xong công đoạn đã chọn: chuyển thẳng sang Duyệt thiết kế."""
     _require(dossier.status == Status.LIBRARY_REOPEN, 'Hồ sơ không ở bước đang chỉnh sau hoàn thành.')
-    _require(perms.is_participant(dossier, user), 'Chỉ người tham gia hồ sơ được gửi duyệt lại.')
+    _require(perms.is_participant(dossier, user), 'Chỉ người tham gia hồ sơ được gửi duyệt thiết kế.')
+    step_label = dict(REOPEN_EDIT_STEPS).get(reopen_edit_step(dossier), 'hồ sơ')
     with transaction.atomic():
         current_designs = list(dossier.design_versions.filter(is_current=True))
         for dv in current_designs:
@@ -1508,16 +1593,20 @@ def resubmit_after_reopen(dossier: ProductDevelopment, user, *, due_at=None) -> 
                 dv.save(update_fields=['state', 'updated_at'])
         if dossier.approved_design_version_id is None and current_designs:
             dossier.approved_design_version = current_designs[0]
-        for sv in dossier.sample_versions.filter(is_current=True, state=SampleVersion.STATE_IN_PROGRESS):
+        for sv in dossier.sample_versions.filter(
+            is_current=True,
+            state__in=(SampleVersion.STATE_IN_PROGRESS, SampleVersion.STATE_PASSED),
+        ):
             sv.state = SampleVersion.STATE_SUBMITTED
             sv.save(update_fields=['state', 'updated_at'])
+        dossier.reopen_edit_step = ''
         _transition(
             dossier, Status.SAMPLE_EVAL_PENDING, user, 'reopen_submitted',
-            f'{_name(user)} gửi duyệt lại bước cuối sau khi chỉnh.',
+            f'{_name(user)} gửi duyệt thiết kế sau khi chỉnh «{step_label}».',
             due_at=due_at,
         )
     nt.notify(
-        dossier.approver, dossier, nt.KIND_APPROVAL_REQUEST, 'Cần duyệt lại thiết kế',
+        dossier.approver, dossier, nt.KIND_APPROVAL_REQUEST, 'Cần duyệt thiết kế',
         f'{dossier.code} — {dossier.name}', actor=user,
     )
 
@@ -1687,8 +1776,11 @@ def rewind_choices(dossier: ProductDevelopment) -> list[tuple[str, str]]:
     """Chỉ các bước hồ sơ đã đi qua, trừ bước đang đứng.
 
     Chưa tới May mẫu thì không có mục May mẫu. Đã từng tới rồi quay về Thiết kế
-    thì Kỹ thuật và May mẫu vẫn chọn được.
+    thì Kỹ thuật và May mẫu vẫn chọn được. Hồ sơ đã hoàn thành (Thư viện) không quay lại —
+    dùng Huỷ hoàn thành và chọn đúng một công đoạn.
     """
+    if dossier.status == Status.HANDED_OVER:
+        return []
     current = _REWIND_RANK.get(dossier.status)
     furthest = _rewind_rank_seen(dossier)
     if current is None or furthest is None:
@@ -1949,7 +2041,10 @@ def _upload_allowed(dossier, user, kind: str, design_version, sample_version) ->
                 or design_reopened(dossier, design_version)
                 or (
                     design_version.is_editable
-                    and dossier.status in (Status.DESIGNING, Status.DESIGN_REVISE, Status.LIBRARY_REOPEN)
+                    and (
+                        dossier.status in (Status.DESIGNING, Status.DESIGN_REVISE)
+                        or allows_reopen_design(dossier)
+                    )
                 )
             )
             tech_open = (
@@ -1957,7 +2052,8 @@ def _upload_allowed(dossier, user, kind: str, design_version, sample_version) ->
                 and sv.design_version_id == design_version.pk
                 and sv.is_editable
                 and (
-                    dossier.status in TECH_EDIT_STATUSES
+                    (dossier.status in TECH_EDIT_STATUSES and dossier.status != Status.LIBRARY_REOPEN)
+                    or allows_reopen_technical(dossier)
                     or _approved_sample_editable(dossier, sv)
                     or tech_reopened(dossier, sv)
                 )
@@ -1974,9 +2070,11 @@ def _upload_allowed(dossier, user, kind: str, design_version, sample_version) ->
                 )
         if _approved_design_editable(dossier, design_version) or design_reopened(dossier, design_version):
             return '' if perms.has_role(dossier, user, Role.DESIGNER, Role.OWNER) else 'Chỉ Thiết kế / R&D tải tệp thiết kế.'
-        if not design_version.is_editable or dossier.status not in (
-            Status.DESIGNING, Status.DESIGN_REVISE, Status.LIBRARY_REOPEN,
-        ):
+        design_status_ok = (
+            dossier.status in (Status.DESIGNING, Status.DESIGN_REVISE)
+            or allows_reopen_design(dossier)
+        )
+        if not design_version.is_editable or not design_status_ok:
             return 'Phiên bản thiết kế đã gửi duyệt hoặc lưu trữ — không thêm tệp được.'
         return '' if perms.has_role(dossier, user, Role.DESIGNER, Role.OWNER) else 'Chỉ Thiết kế / R&D tải tệp thiết kế.'
     if sample_version is not None:
@@ -1993,15 +2091,20 @@ def _upload_allowed(dossier, user, kind: str, design_version, sample_version) ->
             if dossier.status not in DESIGN_APPROVAL_STATUSES:
                 return 'Chỉ tải biên bản đánh giá khi hồ sơ đang làm mẫu hoặc chờ duyệt thiết kế.'
             return '' if evaluator_roles_for(dossier, user) else 'Bạn không tham gia đánh giá mẫu.'
-        allowed = TECH_EDIT_STATUSES if tech_file else (
-            Status.SAMPLING, Status.SAMPLE_REVISE, Status.LIBRARY_REOPEN,
-        )
+        if tech_file:
+            allowed = dossier.status in TECH_EDIT_STATUSES and dossier.status != Status.LIBRARY_REOPEN
+            reopen_ok = allows_reopen_technical(dossier)
+        else:
+            allowed = dossier.status in (Status.SAMPLING, Status.SAMPLE_REVISE)
+            reopen_ok = allows_reopen_sample(dossier)
         reopened_file = tech_reopened(dossier, sample_version) if tech_file else sample_reopened(dossier, sample_version)
-        if reopened_file:
+        if reopened_file or reopen_ok:
             roles = (Role.TECHNICIAN, Role.OWNER) if tech_file else (
                 Role.SAMPLE_MAKER, Role.TECHNICIAN, Role.OWNER)
+            if reopen_ok and not sample_version.is_editable:
+                return 'Mẫu đã gửi đánh giá — không thêm ảnh / tài liệu kỹ thuật được.'
             return '' if perms.has_role(dossier, user, *roles) else 'Bạn không phụ trách phần việc này.'
-        if not sample_version.is_editable or dossier.status not in allowed:
+        if not sample_version.is_editable or not allowed:
             return 'Mẫu đã gửi đánh giá — không thêm ảnh / tài liệu kỹ thuật được.'
         roles = (Role.TECHNICIAN, Role.OWNER) if tech_file else (
             Role.SAMPLE_MAKER, Role.TECHNICIAN, Role.OWNER)
@@ -2009,7 +2112,15 @@ def _upload_allowed(dossier, user, kind: str, design_version, sample_version) ->
     if kind == AttachmentKind.REFERENCE:
         if dossier.status in (*FINAL_STATUSES, Status.HANDED_OVER):
             return 'Hồ sơ đã thêm vào Thư viện, hủy hoặc đóng — không bổ sung tài liệu tham khảo.'
+        if dossier.status == Status.LIBRARY_REOPEN and not allows_reopen_overview(dossier):
+            return 'Công đoạn đang mở không phải Tổng quan — không bổ sung tài liệu tham khảo.'
         return '' if perms.has_role(dossier, user, Role.PROPOSER, Role.OWNER) else 'Chỉ người đề xuất / phụ trách.'
+    if kind == AttachmentKind.PRODUCT_PHOTO:
+        if dossier.status in (*FINAL_STATUSES, Status.HANDED_OVER):
+            return 'Hồ sơ đã thêm vào Thư viện, hủy hoặc đóng — không bổ sung ảnh sản phẩm.'
+        if dossier.status == Status.LIBRARY_REOPEN and not allows_reopen_overview(dossier):
+            return 'Công đoạn đang mở không phải Tổng quan — không bổ sung ảnh sản phẩm.'
+        return '' if perms.is_participant(dossier, user) else 'Chỉ người tham gia hồ sơ được tải tệp.'
     if kind == AttachmentKind.COST:
         if dossier.is_locked and not test_edit_after_approval(dossier):
             return 'Hồ sơ đã khóa sau duyệt.'

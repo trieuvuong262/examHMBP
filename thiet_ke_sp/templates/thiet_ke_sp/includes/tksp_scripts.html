@@ -47,7 +47,12 @@
       var body = document.querySelector(addBtn.getAttribute('data-tk-add-row'));
       var tpl = document.querySelector(addBtn.getAttribute('data-tk-template'));
       if (!body || !tpl) return;
-      var index = body.querySelectorAll('tr').length;
+      var index = 0;
+      body.querySelectorAll('[name*="__"], [name*="_"]').forEach(function (el) {
+        var m = String(el.name || '').match(/_(\d+)$/);
+        if (m) index = Math.max(index, parseInt(m[1], 10) + 1);
+      });
+      if (!index) index = body.querySelectorAll('tr').length;
       var html = tpl.innerHTML.replace(/__i__/g, String(index));
       body.insertAdjacentHTML('beforeend', html);
       initUserSelects(body);
@@ -56,7 +61,14 @@
     var delBtn = e.target.closest('[data-tk-del-row]');
     if (delBtn) {
       var tr = delBtn.closest('tr');
-      if (tr) tr.remove();
+      if (tr) {
+        var body = tr.parentElement;
+        tr.remove();
+        if (body && !body.querySelector('tr')) {
+          var add = document.querySelector('[data-tk-add-row="#' + body.id + '"]');
+          if (add) add.click();
+        }
+      }
     }
   });
 

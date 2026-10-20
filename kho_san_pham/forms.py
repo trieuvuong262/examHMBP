@@ -15,6 +15,22 @@ FORM_SELECT = {'class': 'form-select form-select-sm'}
 FORM_TEXTAREA = {'class': 'form-control form-control-sm', 'rows': 3}
 
 
+class TitledCheckboxSelectMultiple(forms.CheckboxSelectMultiple):
+    """Checkbox nhiều lựa chọn — title hover theo map mã → tên."""
+
+    def __init__(self, *args, title_map=None, **kwargs):
+        self.title_map = title_map or {}
+        super().__init__(*args, **kwargs)
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex=subindex, attrs=attrs)
+        key = str(value)
+        title = self.title_map.get(key) or self.title_map.get(key.upper()) or label
+        option.setdefault('attrs', {})
+        option['attrs']['title'] = title
+        return option
+
+
 def parse_vnd_integer(value):
     """Nhận giá VND: 195000, 195.000, 195,000 → 195000. Không lấy phần thập phân."""
     if value in (None, ''):
@@ -208,9 +224,10 @@ class ProductForm(forms.ModelForm):
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
-    def __init__(self, *args, clone_from=None, locked_style=None, **kwargs):
+    def __init__(self, *args, clone_from=None, locked_style=None, multi_variant=False, **kwargs):
         self.clone_from = clone_from
         self.locked_style = (locked_style or '').strip().upper() or None
+        self.multi_variant = bool(multi_variant) and not getattr(kwargs.get('instance'), 'pk', None)
         super().__init__(*args, **kwargs)
         from kho_san_pham.catalog_models import ProductType
         from san_xuat.hub_models import SxColor, SxSize
@@ -269,24 +286,85 @@ class ProductForm(forms.ModelForm):
                     ProductType.objects.filter(Q(is_active=True) | Q(pk=ref.catalog_type_id))
                     .order_by('sort_order', 'code')
                 )
-        self.fields['color_code'].widget = forms.Select(
-            attrs={**FORM_SELECT, 'id': 'id_color_code'},
-            choices=color_choices,
-        )
-        self.fields['size_label'].widget = forms.Select(
-            attrs={**FORM_SELECT, 'id': 'id_size_label'},
-            choices=size_choices,
-        )
         self._color_name_map = {c.code.upper(): c.name for c in colors}
         if self.clone_from and self.clone_from.color_code:
             self._color_name_map.setdefault(
                 self.clone_from.color_code.upper(),
                 self.clone_from.color_label or self.clone_from.color_code,
             )
+        if self.multi_variant:
+            self.variant_existing = self._variant_existing_combos(self.locked_style)
+            size_titles = {s.code: (s.name or s.code) for s in sizes}
+            self.fields['colors_text'] = forms.CharField(
+                label='Màu',
+                required=False,
+                widget=forms.Textarea(attrs={
+                    **FORM_CONTROL,
+                    'id': 'id_colors_text',
+                    'rows': 4,
+                    'placeholder': 'VD: NVY, BLK, RED',
+                    'autocomplete': 'off',
+                }),
+            )
+            # Đủ size trong form; UI chỉ hiện size còn thiếu theo màu (JS + clean).
+            self.fields['size_labels'] = forms.MultipleChoiceField(
+                label='Size',
+                required=True,
+                choices=[(s.code, s.code) for s in sizes],
+                widget=TitledCheckboxSelectMultiple(title_map=size_titles),
+                error_messages={'required': 'Chọn ít nhất một size chưa có.'},
+            )
+            self.fields['category_name'].widget.attrs['readonly'] = 'readonly'
+            del self.fields['color_code']
+            del self.fields['size_label']
+            del self.fields['code']
+            del self.fields['bar_code']
+        else:
+            self.fields['color_code'].widget = forms.Select(
+                attrs={**FORM_SELECT, 'id': 'id_color_code'},
+                choices=color_choices,
+            )
+            self.fields['size_label'].widget = forms.Select(
+                attrs={**FORM_SELECT, 'id': 'id_size_label'},
+                choices=size_choices,
+            )
         if self.locked_style:
             self.fields['style_code'].initial = self.locked_style
             self.fields['style_code'].widget.attrs['readonly'] = 'readonly'
-            self.fields['code'].required = False
+            if 'code' in self.fields:
+                self.fields['code'].required = False
+
+    @staticmethod
+    def _parse_colors_text(text: str) -> list[str]:
+        from san_xuat.services.sku_catalog import normalize_token
+        import re
+
+        out: list[str] = []
+        for part in re.split(r'[,;\s]+', text or ''):
+            token = normalize_token(part)
+            if token and token not in out:
+                out.append(token)
+        return out
+
+    @staticmethod
+    def _variant_existing_combos(style: str | None) -> list[list[str]]:
+        if not style:
+            return []
+        rows = Product.objects.filter(style_code__iexact=style).values_list('color_code', 'size_label')
+        return [
+            [(c or '').strip().upper(), (s or '').strip().upper()]
+            for c, s in rows
+            if (s or '').strip()
+        ]
+
+    @staticmethod
+    def _size_missing_for_colors(existing: list[list[str]], colors: list[str], size_code: str) -> bool:
+        size_u = (size_code or '').strip().upper()
+        if not size_u:
+            return False
+        existing_set = {(c, s) for c, s in existing}
+        targets = colors if colors else ['']
+        return any((c, size_u) not in existing_set for c in targets)
 
     def clean_code(self):
         return (self.cleaned_data.get('code') or '').strip().upper()
@@ -327,11 +405,72 @@ class ProductForm(forms.ModelForm):
         from san_xuat.services.sku_catalog import SkuError, compose_sku_code, normalize_style, normalize_token
 
         style = self.locked_style or normalize_style(cleaned.get('style_code') or '')
+        cleaned['style_code'] = style
+
+        if self.multi_variant:
+            colors = self._parse_colors_text(cleaned.get('colors_text') or '')
+            if not colors:
+                colors = ['']
+            sizes = [normalize_token(s) for s in (cleaned.get('size_labels') or []) if normalize_token(s)]
+            if not sizes:
+                self.add_error('size_labels', 'Chọn ít nhất một size chưa có.')
+                return cleaned
+            if not style:
+                raise forms.ValidationError('Thiếu mã Style.')
+
+            existing = getattr(self, 'variant_existing', None) or self._variant_existing_combos(style)
+            existing_set = {(c, s) for c, s in existing}
+            create_rows = []
+            skip_rows = []
+            invalid_sizes = []
+            for size in sizes:
+                if not self._size_missing_for_colors(existing, colors, size):
+                    invalid_sizes.append(size)
+                    continue
+                for color in colors:
+                    try:
+                        code = compose_sku_code(style_code=style, color_code='', size_label=size)
+                    except SkuError as exc:
+                        raise forms.ValidationError(str(exc)) from exc
+                    exists = (color, size) in existing_set
+                    row = {
+                        'color_code': color,
+                        'color_label': self._color_name_map.get(color, '') or color if color else '',
+                        'size_label': size,
+                        'code': code,
+                    }
+                    if exists:
+                        skip_rows.append(row)
+                    else:
+                        create_rows.append(row)
+            if invalid_sizes:
+                self.add_error(
+                    'size_labels',
+                    'Size đã đủ cho màu đã nhập: ' + ', '.join(invalid_sizes),
+                )
+                return cleaned
+            if not create_rows:
+                raise forms.ValidationError(
+                    'Mọi cặp màu × size đã chọn đều đã có trong Style. Nhập màu khác hoặc chọn size còn thiếu.',
+                )
+            cleaned['colors_text'] = ', '.join(c for c in colors if c)
+            cleaned['variant_create'] = create_rows
+            cleaned['variant_skip'] = skip_rows
+            if not (cleaned.get('name') or '').strip():
+                cleaned['name'] = style
+            # Nhóm hàng lấy từ Style / SKU gốc — không cho sửa khi thêm hàng loạt.
+            locked_cat = ''
+            if self.clone_from is not None:
+                locked_cat = (self.clone_from.category_name or '').strip()
+            if not locked_cat:
+                locked_cat = (self.initial.get('category_name') or '').strip()
+            cleaned['category_name'] = locked_cat
+            return cleaned
+
         color = normalize_token(cleaned.get('color_code') or '')
         size = normalize_token(cleaned.get('size_label') or '')
         code = (cleaned.get('code') or '').strip().upper()
 
-        cleaned['style_code'] = style
         cleaned['color_code'] = color
         cleaned['size_label'] = size
 

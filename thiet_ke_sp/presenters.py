@@ -79,13 +79,35 @@ _TAB_STEP = {
     'sample': 'sample',
     'approval': 'design_approval',
 }
+_REOPEN_PROCESS_TABS = frozenset({'overview', 'design', 'technical', 'sample'})
+_REOPEN_ALWAYS_TABS = frozenset({'costing', 'approval', 'files', 'history'})
 
 
 def tab_is_open(dossier: ProductDevelopment, key: str) -> bool:
+    """Khi huỷ hoàn thành chỉ mở đúng công đoạn đang sửa + Giá thành / Phê duyệt / Trao đổi / Lịch sử."""
+    if dossier.status == Status.LIBRARY_REOPEN:
+        edit_step = wf.reopen_edit_step(dossier)
+        if edit_step:
+            if key in _REOPEN_ALWAYS_TABS or key == edit_step:
+                return True
+            if key in _REOPEN_PROCESS_TABS:
+                return False
     step = _TAB_STEP.get(key)
     if step is None:
         return True
     return step_is_reached(dossier, step)
+
+
+def default_open_tab(dossier: ProductDevelopment) -> str:
+    """Tab mặc định khi URL không có tab hoặc tab đang bị khóa."""
+    if dossier.status == Status.LIBRARY_REOPEN:
+        edit_step = wf.reopen_edit_step(dossier)
+        if edit_step and tab_is_open(dossier, edit_step):
+            return edit_step
+    for key in ('overview', 'design', 'technical', 'sample', 'costing', 'approval', 'files', 'history'):
+        if tab_is_open(dossier, key):
+            return key
+    return 'overview'
 
 
 def roles_rail(dossier: ProductDevelopment) -> list[dict]:
@@ -204,7 +226,7 @@ KANBAN_MOVE_SPECS = {
     'master_request_technical': ('Yêu cầu chỉnh kỹ thuật', True, False),
     'pause': ('Tạm dừng hồ sơ', True, False),
     'resume': ('Tiếp tục hồ sơ', False, False),
-    'resubmit_approval': ('Gửi duyệt lại bước cuối', False, False),
+    'resubmit_approval': ('Gửi duyệt thiết kế', False, False),
 }
 _KANBAN_STEP_MOVES = {
     Status.DRAFT: {'design': 'submit_brief'},
@@ -319,7 +341,7 @@ def step_checklist(dossier: ProductDevelopment, user=None) -> tuple[str, list[tu
     if status in DESIGN_APPROVAL_STATUSES:
         return 'Điều kiện duyệt thiết kế', wf.master_checklist(dossier, user)
     if status == Status.LIBRARY_REOPEN:
-        return 'Điều kiện khi gửi duyệt lại', wf.master_checklist(dossier, user)
+        return 'Điều kiện khi gửi duyệt thiết kế', wf.master_checklist(dossier, user)
     if status in (Status.APPROVED, Status.HANDED_OVER, Status.CLOSED):
         return 'Điều kiện thêm vào Thư viện', wf.handover_checklist(dossier)
     if status in (Status.DRAFT, Status.BRIEF_NEEDS_INFO, Status.BRIEF_PENDING):
@@ -362,27 +384,33 @@ def action_flags(dossier: ProductDevelopment, user) -> dict[str, bool]:
     dvs = dossier.current_design_versions()
     sv = dossier.current_sample_version()
     test_edit = wf.test_edit_after_approval(dossier)
-    reopened = s == Status.LIBRARY_REOPEN
+    design_reopen = wf.allows_reopen_design(dossier)
+    tech_reopen = wf.allows_reopen_technical(dossier)
+    sample_reopen = wf.allows_reopen_sample(dossier)
     design_step = s in (Status.DESIGNING, Status.DESIGN_REVISE) and any(dv.is_editable for dv in dvs)
     sample_step = s in (Status.SAMPLING, Status.SAMPLE_REVISE) and sv is not None and sv.is_editable
-    design_open = design_step or reopened or (test_edit and any(dv.state == DesignVersion.STATE_APPROVED for dv in dvs)) or any(
+    design_open = design_step or design_reopen or (test_edit and any(dv.state == DesignVersion.STATE_APPROVED for dv in dvs)) or any(
         wf.design_reopened(dossier, dv) for dv in dvs
     )
-    sample_open = sample_step or (reopened and sv is not None) or (
+    sample_open = sample_step or (sample_reopen and sv is not None) or (
         test_edit and sv is not None and sv.state == SampleVersion.STATE_PASSED
     ) or wf.sample_reopened(dossier, sv)
     tech_open = sv is not None and (
         (s in (Status.TECHNICAL, Status.TECHNICAL_REVISE, Status.SAMPLING, Status.SAMPLE_REVISE) and sv.is_editable)
-        or reopened
+        or tech_reopen
         or (test_edit and sv.state == SampleVersion.STATE_PASSED)
         or wf.tech_reopened(dossier, sv)
     )
     designer = perms.can_work_as(dossier, user, Role.DESIGNER, Role.OWNER)
     approval_step = s in APPROVER_DECIDE_STATUSES
     return {
-        'edit_brief': perms.can_edit_brief(dossier, user),
-        'edit_proposal': s in (Status.DRAFT, Status.BRIEF_NEEDS_INFO, Status.BRIEF_PENDING)
-        and perms.can_edit_brief(dossier, user),
+        'edit_brief': perms.can_edit_brief(dossier, user) and (
+            s != Status.LIBRARY_REOPEN or wf.allows_reopen_overview(dossier)
+        ),
+        'edit_proposal': (
+            s in (Status.DRAFT, Status.BRIEF_NEEDS_INFO, Status.BRIEF_PENDING)
+            or wf.allows_reopen_overview(dossier)
+        ) and perms.can_edit_brief(dossier, user),
         'submit_brief': s in (Status.DRAFT, Status.BRIEF_NEEDS_INFO) and perms.can_edit_brief(dossier, user),
         'delete_draft': perms.can_delete_dossier(dossier, user),
         'decide_brief': s == Status.BRIEF_PENDING and approver,
@@ -409,7 +437,7 @@ def action_flags(dossier: ProductDevelopment, user) -> dict[str, bool]:
         'test_edit': test_edit,
         'handover': s == Status.APPROVED and perms.can_work_as(dossier, user, Role.OWNER, Role.TECHNICIAN),
         'reopen_completion': s == Status.HANDED_OVER and perms.is_participant(dossier, user),
-        'resubmit_approval': reopened and perms.is_participant(dossier, user),
+        'resubmit_approval': s == Status.LIBRARY_REOPEN and perms.is_participant(dossier, user),
         'close': False,
         'change_request': s == Status.APPROVED and (approver or owner),
         'pause': s in wf.PAUSABLE and approver,

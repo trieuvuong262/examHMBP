@@ -141,6 +141,65 @@
       {% else %}
       <p class="small text-muted mb-0">Chưa có SKU.</p>
       {% endif %}
+    {% elif tab == 'prices' %}
+      <div class="tk-section">
+        <div class="tk-section-title"><i class="bi bi-cash-coin"></i>Giá bán <span class="tk-section-sub">{{ products|length|sx_num }} SKU</span></div>
+        {% if products %}
+        {% if can_update %}
+        <form method="post" action="{% url 'kho_san_pham:library_prices_save' code %}" id="ksp-price-form">
+          {% csrf_token %}
+          <div class="row g-2 align-items-end mb-3">
+            <div class="col-md-4">
+              <label class="form-label fw-bold small mb-1" for="kspApplyAllPrice">Áp dụng cùng giá cho mọi SKU</label>
+              <input type="text" id="kspApplyAllPrice" class="form-control form-control-sm" inputmode="decimal" autocomplete="off" placeholder="VD: 195000 hoặc 195.000">
+            </div>
+            <div class="col-md-8">
+              <button type="button" class="btn btn-sm btn-outline-hm" id="kspFillPrices"><i class="bi bi-magic me-1"></i>Điền vào bảng</button>
+              <span class="small text-muted ms-2">Điền rồi chỉnh từng dòng nếu cần, sau đó lưu.</span>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="tk-mini-table tk-lib-sku mb-0 align-middle">
+              <thead><tr><th>SKU</th><th>Màu</th><th>Size</th><th class="text-end" style="min-width:9rem;">Giá bán (₫)</th></tr></thead>
+              <tbody>
+              {% for p in products %}
+              <tr>
+                <td class="tk-sku-code">{{ p.code }}</td>
+                <td>{{ p.color_label|default:p.color_code|default:'—' }}</td>
+                <td>{% if p.size_label %}<span class="tk-size-static">{{ p.size_label }}</span>{% else %}—{% endif %}</td>
+                <td class="text-end">
+                  <input type="text" name="price_{{ p.pk }}" class="form-control form-control-sm text-end ksp-price-input" inputmode="decimal" autocomplete="off" value="{% if p.base_price is not None %}{{ p.base_price|sx_num_input:0 }}{% endif %}" placeholder="0">
+                </td>
+              </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="d-flex gap-2 mt-3">
+            <button type="submit" class="btn btn-hm btn-sm fw-bold text-white"><i class="bi bi-save me-1"></i>Lưu giá bán</button>
+          </div>
+        </form>
+        {% else %}
+        <div class="table-responsive">
+          <table class="tk-mini-table tk-lib-sku mb-0">
+            <thead><tr><th>SKU</th><th>Màu</th><th>Size</th><th class="text-end">Giá bán</th></tr></thead>
+            <tbody>
+            {% for p in products %}
+            <tr>
+              <td class="tk-sku-code">{{ p.code }}</td>
+              <td>{{ p.color_label|default:p.color_code|default:'—' }}</td>
+              <td>{% if p.size_label %}<span class="tk-size-static">{{ p.size_label }}</span>{% else %}—{% endif %}</td>
+              <td class="text-end">{% if p.base_price is not None %}{{ p.base_price|sx_num:0 }}{% else %}—{% endif %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+        {% else %}
+        <p class="small text-muted mb-0">Chưa có SKU để chỉnh giá. {% if can_create %}<a href="{% url 'kho_san_pham:library_sku_create' code %}">Thêm SKU</a>{% endif %}</p>
+        {% endif %}
+      </div>
     {% elif tab == 'images' %}
       <div class="tk-section">
         <div class="tk-section-title"><i class="bi bi-images"></i>Hình ảnh <span class="tk-section-sub">{{ images|length }} ảnh</span></div>
@@ -213,4 +272,26 @@
   </div>
 </div>
 {% include 'san_xuat/includes/product_image_gallery_modal.html' %}
+{% endblock %}
+
+{% block scripts %}
+{% if tab == 'prices' and can_update %}
+<script>
+(function () {
+  var fill = document.getElementById('kspFillPrices');
+  var source = document.getElementById('kspApplyAllPrice');
+  if (!fill || !source) return;
+  fill.addEventListener('click', function () {
+    var value = (source.value || '').trim();
+    if (!value) {
+      source.focus();
+      return;
+    }
+    document.querySelectorAll('.ksp-price-input').forEach(function (input) {
+      input.value = value;
+    });
+  });
+})();
+</script>
+{% endif %}
 {% endblock %}

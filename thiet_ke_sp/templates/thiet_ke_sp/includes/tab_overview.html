@@ -3,7 +3,7 @@
 <div class="tk-section">
   <div class="tk-section-title"><i class="bi bi-box-arrow-right"></i>Thêm vào Thư viện
     <span class="tk-pill is-green">{{ handover.handed_at|date:'H:i d/m/Y' }}</span>
-    {% if dossier.status == 'library_reopen' %}<span class="tk-pill is-amber">Đã gỡ khỏi Thư viện</span>{% elif handover.is_transferred %}<span class="tk-pill is-green">Đã chuyển sản xuất</span>{% else %}<span class="tk-pill is-green">Trong Thư viện</span>{% endif %}
+    {% if dossier.status == 'library_reopen' %}<span class="tk-pill is-amber">Đã gỡ khỏi Thư viện{% if reopen_edit_step_label %} · sửa {{ reopen_edit_step_label }}{% endif %}</span>{% elif handover.is_transferred %}<span class="tk-pill is-green">Đã chuyển sản xuất</span>{% else %}<span class="tk-pill is-green">Trong Thư viện</span>{% endif %}
     <span class="ms-auto d-flex gap-2">
       {% if dossier.status != 'library_reopen' %}<a class="btn btn-sm btn-outline-hm" href="{% url 'kho_san_pham:library_detail' handover.product_code %}"><i class="bi bi-collection me-1"></i>Style trong Thư viện</a>{% endif %}
       {% if handover.tech_doc_id %}<a class="btn btn-sm btn-outline-hm" href="{% url 'san_xuat:doc_detail' handover.tech_doc_id %}"><i class="bi bi-box-arrow-up-right me-1"></i>Hồ sơ sản phẩm SX</a>{% endif %}

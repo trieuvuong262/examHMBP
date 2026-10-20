@@ -4,208 +4,408 @@
 
 {% block content %}
 <div class="{% if library_code %}container-fluid jp-page jp-sx-page jp-tksp py-3 py-md-4 mb-5 px-3 px-lg-4{% else %}container jp-page py-3 py-md-4 mb-5{% endif %}">
-    <form method="post" enctype="multipart/form-data" novalidate id="ksp-product-form">
+  <form method="post" enctype="multipart/form-data" novalidate id="ksp-product-form">
+    {% csrf_token %}
+
     {% if library_code %}
-    {% if is_edit %}{% include 'kho_san_pham/includes/library_topbar.html' with lib_title='Sửa SKU' back_url=cancel_url %}
-    {% elif is_duplicate %}{% include 'kho_san_pham/includes/library_topbar.html' with lib_title='Nhân bản SKU' back_url=cancel_url %}
-    {% else %}{% include 'kho_san_pham/includes/library_topbar.html' with lib_title='Thêm SKU' back_url=cancel_url %}{% endif %}
+      {% if is_edit %}
+        {% include 'kho_san_pham/includes/library_topbar.html' with lib_title='Sửa SKU' back_url=cancel_url form_id='ksp-product-form' save_label='Lưu' %}
+      {% elif is_duplicate %}
+        {% include 'kho_san_pham/includes/library_topbar.html' with lib_title='Nhân bản SKU' back_url=cancel_url form_id='ksp-product-form' save_label='Tạo bản sao' %}
+      {% elif multi_variant %}
+        {% include 'kho_san_pham/includes/library_topbar.html' with lib_title='Thêm SKU' back_url=cancel_url form_id='ksp-product-form' save_label='Tạo các SKU' %}
+      {% else %}
+        {% include 'kho_san_pham/includes/library_topbar.html' with lib_title='Thêm SKU' back_url=cancel_url form_id='ksp-product-form' save_label='Tạo mới' %}
+      {% endif %}
     {% else %}
     <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-center gap-2">
-        <div>
-            <h2 class="fw-bold text-hm mb-0 jp-page-title">
-                {% if is_edit %}Sửa sản phẩm{% elif is_duplicate %}Nhân bản sản phẩm{% else %}Thêm sản phẩm{% endif %}
-            </h2>
-            {% if is_duplicate and source_product %}
-            <div class="small text-muted mt-1">Từ SKU <code>{{ source_product.code }}</code> — đổi màu hoặc size rồi lưu</div>
-            {% endif %}
-        </div>
-        <div class="d-flex flex-wrap align-items-center gap-2">
-            <button type="submit" class="btn btn-hm btn-sm fw-bold d-inline-flex align-items-center justify-content-center">
-                {% if is_edit %}Lưu{% elif is_duplicate %}Tạo bản sao{% else %}Tạo mới{% endif %}
-            </button>
-            <a href="{{ cancel_url }}" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center justify-content-center">
-                <i class="bi bi-arrow-left me-1"></i>Quay lại
-            </a>
-        </div>
+      <div>
+        <h2 class="fw-bold text-hm mb-0 jp-page-title">
+          {% if is_edit %}Sửa sản phẩm{% elif is_duplicate %}Nhân bản sản phẩm{% else %}Thêm sản phẩm{% endif %}
+        </h2>
+        {% if is_duplicate and source_product %}
+        <div class="small text-muted mt-1">Từ SKU <code>{{ source_product.code }}</code> — đổi màu hoặc size rồi lưu</div>
+        {% endif %}
+      </div>
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <button type="submit" class="btn btn-hm btn-sm fw-bold d-inline-flex align-items-center justify-content-center">
+          {% if is_edit %}Lưu{% elif is_duplicate %}Tạo bản sao{% else %}Tạo mới{% endif %}
+        </button>
+        <a href="{{ cancel_url }}" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center justify-content-center">
+          <i class="bi bi-arrow-left me-1"></i>Quay lại
+        </a>
+      </div>
     </div>
     {% endif %}
 
-    <div class="{% if library_code %}tk-card tk-lib-form{% else %}card border-0 shadow-sm{% endif %}">
-        <div class="{% if library_code %}tk-panel{% else %}card-body p-3 p-md-4{% endif %}">
-                {% csrf_token %}
-                {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
-                {% if library_code and source_product and not is_edit %}
-                <p class="small text-muted mb-3">Đổi màu hoặc size. Mã gốc giữ {{ library_code }}.</p>
-                {% elif suggest_variant and source_product and not is_duplicate %}
-                <div class="alert alert-info py-2 mb-3">
-                    Style đã có SKU <code>{{ source_product.code }}</code>.
-                    Đổi <strong>màu</strong> hoặc <strong>size</strong> để tạo SKU mới.
-                </div>
-                {% endif %}
-                {% if is_duplicate and source_product and not library_code %}
-                <div class="alert alert-info py-2 mb-3">
-                    Nhân bản từ <code>{{ source_product.code }}</code>
-                    {% if source_product.color_code or source_product.size_label %}
-                    ({{ source_product.color_label|default:source_product.color_code|default:"—" }}
-                    · size {{ source_product.size_label|default:"—" }})
-                    {% endif %}.
-                    Đổi màu hoặc size.
-                </div>
-                {% endif %}
-                <div class="row g-3">
-                    <div class="col-md-3">
-                        <label class="form-label fw-bold small" for="{{ form.product_type.id_for_label }}">Loại SP</label>
-                        {{ form.product_type }}
-                        {% if form.product_type.errors %}<div class="text-danger small">{{ form.product_type.errors }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-bold small" for="{{ form.catalog_type.id_for_label }}">Loại mã</label>
-                        {{ form.catalog_type }}
-                        {% if form.catalog_type.errors %}<div class="text-danger small">{{ form.catalog_type.errors }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-bold small" for="{{ form.style_code.id_for_label }}">Style</label>
-                        {{ form.style_code }}
-                        {% if form.style_code.errors %}<div class="text-danger small">{{ form.style_code.errors }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-3{% if is_duplicate or suggest_variant %} rounded px-2 py-1 bg-light{% endif %}">
-                        <label class="form-label fw-bold small" for="{{ form.color_code.id_for_label }}">
-                            Màu{% if is_duplicate or suggest_variant %} <span class="text-hm">*</span>{% endif %}
-                        </label>
-                        {{ form.color_code }}
-                        {% if form.color_code.errors %}<div class="text-danger small">{{ form.color_code.errors }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-3{% if is_duplicate or suggest_variant %} rounded px-2 py-1 bg-light{% endif %}">
-                        <label class="form-label fw-bold small" for="{{ form.size_label.id_for_label }}">
-                            Size{% if is_duplicate or suggest_variant %} <span class="text-hm">*</span>{% endif %}
-                        </label>
-                        {{ form.size_label }}
-                        {% if form.size_label.errors %}<div class="text-danger small">{{ form.size_label.errors }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold small" for="{{ form.code.id_for_label }}">SKU</label>
-                        {{ form.code }}
-                        <div class="form-text" id="ksp-sku-preview">Tự ghép Style-Size. Màu là thuộc tính của mã gốc.</div>
-                        {% if form.code.errors %}<div class="text-danger small">{{ form.code.errors }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-bold small" for="{{ form.accounting_code.id_for_label }}">Mã kế toán</label>
-                        {{ form.accounting_code }}
-                        {% if form.accounting_code.errors %}<div class="text-danger small">{{ form.accounting_code.errors }}</div>{% endif %}
-                    </div>
-                    {% if library_code %}
-                    <div class="d-none">{{ form.kiotviet_code }}</div>
-                    {% else %}
-                    <div class="col-md-3">
-                        <label class="form-label fw-bold small" for="{{ form.kiotviet_code.id_for_label }}">Mã KiotViet</label>
-                        {{ form.kiotviet_code }}
-                        {% if form.kiotviet_code.errors %}<div class="text-danger small">{{ form.kiotviet_code.errors }}</div>{% endif %}
-                    </div>
-                    {% endif %}
-                    <div class="col-md-8">
-                        <label class="form-label fw-bold small" for="{{ form.name.id_for_label }}">Tên</label>
-                        {{ form.name }}
-                        {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold small" for="{{ form.unit.id_for_label }}">ĐVT</label>
-                        {{ form.unit }}
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold small" for="{{ form.full_name.id_for_label }}">Tên đầy đủ</label>
-                        {{ form.full_name }}
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-bold small" for="{{ form.bar_code.id_for_label }}">Mã vạch</label>
-                        {{ form.bar_code }}
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-bold small" for="{{ form.base_price.id_for_label }}">Giá bán (₫)</label>
-                        {{ form.base_price }}
-                        {% if form.base_price.errors %}<div class="text-danger small">{{ form.base_price.errors }}</div>{% endif %}
-                    </div>
-                    {% if library_code %}
-                    <div class="d-none">{{ form.qty_on_hand }}</div>
-                    {% else %}
-                    <div class="col-md-3">
-                        <label class="form-label fw-bold small" for="{{ form.qty_on_hand.id_for_label }}">Tồn xưởng</label>
-                        {{ form.qty_on_hand }}
-                        {% if form.qty_on_hand.errors %}<div class="text-danger small">{{ form.qty_on_hand.errors }}</div>{% endif %}
-                    </div>
-                    {% endif %}
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold small" for="{{ form.category_name.id_for_label }}">Nhóm hàng</label>
-                        {{ form.category_name }}
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold small" for="{{ form.image.id_for_label }}">Hình ảnh</label>
-                        {{ form.image }}
-                        {% if is_duplicate and source_product.display_image_url %}
-                        <div class="form-text">Để trống sẽ dùng ảnh sản phẩm gốc.</div>
-                        <img src="{{ source_product.display_image_url }}" alt="" class="rounded border mt-1"
-                             style="max-height:64px;object-fit:contain">
-                        {% endif %}
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label fw-bold small" for="{{ form.description.id_for_label }}">Mô tả</label>
-                        {{ form.description }}
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label fw-bold small" for="{{ form.notes.id_for_label }}">Ghi chú</label>
-                        {{ form.notes }}
-                    </div>
-                    <div class="col-12">
-                        <div class="form-check">
-                            {{ form.is_active }}
-                            <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Đang dùng</label>
-                        </div>
-                    </div>
-                </div>
-                {% if library_code %}
-                <div class="d-flex gap-2 mt-3">
-                    <button type="submit" class="btn btn-hm btn-sm fw-bold">{% if is_edit %}Lưu{% elif is_duplicate %}Tạo bản sao{% else %}Tạo mới{% endif %}</button>
-                </div>
-                {% endif %}
-        </div>
+    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+    {% if library_code and multi_variant %}
+    {# Giữ form thư viện như production, chỉ đổi màu/size thành chọn nhiều #}
+    <div class="d-none">
+      {{ form.product_type }}{{ form.catalog_type }}{{ form.style_code }}
+      {{ form.kiotviet_code }}{{ form.qty_on_hand }}{{ form.is_active }}
+      {{ form.category_name }}
     </div>
-    </form>
+
+    <div class="tk-card tk-lib-form">
+      <div class="tk-panel">
+        <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+          <div class="min-w-0">
+            <div class="small text-muted mb-0">Style <code>{{ library_code }}</code>{% if library_style.name %} · {{ library_style.name }}{% endif %}</div>
+          </div>
+          <div class="ksp-sku-live" id="ksp-sku-preview" aria-live="polite">
+            <small>Sẽ tạo</small>
+            <b data-ksp="total">—</b>
+          </div>
+        </div>
+
+        {{ form.variant_existing|json_script:"ksp-existing-combos" }}
+        <div class="ksp-sku-pair mb-1">
+          <div class="ksp-sku-pane">
+            <div class="ksp-sku-pane-head">
+              <label class="mb-0" for="{{ form.colors_text.id_for_label }}">Màu</label>
+            </div>
+            <div class="ksp-sku-pane-body is-input">
+              {{ form.colors_text }}
+            </div>
+            {% if form.colors_text.errors %}<div class="text-danger small mt-1">{{ form.colors_text.errors }}</div>{% endif %}
+          </div>
+          <div class="ksp-sku-pane">
+            <div class="ksp-sku-pane-head">
+              <label class="mb-0">Size <span class="text-hm">*</span></label>
+              <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" data-ksp-toggle="#ksp-size-checks">Chọn tất cả</button>
+            </div>
+            <div class="ksp-sku-pane-body">
+              <div class="ksp-sku-checks is-size" id="ksp-size-checks">{{ form.size_labels }}</div>
+            </div>
+            {% if form.size_labels.errors %}<div class="text-danger small mt-1">{{ form.size_labels.errors }}</div>{% endif %}
+          </div>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-md-8">
+            <label class="form-label fw-bold small" for="{{ form.name.id_for_label }}">Tên</label>
+            {{ form.name }}
+            {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-bold small" for="{{ form.unit.id_for_label }}">ĐVT</label>
+            {{ form.unit }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-bold small" for="{{ form.base_price.id_for_label }}">Giá bán (₫)</label>
+            {{ form.base_price }}
+            {% if form.base_price.errors %}<div class="text-danger small">{{ form.base_price.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-bold small" for="{{ form.accounting_code.id_for_label }}">Mã kế toán</label>
+            {{ form.accounting_code }}
+            {% if form.accounting_code.errors %}<div class="text-danger small">{{ form.accounting_code.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <div class="form-label fw-bold small">Nhóm hàng</div>
+            <div class="form-control form-control-sm bg-light text-muted" style="pointer-events:none">{{ form.category_name.value|default:"—" }}</div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-bold small" for="{{ form.full_name.id_for_label }}">Tên đầy đủ</label>
+            {{ form.full_name }}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-bold small" for="{{ form.image.id_for_label }}">Hình ảnh</label>
+            {{ form.image }}
+            {% if source_product and source_product.display_image_url %}
+            <div class="form-text">Để trống sẽ dùng ảnh Style / SKU sẵn có.</div>
+            <img src="{{ source_product.display_image_url }}" alt="" class="rounded border mt-1" style="max-height:64px;object-fit:contain">
+            {% endif %}
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-bold small" for="{{ form.description.id_for_label }}">Mô tả</label>
+            {{ form.description }}
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-bold small" for="{{ form.notes.id_for_label }}">Ghi chú</label>
+            {{ form.notes }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% else %}
+    {# —— Form đơn (sửa / nhân bản / danh mục) —— #}
+    <div class="{% if library_code %}tk-card tk-lib-form{% else %}card border-0 shadow-sm{% endif %}">
+      <div class="{% if library_code %}tk-panel{% else %}card-body p-3 p-md-4{% endif %}">
+        {% if library_code and source_product and not is_edit %}
+        <p class="small text-muted mb-3">Đổi màu hoặc size. Mã gốc giữ {{ library_code }}.</p>
+        {% elif suggest_variant and source_product and not is_duplicate %}
+        <div class="alert alert-info py-2 mb-3">
+          Style đã có SKU <code>{{ source_product.code }}</code>.
+          Đổi <strong>màu</strong> hoặc <strong>size</strong> để tạo SKU mới.
+        </div>
+        {% endif %}
+        {% if is_duplicate and source_product and not library_code %}
+        <div class="alert alert-info py-2 mb-3">
+          Nhân bản từ <code>{{ source_product.code }}</code>
+          {% if source_product.color_code or source_product.size_label %}
+          ({{ source_product.color_label|default:source_product.color_code|default:"—" }}
+          · size {{ source_product.size_label|default:"—" }})
+          {% endif %}.
+          Đổi màu hoặc size.
+        </div>
+        {% endif %}
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label class="form-label fw-bold small" for="{{ form.product_type.id_for_label }}">Loại SP</label>
+            {{ form.product_type }}
+            {% if form.product_type.errors %}<div class="text-danger small">{{ form.product_type.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-bold small" for="{{ form.catalog_type.id_for_label }}">Loại mã</label>
+            {{ form.catalog_type }}
+            {% if form.catalog_type.errors %}<div class="text-danger small">{{ form.catalog_type.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-bold small" for="{{ form.style_code.id_for_label }}">Style</label>
+            {{ form.style_code }}
+            {% if form.style_code.errors %}<div class="text-danger small">{{ form.style_code.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-3{% if is_duplicate or suggest_variant %} rounded px-2 py-1 bg-light{% endif %}">
+            <label class="form-label fw-bold small" for="{{ form.color_code.id_for_label }}">
+              Màu{% if is_duplicate or suggest_variant %} <span class="text-hm">*</span>{% endif %}
+            </label>
+            {{ form.color_code }}
+            {% if form.color_code.errors %}<div class="text-danger small">{{ form.color_code.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-3{% if is_duplicate or suggest_variant %} rounded px-2 py-1 bg-light{% endif %}">
+            <label class="form-label fw-bold small" for="{{ form.size_label.id_for_label }}">
+              Size{% if is_duplicate or suggest_variant %} <span class="text-hm">*</span>{% endif %}
+            </label>
+            {{ form.size_label }}
+            {% if form.size_label.errors %}<div class="text-danger small">{{ form.size_label.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-bold small" for="{{ form.code.id_for_label }}">SKU</label>
+            {{ form.code }}
+            <div class="form-text" id="ksp-sku-preview">Tự ghép Style-Size. Màu là thuộc tính của mã gốc.</div>
+            {% if form.code.errors %}<div class="text-danger small">{{ form.code.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-bold small" for="{{ form.accounting_code.id_for_label }}">Mã kế toán</label>
+            {{ form.accounting_code }}
+            {% if form.accounting_code.errors %}<div class="text-danger small">{{ form.accounting_code.errors }}</div>{% endif %}
+          </div>
+          {% if library_code %}
+          <div class="d-none">{{ form.kiotviet_code }}</div>
+          {% else %}
+          <div class="col-md-3">
+            <label class="form-label fw-bold small" for="{{ form.kiotviet_code.id_for_label }}">Mã KiotViet</label>
+            {{ form.kiotviet_code }}
+            {% if form.kiotviet_code.errors %}<div class="text-danger small">{{ form.kiotviet_code.errors }}</div>{% endif %}
+          </div>
+          {% endif %}
+          <div class="col-md-8">
+            <label class="form-label fw-bold small" for="{{ form.name.id_for_label }}">Tên</label>
+            {{ form.name }}
+            {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-bold small" for="{{ form.unit.id_for_label }}">ĐVT</label>
+            {{ form.unit }}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-bold small" for="{{ form.full_name.id_for_label }}">Tên đầy đủ</label>
+            {{ form.full_name }}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-bold small" for="{{ form.bar_code.id_for_label }}">Mã vạch</label>
+            {{ form.bar_code }}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-bold small" for="{{ form.base_price.id_for_label }}">Giá bán (₫)</label>
+            {{ form.base_price }}
+            {% if form.base_price.errors %}<div class="text-danger small">{{ form.base_price.errors }}</div>{% endif %}
+          </div>
+          {% if library_code %}
+          <div class="d-none">{{ form.qty_on_hand }}</div>
+          {% else %}
+          <div class="col-md-3">
+            <label class="form-label fw-bold small" for="{{ form.qty_on_hand.id_for_label }}">Tồn xưởng</label>
+            {{ form.qty_on_hand }}
+            {% if form.qty_on_hand.errors %}<div class="text-danger small">{{ form.qty_on_hand.errors }}</div>{% endif %}
+          </div>
+          {% endif %}
+          <div class="col-md-4">
+            <label class="form-label fw-bold small" for="{{ form.category_name.id_for_label }}">Nhóm hàng</label>
+            {{ form.category_name }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-bold small" for="{{ form.image.id_for_label }}">Hình ảnh</label>
+            {{ form.image }}
+            {% if is_duplicate and source_product.display_image_url %}
+            <div class="form-text">Để trống sẽ dùng ảnh sản phẩm gốc.</div>
+            <img src="{{ source_product.display_image_url }}" alt="" class="rounded border mt-1" style="max-height:64px;object-fit:contain">
+            {% endif %}
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-bold small" for="{{ form.description.id_for_label }}">Mô tả</label>
+            {{ form.description }}
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-bold small" for="{{ form.notes.id_for_label }}">Ghi chú</label>
+            {{ form.notes }}
+          </div>
+          <div class="col-12">
+            <div class="form-check">
+              {{ form.is_active }}
+              <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Đang dùng</label>
+            </div>
+          </div>
+        </div>
+        {% if library_code %}
+        <div class="d-flex gap-2 mt-3">
+          <button type="submit" class="btn btn-hm btn-sm fw-bold">{% if is_edit %}Lưu{% elif is_duplicate %}Tạo bản sao{% else %}Tạo mới{% endif %}</button>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </form>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 (function () {
-    var styleEl = document.getElementById('id_style_code');
-    var colorEl = document.getElementById('id_color_code');
-    var sizeEl = document.getElementById('id_size_label');
-    var codeEl = document.getElementById('id_code');
-    var preview = document.getElementById('ksp-sku-preview');
-    if (!styleEl || !colorEl || !sizeEl || !codeEl) return;
+  var styleEl = document.getElementById('id_style_code');
+  var preview = document.getElementById('ksp-sku-preview');
+  var colorsInput = document.getElementById('id_colors_text');
+  var sizeBox = document.getElementById('ksp-size-checks');
+  function norm(v) {
+    return (v || '').trim().toUpperCase().replace(/\s+/g, '');
+  }
 
-    var autoFilled = !codeEl.value;
-    function norm(v) {
-        return (v || '').trim().toUpperCase().replace(/\s+/g, '');
-    }
-    function compose() {
-        var s = norm(styleEl.value);
-        var z = norm(sizeEl.value);
-        if (!s || !z) {
-            if (preview) preview.textContent = 'Tự ghép Style-Size. Màu là thuộc tính của mã gốc.';
-            return;
-        }
-        var sku = s + '-' + z;
-        if (preview) preview.textContent = '→ ' + sku;
-        if (autoFilled || !codeEl.value) {
-            codeEl.value = sku;
-            autoFilled = true;
-        }
-    }
-    codeEl.addEventListener('input', function () { autoFilled = false; });
-    [styleEl, colorEl, sizeEl].forEach(function (el) {
-        el.addEventListener('change', compose);
-        el.addEventListener('input', compose);
+  if (sizeBox && preview) {
+    var existing = [];
+    try {
+      var existingNode = document.getElementById('ksp-existing-combos');
+      existing = existingNode ? JSON.parse(existingNode.textContent || '[]') : [];
+      if (!Array.isArray(existing)) existing = [];
+    } catch (e) { existing = []; }
+    var existingSet = {};
+    var colorsOnStyle = [];
+    existing.forEach(function (pair) {
+      var c = norm(pair[0] || '');
+      var s = norm(pair[1] || '');
+      if (!s) return;
+      existingSet[c + '|' + s] = true;
+      if (c && colorsOnStyle.indexOf(c) < 0) colorsOnStyle.push(c);
     });
-    compose();
+
+    function parseColors() {
+      var raw = (colorsInput && colorsInput.value) || '';
+      var out = [];
+      raw.split(/[,;\s]+/).forEach(function (part) {
+        var t = norm(part);
+        if (t && out.indexOf(t) < 0) out.push(t);
+      });
+      return out;
+    }
+
+    function sizeMissing(sizeCode, colors) {
+      var targets = colors.length ? colors : (colorsOnStyle.length ? colorsOnStyle : ['']);
+      var size = norm(sizeCode);
+      return targets.some(function (c) { return !existingSet[c + '|' + size]; });
+    }
+
+    function setTotal(text) {
+      var node = preview.querySelector('[data-ksp="total"]');
+      if (node) node.textContent = text;
+    }
+
+    function paintMulti() {
+      var colors = parseColors();
+      // Django 5: #id_size_labels > div > label
+      var wrappers = sizeBox.querySelectorAll('#id_size_labels > div');
+      if (!wrappers.length) wrappers = sizeBox.querySelectorAll('ul > li');
+      if (!wrappers.length) {
+        wrappers = Array.prototype.map.call(sizeBox.querySelectorAll('label'), function (lab) {
+          return lab.parentElement && lab.parentElement !== sizeBox ? lab.parentElement : lab;
+        });
+      }
+      Array.prototype.forEach.call(wrappers, function (wrap) {
+        var input = wrap.querySelector ? wrap.querySelector('input[type="checkbox"]') : null;
+        if (!input && wrap.tagName === 'LABEL') input = wrap.querySelector('input');
+        if (!input) return;
+        var show = sizeMissing(input.value, colors);
+        wrap.hidden = !show;
+        wrap.style.display = show ? '' : 'none';
+        if (!show) input.checked = false;
+      });
+      var sizes = sizeBox.querySelectorAll('input[type="checkbox"]:checked').length;
+      var colorCount = colors.length || 1;
+      if (!sizes) {
+        setTotal('—');
+        preview.classList.remove('is-ready');
+        return;
+      }
+      setTotal((colorCount * sizes) + ' SKU');
+      preview.classList.add('is-ready');
+    }
+
+    function wireToggle(btn) {
+      var sel = btn.getAttribute('data-ksp-toggle');
+      var box = sel ? document.querySelector(sel) : null;
+      if (!box) return;
+      btn.addEventListener('click', function () {
+        var inputs = Array.prototype.filter.call(
+          box.querySelectorAll('input[type="checkbox"]'),
+          function (el) {
+            var wrap = el.closest('div, li, label');
+            return wrap && wrap.style.display !== 'none' && !wrap.hidden;
+          }
+        );
+        var allOn = inputs.length && inputs.every(function (el) { return el.checked; });
+        inputs.forEach(function (el) { el.checked = !allOn; });
+        btn.textContent = allOn ? 'Chọn tất cả' : 'Bỏ chọn';
+        paintMulti();
+      });
+    }
+    document.querySelectorAll('[data-ksp-toggle]').forEach(wireToggle);
+    if (colorsInput) {
+      colorsInput.addEventListener('input', paintMulti);
+      colorsInput.addEventListener('change', paintMulti);
+    }
+    sizeBox.addEventListener('change', paintMulti);
+    paintMulti();
+    return;
+  }
+
+  var colorEl = document.getElementById('id_color_code');
+  var sizeEl = document.getElementById('id_size_label');
+  var codeEl = document.getElementById('id_code');
+  if (!styleEl || !colorEl || !sizeEl || !codeEl) return;
+
+  var autoFilled = !codeEl.value;
+  function compose() {
+    var s = norm(styleEl.value);
+    var z = norm(sizeEl.value);
+    if (!s || !z) {
+      if (preview) preview.textContent = 'Tự ghép Style-Size. Màu là thuộc tính của mã gốc.';
+      return;
+    }
+    var sku = s + '-' + z;
+    if (preview) preview.textContent = '→ ' + sku;
+    if (autoFilled || !codeEl.value) {
+      codeEl.value = sku;
+      autoFilled = true;
+    }
+  }
+  codeEl.addEventListener('input', function () { autoFilled = false; });
+  [styleEl, colorEl, sizeEl].forEach(function (el) {
+    el.addEventListener('change', compose);
+    el.addEventListener('input', compose);
+  });
+  compose();
 })();
 </script>
 {% endblock %}

@@ -81,18 +81,40 @@
     {% endfor %}
   </div>
   {% if dv.can_edit %}
-  <form method="post" action="{% url 'thiet_ke_sp:action' dossier.pk 'colorway_add' %}" enctype="multipart/form-data" class="tk-draw-up tk-color-add">{% csrf_token %}
+  <form method="post" action="{% url 'thiet_ke_sp:action' dossier.pk 'colorway_add' %}" enctype="multipart/form-data" class="tk-color-add-form">{% csrf_token %}
     <input type="hidden" name="design_version_id" value="{{ dv.pk }}"><input type="hidden" name="return_tab" value="design">
-    <label class="tk-draw-field"><span>Tên phối màu</span>
-      <input type="text" name="name" class="form-control form-control-sm" maxlength="120" required>
-    </label>
-    <label class="tk-draw-field"><span>File ảnh</span>
-      <input type="file" name="image" class="form-control form-control-sm" accept="image/*" required>
-    </label>
-    <label class="tk-draw-field"><span>Ghi chú</span>
-      <input type="text" name="note" class="form-control form-control-sm" maxlength="255">
-    </label>
-    <button type="submit" class="btn btn-sm btn-hm text-white fw-bold"><i class="bi bi-plus-lg"></i>Thêm</button>
+    <div class="table-responsive">
+      <table class="table tk-mini-table align-middle mb-2">
+        <thead>
+          <tr>
+            <th style="min-width: 9rem;">Tên phối màu</th>
+            <th style="min-width: 11rem;">File ảnh</th>
+            <th style="min-width: 7rem;">Ghi chú</th>
+            <th style="width: 44px;"></th>
+          </tr>
+        </thead>
+        <tbody id="tkCwBody{{ dv.pk }}">
+          <tr class="tk-color-add-row">
+            <td><input type="text" name="cw_name_0" class="form-control form-control-sm" maxlength="120" placeholder="Tên phối màu"></td>
+            <td><input type="file" name="cw_image_0" class="form-control form-control-sm" accept="image/*"></td>
+            <td><input type="text" name="cw_note_0" class="form-control form-control-sm" maxlength="255" placeholder="Ghi chú"></td>
+            <td class="text-end"><button type="button" class="btn btn-sm btn-light border" data-tk-del-row title="Xóa dòng"><i class="bi bi-trash"></i></button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <template id="tkCwTpl{{ dv.pk }}">
+      <tr class="tk-color-add-row">
+        <td><input type="text" name="cw_name___i__" class="form-control form-control-sm" maxlength="120" placeholder="Tên phối màu"></td>
+        <td><input type="file" name="cw_image___i__" class="form-control form-control-sm" accept="image/*"></td>
+        <td><input type="text" name="cw_note___i__" class="form-control form-control-sm" maxlength="255" placeholder="Ghi chú"></td>
+        <td class="text-end"><button type="button" class="btn btn-sm btn-light border" data-tk-del-row title="Xóa dòng"><i class="bi bi-trash"></i></button></td>
+      </tr>
+    </template>
+    <div class="d-flex justify-content-between gap-2 flex-wrap">
+      <button type="button" class="btn btn-sm btn-light border" data-tk-add-row="#tkCwBody{{ dv.pk }}" data-tk-template="#tkCwTpl{{ dv.pk }}"><i class="bi bi-plus-lg me-1"></i>Thêm dòng</button>
+      <button type="submit" class="btn btn-sm btn-hm text-white fw-bold"><i class="bi bi-save me-1"></i>Lưu colorway</button>
+    </div>
   </form>
   {% endif %}
 </div>

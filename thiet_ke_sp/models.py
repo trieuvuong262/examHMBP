@@ -316,6 +316,11 @@ class ProductDevelopment(models.Model):
     submitted_at = models.DateTimeField(null=True, blank=True, verbose_name='Gửi duyệt đề bài lúc')
     paused_from_status = models.CharField(max_length=30, blank=True, default='', choices=Status.choices)
     stop_reason = models.TextField(blank=True, default='', verbose_name='Lý do tạm dừng / hủy')
+    reopen_edit_step = models.CharField(
+        max_length=20, blank=True, default='',
+        verbose_name='Công đoạn sửa sau huỷ hoàn thành',
+        help_text='design | technical | sample — chỉ mở sửa công đoạn này khi đang chỉnh sau hoàn thành.',
+    )
     is_locked = models.BooleanField(default=False, verbose_name='Khóa dữ liệu chính')
     official_product_code = models.CharField(
         max_length=60, blank=True, default='', db_index=True, verbose_name='Mã sản phẩm chính thức',

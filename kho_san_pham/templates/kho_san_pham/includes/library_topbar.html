@@ -3,6 +3,9 @@
     <h2 class="jp-npl-mat-topbar-title w-100 mb-0">{{ lib_title }}</h2>
   </div>
   <nav class="jp-sx-tools" aria-label="Công cụ">
+    {% if form_id and save_label %}
+    <button type="submit" form="{{ form_id }}" class="btn btn-hm btn-sm fw-bold text-white">{{ save_label }}</button>
+    {% endif %}
     <a href="{% url 'kho_san_pham:product_list' %}"><i class="bi bi-tags" aria-hidden="true"></i>Danh mục SKU</a>
     {% if can_create and not back_url %}<a href="{% url 'kho_san_pham:product_create' %}?type=hang_hoa" class="btn btn-hm btn-sm fw-bold text-white"><i class="bi bi-plus-lg" aria-hidden="true"></i>Thêm SKU</a>{% endif %}
     {% if back_url %}

@@ -98,10 +98,9 @@ def _get_dossier(pk):
 
 
 def _redirect_tab(dossier, tab: str = ''):
-    if tab and not presenters.tab_is_open(dossier, tab):
-        tab = ''
-    url = dossier.get_absolute_url()
-    return redirect(f'{url}?tab={tab}' if tab else url)
+    if not tab or not presenters.tab_is_open(dossier, tab):
+        tab = presenters.default_open_tab(dossier)
+    return redirect(f'{dossier.get_absolute_url()}?tab={tab}')
 
 
 def _common(request, **extra):
@@ -363,6 +362,9 @@ def dossier_edit(request, pk):
     if not perms.can_edit_brief(dossier, user):
         messages.error(request, 'Chỉ người đề xuất hoặc người phụ trách được sửa đề bài khi hồ sơ chưa bàn giao, hủy hoặc đóng.')
         return redirect(dossier.get_absolute_url())
+    if dossier.status == Status.LIBRARY_REOPEN and not wf.allows_reopen_overview(dossier):
+        messages.error(request, 'Công đoạn đang mở không phải Tổng quan — không sửa đề bài được.')
+        return redirect(dossier.get_absolute_url())
     form = f.DossierForm(
         request.POST or None, instance=dossier, user=user,
         lock_followers=not perms.can_edit_roles(dossier, user),
@@ -421,11 +423,9 @@ def dossier_detail(request, pk):
     dossier = _get_dossier(pk)
     if not perms.can_view_dossier(dossier, user):
         return _deny(request, perms.MENU_DOSSIERS)
-    tab = request.GET.get('tab') or 'overview'
-    if tab not in TAB_KEYS:
-        tab = 'overview'
-    elif not presenters.tab_is_open(dossier, tab):
-        return redirect(dossier.get_absolute_url())
+    tab = request.GET.get('tab') or presenters.default_open_tab(dossier)
+    if tab not in TAB_KEYS or not presenters.tab_is_open(dossier, tab):
+        return _redirect_tab(dossier, presenters.default_open_tab(dossier))
 
     att_qs = Attachment.objects.select_related('uploaded_by__profile', 'colorway').order_by('kind', '-uploaded_at')
     design_versions = list(
@@ -556,6 +556,10 @@ def dossier_detail(request, pk):
         open_tasks=open_tasks,
         flags=flags,
         rewind_steps=wf.rewind_choices(dossier) if flags['rewind'] else [],
+        reopen_edit_steps=wf.REOPEN_EDIT_STEPS if flags['reopen_completion'] else [],
+        reopen_edit_step=wf.reopen_edit_step(dossier),
+        reopen_edit_step_label=dict(wf.REOPEN_EDIT_STEPS).get(wf.reopen_edit_step(dossier), ''),
+
         cover=presenters.cover_map([dossier.pk]).get(dossier.pk),
         design_versions=design_versions,
         current_dv=current_dv,
@@ -705,14 +709,35 @@ def _run_action(request, dossier: ProductDevelopment, action: str) -> tuple[str,
         return 'design', f'Đã lưu nội dung thiết kế {dv.label}.'
     if action == 'colorway_add':
         dv = get_object_or_404(DesignVersion, pk=post.get('design_version_id'), dossier=dossier)
+        indexed = []
+        for key in post:
+            if not key.startswith('cw_name_'):
+                continue
+            suffix = key[len('cw_name_'):]
+            if not suffix.isdigit():
+                continue
+            name = (post.get(key) or '').strip()
+            note = (post.get(f'cw_note_{suffix}') or '').strip()
+            image = request.FILES.get(f'cw_image_{suffix}')
+            if not name and not note and image is None:
+                continue
+            indexed.append((int(suffix), {'name': name, 'note': note, 'uploaded_file': image}))
+        rows = [row for _, row in sorted(indexed, key=lambda item: item[0])]
+        # Tương thích form cũ (một dòng name/image/note)
+        if not rows and (post.get('name') or request.FILES.get('image')):
+            rows.append({
+                'name': post.get('name', ''),
+                'note': post.get('note', ''),
+                'uploaded_file': request.FILES.get('image'),
+            })
         try:
-            cw = wf.add_colorway(
-                dv, user, name=post.get('name', ''), note=post.get('note', ''),
-                uploaded_file=request.FILES.get('image'),
-            )
+            created = wf.add_colorways(dv, user, rows=rows)
         except OSError:
             raise wf.WorkflowError('Không ghi được ảnh lên NAS — kiểm tra kết nối NAS.')
-        return 'design', f'Đã thêm colorway «{cw.name}».'
+        if len(created) == 1:
+            return 'design', f'Đã thêm colorway «{created[0].name}».'
+        labels = ', '.join(f'«{cw.name}»' for cw in created)
+        return 'design', f'Đã thêm {len(created)} colorway: {labels}.'
     if action == 'colorway_delete':
         cw = get_object_or_404(Colorway, pk=post.get('colorway_id'), design_version__dossier=dossier)
         wf.delete_colorway(cw, user)
@@ -837,11 +862,14 @@ def _run_action(request, dossier: ProductDevelopment, action: str) -> tuple[str,
         record = wf.handover(dossier, user, note=form.cleaned_data['note'], due_at=due)
         return 'overview', f'Đã thêm Style {record.product_code} vào Thư viện.'
     if action == 'reopen_completion':
-        wf.reopen_completion(dossier, user, reason=comment)
-        return 'overview', 'Đã huỷ hoàn thành. Style ẩn khỏi Thư viện — mỗi người sửa đúng phần của mình, rồi gửi duyệt lại.'
+        edit_step = (post.get('edit_step') or '').strip()
+        wf.reopen_completion(dossier, user, reason=comment, edit_step=edit_step)
+        labels = dict(wf.REOPEN_EDIT_STEPS)
+        tab = edit_step if edit_step in TAB_KEYS else 'overview'
+        return tab, f'Đã huỷ hoàn thành — đang mở sửa «{labels.get(edit_step, edit_step)}». Sửa xong bấm Gửi duyệt thiết kế.'
     if action == 'resubmit_approval':
         wf.resubmit_after_reopen(dossier, user, due_at=due)
-        return 'approval', 'Đã gửi duyệt lại. Khi được duyệt, sản phẩm hiện lại trong Thư viện.'
+        return 'approval', 'Đã gửi duyệt thiết kế. Khi được duyệt, sản phẩm hiện lại trong Thư viện.'
     if action == 'close':
         wf.close_dossier(dossier, user)
         return 'overview', 'Đã đóng hồ sơ.'

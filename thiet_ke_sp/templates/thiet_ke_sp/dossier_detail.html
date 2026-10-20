@@ -19,7 +19,7 @@
       {% if flags.submit_sample %}<button type="button" class="btn btn-hm text-white" data-bs-toggle="modal" data-bs-target="#tkModalSubmitSample">Gửi duyệt thiết kế</button>{% endif %}
       {% if flags.decide_master %}<button type="button" class="btn btn-hm text-white" data-bs-toggle="modal" data-bs-target="#tkModalMaster">Duyệt thiết kế</button>{% endif %}
       {% if flags.handover %}<button type="button" class="btn btn-hm text-white" data-bs-toggle="modal" data-bs-target="#tkModalHandover">Thêm vào Thư viện</button>{% endif %}
-      {% if flags.resubmit_approval %}<button type="button" class="btn btn-hm text-white" data-bs-toggle="modal" data-bs-target="#tkModalResubmit">Gửi duyệt lại</button>{% endif %}
+      {% if flags.resubmit_approval %}<button type="button" class="btn btn-hm text-white" data-bs-toggle="modal" data-bs-target="#tkModalResubmit">Gửi duyệt thiết kế</button>{% endif %}
       {% if flags.rewind %}<button type="button" class="btn tk-rewind-btn" data-bs-toggle="modal" data-bs-target="#tkModalRewind"><i class="bi bi-arrow-return-left"></i>Quay lại</button>{% endif %}
       {% if flags.resume %}<button type="button" class="btn btn-hm text-white" data-bs-toggle="modal" data-bs-target="#tkModalResume">Tiếp tục</button>{% endif %}
       {% if flags.request_fix %}<button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#tkModalSampleFix">Yêu cầu sửa mẫu</button>{% endif %}
@@ -88,7 +88,7 @@
             {% if t.open %}
             <a class="nav-link{% if tab == t.key %} active{% endif %}" href="?tab={{ t.key }}"{% if tab == t.key %} aria-current="page"{% endif %}>{{ t.label }}</a>
             {% else %}
-            <span class="nav-link is-locked" aria-disabled="true" title="Chưa tới bước này">{{ t.label }}</span>
+            <span class="nav-link is-locked" aria-disabled="true" title="{% if dossier.status == 'library_reopen' %}Không thuộc công đoạn đang sửa{% else %}Chưa tới bước này{% endif %}">{{ t.label }}</span>
             {% endif %}
           </li>
           {% endfor %}
