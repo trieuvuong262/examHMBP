@@ -134,7 +134,9 @@ def issue_list(request):
     status = doc_status_filter(request, choices=ISSUE_STATUS_FILTER_CHOICES)
     sort_key, sort_dir, order = doc_list_sort(request, ISSUE_LIST_SORT_FIELDS, default_key='issue_date')
     qs = docs_for_domain(
-        StockIssue.objects.select_related('issued_by', 'created_by', 'recipient', 'recipient__profile')
+        StockIssue.objects.select_related(
+            'issued_by', 'created_by', 'recipient', 'recipient__profile', 'sales_order',
+        )
     )
     if status:
         qs = qs.filter(status=status)

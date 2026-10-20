@@ -1020,7 +1020,7 @@ class StockIssueForm(DocAttachmentsFormMixin, forms.ModelForm):
             self.fields['sales_order'].widget.attrs['data-initial-code'] = row['code']
         else:
             self.fields['sales_order'].queryset = SxSalesOrder.objects.none()
-        self.fields['sales_order'].empty_label = None
+        self.fields['sales_order'].empty_label = 'Chọn đơn hàng'
         self.fields['sales_order'].required = False
 
         departments = bom_departments_for_order(order)
@@ -1034,12 +1034,16 @@ class StockIssueForm(DocAttachmentsFormMixin, forms.ModelForm):
             '',
         )
         self.fields.pop('work_center', None)
+        team_attrs = {**ISSUE_ROUTE_TEAM_SELECT, 'data-allow-empty': '1'}
+        dept_choices = [('', 'Chọn bộ phận')] + [(row['id'], row['text']) for row in departments]
+        if current and current not in {value for value, _label in dept_choices}:
+            dept_choices.append((current, current))
         self.fields['bom_department'] = forms.ChoiceField(
-            choices=[('', 'Chọn bộ phận')] + [(row['id'], row['text']) for row in departments],
+            choices=dept_choices,
             required=False,
-            initial=chosen,
+            initial=chosen or current,
             label='Bộ phận của BOM trên đơn đặt hàng',
-            widget=forms.Select(attrs=ISSUE_ROUTE_TEAM_SELECT),
+            widget=forms.Select(attrs=team_attrs),
             error_messages={
                 'invalid_choice': 'Bộ phận không có trên BOM của đơn đã chọn.',
             },
@@ -1077,31 +1081,27 @@ class StockIssueForm(DocAttachmentsFormMixin, forms.ModelForm):
         cleaned = super().clean()
         if not self.route_link:
             return cleaned
-        if cleaned.get('issue_type') != ISSUE_TYPE_PRODUCTION:
-            cleaned['sales_order'] = None
-            cleaned['bom_department'] = ''
-            self._errors.pop('sales_order', None)
-            self._errors.pop('bom_department', None)
-            return cleaned
         from kho_npl.services.issue_route import bom_departments_for_order
         from san_xuat.hub_models import SxSalesOrder
 
         order = cleaned.get('sales_order')
         department = (cleaned.get('bom_department') or '').strip()
-        if order is None:
-            self.add_error('sales_order', 'Chọn đơn hàng trên lộ trình.')
-        elif (
+        cleaned['bom_department'] = department
+        if order is not None and (
             order.is_demo
             or order.plan_status == SxSalesOrder.PLAN_CANCELLED
             or order.confirm_status == SxSalesOrder.CONFIRM_REJECTED
         ):
             self.add_error('sales_order', 'Đơn này không còn trên lộ trình.')
+            cleaned['sales_order'] = None
             order = None
-        allowed = {row['id'].casefold() for row in bom_departments_for_order(order)} if order else set()
-        if not department:
-            self.add_error('bom_department', 'Chọn bộ phận của BOM trên đơn đặt hàng.')
-        elif department.casefold() not in allowed:
-            self.add_error('bom_department', 'Bộ phận không có trên BOM của đơn đã chọn.')
+        if department and order is None:
+            self.add_error('bom_department', 'Chọn đơn hàng trước khi chọn bộ phận.')
+            cleaned['bom_department'] = ''
+        elif department and order is not None:
+            allowed = {row['id'].casefold() for row in bom_departments_for_order(order)}
+            if department.casefold() not in allowed:
+                self.add_error('bom_department', 'Bộ phận không có trên BOM của đơn đã chọn.')
         return cleaned
 
     def clean_recipient_name(self):
@@ -1120,16 +1120,20 @@ class StockIssueForm(DocAttachmentsFormMixin, forms.ModelForm):
         instance = super().save(commit=False)
         instance.recipient = None
         if self.route_link:
-            if instance.issue_type != ISSUE_TYPE_PRODUCTION:
+            from kho_npl.services.issue_route import work_center_for_bom_department
+
+            order = instance.sales_order
+            department = (self.cleaned_data.get('bom_department') or '').strip()
+            if order is None:
                 stamp_route_link(instance, sales_order=None, work_center=None, unlink=True)
             else:
-                from kho_npl.services.issue_route import work_center_for_bom_department
-
-                department = (self.cleaned_data.get('bom_department') or '').strip()
+                work_center = (
+                    work_center_for_bom_department(order, department) if department else None
+                )
                 stamp_route_link(
                     instance,
-                    sales_order=instance.sales_order,
-                    work_center=work_center_for_bom_department(instance.sales_order, department),
+                    sales_order=order,
+                    work_center=work_center,
                     recipient_department=department,
                 )
         if commit:
@@ -1196,6 +1200,7 @@ class StockIssueLineForm(MultiLevelUomLineFormMixin, forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.department_label = ''
         self.bom_qty_label = ''
+        self.bom_qty_base = ''
         material_id = None
         if self.is_bound:
             raw = str(self.data.get(self.add_prefix('material')) or '').strip()
@@ -1261,7 +1266,6 @@ class BaseStockIssueLineFormSet(BaseInlineFormSet):
 
     def _fill_bom_qty_labels(self):
         from kho_npl.catalog_labels import unit_label
-        from kho_npl.choices import ISSUE_TYPE_PRODUCTION, issue_type_code
         from kho_npl.services.issue_route import sales_order_bom_qty_caps
         from kho_npl.stock_domain import STOCK_DOMAIN_NPL, domain_from_current_request
         from kho_npl.templatetags.npl_extras import format_npl_qty
@@ -1269,16 +1273,25 @@ class BaseStockIssueLineFormSet(BaseInlineFormSet):
 
         for form in self.forms:
             form.bom_qty_label = ''
+            form.bom_qty_base = ''
         if domain_from_current_request() != STOCK_DOMAIN_NPL:
             return
+        from kho_npl.choices import ISSUE_TYPE_PRODUCTION, issue_type_code
+        from kho_npl.models import Unit
+        from kho_npl.services.uom import UomConversionError, from_base
+
         if self.is_bound:
-            issue_type = self.data.get('issue_type') or ''
             raw_order = str(self.data.get('sales_order') or '').strip()
             order_id = int(raw_order) if raw_order.isdigit() else None
+            department = (self.data.get('bom_department') or '').strip()
+            issue_type = self.data.get('issue_type') or ''
         else:
-            issue_type = getattr(self.instance, 'issue_type', '') or ''
             order_id = getattr(self.instance, 'sales_order_id', None)
-        if issue_type_code(issue_type) != ISSUE_TYPE_PRODUCTION or not order_id:
+            department = (getattr(self.instance, 'recipient_department', None) or '').strip()
+            issue_type = getattr(self.instance, 'issue_type', '') or ''
+        if not order_id:
+            return
+        if not department and issue_type_code(issue_type) != ISSUE_TYPE_PRODUCTION:
             return
         order = SxSalesOrder.objects.filter(pk=order_id, is_demo=False).first()
         if order is None:
@@ -1288,16 +1301,31 @@ class BaseStockIssueLineFormSet(BaseInlineFormSet):
             return
         for form in self.forms:
             material = None
+            line_unit = None
             if form.is_bound:
                 raw = str(form.data.get(form.add_prefix('material')) or '').strip()
                 if raw.isdigit():
                     material = Material.objects.select_related('unit').filter(pk=int(raw)).first()
+                raw_unit = str(form.data.get(form.add_prefix('line_unit')) or '').strip()
+                if raw_unit.isdigit():
+                    line_unit = Unit.objects.filter(pk=int(raw_unit)).first()
             elif getattr(form.instance, 'material_id', None):
                 material = Material.objects.select_related('unit').filter(pk=form.instance.material_id).first()
+                line_unit = getattr(form.instance, 'line_unit', None)
             if material is None or material.pk not in caps:
                 continue
-            unit = unit_label(material.unit) if material.unit_id else ''
-            label = format_npl_qty(caps[material.pk])
+            qty_base = caps[material.pk]
+            form.bom_qty_base = format(qty_base.normalize(), 'f')
+            display_unit = line_unit or material.unit
+            qty_display = qty_base
+            if line_unit is not None:
+                try:
+                    qty_display = from_base(material, qty_base, line_unit)
+                except UomConversionError:
+                    display_unit = material.unit
+                    qty_display = qty_base
+            unit = unit_label(display_unit) if display_unit else ''
+            label = format_npl_qty(qty_display)
             form.bom_qty_label = f'{label} {unit}'.strip()
 
     def clean(self):

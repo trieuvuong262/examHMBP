@@ -65,14 +65,14 @@
                     </div>
                 </div>
                 {% if form.route_link %}
-                <div class="row g-3 mt-0" data-jp-issue-route {% if not form.is_production_issue %}hidden{% endif %}>
+                <div class="row g-3 mt-0" data-jp-issue-route>
                     <div class="col-md-6">
-                        <label class="form-label fw-bold small" for="{{ form.sales_order.id_for_label }}">Đơn hàng <span class="text-danger">*</span></label>
+                        <label class="form-label fw-bold small" for="{{ form.sales_order.id_for_label }}">Đơn hàng</label>
                         {{ form.sales_order }}
                         {% if form.sales_order.errors %}<div class="text-danger small">{{ form.sales_order.errors }}</div>{% endif %}
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label fw-bold small" for="{{ form.bom_department.id_for_label }}">Bộ phận của BOM trên đơn đặt hàng <span class="text-danger">*</span></label>
+                        <label class="form-label fw-bold small" for="{{ form.bom_department.id_for_label }}">Bộ phận của BOM trên đơn đặt hàng</label>
                         {{ form.bom_department }}
                         {% if form.bom_department.errors %}<div class="text-danger small">{{ form.bom_department.errors }}</div>{% endif %}
                     </div>
@@ -123,7 +123,7 @@
                             <td>{{ line_form.location }}{% if line_form.location.errors %}<div class="text-danger small">{{ line_form.location.errors }}</div>{% endif %}</td>
                             <td class="jp-npl-material-cell"><div class="jp-npl-material-field">{{ line_form.material }}{% if line_form.material.errors %}<div class="text-danger small">{{ line_form.material.errors }}</div>{% endif %}</div></td>
                             <td class="jp-npl-line-department">{{ line_form.department_label|default:"—" }}</td>
-                            <td class="text-end jp-npl-bom-qty-col"><span class="jp-npl-bom-qty">{{ line_form.bom_qty_label|default:"—" }}</span></td>
+                            <td class="text-end jp-npl-bom-qty-col"><span class="jp-npl-bom-qty"{% if line_form.bom_qty_base %} data-bom-qty-base="{{ line_form.bom_qty_base }}"{% endif %}>{{ line_form.bom_qty_label|default:"—" }}</span></td>
                             <td class="text-end"><span class="jp-npl-stock-qty d-none">—</span>{{ line_form.quantity }}{% if line_form.quantity.errors %}<div class="text-danger small">{{ line_form.quantity.errors }}</div>{% endif %}</td>
                             <td class="jp-npl-line-unit-cell">{{ line_form.line_unit }}{% if line_form.line_unit.errors %}<div class="text-danger small">{{ line_form.line_unit.errors }}</div>{% endif %}</td>
                             <td class="text-end"><span class="jp-npl-unit-price-display text-muted small">—</span></td>

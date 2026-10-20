@@ -22,22 +22,10 @@
 (function () {
     const form = document.getElementById('issue-form');
     if (!form || !form.querySelector('[data-jp-issue-route]')) return;
-    const typeSelect = form.querySelector('[data-jp-issue-type]');
     const orderSelect = form.querySelector('.jp-npl-sales-order-select');
     const teamSelect = form.querySelector('[data-jp-route-team]');
     const searchUrl = form.dataset.salesOrderSearchUrl || '';
     const teamUrl = form.dataset.routeTeamUrl || '';
-
-    function routeFields() {
-        return form.querySelectorAll('[data-jp-issue-route]');
-    }
-
-    function syncRouteVisibility() {
-        const on = typeSelect && typeSelect.value === 'production';
-        routeFields().forEach(function (el) {
-            el.hidden = !on;
-        });
-    }
 
     function teamWidget() {
         return teamSelect && teamSelect.tomselect ? teamSelect.tomselect : null;
@@ -47,10 +35,14 @@
         if (!teamSelect || teamSelect.tomselect || typeof TomSelect === 'undefined') return;
         new TomSelect(teamSelect, {
             maxItems: 1,
-            allowEmptyOption: false,
+            allowEmptyOption: true,
             dropdownParent: 'body',
             openOnFocus: true,
             placeholder: 'Chọn bộ phận',
+            onChange: function () {
+                form.dispatchEvent(new CustomEvent('jp-npl-sync-bom-qty'));
+                teamSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            },
         });
     }
 
@@ -110,11 +102,6 @@
         }
     }
 
-    if (typeSelect) {
-        typeSelect.addEventListener('change', syncRouteVisibility);
-        syncRouteVisibility();
-    }
-
     ensureTeamWidget();
     if (!orderSelect) return;
     if (typeof TomSelect === 'undefined') {
@@ -156,7 +143,7 @@
         labelField: 'text',
         searchField: ['text', 'code', 'name', 'customer'],
         placeholder: orderSelect.dataset.placeholder || 'Gõ số đơn, khách hoặc mã hàng...',
-        allowEmptyOption: false,
+        allowEmptyOption: true,
         dropdownParent: 'body',
         openOnFocus: true,
         preload: 'focus',
@@ -199,5 +186,6 @@
         },
     });
     bindOrder(widget);
+    form.dispatchEvent(new CustomEvent('jp-npl-sync-bom-qty'));
 })();
 </script>

@@ -23,38 +23,86 @@
     const defaultQtyOnMaterial = form.dataset.defaultQtyOnMaterial || '';
     const showLineUnit = form.dataset.showLineUnit === '1';
 
-    function bomOrderFilter() {
-        const type = form.querySelector('[data-jp-issue-type]');
-        if (!type || type.value !== 'production') return null;
+    function selectedOrderId() {
         const order = form.querySelector('[name="sales_order"]');
         return (order && order.value || '').trim();
     }
 
+    function selectedBomDepartment() {
+        const dept = form.querySelector('[name="bom_department"]')
+            || form.querySelector('[data-jp-route-team]');
+        return (dept && (dept.tomselect ? dept.tomselect.getValue() : dept.value) || '').trim();
+    }
+
+    function showBomQtyColumn() {
+        const orderId = selectedOrderId();
+        if (!orderId) return false;
+        if (selectedBomDepartment()) return true;
+        const type = form.querySelector('[data-jp-issue-type]');
+        return !!(type && type.value === 'production');
+    }
+
+    function bomOrderFilter() {
+        const type = form.querySelector('[data-jp-issue-type]');
+        if (!type || type.value !== 'production') return null;
+        return selectedOrderId() || null;
+    }
+
+    function bomQtyOrderId() {
+        return showBomQtyColumn() ? selectedOrderId() : '';
+    }
+
     function materialSearchKey() {
         const bom = bomOrderFilter();
-        if (bom === null) return 'all';
-        return 'bom:' + bom;
+        const qtyOrder = bomQtyOrderId();
+        if (bom === null && !qtyOrder) return 'all';
+        if (bom) return 'bom:' + bom;
+        return 'qty:' + qtyOrder;
     }
 
     function syncBomQtyColumn() {
-        form.classList.toggle('is-production-issue', bomOrderFilter() !== null);
+        const show = showBomQtyColumn();
+        form.classList.toggle('is-production-issue', show);
+        form.classList.toggle('is-bom-qty-visible', show);
+    }
+
+    function selectedUnitName(row) {
+        const select = row?.querySelector('select.jp-npl-line-unit-select');
+        if (!select || select.selectedIndex < 0) return '';
+        return (select.options[select.selectedIndex]?.textContent || '').trim();
+    }
+
+    function renderLineBomQty(row) {
+        const el = row?.querySelector('.jp-npl-bom-qty');
+        if (!el) return;
+        if (!showBomQtyColumn()) {
+            el.textContent = '—';
+            return;
+        }
+        const base = Number(el.dataset.bomQtyBase);
+        if (!Number.isFinite(base)) {
+            el.textContent = '—';
+            return;
+        }
+        const factor = selectedUnitFactor(row) || 1;
+        const qty = factor > 0 ? base / factor : base;
+        const text = qty.toLocaleString('vi-VN', { maximumFractionDigits: 3 });
+        const unit = selectedUnitName(row);
+        el.textContent = unit ? text + ' ' + unit : text;
     }
 
     function setLineBomQty(row, option) {
         const el = row?.querySelector('.jp-npl-bom-qty');
         if (!el) return;
-        if (bomOrderFilter() === null || !option || option.bom_qty == null || option.bom_qty === '') {
+        if (option == null) {
+            delete el.dataset.bomQtyBase;
             el.textContent = '—';
             return;
         }
-        const num = Number(option.bom_qty);
-        if (!Number.isFinite(num)) {
-            el.textContent = '—';
-            return;
+        if (option.bom_qty != null && option.bom_qty !== '') {
+            el.dataset.bomQtyBase = String(option.bom_qty);
         }
-        const text = num.toLocaleString('vi-VN', { maximumFractionDigits: 3 });
-        const unit = option.unit_name || option.unit || '';
-        el.textContent = unit ? text + ' ' + unit : text;
+        renderLineBomQty(row);
     }
     const transferWarehouseLock = form.dataset.transferWarehouseLock !== undefined;
     const warehouseLockedInitial = form.dataset.warehouseLocked === '1';
@@ -288,6 +336,7 @@
             renderSelectedUnitPrice(row);
         }
         select.dataset.priceFactor = String(nextFactor);
+        renderLineBomQty(row);
     }
 
     function suggestReceiptBatchCode(row) {
@@ -548,12 +597,14 @@
                 select.dataset.baseUnit = '';
             }
             updateConversionHint(row);
+            renderLineBomQty(row);
             return;
         }
         const el = row.querySelector('.jp-npl-line-unit');
         if (!el) return;
         const text = (value || '').trim();
         el.textContent = text || '—';
+        renderLineBomQty(row);
     }
 
     function setLineDepartment(row, value) {
@@ -912,7 +963,12 @@
                 let url = searchUrl + '?q=' + encodeURIComponent(query || '')
                     + '&location_id=' + encodeURIComponent(locationId)
                     + (inStockOnly ? '&in_stock_only=1' : '');
-                if (bomOrder) url += '&sales_order_id=' + encodeURIComponent(bomOrder);
+                if (bomOrder) {
+                    url += '&sales_order_id=' + encodeURIComponent(bomOrder);
+                } else {
+                    const qtyOrder = bomQtyOrderId();
+                    if (qtyOrder) url += '&bom_qty_order_id=' + encodeURIComponent(qtyOrder);
+                }
                 fetch(url, { headers: { 'Accept': 'application/json' } })
                     .then(function (r) { return r.json(); })
                     .then(function (data) { callback(data.results || []); })
@@ -1102,6 +1158,7 @@
     body.querySelectorAll('select.jp-npl-line-unit-select').forEach(function (select) {
         select.dataset.priceFactor = String(selectedUnitFactor(select.closest('tr')));
     });
+    body.querySelectorAll('.line-row').forEach(renderLineBomQty);
     syncTransferWarehouseLock();
 
     const qtyInputSelector = 'input[name$="-' + qtyFieldSuffix + '"]';
@@ -1192,18 +1249,42 @@
 
     document.addEventListener('jp-npl-validation-modal-hidden', refreshAllQtyInvalidStates);
 
-    form.querySelector('[name="sales_order"]')?.addEventListener('change', function () {
-        if (bomOrderFilter() === null) return;
-        body.querySelectorAll('.line-row').forEach(clearRowMaterial);
-    });
-    form.querySelector('[data-jp-issue-type]')?.addEventListener('change', function () {
+    function refreshLineBomQtyLabels() {
+        body.querySelectorAll('.line-row').forEach(function (row) {
+            resetMaterialSearch(row);
+            const select = row.querySelector('select.jp-npl-material-select');
+            const ts = select && select.tomselect;
+            const materialId = ts ? ts.getValue() : (select && select.value);
+            if (!materialId || !ts) {
+                setLineBomQty(row, null);
+                return;
+            }
+            const option = ts.options[materialId] || null;
+            if (option && (option.bom_qty == null || option.bom_qty === '')) {
+                renderLineBomQty(row);
+                return;
+            }
+            setLineBomQty(row, option);
+        });
+    }
+
+    function onRouteFieldsChanged(ev) {
         syncBomQtyColumn();
-        if (this.value === 'production') {
+        const target = ev && ev.target;
+        const fromOrder = !!(target && target.matches && target.matches('[name="sales_order"]'));
+        const fromType = !!(target && target.matches && target.matches('[data-jp-issue-type]'));
+        if ((fromOrder || fromType) && bomOrderFilter() !== null) {
             body.querySelectorAll('.line-row').forEach(clearRowMaterial);
             return;
         }
-        body.querySelectorAll('.line-row').forEach(resetMaterialSearch);
-    });
+        refreshLineBomQtyLabels();
+    }
+
+    form.querySelector('[name="sales_order"]')?.addEventListener('change', onRouteFieldsChanged);
+    form.querySelector('[name="bom_department"]')?.addEventListener('change', onRouteFieldsChanged);
+    form.querySelector('[data-jp-route-team]')?.addEventListener('change', onRouteFieldsChanged);
+    form.querySelector('[data-jp-issue-type]')?.addEventListener('change', onRouteFieldsChanged);
+    form.addEventListener('jp-npl-sync-bom-qty', function () { syncBomQtyColumn(); });
     syncBomQtyColumn();
 
     form.addEventListener('submit', function (e) {

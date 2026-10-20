@@ -21,6 +21,7 @@ RECEIPT_LIST_SORT_FIELDS = {
 ISSUE_LIST_COLUMNS = [
     {'key': 'number', 'label': 'Số phiếu', 'default': True, 'required': True, 'weight': 100},
     {'key': 'issue_date', 'label': 'Ngày xuất', 'default': True, 'required': False, 'weight': 100},
+    {'key': 'sales_order', 'label': 'Mã đơn hàng', 'default': True, 'required': False, 'weight': 140},
     {'key': 'issue_type', 'label': 'Lý do', 'default': True, 'required': False, 'weight': 120},
     {'key': 'status', 'label': 'Trạng thái', 'default': True, 'required': False, 'weight': 100},
     {'key': 'issued_by', 'label': 'Người xuất', 'default': True, 'required': False, 'weight': 120},
@@ -29,6 +30,7 @@ ISSUE_LIST_TOTAL_COL_WEIGHT = sum(c['weight'] for c in ISSUE_LIST_COLUMNS)
 ISSUE_LIST_SORT_FIELDS = {
     'number': 'number',
     'issue_date': 'issue_date',
+    'sales_order': 'sales_order__code',
     'issue_type': 'issue_type',
     'status': 'status',
     'issued_by': 'issued_by__username',

@@ -112,9 +112,9 @@ def _parse_positive_int(value):
     return parsed if parsed > 0 else None
 
 
-def _sales_order_bom_caps(request):
-    """None = không lọc BOM. Dict rỗng = đơn không có NPL được xuất."""
-    raw = (request.GET.get('sales_order_id') or '').strip()
+def _order_bom_caps_from_raw(raw):
+    """None = không có đơn. Dict rỗng = đơn không có NPL trên BOM."""
+    raw = (raw or '').strip()
     if not raw:
         return None
     if not raw.isdigit():
@@ -128,12 +128,25 @@ def _sales_order_bom_caps(request):
     return sales_order_bom_qty_caps(order)
 
 
+def _sales_order_bom_caps(request):
+    """Lọc danh sách NPL theo BOM khi có ``sales_order_id``."""
+    return _order_bom_caps_from_raw(request.GET.get('sales_order_id'))
+
+
+def _bom_qty_display_caps(request, filter_caps):
+    """SL yêu cầu trên dòng: dùng caps lọc BOM, hoặc ``bom_qty_order_id`` (không lọc danh sách)."""
+    if filter_caps is not None:
+        return filter_caps
+    return _order_bom_caps_from_raw(request.GET.get('bom_qty_order_id'))
+
+
 def material_search_response(request):
     q = (request.GET.get('q') or '').strip()
     location_id = _parse_positive_int(request.GET.get('location_id'))
     in_stock_only = (request.GET.get('in_stock_only') or '').strip().lower() in ('1', 'true', 'yes')
     limit_param = _parse_positive_int(request.GET.get('limit'))
     bom_caps = _sales_order_bom_caps(request)
+    qty_caps = _bom_qty_display_caps(request, bom_caps)
     bom_material_ids = None if bom_caps is None else list(bom_caps)
     if bom_material_ids is not None and not bom_material_ids:
         return JsonResponse({'results': []})
@@ -254,7 +267,7 @@ def material_search_response(request):
             'variant_group': material.variant_group or '',
             'category': material.category.name if material.category_id else '',
             'department': material.department or '',
-            'bom_qty': float(bom_caps.get(material.pk) or 0) if bom_caps is not None else None,
+            'bom_qty': float(qty_caps.get(material.pk) or 0) if qty_caps is not None else None,
             'primary_location_id': material.primary_location_id or '',
             'image_url': image_url,
             'base_price': float(material.base_price or 0),
