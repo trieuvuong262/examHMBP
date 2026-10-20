@@ -34,6 +34,7 @@ class TeamOutputCell:
     orders: list[tuple[str, Decimal]] = field(default_factory=list)
     plan_orders: list[dict] = field(default_factory=list)
     actual_orders: list[dict] = field(default_factory=list)
+    modal_rank: int | None = None
 
     @property
     def has_value(self) -> bool:
@@ -1420,7 +1421,7 @@ def expand_team_report_by_order(report: TeamOutputReport) -> TeamOutputReport:
                 is_total=True,
             ))
             expanded.extend(order_rows)
-        stage.rows = expanded
+        stage.rows = _attach_modal_ranks(expanded)
     report.by_order = True
     report.active_team_count = sum(1 for row in report.rows if row.total > 0 and not row.is_total)
     report.idle_teams = []
@@ -1450,6 +1451,22 @@ def _modal_rank_map(rows: list[TeamOutputRow]) -> dict[tuple[str, date, int], in
     ).values_list('team_slug', 'plan_date', 'sales_order_id', 'sort_order'):
         out[(slug, day, int(oid))] = int(sort or 0)
     return out
+
+
+def _attach_modal_ranks(rows: list[TeamOutputRow]) -> list[TeamOutputRow]:
+    """Gắn thứ tự modal vào từng ô ngày. Không đổi thứ tự dòng của lưới."""
+    ranks = _modal_rank_map(rows)
+    if not ranks:
+        return rows
+    for row in rows:
+        if row.is_total or not row.order_id:
+            continue
+        oid = int(row.order_id)
+        for cell in row.cells:
+            rank = ranks.get((row.slug, cell.day, oid))
+            if rank:
+                cell.modal_rank = int(rank)
+    return rows
 
 
 def _day_detail_payload(rows: list[TeamOutputRow]) -> dict:
@@ -1507,7 +1524,7 @@ def _day_detail_payload(rows: list[TeamOutputRow]) -> dict:
             def _order_key(item: dict) -> tuple:
                 oid = int(item.get('id') or 0)
                 rank = ranks.get((row.slug, cell.day, oid))
-                return (rank if rank else 10**9, item.get('code') or '')
+                return (10**9 if rank is None else rank, item.get('code') or '')
 
             orders.sort(key=_order_key)
             payload[f'{row.slug}|{cell.day.isoformat()}'] = {

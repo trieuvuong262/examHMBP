@@ -1,5 +1,5 @@
 {% load sx_format %}
-<td class="jp-tr-day{% if not c.is_workday %} is-off{% endif %}{% if c.is_today %} is-today{% endif %}" data-day="{{ c.day|date:'Y-m-d' }}" data-done="{{ c.qty|sx_num_input }}"{% if c.plan is not None %} data-plan="{{ c.plan|sx_num_input }}"{% endif %}{% if c.is_past %} data-past="1"{% endif %}>
+<td class="jp-tr-day{% if not c.is_workday %} is-off{% endif %}{% if c.is_today %} is-today{% endif %}" data-day="{{ c.day|date:'Y-m-d' }}"{% if c.modal_rank %} data-rank="{{ c.modal_rank }}"{% endif %} data-done="{{ c.qty|sx_num_input }}"{% if c.plan is not None %} data-plan="{{ c.plan|sx_num_input }}"{% endif %}{% if c.is_past %} data-past="1"{% endif %}>
   {% if row.is_total %}
     {% if c.plan_orders or c.actual_orders or c.orders %}
     <button type="button" class="jp-tr-day-hit" data-jp-day-group data-day="{{ c.day|date:'Y-m-d' }}" data-label="{{ c.day|date:'d/m/Y' }}" title="Gom đơn ngày {{ c.day|date:'d/m/Y' }}">

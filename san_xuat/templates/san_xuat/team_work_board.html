@@ -50,11 +50,15 @@
   .jp-tw-sheet .jp-tr-grid.is-by-order .jp-tr-team {
     width: 248px; min-width: 248px; max-width: 248px; white-space: normal;
   }
-  .jp-tw-sheet .jp-tw-order-code,
-  .jp-tw-sheet .jp-tw-order-name {
+  .jp-tw-sheet .jp-tw-order-code {
     display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.15;
   }
-  .jp-tw-sheet .jp-tw-order-name { font-size: 10px; font-weight: 650; color: #64748b; }
+  .jp-tw-sheet .jp-tw-order-name {
+    display: block; white-space: normal; overflow: visible; line-height: 1.25;
+    overflow-wrap: anywhere;
+  }
+  .jp-tw-sheet .jp-tw-order-name { font-size: .75rem; font-weight: 800; color: #0f172a; }
+  .jp-tw-sheet .jp-tw-order-code { font-size: 10px; font-weight: 700; color: #64748b; }
   .jp-tw-sheet tr.is-total td { font-weight: 800; }
   .jp-tw-toolbar {
     display: flex; flex-wrap: wrap; align-items: center; gap: .65rem;
@@ -1503,6 +1507,66 @@ document.addEventListener('DOMContentLoaded', function () {
 
   var groupedDay = '';
   var groupedRow = null;
+  var sheetOrder = null;
+  function dayModalOrder(day) {
+    var raw = document.getElementById('jp-team-day-details');
+    if (!raw || !day) return [];
+    var details = {};
+    try { details = JSON.parse(raw.textContent || '{}'); } catch (e) { return []; }
+    var suffix = '|' + day;
+    var key = Object.keys(details).filter(function (name) {
+      return name.slice(-suffix.length) === suffix;
+    })[0];
+    var item = key ? details[key] : null;
+    return (item && item.orders) || [];
+  }
+  function rememberSheetOrder() {
+    if (sheetOrder) return;
+    sheetOrder = Array.prototype.slice.call(orderRows());
+  }
+  function restoreSheetOrder() {
+    if (!sheetOrder || !sheetOrder.length || !sheetOrder[0].parentNode) return;
+    var tbody = sheetOrder[0].parentNode;
+    sheetOrder.forEach(function (row) { tbody.appendChild(row); });
+  }
+  function sortRowsLikeModal(day) {
+    var sample = orderRows()[0];
+    var tbody = sample && sample.parentNode;
+    if (!tbody || !day) return;
+    rememberSheetOrder();
+    var ranked = [];
+    var plain = [];
+    Array.prototype.forEach.call(orderRows(), function (row) {
+      if (row.classList.contains('is-total')) return;
+      var cell = row.querySelector('td[data-day="' + day + '"]');
+      var rank = cell ? parseInt(cell.getAttribute('data-rank') || '', 10) : 0;
+      if (rank > 0) ranked.push({ row: row, rank: rank });
+      else plain.push(row);
+    });
+    if (!ranked.length) {
+      var seen = {};
+      dayModalOrder(day).forEach(function (order) {
+        var id = String(order.id || '');
+        if (!id) return;
+        for (var i = 0; i < plain.length; i++) {
+          if ((plain[i].getAttribute('data-order-id') || '') !== id) continue;
+          ranked.push({ row: plain[i], rank: ranked.length + 1 });
+          seen[id] = true;
+          break;
+        }
+      });
+      if (ranked.length) {
+        plain = plain.filter(function (row) {
+          return !seen[row.getAttribute('data-order-id') || ''];
+        });
+      }
+    }
+    ranked.sort(function (a, b) { return a.rank - b.rank; });
+    ranked.forEach(function (item) { tbody.appendChild(item.row); });
+    plain.forEach(function (row) { tbody.appendChild(row); });
+    var total = tbody.querySelector('tr.is-total');
+    if (total) tbody.insertBefore(total, tbody.firstChild);
+  }
   function orderOnDay(row, day) {
     var cell = row.querySelector('td[data-day="' + day + '"]');
     if (!cell) return false;
@@ -1551,12 +1615,14 @@ document.addEventListener('DOMContentLoaded', function () {
     var clearBtn = document.getElementById('jpTwDayGroupClear');
     if (!day || groupedDay === day) {
       groupedDay = '';
+      restoreSheetOrder();
       renumberAll();
       if (clearBtn) clearBtn.hidden = true;
       if (colsHidden) refreshDayScroll();
       return;
     }
     groupedDay = day;
+    sortRowsLikeModal(day);
     var shown = 0;
     orderRows().forEach(function (row) {
       if (row.classList.contains('is-total')) return;
@@ -1565,7 +1631,9 @@ document.addEventListener('DOMContentLoaded', function () {
       if (!keep) return;
       shown += 1;
       var stt = sttButton(row);
-      if (stt) stt.textContent = String(shown);
+      var rankCell = row.querySelector('td[data-day="' + day + '"]');
+      var rank = rankCell ? parseInt(rankCell.getAttribute('data-rank') || '', 10) : 0;
+      if (stt) stt.textContent = rank > 0 ? String(rank) : String(shown);
     });
     document.querySelectorAll('.jp-tr-grid [data-day="' + day + '"]').forEach(function (el) {
       el.classList.add('is-day-on');
@@ -1597,6 +1665,7 @@ document.addEventListener('DOMContentLoaded', function () {
     groupedDay = '';
     groupedRow = null;
     clearGroupMarks();
+    restoreSheetOrder();
     renumberAll();
     var clearBtn = document.getElementById('jpTwDayGroupClear');
     if (!row || same) {

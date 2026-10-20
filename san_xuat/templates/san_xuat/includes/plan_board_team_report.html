@@ -391,7 +391,14 @@
     display: block; margin-top: .15rem; color: #9a3412; font-size: .68rem; font-weight: 700;
     line-height: 1.25; white-space: normal;
   }
-  .jp-tr-grid.is-by-order .jp-tw-order-code { color: var(--sheet-brand, #dc2626); font-weight: 800; }
+  .jp-tr-grid.is-by-order tbody td.jp-tr-team {
+    height: auto; min-height: 52px; overflow: visible; white-space: normal;
+  }
+  .jp-tr-grid.is-by-order .jp-tw-order-name {
+    color: #0f172a; font-weight: 800; font-size: .75rem;
+    white-space: normal; overflow-wrap: anywhere; line-height: 1.25;
+  }
+  .jp-tr-grid.is-by-order .jp-tw-order-code { color: #64748b; font-weight: 700; font-size: 10px; }
   .jp-tr-grid.is-by-order td.jp-tr-day:not([data-past]) { cursor: default; }
   .jp-tr-grid.is-by-order .jp-tr-day-hit,
   .jp-tr-grid.is-by-order .jp-tr-qty { height: 52px; }
@@ -486,7 +493,7 @@
       </thead>
       <tbody>
         {% for row in team_report.rows %}
-        <tr class="{% if team_report.by_order %}{% if row.is_total %}is-total{% endif %}{% else %}jp-stage-{{ row.color_slug|default:row.stage_slug }}{% if not row.total %} is-idle{% endif %}{% endif %}">
+        <tr class="{% if team_report.by_order %}{% if row.is_total %}is-total{% endif %}{% else %}jp-stage-{{ row.color_slug|default:row.stage_slug }}{% if not row.total %} is-idle{% endif %}{% endif %}"{% if team_report.by_order and row.order_id %} data-order-id="{{ row.order_id }}"{% endif %}>
           {% if team_report.by_order %}<td class="jp-tr-stt">{% if not row.is_total %}<button type="button" class="jp-tr-stt-hit" data-jp-row-group title="Gom ngày của đơn" aria-pressed="false">{{ forloop.counter0 }}</button>{% endif %}</td>{% endif %}
           <td class="jp-tr-team" title="{{ row.note|default:row.label }}">
             {% if row.is_total %}
@@ -503,6 +510,7 @@
               <span class="jp-tw-order-thumb is-empty" aria-hidden="true"><i class="bi bi-image"></i></span>
               {% endif %}
               <span class="jp-tw-order-text">
+                {% if row.note %}<span class="jp-tw-order-name">{{ row.note }}</span>{% endif %}
                 <span class="jp-tw-order-line">
                   <span class="jp-tw-order-code">{{ row.label }}</span>
                   {% if sheet_status == 'open' and can_assign and row.ready_to_complete and row.entry_mos %}
@@ -521,7 +529,6 @@
                   </form>
                   {% endif %}
                 </span>
-                {% if row.note %}<span class="jp-tw-order-name">{{ row.note }}</span>{% endif %}
               </span>
             </span>
             {% else %}
