@@ -81,6 +81,7 @@ class TeamOutputRow:
     order_id: int = 0
     entry_mos: list = field(default_factory=list)
     entry_mos_json: str = '[]'
+    closed_mos: list = field(default_factory=list)
     image_url: str = ''
     image_urls_json: str = '[]'
     priority: str = ''
@@ -92,6 +93,13 @@ class TeamOutputRow:
         if self.plan_total <= 0:
             return None
         return (self.total * 100 / self.plan_total).quantize(Decimal('1'))
+
+    @property
+    def ready_to_complete(self) -> bool:
+        """SL tổ đã vượt 80% KH — hiện nút Hoàn thành trên cột Đơn."""
+        if self.is_total or self.plan_total <= 0:
+            return False
+        return (self.total * 100 / self.plan_total) > 80
 
 
 @dataclass
@@ -1375,6 +1383,14 @@ def attach_sheet_entry_mos(report: TeamOutputReport, team: dict) -> TeamOutputRe
             for mo in chosen
         ]
         row.entry_mos_json = json.dumps(row.entry_mos, ensure_ascii=False)
+        order = group[0].sales_order if group[0].sales_order_id else None
+        if order is not None and order.plan_status == order.PLAN_DONE:
+            continue
+        row.closed_mos = [
+            {'id': mo.pk, 'code': mo.code}
+            for mo in group
+            if mo.pk in closes
+        ]
     return report
 
 
@@ -1640,7 +1656,7 @@ def export_team_output_xlsx(report: TeamOutputReport):
     head_row = 3
     if report.by_order:
         ws.cell(row=head_row, column=1, value='STT')
-        ws.cell(row=head_row, column=3, value='Gấp')
+        ws.cell(row=head_row, column=3, value='Mức độ')
     ws.cell(row=head_row, column=name_col, value='Đơn' if report.by_order else 'Tổ')
     ws.cell(row=head_row, column=kind_col, value='')
     for i, c in enumerate(report.days):
@@ -1743,7 +1759,7 @@ def export_team_output_xlsx(report: TeamOutputReport):
     if report.by_order:
         ws.column_dimensions['A'].width = 8
         ws.column_dimensions['B'].width = 28
-        ws.column_dimensions['C'].width = 14
+        ws.column_dimensions['C'].width = 12
         ws.column_dimensions['D'].width = 12
     else:
         ws.column_dimensions['A'].width = 26

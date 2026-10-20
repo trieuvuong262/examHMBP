@@ -481,6 +481,13 @@
     background: #b91c1c; border-color: #b91c1c; color: #fff;
   }
   .jp-tw-day-modal .jp-tw-day-save:disabled { opacity: .65; }
+  .jp-tw-day-modal .jp-tw-day-fill {
+    background: #fff; border: 1px solid #dc2626; color: #dc2626;
+  }
+  .jp-tw-day-modal .jp-tw-day-fill:hover,
+  .jp-tw-day-modal .jp-tw-day-fill:focus-visible {
+    background: #fef2f2; border-color: #b91c1c; color: #b91c1c;
+  }
   .jp-tw-day-status {
     margin-bottom: .75rem; padding: .4rem .65rem; border-radius: .5rem;
     font-size: .8rem; font-weight: 700;
@@ -859,6 +866,7 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" id="jpTwDayHistBack" hidden>Quay lại</button>
         <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" data-bs-dismiss="modal">Đóng</button>
+        <button type="button" class="btn btn-sm fw-bold jp-tw-day-fill" id="jpTwDayFill" hidden title="Điền SL từng size bằng KH">Điền nhanh</button>
         <button type="button" class="btn btn-sm fw-bold jp-tw-day-save" id="jpTwDaySave" hidden>Lưu sản lượng</button>
       </div>
     </div>
@@ -1077,6 +1085,11 @@ document.addEventListener('DOMContentLoaded', function () {
   function showSave(on) {
     var btn = document.getElementById('jpTwDaySave');
     if (btn) btn.hidden = !on;
+    var fill = document.getElementById('jpTwDayFill');
+    var hasPlan = !!on && dayInputs().some(function (input) {
+      return num(input.getAttribute('data-plan')) > 0;
+    });
+    if (fill) fill.hidden = !hasPlan;
   }
   var boardToday = '{% now "Y-m-d" %}';
   function openDay(moId, day, label, orderCode, cell) {
@@ -1470,6 +1483,21 @@ document.addEventListener('DOMContentLoaded', function () {
     paintInput(input, true);
     fillSums(true);
   });
+  function fillPlan() {
+    if (daySaving || !dayData || dayBody.getAttribute('data-can') !== '1') return;
+    var filled = 0;
+    dayInputs().forEach(function (input) {
+      var plan = num(input.getAttribute('data-plan'));
+      if (!(plan > 0)) return;
+      input.value = dayMode === 'pct' ? '100' : plain(plan);
+      paintInput(input, true);
+      filled += 1;
+    });
+    fillSums(true);
+    setDayStatus(filled ? 'Đã điền theo KH.' : 'Ngày này chưa có KH để điền.', filled ? 'ok' : 'warn');
+  }
+  var fillBtn = document.getElementById('jpTwDayFill');
+  if (fillBtn) fillBtn.addEventListener('click', fillPlan);
   var saveBtn = document.getElementById('jpTwDaySave');
   if (saveBtn) saveBtn.addEventListener('click', saveSheet);
 

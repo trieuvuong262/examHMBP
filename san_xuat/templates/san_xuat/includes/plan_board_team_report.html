@@ -379,14 +379,14 @@
     position: sticky;
     left: 300px;
     z-index: 3;
-    width: 168px;
-    min-width: 168px;
-    max-width: 168px;
-    padding: 2px 4px;
+    width: 76px;
+    min-width: 76px;
+    max-width: 76px;
+    padding: 2px 3px;
     box-shadow: 6px 0 10px -8px rgba(15, 23, 42, .22);
   }
   .jp-tr-grid.is-by-order thead th.jp-tr-prio { z-index: 6; }
-  .jp-tr-grid.is-by-order .jp-tr-prio .jp-tl-prio { height: 1.35rem; padding: 0 .45rem; font-size: .66rem; }
+  .jp-tr-grid.is-by-order .jp-tr-prio .jp-tl-prio { height: 1.35rem; padding: 0 .28rem; font-size: .62rem; }
   .jp-tw-prio-block {
     display: block; margin-top: .15rem; color: #9a3412; font-size: .68rem; font-weight: 700;
     line-height: 1.25; white-space: normal;
@@ -415,6 +415,23 @@
   }
   .jp-tw-order-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .jp-tw-order-text { min-width: 0; }
+  .jp-tw-order-line { display: flex; align-items: center; gap: .35rem; min-width: 0; }
+  .jp-tw-order-line .jp-tw-order-code { min-width: 0; }
+  .jp-tw-complete { margin: 0; flex: 0 0 auto; }
+  .jp-tw-complete-btn {
+    border: 1px solid #15803d; background: #f0fdf4; color: #15803d;
+    border-radius: 999px; font-size: .62rem; font-weight: 800; line-height: 1;
+    padding: .22rem .45rem; cursor: pointer; white-space: nowrap;
+  }
+  .jp-tw-complete-btn:hover,
+  .jp-tw-complete-btn:focus-visible { background: #15803d; color: #fff; outline: 0; }
+  .jp-tw-reopen-btn {
+    border: 1px solid #c2410c; background: #fff7ed; color: #c2410c;
+    border-radius: 999px; font-size: .62rem; font-weight: 800; line-height: 1;
+    padding: .22rem .45rem; cursor: pointer; white-space: nowrap;
+  }
+  .jp-tw-reopen-btn:hover,
+  .jp-tw-reopen-btn:focus-visible { background: #c2410c; color: #fff; outline: 0; }
 </style>
 
 <div class="jp-tr-shell">
@@ -428,7 +445,7 @@
           <tr>
             {% if team_report.by_order %}<th class="jp-tr-stt" scope="col">STT</th>{% endif %}
             <th class="jp-tr-team" scope="col">{% if team_report.by_order %}Đơn{% else %}Tổ{% endif %}</th>
-            {% if team_report.by_order %}<th class="jp-tr-prio" scope="col">Gấp</th>{% endif %}
+            {% if team_report.by_order %}<th class="jp-tr-prio" scope="col">Mức độ</th>{% endif %}
             {% for c in team_report.days %}
             <th class="jp-tr-day{% if not c.is_workday %} is-off{% endif %}{% if c.is_today %} is-today{% endif %}" scope="col" data-day="{{ c.day|date:'Y-m-d' }}" title="{{ c.day|date:'d/m/Y' }}">{{ c.day|date:'d-m' }}</th>
             {% endfor %}
@@ -452,7 +469,7 @@
         <tr>
           {% if team_report.by_order %}<th class="jp-tr-stt" scope="col">STT</th>{% endif %}
           <th class="jp-tr-team" scope="col">{% if team_report.by_order %}Đơn{% else %}Tổ{% endif %}</th>
-          {% if team_report.by_order %}<th class="jp-tr-prio" scope="col">Gấp</th>{% endif %}
+          {% if team_report.by_order %}<th class="jp-tr-prio" scope="col">Mức độ</th>{% endif %}
           {% for c in team_report.days %}
           <th class="jp-tr-day{% if not c.is_workday %} is-off{% endif %}{% if c.is_today %} is-today{% endif %}" scope="col" data-day="{{ c.day|date:'Y-m-d' }}">{{ c.day|date:'d-m' }}</th>
           {% endfor %}
@@ -486,7 +503,24 @@
               <span class="jp-tw-order-thumb is-empty" aria-hidden="true"><i class="bi bi-image"></i></span>
               {% endif %}
               <span class="jp-tw-order-text">
-                <span class="jp-tw-order-code">{{ row.label }}</span>
+                <span class="jp-tw-order-line">
+                  <span class="jp-tw-order-code">{{ row.label }}</span>
+                  {% if sheet_status == 'open' and can_assign and row.ready_to_complete and row.entry_mos %}
+                  <form method="post" class="jp-tw-complete" onsubmit="return confirm('Hoàn thành đơn này cho tổ?\nSL còn thiếu sẽ được điền cho khớp kế hoạch. Đơn chuyển sang tab Đã hoàn thành.');">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="complete">
+                    {% for mo in row.entry_mos %}<input type="hidden" name="mo_id" value="{{ mo.id }}">{% endfor %}
+                    <button type="submit" class="jp-tw-complete-btn">Hoàn thành</button>
+                  </form>
+                  {% elif sheet_status == 'done' and can_assign and row.closed_mos %}
+                  <form method="post" class="jp-tw-complete" onsubmit="return confirm('Huỷ hoàn thành đơn này?\nĐơn quay lại tab Đang làm. Sản lượng đã nhập được giữ nguyên.');">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="reopen">
+                    {% for mo in row.closed_mos %}<input type="hidden" name="mo_id" value="{{ mo.id }}">{% endfor %}
+                    <button type="submit" class="jp-tw-reopen-btn">Huỷ hoàn thành</button>
+                  </form>
+                  {% endif %}
+                </span>
                 {% if row.note %}<span class="jp-tw-order-name">{{ row.note }}</span>{% endif %}
               </span>
             </span>

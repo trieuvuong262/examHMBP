@@ -6453,21 +6453,49 @@ def team_work_board(request, slug: str):
             except Exception as exc:
                 messages.error(request, str(exc))
             return redirect(_board_qs())
-        if action == 'complete' and mo_id:
-            if active_subcontract_for_team(mo_id=mo_id, team_slug=slug):
+        if action == 'complete':
+            mo_ids: list[int] = []
+            for raw in request.POST.getlist('mo_id'):
+                try:
+                    mid = int(raw)
+                except (TypeError, ValueError):
+                    continue
+                if mid and mid not in mo_ids:
+                    mo_ids.append(mid)
+            if not mo_ids:
+                messages.error(request, 'Không có lệnh để hoàn thành.')
+                return redirect(_board_qs())
+            if any(active_subcontract_for_team(mo_id=mid, team_slug=slug) for mid in mo_ids):
                 messages.error(request, 'Tổ này đang thuê gia công — nhận hàng trên phiếu GC.')
                 return redirect(_board_qs())
+            from django.db import transaction
+
+            from hrm.request_cache import begin, is_active
+
             from san_xuat.services.team_progress_log import complete_team_job
 
+            if not is_active():
+                begin(enabled=True)
             try:
-                filled = complete_team_job(
-                    mo_id=mo_id, team_meta=team_meta, team_slug=slug, user=request.user,
-                )
-                messages.success(request, _complete_message(filled))
+                with transaction.atomic():
+                    filled = sum(
+                        (
+                            complete_team_job(
+                                mo_id=mid,
+                                team_meta=team_meta,
+                                team_slug=slug,
+                                user=request.user,
+                            )
+                            for mid in mo_ids
+                        ),
+                        Decimal('0'),
+                    )
             except PlanningError as exc:
                 messages.error(request, str(exc))
             except Exception as exc:
                 messages.error(request, str(exc))
+            else:
+                messages.success(request, _complete_message(filled))
             return redirect(_board_qs())
         if action == 'receive_gc' and mo_id:
             from san_xuat.services.phase3 import Phase3Error, receive_subcontract_goods
@@ -6489,31 +6517,50 @@ def team_work_board(request, slug: str):
                 else:
                     messages.success(request, f'Đã nhận hàng {gc.code}.')
             return redirect(_board_qs())
-        if action == 'reopen' and mo_id:
-            gc = active_subcontract_for_team(mo_id=mo_id, team_slug=slug)
-            if gc and gc.status in (
-                gc.STATUS_DONE,
-                gc.STATUS_RECEIVED,
-            ):
-                from san_xuat.services.phase3 import Phase3Error, undo_receive_subcontract_goods
-
+        if action == 'reopen':
+            reopen_ids: list[int] = []
+            for raw in request.POST.getlist('mo_id'):
                 try:
-                    order = undo_receive_subcontract_goods(order_id=gc.pk, user=request.user)
-                except Phase3Error as exc:
-                    messages.error(request, str(exc))
-                    return redirect(_board_qs())
-                except Exception as exc:
-                    messages.error(request, str(exc))
-                    return redirect(_board_qs())
-                messages.success(request, f'Đã huỷ nhận hàng {order.code} — mở lại phiếu GC.')
-                return redirect('san_xuat:subcontract_detail', pk=order.pk)
+                    mid = int(raw)
+                except (TypeError, ValueError):
+                    continue
+                if mid and mid not in reopen_ids:
+                    reopen_ids.append(mid)
+            if not reopen_ids and mo_id:
+                reopen_ids = [mo_id]
+            if not reopen_ids:
+                messages.error(request, 'Không có lệnh để mở lại.')
+                return redirect(_board_qs())
+            if len(reopen_ids) == 1:
+                gc = active_subcontract_for_team(mo_id=reopen_ids[0], team_slug=slug)
+                if gc and gc.status in (
+                    gc.STATUS_DONE,
+                    gc.STATUS_RECEIVED,
+                ):
+                    from san_xuat.services.phase3 import Phase3Error, undo_receive_subcontract_goods
+
+                    try:
+                        order = undo_receive_subcontract_goods(order_id=gc.pk, user=request.user)
+                    except Phase3Error as exc:
+                        messages.error(request, str(exc))
+                        return redirect(_board_qs())
+                    except Exception as exc:
+                        messages.error(request, str(exc))
+                        return redirect(_board_qs())
+                    messages.success(request, f'Đã huỷ nhận hàng {order.code} — mở lại phiếu GC.')
+                    return redirect('san_xuat:subcontract_detail', pk=order.pk)
+            from django.db import transaction
+
             try:
-                reopen_team_job(mo_id=mo_id, team_slug=slug)
-                messages.success(request, 'Đã mở lại công việc tổ trên lệnh này.')
+                with transaction.atomic():
+                    for mid in reopen_ids:
+                        reopen_team_job(mo_id=mid, team_slug=slug)
             except PlanningError as exc:
                 messages.error(request, str(exc))
             except Exception as exc:
                 messages.error(request, str(exc))
+            else:
+                messages.success(request, 'Đã huỷ hoàn thành — đơn về tab Đang làm.')
             return redirect(_board_qs())
 
     q = (request.GET.get('q') or '').strip()
