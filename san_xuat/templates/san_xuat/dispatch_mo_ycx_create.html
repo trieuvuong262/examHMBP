@@ -30,7 +30,7 @@
     </nav>
   </div>
 
-  <form method="post">
+  <form method="post" id="jp-ycx-form">
     {% csrf_token %}
     <div class="card border-0 shadow-sm mb-3">
       <div class="card-body">
@@ -127,7 +127,8 @@
                 <td class="text-end small" data-base="{{ r.info.stock|sx_num_input:6 }}" data-ycx-stock>{{ r.info.stock|sx_num }}</td>
                 <td class="text-end">
                   <input type="text" inputmode="decimal" name="qty_{{ r.idx }}" value="{{ r.qty_value }}"
-                    class="form-control form-control-sm qty-input" {% if not r.remaining %}disabled{% endif %}>
+                    class="form-control form-control-sm qty-input" min="0" data-ycx-qty
+                    {% if not r.remaining %}disabled{% endif %}>
                 </td>
                 <td class="text-end small fw-semibold" data-ycx-after>{% if r.remaining %}{{ r.info.stock_after|sx_num }}{% else %}{{ r.info.stock|sx_num }}{% endif %}</td>
               </tr>
@@ -209,6 +210,14 @@
   function round3(n) { return Math.round(n * 1000) / 1000; }
   var fmt = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 3 });
 
+  function sanitizeQtyInput(input) {
+    var raw = String(input.value || '');
+    var cleaned = raw.replace(/[^\d.,]/g, '');
+    if (cleaned !== raw) input.value = cleaned;
+    var qty = parseNum(input.value);
+    if (!isNaN(qty) && qty < 0) input.value = '';
+  }
+
   function refreshLine(tr) {
     var factor = Number(tr.getAttribute('data-factor')) || 1;
     tr.querySelectorAll('[data-base]').forEach(function (cell) {
@@ -220,9 +229,11 @@
     if (!after || !stockCell) return;
     var stock = Number(stockCell.getAttribute('data-base')) / factor;
     var qty = input ? parseNum(input.value) : 0;
-    var left = round3(stock - (isNaN(qty) ? 0 : qty));
+    if (isNaN(qty) || qty < 0) qty = 0;
+    var left = round3(stock - qty);
     after.textContent = fmt.format(left);
     after.classList.toggle('is-negative', left < 0);
+    if (input) input.classList.toggle('is-invalid', left < 0 || (input.value.trim() !== '' && parseNum(input.value) <= 0));
   }
 
   document.querySelectorAll('tr[data-ycx-line]').forEach(function (tr) {
@@ -230,9 +241,13 @@
     var unitSel = tr.querySelector('select[data-ycx-unit]');
     if (input) {
       input.addEventListener('input', function () {
+        sanitizeQtyInput(input);
         var cb = tr.querySelector('input[data-ycx-row]');
         if (cb && !cb.disabled && input.value.trim() !== '') cb.checked = true;
         refreshLine(tr);
+      });
+      input.addEventListener('keydown', function (e) {
+        if (e.key === '-' || e.key === 'Subtract') e.preventDefault();
       });
     }
     if (unitSel) {
@@ -242,7 +257,7 @@
         var newFactor = Number(opt.getAttribute('data-factor')) || 1;
         if (input) {
           var qty = parseNum(input.value);
-          if (!isNaN(qty)) input.value = String(round3(qty * oldFactor / newFactor));
+          if (!isNaN(qty) && qty >= 0) input.value = String(round3(qty * oldFactor / newFactor));
         }
         tr.setAttribute('data-factor', String(newFactor));
         refreshLine(tr);
@@ -250,6 +265,29 @@
     }
     refreshLine(tr);
   });
+
+  var form = document.getElementById('jp-ycx-form');
+  if (form) {
+    form.addEventListener('submit', function (e) {
+      var bad = [];
+      form.querySelectorAll('tr[data-ycx-line][data-ycx-open="1"]').forEach(function (tr) {
+        var cb = tr.querySelector('input[data-ycx-row]');
+        if (!cb || !cb.checked) return;
+        var input = tr.querySelector('.qty-input');
+        var stockCell = tr.querySelector('[data-ycx-stock]');
+        var factor = Number(tr.getAttribute('data-factor')) || 1;
+        var qty = input ? parseNum(input.value) : NaN;
+        var stock = stockCell ? Number(stockCell.getAttribute('data-base')) / factor : 0;
+        var nameEl = tr.querySelector('.fw-semibold');
+        var name = nameEl ? nameEl.textContent.trim() : 'NPL';
+        if (isNaN(qty) || qty <= 0) bad.push(name + ': SL xuất phải lớn hơn 0');
+        else if (round3(qty) > round3(stock)) bad.push(name + ': SL xuất vượt tồn kho');
+      });
+      if (!bad.length) return;
+      e.preventDefault();
+      alert(bad.join('\n'));
+    });
+  }
 })();
 </script>
 {% endblock %}

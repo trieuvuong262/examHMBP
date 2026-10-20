@@ -4523,6 +4523,8 @@ def dispatch_mo_ycx_create(request, pk: int):
     posted_pick: set[str] = set()
 
     if request.method == 'POST':
+        from san_xuat.templatetags.sx_format import format_sx_num
+
         by_key = {row.key: row for row in pool}
         selections: dict[str, Decimal] = {}
         chosen_units: dict[str, tuple[int, Decimal, Decimal]] = {}
@@ -4542,8 +4544,8 @@ def dispatch_mo_ycx_create(request, pk: int):
                 continue
             posted_pick.add(key)
             qty = _ycx_parse_qty(raw_qty)
-            if qty is None or qty < 0:
-                errors.append(f'SL không hợp lệ: {info["name"]}')
+            if qty is None or qty <= 0:
+                errors.append(f'SL xuất phải lớn hơn 0: {info["name"]}')
                 continue
             unit = next((u for u in info['units'] if u['id'] == posted_unit[key]), info['units'][0])
             qty_base = (qty * unit['factor']).quantize(Decimal('0.001'))
@@ -4555,6 +4557,12 @@ def dispatch_mo_ycx_create(request, pk: int):
                 and abs(qty_base - remaining) <= unit['factor'] * Decimal('0.001')
             ):
                 qty_base = remaining
+            stock = (info.get('stock') or Decimal('0')).quantize(Decimal('0.001'))
+            if qty_base > stock:
+                errors.append(
+                    f'{info["name"]}: SL xuất vượt tồn kho ({format_sx_num(stock)}).'
+                )
+                continue
             selections[key] = qty_base
             if unit['id'].isdigit():
                 chosen_units[key] = (int(unit['id']), unit['factor'], qty)
