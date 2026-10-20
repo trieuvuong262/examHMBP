@@ -331,10 +331,12 @@
             <table class="table table-sm table-hover mb-0 align-middle">
               <thead class="table-light">
                 <tr>
-                  <th>NPL</th>
+                  <th class="text-start">NPL</th>
                   <th class="text-end">ĐM/SP</th>
                   <th class="text-end">HH%</th>
                   <th class="text-end">Tổng cần</th>
+                  <th class="text-end">Đã xuất</th>
+                  <th class="text-end">Còn thiếu</th>
                 </tr>
               </thead>
               <tbody>
@@ -356,12 +358,17 @@
                         {% if bl.size_code %}
                         <span class="badge bg-light text-dark border">{{ bl.size_code }}</span>
                         {% endif %}
+                        {% if bl.material_code and bl.material_name and bl.material_code != bl.material_name %}
+                        <span class="d-block text-muted">{{ bl.material_code }}</span>
+                        {% endif %}
                       </span>
                     </div>
                   </td>
                   <td class="text-end small">{{ bl.qty_per_unit|sx_num }}</td>
                   <td class="text-end small text-muted">{{ bl.scrap_pct }}%</td>
                   <td class="text-end fw-semibold small">{{ bl.qty_total|sx_num }}</td>
+                  <td class="text-end small">{{ bl.qty_issued|sx_num }}</td>
+                  <td class="text-end fw-semibold small">{{ bl.qty_short|sx_num }}</td>
                 </tr>
               {% endfor %}
               </tbody>
@@ -442,7 +449,7 @@
           <div class="jp-mo-section-head">
             <div>
               <p class="title">Phiếu xuất NPL</p>
-              <div class="count">{{ ycx_list|length }} phiếu</div>
+              <div class="count">{{ npl_issues|length }} phiếu</div>
             </div>
             <div class="d-flex flex-wrap gap-1">
               {% if mo.status == 'released' or mo.status == 'in_progress' %}
@@ -450,36 +457,33 @@
               {% endif %}
             </div>
           </div>
-          {% if ycx_list %}
+          {% if npl_issues %}
           <div class="table-responsive">
             <table class="table table-sm table-hover mb-0 align-middle">
               <thead class="table-light">
                 <tr>
-                  <th>Phiếu xuất</th>
-                  <th>Tổ</th>
-                  <th>Ngày</th>
-                  <th>Trạng thái kho</th>
+                  <th class="text-start">Phiếu xuất</th>
+                  <th class="text-start">Bộ phận</th>
+                  <th class="text-start">Ngày</th>
+                  <th class="text-start">Trạng thái kho</th>
                 </tr>
               </thead>
               <tbody>
-              {% for req in ycx_list %}
-                {% for si in req.stock_issues.all %}
+              {% for item in npl_issues %}
                 <tr>
-                  <td><a href="{% stock_url 'issue_detail' 'kho_npl' si.pk %}" class="fw-semibold small text-decoration-none">{{ si.number }}</a></td>
-                  <td class="small">{% if req.work_center %}{{ req.work_center.name }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
-                  <td class="small text-muted">{{ si.issue_date|date:"d/m/Y" }}</td>
-                  <td class="small">
-                    <span class="badge {% if si.status == 'posted' %}text-bg-success{% elif si.status == 'cancelled' %}text-bg-danger{% else %}text-bg-warning{% endif %}">{{ si.get_status_display }}</span>
+                  <td class="text-start">
+                    {% if item.issue %}
+                    <a href="{% stock_url 'issue_detail' 'kho_npl' item.issue.pk %}" class="fw-semibold small text-decoration-none">{{ item.number }}</a>
+                    {% else %}
+                    <span class="small text-muted">{{ item.number }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-start small">{{ item.department|default:"—" }}</td>
+                  <td class="text-start small text-muted">{{ item.on|date:"d/m/Y" }}</td>
+                  <td class="text-start small">
+                    <span class="badge {% if item.status == 'posted' %}text-bg-success{% elif item.status == 'cancelled' %}text-bg-danger{% elif item.status %}text-bg-warning{% else %}text-bg-light{% endif %}">{{ item.status_label }}</span>
                   </td>
                 </tr>
-                {% empty %}
-                <tr>
-                  <td class="small text-muted">{{ req.code }}</td>
-                  <td class="small">{% if req.work_center %}{{ req.work_center.name }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
-                  <td class="small text-muted">{{ req.request_date|date:"d/m/Y" }}</td>
-                  <td class="small text-muted">Chưa có phiếu kho</td>
-                </tr>
-                {% endfor %}
               {% endfor %}
               </tbody>
             </table>

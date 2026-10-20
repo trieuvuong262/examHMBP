@@ -36,15 +36,15 @@
       <div class="card-body">
         <div class="row g-3">
           <div class="col-12 col-md-5">
-            <label class="form-label small fw-semibold" for="jp-ycx-team">Tổ / bộ phận nhận <span class="text-danger">*</span></label>
+            <label class="form-label small fw-semibold" for="jp-ycx-team">Bộ phận của BOM trên đơn đặt hàng <span class="text-danger">*</span></label>
             <select name="work_center" id="jp-ycx-team" class="form-select" required>
-              <option value="">— Chọn tổ / bộ phận —</option>
-              {% for t in teams %}
-              <option value="{{ t.work_center.pk }}" {% if selected_team_id == t.work_center.pk %}selected{% endif %}>{{ t.work_center.name }}</option>
+              <option value="">Chọn bộ phận</option>
+              {% for dept in departments %}
+              <option value="{{ dept.id }}" {% if selected_department == dept.id %}selected{% endif %}>{{ dept.text }}</option>
               {% endfor %}
             </select>
-            {% if not teams %}
-            <div class="small text-danger mt-1">Lệnh chưa gán tổ cho công đoạn nào — gán tổ trên công đoạn LSX trước khi tạo phiếu.</div>
+            {% if not departments %}
+            <div class="small text-danger mt-1">Đơn chưa có bộ phận trên BOM.</div>
             {% endif %}
           </div>
           <div class="col-12 col-md">
@@ -52,7 +52,7 @@
             <input type="text" name="notes" id="jp-ycx-notes" class="form-control" value="{{ notes }}" maxlength="500">
           </div>
           <div class="col-12 col-md-auto d-flex align-items-end">
-            <button type="submit" class="btn btn-hm fw-bold w-100" {% if not has_remaining or not teams %}disabled{% endif %}>Tạo phiếu</button>
+            <button type="submit" class="btn btn-hm fw-bold w-100" {% if not can_submit %}disabled{% endif %}>Tạo phiếu</button>
           </div>
         </div>
       </div>
@@ -72,38 +72,46 @@
             <thead class="table-light">
               <tr>
                 <th style="width:2.5rem"></th>
-                <th>NPL</th>
-                <th style="min-width:6.5rem">ĐVT</th>
+                <th class="text-start">NPL</th>
+                <th class="text-start">Bộ phận</th>
+                <th class="text-start" style="min-width:6.5rem">ĐVT</th>
                 <th class="text-end">Nhu cầu</th>
-                <th class="text-end">Đã giao phiếu</th>
-                <th class="text-end">Còn lại</th>
+                <th class="text-end">Đã xuất</th>
+                <th class="text-end">Còn thiếu</th>
                 <th class="text-end">Tồn kho</th>
-                <th class="text-end" style="min-width:9rem">SL xuất cho tổ</th>
+                <th class="text-end" style="min-width:9rem">SL xuất</th>
                 <th class="text-end">Sau xuất</th>
               </tr>
             </thead>
             <tbody>
             {% for r in rows %}
-              <tr class="{% if not r.remaining %}is-empty{% endif %}" data-ycx-line data-factor="{{ r.selected_unit.factor|sx_num_input:6 }}">
+              <tr class="{% if not r.remaining %}is-empty{% endif %}" data-ycx-line {% if r.remaining %}data-ycx-open="1"{% endif %} data-factor="{{ r.selected_unit.factor|sx_num_input:6 }}">
                 <td>
                   <input type="hidden" name="key_{{ r.idx }}" value="{{ r.row.key }}">
                   <input type="checkbox" class="form-check-input" name="pick_{{ r.idx }}" value="1"
-                    data-ycx-row {% if r.picked %}checked{% endif %} {% if not r.remaining %}disabled{% endif %}
+                    data-ycx-row {% if r.picked and r.remaining %}checked{% endif %}
+                    {% if not r.remaining %}disabled{% endif %}
                     aria-label="Chọn {{ r.info.name }}">
                 </td>
-                <td>
+                <td class="text-start">
                   <div class="d-flex align-items-center gap-2">
                     {% if r.info.image_url %}
                     <img src="{{ r.info.image_url }}" alt="" class="npl-thumb" loading="lazy">
                     {% else %}
                     <span class="npl-thumb npl-thumb-empty"><i class="bi bi-image" aria-hidden="true"></i></span>
                     {% endif %}
-                    <span class="small fw-semibold" title="{{ r.row.bom_material_code }}">{{ r.info.name }}</span>
+                    <span>
+                      <span class="small fw-semibold d-block">{{ r.info.name|default:r.row.bom_material_code }}</span>
+                      {% if r.row.bom_material_code and r.info.name != r.row.bom_material_code %}
+                      <span class="small text-muted">{{ r.row.bom_material_code }}</span>
+                      {% endif %}
+                    </span>
                   </div>
                 </td>
-                <td>
+                <td class="text-start small">{{ r.info.department|default:"—" }}</td>
+                <td class="text-start">
                   {% if r.info.units|length > 1 %}
-                  <select name="unit_{{ r.idx }}" class="form-select form-select-sm" data-ycx-unit aria-label="ĐVT {{ r.info.name }}">
+                  <select name="unit_{{ r.idx }}" class="form-select form-select-sm" data-ycx-unit aria-label="ĐVT {{ r.info.name }}" {% if not r.remaining %}disabled{% endif %}>
                     {% for u in r.info.units %}
                     <option value="{{ u.id }}" data-factor="{{ u.factor|sx_num_input:6 }}" {% if u.id == r.selected_unit.id %}selected{% endif %}>{{ u.name }}</option>
                     {% endfor %}
@@ -118,15 +126,13 @@
                 <td class="text-end small fw-semibold" data-base="{{ r.remaining|sx_num_input:6 }}">{{ r.remaining|sx_num }}</td>
                 <td class="text-end small" data-base="{{ r.info.stock|sx_num_input:6 }}" data-ycx-stock>{{ r.info.stock|sx_num }}</td>
                 <td class="text-end">
-                  {% if r.remaining %}
                   <input type="text" inputmode="decimal" name="qty_{{ r.idx }}" value="{{ r.qty_value }}"
-                    class="form-control form-control-sm qty-input">
-                  {% else %}<span class="small">Đã giao đủ</span>{% endif %}
+                    class="form-control form-control-sm qty-input" {% if not r.remaining %}disabled{% endif %}>
                 </td>
                 <td class="text-end small fw-semibold" data-ycx-after>{% if r.remaining %}{{ r.info.stock_after|sx_num }}{% else %}{{ r.info.stock|sx_num }}{% endif %}</td>
               </tr>
             {% empty %}
-              <tr><td colspan="9" class="text-muted small p-3">Lệnh chưa có định mức NPL từ BOM.</td></tr>
+              <tr><td colspan="10" class="text-muted small p-3">Lệnh chưa có định mức NPL từ BOM.</td></tr>
             {% endfor %}
             </tbody>
           </table>
@@ -135,36 +141,38 @@
     </div>
   </form>
 
-  {% if ycx_list %}
+  {% if npl_issues %}
   <div class="card border-0 shadow-sm mt-4">
     <div class="card-body">
-      <p class="small fw-bold text-uppercase text-muted mb-2">Phiếu xuất NPL đã chuyển kho cho lệnh này</p>
+      <p class="small fw-bold text-uppercase text-muted mb-2">Phiếu xuất NPL của đơn</p>
       <div class="table-responsive">
         <table class="table table-sm mb-0 align-middle">
           <thead class="table-light">
-            <tr><th>Phiếu xuất</th><th>Tổ</th><th>Ngày</th><th>Trạng thái kho</th><th class="text-end">Số dòng NPL</th></tr>
+            <tr>
+              <th class="text-start">Phiếu xuất</th>
+              <th class="text-start">Bộ phận</th>
+              <th class="text-start">Ngày</th>
+              <th class="text-start">Trạng thái kho</th>
+              <th class="text-end">Số dòng NPL</th>
+            </tr>
           </thead>
           <tbody>
-          {% for req in ycx_list %}
-            {% for si in req.stock_issues.all %}
+          {% for item in npl_issues %}
             <tr>
-              <td><a href="{% stock_url 'issue_detail' 'kho_npl' si.pk %}" class="small fw-semibold">{{ si.number }}</a></td>
-              <td class="small">{% if req.work_center %}{{ req.work_center.name }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
-              <td class="small text-muted">{{ si.issue_date|date:"d/m/Y" }}</td>
-              <td class="small">
-                <span class="badge {% if si.status == 'posted' %}text-bg-success{% elif si.status == 'cancelled' %}text-bg-danger{% else %}text-bg-warning{% endif %}">{{ si.get_status_display }}</span>
+              <td class="text-start">
+                {% if item.issue %}
+                <a href="{% stock_url 'issue_detail' 'kho_npl' item.issue.pk %}" class="small fw-semibold">{{ item.number }}</a>
+                {% else %}
+                <span class="small text-muted">{{ item.number }}</span>
+                {% endif %}
               </td>
-              <td class="text-end small">{{ si.lines.all|length }}</td>
+              <td class="text-start small">{{ item.department|default:"—" }}</td>
+              <td class="text-start small text-muted">{{ item.on|date:"d/m/Y" }}</td>
+              <td class="text-start small">
+                <span class="badge {% if item.status == 'posted' %}text-bg-success{% elif item.status == 'cancelled' %}text-bg-danger{% elif item.status %}text-bg-warning{% else %}text-bg-light{% endif %}">{{ item.status_label }}</span>
+              </td>
+              <td class="text-end small">{{ item.line_count }}</td>
             </tr>
-            {% empty %}
-            <tr>
-              <td class="small text-muted">{{ req.code }}</td>
-              <td class="small">{% if req.work_center %}{{ req.work_center.name }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
-              <td class="small text-muted">{{ req.request_date|date:"d/m/Y" }}</td>
-              <td class="small text-muted">Chưa có phiếu kho</td>
-              <td class="text-end small">{{ req.lines.all|length }}</td>
-            </tr>
-            {% endfor %}
           {% endfor %}
           </tbody>
         </table>
@@ -181,8 +189,13 @@
   document.querySelectorAll('[data-ycx-pick]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var on = btn.getAttribute('data-ycx-pick') === 'all';
-      document.querySelectorAll('input[data-ycx-row]:not(:disabled)').forEach(function (cb) {
-        cb.checked = on;
+      document.querySelectorAll('input[data-ycx-row]').forEach(function (cb) {
+        if (!on) {
+          cb.checked = false;
+          return;
+        }
+        var tr = cb.closest('tr');
+        cb.checked = !!(tr && tr.getAttribute('data-ycx-open') === '1');
       });
     });
   });

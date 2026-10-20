@@ -47,10 +47,10 @@
         if (!teamSelect || teamSelect.tomselect || typeof TomSelect === 'undefined') return;
         new TomSelect(teamSelect, {
             maxItems: 1,
-            allowEmptyOption: true,
+            allowEmptyOption: false,
             dropdownParent: 'body',
             openOnFocus: true,
-            placeholder: 'Chọn tổ',
+            placeholder: 'Chọn bộ phận',
         });
     }
 
@@ -72,7 +72,7 @@
         teamSelect.innerHTML = '';
         const empty = document.createElement('option');
         empty.value = '';
-        empty.textContent = 'Chọn tổ';
+        empty.textContent = 'Chọn bộ phận';
         teamSelect.appendChild(empty);
         rows.forEach(function (row) {
             const opt = document.createElement('option');

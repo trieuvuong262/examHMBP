@@ -2444,7 +2444,7 @@
         <i class="bi bi-chevron-down jp-pb-ticket-toggle-icon" aria-hidden="true"></i>
         <span class="jp-pb-ticket-toggle-label">Chi tiết NPL &amp; lộ trình công đoạn</span>
         {% if row.missing_bom or row.missing_ops %}<span class="jp-pb-ticket-toggle-flag">Thiếu {% if row.missing_bom %}BOM{% endif %}{% if row.missing_bom and row.missing_ops %} / {% endif %}{% if row.missing_ops %}công đoạn{% endif %}</span>{% endif %}
-        {% if row.npl_short_count %}<span class="jp-pb-ticket-toggle-flag">Thiếu NPL {{ row.npl_short_count }}</span>{% endif %}
+        {% if row.npl_cover_short %}<span class="jp-pb-ticket-toggle-flag">Còn thiếu {{ row.npl_cover_short }} mã</span>{% endif %}
       </button>
       <div class="jp-pb-ticket-body" id="jpTicketBody-{{ row.order.pk }}"
            data-jp-ticket-body data-order-id="{{ row.order.pk }}"

@@ -1040,6 +1040,121 @@ def ycx_team_choices(mo: SxProductionOrder) -> list[dict]:
     return list(teams.values())
 
 
+def order_bom_pool(mo: SxProductionOrder) -> list[YcxPoolRow]:
+    """Nhu cầu BOM của đơn, gộp theo mã. Phần đã xuất là phiếu đã ghi sổ của đơn."""
+    from dataclasses import replace
+
+    from san_xuat.services.bom_need import explode_for_sales_line
+    from san_xuat.services.plan_board import _posted_npl_issued_qty
+
+    order = mo.sales_order
+    if order is None:
+        return ycx_remaining_pool(mo)
+    rows: dict[str, YcxPoolRow] = {}
+    for line in order.lines.all():
+        if (line.qty or 0) <= 0:
+            continue
+        for need in explode_for_sales_line(line):
+            if need.qty_total <= 0:
+                continue
+            key = _ycx_pool_key(need.material_code)
+            if not key:
+                continue
+            row = rows.get(key)
+            if row is None:
+                rows[key] = YcxPoolRow(
+                    key=key,
+                    bom_material_code=need.material_code,
+                    material_name=need.material_name,
+                    unit=need.unit,
+                    qty_need=need.qty_total,
+                    qty_allocated=Decimal("0"),
+                    need=need,
+                )
+            else:
+                row.qty_need += need.qty_total
+                row.need = replace(row.need, qty_total=row.qty_need)
+    issued = _posted_npl_issued_qty([order.pk]).get(order.pk, {})
+    for row in rows.values():
+        row.qty_allocated = issued.get(row.key, Decimal("0"))
+    return list(rows.values())
+
+
+def order_npl_issue_rows(order) -> list[dict]:
+    """Mọi phiếu xuất NPL của đơn: tạo từ kho hoặc từ lệnh. Bỏ phiếu hủy."""
+    from kho_npl.services.issue_route import work_center_recipient_label
+    from kho_npl.stock_domain import STOCK_DOMAIN_NPL
+
+    if order is None or not getattr(order, "pk", None):
+        return []
+    found: dict[int, StockIssue] = {}
+    direct = (
+        StockIssue.objects.filter(stock_domain=STOCK_DOMAIN_NPL, sales_order_id=order.pk)
+        .exclude(status="cancelled")
+        .select_related("work_center")
+        .prefetch_related("lines")
+    )
+    for issue in direct:
+        found[issue.pk] = issue
+    requests = (
+        SxMaterialIssueRequest.objects.filter(
+            is_demo=False,
+            production_order__sales_order_id=order.pk,
+        )
+        .exclude(status="cancelled")
+        .select_related("work_center", "stock_issue", "stock_issue__work_center")
+        .prefetch_related("lines", "stock_issues__work_center", "stock_issues__lines")
+        .order_by("-request_date", "-pk")
+    )
+    pending = []
+    for req in requests:
+        linked = list(req.stock_issues.all())
+        if req.stock_issue_id and all(issue.pk != req.stock_issue_id for issue in linked):
+            linked.append(req.stock_issue)
+        kept = [issue for issue in linked if issue.status != "cancelled"]
+        if not kept:
+            pending.append(req)
+            continue
+        for issue in kept:
+            found[issue.pk] = issue
+
+    def _department(issue: StockIssue) -> str:
+        label = (issue.recipient_department or "").strip()
+        if label:
+            return label
+        if issue.work_center_id:
+            return work_center_recipient_label(issue.work_center)
+        return ""
+
+    rows = [
+        {
+            "issue": issue,
+            "request": None,
+            "number": issue.number,
+            "department": _department(issue),
+            "on": issue.issue_date,
+            "status": issue.status,
+            "status_label": issue.get_status_display(),
+            "line_count": len(issue.lines.all()),
+        }
+        for issue in found.values()
+    ]
+    rows.sort(key=lambda row: (row["on"] or timezone.localdate(), row["issue"].pk), reverse=True)
+    for req in pending:
+        wc = req.work_center
+        rows.append({
+            "issue": None,
+            "request": req,
+            "number": req.code,
+            "department": work_center_recipient_label(wc) if wc is not None else "",
+            "on": req.request_date,
+            "status": "",
+            "status_label": "Chưa có phiếu kho",
+            "line_count": len(req.lines.all()),
+        })
+    return rows
+
+
 def ycx_remaining_pool(mo: SxProductionOrder) -> list[YcxPoolRow]:
     """Nhu cầu BOM (ĐM × SL) gộp theo mã NPL, trừ SL đã nằm trên các YCX chưa hủy của LSX."""
     from dataclasses import replace
@@ -1092,6 +1207,9 @@ def _create_material_issue_request(
     notes: str = "",
     work_center_id: int | None = None,
     selections: dict[str, Decimal] | None = None,
+    allow_over: bool = False,
+    use_route_department: bool = False,
+    bom_department: str = "",
 ) -> SxMaterialIssueRequest:
     """Tạo YCX từ phần nhu cầu BOM chưa giao.
 
@@ -1116,10 +1234,29 @@ def _create_material_issue_request(
     if mo.status not in _YCX_CREATE_MO_STATUSES:
         raise DispatchError("Chỉ được tạo Yêu cầu xuất khi Lệnh sản xuất đã release.")
 
-    if selections is not None and not work_center_id:
+    bom_department = (bom_department or "").strip()
+    if use_route_department:
+        if selections is not None and not bom_department:
+            raise DispatchError("Chọn bộ phận của BOM trên đơn đặt hàng.")
+    elif selections is not None and not work_center_id:
         raise DispatchError("Chọn Tổ / bộ phận nhận cho phiếu yêu cầu xuất.")
     work_center = None
-    if work_center_id:
+    if use_route_department and bom_department:
+        from kho_npl.services.issue_route import (
+            bom_departments_for_order,
+            work_center_for_bom_department,
+        )
+
+        options = bom_departments_for_order(mo.sales_order) if mo.sales_order_id else []
+        match = next(
+            (opt for opt in options if opt["id"].casefold() == bom_department.casefold()),
+            None,
+        )
+        if match is None:
+            raise DispatchError("Bộ phận không có trên BOM của đơn.")
+        bom_department = match["id"]
+        work_center = work_center_for_bom_department(mo.sales_order, bom_department)
+    elif work_center_id:
         team = next(
             (t for t in ycx_team_choices(mo) if t["work_center"].pk == work_center_id),
             None,
@@ -1128,7 +1265,7 @@ def _create_material_issue_request(
             raise DispatchError("Tổ / bộ phận không thuộc công đoạn của lệnh sản xuất này.")
         work_center = team["work_center"]
 
-    pool = ycx_remaining_pool(mo)
+    pool = order_bom_pool(mo) if use_route_department else ycx_remaining_pool(mo)
     if not pool:
         raise DispatchError("Lệnh sản xuất chưa có định mức NPL từ BOM đã chọn.")
 
@@ -1154,7 +1291,12 @@ def _create_material_issue_request(
             row = by_key.get(_ycx_pool_key(key))
             if row is None:
                 raise DispatchError(f"NPL {key} không có trong định mức của lệnh.")
-            if qty > row.qty_remaining.quantize(Decimal("0.001")):
+            if use_route_department and row.qty_remaining <= 0:
+                raise DispatchError(f"{row.bom_material_code} đã xuất đủ, không chọn lại.")
+            if (
+                not allow_over
+                and qty > row.qty_remaining.quantize(Decimal("0.001"))
+            ):
                 raise DispatchError(
                     f"{row.bom_material_code}: SL {qty} vượt nhu cầu còn lại "
                     f"{row.qty_remaining.quantize(Decimal('0.001'))}."
@@ -1250,11 +1392,14 @@ class TeamIssueResult:
 def create_team_stock_issue(
     *,
     production_order_id: int,
-    work_center_id: int,
+    work_center_id: int | None = None,
     selections: dict[str, Decimal],
     units: dict[str, tuple[int, Decimal, Decimal]] | None = None,
     user=None,
     notes: str = "",
+    allow_over: bool = False,
+    use_route_department: bool = False,
+    bom_department: str = "",
 ) -> TeamIssueResult:
     """Tạo YCX (nội bộ) + phiếu xuất NPL «Đã tạo» cho tổ — kho NPL đính kèm chứng từ và xuất trên Kho NPL.
 
@@ -1265,9 +1410,14 @@ def create_team_stock_issue(
         notes=notes,
         work_center_id=work_center_id,
         selections=selections,
+        allow_over=allow_over,
+        use_route_department=use_route_department,
+        bom_department=bom_department,
     )
     mo = req.production_order
     from kho_npl.services.issue_route import work_center_recipient_label
+
+    recipient = (bom_department or "").strip() or work_center_recipient_label(req.work_center)
 
     issue = StockIssue.objects.create(
         number=next_issue_number(),
@@ -1277,9 +1427,9 @@ def create_team_stock_issue(
         product_code=mo.product_code,
         sales_order_id=mo.sales_order_id,
         work_center_id=req.work_center_id,
-        recipient_department=work_center_recipient_label(req.work_center),
+        recipient_department=recipient,
         created_by=user,
-        notes=" — ".join(p for p in (f"Xuất NPL cho {req.work_center.name}" if req.work_center_id else "", notes) if p),
+        notes=" — ".join(p for p in (f"Xuất NPL cho {recipient}" if recipient else "", notes) if p),
     )
     units = {_ycx_pool_key(k): v for k, v in (units or {}).items()}
     issue_lines = []

@@ -1,0 +1,36 @@
+<table class="jp-pb-npl-table">
+  <thead>
+    <tr>
+      <th class="text-start">Nguyên phụ liệu</th>
+      <th class="text-start">ĐVT</th>
+      <th class="num text-end">Nhu cầu</th>
+      <th class="num text-end">Đã xuất</th>
+      <th class="num text-end">Còn thiếu</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for ln in row.npl_cover_rows %}
+    <tr{% if ln.short != '0' %} class="is-short"{% endif %}>
+      <td class="text-start">
+        <div class="jp-pb-npl-material">
+          {% if ln.image_url %}
+          <img src="{{ ln.image_url }}" alt="" class="jp-pb-npl-image" loading="lazy">
+          {% else %}
+          <span class="jp-pb-npl-image is-empty" aria-hidden="true"><i class="bi bi-image"></i></span>
+          {% endif %}
+          <span class="jp-pb-npl-name">
+            {{ ln.name|default:ln.code }}
+            {% if ln.code and ln.name and ln.code != ln.name %}
+            <span class="d-block text-muted fw-normal" style="font-size:.85em">{{ ln.code }}</span>
+            {% endif %}
+          </span>
+        </div>
+      </td>
+      <td class="text-start">{{ ln.unit|default:"—" }}</td>
+      <td class="num text-end">{{ ln.qty }}</td>
+      <td class="num text-end">{{ ln.issued }}</td>
+      <td class="num text-end">{% if ln.short != '0' %}<strong>{{ ln.short }}</strong>{% else %}{{ ln.short }}{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

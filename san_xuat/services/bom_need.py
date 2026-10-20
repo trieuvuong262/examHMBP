@@ -284,11 +284,13 @@ def resolve_issue_material(need: MaterialNeed):
 def needs_as_display_dicts(rows: list[MaterialNeed]) -> list[dict]:
     from django.db.models.functions import Lower
 
+    from kho_npl.material_department import normalize_material_department
     from kho_npl.models import Material, Unit
 
     codes = {(r.material_code or '').strip() for r in rows if (r.material_code or '').strip()}
     image_by_code: dict[str, str] = {}
     unit_by_mat: dict[str, str] = {}
+    department_by_code: dict[str, str] = {}
     if codes:
         folded = {c.casefold() for c in codes}
         materials = (
@@ -306,6 +308,7 @@ def needs_as_display_dicts(rows: list[MaterialNeed]) -> list[dict]:
                 image_by_code[key] = url
             if material.unit_id:
                 unit_by_mat[key] = _unit_display(material.unit)
+            department_by_code[key] = normalize_material_department(material.department)
     leftover = {
         (r.unit or '').strip()
         for r in rows
@@ -338,6 +341,7 @@ def needs_as_display_dicts(rows: list[MaterialNeed]) -> list[dict]:
             'unit': _display_unit(r),
             'scale_qty': r.scale_qty,
             'image_url': image_by_code.get((r.material_code or '').strip().casefold(), ''),
+            'department': department_by_code.get((r.material_code or '').strip().casefold(), ''),
         }
         for r in rows
     ]

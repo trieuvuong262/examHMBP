@@ -326,6 +326,10 @@ class PlanBoardRow:
     npl_lead_days: int = 0
     npl_short_count: int = 0
     npl_ok_count: int = 0
+    npl_cover_ready: int = 0
+    npl_cover_total: int = 0
+    npl_cover_short: int = 0
+    npl_cover_rows: list = field(default_factory=list)
     npl_missing_buy: bool = False
     npl_plan_id: int = 0
     npl_plan_code: str = ''
@@ -2526,6 +2530,7 @@ def build_plan_board_rows(
     _fill_product_flow_images(rows)
     attach_subcontracts_to_plan_rows(rows)
     _fill_stage_progress(rows)
+    _fill_npl_issue_cover(rows)
     return rows
 
 
@@ -2539,6 +2544,20 @@ def sort_plan_rows_by_placed_date(rows: list) -> list:
 
     rows.sort(key=_key, reverse=True)
     return rows
+
+
+def _fill_npl_issue_cover(rows: list[PlanBoardRow]) -> None:
+    """Ô Cần chuẩn bị dùng cùng số đã xuất / BOM với lộ trình. Chỉ phiếu đã ghi sổ."""
+    order_ids = [row.order.pk for row in rows if getattr(row.order, 'pk', None)]
+    if not order_ids:
+        return
+    issued = _posted_npl_issued_qty(order_ids)
+    for row in rows:
+        needs = _npl_need_payload(row.order, issued.get(row.order.pk))
+        row.npl_cover_rows = needs
+        row.npl_cover_total = len(needs)
+        row.npl_cover_ready = sum(1 for item in needs if (item.get('short') or '') == '0')
+        row.npl_cover_short = row.npl_cover_total - row.npl_cover_ready
 
 
 def _fill_stage_progress(rows: list[PlanBoardRow]) -> None:
@@ -4040,6 +4059,9 @@ class RouteStageRow:
     npl_title: str = ''
     npl_range: str = ''
     npl_status: str = ''
+    npl_dept: str = ''
+    npl_ready: int = 0
+    npl_total: int = 0
 
 
 @dataclass
@@ -4622,21 +4644,160 @@ def _posted_npl_issue_dates(order_ids: list[int]) -> dict[int, dict[int, date]]:
     return out
 
 
-def _npl_need_payload(order) -> list[dict]:
-    """Nhu cầu NPL của đơn để mở khi bấm ô chuẩn bị trên lộ trình."""
+def _posted_npl_issued_qty(order_ids: list[int]) -> dict[int, dict[str, Decimal]]:
+    """Tổng SL đã xuất kho (ĐVT lẻ) theo đơn và mã NPL."""
+    from kho_npl.choices import DOC_STATUS_POSTED
+    from kho_npl.models import StockIssue, StockIssueLine
+    from kho_npl.stock_domain import STOCK_DOMAIN_NPL
+
+    from san_xuat.hub_models import SxMaterialIssueRequest
+
+    ids = [int(x) for x in order_ids if x]
+    if not ids:
+        return {}
+    issue_order: dict[int, int] = {}
+    posted = StockIssue.objects.filter(
+        status=DOC_STATUS_POSTED,
+        stock_domain=STOCK_DOMAIN_NPL,
+        sales_order_id__in=ids,
+    )
+    for issue_id, order_id in posted.values_list('pk', 'sales_order_id'):
+        issue_order[int(issue_id)] = int(order_id)
+
+    ycx = SxMaterialIssueRequest.objects.filter(
+        is_demo=False,
+        production_order__sales_order_id__in=ids,
+    )
+    for order_id, issue_id in ycx.filter(stock_issue__status=DOC_STATUS_POSTED).values_list(
+        'production_order__sales_order_id', 'stock_issue_id',
+    ):
+        if issue_id:
+            issue_order[int(issue_id)] = int(order_id)
+    for order_id, issue_id in ycx.filter(stock_issues__status=DOC_STATUS_POSTED).values_list(
+        'production_order__sales_order_id', 'stock_issues__pk',
+    ):
+        if issue_id:
+            issue_order[int(issue_id)] = int(order_id)
+    if not issue_order:
+        return {}
+
+    totals: dict[int, dict[str, Decimal]] = {}
+    lines = StockIssueLine.objects.filter(issue_id__in=list(issue_order)).values_list(
+        'issue_id', 'material__code', 'qty_base', 'quantity',
+    )
+    for issue_id, code, qty_base, quantity in lines:
+        order_id = issue_order.get(int(issue_id))
+        key = (code or '').strip().casefold()
+        if not order_id or not key:
+            continue
+        amount = Decimal(qty_base or 0)
+        if amount <= 0:
+            amount = Decimal(quantity or 0)
+        bucket = totals.setdefault(order_id, {})
+        bucket[key] = bucket.get(key, Decimal('0')) + amount
+    return totals
+
+
+def _bom_need_rows(order) -> list[dict]:
+    """Nhu cầu NPL của đơn theo BOM, gộp theo mã."""
+    from san_xuat.services.bom_need import explode_for_sales_line
+
     if not getattr(order, 'pk', None):
         return []
+    needed: dict[str, dict] = {}
+    keys: list[str] = []
+    for line in order.lines.all():
+        if (line.qty or 0) <= 0:
+            continue
+        for need in explode_for_sales_line(line):
+            code = (need.material_code or '').strip()
+            if not code or need.qty_total <= 0:
+                continue
+            key = code.casefold()
+            row = needed.get(key)
+            if row is None:
+                needed[key] = {
+                    'code': code,
+                    'name': (need.material_name or code).strip(),
+                    'unit': (need.unit or '').strip(),
+                    'qty': need.qty_total,
+                }
+                keys.append(key)
+                continue
+            row['qty'] += need.qty_total
+            if not row['name']:
+                row['name'] = (need.material_name or code).strip()
+            if not row['unit']:
+                row['unit'] = (need.unit or '').strip()
+    return [needed[key] for key in keys]
+
+
+def _npl_need_payload(order, issued_by_code: dict[str, Decimal] | None = None) -> list[dict]:
+    """Nhu cầu BOM đối chiếu SL đã xuất kho, để xem đơn đã đủ NPL chưa."""
+    issued = issued_by_code or {}
     payload = []
-    for ln in order.npl_lines.all():
+    for row in _bom_need_rows(order):
+        done = issued.get(row['code'].casefold(), Decimal('0'))
+        short = row['qty'] - done
+        if short < 0:
+            short = Decimal('0')
         payload.append({
-            'code': (ln.material_code or '').strip(),
-            'name': (ln.material_name or '').strip(),
-            'unit': (ln.unit or '').strip(),
-            'qty': format_sx_num_input(ln.qty_required),
-            'stock': format_sx_num_input(ln.qty_available),
-            'short': format_sx_num_input(ln.qty_shortfall),
+            'code': row['code'],
+            'name': row['name'],
+            'unit': row['unit'],
+            'qty': format_sx_num(row['qty']),
+            'issued': format_sx_num(done),
+            'short': format_sx_num(short),
+            'department': '',
+            'image_url': '',
         })
+    _stamp_npl_departments(payload)
     return payload
+
+
+def _stamp_npl_departments(payload: list[dict]) -> None:
+    """Gắn bộ phận trên mã NPL của đơn — cột lộ trình gom theo tên này."""
+    from django.db.models.functions import Lower
+
+    from kho_npl.material_department import normalize_material_department
+    from kho_npl.models import Material
+
+    codes = [(row.get('code') or '').strip().casefold() for row in payload]
+    codes = [code for code in codes if code]
+    if not codes:
+        return
+    found: dict[str, str] = {}
+    images: dict[str, str] = {}
+    materials = Material.objects.annotate(code_key=Lower('code')).filter(code_key__in=codes)
+    for material in materials:
+        key = material.code.casefold()
+        found[key] = normalize_material_department(material.department)
+        try:
+            images[key] = material.image.url if material.image else ''
+        except (ValueError, OSError):
+            images[key] = ''
+    for row in payload:
+        key = (row.get('code') or '').strip().casefold()
+        row['department'] = found.get(key, '')
+        row['image_url'] = images.get(key, '')
+
+
+def _fill_stage_npl_counts(stage_rows: list[RouteStageRow], needs: list[dict]) -> None:
+    """Số mã đã xuất đủ / tổng mã NPL của bộ phận trên từng hàng tổ."""
+    from kho_npl.material_department import normalize_material_department
+
+    buckets: dict[str, list[dict]] = {}
+    for item in needs:
+        key = (item.get('department') or '').strip().casefold()
+        if not key:
+            continue
+        buckets.setdefault(key, []).append(item)
+    for stage in stage_rows:
+        label = normalize_material_department(stage.label) or (stage.label or '').strip()
+        rows = buckets.get(label.casefold(), [])
+        stage.npl_dept = label
+        stage.npl_total = len(rows)
+        stage.npl_ready = sum(1 for row in rows if (row.get('short') or '') == '0')
 
 
 def _format_npl_span(dates: list[date]) -> str:
@@ -4649,6 +4810,48 @@ def _format_npl_span(dates: list[date]) -> str:
     return f'{start}–{end}'
 
 
+def _dept_issue_aliases(order) -> dict[str, set[int]]:
+    """Slug bộ phận → tổ trên bước kế hoạch.
+
+    Cột Bộ phận lấy tổ này. Lịch có thể giao cho tổ khác; phiếu xuất chọn tên
+    bộ phận vẫn thuộc cùng slug.
+    """
+    steps = getattr(order, 'plan_steps', None)
+    if steps is None:
+        return {}
+    found: dict[str, set[int]] = {}
+    for step in steps.all():
+        wc_id = int(getattr(step, 'work_center_id', 0) or 0)
+        slug = _plan_step_team_slug(step)
+        if not wc_id or not slug:
+            continue
+        found.setdefault(slug, set()).add(wc_id)
+    return found
+
+
+def _issue_date_for_stage(
+    stage: RouteStageRow,
+    issue_by_wc: dict[int, date],
+    dept_wcs: dict[str, set[int]],
+    stage_wcs: set[int],
+) -> date | None:
+    """Ngày xuất của hàng: tổ đang xếp, hoặc bộ phận kế hoạch khi lịch đã đổi tổ."""
+    found: list[date] = []
+    wc_id = int(stage.work_center_id or 0)
+    if wc_id and wc_id in issue_by_wc:
+        found.append(issue_by_wc[wc_id])
+    slug = (stage.slug or '').strip().lower()
+    for alias in dept_wcs.get(slug, ()):
+        if alias in stage_wcs:
+            continue
+        hit = issue_by_wc.get(alias)
+        if hit is not None:
+            found.append(hit)
+    if not found:
+        return None
+    return max(found)
+
+
 def _attach_npl_prep(
     stage_rows: list[RouteStageRow],
     *,
@@ -4656,16 +4859,19 @@ def _attach_npl_prep(
     issue_by_wc: dict[int, date],
     pattern: str,
     holidays: set[date],
+    dept_wcs: dict[str, set[int]] | None = None,
 ) -> list[RouteStageRow]:
     """Gắn thời gian chuẩn bị NPL lên đúng hàng công đoạn. Không thêm hàng, không đổi ngày sản xuất."""
     if kit_days <= 0:
         return stage_rows
+    aliases = dept_wcs or {}
+    stage_wcs = {int(row.work_center_id or 0) for row in stage_rows}
+    stage_wcs.discard(0)
     for stage in stage_rows:
         anchor = stage.schedule_start or stage.first_date
         if anchor is None:
             continue
-        wc_id = int(stage.work_center_id or 0)
-        issue_date = issue_by_wc.get(wc_id) if wc_id else None
+        issue_date = _issue_date_for_stage(stage, issue_by_wc, aliases, stage_wcs)
         dates, issued, late = npl_prep_window_dates(
             stage_start=anchor,
             kit_days=kit_days,
@@ -4694,17 +4900,6 @@ def _attach_npl_prep(
             stage.npl_title = (
                 f'Chuẩn bị NPL · {int(kit_days)} ngày làm việc · chưa xuất'
             )
-        by_date = {cell.date: cell for cell in stage.cells}
-        visible = [day for day in dates if day in by_date]
-        free = [day for day in visible if not getattr(by_date[day], 'bar', None)]
-        picked = (free or visible)[-1] if (free or visible) else None
-        if picked is not None:
-            cell = by_date[picked]
-            cell.npl_prep = True
-            cell.npl_issued = issued
-            cell.npl_late = late
-            cell.npl_title = stage.npl_title
-            cell.npl_label = 'NPL'
     return stage_rows
 
 
@@ -5635,6 +5830,7 @@ def build_order_timeline(
 
     order_ids = [r.order.pk for r in plan_rows]
     issues_by_order = _posted_npl_issue_dates(order_ids)
+    issued_qty_by_order = _posted_npl_issued_qty(order_ids)
     span_starts = [
         ts.start
         for r in plan_rows
@@ -5933,7 +6129,12 @@ def build_order_timeline(
             issue_by_wc=issues_by_order.get(int(r.order.pk), {}),
             pattern=prep_pattern,
             holidays=prep_holidays,
+            dept_wcs=_dept_issue_aliases(r.order),
         )
+        npl_needs = _npl_need_payload(
+            r.order, issued_qty_by_order.get(int(r.order.pk), {}),
+        )
+        _fill_stage_npl_counts(stage_rows, npl_needs)
         rows.append(PlanTimelineRow(
             order=r.order,
             start=bar_start,
@@ -5967,7 +6168,7 @@ def build_order_timeline(
             color_label=color_label,
             qty_label=qty_label,
             stage_rows=stage_rows,
-            npl_needs=_npl_need_payload(r.order),
+            npl_needs=npl_needs,
             npl_script_id=f'jp-npl-need-{r.order.pk}',
         ))
 

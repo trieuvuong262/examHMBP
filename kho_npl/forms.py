@@ -998,15 +998,13 @@ class StockIssueForm(DocAttachmentsFormMixin, forms.ModelForm):
             widget=forms.Select(attrs={'class': 'form-select', 'data-jp-issue-type': '1'}),
             error_messages={'required': 'Vui lòng chọn lý do xuất.'},
         )
-        from django.db.models import Case, When
-
         from kho_npl.services.issue_route import (
             _order_product,
-            route_teams_for_order,
+            bom_departments_for_order,
             sales_order_option_text,
             sales_order_search_row,
         )
-        from san_xuat.hub_models import SxSalesOrder, SxWorkCenter
+        from san_xuat.hub_models import SxSalesOrder
         from san_xuat.services.products import product_gallery_map
 
         order_id = self._selected_pk('sales_order')
@@ -1025,24 +1023,27 @@ class StockIssueForm(DocAttachmentsFormMixin, forms.ModelForm):
         self.fields['sales_order'].empty_label = None
         self.fields['sales_order'].required = False
 
-        teams = route_teams_for_order(order)
-        labels = {int(row['id']): row['text'] for row in teams}
-        team_ids = list(labels)
-        posted_team = self._selected_pk('work_center')
-        if posted_team and posted_team not in labels:
-            team_ids.append(posted_team)
-        if team_ids:
-            preserved = Case(*[When(pk=pk, then=pos) for pos, pk in enumerate(team_ids)])
-            self.fields['work_center'].queryset = SxWorkCenter.objects.filter(
-                pk__in=team_ids,
-            ).order_by(preserved)
-        else:
-            self.fields['work_center'].queryset = SxWorkCenter.objects.none()
-        self.fields['work_center'].label_from_instance = (
-            lambda wc, names=labels: names.get(wc.pk, (wc.team_label or wc.name or wc.code))
+        departments = bom_departments_for_order(order)
+        current = ''
+        if self.is_bound:
+            current = (self.data.get(self.add_prefix('bom_department')) or '').strip()
+        elif self.instance.pk:
+            current = (self.instance.recipient_department or '').strip()
+        chosen = next(
+            (row['id'] for row in departments if row['id'].casefold() == current.casefold()),
+            '',
         )
-        self.fields['work_center'].empty_label = 'Chọn tổ'
-        self.fields['work_center'].required = False
+        self.fields.pop('work_center', None)
+        self.fields['bom_department'] = forms.ChoiceField(
+            choices=[('', 'Chọn bộ phận')] + [(row['id'], row['text']) for row in departments],
+            required=False,
+            initial=chosen,
+            label='Bộ phận của BOM trên đơn đặt hàng',
+            widget=forms.Select(attrs=ISSUE_ROUTE_TEAM_SELECT),
+            error_messages={
+                'invalid_choice': 'Bộ phận không có trên BOM của đơn đã chọn.',
+            },
+        )
 
     @property
     def is_production_issue(self) -> bool:
@@ -1078,16 +1079,15 @@ class StockIssueForm(DocAttachmentsFormMixin, forms.ModelForm):
             return cleaned
         if cleaned.get('issue_type') != ISSUE_TYPE_PRODUCTION:
             cleaned['sales_order'] = None
-            cleaned['work_center'] = None
+            cleaned['bom_department'] = ''
             self._errors.pop('sales_order', None)
-            self._errors.pop('work_center', None)
+            self._errors.pop('bom_department', None)
             return cleaned
+        from kho_npl.services.issue_route import bom_departments_for_order
         from san_xuat.hub_models import SxSalesOrder
 
-        from kho_npl.services.issue_route import route_teams_for_order
-
         order = cleaned.get('sales_order')
-        team = cleaned.get('work_center')
+        department = (cleaned.get('bom_department') or '').strip()
         if order is None:
             self.add_error('sales_order', 'Chọn đơn hàng trên lộ trình.')
         elif (
@@ -1097,12 +1097,11 @@ class StockIssueForm(DocAttachmentsFormMixin, forms.ModelForm):
         ):
             self.add_error('sales_order', 'Đơn này không còn trên lộ trình.')
             order = None
-        if team is None:
-            self.add_error('work_center', 'Chọn tổ trên lộ trình của đơn.')
-        elif order is not None:
-            allowed = {int(row['id']) for row in route_teams_for_order(order)}
-            if team.pk not in allowed:
-                self.add_error('work_center', 'Tổ không thuộc lộ trình của đơn đã chọn.')
+        allowed = {row['id'].casefold() for row in bom_departments_for_order(order)} if order else set()
+        if not department:
+            self.add_error('bom_department', 'Chọn bộ phận của BOM trên đơn đặt hàng.')
+        elif department.casefold() not in allowed:
+            self.add_error('bom_department', 'Bộ phận không có trên BOM của đơn đã chọn.')
         return cleaned
 
     def clean_recipient_name(self):
@@ -1124,10 +1123,14 @@ class StockIssueForm(DocAttachmentsFormMixin, forms.ModelForm):
             if instance.issue_type != ISSUE_TYPE_PRODUCTION:
                 stamp_route_link(instance, sales_order=None, work_center=None, unlink=True)
             else:
+                from kho_npl.services.issue_route import work_center_for_bom_department
+
+                department = (self.cleaned_data.get('bom_department') or '').strip()
                 stamp_route_link(
                     instance,
                     sales_order=instance.sales_order,
-                    work_center=instance.work_center,
+                    work_center=work_center_for_bom_department(instance.sales_order, department),
+                    recipient_department=department,
                 )
         if commit:
             instance.save()

@@ -4068,6 +4068,23 @@ def dispatch_mo_detail(request, pk: int):
         bom_lines = needs_as_display_dicts(explode_for_mo(mo))
     except Exception:
         bom_lines = []
+    from san_xuat.services.dispatch import order_npl_issue_rows
+    from san_xuat.services.plan_board import _bom_need_rows, _posted_npl_issued_qty
+
+    issued_by: dict[str, Decimal] = {}
+    order_need: dict[str, Decimal] = {}
+    if mo.sales_order_id:
+        issued_by = _posted_npl_issued_qty([mo.sales_order_id]).get(mo.sales_order_id, {})
+        for need in _bom_need_rows(mo.sales_order):
+            order_need[need['code'].casefold()] = need['qty']
+    for bl in bom_lines:
+        key = (bl.get('material_code') or '').strip().casefold()
+        issued = issued_by.get(key, Decimal('0'))
+        need_qty = order_need.get(key, bl.get('qty_total') or Decimal('0'))
+        short = need_qty - issued
+        bl['qty_issued'] = issued
+        bl['qty_short'] = short if short > 0 else Decimal('0')
+    npl_issues = order_npl_issue_rows(mo.sales_order) if mo.sales_order_id else []
 
     ob_lines = []
     ob_total_smv = Decimal('0')
@@ -4196,6 +4213,7 @@ def dispatch_mo_detail(request, pk: int):
         'update_form': update_form,
         'can_update': can_update,
         'ycx_list': ycx_list,
+        'npl_issues': npl_issues,
         'qc_flow_checks': qc_flow_checks,
         'open_qc_alerts': open_qc_alerts,
         'fg_receipt_list': fg_receipt_list,
@@ -4415,6 +4433,7 @@ def _ycx_material_display(codes) -> dict[str, dict]:
     """Theo mã NPL (casefold): material, tên, ảnh, tồn kho, các ĐVT quy đổi (hệ số về ĐVT lẻ)."""
     from django.db.models.functions import Lower
 
+    from kho_npl.material_department import normalize_material_department
     from kho_npl.models import Material
     from kho_npl.services.stock import material_total_qty
     from kho_npl.services.uom import UomConversionError, material_units
@@ -4444,6 +4463,7 @@ def _ycx_material_display(codes) -> dict[str, dict]:
         info[mat._code_l] = {
             'material': mat,
             'name': mat.name or mat.code,
+            'department': normalize_material_department(mat.department),
             'image_url': image_url,
             'units': units,
             'stock': material_total_qty(mat),
@@ -4455,6 +4475,7 @@ def _ycx_display_or_default(display: dict, code: str, *, name: str = '', unit: s
     item = dict(display.get((code or '').strip().casefold()) or {})
     item.setdefault('material', None)
     item.setdefault('image_url', '')
+    item.setdefault('department', '')
     item.setdefault('stock', Decimal('0'))
     if not item.get('name'):
         item['name'] = name or code
@@ -4478,19 +4499,24 @@ def _ycx_pool_material_info(pool) -> dict[str, dict]:
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def dispatch_mo_ycx_create(request, pk: int):
-    """Tạo YCX cho một tổ/bộ phận: chọn NPL + SL từ phần nhu cầu BOM chưa giao."""
-    from san_xuat.services.dispatch import ycx_remaining_pool, ycx_team_choices
+    """Tạo phiếu xuất cho một bộ phận trên lộ trình, từ BOM của đơn."""
+    from san_xuat.services.dispatch import order_bom_pool, order_npl_issue_rows
 
-    mo = get_object_or_404(SxProductionOrder, pk=pk)
+    mo = get_object_or_404(
+        SxProductionOrder.objects.select_related('sales_order'),
+        pk=pk,
+    )
     if mo.status not in (SxProductionOrder.STATUS_RELEASED, SxProductionOrder.STATUS_IN_PROGRESS):
         messages.error(request, 'Chỉ tạo yêu cầu xuất khi lệnh đã phát hành hoặc đang sản xuất.')
         return redirect('san_xuat:dispatch_mo_detail', pk=mo.pk)
 
-    teams = ycx_team_choices(mo)
-    pool = ycx_remaining_pool(mo)
+    from kho_npl.services.issue_route import bom_departments_for_order
+
+    departments = bom_departments_for_order(mo.sales_order) if mo.sales_order_id else []
+    pool = order_bom_pool(mo)
     pool_info = _ycx_pool_material_info(pool)
     team_raw = (request.POST.get('work_center') if request.method == 'POST' else request.GET.get('team')) or ''
-    selected_team_id = int(team_raw) if team_raw.strip().isdigit() else None
+    selected_department = team_raw.strip()
     notes = (request.POST.get('notes') or '').strip() if request.method == 'POST' else ''
     posted_qty: dict[str, str] = {}
     posted_unit: dict[str, str] = {}
@@ -4510,8 +4536,11 @@ def dispatch_mo_ycx_create(request, pk: int):
             posted_unit[key] = (request.POST.get(f'unit_{idx}') or '').strip()
             if not request.POST.get(f'pick_{idx}'):
                 continue
-            posted_pick.add(key)
             info = pool_info[key]
+            if by_key[key].qty_remaining <= 0:
+                errors.append(f'{info["name"]} đã xuất đủ, không chọn lại.')
+                continue
+            posted_pick.add(key)
             qty = _ycx_parse_qty(raw_qty)
             if qty is None or qty < 0:
                 errors.append(f'SL không hợp lệ: {info["name"]}')
@@ -4520,7 +4549,11 @@ def dispatch_mo_ycx_create(request, pk: int):
             qty_base = (qty * unit['factor']).quantize(Decimal('0.001'))
             remaining = by_key[key].qty_remaining.quantize(Decimal('0.001'))
             # SL nhập theo ĐVT lớn bị làm tròn 3 số lẻ — cho phép lệch trong 1 đơn vị làm tròn.
-            if unit['factor'] != 1 and abs(qty_base - remaining) <= unit['factor'] * Decimal('0.001'):
+            if (
+                unit['factor'] != 1
+                and qty_base <= remaining
+                and abs(qty_base - remaining) <= unit['factor'] * Decimal('0.001')
+            ):
                 qty_base = remaining
             selections[key] = qty_base
             if unit['id'].isdigit():
@@ -4528,26 +4561,28 @@ def dispatch_mo_ycx_create(request, pk: int):
         if errors:
             for err in errors:
                 messages.error(request, err)
-        elif not selected_team_id:
-            messages.error(request, 'Chọn Tổ / bộ phận nhận.')
+        elif not selected_department:
+            messages.error(request, 'Chọn bộ phận của BOM trên đơn đặt hàng.')
         else:
             from san_xuat.services.dispatch import create_team_stock_issue
 
             try:
                 res = create_team_stock_issue(
                     production_order_id=mo.pk,
-                    work_center_id=selected_team_id,
                     selections=selections,
                     units=chosen_units,
                     user=request.user,
                     notes=notes,
+                    allow_over=True,
+                    use_route_department=True,
+                    bom_department=selected_department,
                 )
             except DispatchError as exc:
                 messages.error(request, str(exc))
             else:
                 messages.success(
                     request,
-                    f'Đã chuyển phiếu xuất {res.stock_issue.number} ({res.request.work_center.name}) '
+                    f'Đã chuyển phiếu xuất {res.stock_issue.number} ({res.stock_issue.recipient_department}) '
                     'sang Kho NPL để xuất.',
                 )
                 return redirect('san_xuat:dispatch_mo_ycx_create', pk=mo.pk)
@@ -4575,23 +4610,16 @@ def dispatch_mo_ycx_create(request, pk: int):
             'selected_unit': selected_unit,
         })
 
-    ycx_list = list(
-        mo.material_issue_requests.filter(is_demo=False)
-        .exclude(status='cancelled')
-        .select_related('work_center')
-        .prefetch_related('lines', 'stock_issues__lines')
-        .order_by('pk')
-    )
     return render(request, 'san_xuat/dispatch_mo_ycx_create.html', {
         **_perm_ctx(request),
         'page_title': f'Tạo yêu cầu xuất VT — {mo.code}',
         'mo': mo,
-        'teams': teams,
-        'selected_team_id': selected_team_id,
+        'departments': departments,
+        'selected_department': selected_department,
         'rows': rows,
-        'has_remaining': any(r['remaining'] > 0 for r in rows),
+        'can_submit': bool(departments and rows),
         'notes': notes,
-        'ycx_list': ycx_list,
+        'npl_issues': order_npl_issue_rows(mo.sales_order),
     })
 
 

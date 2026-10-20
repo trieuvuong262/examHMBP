@@ -72,9 +72,9 @@
                         {% if form.sales_order.errors %}<div class="text-danger small">{{ form.sales_order.errors }}</div>{% endif %}
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label fw-bold small" for="{{ form.work_center.id_for_label }}">Tổ trên lộ trình <span class="text-danger">*</span></label>
-                        {{ form.work_center }}
-                        {% if form.work_center.errors %}<div class="text-danger small">{{ form.work_center.errors }}</div>{% endif %}
+                        <label class="form-label fw-bold small" for="{{ form.bom_department.id_for_label }}">Bộ phận của BOM trên đơn đặt hàng <span class="text-danger">*</span></label>
+                        {{ form.bom_department }}
+                        {% if form.bom_department.errors %}<div class="text-danger small">{{ form.bom_department.errors }}</div>{% endif %}
                     </div>
                 </div>
                 {% endif %}

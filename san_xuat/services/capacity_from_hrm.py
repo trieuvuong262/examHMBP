@@ -151,7 +151,6 @@ def resolve_work_center_code(code: str | None, *, name_hint: str = '') -> SxWork
     if not raw and not hint:
         return None
 
-    # Chuẩn hoá nhãn IE (2 tổ May → MAY) trước khi resolve.
     raw = normalize_ie_group_department_label(raw) or raw
 
     memo = _wc_resolve_memo()
@@ -596,69 +595,29 @@ def hr_divisions_for_ie_groups():
     )
 
 
-# Dropdown nhóm công đoạn: gộp 2 tổ May theo nhà máy → 1 nhãn dùng chung.
-IE_GROUP_MAY_MERGED_LABEL = 'MAY'
+# Hai bộ phận may theo nhà máy giữ nguyên tên, không gộp thành MAY.
 IE_GROUP_MAY_SOURCE_LABELS = (
     'MAY (152A VĨNH LỘC)',
     'MAY (19 CHIẾN LƯỢC)',
-    'MAY (SẢN XUẤT)',  # nhãn gộp cũ
 )
 
 
-def _is_merged_may_division_label(label: str) -> bool:
-    """True nếu là 1 trong 2 tổ May theo nhà máy (cần gộp)."""
-    folded = _fold(label)
-    if not folded.startswith('may'):
-        return False
-    sources = {_fold(x) for x in IE_GROUP_MAY_SOURCE_LABELS}
-    if folded in sources:
-        return True
-    # Khớp mềm: MAY … 152… / MAY … 19 … chiến lược
-    if '152' in folded and 'vinh loc' in folded:
-        return True
-    if '19' in folded and 'chien luoc' in folded:
-        return True
-    return False
-
-
 def normalize_ie_group_department_label(label: str) -> str:
-    """Chuẩn hoá nhãn lưu/hiển thị — 2 tổ May / nhãn cũ → MAY."""
-    raw = (label or '').strip()
-    if not raw:
-        return ''
-    if _is_merged_may_division_label(raw):
-        return IE_GROUP_MAY_MERGED_LABEL
-    folded = _fold(raw)
-    if folded in {_fold(IE_GROUP_MAY_MERGED_LABEL), 'may (san xuat)', 'may san xuat'}:
-        return IE_GROUP_MAY_MERGED_LABEL
-    return raw
+    """Giữ nguyên tên bộ phận. MAY (152A VĨNH LỘC) và MAY (19 CHIẾN LƯỢC) không đổi thành MAY."""
+    return (label or '').strip()
 
 
 def ie_group_department_options() -> list[dict]:
-    """Options dropdown Tên bộ phận (đã gộp 2 May → MAY)."""
+    """Options dropdown Tên bộ phận theo bộ phận Nhân sự."""
     options: list[dict] = []
-    may_added = False
     for div in hr_divisions_for_ie_groups():
-        dept_name = div.department.name if div.department_id else ''
-        if _is_merged_may_division_label(div.name):
-            if may_added:
-                continue
-            may_added = True
-            # Nhãn đã chứa tên phòng — không gắn thêm (SẢN XUẤT) phía sau.
-            options.append({
-                'name': IE_GROUP_MAY_MERGED_LABEL,
-                'department_name': '',
-            })
+        name = (div.name or '').strip()
+        if not name:
             continue
+        dept_name = div.department.name if div.department_id else ''
         options.append({
-            'name': div.name,
-            'department_name': dept_name,
-        })
-    if not may_added:
-        # Vẫn hiện option May dù HR chưa có 2 tổ (fix cứng theo yêu cầu UI).
-        options.insert(0, {
-            'name': IE_GROUP_MAY_MERGED_LABEL,
-            'department_name': '',
+            'name': name,
+            'department_name': (dept_name or '').strip(),
         })
     return options
 
@@ -684,7 +643,7 @@ def is_ie_group_department_label_allowed(
     if not label:
         return False
     allowed = {n.casefold() for n in ie_group_department_label_choices()}
-    # Cho phép nhãn cũ đúng 2 tổ May (trước khi chuẩn hoá lưu lại).
+    allowed.add('may')
     allowed.update(_fold(x) for x in IE_GROUP_MAY_SOURCE_LABELS)
     if allow_existing.strip():
         allowed.add(normalize_ie_group_department_label(allow_existing).casefold())

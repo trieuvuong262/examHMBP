@@ -24,6 +24,7 @@
           <col class="c-product">
           <col class="c-dept">
           <col class="c-team">
+          <col class="c-npl">
           {% for d in route_board.days %}
           <col class="jp-sheet-day{% if d.is_off %} is-off{% endif %}">
           {% endfor %}
@@ -35,6 +36,7 @@
             <th class="c-product">Thông tin sản phẩm</th>
             <th class="c-dept">Bộ phận</th>
             <th class="c-team">Tổ</th>
+            <th class="c-npl" title="Số mã NPL đã xuất đủ / tổng mã của bộ phận này trên đơn">NPL</th>
             {% for d in route_board.days %}
             <th class="jp-sheet-day{% if d.is_today %} is-today{% endif %}{% if d.is_off %} is-off{% endif %}"
                 data-date="{{ d.date|date:'Y-m-d' }}"
@@ -124,24 +126,30 @@
                   {% endif %}
                 </span>
               </td>
+              <td class="c-npl">
+                {% if stage.npl_total %}
+                <button type="button"
+                        class="jp-npl-col{% if stage.npl_ready == stage.npl_total %} is-done{% else %} is-open{% endif %}"
+                        data-jp-npl-detail
+                        data-npl-script="jp-npl-need-{{ row.order.pk }}"
+                        data-npl-dept="{{ stage.npl_dept }}"
+                        data-npl-heading="{{ stage.label }}{% if stage.team_label %} · {{ stage.team_label }}{% endif %}"
+                        data-npl-product="{{ row.product_name_label|default:row.product_code_label }}"
+                        data-npl-order="{{ row.order.code }}"
+                        data-npl-image="{% if row.product_images %}{{ row.product_images.0.url }}{% endif %}"
+                        data-npl-meta="Đã chuẩn bị {{ stage.npl_ready }}/{{ stage.npl_total }} mã"
+                        title="Đã chuẩn bị {{ stage.npl_ready }}/{{ stage.npl_total }} mã · {{ stage.npl_dept }}">{{ stage.npl_ready }}/{{ stage.npl_total }}</button>
+                {% else %}—{% endif %}
+              </td>
               {% for cell in stage.cells %}
-              <td class="jp-sheet-cell{% if cell.is_today %} is-today{% endif %}{% if cell.is_off %} is-off{% endif %}{% if cell.bar %} has-qty{% endif %}{% if cell.npl_prep %} has-npl{% endif %}"
+              <td class="jp-sheet-cell{% if cell.is_today %} is-today{% endif %}{% if cell.is_off %} is-off{% endif %}{% if cell.bar %} has-qty{% endif %}"
                   data-date="{{ cell.date|date:'Y-m-d' }}"
                   data-order-id="{{ row.order.pk }}"
                   data-team-slug="{{ stage.slug }}"
                   {% if cell.is_off %}data-off="1"{% endif %}>
-                {% if cell.npl_prep and not cell.bar %}
-                <button type="button"
-                        class="jp-sheet-npl{% if cell.npl_issued %} is-done{% endif %}{% if cell.npl_late %} is-late{% endif %}"
-                        data-jp-npl-detail
-                        data-npl-script="jp-npl-need-{{ row.order.pk }}"
-                        data-npl-heading="{{ stage.label }}{% if stage.team_label %} · {{ stage.team_label }}{% endif %}"
-                        data-npl-meta="{{ stage.npl_range }} · {{ stage.npl_status }}"
-                        title="{{ cell.npl_title }} · Bấm để xem nguyên phụ liệu">{{ cell.npl_label }}</button>
-                {% endif %}
                 {% if cell.bar %}{% if not cell.is_off or cell.bar.done_qty_label != '0' %}
                 <button type="button"
-                        class="jp-sheet-qty jp-stage-{{ cell.bar.slug }}{% if row.is_late %} is-late{% endif %}{% if can_schedule and cell.bar.can_drag %} is-draggable{% endif %}{% if cell.bar.gc_hired %} is-gc{% endif %}{% if cell.bar.qty_label == '0' and cell.bar.done_qty_label != '0' %} is-actual{% endif %}{% if cell.npl_prep %} has-npl-mark{% if cell.npl_late %} is-npl-late{% elif cell.npl_issued %} is-npl-done{% else %} is-npl-open{% endif %}{% endif %}"
+                        class="jp-sheet-qty jp-stage-{{ cell.bar.slug }}{% if row.is_late %} is-late{% endif %}{% if can_schedule and cell.bar.can_drag %} is-draggable{% endif %}{% if cell.bar.gc_hired %} is-gc{% endif %}{% if cell.bar.qty_label == '0' and cell.bar.done_qty_label != '0' %} is-actual{% endif %}"
                         draggable="false"
                         oncontextmenu="event.preventDefault(); event.stopPropagation(); if (window.jpShowRouteCtx) window.jpShowRouteCtx(event); return false;"
                         data-jp-team-drag
@@ -162,7 +170,7 @@
                         data-can-drag="{% if can_schedule and cell.bar.can_drag %}1{% else %}0{% endif %}"
                         data-can-split="{% if can_schedule and cell.bar.slug and cell.bar.slug != 'npl' %}1{% else %}0{% endif %}"
                         data-work-center-id="{% if cell.bar.work_center_id %}{{ cell.bar.work_center_id }}{% endif %}"
-                        title="{{ cell.bar.label }} · {{ row.order.code }} · dự kiến {{ cell.bar.qty_label|default:'0' }} · đã làm {{ cell.bar.done_qty_label }} (phiếu tổ){% if cell.npl_prep %} · {{ cell.npl_title }}{% endif %}{% if cell.bar.gc_hired %} · {{ cell.bar.gc_title }}{% endif %}{% if can_schedule and cell.bar.can_drag %} · Kéo sang ngày khác{% endif %}">
+                        title="{{ cell.bar.label }} · {{ row.order.code }} · dự kiến {{ cell.bar.qty_label|default:'0' }} · đã làm {{ cell.bar.done_qty_label }} (phiếu tổ){% if cell.bar.gc_hired %} · {{ cell.bar.gc_title }}{% endif %}{% if can_schedule and cell.bar.can_drag %} · Kéo sang ngày khác{% endif %}">
                   <span class="jp-sheet-plan">{{ cell.bar.qty_label|default:"—" }}</span>
                   <span class="jp-sheet-done">{{ cell.bar.done_qty_label|default:"0" }}</span>
                 </button>
@@ -186,6 +194,7 @@
               </td>
               <td class="c-dept">—</td>
               <td class="c-team">—</td>
+              <td class="c-npl">—</td>
               {% for d in route_board.days %}
               <td class="jp-sheet-cell{% if d.is_off %} is-off{% endif %}" data-date="{{ d.date|date:'Y-m-d' }}" data-order-id="{{ row.order.pk }}"{% if d.is_off %} data-off="1"{% endif %}></td>
               {% endfor %}
@@ -217,27 +226,36 @@
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="jpNplNeedTitle">Chuẩn bị nguyên phụ liệu</h5>
+        <div class="jp-npl-modal-head">
+          <span class="jp-npl-modal-thumb is-empty" id="jpNplNeedThumb" aria-hidden="true"><i class="bi bi-image"></i></span>
+          <div class="jp-npl-modal-id">
+            <div class="jp-npl-modal-titleline">
+              <span class="name" id="jpNplNeedProduct">Nguyên phụ liệu</span>
+              <span class="code" id="jpNplNeedOrder"></span>
+            </div>
+            <div class="jp-npl-modal-sub" id="jpNplNeedTitle"></div>
+          </div>
+        </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
       </div>
       <div class="modal-body">
-        <p class="small text-muted mb-2" id="jpNplNeedMeta"></p>
+        <p class="small text-muted mb-1" id="jpNplNeedMeta"></p>
+        <p class="small fw-semibold mb-2 d-none" id="jpNplNeedSum"></p>
         <div class="table-responsive">
-          <table class="table table-sm mb-0 jp-npl-need-table">
+          <table class="table table-sm align-middle mb-0 jp-npl-need-table">
             <thead>
               <tr>
-                <th>Mã</th>
-                <th>Nguyên phụ liệu</th>
-                <th>ĐVT</th>
+                <th class="text-start">Nguyên phụ liệu</th>
+                <th class="text-start">ĐVT</th>
                 <th class="text-end">Nhu cầu</th>
-                <th class="text-end">Tồn</th>
-                <th class="text-end">Thiếu</th>
+                <th class="text-end">Đã xuất</th>
+                <th class="text-end">Còn thiếu</th>
               </tr>
             </thead>
             <tbody id="jpNplNeedBody"></tbody>
           </table>
         </div>
-        <p class="text-muted small mb-0 d-none" id="jpNplNeedEmpty">Chưa bung nguyên phụ liệu cho đơn này.</p>
+        <p class="text-muted small mb-0 d-none" id="jpNplNeedEmpty">Đơn chưa có NPL trên BOM.</p>
       </div>
     </div>
   </div>
@@ -270,6 +288,39 @@
       sumToggle.setAttribute('aria-expanded', open ? 'false' : 'true');
     });
   });
+  function nplMaterialCell(ln) {
+    var td = document.createElement('td');
+    td.className = 'text-start';
+    var wrap = document.createElement('div');
+    wrap.className = 'jp-npl-modal-material';
+    var thumb = document.createElement('span');
+    thumb.className = 'jp-npl-modal-mthumb';
+    if (ln.image_url) {
+      var img = document.createElement('img');
+      img.src = ln.image_url;
+      img.alt = '';
+      thumb.appendChild(img);
+    } else {
+      thumb.classList.add('is-empty');
+      thumb.innerHTML = '<i class="bi bi-image"></i>';
+    }
+    var text = document.createElement('span');
+    text.className = 'jp-npl-modal-mtext';
+    var name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = ln.name || ln.code || '';
+    text.appendChild(name);
+    if (ln.code && ln.name && ln.name !== ln.code) {
+      var code = document.createElement('span');
+      code.className = 'code';
+      code.textContent = ln.code;
+      text.appendChild(code);
+    }
+    wrap.appendChild(thumb);
+    wrap.appendChild(text);
+    td.appendChild(wrap);
+    return td;
+  }
   root.addEventListener('click', function (ev) {
     var btn = ev.target && ev.target.closest ? ev.target.closest('[data-jp-npl-detail]') : null;
     if (!btn || !root.contains(btn)) return;
@@ -283,24 +334,66 @@
     if (script) {
       try { lines = JSON.parse(script.textContent || '[]'); } catch (err) { lines = []; }
     }
+    var dept = (btn.getAttribute('data-npl-dept') || '').trim().toLowerCase();
+    if (dept) {
+      lines = (lines || []).filter(function (ln) {
+        return String(ln.department || '').trim().toLowerCase() === dept;
+      });
+    }
     var titleEl = document.getElementById('jpNplNeedTitle');
+    var productEl = document.getElementById('jpNplNeedProduct');
+    var orderEl = document.getElementById('jpNplNeedOrder');
+    var thumbEl = document.getElementById('jpNplNeedThumb');
     var metaEl = document.getElementById('jpNplNeedMeta');
     var bodyEl = document.getElementById('jpNplNeedBody');
     var emptyEl = document.getElementById('jpNplNeedEmpty');
-    if (titleEl) titleEl.textContent = 'Chuẩn bị NPL · ' + (btn.getAttribute('data-npl-heading') || '');
+    var sumEl = document.getElementById('jpNplNeedSum');
+    var productName = btn.getAttribute('data-npl-product') || '';
+    var orderCode = btn.getAttribute('data-npl-order') || '';
+    var imageUrl = btn.getAttribute('data-npl-image') || '';
+    if (productEl) productEl.textContent = productName || orderCode || 'Nguyên phụ liệu';
+    if (orderEl) orderEl.textContent = productName ? orderCode : '';
+    if (thumbEl) {
+      thumbEl.replaceChildren();
+      thumbEl.classList.toggle('is-empty', !imageUrl);
+      if (imageUrl) {
+        var photo = document.createElement('img');
+        photo.src = imageUrl;
+        photo.alt = '';
+        thumbEl.appendChild(photo);
+      } else {
+        thumbEl.innerHTML = '<i class="bi bi-image"></i>';
+      }
+    }
+    if (titleEl) titleEl.textContent = btn.getAttribute('data-npl-heading') || '';
     if (metaEl) metaEl.textContent = btn.getAttribute('data-npl-meta') || '';
     if (bodyEl) bodyEl.replaceChildren();
+    var shortCount = 0;
     (lines || []).forEach(function (ln) {
       var tr = document.createElement('tr');
-      if (ln.short && ln.short !== '0') tr.className = 'is-short';
-      ['code', 'name', 'unit', 'qty', 'stock', 'short'].forEach(function (key, index) {
+      var missing = ln.short && ln.short !== '0';
+      if (missing) {
+        tr.className = 'is-short';
+        shortCount += 1;
+      }
+      tr.appendChild(nplMaterialCell(ln));
+      ['unit', 'qty', 'issued', 'short'].forEach(function (key, index) {
         var td = document.createElement('td');
         td.textContent = ln[key] || '';
-        if (index >= 3) td.className = 'text-end';
+        td.className = index === 0 ? 'text-start' : 'text-end';
         tr.appendChild(td);
       });
       bodyEl.appendChild(tr);
     });
+    if (sumEl) {
+      if (lines && lines.length) {
+        sumEl.textContent = shortCount ? ('Còn thiếu ' + shortCount + ' mã') : 'Đã xuất đủ';
+        sumEl.classList.toggle('text-danger', shortCount > 0);
+      } else {
+        sumEl.textContent = '';
+      }
+      sumEl.classList.toggle('d-none', !(lines && lines.length));
+    }
     if (emptyEl) emptyEl.classList.toggle('d-none', !!(lines && lines.length));
     if (bodyEl && bodyEl.parentElement) bodyEl.parentElement.classList.toggle('d-none', !(lines && lines.length));
     bootstrap.Modal.getOrCreateInstance(modalEl).show();

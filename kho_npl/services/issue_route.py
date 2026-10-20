@@ -82,8 +82,71 @@ def search_route_sales_orders(query: str, *, limit: int = 40) -> list[dict]:
     return [sales_order_search_row(order, galleries) for order in orders]
 
 
-def route_teams_for_order(order) -> list[dict]:
-    """Một dòng cho mỗi tổ đang có trên lộ trình của đơn."""
+def _department_key(value: str) -> str:
+    from kho_npl.material_department import normalize_material_department
+
+    text = normalize_material_department(value or '').casefold()
+    return ''.join(ch for ch in text if ch.isalnum())
+
+
+def bom_departments_for_order(order) -> list[dict]:
+    """Bộ phận trên NPL của BOM đơn, mỗi tên một lần, theo thứ tự trong BOM."""
+    from django.db.models.functions import Lower
+
+    from kho_npl.material_department import normalize_material_department
+    from kho_npl.models import Material
+    from san_xuat.services.bom_need import explode_for_sales_line
+
+    if order is None or not getattr(order, 'pk', None):
+        return []
+    codes: list[str] = []
+    seen_codes: set[str] = set()
+    for line in order.lines.all():
+        if (getattr(line, 'qty', 0) or 0) <= 0:
+            continue
+        for need in explode_for_sales_line(line):
+            code = (need.material_code or '').strip()
+            key = code.casefold()
+            if not code or need.qty_total <= 0 or key in seen_codes:
+                continue
+            seen_codes.add(key)
+            codes.append(code)
+    if not codes:
+        return []
+    found: dict[str, str] = {}
+    materials = Material.objects.annotate(code_key=Lower('code')).filter(
+        code_key__in=[code.casefold() for code in codes],
+    )
+    for material in materials:
+        found[material.code.casefold()] = normalize_material_department(material.department)
+    results = []
+    seen_dept: set[str] = set()
+    for code in codes:
+        dept = (found.get(code.casefold()) or '').strip()
+        key = dept.casefold()
+        if not dept or key in seen_dept:
+            continue
+        seen_dept.add(key)
+        results.append({'id': dept, 'text': dept})
+    return results
+
+
+def work_center_for_bom_department(order, department: str):
+    """Tổ trên lộ trình cùng bộ phận BOM, nếu có. Phiếu vẫn lưu tên bộ phận của BOM."""
+    from san_xuat.hub_models import SxWorkCenter
+
+    target = _department_key(department)
+    if not target or order is None:
+        return None
+    for opt in route_departments_for_order(order):
+        if _department_key(opt.get('text') or '') != target:
+            continue
+        return SxWorkCenter.objects.filter(pk=int(opt['id'])).first()
+    return None
+
+
+def route_departments_for_order(order) -> list[dict]:
+    """Một dòng cho mỗi bộ phận trên lộ trình. Không gồm tổ được xếp lịch thêm."""
     if order is None or not getattr(order, 'pk', None):
         return []
     grouped: dict[int, dict] = {}
@@ -94,19 +157,15 @@ def route_teams_for_order(order) -> list[dict]:
         bucket = grouped.setdefault(step.work_center_id, {
             'wc': step.work_center,
             'sequence': step.sequence,
+            'label': '',
         })
         bucket['sequence'] = min(bucket['sequence'], step.sequence)
-    day_rows = order.team_day_plans.select_related('work_center').filter(work_center__isnull=False)
-    for row in day_rows:
-        if row.work_center_id in grouped:
-            continue
-        grouped[row.work_center_id] = {
-            'wc': row.work_center,
-            'sequence': 1000,
-        }
+        frozen = (step.dept_label or '').strip()
+        if frozen and not bucket['label']:
+            bucket['label'] = frozen
     results = []
     for wc_id, bucket in sorted(grouped.items(), key=lambda item: (item[1]['sequence'], item[0])):
-        text = work_center_recipient_label(bucket['wc']) or str(wc_id)
+        text = bucket['label'] or work_center_recipient_label(bucket['wc']) or str(wc_id)
         results.append({'id': str(wc_id), 'text': text})
     return results
 
@@ -161,8 +220,16 @@ def open_production_order(order):
     return mos[0]
 
 
-def stamp_route_link(issue, *, sales_order, work_center, production_order_code=None, unlink=False):
-    """Ghi đơn, tổ và lệnh đang mở lên phiếu. `unlink` xóa liên kết lộ trình."""
+def stamp_route_link(
+    issue,
+    *,
+    sales_order,
+    work_center,
+    production_order_code=None,
+    recipient_department=None,
+    unlink=False,
+):
+    """Ghi đơn, bộ phận BOM và lệnh đang mở lên phiếu. `unlink` xóa liên kết."""
     if unlink:
         issue.sales_order = None
         issue.work_center = None
@@ -183,5 +250,7 @@ def stamp_route_link(issue, *, sales_order, work_center, production_order_code=N
             ).exists()
             production_order_code = existing if belongs else ''
     issue.production_order = (production_order_code or '')[:60]
-    issue.recipient_department = work_center_recipient_label(work_center)
+    if recipient_department is None:
+        recipient_department = work_center_recipient_label(work_center)
+    issue.recipient_department = (recipient_department or '')[:120]
     return issue

@@ -1,7 +1,7 @@
 {% if route_stats and route_stats.stages %}
 <tbody class="jp-route-sum" data-open="0" data-jp-route-sum="both">
   <tr class="jp-route-sum-head">
-    <td class="jp-route-sum-head-cell" colspan="4">
+    <td class="jp-route-sum-head-cell" colspan="5">
       <button type="button" class="jp-route-sum-toggle" data-jp-route-sum-toggle aria-expanded="false">
         <i class="bi bi-chevron-down" aria-hidden="true"></i>
         Thống kê
@@ -20,6 +20,7 @@
       <span class="jp-tl-dept-name">{{ stage.label }}</span>
     </td>
     <td class="c-team jp-route-sum-spacer"></td>
+    <td class="c-npl jp-route-sum-spacer"></td>
     {% for cell in stage.cells %}
     <td class="jp-sheet-cell jp-route-sum-cell{% if cell.is_today %} is-today{% endif %}{% if cell.is_off %} is-off{% endif %}{% if cell.qty or cell.done_qty %} has-qty{% endif %}"
         data-date="{{ cell.date|date:'Y-m-d' }}"

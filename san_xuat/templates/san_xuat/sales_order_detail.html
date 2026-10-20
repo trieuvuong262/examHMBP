@@ -316,6 +316,7 @@
             <tr>
               <th>Sản phẩm</th>
               <th>NPL</th>
+              <th>Bộ phận</th>
               <th class="text-end">ĐM/SP</th>
               <th class="text-end">SL</th>
               <th class="text-end">Nhu cầu</th>
@@ -362,6 +363,7 @@
                   </span>
                 </div>
               </td>
+              <td class="small">{{ need.department|default:"—" }}</td>
               <td class="text-end small">{{ need.qty_per_unit|sx_num }}</td>
               <td class="text-end small text-muted">{{ need.scale_qty|sx_num }}</td>
               <td class="text-end fw-semibold small">{{ need.qty_total|sx_num }}</td>
@@ -384,7 +386,7 @@
                   <span class="jp-so-product-name">{{ ln.product_name|default:"—" }}</span>
                 </div>
               </td>
-              <td colspan="5" class="text-muted small">Chưa chọn BOM hoặc BOM chưa có định mức.</td>
+              <td colspan="6" class="text-muted small">Chưa chọn BOM hoặc BOM chưa có định mức.</td>
             </tr>
             {% endfor %}
           {% endfor %}

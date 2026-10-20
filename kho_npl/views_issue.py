@@ -105,7 +105,7 @@ def sales_order_search(request):
 
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def route_team_options(request):
-    from kho_npl.services.issue_route import open_production_order, route_teams_for_order
+    from kho_npl.services.issue_route import bom_departments_for_order, open_production_order
     from san_xuat.hub_models import SxSalesOrder
 
     raw = (request.GET.get('order') or '').strip()
@@ -121,7 +121,7 @@ def route_team_options(request):
         return JsonResponse({'results': [], 'production_order': ''})
     mo = open_production_order(order)
     return JsonResponse({
-        'results': route_teams_for_order(order),
+        'results': bom_departments_for_order(order),
         'production_order': mo.code if mo else '',
     })
 
