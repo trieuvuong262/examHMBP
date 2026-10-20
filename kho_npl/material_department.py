@@ -12,21 +12,21 @@ CATEGORY_DEPARTMENT_DEFAULTS: dict[str, str] = {
     'giaylot': 'CẮT, TRẢI VẢI',
     'cat-print-tmp': 'CẮT, TRẢI VẢI',
     # May
-    'bo-tay': 'MAY',
-    'bo-co': 'MAY',
-    'dayco': 'MAY',
-    'dayxoquan': 'MAY',
-    'thun': 'MAY',
-    'day-khoa': 'MAY',
-    'day-rut': 'MAY',
-    'nut': 'MAY',
-    'chi-may': 'MAY',
-    'satin': 'MAY',
-    'phulieu-may': 'MAY',
-    'nhansize': 'MAY',
-    'tem-nhan': 'MAY',
-    'thebai': 'MAY',
-    'tagdaybar': 'MAY',
+    'bo-tay': 'MAY (152A VĨNH LỘC)',
+    'bo-co': 'MAY (152A VĨNH LỘC)',
+    'dayco': 'MAY (152A VĨNH LỘC)',
+    'dayxoquan': 'MAY (152A VĨNH LỘC)',
+    'thun': 'MAY (152A VĨNH LỘC)',
+    'day-khoa': 'MAY (152A VĨNH LỘC)',
+    'day-rut': 'MAY (152A VĨNH LỘC)',
+    'nut': 'MAY (152A VĨNH LỘC)',
+    'chi-may': 'MAY (152A VĨNH LỘC)',
+    'satin': 'MAY (152A VĨNH LỘC)',
+    'phulieu-may': 'MAY (152A VĨNH LỘC)',
+    'nhansize': 'MAY (152A VĨNH LỘC)',
+    'tem-nhan': 'MAY (152A VĨNH LỘC)',
+    'thebai': 'MAY (152A VĨNH LỘC)',
+    'tagdaybar': 'MAY (152A VĨNH LỘC)',
     # In ép
     'decal': 'IN ÉP',
     # Gấp xếp / bao bì
@@ -38,10 +38,10 @@ CATEGORY_DEPARTMENT_DEFAULTS: dict[str, str] = {
     'vattu': 'CƠ ĐIỆN',
     'vat-tu': 'CƠ ĐIỆN',
     # Khác
-    'khac': 'MAY',
+    'khac': 'MAY (152A VĨNH LỘC)',
 }
 
-DEFAULT_FALLBACK_DEPARTMENT = 'MAY'
+DEFAULT_FALLBACK_DEPARTMENT = 'MAY (152A VĨNH LỘC)'
 DEFAULT_VAT_TU_DEPARTMENT = 'CƠ ĐIỆN'
 
 
