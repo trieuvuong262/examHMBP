@@ -141,7 +141,15 @@
         {% for row in sheet.rows %}
         <tr>
           <td class="mid">{{ forloop.counter }}</td>
-          <td>{{ row.name }}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:4px">
+              {% if row.image_url %}<img src="{{ row.image_url }}" alt="" width="28" height="28" style="width:28px;height:28px;object-fit:cover;border:1px solid #ccc">{% endif %}
+              <div>
+                <div>{{ row.name }}</div>
+                {% if row.code and row.name and row.code != row.name %}<div style="color:#555;font-size:8pt">{{ row.code }}</div>{% endif %}
+              </div>
+            </div>
+          </td>
           <td>{{ row.spec }}</td>
           <td class="mid">{{ row.unit }}</td>
           <td class="num">{{ row.qty|sx_num }}</td>

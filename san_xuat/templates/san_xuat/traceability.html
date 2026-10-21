@@ -289,7 +289,12 @@
               <tr>
                 <td>{{ b.ycx }}</td>
                 <td>{{ b.issue_number }}</td>
-                <td>{{ b.material_code }} <span class="text-muted small">{{ b.material_name }}</span></td>
+                <td>
+                  <div class="fw-semibold small">{{ b.material_name|default:b.material_code }}</div>
+                  {% if b.material_code and b.material_name and b.material_code != b.material_name %}
+                  <div class="text-muted small">{{ b.material_code }}</div>
+                  {% endif %}
+                </td>
                 <td class="text-end">{{ b.qty|sx_num }}</td>
                 <td>{{ b.location }}</td>
               </tr>

@@ -387,6 +387,7 @@ def print_po(request, pk: int):
         total_amount += amount
         rows.append({
             'name': ln.material_name or (mat.name if mat else ln.material_code),
+            'code': ln.material_code,
             'image_url': image_url,
             'spec': ' / '.join(spec),
             'unit': unit,
@@ -517,6 +518,7 @@ def print_npl_pr(request, pk: int):
                 pay_key = ln.payment_method
             rows.append({
                 'name': ln.material_name or (mat.name if mat else ln.material_code),
+                'code': ln.material_code,
                 'image_url': image_url,
                 'spec': ' / '.join(spec),
                 'unit': unit,

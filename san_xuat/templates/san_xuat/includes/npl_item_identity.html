@@ -1,0 +1,24 @@
+<div class="jp-npl-item">
+  {% if image_url %}
+  <button type="button" class="jp-npl-item-photo"
+          data-npl-material-image="{{ image_url }}"
+          data-npl-material-image-title="{{ name|default:code }} — {{ code }}"
+          aria-label="Xem ảnh {{ name|default:code }}">
+    <img src="{{ image_url }}" alt="" loading="lazy">
+  </button>
+  {% else %}
+  <span class="jp-npl-item-photo is-empty" aria-hidden="true"><i class="bi bi-image"></i></span>
+  {% endif %}
+  <span class="jp-npl-item-text">
+    <span class="jp-npl-item-name">
+      {% if material_id %}
+      <a href="{% url 'kho_npl:material_detail' material_id %}">{{ name|default:code|default:"—" }}</a>
+      {% else %}
+      {{ name|default:code|default:"—" }}
+      {% endif %}
+    </span>
+    {% if code and name and code != name %}
+    <span class="jp-npl-item-code">{{ code }}</span>
+    {% endif %}
+  </span>
+</div>

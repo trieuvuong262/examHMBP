@@ -278,13 +278,22 @@ def _recent_prices() -> list[dict]:
             sheet__status='decided',
             sheet__is_demo=False,
         )
-        .select_related('supplier', 'sheet')
+        .select_related('supplier', 'sheet', 'material')
         .order_by('-sheet__decided_at', '-id')[:12]
     )
     for offer in offers:
+        image_url = ''
+        mat = offer.material
+        if mat and mat.image:
+            try:
+                image_url = mat.image.url
+            except (ValueError, OSError):
+                image_url = ''
         rows.append({
             'code': offer.material_code,
             'name': offer.material_name,
+            'image_url': image_url,
+            'material_id': offer.material_id,
             'supplier': offer.supplier.name if offer.supplier_id else '—',
             'price': offer.unit_price,
             'when': offer.sheet.decided_at,
@@ -361,14 +370,36 @@ def _purchase_watch(request) -> dict:
         po_qs = po_qs.filter(status=status)
     if material:
         po_qs = po_qs.filter(lines__material_code__icontains=material)
+    po_list = list(po_qs.distinct().order_by('-id')[:40])
+    watch_codes = {
+        (ln.material_code or '').strip()
+        for po in po_list
+        for ln in po.lines.all()
+        if (ln.material_code or '').strip()
+    }
+    from kho_npl.models import Material
+    watch_materials = {
+        (m.code or '').strip().casefold(): m
+        for m in Material.objects.filter(code__in=watch_codes)
+    }
     line_rows = []
-    for po in po_qs.distinct().order_by('-id')[:40]:
+    for po in po_list:
         for ln in po.lines.all():
             if material and material.casefold() not in (ln.material_code or '').casefold():
                 continue
+            mat = watch_materials.get((ln.material_code or '').strip().casefold())
+            image_url = ''
+            if mat and mat.image:
+                try:
+                    image_url = mat.image.url
+                except (ValueError, OSError):
+                    image_url = ''
             line_rows.append({
                 'po': po,
                 'code': ln.material_code,
+                'name': ln.material_name,
+                'image_url': image_url,
+                'material_id': mat.pk if mat else None,
                 'ordered': ln.qty_ordered,
                 'received': ln.qty_received,
                 'qc_pass': ln.qty_qc_pass,
@@ -394,7 +425,7 @@ def _purchase_watch(request) -> dict:
     )
     price_history = (
         SxNplQuoteOffer.objects.filter(is_chosen=True, sheet__is_demo=False, sheet__status='decided')
-        .select_related('supplier', 'sheet')
+        .select_related('supplier', 'sheet', 'material')
         .order_by('-sheet__decided_at', '-id')
     )
     if material:
@@ -463,11 +494,19 @@ def npl_buy_plan(request):
     rows = []
     for ln in lines:
         mat = materials.get((ln.material_code or '').strip().casefold())
+        image_url = ''
+        if mat and mat.image:
+            try:
+                image_url = mat.image.url
+            except (ValueError, OSError):
+                image_url = ''
         rows.append({
             'line': ln,
             'color': color_label(mat.color) if mat and mat.color_id else '',
             'spec': spec_label(mat.specification) if mat and mat.specification_id else '',
             'unit': ln.unit or '',
+            'image_url': image_url,
+            'material_id': mat.pk if mat else None,
         })
     return render(request, 'san_xuat/npl_buy_plan.html', {
         'page_title': 'Kế hoạch mua hàng',

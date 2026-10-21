@@ -33,8 +33,8 @@
     <tr>
       <td class="text-center">{{ forloop.counter }}</td>
       <td>
-        <strong>{{ bl.material_code }}</strong><br>
-        {{ bl.material_name }}
+        <strong>{{ bl.material_name|default:bl.material_code }}</strong><br>
+        {% if bl.material_code and bl.material_name and bl.material_code != bl.material_name %}{{ bl.material_code }}{% endif %}
       </td>
       <td class="text-end">{{ bl.qty_per_unit|sx_num }}</td>
       <td class="text-center">{{ bl.scrap_pct }}%</td>

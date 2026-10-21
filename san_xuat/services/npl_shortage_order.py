@@ -70,6 +70,7 @@ class ShortageOrderLine:
     material_code: str
     material_name: str
     image_url: str
+    material_id: int | None
     spec_label: str
     unit: str
     qty: Decimal
@@ -177,6 +178,7 @@ def build_shortage_preview(order: SxSalesOrder) -> list[ShortageOrderGroup]:
             material_code=ln.material_code,
             material_name=ln.material_name or (mat.name if mat else ''),
             image_url=image_url,
+            material_id=mat.pk if mat else None,
             spec_label=' / '.join(spec_bits),
             unit=ln.unit or (mat.unit.name if mat and mat.unit_id else ''),
             qty=qty,

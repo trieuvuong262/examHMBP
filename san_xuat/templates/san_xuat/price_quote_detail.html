@@ -3,6 +3,7 @@
 
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/sx_npl_buy_ui.html' %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
 <style>
 .jp-quote-rule {
@@ -49,6 +50,7 @@
 .jp-npl-material-option-name, .jp-npl-material-item-name {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.jp-npl-material-item-text { display: flex; flex-direction: column; min-width: 0; }
 .jp-npl-material-option-meta { flex: 0 0 auto; }
 </style>
 {% endblock %}
@@ -163,7 +165,8 @@
         <div class="jp-quote-mat" data-mat-block
              data-material-id="{{ group.material_id|default:'' }}"
              data-material-code="{{ group.material_code }}"
-             data-material-name="{{ group.material_name }}">
+             data-material-name="{{ group.material_name }}"
+             data-material-image="{{ group.image_url }}">
           <div class="jp-quote-mat-head">
             <div class="d-flex flex-wrap gap-2 align-items-center flex-grow-1">
               <span class="title">NPL kho</span>
@@ -257,12 +260,7 @@
       <div class="jp-quote-mat">
         <div class="jp-quote-mat-head">
           <div>
-            {% if group.material_id %}
-            <a class="jp-quote-code-link" href="{% url 'kho_npl:material_detail' group.material_id %}" target="_blank" rel="noopener">{{ group.material_code }}</a>
-            {% else %}
-            <span class="title">{{ group.material_code }}</span>
-            {% endif %}
-            <span class="text-muted small ms-1">{{ group.material_name }}</span>
+            {% include 'san_xuat/includes/npl_item_identity.html' with image_url=group.image_url name=group.material_name code=group.material_code material_id=group.material_id %}
             {% if group.specification %}<span class="jp-quote-badge ms-1" title="Quy cách">{{ group.specification }}</span>{% endif %}
             {% if group.color %}<span class="small text-muted ms-1">{{ group.color }}</span>{% endif %}
             {% if group.unit %}<span class="small text-muted">· {{ group.unit }}</span>{% endif %}
@@ -425,9 +423,15 @@
   }
 
   function renderItem(data, escape) {
+    var name = escape(data.name || data.text || '');
+    var code = escape(data.code || '');
+    var showCode = data.code && data.name && data.code !== data.name;
     return '<div class="jp-npl-material-item">'
       + nplThumbHtml(data, escape)
-      + '<span class="jp-npl-material-item-name">' + escape(data.name || data.text || '') + '</span></div>';
+      + '<span class="jp-npl-material-item-text">'
+      + '<span class="jp-npl-material-item-name">' + name + '</span>'
+      + (showCode ? '<span class="jp-npl-material-option-meta text-muted small">' + code + '</span>' : '')
+      + '</span></div>';
   }
 
   function scoreFactory(query) {
@@ -514,6 +518,7 @@
     var preId = block.getAttribute('data-material-id') || '';
     var preCode = block.getAttribute('data-material-code') || '';
     var preName = block.getAttribute('data-material-name') || '';
+    var preImage = block.getAttribute('data-material-image') || '';
     var ts = new TomSelect(select, {
       maxOptions: null,
       maxItems: 1,
@@ -553,7 +558,7 @@
       },
     });
     if (preId) {
-      ts.addOption({ id: preId, code: preCode, name: preName, text: preName });
+      ts.addOption({ id: preId, code: preCode, name: preName, text: preName, image_url: preImage });
       ts.setValue(preId, true);
     }
   }
@@ -634,4 +639,5 @@
 })();
 </script>
 {% endif %}
+{% include 'kho_npl/includes/material_image_modal.html' %}
 {% endblock %}

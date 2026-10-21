@@ -3336,12 +3336,34 @@ def plan_npl_detail(request, pk: int):
     reserved_total = sum((line.qty_reserved or 0 for line in lines_all), Decimal('0'))
     purchase_requests = mat_plan.purchase_requests.filter(is_demo=False).order_by('-created_at')
     need_dates = [line.need_date for line in lines_all if line.need_date]
+    from kho_npl.models import Material
+    plan_mats = {
+        (m.code or '').strip().casefold(): m
+        for m in Material.objects.filter(
+            code__in={(ln.material_code or '').strip() for ln in lines_all if (ln.material_code or '').strip()},
+        )
+    }
+    npl_rows = []
+    for ln in lines_all:
+        mat = plan_mats.get((ln.material_code or '').strip().casefold())
+        image_url = ''
+        if mat and mat.image:
+            try:
+                image_url = mat.image.url
+            except (ValueError, OSError):
+                image_url = ''
+        npl_rows.append({
+            'line': ln,
+            'image_url': image_url,
+            'material_id': mat.pk if mat else None,
+        })
 
     from san_xuat.services.planning import npl_prep_days
 
     return render(request, 'san_xuat/plan_npl_detail.html', {
         **_perm_ctx(request),
         'mat_plan': mat_plan,
+        'npl_rows': npl_rows,
         'can_update': can_update,
         'shortfall_total': shortfall_total,
         'reserved_total': reserved_total,
@@ -3532,6 +3554,7 @@ def npl_purchase_request_detail(request, pk: int):
         line_rows.append({
             'line': ln,
             'image_url': image_url,
+            'material_id': mat.pk if mat else None,
             'amount': (ln.qty or 0) * (ln.unit_price or 0),
             'quotes': list(chosen_offers_for_code(
                 ln.material_code, sales_order_id=pr.sales_order_id,
@@ -3814,7 +3837,32 @@ def purchase_order_detail(request, pk: int):
         po.price_change_pending
         and user_can_update_menu(request.user, MODULE_SAN_XUAT, 'sx_price_approve')
     )
-    from kho_npl.models import Supplier
+    from kho_npl.models import Material, Supplier
+
+    mats = {
+        (m.code or '').strip().casefold(): m
+        for m in Material.objects.filter(
+            code__in={
+                (ln.material_code or '').strip()
+                for ln in lines_all
+                if (ln.material_code or '').strip()
+            },
+        )
+    }
+    po_line_rows = []
+    for ln in lines_all:
+        mat = mats.get((ln.material_code or '').strip().casefold())
+        image_url = ''
+        if mat and mat.image:
+            try:
+                image_url = mat.image.url
+            except (ValueError, OSError):
+                image_url = ''
+        po_line_rows.append({
+            'line': ln,
+            'image_url': image_url,
+            'material_id': mat.pk if mat else None,
+        })
 
     return render(request, 'san_xuat/purchase_order_detail.html', {
         **_perm_ctx(request),
@@ -3826,6 +3874,7 @@ def purchase_order_detail(request, pk: int):
         'total_amount': total_amount,
         'remaining_qty': remaining_qty,
         'lines_without_price': lines_without_price,
+        'po_line_rows': po_line_rows,
         'po_suppliers': Supplier.objects.filter(is_active=True).order_by('name')[:300],
     })
 
@@ -5296,6 +5345,29 @@ def dispatch_fg_receipt_req_detail(request, pk: int):
     })
 
 
+def _attach_material_identity(rows):
+    from kho_npl.models import Material
+
+    seq = list(rows)
+    codes = {(getattr(it, 'material_code', '') or '').strip() for it in seq}
+    codes.discard('')
+    mats = {
+        (m.code or '').strip().casefold(): m
+        for m in Material.objects.filter(code__in=codes)
+    }
+    for it in seq:
+        mat = mats.get((getattr(it, 'material_code', '') or '').strip().casefold())
+        image_url = ''
+        if mat and mat.image:
+            try:
+                image_url = mat.image.url
+            except (ValueError, OSError):
+                image_url = ''
+        it.npl_image_url = image_url
+        it.npl_material_id = mat.pk if mat else None
+    return rows
+
+
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def dispatch_npl_surplus(request):
     base_qs = (
@@ -5304,6 +5376,7 @@ def dispatch_npl_surplus(request):
         .order_by('-recorded_at', '-pk')
     )
     items, fctx = prepare_hub_list(request, base_qs, SX_FILTER_NPL_SURPLUS, list_key='npl_surplus')
+    _attach_material_identity(items)
     return render(request, 'san_xuat/npl_surplus_list.html', {
         **_perm_ctx(request),
         'items': items,
@@ -5349,6 +5422,7 @@ def dispatch_npl_surplus_detail(request, pk: int):
         ),
         pk=pk,
     )
+    _attach_material_identity([item])
     can_update = _perm_ctx(request).get('can_update')
     if request.method == 'POST' and can_update:
         action = (request.POST.get('action') or '').strip()

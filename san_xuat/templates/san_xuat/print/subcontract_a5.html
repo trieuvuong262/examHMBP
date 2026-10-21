@@ -34,8 +34,8 @@
       <td class="text-center">{{ forloop.counter }}</td>
       <td class="text-center">{{ ln.get_direction_display }}</td>
       <td>
-        <strong>{{ ln.material_code }}</strong><br>
-        {{ ln.material_name|default:"" }}
+        <strong>{{ ln.material_name|default:ln.material_code }}</strong><br>
+        {% if ln.material_code and ln.material_name and ln.material_code != ln.material_name %}{{ ln.material_code }}{% endif %}
       </td>
       <td class="text-end">{{ ln.qty|sx_num }} {{ ln.uom_label }}</td>
       <td class="text-center">{{ ln.lot_code|default:"—" }}</td>

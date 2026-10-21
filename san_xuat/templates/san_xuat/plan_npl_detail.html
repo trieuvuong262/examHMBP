@@ -1,7 +1,10 @@
 {% extends 'base.html' %}
 {% load sx_format %}
 
-{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/sx_npl_buy_ui.html' %}
+{% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
@@ -106,20 +109,17 @@
           </tr>
         </thead>
         <tbody>
-        {% for line in mat_plan.lines.all %}
-          <tr class="{% if line.qty_shortfall %}table-warning{% endif %}">
-            <td>
-              <div class="fw-semibold small">{{ line.material_code }}</div>
-              <div class="text-muted small">{{ line.material_name|default:"—" }}</div>
+        {% for row in npl_rows %}
+          <tr class="{% if row.line.qty_shortfall %}table-warning{% endif %}">
+            <td>{% include 'san_xuat/includes/npl_item_identity.html' with image_url=row.image_url name=row.line.material_name code=row.line.material_code material_id=row.material_id %}</td>
+            <td class="small {% if row.line.need_date and row.line.need_date < today %}text-danger fw-semibold{% endif %}">
+              {% if row.line.need_date %}{{ row.line.need_date|date:"d/m/Y" }}{% else %}—{% endif %}
             </td>
-            <td class="small {% if line.need_date and line.need_date < today %}text-danger fw-semibold{% endif %}">
-              {% if line.need_date %}{{ line.need_date|date:"d/m/Y" }}{% else %}—{% endif %}
-            </td>
-            <td class="text-end">{{ line.qty_required|sx_num }}</td>
-            <td class="text-end">{{ line.qty_on_hand|sx_num }}</td>
-            <td class="text-end">{{ line.qty_expected_inbound|sx_num }}</td>
-            <td class="text-end {% if line.qty_reserved %}text-success fw-semibold{% else %}text-muted{% endif %}">{{ line.qty_reserved|sx_num }}</td>
-            <td class="text-end fw-semibold {% if line.qty_shortfall %}text-danger{% endif %}">{{ line.qty_shortfall|sx_num }}</td>
+            <td class="text-end">{{ row.line.qty_required|sx_num }}</td>
+            <td class="text-end">{{ row.line.qty_on_hand|sx_num }}</td>
+            <td class="text-end">{{ row.line.qty_expected_inbound|sx_num }}</td>
+            <td class="text-end {% if row.line.qty_reserved %}text-success fw-semibold{% else %}text-muted{% endif %}">{{ row.line.qty_reserved|sx_num }}</td>
+            <td class="text-end fw-semibold {% if row.line.qty_shortfall %}text-danger{% endif %}">{{ row.line.qty_shortfall|sx_num }}</td>
           </tr>
         {% empty %}
           <tr><td colspan="7" class="text-muted small p-3">Chưa có dòng nguyên vật liệu.</td></tr>
@@ -142,4 +142,5 @@
   </div>
   {% endif %}
 </div>
+{% include 'kho_npl/includes/material_image_modal.html' %}
 {% endblock %}

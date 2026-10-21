@@ -4,6 +4,7 @@
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+{% include 'san_xuat/includes/sx_npl_buy_ui.html' %}
 {% endblock %}
 
 {% block content %}
@@ -31,7 +32,7 @@
         {% for item in items %}
           <tr class="{% if item.status == 'draft' %}table-warning{% endif %} jp-npl-catalog-row" data-href="{% url 'san_xuat:dispatch_npl_surplus_detail' item.pk %}">
             <td class="npl-col" data-col="code"><strong>{{ item.code }}</strong></td>
-            <td class="npl-col" data-col="material">{{ item.material_code }}{% if item.material_name %} — {{ item.material_name }}{% endif %}</td>
+            <td class="npl-col" data-col="material">{% include 'san_xuat/includes/npl_item_identity.html' with image_url=item.npl_image_url name=item.material_name code=item.material_code material_id=item.npl_material_id %}</td>
 <td class="npl-col" data-col="qty">{{ item.qty|sx_num }}</td>
             <td class="npl-col" data-col="source">
               {% if item.production_order %}{{ item.production_order.code }}{% endif %}
@@ -52,4 +53,5 @@
   </div>
 </div>
 {% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
+{% include 'kho_npl/includes/material_image_modal.html' %}
 {% endblock %}

@@ -42,23 +42,20 @@
                 </tr>
               </thead>
               <tbody>
-              {% for line in po.lines.all %}
-                <tr class="{% if line.qty_received and line.qty_received < line.qty_ordered %}table-warning{% endif %}">
-                  <td>
-                    <div class="fw-semibold small">{{ line.material_code }}</div>
-                    <div class="text-muted small">{{ line.material_name|default:"—" }}</div>
-                  </td>
-                  <td class="small">{% if line.need_date %}{{ line.need_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
-                  <td class="text-end">{{ line.qty_ordered|sx_num }}</td>
-                  <td class="text-end">{{ line.unit_price|sx_num }}</td>
-                  <td class="text-end {% if line.qty_received %}text-success fw-semibold{% endif %}">
-                    {% if line.qty_received %}{{ line.qty_received|sx_num }}{% else %}—{% endif %}
-                    {% if line.qty_qc_pass or line.qty_qc_fail or line.qty_returned %}
-                    <div class="text-muted fw-normal">Đạt {{ line.qty_qc_pass|sx_num }} · Lỗi {{ line.qty_qc_fail|sx_num }} · Trả {{ line.qty_returned|sx_num }}</div>
+              {% for row in po_line_rows %}
+                <tr class="{% if row.line.qty_received and row.line.qty_received < row.line.qty_ordered %}table-warning{% endif %}">
+                  <td>{% include 'san_xuat/includes/npl_item_identity.html' with image_url=row.image_url name=row.line.material_name code=row.line.material_code material_id=row.material_id %}</td>
+                  <td class="small">{% if row.line.need_date %}{{ row.line.need_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+                  <td class="text-end">{{ row.line.qty_ordered|sx_num }}</td>
+                  <td class="text-end">{{ row.line.unit_price|sx_num }}</td>
+                  <td class="text-end {% if row.line.qty_received %}text-success fw-semibold{% endif %}">
+                    {% if row.line.qty_received %}{{ row.line.qty_received|sx_num }}{% else %}—{% endif %}
+                    {% if row.line.qty_qc_pass or row.line.qty_qc_fail or row.line.qty_returned %}
+                    <div class="text-muted fw-normal">Đạt {{ row.line.qty_qc_pass|sx_num }} · Lỗi {{ row.line.qty_qc_fail|sx_num }} · Trả {{ row.line.qty_returned|sx_num }}</div>
                     {% endif %}
                   </td>
-                  <td class="text-end {% if line.qty_remaining %}text-danger{% else %}text-muted{% endif %}">
-                    {{ line.qty_remaining|sx_num }}
+                  <td class="text-end {% if row.line.qty_remaining %}text-danger{% else %}text-muted{% endif %}">
+                    {{ row.line.qty_remaining|sx_num }}
                   </td>
                 </tr>
               {% empty %}
@@ -133,17 +130,17 @@
               <label class="form-label small mb-1">Ngày giao NCC xác nhận</label>
               <input type="date" name="confirmed_date" class="form-control form-control-sm" value="{{ po.expected_date|date:'Y-m-d' }}">
             </div>
-            {% for line in po.lines.all %}
+            {% for row in po_line_rows %}
             <div class="border rounded p-2 mb-2 small">
-              <div class="fw-semibold">{{ line.material_code }}</div>
+              {% include 'san_xuat/includes/npl_item_identity.html' with image_url=row.image_url name=row.line.material_name code=row.line.material_code material_id=row.material_id %}
               <div class="row g-2 mt-1">
                 <div class="col-6">
                   <label class="form-label small mb-1">SL xác nhận</label>
-                  <input name="confirm_qty__{{ line.pk }}" class="form-control form-control-sm" value="{{ line.confirmed_qty|default:line.qty_ordered }}">
+                  <input name="confirm_qty__{{ row.line.pk }}" class="form-control form-control-sm" value="{{ row.line.confirmed_qty|default:row.line.qty_ordered }}">
                 </div>
                 <div class="col-6">
                   <label class="form-label small mb-1">Đơn giá xác nhận</label>
-                  <input name="confirm_price__{{ line.pk }}" class="form-control form-control-sm" value="{{ line.confirmed_unit_price|default:line.unit_price }}">
+                  <input name="confirm_price__{{ row.line.pk }}" class="form-control form-control-sm" value="{{ row.line.confirmed_unit_price|default:row.line.unit_price }}">
                 </div>
               </div>
             </div>
@@ -166,17 +163,17 @@
           <form method="post">
             {% csrf_token %}
             <input type="hidden" name="action" value="revise">
-            {% for line in po.lines.all %}
+            {% for row in po_line_rows %}
             <div class="border rounded p-2 mb-2 small">
-              <div class="fw-semibold">{{ line.material_code }}</div>
+              {% include 'san_xuat/includes/npl_item_identity.html' with image_url=row.image_url name=row.line.material_name code=row.line.material_code material_id=row.material_id %}
               <div class="row g-2 mt-1">
                 <div class="col-6">
                   <label class="form-label small mb-1">Số lượng</label>
-                  <input name="qty__{{ line.pk }}" class="form-control form-control-sm" value="{{ line.qty_ordered }}">
+                  <input name="qty__{{ row.line.pk }}" class="form-control form-control-sm" value="{{ row.line.qty_ordered }}">
                 </div>
                 <div class="col-6">
                   <label class="form-label small mb-1">Đơn giá</label>
-                  <input name="price__{{ line.pk }}" class="form-control form-control-sm" value="{{ line.unit_price }}">
+                  <input name="price__{{ row.line.pk }}" class="form-control form-control-sm" value="{{ row.line.unit_price }}">
                 </div>
               </div>
             </div>
@@ -263,7 +260,7 @@
           <table class="table table-sm align-middle mb-0 jp-npl-buy-grid">
             <thead>
               <tr>
-                <th>Mã</th>
+                <th>Nguyên phụ liệu</th>
                 <th class="text-end">Đặt</th>
                 <th class="text-end">Đã nhận</th>
                 <th class="text-end">Theo chứng từ</th>
@@ -273,15 +270,15 @@
               </tr>
             </thead>
             <tbody>
-              {% for ln in po.lines.all %}
+              {% for row in po_line_rows %}
               <tr>
-                <td class="is-code">{{ ln.material_code }}</td>
-                <td class="text-end">{{ ln.qty_ordered|sx_num }}</td>
-                <td class="text-end">{{ ln.qty_received|sx_num }}</td>
-                <td><input type="number" step="0.001" min="0" name="doc__{{ ln.pk }}" class="form-control form-control-sm text-end"></td>
-                <td><input type="number" step="0.001" min="0" name="actual__{{ ln.pk }}" class="form-control form-control-sm text-end"></td>
-                <td><input type="number" step="0.001" min="0" name="pass__{{ ln.pk }}" class="form-control form-control-sm text-end"></td>
-                <td><input type="number" step="0.001" min="0" name="fail__{{ ln.pk }}" class="form-control form-control-sm text-end"></td>
+                <td>{% include 'san_xuat/includes/npl_item_identity.html' with image_url=row.image_url name=row.line.material_name code=row.line.material_code material_id=row.material_id %}</td>
+                <td class="text-end">{{ row.line.qty_ordered|sx_num }}</td>
+                <td class="text-end">{{ row.line.qty_received|sx_num }}</td>
+                <td><input type="number" step="0.001" min="0" name="doc__{{ row.line.pk }}" class="form-control form-control-sm text-end"></td>
+                <td><input type="number" step="0.001" min="0" name="actual__{{ row.line.pk }}" class="form-control form-control-sm text-end"></td>
+                <td><input type="number" step="0.001" min="0" name="pass__{{ row.line.pk }}" class="form-control form-control-sm text-end"></td>
+                <td><input type="number" step="0.001" min="0" name="fail__{{ row.line.pk }}" class="form-control form-control-sm text-end"></td>
               </tr>
               {% endfor %}
             </tbody>
@@ -315,8 +312,8 @@
             <input type="hidden" name="action" value="record_return">
             <div class="jp-npl-buy-head">Trả nhà cung cấp</div>
             <select name="return_line" class="form-select form-select-sm mb-2">
-              {% for ln in po.lines.all %}
-              <option value="{{ ln.pk }}">{{ ln.material_code }}</option>
+              {% for row in po_line_rows %}
+              <option value="{{ row.line.pk }}">{{ row.line.material_name|default:row.line.material_code }}{% if row.line.material_name and row.line.material_code and row.line.material_name != row.line.material_code %} · {{ row.line.material_code }}{% endif %}</option>
               {% endfor %}
             </select>
             <input type="number" step="0.001" min="0" name="return_qty" class="form-control form-control-sm mb-2" placeholder="Số lượng trả">
@@ -346,4 +343,5 @@
   </div>
   {% endif %}
 </div>
+{% include 'kho_npl/includes/material_image_modal.html' %}
 {% endblock %}

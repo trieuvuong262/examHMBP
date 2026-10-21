@@ -145,11 +145,18 @@ def quote_sheet_groups(sheet: SxNplQuoteSheet) -> list[dict]:
         min_price = min(prices) if prices else None
         sample = offers[0]
         mat = sample.material
+        image_url = ''
+        if mat and mat.image:
+            try:
+                image_url = mat.image.url
+            except (ValueError, OSError):
+                image_url = ''
         groups.append({
             'material_code': sample.material_code,
             'material_name': sample.material_name or sample.material_code,
             'material_id': sample.material_id,
             'material': mat,
+            'image_url': image_url,
             'specification': spec_label(mat.specification) if mat and mat.specification_id else '',
             'color': color_label(mat.color) if mat and mat.color_id else '',
             'unit': unit_label(mat.unit) if mat and mat.unit_id else '',

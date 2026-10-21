@@ -24,20 +24,23 @@
             <table class="table table-hover table-sm mb-0 align-middle">
               <thead class="table-light">
                 <tr>
-                  <th>Mã nguyên phụ liệu</th>
-                  <th>Tên</th>
+                  <th>Nguyên phụ liệu</th>
                   <th class="text-end">Số lượng</th>
                 </tr>
               </thead>
               <tbody>
               {% for line in order.lines.all %}
                 <tr>
-                  <td><strong>{{ line.material_code }}</strong></td>
-                  <td class="small">{{ line.material_name|default:"—" }}</td>
+                  <td>
+                    <div class="fw-semibold small">{{ line.material_name|default:line.material_code }}</div>
+                    {% if line.material_code and line.material_name and line.material_code != line.material_name %}
+                    <div class="text-muted small">{{ line.material_code }}</div>
+                    {% endif %}
+                  </td>
                   <td class="text-end">{{ line.qty|sx_num }}</td>
                 </tr>
               {% empty %}
-                <tr><td colspan="3" class="text-muted small p-3">Chưa có dòng thu hồi.</td></tr>
+                <tr><td colspan="2" class="text-muted small p-3">Chưa có dòng thu hồi.</td></tr>
               {% endfor %}
               </tbody>
             </table>

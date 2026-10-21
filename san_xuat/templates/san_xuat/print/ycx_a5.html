@@ -29,8 +29,8 @@
     <tr>
       <td class="text-center">{{ forloop.counter }}</td>
       <td>
-        <strong>{{ line.material_code }}</strong><br>
-        {{ line.material_name }}
+        <strong>{{ line.material_name|default:line.material_code }}</strong><br>
+        {% if line.material_code and line.material_name and line.material_code != line.material_name %}{{ line.material_code }}{% endif %}
       </td>
       <td class="text-end">{{ line.qty_requested|sx_num }}</td>
       <td class="text-end">{{ line.qty_issued|sx_num }}</td>

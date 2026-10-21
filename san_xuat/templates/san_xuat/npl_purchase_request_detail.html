@@ -148,17 +148,7 @@
             {% for row in line_rows %}
               <tr>
                 <td>
-                  <div class="jp-ycm-name">
-                    {% if row.image_url %}
-                    <img src="{{ row.image_url }}" alt="" class="jp-ycm-thumb" loading="lazy">
-                    {% else %}
-                    <span class="jp-ycm-thumb-empty" aria-hidden="true"><i class="bi bi-image"></i></span>
-                    {% endif %}
-                    <div class="min-w-0">
-                      <div class="fw-semibold small">{{ row.line.material_name|default:row.line.material_code }}</div>
-                      <div class="text-muted small">{{ row.line.material_code }}</div>
-                    </div>
-                  </div>
+                  {% include 'san_xuat/includes/npl_item_identity.html' with image_url=row.image_url name=row.line.material_name code=row.line.material_code material_id=row.material_id %}
                 </td>
                 <td class="small">
                   {% if can_edit %}
@@ -186,4 +176,5 @@
     </div>
   </div>
 </div>
+{% include 'kho_npl/includes/material_image_modal.html' %}
 {% endblock %}
