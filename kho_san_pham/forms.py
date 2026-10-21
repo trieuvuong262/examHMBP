@@ -307,6 +307,16 @@ class ProductForm(forms.ModelForm):
             )
             if not self.is_bound:
                 self.fields['color_codes'].initial = [code for code, _label in design_colors]
+            self.fields['colors_text'] = forms.CharField(
+                label='Màu mới',
+                required=False,
+                widget=forms.TextInput(attrs={
+                    **FORM_CONTROL,
+                    'id': 'id_colors_text',
+                    'placeholder': 'Thêm màu mới, VD: PNK',
+                    'autocomplete': 'off',
+                }),
+            )
             # Đủ size trong form; UI chỉ hiện size còn thiếu theo màu (JS + clean).
             self.fields['size_labels'] = forms.MultipleChoiceField(
                 label='Size',
@@ -389,6 +399,27 @@ class ProductForm(forms.ModelForm):
             add(code, label or code)
         return ordered
 
+    def _resolve_typed_colors(self, text: str) -> list[str]:
+        """Mã hoặc tên màu gõ thêm. Tên trùng danh mục thì lấy mã có sẵn."""
+        from san_xuat.hub_models import SxColor
+        from san_xuat.services.sku_catalog import normalize_token
+
+        out: list[str] = []
+        for raw in self._parse_colors_text(text):
+            known = (
+                SxColor.objects.filter(code__iexact=raw).first()
+                or SxColor.objects.filter(name__iexact=raw).first()
+            )
+            token = normalize_token(known.code if known is not None else raw)
+            if not token or token in out:
+                continue
+            if known is not None:
+                self._color_name_map[token] = known.name or token
+            else:
+                self._color_name_map.setdefault(token, token)
+            out.append(token)
+        return out
+
     @staticmethod
     def _parse_colors_text(text: str) -> list[str]:
         from san_xuat.services.sku_catalog import normalize_token
@@ -463,7 +494,13 @@ class ProductForm(forms.ModelForm):
         cleaned['style_code'] = style
 
         if self.multi_variant:
-            colors = [normalize_token(c) for c in (cleaned.get('color_codes') or []) if normalize_token(c)]
+            colors = []
+            for token in [normalize_token(c) for c in (cleaned.get('color_codes') or []) if normalize_token(c)]:
+                if token not in colors:
+                    colors.append(token)
+            for token in self._resolve_typed_colors(cleaned.get('colors_text') or ''):
+                if token not in colors:
+                    colors.append(token)
             if not colors:
                 colors = ['']
             sizes = [normalize_token(s) for s in (cleaned.get('size_labels') or []) if normalize_token(s)]

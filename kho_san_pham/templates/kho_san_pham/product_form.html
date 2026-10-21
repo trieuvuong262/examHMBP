@@ -69,10 +69,12 @@
               <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" data-ksp-toggle="#ksp-color-checks">Bỏ chọn</button>
               {% endif %}
             </div>
-            <div class="ksp-sku-pane-body">
+            <div class="ksp-sku-pane-body ksp-sku-color-body">
               <div class="ksp-sku-checks is-color" id="ksp-color-checks">{{ form.color_codes }}</div>
+              {{ form.colors_text }}
             </div>
             {% if form.color_codes.errors %}<div class="text-danger small mt-1">{{ form.color_codes.errors }}</div>{% endif %}
+            {% if form.colors_text.errors %}<div class="text-danger small mt-1">{{ form.colors_text.errors }}</div>{% endif %}
           </div>
           <div class="ksp-sku-pane">
             <div class="ksp-sku-pane-head">
@@ -282,6 +284,7 @@
   var styleEl = document.getElementById('id_style_code');
   var preview = document.getElementById('ksp-sku-preview');
   var colorBox = document.getElementById('ksp-color-checks');
+  var colorsInput = document.getElementById('id_colors_text');
   var sizeBox = document.getElementById('ksp-size-checks');
   function norm(v) {
     return (v || '').trim().toUpperCase().replace(/\s+/g, '');
@@ -305,10 +308,15 @@
     });
 
     function parseColors() {
-      if (!colorBox) return [];
       var out = [];
-      colorBox.querySelectorAll('input[type="checkbox"]:checked').forEach(function (el) {
-        var t = norm(el.value);
+      if (colorBox) {
+        colorBox.querySelectorAll('input[type="checkbox"]:checked').forEach(function (el) {
+          var t = norm(el.value);
+          if (t && out.indexOf(t) < 0) out.push(t);
+        });
+      }
+      ((colorsInput && colorsInput.value) || '').split(/[,;\s]+/).forEach(function (part) {
+        var t = norm(part);
         if (t && out.indexOf(t) < 0) out.push(t);
       });
       return out;
@@ -375,6 +383,10 @@
     }
     document.querySelectorAll('[data-ksp-toggle]').forEach(wireToggle);
     if (colorBox) colorBox.addEventListener('change', paintMulti);
+    if (colorsInput) {
+      colorsInput.addEventListener('input', paintMulti);
+      colorsInput.addEventListener('change', paintMulti);
+    }
     sizeBox.addEventListener('change', paintMulti);
     paintMulti();
     return;

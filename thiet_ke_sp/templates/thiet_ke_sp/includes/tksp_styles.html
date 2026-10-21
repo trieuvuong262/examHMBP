@@ -684,6 +684,16 @@ body.tk-kan-dragging, body.tk-kan-dragging * { cursor: grabbing !important; user
 .jp-tksp .ksp-sku-pane-body.is-input .form-control:focus {
   box-shadow: none; outline: 2px solid rgba(220, 38, 38, .28); outline-offset: -2px;
 }
+.jp-tksp .ksp-sku-color-body {
+  display: flex; flex-direction: column; padding: 0; overflow: hidden;
+}
+.jp-tksp .ksp-sku-color-body .ksp-sku-checks {
+  flex: 1; min-height: 0; height: auto; border: 0; border-radius: 0;
+}
+.jp-tksp .ksp-sku-color-body .form-control {
+  flex: 0 0 auto; border: 0; border-top: 1px solid var(--tk-line);
+  border-radius: 0 0 10px 10px; box-shadow: none;
+}
 .jp-tksp .ksp-sku-checks {
   height: 100%; min-height: 9.5rem; padding: .55rem .6rem; border: 0; background: transparent;
 }
