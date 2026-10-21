@@ -283,12 +283,31 @@ def is_dossier_approver(dossier: ProductDevelopment, user) -> bool:
     return dossier.approver_id == user.pk and has_approve_permission(user)
 
 
+def at_overview_step(dossier: ProductDevelopment) -> bool:
+    """Hồ sơ đang ở Tổng quan (đề xuất, hoặc đã quay lại / mở lại đúng bước này)."""
+    if dossier.status in (Status.DRAFT, Status.BRIEF_NEEDS_INFO, Status.BRIEF_PENDING):
+        return True
+    if dossier.status == Status.LIBRARY_REOPEN:
+        step = (getattr(dossier, 'reopen_edit_step', None) or '').strip()
+        return not step or step == 'overview'
+    return False
+
+
 def can_edit_brief(dossier: ProductDevelopment, user) -> bool:
     if dossier.status in (*FINAL_STATUSES, Status.HANDED_OVER):
         return False
     if has_full_dossier_access(user):
         return True
     return has_role(dossier, user, Role.PROPOSER, Role.OWNER)
+
+
+def can_edit_overview_fields(dossier: ProductDevelopment, user) -> bool:
+    """Ở bước Tổng quan, ai xem được hồ sơ cũng sửa tên, khách hàng mục tiêu và đề bài."""
+    if not at_overview_step(dossier):
+        return False
+    if dossier.status in (*FINAL_STATUSES, Status.HANDED_OVER):
+        return False
+    return can_view_dossier(dossier, user)
 
 
 def can_edit_roles(dossier: ProductDevelopment, user) -> bool:

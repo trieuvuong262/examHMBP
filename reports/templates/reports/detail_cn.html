@@ -102,6 +102,9 @@
     {% if can_approve %}
     {% include 'reports/includes/production_approve_confirm_modal.html' %}
     {% endif %}
+    {% if can_change_shift %}
+    {% include 'reports/includes/production_shift_edit_modal.html' %}
+    {% endif %}
     {% if can_unapprove %}
     {% include 'reports/includes/production_unapprove_confirm_modal.html' %}
     {% endif %}

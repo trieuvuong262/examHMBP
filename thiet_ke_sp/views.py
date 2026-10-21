@@ -359,8 +359,8 @@ def dossier_create(request):
 def dossier_edit(request, pk):
     user = request.user
     dossier = _get_dossier(pk)
-    if not perms.can_edit_brief(dossier, user):
-        messages.error(request, 'Chỉ người đề xuất hoặc người phụ trách được sửa đề bài khi hồ sơ chưa bàn giao, hủy hoặc đóng.')
+    if not (perms.can_edit_brief(dossier, user) or perms.can_edit_overview_fields(dossier, user)):
+        messages.error(request, 'Chỉ sửa tên, khách hàng mục tiêu và đề bài khi hồ sơ đang ở Tổng quan.')
         return redirect(dossier.get_absolute_url())
     if dossier.status == Status.LIBRARY_REOPEN and not wf.allows_reopen_overview(dossier):
         messages.error(request, 'Công đoạn đang mở không phải Tổng quan — không sửa đề bài được.')

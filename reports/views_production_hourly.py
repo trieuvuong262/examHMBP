@@ -311,8 +311,8 @@ def _auto_resolve_shift_and_date(subject, report_date, *, explicit_shift: str = 
     return resolve_production_entry(subject, report_date)
 
 
-def _prepare_production_report(subject, report_date, shift: str):
-    """Tải hoặc tạo báo cáo ca — shift rỗng thì tự suy theo thời gian."""
+def _prepare_production_report(subject, report_date, shift: str, *, save: bool = True):
+    """Tải báo cáo ca. Chỉ tạo dòng mới khi save=True (bấm Bắt đầu / Bắt đầu công đoạn)."""
     from reports.views import _ensure_daily_report_saved
 
     resolved_date, resolved_shift = _auto_resolve_shift_and_date(
@@ -333,6 +333,10 @@ def _prepare_production_report(subject, report_date, shift: str):
         return None, reason, resolved_date, resolved_shift
 
     report = _load_production_report(subject, resolved_date, resolved_shift)
+    if report.pk:
+        return report, '', resolved_date, resolved_shift
+    if not save:
+        return None, '', resolved_date, resolved_shift
     report.shift = resolved_shift
     report = _ensure_daily_report_saved(report)
     return report, '', resolved_date, resolved_shift
@@ -464,18 +468,26 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         if is_production_shift_assignment_choice_required() and not chosen_shift:
             messages.warning(request, 'Chọn ca sáng hoặc ca tối trước khi bắt đầu công đoạn.')
             return redirect(_production_redirect(report_date, shift, for_user or None))
-        if is_production_entry_closed(report):
+        if report and report.pk and is_production_entry_closed(report):
             messages.warning(
                 request,
                 'Báo cáo đã gửi — bấm «Nhập tiếp báo cáo» trên màn tổng kết để thêm công đoạn.',
             )
             return redirect(_production_redirect(report_date, shift, for_user or None, 'phase=review'))
-        if not can_add_production_entry(
-            request.user,
-            report,
-            can_submit=can_submit_daily_report(request.user),
-            is_proxy=editing_for_other,
-        ):
+        may_start = (
+            can_add_production_entry(
+                request.user,
+                report,
+                can_submit=can_submit_daily_report(request.user),
+                is_proxy=editing_for_other,
+            )
+            if report and report.pk
+            else (
+                can_submit_daily_report(request.user)
+                or (editing_for_other and can_proxy_enter_daily_report(request.user, subject))
+            )
+        )
+        if not may_start:
             messages.error(request, 'Bạn không có quyền chỉnh sửa báo cáo này.')
             return redirect(_production_redirect(report_date, shift, for_user or None))
         report, err, report_date, shift = _prepare_production_report(
@@ -493,8 +505,14 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
             return redirect(_production_redirect(report_date, shift, for_user or None))
         return redirect(_production_redirect(report_date, shift, for_user or None))
 
-    if report and report.pk:
-        report = DailyWorkReport.objects.get(pk=report.pk)
+    if not report or not report.pk:
+        messages.error(
+            request,
+            'Bấm «Bắt đầu» hoặc «Bắt đầu công đoạn» để mở báo cáo ca.',
+        )
+        return redirect(_production_redirect(report_date, shift, for_user or None))
+
+    report = DailyWorkReport.objects.get(pk=report.pk)
 
     _can_submit = can_submit_daily_report(request.user)
     can_edit = can_edit_production_report(
@@ -524,15 +542,6 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
                 messages.error(request, 'Bạn không có quyền chỉnh sửa báo cáo này.')
             return redirect(_production_redirect(report_date, shift, subject.id if editing_for_other else None))
 
-    if not report or not report.pk:
-        report, err, report_date, shift = _prepare_production_report(
-            subject, report_date, shift,
-        )
-        if err:
-            messages.error(request, err)
-            return redirect(_production_redirect(report_date, shift, for_user or None))
-
-    report = _ensure_daily_report_saved(report)
     if not shift_is_started(report):
         ensure_work_day_started(report)
 
@@ -1004,7 +1013,7 @@ def today_production_hourly(request, report_date, report_context_common):
     if request.method == 'POST':
         post_shift = _parse_production_shift(request)
         report, err, report_date, shift = _prepare_production_report(
-            subject, report_date, post_shift,
+            subject, report_date, post_shift, save=False,
         )
         if err and request.POST.get('action') != 'start_shift':
             messages.error(request, err)
@@ -1107,12 +1116,17 @@ def today_production_hourly(request, report_date, report_context_common):
                         'back_team_url': reverse('reports:team_cn') + f'?date={report_date.isoformat()}',
                     })
                     return render(request, 'reports/today_production_hourly.html', ctx)
-            report, err, report_date, shift = _prepare_production_report(subject, report_date, shift)
+            report, err, report_date, shift = _prepare_production_report(
+                subject, report_date, shift, save=editing_for_other,
+            )
             if err:
                 messages.error(request, err)
         else:
             report = None
             err = ''
+
+    if report is not None and not report.pk and not editing_for_other:
+        report = None
 
     if report and report.pk:
         from reports.report_lock import ensure_production_report_approval_state
@@ -1145,6 +1159,9 @@ def today_production_hourly(request, report_date, report_context_common):
         can_edit = False
         can_resume_entry = False
         can_add_entry = False
+    elif not editing_for_other and phase not in ('review', 'proxy'):
+        can_resume_entry = False
+        can_add_entry = True
     else:
         can_resume_entry = False
         can_add_entry = False
@@ -1165,6 +1182,14 @@ def today_production_hourly(request, report_date, report_context_common):
 
     started = shift_is_started(report) if report and report.pk else False
     if auto_shift_mode and report and report.pk and (can_edit or can_add_entry) and phase not in ('review',):
+        started = True
+    if (
+        auto_shift_mode
+        and not (report and report.pk)
+        and can_add_entry
+        and shift
+        and phase not in ('review', 'proxy', 'select_shift')
+    ):
         started = True
     is_submitted = bool(report and report.pk and report.status == DailyWorkReport.STATUS_SUBMITTED)
     is_locked = is_production_report_locked(report) if report and report.pk else False

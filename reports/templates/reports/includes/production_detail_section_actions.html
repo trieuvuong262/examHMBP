@@ -22,6 +22,11 @@
         </button>
     </form>
     {% endif %}
+    {% if can_change_shift %}
+    <button type="button" class="btn btn-outline-hm btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#prodShiftEditModal">
+        <i class="bi bi-clock me-1"></i>Sửa ca
+    </button>
+    {% endif %}
     {% if can_edit_norm and can_unapprove %}
     <form method="post" class="d-inline mb-0 js-prod-unapprove-form">
         {% csrf_token %}

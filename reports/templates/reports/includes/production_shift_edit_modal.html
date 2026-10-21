@@ -1,0 +1,38 @@
+<div class="modal fade jp-prod-modal" id="prodShiftEditModal" tabindex="-1" aria-labelledby="prodShiftEditTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="change_shift">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold" id="prodShiftEditTitle">Sửa ca</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">Chọn ca đúng nếu phần mềm gán nhầm ca sáng hoặc ca tối. Sản lượng được chuyển sang khung giờ của ca mới.</p>
+                    <div class="d-flex flex-column gap-2">
+                        {% for opt in shift_edit_options %}
+                        <label class="border rounded-3 px-3 py-2 d-flex gap-2 align-items-start mb-0{% if opt.disabled %} opacity-50{% endif %}">
+                            <input class="form-check-input mt-1" type="radio" name="shift" value="{{ opt.value }}"
+                                   {% if opt.selected %}checked{% endif %}{% if opt.disabled %} disabled{% endif %}>
+                            <span>
+                                <span class="fw-semibold d-block">{{ opt.label }}</span>
+                                <span class="small text-muted">{{ opt.time_range }}</span>
+                                {% if opt.reason %}
+                                <span class="small text-danger d-block">{{ opt.reason }}</span>
+                                {% endif %}
+                            </span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0 flex-nowrap gap-2">
+                    <button type="button" class="btn btn-outline-secondary flex-grow-1" data-bs-dismiss="modal">Huỷ</button>
+                    <button type="submit" class="btn btn-hm fw-bold flex-grow-1">
+                        <i class="bi bi-check2 me-1"></i>Lưu ca
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

@@ -330,8 +330,10 @@ def create_dossier(user, *, fields: dict, submit: bool = False) -> ProductDevelo
 
 
 def update_brief(dossier: ProductDevelopment, user, *, fields: dict) -> None:
-    _require(perms.can_edit_brief(dossier, user),
-             'Chỉ người đề xuất hoặc người phụ trách được sửa đề bài khi hồ sơ chưa bàn giao, hủy hoặc đóng.')
+    _require(
+        perms.can_edit_brief(dossier, user) or perms.can_edit_overview_fields(dossier, user),
+        'Chỉ sửa tên, khách hàng mục tiêu và đề bài khi hồ sơ đang ở Tổng quan.',
+    )
     if dossier.status == Status.LIBRARY_REOPEN:
         _require(allows_reopen_overview(dossier), 'Công đoạn đang mở không phải Tổng quan — không sửa đề bài được.')
     changed = []

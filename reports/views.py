@@ -2895,6 +2895,19 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         elif is_production_manager_edit_expired(report):
             unapprove_locked = True
 
+    can_change_shift = (
+        can_edit_norm
+        and report.is_production_report
+        and report.status == DailyWorkReport.STATUS_SUBMITTED
+        and not is_rejected
+        and (not report.hod_reviewed or can_unapprove)
+    )
+    shift_edit_options = []
+    if can_change_shift:
+        from reports.production_shift_policy import shift_edit_options_for_report
+
+        shift_edit_options = shift_edit_options_for_report(report)
+
     def _detail_redirect():
         query = team_list_query_from_request(request)
         url = reverse(detail_url_name, args=[pk])
@@ -2922,6 +2935,37 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         messages.success(
             request,
             f'Đã duyệt báo cáo. Có thể hoàn duyệt trong vòng {days} ngày làm việc sau khi duyệt (không tính chiều T7 và Chủ nhật).',
+        )
+        return _detail_redirect()
+
+    if (
+        request.method == 'POST'
+        and request.POST.get('action') == 'change_shift'
+        and can_change_shift
+    ):
+        from reports.production_shift_policy import (
+            ProductionShiftReassignError,
+            reassign_production_report_shift,
+        )
+        from reports.report_edit_log import log_report_edit
+
+        try:
+            old_label, new_label = reassign_production_report_shift(
+                report,
+                request.POST.get('shift') or '',
+            )
+        except ProductionShiftReassignError as exc:
+            messages.error(request, str(exc))
+            return _detail_redirect()
+        log_report_edit(
+            report,
+            request.user,
+            summary=f'Đổi ca: {old_label} → {new_label}.',
+            detail='Tổ trưởng sửa ca thủ công.',
+        )
+        messages.success(
+            request,
+            f'Đã chuyển báo cáo từ {old_label} sang {new_label}. Sản lượng được xếp lại theo khung giờ của ca mới.',
         )
         return _detail_redirect()
 
@@ -3184,6 +3228,8 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         ),
         'can_review': can_review,
         'can_approve': can_approve,
+        'can_change_shift': can_change_shift,
+        'shift_edit_options': shift_edit_options,
         'can_unapprove': can_unapprove,
         'unapprove_locked': unapprove_locked,
         'unapprove_deadline': unapprove_deadline,

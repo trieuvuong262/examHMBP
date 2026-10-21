@@ -294,3 +294,155 @@ def build_shift_picker_options(employee, report_date, *, can_edit: bool) -> list
             'has_report': report is not None,
         })
     return options
+
+
+class ProductionShiftReassignError(ValueError):
+    """Không đổi được ca — giờ làm không thuộc ca mới, hoặc ca đích đã có báo cáo."""
+
+
+def shift_edit_options_for_report(report) -> list[dict]:
+    """Hai lựa chọn ca sáng / ca tối trên popup sửa ca."""
+    current = normalize_shift(report.shift)
+    taken = {
+        normalize_shift(shift)
+        for shift in production_reports_for_day(report.employee, report.report_date)
+        .exclude(pk=report.pk)
+        .values_list('shift', flat=True)
+    }
+    options = []
+    for shift in PRODUCTION_SHIFT_ORDER:
+        meta = SHIFT_META[shift]
+        blocked = shift in taken
+        options.append({
+            'value': shift,
+            'label': meta['label'],
+            'time_range': meta['time_range'],
+            'selected': shift == current,
+            'disabled': blocked,
+            'reason': 'Đã có báo cáo ca này trong ngày.' if blocked else '',
+        })
+    return options
+
+
+def reassign_production_report_shift(report, new_shift: str) -> tuple[str, str]:
+    """Đổi ca báo cáo và chuyển sản lượng sang khung giờ của ca mới.
+
+    Giờ làm được map theo mốc thời gian thật, không theo số thứ tự khung giờ
+    (ca sáng và ca tối đánh số khác nhau). Trả về (nhãn ca cũ, nhãn ca mới).
+    """
+    from decimal import Decimal
+
+    from django.db import IntegrityError, transaction
+
+    from reports.models import ProductionHourlyQuantity
+    from reports.production_slots import slot_bounds, slot_by_index, slots_overlapping_interval
+
+    new_shift = (new_shift or '').strip().upper()
+    if new_shift not in PRODUCTION_SHIFT_ORDER:
+        raise ProductionShiftReassignError('Ca không hợp lệ.')
+
+    old_raw = report.shift or DailyWorkReport.SHIFT_MORNING
+    old_shift = normalize_shift(old_raw)
+    old_label = shift_display_label(old_shift)
+    new_label = shift_display_label(new_shift)
+    if new_shift == old_raw or (new_shift == old_shift and old_raw != DailyWorkReport.SHIFT_OVERTIME):
+        raise ProductionShiftReassignError(f'Báo cáo đang ở {new_label}.')
+
+    conflict = production_reports_for_day(report.employee, report.report_date).exclude(pk=report.pk)
+    if new_shift == DailyWorkReport.SHIFT_MORNING:
+        conflict = conflict.filter(shift__in=(
+            DailyWorkReport.SHIFT_MORNING,
+            DailyWorkReport.SHIFT_OVERTIME,
+        ))
+    else:
+        conflict = conflict.filter(shift=new_shift)
+    if conflict.exists():
+        raise ProductionShiftReassignError(
+            f'Nhân viên đã có báo cáo {new_label} trong ngày {report.report_date.strftime("%d/%m/%Y")}.'
+        )
+
+    products = list(report.production_products.prefetch_related('hourly_entries').all())
+    plans = []
+    for product in products:
+        mapped: dict[int, dict] = {}
+        for entry in product.hourly_entries.all():
+            slot = slot_by_index(entry.slot_index, old_shift)
+            qty = entry.quantity or Decimal('0')
+            if slot is None:
+                if qty > 0:
+                    _raise_unmapped(product, new_label, '')
+                continue
+            start, end = slot_bounds(report.report_date, slot)
+            overlaps = slots_overlapping_interval(report.report_date, new_shift, start, end)
+            if not overlaps:
+                if qty > 0:
+                    _raise_unmapped(product, new_label, slot.label)
+                continue
+            new_index, hours = max(overlaps, key=lambda item: item[1])
+            bucket = mapped.setdefault(new_index, {
+                'quantity': Decimal('0'),
+                'damaged': 0,
+                'note': '',
+                'zero_reason': '',
+                'hours': hours,
+            })
+            bucket['quantity'] += qty
+            bucket['damaged'] += int(entry.damaged_quantity or 0)
+            if (entry.note or '').strip() and not bucket['note']:
+                bucket['note'] = (entry.note or '').strip()[:500]
+            if qty <= 0 and (entry.zero_reason or '').strip() and not bucket['zero_reason']:
+                bucket['zero_reason'] = (entry.zero_reason or '').strip()[:200]
+            if hours > bucket['hours']:
+                bucket['hours'] = hours
+        if not mapped and product.started_at and product.ended_at and (product.total_quantity or 0) > 0:
+            overlaps = slots_overlapping_interval(
+                report.report_date, new_shift, product.started_at, product.ended_at,
+            )
+            if not overlaps:
+                _raise_unmapped(product, new_label, '')
+        plans.append((product, mapped))
+
+    try:
+        with transaction.atomic():
+            report.shift = new_shift
+            report.save(update_fields=['shift', 'updated_at'])
+            for product, mapped in plans:
+                if product.hourly_entries.exists() or mapped:
+                    product.hourly_entries.all().delete()
+                for slot_index, data in sorted(mapped.items()):
+                    hours = data['hours']
+                    partial = hours if hours != Decimal('1') else None
+                    ProductionHourlyQuantity.objects.create(
+                        product=product,
+                        slot_index=slot_index,
+                        quantity=data['quantity'],
+                        damaged_quantity=data['damaged'],
+                        note=data['note'],
+                        partial_hours=partial,
+                        zero_reason='' if data['quantity'] > 0 else data['zero_reason'],
+                    )
+                if mapped:
+                    product.first_slot_index = min(mapped)
+                    product.save(update_fields=['first_slot_index'])
+                elif product.started_at:
+                    end = product.ended_at or product.started_at
+                    overlaps = slots_overlapping_interval(
+                        report.report_date, new_shift, product.started_at, end,
+                    )
+                    if overlaps:
+                        product.first_slot_index = overlaps[0][0]
+                        product.save(update_fields=['first_slot_index'])
+    except IntegrityError as exc:
+        raise ProductionShiftReassignError(
+            f'Không đổi được sang {new_label}. Nhân viên có thể đã có báo cáo ca này trong ngày.'
+        ) from exc
+
+    return old_label, new_label
+
+
+def _raise_unmapped(product, new_label: str, slot_label: str) -> None:
+    name = (product.product_code or product.process_name or 'công đoạn').strip()
+    when = f' ({slot_label})' if slot_label else ''
+    raise ProductionShiftReassignError(
+        f'Không đổi được sang {new_label}: giờ làm{when} của «{name}» không thuộc ca này.'
+    )

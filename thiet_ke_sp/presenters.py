@@ -410,7 +410,9 @@ def action_flags(dossier: ProductDevelopment, user) -> dict[str, bool]:
         'edit_proposal': (
             s in (Status.DRAFT, Status.BRIEF_NEEDS_INFO, Status.BRIEF_PENDING)
             or wf.allows_reopen_overview(dossier)
-        ) and perms.can_edit_brief(dossier, user),
+        ) and (
+            perms.can_edit_brief(dossier, user) or perms.can_edit_overview_fields(dossier, user)
+        ),
         'submit_brief': s in (Status.DRAFT, Status.BRIEF_NEEDS_INFO) and perms.can_edit_brief(dossier, user),
         'delete_draft': perms.can_delete_dossier(dossier, user),
         'decide_brief': s == Status.BRIEF_PENDING and approver,

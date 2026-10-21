@@ -94,6 +94,11 @@ def slot_by_index(index: int, shift: str | None = None) -> Optional[ProductionHo
     return None
 
 
+def slot_bounds(report_date, slot: ProductionHourlySlot) -> tuple[datetime, datetime]:
+    """Mốc bắt đầu / kết thúc của một khung giờ trên ngày báo cáo."""
+    return _slot_start_dt(report_date, slot), _slot_end_dt(report_date, slot)
+
+
 def slot_grid_meta(slot: ProductionHourlySlot) -> dict:
     return {
         'index': slot.index,
