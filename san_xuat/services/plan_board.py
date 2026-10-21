@@ -5713,7 +5713,19 @@ def move_team_day_plan(
     if not remaining:
         return order
     pin = remaining[0].plan_date
-    starts = _pin_team_planned_date(order, slug, pin)
+    try:
+        starts = _pin_team_planned_date(order, slug, pin)
+    except PlanningError:
+        # Ô đã tách vẫn dời được khi bước kế hoạch không cùng slug với dòng lộ trình
+        # (QC trên đơn là CHK_SET, bước kiểm lỗi lại thuộc tổ may).
+        steps = _load_schedule_steps(order)
+        spans = team_khsx_spans(order, plan_steps=steps)
+        starts = {
+            span.slug: span.start
+            for span in spans
+            if span.slug != 'npl' and span.start
+        }
+        starts[slug] = pin
     return _sync_schedule_to_mos(order, starts)
 
 
