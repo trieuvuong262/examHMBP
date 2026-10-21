@@ -224,19 +224,19 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'plan_detail', 'label': 'Kế hoạch chi tiết', 'icon': 'bi-list-columns'},
         {
             'key': 'sx_price_approve',
-            'label': 'Duyệt giá',
-            'perm_label': 'Duyệt giá NPL (Sếp — cần Sửa để chốt/duyệt)',
+            'label': 'So sánh và duyệt giá',
+            'perm_label': 'So sánh và duyệt giá NPL (cần Sửa để chốt/duyệt)',
             'icon': 'bi-shield-check',
         },
         {
             'key': 'sx_price_quote',
-            'label': 'Bảng so giá',
-            'perm_label': 'Bảng so giá NPL (KHSX)',
+            'label': 'Yêu cầu báo giá',
+            'perm_label': 'Yêu cầu báo giá NPL',
             'icon': 'bi-tags',
         },
-        {'key': 'npl_pr', 'label': 'Danh sách đơn đặt hàng', 'icon': 'bi-cart-plus'},
-        {'key': 'plan_npl', 'label': 'Xác nhận đơn đặt hàng', 'icon': 'bi-boxes'},
-        {'key': 'purchase_order', 'label': 'Đơn mua hàng', 'icon': 'bi-receipt'},
+        {'key': 'npl_pr', 'label': 'Đề nghị mua hàng', 'icon': 'bi-cart-plus'},
+        {'key': 'plan_npl', 'label': 'Kế hoạch mua hàng', 'icon': 'bi-boxes'},
+        {'key': 'purchase_order', 'label': 'Đơn đặt hàng', 'icon': 'bi-receipt'},
         {'key': 'stock_policy', 'label': 'Chính sách tồn', 'icon': 'bi-sliders'},
         {'key': 'restock', 'label': 'Đề xuất bù tồn', 'icon': 'bi-arrow-repeat'},
         {'key': 'plan_audit', 'label': 'Nhật ký kế hoạch', 'icon': 'bi-journal-text'},
@@ -476,6 +476,9 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/san-xuat/san-pham-nvl', MODULE_SAN_XUAT, 'products_nvl'),
     # Kế hoạch NPL — phải đứng trước /san-xuat/ke-hoach (cùng tiền tố chuỗi).
     # Trang tổng quan /san-xuat/ke-hoach-npl/ được defer: view tự kiểm tra menu NPL bất kỳ.
+    ('/san-xuat/ke-hoach-npl/ke-hoach-mua', MODULE_SAN_XUAT, 'plan_npl'),
+    ('/san-xuat/ke-hoach-npl/xac-nhan-ncc', MODULE_SAN_XUAT, 'purchase_order'),
+    ('/san-xuat/ke-hoach-npl/nhan-hang', MODULE_SAN_XUAT, 'purchase_order'),
     ('/san-xuat/ke-hoach-npl/so-gia', MODULE_SAN_XUAT, 'sx_price_quote'),
     ('/san-xuat/ke-hoach-npl/duyet-gia', MODULE_SAN_XUAT, 'sx_price_approve'),
     ('/san-xuat/ke-hoach-npl/don-dat-hang', MODULE_SAN_XUAT, 'npl_pr'),
@@ -648,6 +651,8 @@ MENU_PATH_ACCESS_ALIASES: dict[tuple[str, str], tuple[str, ...]] = {
     # KHSX có bảng so giá vẫn đi được URL duyệt giá (middleware);
     # view sẽ redirect sang so-gia, không mở hàng chờ Sếp.
     (MODULE_SAN_XUAT, 'sx_price_approve'): ('sx_price_quote',),
+    (MODULE_SAN_XUAT, 'plan_npl'): ('npl_pr',),
+    (MODULE_SAN_XUAT, 'purchase_order'): ('plan_npl', 'npl_pr'),
     (MODULE_SAN_XUAT, 'qc'): ('qc_request', 'qc_sheet', 'qc_defect'),
     (MODULE_SAN_XUAT, 'qc_defect'): ('qc', 'qc_sheet', 'qc_request', 'qc_defect_group'),
     # Người duyệt / bộ phận nhận bàn giao mở hồ sơ từ việc được giao.

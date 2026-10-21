@@ -221,7 +221,6 @@ from san_xuat.services.planning import (
     confirm_detail_plan,
     confirm_material_plan,
     confirm_overall_plan,
-    confirm_purchase_order,
     create_overall_plan,
     detail_plan_progress,
     explode_detail_plan_from_overall,
@@ -3494,6 +3493,25 @@ def npl_purchase_request_detail(request, pk: int):
             else:
                 messages.success(request, f'Đơn đặt hàng {pr.code} đã từ chối.')
                 return redirect('san_xuat:npl_purchase_request_detail', pk=pr.pk)
+        elif action == 'create_rfq' and pr.status == SxNplPurchaseRequest.STATUS_APPROVED:
+            if not user_can_create_menu(request.user, MODULE_SAN_XUAT, 'sx_price_quote'):
+                messages.error(request, 'Không có quyền tạo yêu cầu báo giá.')
+            else:
+                from django.utils.dateparse import parse_date
+                from san_xuat.services.price_approval import create_quote_sheet_from_request
+
+                try:
+                    sheet = create_quote_sheet_from_request(
+                        request_id=pr.pk,
+                        user=request.user,
+                        response_due=parse_date((request.POST.get('response_due') or '').strip() or ''),
+                    )
+                except PlanningError as exc:
+                    messages.error(request, str(exc))
+                else:
+                    messages.success(request, f'Đã tạo yêu cầu báo giá {sheet.code}. Chưa gửi email nhà cung cấp.')
+                    return redirect('san_xuat:price_quote_detail', pk=sheet.pk)
+            return redirect('san_xuat:npl_purchase_request_detail', pk=pr.pk)
     from kho_npl.models import Material
     from san_xuat.services.price_approval import chosen_offers_for_code
 
@@ -3534,6 +3552,10 @@ def npl_purchase_request_detail(request, pk: int):
         'edit_pay': next((ln.payment_method for ln in lines if ln.payment_method), pr.payment_method),
         'edit_date': next((ln.expected_date for ln in lines if ln.expected_date), pr.due_date),
         'payment_choices': SxNplPurchaseRequest.PAYMENT_CHOICES,
+        'can_create_rfq': (
+            pr.status == SxNplPurchaseRequest.STATUS_APPROVED
+            and user_can_create_menu(request.user, MODULE_SAN_XUAT, 'sx_price_quote')
+        ),
     })
 
 
@@ -3545,10 +3567,26 @@ def npl_purchase_request_edit(request, pk: int):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def purchase_order(request):
-    """Danh sách cũ trùng đơn đặt hàng — giữ URL, mở đúng một màn."""
-    target = reverse('san_xuat:npl_purchase_request')
-    query = request.GET.urlencode()
-    return redirect(f'{target}?{query}' if query else target)
+    """Danh sách đơn đặt hàng (PO) — tách khỏi đề nghị mua hàng."""
+    if not (
+        user_can_access_menu(request.user, MODULE_SAN_XUAT, 'purchase_order')
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan_npl')
+    ):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'purchase_order')
+    base_qs = (
+        SxPurchaseOrder.objects.filter(is_demo=False)
+        .select_related('purchase_request', 'supplier')
+        .prefetch_related('lines')
+        .order_by('-created_at', '-pk')
+    )
+    orders, fctx = prepare_hub_list(
+        request, base_qs, SX_FILTER_PURCHASE_ORDER, list_key='purchase_order',
+    )
+    return render(request, 'san_xuat/purchase_order_list.html', {
+        **_perm_ctx(request),
+        'orders': orders,
+        **fctx,
+    })
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'create')
@@ -3603,21 +3641,142 @@ def purchase_order_detail(request, pk: int):
             'purchase_request__material_plan',
             'supplier',
             'stock_receipt',
-        ).prefetch_related('lines'),
+        ).prefetch_related('lines', 'revisions'),
         pk=pk,
     )
     can_update = _perm_ctx(request).get('can_update')
     receipt_form = PoReceiptForm()
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
-        if action == 'confirm' and can_update and po.status == SxPurchaseOrder.STATUS_DRAFT:
+        if action in ('confirm', 'issue') and can_update and po.status == SxPurchaseOrder.STATUS_DRAFT:
             try:
-                po = confirm_purchase_order(order_id=po.pk, user=request.user)
+                from san_xuat.services.po_lifecycle import issue_purchase_order
+
+                po = issue_purchase_order(order_id=po.pk, user=request.user)
             except PlanningError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'Đơn mua hàng {po.code} đã xác nhận.')
+                messages.success(request, f'Đã phát hành đơn đặt hàng {po.code}.')
                 return redirect('san_xuat:purchase_order_detail', pk=po.pk)
+        elif action == 'approve_price_change' and po.price_change_pending:
+            if not user_can_update_menu(request.user, MODULE_SAN_XUAT, 'sx_price_approve'):
+                messages.error(request, 'Không có quyền duyệt giá điều chỉnh.')
+            else:
+                try:
+                    from san_xuat.services.po_lifecycle import approve_po_price_change
+
+                    approve_po_price_change(order_id=po.pk, user=request.user)
+                except PlanningError as exc:
+                    messages.error(request, str(exc))
+                else:
+                    messages.success(request, f'Đã duyệt giá điều chỉnh {po.code}.')
+            return redirect('san_xuat:purchase_order_detail', pk=po.pk)
+        elif action == 'revise' and can_update:
+            try:
+                from san_xuat.services.po_lifecycle import revise_purchase_order
+
+                revise_purchase_order(order_id=po.pk, post=request.POST, user=request.user)
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã ghi phiên bản điều chỉnh. {po.code} về nháp.')
+            return redirect('san_xuat:purchase_order_detail', pk=po.pk)
+        elif action == 'cancel' and can_update:
+            try:
+                from san_xuat.services.po_lifecycle import cancel_purchase_order
+
+                cancel_purchase_order(
+                    order_id=po.pk,
+                    reason=request.POST.get('cancel_reason') or '',
+                    user=request.user,
+                )
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã hủy đơn đặt hàng {po.code}.')
+            return redirect('san_xuat:purchase_order_detail', pk=po.pk)
+        elif action == 'supplier_confirm' and can_update:
+            try:
+                from san_xuat.services.po_lifecycle import record_supplier_confirmation
+
+                record_supplier_confirmation(order_id=po.pk, post=request.POST, user=request.user)
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã ghi nhận xác nhận nhà cung cấp cho {po.code}.')
+            return redirect('san_xuat:purchase_order_detail', pk=po.pk)
+        elif action == 'receive_qc' and can_update:
+            rows = []
+            for ln in po.lines.all():
+                rows.append({
+                    'line_id': ln.pk,
+                    'doc': request.POST.get(f'doc__{ln.pk}'),
+                    'actual': request.POST.get(f'actual__{ln.pk}'),
+                    'qc_pass': request.POST.get(f'pass__{ln.pk}'),
+                    'qc_fail': request.POST.get(f'fail__{ln.pk}'),
+                })
+            try:
+                from san_xuat.services.po_receipt import receive_po_batch
+
+                receipt = receive_po_batch(
+                    order_id=po.pk,
+                    rows=rows,
+                    user=request.user,
+                    allow_over=request.POST.get('allow_over') == '1',
+                    over_note=request.POST.get('over_note') or '',
+                )
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(
+                    request,
+                    f'Đã ghi sổ {receipt.number}. Chỉ số đạt QC vào kho thường, hàng lỗi vào kho hủy.',
+                )
+            return redirect('san_xuat:purchase_order_detail', pk=po.pk)
+        elif action == 'close_remainder' and can_update:
+            try:
+                from san_xuat.services.po_lifecycle import close_po_remainder
+
+                close_po_remainder(
+                    order_id=po.pk,
+                    reason=request.POST.get('close_reason') or '',
+                    user=request.user,
+                )
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã đóng phần còn lại của {po.code}.')
+            return redirect('san_xuat:purchase_order_detail', pk=po.pk)
+        elif action == 'record_return' and can_update:
+            try:
+                from san_xuat.services.po_lifecycle import record_po_return
+
+                record_po_return(
+                    order_id=po.pk,
+                    line_id=int(request.POST.get('return_line') or 0),
+                    qty=request.POST.get('return_qty'),
+                    reason=request.POST.get('return_reason') or '',
+                    user=request.user,
+                )
+            except (PlanningError, ValueError) as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã ghi nhận trả hàng {po.code}.')
+            return redirect('san_xuat:purchase_order_detail', pk=po.pk)
+        elif action == 'buy_elsewhere' and can_update:
+            try:
+                from san_xuat.services.npl_buy import create_pr_for_po_shortfall
+
+                pr = create_pr_for_po_shortfall(
+                    order_id=po.pk,
+                    user=request.user,
+                    reason=request.POST.get('buy_reason') or '',
+                )
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+                return redirect('san_xuat:purchase_order_detail', pk=po.pk)
+            messages.success(request, f'Đã lập đề nghị mua bù {pr.code}. Đơn gốc chưa đóng.')
+            return redirect('san_xuat:npl_purchase_request_detail', pk=pr.pk)
         elif action == 'create_receipt' and can_update:
             try:
                 receipt = create_receipt_from_po(order_id=po.pk, user=request.user)
@@ -3651,15 +3810,23 @@ def purchase_order_detail(request, pk: int):
     total_amount = sum((ln.amount for ln in lines_all), Decimal('0'))
     remaining_qty = sum((ln.qty_remaining for ln in lines_all), Decimal('0'))
     lines_without_price = [ln.material_code for ln in lines_all if (ln.unit_price or 0) <= 0]
+    can_approve_price = (
+        po.price_change_pending
+        and user_can_update_menu(request.user, MODULE_SAN_XUAT, 'sx_price_approve')
+    )
+    from kho_npl.models import Supplier
+
     return render(request, 'san_xuat/purchase_order_detail.html', {
         **_perm_ctx(request),
         'po': po,
         'can_update': can_update,
+        'can_approve_price': can_approve_price,
         'receipt_form': receipt_form,
         'stock_receipts': po_receipts(po),
         'total_amount': total_amount,
         'remaining_qty': remaining_qty,
         'lines_without_price': lines_without_price,
+        'po_suppliers': Supplier.objects.filter(is_active=True).order_by('name')[:300],
     })
 
 

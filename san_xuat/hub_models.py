@@ -1021,6 +1021,8 @@ class SxNplPurchaseRequest(DemoMarkedModel):
     ]
 
     notes = models.TextField(blank=True, default='')
+    reason = models.CharField(max_length=500, blank=True, default='', verbose_name='Lý do đề nghị')
+    department_name = models.CharField(max_length=120, blank=True, default='', verbose_name='Phòng ban')
     price_return_note = models.CharField(
         max_length=500, blank=True, default='', verbose_name='Lý do trả duyệt giá',
     )
@@ -1083,6 +1085,14 @@ class SxNplPurchaseRequestLine(models.Model):
         related_name='purchase_lines',
         verbose_name='Báo giá đã chốt',
     )
+    source_npl_line = models.ForeignKey(
+        'san_xuat.SxOrderNplLine',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='purchase_request_lines',
+        verbose_name='Dòng nhu cầu nguồn',
+    )
 
     class Meta:
         ordering = ['id']
@@ -1114,6 +1124,21 @@ class SxNplQuoteSheet(DemoMarkedModel):
         max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True,
     )
     notes = models.TextField(blank=True, default='')
+    choice_reason = models.CharField(
+        max_length=500,
+        blank=True,
+        default='',
+        verbose_name='Lý do không chọn giá thấp nhất',
+    )
+    purchase_request = models.ForeignKey(
+        'san_xuat.SxNplPurchaseRequest',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='quote_sheets',
+        verbose_name='Đề nghị mua',
+    )
+    response_due = models.DateField(null=True, blank=True, verbose_name='Hạn phản hồi báo giá')
     decided_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -1159,7 +1184,30 @@ class SxNplQuoteOffer(models.Model):
     )
     quality_note = models.CharField(max_length=255, blank=True, default='', verbose_name='Chất lượng')
     capacity_note = models.CharField(max_length=255, blank=True, default='', verbose_name='Năng lực')
+    moq = models.DecimalField(
+        max_digits=14, decimal_places=4, default=Decimal('0'), verbose_name='Số lượng đặt tối thiểu',
+    )
+    lead_days = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name='Số ngày giao')
+    freight_amount = models.DecimalField(
+        max_digits=18, decimal_places=6, default=Decimal('0'), verbose_name='Phí vận chuyển / đơn vị',
+    )
+    tax_amount = models.DecimalField(
+        max_digits=18, decimal_places=6, default=Decimal('0'), verbose_name='Thuế / đơn vị',
+    )
+    extra_fee = models.DecimalField(
+        max_digits=18, decimal_places=6, default=Decimal('0'), verbose_name='Phụ phí / đơn vị',
+    )
+    payment_note = models.CharField(max_length=120, blank=True, default='', verbose_name='Thanh toán')
     is_chosen = models.BooleanField(default=False, db_index=True, verbose_name='Sếp đã chọn')
+
+    @property
+    def landed_unit(self) -> Decimal:
+        return (
+            (self.unit_price or Decimal('0'))
+            + (self.freight_amount or Decimal('0'))
+            + (self.tax_amount or Decimal('0'))
+            + (self.extra_fee or Decimal('0'))
+        )
 
     class Meta:
         ordering = ['material_code', 'id']
@@ -1180,13 +1228,23 @@ class SxPurchaseOrder(DemoMarkedModel):
     STATUS_DRAFT = 'draft'
     STATUS_CONFIRMED = 'confirmed'
     STATUS_RECEIVED = 'received'
+    STATUS_CANCELLED = 'cancelled'
     STATUS_CHOICES = [
         (STATUS_DRAFT, 'Nháp'),
-        (STATUS_CONFIRMED, 'Đã xác nhận'),
-        (STATUS_RECEIVED, 'Đã nhập'),
+        (STATUS_CONFIRMED, 'Đã phát hành'),
+        (STATUS_RECEIVED, 'Đã nhập đủ'),
+        (STATUS_CANCELLED, 'Đã hủy'),
+    ]
+    CONFIRM_PENDING = 'pending'
+    CONFIRM_MATCHED = 'matched'
+    CONFIRM_VARIANCE = 'variance'
+    SUPPLIER_CONFIRM_CHOICES = [
+        (CONFIRM_PENDING, 'Chờ NCC xác nhận'),
+        (CONFIRM_MATCHED, 'NCC xác nhận khớp'),
+        (CONFIRM_VARIANCE, 'NCC xác nhận lệch'),
     ]
 
-    code = models.CharField(max_length=40, unique=True, verbose_name='Mã DMH')
+    code = models.CharField(max_length=40, unique=True, verbose_name='Mã đơn đặt hàng')
     supplier_name = models.CharField(max_length=200, blank=True, default='')
     supplier = models.ForeignKey(
         'kho_npl.Supplier',
@@ -1210,6 +1268,40 @@ class SxPurchaseOrder(DemoMarkedModel):
         verbose_name='Phiếu nhập kho NPL',
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True)
+    issued_at = models.DateTimeField(null=True, blank=True, verbose_name='Phát hành lúc')
+    issued_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sx_po_issued',
+        verbose_name='Người phát hành',
+    )
+    supplier_confirm_status = models.CharField(
+        max_length=20,
+        choices=SUPPLIER_CONFIRM_CHOICES,
+        default=CONFIRM_PENDING,
+        db_index=True,
+        verbose_name='Xác nhận nhà cung cấp',
+    )
+    supplier_confirmed_at = models.DateTimeField(null=True, blank=True, verbose_name='NCC xác nhận lúc')
+    supplier_confirm_note = models.CharField(
+        max_length=500, blank=True, default='', verbose_name='Ghi chú xác nhận NCC',
+    )
+    supplier_recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sx_po_supplier_recorded',
+        verbose_name='Người ghi nhận xác nhận',
+    )
+    price_change_pending = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name='Đổi giá chờ duyệt lại',
+    )
+    cancel_reason = models.CharField(max_length=500, blank=True, default='', verbose_name='Lý do hủy')
     kv_purchase_kiotviet_id = models.BigIntegerField(null=True, blank=True, verbose_name='KV purchase id')
     kv_purchase_code = models.CharField(max_length=64, blank=True, default='', verbose_name='Mã phiếu nhập KV')
     notes = models.TextField(blank=True, default='')
@@ -1225,8 +1317,8 @@ class SxPurchaseOrder(DemoMarkedModel):
 
     class Meta:
         ordering = ['-created_at']
-        verbose_name = 'Đơn mua hàng'
-        verbose_name_plural = 'Đơn mua hàng'
+        verbose_name = 'Đơn đặt hàng'
+        verbose_name_plural = 'Đơn đặt hàng'
 
     def __str__(self):
         return self.code
@@ -1247,17 +1339,99 @@ class SxPurchaseOrderLine(models.Model):
     )
     need_date = models.DateField(null=True, blank=True, verbose_name='Ngày cần')
     notes = models.CharField(max_length=255, blank=True, default='', verbose_name='Ghi chú')
+    confirmed_qty = models.DecimalField(
+        max_digits=14, decimal_places=4, null=True, blank=True, verbose_name='SL NCC xác nhận',
+    )
+    confirmed_unit_price = models.DecimalField(
+        max_digits=18, decimal_places=6, null=True, blank=True, verbose_name='Đơn giá NCC xác nhận',
+    )
+    confirmed_date = models.DateField(null=True, blank=True, verbose_name='Ngày giao NCC xác nhận')
+    qty_qc_pass = models.DecimalField(
+        max_digits=14, decimal_places=4, default=Decimal('0'), verbose_name='Đạt QC',
+    )
+    qty_qc_fail = models.DecimalField(
+        max_digits=14, decimal_places=4, default=Decimal('0'), verbose_name='Không đạt QC',
+    )
+    qty_returned = models.DecimalField(
+        max_digits=14, decimal_places=4, default=Decimal('0'), verbose_name='Đã trả',
+    )
+    qty_closed = models.DecimalField(
+        max_digits=14, decimal_places=4, default=Decimal('0'), verbose_name='Đóng phần còn lại',
+    )
+    quote_offer = models.ForeignKey(
+        'san_xuat.SxNplQuoteOffer',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='po_lines',
+        verbose_name='Báo giá đã chốt',
+    )
 
     class Meta:
         ordering = ['id']
 
     @property
+    def qty_accepted(self) -> Decimal:
+        from san_xuat.services.npl_qty import qty_still_due
+
+        ordered = self.qty_ordered or Decimal('0')
+        due = qty_still_due(
+            ordered=ordered,
+            qc_pass=self.qty_qc_pass,
+            qc_fail=self.qty_qc_fail,
+            closed=self.qty_closed,
+            received=self.qty_received,
+        )
+        return max(Decimal('0'), ordered - due - (self.qty_closed or Decimal('0')))
+
+    @property
     def qty_remaining(self) -> Decimal:
-        return max(Decimal('0'), (self.qty_ordered or Decimal('0')) - (self.qty_received or Decimal('0')))
+        from san_xuat.services.npl_qty import qty_still_due
+
+        return qty_still_due(
+            ordered=self.qty_ordered,
+            qc_pass=self.qty_qc_pass,
+            qc_fail=self.qty_qc_fail,
+            closed=self.qty_closed,
+            received=self.qty_received,
+        )
 
     @property
     def amount(self) -> Decimal:
         return (self.qty_ordered or Decimal('0')) * (self.unit_price or Decimal('0'))
+
+
+class SxPurchaseOrderRevision(models.Model):
+    """Phiên bản điều chỉnh sau khi đơn đặt hàng đã phát hành."""
+
+    order = models.ForeignKey(
+        SxPurchaseOrder, on_delete=models.CASCADE, related_name='revisions', verbose_name='Đơn đặt hàng',
+    )
+    version = models.PositiveIntegerField(verbose_name='Phiên bản')
+    reason = models.CharField(max_length=500, verbose_name='Lý do điều chỉnh')
+    changes = models.JSONField(default=dict, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sx_po_revisions',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-version', '-id']
+        verbose_name = 'Phiên bản đơn đặt hàng'
+        verbose_name_plural = 'Phiên bản đơn đặt hàng'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['order', 'version'],
+                name='sx_po_revision_order_version',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.order_id} v{self.version}'
 
 
 # --- Điều phối ---

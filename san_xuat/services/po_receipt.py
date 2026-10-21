@@ -62,7 +62,7 @@ def create_receipt_from_po(
     receipt_date=None,
     location=None,
     notes: str = '',
-    auto_post: bool = True,
+    auto_post: bool = False,
 ) -> StockReceipt:
     po = SxPurchaseOrder.objects.select_for_update().prefetch_related('lines').get(pk=order_id)
     if po.status == SxPurchaseOrder.STATUS_DRAFT:
@@ -144,15 +144,10 @@ def create_receipt_from_po(
         user=user,
     )
     if auto_post:
-        try:
-            from kho_npl.services.receipts import ReceiptWorkflowError, post_stock_receipt
-
-            receipt = post_stock_receipt(receipt, user, require_attachment=False)
-            sync_po_received_from_po_receipts(order_id=po.pk, user=user)
-        except ReceiptWorkflowError:
-            from san_xuat.services.plan_order_npl import reload_khsx_stock_for_codes
-
-            reload_khsx_stock_for_codes([ln.material_code for ln in po.lines.all()])
+        raise PlanningError(
+            'Phiếu từ đơn đặt hàng phải nhập số thực nhận và số đạt QC trước khi ghi sổ. '
+            'Hàng chưa kiểm hoặc hàng lỗi không được cộng vào tồn khả dụng.'
+        )
     return receipt
 
 
@@ -188,9 +183,14 @@ def sync_po_received_from_po_receipts(*, order_id: int, user=None) -> dict:
     po = SxPurchaseOrder.objects.select_for_update().prefetch_related('lines').get(pk=order_id)
     posted = po_receipts(po).filter(status=DOC_STATUS_POSTED)
     qty_by_code: dict[str, Decimal] = {}
+    pass_by_code: dict[str, Decimal] = {}
+    fail_by_code: dict[str, Decimal] = {}
     for line in StockReceiptLine.objects.filter(receipt__in=posted).select_related('material'):
         key = (line.material.code or '').strip().upper()
-        qty_by_code[key] = qty_by_code.get(key, Decimal('0')) + (line.received_qty or Decimal('0'))
+        physical = line.received_qty or Decimal('0')
+        qty_by_code[key] = qty_by_code.get(key, Decimal('0')) + physical
+        pass_by_code[key] = pass_by_code.get(key, Decimal('0')) + (line.qc_pass_qty or Decimal('0'))
+        fail_by_code[key] = fail_by_code.get(key, Decimal('0')) + (line.qc_fail_qty or Decimal('0'))
 
     updated = 0
     for ln in po.lines.all():
@@ -199,9 +199,18 @@ def sync_po_received_from_po_receipts(*, order_id: int, user=None) -> dict:
         if new_qty is None:
             continue
         new_qty = new_qty.quantize(Decimal('0.0001'))
-        if ln.qty_received != new_qty:
+        new_pass = pass_by_code.get(key, Decimal('0')).quantize(Decimal('0.0001'))
+        new_fail = fail_by_code.get(key, Decimal('0')).quantize(Decimal('0.0001'))
+        changed = (
+            ln.qty_received != new_qty
+            or (ln.qty_qc_pass or Decimal('0')) != new_pass
+            or (ln.qty_qc_fail or Decimal('0')) != new_fail
+        )
+        if changed:
             ln.qty_received = new_qty
-            ln.save(update_fields=['qty_received'])
+            ln.qty_qc_pass = new_pass
+            ln.qty_qc_fail = new_fail
+            ln.save(update_fields=['qty_received', 'qty_qc_pass', 'qty_qc_fail'])
             updated += 1
 
     lines = list(po.lines.all())
@@ -246,3 +255,141 @@ def on_npl_receipt_posted(receipt) -> None:
     from san_xuat.services.plan_order_npl import reload_khsx_stock_for_codes
 
     reload_khsx_stock_for_codes(codes)
+
+
+def _dec(value) -> Decimal:
+    try:
+        return Decimal(str(value or '0'))
+    except Exception:
+        return Decimal('0')
+
+
+@transaction.atomic
+def receive_po_batch(
+    *,
+    order_id: int,
+    rows: list[dict],
+    user=None,
+    allow_over: bool = False,
+    over_note: str = '',
+) -> StockReceipt:
+    """Nhận một đợt: chỉ số đạt QC vào kho thường, hàng lỗi vào kho hủy."""
+    from kho_npl.services.receipts import post_stock_receipt
+    from kho_npl.services.scrap_warehouse import get_scrap_location
+    from kho_npl.stock_domain import STOCK_DOMAIN_NPL
+
+    po = SxPurchaseOrder.objects.select_for_update().prefetch_related('lines').get(pk=order_id)
+    if po.status != SxPurchaseOrder.STATUS_CONFIRMED:
+        raise PlanningError('Chỉ nhận hàng trên đơn đã phát hành.')
+    pending = po_receipts(po).exclude(status__in=(DOC_STATUS_POSTED, DOC_STATUS_CANCELLED)).first()
+    if pending is not None:
+        if pending.lines.filter(received_qty__gt=0).exists():
+            raise PlanningError(f'Phiếu {pending.number} đang chờ ghi sổ. Ghi sổ hoặc hủy phiếu đó trước.')
+        pending.status = DOC_STATUS_CANCELLED
+        pending.save(update_fields=['status'])
+
+    by_id = {ln.pk: ln for ln in po.lines.all()}
+    parsed = []
+    for row in rows or []:
+        try:
+            line_id = int(row.get('line_id') or 0)
+        except (TypeError, ValueError):
+            continue
+        ln = by_id.get(line_id)
+        if ln is None:
+            continue
+        actual = _dec(row.get('actual'))
+        if actual <= 0:
+            continue
+        passed = _dec(row.get('qc_pass'))
+        failed = _dec(row.get('qc_fail'))
+        doc = _dec(row.get('doc'))
+        if passed < 0 or failed < 0:
+            raise PlanningError(f'{ln.material_code}: số QC không được âm.')
+        if (passed + failed).quantize(_Q3) != actual.quantize(_Q3):
+            raise PlanningError(
+                f'{ln.material_code}: số đạt QC cộng số không đạt phải bằng số thực nhận. '
+                'Phần chưa kiểm không được nhập kho.'
+            )
+        open_physical = (ln.qty_ordered or Decimal('0')) - (ln.qty_received or Decimal('0'))
+        if actual > open_physical:
+            if not allow_over:
+                raise PlanningError(
+                    f'{ln.material_code}: thực nhận {actual} vượt số còn theo đơn {open_physical}. '
+                    'Đánh dấu nhận vượt và ghi chú nếu vẫn nhập.'
+                )
+            if not (over_note or '').strip():
+                raise PlanningError('Nhận vượt số lượng đặt — nhập ghi chú.')
+        parsed.append((ln, doc, actual, passed, failed))
+    if not parsed:
+        raise PlanningError('Nhập số thực nhận lớn hơn 0 cho ít nhất một dòng.')
+
+    codes = [(ln.material_code or '').strip() for ln, *_rest in parsed]
+    materials = {
+        (m.code or '').strip().upper(): m
+        for m in Material.objects.filter(code__in=codes).select_related('primary_location')
+    }
+    target = default_receipt_location()
+    if target is None:
+        raise PlanningError('Chưa khai báo vị trí kho thường.')
+    scrap = get_scrap_location(STOCK_DOMAIN_NPL)
+    receipt = StockReceipt.objects.create(
+        number=next_receipt_number(),
+        receipt_date=timezone.localdate(),
+        supplier=po.supplier,
+        po_number=po.code,
+        created_by=user if getattr(user, 'pk', None) else None,
+        received_by=user if getattr(user, 'pk', None) else None,
+        notes=(over_note or f'Nhận và QC theo đơn {po.code}').strip(),
+    )
+    receipt_lines = []
+    for ln, doc, actual, passed, failed in parsed:
+        material = materials.get((ln.material_code or '').strip().upper())
+        if material is None:
+            raise PlanningError(f'{ln.material_code} chưa có trong danh mục kho.')
+        price = ln.unit_price or material.base_price or Decimal('0')
+        stock_loc = material_default_location(material) or target
+        if passed > 0:
+            receipt_lines.append(StockReceiptLine(
+                receipt=receipt,
+                material=material,
+                ordered_qty=(ln.qty_ordered or Decimal('0')).quantize(_Q3),
+                received_qty=passed.quantize(_Q3),
+                doc_qty=doc.quantize(_Q3),
+                actual_qty=passed.quantize(_Q3),
+                qc_pass_qty=passed.quantize(_Q3),
+                qc_fail_qty=Decimal('0'),
+                location=stock_loc,
+                batch_code=(po.code or '')[:60],
+                unit_price=price,
+                notes=f'Đạt QC {po.code}'[:255],
+            ))
+        if failed > 0:
+            receipt_lines.append(StockReceiptLine(
+                receipt=receipt,
+                material=material,
+                ordered_qty=(ln.qty_ordered or Decimal('0')).quantize(_Q3),
+                received_qty=failed.quantize(_Q3),
+                doc_qty=Decimal('0'),
+                actual_qty=failed.quantize(_Q3),
+                qc_pass_qty=Decimal('0'),
+                qc_fail_qty=failed.quantize(_Q3),
+                location=scrap,
+                batch_code=(po.code or '')[:60],
+                unit_price=price,
+                notes=f'Không đạt QC {po.code}'[:255],
+            ))
+    StockReceiptLine.objects.bulk_create(receipt_lines)
+    posted = post_stock_receipt(receipt, user, require_attachment=False)
+    sync_po_received_from_po_receipts(order_id=po.pk, user=user)
+    log_plan_action(
+        action='receipt',
+        obj=po,
+        summary=(
+            f'Nhận và QC {posted.number} cho {po.code}. '
+            'Chỉ số đạt QC vào kho thường, hàng lỗi vào kho hủy.'
+        ),
+        changes={'receipt': posted.number, 'lines': len(parsed)},
+        user=user,
+    )
+    return posted

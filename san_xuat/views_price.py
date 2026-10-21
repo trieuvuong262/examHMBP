@@ -24,7 +24,6 @@ from san_xuat.services.price_approval import (
     return_price_review,
     return_quote_sheet,
     save_quote_offers,
-    sheet_has_three_suppliers,
     submit_quote_sheet,
 )
 
@@ -79,6 +78,12 @@ def _offer_rows(post):
             'unit_price': post.get(f'price__{idx}'),
             'quality_note': post.get(f'quality__{idx}'),
             'capacity_note': post.get(f'capacity__{idx}'),
+            'moq': post.get(f'moq__{idx}'),
+            'lead_days': post.get(f'lead__{idx}'),
+            'freight_amount': post.get(f'freight__{idx}'),
+            'tax_amount': post.get(f'tax__{idx}'),
+            'extra_fee': post.get(f'extra__{idx}'),
+            'payment_note': post.get(f'payment__{idx}'),
         })
     return rows
 
@@ -305,6 +310,7 @@ def price_quote_detail(request, pk: int):
                     sheet_id=sheet.pk,
                     chosen_ids=_chosen_ids(request.POST),
                     user=request.user,
+                    reason=request.POST.get('choice_reason') or '',
                 )
                 messages.success(
                     request,
@@ -317,7 +323,7 @@ def price_quote_detail(request, pk: int):
         return redirect('san_xuat:price_quote_detail', pk=sheet.pk)
 
     groups = quote_sheet_groups(sheet)
-    rule_ok = sheet_has_three_suppliers(sheet)
+    rule_ok = bool(groups) and all(group['meets_rule'] for group in groups)
     orders = []
     if staff_edit:
         orders = list(SxSalesOrder.objects.filter(is_demo=False).order_by('-id')[:80])

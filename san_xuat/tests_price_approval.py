@@ -1,4 +1,4 @@
-﻿"""Workflow duyet gia NPL."""
+"""Workflow duyet gia NPL."""
 from __future__ import annotations
 from decimal import Decimal
 from django.test import TestCase
@@ -42,14 +42,15 @@ class PriceApprovalWorkflowTests(TestCase):
         pa.save_quote_offers(sheet_id=sheet.pk, rows=rows)
         return sheet
 
-    def test_submit_requires_three_suppliers(self):
+    def test_submit_allows_fewer_than_three_suppliers(self):
         sheet = pa.create_quote_sheet()
         pa.save_quote_offers(sheet_id=sheet.pk, rows=[
             _row(self.m1, self.s1.pk, "100"),
-            _row(self.m1, self.s2.pk, "95"),
         ])
-        with self.assertRaises(PlanningError):
+        with self.assertRaises(PlanningError) as ctx:
             pa.submit_quote_sheet(sheet_id=sheet.pk)
+        self.assertNotIn("3", str(ctx.exception))
+        self.assertIn("KHSX", str(ctx.exception))
 
     def test_submit_requires_material_in_warehouse(self):
         sheet = pa.create_quote_sheet()

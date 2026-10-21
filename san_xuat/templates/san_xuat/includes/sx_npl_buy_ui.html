@@ -1,0 +1,119 @@
+{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+<style>
+.jp-npl-buy-note {
+  margin: 0 0 0.85rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--bs-border-color);
+  border-left: 3px solid var(--hm-red, #dc2626);
+  border-radius: 0.5rem;
+  background: var(--bs-body-bg);
+  color: var(--bs-secondary-color);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+.jp-sx-page .jp-npl-buy-grid-wrap {
+  max-height: calc(100vh - 15.5rem);
+}
+.jp-npl-buy-grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bs-tertiary-bg, #f8f9fa);
+  white-space: nowrap;
+  font-size: 0.75rem;
+}
+.jp-npl-buy-grid td,
+.jp-npl-buy-grid th {
+  font-variant-numeric: tabular-nums;
+}
+.jp-npl-buy-grid td.is-code {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.jp-npl-buy-grid td.is-date {
+  white-space: nowrap;
+}
+.jp-npl-buy-grid td.is-short {
+  color: var(--hm-red, #dc2626);
+  font-weight: 700;
+}
+.jp-npl-buy-grid .jp-npl-buy-check {
+  width: 2rem;
+  text-align: center;
+}
+.jp-npl-buy-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.5rem;
+  background: var(--bs-body-bg);
+}
+.jp-npl-buy-bar .jp-npl-buy-reason {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+.jp-npl-buy-bar .form-label {
+  margin-bottom: 0.25rem;
+}
+.jp-npl-buy-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+}
+.jp-npl-buy-head .btn {
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 0.8125rem;
+}
+.jp-npl-buy-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--bs-border-color);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  background: var(--bs-body-bg);
+}
+.jp-npl-buy-badge.is-wait { border-color: #fcd34d; background: #fffbeb; color: #a16207; }
+.jp-npl-buy-badge.is-ok { border-color: #bbf7d0; background: #f0fdf4; color: #166534; }
+.jp-npl-buy-badge.is-bad { border-color: #fecaca; background: #fef2f2; color: #991b1b; }
+[data-theme="dark"] .jp-npl-buy-badge.is-wait,
+[data-theme="dark"] .jp-npl-buy-badge.is-ok,
+[data-theme="dark"] .jp-npl-buy-badge.is-bad {
+  background: transparent;
+}
+.jp-npl-buy-split {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+@media (max-width: 991.98px) {
+  .jp-npl-buy-split { grid-template-columns: 1fr; }
+}
+.jp-npl-buy-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+.jp-sx-page .jp-npl-buy-filter .form-control,
+.jp-sx-page .jp-npl-buy-filter .form-select {
+  width: auto;
+  flex: 1 1 10rem;
+  max-width: 16rem;
+}
+</style>

@@ -3,6 +3,7 @@
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+{% include 'san_xuat/includes/sx_npl_buy_ui.html' %}
 <style>
 .jp-npl-material-catalog-page.jp-sx-page .jp-sx-stat-grid {
   grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
@@ -50,7 +51,7 @@
 <div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
-      <h2 class="jp-npl-mat-topbar-title w-100">Kế hoạch Nguyên Phụ Liệu</h2>
+      <h2 class="jp-npl-mat-topbar-title w-100">Theo dõi và báo cáo mua hàng</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       {% if board_queue_url %}
@@ -89,6 +90,14 @@
       <a class="jp-sx-stat{% if upcoming_count %} is-warn{% else %} is-zero{% endif %}" href="#jp-nplh-due">
         <span class="label"><i class="bi bi-calendar-event" aria-hidden="true"></i>Hàng về trong {{ upcoming_days }} ngày</span>
         <span class="value">{{ upcoming_count }}</span>
+      </a>
+      <a class="jp-sx-stat{% if open_po_count %} is-warn{% else %} is-zero{% endif %}" href="{% url 'san_xuat:npl_goods_receipt' %}">
+        <span class="label"><i class="bi bi-truck" aria-hidden="true"></i>PO chưa giao đủ</span>
+        <span class="value">{{ open_po_count }}</span>
+      </a>
+      <a class="jp-sx-stat{% if unconfirmed_po_count %} is-warn{% else %} is-zero{% endif %}" href="{% url 'san_xuat:npl_supplier_confirm' %}">
+        <span class="label"><i class="bi bi-person-exclamation" aria-hidden="true"></i>PO chưa xác nhận</span>
+        <span class="value">{{ unconfirmed_po_count }}</span>
       </a>
       <a class="jp-sx-stat{% if shortage_total %} is-warn{% else %} is-zero{% endif %}" href="#jp-nplh-shortage">
         <span class="label"><i class="bi bi-exclamation-diamond" aria-hidden="true"></i>Đơn SX thiếu NPL</span>
@@ -188,6 +197,189 @@
         </table>
       </div>
     </div>
+
+    <div class="jp-nplh-section-head">
+      <div class="jp-sx-section-title">Lịch sử giá đã chốt</div>
+    </div>
+    <div class="card border-0 shadow-sm overflow-hidden">
+      <div class="jp-npl-mat-grid-wrap">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Mã NPL</th>
+              <th>Nhà cung cấp</th>
+              <th class="text-end">Đơn giá</th>
+              <th>Ngày chốt</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in price_rows %}
+            <tr>
+              <td><a href="{{ row.href }}">{{ row.code }}</a></td>
+              <td>{{ row.supplier }}</td>
+              <td class="text-end">{{ row.price|sx_num }}</td>
+              <td>{% if row.when %}{{ row.when|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="text-muted small p-3">Chưa có giá đã chốt.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="jp-nplh-section-head">
+      <div class="jp-sx-section-title">Hiệu suất nhà cung cấp</div>
+    </div>
+    <div class="card border-0 shadow-sm overflow-hidden mb-4">
+      <div class="jp-npl-mat-grid-wrap">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Nhà cung cấp</th>
+              <th class="text-end">Số đơn</th>
+              <th class="text-end">Đang giao</th>
+              <th class="text-end">Trễ hạn</th>
+              <th class="text-end">Đã nhập đủ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in supplier_rows %}
+            <tr>
+              <td>{{ row.supplier }}</td>
+              <td class="text-end">{{ row.po_count }}</td>
+              <td class="text-end">{{ row.open_count }}</td>
+              <td class="text-end">{{ row.late_count }}</td>
+              <td class="text-end">{{ row.received_count }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-muted small p-3">Chưa có đơn đặt hàng.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="jp-nplh-section-head">
+      <div class="jp-sx-section-title">Báo cáo mua hàng</div>
+    </div>
+    <form method="get" class="jp-npl-buy-filter">
+      <input class="form-control form-control-sm" name="department" value="{{ watch.department }}" placeholder="Phòng ban">
+      <input class="form-control form-control-sm" name="material" value="{{ watch.material }}" placeholder="Mã NPL">
+      <select class="form-select form-select-sm" name="status">
+        <option value="">Mọi trạng thái đơn</option>
+        {% for value, label in watch.status_choices %}
+        <option value="{{ value }}" {% if watch.status == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-hm btn-sm" type="submit">Lọc</button>
+    </form>
+    <div class="row g-3 mb-4">
+      <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body">
+            <div class="small fw-semibold mb-2">Đề nghị chờ duyệt mua</div>
+            <ul class="list-unstyled small mb-0">
+              {% for pr in watch.waiting_pr %}
+              <li class="mb-1"><a href="{% url 'san_xuat:npl_purchase_request_detail' pr.pk %}">{{ pr.code }}</a> · {{ pr.department_name|default:"—" }}</li>
+              {% empty %}<li class="text-muted">Không có.</li>{% endfor %}
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body">
+            <div class="small fw-semibold mb-2">Báo giá chưa có giá hoặc sắp đến hạn</div>
+            <ul class="list-unstyled small mb-0">
+              {% for sheet in watch.open_rfq %}
+              <li class="mb-1"><a href="{% url 'san_xuat:price_quote_detail' sheet.pk %}">{{ sheet.code }}</a>{% if sheet.response_due %} · hạn {{ sheet.response_due|date:"d/m/Y" }}{% endif %}</li>
+              {% empty %}<li class="text-muted">Không có.</li>{% endfor %}
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body">
+            <div class="small fw-semibold mb-2">Báo giá chờ duyệt</div>
+            <ul class="list-unstyled small mb-0">
+              {% for sheet in watch.waiting_price %}
+              <li class="mb-1"><a href="{% url 'san_xuat:price_quote_detail' sheet.pk %}">{{ sheet.code }}</a></li>
+              {% empty %}<li class="text-muted">Không có.</li>{% endfor %}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card border-0 shadow-sm overflow-hidden mb-3">
+      <div class="jp-npl-mat-grid-wrap">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Đơn</th>
+              <th>Mã</th>
+              <th class="text-end">Đặt</th>
+              <th class="text-end">Nhận</th>
+              <th class="text-end">Đạt QC</th>
+              <th class="text-end">Không đạt</th>
+              <th class="text-end">Trả</th>
+              <th class="text-end">Còn</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in watch.line_rows %}
+            <tr>
+              <td><a href="{% url 'san_xuat:purchase_order_detail' row.po.pk %}">{{ row.po.code }}</a></td>
+              <td>{{ row.code }}</td>
+              <td class="text-end">{{ row.ordered|sx_num }}</td>
+              <td class="text-end">{{ row.received|sx_num }}</td>
+              <td class="text-end">{{ row.qc_pass|sx_num }}</td>
+              <td class="text-end">{{ row.qc_fail|sx_num }}</td>
+              <td class="text-end">{{ row.returned|sx_num }}</td>
+              <td class="text-end">{{ row.remaining|sx_num }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8" class="text-muted small p-3">Không có dòng đơn.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card border-0 shadow-sm overflow-hidden mb-4">
+      <div class="jp-npl-mat-grid-wrap">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Nhà cung cấp</th>
+              <th class="text-end">Đã nhận</th>
+              <th class="text-end">Đạt QC</th>
+              <th class="text-end">Không đạt</th>
+              <th class="text-end">Trả</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in watch.qc_rows %}
+            <tr>
+              <td>{{ row.order__supplier_name|default:"—" }}</td>
+              <td class="text-end">{{ row.received|sx_num }}</td>
+              <td class="text-end">{{ row.passed|sx_num }}</td>
+              <td class="text-end">{{ row.failed|sx_num }}</td>
+              <td class="text-end">{{ row.returned|sx_num }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-muted small p-3">Chưa có số QC.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="small fw-semibold mb-2">Giá đã chốt gần đây</div>
+    <ul class="list-unstyled small mb-4">
+      {% for offer in watch.price_history %}
+      <li class="mb-1"><a href="{% url 'san_xuat:price_quote_detail' offer.sheet_id %}">{{ offer.material_code }}</a> · {{ offer.supplier.name }} · {{ offer.landed_unit|sx_num:0 }}</li>
+      {% empty %}<li class="text-muted">Chưa có giá chốt.</li>{% endfor %}
+    </ul>
     {% endif %}
   </div>
 </div>

@@ -132,7 +132,7 @@ def _require_three_suppliers_each(sheet: SxNplQuoteSheet) -> None:
 
 
 def quote_sheet_groups(sheet: SxNplQuoteSheet) -> list[dict]:
-    """Nhóm báo giá theo mã NPL kèm kiểm rule (≥3 NCC, giá thấp nhất)."""
+    """Nhóm báo giá theo mã NPL, kèm giá về thấp nhất."""
     from kho_npl.catalog_labels import color_label, spec_label, unit_label
 
     buckets = _offers_by_material(sheet)
@@ -141,7 +141,7 @@ def quote_sheet_groups(sheet: SxNplQuoteSheet) -> list[dict]:
         offers = sorted(buckets[key], key=lambda o: (_q(o.unit_price), o.pk))
         suppliers = {o.supplier_id for o in offers if o.supplier_id}
         supplier_count = len(suppliers)
-        prices = [_q(o.unit_price) for o in offers if _q(o.unit_price) > 0]
+        prices = [landed_unit(o) for o in offers if landed_unit(o) > 0]
         min_price = min(prices) if prices else None
         sample = offers[0]
         mat = sample.material
@@ -155,11 +155,20 @@ def quote_sheet_groups(sheet: SxNplQuoteSheet) -> list[dict]:
             'unit': unit_label(mat.unit) if mat and mat.unit_id else '',
             'offers': offers,
             'supplier_count': supplier_count,
-            'meets_rule': supplier_count >= 3,
+            'meets_rule': supplier_count >= 1,
             'min_price': min_price,
             'chosen': next((o for o in offers if o.is_chosen), None),
         })
     return groups
+
+
+def landed_unit(offer: SxNplQuoteOffer) -> Decimal:
+    return (
+        _q(offer.unit_price)
+        + _q(offer.freight_amount)
+        + _q(offer.tax_amount)
+        + _q(offer.extra_fee)
+    )
 
 
 def _assert_offer_complete(offer: SxNplQuoteOffer):
@@ -223,6 +232,12 @@ def save_quote_offers(
             'unit_price': price,
             'quality_note': (row.get('quality_note') or '').strip()[:255],
             'capacity_note': (row.get('capacity_note') or '').strip()[:255],
+            'moq': _q(row.get('moq')),
+            'lead_days': int(row['lead_days']) if str(row.get('lead_days') or '').strip().isdigit() else None,
+            'freight_amount': _q(row.get('freight_amount')),
+            'tax_amount': _q(row.get('tax_amount')),
+            'extra_fee': _q(row.get('extra_fee')),
+            'payment_note': (row.get('payment_note') or '').strip()[:120],
             'is_chosen': False,
         }
         if offer is None:
@@ -261,7 +276,6 @@ def submit_quote_sheet(*, sheet_id: int) -> SxNplQuoteSheet:
         raise PlanningError('Nhập ít nhất một báo giá.')
     for offer in offers:
         _assert_offer_complete(offer)
-    _require_three_suppliers_each(sheet)
     sheet.status = SxNplQuoteSheet.STATUS_SUBMITTED
     sheet.save(update_fields=['status'])
     return sheet
@@ -282,7 +296,7 @@ def return_quote_sheet(*, sheet_id: int) -> SxNplQuoteSheet:
 
 
 @transaction.atomic
-def decide_quote_sheet(*, sheet_id: int, chosen_ids: list[int], user=None) -> SxNplQuoteSheet:
+def decide_quote_sheet(*, sheet_id: int, chosen_ids: list[int], user=None, reason: str = '') -> SxNplQuoteSheet:
     sheet = SxNplQuoteSheet.objects.select_for_update().prefetch_related('offers__supplier').get(
         pk=sheet_id, is_demo=False,
     )
@@ -290,7 +304,6 @@ def decide_quote_sheet(*, sheet_id: int, chosen_ids: list[int], user=None) -> Sx
         raise PlanningError('Chỉ chốt khi bảng đang chờ chốt giá.')
     if not sheet.sales_order_id:
         raise PlanningError('Bảng chưa gắn đơn KHSX — không chốt được.')
-    _require_three_suppliers_each(sheet)
     ids = []
     for raw in chosen_ids or []:
         try:
@@ -322,13 +335,37 @@ def decide_quote_sheet(*, sheet_id: int, chosen_ids: list[int], user=None) -> Sx
         raise PlanningError(
             'Sếp phải chọn đủ một NCC+giá cho mỗi NPL: ' + ', '.join(labels)
         )
+    above_min = []
+    offers_by_key: dict[str, list[SxNplQuoteOffer]] = defaultdict(list)
+    for offer in offers:
+        offers_by_key[(offer.material_code or '').strip().casefold()].append(offer)
+    for offer in chosen:
+        key = (offer.material_code or '').strip().casefold()
+        prices = [landed_unit(row) for row in offers_by_key.get(key, []) if landed_unit(row) > 0]
+        if prices and landed_unit(offer) > min(prices):
+            above_min.append(offer.material_code)
+    note = (reason or '').strip()
+    if above_min and not note:
+        raise PlanningError(
+            'Chọn giá không thấp nhất — ghi lý do cho: ' + ', '.join(above_min)
+        )
     for offer in offers:
         offer.is_chosen = offer.pk in by_mat.values()
         offer.save(update_fields=['is_chosen'])
     sheet.status = SxNplQuoteSheet.STATUS_DECIDED
     sheet.decided_by = user if getattr(user, 'pk', None) else None
     sheet.decided_at = timezone.now()
-    sheet.save(update_fields=['status', 'decided_by', 'decided_at'])
+    sheet.choice_reason = note[:500]
+    sheet.save(update_fields=['status', 'decided_by', 'decided_at', 'choice_reason'])
+    from san_xuat.services.plan_audit import log_plan_action
+
+    log_plan_action(
+        action='confirm',
+        obj=sheet,
+        summary=f'Chốt giá {sheet.code}.' + (f' Lý do: {note[:200]}' if note else ''),
+        changes={'choice_reason': note[:500], 'chosen': [int(pk) for pk in by_mat.values()]},
+        user=user,
+    )
     return sheet
 
 
@@ -407,3 +444,43 @@ def return_price_review(*, request_id: int, note: str = '') -> SxNplPurchaseRequ
     pr.save(update_fields=['status', 'price_return_note', 'price_approved_by', 'price_approved_at'])
     _refresh_sales_order_npl(pr.sales_order_id)
     return pr
+
+
+@transaction.atomic
+def create_quote_sheet_from_request(*, request_id: int, user=None, response_due=None) -> SxNplQuoteSheet:
+    """RFQ từ đề nghị đã duyệt. Không đánh dấu là đã gửi email."""
+    pr = (
+        SxNplPurchaseRequest.objects.select_for_update()
+        .prefetch_related('lines')
+        .get(pk=request_id, is_demo=False)
+    )
+    if pr.status != SxNplPurchaseRequest.STATUS_APPROVED:
+        raise PlanningError('Chỉ tạo yêu cầu báo giá từ đề nghị đã duyệt mua.')
+    if not pr.lines.exists():
+        raise PlanningError('Đề nghị chưa có dòng vật tư.')
+    existing = (
+        SxNplQuoteSheet.objects.filter(purchase_request=pr, is_demo=False)
+        .exclude(status=SxNplQuoteSheet.STATUS_DECIDED)
+        .order_by('-id')
+        .first()
+    )
+    if existing:
+        return existing
+    sheet = create_quote_sheet(
+        title=f'Báo giá cho {pr.code}',
+        sales_order_id=pr.sales_order_id,
+        user=user,
+    )
+    sheet.purchase_request = pr
+    sheet.response_due = response_due
+    sheet.save(update_fields=['purchase_request', 'response_due'])
+    from san_xuat.services.plan_audit import log_plan_action
+
+    log_plan_action(
+        action='create',
+        obj=sheet,
+        summary=f'Tạo yêu cầu báo giá {sheet.code} từ đề nghị {pr.code}. Chưa gửi email.',
+        changes={'purchase_request': pr.code},
+        user=user,
+    )
+    return sheet

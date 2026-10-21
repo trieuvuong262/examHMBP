@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/sx_npl_buy_ui.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title">Xác nhận nhà cung cấp</h2>
+    </div>
+  </div>
+  <p class="jp-npl-buy-note">Đơn đã phát hành. Ghi nhận số lượng, đơn giá và ngày giao nhà cung cấp xác nhận. Lệch đơn thì bắt buộc ghi chú. Hệ thống không gửi email.</p>
+  <div class="card border-0 shadow-sm overflow-hidden">
+    <div class="jp-npl-mat-grid-wrap">
+      <table class="table table-hover align-middle mb-0 jp-npl-buy-grid">
+        <thead>
+          <tr>
+            <th>Đơn đặt hàng</th>
+            <th>Nhà cung cấp</th>
+            <th>Ngày hàng về</th>
+            <th>Xác nhận</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for po in orders %}
+          <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:purchase_order_detail' po.pk %}">
+            <td class="is-code">{{ po.code }}</td>
+            <td>{{ po.supplier.name|default:po.supplier_name|default:"—" }}</td>
+            <td class="is-date">{% if po.expected_date %}{{ po.expected_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+            <td>
+              <span class="jp-npl-buy-badge {% if po.supplier_confirm_status == 'matched' %}is-ok{% elif po.supplier_confirm_status == 'variance' %}is-bad{% else %}is-wait{% endif %}">
+                {{ po.get_supplier_confirm_status_display }}
+              </span>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="text-muted small p-3">Chưa có đơn đã phát hành.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<script>
+document.querySelectorAll('.jp-npl-catalog-row[data-href]').forEach(function (row) {
+  row.addEventListener('click', function (e) {
+    if (e.target.closest('a, button, input, select, label')) return;
+    window.location.href = row.getAttribute('data-href');
+  });
+});
+</script>
+{% endblock %}

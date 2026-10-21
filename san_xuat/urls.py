@@ -25,6 +25,9 @@ def _legacy(pattern_name: str):
 # Kế hoạch Nguyên Phụ Liệu — tách khỏi Kế hoạch SX.
 npl_plan_patterns = [
     path('ke-hoach-npl/', views_npl_plan.npl_plan_home, name='npl_plan_home'),
+    path('ke-hoach-npl/ke-hoach-mua/', views_npl_plan.npl_buy_plan, name='npl_buy_plan'),
+    path('ke-hoach-npl/xac-nhan-ncc/', views_npl_plan.npl_supplier_confirm, name='npl_supplier_confirm'),
+    path('ke-hoach-npl/nhan-hang/', views_npl_plan.npl_goods_receipt, name='npl_goods_receipt'),
     path('ke-hoach-npl/so-gia/', views_price.price_quote_list, name='price_quote_list'),
     path('ke-hoach-npl/so-gia/them/', views_price.price_quote_create, name='price_quote_create'),
     path('ke-hoach-npl/so-gia/<int:pk>/', views_price.price_quote_detail, name='price_quote_detail'),

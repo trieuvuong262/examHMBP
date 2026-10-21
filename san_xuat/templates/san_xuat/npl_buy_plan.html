@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% load sx_format %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/sx_npl_buy_ui.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title">Kế hoạch mua hàng</h2>
+    </div>
+  </div>
+  <p class="jp-npl-buy-note">Nhu cầu thiếu theo mã NPL. Màu và quy cách lấy từ danh mục. Số cần mua đã trừ tồn khả dụng, phần giữ chỗ và lượng đã đặt chưa nhận. Dòng đã có đề nghị còn hiệu lực sẽ không lập trùng.</p>
+  <form method="post">
+    {% csrf_token %}
+    <div class="card border-0 shadow-sm overflow-hidden">
+      <div class="jp-npl-mat-grid-wrap jp-npl-buy-grid-wrap">
+        <table class="table table-hover align-middle mb-0 small jp-npl-buy-grid">
+          <thead>
+            <tr>
+              <th class="jp-npl-buy-check"></th>
+              <th>Mã</th>
+              <th>Tên</th>
+              <th>Màu</th>
+              <th>Quy cách</th>
+              <th>ĐVT</th>
+              <th class="text-end">Nhu cầu</th>
+              <th class="text-end">Tồn khả dụng</th>
+              <th class="text-end">Giữ chỗ</th>
+              <th class="text-end">Đã đặt chưa nhận</th>
+              <th class="text-end">Cần mua</th>
+              <th>Ngày cần</th>
+              <th>Đơn sản xuất</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+            <tr>
+              <td class="jp-npl-buy-check">{% if can_create %}<input type="checkbox" name="line_id" value="{{ row.line.pk }}" aria-label="Chọn {{ row.line.material_code }}">{% endif %}</td>
+              <td class="is-code">{{ row.line.material_code }}</td>
+              <td>{{ row.line.material_name|default:"—" }}</td>
+              <td>{{ row.color|default:"—" }}</td>
+              <td>{{ row.spec|default:"—" }}</td>
+              <td>{{ row.unit|default:"—" }}</td>
+              <td class="text-end">{{ row.line.qty_required|sx_num }}</td>
+              <td class="text-end">{{ row.line.qty_available|sx_num }}</td>
+              <td class="text-end">{{ row.line.qty_allocated|sx_num }}</td>
+              <td class="text-end">{{ row.line.qty_inbound|sx_num }}</td>
+              <td class="text-end is-short">{{ row.line.qty_shortfall|sx_num }}</td>
+              <td class="is-date">{% if row.line.ready_date %}{{ row.line.ready_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+              <td>{{ row.line.order.code }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="13" class="text-muted p-3">Không có dòng vật tư thiếu.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% if can_create and rows %}
+    <div class="jp-npl-buy-bar">
+      <div class="jp-npl-buy-reason">
+        <label class="form-label small" for="buy-reason">Lý do đề nghị</label>
+        <textarea id="buy-reason" name="reason" class="form-control form-control-sm" rows="2" required></textarea>
+      </div>
+      <button type="submit" class="btn btn-hm btn-sm">Lập đề nghị từ dòng đã chọn</button>
+    </div>
+    {% endif %}
+  </form>
+</div>
+{% endblock %}

@@ -557,6 +557,7 @@ def split_purchase_orders_from_request(*, request_id: int, user=None) -> list[Sx
                 qty_received=Decimal('0'),
                 unit_price=_q(ln.unit_price),
                 need_date=ln.need_date,
+                quote_offer=ln.quote_offer,
                 notes=ln.notes or '',
             )
             for ln in glines

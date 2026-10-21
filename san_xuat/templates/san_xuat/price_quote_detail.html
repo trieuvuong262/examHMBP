@@ -59,7 +59,7 @@
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
       <h2 class="jp-npl-mat-topbar-title w-100">
-        Bảng so giá {{ sheet.code }}
+        Yêu cầu báo giá {{ sheet.code }}
         {% if sheet.title %} · {{ sheet.title }}{% endif %}
       </h2>
     </div>
@@ -78,7 +78,7 @@
       {% if approve_home %}
       <a href="{% url 'san_xuat:price_approve_home' %}" class="is-back"><i class="bi bi-shield-check" aria-hidden="true"></i>Duyệt giá</a>
       {% endif %}
-      <a href="{% url 'san_xuat:price_quote_list' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Bảng so giá</a>
+      <a href="{% url 'san_xuat:price_quote_list' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Yêu cầu báo giá</a>
     </nav>
   </div>
 
@@ -126,17 +126,25 @@
     </div>
 
     <div class="jp-quote-rule mb-3 {% if rule_ok %}is-ok{% else %}is-bad{% endif %}" id="quote-rule-box">
-      <strong>Rule so giá:</strong>
+      <strong>Báo giá:</strong>
       NPL phải chọn từ <strong>danh mục kho NPL</strong>.
-      Mỗi mã NPL so từ <strong>≥ 3 nhà cung cấp</strong>
-      (giá / chất lượng / năng lực). Mỗi báo giá bắt buộc đơn giá &gt; 0 + ghi chú chất lượng, năng lực.
+      Mỗi mã cần ít nhất một nhà cung cấp, đơn giá &gt; 0, ghi chú chất lượng và năng lực.
+      Chọn giá không thấp nhất thì ghi lý do khi chốt.
       <div class="mt-1 {% if rule_ok %}text-success{% else %}text-warning-emphasis{% endif %}" data-rule-note>
-        {% if rule_ok %}Đã đủ điều kiện gửi Sếp.{% else %}Chưa đủ — mỗi mã NPL cần ít nhất 3 NCC.{% endif %}
+        {% if rule_ok %}Đã đủ điều kiện gửi duyệt giá.{% else %}Chưa đủ — mỗi mã NPL cần ít nhất một nhà cung cấp.{% endif %}
       </div>
     </div>
 
     <form method="post" id="quote-form">
       {% csrf_token %}
+      {% if can_decide and is_waiting %}
+      <div class="mb-3">
+        <label class="form-label small" for="choice-reason">Lý do nếu không chọn giá thấp nhất</label>
+        <textarea id="choice-reason" name="choice_reason" class="form-control form-control-sm" rows="2" maxlength="500">{{ sheet.choice_reason }}</textarea>
+      </div>
+      {% elif sheet.choice_reason %}
+      <p class="small mb-3"><span class="text-muted">Lý do chọn giá:</span> {{ sheet.choice_reason }}</p>
+      {% endif %}
 
       {% if can_edit %}
       <div class="row g-2 mb-3">
@@ -178,7 +186,7 @@
               <span class="small text-muted">· {{ group.unit }}</span>
               {% endif %}
               <span class="jp-quote-badge {% if group.meets_rule %}is-ok{% else %}is-bad{% endif %}" data-rule-badge>
-                {{ group.supplier_count }}/3 NCC
+                {{ group.supplier_count }} NCC
               </span>
             </div>
             <div class="jp-quote-actions">
@@ -192,6 +200,12 @@
                 <tr>
                   <th style="min-width:10rem">Nhà cung cấp</th>
                   <th class="text-end" style="width:7rem">Đơn giá *</th>
+                  <th class="text-end">MOQ</th>
+                  <th class="text-end">Lead (ngày)</th>
+                  <th class="text-end">Vận chuyển</th>
+                  <th class="text-end">Thuế</th>
+                  <th class="text-end">Phí khác</th>
+                  <th>Thanh toán</th>
                   <th>Chất lượng *</th>
                   <th>Năng lực *</th>
                   <th style="width:2.5rem"></th>
@@ -212,6 +226,12 @@
                     </select>
                   </td>
                   <td><input data-f="price" type="number" min="0" step="any" class="form-control form-control-sm text-end" value="{{ offer.unit_price|sx_num_input }}" required></td>
+                  <td><input data-f="moq" type="number" min="0" step="any" class="form-control form-control-sm text-end" value="{{ offer.moq|sx_num_input }}"></td>
+                  <td><input data-f="lead" type="number" min="0" step="1" class="form-control form-control-sm text-end" value="{{ offer.lead_days|default_if_none:'' }}"></td>
+                  <td><input data-f="freight" type="number" min="0" step="any" class="form-control form-control-sm text-end" value="{{ offer.freight_amount|sx_num_input }}"></td>
+                  <td><input data-f="tax" type="number" min="0" step="any" class="form-control form-control-sm text-end" value="{{ offer.tax_amount|sx_num_input }}"></td>
+                  <td><input data-f="extra" type="number" min="0" step="any" class="form-control form-control-sm text-end" value="{{ offer.extra_fee|sx_num_input }}"></td>
+                  <td><input data-f="payment" class="form-control form-control-sm" value="{{ offer.payment_note }}"></td>
                   <td><input data-f="quality" class="form-control form-control-sm" value="{{ offer.quality_note }}" required></td>
                   <td><input data-f="capacity" class="form-control form-control-sm" value="{{ offer.capacity_note }}" required></td>
                   <td class="text-center"><button type="button" class="btn btn-sm btn-link text-danger p-0" data-remove-offer>×</button></td>
@@ -247,7 +267,7 @@
             {% if group.color %}<span class="small text-muted ms-1">{{ group.color }}</span>{% endif %}
             {% if group.unit %}<span class="small text-muted">· {{ group.unit }}</span>{% endif %}
             <span class="jp-quote-badge {% if group.meets_rule %}is-ok{% else %}is-bad{% endif %} ms-2">
-              {{ group.supplier_count }} NCC{% if group.meets_rule %} · đủ rule{% endif %}
+              {{ group.supplier_count }} NCC
             </span>
           </div>
           {% if group.chosen %}
@@ -263,8 +283,12 @@
                 {% if is_waiting and can_decide %}<th style="width:3rem">Chọn</th>{% endif %}
                 <th>Nhà cung cấp</th>
                 <th class="text-end">Đơn giá</th>
+                <th class="text-end">MOQ</th>
+                <th class="text-end">Lead</th>
+                <th class="text-end">Giá về</th>
                 <th>Chất lượng</th>
                 <th>Năng lực</th>
+                <th>Thanh toán</th>
               </tr>
             </thead>
             <tbody>
@@ -280,11 +304,15 @@
                   {{ offer.supplier.name }}
                   {% if offer.is_chosen %}<span class="jp-quote-badge is-ok ms-1">Đã chọn</span>{% endif %}
                 </td>
-                <td class="text-end {% if group.min_price is not None and offer.unit_price == group.min_price %}jp-quote-low{% endif %}">
-                  {{ offer.unit_price|sx_num:0 }}{% if group.min_price is not None and offer.unit_price == group.min_price %} <span class="small">(thấp nhất)</span>{% endif %}
+                <td class="text-end">{{ offer.unit_price|sx_num:0 }}</td>
+                <td class="text-end">{{ offer.moq|sx_num }}</td>
+                <td class="text-end">{% if offer.lead_days %}{{ offer.lead_days }}{% else %}—{% endif %}</td>
+                <td class="text-end {% if group.min_price is not None and offer.landed_unit == group.min_price %}jp-quote-low{% endif %}">
+                  {{ offer.landed_unit|sx_num:0 }}{% if group.min_price is not None and offer.landed_unit == group.min_price %} <span class="small">(thấp nhất)</span>{% endif %}
                 </td>
                 <td class="small">{{ offer.quality_note|default:"—" }}</td>
                 <td class="small">{{ offer.capacity_note|default:"—" }}</td>
+                <td class="small">{{ offer.payment_note|default:"—" }}</td>
               </tr>
               {% endfor %}
             </tbody>
@@ -314,6 +342,12 @@
       </select>
     </td>
     <td><input data-f="price" type="number" min="0" step="any" class="form-control form-control-sm text-end" placeholder="0" required></td>
+    <td><input data-f="moq" type="number" min="0" step="any" class="form-control form-control-sm text-end" placeholder="0"></td>
+    <td><input data-f="lead" type="number" min="0" step="1" class="form-control form-control-sm text-end" placeholder="0"></td>
+    <td><input data-f="freight" type="number" min="0" step="any" class="form-control form-control-sm text-end" placeholder="0"></td>
+    <td><input data-f="tax" type="number" min="0" step="any" class="form-control form-control-sm text-end" placeholder="0"></td>
+    <td><input data-f="extra" type="number" min="0" step="any" class="form-control form-control-sm text-end" placeholder="0"></td>
+    <td><input data-f="payment" class="form-control form-control-sm" placeholder="Thanh toán"></td>
     <td><input data-f="quality" class="form-control form-control-sm" placeholder="Chất lượng" required></td>
     <td><input data-f="capacity" class="form-control form-control-sm" placeholder="Năng lực" required></td>
     <td class="text-center"><button type="button" class="btn btn-sm btn-link text-danger p-0" data-remove-offer>×</button></td>
@@ -329,7 +363,7 @@
           <select class="form-select form-select-sm" data-material-select data-placeholder="Gõ mã / tên NPL trong kho…"></select>
         </div>
         <span class="small text-muted" data-mat-code-label></span>
-        <span class="jp-quote-badge is-bad" data-rule-badge>0/3 NCC</span>
+        <span class="jp-quote-badge is-bad" data-rule-badge>0 NCC</span>
       </div>
       <div class="jp-quote-actions">
         <button type="button" class="btn btn-sm btn-outline-dark" data-add-offer>Thêm NCC</button>
@@ -437,9 +471,9 @@
     });
     var badge = block.querySelector('[data-rule-badge]');
     if (badge) {
-      badge.textContent = count + '/3 NCC';
-      badge.classList.toggle('is-ok', count >= 3);
-      badge.classList.toggle('is-bad', count < 3);
+      badge.textContent = count + ' NCC';
+      badge.classList.toggle('is-ok', count >= 1);
+      badge.classList.toggle('is-bad', count < 1);
     }
     refreshRule();
   }
@@ -456,7 +490,7 @@
         var v = sel.value;
         if (v && !selected[v]) { selected[v] = true; count += 1; }
       });
-      if (count < 3) ok = false;
+      if (count < 1) ok = false;
     });
     if (!seen) ok = false;
     var box = document.getElementById('quote-rule-box');
@@ -466,8 +500,8 @@
       var note = box.querySelector('[data-rule-note]');
       if (note) {
         note.textContent = ok
-          ? 'Đã đủ điều kiện gửi Sếp.'
-          : 'Chưa đủ — mỗi mã NPL cần ít nhất 3 NCC.';
+          ? 'Đã đủ điều kiện gửi duyệt giá.'
+          : 'Chưa đủ — mỗi mã NPL cần ít nhất một nhà cung cấp.';
         note.classList.toggle('text-success', ok);
         note.classList.toggle('text-warning-emphasis', !ok);
       }
@@ -549,7 +583,8 @@
         var f = el.getAttribute('data-f');
         var map = {
           mid: 'mid__', mat: 'mat__', name: 'name__',
-          sup: 'sup__', price: 'price__', quality: 'quality__', capacity: 'capacity__'
+          sup: 'sup__', price: 'price__', quality: 'quality__', capacity: 'capacity__',
+          moq: 'moq__', lead: 'lead__', freight: 'freight__', tax: 'tax__', extra: 'extra__', payment: 'payment__'
         };
         if (map[f]) el.setAttribute('name', map[f] + idx);
       });

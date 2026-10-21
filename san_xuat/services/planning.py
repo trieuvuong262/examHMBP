@@ -1121,6 +1121,7 @@ def build_po_from_purchase_request(
             qty_received=Decimal("0"),
             unit_price=price_map.get((line.material_code or "").strip().upper(), Decimal("0")),
             need_date=line.need_date,
+            quote_offer=line.quote_offer,
         )
         for line in pr.lines.all()
         if line.qty > 0
@@ -1140,14 +1141,37 @@ def build_po_from_purchase_request(
 
 @transaction.atomic
 def confirm_purchase_order(*, order_id: int, user=None) -> SxPurchaseOrder:
+    """Phát hành đơn đặt hàng. Không gửi email cho nhà cung cấp."""
     po = SxPurchaseOrder.objects.select_for_update().prefetch_related("lines").get(pk=order_id)
+    if po.price_change_pending:
+        raise PlanningError(f"{po.code} đổi giá — duyệt giá trước khi phát hành lại.")
     if po.status != SxPurchaseOrder.STATUS_DRAFT:
-        raise PlanningError("Chỉ xác nhận DMH ở trạng thái nháp.")
+        raise PlanningError("Chỉ phát hành đơn đặt hàng ở trạng thái nháp.")
     if not po.lines.exists():
-        raise PlanningError("DMH phải có ít nhất một dòng NVL.")
+        raise PlanningError("Đơn đặt hàng phải có ít nhất một dòng NVL.")
     po.status = SxPurchaseOrder.STATUS_CONFIRMED
-    po.save(update_fields=["status"])
-    log_plan_action(action="confirm", obj=po, summary=f"Xác nhận DMH {po.code}.", user=user)
+    po.issued_at = timezone.now()
+    po.issued_by = user if getattr(user, "pk", None) else None
+    po.supplier_confirm_status = SxPurchaseOrder.CONFIRM_PENDING
+    po.supplier_confirmed_at = None
+    po.supplier_confirm_note = ""
+    po.supplier_recorded_by = None
+    po.save(update_fields=[
+        "status",
+        "issued_at",
+        "issued_by",
+        "supplier_confirm_status",
+        "supplier_confirmed_at",
+        "supplier_confirm_note",
+        "supplier_recorded_by",
+    ])
+    po.lines.update(confirmed_qty=None, confirmed_unit_price=None, confirmed_date=None)
+    log_plan_action(
+        action="confirm",
+        obj=po,
+        summary=f"Phát hành đơn đặt hàng {po.code}. Không gửi email nhà cung cấp.",
+        user=user,
+    )
     return po
 
 

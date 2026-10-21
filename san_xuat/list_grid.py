@@ -513,7 +513,7 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
         _cols(
             _col('code', 'Mã', required=True),
             _col('supplier', 'NCC', weight=130),
-            _col('pr', 'Đơn đặt hàng', weight=140, default=False),
+            _col('pr', 'Đề nghị mua', weight=140, default=False),
             _col('line_count', 'Số dòng', weight=80, align='end', default=False),
             _col('kv_receipt', 'Phiếu nhập KiotViet', weight=120, default=False),
             _col('status', 'Trạng thái', weight=100),

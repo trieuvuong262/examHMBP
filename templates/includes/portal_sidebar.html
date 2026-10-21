@@ -923,50 +923,66 @@
                         <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
                     </button>
                     <ul class="jp-sidebar-nested-submenu" id="jp-sidebar-san-xuat-plan-npl-submenu">
+                        {% if jp_can_san_xuat_plan_npl or jp_can_san_xuat_npl_pr %}
                         <li>
-                            <a href="{% url 'san_xuat:npl_plan_home' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'npl_plan_home' %}active{% endif %}">
-                                <i class="bi bi-speedometer2"></i><span>Tổng quan</span>
+                            <a href="{% url 'san_xuat:npl_buy_plan' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'npl_buy_plan' or request.resolver_match.url_name == 'plan_shortage_order' %}active{% endif %}">
+                                <i class="bi bi-clipboard-data"></i><span>Kế hoạch mua hàng</span>
                             </a>
                         </li>
+                        {% endif %}
+                        {% if jp_can_san_xuat_npl_pr or jp_can_san_xuat_plan_npl %}
+                        <li>
+                            <a href="{% url 'san_xuat:npl_purchase_request' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name and 'npl_purchase_request' in request.resolver_match.url_name or request.resolver_match.url_name == 'plan_npl' %}active{% endif %}">
+                                <i class="bi bi-cart-plus"></i><span>Đề nghị mua hàng</span>
+                            </a>
+                        </li>
+                        {% endif %}
                         {% if jp_can_sx_price_quote %}
                         <li>
                             <a href="{% url 'san_xuat:price_quote_list' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name and 'price_quote' in request.resolver_match.url_name %}active{% endif %}">
-                                <i class="bi bi-tags"></i><span>Bảng so giá</span>
+                                <i class="bi bi-tags"></i><span>Yêu cầu báo giá</span>
                             </a>
                         </li>
                         {% endif %}
-                        {% if jp_can_sx_price %}
+                        {% if jp_can_sx_price or jp_can_sx_price_quote %}
                         <li>
-                            <a href="{% url 'san_xuat:price_approve_home' %}"
+                            <a href="{% if jp_can_sx_price %}{% url 'san_xuat:price_approve_home' %}{% else %}{% url 'san_xuat:price_quote_list' %}{% endif %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'price_approve_home' or request.resolver_match.url_name == 'price_review_action' %}active{% endif %}">
-                                <i class="bi bi-shield-check"></i><span>Duyệt giá</span>
+                                <i class="bi bi-shield-check"></i><span>So sánh và duyệt giá</span>
                             </a>
                         </li>
                         {% endif %}
-                        {% if jp_can_san_xuat_npl_pr %}
+                        {% if jp_can_san_xuat_purchase_order or jp_can_san_xuat_plan_npl %}
                         <li>
-                            <a href="{% url 'san_xuat:npl_purchase_request' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name and 'npl_purchase_request' in request.resolver_match.url_name or request.resolver_match.url_name == 'plan_shortage_order' %}active{% endif %}">
-                                <i class="bi bi-cart-plus"></i><span>Danh sách đơn đặt hàng</span>
+                            <a href="{% url 'san_xuat:purchase_order' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'purchase_order' or request.resolver_match.url_name == 'purchase_order_detail' or request.resolver_match.url_name == 'purchase_order_create' %}active{% endif %}">
+                                <i class="bi bi-receipt"></i><span>Đơn đặt hàng</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'san_xuat:npl_supplier_confirm' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'npl_supplier_confirm' %}active{% endif %}">
+                                <i class="bi bi-person-check"></i><span>Xác nhận nhà cung cấp</span>
                             </a>
                         </li>
                         {% endif %}
-                        {% if jp_can_san_xuat_plan_npl %}
+                        {% if jp_can_san_xuat_purchase_order or jp_can_san_xuat_plan_npl or jp_can_san_xuat_npl_pr %}
                         <li>
-                            <a href="{% url 'san_xuat:plan_npl' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'plan_npl' or request.resolver_match.url_name == 'plan_npl_detail' or request.resolver_match.url_name == 'plan_npl_create' %}active{% endif %}">
-                                <i class="bi bi-boxes"></i><span>Xác nhận đơn đặt hàng</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{% url 'san_xuat:plan_npl_confirmed' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'plan_npl_confirmed' or request.resolver_match.url_name and 'purchase_order' in request.resolver_match.url_name %}active{% endif %}">
-                                <i class="bi bi-box-arrow-in-down"></i><span>Đơn đặt hàng đã xác nhận</span>
+                            <a href="{% url 'san_xuat:npl_goods_receipt' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'npl_goods_receipt' %}active{% endif %}">
+                                <i class="bi bi-box-arrow-in-down"></i><span>Nhận hàng và nhập kho</span>
                             </a>
                         </li>
                         {% endif %}
+                        <li>
+                            <a href="{% url 'san_xuat:npl_plan_home' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'npl_plan_home' %}active{% endif %}">
+                                <i class="bi bi-bar-chart"></i><span>Theo dõi và báo cáo</span>
+                            </a>
+                        </li>
                     </ul>
                 </li>
                 {% endif %}

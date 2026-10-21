@@ -615,6 +615,18 @@ class StockReceiptLine(models.Model):
         validators=[MinValueValidator(Decimal('0'))],
         verbose_name='SL nhập',
     )
+    doc_qty = models.DecimalField(
+        max_digits=14, decimal_places=3, default=Decimal('0'), verbose_name='SL theo chứng từ',
+    )
+    actual_qty = models.DecimalField(
+        max_digits=14, decimal_places=3, default=Decimal('0'), verbose_name='SL thực nhận',
+    )
+    qc_pass_qty = models.DecimalField(
+        max_digits=14, decimal_places=3, default=Decimal('0'), verbose_name='SL đạt QC',
+    )
+    qc_fail_qty = models.DecimalField(
+        max_digits=14, decimal_places=3, default=Decimal('0'), verbose_name='SL không đạt QC',
+    )
     line_unit = models.ForeignKey(
         Unit,
         on_delete=models.PROTECT,
