@@ -64,12 +64,15 @@
         <div class="ksp-sku-pair mb-1">
           <div class="ksp-sku-pane">
             <div class="ksp-sku-pane-head">
-              <label class="mb-0" for="{{ form.colors_text.id_for_label }}">Màu</label>
+              <label class="mb-0">Màu</label>
+              {% if form.color_codes.field.choices %}
+              <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" data-ksp-toggle="#ksp-color-checks">Bỏ chọn</button>
+              {% endif %}
             </div>
-            <div class="ksp-sku-pane-body is-input">
-              {{ form.colors_text }}
+            <div class="ksp-sku-pane-body">
+              <div class="ksp-sku-checks is-color" id="ksp-color-checks">{{ form.color_codes }}</div>
             </div>
-            {% if form.colors_text.errors %}<div class="text-danger small mt-1">{{ form.colors_text.errors }}</div>{% endif %}
+            {% if form.color_codes.errors %}<div class="text-danger small mt-1">{{ form.color_codes.errors }}</div>{% endif %}
           </div>
           <div class="ksp-sku-pane">
             <div class="ksp-sku-pane-head">
@@ -278,7 +281,7 @@
 (function () {
   var styleEl = document.getElementById('id_style_code');
   var preview = document.getElementById('ksp-sku-preview');
-  var colorsInput = document.getElementById('id_colors_text');
+  var colorBox = document.getElementById('ksp-color-checks');
   var sizeBox = document.getElementById('ksp-size-checks');
   function norm(v) {
     return (v || '').trim().toUpperCase().replace(/\s+/g, '');
@@ -302,10 +305,10 @@
     });
 
     function parseColors() {
-      var raw = (colorsInput && colorsInput.value) || '';
+      if (!colorBox) return [];
       var out = [];
-      raw.split(/[,;\s]+/).forEach(function (part) {
-        var t = norm(part);
+      colorBox.querySelectorAll('input[type="checkbox"]:checked').forEach(function (el) {
+        var t = norm(el.value);
         if (t && out.indexOf(t) < 0) out.push(t);
       });
       return out;
@@ -371,10 +374,7 @@
       });
     }
     document.querySelectorAll('[data-ksp-toggle]').forEach(wireToggle);
-    if (colorsInput) {
-      colorsInput.addEventListener('input', paintMulti);
-      colorsInput.addEventListener('change', paintMulti);
-    }
+    if (colorBox) colorBox.addEventListener('change', paintMulti);
     sizeBox.addEventListener('change', paintMulti);
     paintMulti();
     return;

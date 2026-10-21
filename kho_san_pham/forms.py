@@ -295,17 +295,18 @@ class ProductForm(forms.ModelForm):
         if self.multi_variant:
             self.variant_existing = self._variant_existing_combos(self.locked_style)
             size_titles = {s.code: (s.name or s.code) for s in sizes}
-            self.fields['colors_text'] = forms.CharField(
+            design_colors = self._design_color_choices(self.locked_style)
+            color_titles = {code: label for code, label in design_colors}
+            for code, label in design_colors:
+                self._color_name_map[code.upper()] = label
+            self.fields['color_codes'] = forms.MultipleChoiceField(
                 label='Màu',
                 required=False,
-                widget=forms.Textarea(attrs={
-                    **FORM_CONTROL,
-                    'id': 'id_colors_text',
-                    'rows': 4,
-                    'placeholder': 'VD: NVY, BLK, RED',
-                    'autocomplete': 'off',
-                }),
+                choices=[(code, label) for code, label in design_colors],
+                widget=TitledCheckboxSelectMultiple(title_map=color_titles),
             )
+            if not self.is_bound:
+                self.fields['color_codes'].initial = [code for code, _label in design_colors]
             # Đủ size trong form; UI chỉ hiện size còn thiếu theo màu (JS + clean).
             self.fields['size_labels'] = forms.MultipleChoiceField(
                 label='Size',
@@ -333,6 +334,60 @@ class ProductForm(forms.ModelForm):
             self.fields['style_code'].widget.attrs['readonly'] = 'readonly'
             if 'code' in self.fields:
                 self.fields['code'].required = False
+
+    @staticmethod
+    def _design_color_choices(style: str | None) -> list[tuple[str, str]]:
+        """Màu colorway trên hồ sơ thiết kế của Style, kèm màu đã có trên SKU."""
+        from san_xuat.hub_models import SxColor
+        from san_xuat.services.sku_catalog import normalize_token
+        from thiet_ke_sp.models import Handover
+        from thiet_ke_sp.services.workflow import _colorway_code
+
+        if not style:
+            return []
+        ordered: list[tuple[str, str]] = []
+        seen: set[str] = set()
+
+        def add(code: str, label: str) -> None:
+            token = normalize_token(code)
+            if not token or token in seen:
+                return
+            seen.add(token)
+            ordered.append((token, (label or token)[:80]))
+
+        handover = (
+            Handover.objects.filter(product_code__iexact=style)
+            .select_related('design_version', 'dossier', 'dossier__approved_design_version')
+            .first()
+        )
+        versions = []
+        if handover is not None:
+            if handover.design_version_id:
+                versions.append(handover.design_version)
+            approved = getattr(handover.dossier, 'approved_design_version', None)
+            if approved is not None and all(approved.pk != dv.pk for dv in versions):
+                versions.append(approved)
+            for dv in handover.dossier.design_versions.filter(is_current=True):
+                if all(dv.pk != item.pk for item in versions):
+                    versions.append(dv)
+        for dv in versions:
+            for cw in dv.colorways.all():
+                label = (cw.name or '').strip() or (cw.color_codes or '').strip()
+                if not label:
+                    continue
+                known = SxColor.objects.filter(name__iexact=label).first()
+                if known is not None:
+                    add(known.code, known.name or label)
+                else:
+                    add(_colorway_code(label) or 'MAU', label)
+        for code, label in (
+            Product.objects.filter(style_code__iexact=style)
+            .exclude(color_code='')
+            .values_list('color_code', 'color_label')
+            .distinct()
+        ):
+            add(code, label or code)
+        return ordered
 
     @staticmethod
     def _parse_colors_text(text: str) -> list[str]:
@@ -408,7 +463,7 @@ class ProductForm(forms.ModelForm):
         cleaned['style_code'] = style
 
         if self.multi_variant:
-            colors = self._parse_colors_text(cleaned.get('colors_text') or '')
+            colors = [normalize_token(c) for c in (cleaned.get('color_codes') or []) if normalize_token(c)]
             if not colors:
                 colors = ['']
             sizes = [normalize_token(s) for s in (cleaned.get('size_labels') or []) if normalize_token(s)]
@@ -453,7 +508,6 @@ class ProductForm(forms.ModelForm):
                 raise forms.ValidationError(
                     'Mọi cặp màu × size đã chọn đều đã có trong Style. Nhập màu khác hoặc chọn size còn thiếu.',
                 )
-            cleaned['colors_text'] = ', '.join(c for c in colors if c)
             cleaned['variant_create'] = create_rows
             cleaned['variant_skip'] = skip_rows
             if not (cleaned.get('name') or '').strip():
