@@ -190,20 +190,32 @@ def kv_stock_rows_for_product(product, *, retailer: str | None = None) -> list[d
 
 
 _KV_WORKSHOP_BRANCH_TOKENS = ('xưởng', 'xuong')
+_KV_ORDER_BRANCH_TOKENS = ('đơn sản xuất', 'don san xuat')
+_KV_CL19_BRANCH_TOKENS = ('kho sản xuất 19', 'kho san xuat 19')
+
+
+def _include_factory_in_suggest_stock(name: str) -> bool:
+    """Xưởng sản xuất, Đơn sản xuất và Kho sản xuất 19 CL."""
+    folded = (name or '').casefold()
+    if any(token in folded for token in _KV_WORKSHOP_BRANCH_TOKENS):
+        return True
+    if any(token in folded for token in _KV_ORDER_BRANCH_TOKENS):
+        return True
+    return any(token in folded for token in _KV_CL19_BRANCH_TOKENS)
 
 
 def kv_suggest_stock_branch_ids(*, retailer: str | None = None) -> list[tuple[int, str]]:
-    """Kho tính «Tồn kho thực tế» cho đề xuất SL: kho bán + Xưởng sản xuất.
+    """Kho tính «Tồn kho thực tế» cho đề xuất SL.
 
-    Không gồm «Đơn sản xuất» / «Kho sản xuất …» (hàng làm theo đơn khách).
+    Gồm kho bán, Xưởng sản xuất, Đơn sản xuất và Kho sản xuất 19 CL.
     """
     groups = kv_inventory_branch_groups(retailer=retailer)
-    workshop = [
+    extra = [
         (bid, name)
         for bid, name in groups['factory']
-        if any(token in (name or '').casefold() for token in _KV_WORKSHOP_BRANCH_TOKENS)
+        if _include_factory_in_suggest_stock(name)
     ]
-    return groups['sales'] + workshop
+    return groups['sales'] + extra
 
 
 def kv_store_qty_by_product(

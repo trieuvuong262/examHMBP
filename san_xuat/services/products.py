@@ -637,8 +637,8 @@ def search_products(q: str = '', *, limit: int = 30) -> list[dict]:
 def suggest_style_size_stock(style_code: str, *, days: int = 30) -> dict:
     """Tồn cửa hàng + tốc độ tiêu thụ (bán KV) theo size cho 1 Style.
 
-    Tồn = on_hand KiotViet (không trừ hàng đặt giữ) của các chi nhánh bán hàng
-    và Xưởng sản xuất, không gồm Đơn sản xuất / Kho sản xuất.
+    Tồn = on_hand KiotViet (không trừ hàng đặt giữ) của các chi nhánh bán hàng,
+    Xưởng sản xuất, Đơn sản xuất và Kho sản xuất 19 CL.
     ``days``: số ngày gần nhất lấy từ hóa đơn KiotViet (mặc định 30).
     """
     from collections import defaultdict
