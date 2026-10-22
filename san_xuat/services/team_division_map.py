@@ -27,8 +27,8 @@ _SLUG_HR_KEYS: dict[str, tuple[str, ...]] = {
 
 VALID_TEAM_SLUGS = frozenset(item[0] for item in TEAM_SLUGS)
 _DIV_SLUG_RE = re.compile(r'^d(\d+)$')
-# Submenu tổ: admin / ductn / binh.na / dong.ct xem hết; tổ trưởng chỉ thấy bộ phận mình.
-TEAM_WORK_ALL_TEAMS_USERNAMES = frozenset({'admin', 'ductn', 'binh.na', 'dong.ct'})
+# Submenu tổ: admin / ductn / binh.na / dong.ct / nnthuytrang xem hết; tổ trưởng chỉ thấy bộ phận mình.
+TEAM_WORK_ALL_TEAMS_USERNAMES = frozenset({'admin', 'ductn', 'binh.na', 'dong.ct', 'nnthuytrang'})
 TEAM_MENU_ICONS = {
     'cat': 'bi-scissors',
     'inep': 'bi-printer',
@@ -149,7 +149,7 @@ def _team_from_hr_division_id(did: int) -> dict | None:
 
 
 def can_see_all_team_work_teams(user) -> bool:
-    """admin / ductn / binh.na / dong.ct / superuser — submenu hiện mọi tổ."""
+    """admin / ductn / binh.na / dong.ct / nnthuytrang / superuser — submenu hiện mọi tổ."""
     if not getattr(user, 'is_authenticated', False):
         return False
     if getattr(user, 'is_superuser', False):
