@@ -37,6 +37,18 @@ _Q2 = Decimal('0.01')
 PLAN_SHIFT_MINUTES = Decimal('570')
 PLAN_SHIFT_LABEL = '9 giờ 30 phút'
 
+# Tab con của lộ trình KHSX.
+ROUTE_VIEW_OPEN = 'open'
+ROUTE_VIEW_DONE = 'done'
+ROUTE_VIEW_CANCELLED = 'cancelled'
+ROUTE_VIEW_CHOICES = (
+    (ROUTE_VIEW_OPEN, 'Đang làm'),
+    (ROUTE_VIEW_DONE, 'Đã hoàn thành'),
+    (ROUTE_VIEW_CANCELLED, 'Đã huỷ'),
+)
+# Nút Hoàn thành khi từng dòng Tổng (đã làm / dự kiến) vượt ngưỡng này.
+ROUTE_COMPLETE_OVER_PCT = Decimal('80')
+
 
 def _routing_line_has_name(line) -> bool:
     name = (getattr(line, 'op_name_vi', None) or '').strip() or (getattr(line, 'op_code', None) or '').strip()
@@ -356,6 +368,7 @@ class PlanBoardRow:
         return self.order.plan_status not in (
             SxSalesOrder.PLAN_ON_HOLD,
             SxSalesOrder.PLAN_DONE,
+            SxSalesOrder.PLAN_CANCELLED,
         )
 
     @property
@@ -538,19 +551,26 @@ def derive_plan_status(order: SxSalesOrder, mos: list[SxProductionOrder] | None 
         )
     else:
         mos = [m for m in mos if m.status != SxProductionOrder.STATUS_CANCELLED]
+    if order.plan_status == SxSalesOrder.PLAN_DONE:
+        return SxSalesOrder.PLAN_DONE
     if mos:
         statuses = {m.status for m in mos}
-        if statuses <= {SxProductionOrder.STATUS_DONE}:
-            return SxSalesOrder.PLAN_DONE
-        if SxProductionOrder.STATUS_IN_PROGRESS in statuses:
+        if statuses & {
+            SxProductionOrder.STATUS_IN_PROGRESS,
+            SxProductionOrder.STATUS_DONE,
+        }:
             return SxSalesOrder.PLAN_IN_PROGRESS
         return SxSalesOrder.PLAN_RELEASED
     return SxSalesOrder.PLAN_QUEUED
 
 
 def sync_plan_status(order: SxSalesOrder) -> str:
-    """Đồng bộ plan_status từ LSX (không đè on_hold). Gộp ranked cũ → chờ xếp."""
-    if order.plan_status in (SxSalesOrder.PLAN_ON_HOLD, SxSalesOrder.PLAN_CANCELLED):
+    """Đồng bộ plan_status từ LSX. Không đè tạm giữ, đã hủy, đã hoàn thành."""
+    if order.plan_status in (
+        SxSalesOrder.PLAN_ON_HOLD,
+        SxSalesOrder.PLAN_CANCELLED,
+        SxSalesOrder.PLAN_DONE,
+    ):
         return order.plan_status
     derived = derive_plan_status(order)
     if derived != order.plan_status:
@@ -2312,10 +2332,16 @@ def build_plan_board_rows(
             order=order, cycle_minutes=cycle_min, today=today,
         )
         mo_count, mo_open, qty_planned, qty_done, pct = _mo_progress(mos)
+        stored_status = order.plan_status
+        order._route_list_status = stored_status
         derived = derive_plan_status(order, mos)
         if (
-            order.plan_status != SxSalesOrder.PLAN_ON_HOLD
-            and derived != order.plan_status
+            stored_status not in (
+                SxSalesOrder.PLAN_ON_HOLD,
+                SxSalesOrder.PLAN_CANCELLED,
+                SxSalesOrder.PLAN_DONE,
+            )
+            and derived != stored_status
         ):
             order.plan_status = derived
 
@@ -4102,6 +4128,7 @@ class PlanTimelineRow:
     stage_rows: list[RouteStageRow] = field(default_factory=list)
     npl_needs: list = field(default_factory=list)
     npl_script_id: str = ''
+    can_complete: bool = False
 
 
 @dataclass
@@ -5833,6 +5860,142 @@ def build_mo_timeline(
     )
 
 
+def normalize_route_view(raw: str | None) -> str:
+    """Tab con lộ trình: đang làm / đã hoàn thành / đã huỷ."""
+    key = (raw or '').strip().lower()
+    if key in {ROUTE_VIEW_DONE, 'completed', 'hoan-thanh'}:
+        return ROUTE_VIEW_DONE
+    if key in {ROUTE_VIEW_CANCELLED, 'canceled', 'huy', 'da-huy'}:
+        return ROUTE_VIEW_CANCELLED
+    return ROUTE_VIEW_OPEN
+
+
+def route_list_status(order: SxSalesOrder) -> str:
+    """Trạng thái đã lưu — tab lộ trình không dùng trạng thái suy ra tạm trên bộ nhớ."""
+    stored = getattr(order, '_route_list_status', None)
+    if stored:
+        return stored
+    return order.plan_status
+
+
+def _label_qty(raw: str) -> Decimal:
+    text = (raw or '').strip().replace(',', '.')
+    if not text or text in {'—', '-', '–'}:
+        return Decimal('0')
+    try:
+        return _q(text)
+    except Exception:
+        return Decimal('0')
+
+
+def route_stage_rows_can_complete(stage_rows) -> bool:
+    """Mỗi dòng Tổng có SL dự kiến phải đã làm trên 80%."""
+    checked = 0
+    for stage in stage_rows or []:
+        planned = _label_qty(getattr(stage, 'total_label', '') or '')
+        if planned <= 0:
+            continue
+        done = _label_qty(getattr(stage, 'done_total_label', '') or '')
+        checked += 1
+        if done * Decimal('100') <= planned * ROUTE_COMPLETE_OVER_PCT:
+            return False
+    return checked > 0
+
+
+def partition_route_rows(rows) -> dict[str, list]:
+    groups = {
+        ROUTE_VIEW_OPEN: [],
+        ROUTE_VIEW_DONE: [],
+        ROUTE_VIEW_CANCELLED: [],
+    }
+    for row in rows or []:
+        status = route_list_status(row.order)
+        if status == SxSalesOrder.PLAN_CANCELLED:
+            groups[ROUTE_VIEW_CANCELLED].append(row)
+        elif status == SxSalesOrder.PLAN_DONE:
+            groups[ROUTE_VIEW_DONE].append(row)
+        else:
+            groups[ROUTE_VIEW_OPEN].append(row)
+    return groups
+
+
+def _order_route_totals_can_complete(order: SxSalesOrder) -> bool:
+    rows = build_plan_board_rows(
+        include_released=True,
+        persist_side_effects=False,
+        order_ids=[order.pk],
+    )
+    if not rows:
+        return False
+    row = rows[0]
+    start = row.khsx_start or order.plan_start_date or order.request_date or timezone.localdate()
+    end = row.khsx_end or order.due_date or start
+    if end < start:
+        start, end = end, start
+    board = build_order_timeline(rows, range_from=start, range_to=end)
+    match = next((item for item in board.rows if item.order.pk == order.pk), None)
+    if match is None:
+        return False
+    return route_stage_rows_can_complete(match.stage_rows)
+
+
+@transaction.atomic
+def complete_route_order(*, order_id: int) -> SxSalesOrder:
+    """Chuyển đơn sang tab Đã hoàn thành khi các dòng Tổng đã làm trên 80%."""
+    try:
+        order = SxSalesOrder.objects.select_for_update().get(pk=order_id, is_demo=False)
+    except SxSalesOrder.DoesNotExist:
+        raise PlanningError('Không tìm thấy đơn.')
+    if order.confirm_status != SxSalesOrder.CONFIRM_CONFIRMED:
+        raise PlanningError('Chỉ hoàn thành đơn đã xác nhận.')
+    if order.plan_status == SxSalesOrder.PLAN_CANCELLED:
+        raise PlanningError('Kế hoạch đã hủy.')
+    if order.plan_status == SxSalesOrder.PLAN_DONE:
+        return order
+    if not _order_route_totals_can_complete(order):
+        raise PlanningError('Các dòng tổng chưa hoàn thành trên 80%.')
+    order.plan_status = SxSalesOrder.PLAN_DONE
+    order.plan_hold_reason = ''
+    order.plan_rank = None
+    order.save(update_fields=['plan_status', 'plan_hold_reason', 'plan_rank', 'updated_at'])
+    return order
+
+
+def _production_status_after_reopen(order: SxSalesOrder) -> str:
+    """Trạng thái sản xuất khi huỷ hoàn thành — không giữ lại tab Đã hoàn thành."""
+    mos = [
+        mo for mo in order.production_orders.filter(is_demo=False)
+        if mo.status != SxProductionOrder.STATUS_CANCELLED
+    ]
+    if not mos:
+        return SxSalesOrder.PLAN_QUEUED
+    statuses = {mo.status for mo in mos}
+    if statuses & {
+        SxProductionOrder.STATUS_IN_PROGRESS,
+        SxProductionOrder.STATUS_DONE,
+    }:
+        return SxSalesOrder.PLAN_IN_PROGRESS
+    return SxSalesOrder.PLAN_RELEASED
+
+
+@transaction.atomic
+def reopen_route_order(*, order_id: int) -> SxSalesOrder:
+    """Huỷ hoàn thành — đưa đơn từ tab Đã hoàn thành về đang sản xuất."""
+    try:
+        order = SxSalesOrder.objects.select_for_update().get(pk=order_id, is_demo=False)
+    except SxSalesOrder.DoesNotExist:
+        raise PlanningError('Không tìm thấy đơn.')
+    if order.confirm_status != SxSalesOrder.CONFIRM_CONFIRMED:
+        raise PlanningError('Chỉ huỷ hoàn thành đơn đã xác nhận.')
+    if order.plan_status == SxSalesOrder.PLAN_CANCELLED:
+        raise PlanningError('Kế hoạch đã hủy.')
+    if order.plan_status != SxSalesOrder.PLAN_DONE:
+        raise PlanningError('Đơn chưa ở tab Đã hoàn thành.')
+    order.plan_status = _production_status_after_reopen(order)
+    order.save(update_fields=['plan_status', 'updated_at'])
+    return order
+
+
 def build_order_timeline(
     plan_rows: list[PlanBoardRow],
     *,
@@ -6208,6 +6371,13 @@ def build_order_timeline(
             stage_rows=stage_rows,
             npl_needs=npl_needs,
             npl_script_id=f'jp-npl-need-{r.order.pk}',
+            can_complete=(
+                route_list_status(r.order) not in (
+                    SxSalesOrder.PLAN_DONE,
+                    SxSalesOrder.PLAN_CANCELLED,
+                )
+                and route_stage_rows_can_complete(stage_rows)
+            ),
         ))
 
     today_col = (today - start).days + 1 if start <= today <= end else None

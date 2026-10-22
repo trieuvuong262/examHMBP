@@ -888,7 +888,7 @@
     --sheet-brand-soft: #fef2f2;
     --sheet-brand-line: #fecaca;
     --sheet-stt: 68px;
-    --sheet-product: 336px;
+    --sheet-product: 372px;
   }
   .jp-tl-is-sheet .jp-tl-wrap {
     background: #fff;
@@ -1293,10 +1293,48 @@
     text-decoration: none;
   }
   .jp-tl-sheet td.c-product .jp-tl-code:hover { color: var(--hm-primary-dark, #b91c1c); text-decoration: underline; }
+  .jp-tl-sheet .jp-sheet-product-actions {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: .28rem;
+    flex: 0 0 auto;
+  }
+  .jp-tl-sheet td.c-product .jp-route-complete {
+    margin: 0;
+  }
+  .jp-tl-sheet td.c-product .jp-route-complete-btn {
+    display: inline-flex;
+    align-items: center;
+    border: 0;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0;
+    color: #fff;
+    background: #991b1b;
+    border-radius: 4px;
+    padding: 0 .42rem;
+    line-height: 1.45;
+    white-space: nowrap;
+  }
+  .jp-tl-sheet td.c-product .jp-route-complete-btn:hover {
+    background: #7f1d1d;
+  }
+  .jp-tl-sheet td.c-product .jp-route-complete-btn.is-reopen {
+    color: #991b1b;
+    background: #fff;
+    border: 1px solid #fecaca;
+  }
+  .jp-tl-sheet td.c-product .jp-route-complete-btn.is-reopen:hover {
+    color: #7f1d1d;
+    background: #fff1f2;
+    border-color: #fca5a5;
+  }
   .jp-tl-sheet td.c-product .jp-tl-hh {
     display: inline-flex;
     align-items: center;
-    margin-left: auto;
+    margin-left: 0;
     flex: 0 0 auto;
     font-size: 10px;
     font-weight: 800;

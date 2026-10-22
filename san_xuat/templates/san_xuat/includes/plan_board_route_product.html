@@ -2,9 +2,47 @@
   <div class="jp-sheet-product-head">
     <span class="jp-tl-prio is-{{ row.order.plan_priority }}">{{ row.order.get_plan_priority_display }}</span>
     <a class="jp-tl-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
+    <span class="jp-sheet-product-actions">
     {% if can_view_team_work_goods %}
     <a class="jp-tl-hh" href="{% url 'san_xuat:team_work_goods' %}?q={{ row.order.code|urlencode }}" title="Tiến độ hàng hoá của đơn">Tiến độ</a>
     {% endif %}
+    {% if route_view == 'open' and row.can_complete and can_schedule or route_view == 'open' and row.can_complete and can_release %}
+    <form method="post" class="jp-route-complete"
+          action="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}"
+          onsubmit="return confirm('Chuyển đơn {{ row.order.code }} sang tab Đã hoàn thành?');">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="complete_route">
+      <input type="hidden" name="order_id" value="{{ row.order.pk }}">
+      <input type="hidden" name="mode" value="{{ mode }}">
+      <input type="hidden" name="tab" value="route">
+      <input type="hidden" name="route_view" value="done">
+      {% if route_board %}
+      <input type="hidden" name="route_set" value="1">
+      <input type="hidden" name="route_from" value="{{ route_board.range_start|date:'Y-m-d' }}">
+      <input type="hidden" name="route_to" value="{{ route_board.range_end|date:'Y-m-d' }}">
+      {% endif %}
+      <button type="submit" class="jp-route-complete-btn" title="Các dòng tổng đã hoàn thành trên 80%">Hoàn thành</button>
+    </form>
+    {% endif %}
+    {% if route_view == 'done' and can_schedule or route_view == 'done' and can_release %}
+    <form method="post" class="jp-route-complete"
+          action="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=route&amp;route_view=done{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}"
+          onsubmit="return confirm('Huỷ hoàn thành đơn {{ row.order.code }} và trả về đang sản xuất?');">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="reopen_route">
+      <input type="hidden" name="order_id" value="{{ row.order.pk }}">
+      <input type="hidden" name="mode" value="{{ mode }}">
+      <input type="hidden" name="tab" value="route">
+      <input type="hidden" name="route_view" value="open">
+      {% if route_board %}
+      <input type="hidden" name="route_set" value="1">
+      <input type="hidden" name="route_from" value="{{ route_board.range_start|date:'Y-m-d' }}">
+      <input type="hidden" name="route_to" value="{{ route_board.range_end|date:'Y-m-d' }}">
+      {% endif %}
+      <button type="submit" class="jp-route-complete-btn is-reopen" title="Trả đơn về tab Đang làm">Huỷ hoàn thành</button>
+    </form>
+    {% endif %}
+    </span>
   </div>
   <div class="jp-sheet-product-lines">
     {% for img in row.product_images %}

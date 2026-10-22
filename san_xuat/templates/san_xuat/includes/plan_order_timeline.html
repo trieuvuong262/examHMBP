@@ -213,7 +213,11 @@
     </div>
     {% else %}
     <div class="jp-tl-empty">
-      {% if search_query or route_team_filter or priority_filter or deadline_filter %}
+      {% if route_view == 'done' %}
+        Không có đơn đã hoàn thành trong khoảng ngày này.
+      {% elif route_view == 'cancelled' %}
+        Không có đơn đã huỷ trong khoảng ngày này.
+      {% elif search_query or route_team_filter or priority_filter or deadline_filter %}
         Không có đơn khớp bộ lọc. Đổi bộ phận, ưu tiên hoặc xóa lọc để xem lại.
       {% else %}
         Không có đơn trong {{ route_board.month_label }}. Đổi khoảng ngày để xem.

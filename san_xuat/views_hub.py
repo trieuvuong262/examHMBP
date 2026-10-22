@@ -1513,6 +1513,12 @@ def plan_board(request):
         sort_plan_rows_by_placed_date,
         reorder_plan_orders,
         unhold_plan_order,
+        normalize_route_view,
+        ROUTE_VIEW_CHOICES,
+        ROUTE_VIEW_OPEN,
+        partition_route_rows,
+        complete_route_order,
+        reopen_route_order,
     )
     from san_xuat.services.planning import PlanningError
 
@@ -1568,6 +1574,9 @@ def plan_board(request):
         plan_status_filter = 'open'
     gc_status_filter = (request.GET.get('gc_status') or request.POST.get('gc_status') or '').strip()
     gc_team_filter = (request.GET.get('gc_team') or request.POST.get('gc_team') or '').strip().lower()
+    route_view = normalize_route_view(
+        request.GET.get('route_view') or request.POST.get('route_view') or ''
+    )
 
     def _multi_filter_values(*names: str) -> list[str]:
         values: list[str] = []
@@ -1656,6 +1665,8 @@ def plan_board(request):
                 params['priority_filter'] = priority_filter
             if deadline_filter:
                 params['deadline'] = deadline_filter
+            if route_view != ROUTE_VIEW_OPEN:
+                params['route_view'] = route_view
         params.update(extra)
         from urllib.parse import urlencode
         return redirect(f"{reverse('san_xuat:plan_board')}?{urlencode(params, doseq=True)}")
@@ -2023,6 +2034,14 @@ def plan_board(request):
                     except CancelError as exc:
                         messages.error(request, str(exc))
                 return redirect(f"{reverse('san_xuat:plan_board')}?mode=list&tab=cancel")
+            elif action == 'complete_route' and (can_schedule or can_release) and order_id:
+                order = complete_route_order(order_id=order_id)
+                messages.success(request, f'Đã chuyển đơn {order.code} sang Đã hoàn thành.')
+                return _board_redirect(route_view='done')
+            elif action == 'reopen_route' and (can_schedule or can_release) and order_id:
+                order = reopen_route_order(order_id=order_id)
+                messages.success(request, f'Đã huỷ hoàn thành đơn {order.code} — trả về đang sản xuất.')
+                return _board_redirect(route_view='open')
             elif action == 'request_cancel_plan' and (can_schedule or can_release) and order_id:
                 from san_xuat.services.cancel_request import CancelError, submit_plan_cancel
 
@@ -2335,6 +2354,7 @@ def plan_board(request):
     filter_month_label = ''
     filter_is_current_month = False
     route_board = None
+    route_view_counts = {'open': 0, 'done': 0, 'cancelled': 0}
     route_dept_choices: list[tuple[str, str]] = []
     route_team_choices: list[dict] = []
     route_stats = None
@@ -2541,6 +2561,9 @@ def plan_board(request):
             include_unassigned_team=route_team_unassigned,
         )
         route_board = _apply_route_board_filters(route_board)
+        route_groups = partition_route_rows(route_board.rows)
+        route_view_counts = {key: len(items) for key, items in route_groups.items()}
+        route_board.rows = route_groups[route_view]
         route_stats = build_route_stats(route_board)
 
     from san_xuat.hub_models import SxProductionCancelRequest
@@ -2618,6 +2641,9 @@ def plan_board(request):
         'plan_status_choices': QUEUE_STATUS_FILTER_CHOICES,
         'route_board': route_board,
         'route_stats': route_stats,
+        'route_view': route_view,
+        'route_view_choices': ROUTE_VIEW_CHOICES,
+        'route_view_counts': route_view_counts,
         'route_dept_filter': route_dept_filter,
         'route_team_filter': route_team_filter,
         'route_dept_choices': route_dept_choices,
