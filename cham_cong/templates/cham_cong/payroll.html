@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% load cham_cong_tags %}
+
+{% block content %}
+<div class="container-fluid jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 d-flex flex-wrap justify-content-between gap-2">
+        <div>
+            <h2 class="fw-bold text-hm jp-page-title">Bảng lương</h2>
+            <p class="text-muted small mb-0">Lương theo công, phụ cấp cố định, tăng ca, thưởng, phạt và tạm ứng. Chưa tính thuế thu nhập và bảo hiểm.</p>
+        </div>
+        {% if can_manage %}
+        <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-secondary btn-sm" href="{% url 'cham_cong:salary_list' %}">Mức lương</a>
+            <form method="post" action="{% url 'cham_cong:payroll_calculate' %}">
+                {% csrf_token %}
+                <input type="hidden" name="month" value="{{ month }}">
+                <button class="btn btn-outline-secondary btn-sm" {% if closed %}disabled{% endif %}>Tính lại</button>
+            </form>
+            <form method="post" action="{% url 'cham_cong:payroll_close' %}">
+                {% csrf_token %}
+                <input type="hidden" name="month" value="{{ month }}">
+                {% if closed %}
+                <button class="btn btn-outline-secondary btn-sm" name="action" value="reopen">Mở lại kỳ</button>
+                {% else %}
+                <button class="btn btn-hm btn-sm" name="action" value="close">Chốt tháng {{ focus_month }}/{{ year }}</button>
+                {% endif %}
+            </form>
+        </div>
+        {% endif %}
+    </div>
+    {% include 'cham_cong/includes/nav.html' %}
+    {% if closed %}
+    <div class="alert alert-warning">Kỳ lương đã chốt. Muốn tính lại thì mở kỳ.</div>
+    {% else %}
+    <p class="small text-muted">Đang tạm tính theo công và đơn đã duyệt. Nên khóa bảng công trước khi chốt.</p>
+    {% endif %}
+
+    <form method="get" class="row g-2 align-items-end mb-3">
+        <div class="col-auto">
+            <label class="form-label small mb-1" for="jpPayMonth">Tháng</label>
+            <input class="form-control" id="jpPayMonth" type="month" name="month" value="{{ month }}">
+        </div>
+        <div class="col-auto"><button class="btn btn-hm">Xem</button></div>
+        {% if can_add_adjustment and not closed %}
+        <div class="col-auto"><a class="btn btn-outline-secondary" href="{% url 'cham_cong:payroll_bonus' %}?month={{ month }}">Thưởng / phạt</a></div>
+        {% endif %}
+    </form>
+    <p class="small text-muted mb-3">Tổng thực nhận trong phạm vi xem: <strong>{{ shown_fund|vnd_vi }}</strong></p>
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Nhân viên</th><th>Bộ phận</th><th>Công tính lương</th><th>Lương theo công</th>
+                        <th>Phụ cấp</th><th>Tăng ca</th><th>Thưởng</th><th>Phạt</th><th>Tạm ứng</th><th>Thực nhận</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for row in rows %}
+                    <tr>
+                        <td><a href="{% url 'cham_cong:payroll_slip' row.user.pk %}?month={{ month }}">{{ row.name }}</a></td>
+                        <td>{{ row.department|default:"—" }}</td>
+                        <td>{{ row.payable_credit|credit_vi }}</td>
+                        <td>{{ row.work_pay|vnd_vi }}</td>
+                        <td>{{ row.meal_allowance|add:row.transport_allowance|add:row.phone_allowance|vnd_vi }}</td>
+                        <td>{{ row.ot_pay|vnd_vi }}</td>
+                        <td>{{ row.bonus|vnd_vi }}</td>
+                        <td>{{ row.penalty|vnd_vi }}</td>
+                        <td>{{ row.advance|vnd_vi }}</td>
+                        <td class="fw-semibold">{{ row.net_pay|vnd_vi }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="10" class="text-muted p-4">Chưa có mức lương trong phạm vi này. Nhân sự nhập lương cơ bản và phụ cấp trước.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <h3 class="h5 fw-bold">Thưởng và phạt</h3>
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead><tr><th>Nhân viên</th><th>Loại</th><th>Số tiền</th><th>Lý do</th><th>Trạng thái</th><th></th></tr></thead>
+                <tbody>
+                {% for row in adjustments %}
+                    <tr>
+                        <td>{{ row.user.profile.full_name|default:row.user.username }}</td>
+                        <td>{{ row.get_kind_display }}</td>
+                        <td>{{ row.amount|vnd_vi }}</td>
+                        <td>{{ row.reason }}{% if row.decision_note %}<div class="small text-muted">{{ row.decision_note }}</div>{% endif %}</td>
+                        <td><span class="jp-cc-chip jp-cc-chip-{{ row.status }}">{{ row.get_status_display }}</span></td>
+                        <td>
+                            {% if row.can_decide %}
+                            <form method="post" action="{% url 'cham_cong:payroll_bonus_decide' row.pk %}" class="d-flex gap-1">
+                                {% csrf_token %}
+                                <input class="form-control form-control-sm" name="note" placeholder="Ghi chú">
+                                <button class="btn btn-sm btn-hm" name="decision" value="approve">Duyệt</button>
+                                <button class="btn btn-sm btn-outline-danger" name="decision" value="reject">Từ chối</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6" class="text-muted p-4">Chưa có khoản thưởng hoặc phạt trong tháng.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

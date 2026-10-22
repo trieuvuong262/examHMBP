@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="d-flex justify-content-between gap-2 mb-3">
+        <div>
+            <h2 class="fw-bold text-hm jp-page-title">Địa điểm chấm công</h2>
+            <p class="text-muted small mb-0">Mỗi xưởng hoặc văn phòng một tọa độ, bán kính và danh sách IP. Khớp IP thì bỏ qua định vị. Ngoài bán kính thì chặn.</p>
+        </div>
+        <a class="btn btn-hm btn-sm" href="{% url 'cham_cong:site_create' %}">Thêm địa điểm</a>
+    </div>
+    {% include 'cham_cong/includes/nav.html' %}
+    <div class="row g-3">
+        {% for site in sites %}
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h3 class="h6 fw-bold">{{ site.name }} {% if not site.is_active %}<span class="badge bg-secondary">Tắt</span>{% endif %}</h3>
+                    <p class="mb-1 small">{{ site.latitude }}, {{ site.longitude }} · bán kính {{ site.radius_m }} m</p>
+                    <p class="mb-2 small text-muted">{% for ip in site.ips.all %}{{ ip.cidr }}{% if not forloop.last %}, {% endif %}{% empty %}Chưa có IP — mọi người phải dùng định vị.{% endfor %}</p>
+                    <a href="{% url 'cham_cong:site_edit' site.pk %}">Sửa</a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-muted">Chưa có địa điểm. Nhân viên chưa chấm công được.</div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

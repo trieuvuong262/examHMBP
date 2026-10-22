@@ -16,6 +16,7 @@ from hrm.module_permissions import (
 MEMBER_ACCESS_HOOKS = {
     MODULE_THIET_KE_SP: 'thiet_ke_sp.permissions.member_path_allowed',
     MODULE_RA_MAT_SP: 'ra_mat_sp.permissions.member_path_allowed',
+    'cham_cong': 'cham_cong.permissions.member_path_allowed',
 }
 
 

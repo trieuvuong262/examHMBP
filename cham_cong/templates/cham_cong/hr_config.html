@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% load cham_cong_tags %}
+
+{% block content %}
+<div class="container-fluid jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3">
+        <h2 class="fw-bold text-hm jp-page-title">Cấu hình & Báo cáo nhân sự</h2>
+        <p class="text-muted small mb-0">Địa điểm, cách xác minh, quy tắc tính công và phép, báo cáo đi trễ / vắng / tăng ca, nhật ký thao tác.</p>
+    </div>
+    {% include 'cham_cong/includes/nav.html' %}
+
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-md-3"><a class="card border-0 shadow-sm h-100 text-decoration-none" href="{% url 'cham_cong:hr_report' %}?view=late&month={{ month }}"><div class="card-body"><div class="text-muted small">Đi trễ</div><div class="fs-4 fw-bold text-dark">{{ report.totals.late }}</div><div class="small text-muted">{{ report.totals.late_minutes|minutes_vi }}</div></div></a></div>
+        <div class="col-6 col-md-3"><a class="card border-0 shadow-sm h-100 text-decoration-none" href="{% url 'cham_cong:hr_report' %}?view=absent&month={{ month }}"><div class="card-body"><div class="text-muted small">Vắng</div><div class="fs-4 fw-bold text-dark">{{ report.totals.absent }}</div><div class="small text-muted">{{ report.totals.absent_credit|credit_vi }}, trừ ngày có phép</div></div></a></div>
+        <div class="col-6 col-md-3"><a class="card border-0 shadow-sm h-100 text-decoration-none" href="{% url 'cham_cong:hr_report' %}?view=ot&month={{ month }}"><div class="card-body"><div class="text-muted small">Tăng ca</div><div class="fs-4 fw-bold text-dark">{{ report.totals.ot_minutes|minutes_vi }}</div><div class="small text-muted">{{ report.totals.headcount }} người đã gán ca</div></div></a></div>
+        <div class="col-6 col-md-3"><a class="card border-0 shadow-sm h-100 text-decoration-none" href="{% url 'cham_cong:hr_report' %}?view=fund&month={{ month }}"><div class="card-body"><div class="text-muted small">Quỹ lương</div>{% if fund.total is not None %}<div class="fs-5 fw-bold text-dark">{{ fund.total|vnd_vi }}</div><div class="small text-muted">{{ fund.label }}</div>{% else %}<div class="fs-6 fw-bold text-dark">Chưa tính</div><div class="small text-muted">Tính ở bảng lương rồi mở báo cáo.</div>{% endif %}</div></a></div>
+    </div>
+
+    <form method="get" class="row g-2 align-items-end mb-3">
+        <div class="col-auto">
+            <label class="form-label small mb-1" for="jpHrMonth">Tháng báo cáo</label>
+            <input class="form-control" id="jpHrMonth" type="month" name="month" value="{{ month }}">
+        </div>
+        <div class="col-auto"><button class="btn btn-hm">Xem</button></div>
+        <div class="col-auto"><a class="btn btn-outline-secondary" href="{% url 'cham_cong:hr_report' %}?month={{ month }}">Báo cáo chi tiết</a></div>
+        <div class="col-auto small text-muted">{{ report.workday_count }} ngày làm đến hôm nay, trừ chủ nhật và ngày lễ.</div>
+    </form>
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead><tr><th>Nhân viên</th><th>Phòng ban</th><th>Đi trễ</th><th>Về sớm</th><th>Vắng</th><th>Tăng ca</th></tr></thead>
+                <tbody>
+                {% for person in report.people %}
+                    <tr>
+                        <td>{{ person.name }}</td>
+                        <td>{{ person.department|default:"—" }}</td>
+                        <td>{{ person.late }}</td>
+                        <td>{{ person.early }}</td>
+                        <td>{{ person.absent }}</td>
+                        <td>{{ person.ot_minutes|minutes_vi }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6" class="text-muted p-4">Tháng này chưa có đi trễ, vắng hoặc tăng ca. Ngày có phép đã duyệt không tính vắng. Người chưa gán ca không vào báo cáo.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between gap-2 mb-2">
+                        <h3 class="h6 fw-bold mb-0">Địa điểm và phương thức xác minh</h3>
+                        <a href="{% url 'cham_cong:site_create' %}">Thêm địa điểm</a>
+                    </div>
+                    <p class="small mb-2">Khớp IP WiFi của địa điểm thì chấm được, không cần định vị. IP không khớp thì dùng GPS. Ngoài bán kính thì chặn, không ghi nhận.</p>
+                    <ul class="list-unstyled mb-0">
+                        {% for site in sites %}
+                        <li class="border-bottom py-2">
+                            <a href="{% url 'cham_cong:site_edit' site.pk %}">{{ site.name }}</a>
+                            {% if not site.is_active %}<span class="badge bg-secondary">Tắt</span>{% endif %}
+                            <div class="small text-muted">{{ site.latitude }}, {{ site.longitude }} · bán kính {{ site.radius_m }} m
+                                · {% for ip in site.ips.all %}{{ ip.cidr }}{% if not forloop.last %}, {% endif %}{% empty %}chưa có IP{% endfor %}
+                            </div>
+                        </li>
+                        {% empty %}
+                        <li class="text-muted">Chưa có địa điểm. Nhân viên chưa chấm công được.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h3 class="h6 fw-bold">Quy tắc tính công, phép, tăng ca</h3>
+                    <p class="small text-muted">Popup nhắc trước giờ vào ca đúng số phút bên dưới. Phép năm và số ngày chuyển năm dùng khi mở đơn nghỉ. Hệ số tăng ca dùng khi tính lương.</p>
+                    <form method="post" action="{% url 'cham_cong:policy_save' %}">
+                        {% csrf_token %}
+                        {% for field in policy_form %}
+                        <div class="mb-2">
+                            <label class="form-label small" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {{ field }}
+                        </div>
+                        {% endfor %}
+                        <button class="btn btn-hm btn-sm">Lưu quy tắc</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <h3 class="h6 fw-bold">Phân quyền</h3>
+                    <ul class="small mb-2">
+                        <li>Nhân viên: chấm công, lịch sử, bảng công, đơn nghỉ, đơn bổ sung và phiếu lương của mình.</li>
+                        <li>Quản lý trực tiếp: duyệt đơn cấp dưới và xem phiếu lương của cấp dưới.</li>
+                        <li>Nhân sự và giám đốc: ca, địa điểm, quy tắc, báo cáo, mức lương, tính và chốt kỳ, duyệt thay.</li>
+                    </ul>
+                    {% if jp_can_permissions %}
+                    <a href="{% url 'permission_config' %}">Mở nhóm quyền portal</a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between gap-2 mb-2">
+                        <h3 class="h6 fw-bold mb-0">Nhật ký thao tác</h3>
+                        <a href="{% url 'cham_cong:hr_log' %}">Xem tất cả</a>
+                    </div>
+                    <ul class="list-unstyled small mb-0">
+                        {% for log in logs %}
+                        <li class="py-1 border-bottom">{{ log.created_at|date:"d/m H:i" }} · {{ log.message }}</li>
+                        {% empty %}
+                        <li class="text-muted">Chưa có thao tác.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.querySelectorAll('form input, form select, form textarea').forEach(function (el) {
+    if (el.type !== 'checkbox' && el.type !== 'hidden') el.classList.add('form-control');
+});
+</script>
+{% endblock %}

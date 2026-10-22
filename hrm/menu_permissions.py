@@ -135,6 +135,10 @@ def menu_perm_context(user, module_key: str, menu_key: str) -> dict:
 def user_can_menu_action(user, module_key: str, menu_key: str, action: str) -> bool:
     if not getattr(user, 'is_authenticated', False):
         return False
+    from hrm.module_permissions import cham_cong_demo_allowed
+    demo_only = cham_cong_demo_allowed(user, module_key)
+    if demo_only is not None:
+        return demo_only
     if bypass_department_modules(user):
         return True
     if module_key not in get_user_enabled_modules(user):

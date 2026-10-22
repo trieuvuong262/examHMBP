@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5" style="max-width: 760px;">
+    <h2 class="fw-bold text-hm jp-page-title">Yêu cầu chỉnh sửa công</h2>
+    <p class="text-muted small">Dùng khi ngày đó đã có giờ vào. Nếu quên chấm cả ngày, hãy gửi đơn bổ sung. {% if shift %}Ca: {{ shift.name }}.{% else %}Bạn chưa có ca.{% endif %}</p>
+    {% include 'cham_cong/includes/nav.html' %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+            <form method="post">
+                {% csrf_token %}
+                {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+                {% for field in form %}
+                <div class="mb-3">
+                    <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                </div>
+                {% endfor %}
+                <button class="btn btn-hm" {% if not shift %}disabled{% endif %}>Gửi yêu cầu</button>
+                <a class="btn btn-link" href="{% url 'cham_cong:timesheet' %}">Quay lại bảng công</a>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+document.querySelectorAll('form input, form select, form textarea').forEach(function (el) {
+    if (!el.classList.contains('form-check-input')) el.classList.add('form-control');
+});
+</script>
+{% endblock %}

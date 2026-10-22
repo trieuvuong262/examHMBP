@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% load cham_cong_tags %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 d-flex flex-wrap justify-content-between gap-2">
+        <div>
+            <h2 class="fw-bold text-hm jp-page-title">Đơn nghỉ phép</h2>
+            <p class="text-muted small mb-0">Quản lý trực tiếp duyệt. Nhân sự duyệt thay. Đơn đã duyệt hiện trên bảng công, không sửa giờ chấm.</p>
+        </div>
+        <a class="btn btn-hm btn-sm" href="{% url 'cham_cong:leave_create' %}">Gửi đơn</a>
+    </div>
+    {% include 'cham_cong/includes/nav.html' %}
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+            <div class="fw-semibold mb-1">Phép năm {{ balance.year }} của tôi</div>
+            {% if balance.on_probation %}
+            <p class="mb-0 small text-muted">Đang thử việc, chưa có phép năm.</p>
+            {% else %}
+            <div class="jp-cc-metrics">
+                <div><span>Đã hưởng</span><strong>{{ balance.accrued|credit_vi }}</strong></div>
+                <div><span>Chuyển năm</span><strong>{{ balance.carry|credit_vi }}</strong></div>
+                <div><span>Đã dùng</span><strong>{{ balance.used|credit_vi }}</strong></div>
+                <div><span>Chờ duyệt</span><strong>{{ balance.pending|credit_vi }}</strong></div>
+                <div><span>Còn lại</span><strong>{{ balance.remaining|credit_vi }}</strong></div>
+            </div>
+            <p class="mb-0 small text-muted">
+                Mỗi tháng làm việc được 1/12 phép năm, tính từ ngày vào{% if not balance.join_date %}. Hồ sơ chưa có ngày vào nên đang tính từ đầu năm{% endif %}.
+                Chủ nhật và ngày lễ không trừ phép. Thứ bảy tính nửa ngày. Nửa buổi trong ngày thường tính nửa ngày.
+            </p>
+            {% endif %}
+        </div>
+    </div>
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr><th>Thời gian</th><th>Nhân viên</th><th>Loại</th><th>Số ngày</th><th>Lý do</th><th>Trạng thái</th><th></th></tr>
+                </thead>
+                <tbody>
+                {% for row in rows %}
+                    <tr>
+                        <td>
+                            {{ row.start_date|date:"d/m/Y" }}{% if row.end_date != row.start_date %} – {{ row.end_date|date:"d/m/Y" }}{% endif %}
+                            {% if row.kind != 'late' and row.kind != 'early' and row.portion != 'full' %}<div class="small text-muted">{{ row.get_portion_display }}</div>{% endif %}
+                        </td>
+                        <td>{{ row.user.profile.full_name|default:row.user.username }}</td>
+                        <td>{{ row.get_kind_display }}</td>
+                        <td>{% if row.kind == 'late' or row.kind == 'early' %}—{% else %}{{ row.day_count|credit_vi }}{% endif %}</td>
+                        <td>{{ row.reason }}{% if row.decision_note %}<div class="small text-muted">{{ row.decision_note }}</div>{% endif %}</td>
+                        <td><span class="jp-cc-chip jp-cc-chip-{{ row.status }}">{{ row.get_status_display }}</span></td>
+                        <td>
+                            {% if row.can_decide %}
+                            <form method="post" action="{% url 'cham_cong:leave_decide' row.pk %}" class="d-flex gap-1">
+                                {% csrf_token %}
+                                <input class="form-control form-control-sm" name="note" placeholder="Ghi chú">
+                                <button class="btn btn-sm btn-hm" name="decision" value="approve">Duyệt</button>
+                                <button class="btn btn-sm btn-outline-danger" name="decision" value="reject">Từ chối</button>
+                            </form>
+                            {% elif row.can_cancel %}
+                            <form method="post" action="{% url 'cham_cong:leave_cancel' row.pk %}">
+                                {% csrf_token %}
+                                <button class="btn btn-sm btn-outline-secondary">Hủy đơn</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="7" class="text-muted p-4">Chưa có đơn nghỉ.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5" style="max-width: 760px;">
+    <h2 class="fw-bold text-hm jp-page-title">Thưởng hoặc phạt tháng {{ month }}</h2>
+    <p class="text-muted small">Khoản này vào phiếu lương sau khi được duyệt. Người lập là quản lý thì nhân sự duyệt. Nhân sự có thể duyệt khoản mình lập, trừ khoản của chính mình.</p>
+    {% include 'cham_cong/includes/nav.html' %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="month" value="{{ month }}">
+                {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+                {% for field in form %}
+                <div class="mb-3">
+                    <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                </div>
+                {% endfor %}
+                <button class="btn btn-hm">Gửi</button>
+                <a class="btn btn-link" href="{% url 'cham_cong:payroll' %}?month={{ month }}">Quay lại</a>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+document.querySelectorAll('form input, form select').forEach(function (el) {
+    if (!el.classList.contains('form-check-input')) el.classList.add('form-control');
+});
+</script>
+{% endblock %}

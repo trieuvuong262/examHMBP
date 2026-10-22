@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid jp-page py-3 py-md-4 mb-5">
+    <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
+        <div>
+            <h2 class="fw-bold text-hm jp-page-title">Ca làm việc và lịch</h2>
+            <p class="text-muted small mb-0">Một người một ca. Gán theo nhân viên được ưu tiên hơn bộ phận và phòng ban. Thứ 7 làm nửa ngày, chủ nhật nghỉ.</p>
+        </div>
+        <a class="btn btn-hm btn-sm" href="{% url 'cham_cong:shift_create' %}">Thêm ca</a>
+    </div>
+    {% include 'cham_cong/includes/nav.html' %}
+
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <h3 class="h6 fw-bold">Ca</h3>
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead><tr><th>Tên</th><th>Giờ</th><th>Dung sai</th><th>Thứ 7</th><th></th></tr></thead>
+                            <tbody>
+                            {% for shift in shifts %}
+                            <tr>
+                                <td>{{ shift.name }} <span class="text-muted small">{{ shift.get_kind_display }}</span>{% if not shift.is_active %} <span class="badge bg-secondary">Tắt</span>{% endif %}</td>
+                                <td>{{ shift.start_time|time:"H:i" }}–{{ shift.end_time|time:"H:i" }}{% if shift.crosses_midnight %} qua đêm{% endif %}</td>
+                                <td>{{ shift.late_grace_minutes }}/{{ shift.early_grace_minutes }} phút</td>
+                                <td>{{ shift.saturday_start|time:"H:i" }}–{{ shift.saturday_end|time:"H:i" }}</td>
+                                <td><a href="{% url 'cham_cong:shift_edit' shift.pk %}">Sửa</a></td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="5" class="text-muted">Chưa có ca.</td></tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <h3 class="h6 fw-bold">Gán ca</h3>
+                    <form method="post" action="{% url 'cham_cong:assignment_save' %}" class="row g-2 align-items-end mb-3">
+                        {% csrf_token %}
+                        {% for field in assignment_form %}
+                        <div class="col-md-3">
+                            <label class="form-label small" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {{ field }}
+                        </div>
+                        {% endfor %}
+                        <div class="col-md-12"><button class="btn btn-hm btn-sm">Gán</button></div>
+                    </form>
+                    <ul class="list-unstyled mb-0">
+                        {% for item in assignments %}
+                        <li class="d-flex justify-content-between gap-2 border-bottom py-2">
+                            <span>{{ item.shift.name }} → {{ item.target_label }}</span>
+                            <form method="post" action="{% url 'cham_cong:assignment_off' item.pk %}">{% csrf_token %}<button class="btn btn-link btn-sm text-danger p-0">Gỡ</button></form>
+                        </li>
+                        {% empty %}
+                        <li class="text-muted">Chưa gán ca.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <h3 class="h6 fw-bold">Ngày lễ</h3>
+                    <form method="post" action="{% url 'cham_cong:holiday_save' %}" class="row g-2 mb-3">
+                        {% csrf_token %}
+                        {% for field in holiday_form %}
+                        <div class="col-6">{{ field }}</div>
+                        {% endfor %}
+                        <div class="col-12"><button class="btn btn-outline-secondary btn-sm">Thêm</button></div>
+                    </form>
+                    <ul class="list-unstyled mb-0">
+                        {% for holiday in holidays %}
+                        <li class="d-flex justify-content-between gap-2 py-1">
+                            <span>{{ holiday.holiday_date|date:"d/m/Y" }} · {{ holiday.name }}</span>
+                            <form method="post" action="{% url 'cham_cong:holiday_delete' holiday.pk %}">{% csrf_token %}<button class="btn btn-link btn-sm text-danger p-0">Xóa</button></form>
+                        </li>
+                        {% empty %}
+                        <li class="text-muted">Chưa nhập ngày lễ.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <p class="small text-muted mb-0">Quy tắc tính công, phép năm, hệ số tăng ca, báo cáo và nhật ký nằm ở <a href="{% url 'cham_cong:hr_config' %}">Cấu hình & Báo cáo nhân sự</a>.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.querySelectorAll('form input, form select, form textarea').forEach(function (el) {
+    if (!el.classList.contains('form-check-input')) el.classList.add('form-control');
+});
+</script>
+{% endblock %}

@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+{% load cham_cong_tags %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 d-flex flex-wrap justify-content-between gap-2">
+        <div>
+            <h2 class="fw-bold text-hm jp-page-title">Bảng công</h2>
+            <p class="text-muted small mb-0">Công tính theo giờ vào/ra. Đi trễ, về sớm và thiếu giờ được ghi nhận, chưa trừ công. Nghỉ phép lấy từ đơn đã duyệt.</p>
+        </div>
+        {% if can_lock %}
+        <form method="post" action="{% url 'cham_cong:timesheet_lock' %}" class="d-flex align-items-center gap-2">
+            {% csrf_token %}
+            <input type="hidden" name="month" value="{{ focus_year }}-{{ focus_month|stringformat:'02d' }}">
+            {% if month_locked %}
+            <button class="btn btn-outline-secondary" name="action" value="unlock">Mở khóa {{ focus_month }}/{{ focus_year }}</button>
+            {% else %}
+            <button class="btn btn-hm" name="action" value="lock">Khóa tháng {{ focus_month }}/{{ focus_year }}</button>
+            {% endif %}
+        </form>
+        {% endif %}
+    </div>
+    {% include 'cham_cong/includes/nav.html' %}
+    {% if month_locked %}
+    <div class="alert alert-warning">Bảng công tháng {{ focus_month }}/{{ focus_year }} đã khóa. Không chấm, bổ sung, chỉnh công hay gửi nghỉ trong tháng này.</div>
+    {% endif %}
+
+    <form method="get" class="row g-2 align-items-end mb-3">
+        <div class="col-auto">
+            <label class="form-label small mb-1">Xem</label>
+            <select class="form-select" name="view">
+                <option value="month" {% if view == 'month' %}selected{% endif %}>Tháng</option>
+                <option value="week" {% if view == 'week' %}selected{% endif %}>Tuần</option>
+                <option value="day" {% if view == 'day' %}selected{% endif %}>Ngày</option>
+            </select>
+        </div>
+        <div class="col-auto">
+            <label class="form-label small mb-1" for="jpMonth">Tháng</label>
+            <input class="form-control" id="jpMonth" type="month" name="month" value="{{ month }}">
+        </div>
+        <div class="col-auto">
+            <label class="form-label small mb-1" for="jpDay">Ngày mốc</label>
+            <input class="form-control" id="jpDay" type="date" name="day" value="{{ day|date:'Y-m-d' }}">
+        </div>
+        <div class="col-auto"><button class="btn btn-hm">Xem</button></div>
+        <div class="col-auto">
+            <a class="btn btn-outline-secondary" href="{% url 'cham_cong:adjustment_create' %}">Yêu cầu chỉnh sửa</a>
+        </div>
+    </form>
+    <p class="small text-muted">Kỳ {{ start|date:"d/m/Y" }} – {{ end|date:"d/m/Y" }}.</p>
+    <div class="jp-cc-metrics">
+        <div><span>Công</span><strong>{{ totals.credit|credit_vi }}</strong></div>
+        <div><span>Trễ</span><strong>{{ totals.late|minutes_vi }}</strong></div>
+        <div><span>Sớm</span><strong>{{ totals.early|minutes_vi }}</strong></div>
+        <div><span>Thiếu giờ</span><strong>{{ totals.shortage|minutes_vi }}</strong></div>
+        <div><span>Tăng ca</span><strong>{{ totals.ot|minutes_vi }}</strong></div>
+        <div><span>Nghỉ phép</span><strong>{{ totals.leave_days|credit_vi }}</strong></div>
+        <div><span>Không lương</span><strong>{{ totals.unpaid_days|credit_vi }}</strong></div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Nhân viên</th>
+                        <th>Bộ phận</th>
+                        <th>Công</th>
+                        <th>Trễ</th>
+                        <th>Sớm</th>
+                        <th>Thiếu giờ</th>
+                        <th>OT</th>
+                        <th>Nghỉ phép</th>
+                        <th>Không lương</th>
+                        <th>Bổ sung</th>
+                        <th>Thiếu ra</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for row in rows %}
+                    <tr>
+                        <td><a href="?view={{ view }}&month={{ month }}&day={{ day|date:'Y-m-d' }}&person={{ row.user.pk }}">{{ row.name }}</a></td>
+                        <td>{{ row.department|default:"—" }}</td>
+                        <td>{{ row.credit|credit_vi }}</td>
+                        <td>{{ row.late|minutes_vi }}</td>
+                        <td>{{ row.early|minutes_vi }}</td>
+                        <td>{{ row.shortage|minutes_vi }}</td>
+                        <td>{{ row.ot|minutes_vi }}</td>
+                        <td>{{ row.leave_days|credit_vi }}</td>
+                        <td>{{ row.unpaid_days|credit_vi }}</td>
+                        <td>{{ row.supplements }}</td>
+                        <td>{{ row.missing }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="11" class="text-muted p-4">Không có nhân viên trong phạm vi xem.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if person %}
+    <h3 class="h5 fw-bold">Chi tiết {{ person.profile.full_name|default:person.username }}</h3>
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Ngày</th><th>Vào</th><th>Ra</th><th>Công</th><th>Trễ</th><th>Sớm</th><th>Thiếu</th><th>OT</th><th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for row in daily %}
+                    <tr>
+                        <td>{{ row.work_date|date:"d/m/Y" }}</td>
+                        <td>{{ row.clock_in|time:"H:i"|default:"—" }}</td>
+                        <td>{{ row.clock_out|time:"H:i"|default:"—" }}</td>
+                        <td>{{ row.work_credit|credit_vi }}</td>
+                        <td>{{ row.late_minutes|minutes_vi }}</td>
+                        <td>{{ row.early_minutes|minutes_vi }}</td>
+                        <td>{{ row.shortage_minutes|minutes_vi }}</td>
+                        <td>{{ row.ot_minutes|minutes_vi }}</td>
+                        <td>
+                            {% if row.user_id == request.user.pk and row.clock_in and not month_locked %}
+                            <a href="{% url 'cham_cong:adjustment_create' %}?ngay={{ row.work_date|date:'Y-m-d' }}">Sửa</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="9" class="text-muted p-4">Chưa có ngày công trong kỳ này.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if person_leaves %}
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+            <div class="fw-semibold mb-2">Đơn nghỉ đã duyệt trong kỳ</div>
+            <ul class="mb-0">
+                {% for item in person_leaves %}
+                <li>{{ item.get_kind_display }}: {{ item.start_date|date:"d/m/Y" }}{% if item.end_date != item.start_date %} – {{ item.end_date|date:"d/m/Y" }}{% endif %}{% if item.portion != 'full' and item.kind != 'late' and item.kind != 'early' %} · {{ item.get_portion_display }}{% endif %}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    <h3 class="h5 fw-bold">Yêu cầu chỉnh sửa</h3>
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr><th>Ngày</th><th>Nhân viên</th><th>Giờ đề xuất</th><th>Lý do</th><th>Trạng thái</th><th></th></tr>
+                </thead>
+                <tbody>
+                {% for row in adjustments %}
+                    <tr>
+                        <td>{{ row.work_date|date:"d/m/Y" }}</td>
+                        <td>{{ row.user.profile.full_name|default:row.user.username }}</td>
+                        <td>{{ row.clock_in_time|time:"H:i" }} – {{ row.clock_out_time|time:"H:i" }}</td>
+                        <td>{{ row.reason }}{% if row.decision_note %}<div class="small text-muted">{{ row.decision_note }}</div>{% endif %}</td>
+                        <td><span class="jp-cc-chip jp-cc-chip-{{ row.status }}">{{ row.get_status_display }}</span></td>
+                        <td>
+                            {% if row.can_decide %}
+                            <form method="post" action="{% url 'cham_cong:adjustment_decide' row.pk %}" class="d-flex gap-1">
+                                {% csrf_token %}
+                                <input class="form-control form-control-sm" name="note" placeholder="Ghi chú" style="max-width: 140px;">
+                                <button class="btn btn-sm btn-hm" name="decision" value="approve">Duyệt</button>
+                                <button class="btn btn-sm btn-outline-danger" name="decision" value="reject">Từ chối</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6" class="text-muted p-4">Chưa có yêu cầu trong kỳ này.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

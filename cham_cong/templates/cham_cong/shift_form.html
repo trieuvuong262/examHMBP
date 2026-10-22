@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5" style="max-width: 820px;">
+    <h2 class="fw-bold text-hm jp-page-title">{% if shift.pk %}Sửa ca{% else %}Thêm ca{% endif %}</h2>
+    <p class="text-muted small">Hành chính mặc định 08:00–17:00, nghỉ 12:00–13:00, dung sai 5 phút, thứ 7 08:00–12:00. Ca sản xuất có thể bật qua đêm.</p>
+    {% include 'cham_cong/includes/nav.html' %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+            <form method="post">
+                {% csrf_token %}
+                {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+                {% for field in form %}
+                <div class="mb-3">
+                    <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                </div>
+                {% endfor %}
+                <button class="btn btn-hm">Lưu</button>
+                <a class="btn btn-link" href="{% url 'cham_cong:schedule' %}">Quay lại</a>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+document.querySelectorAll('form input, form select, form textarea').forEach(function (el) {
+    if (el.type === 'checkbox') el.classList.add('form-check-input');
+    else el.classList.add('form-control');
+});
+</script>
+{% endblock %}

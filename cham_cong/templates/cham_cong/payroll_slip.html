@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% load cham_cong_tags %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5" style="max-width: 860px;">
+    <h2 class="fw-bold text-hm jp-page-title">Phiếu lương {{ employee.profile.full_name|default:employee.username }}</h2>
+    <p class="text-muted small">Tháng {{ month }}. {% if closed %}Đã chốt.{% else %}Tạm tính.{% endif %} Không gồm thuế thu nhập và bảo hiểm.</p>
+    {% include 'cham_cong/includes/nav.html' %}
+    {% if not row %}
+    <div class="alert alert-secondary">Nhân sự chưa nhập mức lương cho người này.</div>
+    {% else %}
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+            <div class="jp-cc-metrics">
+                <div><span>Công chuẩn</span><strong>{{ row.standard_credit|credit_vi }}</strong></div>
+                <div><span>Công chấm</span><strong>{{ row.work_credit|credit_vi }}</strong></div>
+                <div><span>Phép có lương</span><strong>{{ row.paid_leave_credit|credit_vi }}</strong></div>
+                <div><span>Không lương</span><strong>{{ row.unpaid_credit|credit_vi }}</strong></div>
+                <div><span>Công tính lương</span><strong>{{ row.payable_credit|credit_vi }}</strong></div>
+                <div><span>Lương cơ bản</span><strong>{{ row.base_salary|vnd_vi }}</strong></div>
+            </div>
+        </div>
+    </div>
+    <div class="card border-0 shadow-sm">
+        <table class="table mb-0">
+            <tbody>
+                <tr><td>Lương theo công</td><td class="text-end">{{ row.work_pay|vnd_vi }}</td></tr>
+                <tr><td>Phụ cấp ăn</td><td class="text-end">{{ row.meal_allowance|vnd_vi }}</td></tr>
+                <tr><td>Phụ cấp đi lại</td><td class="text-end">{{ row.transport_allowance|vnd_vi }}</td></tr>
+                <tr><td>Phụ cấp điện thoại</td><td class="text-end">{{ row.phone_allowance|vnd_vi }}</td></tr>
+                <tr><td>Tăng ca {{ row.ot_minutes|minutes_vi }}</td><td class="text-end">{{ row.ot_pay|vnd_vi }}</td></tr>
+                <tr><td>Thưởng đã duyệt</td><td class="text-end">{{ row.bonus|vnd_vi }}</td></tr>
+                <tr><td>Phạt đã duyệt</td><td class="text-end">-{{ row.penalty|vnd_vi }}</td></tr>
+                <tr><td>Nghỉ không lương, không cộng vào lương theo công</td><td class="text-end">{{ row.unpaid_pay|vnd_vi }}</td></tr>
+                <tr><td>Tạm ứng đã ghi ở Tiện ích</td><td class="text-end">-{{ row.advance|vnd_vi }}</td></tr>
+                <tr class="fw-bold"><td>Thực nhận</td><td class="text-end">{{ row.net_pay|vnd_vi }}</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <p class="small text-muted mt-3">Một công tính 8 giờ. Tăng ca = số giờ × lương giờ × hệ số của ngày. Phép năm và nghỉ việc riêng được tính công. Nghỉ không lương không được tính thêm một lần trừ.</p>
+    {% endif %}
+    <a class="btn btn-link px-0" href="{% url 'cham_cong:payroll' %}?month={{ month }}">Quay lại bảng lương</a>
+</div>
+{% endblock %}

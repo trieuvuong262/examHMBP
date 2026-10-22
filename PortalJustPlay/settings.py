@@ -219,6 +219,7 @@ INSTALLED_APPS = [
     'tien_do.apps.TienDoConfig',
     'company_trip.apps.CompanyTripConfig',
     'utilities.apps.UtilitiesConfig',
+    'cham_cong.apps.ChamCongConfig',
     'kiotviet.apps.KiotvietConfig',
     'zalo.apps.ZaloConfig',
     'kho_npl.apps.KhoNplConfig',
@@ -256,6 +257,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'PortalJustPlay.middleware.ForcePasswordChangeMiddleware',
     'hrm.middleware.DepartmentModuleAccessMiddleware',
+    'cham_cong.middleware.AttendancePunchGateMiddleware',
     'audit.middleware.ActivityAuditMiddleware',
 ]
 
@@ -280,6 +282,7 @@ TEMPLATES = [
                 'thiet_ke_sp.context_processors.thiet_ke_sp_menu',
                 'ra_mat_sp.context_processors.ra_mat_sp_menu',
                 'utilities.context_processors.meal_push_context',
+                'cham_cong.context_processors.attendance_nav',
             ],
         },
     },

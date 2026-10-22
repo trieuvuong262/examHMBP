@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% load cham_cong_tags %}
+
+{% block content %}
+<div class="container jp-page jp-cc-punch py-3 py-md-4 mb-5" style="max-width: 640px;">
+    {% if force_block %}
+    <div class="alert alert-warning border-0 shadow-sm py-2">
+        Chấm vào trước.
+        <form method="post" action="{% url 'logout' %}" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-link btn-sm p-0 align-baseline">Đăng xuất</button>
+        </form>
+    </div>
+    {% endif %}
+
+    <section class="jp-cc-hero jp-cc-kiosk">
+        <p class="jp-cc-who">{{ request.user.profile.full_name|default:request.user.username }} · {{ work_date|date:"d/m" }}</p>
+        <div class="jp-cc-clock" id="jpCcClock">--:--</div>
+        {% if shift %}
+        <p class="jp-cc-shift">{{ shift.name }} {{ shift.start_time|time:"H:i" }}–{{ shift.end_time|time:"H:i" }}{% if shift.crosses_midnight %} · qua đêm{% endif %}</p>
+        {% else %}
+        <p class="text-danger mb-0">Chưa gán ca</p>
+        {% endif %}
+        {% if not sites_exist %}
+        <span class="jp-cc-chip jp-cc-chip-warn">Chưa có địa điểm</span>
+        {% elif ip_ready %}
+        <span class="jp-cc-chip jp-cc-chip-ok">WiFi</span>
+        {% else %}
+        <span class="jp-cc-chip jp-cc-chip-pending">Định vị</span>
+        {% endif %}
+
+        <form method="post" id="jpPunchForm" class="jp-cc-one" data-require-gps="{% if sites_exist and not ip_ready %}1{% else %}0{% endif %}">
+            {% csrf_token %}
+            <input type="hidden" name="latitude" id="jpPunchLat">
+            <input type="hidden" name="longitude" id="jpPunchLng">
+            {% if not record.clock_in %}
+            <button class="btn btn-hm" name="action" value="in" {% if not shift or not sites_exist %}disabled{% endif %}>Chấm vào</button>
+            {% elif not record.clock_out %}
+            <button class="btn btn-hm" name="action" value="out">Chấm ra</button>
+            {% else %}
+            <button class="btn btn-hm" type="button" disabled>Đã xong {{ record.clock_in|time:"H:i" }}–{{ record.clock_out|time:"H:i" }}</button>
+            {% endif %}
+        </form>
+    </section>
+
+    <div class="jp-cc-head">
+        <h3>Tháng này</h3>
+        <form method="get" class="jp-cc-month">
+            <label class="visually-hidden" for="jpPunchMonth">Tháng</label>
+            <input class="form-control" id="jpPunchMonth" type="month" name="month" value="{{ month }}" aria-label="Tháng" onchange="this.form.submit()">
+        </form>
+    </div>
+    <div class="card border-0 shadow-sm">
+        <ul class="jp-cc-log">
+            {% for row in history %}
+            <li>
+                <time>{{ row.work_date|date:"d/m" }}</time>
+                <span>{{ row.clock_in|time:"H:i"|default:"—" }}–{{ row.clock_out|time:"H:i"|default:"—" }}
+                    {% if row.status == 'complete' %}{% elif row.clock_in %}<span class="jp-cc-chip jp-cc-chip-pending">Thiếu ra</span>{% endif %}
+                    {% if row.late_minutes %}<span class="jp-cc-chip jp-cc-chip-warn">Trễ</span>{% endif %}
+                </span>
+                <b>{{ row.work_credit|credit_vi }}</b>
+            </li>
+            {% empty %}
+            <li class="jp-cc-empty">Chưa có</li>
+            {% endfor %}
+        </ul>
+    </div>
+    <p class="text-center mt-3 mb-0"><a href="{% url 'cham_cong:supplement_create' %}">Bổ sung</a></p>
+</div>
+<script>
+(function () {
+    var clock = document.getElementById('jpCcClock');
+    if (clock) {
+        var tick = function () {
+            var now = new Date();
+            clock.textContent = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        };
+        tick();
+        setInterval(tick, 1000);
+    }
+    var form = document.getElementById('jpPunchForm');
+    if (!form || form.dataset.requireGps !== '1') return;
+    form.addEventListener('submit', function (event) {
+        if (form.dataset.located === '1') return;
+        event.preventDefault();
+        var submitter = event.submitter;
+        if (!navigator.geolocation) {
+            alert('Trình duyệt không hỗ trợ định vị.');
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(function (pos) {
+            document.getElementById('jpPunchLat').value = pos.coords.latitude;
+            document.getElementById('jpPunchLng').value = pos.coords.longitude;
+            form.dataset.located = '1';
+            if (submitter && submitter.name) {
+                var hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.name = submitter.name;
+                hidden.value = submitter.value;
+                form.appendChild(hidden);
+            }
+            form.submit();
+        }, function () {
+            alert('Chưa lấy được định vị. Bật quyền vị trí cho trang này rồi chấm lại.');
+        }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+    });
+})();
+</script>
+{% endblock %}

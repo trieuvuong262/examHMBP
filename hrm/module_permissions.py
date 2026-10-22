@@ -34,6 +34,7 @@ MODULE_FEEDBACK = 'feedback'
 MODULE_SURVEYS = 'surveys'
 MODULE_COMPANY_TRIP = 'company_trip'
 MODULE_UTILITIES = 'utilities'
+MODULE_CHAM_CONG = 'cham_cong'
 MODULE_KIOTVIET = 'kiotviet'
 MODULE_KHO_NPL = 'kho_npl'
 MODULE_KHO_VAT_TU = 'kho_vat_tu'
@@ -65,6 +66,7 @@ _ALL_MODULE_CHOICES = [
     (MODULE_SURVEYS, 'Khảo sát'),
     (MODULE_COMPANY_TRIP, 'Company Trip'),
     (MODULE_UTILITIES, 'Tiện ích'),
+    (MODULE_CHAM_CONG, 'Chấm công'),
     (MODULE_ODOO, 'Odoo'),
     (MODULE_TIEN_DO, 'Tiến độ'),
     (MODULE_THIET_KE_SP, 'Thiết kế sản phẩm'),
@@ -178,6 +180,10 @@ DEPARTMENT_MENU_SECTIONS = [
         ]),
     },
     {
+        'label': 'Chấm công',
+        'modules': _visible_module_list([MODULE_CHAM_CONG]),
+    },
+    {
         'label': 'Yêu cầu',
         'modules': _visible_module_list([MODULE_DE_XUAT, MODULE_HO_TRO]),
     },
@@ -280,6 +286,7 @@ PATH_MODULE_RULES = [
     ('/gop-y/', MODULE_FEEDBACK),
     ('/khao-sat/', MODULE_SURVEYS),
     ('/tien-ich/', MODULE_UTILITIES),
+    ('/cham-cong/', MODULE_CHAM_CONG),
     ('/kiotviet/', MODULE_KIOTVIET),
     ('/odoo/', MODULE_ODOO),
     ('/tien-do/', MODULE_TIEN_DO),
@@ -351,6 +358,7 @@ def _compute_department_enabled_modules(department) -> set:
         enabled.add(MODULE_HO_TRO)
     if not enabled:
         return set(ALL_MODULE_KEYS)
+    enabled.add(MODULE_CHAM_CONG)
     return enabled
 
 
@@ -366,10 +374,21 @@ def get_user_enabled_modules(user) -> set:
     )
 
 
+def cham_cong_demo_allowed(user, module_key: str):
+    """None khi không phải module chấm công. Demo chỉ vuong-admin được vào."""
+    if module_key != MODULE_CHAM_CONG:
+        return None
+    from cham_cong.permissions import attendance_demo_user
+    return attendance_demo_user(user)
+
+
 def user_can_access_module(user, module_key: str) -> bool:
     """Phòng ban + nhóm quyền — quyền xem module (hoặc bất kỳ menu con nào)."""
     if not is_portal_module_visible(module_key):
         return False
+    demo_only = cham_cong_demo_allowed(user, module_key)
+    if demo_only is not None:
+        return demo_only
     if module_key not in ALL_MODULE_KEYS:
         return True
     if bypass_department_modules(user):

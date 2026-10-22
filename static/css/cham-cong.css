@@ -1,0 +1,449 @@
+/* Chấm công — bám token JustPlay: đỏ, đen, bề mặt, bo góc. */
+
+.jp-cc-module .jp-page {
+    animation: jp-cc-rise 0.38s ease both;
+}
+
+.jp-cc-module .jp-page-title {
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+.jp-cc-module .jp-page-header p,
+.jp-cc-module .jp-page > p.small {
+    color: var(--jp-text-muted);
+    max-width: 68ch;
+}
+
+.jp-cc-nav {
+    display: flex;
+    gap: 0.4rem;
+    margin: 0 0 1rem;
+    padding: 0.35rem;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    background: var(--jp-surface-bg);
+    border: 1px solid var(--jp-surface-border);
+    border-radius: var(--jp-radius-xl);
+    box-shadow: var(--hm-card-shadow);
+    scrollbar-width: thin;
+}
+
+.jp-cc-nav a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex: 0 0 auto;
+    min-height: 40px;
+    padding: 0.35rem 0.8rem;
+    border-radius: var(--jp-btn-radius);
+    color: var(--jp-text-secondary);
+    text-decoration: none;
+    font-size: 0.8125rem;
+    white-space: nowrap;
+    transition: background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.jp-cc-nav a:hover {
+    background: var(--jp-surface-muted);
+    color: var(--jp-text-primary);
+    transform: translateY(-1px);
+}
+
+.jp-cc-nav a.is-active {
+    background: var(--hm-primary);
+    color: #fff;
+    box-shadow: 0 6px 16px rgba(220, 38, 38, 0.28);
+}
+
+.jp-cc-nav .jp-cc-badge {
+    min-width: 1.15rem;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    background: var(--jp-black-900);
+    color: #fff;
+    font-size: 0.7rem;
+    line-height: 1.15rem;
+    text-align: center;
+}
+
+.jp-cc-nav a.is-active .jp-cc-badge {
+    background: #fff;
+    color: var(--hm-primary);
+}
+
+.jp-cc-module .card {
+    background: var(--jp-surface-bg);
+    border: 1px solid var(--jp-surface-border) !important;
+    border-radius: var(--jp-radius-xl) !important;
+    box-shadow: var(--hm-card-shadow) !important;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.jp-cc-module a.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 28px rgba(220, 38, 38, 0.12) !important;
+}
+
+.jp-cc-module .table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--jp-text-primary);
+    --bs-table-striped-bg: var(--jp-surface-muted);
+    margin-bottom: 0;
+}
+
+.jp-cc-module .table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--jp-table-head-bg);
+    color: var(--jp-text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    border-bottom-color: var(--jp-surface-border);
+}
+
+.jp-cc-module .table tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+.jp-cc-module .table tbody tr:hover {
+    background: var(--hm-primary-soft);
+}
+
+.jp-cc-module .table td {
+    vertical-align: middle;
+    border-color: var(--jp-surface-border);
+}
+
+.jp-cc-module form[method="get"].row {
+    margin: 0 0 1rem;
+    padding: 0.85rem;
+    background: var(--jp-surface-bg);
+    border: 1px solid var(--jp-surface-border);
+    border-radius: var(--jp-radius-xl);
+    box-shadow: var(--hm-card-shadow);
+}
+
+.jp-cc-module .form-control,
+.jp-cc-module .form-select,
+.jp-cc-module select.form-control {
+    min-height: 44px;
+    background: var(--jp-input-bg);
+    border-color: var(--jp-input-border);
+    color: var(--jp-text-primary);
+}
+
+.jp-cc-module .form-control:focus,
+.jp-cc-module .form-select:focus,
+.jp-cc-module select.form-control:focus {
+    border-color: var(--hm-primary);
+    box-shadow: 0 0 0 0.2rem rgba(220, 38, 38, 0.16);
+}
+
+.jp-cc-module td form.d-flex {
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.jp-cc-module td form .form-control {
+    min-width: 7.5rem;
+    flex: 1 1 7.5rem;
+}
+
+.jp-cc-module .alert {
+    border: 0;
+    border-radius: var(--jp-radius-xl);
+    box-shadow: var(--hm-card-shadow);
+}
+
+.jp-cc-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    background: var(--jp-surface-muted);
+    color: var(--jp-text-secondary);
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.jp-cc-chip-ok,
+.jp-cc-chip-approved,
+.jp-cc-chip-complete {
+    background: rgba(22, 163, 74, 0.12);
+    color: #15803d;
+}
+
+.jp-cc-chip-pending {
+    background: rgba(217, 119, 6, 0.14);
+    color: #b45309;
+}
+
+.jp-cc-chip-warn,
+.jp-cc-chip-rejected {
+    background: rgba(220, 38, 38, 0.12);
+    color: var(--hm-primary-dark);
+}
+
+.jp-cc-chip-cancelled {
+    background: var(--jp-surface-muted);
+    color: var(--jp-text-muted);
+}
+
+.jp-cc-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+}
+
+.jp-cc-metrics div,
+.jp-cc-stat {
+    padding: 0.85rem 1rem;
+    background: var(--jp-surface-bg);
+    border: 1px solid var(--jp-surface-border);
+    border-radius: var(--jp-radius-xl);
+    box-shadow: var(--hm-card-shadow);
+}
+
+.jp-cc-metrics span,
+.jp-cc-stat .text-muted {
+    display: block;
+    color: var(--jp-text-muted);
+    font-size: 0.75rem;
+}
+
+.jp-cc-metrics strong,
+.jp-cc-stat .fs-5 {
+    display: block;
+    margin-top: 0.15rem;
+    color: var(--jp-text-primary);
+    font-size: 1.15rem;
+    font-weight: 650;
+}
+
+.jp-cc-hero {
+    display: grid;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 1.25rem;
+    background:
+        radial-gradient(circle at top right, rgba(220, 38, 38, 0.16), transparent 42%),
+        var(--jp-surface-bg);
+    border: 1px solid var(--jp-surface-border);
+    border-radius: var(--jp-radius-xl);
+    box-shadow: var(--hm-card-shadow);
+}
+
+@media (min-width: 768px) {
+    .jp-cc-hero { grid-template-columns: auto 1fr; align-items: center; }
+}
+
+.jp-cc-orb {
+    width: 7.5rem;
+    height: 7.5rem;
+    margin: 0 auto;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--jp-surface-bg);
+    border: 6px solid var(--jp-surface-border);
+    box-shadow: inset 0 0 0 6px var(--hm-primary-soft);
+    text-align: center;
+}
+
+.jp-cc-orb strong {
+    display: block;
+    color: var(--jp-text-primary);
+    font-size: 0.95rem;
+    line-height: 1.2;
+}
+
+.jp-cc-orb span {
+    color: var(--jp-text-muted);
+    font-size: 0.7rem;
+}
+
+.jp-cc-orb.is-open {
+    border-color: #f59e0b;
+    animation: jp-cc-pulse 1.8s ease-in-out infinite;
+}
+
+.jp-cc-orb.is-done { border-color: #16a34a; }
+
+.jp-cc-clock {
+    font-variant-numeric: tabular-nums;
+    font-size: clamp(2rem, 6vw, 3rem);
+    font-weight: 650;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    color: var(--jp-text-primary);
+}
+
+.jp-cc-actions .btn {
+    min-height: 52px;
+    min-width: 10.5rem;
+    font-size: 1rem;
+}
+
+.jp-cc-one {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    max-width: 28rem;
+}
+
+.jp-cc-one .btn {
+    width: 100%;
+    min-height: 4.25rem;
+    font-size: 1.35rem;
+    letter-spacing: 0.01em;
+}
+
+.jp-cc-one .btn:disabled {
+    opacity: 0.55;
+    transform: none;
+}
+
+.jp-cc-month {
+    width: 11.5rem;
+}
+
+.jp-cc-kiosk {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.65rem;
+    margin-bottom: 1rem;
+    padding: 1rem 0.85rem 1.1rem;
+}
+
+.jp-cc-kiosk .jp-cc-clock {
+    font-size: clamp(3rem, 16vw, 4.25rem);
+}
+
+.jp-cc-kiosk .jp-cc-one {
+    width: min(100%, 24rem);
+    max-width: none;
+    gap: 0.35rem;
+}
+
+.jp-cc-who {
+    max-width: 100%;
+    margin: 0;
+    color: var(--jp-text-muted);
+    font-size: 0.85rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.jp-cc-shift {
+    margin: 0;
+    color: var(--jp-text-secondary);
+    font-size: 0.9rem;
+}
+
+.jp-cc-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.jp-cc-head h3 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.jp-cc-log {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.jp-cc-log li {
+    display: grid;
+    grid-template-columns: 3.1rem minmax(0, 1fr) auto;
+    gap: 0.5rem;
+    align-items: center;
+    min-height: 3rem;
+    padding: 0.45rem 0.85rem;
+    border-bottom: 1px solid var(--jp-surface-border);
+}
+
+.jp-cc-log li:last-child {
+    border-bottom: 0;
+}
+
+.jp-cc-log li.jp-cc-empty {
+    display: block;
+    color: var(--jp-text-muted);
+}
+
+.jp-cc-log time {
+    color: var(--jp-text-muted);
+    font-size: 0.85rem;
+}
+
+.jp-cc-log b {
+    font-weight: 650;
+}
+
+.jp-cc-log .jp-cc-chip {
+    margin-left: 0.25rem;
+}
+
+@media (max-width: 767.98px) {
+    .jp-cc-punch {
+        padding-top: 0.5rem !important;
+    }
+    .jp-cc-kiosk {
+        padding-top: 0.35rem;
+    }
+    .jp-cc-kiosk .jp-cc-one .btn {
+        min-height: 3.75rem;
+        font-size: 1.25rem;
+    }
+}
+
+.jp-cc-module table tr.fw-bold td {
+    background: var(--hm-primary-soft);
+    color: var(--jp-text-primary);
+    font-size: 1.05rem;
+}
+
+.jp-cc-module table tr.fw-bold td:last-child {
+    color: var(--hm-primary);
+}
+
+@keyframes jp-cc-rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes jp-cc-pulse {
+    0%, 100% { box-shadow: inset 0 0 0 6px rgba(245, 158, 11, 0.15); }
+    50% { box-shadow: inset 0 0 0 6px rgba(245, 158, 11, 0.35); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .jp-cc-module .jp-page,
+    .jp-cc-orb.is-open {
+        animation: none;
+    }
+    .jp-cc-module .card,
+    .jp-cc-module .table tbody tr,
+    .jp-cc-nav a {
+        transition: none;
+    }
+}

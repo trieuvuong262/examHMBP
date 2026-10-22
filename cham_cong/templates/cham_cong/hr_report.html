@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+{% load cham_cong_tags %}
+
+{% block content %}
+<div class="container-fluid jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3">
+        <h2 class="fw-bold text-hm jp-page-title">Báo cáo nhân sự</h2>
+        <p class="text-muted small mb-0">Đi trễ, vắng, tăng ca và quỹ lương theo tháng. Ngày đã duyệt phép không tính vắng. Người chưa gán ca không vào báo cáo chuyên cần.</p>
+    </div>
+    {% include 'cham_cong/includes/nav.html' %}
+
+    <nav class="jp-cc-nav" aria-label="Loại báo cáo">
+        <a class="{% if view == 'late' %}is-active{% endif %}" href="?view=late&month={{ month }}">Đi trễ / về sớm</a>
+        <a class="{% if view == 'absent' %}is-active{% endif %}" href="?view=absent&month={{ month }}">Vắng</a>
+        <a class="{% if view == 'ot' %}is-active{% endif %}" href="?view=ot&month={{ month }}">Tăng ca</a>
+        <a class="{% if view == 'fund' %}is-active{% endif %}" href="?view=fund&month={{ month }}">Quỹ lương</a>
+    </nav>
+
+    <form method="get" class="row g-2 align-items-end mb-3">
+        <input type="hidden" name="view" value="{{ view }}">
+        <div class="col-auto">
+            <label class="form-label small mb-1" for="jpReportMonth">Tháng</label>
+            <input class="form-control" id="jpReportMonth" type="month" name="month" value="{{ month }}">
+        </div>
+        <div class="col-auto"><button class="btn btn-hm">Xem</button></div>
+        <div class="col-auto small text-muted">{{ report.workday_count }} ngày làm đến hôm nay · {{ report.totals.headcount }} người đã gán ca.</div>
+    </form>
+
+    {% if view == 'late' %}
+    <p class="small text-muted">{{ report.totals.late }} lượt đi trễ, {{ report.totals.late_minutes|minutes_vi }}. {{ report.totals.early }} lượt về sớm, {{ report.totals.early_minutes|minutes_vi }}.</p>
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead><tr><th>Nhân viên</th><th>Bộ phận</th><th>Đi trễ</th><th>Phút trễ</th><th>Về sớm</th><th>Ngày</th></tr></thead>
+                <tbody>
+                {% for person in rows %}
+                    <tr>
+                        <td>{{ person.name }}</td>
+                        <td>{{ person.department|default:"—" }}</td>
+                        <td>{{ person.late }}</td>
+                        <td>{{ person.late_minutes|minutes_vi }}</td>
+                        <td>{{ person.early }} · {{ person.early_minutes|minutes_vi }}</td>
+                        <td class="small">{{ person.late_detail|default:person.early_detail }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6" class="text-muted p-4">Tháng này chưa có đi trễ hoặc về sớm.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% elif view == 'absent' %}
+    <p class="small text-muted">{{ report.totals.absent }} ngày chưa chấm vào, tương đương {{ report.totals.absent_credit|credit_vi }}. Phép năm, việc riêng và nghỉ không lương đã duyệt được loại ra.</p>
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead><tr><th>Nhân viên</th><th>Bộ phận</th><th>Ngày vắng</th><th>Công vắng</th><th>Ngày</th></tr></thead>
+                <tbody>
+                {% for person in rows %}
+                    <tr>
+                        <td>{{ person.name }}</td>
+                        <td>{{ person.department|default:"—" }}</td>
+                        <td>{{ person.absent }}</td>
+                        <td>{{ person.absent_credit|credit_vi }}</td>
+                        <td class="small">{{ person.absent_detail }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5" class="text-muted p-4">Tháng này chưa có ngày vắng ngoài phép đã duyệt.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% elif view == 'ot' %}
+    <p class="small text-muted">Tổng {{ report.totals.ot_minutes|minutes_vi }}, kể cả ngày nghỉ. Tiền tăng ca lấy từ phiếu lương sau khi nhân sự tính kỳ.</p>
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead><tr><th>Nhân viên</th><th>Bộ phận</th><th>Thời gian</th><th>Ngày</th></tr></thead>
+                <tbody>
+                {% for person in rows %}
+                    <tr>
+                        <td>{{ person.name }}</td>
+                        <td>{{ person.department|default:"—" }}</td>
+                        <td>{{ person.ot_minutes|minutes_vi }}</td>
+                        <td class="small">{{ person.ot_detail }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="4" class="text-muted p-4">Tháng này chưa có tăng ca.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <p class="small text-muted">
+        {% if fund.total is not None %}Quỹ {{ fund.total|vnd_vi }} · {{ fund.label }}.{% else %}Chưa tính kỳ lương. Hãy tính ở bảng lương.{% endif %}
+        <a href="{% url 'cham_cong:payroll' %}?month={{ month }}">Mở bảng lương</a>
+    </p>
+    {% for group in fund.groups %}
+    <h3 class="h6 fw-bold mt-3">{{ group.department }} · {{ group.net_pay|vnd_vi }}</h3>
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead><tr><th>Nhân viên</th><th>Lương theo công</th><th>Phụ cấp</th><th>Tăng ca</th><th>Thưởng</th><th>Phạt</th><th>Tạm ứng</th><th>Thực nhận</th></tr></thead>
+                <tbody>
+                {% for person in group.people %}
+                    <tr>
+                        <td>{{ person.name }}</td>
+                        <td>{{ person.work_pay|vnd_vi }}</td>
+                        <td>{{ person.allowance|vnd_vi }}</td>
+                        <td>{{ person.ot_pay|vnd_vi }}</td>
+                        <td>{{ person.bonus|vnd_vi }}</td>
+                        <td>{{ person.penalty|vnd_vi }}</td>
+                        <td>{{ person.advance|vnd_vi }}</td>
+                        <td class="fw-semibold">{{ person.net_pay|vnd_vi }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% empty %}
+    {% if fund.total is None %}
+    <div class="card border-0 shadow-sm"><div class="card-body text-muted">Chưa có phiếu lương trong tháng này.</div></div>
+    {% endif %}
+    {% endfor %}
+    {% endif %}
+</div>
+{% endblock %}

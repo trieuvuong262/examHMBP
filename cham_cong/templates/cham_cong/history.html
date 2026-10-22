@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% load cham_cong_tags %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 d-flex flex-wrap justify-content-between gap-2">
+        <div>
+            <h2 class="fw-bold text-hm jp-page-title">Lịch sử chấm công</h2>
+            <p class="text-muted small mb-0">Trạng thái hợp lệ khi đủ giờ vào và giờ ra trong bán kính hoặc đúng IP WiFi.</p>
+        </div>
+    </div>
+    {% include 'cham_cong/includes/nav.html' %}
+    <form method="get" class="row g-2 align-items-end mb-3">
+        <div class="col-auto">
+            <label class="form-label small mb-1" for="jpMonth">Tháng</label>
+            <input class="form-control" id="jpMonth" type="month" name="month" value="{{ month }}">
+        </div>
+        <div class="col-auto"><button class="btn btn-hm">Xem</button></div>
+    </form>
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Ngày</th>
+                        {% if can_filter_people %}<th>Nhân viên</th>{% endif %}
+                        <th>Vào</th>
+                        <th>Ra</th>
+                        <th>Giờ làm</th>
+                        <th>Công</th>
+                        <th>Trạng thái</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for row in rows %}
+                    <tr>
+                        <td>{{ row.work_date|date:"d/m/Y" }}</td>
+                        {% if can_filter_people %}<td>{{ row.user.profile.full_name|default:row.user.username }}</td>{% endif %}
+                        <td>{{ row.clock_in|time:"H:i"|default:"—" }}</td>
+                        <td>{{ row.clock_out|time:"H:i"|default:"—" }}</td>
+                        <td>{{ row.worked_minutes|minutes_vi }}</td>
+                        <td>{{ row.work_credit|credit_vi }}</td>
+                        <td>
+                            {% if row.status == 'complete' %}<span class="jp-cc-chip jp-cc-chip-ok">Hợp lệ</span>{% elif row.clock_in %}<span class="jp-cc-chip jp-cc-chip-pending">Thiếu giờ ra</span>{% else %}<span class="jp-cc-chip">Chưa vào</span>{% endif %}
+                            {% if row.late_minutes %}<span class="jp-cc-chip jp-cc-chip-warn">Trễ {{ row.late_minutes }}p</span>{% endif %}
+                            {% if row.early_minutes %}<span class="jp-cc-chip jp-cc-chip-warn">Sớm {{ row.early_minutes }}p</span>{% endif %}
+                            {% if row.source == 'supplement' %}<span class="jp-cc-chip">Bổ sung</span>{% endif %}
+                            {% if row.source == 'adjust' %}<span class="jp-cc-chip">Đã chỉnh</span>{% endif %}
+                            {% if row.in_method %}<span class="jp-cc-chip">{{ row.in_method|method_vi }}</span>{% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="7" class="text-muted p-4">Chưa có dữ liệu trong tháng này.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

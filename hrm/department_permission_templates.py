@@ -87,6 +87,20 @@ def _kpi_menus(*, manager: bool) -> dict:
     }
 
 
+def _cham_cong_menus(*, configure: bool, review: bool) -> dict:
+    setup = FULL if configure else NONE
+    return {
+        'punch': _f(view=True, create=True),
+        'timesheet': _f(view=True, create=True, update=review or configure),
+        'leave': _f(view=True, create=True, update=review or configure),
+        'payroll': _f(view=True, create=review or configure, update=configure),
+        'supplements': _f(view=True, create=True, update=review or configure, delete=configure),
+        'schedule': setup,
+        'sites': setup,
+        'hr_reports': setup,
+    }
+
+
 def _portal_employee() -> dict:
     return _build({
         M['announcements']: VIEW,
@@ -100,6 +114,11 @@ def _portal_employee() -> dict:
         M['de_xuat']: _f(view=True, create=True),
         M['ho_tro']: _f(view=True, create=True),
         M['nas_storage']: VIEW,
+        **_module_with_menus(
+            'cham_cong',
+            _cham_cong_menus(configure=False, review=False),
+            module_perm=_f(view=True, create=True),
+        ),
     })
 
 
@@ -116,6 +135,11 @@ def _portal_manager() -> dict:
             M['de_xuat']: MGR,
             M['ho_tro']: MGR,
             M['documents']: MGR,
+            **_module_with_menus(
+                'cham_cong',
+                _cham_cong_menus(configure=False, review=True),
+                module_perm=_f(view=True, create=True, update=True),
+            ),
         },
     )
 
@@ -265,6 +289,11 @@ DEPARTMENT_PERMISSION_TEMPLATES = [
                 _hrm_menus(level=_f(view=True, create=True, update=True, export=True)),
                 module_perm=_f(view=True, create=True, update=True, export=True),
             ),
+            _module_with_menus(
+                'cham_cong',
+                _cham_cong_menus(configure=True, review=True),
+                module_perm=FULL,
+            ),
         ),
         'manager': _build(
             _portal_manager(),
@@ -273,6 +302,11 @@ DEPARTMENT_PERMISSION_TEMPLATES = [
                 M['permissions']: VIEW,
             },
             _module_with_menus(M['hrm'], _hrm_menus(level=FULL), module_perm=FULL),
+            _module_with_menus(
+                'cham_cong',
+                _cham_cong_menus(configure=True, review=True),
+                module_perm=FULL,
+            ),
         ),
     },
     {

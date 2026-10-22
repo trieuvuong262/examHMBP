@@ -566,6 +566,84 @@
             </ul>
         </li>
         {% endif %}
+        {% jp_can_menu 'cham_cong' 'punch' as jp_can_cc_punch %}
+        {% if jp_can_cc_punch or jp_can_configure_attendance %}
+        <li class="jp-sidebar-group{% if '/cham-cong/' in request.path %} is-open{% endif %}">
+            <button type="button"
+                    class="jp-sidebar-group-toggle"
+                    data-jp-sidebar-group-toggle
+                    aria-expanded="{% if '/cham-cong/' in request.path %}true{% else %}false{% endif %}"
+                    aria-controls="jp-sidebar-cham-cong-submenu">
+                <span class="jp-sidebar-group-toggle-main">
+                    <span class="jp-sidebar-link-icon">
+                        <i class="bi bi-clock-fill"></i>
+                        {% if jp_cc_pending_count or jp_cc_adjust_count or jp_cc_leave_count or jp_cc_bonus_count %}
+                        <span class="jp-sidebar-notify" aria-label="Đơn chờ duyệt">
+                            {% if jp_cc_pending_count|add:jp_cc_adjust_count|add:jp_cc_leave_count|add:jp_cc_bonus_count > 99 %}99+{% else %}{{ jp_cc_pending_count|add:jp_cc_adjust_count|add:jp_cc_leave_count|add:jp_cc_bonus_count }}{% endif %}
+                        </span>
+                        {% endif %}
+                    </span>
+                    <span>Chấm công</span>
+                </span>
+                <i class="bi bi-chevron-down jp-sidebar-group-chevron" aria-hidden="true"></i>
+            </button>
+            <ul class="jp-sidebar-submenu" id="jp-sidebar-cham-cong-submenu">
+                {% if jp_can_cc_punch %}
+                <li>
+                    <a href="{% url 'cham_cong:punch' %}" class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'punch' %}active{% endif %}">
+                        <i class="bi bi-clock"></i><span>Chấm công</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'cham_cong:history' %}" class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'history' %}active{% endif %}">
+                        <i class="bi bi-calendar3"></i><span>Lịch sử</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'cham_cong:timesheet' %}" class="jp-sidebar-link jp-sidebar-sublink {% if 'timesheet' in request.resolver_match.url_name or 'adjustment' in request.resolver_match.url_name %}active{% endif %}">
+                        <i class="bi bi-table"></i><span>Bảng công</span>
+                        {% if jp_cc_adjust_count %}<span class="badge bg-danger ms-1">{{ jp_cc_adjust_count }}</span>{% endif %}
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'cham_cong:leaves' %}" class="jp-sidebar-link jp-sidebar-sublink {% if 'leave' in request.resolver_match.url_name %}active{% endif %}">
+                        <i class="bi bi-calendar-x"></i><span>Nghỉ phép</span>
+                        {% if jp_cc_leave_count %}<span class="badge bg-danger ms-1">{{ jp_cc_leave_count }}</span>{% endif %}
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'cham_cong:payroll' %}" class="jp-sidebar-link jp-sidebar-sublink {% if 'payroll' in request.resolver_match.url_name or 'salary' in request.resolver_match.url_name %}active{% endif %}">
+                        <i class="bi bi-cash-stack"></i><span>Bảng lương</span>
+                        {% if jp_cc_bonus_count %}<span class="badge bg-danger ms-1">{{ jp_cc_bonus_count }}</span>{% endif %}
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'cham_cong:supplements' %}" class="jp-sidebar-link jp-sidebar-sublink {% if 'supplement' in request.resolver_match.url_name %}active{% endif %}">
+                        <i class="bi bi-pencil-square"></i><span>Đơn bổ sung</span>
+                        {% if jp_cc_pending_count %}<span class="badge bg-danger ms-1">{{ jp_cc_pending_count }}</span>{% endif %}
+                    </a>
+                </li>
+                {% endif %}
+                {% if jp_can_configure_attendance %}
+                <li>
+                    <a href="{% url 'cham_cong:schedule' %}" class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'schedule' or 'shift' in request.resolver_match.url_name %}active{% endif %}">
+                        <i class="bi bi-calendar-week"></i><span>Ca & lịch</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'cham_cong:sites' %}" class="jp-sidebar-link jp-sidebar-sublink {% if 'site' in request.resolver_match.url_name %}active{% endif %}">
+                        <i class="bi bi-geo-alt"></i><span>Địa điểm</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{% url 'cham_cong:hr_config' %}" class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'hr_config' or request.resolver_match.url_name == 'hr_report' or request.resolver_match.url_name == 'hr_log' %}active{% endif %}">
+                        <i class="bi bi-clipboard-data"></i><span>Cấu hình & Báo cáo nhân sự</span>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </li>
+        {% endif %}
         {% if jp_can_utilities or jp_can_portal_admin or jp_can_trip_register %}
         <li class="jp-sidebar-group{% if 'tien-ich' in request.path %} is-open{% endif %}">
             <button type="button"

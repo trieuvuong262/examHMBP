@@ -16,6 +16,7 @@ from hrm.module_permissions import (
     MODULE_COMPANY_TRIP,
     MODULE_HO_TRO,
     MODULE_HRM,
+    MODULE_CHAM_CONG,
     MODULE_KPI,
     MODULE_KHO_NPL,
     MODULE_KHO_VAT_TU,
@@ -55,6 +56,21 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
     MODULE_HRM: [
         {'key': 'users', 'label': 'Danh sách nhân viên', 'icon': 'bi-person-lines-fill'},
         {'key': 'locked_accounts', 'label': 'Tài khoản bị khóa', 'icon': 'bi-lock-fill'},
+    ],
+    MODULE_CHAM_CONG: [
+        {'key': 'punch', 'label': 'Chấm công', 'icon': 'bi-clock'},
+        {'key': 'timesheet', 'label': 'Bảng công', 'icon': 'bi-table'},
+        {'key': 'leave', 'label': 'Đơn nghỉ phép', 'icon': 'bi-calendar-x'},
+        {'key': 'payroll', 'label': 'Bảng lương', 'icon': 'bi-cash-stack'},
+        {'key': 'supplements', 'label': 'Đơn bổ sung công', 'icon': 'bi-pencil-square'},
+        {'key': 'schedule', 'label': 'Ca làm việc & Lịch', 'icon': 'bi-calendar-week'},
+        {'key': 'sites', 'label': 'Địa điểm chấm công', 'icon': 'bi-geo-alt'},
+        {
+            'key': 'hr_reports',
+            'label': 'Cấu hình & Báo cáo nhân sự',
+            'perm_label': 'Cấu hình & Báo cáo nhân sự (địa điểm, quy tắc, báo cáo, nhật ký)',
+            'icon': 'bi-clipboard-data',
+        },
     ],
     # Tuyển dụng — menu con trong nhóm Nhân sự (sidebar + ma trận quyền).
     MODULE_RECRUITMENT: [
@@ -335,6 +351,17 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
 
 # (path_prefix, module_key, menu_key) — prefix dài / cụ thể trước
 MENU_PATH_RULES: list[tuple[str, str, str]] = [
+    ('/cham-cong/nhat-ky', MODULE_CHAM_CONG, 'hr_reports'),
+    ('/cham-cong/bao-cao', MODULE_CHAM_CONG, 'hr_reports'),
+    ('/cham-cong/cau-hinh', MODULE_CHAM_CONG, 'hr_reports'),
+    ('/cham-cong/dia-diem', MODULE_CHAM_CONG, 'sites'),
+    ('/cham-cong/don-bo-sung', MODULE_CHAM_CONG, 'supplements'),
+    ('/cham-cong/bang-luong', MODULE_CHAM_CONG, 'payroll'),
+    ('/cham-cong/nghi-phep', MODULE_CHAM_CONG, 'leave'),
+    ('/cham-cong/bang-cong', MODULE_CHAM_CONG, 'timesheet'),
+    ('/cham-cong/lich-su', MODULE_CHAM_CONG, 'punch'),
+    ('/cham-cong/ca', MODULE_CHAM_CONG, 'schedule'),
+    ('/cham-cong/', MODULE_CHAM_CONG, 'punch'),
     # Đào tạo — quản lý
     ('/training/admin/', MODULE_TRAINING, 'manage'),
     ('/training/api/categories/', MODULE_TRAINING, 'manage'),
@@ -644,6 +671,9 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
 
 # URL gắn menu A vẫn vào được nếu user có một trong các menu thay thế.
 MENU_PATH_ACCESS_ALIASES: dict[tuple[str, str], tuple[str, ...]] = {
+    (MODULE_CHAM_CONG, 'timesheet'): ('punch',),
+    (MODULE_CHAM_CONG, 'leave'): ('punch',),
+    (MODULE_CHAM_CONG, 'payroll'): ('punch',),
     (MODULE_SAN_XUAT, 'subcontract'): ('plan_board', 'plan'),
     # Xác nhận làm trên danh sách / chi tiết; người chỉ có menu xác nhận vẫn vào được danh sách.
     (MODULE_SAN_XUAT, 'orders'): ('order_confirm',),

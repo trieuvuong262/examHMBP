@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5" style="max-width: 760px;">
+    <h2 class="fw-bold text-hm jp-page-title">{% if site.pk %}Sửa địa điểm{% else %}Thêm địa điểm{% endif %}</h2>
+    <p class="text-muted small">Lấy tọa độ từ bản đồ, đặt bán kính bao hết khu vực làm việc. IP công cộng của WiFi xem ở trang chấm công, mục IP hiện tại.</p>
+    {% include 'cham_cong/includes/nav.html' %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+            <form method="post">
+                {% csrf_token %}
+                {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+                {% for field in form %}
+                <div class="mb-3">
+                    <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                    {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                </div>
+                {% endfor %}
+                <button class="btn btn-hm">Lưu</button>
+                <a class="btn btn-link" href="{% url 'cham_cong:sites' %}">Quay lại</a>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+document.querySelectorAll('form input, form select, form textarea').forEach(function (el) {
+    if (el.type === 'checkbox') el.classList.add('form-check-input');
+    else el.classList.add('form-control');
+});
+</script>
+{% endblock %}
