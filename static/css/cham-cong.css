@@ -131,10 +131,15 @@
 .jp-cc-module .form-control,
 .jp-cc-module .form-select,
 .jp-cc-module select.form-control {
-    min-height: 44px;
+    min-height: 2.25rem;
     background: var(--jp-input-bg);
     border-color: var(--jp-input-border);
     color: var(--jp-text-primary);
+}
+
+.jp-cc-punch .form-control,
+.jp-cc-punch .form-select {
+    min-height: var(--jp-touch, 44px);
 }
 
 .jp-cc-module .form-control:focus,
@@ -403,16 +408,74 @@
     margin-left: 0.25rem;
 }
 
+/* Màn chấm: cột điện thoại, kể cả khi mở trên máy tính. */
+.jp-cc-punch {
+    width: min(100%, 26rem);
+    max-width: 26rem !important;
+    margin-inline: auto;
+    padding-top: 0.5rem !important;
+}
+
+.jp-cc-kiosk .jp-cc-one .btn {
+    min-height: 3.75rem;
+    font-size: 1.25rem;
+}
+
+/* Các màn còn lại: full bề ngang, thanh menu và form kiểu máy tính. */
+.jp-cc-desk .jp-page.container {
+    max-width: none;
+    width: 100%;
+}
+
+.jp-cc-desk .jp-page[style*="max-width"] {
+    max-width: 72rem !important;
+    margin-left: 0;
+    margin-right: auto;
+}
+
+.jp-cc-desk .jp-cc-nav {
+    flex-wrap: wrap;
+    overflow: visible;
+}
+
+.jp-cc-desk .jp-cc-nav a {
+    min-height: 2.125rem;
+}
+
+.jp-cc-desk .jp-cc-metrics {
+    grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+}
+
+.jp-cc-desk .table th,
+.jp-cc-desk .table td {
+    white-space: nowrap;
+}
+
+.jp-cc-desk .table td:first-child,
+.jp-cc-desk .table td:nth-child(2),
+.jp-cc-desk .table td:has(.small) {
+    white-space: normal;
+    max-width: 14rem;
+}
+
+.jp-cc-desk .jp-page[style*="max-width"] .card-body > form:not(.row) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 1.25rem;
+    align-items: start;
+}
+
+.jp-cc-desk .jp-page[style*="max-width"] .card-body > form:not(.row) > .alert,
+.jp-cc-desk .jp-page[style*="max-width"] .card-body > form:not(.row) > .btn,
+.jp-cc-desk .jp-page[style*="max-width"] .card-body > form:not(.row) > a,
+.jp-cc-desk .jp-page[style*="max-width"] .card-body > form:not(.row) > .mb-3:has(textarea) {
+    grid-column: 1 / -1;
+}
+
 @media (max-width: 767.98px) {
     .jp-cc-punch {
-        padding-top: 0.5rem !important;
-    }
-    .jp-cc-kiosk {
-        padding-top: 0.35rem;
-    }
-    .jp-cc-kiosk .jp-cc-one .btn {
-        min-height: 3.75rem;
-        font-size: 1.25rem;
+        width: 100%;
+        max-width: none !important;
     }
 }
 
