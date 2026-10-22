@@ -56,7 +56,9 @@ def compute_month(year, month, user_ids=None):
     holidays = holiday_dates(start, end)
     worked = {}
     overtime = {}
-    for row in AttendanceDay.objects.filter(user_id__in=ids, work_date__gte=start, work_date__lte=end):
+    for row in AttendanceDay.objects.filter(user_id__in=ids, work_date__gte=start, work_date__lte=end).only(
+        'user_id', 'work_date', 'work_credit', 'ot_minutes', 'ot_rate',
+    ):
         worked[(row.user_id, row.work_date)] = Decimal(row.work_credit or 0)
         if row.ot_minutes and row.ot_rate:
             overtime[(row.user_id, row.work_date)] = (row.ot_minutes, row.ot_rate)

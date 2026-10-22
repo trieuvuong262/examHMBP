@@ -89,7 +89,9 @@ def monthly_attendance_report(year: int, month: int) -> dict:
 
     attendance = {}
     rows_by_user = {}
-    for row in AttendanceDay.objects.filter(work_date__gte=start, work_date__lte=end):
+    for row in AttendanceDay.objects.filter(work_date__gte=start, work_date__lte=end).only(
+        'user_id', 'work_date', 'clock_in', 'late_minutes', 'early_minutes', 'ot_minutes',
+    ):
         attendance[(row.user_id, row.work_date)] = row
         rows_by_user.setdefault(row.user_id, []).append(row)
     profiles = list(Profile.objects.filter(is_employed=True, user__is_active=True).select_related(

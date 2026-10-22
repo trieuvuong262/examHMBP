@@ -15,6 +15,7 @@ from cham_cong.leave_calc import (
     request_day_count,
 )
 from cham_cong.models import Holiday, LeaveRequest, TimesheetPeriod
+from cham_cong.services import cached_policy
 from hrm.permissions import get_profile
 
 OPEN_STATUSES = (LeaveRequest.STATUS_PENDING, LeaveRequest.STATUS_APPROVED)
@@ -83,10 +84,8 @@ def _snapshot(user, year, as_of, annual_days, carry_cap, holidays, requests):
 
 
 def annual_balance(user, today=None):
-    from cham_cong.models import AttendancePolicy
-
     today = today or timezone.localdate()
-    policy = AttendancePolicy.load()
+    policy = cached_policy()
     requests = _annual_requests(user, today.year - 1, today.year)
     holidays = holiday_dates(date(today.year - 1, 1, 1), date(today.year, 12, 31))
     return _snapshot(
@@ -96,10 +95,8 @@ def annual_balance(user, today=None):
 
 
 def annual_shortfall(user, start, end, portion, today=None, exclude_pk=None):
-    from cham_cong.models import AttendancePolicy
-
     today = today or timezone.localdate()
-    policy = AttendancePolicy.load()
+    policy = cached_policy()
     requests = _annual_requests(user, start.year - 1, end.year)
     if exclude_pk:
         requests = [item for item in requests if item.pk != exclude_pk]

@@ -14,48 +14,20 @@ def attendance_nav(request):
     if not user or not user.is_authenticated:
         return empty
     try:
-        from cham_cong.models import AttendanceAdjustment, AttendanceSupplement, LeaveRequest, PayAdjustment
-        from cham_cong.permissions import can_configure, can_view_company
-        from cham_cong.services import should_force_punch, team_user_ids
+        from cham_cong.permissions import can_configure, can_punch
+        from cham_cong.services import pending_badge_counts, should_force_punch
 
-        if can_view_company(user):
-            pending = AttendanceSupplement.objects.filter(status=AttendanceSupplement.STATUS_PENDING).count()
-            adjustments = AttendanceAdjustment.objects.filter(status=AttendanceAdjustment.STATUS_PENDING).count()
-            leaves = LeaveRequest.objects.filter(status=LeaveRequest.STATUS_PENDING).count()
-            bonuses = PayAdjustment.objects.filter(status=PayAdjustment.STATUS_PENDING).count()
-        else:
-            ids = team_user_ids(user)
-            pending = (
-                AttendanceSupplement.objects.filter(
-                    status=AttendanceSupplement.STATUS_PENDING, user_id__in=ids,
-                ).count()
-                if ids else 0
-            )
-            adjustments = (
-                AttendanceAdjustment.objects.filter(
-                    status=AttendanceAdjustment.STATUS_PENDING, user_id__in=ids,
-                ).count()
-                if ids else 0
-            )
-            leaves = (
-                LeaveRequest.objects.filter(
-                    status=LeaveRequest.STATUS_PENDING, user_id__in=ids,
-                ).count()
-                if ids else 0
-            )
-            bonuses = (
-                PayAdjustment.objects.filter(
-                    status=PayAdjustment.STATUS_PENDING, user_id__in=ids,
-                ).count()
-                if ids else 0
-            )
+        configure = can_configure(user)
+        if not configure and not can_punch(user):
+            return empty
+        pending, adjustments, leaves, bonuses = pending_badge_counts(user)
         return {
             'jp_attendance_block': should_force_punch(user),
             'jp_cc_pending_count': pending,
             'jp_cc_adjust_count': adjustments,
             'jp_cc_leave_count': leaves,
             'jp_cc_bonus_count': bonuses,
-            'jp_can_configure_attendance': can_configure(user),
+            'jp_can_configure_attendance': configure,
         }
     except (OperationalError, ProgrammingError):
         return empty

@@ -10,7 +10,6 @@ from cham_cong.hr_report import monthly_attendance_report
 from cham_cong.payrollbook import fund_report, payroll_fund
 from cham_cong.models import (
     AttendanceLog,
-    AttendancePolicy,
     Holiday,
     Shift,
     ShiftAssignment,
@@ -18,7 +17,7 @@ from cham_cong.models import (
     WorkSiteIp,
 )
 from cham_cong.permissions import MENU_PUNCH, MODULE_CHAM_CONG, can_configure, can_punch
-from cham_cong.services import write_log
+from cham_cong.services import cached_policy, write_log
 from hrm.menu_permissions import handle_menu_access_denied
 
 
@@ -119,7 +118,7 @@ def policy_save(request):
     denied = _config_required(request)
     if denied:
         return denied
-    form = PolicyForm(request.POST, instance=AttendancePolicy.load())
+    form = PolicyForm(request.POST, instance=cached_policy())
     if form.is_valid():
         form.save()
         write_log(request.user, 'policy_save', 'Cập nhật thiết lập chấm công')
@@ -214,8 +213,8 @@ def hr_config(request):
         'month': month_text,
         'report': monthly_attendance_report(year, month),
         'fund': payroll_fund(year, month),
-        'policy_form': PolicyForm(instance=AttendancePolicy.load()),
-        'policy': AttendancePolicy.load(),
+        'policy_form': PolicyForm(instance=cached_policy()),
+        'policy': cached_policy(),
         'sites': WorkSite.objects.prefetch_related('ips'),
         'logs': AttendanceLog.objects.select_related('actor', 'actor__profile')[:8],
     })

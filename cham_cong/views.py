@@ -5,8 +5,10 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from cham_cong.hr_report import month_bounds
+
 from cham_cong.forms import SupplementForm
-from cham_cong.models import AttendanceDay, AttendanceSupplement, WorkSite
+from cham_cong.models import AttendanceDay, AttendanceSupplement
 from cham_cong.permissions import (
     MENU_PUNCH,
     MENU_SUPPLEMENTS,
@@ -17,6 +19,7 @@ from cham_cong.permissions import (
     can_view_company,
 )
 from cham_cong.services import (
+    active_sites,
     apply_classification,
     current_work_date,
     detected_ip_label,
@@ -81,7 +84,7 @@ def punch(request):
             .select_related('shift', 'site')
             .first()
         )
-    sites_exist = WorkSite.objects.filter(is_active=True).exists()
+    sites_exist = bool(active_sites())
     ip_ready = False
     if sites_exist:
         preview, _error = verify_location(request)
@@ -94,9 +97,12 @@ def punch(request):
     except ValueError:
         year, month = timezone.localdate().year, timezone.localdate().month
         month_text = f'{year:04d}-{month:02d}'
+    start, end = month_bounds(year, month)
     history = AttendanceDay.objects.filter(
-        user=user, work_date__year=year, work_date__month=month,
-    ).select_related('shift', 'site').order_by('-work_date')
+        user=user, work_date__gte=start, work_date__lte=end,
+    ).only(
+        'work_date', 'clock_in', 'clock_out', 'work_credit', 'status', 'late_minutes',
+    ).order_by('-work_date')
     return render(request, 'cham_cong/punch.html', {
         'shift': shift,
         'record': record,
