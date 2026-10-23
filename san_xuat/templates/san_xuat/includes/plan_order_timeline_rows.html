@@ -1,0 +1,164 @@
+{% load sx_format %}
+          {% for row in route_board.rows %}
+          <tbody class="jp-sheet-order" data-order-id="{{ row.order.pk }}">
+            {% with stt=forloop.counter|add:route_stt_offset %}
+            {% for stage in row.stage_rows %}
+            <tr class="jp-tl-orow{% if forloop.first %} is-order-start{% endif %}{% if row.is_late %} is-late{% endif %}{% if stage.gc_hired %} is-gc{% endif %}"
+                data-order-id="{{ row.order.pk }}"
+                data-team-slug="{{ stage.slug }}">
+              {% if forloop.first %}
+              <td class="c-stt" rowspan="{{ row.stage_rows|length }}">
+                {% include 'san_xuat/includes/plan_board_route_stt.html' %}
+              </td>
+              <td class="c-product" rowspan="{{ row.stage_rows|length }}">
+                {% include 'san_xuat/includes/plan_board_route_product.html' %}
+              </td>
+              {% endif %}
+              <td class="c-dept jp-stage-{{ stage.slug }}{% if stage.gc_hired %} is-gc{% endif %}"
+                  data-jp-team-split
+                  data-order-id="{{ row.order.pk }}"
+                  data-order-code="{{ row.order.code }}"
+                  data-team-slug="{{ stage.slug }}"
+                  data-start="{% if stage.first_date %}{{ stage.first_date|date:'Y-m-d' }}{% endif %}"
+                  data-end="{% if stage.last_date %}{{ stage.last_date|date:'Y-m-d' }}{% endif %}"
+                  data-plan-date="{% if stage.first_date %}{{ stage.first_date|date:'Y-m-d' }}{% endif %}"
+                  data-team-qty="{{ stage.team_qty_total }}"
+                  data-work-center-id="{% if stage.work_center_id %}{{ stage.work_center_id }}{% endif %}"
+                  data-can-split="{% if can_schedule and stage.can_split %}1{% else %}0{% endif %}"
+                  data-can-drag="{% if can_schedule and stage.can_drag %}1{% else %}0{% endif %}"
+                  data-headcount="{{ stage.headcount|default:0 }}"
+                  data-efficiency="{{ stage.efficiency_pct|sx_num_input }}"
+                  data-ref-headcount="{{ stage.catalog_headcount|default:0 }}"
+                  data-ref-efficiency="{{ stage.catalog_efficiency_pct|sx_num_input }}"
+                  data-work-hours="{{ stage.work_hours_per_day|sx_num_input }}"
+                  data-labor-minutes="{{ stage.labor_minutes|sx_num_input }}"
+                  data-smv-seconds="{{ stage.smv_seconds|sx_num_input }}"
+                  data-qty-per-day="{{ stage.qty_per_day|sx_num_input }}"
+                  data-planned-qty="{{ stage.planned_qty|sx_num_input }}"
+                  title="{{ stage.label }} · {{ row.order.code }}{% if stage.gc_hired %} · {{ stage.gc_title }}{% endif %}">
+                  <span class="jp-sheet-side">
+                  {% if stage.progress_mo_id %}
+                  <a class="jp-tl-dept-name" href="{% url 'san_xuat:team_work_progress' stage.progress_slug|default:stage.slug stage.progress_mo_id %}"
+                     title="Phiếu tiến độ {{ stage.short_label }}">{{ stage.label }}</a>
+                  {% else %}
+                  <span class="jp-tl-dept-name">{% if stage.label %}{{ stage.label }}{% else %}{{ stage.short_label }}{% endif %}</span>
+                  {% endif %}
+                  {% if stage.gc_hired %}
+                    {% if stage.gc_pk %}
+                    <a class="jp-sheet-gc" href="{% url 'san_xuat:subcontract_detail' stage.gc_pk %}"
+                       title="{{ stage.gc_title }}">GC</a>
+                    {% else %}
+                    <span class="jp-sheet-gc" title="{{ stage.gc_title }}">GC</span>
+                    {% endif %}
+                  {% endif %}
+                  {% if can_schedule and stage.slug and stage.slug != 'npl' and stage.can_split %}
+                  <button type="button" class="jp-sheet-split" data-jp-stage-split
+                          title="Tách thủ công theo ngày / SL" aria-label="Tách thủ công {{ stage.short_label }}">
+                    <i class="bi bi-scissors" aria-hidden="true"></i>
+                  </button>
+                  {% endif %}
+                </span>
+              </td>
+              <td class="c-team{% if stage.work_center_id %} is-on{% endif %}"
+                  data-jp-team-split
+                  data-order-id="{{ row.order.pk }}"
+                  data-order-code="{{ row.order.code }}"
+                  data-team-slug="{{ stage.slug }}"
+                  data-work-center-id="{% if stage.work_center_id %}{{ stage.work_center_id }}{% endif %}"
+                  data-can-split="{% if can_schedule and stage.can_split %}1{% else %}0{% endif %}"
+                  title="{{ stage.short_label }} · {{ row.order.code }}">
+                <span class="jp-sheet-side">
+                  <span class="jp-sheet-team-name">{% if stage.work_center_id %}{{ stage.team_label|default:stage.label }}{% else %}—{% endif %}</span>
+                  {% if can_schedule and stage.slug and stage.slug != 'npl' %}
+                  <button type="button" class="jp-sheet-team{% if stage.work_center_id %} is-on{% endif %}"
+                          data-jp-stage-team
+                          title="{% if stage.work_center_id %}{{ stage.team_label|default:stage.label }} — bấm để đổi tổ{% else %}Chọn tổ năng lực SX{% endif %}"
+                          aria-label="{% if stage.work_center_id %}Đổi tổ {{ stage.team_label|default:stage.label }}{% else %}Chọn tổ {{ stage.label }}{% endif %}">
+                    <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                  </button>
+                  {% endif %}
+                </span>
+              </td>
+              <td class="c-npl">
+                {% if stage.npl_total %}
+                <button type="button"
+                        class="jp-npl-col{% if stage.npl_ready == stage.npl_total %} is-done{% else %} is-open{% endif %}"
+                        data-jp-npl-detail
+                        data-npl-script="jp-npl-need-{{ row.order.pk }}"
+                        data-npl-dept="{{ stage.npl_dept }}"
+                        data-npl-heading="{{ stage.label }}{% if stage.team_label %} · {{ stage.team_label }}{% endif %}"
+                        data-npl-product="{{ row.product_name_label|default:row.product_code_label }}"
+                        data-npl-order="{{ row.order.code }}"
+                        data-npl-image="{% if row.product_images %}{{ row.product_images.0.url }}{% endif %}"
+                        data-npl-meta="Đã chuẩn bị {{ stage.npl_ready }}/{{ stage.npl_total }} mã"
+                        title="Đã chuẩn bị {{ stage.npl_ready }}/{{ stage.npl_total }} mã · {{ stage.npl_dept }}">{{ stage.npl_ready }}/{{ stage.npl_total }}</button>
+                {% else %}—{% endif %}
+              </td>
+              {% for cell in stage.cells %}
+              <td class="jp-sheet-cell{% if cell.is_today %} is-today{% endif %}{% if cell.is_off %} is-off{% endif %}{% if cell.bar %} has-qty{% endif %}"
+                  data-date="{{ cell.date|date:'Y-m-d' }}"
+                  data-order-id="{{ row.order.pk }}"
+                  data-team-slug="{{ stage.slug }}"
+                  {% if cell.is_off %}data-off="1"{% endif %}>
+                {% if cell.bar %}{% if not cell.is_off or cell.bar.done_qty_label != '0' %}
+                <button type="button"
+                        class="jp-sheet-qty jp-stage-{{ cell.bar.slug }}{% if row.is_late %} is-late{% endif %}{% if can_schedule and cell.bar.can_drag %} is-draggable{% endif %}{% if cell.bar.gc_hired %} is-gc{% endif %}{% if cell.bar.qty_label == '0' and cell.bar.done_qty_label != '0' %} is-actual{% endif %}"
+                        draggable="false"
+                        oncontextmenu="event.preventDefault(); event.stopPropagation(); if (window.jpShowRouteCtx) window.jpShowRouteCtx(event); return false;"
+                        data-jp-team-drag
+                        data-jp-team-split
+                        data-order-id="{{ row.order.pk }}"
+                        data-order-code="{{ row.order.code }}"
+                        data-team-slug="{{ cell.bar.slug }}"
+                        data-start="{{ cell.bar.start|date:'Y-m-d' }}"
+                        data-end="{{ cell.bar.end|date:'Y-m-d' }}"
+                        data-plan-date="{% if cell.bar.plan_date %}{{ cell.bar.plan_date|date:'Y-m-d' }}{% else %}{{ cell.bar.start|date:'Y-m-d' }}{% endif %}"
+                        data-is-split="{% if cell.bar.is_split %}1{% else %}0{% endif %}"
+                        data-segment-id="{{ cell.bar.segment_id }}"
+                        data-qty="{{ cell.bar.qty_label }}"
+                        data-done="{{ cell.bar.done_qty_label }}"
+                        data-team-qty="{{ cell.bar.team_qty_total }}"
+                        data-col-start="{{ cell.bar.col_start }}"
+                        data-span-days="1"
+                        data-can-drag="{% if can_schedule and cell.bar.can_drag %}1{% else %}0{% endif %}"
+                        data-can-split="{% if can_schedule and cell.bar.slug and cell.bar.slug != 'npl' %}1{% else %}0{% endif %}"
+                        data-work-center-id="{% if cell.bar.work_center_id %}{{ cell.bar.work_center_id }}{% endif %}"
+                        title="{{ cell.bar.label }} · {{ row.order.code }} · dự kiến {{ cell.bar.qty_label|default:'0' }} · đã làm {{ cell.bar.done_qty_label }} (phiếu tổ){% if cell.bar.gc_hired %} · {{ cell.bar.gc_title }}{% endif %}{% if can_schedule and cell.bar.can_drag %} · Kéo sang ngày khác{% endif %}">
+                  <span class="jp-sheet-plan">{{ cell.bar.qty_label|default:"—" }}</span>
+                  <span class="jp-sheet-done">{{ cell.bar.done_qty_label|default:"0" }}</span>
+                </button>
+                {% endif %}{% endif %}
+              </td>
+              {% endfor %}
+              <td class="c-total" title="Dự kiến {{ stage.total_label|default:'—' }} · Thực hiện {{ stage.done_total_label|default:'0' }}">
+                <span class="jp-total-stack{% if stage.slug %} jp-stage-{{ stage.slug }}{% endif %}">
+                  <span class="jp-sheet-plan">{{ stage.total_label|default:"—" }}</span>
+                  <span class="jp-sheet-done">{{ stage.done_total_label|default:"0" }}</span>
+                </span>
+              </td>
+            </tr>
+            {% empty %}
+            <tr class="jp-tl-orow is-order-start" data-order-id="{{ row.order.pk }}">
+              <td class="c-stt">
+                {% include 'san_xuat/includes/plan_board_route_stt.html' %}
+              </td>
+              <td class="c-product">
+                {% include 'san_xuat/includes/plan_board_route_product.html' %}
+              </td>
+              <td class="c-dept">—</td>
+              <td class="c-team">—</td>
+              <td class="c-npl">—</td>
+              {% for d in route_board.days %}
+              <td class="jp-sheet-cell{% if d.is_off %} is-off{% endif %}" data-date="{{ d.date|date:'Y-m-d' }}" data-order-id="{{ row.order.pk }}"{% if d.is_off %} data-off="1"{% endif %}></td>
+              {% endfor %}
+              <td class="c-total">
+                <span class="jp-total-stack">
+                  <span class="jp-sheet-plan">—</span>
+                  <span class="jp-sheet-done">—</span>
+                </span>
+              </td>
+            </tr>
+            {% endfor %}
+            {% endwith %}
+          </tbody>
+          {% endfor %}

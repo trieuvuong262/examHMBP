@@ -2357,6 +2357,8 @@ def plan_board(request):
     filter_month_label = ''
     filter_is_current_month = False
     route_board = None
+    route_more_ids = []
+    route_stt_offset = 0
     route_view_counts = {'open': 0, 'done': 0, 'cancelled': 0}
     route_dept_choices: list[tuple[str, str]] = []
     route_team_choices: list[dict] = []
@@ -2586,39 +2588,98 @@ def plan_board(request):
                 grouped_ids[key] = filter_route_order_ids_by_team(
                     ids, route_team_ids, route_team_unassigned,
                 )
-        if deadline_filter in {'overdue', 'on_time'}:
-            every_id = [pk for ids in grouped_ids.values() for pk in ids]
-            ensure_route_sheets(every_id, range_from=route_from, range_to=route_to)
-            today = timezone.localdate()
-            for key, ids in grouped_ids.items():
-                allowed = route_sheet_deadline_ids(ids, deadline_filter, today)
-                grouped_ids[key] = [pk for pk in ids if pk in allowed]
-        else:
-            ensure_route_sheets(
-                grouped_ids.get(route_view) or [],
-                range_from=route_from,
-                range_to=route_to,
-            )
         route_view_counts = {key: len(ids) for key, ids in grouped_ids.items()}
         active_ids = list(
             SxSalesOrder.objects.filter(pk__in=grouped_ids.get(route_view) or [])
             .order_by('-created_at', '-pk')
             .values_list('pk', flat=True)
         )
-        route_board = load_route_board(
-            active_ids,
-            range_from=route_from,
-            range_to=route_to,
-        )
+
+        def _route_board_for(ids):
+            batch = [int(pk) for pk in ids if int(pk) > 0]
+            ensure_route_sheets(batch, range_from=route_from, range_to=route_to)
+            if deadline_filter in {'overdue', 'on_time'}:
+                allowed = route_sheet_deadline_ids(batch, deadline_filter, timezone.localdate())
+                batch = [pk for pk in batch if pk in allowed]
+            board = load_route_board(batch, range_from=route_from, range_to=route_to)
+            board = filter_route_timeline(
+                board,
+                team_ids=route_team_ids,
+                include_unassigned_team=route_team_unassigned,
+            )
+            return _apply_route_board_filters(board)
+
+        more_kind = (request.GET.get('route_more') or '').strip()
+        if more_kind in {'1', 'stats'}:
+            from django.http import JsonResponse
+            from django.template.loader import render_to_string
+
+            allowed_ids = set(active_ids)
+            if more_kind == 'stats':
+                route_board = _route_board_for(active_ids)
+                route_stats = build_route_stats(route_board)
+                return JsonResponse({
+                    'html': render_to_string(
+                        'san_xuat/includes/plan_board_route_stats.html',
+                        {'route_board': route_board, 'route_stats': route_stats},
+                        request=request,
+                    ),
+                    'teams': route_team_filter_choices(route_board),
+                })
+            asked = []
+            for part in (request.GET.get('ids') or '').split(','):
+                part = part.strip()
+                if part.isdigit():
+                    asked.append(int(part))
+            batch = [pk for pk in asked if pk in allowed_ids][:12]
+            try:
+                route_stt_offset = max(0, int(request.GET.get('stt') or 0))
+            except (TypeError, ValueError):
+                route_stt_offset = 0
+            route_board = _route_board_for(batch)
+            scripts = []
+            for row in route_board.rows:
+                if getattr(row, 'duration_script_id', ''):
+                    scripts.append({
+                        'id': row.duration_script_id,
+                        'body': json.dumps(row.duration_detail or {}, default=str),
+                    })
+                if getattr(row, 'npl_script_id', ''):
+                    scripts.append({
+                        'id': row.npl_script_id,
+                        'body': json.dumps(row.npl_needs or [], default=str),
+                    })
+            return JsonResponse({
+                'html': render_to_string(
+                    'san_xuat/includes/plan_route_more_rows.html',
+                    {
+                        'route_board': route_board,
+                        'route_stt_offset': route_stt_offset,
+                        'route_view': route_view,
+                        'can_schedule': can_schedule,
+                        'can_release': can_release,
+                        'can_view_team_work_goods': _can_team_work_overview(request.user),
+                        'search_query': q,
+                        'mode': mode,
+                    },
+                    request=request,
+                ),
+                'scripts': scripts,
+                'count': len(route_board.rows),
+            })
+
+        half = (len(active_ids) + 1) // 2
+        if len(active_ids) < 2:
+            first_ids, route_more_ids = active_ids, []
+        else:
+            first_ids, route_more_ids = active_ids[:half], active_ids[half:]
+        route_board = _route_board_for(first_ids)
         route_team_choices = route_team_filter_choices(route_board)
-        route_board = filter_route_timeline(
-            route_board,
-            team_ids=route_team_ids,
-            include_unassigned_team=route_team_unassigned,
-        )
-        route_board = _apply_route_board_filters(route_board)
-        route_view_counts[route_view] = len(route_board.rows)
-        route_stats = build_route_stats(route_board)
+        if route_more_ids:
+            route_stats = None
+        else:
+            route_view_counts[route_view] = len(route_board.rows)
+            route_stats = build_route_stats(route_board)
 
     from san_xuat.hub_models import SxProductionCancelRequest
     from san_xuat.services.cancel_request import pending_plan_order_ids
@@ -2694,6 +2755,8 @@ def plan_board(request):
         'plan_status_filter': plan_status_filter,
         'plan_status_choices': QUEUE_STATUS_FILTER_CHOICES,
         'route_board': route_board,
+        'route_more_ids': route_more_ids,
+        'route_stt_offset': route_stt_offset,
         'route_stats': route_stats,
         'route_view': route_view,
         'route_view_choices': ROUTE_VIEW_CHOICES,

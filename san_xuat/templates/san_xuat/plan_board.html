@@ -4381,24 +4381,24 @@
       productBlock;
   }
 
-  document.querySelectorAll('[data-jp-duration-open]').forEach(function (btn) {
-    btn.addEventListener('click', function (ev) {
-      if (btn.getAttribute('data-dragged') === '1' || ev.defaultPrevented) {
-        btn.removeAttribute('data-dragged');
-        ev.preventDefault();
-        ev.stopPropagation();
-        return;
-      }
-      var id = btn.getAttribute('data-detail-id');
-      var script = id ? document.getElementById(id) : null;
-      var data = {};
-      if (script) {
-        try { data = JSON.parse(script.textContent || '{}'); } catch (e) { data = {}; }
-      }
-      data.highlightSlug = btn.getAttribute('data-team-slug') || '';
-      render(data);
-      modal.show();
-    });
+  document.addEventListener('click', function (ev) {
+    var btn = ev.target && ev.target.closest ? ev.target.closest('[data-jp-duration-open]') : null;
+    if (!btn) return;
+    if (btn.getAttribute('data-dragged') === '1' || ev.defaultPrevented) {
+      btn.removeAttribute('data-dragged');
+      ev.preventDefault();
+      ev.stopPropagation();
+      return;
+    }
+    var id = btn.getAttribute('data-detail-id');
+    var script = id ? document.getElementById(id) : null;
+    var data = {};
+    if (script) {
+      try { data = JSON.parse(script.textContent || '{}'); } catch (e) { data = {}; }
+    }
+    data.highlightSlug = btn.getAttribute('data-team-slug') || '';
+    render(data);
+    modal.show();
   });
 })();
 
@@ -4771,6 +4771,7 @@
   }
 
   root.addEventListener('pointerdown', function (ev) {
+    if (root.getAttribute('data-route-loading') === '1') return;
     if (ev.button !== 0) return;
     var t = ev.target;
     if (t && t.nodeType === 3) t = t.parentElement;
@@ -4835,6 +4836,7 @@
   }, true);
 
   root.addEventListener('click', function (ev) {
+    if (root.getAttribute('data-route-loading') === '1') return;
     var up = ev.target && ev.target.closest ? ev.target.closest('[data-jp-stt-up]') : null;
     var down = !up && ev.target && ev.target.closest ? ev.target.closest('[data-jp-stt-down]') : null;
     var btn = up || down;
@@ -4876,7 +4878,7 @@
     delete input.dataset.editing;
     delete input.dataset.revert;
     delete input.dataset.prev;
-    if (!group || revert) {
+    if (!group || revert || root.getAttribute('data-route-loading') === '1') {
       renumber();
       return;
     }
