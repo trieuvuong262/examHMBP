@@ -3893,11 +3893,13 @@ def _sync_schedule_to_mos(
 ) -> SxSalesOrder:
     from san_xuat.services.capacity_from_hrm import team_slug_for_work_center
     from san_xuat.services.progress_template import team_slug_for_process_label
+    from san_xuat.services.route_sheet import mark_route_sheet_dirty
 
     steps = list(order.plan_steps.select_related('work_center').order_by('sequence', 'id'))
     spans = team_khsx_spans(order, plan_steps=steps)
     prod = [s for s in spans if s.slug != 'npl' and s.start]
     if not prod:
+        mark_route_sheet_dirty(order.pk)
         return order
     pstart = min(s.start for s in prod)
     pend = max((s.end or s.start) for s in prod)
@@ -3905,6 +3907,7 @@ def _sync_schedule_to_mos(
         order.plan_start_date = pstart
         order.save(update_fields=['plan_start_date', 'updated_at'])
     if not sync_mos:
+        mark_route_sheet_dirty(order.pk)
         return order
     mos = order.production_orders.filter(is_demo=False).exclude(
         status=SxProductionOrder.STATUS_CANCELLED,
@@ -3929,6 +3932,7 @@ def _sync_schedule_to_mos(
             if new_date and step.planned_date != new_date:
                 step.planned_date = new_date
                 step.save(update_fields=['planned_date'])
+    mark_route_sheet_dirty(order.pk)
     return order
 
 
@@ -5481,6 +5485,7 @@ def save_team_day_plans(
     work_center_id: int | None = None,
 ) -> SxSalesOrder:
     """Lưu phân bổ SL theo ngày cho một tổ. Tổng SL phải khớp kế hoạch tổ."""
+    from san_xuat.services.route_sheet import mark_route_sheet_dirty
     from san_xuat.services.work_calendar import next_working_day
 
     order = SxSalesOrder.objects.select_for_update().get(pk=order_id, is_demo=False)
@@ -5524,6 +5529,7 @@ def save_team_day_plans(
         if others:
             raise PlanningError('Nhập ngày và SL cho tổ này.')
         SxOrderTeamDayPlan.objects.filter(sales_order=order, team_slug=slug).delete()
+        mark_route_sheet_dirty(order.pk)
         return order
 
     total = sum((q for _d, q in parsed), Decimal('0'))

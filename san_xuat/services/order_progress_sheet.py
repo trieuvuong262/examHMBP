@@ -1128,6 +1128,9 @@ def record_progress_qty(
         mo.save(update_fields=['status'])
     if recompute:
         _recompute_mo_progress(mo)
+    if mo.sales_order_id:
+        from san_xuat.services.route_sheet import mark_route_sheet_dirty
+        mark_route_sheet_dirty(mo.sales_order_id)
     return stat
 
 
@@ -1452,6 +1455,9 @@ def set_team_day_qtys(
         SxProductionStat.objects.bulk_create(rows)
     if any(row['changed'] for row in results):
         _recompute_mo_progress(mo)
+        if mo.sales_order_id:
+            from san_xuat.services.route_sheet import mark_route_sheet_dirty
+            mark_route_sheet_dirty(mo.sales_order_id)
     return results
 
 

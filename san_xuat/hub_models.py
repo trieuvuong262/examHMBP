@@ -679,6 +679,33 @@ class SxOrderTeamDayPlan(models.Model):
         return f'{self.sales_order_id}:{self.team_slug}@{self.plan_date}={self.qty}'
 
 
+class SxRouteSheet(models.Model):
+    """Lưới lộ trình đã tính — trang KHSX chỉ đọc, không dựng lại công đoạn."""
+
+    sales_order = models.OneToOneField(
+        SxSalesOrder,
+        on_delete=models.CASCADE,
+        related_name='route_sheet',
+        verbose_name='Đơn đặt hàng',
+    )
+    plan_status = models.CharField(max_length=20, blank=True, default='', db_index=True, verbose_name='Trạng thái kế hoạch')
+    cover_from = models.DateField(verbose_name='Ngày đầu đã tính')
+    cover_to = models.DateField(verbose_name='Ngày cuối đã tính')
+    khsx_overrun = models.BooleanField(default=False, verbose_name='KHSX trễ hạn')
+    payload = models.JSONField(default=dict, blank=True, verbose_name='Ô lộ trình')
+    built_at = models.DateTimeField(auto_now=True, verbose_name='Lúc tính')
+
+    class Meta:
+        verbose_name = 'Lộ trình đã tính'
+        verbose_name_plural = 'Lộ trình đã tính'
+        indexes = [
+            models.Index(fields=['cover_from', 'cover_to'], name='sx_route_sheet_cover'),
+        ]
+
+    def __str__(self):
+        return f'Lộ trình {self.sales_order_id}'
+
+
 class SxTeamDayModalRank(models.Model):
     """Thứ tự dòng khi mở một ngày trên tab Tổ SX. Không tham gia lộ trình."""
 

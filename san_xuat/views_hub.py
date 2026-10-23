@@ -2566,58 +2566,47 @@ def plan_board(request):
             parse_sx_date((request.GET.get('route_to') or '').strip()) if route_dates_chosen else None,
             timezone.localdate(),
         )
-        # Trễ hạn cần ngày kết thúc KHSX đã tính. Các lọc còn lại đếm bằng mã đơn.
+        from san_xuat.services.route_sheet import (
+            ensure_route_sheets,
+            load_route_board,
+            route_sheet_deadline_ids,
+        )
+
+        grouped_ids = route_window_status_ids(
+            search=q,
+            date_from=route_from,
+            date_to=route_to,
+            priority=priority_filter,
+            deadline=deadline_filter if deadline_filter == 'due_soon' else '',
+        )
+        if route_team_ids or route_team_unassigned:
+            for key, ids in grouped_ids.items():
+                if key == route_view:
+                    continue
+                grouped_ids[key] = filter_route_order_ids_by_team(
+                    ids, route_team_ids, route_team_unassigned,
+                )
         if deadline_filter in {'overdue', 'on_time'}:
-            route_rows = sort_plan_rows_by_placed_date(build_plan_board_rows(
-                include_released=True,
-                search=q,
-                date_from=route_from,
-                date_to=route_to,
-                date_mode='range',
-                persist_side_effects=False,
-                for_route=True,
-            ))
-            route_rows = _filter_route_plan_rows(route_rows)
-            route_groups = partition_route_rows(route_rows)
-            visible_rows = list(route_groups.get(route_view) or [])
-            if route_team_ids or route_team_unassigned:
-                for key, items in route_groups.items():
-                    route_groups[key] = [
-                        row for row in items
-                        if route_plan_row_matches_team(
-                            row, route_team_ids, route_team_unassigned,
-                        )
-                    ]
-            route_view_counts = {key: len(items) for key, items in route_groups.items()}
+            every_id = [pk for ids in grouped_ids.values() for pk in ids]
+            ensure_route_sheets(every_id, range_from=route_from, range_to=route_to)
+            today = timezone.localdate()
+            for key, ids in grouped_ids.items():
+                allowed = route_sheet_deadline_ids(ids, deadline_filter, today)
+                grouped_ids[key] = [pk for pk in ids if pk in allowed]
         else:
-            grouped_ids = route_window_status_ids(
-                search=q,
-                date_from=route_from,
-                date_to=route_to,
-                priority=priority_filter,
-                deadline=deadline_filter,
+            ensure_route_sheets(
+                grouped_ids.get(route_view) or [],
+                range_from=route_from,
+                range_to=route_to,
             )
-            if route_team_ids or route_team_unassigned:
-                for key, ids in grouped_ids.items():
-                    if key == route_view:
-                        continue
-                    grouped_ids[key] = filter_route_order_ids_by_team(
-                        ids, route_team_ids, route_team_unassigned,
-                    )
-            route_view_counts = {key: len(ids) for key, ids in grouped_ids.items()}
-            visible_rows = sort_plan_rows_by_placed_date(build_plan_board_rows(
-                include_released=True,
-                search=q,
-                date_from=route_from,
-                date_to=route_to,
-                date_mode='range',
-                persist_side_effects=False,
-                for_route=True,
-                order_ids=grouped_ids.get(route_view) or [],
-            ))
-            visible_rows = _filter_route_plan_rows(visible_rows)
-        route_board = build_order_timeline(
-            visible_rows,
+        route_view_counts = {key: len(ids) for key, ids in grouped_ids.items()}
+        active_ids = list(
+            SxSalesOrder.objects.filter(pk__in=grouped_ids.get(route_view) or [])
+            .order_by('-created_at', '-pk')
+            .values_list('pk', flat=True)
+        )
+        route_board = load_route_board(
+            active_ids,
             range_from=route_from,
             range_to=route_to,
         )

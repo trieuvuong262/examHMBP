@@ -94,6 +94,9 @@ def post_stock_issue(issue: StockIssue, user) -> StockIssue:
     issue.posted_at = timezone.now()
     issue.save(update_fields=['status', 'posted_at'])
     _sync_production_requests(issue)
+    if getattr(issue, 'sales_order_id', None):
+        from san_xuat.services.route_sheet import mark_route_sheet_dirty
+        mark_route_sheet_dirty(issue.sales_order_id)
     return issue
 
 
