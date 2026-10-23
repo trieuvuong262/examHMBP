@@ -6,11 +6,13 @@ Mọi thay đổi trạng thái đi qua module này để luôn: kiểm tra quy�
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
 from datetime import datetime, time
 
 from django.core.files import File
+from django.core.files.base import ContentFile
 from django.db import transaction
 from django.utils import timezone
 
@@ -52,6 +54,8 @@ from thiet_ke_sp.models import (
 )
 from thiet_ke_sp.services import notify as nt
 from thiet_ke_sp.services import sla
+
+logger = logging.getLogger(__name__)
 
 
 class WorkflowError(Exception):
@@ -1465,7 +1469,86 @@ def seed_library_color_skus(dossier: ProductDevelopment, style, user) -> int:
                 created_by=user if getattr(user, 'pk', None) else None,
             )
             created += 1
+        _copy_colorway_image_to_products(style.code, color_label, cw)
     return created
+
+
+def _library_color_label(cw: Colorway) -> str:
+    """Nhãn màu ghi trên SKU — trùng cách seed lúc đưa vào Thư viện."""
+    from san_xuat.hub_models import SxColor
+
+    label = (cw.name or '').strip() or (cw.color_codes or '').strip()
+    if not label:
+        return ''
+    known = SxColor.objects.filter(name__iexact=label).first()
+    if known:
+        return (known.name or label)[:80]
+    return label[:80]
+
+
+def _current_colorway_image(cw: Colorway) -> Attachment | None:
+    return (
+        Attachment.objects.filter(
+            colorway=cw, kind=AttachmentKind.COLORWAY,
+            is_deleted=False, is_current=True,
+        )
+        .exclude(file='')
+        .order_by('-uploaded_at', '-pk')
+        .first()
+    )
+
+
+def _copy_colorway_image_to_products(style_code: str, color_label: str, cw: Colorway) -> int:
+    """Mọi size của màu này dùng chung ảnh colorway. SKU đã có ảnh thì giữ nguyên."""
+    from kho_san_pham.models import Product
+
+    style_code = (style_code or '').strip()
+    color_label = (color_label or '').strip()
+    if not style_code or not color_label:
+        return 0
+    attachment = _current_colorway_image(cw)
+    if attachment is None:
+        return 0
+    try:
+        attachment.file.open('rb')
+        data = attachment.file.read()
+    except OSError:
+        logger.warning('Không đọc được ảnh colorway %s', cw.pk)
+        return 0
+    finally:
+        try:
+            attachment.file.close()
+        except OSError:
+            pass
+    if not data:
+        return 0
+    name = attachment.original_name or os.path.basename(attachment.file.name) or 'colorway.jpg'
+    updated = 0
+    products = Product.objects.filter(style_code__iexact=style_code, color_label__iexact=color_label)
+    for product in products:
+        if product.image or (product.image_url or '').strip():
+            continue
+        product.image.save(name, ContentFile(data), save=True)
+        updated += 1
+    return updated
+
+
+def backfill_colorway_product_images() -> int:
+    """Hồ sơ đã vào Thư viện: gắn ảnh colorway cho SKU đang trống ảnh."""
+    updated = 0
+    dossiers = (
+        ProductDevelopment.objects.filter(
+            handover__isnull=False,
+            approved_design_version__isnull=False,
+        )
+        .exclude(official_product_code='')
+        .select_related('approved_design_version')
+    )
+    for dossier in dossiers:
+        style_code = (dossier.official_product_code or '').strip()
+        for cw in dossier.approved_design_version.colorways.all():
+            updated += _copy_colorway_image_to_products(style_code, _library_color_label(cw), cw)
+    return updated
 
 
 def _publish_to_library(dossier: ProductDevelopment, user, *, note: str = ''):
