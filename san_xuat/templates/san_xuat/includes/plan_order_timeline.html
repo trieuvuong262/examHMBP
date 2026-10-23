@@ -53,7 +53,6 @@
       </table>
     </div>
     {% if route_more_ids %}
-    <p class="text-secondary small px-2 py-1 mb-0" id="jpRouteMoreNote">Đang tải thêm đơn…</p>
     {{ route_more_ids|json_script:"jp-route-more-ids" }}
     {% endif %}
     {% else %}
@@ -260,7 +259,6 @@
   var root = document.getElementById('lo-trinh');
   var dataEl = document.getElementById('jp-route-more-ids');
   var table = root ? root.querySelector('table.jp-tl-sheet') : null;
-  var note = document.getElementById('jpRouteMoreNote');
   if (!root || !dataEl || !table) return;
   var ids = [];
   try { ids = JSON.parse(dataEl.textContent || '[]'); } catch (err) { ids = []; }
@@ -328,7 +326,6 @@
     });
   }
   function finish() {
-    if (note) note.textContent = 'Đang cập nhật thống kê…';
     var url = new URL(window.location.href);
     url.searchParams.set('route_more', 'stats');
     url.searchParams.delete('ids');
@@ -343,7 +340,6 @@
       .then(function () {
         root.removeAttribute('data-route-loading');
         renumber();
-        if (note) note.remove();
       });
   }
   function next() {
@@ -366,7 +362,6 @@
       .catch(function () {
         root.removeAttribute('data-route-loading');
         renumber();
-        if (note) note.textContent = 'Không tải thêm được đơn. Tải lại trang để xem đủ.';
       });
   }
   next();
