@@ -336,24 +336,33 @@ def team_slug_aliases(slug: str, team: dict | None = None) -> list[str]:
     return out
 
 
+def board_slugs_for_work_centers(work_center_ids) -> dict[int, str]:
+    """Slug menu phân công cho nhiều tổ, một lần đọc."""
+    from san_xuat.hub_models import SxWorkCenter
+    from san_xuat.services.capacity_from_hrm import division_id_from_work_center_code
+
+    ids = list({int(x) for x in (work_center_ids or []) if int(x or 0) > 0})
+    if not ids:
+        return {}
+    out: dict[int, str] = {}
+    for wc in SxWorkCenter.objects.filter(pk__in=ids).only('id', 'code', 'division_id'):
+        did = int(getattr(wc, 'division_id', 0) or 0) or (
+            division_id_from_work_center_code(wc.code) or 0
+        )
+        if did <= 0:
+            out[int(wc.pk)] = ''
+            continue
+        meta = team_from_hr_division_slug(team_slug_for_division_id(did))
+        out[int(wc.pk)] = (meta or {}).get('slug') or ''
+    return out
+
+
 def board_slug_from_work_center_id(work_center_id: int) -> str:
     """Slug menu phân công từ tổ năng lực KHSX (HRD-{division})."""
     wid = int(work_center_id or 0)
     if wid <= 0:
         return ''
-    from san_xuat.hub_models import SxWorkCenter
-    from san_xuat.services.capacity_from_hrm import division_id_from_work_center_code
-
-    wc = SxWorkCenter.objects.filter(pk=wid).only('id', 'code', 'division_id').first()
-    if wc is None:
-        return ''
-    did = int(getattr(wc, 'division_id', 0) or 0) or (
-        division_id_from_work_center_code(wc.code) or 0
-    )
-    if did <= 0:
-        return ''
-    meta = team_from_hr_division_slug(team_slug_for_division_id(did))
-    return (meta or {}).get('slug') or ''
+    return board_slugs_for_work_centers([wid]).get(wid, '')
 
 
 def mapped_division_ids(slug: str) -> set[int]:

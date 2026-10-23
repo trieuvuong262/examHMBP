@@ -888,6 +888,7 @@ def apply_default_capacity_teams(
     steps=None,
     *,
     replace_without_capacity: bool = False,
+    persist: bool = True,
 ) -> list:
     """Gán tổ Năng lực SX mặc định cho công đoạn chưa có tổ (hoặc tổ không có quỹ phút)."""
     from san_xuat.hub_models import SxSalesOrderRoutingLine
@@ -959,9 +960,9 @@ def apply_default_capacity_teams(
             rl.work_center = default
             rl.work_center_code = (default.code or '')[:40]
             dirty_lines.append(rl)
-    if dirty_steps:
+    if persist and dirty_steps:
         SxSalesOrderPlanStep.objects.bulk_update(dirty_steps, ['work_center'])
-    if dirty_lines:
+    if persist and dirty_lines:
         SxSalesOrderRoutingLine.objects.bulk_update(
             dirty_lines, ['work_center', 'work_center_code'],
         )
@@ -2238,6 +2239,7 @@ def build_plan_board_rows(
             if needs_default:
                 plan_steps = apply_default_capacity_teams(
                     order, plan_steps, replace_without_capacity=True,
+                    persist=persist_side_effects,
                 )
         if persist_side_effects:
             wrote = apply_auto_team_day_splits(order, replace_existing=False)
@@ -5349,14 +5351,28 @@ def _day_plan_wc_id(row, fallback: int = 0) -> int:
     return int(getattr(row, 'work_center_id', 0) or 0) or int(fallback or 0)
 
 
-def _work_center_label_map(ids) -> dict[int, str]:
+def _load_work_center_labels(ids: list[int]) -> dict[int, str]:
     out: dict[int, str] = {}
-    want = [int(x) for x in (ids or []) if x]
-    if not want:
+    if not ids:
         return out
-    for wc in SxWorkCenter.objects.filter(pk__in=want):
+    for wc in SxWorkCenter.objects.filter(pk__in=ids).only('id', 'team_label', 'name', 'code'):
         out[int(wc.pk)] = (wc.team_label or wc.name or wc.code or '').strip()
     return out
+
+
+def _work_center_label_map(ids) -> dict[int, str]:
+    want = list({int(x) for x in (ids or []) if x})
+    if not want:
+        return {}
+    from hrm.request_cache import get_or_set, is_active
+
+    if not is_active():
+        return _load_work_center_labels(want)
+    cache = get_or_set(('sx_wc_labels',), dict)
+    missing = [pk for pk in want if pk not in cache]
+    if missing:
+        cache.update(_load_work_center_labels(missing))
+    return {pk: cache.get(pk, '') for pk in want}
 
 
 def _capacity_for_share(span, wc: SxWorkCenter | None, qty: Decimal) -> dict:
@@ -6241,6 +6257,7 @@ def build_order_timeline(
     )
 
     rows: list[PlanTimelineRow] = []
+    pending_stage_slugs: list[tuple] = []
     unscheduled: list = []
     grid_row = 3
     line_no = 0
@@ -6508,15 +6525,12 @@ def build_order_timeline(
                 slug = (getattr(group, 'team_slug', '') or '').strip().lower()
                 if slug and slug not in mo_by_slug:
                     mo_by_slug[slug] = mid
-        from san_xuat.services.team_division_map import board_slug_from_work_center_id
-
-        wc_board_slugs: dict[int, str] = {}
         for stage in stage_rows:
             stage.progress_mo_id = mo_by_slug.get((stage.slug or '').strip().lower(), 0)
             wid = int(getattr(stage, 'work_center_id', 0) or 0)
-            if wid and wid not in wc_board_slugs:
-                wc_board_slugs[wid] = board_slug_from_work_center_id(wid)
-            stage.progress_slug = wc_board_slugs.get(wid) or (stage.slug or '').strip().lower()
+            stage.progress_slug = (stage.slug or '').strip().lower()
+            if wid:
+                pending_stage_slugs.append((stage, wid))
         _attach_npl_prep(
             stage_rows,
             kit_days=kit_days_for_order(r.order),
@@ -6572,6 +6586,17 @@ def build_order_timeline(
                 and route_stage_rows_can_complete(stage_rows)
             ),
         ))
+
+    if pending_stage_slugs:
+        from san_xuat.services.team_division_map import board_slugs_for_work_centers
+
+        slug_by_wc = board_slugs_for_work_centers(
+            wid for _stage, wid in pending_stage_slugs
+        )
+        for stage, wid in pending_stage_slugs:
+            found = slug_by_wc.get(wid) or ''
+            if found:
+                stage.progress_slug = found
 
     today_col = (today - start).days + 1 if start <= today <= end else None
     span_days = (end - start).days + 1

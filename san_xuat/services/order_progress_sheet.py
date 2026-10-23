@@ -388,9 +388,13 @@ def _size_plans_from_sales_order(
 
 
 def _size_plans(mo: SxProductionOrder) -> list[SizePlanRow]:
-    lines = list(
-        SxProductionOrderLine.objects.filter(production_order=mo).order_by('size_label', 'id')
-    )
+    cache = getattr(mo, '_prefetched_objects_cache', None) or {}
+    if 'lines' in cache:
+        lines = list(mo.lines.all())
+    else:
+        lines = list(
+            SxProductionOrderLine.objects.filter(production_order=mo).order_by('size_label', 'id')
+        )
     by_size: dict[str, SizePlanRow] = {}
     for ln in lines:
         size = (ln.size_label or '').strip() or '—'

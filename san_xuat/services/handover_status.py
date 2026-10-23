@@ -484,12 +484,9 @@ def _fetch_mos_for_sales_orders(ids: list[int]) -> list[SxProductionOrder]:
                 queryset=SxProductionOrderLine.objects.order_by("size_label", "id"),
             ),
             "mo_process_steps__work_center",
+            # Snapshot trên đơn. Không kéo công đoạn BOM hay routing thư viện của LSX.
             "sales_order__lines__routing_lines__work_center",
             "sales_order__lines__routing_lines__operation__group__default_work_center",
-            "routing__lines__work_center",
-            "routing__lines__operation__group__default_work_center",
-            "bom_version__process_steps__work_center",
-            "bom_version__process_steps__operation__group__default_work_center",
         )
     )
 
