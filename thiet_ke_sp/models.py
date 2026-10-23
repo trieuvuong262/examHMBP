@@ -66,6 +66,23 @@ DONE_STATUSES = (Status.HANDED_OVER, Status.CLOSED)
 STOPPED_STATUSES = (Status.PAUSED, Status.CANCELLED)
 FINAL_STATUSES = (Status.CANCELLED, Status.CLOSED)
 
+# Bộ lọc danh sách hồ sơ: mọi việc còn mở gom vào «Đang thiết kế»,
+# đã vào Thư viện hoặc đã đóng hồ sơ gom vào «Hoàn thành». Đã hủy đứng ngoài hai nhóm.
+LIST_STATUS_DESIGNING = 'open'
+LIST_STATUS_DONE = 'done'
+LIST_DESIGNING_STATUSES = tuple(
+    value for value in Status.values
+    if value not in {*DONE_STATUSES, Status.CANCELLED}
+)
+LIST_STATUS_GROUPS = {
+    LIST_STATUS_DESIGNING: LIST_DESIGNING_STATUSES,
+    LIST_STATUS_DONE: DONE_STATUSES,
+}
+LIST_STATUS_GROUP_CHOICES = (
+    (LIST_STATUS_DESIGNING, 'Đang thiết kế'),
+    (LIST_STATUS_DONE, 'Hoàn thành'),
+)
+
 STATUS_BADGES = {
     Status.DRAFT: 'secondary',
     Status.BRIEF_PENDING: 'warning',

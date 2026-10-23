@@ -34,6 +34,10 @@ from .models import (
     DOSSIER_KINDS,
     FINAL_STATUSES,
     IN_PROGRESS_STATUSES,
+    LIST_STATUS_DESIGNING,
+    LIST_STATUS_DONE,
+    LIST_STATUS_GROUP_CHOICES,
+    LIST_STATUS_GROUPS,
     SAMPLE_KINDS,
     STOPPED_STATUSES,
     ApprovalCondition,
@@ -137,6 +141,30 @@ def _annotated_list_qs():
     )
 
 
+def resolve_list_status_filter(raw_statuses: list[str], quick: str) -> tuple[str, list[str], bool]:
+    """Nhóm lọc trạng thái của danh sách hồ sơ.
+
+    Trả về (nhóm đang chọn, các trạng thái cần lọc, đang dùng mặc định).
+    Danh sách trạng thái rỗng nghĩa là không thêm ``status__in`` — quick=done
+    và quick=stopped tự lọc.
+    """
+    raw = [s.strip() for s in raw_statuses if (s or '').strip()]
+    if len(raw) == 1 and raw[0] in LIST_STATUS_GROUPS:
+        group = raw[0]
+        return group, list(LIST_STATUS_GROUPS[group]), False
+    if raw:
+        statuses = [s for s in raw if s in Status.values]
+        for key, members in LIST_STATUS_GROUPS.items():
+            if statuses and set(statuses) == set(members):
+                return key, statuses, False
+        return '', statuses, False
+    if quick == 'done':
+        return LIST_STATUS_DONE, [], True
+    if quick == 'stopped':
+        return '', [], True
+    return LIST_STATUS_DESIGNING, list(LIST_STATUS_GROUPS[LIST_STATUS_DESIGNING]), True
+
+
 def _apply_quick(qs, quick: str, user):
     now = timezone.now()
     if quick == 'in_progress':
@@ -166,8 +194,8 @@ def dossier_list(request):
         return _deny(request, perms.MENU_DOSSIERS)
     g = request.GET
     q = (g.get('q') or '').strip()
-    statuses = [s for s in g.getlist('status') if s in Status.values]
     quick = (g.get('quick') or '').strip()
+    status_group, statuses, status_defaulted = resolve_list_status_filter(g.getlist('status'), quick)
     group = (g.get('group') or '').strip()
     owner_id = (g.get('owner') or '').strip()
     approver_id = (g.get('approver') or '').strip()
@@ -180,7 +208,7 @@ def dossier_list(request):
         qs = qs.filter(Q(code__icontains=q) | Q(name__icontains=q) | Q(official_product_code__icontains=q))
     if statuses:
         qs = qs.filter(status__in=statuses)
-    elif quick != 'stopped':
+    elif quick not in ('stopped', 'done'):
         qs = qs.exclude(status=Status.CANCELLED)
     if group:
         qs = qs.filter(product_group=group)
@@ -210,21 +238,29 @@ def dossier_list(request):
     dates_are_default = (
         date_kind == 'proposed' and date_from == default_from and date_to == default_to
     )
+    status_narrowed = status_group == LIST_STATUS_DONE or (
+        bool(statuses) and not status_defaulted and status_group != LIST_STATUS_DESIGNING
+    )
     has_filters = any([
-        q, statuses, quick, group, owner_id, approver_id, collection,
+        q, status_narrowed, quick, group, owner_id, approver_id, collection,
         (g.get('span') or '').strip() == 'all',
     ]) or (bool(date_from or date_to) and not dates_are_default)
+    status_labels = dict(Status.choices)
+    pinned_statuses = [] if status_group else statuses
     ctx = _common(
         request,
         page_obj=page,
         dossiers=rows,
         total_count=page.paginator.count,
         query_string=params.urlencode(),
-        filter_q=q, filter_status=statuses[0] if len(statuses) == 1 else '', filter_statuses=statuses,
+        filter_q=q,
+        filter_status_group=status_group,
+        filter_statuses=pinned_statuses,
+        filter_status_label=status_labels.get(pinned_statuses[0], '') if len(pinned_statuses) == 1 else '',
         filter_quick=quick, filter_group=group,
         filter_owner=owner_id, filter_approver=approver_id, filter_collection=collection,
         has_filters=has_filters,
-        status_choices=Status.choices,
+        status_group_choices=LIST_STATUS_GROUP_CHOICES,
         group_choices=catalog.group_choices(),
         owner_choices=_owner_choices(),
         date_kind_choices=[(k, label) for k, (label, _f) in LIST_DATE_FIELDS.items()],

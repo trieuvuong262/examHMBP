@@ -9,12 +9,14 @@
 
   <form method="get" id="tkListFilter" class="tk-card tk-panel mb-3" role="search" aria-label="Bộ lọc hồ sơ">
     <input type="hidden" name="quick" value="{{ filter_quick }}" id="tkQuickHidden">
-    {% if filter_statuses|length > 1 %}{% for s in filter_statuses %}<input type="hidden" name="status" value="{{ s }}" class="tk-multi-status">{% endfor %}{% endif %}
+    {% if not filter_status_group %}{% for s in filter_statuses %}<input type="hidden" name="status" value="{{ s }}" class="tk-multi-status">{% endfor %}{% endif %}
     <div class="tk-toolbar is-nowrap">
       <input type="search" id="tk-q" name="q" class="form-control form-control-sm tk-search" value="{{ filter_q }}" placeholder="Tìm mã, tên sản phẩm…" autocomplete="off" aria-label="Tìm kiếm">
-      <select name="status" class="form-select form-select-sm tk-auto" aria-label="Giai đoạn" id="tk-status">
-        <option value="">{% if filter_statuses|length > 1 %}{{ filter_statuses|length }} trạng thái{% else %}Tất cả trạng thái{% endif %}</option>
-        {% for val, label in status_choices %}<option value="{{ val }}" {% if filter_status == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      <select name="status" class="form-select form-select-sm tk-auto" aria-label="Trạng thái" id="tk-status">
+        {% if not filter_status_group %}
+        <option value="" selected>{% if filter_status_label %}{{ filter_status_label }}{% elif filter_statuses %}{{ filter_statuses|length }} trạng thái{% else %}Trạng thái{% endif %}</option>
+        {% endif %}
+        {% for val, label in status_group_choices %}<option value="{{ val }}" {% if filter_status_group == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
       </select>
       <select name="group" class="form-select form-select-sm tk-auto" aria-label="Nhóm sản phẩm">
         <option value="">Tất cả nhóm</option>
@@ -94,6 +96,8 @@
   var status = document.getElementById('tk-status');
   if (status) status.addEventListener('change', function () {
     form.querySelectorAll('.tk-multi-status').forEach(function (el) { el.remove(); });
+    var quick = document.getElementById('tkQuickHidden');
+    if (quick) quick.value = '';
   });
   form.querySelectorAll('.tk-auto').forEach(function (el) {
     el.addEventListener('change', function () { form.requestSubmit(); });
