@@ -298,11 +298,17 @@ def library_detail(request, style):
             sizes.append(p.size_label)
     dossier = handover.dossier if handover else _dossiers_by_style([code]).get(code)
     colorways = _sku_colorway_map(dossier, handover)
+    retail_fallback = even_price = None
+    if dossier is not None:
+        retail_fallback = dossier.proposed_retail_price or dossier.target_retail_price
+        even_price = dossier.proposed_wholesale_price or dossier.target_wholesale_price
     for product in products:
         info = colorways.get((product.color_label or '').strip().casefold()) or {}
         product.cw_name = info.get('name') or ''
         product.cw_codes = info.get('codes') or ''
         product.cw_image = info.get('url') or ''
+        product.price_retail = product.base_price if product.base_price is not None else retail_fallback
+        product.price_even = even_price
     cover_url = _style_avatar_url(dossier, rep)
     if cover_url and all(img['url'] != cover_url for img in images):
         images.insert(0, {'url': cover_url, 'label': 'Ảnh đại diện', 'sku': code})

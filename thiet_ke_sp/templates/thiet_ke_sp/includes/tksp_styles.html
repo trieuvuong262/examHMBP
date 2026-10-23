@@ -413,9 +413,17 @@ body > .ts-dropdown {
 .jp-tksp .tk-sku-group-head { display: flex; align-items: center; gap: .45rem; margin: 0 0 .55rem; min-width: 0; }
 .jp-tksp .tk-sku-group-head b { font-size: .8rem; }
 .jp-tksp .tk-sku-group-head .min-w-0 { display: grid; min-width: 0; }
-.jp-tksp .tk-sku-cw { width: 2.5rem; height: 2.5rem; flex: 0 0 auto; padding: 0; border: 1px solid var(--tk-line); border-radius: 8px; overflow: hidden; background: var(--tk-surface-2); }
+.jp-tksp .tk-sku-cw { width: 2.5rem; height: 2.5rem; flex: 0 0 auto; padding: 0; border: 1px solid var(--tk-line); border-radius: 8px; overflow: hidden; background: #fff; }
 .jp-tksp .tk-sku-cw img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .jp-tksp .tk-sku-cw-code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .68rem; font-weight: 700; color: var(--tk-muted); }
+.jp-tksp .tk-sku-photo-col { width: 8.25rem; }
+.jp-tksp .tk-sku-photo { width: 8.25rem; vertical-align: middle; text-align: center; background: #fff; padding: .55rem .4rem; }
+.jp-tksp .tk-sku-photo .tk-sku-cw { width: 6.75rem; height: 8.5rem; display: grid; place-items: center; margin: 0 auto .4rem; border-radius: 10px; cursor: pointer; }
+.jp-tksp .tk-sku-photo .tk-sku-cw img { object-fit: contain; background: #fff; }
+.jp-tksp .tk-sku-photo .tk-sku-cw.is-empty { color: #94a3b8; font-size: 1.4rem; cursor: default; }
+.jp-tksp .tk-sku-photo .tk-sku-dot { width: 1.4rem; height: 1.4rem; }
+.jp-tksp .tk-sku-photo b { display: block; font-size: .75rem; font-weight: 850; line-height: 1.25; }
+.jp-tksp .tk-sku-photo .tk-sku-cw-code { display: block; }
 .jp-tksp .tk-sku-prefix { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .72rem; font-weight: 700; color: var(--tk-muted); }
 .jp-tksp .tk-sku-dot { width: .7rem; height: .7rem; border-radius: 50%; border: 1px solid var(--tk-line); flex: 0 0 auto; }
 #tkModalRewind .tk-rewind-list { display: grid; gap: .35rem; }

@@ -103,32 +103,30 @@
         {% for group in color_groups %}
         {% with row=group.list.0 %}
         <section class="tk-size-panel tk-sku-group">
-          <div class="tk-sku-group-head">
-            {% if row.cw_image %}
-            <button type="button" class="tk-sku-cw" data-sx-gallery data-sx-gallery-image="{{ row.cw_image }}" data-sx-gallery-title="{{ row.cw_name|default:row.color_label }}">
-              <img src="{{ row.cw_image }}" alt="">
-            </button>
-            {% elif row.cw_codes %}
-            <i class="tk-sku-dot" style="background: {{ row.cw_codes|cw_swatch }}"></i>
-            {% endif %}
-            <span class="min-w-0">
-              <b>{{ row.cw_name|default:row.color_label|default:row.color_code|default:'Không màu' }}</b>
-              {% if row.cw_codes %}<span class="tk-sku-cw-code">{{ row.cw_codes }}</span>{% endif %}
-            </span>
-            <span class="tk-sku-prefix">{{ group.list|length|sx_num }} SKU</span>
-          </div>
           <div class="table-responsive">
             <table class="tk-mini-table tk-lib-sku mb-0">
-              <thead><tr><th>SKU</th><th>Size</th><th class="d-none d-lg-table-cell">Giới tính</th><th class="d-none d-xl-table-cell">Mã vạch</th><th class="d-none d-xl-table-cell">Mã kế toán</th><th class="text-end">Giá</th><th>Trạng thái</th><th></th></tr></thead>
+              <thead><tr><th class="tk-sku-photo-col">Ảnh</th><th>SKU</th><th>Size</th><th>Giới tính</th><th class="text-end">Giá lẻ</th><th class="text-end">Giá chẵn</th><th>Trạng thái</th><th></th></tr></thead>
               <tbody>
               {% for p in group.list %}
               <tr>
+                {% if forloop.first %}
+                <td class="tk-sku-photo" rowspan="{{ group.list|length }}">
+                  {% if row.cw_image or row.display_image_url %}
+                  <button type="button" class="tk-sku-cw" data-sx-gallery data-sx-gallery-image="{{ row.cw_image|default:row.display_image_url }}" data-sx-gallery-title="{{ row.cw_name|default:row.color_label }}">
+                    <img src="{{ row.cw_image|default:row.display_image_url }}" alt="">
+                  </button>
+                  {% else %}
+                  <span class="tk-sku-cw is-empty">{% if row.cw_codes %}<i class="tk-sku-dot" style="background: {{ row.cw_codes|cw_swatch }}"></i>{% else %}<i class="bi bi-image"></i>{% endif %}</span>
+                  {% endif %}
+                  <b>{{ row.cw_name|default:row.color_label|default:row.color_code|default:'Không màu' }}</b>
+                  {% if row.cw_codes %}<span class="tk-sku-cw-code">{{ row.cw_codes }}</span>{% endif %}
+                </td>
+                {% endif %}
                 <td class="tk-sku-code">{% if can_update %}<a href="{% url 'kho_san_pham:library_sku_edit' code p.pk %}">{{ p.code }}</a>{% else %}<a href="{% url 'kho_san_pham:product_detail' p.pk %}">{{ p.code }}</a>{% endif %}</td>
                 <td>{% if p.size_label %}<span class="tk-size-static">{{ p.size_label }}</span>{% else %}—{% endif %}</td>
-                <td class="d-none d-lg-table-cell">{{ p.get_gender_display|default:'—' }}</td>
-                <td class="d-none d-xl-table-cell tk-sku-code">{{ p.bar_code|default:'—' }}</td>
-                <td class="d-none d-xl-table-cell tk-sku-code">{{ p.accounting_code|default:'—' }}</td>
-                <td class="text-end">{% if p.base_price is not None %}{{ p.base_price|sx_num:0 }}{% else %}—{% endif %}</td>
+                <td>{{ p.get_gender_display|default:'—' }}</td>
+                <td class="text-end">{% if p.price_retail is not None %}{{ p.price_retail|sx_num:0 }}{% else %}—{% endif %}</td>
+                <td class="text-end">{% if p.price_even is not None %}{{ p.price_even|sx_num:0 }}{% else %}—{% endif %}</td>
                 <td><span class="tk-pill {% if p.is_active %}is-green{% else %}is-gray{% endif %}">{% if p.is_active %}Đang dùng{% else %}Ngừng{% endif %}</span></td>
                 <td class="text-end">
                   <div class="tk-row-actions">
