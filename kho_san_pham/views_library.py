@@ -106,8 +106,50 @@ def _handovers_by_code(codes) -> dict:
     if not codes:
         return {}
     rows = Handover.objects.filter(product_code__in=codes).select_related(
-        'dossier', 'transferred_by__profile', 'tech_doc')
+        'dossier', 'dossier__approved_design_version', 'design_version',
+        'transferred_by__profile', 'tech_doc')
     return {h.product_code.upper(): h for h in rows}
+
+
+def _sku_colorway_map(dossier, handover) -> dict[str, dict]:
+    """Colorway thiết kế khớp với nhãn màu trên SKU."""
+    from thiet_ke_sp.models import Attachment, AttachmentKind
+    from thiet_ke_sp.services.workflow import _library_color_label
+
+    dv = None
+    if handover is not None and handover.design_version_id:
+        dv = handover.design_version
+    elif dossier is not None and dossier.approved_design_version_id:
+        dv = dossier.approved_design_version
+    if dv is None:
+        return {}
+    colorways = list(dv.colorways.all())
+    if not colorways:
+        return {}
+    images: dict[int, str] = {}
+    attachments = (
+        Attachment.objects.filter(
+            colorway__in=colorways,
+            kind=AttachmentKind.COLORWAY,
+            is_deleted=False,
+            is_current=True,
+        )
+        .exclude(file='')
+        .order_by('colorway_id', '-uploaded_at', '-pk')
+    )
+    for att in attachments:
+        images.setdefault(att.colorway_id, att.get_absolute_url())
+    out: dict[str, dict] = {}
+    for cw in colorways:
+        info = {
+            'name': cw.name,
+            'codes': (cw.color_codes or '').strip(),
+            'url': images.get(cw.pk, ''),
+        }
+        for key in (_library_color_label(cw), (cw.name or '').strip()):
+            if key:
+                out.setdefault(key.casefold(), info)
+    return out
 
 
 @module_perm_required(MODULE_KHO_SAN_PHAM, 'view')
@@ -255,6 +297,12 @@ def library_detail(request, style):
         if p.size_label and p.size_label not in sizes:
             sizes.append(p.size_label)
     dossier = handover.dossier if handover else _dossiers_by_style([code]).get(code)
+    colorways = _sku_colorway_map(dossier, handover)
+    for product in products:
+        info = colorways.get((product.color_label or '').strip().casefold()) or {}
+        product.cw_name = info.get('name') or ''
+        product.cw_codes = info.get('codes') or ''
+        product.cw_image = info.get('url') or ''
     cover_url = _style_avatar_url(dossier, rep)
     if cover_url and all(img['url'] != cover_url for img in images):
         images.insert(0, {'url': cover_url, 'label': 'Ảnh đại diện', 'sku': code})

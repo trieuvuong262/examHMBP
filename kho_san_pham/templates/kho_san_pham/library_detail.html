@@ -104,7 +104,17 @@
         {% with row=group.list.0 %}
         <section class="tk-size-panel tk-sku-group">
           <div class="tk-sku-group-head">
-            <b>{{ row.color_label|default:row.color_code|default:'Không màu' }}</b>
+            {% if row.cw_image %}
+            <button type="button" class="tk-sku-cw" data-sx-gallery data-sx-gallery-image="{{ row.cw_image }}" data-sx-gallery-title="{{ row.cw_name|default:row.color_label }}">
+              <img src="{{ row.cw_image }}" alt="">
+            </button>
+            {% elif row.cw_codes %}
+            <i class="tk-sku-dot" style="background: {{ row.cw_codes|cw_swatch }}"></i>
+            {% endif %}
+            <span class="min-w-0">
+              <b>{{ row.cw_name|default:row.color_label|default:row.color_code|default:'Không màu' }}</b>
+              {% if row.cw_codes %}<span class="tk-sku-cw-code">{{ row.cw_codes }}</span>{% endif %}
+            </span>
             <span class="tk-sku-prefix">{{ group.list|length|sx_num }} SKU</span>
           </div>
           <div class="table-responsive">
