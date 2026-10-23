@@ -7500,6 +7500,10 @@ html.jp-sidebar-collapsed .jp-topbar-collapse-btn .jp-sidebar-collapse-icon-coll
     filter: brightness(0) invert(1);
 }
 
+.jp-topbar--amis .jp-topbar-brand-text {
+    color: #fff;
+}
+
 .jp-topbar-page-title {
     font-weight: 400;
     font-size: 0.9375rem;
@@ -13455,6 +13459,12 @@ html:not([data-shell="classic"]).jp-sidebar-collapsed .jp-sidebar-group .jp-side
 html:not([data-shell="classic"]) .jp-topbar--amis {
     background: var(--jp-black-900);
     border-bottom: 3px solid #000;
+}
+
+/* Logo gốc màu đỏ trên nền đen; chữ "Just Play Portal" giữ trắng */
+html:not([data-shell="classic"]) .jp-topbar--amis .jp-topbar-brand img,
+html:not([data-shell="classic"]) .jp-topbar--amis .jp-topbar-brand-logo {
+    filter: none;
 }
 
 /* Hover trên nền đen cần sáng (trắng mờ) thay vì đen mờ */
