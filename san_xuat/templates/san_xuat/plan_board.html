@@ -2034,9 +2034,8 @@
   }
   function blockBrowserMenu(ev) {
     if (!routeCtxTarget(ev)) return;
-    if (ev.cancelable) ev.preventDefault();
+    ev.preventDefault();
     ev.returnValue = false;
-    if (ev.stopPropagation) ev.stopPropagation();
   }
   window.addEventListener('contextmenu', function (ev) {
     if (!routeCtxTarget(ev)) return;
@@ -2614,6 +2613,9 @@
   <button type="button" class="jp-tl-ctx-item" data-jp-ctx="team" role="menuitem">
     <i class="bi bi-people" aria-hidden="true"></i> Chọn tổ
   </button>
+  <button type="button" class="jp-tl-ctx-item" data-jp-ctx="qty" role="menuitem">
+    <i class="bi bi-pencil-square" aria-hidden="true"></i> Nhập sản lượng
+  </button>
   <button type="button" class="jp-tl-ctx-item" data-jp-ctx="refresh" role="menuitem">
     <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Làm mới
   </button>
@@ -2840,12 +2842,13 @@
     var ck = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
     csrf = ck ? decodeURIComponent(ck[1]) : '';
   }
-  var state = { orderId: '', orderCode: '', teamSlug: '', teamLabel: '', targetQty: 0, workCenterId: '', bar: null, addWcId: '' };
+  var state = { orderId: '', orderCode: '', teamSlug: '', teamLabel: '', targetQty: 0, workCenterId: '', bar: null, addWcId: '', dayCell: null };
   var lastOpen = 0;
   var modal = null;
   var ctxMenu = document.getElementById('jpTlCtxMenu');
   var ctxSplitBtn = ctxMenu ? ctxMenu.querySelector('[data-jp-ctx="split"]') : null;
   var ctxTeamBtn = ctxMenu ? ctxMenu.querySelector('[data-jp-ctx="team"]') : null;
+  var ctxQtyBtn = ctxMenu ? ctxMenu.querySelector('[data-jp-ctx="qty"]') : null;
   var ctxRefreshBtn = ctxMenu ? ctxMenu.querySelector('[data-jp-ctx="refresh"]') : null;
   var pickTeamEl = document.getElementById('jpPickTeamModal');
   var pickTeamTitle = document.getElementById('jpPickTeamTitle');
@@ -3237,16 +3240,30 @@
   }
   function showCtxMenu(ev, bar) {
     if (ev) {
-      if (ev.type !== 'pointerdown') {
-        if (ev.preventDefault) ev.preventDefault();
-        ev.returnValue = false;
-      }
-      if (ev.stopPropagation) ev.stopPropagation();
+      if (ev.preventDefault) ev.preventDefault();
+      ev.returnValue = false;
     }
     var now = Date.now();
-    if (now - lastOpen < 200) return false;
+    if (ev && (ev.__jpCtxShown || now - lastOpen < 200)) return false;
+    if (ev) ev.__jpCtxShown = true;
     lastOpen = now;
     state.bar = bar || null;
+    var hit = ev && ev.target;
+    if (hit && hit.nodeType === 3) hit = hit.parentElement;
+    state.dayCell = hit && hit.closest ? hit.closest('.jp-sheet-cell[data-date]') : null;
+    if (ctxQtyBtn) {
+      var day = state.dayCell ? (state.dayCell.getAttribute('data-date') || '') : '';
+      var row = state.dayCell && state.dayCell.closest ? state.dayCell.closest('tr') : null;
+      var slug = (row && row.getAttribute('data-progress-slug'))
+        || (state.dayCell && state.dayCell.getAttribute('data-team-slug'))
+        || '';
+      var boardToday = (document.getElementById('lo-trinh') || {}).getAttribute
+        ? (document.getElementById('lo-trinh').getAttribute('data-today') || '')
+        : '';
+      var qtyOk = !!(state.dayCell && slug && slug !== 'npl' && day && (!boardToday || day <= boardToday));
+      ctxQtyBtn.disabled = !qtyOk;
+      ctxQtyBtn.hidden = !state.dayCell;
+    }
     if (ctxSplitBtn) {
       var ok = canSplitBar(bar);
       ctxSplitBtn.disabled = !ok;
@@ -3515,6 +3532,12 @@
     ctxTeamBtn.addEventListener('click', function () {
       hideCtxMenu();
       if (state.bar) openTeamPicker(state.bar);
+    });
+  }
+  if (ctxQtyBtn) {
+    ctxQtyBtn.addEventListener('click', function () {
+      hideCtxMenu();
+      if (state.dayCell && window.jpOpenRouteDay) window.jpOpenRouteDay(state.dayCell);
     });
   }
   if (ctxRefreshBtn) {

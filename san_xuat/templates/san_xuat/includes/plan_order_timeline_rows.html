@@ -5,7 +5,8 @@
             {% for stage in row.stage_rows %}
             <tr class="jp-tl-orow{% if forloop.first %} is-order-start{% endif %}{% if row.is_late %} is-late{% endif %}{% if stage.gc_hired %} is-gc{% endif %}"
                 data-order-id="{{ row.order.pk }}"
-                data-team-slug="{{ stage.slug }}">
+                data-team-slug="{{ stage.slug }}"
+                {% if stage.slug != 'npl' and not stage.is_npl_prep %}data-progress-slug="{{ stage.progress_slug|default:stage.slug }}"{% if stage.progress_mo_id %} data-progress-mo="{{ stage.progress_mo_id }}"{% endif %}{% endif %}>
               {% if forloop.first %}
               <td class="c-stt" rowspan="{{ row.stage_rows|length }}">
                 {% include 'san_xuat/includes/plan_board_route_stt.html' %}
@@ -104,7 +105,7 @@
                 <button type="button"
                         class="jp-sheet-qty jp-stage-{{ cell.bar.slug }}{% if row.is_late %} is-late{% endif %}{% if can_schedule and cell.bar.can_drag %} is-draggable{% endif %}{% if cell.bar.gc_hired %} is-gc{% endif %}{% if cell.bar.qty_label == '0' and cell.bar.done_qty_label != '0' %} is-actual{% endif %}"
                         draggable="false"
-                        oncontextmenu="event.preventDefault(); event.stopPropagation(); if (window.jpShowRouteCtx) window.jpShowRouteCtx(event); return false;"
+                        oncontextmenu="event.preventDefault(); if (window.jpShowRouteCtx) window.jpShowRouteCtx(event); return false;"
                         data-jp-team-drag
                         data-jp-team-split
                         data-order-id="{{ row.order.pk }}"
@@ -123,7 +124,7 @@
                         data-can-drag="{% if can_schedule and cell.bar.can_drag %}1{% else %}0{% endif %}"
                         data-can-split="{% if can_schedule and cell.bar.slug and cell.bar.slug != 'npl' %}1{% else %}0{% endif %}"
                         data-work-center-id="{% if cell.bar.work_center_id %}{{ cell.bar.work_center_id }}{% endif %}"
-                        title="{{ cell.bar.label }} · {{ row.order.code }} · dự kiến {{ cell.bar.qty_label|default:'0' }} · đã làm {{ cell.bar.done_qty_label }} (phiếu tổ){% if cell.bar.gc_hired %} · {{ cell.bar.gc_title }}{% endif %}{% if can_schedule and cell.bar.can_drag %} · Kéo sang ngày khác{% endif %}">
+                        title="{{ cell.bar.label }} · {{ row.order.code }} · dự kiến {{ cell.bar.qty_label|default:'0' }} · đã làm {{ cell.bar.done_qty_label }} (phiếu tổ){% if cell.bar.gc_hired %} · {{ cell.bar.gc_title }}{% endif %}{% if can_schedule and cell.bar.can_drag %} · Kéo sang ngày khác{% endif %}{% if stage.progress_mo_id %} · Nháy đúp để nhập SL{% endif %}">
                   <span class="jp-sheet-plan">{{ cell.bar.qty_label|default:"—" }}</span>
                   <span class="jp-sheet-done">{{ cell.bar.done_qty_label|default:"0" }}</span>
                 </button>

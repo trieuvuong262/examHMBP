@@ -1,0 +1,535 @@
+<style>
+  .jp-rd-day .modal-dialog { max-width: min(44rem, calc(100vw - 1.5rem)); }
+  .jp-rd-day .modal-content { border: 0; border-radius: .85rem; overflow: hidden; }
+  .jp-rd-day .modal-header { align-items: flex-start; }
+  .jp-rd-day .modal-title { color: #dc2626; font-size: 1rem; font-weight: 800; }
+  .jp-rd-sub { margin-top: .1rem; color: #64748b; font-size: .8rem; font-weight: 650; }
+  .jp-rd-photo { width: 2.6rem; height: 2.6rem; object-fit: cover; border-radius: .45rem; background: #f8fafc; }
+  .jp-rd-titlebox { display: flex; align-items: center; gap: .65rem; min-width: 0; }
+  .jp-rd-status { margin-bottom: .65rem; padding: .45rem .65rem; border-radius: .5rem; font-size: .8rem; font-weight: 700; }
+  .jp-rd-status.is-info { background: #f8fafc; color: #64748b; }
+  .jp-rd-status.is-warn { background: #fff7ed; color: #c2410c; }
+  .jp-rd-status.is-ok { background: #f0fdf4; color: #15803d; }
+  .jp-rd-status.is-err { background: #fef2f2; color: #b91c1c; }
+  .jp-rd-tools { display: flex; align-items: center; justify-content: space-between; margin-bottom: .55rem; }
+  .jp-rd-tools > span { font-size: .75rem; font-weight: 800; }
+  .jp-rd-seg { display: inline-flex; border: 1px solid #e8edf3; border-radius: .5rem; overflow: hidden; }
+  .jp-rd-seg button { border: 0; background: #fff; color: #0f172a; font-size: .75rem; font-weight: 800; padding: .28rem .55rem; }
+  .jp-rd-seg button.is-on { background: #dc2626; color: #fff; }
+  .jp-rd-sheet { width: 100%; border-collapse: separate; border-spacing: 0; font-size: .82rem; }
+  .jp-rd-sheet th, .jp-rd-sheet td { padding: .4rem .45rem; border-bottom: 1px solid #e8edf3; text-align: right; white-space: nowrap; }
+  .jp-rd-sheet thead th { background: #fef2f2; color: #64748b; font-size: .68rem; font-weight: 800; }
+  .jp-rd-sheet thead th:first-child, .jp-rd-sheet tbody th { text-align: left; font-weight: 800; }
+  .jp-rd-sheet tr.is-sum th, .jp-rd-sheet tr.is-sum td { font-weight: 800; }
+  .jp-rd-sheet .is-over { color: #b91c1c; }
+  .jp-rd-sheet .form-control { text-align: right; font-weight: 700; }
+  .jp-rd-sheet .form-control.is-over { border-color: #f43f5e; background: #fff1f2; }
+  .jp-rd-in { display: flex; align-items: center; justify-content: flex-end; gap: .3rem; }
+  .jp-rd-alt { display: block; color: #64748b; font-size: .68rem; font-weight: 700; text-align: right; }
+  .jp-rd-hist-btn { border: 1px solid #e8edf3; background: #fff; color: #64748b; border-radius: .4rem; width: 1.7rem; height: 1.7rem; }
+  .jp-rd-hist-btn.has-log { color: #b91c1c; border-color: #fecaca; }
+  .jp-rd-note { margin-top: .85rem; }
+  .jp-rd-note .form-label { margin-bottom: .25rem; font-size: .75rem; font-weight: 800; }
+  .jp-rd-tag { display: inline-block; padding: .1rem .4rem; border-radius: 999px; font-size: .68rem; font-weight: 800; }
+  .jp-rd-tag.is-bf { background: #fff7ed; color: #c2410c; }
+  .jp-rd-tag.is-done { background: #f0fdf4; color: #15803d; }
+  .jp-rd-tag.is-day { background: #f8fafc; color: #64748b; }
+  .jp-rd-save { background: #dc2626; border-color: #dc2626; color: #fff; }
+  .jp-rd-save:hover { background: #b91c1c; color: #fff; }
+</style>
+<div class="modal fade jp-rd-day" id="jpRouteDayEntry" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="jp-rd-titlebox">
+          <img id="jpRdPhoto" class="jp-rd-photo" alt="" hidden>
+          <div>
+            <h5 class="modal-title" id="jpRdTitle">Nhập sản lượng</h5>
+            <div class="jp-rd-sub" id="jpRdSub"></div>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body" id="jpRdBody">
+        <div class="jp-rd-status" id="jpRdStatus" hidden></div>
+        <div class="jp-rd-tools" id="jpRdTools" hidden>
+          <span>Size</span>
+          <div class="jp-rd-seg" id="jpRdMode" role="group" aria-label="Loại nhập">
+            <button type="button" data-mode="qty" class="is-on">SL</button>
+            <button type="button" data-mode="pct">%</button>
+          </div>
+        </div>
+        <div id="jpRdSheetWrap" hidden>
+          <table class="jp-rd-sheet">
+            <thead>
+              <tr>
+                <th>Size</th>
+                <th id="jpRdKhHead">KH</th>
+                <th>Đã làm</th>
+                <th>Còn lại</th>
+                <th id="jpRdQtyHead">SL</th>
+              </tr>
+            </thead>
+            <tbody id="jpRdSizes"></tbody>
+          </table>
+        </div>
+        <div class="jp-rd-note" id="jpRdNoteWrap" hidden>
+          <label class="form-label" for="jpRdNote">Ghi chú</label>
+          <textarea id="jpRdNote" class="form-control" maxlength="500" rows="2"></textarea>
+        </div>
+        <div id="jpRdHist" hidden>
+          <div class="fw-bold mb-2" id="jpRdHistLabel"></div>
+          <table class="jp-rd-sheet">
+            <thead>
+              <tr>
+                <th>Thời gian</th>
+                <th>Người cập nhật</th>
+                <th>Cũ</th>
+                <th>Mới</th>
+                <th>Loại</th>
+              </tr>
+            </thead>
+            <tbody id="jpRdHistRows"></tbody>
+          </table>
+          <div class="text-secondary py-2" id="jpRdHistEmpty" hidden>Chưa có lịch sử cập nhật.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" id="jpRdHistBack" hidden>Quay lại</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" data-bs-dismiss="modal">Đóng</button>
+        <button type="button" class="btn btn-sm fw-bold" id="jpRdFill" hidden>Điền nhanh</button>
+        <button type="button" class="btn btn-sm fw-bold jp-rd-save" id="jpRdSave" hidden>Lưu sản lượng</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var root = document.getElementById('lo-trinh');
+  var modalEl = document.getElementById('jpRouteDayEntry');
+  var body = document.getElementById('jpRdBody');
+  if (!root || !modalEl || !body) return;
+  var today = root.getAttribute('data-today') || '';
+  var sourceCell = null;
+  var dayData = null;
+  var dayMode = 'qty';
+  var dayLogs = {};
+  var saving = false;
+
+  function esc(value) {
+    return String(value == null ? '' : value).replace(/[&<>"]/g, function (ch) {
+      return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[ch];
+    });
+  }
+  function num(v) {
+    var x = Number(String(v == null ? '' : v).replace(/\s/g, '').replace(',', '.'));
+    return isFinite(x) ? x : 0;
+  }
+  function plain(n) {
+    var x = Math.round(num(n) * 10000) / 10000;
+    if (Math.abs(x - Math.round(x)) < 1e-8) return String(Math.round(x));
+    return String(x);
+  }
+  function show(n) {
+    return num(n).toLocaleString('vi-VN', {maximumFractionDigits: 2});
+  }
+  function qtyToPct(q, plan) { return plan > 0 ? Math.round(q * 1000 / plan) / 10 : 0; }
+  function pctToQty(p, plan) { return Math.round(plan * p / 100); }
+  function csrfToken() {
+    var input = root.querySelector('input[name=csrfmiddlewaretoken]');
+    if (input && input.value) return input.value;
+    var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+  function part(id, on) {
+    var el = document.getElementById(id);
+    if (el) el.hidden = !on;
+  }
+  function setStatus(text, kind) {
+    var el = document.getElementById('jpRdStatus');
+    if (!el) return;
+    if (!text) { el.hidden = true; el.textContent = ''; el.className = 'jp-rd-status'; return; }
+    el.hidden = false;
+    el.className = 'jp-rd-status is-' + (kind || 'info');
+    el.textContent = text;
+  }
+  function inputs() {
+    return Array.prototype.slice.call(body.querySelectorAll('#jpRdSizes input[data-size]'));
+  }
+  function liveQty(input) {
+    var v = Math.max(0, num(input.value));
+    var plan = num(input.getAttribute('data-plan'));
+    if (dayMode === 'pct' && plan > 0) return pctToQty(v, plan);
+    return v;
+  }
+  function projected(input) {
+    return num(input.getAttribute('data-done')) - num(input.getAttribute('data-qty')) + liveQty(input);
+  }
+  function setRemain(cell, plan, done) {
+    if (!cell) return;
+    if (plan > 0 && done > plan) {
+      cell.textContent = 'vượt ' + show(done - plan);
+      cell.classList.add('is-over');
+    } else {
+      cell.classList.remove('is-over');
+      cell.textContent = plan > 0 ? show(Math.max(plan - done, 0)) : '—';
+    }
+  }
+  function paintInput(input, fromLive) {
+    var plan = num(input.getAttribute('data-plan'));
+    var q = fromLive ? liveQty(input) : num(input.getAttribute('data-qty'));
+    var done = fromLive ? projected(input) : num(input.getAttribute('data-done'));
+    var asPct = dayMode === 'pct' && plan > 0;
+    if (!fromLive) input.value = q ? plain(asPct ? qtyToPct(q, plan) : q) : '';
+    input.classList.toggle('is-over', plan > 0 && done > plan);
+    var alt = input.closest('td') && input.closest('td').querySelector('.jp-rd-alt');
+    if (alt) {
+      alt.textContent = asPct
+        ? (q ? show(q) + ' SL' : '')
+        : (plan > 0 && q ? qtyToPct(q, plan).toLocaleString('vi-VN', {maximumFractionDigits: 1}) + '%' : '');
+    }
+    var row = input.closest('tr');
+    var doneCell = row && row.querySelector('[data-role="done"]');
+    if (doneCell) {
+      doneCell.textContent = show(done);
+      doneCell.classList.toggle('is-over', plan > 0 && done > plan);
+    }
+    setRemain(row && row.querySelector('[data-role="remain"]'), plan, done);
+  }
+  function dayTotal(fromLive) {
+    return inputs().reduce(function (sum, input) {
+      return sum + (fromLive ? liveQty(input) : num(input.getAttribute('data-qty')));
+    }, 0);
+  }
+  function fillSums(fromLive) {
+    var foot = body.querySelector('tr.is-sum');
+    if (!foot) return;
+    var plan = 0;
+    var done = 0;
+    var day = 0;
+    inputs().forEach(function (input) {
+      plan += num(input.getAttribute('data-plan'));
+      done += fromLive ? projected(input) : num(input.getAttribute('data-done'));
+      day += fromLive ? liveQty(input) : num(input.getAttribute('data-qty'));
+    });
+    foot.querySelector('[data-role="plan"]').textContent = show(plan);
+    var doneCell = foot.querySelector('[data-role="done"]');
+    doneCell.textContent = show(done);
+    doneCell.classList.toggle('is-over', plan > 0 && done > plan);
+    setRemain(foot.querySelector('[data-role="remain"]'), plan, done);
+    var dayCell = foot.querySelector('[data-role="day"]');
+    var pct = plan > 0 ? qtyToPct(day, plan).toLocaleString('vi-VN', {maximumFractionDigits: 1}) + '%' : '';
+    dayCell.textContent = day ? show(day) + (pct ? ' (' + pct + ')' : '') : '';
+  }
+  function showSave(on) {
+    var btn = document.getElementById('jpRdSave');
+    if (btn) btn.hidden = !on;
+    var fill = document.getElementById('jpRdFill');
+    var hasPlan = !!on && inputs().some(function (input) { return num(input.getAttribute('data-plan')) > 0; });
+    if (fill) fill.hidden = !hasPlan;
+  }
+  function paintRoute(cell, nextDone) {
+    if (!cell) return;
+    var btn = cell.querySelector('.jp-sheet-qty');
+    var old = 0;
+    if (btn) {
+      var doneEl = btn.querySelector('.jp-sheet-done');
+      old = num(doneEl && doneEl.textContent);
+      if (doneEl) doneEl.textContent = plain(nextDone);
+      btn.setAttribute('data-done', plain(nextDone));
+    } else if (num(nextDone) > 0) {
+      cell.classList.add('has-qty');
+      var late = cell.closest('tr') && cell.closest('tr').classList.contains('is-late') ? ' is-late' : '';
+      cell.insertAdjacentHTML('beforeend',
+        '<button type="button" class="jp-sheet-qty is-actual' + late + '" draggable="false" data-can-drag="0" data-done="' + plain(nextDone) + '">' +
+        '<span class="jp-sheet-plan">0</span><span class="jp-sheet-done">' + plain(nextDone) + '</span></button>');
+    }
+    var total = cell.closest('tr') && cell.closest('tr').querySelector('td.c-total .jp-sheet-done');
+    if (total) total.textContent = plain(Math.max(0, num(total.textContent) - old + num(nextDone)));
+  }
+  function hideHist() {
+    part('jpRdHist', false);
+    var back = document.getElementById('jpRdHistBack');
+    if (back) back.hidden = true;
+    if (!dayData) return;
+    if (dayData.closed) setStatus('Tổ đã hoàn thành lệnh này.', 'ok');
+    else if (dayData.future) setStatus('Chưa tới ngày này.', 'warn');
+    else setStatus('');
+    showSave(!!dayData.can_update);
+    part('jpRdTools', !!dayData.can_update);
+    part('jpRdSheetWrap', true);
+    part('jpRdNoteWrap', !!(dayData.can_update || dayData.note));
+  }
+  function renderDay(data) {
+    dayData = data;
+    dayMode = 'qty';
+    var sub = document.getElementById('jpRdSub');
+    if (sub) {
+      var bits = [];
+      if (data.product) bits.push(data.product);
+      if (data.scope === 'day' && data.day_plan !== '') bits.push('KH ngày ' + show(data.day_plan));
+      sub.textContent = bits.join(' · ');
+    }
+    var kh = document.getElementById('jpRdKhHead');
+    if (kh) kh.textContent = data.scope === 'day' ? 'KH ngày' : 'KH';
+    var photo = document.getElementById('jpRdPhoto');
+    if (photo) {
+      if (data.image) { photo.hidden = false; photo.src = data.image; }
+      else { photo.hidden = true; photo.removeAttribute('src'); }
+    }
+    if (data.closed) setStatus('Tổ đã hoàn thành lệnh này.', 'ok');
+    else if (data.future) setStatus('Chưa tới ngày này.', 'warn');
+    else setStatus('');
+    part('jpRdTools', !!data.can_update);
+    body.querySelectorAll('#jpRdMode button').forEach(function (btn) {
+      btn.classList.toggle('is-on', btn.getAttribute('data-mode') === 'qty');
+    });
+    var head = document.getElementById('jpRdQtyHead');
+    if (head) head.textContent = 'SL';
+    var box = document.getElementById('jpRdSizes');
+    box.innerHTML = '';
+    dayLogs = {};
+    var sizes = data.sizes || [];
+    if (!sizes.length) box.innerHTML = '<tr><td colspan="5">Chưa có size.</td></tr>';
+    sizes.forEach(function (size) {
+      var label = size.label || '';
+      dayLogs[label] = size.history || [];
+      var row = document.createElement('tr');
+      row.innerHTML = '<th scope="row"></th><td data-role="plan"></td><td data-role="done"></td><td data-role="remain"></td><td><div class="jp-rd-in"><input class="form-control form-control-sm" inputmode="decimal"><button type="button" class="jp-rd-hist-btn" title="Lịch sử cập nhật"><i class="bi bi-clock-history"></i></button></div><span class="jp-rd-alt"></span></td>';
+      row.querySelector('th').textContent = label || '—';
+      row.querySelector('[data-role="plan"]').textContent = num(size.plan) ? show(size.plan) : '—';
+      var hist = row.querySelector('.jp-rd-hist-btn');
+      if (dayLogs[label].length) hist.classList.add('has-log');
+      var input = row.querySelector('input');
+      input.setAttribute('data-size', label);
+      input.setAttribute('data-plan', size.plan || '0');
+      input.setAttribute('data-qty', size.qty || '0');
+      input.setAttribute('data-done', size.done || '0');
+      if (!data.can_update) input.readOnly = true;
+      box.appendChild(row);
+      paintInput(input, false);
+    });
+    if (sizes.length) {
+      var foot = document.createElement('tr');
+      foot.className = 'is-sum';
+      foot.innerHTML = '<th>Cộng</th><td data-role="plan"></td><td data-role="done"></td><td data-role="remain"></td><td data-role="day"></td>';
+      box.appendChild(foot);
+      fillSums(false);
+    }
+    part('jpRdSheetWrap', true);
+    var note = document.getElementById('jpRdNote');
+    part('jpRdNoteWrap', !!(data.can_update || data.note));
+    if (note) {
+      note.value = data.note || '';
+      note.setAttribute('data-orig', data.note || '');
+      note.readOnly = !data.can_update;
+    }
+    hideHist();
+    showSave(!!data.can_update);
+  }
+  function openDay(cell) {
+    var row = cell.closest('tr');
+    if (!cell || !row) return;
+    var mo = row && row.getAttribute('data-progress-mo');
+    var slug = (row && row.getAttribute('data-progress-slug'))
+      || cell.getAttribute('data-team-slug')
+      || (row && row.getAttribute('data-team-slug'))
+      || '';
+    var orderId = cell.getAttribute('data-order-id') || (row && row.getAttribute('data-order-id')) || '';
+    var day = cell.getAttribute('data-date') || '';
+    if (!slug || slug === 'npl' || !day || (today && day > today)) return;
+    if (!mo && !orderId) return;
+    sourceCell = cell;
+    dayData = null;
+    var codeEl = row.querySelector('[data-order-code]');
+    var code = codeEl ? (codeEl.getAttribute('data-order-code') || '') : '';
+    var title = document.getElementById('jpRdTitle');
+    if (title) title.textContent = (code || 'Sản lượng') + ' · ' + day.split('-').reverse().join('/');
+    var sub = document.getElementById('jpRdSub');
+    if (sub) sub.textContent = '';
+    setStatus('Đang tải…', 'info');
+    part('jpRdTools', false);
+    part('jpRdSheetWrap', false);
+    part('jpRdNoteWrap', false);
+    part('jpRdHist', false);
+    showSave(false);
+    if (!window.bootstrap || !bootstrap.Modal) {
+      setStatus('Trang chưa sẵn sàng. Tải lại rồi thử lại.', 'err');
+      return;
+    }
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    var url = new URL(window.location.href);
+    url.searchParams.set('route_day', '1');
+    url.searchParams.set('mo_id', mo || '0');
+    url.searchParams.set('order_id', orderId);
+    url.searchParams.set('slug', slug);
+    url.searchParams.set('ngay', day);
+    url.searchParams.delete('route_more');
+    url.searchParams.delete('ids');
+    fetch(url.toString(), {credentials: 'same-origin', headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'}})
+      .then(function (res) { return res.json().then(function (data) {
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Không mở được phiếu ngày.');
+        return data;
+      }); })
+      .then(renderDay)
+      .catch(function (err) { setStatus(err.message || 'Không mở được phiếu ngày.', 'err'); });
+  }
+  function postDay(fields) {
+    fields.csrfmiddlewaretoken = csrfToken();
+    fields.action = 'route_day_sheet';
+    fields.mo_id = dayData.mo_id || '';
+    fields.order_id = dayData.order_id || '';
+    fields.slug = dayData.slug;
+    fields.stat_date = dayData.date;
+    var url = new URL(window.location.pathname + window.location.search);
+    url.searchParams.delete('route_day');
+    url.searchParams.delete('route_more');
+    return fetch(url.toString(), {
+      method: 'POST',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+        'X-CSRFToken': csrfToken()
+      },
+      body: new URLSearchParams(fields),
+      credentials: 'same-origin'
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (data) {
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Không lưu được.');
+        return data;
+      });
+    });
+  }
+  function saveSheet() {
+    if (saving || !dayData || !dayData.can_update) return;
+    var note = document.getElementById('jpRdNote');
+    var noteVal = note ? (note.value || '').trim() : '';
+    var noteChanged = !!(note && noteVal !== (note.getAttribute('data-orig') || '').trim());
+    var rows = [];
+    inputs().forEach(function (input) {
+      var qty = liveQty(input);
+      if (plain(qty) === plain(num(input.getAttribute('data-qty')))) return;
+      rows.push({size: input.getAttribute('data-size') || '', qty: String(qty)});
+    });
+    if (!rows.length && !noteChanged) { setStatus('Đã lưu.', 'ok'); return; }
+    saving = true;
+    var btn = document.getElementById('jpRdSave');
+    if (btn) btn.disabled = true;
+    setStatus('');
+    postDay({
+      sizes: JSON.stringify(rows),
+      save_note: noteChanged ? '1' : '0',
+      notes: noteChanged ? noteVal : ''
+    }).then(function (data) {
+      (data.sizes || []).forEach(function (row) {
+        var input = null;
+        inputs().forEach(function (el) {
+          if ((el.getAttribute('data-size') || '') === (row.size || '')) input = el;
+        });
+        if (!input) return;
+        input.setAttribute('data-qty', plain(row.day_done));
+        input.setAttribute('data-done', plain(dayData.scope === 'day' ? row.day_done : row.size_done));
+        paintInput(input, false);
+        if (row.log) {
+          var key = input.getAttribute('data-size') || '';
+          dayLogs[key] = dayLogs[key] || [];
+          dayLogs[key].unshift(row.log);
+          var hist = input.closest('tr').querySelector('.jp-rd-hist-btn');
+          if (hist) hist.classList.add('has-log');
+        }
+      });
+      fillSums(false);
+      paintRoute(sourceCell, dayTotal(false));
+      if (note && data.notes != null) {
+        note.value = data.notes || '';
+        note.setAttribute('data-orig', data.notes || '');
+      }
+      setStatus('Đã lưu.', 'ok');
+    }).catch(function (err) {
+      setStatus(err.message || 'Không lưu được SL.', 'err');
+    }).then(function () {
+      saving = false;
+      if (btn) btn.disabled = false;
+    });
+  }
+  window.jpOpenRouteDay = openDay;
+  root.addEventListener('dblclick', function (ev) {
+    if (root.querySelector('.is-dragging-route') || root.querySelector('.is-dragging')) return;
+    var cell = ev.target && ev.target.closest ? ev.target.closest('.jp-sheet-cell[data-date]') : null;
+    if (!cell || !root.contains(cell)) return;
+    ev.preventDefault();
+    openDay(cell);
+  });
+  body.addEventListener('input', function (ev) {
+    var input = ev.target && ev.target.closest ? ev.target.closest('#jpRdSizes input[data-size]') : null;
+    if (!input) return;
+    paintInput(input, true);
+    fillSums(true);
+  });
+  body.addEventListener('click', function (ev) {
+    var hist = ev.target && ev.target.closest ? ev.target.closest('.jp-rd-hist-btn') : null;
+    if (hist) {
+      var input = hist.closest('tr') && hist.closest('tr').querySelector('input[data-size]');
+      var size = input ? (input.getAttribute('data-size') || '') : '';
+      var logs = dayLogs[size] || [];
+      var label = document.getElementById('jpRdHistLabel');
+      if (label) label.textContent = 'Size ' + (size || '—');
+      var rows = document.getElementById('jpRdHistRows');
+      if (rows) {
+        rows.innerHTML = logs.map(function (log) {
+          var kind = log.kind === 'complete'
+            ? '<span class="jp-rd-tag is-done">Hoàn thành</span>'
+            : (log.backfill ? '<span class="jp-rd-tag is-bf">Nhập bù</span>' : '<span class="jp-rd-tag is-day">Đúng ngày</span>');
+          return '<tr><td>' + esc(log.at) + '</td><td>' + esc(log.user || '—') + '</td><td>' + show(log.old) + '</td><td>' + show(log.new) + '</td><td>' + kind + '</td></tr>';
+        }).join('');
+      }
+      var empty = document.getElementById('jpRdHistEmpty');
+      if (empty) empty.hidden = logs.length > 0;
+      part('jpRdTools', false);
+      part('jpRdSheetWrap', false);
+      part('jpRdNoteWrap', false);
+      showSave(false);
+      setStatus('');
+      part('jpRdHist', true);
+      var back = document.getElementById('jpRdHistBack');
+      if (back) back.hidden = false;
+      return;
+    }
+    var modeBtn = ev.target && ev.target.closest ? ev.target.closest('#jpRdMode button') : null;
+    if (!modeBtn || !dayData || !dayData.can_update) return;
+    var kept = inputs().map(function (input) { return liveQty(input); });
+    dayMode = modeBtn.getAttribute('data-mode') === 'pct' ? 'pct' : 'qty';
+    body.querySelectorAll('#jpRdMode button').forEach(function (btn) {
+      btn.classList.toggle('is-on', btn === modeBtn);
+    });
+    var head = document.getElementById('jpRdQtyHead');
+    if (head) head.textContent = dayMode === 'pct' ? '%' : 'SL';
+    inputs().forEach(function (input, index) {
+      var plan = num(input.getAttribute('data-plan'));
+      var qty = kept[index] || 0;
+      var asPct = dayMode === 'pct' && plan > 0;
+      input.value = qty ? plain(asPct ? qtyToPct(qty, plan) : qty) : '';
+      paintInput(input, true);
+    });
+    fillSums(true);
+  });
+  var fillBtn = document.getElementById('jpRdFill');
+  if (fillBtn) fillBtn.addEventListener('click', function () {
+    if (saving || !dayData || !dayData.can_update) return;
+    var filled = 0;
+    inputs().forEach(function (input) {
+      var plan = num(input.getAttribute('data-plan'));
+      if (!(plan > 0)) return;
+      input.value = dayMode === 'pct' ? '100' : plain(plan);
+      paintInput(input, true);
+      filled += 1;
+    });
+    fillSums(true);
+    setStatus(filled ? 'Đã điền theo KH.' : 'Ngày này chưa có KH để điền.', filled ? 'ok' : 'warn');
+  });
+  var saveBtn = document.getElementById('jpRdSave');
+  if (saveBtn) saveBtn.addEventListener('click', saveSheet);
+  var backBtn = document.getElementById('jpRdHistBack');
+  if (backBtn) backBtn.addEventListener('click', hideHist);
+})();
+</script>

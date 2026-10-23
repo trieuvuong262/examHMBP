@@ -3,7 +3,8 @@
          data-can-schedule="{{ can_schedule|yesno:'1,0' }}"
          data-range-start="{{ route_board.range_start|date:'Y-m-d' }}"
          {% if route_more_ids %}data-route-loading="1"{% endif %}
-         oncontextmenu="event.preventDefault(); event.stopPropagation(); if (window.jpShowRouteCtx) window.jpShowRouteCtx(event); return false;">
+         data-today="{% now 'Y-m-d' %}"
+         oncontextmenu="event.preventDefault(); if (window.jpShowRouteCtx) window.jpShowRouteCtx(event); return false;">
   {% csrf_token %}
   <div class="jp-route-full-bar">
     <span class="jp-route-full-title">Lộ trình sản xuất</span>
@@ -70,6 +71,7 @@
     {% endif %}
   </div>
 </section>
+{% include 'san_xuat/includes/plan_route_day_entry.html' %}
 <div class="modal fade" id="jpNplNeedModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
@@ -118,13 +120,13 @@
     if (t && t.nodeType === 3) t = t.parentElement;
     if (!t || !t.closest) return;
     if (!(root === t || root.contains(t) || t.closest('#jpTlCtxMenu'))) return;
-    if (ev.cancelable) ev.preventDefault();
+    ev.preventDefault();
     ev.returnValue = false;
   }
   window.addEventListener('contextmenu', block, true);
   root.addEventListener('contextmenu', function (ev) {
     block(ev);
-    if (ev.stopPropagation) ev.stopPropagation();
+    if (window.jpShowRouteCtx) window.jpShowRouteCtx(ev);
     return false;
   });
   root.querySelectorAll('[data-jp-route-sum-toggle]').forEach(function (sumToggle) {

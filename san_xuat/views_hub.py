@@ -1484,6 +1484,235 @@ def plan_stub(request):
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
+def _route_progress_day(request, *, can_update: bool):
+    """Phiếu SL theo size của một ngày trên lộ trình — cùng luật với tiến độ tổ."""
+    from decimal import Decimal, InvalidOperation
+    import json as _json
+
+    from django.db.models import Prefetch
+    from django.http import JsonResponse
+    from django.utils.dateparse import parse_date
+
+    from san_xuat.hub_models import SxMoProcessStep, SxProductionOrder, SxTeamWorkDayNote
+    from san_xuat.services.order_progress_sheet import (
+        build_progress_sheet,
+        build_team_day_grid,
+        ensure_progress_work_centers,
+        progress_steps_for_team,
+        set_team_day_qtys,
+        team_plan_days,
+        team_size_rollups,
+    )
+    from san_xuat.services.planning import PlanningError
+    from san_xuat.services.progress_template import team_by_slug
+    from san_xuat.services.team_progress_log import log_day_change, log_to_dict, team_day_logs
+    from san_xuat.services.team_work import (
+        accept_production,
+        ensure_team_accept,
+        is_production_accepted,
+        is_team_job_closed,
+    )
+
+    def _plain(value) -> str:
+        q = Decimal(str(value or 0))
+        text = format(q.quantize(Decimal('0.01')), 'f').rstrip('0').rstrip('.')
+        return text or '0'
+
+    def _fail(message, status=400):
+        return JsonResponse({'ok': False, 'error': message}, status=status)
+
+    slug = (request.POST.get('slug') or request.GET.get('slug') or '').strip()
+    team_meta = team_by_slug(slug)
+    if not team_meta:
+        return _fail('Tổ không hợp lệ.')
+    try:
+        mo_id = int(request.POST.get('mo_id') or request.GET.get('mo_id') or 0)
+    except (TypeError, ValueError):
+        mo_id = 0
+    try:
+        order_id = int(request.POST.get('order_id') or request.GET.get('order_id') or 0)
+    except (TypeError, ValueError):
+        order_id = 0
+    try:
+        ngay = parse_date((request.POST.get('stat_date') or request.GET.get('ngay') or '').strip())
+    except ValueError:
+        ngay = None
+    if not ngay or (mo_id <= 0 and order_id <= 0):
+        return _fail('Thiếu lệnh hoặc ngày.')
+
+    mo_qs = (
+        SxProductionOrder.objects.filter(is_demo=False)
+        .exclude(status=SxProductionOrder.STATUS_CANCELLED)
+        .exclude(status=SxProductionOrder.STATUS_DRAFT)
+        .select_related('sales_order')
+        .prefetch_related(
+            Prefetch(
+                'mo_process_steps',
+                queryset=SxMoProcessStep.objects.select_related('work_center').order_by('sequence', 'id'),
+            ),
+            'lines',
+        )
+    )
+    mo = mo_qs.filter(pk=mo_id).first() if mo_id > 0 else None
+    team_steps = progress_steps_for_team(mo, team_meta) if mo else []
+    if not mo and order_id > 0:
+        for cand in mo_qs.filter(sales_order_id=order_id):
+            steps = progress_steps_for_team(cand, team_meta)
+            if steps:
+                mo = cand
+                team_steps = steps
+                break
+    if not mo:
+        return _fail('Không tìm thấy lệnh sản xuất đang chạy.')
+    if not team_steps:
+        return _fail('Đơn chưa có công đoạn của tổ này.')
+    ensure_progress_work_centers()
+    today = timezone.localdate()
+    future = ngay > today
+    job_closed = is_team_job_closed(mo_id=mo.pk, team_slug=slug)
+    editable = bool(can_update and not job_closed and not future)
+
+    if request.method == 'POST':
+        if not editable:
+            if future:
+                return _fail('Không ghi tiến độ cho ngày tương lai.')
+            if job_closed:
+                return _fail('Tổ đã hoàn thành lệnh này — mở lại nếu cần sửa SL.')
+            return _fail('Bạn không có quyền nhập sản lượng.', 403)
+        if not is_production_accepted(mo):
+            try:
+                mo = accept_production(mo_id=mo.pk, team_slug=slug, user=request.user)
+            except PlanningError as exc:
+                return _fail(str(exc))
+        else:
+            ensure_team_accept(mo_id=mo.pk, team_slug=slug, user=request.user)
+        try:
+            payload = _json.loads(request.POST.get('sizes') or '[]')
+        except (TypeError, ValueError):
+            payload = None
+        if not isinstance(payload, list):
+            return _fail('Danh sách size không hợp lệ.')
+        size_qtys: list[tuple[str, Decimal]] = []
+        for item in payload:
+            if not isinstance(item, dict):
+                continue
+            label = str(item.get('size') or '').strip()
+            try:
+                item_qty = Decimal(str(item.get('qty') or '0').replace(',', '').strip() or '0')
+            except (InvalidOperation, ValueError):
+                item_qty = Decimal('0')
+            size_qtys.append((label, item_qty))
+        try:
+            written = set_team_day_qtys(
+                mo_id=mo.pk,
+                process_keys=[s.key for s in team_steps],
+                size_qtys=size_qtys,
+                user=request.user,
+                team_slug=slug,
+                stat_date=ngay,
+            ) if size_qtys else []
+        except Exception as exc:
+            return _fail(str(exc))
+        rollups = team_size_rollups(mo, steps=team_steps, team=team_meta) if written else {}
+        sizes_out = []
+        for row in written:
+            info = rollups.get(row['size']) or {}
+            day_log = None
+            if row['changed']:
+                logged = log_day_change(
+                    mo=mo,
+                    team_slug=slug,
+                    work_date=ngay,
+                    size_label=row['size'],
+                    old_qty=Decimal(str(row.get('old') or 0)),
+                    new_qty=Decimal(str(row['done'] or 0)),
+                    user=request.user,
+                )
+                day_log = log_to_dict(logged) if logged else None
+            sizes_out.append({
+                'size': row['size'],
+                'day_done': str(row['done'] or 0),
+                'size_done': str(info.get('done') or 0),
+                'log': day_log,
+            })
+        saved_note = None
+        if request.POST.get('save_note') == '1':
+            saved_note = (request.POST.get('notes') or '').strip()[:500]
+            if saved_note:
+                SxTeamWorkDayNote.objects.update_or_create(
+                    production_order=mo,
+                    team_slug=slug,
+                    note_date=ngay,
+                    defaults={'notes': saved_note, 'created_by': request.user},
+                )
+            else:
+                SxTeamWorkDayNote.objects.filter(
+                    production_order=mo, team_slug=slug, note_date=ngay,
+                ).delete()
+        body = {'ok': True, 'sizes': sizes_out}
+        if saved_note is not None:
+            body['notes'] = saved_note
+        return JsonResponse(body)
+
+    sheet = build_progress_sheet(mo, team=team_meta)
+    grid = build_team_day_grid(
+        sheet,
+        steps=team_steps,
+        plan_days=team_plan_days(mo, team_meta),
+        extra_days=[ngay],
+        notes=dict(
+            SxTeamWorkDayNote.objects.filter(production_order=mo, team_slug=slug)
+            .values_list('note_date', 'notes')
+        ),
+    )
+    day = next((row for row in grid['days'] if row['date'] == ngay), None)
+    if not day:
+        return _fail('Không lấy được tiến độ ngày này.')
+    totals = {item['size']: item for item in grid['totals']}
+    order = mo.sales_order
+    from san_xuat.services.products import product_gallery_map
+
+    images = product_gallery_map([mo.product_code]).get((mo.product_code or '').casefold(), [])
+    history_by_size: dict[str, list] = {}
+    for log in reversed(team_day_logs(mo_id=mo.pk, team_slug=slug).get(ngay, [])):
+        history_by_size.setdefault(log.size_label, []).append(log_to_dict(log))
+    return JsonResponse({
+        'ok': True,
+        'mo_id': mo.pk,
+        'order_id': int(mo.sales_order_id or 0),
+        'slug': slug,
+        'order_code': (order.code if order else '') or mo.code,
+        'product': mo.product_name or mo.product_code or '',
+        'image': images[0] if images else '',
+        'date': ngay.isoformat(),
+        'label': ngay.strftime('%d/%m/%Y'),
+        'future': future,
+        'closed': job_closed,
+        'can_update': editable,
+        'day_plan': _plain(day['plan_qty']) if day.get('plan_qty') is not None else '',
+        'scope': 'day' if day.get('plan_qty') is not None else 'order',
+        'note': day.get('note') or '',
+        'sizes': [
+            {
+                'label': cell['size'],
+                'plan': _plain(
+                    cell['day_plan']
+                    if day.get('plan_qty') is not None
+                    else (totals.get(cell['size']) or {}).get('plan')
+                ),
+                'qty': _plain(cell['qty']),
+                'done': _plain(
+                    cell['qty']
+                    if day.get('plan_qty') is not None
+                    else (totals.get(cell['size']) or {}).get('done')
+                ),
+                'history': history_by_size.get(cell['size'], []),
+            }
+            for cell in day['cells']
+        ],
+    })
+
+
 def plan_board(request):
     """Kế hoạch SX theo đơn — kế hoạch (hàng đợi + đã chuyển SX) / lộ trình."""
     from san_xuat.hub_models import SxSalesOrder
@@ -1563,6 +1792,14 @@ def plan_board(request):
         tab = 'route'
     if tab == 'cancel':
         return redirect('san_xuat:sx_cancel_approve')
+    if tab == 'route' and (
+        (request.GET.get('route_day') or '').strip() == '1'
+        or (
+            request.method == 'POST'
+            and (request.POST.get('action') or '').strip() == 'route_day_sheet'
+        )
+    ):
+        return _route_progress_day(request, can_update=bool(can_schedule or can_release))
     q = (request.GET.get('q') or request.POST.get('q') or '').strip()
     date_from_raw = (request.GET.get('date_from') or request.POST.get('date_from') or '').strip()
     date_to_raw = (request.GET.get('date_to') or request.POST.get('date_to') or '').strip()
