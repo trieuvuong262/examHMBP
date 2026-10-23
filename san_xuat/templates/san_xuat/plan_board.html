@@ -2027,25 +2027,100 @@
 </style>
 <script>
 (function () {
-  function routeCtxTarget(ev) {
+  if (window.__jpRouteCtxInstalled) return;
+  window.__jpRouteCtxInstalled = true;
+  var SHEET = '#lo-trinh, #jpTlCtxMenu, #jpPickTeamModal, #jpAddTeamModal, #jpKhsxCapModal';
+  function eventNode(ev) {
     var t = ev && ev.target;
     if (t && t.nodeType === 3) t = t.parentElement;
-    return t && t.closest ? t.closest('#lo-trinh, #jpTlCtxMenu, #jpPickTeamModal, #jpAddTeamModal, #jpKhsxCapModal') : null;
+    return t || null;
   }
-  function blockBrowserMenu(ev) {
-    if (!routeCtxTarget(ev)) return;
-    ev.preventDefault();
+  function inSheet(ev) {
+    var path = ev && ev.composedPath ? ev.composedPath() : null;
+    if (path) {
+      for (var i = 0; i < path.length; i++) {
+        var n = path[i];
+        if (!n || n.nodeType !== 1) continue;
+        if (n.id === 'lo-trinh' || n.id === 'jpTlCtxMenu' || n.id === 'jpPickTeamModal' || n.id === 'jpAddTeamModal' || n.id === 'jpKhsxCapModal') return true;
+      }
+    }
+    var t = eventNode(ev);
+    return !!(t && t.closest && t.closest(SHEET));
+  }
+  function editingField(ev) {
+    var t = eventNode(ev);
+    if (!t || !t.closest) return false;
+    var field = t.closest('input, textarea, select, [contenteditable="true"]');
+    if (!field) return false;
+    if (field.tagName === 'INPUT') {
+      var type = (field.getAttribute('type') || 'text').toLowerCase();
+      if (type === 'hidden' || type === 'checkbox' || type === 'radio' || type === 'button' || type === 'submit' || type === 'file') return false;
+    }
+    return true;
+  }
+  function swallow(ev) {
+    if (!inSheet(ev) || editingField(ev)) return false;
+    if (ev.cancelable && ev.preventDefault) ev.preventDefault();
     ev.returnValue = false;
+    return true;
   }
-  window.addEventListener('contextmenu', function (ev) {
-    if (!routeCtxTarget(ev)) return;
-    blockBrowserMenu(ev);
+  function openPageMenu(ev) {
+    if (!swallow(ev)) return;
     if (typeof window.jpShowRouteCtx === 'function') window.jpShowRouteCtx(ev);
-  }, true);
-  document.addEventListener('contextmenu', blockBrowserMenu, true);
+  }
+  window.jpRouteCtx = function (ev) {
+    openPageMenu(ev);
+    return false;
+  };
+  var opt = { capture: true, passive: false };
+  window.addEventListener('mousedown', function (ev) {
+    if (ev.button === 2) swallow(ev);
+  }, opt);
+  window.addEventListener('pointerdown', function (ev) {
+    if (ev.button === 2) swallow(ev);
+  }, opt);
+  window.addEventListener('mouseup', function (ev) {
+    if (ev.button === 2) openPageMenu(ev);
+  }, opt);
+  window.addEventListener('pointerup', function (ev) {
+    if (ev.button === 2) openPageMenu(ev);
+  }, opt);
+  window.addEventListener('contextmenu', openPageMenu, opt);
+  document.addEventListener('contextmenu', function (ev) { swallow(ev); }, opt);
   window.addEventListener('auxclick', function (ev) {
-    if (ev.button === 2) blockBrowserMenu(ev);
-  }, true);
+    if (ev.button === 2) swallow(ev);
+  }, opt);
+  function arm(el) {
+    if (!el || el.nodeType !== 1 || el.getAttribute('data-jp-native-menu') === '1') return;
+    if (!el.matches || !el.matches('a, img, button')) return;
+    el.setAttribute('data-jp-native-menu', '1');
+    el.addEventListener('contextmenu', function (ev) {
+      ev.preventDefault();
+      ev.returnValue = false;
+      if (window.jpRouteCtx) window.jpRouteCtx(ev);
+    });
+  }
+  function armTree(node) {
+    if (!node || node.nodeType !== 1) return;
+    arm(node);
+    if (!node.querySelectorAll) return;
+    var list = node.querySelectorAll('a, img, button');
+    for (var i = 0; i < list.length; i++) arm(list[i]);
+  }
+  function watchSheet() {
+    var root = document.getElementById('lo-trinh');
+    if (!root) return;
+    armTree(root);
+    if (!window.MutationObserver) return;
+    new MutationObserver(function (recs) {
+      for (var i = 0; i < recs.length; i++) {
+        var nodes = recs[i].addedNodes;
+        for (var j = 0; j < nodes.length; j++) armTree(nodes[j]);
+      }
+    }).observe(root, { childList: true, subtree: true });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watchSheet);
+  else watchSheet();
 })();
 </script>
 {% endblock %}

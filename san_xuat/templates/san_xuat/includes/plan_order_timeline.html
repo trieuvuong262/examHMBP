@@ -4,7 +4,9 @@
          data-range-start="{{ route_board.range_start|date:'Y-m-d' }}"
          {% if route_more_ids %}data-route-loading="1"{% endif %}
          data-today="{% now 'Y-m-d' %}"
-         oncontextmenu="event.preventDefault(); if (window.jpShowRouteCtx) window.jpShowRouteCtx(event); return false;">
+         onmousedown="if (event.button === 2) { event.preventDefault(); return false; }"
+         onmouseup="if (event.button === 2) { event.preventDefault(); if (window.jpRouteCtx) return window.jpRouteCtx(event); return false; }"
+         oncontextmenu="event.preventDefault(); if (window.jpRouteCtx) return window.jpRouteCtx(event); if (window.jpShowRouteCtx) window.jpShowRouteCtx(event); return false;">
   {% csrf_token %}
   <div class="jp-route-full-bar">
     <span class="jp-route-full-title">Lộ trình sản xuất</span>
@@ -115,19 +117,11 @@
   var root = document.getElementById('lo-trinh');
   if (!root || root.getAttribute('data-jp-ctx-bound') === '1') return;
   root.setAttribute('data-jp-ctx-bound', '1');
-  function block(ev) {
-    var t = ev && ev.target;
-    if (t && t.nodeType === 3) t = t.parentElement;
-    if (!t || !t.closest) return;
-    if (!(root === t || root.contains(t) || t.closest('#jpTlCtxMenu'))) return;
+  root.addEventListener('contextmenu', function (ev) {
     ev.preventDefault();
     ev.returnValue = false;
-  }
-  window.addEventListener('contextmenu', block, true);
-  root.addEventListener('contextmenu', function (ev) {
-    block(ev);
-    if (window.jpShowRouteCtx) window.jpShowRouteCtx(ev);
-    return false;
+    if (window.jpRouteCtx) window.jpRouteCtx(ev);
+    else if (window.jpShowRouteCtx) window.jpShowRouteCtx(ev);
   });
   root.querySelectorAll('[data-jp-route-sum-toggle]').forEach(function (sumToggle) {
     sumToggle.addEventListener('click', function () {
