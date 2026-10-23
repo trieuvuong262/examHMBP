@@ -1306,30 +1306,33 @@
   .jp-tl-sheet td.c-product .jp-route-complete-btn {
     display: inline-flex;
     align-items: center;
-    border: 0;
-    cursor: pointer;
-    font-size: 10px;
+    border: 1px solid #15803d;
+    background: #f0fdf4;
+    color: #15803d;
+    border-radius: 999px;
+    font-size: .62rem;
     font-weight: 800;
-    letter-spacing: 0;
-    color: #fff;
-    background: #991b1b;
-    border-radius: 4px;
-    padding: 0 .42rem;
-    line-height: 1.45;
+    line-height: 1;
+    padding: .22rem .45rem;
+    cursor: pointer;
     white-space: nowrap;
   }
-  .jp-tl-sheet td.c-product .jp-route-complete-btn:hover {
-    background: #7f1d1d;
+  .jp-tl-sheet td.c-product .jp-route-complete-btn:hover,
+  .jp-tl-sheet td.c-product .jp-route-complete-btn:focus-visible {
+    background: #15803d;
+    color: #fff;
+    outline: 0;
   }
   .jp-tl-sheet td.c-product .jp-route-complete-btn.is-reopen {
-    color: #991b1b;
-    background: #fff;
-    border: 1px solid #fecaca;
+    border-color: #c2410c;
+    background: #fff7ed;
+    color: #c2410c;
   }
-  .jp-tl-sheet td.c-product .jp-route-complete-btn.is-reopen:hover {
-    color: #7f1d1d;
-    background: #fff1f2;
-    border-color: #fca5a5;
+  .jp-tl-sheet td.c-product .jp-route-complete-btn.is-reopen:hover,
+  .jp-tl-sheet td.c-product .jp-route-complete-btn.is-reopen:focus-visible {
+    background: #c2410c;
+    color: #fff;
+    border-color: #c2410c;
   }
   .jp-tl-sheet td.c-product .jp-tl-hh {
     display: inline-flex;

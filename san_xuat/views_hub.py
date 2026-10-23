@@ -1517,6 +1517,9 @@ def plan_board(request):
         ROUTE_VIEW_CHOICES,
         ROUTE_VIEW_OPEN,
         partition_route_rows,
+        route_plan_row_matches_team,
+        route_window_status_ids,
+        filter_route_order_ids_by_team,
         complete_route_order,
         reopen_route_order,
     )
@@ -2415,6 +2418,28 @@ def plan_board(request):
         board.rows = rows
         return board
 
+    def _filter_route_plan_rows(rows):
+        """Lọc ưu tiên / hạn trên đơn, trước khi dựng lưới ngày."""
+        valid_priorities = {value for value, _label in SxSalesOrder.PRIORITY_CHOICES}
+        if priority_filter in valid_priorities:
+            rows = [row for row in rows if row.order.plan_priority == priority_filter]
+        if deadline_filter == 'overdue':
+            rows = [row for row in rows if row.is_overdue or row.khsx_overrun]
+        elif deadline_filter == 'due_soon':
+            today = timezone.localdate()
+            kept = []
+            for row in rows:
+                due = row.order.due_date
+                if due is None:
+                    continue
+                days = (due - today).days
+                if 0 <= days <= 3:
+                    kept.append(row)
+            rows = kept
+        elif deadline_filter == 'on_time':
+            rows = [row for row in rows if not (row.is_overdue or row.khsx_overrun)]
+        return rows
+
     if tab == 'queue':
         from san_xuat.list_filters import parse_sx_date
         from san_xuat.services.plan_board import queue_statuses_for_filter, resolve_route_range
@@ -2541,16 +2566,58 @@ def plan_board(request):
             parse_sx_date((request.GET.get('route_to') or '').strip()) if route_dates_chosen else None,
             timezone.localdate(),
         )
-        route_rows = sort_plan_rows_by_placed_date(build_plan_board_rows(
-            include_released=True,
-            search=q,
-            date_from=route_from,
-            date_to=route_to,
-            date_mode='range',
-            persist_side_effects=False,
-        ))
+        # Trễ hạn cần ngày kết thúc KHSX đã tính. Các lọc còn lại đếm bằng mã đơn.
+        if deadline_filter in {'overdue', 'on_time'}:
+            route_rows = sort_plan_rows_by_placed_date(build_plan_board_rows(
+                include_released=True,
+                search=q,
+                date_from=route_from,
+                date_to=route_to,
+                date_mode='range',
+                persist_side_effects=False,
+                for_route=True,
+            ))
+            route_rows = _filter_route_plan_rows(route_rows)
+            route_groups = partition_route_rows(route_rows)
+            visible_rows = list(route_groups.get(route_view) or [])
+            if route_team_ids or route_team_unassigned:
+                for key, items in route_groups.items():
+                    route_groups[key] = [
+                        row for row in items
+                        if route_plan_row_matches_team(
+                            row, route_team_ids, route_team_unassigned,
+                        )
+                    ]
+            route_view_counts = {key: len(items) for key, items in route_groups.items()}
+        else:
+            grouped_ids = route_window_status_ids(
+                search=q,
+                date_from=route_from,
+                date_to=route_to,
+                priority=priority_filter,
+                deadline=deadline_filter,
+            )
+            if route_team_ids or route_team_unassigned:
+                for key, ids in grouped_ids.items():
+                    if key == route_view:
+                        continue
+                    grouped_ids[key] = filter_route_order_ids_by_team(
+                        ids, route_team_ids, route_team_unassigned,
+                    )
+            route_view_counts = {key: len(ids) for key, ids in grouped_ids.items()}
+            visible_rows = sort_plan_rows_by_placed_date(build_plan_board_rows(
+                include_released=True,
+                search=q,
+                date_from=route_from,
+                date_to=route_to,
+                date_mode='range',
+                persist_side_effects=False,
+                for_route=True,
+                order_ids=grouped_ids.get(route_view) or [],
+            ))
+            visible_rows = _filter_route_plan_rows(visible_rows)
         route_board = build_order_timeline(
-            route_rows,
+            visible_rows,
             range_from=route_from,
             range_to=route_to,
         )
@@ -2561,9 +2628,7 @@ def plan_board(request):
             include_unassigned_team=route_team_unassigned,
         )
         route_board = _apply_route_board_filters(route_board)
-        route_groups = partition_route_rows(route_board.rows)
-        route_view_counts = {key: len(items) for key, items in route_groups.items()}
-        route_board.rows = route_groups[route_view]
+        route_view_counts[route_view] = len(route_board.rows)
         route_stats = build_route_stats(route_board)
 
     from san_xuat.hub_models import SxProductionCancelRequest

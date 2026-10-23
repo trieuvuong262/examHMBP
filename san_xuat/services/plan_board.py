@@ -25,6 +25,7 @@ from san_xuat.hub_models import (
     SxSalesOrder,
     SxSalesOrderLine,
     SxSalesOrderPlanStep,
+    SxSalesOrderRoutingLine,
     SxWorkCenter,
 )
 from san_xuat.services.dispatch import DispatchError, create_mo_from_bom
@@ -2068,7 +2069,7 @@ def _assert_order_unreleasable(order: SxSalesOrder, mos: list[SxProductionOrder]
         raise PlanningError('Không hủy chuyển SX: đã có bàn giao bán thành phẩm.')
 
 
-def build_plan_board_rows(
+def plan_board_order_queryset(
     *,
     statuses: tuple[str, ...] | None = None,
     search: str = '',
@@ -2076,68 +2077,12 @@ def build_plan_board_rows(
     date_from: date | None = None,
     date_to: date | None = None,
     date_mode: str = 'queue_or_range',
-    persist_side_effects: bool = True,
     order_ids: list[int] | None = None,
-) -> list[PlanBoardRow]:
-    """Danh sách đơn trên board (MTO confirmed).
-
-    ``date_from`` / ``date_to`` lọc theo neo KHSX (``plan_start_date`` hoặc
-    ``request_date``) trên các tab danh sách.
-
-    ``date_mode``:
-      * ``queue_or_range`` — hàng đợi luôn hiện; đơn đã chuyển SX theo tháng.
-      * ``range`` — chỉ đơn có ngày KHSX/hạn giao chồng khoảng lọc (tab lộ trình).
-
-    ``persist_side_effects=False`` khi đọc trang: không tự tách ngày / reflow ghi DB.
-    """
-    qs = (
-        SxSalesOrder.objects.filter(
-            is_demo=False,
-            confirm_status=SxSalesOrder.CONFIRM_CONFIRMED,
-        )
-        .prefetch_related(
-            Prefetch(
-                'lines',
-                queryset=SxSalesOrderLine.objects.select_related(
-                    'bom_version', 'routing',
-                ).order_by('sort_order', 'id').prefetch_related(
-                    'routing_lines__work_center',
-                    'routing_lines__operation__group__default_work_center',
-                    'bom_version__process_steps',
-                ),
-            ),
-            Prefetch(
-                'production_orders',
-                queryset=SxProductionOrder.objects.filter(is_demo=False).order_by('-order_date', 'code'),
-            ),
-            Prefetch(
-                'plan_steps',
-                queryset=SxSalesOrderPlanStep.objects.select_related('work_center').order_by(
-                    'sequence', 'id',
-                ),
-            ),
-            Prefetch(
-                'team_day_plans',
-                queryset=SxOrderTeamDayPlan.objects.order_by('plan_date', 'id'),
-            ),
-            'npl_lines',
-            Prefetch(
-                'material_plans',
-                queryset=SxMaterialPlan.objects.filter(is_demo=False)
-                .exclude(status__in=(SxOverallPlan.STATUS_CANCELLED, SxOverallPlan.STATUS_DONE))
-                .order_by('-id')
-                .prefetch_related(
-                    Prefetch(
-                        'purchase_requests',
-                        queryset=SxNplPurchaseRequest.objects.filter(is_demo=False).order_by('-id'),
-                    ),
-                ),
-            ),
-            Prefetch(
-                'npl_purchase_requests',
-                queryset=SxNplPurchaseRequest.objects.filter(is_demo=False).order_by('-id'),
-            ),
-        )
+):
+    """Đơn đã xác nhận trên board, chưa kéo dòng hàng hay hồ sơ."""
+    qs = SxSalesOrder.objects.filter(
+        is_demo=False,
+        confirm_status=SxSalesOrder.CONFIRM_CONFIRMED,
     )
     if statuses:
         qs = qs.filter(plan_status__in=statuses)
@@ -2177,8 +2122,98 @@ def build_plan_board_rows(
                 overlap &= Q(_plan_anchor__lte=date_to)
             qs = qs.filter(overlap)
         else:
-            # Hàng đợi luôn hiện; đơn đã chuyển SX lọc theo tháng KHSX.
             qs = qs.filter(Q(plan_status__in=QUEUE_STATUSES) | date_q)
+    return qs
+
+
+def build_plan_board_rows(
+    *,
+    statuses: tuple[str, ...] | None = None,
+    search: str = '',
+    include_released: bool = False,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    date_mode: str = 'queue_or_range',
+    persist_side_effects: bool = True,
+    order_ids: list[int] | None = None,
+    for_route: bool = False,
+) -> list[PlanBoardRow]:
+    """Danh sách đơn trên board (MTO confirmed).
+
+    ``date_from`` / ``date_to`` lọc theo neo KHSX (``plan_start_date`` hoặc
+    ``request_date``) trên các tab danh sách.
+
+    ``date_mode``:
+      * ``queue_or_range`` — hàng đợi luôn hiện; đơn đã chuyển SX theo tháng.
+      * ``range`` — chỉ đơn có ngày KHSX/hạn giao chồng khoảng lọc (tab lộ trình).
+
+    ``persist_side_effects=False`` khi đọc trang: không tự tách ngày / reflow ghi DB.
+
+    ``for_route=True`` chỉ lấy snapshot công đoạn trên đơn. Không kéo công đoạn BOM,
+    danh mục vận hành đầy đủ, hay kế hoạch NPL — bảng lộ trình không vẽ các phần đó.
+    """
+    if for_route:
+        # Snapshot công đoạn trên đơn — không join hồ sơ BOM / routing thư viện.
+        line_qs = SxSalesOrderLine.objects.order_by('sort_order', 'id').prefetch_related(
+            'routing_lines__work_center',
+            'routing_lines__operation__group',
+        )
+    else:
+        line_qs = (
+            SxSalesOrderLine.objects.select_related('bom_version', 'routing')
+            .order_by('sort_order', 'id')
+            .prefetch_related(
+                'routing_lines__work_center',
+                'routing_lines__operation__group__default_work_center',
+                'bom_version__process_steps',
+            )
+        )
+    prefetches = [
+        Prefetch('lines', queryset=line_qs),
+        Prefetch(
+            'production_orders',
+            queryset=SxProductionOrder.objects.filter(is_demo=False).order_by('-order_date', 'code'),
+        ),
+        Prefetch(
+            'plan_steps',
+            queryset=SxSalesOrderPlanStep.objects.select_related('work_center').order_by(
+                'sequence', 'id',
+            ),
+        ),
+        Prefetch(
+            'team_day_plans',
+            queryset=SxOrderTeamDayPlan.objects.order_by('plan_date', 'id'),
+        ),
+    ]
+    if not for_route:
+        prefetches.extend([
+            'npl_lines',
+            Prefetch(
+                'material_plans',
+                queryset=SxMaterialPlan.objects.filter(is_demo=False)
+                .exclude(status__in=(SxOverallPlan.STATUS_CANCELLED, SxOverallPlan.STATUS_DONE))
+                .order_by('-id')
+                .prefetch_related(
+                    Prefetch(
+                        'purchase_requests',
+                        queryset=SxNplPurchaseRequest.objects.filter(is_demo=False).order_by('-id'),
+                    ),
+                ),
+            ),
+            Prefetch(
+                'npl_purchase_requests',
+                queryset=SxNplPurchaseRequest.objects.filter(is_demo=False).order_by('-id'),
+            ),
+        ])
+    qs = plan_board_order_queryset(
+        statuses=statuses,
+        search=search,
+        include_released=include_released,
+        date_from=date_from,
+        date_to=date_to,
+        date_mode=date_mode,
+        order_ids=order_ids,
+    ).prefetch_related(*prefetches)
 
     today = timezone.localdate()
     rows: list[PlanBoardRow] = []
@@ -2267,18 +2302,37 @@ def build_plan_board_rows(
                         pnames.append(n)
             pbuf = _buffer_from_flow_groups(groups)
             psmv = _q(line_order_smv_seconds(ln) / Decimal('60'), '0.0001')
-            line_has_ops = _line_has_operations(ln)
-            if ln.bom_version_id and line_has_ops:
+            if for_route:
+                line_has_ops = bool(groups or line_steps)
                 tech = {
                     'boms': [],
                     'routings': [],
                     'bom_create_url': '',
                     'routing_create_url': '',
                 }
+                bom_label = ''
+                routing_label = ''
             else:
-                tech = _tech_choices_for_code(code, _tech_choice_cache)
-            bom_obj = getattr(ln, 'bom_version', None)
-            rt_obj = getattr(ln, 'routing', None)
+                line_has_ops = _line_has_operations(ln)
+                if ln.bom_version_id and line_has_ops:
+                    tech = {
+                        'boms': [],
+                        'routings': [],
+                        'bom_create_url': '',
+                        'routing_create_url': '',
+                    }
+                else:
+                    tech = _tech_choices_for_code(code, _tech_choice_cache)
+                bom_obj = getattr(ln, 'bom_version', None)
+                rt_obj = getattr(ln, 'routing', None)
+                bom_label = (
+                    (getattr(bom_obj, 'version_label', None) or '')
+                    if ln.bom_version_id else ''
+                )
+                routing_label = (
+                    (getattr(rt_obj, 'routing_rev', None) or '')
+                    if ln.routing_id else ''
+                )
             product_flows.append(PlanProductFlow(
                 product_code=code,
                 product_name=(ln.product_name or '').strip(),
@@ -2294,8 +2348,8 @@ def build_plan_board_rows(
                 ),
                 has_bom=bool(ln.bom_version_id),
                 has_ops=line_has_ops,
-                bom_label=(getattr(bom_obj, 'version_label', None) or '') if ln.bom_version_id else '',
-                routing_label=(getattr(rt_obj, 'routing_rev', None) or '') if ln.routing_id else '',
+                bom_label=bom_label,
+                routing_label=routing_label,
                 available_boms=tech['boms'],
                 available_routings=tech['routings'],
                 bom_create_url=tech['bom_create_url'],
@@ -2446,39 +2500,49 @@ def build_plan_board_rows(
         }
         duration_script_id = f'jp-duration-{order.pk}'
 
-        # Gom mã SP unique cho modal Chuyển SX (chọn BOM) — kèm mặc định từ ĐĐH
+        # Gom mã SP unique cho modal Chuyển SX (chọn BOM) — kèm mặc định từ ĐĐH.
+        # Lộ trình không mở modal này và không đối chiếu hồ sơ BOM / OB.
         release_products: list[dict] = []
         seen_codes: set[str] = set()
         missing_bom = False
         missing_ops = False
-        for ln in lines:
-            if (ln.qty or 0) <= 0:
-                continue
-            code = (ln.product_code or '').strip()
-            key = code.casefold()
-            if not code or key in seen_codes:
-                continue
-            seen_codes.add(key)
-            line_has_ops = _line_has_operations(ln)
-            if not ln.bom_version_id:
-                missing_bom = True
-            if not line_has_ops:
-                missing_ops = True
-            release_products.append({
-                'code': code,
-                'name': (ln.product_name or '').strip(),
-                'qty': format_sx_num_input(ln.qty_to_produce),
-                'bom_version_id': ln.bom_version_id or None,
-                'routing_id': ln.routing_id or None,
-                'has_ops': line_has_ops,
-            })
-
-        npl_plan = next(iter(order.material_plans.all()), None)
+        npl_plan = None
         npl_pr = None
-        if npl_plan:
-            npl_pr = next(iter(npl_plan.purchase_requests.all()), None)
-        if npl_pr is None:
-            npl_pr = next(iter(order.npl_purchase_requests.all()), None)
+        npl_ok_count = 0
+        npl_missing_buy = False
+        if not for_route:
+            for ln in lines:
+                if (ln.qty or 0) <= 0:
+                    continue
+                code = (ln.product_code or '').strip()
+                key = code.casefold()
+                if not code or key in seen_codes:
+                    continue
+                seen_codes.add(key)
+                line_has_ops = _line_has_operations(ln)
+                if not ln.bom_version_id:
+                    missing_bom = True
+                if not line_has_ops:
+                    missing_ops = True
+                release_products.append({
+                    'code': code,
+                    'name': (ln.product_name or '').strip(),
+                    'qty': format_sx_num_input(ln.qty_to_produce),
+                    'bom_version_id': ln.bom_version_id or None,
+                    'routing_id': ln.routing_id or None,
+                    'has_ops': line_has_ops,
+                })
+
+            npl_plan = next(iter(order.material_plans.all()), None)
+            if npl_plan:
+                npl_pr = next(iter(npl_plan.purchase_requests.all()), None)
+            if npl_pr is None:
+                npl_pr = next(iter(order.npl_purchase_requests.all()), None)
+            npl_ok_count = sum(1 for ln in order.npl_lines.all() if ln.qty_shortfall <= 0)
+            npl_missing_buy = any(
+                ln.qty_shortfall > 0 and ln.buy_lead_days is None
+                for ln in order.npl_lines.all()
+            )
         npl_short = int(order.npl_short_count or 0)
         timeline_steps = build_ticket_timeline_steps(
             team_spans=team_spans,
@@ -2532,11 +2596,8 @@ def build_plan_board_rows(
             npl_ready_date=order.npl_ready_date,
             npl_lead_days=int(order.npl_lead_days or 0),
             npl_short_count=npl_short,
-            npl_ok_count=sum(1 for ln in order.npl_lines.all() if ln.qty_shortfall <= 0),
-            npl_missing_buy=any(
-                ln.qty_shortfall > 0 and ln.buy_lead_days is None
-                for ln in order.npl_lines.all()
-            ),
+            npl_ok_count=npl_ok_count,
+            npl_missing_buy=npl_missing_buy,
             npl_plan_id=npl_plan.pk if npl_plan else 0,
             npl_plan_code=(npl_plan.code if npl_plan else ''),
             npl_pr_id=npl_pr.pk if npl_pr else 0,
@@ -2552,11 +2613,12 @@ def build_plan_board_rows(
             r.order.id or 0,
         )
     )
-    _fill_npl_supplier_names(rows)
+    if not for_route:
+        _fill_npl_supplier_names(rows)
+        _fill_stage_progress(rows)
+        _fill_npl_issue_cover(rows)
     _fill_product_flow_images(rows)
     attach_subcontracts_to_plan_rows(rows)
-    _fill_stage_progress(rows)
-    _fill_npl_issue_cover(rows)
     return rows
 
 
@@ -5870,6 +5932,98 @@ def normalize_route_view(raw: str | None) -> str:
     return ROUTE_VIEW_OPEN
 
 
+def route_view_for_status(plan_status: str) -> str:
+    if plan_status == SxSalesOrder.PLAN_CANCELLED:
+        return ROUTE_VIEW_CANCELLED
+    if plan_status == SxSalesOrder.PLAN_DONE:
+        return ROUTE_VIEW_DONE
+    return ROUTE_VIEW_OPEN
+
+
+def route_window_status_ids(
+    *,
+    search: str = '',
+    date_from: date | None = None,
+    date_to: date | None = None,
+    priority: str = '',
+    deadline: str = '',
+    today: date | None = None,
+) -> dict[str, list[int]]:
+    """Id đơn trong khoảng lộ trình, chia tab. Không dựng công đoạn."""
+    qs = plan_board_order_queryset(
+        include_released=True,
+        search=search,
+        date_from=date_from,
+        date_to=date_to,
+        date_mode='range',
+    )
+    valid_priorities = {value for value, _label in SxSalesOrder.PRIORITY_CHOICES}
+    if priority in valid_priorities:
+        qs = qs.filter(plan_priority=priority)
+    today = today or timezone.localdate()
+    if deadline == 'due_soon':
+        qs = qs.filter(
+            due_date__isnull=False,
+            due_date__gte=today,
+            due_date__lte=today + timedelta(days=3),
+        )
+    groups = {
+        ROUTE_VIEW_OPEN: [],
+        ROUTE_VIEW_DONE: [],
+        ROUTE_VIEW_CANCELLED: [],
+    }
+    for pk, status in qs.order_by('pk').values_list('pk', 'plan_status').distinct():
+        groups[route_view_for_status(status)].append(int(pk))
+    return groups
+
+
+def filter_route_order_ids_by_team(
+    order_ids,
+    team_ids,
+    include_unassigned: bool = False,
+) -> list[int]:
+    """Đếm tab kia theo tổ đã lưu: kế hoạch ngày, bước KHSX, snapshot công đoạn."""
+    teams = {int(x) for x in (team_ids or []) if int(x) > 0}
+    ids = [int(pk) for pk in (order_ids or [])]
+    if not ids or (not teams and not include_unassigned):
+        return ids
+    wc_by_order: dict[int, set[int]] = {pk: set() for pk in ids}
+    saw_stage: set[int] = set()
+    unassigned: set[int] = set()
+
+    def _take(rows):
+        for oid, wc_id in rows:
+            oid = int(oid)
+            saw_stage.add(oid)
+            wc = int(wc_id or 0)
+            if wc > 0:
+                wc_by_order.setdefault(oid, set()).add(wc)
+            else:
+                unassigned.add(oid)
+
+    _take(
+        SxOrderTeamDayPlan.objects.filter(sales_order_id__in=ids)
+        .exclude(team_slug__iexact='npl')
+        .values_list('sales_order_id', 'work_center_id'),
+    )
+    _take(
+        SxSalesOrderPlanStep.objects.filter(sales_order_id__in=ids)
+        .values_list('sales_order_id', 'work_center_id'),
+    )
+    _take(
+        SxSalesOrderRoutingLine.objects.filter(sales_order_line__order_id__in=ids)
+        .values_list('sales_order_line__order_id', 'work_center_id'),
+    )
+    kept: list[int] = []
+    for oid in ids:
+        if teams & (wc_by_order.get(oid) or set()):
+            kept.append(oid)
+            continue
+        if include_unassigned and (oid in unassigned or oid not in saw_stage):
+            kept.append(oid)
+    return kept
+
+
 def route_list_status(order: SxSalesOrder) -> str:
     """Trạng thái đã lưu — tab lộ trình không dùng trạng thái suy ra tạm trên bộ nhớ."""
     stored = getattr(order, '_route_list_status', None)
@@ -5917,6 +6071,45 @@ def partition_route_rows(rows) -> dict[str, list]:
         else:
             groups[ROUTE_VIEW_OPEN].append(row)
     return groups
+
+
+def route_plan_row_matches_team(row, team_ids, include_unassigned: bool = False) -> bool:
+    """Lọc tổ trước khi dựng lưới — cùng ý với filter trên stage, không cần 82 cột ngày."""
+    teams = {int(x) for x in (team_ids or []) if int(x) > 0}
+    if not teams and not include_unassigned:
+        return True
+    wc_ids: set[int] = set()
+    has_unassigned = False
+    saw_stage = False
+    for span in getattr(row, 'team_spans', None) or []:
+        if (getattr(span, 'slug', '') or '').strip().lower() == 'npl':
+            continue
+        saw_stage = True
+        wc_id = int(getattr(span, 'work_center_id', 0) or 0)
+        if wc_id > 0:
+            wc_ids.add(wc_id)
+        else:
+            has_unassigned = True
+    order = getattr(row, 'order', None)
+    day_plans = []
+    if order is not None:
+        cache = getattr(order, '_prefetched_objects_cache', None) or {}
+        if 'team_day_plans' in cache:
+            day_plans = order.team_day_plans.all()
+    for day in day_plans:
+        if (getattr(day, 'team_slug', '') or '').strip().lower() == 'npl':
+            continue
+        saw_stage = True
+        wc_id = int(getattr(day, 'work_center_id', 0) or 0)
+        if wc_id > 0:
+            wc_ids.add(wc_id)
+        else:
+            has_unassigned = True
+    if teams & wc_ids:
+        return True
+    if include_unassigned and (has_unassigned or not saw_stage):
+        return True
+    return False
 
 
 def _order_route_totals_can_complete(order: SxSalesOrder) -> bool:
