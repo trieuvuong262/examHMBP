@@ -2,11 +2,11 @@
   <div class="jp-sheet-product-head">
     <span class="jp-tl-prio is-{{ row.order.plan_priority }}">{{ row.order.get_plan_priority_display }}</span>
     <a class="jp-tl-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}"
-       oncontextmenu="event.preventDefault(); if (window.jpRouteCtx) return window.jpRouteCtx(event); return false;">{{ row.order.code }}</a>
+       oncontextmenu="event.preventDefault(); if (window.jpRouteCtx) window.jpRouteCtx(event);">{{ row.order.code }}</a>
     <span class="jp-sheet-product-actions">
     {% if can_view_team_work_goods %}
     <a class="jp-tl-hh" href="{% url 'san_xuat:team_work_goods' %}?q={{ row.order.code|urlencode }}" title="Tiến độ hàng hoá của đơn"
-       oncontextmenu="event.preventDefault(); if (window.jpRouteCtx) return window.jpRouteCtx(event); return false;">Tiến độ</a>
+       oncontextmenu="event.preventDefault(); if (window.jpRouteCtx) window.jpRouteCtx(event);">Tiến độ</a>
     {% endif %}
     {% if route_view == 'open' and row.can_complete and can_schedule or route_view == 'open' and row.can_complete and can_release %}
     <form method="post" class="jp-route-complete"
@@ -55,7 +55,7 @@
               data-sx-gallery-images="{{ img.urls_json }}"
               title="{{ img.name }}">
         <img src="{{ img.url }}" alt="{{ img.name }}" loading="lazy"
-             oncontextmenu="event.preventDefault(); if (window.jpRouteCtx) return window.jpRouteCtx(event); return false;">
+             oncontextmenu="event.preventDefault(); if (window.jpRouteCtx) window.jpRouteCtx(event);">
       </button>
       {% else %}
       <span class="jp-tl-product is-empty" title="{{ img.name|default:'Chưa có ảnh' }}"><i class="bi bi-image" aria-hidden="true"></i></span>

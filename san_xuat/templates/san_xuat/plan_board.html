@@ -2060,7 +2060,7 @@
   }
   function swallow(ev) {
     if (!inSheet(ev) || editingField(ev)) return false;
-    if (ev.cancelable && ev.preventDefault) ev.preventDefault();
+    if (ev.preventDefault) ev.preventDefault();
     ev.returnValue = false;
     return true;
   }
@@ -2072,24 +2072,8 @@
     openPageMenu(ev);
     return false;
   };
-  var opt = { capture: true, passive: false };
-  window.addEventListener('mousedown', function (ev) {
-    if (ev.button === 2) swallow(ev);
-  }, opt);
-  window.addEventListener('pointerdown', function (ev) {
-    if (ev.button === 2) swallow(ev);
-  }, opt);
-  window.addEventListener('mouseup', function (ev) {
-    if (ev.button === 2) openPageMenu(ev);
-  }, opt);
-  window.addEventListener('pointerup', function (ev) {
-    if (ev.button === 2) openPageMenu(ev);
-  }, opt);
-  window.addEventListener('contextmenu', openPageMenu, opt);
-  document.addEventListener('contextmenu', function (ev) { swallow(ev); }, opt);
-  window.addEventListener('auxclick', function (ev) {
-    if (ev.button === 2) swallow(ev);
-  }, opt);
+  window.addEventListener('contextmenu', openPageMenu, { capture: true, passive: false });
+  document.addEventListener('contextmenu', function (ev) { swallow(ev); }, { capture: true, passive: false });
   function arm(el) {
     if (!el || el.nodeType !== 1 || el.getAttribute('data-jp-native-menu') === '1') return;
     if (!el.matches || !el.matches('a, img, button')) return;

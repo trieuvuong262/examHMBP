@@ -4,9 +4,7 @@
          data-range-start="{{ route_board.range_start|date:'Y-m-d' }}"
          {% if route_more_ids %}data-route-loading="1"{% endif %}
          data-today="{% now 'Y-m-d' %}"
-         onmousedown="if (event.button === 2) { event.preventDefault(); return false; }"
-         onmouseup="if (event.button === 2) { event.preventDefault(); if (window.jpRouteCtx) return window.jpRouteCtx(event); return false; }"
-         oncontextmenu="event.preventDefault(); if (window.jpRouteCtx) return window.jpRouteCtx(event); if (window.jpShowRouteCtx) window.jpShowRouteCtx(event); return false;">
+         oncontextmenu="event.preventDefault(); if (window.jpRouteCtx) window.jpRouteCtx(event);">
   {% csrf_token %}
   <div class="jp-route-full-bar">
     <span class="jp-route-full-title">Lộ trình sản xuất</span>
