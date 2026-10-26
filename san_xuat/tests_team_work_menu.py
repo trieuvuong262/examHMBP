@@ -10,6 +10,7 @@ from san_xuat.services.team_division_map import (
     user_can_open_team_work_slug,
     user_led_team_division_ids,
 )
+from san_xuat.views_hub import _can_update_route_progress
 
 
 def _sx_group():
@@ -116,6 +117,19 @@ class TeamWorkMenuLeaderTests(TestCase):
                 team_slug_for_division_id(self.div_may.pk),
                 team_slug_for_division_id(self.div_cat.pk),
             },
+        )
+
+    def test_route_progress_update_uses_manager_allowlist(self):
+        manager = _user('Ductn', group=self.group)
+        self.assertTrue(
+            _can_update_route_progress(manager, can_schedule=False, can_release=False),
+        )
+        ordinary = _user('cn.route.twmenu', group=self.group)
+        self.assertFalse(
+            _can_update_route_progress(ordinary, can_schedule=False, can_release=False),
+        )
+        self.assertTrue(
+            _can_update_route_progress(ordinary, can_schedule=True, can_release=False),
         )
 
     def test_admin_and_ductn_see_all(self):

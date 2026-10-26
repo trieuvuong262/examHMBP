@@ -1799,7 +1799,14 @@ def plan_board(request):
             and (request.POST.get('action') or '').strip() == 'route_day_sheet'
         )
     ):
-        return _route_progress_day(request, can_update=bool(can_schedule or can_release))
+        return _route_progress_day(
+            request,
+            can_update=_can_update_route_progress(
+                request.user,
+                can_schedule=can_schedule,
+                can_release=can_release,
+            ),
+        )
     q = (request.GET.get('q') or request.POST.get('q') or '').strip()
     date_from_raw = (request.GET.get('date_from') or request.POST.get('date_from') or '').strip()
     date_to_raw = (request.GET.get('date_to') or request.POST.get('date_to') or '').strip()
@@ -6859,6 +6866,20 @@ def _can_team_work_overview(user) -> bool:
         user_can_access_menu(user, MODULE_SAN_XUAT, menu_key)
         for _slug, _gk, menu_key, _label in TEAM_SLUGS
     )
+
+
+def _can_update_route_progress(user, *, can_schedule: bool, can_release: bool) -> bool:
+    """Quyền nhập SL trên phiếu ngày của lộ trình.
+
+    Các tài khoản quản lý được khai báo để quản lý toàn bộ Công việc tổ không
+    nhất thiết có quyền cập nhật menu KHSX. Phiếu ngày dùng chung endpoint của
+    bảng KHSX nên cần tính cả quyền quản lý tổ ở đây.
+    """
+    if can_schedule or can_release:
+        return True
+    from san_xuat.services.team_division_map import can_see_all_team_work_teams
+
+    return can_see_all_team_work_teams(user)
 
 
 def _nav_team_for_user(user):
