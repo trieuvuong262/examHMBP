@@ -1702,6 +1702,59 @@ body.jp-tool-loading-active {
     overflow: hidden;
 }
 
+/* Overlay riêng cho kéo thả ngày công đoạn trên lộ trình — tách biệt khỏi .jp-tool-loading */
+.jp-route-reschedule-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+}
+
+.jp-route-reschedule-panel {
+    width: min(100%, 24rem);
+    padding: 1.75rem 1.5rem;
+    border-radius: var(--jp-radius-lg);
+    background: #fff;
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.3);
+    text-align: center;
+}
+
+.jp-route-reschedule-spinner {
+    width: 2.75rem;
+    height: 2.75rem;
+    margin: 0 auto 1rem;
+    border: 3px solid #e2e8f0;
+    border-top-color: var(--hm-primary);
+    border-radius: 50%;
+    animation: jp-tool-loading-spin 0.85s linear infinite;
+}
+
+.jp-route-reschedule-msg {
+    font-size: 0.95rem;
+    font-family: var(--jp-font-emphasis);
+    font-weight: 500;
+    color: #1e293b;
+}
+
+body.jp-route-reschedule-active {
+    overflow: hidden;
+    pointer-events: none;
+}
+
+[data-theme="dark"] .jp-route-reschedule-panel {
+    background: #1e293b;
+    border: 1px solid #334155;
+}
+
+[data-theme="dark"] .jp-route-reschedule-msg {
+    color: #f1f5f9;
+}
+
 [data-theme="dark"] .jp-tool-loading-panel {
     background: #1e293b;
     border: 1px solid #334155;

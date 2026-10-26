@@ -254,6 +254,42 @@
   var dataEl = document.getElementById('jp-route-more-ids');
   var table = root ? root.querySelector('table.jp-tl-sheet') : null;
   if (!root || !dataEl || !table) return;
+  var shared = window.jpRouteMoreState || (window.jpRouteMoreState = {
+    generation: 0,
+    controllers: []
+  });
+  shared.generation += 1;
+  var generation = shared.generation;
+  shared.controllers.forEach(function (controller) {
+    try { controller.abort(); } catch (err) {}
+  });
+  shared.controllers = [];
+  window.jpCancelRouteMore = function () {
+    shared.generation += 1;
+    shared.controllers.forEach(function (controller) {
+      try { controller.abort(); } catch (err) {}
+    });
+    shared.controllers = [];
+    if (root.isConnected) root.removeAttribute('data-route-loading');
+  };
+  function active() {
+    return generation === shared.generation && root.isConnected;
+  }
+  function request(url) {
+    var controller = window.AbortController ? new AbortController() : null;
+    if (controller) shared.controllers.push(controller);
+    var options = {
+      credentials: 'same-origin',
+      headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'}
+    };
+    if (controller) options.signal = controller.signal;
+    return fetch(url.toString(), options).then(function (res) {
+      return res.json();
+    }).then(function (data) {
+      if (!active()) return null;
+      return data;
+    });
+  }
   var ids = [];
   try { ids = JSON.parse(dataEl.textContent || '[]'); } catch (err) { ids = []; }
   if (!ids.length) {
@@ -324,14 +360,15 @@
     url.searchParams.set('route_more', 'stats');
     url.searchParams.delete('ids');
     url.searchParams.delete('stt');
-    fetch(url.toString(), {credentials: 'same-origin', headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'}})
-      .then(function (res) { return res.json(); })
+    request(url)
       .then(function (data) {
+        if (!data || !active()) return;
         placeStats(data.html || '');
         addTeams(data.teams || []);
       })
       .catch(function () {})
       .then(function () {
+        if (!active()) return;
         root.removeAttribute('data-route-loading');
         renumber();
       });
@@ -346,14 +383,15 @@
     url.searchParams.set('route_more', '1');
     url.searchParams.set('ids', batch.join(','));
     url.searchParams.set('stt', String(shownCount()));
-    fetch(url.toString(), {credentials: 'same-origin', headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'}})
-      .then(function (res) { return res.json(); })
+    request(url)
       .then(function (data) {
+        if (!data || !active()) return;
         takeNodes(data.html || '', data.scripts || []);
         renumber();
         next();
       })
       .catch(function () {
+        if (!active()) return;
         root.removeAttribute('data-route-loading');
         renumber();
       });

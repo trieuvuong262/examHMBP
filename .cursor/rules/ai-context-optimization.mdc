@@ -1,0 +1,56 @@
+---
+description: Tối ưu context cho AI agent bằng graph-first và progressive disclosure
+alwaysApply: true
+---
+
+# Chính sách tối ưu context cho AI agent
+
+Mục tiêu là giảm token khám phá nhưng vẫn giữ độ chính xác. Không đọc rộng để "cho chắc" khi graph đã đủ thông tin.
+
+## Phân vai công cụ
+
+- **CodeGraph**: dùng cho symbol đã biết hoặc có thể xác định được — route, view, class, function, callers, callees, trace và impact.
+- **Codebase Memory**: dùng cho tìm kiếm semantic khi chưa biết tên symbol, kiến trúc tổng thể, quan hệ code với docs/config/Docker/infrastructure.
+- **Read/Grep**: chỉ dùng để xác minh source cụ thể sau khi đã thu hẹp phạm vi.
+
+Không gọi CodeGraph và Codebase Memory để giải quyết cùng một truy vấn nếu một công cụ đã trả đủ thông tin.
+
+## Quy trình bắt buộc
+
+1. Phân loại câu hỏi: symbol/flow/impact, semantic/architecture, hay sửa một file đã biết.
+2. Nếu là symbol/flow/impact, gọi CodeGraph trước:
+   - context cho câu hỏi tổng quan hoặc bug;
+   - search cho symbol/route;
+   - trace cho flow;
+   - callers/callees cho dependency;
+   - impact cho refactor.
+3. Nếu chưa biết symbol hoặc câu hỏi liên quan docs/config/infrastructure, dùng Codebase Memory trước.
+4. Từ kết quả graph, chọn tối đa 3–5 symbol/file trực tiếp liên quan.
+5. Đọc source theo symbol hoặc line range; không đọc toàn bộ file nếu chưa có lý do cụ thể.
+6. Chỉ mở rộng context khi có một câu hỏi chưa thể trả lời hoặc cần xác minh một giả định.
+7. Sau khi sửa, ưu tiên đọc diff và test liên quan; không đọc lại toàn bộ file.
+
+## Ngân sách context mặc định
+
+- Khảo sát ban đầu: tối đa 1 context graph + 2 truy vấn bổ sung.
+- Task nhỏ: tối đa 3 file trực tiếp hoặc khoảng 800 dòng source.
+- Task trung bình: chia thành các vùng chức năng; không gom toàn bộ repository vào một context.
+- Mỗi lần vượt ngân sách phải nêu lý do và mục tiêu của dữ liệu bổ sung.
+
+Đây là ngân sách định hướng, có thể vượt khi debug lỗi phức tạp hoặc thay đổi có blast radius lớn, nhưng phải mở rộng có mục tiêu.
+
+## Anti-pattern
+
+- Không đọc toàn bộ repository, app hoặc file lớn ngay từ đầu.
+- Không grep hàng loạt khi đã biết tên symbol.
+- Không chain nhiều node query riêng lẻ nếu một context/explore/trace đã đủ.
+- Không đưa nguyên văn kết quả graph dài vào câu trả lời; tóm tắt các node/edge liên quan.
+- Không tự suy đoán nội dung file bị loại khỏi index; chỉ đọc file đó khi thực sự cần và kiểm tra secret trước.
+
+## Khi index cũ
+
+Nếu kết quả graph không khớp source vừa sửa, kiểm tra trạng thái index và sync trước khi mở rộng đọc file. Sau khi sửa nhiều file, cập nhật CodeGraph; Codebase Memory dùng incremental index/watch khi server đang hoạt động.
+
+## Tri thức ổn định
+
+Đọc `docs/AI_CODEBASE_MAP.md` trước khi khảo sát kiến trúc. Cập nhật tài liệu memory/ADR khi phát hiện quyết định hoặc quy ước ổn định, thay vì lặp lại cùng một cuộc khám phá ở các task sau.

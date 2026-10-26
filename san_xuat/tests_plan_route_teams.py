@@ -2,6 +2,7 @@
 
 from datetime import date
 from decimal import Decimal
+from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
@@ -197,3 +198,39 @@ class RescheduleRouteViewTests(TestCase):
         spans = {s.slug: s for s in team_khsx_spans(SxSalesOrder.objects.get(pk=order.pk))}
         self.assertEqual(spans['cat'].start, date(2026, 8, 18))
         self.assertEqual(spans['may'].start, date(2026, 8, 4))
+
+    def test_route_drag_save_waits_for_reload_before_hiding_loading(self):
+        template = Path(__file__).resolve().parent / 'templates' / 'san_xuat' / 'plan_board.html'
+        source = template.read_text(encoding='utf-8')
+        start = source.index('  async function save(bar, newStart)')
+        end = source.index('  function syncPrepOpen()', start)
+        save_source = source[start:end]
+
+        self.assertIn('var overlay = document.getElementById(\'jpRouteRescheduleOverlay\');', save_source)
+        self.assertIn("('Đang lưu ' + teamLabel", save_source)
+        self.assertIn("overlayMsg.textContent = 'Đang cập nhật lộ trình…';", save_source)
+        self.assertNotIn("overlayMsg.textContent = 'Đã lưu — đang cập nhật lộ trình…';", save_source)
+        self.assertLess(
+            save_source.index("('Đang lưu ' + teamLabel"),
+            save_source.index("overlayMsg.textContent = 'Đang cập nhật lộ trình…';"),
+        )
+        self.assertEqual(save_source.count('await fetch('), 2)
+        self.assertIn("reloadUrl.searchParams.set('_route_refresh', String(Date.now()));", save_source)
+        self.assertIn("cache: 'no-store',", save_source)
+        self.assertIn("'Cache-Control': 'no-cache',", save_source)
+        self.assertIn('root.innerHTML = newRoot.innerHTML;', save_source)
+        self.assertIn('} finally {', save_source)
+        self.assertLess(save_source.index('root.innerHTML = newRoot.innerHTML;'), save_source.index('} finally {'))
+        self.assertIn("document.body.classList.remove('jp-route-reschedule-active');", save_source)
+        self.assertIn("if (typeof window.jpCancelRouteMore === 'function') window.jpCancelRouteMore();", save_source)
+
+        timeline = (Path(__file__).resolve().parent / 'templates' / 'san_xuat' / 'includes' / 'plan_order_timeline.html').read_text(encoding='utf-8')
+        self.assertIn('window.jpCancelRouteMore', timeline)
+        self.assertIn('AbortController', timeline)
+        self.assertIn('if (!data || !active()) return;', timeline)
+
+        view_source = Path(__file__).resolve().parent / 'views_hub.py'
+        view_text = view_source.read_text(encoding='utf-8')
+        self.assertIn("force_full_route = bool((request.GET.get('_route_refresh') or '').strip())", view_text)
+        self.assertIn('refresh_route_sheets(batch, range_from=route_from, range_to=route_to)', view_text)
+        self.assertIn('first_ids, route_more_ids = active_ids, []', view_text)

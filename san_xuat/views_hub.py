@@ -2828,9 +2828,11 @@ def plan_board(request):
         from san_xuat.services.route_sheet import (
             ensure_route_sheets,
             load_route_board,
+            refresh_route_sheets,
             route_sheet_deadline_ids,
         )
 
+        force_full_route = bool((request.GET.get('_route_refresh') or '').strip())
         grouped_ids = route_window_status_ids(
             search=q,
             date_from=route_from,
@@ -2854,6 +2856,10 @@ def plan_board(request):
 
         def _route_board_for(ids):
             batch = [int(pk) for pk in ids if int(pk) > 0]
+            if force_full_route:
+                # reschedule_route queues route-sheet rebuild after commit. The
+                # immediate partial reload must not read that stale snapshot.
+                refresh_route_sheets(batch, range_from=route_from, range_to=route_to)
             ensure_route_sheets(batch, range_from=route_from, range_to=route_to)
             if deadline_filter in {'overdue', 'on_time'}:
                 allowed = route_sheet_deadline_ids(batch, deadline_filter, timezone.localdate())
@@ -2925,11 +2931,18 @@ def plan_board(request):
                 'count': len(route_board.rows),
             })
 
-        half = (len(active_ids) + 1) // 2
-        if len(active_ids) < 2:
+        # Partial reload after a route drag must be self-contained. The original
+        # page intentionally loads half of the rows and appends the rest through
+        # a background route_more request, but scripts inserted with innerHTML do
+        # not execute and the old request can race with this refreshed DOM.
+        if force_full_route:
             first_ids, route_more_ids = active_ids, []
         else:
-            first_ids, route_more_ids = active_ids[:half], active_ids[half:]
+            half = (len(active_ids) + 1) // 2
+            if len(active_ids) < 2:
+                first_ids, route_more_ids = active_ids, []
+            else:
+                first_ids, route_more_ids = active_ids[:half], active_ids[half:]
         route_board = _route_board_for(first_ids)
         route_team_choices = route_team_filter_choices(route_board)
         if route_more_ids:
@@ -2971,7 +2984,7 @@ def plan_board(request):
         route_board=route_board,
     )
 
-    return render(request, 'san_xuat/plan_board.html', {
+    response = render(request, 'san_xuat/plan_board.html', {
         **_perm_ctx(request),
         'board_return_path': board_return_path,
         'mode': mode,
@@ -3044,6 +3057,10 @@ def plan_board(request):
         ),
         'can_view_npl_orders': user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan_npl'),
     })
+    response['Cache-Control'] = 'private, no-store, max-age=0'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    return response
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')

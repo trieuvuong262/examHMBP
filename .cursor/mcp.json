@@ -9,6 +9,10 @@
         "--path",
         "D:\\Project\\PortalJustPlay"
       ]
+    },
+    "codebase-memory": {
+      "type": "stdio",
+      "command": "D:\\Project\\PortalJustPlay\\.venv\\Scripts\\codebase-memory-mcp.exe"
     }
   }
 }

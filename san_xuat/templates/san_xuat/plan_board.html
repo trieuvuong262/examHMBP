@@ -2664,6 +2664,14 @@
   </div>
 </div>
 
+<div id="jpRouteRescheduleOverlay" class="jp-route-reschedule-overlay d-none"
+     aria-hidden="true" role="alertdialog" aria-labelledby="jpRouteRescheduleMsg" aria-modal="true">
+  <div class="jp-route-reschedule-panel">
+    <div class="jp-route-reschedule-spinner" aria-hidden="true"></div>
+    <p id="jpRouteRescheduleMsg" class="jp-route-reschedule-msg mb-0">Đang cập nhật lộ trình…</p>
+  </div>
+</div>
+
 <div id="jpTlCtxMenu" class="jp-tl-ctx" hidden role="menu" aria-label="Menu lộ trình"
      oncontextmenu="event.preventDefault(); return false;">
   <button type="button" class="jp-tl-ctx-item" data-jp-ctx="split" role="menuitem">
@@ -4647,7 +4655,7 @@
   document.addEventListener('pointerup', onPointerUp);
   document.addEventListener('pointercancel', onPointerUp);
 
-  function save(bar, newStart) {
+  async function save(bar, newStart) {
     if (!csrf) {
       alert('Thiếu mã bảo mật — tải lại trang rồi kéo lại.');
       return;
@@ -4666,114 +4674,107 @@
     body.set('csrfmiddlewaretoken', csrf);
     var orderCode = bar.getAttribute('data-order-code') || '';
     var teamLabel = (bar.getAttribute('title') || '').split(' · ')[0] || bar.getAttribute('data-team-slug') || 'công đoạn';
-    // Tìm loading overlay mỗi lần gọi để đảm bảo lấy đúng element
-    // kể cả khi DOM vừa được lazy-render hoặc partial reload trước đó
-    var loadEl = document.getElementById('jpRouteDragLoading');
-    var loadMsg = document.getElementById('jpRouteDragLoadingMsg');
-    if (loadMsg) {
-      loadMsg.textContent = orderCode
-        ? ('Đang xếp ' + teamLabel + ' — ' + orderCode + '…')
-        : ('Đang cập nhật lịch ' + teamLabel + '…');
+    var overlay = document.getElementById('jpRouteRescheduleOverlay');
+    var overlayMsg = document.getElementById('jpRouteRescheduleMsg');
+    if (overlayMsg) {
+      overlayMsg.textContent = orderCode
+        ? ('Đang lưu ' + teamLabel + ' — ' + orderCode + '…')
+        : ('Đang lưu lịch ' + teamLabel + '…');
     }
-    if (loadEl) {
-      loadEl.classList.remove('d-none');
-      loadEl.setAttribute('aria-hidden', 'false');
-      document.body.classList.add('jp-tool-loading-active');
+    if (overlay) {
+      overlay.classList.remove('d-none');
+      overlay.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('jp-route-reschedule-active');
     }
-    // Chặn tương tác trên sheet trong lúc đang lưu
     chart.style.pointerEvents = 'none';
     bar.classList.add('is-saving');
 
     function hideSaveLoading() {
       chart.style.pointerEvents = '';
       bar.classList.remove('is-saving');
-      // Tìm lại loadEl vì sau partial reload element cũ có thể bị thay thế
-      var el = document.getElementById('jpRouteDragLoading');
+      var el = document.getElementById('jpRouteRescheduleOverlay');
       if (el) {
         el.classList.add('d-none');
         el.setAttribute('aria-hidden', 'true');
       }
-      document.body.classList.remove('jp-tool-loading-active');
+      document.body.classList.remove('jp-route-reschedule-active');
     }
 
-    fetch(window.location.pathname + window.location.search, {
-      method: 'POST',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-        'Accept': 'application/json',
-        'X-CSRFToken': csrf,
-      },
-      body: body,
-      credentials: 'same-origin',
-    }).then(function (res) {
-      return res.json().then(function (data) {
-        if (!res.ok || !data.ok) {
-          throw new Error((data && data.error) || 'Không lưu được lịch.');
-        }
-        // Cập nhật message loading
-        var msg = document.getElementById('jpRouteDragLoadingMsg');
-        if (msg) msg.textContent = 'Đã lưu — đang cập nhật lộ trình…';
-        // Partial reload: fetch lại HTML của trang, extract #lo-trinh, replace nội dung
-        var reloadUrl = new URL(window.location.href);
-        reloadUrl.searchParams.delete('route_day');
-        reloadUrl.searchParams.delete('route_more');
-        return fetch(reloadUrl.toString(), {
-          credentials: 'same-origin',
-          headers: {'Accept': 'text/html'},
-        }).then(function (htmlRes) {
-          if (!htmlRes.ok) throw new Error('Không tải lại được lộ trình.');
-          return htmlRes.text();
-        }).then(function (html) {
-          var parser = new DOMParser();
-          var doc = parser.parseFromString(html, 'text/html');
-          var newRoot = doc.getElementById('lo-trinh');
-          if (!newRoot) {
-            console.error('[reschedule] #lo-trinh not found. Response length:', html.length);
-            throw new Error('Khong tim thay du lieu lo trinh moi.');
-          }
-          // Giữ lại scroll position
-          var scrollWrap = chart.closest('.jp-tl-scroll') || chart.closest('.table-responsive') || root;
-          var scrollLeft = scrollWrap ? scrollWrap.scrollLeft : 0;
-          var scrollTop = scrollWrap ? scrollWrap.scrollTop : 0;
-          // Cập nhật tất cả data attributes từ root mới
-          Array.prototype.forEach.call(newRoot.attributes, function (attr) {
-            if (attr.name.indexOf('data-') === 0) {
-              root.setAttribute(attr.name, attr.value);
-            }
-          });
-          // Replace innerHTML với nội dung mới
-          root.innerHTML = newRoot.innerHTML;
-          // Cập nhật reference chart cho các hàm khác trong IIFE
-          chart = root.querySelector('.jp-tl-sheet-wrap') || root.querySelector('.jp-tl-chart');
-          // Re-bind toggle listeners cho .jp-tl-prep (vì innerHTML replace làm mất listener cũ)
-          if (chart) {
-            chart.querySelectorAll('.jp-tl-prep').forEach(function (el) {
-              el.addEventListener('toggle', function () {
-                if (el.open) {
-                  chart.querySelectorAll('.jp-tl-prep[open]').forEach(function (other) {
-                    if (other !== el) other.open = false;
-                  });
-                }
-                var openList = chart.querySelectorAll('.jp-tl-prep[open]');
-                chart.classList.toggle('is-prep-open', openList.length > 0);
-              });
-            });
-          }
-          // Báo cho các script khác biết lộ trình vừa được reload
-          root.dispatchEvent(new CustomEvent('jp-route-reloaded'));
-          // Restore scroll position
-          if (scrollWrap) {
-            scrollWrap.scrollLeft = scrollLeft;
-            scrollWrap.scrollTop = scrollTop;
-          }
-          // Ẩn loading CHỈ SAU KHI DOM đã được cập nhật xong hoàn toàn
-          hideSaveLoading();
-        });
+    try {
+      var res = await fetch(window.location.pathname + window.location.search, {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json',
+          'X-CSRFToken': csrf,
+        },
+        body: body,
+        credentials: 'same-origin',
       });
-    }).catch(function (err) {
-      hideSaveLoading();
+      var data;
+      try {
+        data = await res.json();
+      } catch (parseErr) {
+        throw new Error('Phản hồi lưu lịch không hợp lệ.');
+      }
+      if (!res.ok || !data.ok) {
+        throw new Error((data && data.error) || 'Không lưu được lịch.');
+      }
+      if (typeof window.jpCancelRouteMore === 'function') window.jpCancelRouteMore();
+      if (overlayMsg) overlayMsg.textContent = 'Đang cập nhật lộ trình…';
+
+      var reloadUrl = new URL(window.location.href);
+      reloadUrl.searchParams.delete('route_day');
+      reloadUrl.searchParams.delete('route_more');
+      // POST đã commit xong; không cho trình duyệt/proxy trả lại HTML lộ trình cũ.
+      reloadUrl.searchParams.set('_route_refresh', String(Date.now()));
+      var htmlRes = await fetch(reloadUrl.toString(), {
+        cache: 'no-store',
+        credentials: 'same-origin',
+        headers: {
+          'Accept': 'text/html',
+          'Cache-Control': 'no-cache',
+        },
+      });
+      if (!htmlRes.ok) throw new Error('Không tải lại được lộ trình.');
+      var html = await htmlRes.text();
+      var parser = new DOMParser();
+      var doc = parser.parseFromString(html, 'text/html');
+      var newRoot = doc.getElementById('lo-trinh');
+      if (!newRoot) {
+        console.error('[reschedule] #lo-trinh not found. Response length:', html.length);
+        throw new Error('Không tìm thấy dữ liệu lộ trình mới.');
+      }
+      var scrollWrap = chart.closest('.jp-tl-scroll') || chart.closest('.table-responsive') || root;
+      var scrollLeft = scrollWrap ? scrollWrap.scrollLeft : 0;
+      var scrollTop = scrollWrap ? scrollWrap.scrollTop : 0;
+      Array.prototype.forEach.call(newRoot.attributes, function (attr) {
+        if (attr.name.indexOf('data-') === 0) root.setAttribute(attr.name, attr.value);
+      });
+      root.innerHTML = newRoot.innerHTML;
+      chart = root.querySelector('.jp-tl-sheet-wrap') || root.querySelector('.jp-tl-chart');
+      if (chart) {
+        chart.querySelectorAll('.jp-tl-prep').forEach(function (el) {
+          el.addEventListener('toggle', function () {
+            if (el.open) {
+              chart.querySelectorAll('.jp-tl-prep[open]').forEach(function (other) {
+                if (other !== el) other.open = false;
+              });
+            }
+            chart.classList.toggle('is-prep-open', chart.querySelectorAll('.jp-tl-prep[open]').length > 0);
+          });
+        });
+      }
+      root.dispatchEvent(new CustomEvent('jp-route-reloaded'));
+      if (scrollWrap) {
+        scrollWrap.scrollLeft = scrollLeft;
+        scrollWrap.scrollTop = scrollTop;
+      }
+    } catch (err) {
       alert(err.message || 'Không lưu được lịch.');
-    });
+    } finally {
+      hideSaveLoading();
+    }
   }
 
   function syncPrepOpen() {
