@@ -33,7 +33,17 @@ def mark_route_sheet_dirty(order_id: int | None) -> None:
             ids.clear()
             connection._route_sheet_dirty = None
             if pending:
-                refresh_route_sheets(pending)
+                # Rebuilding the route payload can be expensive.  Do not make
+                # the request that changed production progress wait for it;
+                # otherwise the modal appears to hang after the database write.
+                from PortalJustPlay.background import enqueue
+
+                enqueue(
+                    refresh_route_sheets,
+                    pending,
+                    timeout=900,
+                    description='Refresh route sheets',
+                )
 
         transaction.on_commit(_flush)
     bucket.add(oid)

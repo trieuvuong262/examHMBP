@@ -1584,8 +1584,17 @@ def _route_progress_day(request, *, can_update: bool):
                 mo = accept_production(mo_id=mo.pk, team_slug=slug, user=request.user)
             except PlanningError as exc:
                 return _fail(str(exc))
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).exception('route_day_sheet: accept_production failed')
+                return _fail(f'Lỗi nhận sản xuất: {exc}')
         else:
-            ensure_team_accept(mo_id=mo.pk, team_slug=slug, user=request.user)
+            try:
+                ensure_team_accept(mo_id=mo.pk, team_slug=slug, user=request.user)
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).exception('route_day_sheet: ensure_team_accept failed')
+                return _fail(f'Lỗi xác nhận tổ: {exc}')
         try:
             payload = _json.loads(request.POST.get('sizes') or '[]')
         except (TypeError, ValueError):
@@ -1611,8 +1620,12 @@ def _route_progress_day(request, *, can_update: bool):
                 team_slug=slug,
                 stat_date=ngay,
             ) if size_qtys else []
-        except Exception as exc:
+        except PlanningError as exc:
             return _fail(str(exc))
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).exception('route_day_sheet: set_team_day_qtys failed')
+            return _fail(f'Lỗi lưu sản lượng: {exc}')
         rollups = team_size_rollups(mo, steps=team_steps, team=team_meta) if written else {}
         sizes_out = []
         for row in written:

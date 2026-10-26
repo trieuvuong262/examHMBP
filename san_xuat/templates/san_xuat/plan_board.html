@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 
 {% load sx_format %}
 {% block extra_head %}
@@ -4636,6 +4636,7 @@
     try { payload.bar.releasePointerCapture(ev.pointerId); } catch (err) {}
     clearDragClass();
     if (!payload.moved) return;
+    root.setAttribute('data-route-dragged-at', String(Date.now()));
     var ymd = dateFromClientX(ev.clientX, payload.bar);
     if (!ymd || !parseYmd(ymd)) return;
     if (ymd === payload.start) return;
@@ -4665,6 +4666,8 @@
     body.set('csrfmiddlewaretoken', csrf);
     var orderCode = bar.getAttribute('data-order-code') || '';
     var teamLabel = (bar.getAttribute('title') || '').split(' · ')[0] || bar.getAttribute('data-team-slug') || 'công đoạn';
+    // Tìm loading overlay mỗi lần gọi để đảm bảo lấy đúng element
+    // kể cả khi DOM vừa được lazy-render hoặc partial reload trước đó
     var loadEl = document.getElementById('jpRouteDragLoading');
     var loadMsg = document.getElementById('jpRouteDragLoadingMsg');
     if (loadMsg) {
@@ -4677,7 +4680,22 @@
       loadEl.setAttribute('aria-hidden', 'false');
       document.body.classList.add('jp-tool-loading-active');
     }
+    // Chặn tương tác trên sheet trong lúc đang lưu
+    chart.style.pointerEvents = 'none';
     bar.classList.add('is-saving');
+
+    function hideSaveLoading() {
+      chart.style.pointerEvents = '';
+      bar.classList.remove('is-saving');
+      // Tìm lại loadEl vì sau partial reload element cũ có thể bị thay thế
+      var el = document.getElementById('jpRouteDragLoading');
+      if (el) {
+        el.classList.add('d-none');
+        el.setAttribute('aria-hidden', 'true');
+      }
+      document.body.classList.remove('jp-tool-loading-active');
+    }
+
     fetch(window.location.pathname + window.location.search, {
       method: 'POST',
       headers: {
@@ -4692,16 +4710,68 @@
         if (!res.ok || !data.ok) {
           throw new Error((data && data.error) || 'Không lưu được lịch.');
         }
-        if (loadMsg) loadMsg.textContent = 'Đã lưu — đang tải lại lộ trình…';
-        window.location.reload();
+        // Cập nhật message loading
+        var msg = document.getElementById('jpRouteDragLoadingMsg');
+        if (msg) msg.textContent = 'Đã lưu — đang cập nhật lộ trình…';
+        // Partial reload: fetch lại HTML của trang, extract #lo-trinh, replace nội dung
+        var reloadUrl = new URL(window.location.href);
+        reloadUrl.searchParams.delete('route_day');
+        reloadUrl.searchParams.delete('route_more');
+        return fetch(reloadUrl.toString(), {
+          credentials: 'same-origin',
+          headers: {'Accept': 'text/html'},
+        }).then(function (htmlRes) {
+          if (!htmlRes.ok) throw new Error('Không tải lại được lộ trình.');
+          return htmlRes.text();
+        }).then(function (html) {
+          var parser = new DOMParser();
+          var doc = parser.parseFromString(html, 'text/html');
+          var newRoot = doc.getElementById('lo-trinh');
+          if (!newRoot) {
+            console.error('[reschedule] #lo-trinh not found. Response length:', html.length);
+            throw new Error('Khong tim thay du lieu lo trinh moi.');
+          }
+          // Giữ lại scroll position
+          var scrollWrap = chart.closest('.jp-tl-scroll') || chart.closest('.table-responsive') || root;
+          var scrollLeft = scrollWrap ? scrollWrap.scrollLeft : 0;
+          var scrollTop = scrollWrap ? scrollWrap.scrollTop : 0;
+          // Cập nhật tất cả data attributes từ root mới
+          Array.prototype.forEach.call(newRoot.attributes, function (attr) {
+            if (attr.name.indexOf('data-') === 0) {
+              root.setAttribute(attr.name, attr.value);
+            }
+          });
+          // Replace innerHTML với nội dung mới
+          root.innerHTML = newRoot.innerHTML;
+          // Cập nhật reference chart cho các hàm khác trong IIFE
+          chart = root.querySelector('.jp-tl-sheet-wrap') || root.querySelector('.jp-tl-chart');
+          // Re-bind toggle listeners cho .jp-tl-prep (vì innerHTML replace làm mất listener cũ)
+          if (chart) {
+            chart.querySelectorAll('.jp-tl-prep').forEach(function (el) {
+              el.addEventListener('toggle', function () {
+                if (el.open) {
+                  chart.querySelectorAll('.jp-tl-prep[open]').forEach(function (other) {
+                    if (other !== el) other.open = false;
+                  });
+                }
+                var openList = chart.querySelectorAll('.jp-tl-prep[open]');
+                chart.classList.toggle('is-prep-open', openList.length > 0);
+              });
+            });
+          }
+          // Báo cho các script khác biết lộ trình vừa được reload
+          root.dispatchEvent(new CustomEvent('jp-route-reloaded'));
+          // Restore scroll position
+          if (scrollWrap) {
+            scrollWrap.scrollLeft = scrollLeft;
+            scrollWrap.scrollTop = scrollTop;
+          }
+          // Ẩn loading CHỈ SAU KHI DOM đã được cập nhật xong hoàn toàn
+          hideSaveLoading();
+        });
       });
     }).catch(function (err) {
-      bar.classList.remove('is-saving');
-      if (loadEl) {
-        loadEl.classList.add('d-none');
-        loadEl.setAttribute('aria-hidden', 'true');
-        document.body.classList.remove('jp-tool-loading-active');
-      }
+      hideSaveLoading();
       alert(err.message || 'Không lưu được lịch.');
     });
   }
@@ -4740,6 +4810,14 @@
     csrf = m ? decodeURIComponent(m[1]) : '';
   }
   var dragging = null;
+
+  // Cập nhật lại table và csrf sau khi partial reload (kéo ngày/công đoạn)
+  root.addEventListener('jp-route-reloaded', function () {
+    var newTable = root.querySelector('table.jp-tl-sheet');
+    if (newTable) table = newTable;
+    var newCsrf = root.querySelector('input[name=csrfmiddlewaretoken]');
+    if (newCsrf && newCsrf.value) csrf = newCsrf.value;
+  });
 
   function groups() {
     return Array.from(table.querySelectorAll('tbody.jp-sheet-order'));
@@ -5400,6 +5478,12 @@
     else enter();
   });
   if (closeBtn) closeBtn.addEventListener('click', leave);
+  // Event delegation cho closeBtn vì nó nằm bên trong #lo-trinh,
+  // bị thay thế khi partial reload sau kéo ngày/công đoạn
+  sheet.addEventListener('click', function (ev) {
+    var t = ev.target && ev.target.closest ? ev.target.closest('#jpRouteFullscreenExit') : null;
+    if (t) leave();
+  });
   document.addEventListener('fullscreenchange', function () {
     if (!document.fullscreenElement && sheet.classList.contains('is-fullscreen')) {
       sheet.classList.remove('is-fullscreen');

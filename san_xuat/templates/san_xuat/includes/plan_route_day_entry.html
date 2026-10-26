@@ -381,9 +381,13 @@
     fields.order_id = dayData.order_id || '';
     fields.slug = dayData.slug;
     fields.stat_date = dayData.date;
-    var url = new URL(window.location.pathname + window.location.search);
+    var url = new URL(window.location.href);
     url.searchParams.delete('route_day');
     url.searchParams.delete('route_more');
+    var controller = window.AbortController ? new AbortController() : null;
+    var timer = window.setTimeout(function () {
+      if (controller) controller.abort();
+    }, 30000);
     return fetch(url.toString(), {
       method: 'POST',
       headers: {
@@ -392,73 +396,104 @@
         'X-CSRFToken': csrfToken()
       },
       body: new URLSearchParams(fields),
-      credentials: 'same-origin'
+      credentials: 'same-origin',
+      signal: controller ? controller.signal : undefined
     }).then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (data) {
         if (!res.ok || !data.ok) throw new Error(data.error || 'Không lưu được.');
         return data;
       });
+    }).catch(function (err) {
+      if (err && err.name === 'AbortError') {
+        throw new Error('Lưu quá lâu (30 giây). Vui lòng kiểm tra lại dữ liệu rồi thử lại.');
+      }
+      throw err;
+    }).finally(function () {
+      window.clearTimeout(timer);
     });
   }
   function saveSheet() {
     if (saving || !dayData || !dayData.can_update) return;
-    var note = document.getElementById('jpRdNote');
-    var noteVal = note ? (note.value || '').trim() : '';
-    var noteChanged = !!(note && noteVal !== (note.getAttribute('data-orig') || '').trim());
-    var rows = [];
-    inputs().forEach(function (input) {
-      var qty = liveQty(input);
-      if (plain(qty) === plain(num(input.getAttribute('data-qty')))) return;
-      rows.push({size: input.getAttribute('data-size') || '', qty: String(qty)});
-    });
-    if (!rows.length && !noteChanged) { setStatus('Đã lưu.', 'ok'); return; }
     saving = true;
     var btn = document.getElementById('jpRdSave');
     if (btn) btn.disabled = true;
-    setStatus('');
-    postDay({
-      sizes: JSON.stringify(rows),
-      save_note: noteChanged ? '1' : '0',
-      notes: noteChanged ? noteVal : ''
-    }).then(function (data) {
-      (data.sizes || []).forEach(function (row) {
-        var input = null;
-        inputs().forEach(function (el) {
-          if ((el.getAttribute('data-size') || '') === (row.size || '')) input = el;
-        });
-        if (!input) return;
-        input.setAttribute('data-qty', plain(row.day_done));
-        input.setAttribute('data-done', plain(dayData.scope === 'day' ? row.day_done : row.size_done));
-        paintInput(input, false);
-        if (row.log) {
-          var key = input.getAttribute('data-size') || '';
-          dayLogs[key] = dayLogs[key] || [];
-          dayLogs[key].unshift(row.log);
-          var hist = input.closest('tr').querySelector('.jp-rd-hist-btn');
-          if (hist) hist.classList.add('has-log');
-        }
+    try {
+      var note = document.getElementById('jpRdNote');
+      var noteVal = note ? (note.value || '').trim() : '';
+      var noteChanged = !!(note && noteVal !== (note.getAttribute('data-orig') || '').trim());
+      var rows = [];
+      inputs().forEach(function (input) {
+        var qty = liveQty(input);
+        if (plain(qty) === plain(num(input.getAttribute('data-qty')))) return;
+        rows.push({size: input.getAttribute('data-size') || '', qty: String(qty)});
       });
-      fillSums(false);
-      paintRoute(sourceCell, dayTotal(false));
-      if (note && data.notes != null) {
-        note.value = data.notes || '';
-        note.setAttribute('data-orig', data.notes || '');
+      if (!rows.length && !noteChanged) {
+        setStatus('Đã lưu.', 'ok');
+        saving = false;
+        if (btn) btn.disabled = false;
+        return;
       }
-      setStatus('Đã lưu.', 'ok');
-    }).catch(function (err) {
-      setStatus(err.message || 'Không lưu được SL.', 'err');
-    }).then(function () {
+      setStatus('Đang lưu…', 'info');
+      postDay({
+        sizes: JSON.stringify(rows),
+        save_note: noteChanged ? '1' : '0',
+        notes: noteChanged ? noteVal : ''
+      }).then(function (data) {
+        try {
+          (data.sizes || []).forEach(function (row) {
+            var input = null;
+            inputs().forEach(function (el) {
+              if ((el.getAttribute('data-size') || '') === (row.size || '')) input = el;
+            });
+            if (!input) return;
+            input.setAttribute('data-qty', plain(row.day_done));
+            input.setAttribute('data-done', plain(dayData.scope === 'day' ? row.day_done : row.size_done));
+            paintInput(input, false);
+            if (row.log) {
+              var key = input.getAttribute('data-size') || '';
+              dayLogs[key] = dayLogs[key] || [];
+              dayLogs[key].unshift(row.log);
+              var tr = input.closest('tr');
+              var hist = tr ? tr.querySelector('.jp-rd-hist-btn') : null;
+              if (hist) hist.classList.add('has-log');
+            }
+          });
+          fillSums(false);
+          paintRoute(sourceCell, dayTotal(false));
+          if (note && data.notes != null) {
+            note.value = data.notes || '';
+            note.setAttribute('data-orig', data.notes || '');
+          }
+          setStatus('Đã lưu.', 'ok');
+        } catch (renderErr) {
+          console.error('[jpRouteDay] Lỗi cập nhật UI sau khi lưu:', renderErr);
+          setStatus('Đã lưu nhưng lỗi hiển thị. Tải lại trang.', 'warn');
+        }
+      }).catch(function (err) {
+        setStatus(err.message || 'Không lưu được SL.', 'err');
+      }).finally(function () {
+        saving = false;
+        if (btn) btn.disabled = false;
+      });
+    } catch (syncErr) {
+      console.error('[jpRouteDay] Lỗi đồng bộ khi lưu:', syncErr);
+      setStatus(syncErr.message || 'Lỗi không xác định khi lưu.', 'err');
       saving = false;
       if (btn) btn.disabled = false;
-    });
+    }
   }
   window.jpOpenRouteDay = openDay;
-  root.addEventListener('dblclick', function (ev) {
+  root.addEventListener('click', function (ev) {
     if (root.querySelector('.is-dragging-route') || root.querySelector('.is-dragging')) return;
+    var draggedAt = Number(root.getAttribute('data-route-dragged-at') || 0);
+    if (draggedAt && Date.now() - draggedAt < 1500) return;
     var cell = ev.target && ev.target.closest ? ev.target.closest('.jp-sheet-cell[data-date]') : null;
     if (!cell || !root.contains(cell)) return;
     ev.preventDefault();
     openDay(cell);
+  });
+  root.addEventListener('dblclick', function (ev) {
+    ev.preventDefault();
   });
   body.addEventListener('input', function (ev) {
     var input = ev.target && ev.target.closest ? ev.target.closest('#jpRdSizes input[data-size]') : null;
