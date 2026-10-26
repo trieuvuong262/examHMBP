@@ -102,6 +102,16 @@ class PlanForm(forms.ModelForm):
         )
 
 
+def owner_choice_rows(selected=None):
+    """Danh sách chọn người phụ trách từng nhóm (Thiết lập hoặc từng kế hoạch)."""
+    selected = selected or {}
+    users = list(active_users())
+    return [
+        {'key': key, 'label': label, 'selected': selected.get(key), 'users': users}
+        for key, label in TaskGroup.choices
+    ]
+
+
 class TaskAddForm(forms.Form):
     group = forms.ChoiceField(label='Nhóm', choices=TaskGroup.choices, widget=forms.Select(attrs=_SELECT))
     title = forms.CharField(max_length=255, label='Công việc', widget=forms.TextInput(attrs=_INPUT))

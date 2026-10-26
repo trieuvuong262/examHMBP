@@ -121,13 +121,20 @@ class TeamWorkMenuLeaderTests(TestCase):
     def test_admin_and_ductn_see_all(self):
         admin = _user('admin', group=self.group)
         ductn = _user('Ductn', group=self.group)
+        binhthuan = _user('binhthuan', group=self.group)
         self.assertTrue(can_see_all_team_work_teams(admin))
         self.assertTrue(can_see_all_team_work_teams(ductn))
+        self.assertTrue(can_see_all_team_work_teams(binhthuan))
         admin_slugs = {i['slug'] for i in team_work_menu_items(admin)}
         ductn_slugs = {i['slug'] for i in team_work_menu_items(ductn)}
+        binhthuan_slugs = {i['slug'] for i in team_work_menu_items(binhthuan)}
         self.assertIn(team_slug_for_division_id(self.div_may.pk), admin_slugs)
         self.assertIn(team_slug_for_division_id(self.div_cat.pk), admin_slugs)
         self.assertEqual(admin_slugs, ductn_slugs)
+        self.assertEqual(admin_slugs, binhthuan_slugs)
         self.assertTrue(
             user_can_open_team_work_slug(admin, team_slug_for_division_id(self.div_cat.pk)),
+        )
+        self.assertTrue(
+            user_can_open_team_work_slug(binhthuan, team_slug_for_division_id(self.div_cat.pk)),
         )

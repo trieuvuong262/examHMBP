@@ -64,6 +64,17 @@ GROUP_WEIGHTS = {
     TaskGroup.LOGISTICS: 10,
 }
 
+# Tab chi tiết tương ứng từng nhóm công việc.
+GROUP_PAGES = {
+    TaskGroup.PRODUCT: 'products',
+    TaskGroup.PRODUCTION: 'production',
+    TaskGroup.PRICE: 'sales',
+    TaskGroup.MARKETING: 'marketing',
+    TaskGroup.CHANNEL: 'sales',
+    TaskGroup.LOGISTICS: 'production',
+    TaskGroup.APPROVAL: 'go',
+}
+
 
 class Importance(models.TextChoices):
     HIGH = 'high', 'Quan trọng'
@@ -182,6 +193,40 @@ class LaunchPlanProduct(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['plan', 'dossier'], name='ra_mat_sp_plan_dossier_uniq'),
         ]
+
+
+class LaunchGroupDefault(models.Model):
+    """Người chịu trách nhiệm mặc định của một nhóm — áp cho kế hoạch tạo mới."""
+
+    group = models.CharField(max_length=20, choices=TaskGroup.choices, unique=True, verbose_name='Nhóm')
+    owner = models.ForeignKey(
+        USER, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+        verbose_name='Người chịu trách nhiệm',
+    )
+
+    class Meta:
+        db_table = 'ra_mat_sp_group_default'
+        verbose_name = 'Phụ trách nhóm mặc định'
+        verbose_name_plural = 'Phụ trách nhóm mặc định'
+
+
+class LaunchPlanGroupOwner(models.Model):
+    """Người chịu trách nhiệm chính của một nhóm trên một kế hoạch."""
+
+    plan = models.ForeignKey(LaunchPlan, on_delete=models.CASCADE, related_name='group_owners')
+    group = models.CharField(max_length=20, choices=TaskGroup.choices, verbose_name='Nhóm')
+    owner = models.ForeignKey(
+        USER, on_delete=models.SET_NULL, null=True, blank=True, related_name='ra_mat_group_owned',
+        verbose_name='Người chịu trách nhiệm',
+    )
+
+    class Meta:
+        db_table = 'ra_mat_sp_plan_group_owner'
+        constraints = [
+            models.UniqueConstraint(fields=['plan', 'group'], name='ra_mat_sp_plan_group_owner_uniq'),
+        ]
+        verbose_name = 'Phụ trách nhóm trên kế hoạch'
+        verbose_name_plural = 'Phụ trách nhóm trên kế hoạch'
 
 
 class ChecklistTemplateItem(models.Model):

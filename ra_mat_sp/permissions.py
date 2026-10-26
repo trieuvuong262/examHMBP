@@ -62,7 +62,11 @@ def is_coordinator(plan: LaunchPlan, user) -> bool:
 def is_participant(plan: LaunchPlan, user) -> bool:
     if is_coordinator(plan, user) or plan.approver_id == user.pk:
         return True
-    return plan.tasks.filter(owner=user).exists() or plan.risks.filter(owner=user).exists()
+    return (
+        plan.tasks.filter(owner=user).exists()
+        or plan.risks.filter(owner=user).exists()
+        or plan.group_owners.filter(owner=user).exists()
+    )
 
 
 def can_view_plan(plan: LaunchPlan, user) -> bool:
@@ -99,12 +103,13 @@ def can_delete_plan(plan: LaunchPlan, user) -> bool:
 
 
 def participant_plan_ids(user):
-    from .models import LaunchRisk, LaunchTask
+    from .models import LaunchPlanGroupOwner, LaunchRisk, LaunchTask
 
     return (
         set(LaunchPlan.objects.filter(Q(coordinator=user) | Q(approver=user)).values_list('pk', flat=True))
         | set(LaunchTask.objects.filter(owner=user).values_list('plan_id', flat=True))
         | set(LaunchRisk.objects.filter(owner=user).values_list('plan_id', flat=True))
+        | set(LaunchPlanGroupOwner.objects.filter(owner=user).values_list('plan_id', flat=True))
     )
 
 

@@ -33,6 +33,7 @@ from .models import (
     OPEN_TASK_STATUSES,
     ChecklistTemplateItem,
     Decision,
+    LaunchGroupDefault,
     LaunchPlan,
     LaunchPlanProduct,
     LaunchRisk,
@@ -51,13 +52,21 @@ TABS = (
     ('overview', 'Tổng quan', 'bi-info-circle'),
     ('products', 'Sản phẩm', 'bi-bag'),
     ('timeline', 'Mốc tiến độ', 'bi-calendar-week'),
-    ('work', 'Công việc theo nhóm', 'bi-diagram-3'),
-    ('risks', 'Rủi ro', 'bi-exclamation-triangle'),
+    ('production', 'Sản xuất và tồn kho', 'bi-gear-wide-connected'),
+    ('marketing', 'Marketing', 'bi-camera-video'),
+    ('sales', 'Kinh doanh và kênh bán', 'bi-shop'),
+    ('budget', 'Ngân sách', 'bi-cash-stack'),
     ('go', 'Go/No-Go', 'bi-flag'),
     ('post', 'Sau ra mắt', 'bi-graph-up-arrow'),
-    ('history', 'Lịch sử', 'bi-clock-history'),
+    ('history', 'Lịch sử thao tác', 'bi-clock-history'),
 )
 TAB_KEYS = {t[0] for t in TABS}
+TAB_GROUPS = {
+    'production': (TaskGroup.PRODUCTION, TaskGroup.LOGISTICS),
+    'marketing': (TaskGroup.MARKETING,),
+    'sales': (TaskGroup.PRICE, TaskGroup.CHANNEL),
+    'budget': (TaskGroup.PRICE, TaskGroup.MARKETING, TaskGroup.APPROVAL),
+}
 
 QUICK_FILTERS = (
     ('', 'Đang chạy'),
@@ -140,11 +149,18 @@ def dashboard(request):
     if not user_can_access_resolved_menu(user, M, perms.MENU_DASHBOARD):
         return _deny(request, perms.MENU_DASHBOARD)
     today = timezone.localdate()
+    try:
+        horizon = int(request.GET.get('horizon') or 90)
+    except (TypeError, ValueError):
+        horizon = 90
+    if horizon not in (30, 60, 90, 120):
+        horizon = 90
     running = list(_visible_plans(user).filter(status__in=ACTIVE_STATUSES))
     _refresh_running(running)
     running = _decorate(list(_visible_plans(user).filter(status__in=ACTIVE_STATUSES)))
     upcoming = [p for p in running if p.status not in (Status.LAUNCHED, Status.REVIEWING)]
     upcoming.sort(key=lambda p: p.launch_date)
+    window = [p for p in upcoming if 0 <= p.days_to_launch <= horizon]
     open_tasks = LaunchTask.objects.filter(plan__in=[p.pk for p in running], status__in=OPEN_TASK_STATUSES)
     overdue = list(open_tasks.filter(due_date__lt=today).select_related('plan', 'owner__profile').order_by('due_date')[:8])
     risks = list(
@@ -157,17 +173,19 @@ def dashboard(request):
             plan__in=[p.pk for p in running],
         ).select_related('plan')
     )
+    pending_plans = [p for p in running if p.status in APPROVAL_STATUSES]
     kpi = {
-        'next_90': sum(1 for p in upcoming if 0 <= p.days_to_launch <= 90),
+        'next_n': len(window),
+        'horizon': horizon,
         'at_risk': sum(1 for p in running if p.tone == 'red'),
-        'pending': sum(1 for p in running if p.status in APPROVAL_STATUSES),
+        'pending': len(pending_plans),
         'overdue': open_tasks.filter(due_date__lt=today).count(),
         'launched': sum(1 for p in running if p.status in (Status.LAUNCHED, Status.REVIEWING)),
-        'avg_ready': round(sum(p.ready['pct'] for p in upcoming) / len(upcoming)) if upcoming else None,
+        'avg_ready': round(sum(p.ready['pct'] for p in window) / len(window)) if window else None,
     }
     return render(request, 'ra_mat_sp/dashboard.html', _common(
-        request, kpi=kpi, upcoming=upcoming[:8], overdue=overdue, risks=risks, reviews_due=reviews_due,
-        rm_active='dashboard',
+        request, kpi=kpi, upcoming=window[:10], overdue=overdue, risks=risks, reviews_due=reviews_due,
+        pending_plans=pending_plans[:6], horizon=horizon, rm_active='dashboard',
     ))
 
 
@@ -242,7 +260,7 @@ def calendar_view(request):
     user = request.user
     today = timezone.localdate()
     view = request.GET.get('view') or 'quarter'
-    if view not in ('month', 'quarter'):
+    if view not in ('month', 'quarter', 'year'):
         view = 'quarter'
     try:
         start = date.fromisoformat((request.GET.get('start') or '') + '-01') if request.GET.get('start') else None
@@ -252,13 +270,24 @@ def calendar_view(request):
         start = date(today.year, today.month, 1)
         if view == 'quarter':
             start = date(today.year, (today.month - 1) // 3 * 3 + 1, 1)
-    span = 3 if view == 'quarter' else 1
+        elif view == 'year':
+            start = date(today.year, 1, 1)
+    span = {'month': 1, 'quarter': 3, 'year': 12}[view]
     end = _month_add(start, span)
     group = request.GET.get('group') or ''
+    collection = (request.GET.get('collection') or '').strip()
+    coordinator = request.GET.get('coordinator') or ''
+    tone_filter = request.GET.get('tone') or ''
     qs = _visible_plans(user).filter(launch_date__gte=start, launch_date__lt=end).exclude(status=Status.CANCELLED)
     if group:
         qs = qs.filter(products__dossier__product_group=group).distinct()
+    if collection:
+        qs = qs.filter(products__dossier__collection__icontains=collection).distinct()
+    if coordinator.isdigit():
+        qs = qs.filter(coordinator_id=int(coordinator))
     plans = _decorate(list(qs.order_by('launch_date')))
+    if tone_filter:
+        plans = [p for p in plans if p.tone == tone_filter]
     months = []
     for i in range(span):
         m_start = _month_add(start, i)
@@ -280,9 +309,20 @@ def calendar_view(request):
         'next': _month_add(start, span).strftime('%Y-%m'),
         'today': date(today.year, today.month, 1).strftime('%Y-%m'),
     }
+    User = get_user_model()
+    coordinators = User.objects.filter(
+        pk__in=LaunchPlan.objects.values('coordinator_id')).select_related('profile').order_by('profile__full_name')
+    collections = sorted({
+        (c or '').strip()
+        for c in LaunchPlanProduct.objects.exclude(dossier__collection='')
+        .values_list('dossier__collection', flat=True).distinct()
+        if (c or '').strip()
+    })
     return render(request, 'ra_mat_sp/calendar.html', _common(
         request, months=months, view=view, start=start, end=end - timedelta(days=1), nav=nav,
-        group=group, group_choices=catalog.group_choices(), total=len(plans), rm_active='calendar',
+        group=group, group_choices=catalog.group_choices(), collection=collection, collections=collections,
+        coordinator=coordinator, coordinators=[(u.pk, svc.display_name(u)) for u in coordinators],
+        tone=tone_filter, total=len(plans), rm_active='calendar',
         weekdays=('T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'),
     ))
 
@@ -303,12 +343,17 @@ def plan_create(request):
     form = f.PlanForm(request.POST or None, initial=initial)
     if request.method == 'POST' and form.is_valid():
         plan = svc.create_plan(form.save(commit=False), list(form.cleaned_data['dossiers']), user)
+        try:
+            svc.assign_group_owners(plan, user, svc.parse_owner_map(request.POST))
+        except svc.WorkflowError as exc:
+            messages.error(request, str(exc))
         invalidate_plan_badges(plan)
         messages.success(request, f'Đã tạo kế hoạch {plan.code} và sinh checklist theo mốc T-/D+.')
         return redirect(f'{plan.get_absolute_url()}?tab=timeline')
+    selected = dict(LaunchGroupDefault.objects.values_list('group', 'owner_id'))
     return render(request, 'ra_mat_sp/plan_form.html', _common(
         request, form=form, rm_active='create', title='Tạo kế hoạch ra mắt',
-        back_url=reverse('ra_mat_sp:list'),
+        back_url=reverse('ra_mat_sp:list'), owner_rows=f.owner_choice_rows(selected),
     ))
 
 
@@ -324,12 +369,18 @@ def plan_edit(request, pk):
     if request.method == 'POST' and form.is_valid():
         with transaction.atomic():
             svc.update_plan(form.save(commit=False), list(form.cleaned_data['dossiers']), user, old_launch_date=old_date)
+            try:
+                svc.assign_group_owners(plan, user, svc.parse_owner_map(request.POST))
+            except svc.WorkflowError as exc:
+                messages.error(request, str(exc))
         invalidate_plan_badges(plan)
         messages.success(request, 'Đã cập nhật kế hoạch.')
         return redirect(plan.get_absolute_url())
+    svc.ensure_group_owners(plan)
+    selected = dict(plan.group_owners.values_list('group', 'owner_id'))
     return render(request, 'ra_mat_sp/plan_form.html', _common(
         request, form=form, plan=plan, rm_active='edit', title=f'Sửa kế hoạch {plan.code}',
-        back_url=plan.get_absolute_url(),
+        back_url=plan.get_absolute_url(), owner_rows=f.owner_choice_rows(selected),
     ))
 
 
@@ -375,6 +426,7 @@ def plan_detail(request, pk):
     tab = request.GET.get('tab') or 'overview'
     if tab not in TAB_KEYS:
         tab = 'overview'
+    svc.ensure_group_owners(plan)
     tasks = list(plan.tasks.select_related('owner__profile', 'completed_by__profile'))
     can_edit = perms.can_edit_plan(plan, user)
     for t in tasks:
@@ -384,7 +436,9 @@ def plan_detail(request, pk):
     risks = list(plan.risks.select_related('owner__profile', 'created_by__profile'))
     high = sum(1 for r in risks if r.is_open and r.severity == RiskSeverity.HIGH)
     links = list(plan.products.select_related(
-        'dossier__owner__profile', 'dossier__designer__profile', 'dossier__handover'))
+        'dossier__owner__profile', 'dossier__designer__profile', 'dossier__handover',
+        'dossier__approved_design_version', 'dossier__final_sample_version',
+    ))
     covers = cover_map([l.dossier_id for l in links])
     official = {(l.dossier.official_product_code or '').strip().upper() for l in links} - {''}
     in_library = set()
@@ -405,15 +459,18 @@ def plan_detail(request, pk):
         link.production_state = svc.production_state(link.dossier)
         link.production_label = svc.PRODUCTION_STATE_LABELS[link.production_state]
         link.group_label = catalog.group_label(link.dossier.product_group) if link.dossier.product_group else ''
-    group_filter = request.GET.get('group') or ''
-    if group_filter not in TaskGroup.values:
-        group_filter = TaskGroup.PRODUCTION
     reviews = list(plan.reviews.select_related('submitted_by__profile'))
     for r in reviews:
         r.can_submit = can_edit and svc.can_review(plan, r)
         r.form = f.ReviewForm(instance=r, prefix=f'rv{r.pk}') if r.can_submit else None
     is_approver = perms.is_plan_approver(plan, user)
     plan_tone = svc.tone(plan, ready, high)
+    go_rows = svc.go_conditions(plan, tasks, links)
+    group_owners = list(plan.group_owners.select_related('owner__profile'))
+    tab_tasks = {
+        key: [t for t in tasks if t.group in groups]
+        for key, groups in TAB_GROUPS.items()
+    }
     ctx = _common(
         request,
         plan=plan,
@@ -428,10 +485,10 @@ def plan_detail(request, pk):
         high_risks=high,
         links=links,
         timeline=_timeline(tasks),
-        group_filter=group_filter,
-        group_tabs=[(k, TaskGroup(k).label) for k in list(GROUP_WEIGHTS) + [TaskGroup.APPROVAL]],
-        group_tasks=[t for t in tasks if t.group == group_filter],
-        go_conditions=svc.go_conditions(plan, tasks),
+        tab_tasks=tab_tasks,
+        group_owners=group_owners,
+        owner_rows=f.owner_choice_rows(dict(plan.group_owners.values_list('group', 'owner_id'))),
+        go_conditions=go_rows,
         decisions=list(plan.decisions.select_related('decided_by__profile', 'condition_owner__profile')),
         reviews=reviews,
         logs=list(plan.logs.select_related('user__profile')[:200]),
@@ -585,6 +642,12 @@ def _run_action(request, plan: LaunchPlan, action: str) -> str:
         svc.log(plan, user, 'products', 'Cập nhật sản lượng ra mắt theo sản phẩm.')
         messages.success(request, 'Đã lưu sản lượng ra mắt.')
         return 'products'
+    if action == 'owners':
+        if not can_edit:
+            raise svc.WorkflowError('Bạn không đổi được người phụ trách nhóm.')
+        svc.assign_group_owners(plan, user, svc.parse_owner_map(post))
+        messages.success(request, 'Đã lưu người phụ trách từng nhóm.')
+        return 'overview'
     if action == 'review':
         review = get_object_or_404(PostLaunchReview, pk=post.get('review_id'), plan=plan)
         if not can_edit:
@@ -633,13 +696,20 @@ def my_tasks(request):
     tasks = list(qs.select_related('plan').order_by('due_date', 'pk'))
     for t in tasks:
         t.can_update = perms.can_update_task(t.plan, t, user)
+    soon_end = today + timedelta(days=7)
+    buckets = {
+        'overdue': [t for t in tasks if t.is_overdue],
+        'soon': [t for t in tasks if t.is_open and not t.is_overdue and t.due_date <= soon_end],
+        'confirm': [t for t in tasks if t.is_open and t.status == TaskStatus.BLOCKED],
+        'open': [t for t in tasks if t.is_open and not t.is_overdue and t.due_date > soon_end and t.status != TaskStatus.BLOCKED],
+    }
     risks = list(
         LaunchRisk.objects.filter(owner=user, state=LaunchRisk.STATE_OPEN).exclude(plan__status__in=FINAL_STATUSES)
         .select_related('plan')
     )
     return render(request, 'ra_mat_sp/my_tasks.html', _common(
-        request, tasks=tasks, risks=risks, show=show, today=today, task_form=f.TaskUpdateForm(),
-        overdue=sum(1 for t in tasks if t.is_overdue), rm_active='my_tasks',
+        request, tasks=tasks, buckets=buckets, risks=risks, show=show, today=today, task_form=f.TaskUpdateForm(),
+        overdue=len(buckets['overdue']), rm_active='my_tasks',
     ))
 
 
@@ -674,7 +744,19 @@ def module_settings(request):
         op = request.POST.get('op')
         if op == 'restore':
             n = load_default_checklist(ChecklistTemplateItem)
-            messages.success(request, f'Đã nạp lại checklist mặc định ({n} dòng mới).')
+            added = svc.sync_checklist_to_open_plans()
+            messages.success(
+                request,
+                f'Đã nạp lại checklist mặc định ({n} dòng mới) và bổ sung {added} việc vào kế hoạch đang mở.',
+            )
+            return redirect('ra_mat_sp:settings')
+        if op == 'owners':
+            try:
+                svc.save_group_defaults(svc.parse_owner_map(request.POST))
+            except svc.WorkflowError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, 'Đã lưu người phụ trách mặc định từng nhóm.')
             return redirect('ra_mat_sp:settings')
         if op == 'toggle' and edit_item:
             edit_item.is_active = not edit_item.is_active
@@ -684,7 +766,7 @@ def module_settings(request):
         form = f.TemplateItemForm(request.POST, instance=edit_item)
         if form.is_valid():
             form.save()
-            messages.success(request, 'Đã lưu dòng checklist mẫu. Chỉ áp dụng cho kế hoạch tạo sau.')
+            messages.success(request, 'Đã lưu dòng checklist mẫu. Kế hoạch đang mở sẽ nhận việc mới khi nạp mặc định.')
             return redirect('ra_mat_sp:settings')
     items = list(ChecklistTemplateItem.objects.all())
     labels = catalog.group_labels()
@@ -692,8 +774,10 @@ def module_settings(request):
     for item in items:
         item.group_label = labels.get(item.product_group, item.product_group) if item.product_group else ''
         milestones.setdefault(item.offset_days, []).append(item)
+    selected = dict(LaunchGroupDefault.objects.values_list('group', 'owner_id'))
     return render(request, 'ra_mat_sp/settings.html', _common(
         request, form=form, edit_item=edit_item, can_edit=can_edit, rm_active='settings',
         milestones=[(milestone_label(k), v) for k, v in milestones.items()],
         weights=[(TaskGroup(k).label, w) for k, w in GROUP_WEIGHTS.items()],
+        owner_rows=f.owner_choice_rows(selected),
     ))

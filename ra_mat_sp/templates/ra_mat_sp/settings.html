@@ -65,6 +65,17 @@
         </form>
       </div>
       {% endif %}
+      {% if can_edit %}
+      <div class="tk-section">
+        <div class="tk-section-title"><i class="bi bi-people"></i>Người phụ trách mặc định theo nhóm</div>
+        <p class="small text-muted">Dùng làm người phụ trách ban đầu khi tạo checklist cho kế hoạch mới; người điều phối vẫn có thể ghi đè theo từng kế hoạch.</p>
+        <form method="post">{% csrf_token %}
+          <input type="hidden" name="op" value="owners">
+          {% include 'ra_mat_sp/includes/owners_fields.html' %}
+          <button class="btn btn-sm btn-hm text-white fw-bold mt-2"><i class="bi bi-check2"></i> Lưu phân công mặc định</button>
+        </form>
+      </div>
+      {% endif %}
       <div class="tk-section">
         <div class="tk-section-title"><i class="bi bi-percent"></i>Trọng số % sẵn sàng</div>
         {% for label, w in weights %}

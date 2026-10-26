@@ -6,13 +6,14 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 
 from django.db import transaction
-from django.db.models import F
+from django.db.models import F, Q
 from django.utils import timezone
 
 from thiet_ke_sp.models import Status as DossierStatus
 
 from .models import (
     CLOSED_TASK_STATUSES,
+    GROUP_PAGES,
     GROUP_WEIGHTS,
     OPEN_TASK_STATUSES,
     PREPARING_STATUSES,
@@ -24,7 +25,9 @@ from .models import (
     DecisionKind,
     Importance,
     LaunchDecision,
+    LaunchGroupDefault,
     LaunchPlan,
+    LaunchPlanGroupOwner,
     LaunchRisk,
     LaunchSequence,
     LaunchTask,
@@ -109,9 +112,30 @@ def template_items_for(groups: set[str]):
     return [i for i in items if not i.product_group or i.product_group in groups]
 
 
+def ensure_group_owners(plan: LaunchPlan) -> None:
+    """Tạo dòng phụ trách nhóm còn thiếu: mặc định trong Thiết lập, không có thì người điều phối."""
+    defaults = dict(LaunchGroupDefault.objects.values_list('group', 'owner_id'))
+    existing = set(plan.group_owners.values_list('group', flat=True))
+    rows = [
+        LaunchPlanGroupOwner(
+            plan=plan, group=group, owner_id=defaults.get(group) or plan.coordinator_id,
+        )
+        for group in TaskGroup.values
+        if group not in existing
+    ]
+    if rows:
+        LaunchPlanGroupOwner.objects.bulk_create(rows)
+
+
+def group_owner_map(plan: LaunchPlan) -> dict[str, int | None]:
+    ensure_group_owners(plan)
+    return dict(plan.group_owners.values_list('group', 'owner_id'))
+
+
 def generate_tasks(plan: LaunchPlan) -> int:
     groups = plan_product_groups(plan)
     existing = set(plan.tasks.exclude(template_item=None).values_list('template_item_id', flat=True))
+    owners = group_owner_map(plan)
     tasks = [
         LaunchTask(
             plan=plan,
@@ -122,7 +146,7 @@ def generate_tasks(plan: LaunchPlan) -> int:
             deliverable=item.deliverable,
             importance=item.importance,
             is_go_blocker=item.is_go_blocker,
-            owner_id=plan.coordinator_id,
+            owner_id=owners.get(item.group) or plan.coordinator_id,
             due_date=plan.launch_date + timedelta(days=item.offset_days),
             sort_order=item.sort_order,
         )
@@ -131,6 +155,71 @@ def generate_tasks(plan: LaunchPlan) -> int:
     ]
     LaunchTask.objects.bulk_create(tasks)
     return len(tasks)
+
+
+def prune_retired_tasks(plan: LaunchPlan) -> int:
+    """Gỡ việc mẫu đã ngừng, còn trạng thái chưa làm và chưa có ghi chú. Giữ việc đã làm."""
+    qs = plan.tasks.filter(
+        template_item__is_active=False,
+        status=TaskStatus.TODO,
+        evidence='',
+        delay_reason='',
+        is_condition=False,
+    )
+    count = qs.count()
+    qs.delete()
+    return count
+
+
+CHECKLIST_SYNC_STATUSES = (Status.DRAFT, Status.PLAN_PENDING, Status.PREPARING, Status.AT_RISK)
+
+
+def sync_checklist_to_open_plans() -> int:
+    added = 0
+    for plan in LaunchPlan.objects.filter(status__in=CHECKLIST_SYNC_STATUSES):
+        ensure_group_owners(plan)
+        added += generate_tasks(plan)
+        prune_retired_tasks(plan)
+    return added
+
+
+def parse_owner_map(post) -> dict:
+    from thiet_ke_sp.forms import active_users
+
+    users = {u.pk: u for u in active_users()}
+    mapping = {}
+    for key, _label in TaskGroup.choices:
+        raw = (post.get(f'owner_{key}') or '').strip()
+        if not raw:
+            mapping[key] = None
+            continue
+        if not raw.isdigit() or int(raw) not in users:
+            raise WorkflowError('Người phụ trách nhóm không hợp lệ.')
+        mapping[key] = users[int(raw)]
+    return mapping
+
+
+def save_group_defaults(mapping: dict) -> None:
+    for group, owner in mapping.items():
+        LaunchGroupDefault.objects.update_or_create(group=group, defaults={'owner': owner})
+
+
+def assign_group_owners(plan: LaunchPlan, user, mapping: dict) -> None:
+    ensure_group_owners(plan)
+    changed = []
+    for row in plan.group_owners.all():
+        new_user = mapping.get(row.group) or plan.coordinator
+        if row.owner_id == getattr(new_user, 'pk', None):
+            continue
+        old_id = row.owner_id
+        row.owner = new_user
+        row.save(update_fields=['owner'])
+        plan.tasks.filter(group=row.group, status__in=OPEN_TASK_STATUSES).filter(
+            Q(owner_id=old_id) | Q(owner_id=plan.coordinator_id) | Q(owner__isnull=True)
+        ).update(owner=new_user)
+        changed.append(TaskGroup(row.group).label)
+    if changed:
+        log(plan, user, 'owners', 'Cập nhật người phụ trách nhóm: ' + ', '.join(changed) + '.')
 
 
 def ensure_reviews(plan: LaunchPlan) -> None:
@@ -216,6 +305,7 @@ class GroupReadiness:
     done: int
     total: int
     overdue: int
+    tab: str = 'timeline'
 
 
 def readiness(plan: LaunchPlan, tasks=None) -> dict:
@@ -233,6 +323,7 @@ def readiness(plan: LaunchPlan, tasks=None) -> dict:
             key=key, label=TaskGroup(key).label, weight=gw, pct=pct,
             done=sum(1 for t in rows if t.status == TaskStatus.DONE), total=len(rows),
             overdue=sum(1 for t in rows if t.status in OPEN_TASK_STATUSES and t.due_date < today),
+            tab=GROUP_PAGES.get(key, 'timeline'),
         ))
         if total_w:
             score += gw * done_w / total_w
@@ -279,7 +370,14 @@ def is_risky(plan: LaunchPlan) -> bool:
     if plan.risks.filter(state=LaunchRisk.STATE_OPEN, severity=RiskSeverity.HIGH).exists():
         return True
     overdue = plan.tasks.filter(status__in=OPEN_TASK_STATUSES, due_date__lt=today, offset_days__lte=0)
-    return overdue.filter(is_go_blocker=True).exists() or overdue.filter(importance=Importance.HIGH).exists()
+    if overdue.filter(is_go_blocker=True).exists() or overdue.filter(importance=Importance.HIGH).exists():
+        return True
+    # Trong 14 ngày trước ra mắt, điều kiện dữ liệu còn thiếu cũng đưa kế hoạch sang Có rủi ro.
+    if plan.days_to_launch <= 14:
+        from .gates import gate_pack
+
+        return any(not row['ok'] and row.get('data') for row in gate_pack(plan))
+    return False
 
 
 def refresh_risk(plan: LaunchPlan, user=None) -> None:
@@ -293,34 +391,10 @@ def refresh_risk(plan: LaunchPlan, user=None) -> None:
         set_status(plan, Status.PREPARING, user, 'Tự động: đã xử lý các việc trễ / rủi ro mức Cao.')
 
 
-def go_conditions(plan: LaunchPlan, tasks=None) -> list[dict]:
-    tasks = list(plan.tasks.all()) if tasks is None else tasks
-    rows = []
-    links = list(plan.products.select_related('dossier__handover'))
-    pending = [l.dossier for l in links if production_state(l.dossier) != 'transferred']
-    rows.append({
-        'label': 'Sản phẩm đã chuyển sản xuất',
-        'ok': bool(links) and not pending,
-        'note': ', '.join(f'{d.code} ({PRODUCTION_STATE_LABELS[production_state(d)]})' for d in pending)
-        if pending else ('' if links else 'Chưa gắn sản phẩm'),
-        'task': None,
-    })
-    for t in tasks:
-        if t.is_go_blocker and not t.is_condition:
-            rows.append({
-                'label': t.title,
-                'ok': t.status in CLOSED_TASK_STATUSES,
-                'note': f'{t.milestone} · {t.get_status_display()}',
-                'task': t,
-            })
-    high = plan.risks.filter(state=LaunchRisk.STATE_OPEN, severity=RiskSeverity.HIGH).count()
-    rows.append({
-        'label': 'Không còn rủi ro mức Cao đang mở',
-        'ok': high == 0,
-        'note': f'{high} rủi ro mức Cao' if high else '',
-        'task': None,
-    })
-    return rows
+def go_conditions(plan: LaunchPlan, tasks=None, links=None) -> list[dict]:
+    from .gates import gate_pack
+
+    return gate_pack(plan, links=links, tasks=tasks)
 
 
 # ---------------------------------------------------------------------------
@@ -481,8 +555,8 @@ def decide_go(plan: LaunchPlan, user, data: GoInput) -> None:
         missing = [c['label'] for c in go_conditions(plan, tasks) if not c['ok']]
         if missing:
             raise WorkflowError(
-                'Chưa đủ điều kiện bắt buộc: ' + '; '.join(missing[:4])
-                + ('…' if len(missing) > 4 else '') + '. Dùng «Ra mắt có điều kiện» nếu vẫn ra mắt.'
+                'Chưa đủ điều kiện bắt buộc: ' + '; '.join(missing[:8])
+                + ('…' if len(missing) > 8 else '') + '. Dùng «Ra mắt có điều kiện» nếu vẫn ra mắt.'
             )
         decision.save()
         set_status(plan, Status.READY, user, 'Go: đủ điều kiện ra mắt.' + (f' {comment}' if comment else ''))

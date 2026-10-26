@@ -55,7 +55,7 @@
     <div class="rm-ring is-{{ tone }}" style="--p: {{ ready.pct }}"><div><div><strong>{{ ready.pct }}%</strong><small>sẵn sàng</small></div></div></div>
     <div class="tk-streams">
       {% for g in ready.groups %}
-      <a class="tk-stream text-decoration-none text-reset" href="?tab=work&group={{ g.key }}">
+      <a class="tk-stream text-decoration-none text-reset" href="?tab={{ g.tab }}">
         <div class="tk-stream-head"><b>{{ g.label }}</b><span>{% if g.pct is None %}—{% else %}{{ g.pct }}%{% endif %}</span></div>
         <div class="tk-meter{% if g.pct == 100 %} is-green{% elif g.pct is None %} is-gray{% endif %}"><i style="width: {{ g.pct|default:0 }}%"></i></div>
       </a>
@@ -91,7 +91,7 @@
       <div class="tk-tabs-head">
         <ul class="nav nav-pills jp-portal-pills gap-1 flex-wrap">
           {% for key, label, icon in tabs %}
-          <li class="nav-item"><a class="nav-link rounded-pill fw-bold{% if tab == key %} active{% endif %}" href="?tab={{ key }}"><i class="bi {{ icon }} me-1"></i>{{ label }}{% if key == 'risks' and open_risks %} <span class="badge rounded-pill bg-danger">{{ open_risks|length }}</span>{% endif %}</a></li>
+          <li class="nav-item"><a class="nav-link rounded-pill fw-bold{% if tab == key %} active{% endif %}" href="?tab={{ key }}"><i class="bi {{ icon }} me-1"></i>{{ label }}{% if key == 'overview' and open_risks %} <span class="badge rounded-pill bg-danger">{{ open_risks|length }}</span>{% endif %}</a></li>
           {% endfor %}
         </ul>
       </div>
@@ -123,12 +123,69 @@
         <div class="tk-section">
           <div class="tk-section-title"><i class="bi bi-speedometer2"></i>Sẵn sàng theo nhóm</div>
           {% for g in ready.groups %}
-          <a class="tk-meter-row" href="?tab=work&group={{ g.key }}">
+          <a class="tk-meter-row" href="?tab={{ g.tab }}">
             <span>{{ g.label }} <span class="text-muted">({{ g.weight }}%)</span>{% if g.overdue %} <b class="tk-late">· {{ g.overdue }} trễ</b>{% endif %}</span>
             <div class="tk-meter{% if g.pct == 100 %} is-green{% elif g.pct is None %} is-gray{% endif %}"><i style="width: {{ g.pct|default:0 }}%"></i></div>
             <b class="text-end">{% if g.pct is None %}—{% else %}{{ g.pct }}%{% endif %}</b>
           </a>
           {% endfor %}
+        </div>
+        <div class="tk-section">
+          <div class="tk-section-title"><i class="bi bi-people"></i>Người chịu trách nhiệm chính theo nhóm</div>
+          {% if can_edit %}
+          <form method="post" action="{% url 'ra_mat_sp:action' plan.pk 'owners' %}">{% csrf_token %}
+            <input type="hidden" name="return_tab" value="overview">
+            {% include 'ra_mat_sp/includes/owners_fields.html' %}
+            <button class="btn btn-sm btn-hm text-white fw-bold mt-2">Lưu phân công</button>
+          </form>
+          {% else %}
+          <div class="tk-grid2">
+            {% for row in group_owners %}
+            <div class="tk-field"><label>{{ row.get_group_display }}</label><span class="v">{{ row.owner.profile.full_name|default:row.owner.username|default:'Người điều phối' }}</span></div>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        {% if can_edit or my_open %}{% if not plan.is_final %}
+        <div class="tk-section">
+          <div class="tk-section-title"><i class="bi bi-exclamation-triangle"></i>Rủi ro / vấn đề đang chặn{% if open_risks %} <span class="badge rounded-pill bg-danger">{{ open_risks|length }}</span>{% endif %}</div>
+          <form method="post" action="{% url 'ra_mat_sp:action' plan.pk 'risk_add' %}" class="row g-2 mb-3">{% csrf_token %}
+            {% include 'thiet_ke_sp/includes/field.html' with field=risk_form.group col='col-md-4' %}
+            {% include 'thiet_ke_sp/includes/field.html' with field=risk_form.severity col='col-md-4' %}
+            {% include 'thiet_ke_sp/includes/field.html' with field=risk_form.due_date col='col-md-4' %}
+            {% include 'thiet_ke_sp/includes/field.html' with field=risk_form.description col='col-md-6' req=1 %}
+            {% include 'thiet_ke_sp/includes/field.html' with field=risk_form.action col='col-md-6' %}
+            {% include 'thiet_ke_sp/includes/field.html' with field=risk_form.owner col='col-md-6' req=1 %}
+            <div class="col-md-6 d-flex align-items-end"><button class="btn btn-sm btn-hm text-white fw-bold">Ghi nhận</button></div>
+          </form>
+        {% endif %}{% endif %}
+          <div class="table-responsive"><table class="table tk-mini-table align-middle">
+            <thead><tr><th>Rủi ro</th><th>Nhóm</th><th>Mức</th><th>Người xử lý</th><th>Hạn</th><th>Trạng thái</th></tr></thead>
+            <tbody>
+            {% for r in risks %}
+            <tr>
+              <td><div class="fw-semibold">{{ r.description|linebreaksbr }}</div>{% if r.action %}<div class="rm-task-sub">Hướng xử lý: {{ r.action }}</div>{% endif %}{% if r.resolution %}<div class="small tk-ok">Kết quả: {{ r.resolution }}</div>{% endif %}</td>
+              <td>{{ r.get_group_display }}</td>
+              <td><span class="tk-pill {% if r.severity == 'high' %}is-red{% elif r.severity == 'medium' %}is-amber{% else %}is-gray{% endif %}">{{ r.get_severity_display }}</span></td>
+              <td class="text-nowrap">{{ r.owner.profile.full_name|default:r.owner.username|default:'—' }}</td>
+              <td class="text-nowrap">{{ r.due_date|date:'d/m/Y'|default:'—' }}</td>
+              <td>
+                {% if r.is_open %}
+                  {% if can_edit or r.owner_id == request.user.pk %}
+                  <form method="post" action="{% url 'ra_mat_sp:action' plan.pk 'risk_resolve' %}" class="d-flex gap-1">{% csrf_token %}
+                    <input type="hidden" name="risk_id" value="{{ r.pk }}">
+                    <input type="text" name="resolution" class="form-control form-control-sm" placeholder="Kết quả xử lý" required>
+                    <button class="btn btn-sm btn-outline-secondary fw-bold text-nowrap">Đóng rủi ro</button>
+                  </form>
+                  {% else %}<span class="tk-pill is-amber">Đang mở</span>{% endif %}
+                {% else %}<span class="tk-pill is-green">Đã xử lý</span>{% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center text-muted py-3">Chưa ghi nhận rủi ro.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table></div>
         </div>
         {% if ready.open_blockers %}
         <div class="tk-section">
@@ -243,52 +300,6 @@
             <tbody>
             {% for t in group_tasks %}{% include 'ra_mat_sp/includes/task_row.html' %}
             {% empty %}<tr><td colspan="6" class="text-center text-muted py-3">Nhóm này chưa có công việc.</td></tr>{% endfor %}
-            </tbody>
-          </table></div>
-        </div>
-
-      {% elif tab == 'risks' %}
-        {% if can_edit or my_open %}{% if not plan.is_final %}
-        <div class="tk-section">
-          <div class="tk-section-title"><i class="bi bi-plus-circle"></i>Ghi nhận rủi ro / vướng mắc</div>
-          <form method="post" action="{% url 'ra_mat_sp:action' plan.pk 'risk_add' %}" class="row g-2">{% csrf_token %}
-            {% include 'thiet_ke_sp/includes/field.html' with field=risk_form.group col='col-md-4' %}
-            {% include 'thiet_ke_sp/includes/field.html' with field=risk_form.severity col='col-md-4' %}
-            {% include 'thiet_ke_sp/includes/field.html' with field=risk_form.due_date col='col-md-4' %}
-            {% include 'thiet_ke_sp/includes/field.html' with field=risk_form.description col='col-md-6' req=1 %}
-            {% include 'thiet_ke_sp/includes/field.html' with field=risk_form.action col='col-md-6' %}
-            {% include 'thiet_ke_sp/includes/field.html' with field=risk_form.owner col='col-md-6' req=1 %}
-            <div class="col-md-6 d-flex align-items-end"><button class="btn btn-sm btn-hm text-white fw-bold">Ghi nhận</button></div>
-          </form>
-        </div>
-        {% endif %}{% endif %}
-        <div class="tk-section">
-          <div class="tk-section-title"><i class="bi bi-exclamation-triangle"></i>Danh sách rủi ro</div>
-          <div class="table-responsive"><table class="table tk-mini-table align-middle">
-            <thead><tr><th>Rủi ro</th><th>Nhóm</th><th>Mức</th><th>Người xử lý</th><th>Hạn</th><th>Trạng thái</th></tr></thead>
-            <tbody>
-            {% for r in risks %}
-            <tr>
-              <td><div class="fw-semibold">{{ r.description|linebreaksbr }}</div>{% if r.action %}<div class="rm-task-sub">Hướng xử lý: {{ r.action }}</div>{% endif %}{% if r.resolution %}<div class="small tk-ok">Kết quả: {{ r.resolution }}</div>{% endif %}</td>
-              <td>{{ r.get_group_display }}</td>
-              <td><span class="tk-pill {% if r.severity == 'high' %}is-red{% elif r.severity == 'medium' %}is-amber{% else %}is-gray{% endif %}">{{ r.get_severity_display }}</span></td>
-              <td class="text-nowrap">{{ r.owner.profile.full_name|default:r.owner.username|default:'—' }}</td>
-              <td class="text-nowrap">{{ r.due_date|date:'d/m/Y'|default:'—' }}</td>
-              <td>
-                {% if r.is_open %}
-                  {% if can_edit or r.owner_id == request.user.pk %}
-                  <form method="post" action="{% url 'ra_mat_sp:action' plan.pk 'risk_resolve' %}" class="d-flex gap-1">{% csrf_token %}
-                    <input type="hidden" name="risk_id" value="{{ r.pk }}">
-                    <input type="text" name="resolution" class="form-control form-control-sm" placeholder="Kết quả xử lý" required>
-                    <button class="btn btn-sm btn-outline-secondary fw-bold text-nowrap">Đóng rủi ro</button>
-                  </form>
-                  {% else %}<span class="tk-pill is-amber">Đang mở</span>{% endif %}
-                {% else %}<span class="tk-pill is-green">Đã xử lý</span>{% endif %}
-              </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="6" class="text-center text-muted py-3">Chưa ghi nhận rủi ro.</td></tr>
-            {% endfor %}
             </tbody>
           </table></div>
         </div>

@@ -27,8 +27,15 @@ _SLUG_HR_KEYS: dict[str, tuple[str, ...]] = {
 
 VALID_TEAM_SLUGS = frozenset(item[0] for item in TEAM_SLUGS)
 _DIV_SLUG_RE = re.compile(r'^d(\d+)$')
-# Submenu tổ: admin / ductn / binh.na / dong.ct / nnthuytrang xem hết; tổ trưởng chỉ thấy bộ phận mình.
-TEAM_WORK_ALL_TEAMS_USERNAMES = frozenset({'admin', 'ductn', 'binh.na', 'dong.ct', 'nnthuytrang'})
+# Submenu tổ: các tài khoản quản lý được xem hết; tổ trưởng chỉ thấy bộ phận mình.
+TEAM_WORK_ALL_TEAMS_USERNAMES = frozenset({
+    'admin',
+    'ductn',
+    'binh.na',
+    'binhthuan',
+    'dong.ct',
+    'nnthuytrang',
+})
 TEAM_MENU_ICONS = {
     'cat': 'bi-scissors',
     'inep': 'bi-printer',

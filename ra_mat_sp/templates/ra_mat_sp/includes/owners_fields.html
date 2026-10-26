@@ -1,0 +1,13 @@
+<div class="row g-2">
+  {% for row in owner_rows %}
+  <div class="col-md-6">
+    <label class="form-label small fw-bold mb-1" for="owner_{{ row.key }}">{{ row.label }}</label>
+    <select name="owner_{{ row.key }}" id="owner_{{ row.key }}" class="form-select form-select-sm jp-tksp-user-select">
+      <option value="">— Người điều phối —</option>
+      {% for u in row.users %}
+      <option value="{{ u.pk }}"{% if row.selected == u.pk %} selected{% endif %}>{{ u.profile.full_name|default:u.get_full_name|default:u.username }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endfor %}
+</div>

@@ -1,0 +1,12 @@
+<div class="tk-section">
+  <div class="tk-section-title"><i class="bi {{ icon|default:'bi-list-task' }}"></i>{{ title }}
+    {% if can_edit %}<button type="button" class="btn btn-sm btn-outline-secondary ms-auto" data-bs-toggle="modal" data-bs-target="#rmAddTaskModal"><i class="bi bi-plus-lg"></i> Thêm việc</button>{% endif %}
+  </div>
+  <div class="table-responsive"><table class="table tk-mini-table align-middle">
+    <thead><tr><th>Công việc</th><th>Mốc</th><th>Hạn</th><th>Phụ trách</th><th>Trạng thái</th><th></th></tr></thead>
+    <tbody>
+    {% for t in group_tasks %}{% include 'ra_mat_sp/includes/task_row.html' %}
+    {% empty %}<tr><td colspan="6" class="text-center text-muted py-3">Nhóm này chưa có công việc.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</div>
