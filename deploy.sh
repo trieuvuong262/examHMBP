@@ -15,6 +15,20 @@ PROJECT_DIR="${PROJECT_DIR:-/opt/portaljustplay}"
 BRANCH="${BRANCH:-main}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
 
+# Chỉ cho phép một deploy thao tác git/Docker trên VPS tại một thời điểm.
+# SSH từ publish.ps1 và GitHub Actions có thể chạy đồng thời; nếu không khóa,
+# một lượt có thể recreate container trong khi lượt kia vẫn dùng container ID cũ.
+DEPLOY_LOCK_FILE="${DEPLOY_LOCK_FILE:-/var/lock/portaljustplay-deploy.lock}"
+if [[ "${DEPLOY_REEXEC:-0}" != "1" ]]; then
+  exec 9>"${DEPLOY_LOCK_FILE}"
+  if ! flock -n 9; then
+    echo "ERROR: Another PortalJustPlay deploy is already running."
+    echo "       Lock: ${DEPLOY_LOCK_FILE}"
+    exit 75
+  fi
+  echo "    Deploy lock acquired: ${DEPLOY_LOCK_FILE}"
+fi
+
 compose_files=(-f "${COMPOSE_FILE}")
 if [[ -f "docker-compose.ssl.yml" ]] && grep -qE '^USE_HTTPS=(1|true|yes|on)' .env 2>/dev/null; then
   compose_files+=(-f docker-compose.ssl.yml)
@@ -317,8 +331,8 @@ if [[ "${DEPLOY_REEXEC:-0}" != "1" ]]; then
   echo "    Re-exec deploy.sh (bản vừa pull) để tránh chạy script cũ..."
   export DEPLOY_REEXEC=1
   # Giữ tham số gọi ban đầu qua env vì exec tạo shell mới
-  export PROJECT_DIR BRANCH COMPOSE_FILE
-  exec bash "${PROJECT_DIR}/deploy.sh"
+  export PROJECT_DIR BRANCH COMPOSE_FILE DEPLOY_LOCK_FILE
+  exec bash "${PROJECT_DIR}/deploy.sh" 9>&9
 fi
 
 step "2) Cleanup stale files from previous deploy"
