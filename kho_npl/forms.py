@@ -378,10 +378,19 @@ class MaterialForm(forms.ModelForm):
         self.fields['color'].label_from_instance = lambda obj: f'{color_label(obj)} ({obj.hex_code})'
         self.fields['color'].required = False
         self.fields['color'].empty_label = '—'
-        self.fields['specification'].queryset = (
-            MaterialSpecification.objects.filter(is_active=True, levels__level=1)
+        spec_qs = (
+            MaterialSpecification.objects.filter(is_active=True)
             .prefetch_related('levels__unit').distinct().order_by('sort_order', 'name')
         )
+        if self.instance.pk and self.instance.specification_id:
+            if not spec_qs.filter(pk=self.instance.specification_id).exists():
+                spec_qs = (
+                    MaterialSpecification.objects.filter(
+                        Q(is_active=True) | Q(pk=self.instance.specification_id)
+                    )
+                    .prefetch_related('levels__unit').distinct().order_by('sort_order', 'name')
+                )
+        self.fields['specification'].queryset = spec_qs
         self.fields['specification'].label_from_instance = spec_label
         self.fields['specification'].required = True
         self.fields['specification'].empty_label = '— Chọn quy cách —'
@@ -479,19 +488,7 @@ class MaterialForm(forms.ModelForm):
                 old_spec = self.instance.specification if self.instance.pk else None
                 if old_unit_id and old_unit_id != new_unit.pk:
                     factor = rebase_factor(old_unit_id, specification, old_specification=old_spec)
-                    has_stock = (
-                        self.instance.pk
-                        and (
-                            self.instance.balances.filter(quantity__gt=0).exists()
-                            or self.instance.batches.filter(quantity__gt=0).exists()
-                        )
-                    )
-                    if has_stock and factor is None:
-                        self.add_error(
-                            'specification',
-                            'Không thể đổi ĐVT lẻ khi NPL còn tồn hoặc còn tồn lô.',
-                        )
-                    elif factor and factor != 1:
+                    if factor and factor != 1:
                         self._rebase_factor = factor
                         self._rebase_old_unit = self.instance.unit
                 cleaned_data['unit'] = new_unit
