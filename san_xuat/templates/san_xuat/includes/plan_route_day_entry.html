@@ -483,17 +483,14 @@
     }
   }
   window.jpOpenRouteDay = openDay;
-  root.addEventListener('click', function (ev) {
+  root.addEventListener('dblclick', function (ev) {
+    ev.preventDefault();
     if (root.querySelector('.is-dragging-route') || root.querySelector('.is-dragging')) return;
     var draggedAt = Number(root.getAttribute('data-route-dragged-at') || 0);
     if (draggedAt && Date.now() - draggedAt < 1500) return;
     var cell = ev.target && ev.target.closest ? ev.target.closest('.jp-sheet-cell[data-date]') : null;
     if (!cell || !root.contains(cell)) return;
-    ev.preventDefault();
     openDay(cell);
-  });
-  root.addEventListener('dblclick', function (ev) {
-    ev.preventDefault();
   });
   body.addEventListener('input', function (ev) {
     var input = ev.target && ev.target.closest ? ev.target.closest('#jpRdSizes input[data-size]') : null;

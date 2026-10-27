@@ -8,7 +8,7 @@ from hrm.models import PermissionGroup, Profile
 from hrm.module_permissions import MODULE_KHO_NPL
 from hrm.permissions import ROLE_EMPLOYEE
 from kho_npl.choices import STOCK_STATUS_OUT
-from kho_npl.models import Material, MaterialBatch, MaterialCategory, StockBalance, Unit, WarehouseLocation
+from kho_npl.models import Material, MaterialBatch, MaterialCategory, MaterialGroup, StockBalance, Unit, WarehouseLocation
 from kho_npl.services.variant_groups import group_materials, group_stock_rows
 from kho_npl.variant_group import infer_variant_group_from_code
 
@@ -34,20 +34,28 @@ class VariantGroupServiceTests(TestCase):
         )
         self.location = WarehouseLocation.objects.get(code='MAIN')
 
-    def test_group_same_variant_group(self):
+    def test_legacy_variant_group_does_not_group_without_manual_group(self):
         m1 = Material.objects.create(
-            code='VAI-SIEU-01', name='SIEU DEN', category=self.category,
+            code='VAI-SIEU-01', name='SIEU', category=self.category,
             unit=self.unit, variant_group='SIEU',
         )
         m2 = Material.objects.create(
-            code='VAI-SIEU-02', name='SIEU TRANG', category=self.category,
+            code='VAI-SIEU-02', name='SIEU', category=self.category,
             unit=self.unit, variant_group='SIEU',
         )
         groups = group_materials([m1, m2])
-        self.assertEqual(len(groups), 1)
-        self.assertTrue(groups[0]['can_expand'])
-        self.assertEqual(groups[0]['variant_count'], 2)
-        self.assertEqual(groups[0]['group_name'], 'VAI-SIEU')
+        self.assertEqual(len(groups), 2)
+        self.assertFalse(any(group['can_expand'] for group in groups))
+
+    def test_same_name_is_not_grouped_without_manual_group(self):
+        m1 = Material.objects.create(code='VAI-A-01', name='COTTON TRANG', category=self.category, unit=self.unit, variant_group='A')
+        m2 = Material.objects.create(code='VAI-B-99', name=' cotton  trang ', category=self.category, unit=self.unit, variant_group='B')
+        self.assertEqual(len(group_materials([m1, m2])), 2)
+
+    def test_default_group_keeps_different_names_separate(self):
+        m1 = Material.objects.create(code='VAI-A-01', name='COTTON TRANG', category=self.category, unit=self.unit)
+        m2 = Material.objects.create(code='VAI-A-02', name='COTTON DEN', category=self.category, unit=self.unit)
+        self.assertEqual(len(group_materials([m1, m2])), 2)
 
     def test_catalog_group_base_price_total_and_avg(self):
         m1 = Material.objects.create(
@@ -55,13 +63,17 @@ class VariantGroupServiceTests(TestCase):
             unit=self.unit, variant_group='P', base_price=Decimal('10000'),
         )
         m2 = Material.objects.create(
-            code='VAI-P-02', name='P2', category=self.category,
+            code='VAI-P-02', name='P1', category=self.category,
             unit=self.unit, variant_group='P', base_price=Decimal('20000'),
         )
         m3 = Material.objects.create(
-            code='VAI-P-03', name='P3', category=self.category,
+            code='VAI-P-03', name='P1', category=self.category,
             unit=self.unit, variant_group='P', base_price=Decimal('0'),
         )
+        manual_group = MaterialGroup.objects.create(code='P', name='P GROUP', category=self.category)
+        Material.objects.filter(pk__in=[m1.pk, m2.pk, m3.pk]).update(material_group=manual_group)
+        for material in (m1, m2, m3):
+            material.refresh_from_db()
         groups = group_materials([m1, m2, m3])
         self.assertEqual(len(groups), 1)
         g = groups[0]
@@ -93,9 +105,11 @@ class VariantGroupServiceTests(TestCase):
             unit=self.unit, variant_group='Y', min_stock=Decimal('10'),
         )
         m2 = Material.objects.create(
-            code='VAI-Y-02', name='Y2', category=self.category,
+            code='VAI-Y-02', name='Y1', category=self.category,
             unit=self.unit, variant_group='Y', min_stock=Decimal('5'),
         )
+        manual_group = MaterialGroup.objects.create(code='Y', name='Y GROUP', category=self.category)
+        Material.objects.filter(pk__in=[m1.pk, m2.pk]).update(material_group=manual_group)
         StockBalance.objects.create(material=m1, location=self.location, quantity=Decimal('20'))
         StockBalance.objects.create(material=m2, location=self.location, quantity=Decimal('0'))
         MaterialBatch.objects.create(
@@ -136,14 +150,18 @@ class VariantGroupViewTests(TestCase):
         self.category = MaterialCategory.objects.get(code='vai-chinh')
         self.unit = Unit.objects.get(code='met')
         self.client.login(username='npl_vg', password='test')
-        Material.objects.create(
+        m1 = Material.objects.create(
             code='VAI-Z-01', name='Z DEN', category=self.category,
             unit=self.unit, variant_group='Z',
         )
-        Material.objects.create(
+        m2 = Material.objects.create(
             code='VAI-Z-02', name='Z TRANG', category=self.category,
             unit=self.unit, variant_group='Z',
         )
+        self.manual_group = MaterialGroup.objects.create(
+            code='Z', name='Z GROUP', category=self.category,
+        )
+        Material.objects.filter(pk__in=[m1.pk, m2.pk]).update(material_group=self.manual_group)
 
     def test_material_list_shows_expandable_group(self):
         response = self.client.get(reverse('kho_npl:material_list'))
@@ -159,10 +177,10 @@ class VariantGroupViewTests(TestCase):
         self.assertContains(response, 'VAI-Z-01')
         self.assertTrue(response.context['expand_search_hits'])
 
-    def test_save_infers_variant_group(self):
+    def test_save_does_not_infer_variant_group(self):
         material = Material.objects.create(
             code='VAI-ABC-03', name='abc test', category=self.category, unit=self.unit,
         )
         material.refresh_from_db()
-        self.assertEqual(material.variant_group, 'ABC')
+        self.assertEqual(material.variant_group, '')
         self.assertEqual(material.name, 'ABC TEST')

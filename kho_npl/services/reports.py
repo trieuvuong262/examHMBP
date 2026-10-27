@@ -228,7 +228,7 @@ def report_xuat_nhap_ton(
             val_close = val_open + val_in - val_out
         row = {
             'material': material,
-            'group_name': (material.variant_group or '').strip(),
+            'group_name': ((material.material_group.name if material.material_group_id else material.variant_group) or '').strip(),
             'code': material.code,
             'name': material.name,
             'qty_open': qty_open,

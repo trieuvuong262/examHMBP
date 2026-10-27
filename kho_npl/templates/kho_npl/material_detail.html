@@ -84,7 +84,7 @@
                     </div>
                     <div class="jp-npl-mat-detail-item">
                         <span class="jp-npl-mat-detail-label">Tên nhóm hàng</span>
-                        <span class="jp-npl-mat-detail-value">{{ material.variant_group|default:'—' }}</span>
+                        <span class="jp-npl-mat-detail-value">{% if material.material_group %}{{ material.material_group.name }}{% else %}{{ material.variant_group|default:'—' }}{% endif %}</span>
                     </div>
                 </div>
             </div>
@@ -112,6 +112,10 @@
                     <div class="jp-npl-mat-detail-item">
                         <span class="jp-npl-mat-detail-label">Quy cách</span>
                         <span class="jp-npl-mat-detail-value">{% include 'kho_npl/includes/material_spec_display.html' with spec=material.specification %}</span>
+                    </div>
+                    <div class="jp-npl-mat-detail-item">
+                        <span class="jp-npl-mat-detail-label">Size</span>
+                        <span class="jp-npl-mat-detail-value">{{ material.size|default:'—' }}</span>
                     </div>
                 </div>
             </div>

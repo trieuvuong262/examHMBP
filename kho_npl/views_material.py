@@ -157,7 +157,7 @@ def material_search_response(request):
                 balances__location_id=location_id,
                 balances__quantity__gt=0,
             )
-            .select_related('unit', 'color', 'specification', 'primary_location')
+            .select_related('unit', 'color', 'specification', 'primary_location', 'material_group')
             .prefetch_related('specification__levels__unit')
             .distinct()
         )
@@ -264,7 +264,7 @@ def material_search_response(request):
             'specification': spec_label(material.specification) if material.specification_id else '',
             'specification_name': material.specification.name if material.specification_id else '',
             'color': color_label(material.color) if material.color_id else '',
-            'variant_group': material.variant_group or '',
+            'variant_group': (material.material_group.name if material.material_group_id else material.variant_group) or '',
             'category': material.category.name if material.category_id else '',
             'department': material.department or '',
             'bom_qty': float(qty_caps.get(material.pk) or 0) if qty_caps is not None else None,
@@ -408,7 +408,7 @@ def material_list(request):
     selected_department = normalize_material_department(selected_department) or selected_department
     qs = (
         Material.objects.filter(materials_catalog_q())
-        .select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location')
+        .select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location', 'material_group')
         .prefetch_related('specification__levels__unit')
     )
     qs = _apply_material_usage_status(qs, status)
@@ -493,7 +493,7 @@ def _stock_filtered_rows(request):
     selected_department = normalize_material_department(selected_department) or selected_department
     qs = (
         Material.objects.filter(materials_visible_q())
-        .select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location')
+        .select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location', 'material_group')
         .prefetch_related('specification__levels__unit', 'balances__location')
         .distinct()
     )
@@ -740,7 +740,7 @@ def _catalog_back_query(request) -> str:
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def material_detail(request, pk):
     material = get_object_or_404(
-        Material.objects.select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location'),
+        Material.objects.select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location', 'material_group'),
         pk=pk,
     )
     if not _material_in_module(material):
@@ -811,7 +811,7 @@ def material_export(request):
     from kho_npl.material_department import normalize_material_department
 
     selected_department = normalize_material_department(selected_department) or selected_department
-    qs = Material.objects.filter(materials_catalog_q()).select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location')
+    qs = Material.objects.filter(materials_catalog_q()).select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location', 'material_group')
     qs = _apply_material_usage_status(qs, status)
     if category_ids:
         qs = qs.filter(category_filter_q(category_ids))

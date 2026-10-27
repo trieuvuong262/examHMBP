@@ -13,60 +13,41 @@ from kho_npl.choices import (
     STOCK_STATUS_OK,
     STOCK_STATUS_OUT,
 )
-from kho_npl.variant_group import code_base, normalize_variant_group
+
+
+def _material_name(material) -> str:
+    return (getattr(material, 'name', '') or '').strip()
+
+
+def _group_name(materials: list) -> str:
+    material = materials[0]
+    return _material_name(material) or getattr(material, 'code', '')
 
 
 def material_group_key(material) -> tuple:
-    """Khóa gom: cùng nhóm NPL + tên nhóm hàng + ĐVT."""
-    group = normalize_variant_group(getattr(material, 'variant_group', '') or '')
-    if not group:
-        # Không gom — mỗi mã một dòng riêng
-        return (f'material:{material.pk}',)
-    return (
-        material.category_id,
-        group,
-        material.unit_id,
-    )
+    """Khóa gom chỉ theo Nhóm gom NPL thủ công."""
+    group_id = getattr(material, 'material_group_id', None)
+    return (f'group:{group_id}',) if group_id else (f'material:{material.pk}',)
 
 
 def _safe_group_dom_key(key: tuple, representative) -> str:
     """Khóa ổn định, an toàn cho HTML/CSS attribute (không chứa |)."""
     if len(key) == 1 and str(key[0]).startswith('material:'):
         return f'm-{representative.pk}'
-    raw = f'{key[0]}::{key[1]}::{key[2]}'
+    raw = '::'.join(str(part) for part in key)
+    # Group keys include category implicitly through the FK; no cross-category merge.
+
     digest = hashlib.md5(raw.encode('utf-8')).hexdigest()[:12]
     return f'g-{digest}'
 
 
-def _common_dash_prefix(values: list[str]) -> str:
-    """Tiền tố chung của các chuỗi, cắt về ranh giới dấu '-'."""
-    values = [v for v in values if v]
-    if not values:
-        return ''
-    prefix = values[0]
-    for value in values[1:]:
-        while prefix and not value.startswith(prefix):
-            prefix = prefix[:-1]
-        if not prefix:
-            return ''
-    if any(len(v) > len(prefix) for v in values) and '-' in prefix:
-        # Cắt phần dở dang sau dấu '-' cuối (VD: 'BB-BICH-0' → 'BB-BICH')
-        if not prefix.endswith('-'):
-            prefix = prefix.rsplit('-', 1)[0]
-    return prefix.strip('-_ ')
-
-
 def _group_display_name(materials: list) -> str:
-    """Tên nhóm hiển thị theo phần mã chung (BB-BICH), fallback tên nhóm hàng."""
-    bases = [code_base(m.code) for m in materials]
-    if bases and all(b == bases[0] for b in bases) and bases[0]:
-        return bases[0]
-    common = _common_dash_prefix([(m.code or '').strip().upper() for m in materials])
-    if common:
-        return common
+    """Tên nhóm hiển thị từ nhóm thủ công; mã lẻ dùng tên NPL."""
     rep = materials[0]
-    group = normalize_variant_group(getattr(rep, 'variant_group', '') or '')
-    return group or rep.name or rep.code
+    material_group = getattr(rep, 'material_group', None)
+    if material_group:
+        return (getattr(material_group, 'name', '') or '').strip() or rep.name or rep.code
+    return _group_name(materials)
 
 
 def group_materials(materials) -> list[dict]:
@@ -256,6 +237,7 @@ def sort_catalog_groups(groups: list[dict], sort_key: str, sort_dir: str) -> lis
             'department': (g.get('department') or '').lower(),
             'color': '',
             'specification': '',
+            'size': (getattr(rep, 'size', '') or '').lower(),
             'base_unit': (g['unit'].name if g.get('unit') else '').lower(),
             'unit': (g.get('package_unit_label') or '').lower(),
             'supplier': (g['supplier'].name if g.get('supplier') else '').lower(),

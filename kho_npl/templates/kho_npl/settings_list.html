@@ -71,7 +71,7 @@
                                 <span>{{ obj|get_attr:field }}</span>
                             </span>
                             {% else %}
-                            {{ obj|get_attr:field }}
+                            {% if section.key == 'nhom-gom' and field == 'category' %}{{ obj.category.name }}{% elif section.key == 'nhom-gom' and field == 'member_count' %}{{ obj.materials.count }}{% else %}{{ obj|get_attr:field }}{% endif %}
                             {% endif %}
                         </td>
                         {% endfor %}
@@ -84,7 +84,7 @@
                             {% endif %}
                             {% if can_delete and obj.is_active %}
                             {% if section.key != 'vi-tri' or obj.code != 'HUY' %}
-                            <a href="{% url 'kho_npl:settings_deactivate' section=section.key pk=obj.pk %}" class="btn btn-link btn-sm p-0 text-danger" title="Ngừng dùng"><i class="bi bi-slash-circle"></i></a>
+                            <a href="{% url 'kho_npl:settings_deactivate' section=section.key pk=obj.pk %}" class="btn btn-link btn-sm p-0 text-danger" title="{% if section.key == 'nhom-gom' %}Xóa{% else %}Ngừng dùng{% endif %}"><i class="bi bi-{% if section.key == 'nhom-gom' %}trash{% else %}slash-circle{% endif %}"></i></a>
                             {% endif %}
                             {% endif %}
                         </td>

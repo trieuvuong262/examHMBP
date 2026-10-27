@@ -307,6 +307,37 @@ class Supplier(models.Model):
         return self.name
 
 
+class MaterialGroup(StockDomainMixin, models.Model):
+    """Nhóm gom các mã NPL cùng loại trong một kho nghiệp vụ."""
+
+    code = models.CharField(max_length=80, verbose_name='Mã nhóm gom')
+    name = models.CharField(max_length=160, verbose_name='Tên nhóm gom')
+    category = models.ForeignKey(
+        MaterialCategory,
+        on_delete=models.PROTECT,
+        related_name='material_groups',
+        verbose_name='Nhóm NPL',
+    )
+    notes = models.TextField(blank=True, default='', verbose_name='Ghi chú')
+    is_active = models.BooleanField(default=True, verbose_name='Đang dùng')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name', 'code']
+        verbose_name = 'Nhóm gom NPL'
+        verbose_name_plural = 'Nhóm gom NPL'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['stock_domain', 'category', 'code'],
+                name='uniq_npl_material_group_domain_category_code',
+            ),
+        ]
+
+    def __str__(self):
+        return self.name or self.code
+
+
 class Material(StockDomainMixin, models.Model):
     code = models.CharField(max_length=60, unique=True, verbose_name='Mã NPL')
     name = models.CharField(max_length=200, verbose_name='Tên nguyên phụ liệu')
@@ -315,8 +346,16 @@ class Material(StockDomainMixin, models.Model):
         blank=True,
         default='',
         db_index=True,
-        verbose_name='Tên nhóm hàng',
-        help_text='Gom các mã cùng dòng hàng (màu/quy cách khác nhau). Ví dụ: SIEU, CR3, BICH.',
+        verbose_name='Tên nhóm hàng cũ',
+        help_text='Dữ liệu tương thích cũ; nhóm mới dùng Nhóm gom NPL.',
+    )
+    material_group = models.ForeignKey(
+        'MaterialGroup',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='materials',
+        verbose_name='Nhóm gom NPL',
     )
     category = models.ForeignKey(
         MaterialCategory,
@@ -347,6 +386,12 @@ class Material(StockDomainMixin, models.Model):
         blank=True,
         related_name='materials',
         verbose_name='Quy cách / khổ',
+    )
+    size = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        verbose_name='Size',
     )
     unit = models.ForeignKey(
         Unit,
@@ -398,8 +443,6 @@ class Material(StockDomainMixin, models.Model):
         verbose_name_plural = 'Nguyên phụ liệu'
 
     def save(self, *args, **kwargs):
-        from kho_npl.variant_group import infer_variant_group_from_code, normalize_variant_group
-
         if self.specification_id:
             base_level = (
                 MaterialSpecificationLevel.objects
@@ -426,14 +469,8 @@ class Material(StockDomainMixin, models.Model):
             super().save(*args, **kwargs)
             return
 
-        deferred = set(self.get_deferred_fields()) if self.pk else set()
-        if 'variant_group' in deferred:
-            # Không fetch deferred field (cột có thể chưa tồn tại trên DB đang migrate).
-            self.variant_group = infer_variant_group_from_code(self.code)
-        else:
-            self.variant_group = normalize_variant_group(self.variant_group)
-            if not self.variant_group and self.code:
-                self.variant_group = infer_variant_group_from_code(self.code)
+        # ``variant_group`` chỉ là dữ liệu tương thích cũ. Không tự suy ra
+        # nhóm từ mã/tên/prefix; việc gom mới chỉ qua MaterialGroup.
         super().save(*args, **kwargs)
 
     def __str__(self):

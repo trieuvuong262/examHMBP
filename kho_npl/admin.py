@@ -3,6 +3,7 @@ from django.contrib import admin
 from kho_npl.models import (
     Material,
     MaterialBatch,
+    MaterialGroup,
     MaterialCategory,
     MaterialColor,
     MaterialSpecification,
@@ -94,11 +95,18 @@ class MaterialSpecificationAdmin(admin.ModelAdmin):
     inlines = [MaterialSpecificationLevelInline]
 
 
+@admin.register(MaterialGroup)
+class MaterialGroupAdmin(admin.ModelAdmin):
+    list_display = ('code', 'name', 'category', 'stock_domain', 'is_active')
+    list_filter = ('stock_domain', 'category', 'is_active')
+    search_fields = ('code', 'name', 'category__name')
+
+
 @admin.register(Material)
 class MaterialAdmin(admin.ModelAdmin):
-    list_display = ('code', 'name', 'variant_group', 'category', 'department', 'color', 'specification', 'unit', 'primary_location', 'min_stock', 'is_active')
-    list_filter = ('category', 'department', 'variant_group', 'is_active')
-    search_fields = ('code', 'name', 'variant_group', 'department', 'color__name', 'specification__name')
+    list_display = ('code', 'name', 'material_group', 'variant_group', 'category', 'department', 'color', 'specification', 'size', 'unit', 'primary_location', 'min_stock', 'is_active')
+    list_filter = ('category', 'department', 'material_group', 'is_active')
+    search_fields = ('code', 'name', 'material_group__code', 'material_group__name', 'variant_group', 'department', 'color__name', 'specification__name', 'size')
 
 
 @admin.register(MaterialBatch)

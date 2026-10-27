@@ -49,10 +49,11 @@
                             {% if is_edit %}
                             {% include 'kho_npl/includes/material_image_preview.html' with show_hint=False %}
                             {% else %}
-                            <div class="jp-npl-mat-preview-empty text-muted">
+                            <div class="jp-npl-mat-preview-empty text-muted" id="jp-npl-image-preview-empty">
                                 <i class="bi bi-image display-6 d-block mb-2 opacity-50"></i>
                                 <span class="small">Chưa có hình ảnh</span>
                             </div>
+                            <img id="jp-npl-image-preview" class="jp-npl-mat-preview-img d-none" alt="Xem trước hình ảnh NPL">
                             {% endif %}
                             <label class="form-label fw-bold small mt-3 mb-1" for="{{ form.image.id_for_label }}">Hình ảnh</label>
                             <div class="jp-npl-doc-attachment-field">
@@ -138,6 +139,11 @@
                                 {% if form.specification.errors %}<div class="text-danger small">{{ form.specification.errors }}</div>{% endif %}
                             </div>
                             <div class="col-md-6">
+                                <label class="form-label fw-bold small" for="{{ form.size.id_for_label }}">Size</label>
+                                {{ form.size }}
+                                {% if form.size.errors %}<div class="text-danger small">{{ form.size.errors }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6">
                                 <label class="form-label fw-bold small" for="{{ form.unit.id_for_label }}">ĐVT lẻ (BOM và tồn)</label>
                                 {{ form.unit }}
                                 {% if form.unit.errors %}<div class="text-danger small">{{ form.unit.errors }}</div>{% endif %}
@@ -188,35 +194,6 @@
             </div>
         </div>
 
-        <div class="card jp-npl-mat-detail-section mb-3">
-            <div class="card-header">
-                <h2 class="jp-npl-mat-detail-section-title">
-                    <i class="bi bi-collection" aria-hidden="true"></i>Gom nhóm hàng hoá
-                    <span class="fw-normal text-muted">(không bắt buộc)</span>
-                </h2>
-            </div>
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold small" for="{{ form.variant_group.id_for_label }}">
-                            Gom NPL này vào
-                        </label>
-                        {{ form.variant_group }}
-                        {% if form.variant_group.help_text %}<div class="form-text">{{ form.variant_group.help_text }}</div>{% endif %}
-                        {% if form.variant_group.errors %}<div class="text-danger small">{{ form.variant_group.errors }}</div>{% endif %}
-                    </div>
-                    <div class="col-md-6" id="jp-npl-new-variant-group-wrap" hidden>
-                        <label class="form-label fw-bold small" for="{{ form.new_variant_group.id_for_label }}">
-                            Tên nhóm mới
-                        </label>
-                        {{ form.new_variant_group }}
-                        <div class="form-text">Chỉ nhập phần nhận diện, ví dụ BICH hoặc SIEU.</div>
-                        {% if form.new_variant_group.errors %}<div class="text-danger small">{{ form.new_variant_group.errors }}</div>{% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <div class="card jp-npl-mat-detail-notes shadow-sm">
             <div class="card-header bg-white border-bottom py-3">
                 <h2 class="jp-npl-mat-detail-section-title mb-0">
@@ -245,19 +222,22 @@
 {% include 'kho_npl/includes/doc_attachment_clear_script.html' %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const select = document.getElementById('{{ form.variant_group.id_for_label }}');
-    const newGroupWrap = document.getElementById('jp-npl-new-variant-group-wrap');
-    const newGroupInput = document.getElementById('{{ form.new_variant_group.id_for_label }}');
-    if (select && newGroupWrap && newGroupInput) {
-        function toggleNewGroup() {
-            const creating = select.value === '__new__';
-            newGroupWrap.hidden = !creating;
-            newGroupInput.required = creating;
-        }
-        select.addEventListener('change', toggleNewGroup);
-        toggleNewGroup();
+    const imageInput = document.getElementById('{{ form.image.id_for_label }}');
+    const imagePreview = document.getElementById('jp-npl-image-preview');
+    const imageEmpty = document.getElementById('jp-npl-image-preview-empty');
+    if (imageInput && imagePreview) {
+        imageInput.addEventListener('change', function () {
+            const file = this.files && this.files[0];
+            if (!file || !file.type.startsWith('image/')) {
+                imagePreview.classList.add('d-none');
+                if (imageEmpty) imageEmpty.classList.remove('d-none');
+                return;
+            }
+            imagePreview.src = URL.createObjectURL(file);
+            imagePreview.classList.remove('d-none');
+            if (imageEmpty) imageEmpty.classList.add('d-none');
+        });
     }
-
     const specSelect = document.getElementById('{{ form.specification.id_for_label }}');
     const unitSelect = document.getElementById('{{ form.unit.id_for_label }}');
     const packageUnitName = document.getElementById('jp-package-unit-name');

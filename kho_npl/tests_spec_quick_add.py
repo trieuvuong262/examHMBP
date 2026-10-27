@@ -5,7 +5,7 @@ from django.urls import reverse
 from hrm.models import PermissionGroup, Profile
 from hrm.module_permissions import MODULE_KHO_NPL
 from hrm.permissions import ROLE_EMPLOYEE
-from kho_npl.models import MaterialSpecification, Unit
+from kho_npl.models import MaterialCategory, MaterialGroup, MaterialSpecification, Unit
 
 
 class SpecQuickAddReturnTests(TestCase):
@@ -32,6 +32,13 @@ class SpecQuickAddReturnTests(TestCase):
         self.create_url = reverse('kho_npl:material_create')
         self.spec_create_url = reverse('kho_npl:settings_create', kwargs={'section': 'quy-cach'})
 
+    def test_material_form_links_material_group_create_with_next(self):
+        response = self.client.get(self.create_url)
+        self.assertEqual(response.status_code, 200)
+        group_create_url = reverse('kho_npl:settings_create', kwargs={'section': 'nhom-gom'})
+        self.assertContains(response, f'{group_create_url}?next={self.create_url}')
+        self.assertContains(response, 'Thêm nhóm')
+
     def test_material_form_links_spec_create_with_next(self):
         response = self.client.get(self.create_url)
         self.assertEqual(response.status_code, 200)
@@ -44,6 +51,20 @@ class SpecQuickAddReturnTests(TestCase):
         tag_end = html.find('>', spec_idx)
         spec_tag = html[tag_start:tag_end]
         self.assertNotIn('target="_blank"', spec_tag)
+
+    def test_create_material_group_with_next_returns_to_material_form(self):
+        category = MaterialCategory.objects.get(code='vai-chinh')
+        group_create_url = reverse('kho_npl:settings_create', kwargs={'section': 'nhom-gom'})
+        response = self.client.post(group_create_url, {
+            'code': 'quick-group-01',
+            'name': 'Nhóm quick add',
+            'category': category.pk,
+            'is_active': 'on',
+            'next': self.create_url,
+        })
+        self.assertEqual(response.status_code, 302)
+        group = MaterialGroup.objects.get(code='QUICK-GROUP-01')
+        self.assertEqual(response.url, f'{self.create_url}?select_material_group={group.pk}')
 
     def test_create_spec_with_next_returns_to_material_form(self):
         response = self.client.post(self.spec_create_url, {

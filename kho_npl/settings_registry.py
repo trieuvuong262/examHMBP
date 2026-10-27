@@ -1,6 +1,7 @@
 from kho_npl.forms import (
     IssueReasonForm,
     MaterialCategoryForm,
+    MaterialGroupForm,
     MaterialColorForm,
     MaterialSpecificationForm,
     SupplierForm,
@@ -10,6 +11,7 @@ from kho_npl.forms import (
 from kho_npl.models import (
     IssueReason,
     MaterialCategory,
+    MaterialGroup,
     MaterialColor,
     MaterialSpecification,
     Supplier,
@@ -18,6 +20,20 @@ from kho_npl.models import (
 )
 
 SETTINGS_SECTIONS = {
+    'nhom-gom': {
+        'title': 'Nhóm gom NPL',
+        'icon': 'bi-collection-fill',
+        'model': MaterialGroup,
+        'form_class': MaterialGroupForm,
+        'search_fields': ('code', 'name', 'category__name'),
+        'order_by': ('name', 'code'),
+        'list_columns': (
+            ('name', 'Tên nhóm gom'),
+            ('code', 'Mã'),
+            ('category', 'Nhóm NPL'),
+            ('member_count', 'Số NPL'),
+        ),
+    },
     'nhom': {
         'title': 'Nhóm nguyên phụ liệu',
         'icon': 'bi-collection',

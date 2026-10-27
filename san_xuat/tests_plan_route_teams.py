@@ -229,6 +229,12 @@ class RescheduleRouteViewTests(TestCase):
         self.assertIn('AbortController', timeline)
         self.assertIn('if (!data || !active()) return;', timeline)
 
+        route_day = (Path(__file__).resolve().parent / 'templates' / 'san_xuat' / 'includes' / 'plan_route_day_entry.html').read_text(encoding='utf-8')
+        dblclick_start = route_day.index("root.addEventListener('dblclick', function (ev)")
+        self.assertIn('    openDay(cell);', route_day[dblclick_start:])
+        click_start = route_day.find("root.addEventListener('click', function (ev)")
+        self.assertEqual(click_start, -1)
+
         view_source = Path(__file__).resolve().parent / 'views_hub.py'
         view_text = view_source.read_text(encoding='utf-8')
         self.assertIn("force_full_route = bool((request.GET.get('_route_refresh') or '').strip())", view_text)

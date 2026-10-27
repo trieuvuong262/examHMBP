@@ -19,7 +19,7 @@ from kho_npl.stock_domain import domain_from_current_request
 from kho_npl.view_utils import nav_context, perm_context
 
 _MATERIAL_FORM_URL_NAMES = frozenset({'material_create', 'material_edit'})
-_DOMAIN_SCOPED_SETTINGS = frozenset({'nhom', 'vi-tri'})
+_DOMAIN_SCOPED_SETTINGS = frozenset({'nhom', 'nhom-gom', 'vi-tri'})
 
 
 def _section_queryset(config):
@@ -82,6 +82,8 @@ def settings_list(request, section):
     qs = _section_queryset(config)
     if config['key'] == 'quy-cach':
         qs = qs.prefetch_related('levels__unit')
+    elif config['key'] == 'nhom-gom':
+        qs = qs.select_related('category').prefetch_related('materials')
     if not show_inactive:
         qs = qs.filter(is_active=True)
     if search_query:
@@ -105,6 +107,10 @@ def settings_create(request, section):
     config = _section_or_404(section)
     form_class = config['form_class']
     form = form_class(request.POST or None)
+    if section == 'nhom-gom' and request.method == 'GET':
+        category_id = (request.GET.get('category') or '').strip()
+        if category_id.isdigit() and form.fields['category'].queryset.filter(pk=category_id).exists():
+            form.initial['category'] = category_id
     next_url = _safe_material_form_next(request)
     cancel_url = next_url or reverse('kho_npl:settings_list', kwargs={'section': section})
     if request.method == 'POST' and form.is_valid():
@@ -113,6 +119,8 @@ def settings_create(request, section):
         if next_url:
             if section == 'quy-cach':
                 next_url = _append_query(next_url, select_specification=obj.pk)
+            elif section == 'nhom-gom':
+                next_url = _append_query(next_url, select_material_group=obj.pk)
             return redirect(next_url)
         return redirect('kho_npl:settings_list', section=section)
     return render(request, 'kho_npl/settings_form.html', {
@@ -157,9 +165,13 @@ def settings_deactivate(request, section, pk):
         messages.error(request, 'Không thể ngừng dùng kho hủy — vị trí hệ thống của phiếu hủy.')
         return redirect('kho_npl:settings_list', section=section)
     if request.method == 'POST':
-        obj.is_active = False
-        obj.save(update_fields=['is_active'])
-        messages.success(request, f'Đã ngừng dùng {obj}.')
+        if config.get('key') == 'nhom-gom':
+            obj.delete()
+            messages.success(request, f'Đã xóa nhóm gom {obj}. Các NPL thành viên đã trở về dòng riêng.')
+        else:
+            obj.is_active = False
+            obj.save(update_fields=['is_active'])
+            messages.success(request, f'Đã ngừng dùng {obj}.')
         return redirect('kho_npl:settings_list', section=section)
     return render(request, 'kho_npl/settings_confirm_deactivate.html', {
         **nav_context('settings', user=request.user),

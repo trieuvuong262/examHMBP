@@ -15,6 +15,7 @@ from kho_npl.models import (
     IssueReason,
     Material,
     MaterialCategory,
+    MaterialGroup,
     MaterialColor,
     MaterialSpecification,
     MaterialSpecificationLevel,
@@ -278,17 +279,6 @@ class MaterialSpecificationSelect(forms.Select):
 
 
 class MaterialForm(forms.ModelForm):
-    NEW_VARIANT_GROUP_VALUE = '__new__'
-
-    new_variant_group = forms.CharField(
-        required=False,
-        label='Tên nhóm mới',
-        widget=forms.TextInput(attrs={
-            **FORM_CONTROL,
-            'placeholder': 'VD: BICH, SIEU, CR3…',
-            'autocomplete': 'off',
-        }),
-    )
     price_qty_unit = forms.IntegerField(
         required=False,
         widget=forms.HiddenInput(),
@@ -315,6 +305,7 @@ class MaterialForm(forms.ModelForm):
             'department',
             'color',
             'specification',
+            'size',
             'unit',
             'supplier',
             'primary_location',
@@ -327,7 +318,7 @@ class MaterialForm(forms.ModelForm):
         widgets = {
             'code': forms.TextInput(attrs={**FORM_CONTROL, 'placeholder': 'VD: VAI-001'}),
             'name': forms.TextInput(attrs=FORM_CONTROL),
-            'variant_group': forms.Select(attrs=FORM_SELECT),
+            'variant_group': forms.HiddenInput(),
             'category': forms.Select(attrs=FORM_SELECT),
             'color': MaterialColorSelect(attrs={
                 **FORM_SEARCH_SELECT,
@@ -336,6 +327,9 @@ class MaterialForm(forms.ModelForm):
             }),
             'specification': MaterialSpecificationSelect(attrs={
                 **FORM_SEARCH_SELECT, 'data-placeholder': 'Tìm quy cách / khổ...',
+            }),
+            'size': forms.TextInput(attrs={
+                **FORM_CONTROL, 'placeholder': 'VD: S, M, L hoặc 38/40',
             }),
             'unit': forms.Select(attrs=FORM_SELECT),
             'supplier': forms.Select(attrs={**FORM_SEARCH_SELECT, 'data-placeholder': 'Tìm NCC...'}),
@@ -375,33 +369,7 @@ class MaterialForm(forms.ModelForm):
         dept_choices = material_department_choices(current=current_dept)
         self.fields['department'].choices = dept_choices
         self.fields['department'].widget.choices = dept_choices
-        self.fields['variant_group'].label = 'Gom nhóm hàng hoá'
         self.fields['variant_group'].required = False
-        self.fields['variant_group'].help_text = (
-            'Chọn một dòng hàng đã có để gom các màu/quy cách vào cùng một nhóm.'
-        )
-        from kho_npl.variant_group import code_base
-
-        group_rows = list(
-            Material.objects.filter(stock_domain=domain_from_current_request())
-            .exclude(variant_group='')
-            .values('variant_group')
-            .annotate(example_code=Min('code'), material_count=Count('pk'))
-            .order_by('variant_group')[:200]
-        )
-        choices = [('', 'Tự động gom theo mã NPL (khuyên dùng)')]
-        known_groups = set()
-        for row in group_rows:
-            group = row['variant_group']
-            known_groups.add(group)
-            display_code = code_base(row['example_code']) or group
-            choices.append((group, f"{display_code} — {row['material_count']} mã"))
-
-        current_group = (getattr(self.instance, 'variant_group', '') or '').strip()
-        if current_group and current_group not in known_groups:
-            choices.append((current_group, current_group))
-        choices.append((self.NEW_VARIANT_GROUP_VALUE, '+ Tạo nhóm mới'))
-        self.fields['variant_group'].widget.choices = choices
         self.fields['category'].queryset = material_form_category_queryset(
             self.instance if self.instance.pk else None,
         )
@@ -473,12 +441,7 @@ class MaterialForm(forms.ModelForm):
         return code
 
     def clean_variant_group(self):
-        from kho_npl.variant_group import normalize_variant_group
-
-        value = self.cleaned_data.get('variant_group')
-        if value == self.NEW_VARIANT_GROUP_VALUE:
-            return value
-        return normalize_variant_group(value)
+        return (self.cleaned_data.get('variant_group') or '').strip()
 
     def clean_department(self):
         from kho_npl.material_department import normalize_material_department
@@ -487,20 +450,24 @@ class MaterialForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        from kho_npl.variant_group import infer_variant_group_from_code, normalize_variant_group
-
-        group = cleaned_data.get('variant_group')
-        if group == self.NEW_VARIANT_GROUP_VALUE:
-            group = normalize_variant_group(cleaned_data.get('new_variant_group'))
-            if not group:
-                self.add_error('new_variant_group', 'Nhập tên nhóm mới.')
-                cleaned_data['variant_group'] = ''
-                return cleaned_data
-
-        if not group:
-            code = (cleaned_data.get('code') or getattr(self.instance, 'code', '') or '').strip()
-            group = infer_variant_group_from_code(code)
-        cleaned_data['variant_group'] = group
+        cleaned_data['variant_group'] = (cleaned_data.get('variant_group') or '').strip()
+        selected_group = cleaned_data.get('material_group') or ''
+        category = cleaned_data.get('category')
+        self._selected_material_group = None
+        if selected_group:
+            material_group = MaterialGroup.objects.filter(
+                pk=selected_group,
+                stock_domain=domain_from_current_request(),
+                is_active=True,
+            ).first()
+            if not material_group:
+                self.add_error('material_group', 'Nhóm gom không hợp lệ hoặc không thuộc kho hiện tại.')
+            elif category and material_group.category_id != category.pk:
+                self.add_error('material_group', 'Nhóm gom phải cùng Nhóm NPL.')
+            self._selected_material_group = material_group
+            cleaned_data['material_group'] = None
+        else:
+            cleaned_data['material_group'] = None
         specification = cleaned_data.get('specification')
         if specification:
             base_level = specification.levels.select_related('unit').filter(level=1).first()
@@ -565,6 +532,10 @@ class MaterialForm(forms.ModelForm):
     def save(self, commit=True):
         material = super().save(commit=False)
         material.unit = self.cleaned_data['unit']
+        material_group = getattr(self, '_selected_material_group', None)
+        material.material_group = material_group
+        # Không tạo nhóm ngầm từ form NPL; variant_group chỉ giữ dữ liệu cũ.
+        material.variant_group = self.cleaned_data.get('variant_group') or ''
 
         if commit:
             if self._rebase_factor and self._rebase_old_unit and material.pk:
@@ -577,13 +548,21 @@ class MaterialForm(forms.ModelForm):
         uploaded = self.cleaned_data.get('image')
         if uploaded is False:
             return False
+
+        # FileField trả lại initial FieldFile khi không chọn ảnh mới. Không
+        # validate lại ảnh cũ ở đây: file vật lý có thể đã bị xóa/di chuyển,
+        # khi đó việc đọc ``.size`` sẽ gây FileNotFoundError trong lúc sửa NPL.
+        current_image = self.instance.image if self.instance.pk else None
+        if current_image and uploaded is current_image:
+            return current_image
+
         if uploaded:
             ext = (uploaded.name or '').rsplit('.', 1)[-1].lower()
             if f'.{ext}' not in IMAGE_ATTACHMENT_EXTENSIONS:
                 raise ValidationError('Chỉ chấp nhận file ảnh JPG, PNG, GIF hoặc WebP.')
             return validate_doc_attachment(uploaded)
-        if self.instance.pk and self.instance.image:
-            return self.instance.image
+        if current_image:
+            return current_image
         return None
 
 
@@ -1911,6 +1890,74 @@ def _clean_unique_code(model, field_name, value, instance, extra_filter=None):
     if qs.exists():
         raise ValidationError('Mã đã tồn tại.')
     return value
+
+
+class MaterialGroupForm(forms.ModelForm):
+    materials = forms.ModelMultipleChoiceField(
+        queryset=Material.objects.none(),
+        required=False,
+        label='NPL thành viên',
+        widget=forms.SelectMultiple(attrs={**FORM_SELECT, 'size': 12}),
+        help_text='Chỉ các NPL được chọn mới được gộp vào nhóm này.',
+    )
+
+    class Meta:
+        model = MaterialGroup
+        fields = ['code', 'name', 'category', 'materials', 'notes', 'is_active']
+        widgets = {
+            'code': forms.TextInput(attrs=FORM_CONTROL),
+            'name': forms.TextInput(attrs=FORM_CONTROL),
+            'category': forms.Select(attrs=FORM_SELECT),
+            'notes': forms.Textarea(attrs=FORM_TEXTAREA),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        domain = domain_from_current_request()
+        self.fields['category'].queryset = MaterialCategory.objects.filter(
+            stock_domain=domain,
+        ).order_by('sort_order', 'name')
+        self.fields['materials'].queryset = Material.objects.filter(
+            stock_domain=domain,
+        ).select_related('category').order_by('code')
+        if self.instance.pk:
+            self.initial['materials'] = self.instance.materials.values_list('pk', flat=True)
+
+    def clean_code(self):
+        return (self.cleaned_data.get('code') or '').strip().upper()
+
+    def clean(self):
+        cleaned = super().clean()
+        category = cleaned.get('category')
+        code = cleaned.get('code')
+        materials = cleaned.get('materials')
+        if category and materials is not None:
+            wrong_category = [m.code for m in materials if m.category_id != category.pk]
+            if wrong_category:
+                self.add_error('materials', 'NPL thành viên phải cùng Nhóm NPL với nhóm gom.')
+        if category and code:
+            qs = MaterialGroup.objects.filter(
+                stock_domain=domain_from_current_request(), category=category, code=code,
+            )
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                self.add_error('code', 'Mã nhóm gom đã tồn tại trong Nhóm NPL này.')
+        return cleaned
+
+    def save(self, commit=True):
+        if not commit:
+            return super().save(commit=False)
+        with transaction.atomic():
+            group = super().save(commit=True)
+            self.save_materials(group)
+        return group
+
+    def save_materials(self, group):
+        selected_ids = list((self.cleaned_data.get('materials') or Material.objects.none()).values_list('pk', flat=True))
+        Material.objects.filter(material_group=group).exclude(pk__in=selected_ids).update(material_group=None)
+        Material.objects.filter(pk__in=selected_ids).update(material_group=group)
 
 
 class MaterialCategoryForm(forms.ModelForm):

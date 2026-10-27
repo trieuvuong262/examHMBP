@@ -17,6 +17,7 @@ EXCEL_HEADERS = [
     'Bộ phận',
     'Màu sắc',
     'Mã quy cách',
+    'Size',
     'ĐVT lẻ',
     'Đơn vị chẵn',
     'Mã NCC',
@@ -45,6 +46,9 @@ _HEADER_ALIASES = {
     'quy cách': 'Quy cách',
     'ma quy cach': 'Mã quy cách',
     'mã quy cách': 'Mã quy cách',
+    'size': 'Size',
+    'kích thước': 'Size',
+    'kich thuoc': 'Size',
     'ma dvt': 'Mã ĐVT',
     'mã đvt': 'Mã ĐVT',
     'dvt': 'Mã ĐVT',
@@ -140,11 +144,12 @@ def material_to_row(material: Material) -> dict:
     return {
         'Mã NPL': material.code,
         'Tên NPL': material.name,
-        'Tên nhóm hàng': material.variant_group or '',
+        'Tên nhóm hàng': (material.material_group.name if material.material_group_id else material.variant_group) or '',
         'Mã nhóm': material.category.code,
         'Bộ phận': material.department or '',
         'Màu sắc': material.color.name if material.color_id else '',
         'Mã quy cách': spec.code if spec else '',
+        'Size': material.size or '',
         'ĐVT lẻ': base_unit.name if base_unit else '',
         'Đơn vị chẵn': package_unit.name if package_unit else '',
         'Mã NCC': material.supplier.code if material.supplier_id else '',
@@ -165,7 +170,7 @@ def materials_to_dataframe(qs) -> pd.DataFrame:
 
 def export_materials_xlsx(qs) -> HttpResponse:
     df = materials_to_dataframe(
-        qs.select_related('primary_location', 'specification', 'unit')
+        qs.select_related('primary_location', 'specification', 'unit', 'material_group')
         .prefetch_related('specification__levels__unit')
         .order_by('code')
     )
@@ -213,6 +218,7 @@ def sample_template_xlsx() -> HttpResponse:
         'Bộ phận': 'CẮT, TRẢI VẢI',
         'Màu sắc': 'Trắng',
         'Mã quy cách': sample_spec.code if sample_spec else '',
+        'Size': 'M',
         'ĐVT lẻ': base.name if base else '',
         'Đơn vị chẵn': package.name if package else '',
         'Mã NCC': '',
@@ -414,6 +420,7 @@ def import_materials_from_excel(file_obj) -> dict:
             'category': category,
             'color': color,
             'specification': specification,
+            'size': _parse_text(row.get('Size')),
             'unit': base_level_unit,
             'supplier': supplier,
             'min_stock': _parse_decimal(row.get('Tồn tối thiểu')),
@@ -438,9 +445,10 @@ def import_materials_from_excel(file_obj) -> dict:
         elif not existing:
             defaults['department'] = default_department_for_category_code(category.code)
 
+        # Không tự tạo nhóm từ mã khi import; chỉ liên kết nhóm thủ công nếu
+        # dữ liệu import có cơ chế chọn nhóm riêng.
         if not defaults['variant_group'] or defaults['variant_group'].lower() in ('nan', 'none'):
-            from kho_npl.variant_group import infer_variant_group_from_code
-            defaults['variant_group'] = infer_variant_group_from_code(code)
+            defaults['variant_group'] = ''
 
         if existing and existing.unit_id != base_level_unit.pk:
             has_stock = (

@@ -153,7 +153,7 @@ def price_material_search(request):
             'specification': spec,
             'specification_name': material.specification.name if material.specification_id else '',
             'color': color,
-            'variant_group': material.variant_group or '',
+            'variant_group': (material.material_group.name if material.material_group_id else material.variant_group) or '',
             'image_url': image_url,
             'base_price': float(material.base_price or 0),
         })
