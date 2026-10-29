@@ -397,8 +397,8 @@
   </div>
   {% endif %}
 
-  {# Trang chi tiết chỉ hiển thị OB; gắn/chỉnh kỹ thuật thực hiện ở Sửa đơn hoặc KHSX. #}
-  {% include 'san_xuat/includes/sales_order_routing.html' with can_edit_order_routing=False can_attach_routing=False %}
+  {# BOM/OB snapshot của đơn có thể điều chỉnh giữa kỳ; LSX đang chạy nhận phần còn lại. #}
+  {% include 'san_xuat/includes/sales_order_routing.html' %}
 </div>
 
 {% if can_confirm and order.confirm_status == 'draft' %}

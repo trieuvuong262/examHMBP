@@ -935,20 +935,28 @@ def _handle_order_routing_post(request, order) -> bool:
     if action == 'attach_routing':
         from san_xuat.services.order_routing import attach_order_line_routing
 
-        n = attach_order_line_routing(_line(), routing_id=request.POST.get('routing_id') or 0)
+        ln = _line()
+        n = attach_order_line_routing(ln, routing_id=request.POST.get('routing_id') or 0)
+        from san_xuat.services.order_routing import sync_active_mos_from_order
+        sync_active_mos_from_order(order, user=request.user)
         messages.success(request, f'Đã gắn routing và copy {n} công đoạn lên đơn.')
         return True
 
     if action == 'attach_bom':
         from san_xuat.services.order_routing import attach_order_line_bom
 
-        n = attach_order_line_bom(_line(), bom_version_id=request.POST.get('bom_version_id') or 0)
+        ln = _line()
+        n = attach_order_line_bom(ln, bom_version_id=request.POST.get('bom_version_id') or 0)
+        from san_xuat.services.order_routing import sync_active_mos_from_order
+        sync_active_mos_from_order(order, user=request.user)
         extra = f' — đã copy {n} công đoạn từ BOM.' if n else ''
         messages.success(request, f'Đã gắn BOM lên đơn.{extra}')
         return True
 
     if action == 'reset_routing':
         n = reset_order_line_routing(_line())
+        from san_xuat.services.order_routing import sync_active_mos_from_order
+        sync_active_mos_from_order(order, user=request.user)
         messages.success(request, f'Đã lấy lại {n} công đoạn từ routing mã hàng.')
         return True
 
@@ -958,6 +966,8 @@ def _handle_order_routing_post(request, order) -> bool:
             request.POST.get('smv_pct') or 0,
             explanation=request.POST.get('variance_explanation') or '',
         )
+        from san_xuat.services.order_routing import sync_active_mos_from_order
+        sync_active_mos_from_order(order, user=request.user)
         messages.success(request, f'Đã áp SMV đơn cho {n} công đoạn (không đổi SMV sản phẩm).')
         return True
 
@@ -970,6 +980,8 @@ def _handle_order_routing_post(request, order) -> bool:
         if not line_pk:
             raise OrderRoutingError('Thiếu dòng cần xóa.')
         delete_order_routing_line(order_line=ln, line_pk=line_pk)
+        from san_xuat.services.order_routing import sync_active_mos_from_order
+        sync_active_mos_from_order(order, user=request.user)
         messages.success(request, 'Đã xóa công đoạn trên đơn.')
         return True
 
@@ -1000,6 +1012,8 @@ def _handle_order_routing_post(request, order) -> bool:
         count_minutes=_so_dec(request.POST.get('count_minutes'), '0'),
         transfer_minutes=_so_dec(request.POST.get('transfer_minutes'), '0'),
     )
+    from san_xuat.services.order_routing import sync_active_mos_from_order
+    sync_active_mos_from_order(order, user=request.user)
     messages.success(request, 'Đã lưu công đoạn trên đơn.')
     return True
 
@@ -1111,8 +1125,8 @@ def sales_order_detail(request, pk: int):
         'order': order,
         'can_confirm': can_confirm,
         'review_mode': review_mode,
-        'can_edit_order_routing': can_edit_routing and tech_editable,
-        'can_attach_routing': can_attach_routing and tech_editable,
+        'can_edit_order_routing': can_edit_routing,
+        'can_attach_routing': can_attach_routing,
         'routing_locked': routing_locked,
         'edit_rt': edit_rt,
         'work_centers': list(hr_work_centers_qs()),

@@ -443,13 +443,13 @@ def plan_detail(request, pk):
     official = {(l.dossier.official_product_code or '').strip().upper() for l in links} - {''}
     in_library = set()
     if official:
-        from thiet_ke_sp.models import Handover, Status
+        from thiet_ke_sp.models import Handover, Status as HandoverStatus
 
         in_library = {
             (code or '').upper()
             for code in Handover.objects.filter(
                 product_code__in=official,
-                dossier__status__in=(Status.HANDED_OVER, Status.CLOSED),
+                dossier__status__in=(HandoverStatus.HANDED_OVER, HandoverStatus.CLOSED),
             ).values_list('product_code', flat=True)
         }
     for link in links:
