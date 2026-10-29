@@ -23,6 +23,12 @@
     </div>
 
     <div class="tk-section">
+      <div class="tk-section-title"><i class="bi bi-people"></i>Phân công theo nhóm</div>
+      <p class="small text-muted">Người mặc định được lấy từ Thiết lập; có thể đổi riêng cho kế hoạch này.</p>
+      {% include 'ra_mat_sp/includes/owners_fields.html' %}
+    </div>
+
+    <div class="tk-section">
       <div class="tk-section-title"><i class="bi bi-bullseye"></i>Mục tiêu &amp; định vị</div>
       <div class="row g-3">
         {% include 'thiet_ke_sp/includes/field.html' with field=form.objective col='col-md-6' %}

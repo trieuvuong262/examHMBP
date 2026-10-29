@@ -9,7 +9,7 @@
 
   <div class="tk-kpis mb-3">
     <a class="tk-kpi" href="{% url 'ra_mat_sp:calendar' %}">
-      <div><div class="cap">Ra mắt trong 90 ngày</div><div class="num">{{ kpi.next_90|sx_num }}</div><div class="sub">{% if kpi.avg_ready is not None %}Sẵn sàng trung bình {{ kpi.avg_ready }}%{% else %}Chưa có kế hoạch sắp tới{% endif %}</div></div>
+      <div><div class="cap">Ra mắt trong {{ kpi.horizon }} ngày</div><div class="num">{{ kpi.next_n|sx_num }}</div><div class="sub">{% if kpi.avg_ready is not None %}Sẵn sàng trung bình {{ kpi.avg_ready }}%{% else %}Chưa có kế hoạch sắp tới{% endif %}</div></div>
       <div class="ico info"><i class="bi bi-calendar3"></i></div>
     </a>
     <a class="tk-kpi" href="{% url 'ra_mat_sp:list' %}?quick=risk">
@@ -29,6 +29,7 @@
   <div class="tk-card tk-panel mb-3">
     <div class="tk-panel-head">
       <div class="tk-panel-title">Sắp ra mắt</div>
+      <div class="btn-group btn-group-sm"><a class="btn btn-light border" href="?horizon=30">30 ngày</a><a class="btn btn-light border" href="?horizon=60">60 ngày</a><a class="btn btn-light border" href="?horizon=90">90 ngày</a><a class="btn btn-light border" href="?horizon=120">120 ngày</a></div>
       <div class="d-flex align-items-center gap-3 flex-wrap">
         <div class="rm-legend">
           <span class="is-green">Đúng tiến độ</span><span class="is-amber">Có việc chậm</span>

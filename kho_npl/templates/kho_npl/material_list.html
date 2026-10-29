@@ -127,7 +127,7 @@
                             {% if group.can_expand %}{{ group.group_name }} <span class="text-muted small">({{ group.variant_count }} mã)</span>{% else %}{{ group.group_name }}{% endif %}
                         </td>
                         <td class="npl-col" data-col="category" title="{{ group.category.name }}">{{ group.category.name }}</td>
-                        <td class="npl-col" data-col="department" title="{{ group.department|default:'—' }}">{{ group.department|default:'—' }}</td>
+                        <td class="npl-col" data-col="department" title="{{ group.department|default:'—' }}">{% if group.department == 'MAY (152A VĨNH LỘC)' %}MAY{% else %}{{ group.department|default:'—' }}{% endif %}</td>
                         <td class="npl-col" data-col="color">
                             {% if group.can_expand %}<span class="text-muted">—</span>{% else %}{% include 'kho_npl/includes/material_color_chip.html' with color=material.color %}{% endif %}
                         </td>
@@ -177,7 +177,7 @@
                         </td>
                         <td class="npl-col" data-col="name" title="{{ material.name }}">{{ material.name }}</td>
                         <td class="npl-col" data-col="category" title="{{ material.category.name }}">{{ material.category.name }}</td>
-                        <td class="npl-col" data-col="department" title="{{ material.department|default:'—' }}">{{ material.department|default:'—' }}</td>
+                        <td class="npl-col" data-col="department" title="{{ material.department|default:'—' }}">{% if material.department == 'MAY (152A VĨNH LỘC)' %}MAY{% else %}{{ material.department|default:'—' }}{% endif %}</td>
                         <td class="npl-col" data-col="color">{% include 'kho_npl/includes/material_color_chip.html' with color=material.color %}</td>
                         <td class="npl-col" data-col="specification" title="{% if material.specification %}{{ material.specification|npl_spec }}{% endif %}">{% include 'kho_npl/includes/material_spec_display.html' with spec=material.specification %}</td>
                         <td class="npl-col" data-col="size">{{ material.size|default:'—' }}</td>

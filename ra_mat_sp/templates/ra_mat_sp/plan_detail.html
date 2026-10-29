@@ -224,7 +224,7 @@
           {% endif %}
           <form method="post" action="{% url 'ra_mat_sp:action' plan.pk 'product_qty' %}">{% csrf_token %}
           <div class="table-responsive"><table class="table tk-mini-table align-middle">
-            <thead><tr><th>Hồ sơ</th><th>Nhóm</th><th>Trạng thái thiết kế</th><th>Sản xuất</th><th>Mã chính thức</th><th>Giá bán lẻ đề xuất</th><th style="width:120px">SL ra mắt</th><th>Ghi chú</th></tr></thead>
+            <thead><tr><th>Hồ sơ</th><th>Nhóm / colorway</th><th>Thiết kế / mẫu chuẩn</th><th>Sản xuất</th><th>Mã chính thức</th><th>Techpack · BOM · giá thành</th><th>Kênh / SKU</th><th>Giá bán lẻ</th><th style="width:120px">SL ra mắt</th><th>Ghi chú</th></tr></thead>
             <tbody>
             {% for link in links %}
             {% with d=link.dossier %}
@@ -232,11 +232,14 @@
               <td><a class="tk-prod text-decoration-none text-reset" href="{{ d.get_absolute_url }}">
                 <span class="tk-prod-thumb">{% if link.cover %}<img src="{{ link.cover.get_absolute_url }}" alt="" data-sx-gallery data-sx-gallery-image="{{ link.cover.get_absolute_url }}" data-sx-gallery-title="{{ d.name }}" style="cursor:zoom-in">{% else %}<i class="bi bi-palette"></i>{% endif %}</span>
                 <span><strong>{{ d.name }}</strong><small>{{ d.code }}</small></span></a></td>
-              <td>{{ link.group_label|default:'—' }}</td>
+              <td>{{ link.group_label|default:'—' }}{% if link.fact %}<div class="small text-muted">{{ link.fact.colorways }}</div>{% endif %}</td>
+              <td><div>{{ link.fact.design_label|default:d.get_status_display }}</div><small class="text-muted">Mẫu: {{ link.fact.sample_label|default:'Chưa có' }}</small></td>
               <td><span class="tk-pill {% if d.status == 'approved' or d.status == 'handed_over' or d.status == 'closed' %}is-green{% elif d.status == 'cancelled' or d.status == 'paused' %}is-gray{% else %}is-amber{% endif %}">{{ d.get_status_display }}</span></td>
               <td><span class="tk-pill {% if link.production_state == 'transferred' %}is-green{% elif link.production_state == 'pending' %}is-amber{% else %}is-gray{% endif %}">{{ link.production_label }}</span></td>
               <td>{% if link.in_library %}<a href="{% url 'kho_san_pham:library_detail' link.library_code %}">{{ d.official_product_code }}</a>{% elif d.status == 'library_reopen' %}{{ d.official_product_code }} <small class="text-muted d-block">Tạm ẩn khỏi Thư viện</small>{% elif d.official_product_code %}{{ d.official_product_code }} <small class="text-muted d-block">Chưa có trong Thư viện</small>{% else %}<span class="text-muted">Chưa có</span>{% endif %}</td>
-              <td class="text-end">{% if d.proposed_retail_price %}{{ d.proposed_retail_price|sx_num }}{% elif d.target_retail_price %}{{ d.target_retail_price|sx_num }} <small class="text-muted">(mục tiêu)</small>{% else %}—{% endif %}</td>
+              <td><div>{{ link.fact.techpack_label|default:'Chưa có' }}</div><small class="text-muted">BOM: {{ link.fact.bom_label|default:'Chưa có' }} · Cost: {{ link.fact.cost_label|default:'Chưa khóa' }}</small></td>
+              <td><div>{{ link.fact.channel_label|default:'Chưa có' }}</div>{% if link.fact.channel_gap %}<small class="tk-late">{{ link.fact.channel_gap }}</small>{% endif %}</td>
+              <td class="text-end">{% if link.fact.retail %}{{ link.fact.retail|sx_num }}{% elif d.proposed_retail_price %}{{ d.proposed_retail_price|sx_num }}{% elif d.target_retail_price %}{{ d.target_retail_price|sx_num }} <small class="text-muted">(mục tiêu)</small>{% else %}—{% endif %}</td>
               <td>{% if can_edit %}<input type="number" min="0" name="qty_{{ link.pk }}" value="{{ link.planned_qty|default_if_none:'' }}" class="form-control form-control-sm text-end">{% else %}{% if link.planned_qty is not None %}{{ link.planned_qty|sx_num }}{% else %}—{% endif %}{% endif %}</td>
               <td>{% if can_edit %}<input type="text" maxlength="255" name="note_{{ link.pk }}" value="{{ link.note }}" class="form-control form-control-sm">{% else %}{{ link.note|default:'—' }}{% endif %}</td>
             </tr>
@@ -287,24 +290,26 @@
           {% endfor %}
         </div>
 
-      {% elif tab == 'work' %}
+      {% elif tab == 'production' %}
+        {% with group_tasks=tab_tasks.production %}{% include 'ra_mat_sp/includes/group_tasks.html' with title='Sản xuất và tồn kho' icon='bi-gear-wide-connected' %}{% endwith %}
         <div class="tk-section">
-          <div class="tk-chips mb-3">
-            {% for key, label in group_tabs %}
-            <a class="btn btn-sm fw-bold {% if group_filter == key %}btn-hm text-white{% else %}btn-light border{% endif %}" href="?tab=work&group={{ key }}">{{ label }}</a>
-            {% endfor %}
-            {% if can_edit %}<button type="button" class="btn btn-sm btn-outline-secondary ms-auto" data-bs-toggle="modal" data-bs-target="#rmAddTaskModal"><i class="bi bi-plus-lg"></i> Thêm việc</button>{% endif %}
-          </div>
-          <div class="table-responsive"><table class="table tk-mini-table align-middle">
-            <thead><tr><th>Công việc</th><th>Mốc</th><th>Hạn</th><th>Phụ trách</th><th>Trạng thái</th><th></th></tr></thead>
-            <tbody>
-            {% for t in group_tasks %}{% include 'ra_mat_sp/includes/task_row.html' %}
-            {% empty %}<tr><td colspan="6" class="text-center text-muted py-3">Nhóm này chưa có công việc.</td></tr>{% endfor %}
-            </tbody>
-          </table></div>
+          <div class="tk-section-title"><i class="bi bi-database-check"></i>Điều kiện dữ liệu sản xuất và tồn kho</div>
+          {% for c in go_conditions %}{% if 'Sản xuất' in c.label or 'Tồn kho' in c.label or 'Kho vận' in c.label %}<div class="rm-cond"><i class="bi {% if c.ok %}bi-check-circle-fill text-success{% else %}bi-x-circle-fill text-danger{% endif %}"></i><div><b>{{ c.label }}</b>{% if c.note %}<div class="rm-task-sub">{{ c.note }}</div>{% endif %}</div></div>{% endif %}{% endfor %}
         </div>
 
-      {% elif tab == 'go' %}
+      {% elif tab == 'marketing' %}
+        {% with group_tasks=tab_tasks.marketing %}{% include 'ra_mat_sp/includes/group_tasks.html' with title='Marketing' icon='bi-camera-video' %}{% endwith %}
+        <div class="tk-section"><div class="tk-section-title"><i class="bi bi-bar-chart"></i>Ngân sách marketing</div><div class="tk-grid2"><div class="tk-field"><label>Ngân sách kế hoạch</label><span class="v">{% if plan.marketing_budget %}{{ plan.marketing_budget|sx_num:0 }} đ{% else %}—{% endif %}</span></div><div class="tk-field"><label>Nội dung / định vị</label><span class="v">{{ plan.positioning|default:'—' }}</span></div></div></div>
+
+      {% elif tab == 'sales' %}
+        {% with group_tasks=tab_tasks.sales %}{% include 'ra_mat_sp/includes/group_tasks.html' with title='Kinh doanh và kênh bán' icon='bi-shop' %}{% endwith %}
+        <div class="tk-section"><div class="tk-section-title"><i class="bi bi-bullseye"></i>Mục tiêu bán hàng</div><div class="tk-grid3"><div class="tk-field"><label>Sản lượng mục tiêu</label><span class="v">{% if plan.target_qty %}{{ plan.target_qty|sx_num }} sp{% else %}—{% endif %}</span></div><div class="tk-field"><label>Doanh thu mục tiêu</label><span class="v">{% if plan.target_revenue %}{{ plan.target_revenue|sx_num:0 }} đ{% else %}—{% endif %}</span></div><div class="tk-field"><label>Kênh bán</label><span class="v">{{ plan.channels|default:'—' }}</span></div></div></div>
+
+      {% elif tab == 'budget' %}
+        {% with group_tasks=tab_tasks.budget %}{% include 'ra_mat_sp/includes/group_tasks.html' with title='Ngân sách và chính sách giá' icon='bi-cash-stack' %}{% endwith %}
+        <div class="tk-section"><div class="tk-section-title"><i class="bi bi-cash-stack"></i>Tổng hợp ngân sách</div><div class="tk-grid3"><div class="tk-field"><label>Ngân sách marketing</label><span class="v">{% if plan.marketing_budget %}{{ plan.marketing_budget|sx_num:0 }} đ{% else %}—{% endif %}</span></div><div class="tk-field"><label>Doanh thu mục tiêu</label><span class="v">{% if plan.target_revenue %}{{ plan.target_revenue|sx_num:0 }} đ{% else %}—{% endif %}</span></div><div class="tk-field"><label>Sản lượng mục tiêu</label><span class="v">{% if plan.target_qty %}{{ plan.target_qty|sx_num }} sp{% else %}—{% endif %}</span></div></div></div>
+
+      {% elif tab == 'go' %} 
         <div class="tk-section">
           <div class="tk-section-title"><i class="bi bi-list-check"></i>Điều kiện bắt buộc trước ra mắt <span class="tk-section-sub">Sẵn sàng {{ ready.pct }}%</span></div>
           {% for c in go_conditions %}

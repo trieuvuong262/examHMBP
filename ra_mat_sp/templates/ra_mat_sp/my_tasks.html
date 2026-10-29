@@ -16,15 +16,19 @@
     </div>
   </div>
 
-  <div class="tk-card tk-panel mb-3">
-    <div class="table-responsive"><table class="table tk-mini-table align-middle mb-0">
-      <thead><tr><th>Công việc</th><th>Mốc</th><th>Hạn</th><th>Phụ trách</th><th>Trạng thái</th><th></th></tr></thead>
-      <tbody>
-      {% for t in tasks %}{% include 'ra_mat_sp/includes/task_row.html' with show_plan=1 %}
-      {% empty %}<tr><td colspan="6" class="text-center text-muted py-4">Bạn không có công việc ra mắt nào{% if show == 'open' %} chưa xong{% endif %}.</td></tr>{% endfor %}
-      </tbody>
-    </table></div>
-  </div>
+  {% if buckets.overdue %}
+  <div class="tk-card tk-panel mb-3"><div class="tk-panel-head"><div class="tk-panel-title">Việc đã trễ</div><span class="tk-pill is-red">{{ buckets.overdue|length }}</span></div><div class="table-responsive"><table class="table tk-mini-table align-middle mb-0"><thead><tr><th>Công việc</th><th>Mốc</th><th>Hạn</th><th>Phụ trách</th><th>Trạng thái</th><th></th></tr></thead><tbody>{% for t in buckets.overdue %}{% include 'ra_mat_sp/includes/task_row.html' with show_plan=1 %}{% endfor %}</tbody></table></div></div>
+  {% endif %}
+  {% if buckets.soon %}
+  <div class="tk-card tk-panel mb-3"><div class="tk-panel-head"><div class="tk-panel-title">Việc sắp đến hạn</div><span class="tk-pill is-amber">{{ buckets.soon|length }}</span></div><div class="table-responsive"><table class="table tk-mini-table align-middle mb-0"><thead><tr><th>Công việc</th><th>Mốc</th><th>Hạn</th><th>Phụ trách</th><th>Trạng thái</th><th></th></tr></thead><tbody>{% for t in buckets.soon %}{% include 'ra_mat_sp/includes/task_row.html' with show_plan=1 %}{% endfor %}</tbody></table></div></div>
+  {% endif %}
+  {% if buckets.confirm %}
+  <div class="tk-card tk-panel mb-3"><div class="tk-panel-head"><div class="tk-panel-title">Việc cần xác nhận / đang vướng</div><span class="tk-pill is-blue">{{ buckets.confirm|length }}</span></div><div class="table-responsive"><table class="table tk-mini-table align-middle mb-0"><thead><tr><th>Công việc</th><th>Mốc</th><th>Hạn</th><th>Phụ trách</th><th>Trạng thái</th><th></th></tr></thead><tbody>{% for t in buckets.confirm %}{% include 'ra_mat_sp/includes/task_row.html' with show_plan=1 %}{% endfor %}</tbody></table></div></div>
+  {% endif %}
+  {% if buckets.open %}
+  <div class="tk-card tk-panel mb-3"><div class="tk-panel-head"><div class="tk-panel-title">Việc đang xử lý</div><span class="tk-pill is-blue">{{ buckets.open|length }}</span></div><div class="table-responsive"><table class="table tk-mini-table align-middle mb-0"><thead><tr><th>Công việc</th><th>Mốc</th><th>Hạn</th><th>Phụ trách</th><th>Trạng thái</th><th></th></tr></thead><tbody>{% for t in buckets.open %}{% include 'ra_mat_sp/includes/task_row.html' with show_plan=1 %}{% endfor %}</tbody></table></div></div>
+  {% endif %}
+  {% if not tasks %}<div class="tk-card tk-panel mb-3"><div class="text-center text-muted py-4">Bạn không có công việc ra mắt nào{% if show == 'open' %} chưa xong{% endif %}.</div></div>{% endif %}
 
   {% if risks %}
   <div class="tk-card tk-panel">
