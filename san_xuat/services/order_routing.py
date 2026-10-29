@@ -102,6 +102,92 @@ def order_has_active_mo(order: SxSalesOrder) -> bool:
     ).exists()
 
 
+def _norm_name(value) -> str:
+    return ' '.join(str(value or '').split()).casefold()
+
+
+def _match_mo_step(candidates: list, row: dict):
+    """Ghép công đoạn LSX với dòng OB đơn: ưu tiên mã công đoạn, không có thì theo tên."""
+    code = (row.get('op_code') or '').strip().upper()
+    if code:
+        for step in candidates:
+            if (step.op_code or '').strip().upper() == code:
+                return step
+    name = _norm_name(row.get('process_name'))
+    if name:
+        for step in candidates:
+            if (step.op_code or '').strip() and code:
+                # Bước đã có mã khác → không ghép theo tên để tránh nhầm.
+                continue
+            if _norm_name(step.process_name) == name:
+                return step
+    return None
+
+
+def _mo_step_has_output(mo, step) -> bool:
+    """Công đoạn LSX đã có sản lượng / phân công / đang làm → không được xóa."""
+    from san_xuat.hub_models import (
+        SxMoProcessStep,
+        SxProductionStat,
+        SxWipBalance,
+        SxWorkAssignment,
+    )
+
+    if step.status != SxMoProcessStep.STATUS_PENDING:
+        return True
+    if step.assignees.exists():
+        return True
+    name = (step.process_name or '').strip()
+    if not name:
+        return False
+    if SxProductionStat.objects.filter(production_order=mo, process_name__iexact=name).exists():
+        return True
+    if SxWipBalance.objects.filter(
+        production_order=mo, process_name__iexact=name, qty__gt=0,
+    ).exists():
+        return True
+    return SxWorkAssignment.objects.filter(
+        production_order=mo, process_name__iexact=name,
+    ).exists()
+
+
+def assert_no_duplicate_product_lines(order_line: SxSalesOrderLine) -> None:
+    """Chốt D: đơn có ≥2 dòng cùng mã hàng thì không cho sửa OB."""
+    code = (order_line.product_code or '').strip()
+    if not code:
+        return
+    if order_line.order.lines.filter(product_code__iexact=code).count() > 1:
+        raise OrderRoutingError(
+            f'Đơn có nhiều dòng cùng mã {code} — không sửa OB trên đơn được '
+            '(LSX không xác định dòng nào).'
+        )
+
+
+@transaction.atomic
+def sync_order_plan_steps_from_ob(order: SxSalesOrder) -> int:
+    """Chốt B: tính lại lộ trình KHSX theo OB mới (bỏ chỉnh tay), rồi tự tách ngày."""
+    if order.confirm_status != SxSalesOrder.CONFIRM_CONFIRMED:
+        return 0
+    if order.plan_status in (
+        SxSalesOrder.PLAN_DONE, SxSalesOrder.PLAN_CANCELLED, SxSalesOrder.PLAN_ON_HOLD,
+    ):
+        return 0
+    from san_xuat.services.plan_board import apply_auto_team_day_splits
+    from san_xuat.services.plan_route import ensure_order_plan_steps
+
+    order.plan_steps.all().delete()
+    cache = getattr(order, '_prefetched_objects_cache', None)
+    if cache is not None:
+        cache.pop('plan_steps', None)
+        cache.pop('lines', None)
+    steps = ensure_order_plan_steps(order)
+    try:
+        apply_auto_team_day_splits(order, replace_existing=True)
+    except PlanningError:
+        pass
+    return len(steps or [])
+
+
 @transaction.atomic
 def sync_active_mos_from_order(order: SxSalesOrder, *, user=None) -> int:
     """Apply the order OB snapshot to active MOs without resetting production history."""
@@ -118,26 +204,37 @@ def sync_active_mos_from_order(order: SxSalesOrder, *, user=None) -> int:
         if line is None:
             continue
         source_rows = steps_dicts_from_order_line(line)
-        existing = {int(step.sequence): step for step in mo.mo_process_steps.all()}
+        all_steps = list(mo.mo_process_steps.all())
+        used_seqs = {int(s.sequence) for s in all_steps}
+        unmatched = list(all_steps)
         before = []
         after = []
         for row in source_rows:
-            seq = int(row.get('sequence') or 0)
-            if not seq:
-                continue
-            step = existing.get(seq)
+            step = _match_mo_step(unmatched, row)
             if step is None:
-                step = SxMoProcessStep.objects.create(
+                seq = int(row.get('sequence') or 0) or (max(used_seqs or {0}) + 10)
+                while seq in used_seqs:
+                    seq += 1
+                used_seqs.add(seq)
+                SxMoProcessStep.objects.create(
                     production_order=mo,
                     sequence=seq,
-                    process_name=row.get('process_name') or '',
+                    process_name=(row.get('process_name') or '')[:120],
+                    op_code=(row.get('op_code') or '')[:30],
                     work_center_id=row.get('work_center_id'),
                     count_minutes=row.get('count_minutes') or 0,
                     transfer_minutes=row.get('transfer_minutes') or 0,
                     applied_unit_smv=row.get('applied_unit_smv') or 0,
                 )
+                after.append({
+                    'sequence': seq,
+                    'process_name': row.get('process_name') or '',
+                    'applied_unit_smv': str(row.get('applied_unit_smv') or 0),
+                    'action': 'add',
+                })
                 changed += 1
                 continue
+            unmatched.remove(step)
             before.append({
                 'sequence': step.sequence,
                 'process_name': step.process_name,
@@ -148,7 +245,12 @@ def sync_active_mos_from_order(order: SxSalesOrder, *, user=None) -> int:
             step.work_center_id = row.get('work_center_id')
             step.count_minutes = row.get('count_minutes') or 0
             step.transfer_minutes = row.get('transfer_minutes') or 0
-            fields = ['process_name', 'work_center_id', 'count_minutes', 'transfer_minutes']
+            step.op_code = (row.get('op_code') or step.op_code or '')[:30]
+            step.removed_from_ob = False
+            fields = [
+                'process_name', 'work_center_id', 'count_minutes', 'transfer_minutes',
+                'op_code', 'removed_from_ob',
+            ]
             if step.status != SxMoProcessStep.STATUS_DONE:
                 step.applied_unit_smv = row.get('applied_unit_smv') or 0
                 fields.append('applied_unit_smv')
@@ -158,6 +260,24 @@ def sync_active_mos_from_order(order: SxSalesOrder, *, user=None) -> int:
                 'process_name': step.process_name,
                 'applied_unit_smv': str(step.applied_unit_smv or 0),
             })
+            changed += 1
+        # Công đoạn LSX không còn trên OB đơn
+        for step in unmatched:
+            if step.removed_from_ob:
+                continue
+            info = {
+                'sequence': step.sequence,
+                'process_name': step.process_name,
+                'applied_unit_smv': str(step.applied_unit_smv or 0),
+            }
+            before.append(info)
+            if _mo_step_has_output(mo, step):
+                step.removed_from_ob = True
+                step.save(update_fields=['removed_from_ob'])
+                after.append({**info, 'action': 'flag_removed'})
+            else:
+                step.delete()
+                after.append({**info, 'action': 'delete'})
             changed += 1
         if before or after:
             log_plan_action(
@@ -560,6 +680,7 @@ def steps_dicts_from_order_line(order_line: SxSalesOrderLine) -> list[dict]:
             'applied_unit_smv': ln.applied_unit_smv or Decimal('0'),
             'count_minutes': ln.count_minutes or Decimal('0'),
             'transfer_minutes': ln.transfer_minutes or Decimal('0'),
+            'op_code': (ln.op_code or '').strip().upper(),
         })
     return out
 
@@ -763,6 +884,63 @@ def upsert_order_routing_line(
 
 
 @transaction.atomic
+def apply_order_routing_edits(
+    order_line: SxSalesOrderLine,
+    *,
+    updates: list | None = None,
+    adds: list | None = None,
+    deletes: list | None = None,
+) -> dict:
+    """Lưu OB trên đơn theo lô: sửa SMV đơn hàng, thêm công đoạn, xóa công đoạn."""
+    assert_order_routing_editable(order_line.order)
+    stats = {'updated': 0, 'added': 0, 'deleted': 0}
+
+    for raw in updates or []:
+        if not isinstance(raw, dict):
+            continue
+        try:
+            pk = int(raw.get('pk') or 0)
+            smv = _q(raw.get('applied_unit_smv'))
+        except Exception:
+            raise OrderRoutingError('SMV đơn hàng không hợp lệ.') from None
+        if smv < 0:
+            raise OrderRoutingError('SMV đơn hàng không được âm.')
+        line = order_line.routing_lines.filter(pk=pk).first() if pk else None
+        if line is None:
+            raise OrderRoutingError('Không tìm thấy dòng công đoạn trên đơn.')
+        if line.applied_unit_smv == smv:
+            continue
+        line.applied_unit_smv = smv
+        line.recompute()
+        line.save()
+        stats['updated'] += 1
+
+    for raw in adds or []:
+        if not isinstance(raw, dict):
+            continue
+        smv_raw = raw.get('applied_unit_smv')
+        upsert_order_routing_line(
+            order_line=order_line,
+            op_code=str(raw.get('op_code') or ''),
+            op_rev=str(raw.get('op_rev') or ''),
+            applied_unit_smv=_q(smv_raw) if smv_raw not in (None, '') else None,
+        )
+        stats['added'] += 1
+
+    delete_ids = set()
+    for raw in deletes or []:
+        try:
+            delete_ids.add(int(raw))
+        except (TypeError, ValueError):
+            continue
+    if delete_ids:
+        if not order_line.routing_lines.exclude(pk__in=delete_ids).exists():
+            raise OrderRoutingError('Phải còn ít nhất một công đoạn trên dòng đơn.')
+        stats['deleted'] = order_line.routing_lines.filter(pk__in=delete_ids).delete()[0]
+    return stats
+
+
+@transaction.atomic
 def delete_order_routing_line(*, order_line: SxSalesOrderLine, line_pk: int) -> None:
     assert_order_routing_editable(order_line.order)
     line = order_line.routing_lines.filter(pk=line_pk).first()
@@ -798,9 +976,26 @@ def update_order_line_bom_overrides(
         changes={'line_id': order_line.pk, 'before': before, 'after': normalized},
         user=user,
     )
-    from san_xuat.services.plan_order_npl import sync_order_npl
-    sync_order_npl(order_id=order_line.order_id, apply_schedule=True)
+    order = order_line.order
+    # Chốt A: đơn nháp / tạm giữ chỉ lưu BOM; NPL KHSX tính khi xác nhận / bỏ giữ.
+    if (
+        order.confirm_status == SxSalesOrder.CONFIRM_CONFIRMED
+        and order.plan_status != SxSalesOrder.PLAN_ON_HOLD
+    ):
+        from san_xuat.services.plan_order_npl import sync_order_npl
+        try:
+            sync_order_npl(order_id=order_line.order_id, apply_schedule=True)
+        except PlanningError as exc:
+            raise OrderRoutingError(str(exc)) from exc
     return len(normalized)
+
+
+def order_npl_deferred(order: SxSalesOrder) -> bool:
+    """True = lưu BOM nhưng chưa tính NPL KHSX (đơn nháp / tạm giữ)."""
+    return (
+        order.confirm_status != SxSalesOrder.CONFIRM_CONFIRMED
+        or order.plan_status == SxSalesOrder.PLAN_ON_HOLD
+    )
 
 
 def boms_for_product(product_code: str):

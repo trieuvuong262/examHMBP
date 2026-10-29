@@ -473,6 +473,7 @@ def sync_mo_process_steps(mo: SxProductionOrder, steps: list[dict] | None = None
             count_minutes=row.get("count_minutes") or 0,
             transfer_minutes=row.get("transfer_minutes") or 0,
             applied_unit_smv=row.get("applied_unit_smv") or 0,
+            op_code=(row.get("op_code") or "")[:30],
         )
         for user_id, by_id in old_assignees.get(key, []):
             if not user_id:

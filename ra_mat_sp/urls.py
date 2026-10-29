@@ -14,6 +14,7 @@ urlpatterns = [
     path('ke-hoach/<int:pk>/thao-tac/<slug:action>/', views.plan_action, name='action'),
     path('lich/', views.calendar_view, name='calendar'),
     path('viec-cua-toi/', views.my_tasks, name='my_tasks'),
+    path('tep/<int:pk>/', views.task_file, name='task_file'),
     path('cho-duyet/', views.approve_queue, name='approve_queue'),
     path('thiet-lap/', views.module_settings, name='settings'),
 ]

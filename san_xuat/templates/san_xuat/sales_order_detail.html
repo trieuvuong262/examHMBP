@@ -103,6 +103,44 @@
     min-width: 0;
     line-height: 1.35;
   }
+
+  /* Nút xóa dòng trên bảng BOM / OB khi bật chế độ sửa — icon tròn gọn, hover rõ */
+  .jp-row-del {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 50%;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 0.85rem;
+    line-height: 1;
+    transition: color .12s ease, background-color .12s ease, border-color .12s ease, transform .12s ease;
+  }
+  .jp-row-del:hover,
+  .jp-row-del:focus-visible {
+    color: var(--hm-primary, #dc2626);
+    background: rgba(220, 38, 38, 0.08);
+    border-color: rgba(220, 38, 38, 0.22);
+  }
+  .jp-row-del:active { transform: scale(.94); }
+  .jp-row-del.is-undo {
+    color: #64748b;
+  }
+  .jp-row-del.is-undo:hover,
+  .jp-row-del.is-undo:focus-visible {
+    color: #0f172a;
+    background: rgba(15, 23, 42, 0.06);
+    border-color: rgba(15, 23, 42, 0.18);
+  }
+  tr.jp-bom-removed > td:not([rowspan]),
+  tr.jp-ob-removed > td:not([rowspan]) {
+    text-decoration: line-through;
+    opacity: .5;
+  }
 </style>
 {% endblock %}
 
@@ -309,7 +347,19 @@
   {% if order.lines.all %}
   <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-      <h6 class="fw-bold mb-3">BOM</h6>
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h6 class="fw-bold mb-0">BOM</h6>
+        {% if can_edit_order_routing %}
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-sm btn-outline-hm jp-bom-read-control" data-jp-edit-toggle="bom">
+            <i class="bi bi-pencil me-1"></i>Sửa BOM
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-secondary d-none jp-bom-edit-control" data-jp-edit-toggle="bom" data-jp-bom-cancel>Hủy</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary d-none jp-bom-edit-control" data-jp-add-bom="header">Thêm NPL</button>
+          <button type="button" class="btn btn-sm btn-hm d-none jp-bom-edit-control" data-jp-save-bom>Lưu BOM</button>
+        </div>
+        {% endif %}
+      </div>
       <div class="table-responsive">
         <table class="table table-sm table-hover align-middle mb-0">
           <thead class="table-light">
@@ -321,12 +371,13 @@
               <th class="text-end">SL</th>
               <th class="text-end">Nhu cầu</th>
               <th>ĐVT</th>
+              {% if can_edit_order_routing %}<th class="jp-bom-edit-control d-none"></th>{% endif %}
             </tr>
           </thead>
           <tbody>
           {% for ln in order.lines.all %}
             {% for need in ln.npl_needs %}
-            <tr>
+            <tr data-bom-line-id="{{ ln.pk }}" data-bom-code="{{ need.material_code }}" data-bom-name="{{ need.material_name|default:need.material_code }}" data-bom-unit="{{ need.unit|default:'' }}" data-bom-qty="{{ need.qty_per_unit|stringformat:'s' }}" data-bom-size="{{ need.size_code|default:'' }}" data-bom-scrap="{{ need.scrap_pct|stringformat:'s' }}" data-bom-scale="{{ need.scale_qty|stringformat:'s' }}" data-bom-need="{{ need.qty_total|stringformat:'s' }}">
               {% if forloop.first %}
               <td class="small fw-semibold align-middle" rowspan="{{ ln.npl_needs|length }}">
                 <div class="jp-so-product">
@@ -364,10 +415,22 @@
                 </div>
               </td>
               <td class="small">{% if need.department == 'MAY (152A VĨNH LỘC)' %}MAY{% else %}{{ need.department|default:"—" }}{% endif %}</td>
-              <td class="text-end small">{{ need.qty_per_unit|sx_num }}</td>
+              <td class="text-end small jp-bom-qty-cell" data-bom-code="{{ need.material_code }}" data-bom-name="{{ need.material_name|default:need.material_code }}">
+                <span class="jp-bom-read-qty">{{ need.qty_per_unit|sx_num }}</span>
+              </td>
               <td class="text-end small text-muted">{{ need.scale_qty|sx_num }}</td>
-              <td class="text-end fw-semibold small">{{ need.qty_total|sx_num }}</td>
+              <td class="text-end fw-semibold small">
+                <span class="jp-bom-read-total">{{ need.qty_total|sx_num }}</span>
+                {% if can_edit_order_routing %}<input type="number" min="0" step="0.001" class="form-control form-control-sm text-end jp-inline-bom-need d-none" value="{{ need.qty_total|sx_num_input:3 }}" aria-label="Nhu cầu {{ need.material_name|default:need.material_code }}"{% if not need.scale_qty %} disabled data-locked title="SL = 0, không thể tính định mức từ nhu cầu"{% endif %}>{% endif %}
+              </td>
               <td class="small text-muted">{{ need.unit|default:"—" }}</td>
+              {% if can_edit_order_routing %}
+              <td class="jp-bom-edit-control d-none text-center align-middle" style="width:2.5rem;">
+                <button type="button" class="jp-row-del jp-bom-remove" title="Xóa" aria-label="Xóa {{ need.material_name|default:need.material_code }}">
+                  <i class="bi bi-x-lg" aria-hidden="true"></i>
+                </button>
+              </td>
+              {% endif %}
             </tr>
             {% empty %}
             <tr>
@@ -386,7 +449,7 @@
                   <span class="jp-so-product-name">{{ ln.product_name|default:"—" }}</span>
                 </div>
               </td>
-              <td colspan="6" class="text-muted small">Chưa chọn BOM hoặc BOM chưa có định mức.</td>
+              <td colspan="6" class="text-muted small" data-bom-empty-line="{{ ln.pk }}">Chưa chọn BOM hoặc BOM chưa có định mức.</td>
             </tr>
             {% endfor %}
           {% endfor %}
@@ -394,26 +457,11 @@
         </table>
       </div>
       {% if can_edit_order_routing %}
-      <p class="small text-muted mt-3 mb-2">Sửa trực tiếp định mức áp dụng. Có thể xóa dòng, nhưng dòng đã xuất vẫn được giữ lịch sử trên KHSX.</p>
       {% for ln in order.lines.all %}
-      {% if ln.bom_line_overrides %}
-      <form method="post" class="border rounded p-2 mb-2" onsubmit="return jpSubmitBomOverride(this);">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="edit_bom_lines">
-        <input type="hidden" name="so_line_id" value="{{ ln.pk }}">
-        <input type="hidden" name="bom_lines_json" value="{{ ln.bom_line_overrides|escape }}">
-        <div class="small fw-semibold mb-2">{{ ln.product_code }} — chỉnh định mức (dữ liệu JSON snapshot)</div>
-        <div class="table-responsive"><table class="table table-sm mb-2">
-          <thead><tr><th>Mã NPL</th><th class="text-end">ĐM/SP</th><th>Size</th></tr></thead>
-          <tbody>
-          {% for row in ln.bom_line_overrides %}
-          <tr><td>{{ row.material_code|default:row.material_name }}</td><td class="text-end"><input class="form-control form-control-sm text-end jp-bom-qty" type="number" step="0.0001" value="{{ row.qty }}"></td><td>{{ row.size_code|default:'—' }}</td></tr>
-          {% endfor %}
-          </tbody>
-        </table></div>
-        <button type="submit" class="btn btn-sm btn-outline-hm">Lưu BOM và đồng bộ</button>
+      <form method="post" class="d-none jp-bom-inline-form" data-bom-line="{{ ln.pk }}" data-bom-scale="{{ ln.qty_to_produce|stringformat:'s' }}" data-bom-product="{{ ln.product_name|default:ln.product_code }}" onsubmit="return jpSubmitBomInline(this);">
+        {% csrf_token %}<input type="hidden" name="action" value="edit_bom_lines"><input type="hidden" name="so_line_id" value="{{ ln.pk }}">
+        <input type="hidden" name="bom_lines_json" value="{{ ln.bom_overrides_json }}">
       </form>
-      {% endif %}
       {% endfor %}
       {% endif %}
     </div>
@@ -423,16 +471,221 @@
   {# BOM/OB snapshot của đơn có thể điều chỉnh giữa kỳ; LSX đang chạy nhận phần còn lại. #}
   {% include 'san_xuat/includes/sales_order_routing.html' %}
   <script>
-    function jpSubmitBomOverride(form) {
-      const rows = JSON.parse(form.querySelector('[name="bom_lines_json"]').value || '[]');
-      form.querySelectorAll('.jp-bom-qty').forEach((input, index) => {
-        if (rows[index]) rows[index].qty = parseFloat(input.value || '0');
-        if (rows[index]) rows[index].qty_mode = 'qty';
+    // Sửa BOM trên đơn: người dùng nhập Nhu cầu, quy ngược ra ĐM/SP = Nhu cầu / SL / (1 + hao hụt%).
+    function jpBomKey(code, size) {
+      return String(code || '').trim().toLowerCase() + '|' + String(size || '').trim().toLowerCase();
+    }
+
+    function jpApplyBomNeeds(form) {
+      const field = form.querySelector('[name="bom_lines_json"]');
+      if (form.dataset.bomOrig == null) form.dataset.bomOrig = field.value || '[]';
+      const rows = JSON.parse(form.dataset.bomOrig || '[]');
+      const used = new Set();
+      const removed = new Set();
+      let changed = false;
+      const lineScale = parseFloat(form.dataset.bomScale || '0');
+      document.querySelectorAll('tr.jp-bom-new[data-bom-line-id="' + form.dataset.bomLine + '"]').forEach(function (tr) {
+        if (tr.classList.contains('jp-bom-removed')) return;
+        const need = parseFloat((tr.querySelector('.jp-inline-bom-need') || {}).value);
+        if (!Number.isFinite(need) || need <= 0 || !(lineScale > 0)) return;
+        const qty = Math.round(need / lineScale * 10000) / 10000;
+        rows.push({
+          bom_line_id: null, material_code: tr.dataset.bomCode, material_name: tr.dataset.bomName,
+          qty: qty, qty_std: qty, qty_mode: 'qty', qty_pct: 100, scrap_pct: 0,
+          unit: tr.dataset.bomUnit || '', size_code: '',
+        });
+        used.add(rows.length - 1);
+        changed = true;
       });
-      form.querySelector('[name="bom_lines_json"]').value = JSON.stringify(rows);
+      document.querySelectorAll('tr[data-bom-line-id="' + form.dataset.bomLine + '"]:not(.jp-bom-new)').forEach(function (tr) {
+        const key = jpBomKey(tr.dataset.bomCode, tr.dataset.bomSize);
+        const idx = rows.findIndex(function (item, i) {
+          return !used.has(i) && jpBomKey(item.material_code, item.size_code) === key;
+        });
+        if (idx < 0) return;
+        used.add(idx);
+        if (tr.classList.contains('jp-bom-removed')) {
+          removed.add(idx);
+          changed = true;
+          return;
+        }
+        const input = tr.querySelector('.jp-inline-bom-need');
+        if (!input || input.disabled) return;
+        const need = parseFloat(input.value);
+        const oldNeed = parseFloat(tr.dataset.bomNeed || '0');
+        if (!Number.isFinite(need) || need < 0 || Math.abs(need - oldNeed) < 0.0005) return;
+        const scale = parseFloat(tr.dataset.bomScale || '0');
+        if (!(scale > 0)) return;
+        const scrap = parseFloat(rows[idx].scrap_pct != null ? rows[idx].scrap_pct : (tr.dataset.bomScrap || '0')) || 0;
+        rows[idx].qty = Math.round(need / scale / (1 + scrap / 100) * 10000) / 10000;
+        rows[idx].qty_mode = 'qty';
+        changed = true;
+      });
+      field.value = JSON.stringify(rows.filter(function (_, i) { return !removed.has(i); }));
+      return changed;
+    }
+
+    function jpToggleBomRemoved(tr, removed) {
+      tr.classList.toggle('jp-bom-removed', removed);
+      const input = tr.querySelector('.jp-inline-bom-need');
+      if (input && !input.hasAttribute('data-locked')) input.disabled = removed;
+      const btn = tr.querySelector('.jp-bom-remove');
+      if (btn) {
+        btn.classList.toggle('is-undo', removed);
+        btn.title = removed ? 'Hoàn tác' : 'Xóa';
+        btn.innerHTML = removed ? '<i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>' : '<i class="bi bi-x-lg" aria-hidden="true"></i>';
+      }
+    }
+
+    // Sửa OB trên đơn: SMV đơn hàng tại chỗ, thêm / xóa công đoạn, lưu theo lô mỗi dòng sản phẩm.
+    function jpToggleObRemoved(tr, removed) {
+      tr.classList.toggle('jp-ob-removed', removed);
+      const input = tr.querySelector('.jp-inline-ob-smv');
+      if (input) input.disabled = removed;
+      const btn = tr.querySelector('.jp-ob-remove');
+      if (btn) {
+        btn.classList.toggle('is-undo', removed);
+        btn.title = removed ? 'Hoàn tác' : 'Xóa';
+        btn.innerHTML = removed ? '<i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>' : '<i class="bi bi-x-lg" aria-hidden="true"></i>';
+      }
+    }
+
+    function jpCollectOb(form) {
+      const lineId = form.dataset.obLine;
+      const payload = { updates: [], adds: [], deletes: [] };
+      document.querySelectorAll('tr[data-ob-so-line="' + lineId + '"]').forEach(function (tr) {
+        const input = tr.querySelector('.jp-inline-ob-smv');
+        if (tr.classList.contains('jp-ob-new')) {
+          payload.adds.push({ op_code: tr.dataset.obCode, op_rev: tr.dataset.obRev, applied_unit_smv: input ? input.value : '' });
+          return;
+        }
+        if (tr.classList.contains('jp-ob-removed')) { payload.deletes.push(tr.dataset.obPk); return; }
+        if (!input) return;
+        const v = parseFloat(input.value);
+        const old = parseFloat(tr.dataset.obSmv || '0');
+        if (Number.isFinite(v) && v >= 0 && Math.abs(v - old) > 0.00005) payload.updates.push({ pk: tr.dataset.obPk, applied_unit_smv: v });
+      });
+      if (!payload.updates.length && !payload.adds.length && !payload.deletes.length) return false;
+      form.querySelector('[name="ob_json"]').value = JSON.stringify(payload);
+      return true;
+    }
+
+    async function jpSaveAllOb() {
+      const forms = Array.from(document.querySelectorAll('.jp-ob-inline-form')).filter(jpCollectOb);
+      if (!forms.length) { alert('Chưa có thay đổi OB nào.'); return; }
+      if (!confirm('Lưu thay đổi OB và đồng bộ KHSX/LSX phần còn lại?')) return;
+      for (const form of forms) {
+        const resp = await fetch(window.location.pathname, { method: 'POST', body: new FormData(form), credentials: 'same-origin' });
+        if (!resp.ok) { alert('Lưu OB thất bại (HTTP ' + resp.status + ').'); break; }
+      }
+      window.location.reload();
+    }
+
+    function jpSubmitBomInline(form) {
+      jpApplyBomNeeds(form);
       return confirm('Lưu thay đổi BOM và đồng bộ KHSX/LSX phần còn lại?');
     }
+
+    async function jpSaveAllBomNeeds() {
+      const forms = Array.from(document.querySelectorAll('.jp-bom-inline-form')).filter(jpApplyBomNeeds);
+      if (!forms.length) { alert('Chưa có thay đổi Nhu cầu nào.'); return; }
+      if (!confirm('Lưu thay đổi BOM và đồng bộ KHSX/LSX phần còn lại?')) return;
+      for (const form of forms) {
+        const resp = await fetch(window.location.pathname, { method: 'POST', body: new FormData(form), credentials: 'same-origin' });
+        if (!resp.ok) { alert('Lưu BOM thất bại (HTTP ' + resp.status + ').'); break; }
+      }
+      window.location.reload();
+    }
+
+    function jpSubmitBomOverride(form) {
+      const rows = JSON.parse(form.querySelector('[name="bom_lines_json"]').value || '[]');
+      const visibleRows = Array.from(form.querySelectorAll('.jp-bom-rows tr:not(.jp-bom-empty)'));
+      const kept = [];
+      visibleRows.forEach((tr) => {
+        const row = rows[Number(tr.dataset.bomIndex)];
+        if (!row) return;
+        row.qty = parseFloat(tr.querySelector('.jp-bom-qty').value || '0');
+        row.qty_mode = 'qty';
+        kept.push(row);
+      });
+      form.querySelector('[name="bom_lines_json"]').value = JSON.stringify(kept);
+      return confirm('Lưu thay đổi BOM và đồng bộ KHSX/LSX phần còn lại?');
+    }
+
+    document.addEventListener('click', function (event) {
+      const toggle = event.target.closest('[data-jp-edit-toggle]');
+      if (toggle) {
+        const kind = toggle.dataset.jpEditToggle;
+        if (kind !== 'ob') {
+          document.querySelectorAll('[data-jp-edit-panel^="' + kind + '-"], [data-jp-edit-panel="' + kind + '"]').forEach(function (panel) {
+            panel.classList.toggle('d-none');
+          });
+        }
+        if (kind === 'ob') {
+          if (toggle.hasAttribute('data-jp-ob-cancel')) {
+            if (document.querySelector('tr.jp-ob-new')) { window.location.reload(); return; }
+            document.querySelectorAll('.jp-inline-ob-smv').forEach(function (el) { el.value = el.defaultValue; });
+            document.querySelectorAll('tr.jp-ob-removed').forEach(function (tr) { jpToggleObRemoved(tr, false); });
+          }
+          document.querySelectorAll('.jp-ob-edit-control, .jp-ob-read-control, .jp-inline-ob-smv, .jp-ob-read-smv').forEach(function (el) { el.classList.toggle('d-none'); });
+        }
+        if (kind === 'bom') {
+          document.querySelectorAll('.jp-bom-edit-control, .jp-bom-read-control').forEach(function (el) { el.classList.toggle('d-none'); });
+          if (toggle.hasAttribute('data-jp-bom-cancel')) {
+            if (document.querySelector('tr.jp-bom-new')) { window.location.reload(); return; }
+            document.querySelectorAll('.jp-inline-bom-need').forEach(function (el) { el.value = el.defaultValue; });
+            document.querySelectorAll('tr.jp-bom-removed').forEach(function (tr) { jpToggleBomRemoved(tr, false); });
+          }
+          document.querySelectorAll('.jp-inline-bom-need').forEach(function (el) { el.classList.toggle('d-none'); });
+          document.querySelectorAll('.jp-bom-read-total').forEach(function (el) { el.classList.toggle('d-none'); });
+        }
+        toggle.classList.toggle('active');
+        return;
+      }
+      const add = event.target.closest('[data-jp-add-bom]');
+      if (add) {
+        const lineId = add.dataset.jpAddBom !== 'header' ? add.dataset.jpAddBom : '';
+        const lineSelect = document.getElementById('jpBomMaterialLine');
+        if (lineSelect && lineId) lineSelect.value = lineId;
+        const modal = document.getElementById('jpBomMaterialModal');
+        if (modal && window.bootstrap) bootstrap.Modal.getOrCreateInstance(modal).show();
+        return;
+      }
+      const remove = event.target.closest('.jp-bom-remove');
+      if (remove) {
+        const row = remove.closest('tr[data-bom-line-id]');
+        if (row && row.classList.contains('jp-bom-new')) { row.remove(); return; }
+        if (row) jpToggleBomRemoved(row, !row.classList.contains('jp-bom-removed'));
+        return;
+      }
+      const obRemove = event.target.closest('.jp-ob-remove');
+      if (obRemove) {
+        const row = obRemove.closest('tr[data-ob-so-line]');
+        if (row && row.classList.contains('jp-ob-new')) { row.remove(); return; }
+        if (row) jpToggleObRemoved(row, !row.classList.contains('jp-ob-removed'));
+        return;
+      }
+      const obAdd = event.target.closest('[data-jp-add-ob]');
+      if (obAdd) {
+        const obModal = document.getElementById('jpObOpModal');
+        if (obModal && window.bootstrap) bootstrap.Modal.getOrCreateInstance(obModal).show();
+        return;
+      }
+      if (event.target.closest('[data-jp-save-ob]')) {
+        jpSaveAllOb();
+        return;
+      }
+      const save = event.target.closest('[data-jp-save-bom]');
+      if (save) {
+        jpSaveAllBomNeeds();
+      }
+    });
   </script>
+
+  {% if can_edit_order_routing %}
+  {% include 'san_xuat/includes/sales_order_bom_material_modal.html' %}
+  {% include 'san_xuat/includes/sales_order_bom_material_script.html' %}
+  {% endif %}
 </div>
 
 {% if can_confirm and order.confirm_status == 'draft' %}

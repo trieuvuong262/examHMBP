@@ -1638,6 +1638,16 @@ class SxMoProcessStep(models.Model):
         verbose_name='SMV đơn hàng (giây/cái)',
         help_text='Snapshot SMV áp dụng cho phần sản xuất còn lại của LSX.',
     )
+    op_code = models.CharField(
+        max_length=30, blank=True, default='', db_index=True,
+        verbose_name='Mã công đoạn',
+        help_text='Khóa ghép với OB đơn hàng (trống thì ghép theo tên).',
+    )
+    removed_from_ob = models.BooleanField(
+        default=False,
+        verbose_name='Không còn trong OB',
+        help_text='Công đoạn đã xóa khỏi OB đơn nhưng đã có sản lượng nên giữ lại.',
+    )
 
     class Meta:
         ordering = ['sequence', 'id']

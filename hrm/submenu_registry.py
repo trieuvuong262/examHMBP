@@ -154,7 +154,7 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'dashboard', 'label': 'Tổng quan', 'icon': 'bi-speedometer2', 'perm_view_only': True},
         {'key': 'plans', 'label': 'Kế hoạch ra mắt sản phẩm', 'icon': 'bi-rocket-takeoff'},
         {'key': 'calendar', 'label': 'Lịch ra mắt', 'icon': 'bi-calendar3', 'perm_view_only': True},
-        {'key': 'my_tasks', 'label': 'Tiến độ liên phòng ban', 'icon': 'bi-inbox-fill', 'perm_view_only': True},
+        {'key': 'my_tasks', 'label': 'Công việc của tôi', 'icon': 'bi-inbox-fill', 'perm_view_only': True},
         {
             'key': 'approve',
             'label': 'Chờ phê duyệt',

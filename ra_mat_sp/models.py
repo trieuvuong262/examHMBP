@@ -274,6 +274,10 @@ class LaunchTask(models.Model):
         USER, on_delete=models.SET_NULL, null=True, blank=True, related_name='ra_mat_tasks',
         verbose_name='Người phụ trách',
     )
+    collaborators = models.ManyToManyField(
+        USER, blank=True, related_name='ra_mat_collab_tasks', verbose_name='Người phối hợp',
+    )
+    start_date = models.DateField(null=True, blank=True, verbose_name='Ngày bắt đầu')
     due_date = models.DateField(verbose_name='Hạn hoàn thành')
     status = models.CharField(max_length=10, choices=TaskStatus.choices, default=TaskStatus.TODO, db_index=True)
     evidence = models.TextField(blank=True, default='', verbose_name='Bằng chứng / kết quả')
@@ -319,6 +323,42 @@ class LaunchTask(models.Model):
 
     def recompute_due(self, launch_date) -> None:
         self.due_date = launch_date + timedelta(days=self.offset_days)
+
+
+def task_file_upload_to(instance, filename: str) -> str:
+    import os
+    import uuid
+
+    ext = os.path.splitext(filename)[1].lower()[:10]
+    now = timezone.now()
+    return f'ra_mat_sp/evidence/{now:%Y/%m}/{uuid.uuid4().hex}{ext}'
+
+
+class LaunchTaskFile(models.Model):
+    """Tệp bằng chứng hoàn thành công việc."""
+
+    task = models.ForeignKey(LaunchTask, on_delete=models.CASCADE, related_name='files')
+    file = models.FileField(upload_to=task_file_upload_to, max_length=500, verbose_name='Tệp')
+    original_name = models.CharField(max_length=255, blank=True, default='')
+    size = models.PositiveBigIntegerField(default=0)
+    uploaded_by = models.ForeignKey(USER, on_delete=models.SET_NULL, null=True, related_name='+')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'ra_mat_sp_task_file'
+        ordering = ['uploaded_at', 'pk']
+        verbose_name = 'Tệp bằng chứng'
+        verbose_name_plural = 'Tệp bằng chứng'
+
+    def __str__(self):
+        return self.display_name
+
+    @property
+    def display_name(self) -> str:
+        return self.original_name or (self.file.name or '').rsplit('/', 1)[-1]
+
+    def get_absolute_url(self):
+        return reverse('ra_mat_sp:task_file', args=[self.pk])
 
 
 class RiskSeverity(models.TextChoices):

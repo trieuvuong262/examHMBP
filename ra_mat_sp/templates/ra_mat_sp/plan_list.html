@@ -69,13 +69,20 @@ Kế hoạch ra mắt sản phẩm
                 {% if p.ready.overdue %}<div class="small tk-late mt-1">{{ p.ready.overdue|length }} việc trễ{% if p.ready.overdue_blockers %} · {{ p.ready.overdue_blockers|length }} điều kiện Go{% endif %}</div>{% endif %}
                 {% if p.high_risks %}<div class="small tk-miss">{{ p.high_risks }} rủi ro cao</div>{% endif %}
               </td>
+              <td class="npl-col small" data-col="blocking">
+                {% if p.blocking %}
+                <ul class="rm-block-list">{% for b in p.blocking|slice:':3' %}<li>{{ b|truncatechars:70 }}</li>{% endfor %}</ul>
+                {% if p.blocking|length > 3 %}<div class="text-muted">+{{ p.blocking|length|add:'-3' }} vấn đề khác</div>{% endif %}
+                {% else %}<span class="text-muted">—</span>{% endif %}
+              </td>
+              <td class="npl-col small" data-col="collection">{{ p.collections|join:', '|default:'—' }}</td>
               <td class="npl-col small text-end" data-col="target_qty">{% if p.target_qty %}{{ p.target_qty|sx_num }}{% else %}—{% endif %}</td>
               <td class="npl-col small text-end" data-col="target_revenue">{% if p.target_revenue %}{{ p.target_revenue|sx_num:0 }}{% else %}—{% endif %}</td>
               <td class="npl-col small" data-col="created_by">{{ p.created_by|uname }}</td>
               <td class="npl-col small text-muted" data-col="created_at">{{ p.created_at|date:'d/m/Y H:i' }}</td>
             </tr>
           {% empty %}
-            <tr><td colspan="13" class="text-muted text-center py-4">Không có kế hoạch phù hợp.</td></tr>
+            <tr><td colspan="15" class="text-muted text-center py-4">Không có kế hoạch phù hợp.</td></tr>
           {% endfor %}
           </tbody>
         </table>

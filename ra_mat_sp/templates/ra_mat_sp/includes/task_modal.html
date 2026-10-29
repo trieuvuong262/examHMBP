@@ -1,6 +1,6 @@
 <div class="modal fade" id="rmTaskModal" tabindex="-1" aria-labelledby="rmTaskModalTitle" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <form method="post" class="modal-content" id="rmTaskForm" action="">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <form method="post" class="modal-content" id="rmTaskForm" action="" enctype="multipart/form-data">
       {% csrf_token %}
       <input type="hidden" name="task_id" value="">
       <input type="hidden" name="return_tab" value="{{ return_tab|default:'timeline' }}">
@@ -12,27 +12,42 @@
       <div class="modal-body">
         <p class="fw-bold mb-2" data-rm-title></p>
         <div class="row g-2">
-          <div class="col-md-6">
+          <div class="col-md-4">
             <label class="form-label small fw-bold mb-1" for="id_rm_status">Trạng thái</label>
             <select name="status" id="id_rm_status" class="form-select form-select-sm">
               {% for value, label in task_form.fields.status.choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
             </select>
           </div>
           {% if can_assign %}
-          <div class="col-md-6">
-            <label class="form-label small fw-bold mb-1" for="id_rm_due">Hạn</label>
+          <div class="col-md-4">
+            <label class="form-label small fw-bold mb-1" for="id_rm_start">Ngày bắt đầu</label>
+            <input type="date" name="start_date" id="id_rm_start" class="form-control form-control-sm jp-date-vn">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-bold mb-1" for="id_rm_due">Hạn hoàn thành</label>
             <input type="date" name="due_date" id="id_rm_due" class="form-control form-control-sm jp-date-vn">
           </div>
-          <div class="col-12">
-            <label class="form-label small fw-bold mb-1" for="id_rm_owner">Người phụ trách</label>
+          <div class="col-md-6">
+            <label class="form-label small fw-bold mb-1" for="id_rm_owner">Người chịu trách nhiệm chính</label>
             <select name="owner" id="id_rm_owner" class="form-select form-select-sm jp-tksp-user-select">
               {% for value, label in task_form.fields.owner.choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
             </select>
           </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-bold mb-1" for="id_rm_collab">Người phối hợp</label>
+            <select name="collaborators" id="id_rm_collab" class="form-select form-select-sm jp-tksp-user-select" multiple>
+              {% for value, label in task_form.fields.collaborators.choices %}{% if value %}<option value="{{ value }}">{{ label }}</option>{% endif %}{% endfor %}
+            </select>
+          </div>
           {% endif %}
           <div class="col-12">
-            <label class="form-label small fw-bold mb-1" for="id_rm_evidence">Bằng chứng / kết quả <span class="text-danger d-none" data-rm-evidence-req>*</span></label>
+            <label class="form-label small fw-bold mb-1" for="id_rm_evidence">Bằng chứng / kết quả <span class="text-danger d-none" data-rm-evidence-req>* (ghi chú hoặc đính kèm tệp)</span></label>
             <textarea name="evidence" id="id_rm_evidence" rows="2" class="form-control form-control-sm" placeholder="Link tài liệu, số phiếu, kết quả…"></textarea>
+          </div>
+          <div class="col-12">
+            <label class="form-label small fw-bold mb-1" for="id_rm_files">Đính kèm tệp bằng chứng</label>
+            <input type="file" name="files" id="id_rm_files" class="form-control form-control-sm" multiple>
+            <div class="form-text">Tối đa 50 MB mỗi tệp. Tệp đã đính kèm hiển thị ở dòng công việc.</div>
           </div>
           <div class="col-12">
             <label class="form-label small fw-bold mb-1" for="id_rm_delay">Lý do trễ / vướng mắc</label>
@@ -51,6 +66,10 @@
 document.addEventListener('DOMContentLoaded', function () {
   var modal = document.getElementById('rmTaskModal');
   if (!modal) return;
+  function setDate(input, value) {
+    if (!input) return;
+    if (input._flatpickr) input._flatpickr.setDate(value || null, false); else input.value = value || '';
+  }
   modal.addEventListener('show.bs.modal', function (e) {
     var btn = e.relatedTarget;
     if (!btn) return;
@@ -59,16 +78,21 @@ document.addEventListener('DOMContentLoaded', function () {
     form.querySelector('[name="task_id"]').value = btn.getAttribute('data-rm-task');
     form.querySelector('[data-rm-title]').textContent = btn.getAttribute('data-title');
     form.querySelector('[name="status"]').value = btn.getAttribute('data-status');
-    var due = form.querySelector('[name="due_date"]');
-    if (due) {
-      var dv = btn.getAttribute('data-due') || '';
-      if (due._flatpickr) due._flatpickr.setDate(dv || null, false); else due.value = dv;
-    }
+    setDate(form.querySelector('[name="due_date"]'), btn.getAttribute('data-due'));
+    setDate(form.querySelector('[name="start_date"]'), btn.getAttribute('data-start'));
     var owner = form.querySelector('[name="owner"]');
     if (owner) {
       var v = btn.getAttribute('data-owner') || '';
       if (owner.tomselect) owner.tomselect.setValue(v, true); else owner.value = v;
     }
+    var collab = form.querySelector('[name="collaborators"]');
+    if (collab) {
+      var ids = (btn.getAttribute('data-collab') || '').split(',').filter(Boolean);
+      if (collab.tomselect) collab.tomselect.setValue(ids, true);
+      else Array.prototype.forEach.call(collab.options, function (o) { o.selected = ids.indexOf(o.value) !== -1; });
+    }
+    var files = form.querySelector('[name="files"]');
+    if (files) files.value = '';
     var cell = btn.parentElement;
     var ev = cell.querySelector('template[data-rm-evidence]');
     var dl = cell.querySelector('template[data-rm-delay]');

@@ -15,8 +15,10 @@ SX_LIST_GRIDS[LIST_KEY] = _spec(
         _col('status', 'Trạng thái', weight=130),
         _col('ready', 'Sẵn sàng', weight=150, sortable=False),
         _col('alert', 'Cảnh báo', weight=150, sortable=False),
-        _col('target_qty', 'SL mục tiêu', weight=90, align='end', default=False),
-        _col('target_revenue', 'DT mục tiêu', weight=110, align='end', default=False),
+        _col('blocking', 'Vấn đề đang chặn', weight=200, sortable=False),
+        _col('collection', 'Bộ sưu tập', weight=120, sortable=False, default=False),
+        _col('target_qty', 'SL mục tiêu', weight=90, align='end'),
+        _col('target_revenue', 'DT mục tiêu', weight=110, align='end'),
         meta=True,
     ),
     {

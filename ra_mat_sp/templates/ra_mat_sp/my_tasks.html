@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
-{% block title %}Tiến độ liên phòng ban{% endblock %}
+{% block title %}Công việc của tôi{% endblock %}
 {% block extra_head %}{% include 'ra_mat_sp/includes/rm_styles.html' %}{% endblock %}
 
 {% block content %}
 <div class="container-fluid jp-page jp-sx-page jp-tksp py-3 py-md-4 mb-5 px-3 px-lg-4">
-  {% include 'ra_mat_sp/includes/rm_topbar.html' with rm_title='Tiến độ liên phòng ban' %}
+  {% include 'ra_mat_sp/includes/rm_topbar.html' with rm_title='Công việc của tôi' %}
 
   <div class="tk-card tk-panel mb-3">
     <div class="tk-toolbar">
@@ -23,19 +23,22 @@
   <div class="tk-card tk-panel mb-3"><div class="tk-panel-head"><div class="tk-panel-title">Việc sắp đến hạn</div><span class="tk-pill is-amber">{{ buckets.soon|length }}</span></div><div class="table-responsive"><table class="table tk-mini-table align-middle mb-0"><thead><tr><th>Công việc</th><th>Mốc</th><th>Hạn</th><th>Phụ trách</th><th>Trạng thái</th><th></th></tr></thead><tbody>{% for t in buckets.soon %}{% include 'ra_mat_sp/includes/task_row.html' with show_plan=1 %}{% endfor %}</tbody></table></div></div>
   {% endif %}
   {% if buckets.confirm %}
-  <div class="tk-card tk-panel mb-3"><div class="tk-panel-head"><div class="tk-panel-title">Việc cần xác nhận / đang vướng</div><span class="tk-pill is-blue">{{ buckets.confirm|length }}</span></div><div class="table-responsive"><table class="table tk-mini-table align-middle mb-0"><thead><tr><th>Công việc</th><th>Mốc</th><th>Hạn</th><th>Phụ trách</th><th>Trạng thái</th><th></th></tr></thead><tbody>{% for t in buckets.confirm %}{% include 'ra_mat_sp/includes/task_row.html' with show_plan=1 %}{% endfor %}</tbody></table></div></div>
+  <div class="tk-card tk-panel mb-3"><div class="tk-panel-head"><div class="tk-panel-title">Việc chờ tôi xác nhận / gỡ vướng</div><span class="tk-pill is-blue">{{ buckets.confirm|length }}</span></div><div class="table-responsive"><table class="table tk-mini-table align-middle mb-0"><thead><tr><th>Công việc</th><th>Mốc</th><th>Hạn</th><th>Phụ trách</th><th>Trạng thái</th><th></th></tr></thead><tbody>{% for t in buckets.confirm %}{% include 'ra_mat_sp/includes/task_row.html' with show_plan=1 %}{% endfor %}</tbody></table></div></div>
   {% endif %}
   {% if buckets.open %}
   <div class="tk-card tk-panel mb-3"><div class="tk-panel-head"><div class="tk-panel-title">Việc đang xử lý</div><span class="tk-pill is-blue">{{ buckets.open|length }}</span></div><div class="table-responsive"><table class="table tk-mini-table align-middle mb-0"><thead><tr><th>Công việc</th><th>Mốc</th><th>Hạn</th><th>Phụ trách</th><th>Trạng thái</th><th></th></tr></thead><tbody>{% for t in buckets.open %}{% include 'ra_mat_sp/includes/task_row.html' with show_plan=1 %}{% endfor %}</tbody></table></div></div>
   {% endif %}
-  {% if not tasks %}<div class="tk-card tk-panel mb-3"><div class="text-center text-muted py-4">Bạn không có công việc ra mắt nào{% if show == 'open' %} chưa xong{% endif %}.</div></div>{% endif %}
+  {% if buckets.collab %}
+  <div class="tk-card tk-panel mb-3"><div class="tk-panel-head"><div class="tk-panel-title">Việc tôi phối hợp</div><span class="tk-pill is-gray">{{ buckets.collab|length }}</span></div><div class="table-responsive"><table class="table tk-mini-table align-middle mb-0"><thead><tr><th>Công việc</th><th>Mốc</th><th>Hạn</th><th>Phụ trách</th><th>Trạng thái</th><th></th></tr></thead><tbody>{% for t in buckets.collab %}{% include 'ra_mat_sp/includes/task_row.html' with show_plan=1 %}{% endfor %}</tbody></table></div></div>
+  {% endif %}
+  {% if not tasks and not buckets.confirm and not buckets.collab %}<div class="tk-card tk-panel mb-3"><div class="text-center text-muted py-4">Bạn không có công việc ra mắt nào{% if show == 'open' %} chưa xong{% endif %}.</div></div>{% endif %}
 
   {% if risks %}
   <div class="tk-card tk-panel">
     <div class="tk-panel-head"><div class="tk-panel-title">Rủi ro tôi đang xử lý</div></div>
     <div class="tk-alert-list">
       {% for r in risks %}
-      <a class="tk-alert" href="{{ r.plan.get_absolute_url }}?tab=risks"><span class="tk-dot{% if r.severity != 'high' %} is-amber{% endif %}"></span><div><strong>{{ r.description|truncatechars:100 }}</strong><p>{{ r.plan.code }} · {{ r.get_severity_display }}{% if r.due_date %} · hạn {{ r.due_date|date:'d/m/Y' }}{% endif %}</p></div></a>
+      <a class="tk-alert" href="{{ r.plan.get_absolute_url }}?tab=overview"><span class="tk-dot{% if r.severity != 'high' %} is-amber{% endif %}"></span><div><strong>{{ r.description|truncatechars:100 }}</strong><p>{{ r.plan.code }} · {{ r.get_severity_display }}{% if r.due_date %} · hạn {{ r.due_date|date:'d/m/Y' }}{% endif %}</p></div></a>
       {% endfor %}
     </div>
   </div>

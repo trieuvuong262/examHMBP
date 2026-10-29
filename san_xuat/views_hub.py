@@ -894,6 +894,17 @@ def _so_dec(raw, default='0'):
         return Decimal(default)
 
 
+def _sync_ob_downstream(order, user) -> None:
+    """Sau khi sửa OB trên đơn: đồng bộ LSX đang chạy + lộ trình KHSX."""
+    from san_xuat.services.order_routing import (
+        sync_active_mos_from_order,
+        sync_order_plan_steps_from_ob,
+    )
+
+    sync_active_mos_from_order(order, user=user)
+    sync_order_plan_steps_from_ob(order)
+
+
 def _handle_order_routing_post(request, order) -> bool:
     """Xử lý POST công đoạn đơn. True = đã handle (redirect caller)."""
     from san_xuat.services.order_routing import (
@@ -909,6 +920,7 @@ def _handle_order_routing_post(request, order) -> bool:
     if action not in {
         'add_routing_line', 'edit_routing_line', 'delete_routing_line',
         'reset_routing', 'attach_routing', 'attach_bom', 'scale_smv', 'edit_bom_lines',
+        'edit_ob_lines',
     }:
         return False
     can_pick = (
@@ -930,6 +942,9 @@ def _handle_order_routing_post(request, order) -> bool:
         ln = order.lines.filter(pk=lid).first() if lid else None
         if ln is None:
             raise OrderRoutingError('Không tìm thấy dòng sản phẩm.')
+        if action != 'edit_bom_lines':
+            from san_xuat.services.order_routing import assert_no_duplicate_product_lines
+            assert_no_duplicate_product_lines(ln)
         return ln
 
     if action == 'edit_bom_lines':
@@ -942,9 +957,37 @@ def _handle_order_routing_post(request, order) -> bool:
         except (TypeError, ValueError):
             raise OrderRoutingError('Dữ liệu chi tiết BOM không hợp lệ.') from None
         update_order_line_bom_overrides(_line(), rows=rows, user=request.user)
-        from san_xuat.services.order_routing import sync_active_mos_from_order
-        sync_active_mos_from_order(order, user=request.user)
-        messages.success(request, 'Đã lưu chi tiết BOM và đồng bộ KHSX/LSX phần còn lại.')
+        from san_xuat.services.order_routing import order_npl_deferred
+        if order_npl_deferred(order):
+            messages.success(
+                request,
+                'Đã lưu BOM trên đơn. NPL KHSX sẽ tính khi đơn được xác nhận / bỏ tạm giữ.',
+            )
+        else:
+            messages.success(request, 'Đã lưu BOM và cập nhật NPL KHSX / LSX.')
+        return True
+
+    if action == 'edit_ob_lines':
+        import json
+        from san_xuat.services.order_routing import apply_order_routing_edits
+
+        try:
+            payload = json.loads(request.POST.get('ob_json') or '{}')
+        except (TypeError, ValueError):
+            raise OrderRoutingError('Dữ liệu OB không hợp lệ.') from None
+        if not isinstance(payload, dict):
+            raise OrderRoutingError('Dữ liệu OB không hợp lệ.')
+        stats = apply_order_routing_edits(
+            _line(),
+            updates=payload.get('updates'),
+            adds=payload.get('adds'),
+            deletes=payload.get('deletes'),
+        )
+        _sync_ob_downstream(order, request.user)
+        messages.success(
+            request,
+            f"Đã lưu OB: sửa {stats['updated']}, thêm {stats['added']}, xóa {stats['deleted']} công đoạn.",
+        )
         return True
 
     if action == 'attach_routing':
@@ -952,8 +995,7 @@ def _handle_order_routing_post(request, order) -> bool:
 
         ln = _line()
         n = attach_order_line_routing(ln, routing_id=request.POST.get('routing_id') or 0)
-        from san_xuat.services.order_routing import sync_active_mos_from_order
-        sync_active_mos_from_order(order, user=request.user)
+        _sync_ob_downstream(order, request.user)
         messages.success(request, f'Đã gắn routing và copy {n} công đoạn lên đơn.')
         return True
 
@@ -962,16 +1004,14 @@ def _handle_order_routing_post(request, order) -> bool:
 
         ln = _line()
         n = attach_order_line_bom(ln, bom_version_id=request.POST.get('bom_version_id') or 0)
-        from san_xuat.services.order_routing import sync_active_mos_from_order
-        sync_active_mos_from_order(order, user=request.user)
+        _sync_ob_downstream(order, request.user)
         extra = f' — đã copy {n} công đoạn từ BOM.' if n else ''
         messages.success(request, f'Đã gắn BOM lên đơn.{extra}')
         return True
 
     if action == 'reset_routing':
         n = reset_order_line_routing(_line())
-        from san_xuat.services.order_routing import sync_active_mos_from_order
-        sync_active_mos_from_order(order, user=request.user)
+        _sync_ob_downstream(order, request.user)
         messages.success(request, f'Đã lấy lại {n} công đoạn từ routing mã hàng.')
         return True
 
@@ -981,8 +1021,7 @@ def _handle_order_routing_post(request, order) -> bool:
             request.POST.get('smv_pct') or 0,
             explanation=request.POST.get('variance_explanation') or '',
         )
-        from san_xuat.services.order_routing import sync_active_mos_from_order
-        sync_active_mos_from_order(order, user=request.user)
+        _sync_ob_downstream(order, request.user)
         messages.success(request, f'Đã áp SMV đơn cho {n} công đoạn (không đổi SMV sản phẩm).')
         return True
 
@@ -995,8 +1034,7 @@ def _handle_order_routing_post(request, order) -> bool:
         if not line_pk:
             raise OrderRoutingError('Thiếu dòng cần xóa.')
         delete_order_routing_line(order_line=ln, line_pk=line_pk)
-        from san_xuat.services.order_routing import sync_active_mos_from_order
-        sync_active_mos_from_order(order, user=request.user)
+        _sync_ob_downstream(order, request.user)
         messages.success(request, 'Đã xóa công đoạn trên đơn.')
         return True
 
@@ -1027,8 +1065,7 @@ def _handle_order_routing_post(request, order) -> bool:
         count_minutes=_so_dec(request.POST.get('count_minutes'), '0'),
         transfer_minutes=_so_dec(request.POST.get('transfer_minutes'), '0'),
     )
-    from san_xuat.services.order_routing import sync_active_mos_from_order
-    sync_active_mos_from_order(order, user=request.user)
+    _sync_ob_downstream(order, request.user)
     messages.success(request, 'Đã lưu công đoạn trên đơn.')
     return True
 
@@ -1130,12 +1167,32 @@ def sales_order_detail(request, pk: int):
         ln.available_routings = routings_for_product(ln.product_code) if not ln.routing_id else []
         ln.available_boms = boms_for_product(ln.product_code) if not ln.bom_version_id else []
         ln.npl_needs = needs_as_display_dicts(explode_for_sales_line(ln))
+        _bom_rows = list(ln.bom_line_overrides or [])
+        if not _bom_rows and ln.bom_version_id:
+            from san_xuat.services.sales_orders import bom_lines_snapshot
+            _bom_rows = bom_lines_snapshot(ln.bom_version_id)
+        ln.bom_overrides_json = json.dumps(_bom_rows, ensure_ascii=False, default=str)
         snap = ln.suggest_snapshot if isinstance(ln.suggest_snapshot, dict) else {}
         ln.suggest_key = f'{order.pk}-{ln.pk}' if snap else ''
         if snap:
             suggest_snaps[ln.suggest_key] = snap
 
+    from kho_npl.models import Material, MaterialCategory
+    from kho_npl.stock_domain import materials_catalog_q
+    from django.db.models import Count, Q
+
+    bom_material_categories = list(
+        MaterialCategory.objects.filter(is_active=True)
+        .annotate(n_mat=Count(
+            'materials',
+            filter=Q(materials__is_active=True) & Q(materials__in=Material.objects.filter(materials_catalog_q())),
+        ))
+        .filter(n_mat__gt=0)
+        .order_by('sort_order', 'name')
+    )
+
     return render(request, 'san_xuat/sales_order_detail.html', {
+        'bom_material_categories': bom_material_categories,
         **_perm_ctx(request),
         'order': order,
         'can_confirm': can_confirm,

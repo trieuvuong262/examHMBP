@@ -63,7 +63,7 @@ def is_participant(plan: LaunchPlan, user) -> bool:
     if is_coordinator(plan, user) or plan.approver_id == user.pk:
         return True
     return (
-        plan.tasks.filter(owner=user).exists()
+        plan.tasks.filter(Q(owner=user) | Q(collaborators=user)).exists()
         or plan.risks.filter(owner=user).exists()
         or plan.group_owners.filter(owner=user).exists()
     )
@@ -107,7 +107,7 @@ def participant_plan_ids(user):
 
     return (
         set(LaunchPlan.objects.filter(Q(coordinator=user) | Q(approver=user)).values_list('pk', flat=True))
-        | set(LaunchTask.objects.filter(owner=user).values_list('plan_id', flat=True))
+        | set(LaunchTask.objects.filter(Q(owner=user) | Q(collaborators=user)).values_list('plan_id', flat=True))
         | set(LaunchRisk.objects.filter(owner=user).values_list('plan_id', flat=True))
         | set(LaunchPlanGroupOwner.objects.filter(owner=user).values_list('plan_id', flat=True))
     )
@@ -121,12 +121,12 @@ def has_participation(user) -> bool:
     active = LaunchPlan.objects.exclude(status__in=FINAL_STATUSES)
     return (
         active.filter(Q(coordinator=user) | Q(approver=user)).exists()
-        or LaunchTask.objects.filter(owner=user, status__in=OPEN_TASK_STATUSES).exclude(
+        or LaunchTask.objects.filter(Q(owner=user) | Q(collaborators=user), status__in=OPEN_TASK_STATUSES).exclude(
             plan__status__in=FINAL_STATUSES).exists()
     )
 
 
-PARTICIPANT_URLS = frozenset({'detail', 'action', 'my_tasks', 'approve_queue'})
+PARTICIPANT_URLS = frozenset({'detail', 'action', 'my_tasks', 'approve_queue', 'task_file'})
 
 
 def member_path_allowed(user, path: str) -> bool:
@@ -141,6 +141,11 @@ def member_path_allowed(user, path: str) -> bool:
         return False
     if match.url_name in ('my_tasks', 'approve_queue'):
         return has_participation(user)
+    if match.url_name == 'task_file':
+        from .models import LaunchTaskFile
+
+        plan_id = LaunchTaskFile.objects.filter(pk=match.kwargs.get('pk')).values_list('task__plan_id', flat=True).first()
+        return plan_id in participant_plan_ids(user)
     return match.kwargs.get('pk') in participant_plan_ids(user)
 
 

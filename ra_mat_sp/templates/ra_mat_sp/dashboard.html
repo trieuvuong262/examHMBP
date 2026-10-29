@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load sx_format %}
+{% load sx_format tksp_tags %}
 {% block title %}Kế hoạch ra mắt sản phẩm{% endblock %}
 {% block extra_head %}{% include 'ra_mat_sp/includes/rm_styles.html' %}{% endblock %}
 
@@ -54,6 +54,26 @@
     {% endif %}
   </div>
 
+  {% if pending_plans %}
+  <div class="tk-card tk-panel mb-3">
+    <div class="tk-panel-head">
+      <div class="tk-panel-title">Kế hoạch chờ phê duyệt</div>
+      <a class="tk-link" href="{% url 'ra_mat_sp:list' %}?quick=pending">Xem tất cả</a>
+    </div>
+    <div class="tk-alert-list">
+      {% for p in pending_plans %}
+      <a class="tk-alert" href="{{ p.get_absolute_url }}{% if p.status == 'launch_pending' %}?tab=go{% endif %}">
+        <span class="tk-dot is-purple"></span>
+        <div>
+          <strong>{{ p.name }}</strong>
+          <p>{{ p.code }} · {{ p.get_status_display }} · ra mắt {{ p.launch_date|date:'d/m/Y' }} · {{ p.ready.pct }}% sẵn sàng · người duyệt {% if p.approver %}{{ p.approver|uname }}{% else %}—{% endif %}</p>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
   <div class="tk-dash-grid mb-3">
     <div class="tk-card tk-panel">
       <div class="tk-panel-head">
@@ -65,7 +85,7 @@
           <span class="tk-dot{% if not t.is_go_blocker %} is-amber{% endif %}"></span>
           <div>
             <strong>{{ t.title }}</strong>
-            <p>{{ t.plan.code }} · {{ t.milestone }} · hạn {{ t.due_date|date:'d/m' }} · {{ t.owner.profile.full_name|default:t.owner.username|default:'Chưa giao' }}{% if t.is_go_blocker %} · <b class="text-danger">Điều kiện Go</b>{% endif %}</p>
+            <p>{{ t.plan.code }} · {{ t.milestone }} · hạn {{ t.due_date|date:'d/m' }} · {% if t.owner %}{{ t.owner|uname }}{% else %}Chưa giao{% endif %}{% if t.is_go_blocker %} · <b class="text-danger">Điều kiện Go</b>{% endif %}</p>
           </div>
         </a>
         {% empty %}
@@ -82,7 +102,7 @@
         <a class="tk-alert" href="{{ r.plan.get_absolute_url }}?tab=post"><span class="tk-dot is-blue"></span><div><strong>Đánh giá {{ r.get_milestone_display }} đến hạn</strong><p>{{ r.plan.code }} · {{ r.plan.name }} · {{ r.due_date|date:'d/m/Y' }}</p></div></a>
         {% endfor %}
         {% for r in risks %}
-        <a class="tk-alert" href="{{ r.plan.get_absolute_url }}?tab=risks"><span class="tk-dot{% if r.severity != 'high' %} is-amber{% endif %}"></span><div><strong>{{ r.description|truncatechars:90 }}</strong><p>{{ r.plan.code }} · {{ r.get_group_display }} · {{ r.get_severity_display }}{% if r.owner %} · {{ r.owner.profile.full_name|default:r.owner.username }}{% endif %}</p></div></a>
+        <a class="tk-alert" href="{{ r.plan.get_absolute_url }}?tab=overview"><span class="tk-dot{% if r.severity != 'high' %} is-amber{% endif %}"></span><div><strong>{{ r.description|truncatechars:90 }}</strong><p>{{ r.plan.code }} · {{ r.get_group_display }} · {{ r.get_severity_display }}{% if r.owner %} · {{ r.owner|uname }}{% endif %}</p></div></a>
         {% empty %}
         {% if not reviews_due %}<div class="small text-muted">Không có rủi ro đang mở.</div>{% endif %}
         {% endfor %}

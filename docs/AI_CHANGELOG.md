@@ -15,6 +15,13 @@ Mỗi entry nên có:
 
 ## Entries
 
+### 2026-10-29 — feature / sales-order-bom-edit-by-need
+
+- **Change**: Sửa BOM trên chi tiết ĐĐH nhập theo **Nhu cầu** (quy ngược ĐM/SP = Nhu cầu ÷ SL ÷ (1 + hao hụt%)), xóa NPL dư, popup Thêm NPL chọn Nhóm → NPL từ danh mục (ảnh, mã, tên, nhóm, bộ phận, màu, quy cách, ĐVT). API `kho_npl:material_search` nhận thêm `category_id`, trả thêm `color_hex`.
+- **Reason**: Kế hoạch điều chỉnh lượng NPL theo đơn thay vì định mức từng SP.
+- **Source**: `san_xuat/templates/san_xuat/sales_order_detail.html`, `san_xuat/templates/san_xuat/includes/sales_order_bom_material_{modal,script}.html`, `san_xuat/views_hub.py::sales_order_detail` (`bom_overrides_json`, `bom_material_categories`), `kho_npl/views_material.py::material_search_response`.
+- **Agent impact**: Lưu vẫn qua action `edit_bom_lines` → `update_order_line_bom_overrides` (snapshot `bom_line_overrides`, `qty_mode='qty'`); không sửa BOM gốc.
+
 ### 2026-10-29 — feature / recruitment-kanban-label-and-sizing
 
 - **Change**: Đổi nhãn trạng thái `joined_then_left` thành “Nhận việc nhưng nghỉ việc” và đồng nhất kích thước các cột Kanban.
@@ -77,6 +84,13 @@ Mỗi entry nên có:
 - **Reason**: Đáp ứng nhu cầu điều chỉnh định mức và công đoạn giữa kỳ mà không làm mất lịch sử xuất NPL hoặc trạng thái công đoạn đã hoàn thành.
 - **Source**: `san_xuat/services/order_routing.py`, `san_xuat/services/plan_order_npl.py`, `san_xuat/services/dispatch.py`, `san_xuat/views_hub.py`, `san_xuat/templates/san_xuat/sales_order_detail.html`, migration `0148_sxmoprocessstep_applied_unit_smv.py`.
 - **Agent impact**: Khi trace sửa kỹ thuật đơn đang chạy, bắt đầu từ `sales_order_detail` → `update_order_line_bom_overrides` / OB actions → `sync_order_npl` → `sync_active_mos_from_order`; không xóa dòng `SxOrderNplLine` cũ vì có thể đã tham chiếu phiếu xuất/đặt chỗ.
+
+### 2026-10-29 — feature / order-detail-edit-mode
+
+- **Change**: Giữ BOM/OB ở chế độ xem mặc định trên chi tiết đơn; nút Sửa mới mở vùng chỉnh. BOM có popup tìm/chọn NPL, thêm/xóa từng dòng và sửa nhu cầu; OB mở bộ chọn công đoạn từ thư viện, có thêm/xóa công đoạn và sửa SMV đơn hàng.
+- **Reason**: Giảm thay đổi giao diện khi xem lại đơn, chỉ hiện công cụ chỉnh sửa khi người dùng chủ động bật.
+- **Source**: `san_xuat/templates/san_xuat/sales_order_detail.html`, `san_xuat/templates/san_xuat/includes/sales_order_routing.html`, API `kho_npl:material_search` và `san_xuat:ie_operation_search`.
+- **Agent impact**: Khi kiểm tra màn chi tiết đơn, mặc định không được coi bảng là form sửa; cần bấm Sửa BOM/OB để hiện công cụ.
 
 ## Template cho entry mới
 

@@ -132,10 +132,25 @@ def group_owner_map(plan: LaunchPlan) -> dict[str, int | None]:
     return dict(plan.group_owners.values_list('group', 'owner_id'))
 
 
+def milestone_starts(plan: LaunchPlan, offsets) -> dict[int, date]:
+    """Ngày bắt đầu mặc định: việc mốc T-60 bắt đầu từ mốc T-90 liền trước; mốc đầu tiên bắt đầu từ ngày lập kế hoạch."""
+    created = timezone.localdate(plan.created_at) if plan.created_at else timezone.localdate()
+    starts: dict[int, date] = {}
+    prev = None
+    for offset in sorted(set(offsets)):
+        due = plan.launch_date + timedelta(days=offset)
+        start = plan.launch_date + timedelta(days=prev) if prev is not None else min(created, due)
+        starts[offset] = min(start, due)
+        prev = offset
+    return starts
+
+
 def generate_tasks(plan: LaunchPlan) -> int:
     groups = plan_product_groups(plan)
     existing = set(plan.tasks.exclude(template_item=None).values_list('template_item_id', flat=True))
     owners = group_owner_map(plan)
+    items = template_items_for(groups)
+    starts = milestone_starts(plan, [i.offset_days for i in items])
     tasks = [
         LaunchTask(
             plan=plan,
@@ -147,10 +162,11 @@ def generate_tasks(plan: LaunchPlan) -> int:
             importance=item.importance,
             is_go_blocker=item.is_go_blocker,
             owner_id=owners.get(item.group) or plan.coordinator_id,
+            start_date=starts.get(item.offset_days),
             due_date=plan.launch_date + timedelta(days=item.offset_days),
             sort_order=item.sort_order,
         )
-        for item in template_items_for(groups)
+        for item in items
         if item.pk not in existing
     ]
     LaunchTask.objects.bulk_create(tasks)
@@ -236,8 +252,10 @@ def reschedule(plan: LaunchPlan) -> int:
     for task in plan.tasks.filter(status__in=OPEN_TASK_STATUSES, is_condition=False):
         new_due = plan.launch_date + timedelta(days=task.offset_days)
         if task.due_date != new_due:
+            if task.start_date:
+                task.start_date = task.start_date + (new_due - task.due_date)
             task.due_date = new_due
-            task.save(update_fields=['due_date', 'updated_at'])
+            task.save(update_fields=['start_date', 'due_date', 'updated_at'])
             changed += 1
     for review in plan.reviews.filter(submitted_at__isnull=True):
         review.due_date = plan.launch_date + timedelta(days=REVIEW_OFFSETS[review.milestone])
@@ -401,19 +419,65 @@ def go_conditions(plan: LaunchPlan, tasks=None, links=None) -> list[dict]:
 # Công việc & rủi ro
 # ---------------------------------------------------------------------------
 
+TASK_FILE_MAX_BYTES = 50 * 1024 * 1024
+TASK_FILE_BLOCKED_EXT = frozenset({'.exe', '.bat', '.cmd', '.com', '.msi', '.ps1', '.sh', '.js', '.vbs', '.html', '.htm', '.svg'})
+
+
+def _check_files(files) -> None:
+    import os
+
+    for f in files or []:
+        if (f.size or 0) > TASK_FILE_MAX_BYTES:
+            raise WorkflowError(f'Tệp «{f.name}» vượt quá 50 MB.')
+        if os.path.splitext(f.name)[1].lower() in TASK_FILE_BLOCKED_EXT:
+            raise WorkflowError(f'Không nhận loại tệp «{f.name}».')
+
+
+def save_task_files(task: LaunchTask, user, files) -> int:
+    import os
+
+    from .models import LaunchTaskFile
+
+    count = 0
+    for f in files or []:
+        row = LaunchTaskFile(
+            task=task, uploaded_by=user, original_name=os.path.basename(f.name)[:255], size=f.size or 0,
+        )
+        row.file.save(f.name, f, save=False)
+        row.save()
+        count += 1
+    return count
+
+
+def delete_task_file(task_file, user) -> None:
+    task = task_file.task
+    name = task_file.display_name
+    try:
+        task_file.file.delete(save=False)
+    except OSError:
+        pass
+    task_file.delete()
+    log(task.plan, user, 'task_file', f'Xóa tệp «{name}» của công việc «{task.title}».')
+
+
 def update_task(task: LaunchTask, user, *, status: str, evidence: str, delay_reason: str,
-                owner=None, due_date: date | None = None, can_assign: bool = False) -> None:
+                owner=None, due_date: date | None = None, can_assign: bool = False,
+                start_date: date | None = None, collaborators=None, files=None) -> None:
     today = timezone.localdate()
     if status not in TaskStatus.values:
         raise WorkflowError('Trạng thái công việc không hợp lệ.')
     evidence = (evidence or '').strip()
     delay_reason = (delay_reason or '').strip()
+    _check_files(files)
     effective_due = due_date if (can_assign and due_date) else task.due_date
+    effective_start = start_date if (can_assign and start_date) else task.start_date
+    if effective_start and effective_start > effective_due:
+        raise WorkflowError('Ngày bắt đầu phải trước hoặc bằng hạn hoàn thành.')
     if status == TaskStatus.BLOCKED and not delay_reason:
         raise WorkflowError('Ghi rõ vướng mắc khi chuyển công việc sang «Vướng mắc».')
     if status == TaskStatus.DONE:
-        if task.is_go_blocker and not evidence:
-            raise WorkflowError('Điều kiện Go/No-Go cần ghi bằng chứng / kết quả khi hoàn thành.')
+        if task.is_go_blocker and not evidence and not files and not task.files.exists():
+            raise WorkflowError('Điều kiện Go/No-Go cần ghi bằng chứng hoặc đính kèm tệp khi hoàn thành.')
         if effective_due < today and not delay_reason:
             raise WorkflowError('Công việc hoàn thành trễ hạn — nhập lý do trễ.')
     changes = []
@@ -433,20 +497,37 @@ def update_task(task: LaunchTask, user, *, status: str, evidence: str, delay_rea
         if due_date and due_date != task.due_date:
             changes.append(f'hạn {task.due_date:%d/%m} → {due_date:%d/%m}')
             task.due_date = due_date
+        if start_date and start_date != task.start_date:
+            changes.append(f'bắt đầu {start_date:%d/%m}')
+            task.start_date = start_date
     task.evidence = evidence
     task.delay_reason = delay_reason
     task.save()
+    if can_assign and collaborators is not None:
+        new_ids = {u.pk for u in collaborators if u.pk != task.owner_id}
+        old_ids = set(task.collaborators.values_list('pk', flat=True))
+        if new_ids != old_ids:
+            task.collaborators.set(new_ids)
+            changes.append('người phối hợp: ' + (', '.join(display_name(u) for u in collaborators if u.pk in new_ids) or 'không'))
+    added = save_task_files(task, user, files)
+    if added:
+        changes.append(f'đính kèm {added} tệp')
     log(task.plan, user, 'task', f'Công việc «{task.title}»: ' + (', '.join(changes) if changes else 'cập nhật ghi chú') + '.')
     refresh_risk(task.plan, user)
 
 
 def add_task(plan: LaunchPlan, user, *, group: str, title: str, due_date: date, owner, importance: str,
-             is_go_blocker: bool, deliverable: str = '') -> LaunchTask:
+             is_go_blocker: bool, deliverable: str = '', start_date: date | None = None,
+             collaborators=None) -> LaunchTask:
+    if start_date and start_date > due_date:
+        raise WorkflowError('Ngày bắt đầu phải trước hoặc bằng hạn hoàn thành.')
     task = LaunchTask.objects.create(
         plan=plan, group=group, title=title.strip(), deliverable=(deliverable or '').strip(),
-        offset_days=(due_date - plan.launch_date).days, due_date=due_date, owner=owner,
+        offset_days=(due_date - plan.launch_date).days, start_date=start_date, due_date=due_date, owner=owner,
         importance=importance, is_go_blocker=is_go_blocker, sort_order=900,
     )
+    if collaborators:
+        task.collaborators.set([u.pk for u in collaborators if u.pk != owner.pk])
     log(plan, user, 'task_add', f'Thêm công việc «{task.title}» ({task.milestone}).')
     refresh_risk(plan, user)
     return task

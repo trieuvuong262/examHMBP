@@ -1,0 +1,294 @@
+{# Popup Thêm công đoạn vào OB đơn — chọn nhóm rồi chọn công đoạn thư viện IE. Dùng style jp-npl-dd của popup Thêm NPL. #}
+<div class="modal fade" id="jpObOpModal" tabindex="-1" aria-labelledby="jpObOpModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content shadow jp-ob-modal">
+      <div class="modal-header py-2">
+        <h6 class="modal-title fw-bold mb-0" id="jpObOpModalLabel"><i class="bi bi-diagram-3 me-2 text-hm"></i>Thêm công đoạn</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3 mb-3">
+          <div class="col-12">
+            <label class="jp-bom-lbl" for="jpObOpLine">Sản phẩm</label>
+            <select class="form-select form-select-sm" id="jpObOpLine">
+              {% for ln in order.lines.all %}
+              <option value="{{ ln.pk }}">{{ ln.product_name|default:ln.product_code }}{% if ln.product_name %} · {{ ln.product_code }}{% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-5">
+            <label class="jp-bom-lbl" for="jpObOpGroup"><span class="jp-step-num">1</span>Nhóm công đoạn</label>
+            <select class="form-select form-select-sm" id="jpObOpGroup">
+              <option value="">— Chọn nhóm —</option>
+              {% for g in operation_groups %}
+              <option value="{{ g.code }}">{{ g.code }} · {{ g.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-7">
+            <span class="jp-bom-lbl"><span class="jp-step-num is-off" id="jpObOpStep2">2</span>Công đoạn</span>
+            <div class="jp-npl-dd" id="jpObOpDd">
+              <button type="button" class="jp-npl-dd-toggle" id="jpObOpToggle" disabled aria-haspopup="listbox" aria-expanded="false">
+                <span class="text-muted" id="jpObOpToggleText">— Chọn công đoạn —</span>
+                <i class="bi bi-chevron-down jp-dd-caret"></i>
+              </button>
+              <div class="jp-npl-dd-menu" role="listbox">
+                <div class="jp-npl-dd-search">
+                  <input type="search" class="form-control form-control-sm" id="jpObOpFilter" placeholder="Lọc mã, tên" autocomplete="off">
+                </div>
+                <div class="jp-npl-dd-list" id="jpObOpList"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="jpObOpCard"></div>
+
+        <div class="mt-3 d-none" id="jpObOpAdded">
+          <div class="jp-bom-lbl mb-1"><i class="bi bi-check2-circle text-success"></i>Đã thêm</div>
+          <div class="d-flex flex-wrap gap-1" id="jpObOpAddedList"></div>
+        </div>
+      </div>
+      <div class="modal-footer py-2">
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
+      </div>
+    </div>
+  </div>
+</div>
+<style>
+  #jpObOpModal .modal-content { border: 0; border-radius: 12px; overflow: hidden; }
+  #jpObOpModal .modal-header { background: var(--hm-bg-light, #f8fafc); border-bottom: 1px solid #e5e9f0; }
+  #jpObOpModal .jp-bom-lbl { font-size: .78rem; font-weight: 600; color: #64748b; margin-bottom: .3rem; display: flex; align-items: center; gap: .35rem; }
+  #jpObOpModal .jp-step-num { width: 1.2rem; height: 1.2rem; border-radius: 50%; background: var(--hm-primary, #dc2626); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: .68rem; line-height: 1; }
+  #jpObOpModal .jp-step-num.is-off { background: #cbd5e1; }
+  #jpObOpModal .btn { display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
+  .jp-ob-modal .jp-npl-val { font-size: .85rem; font-weight: 600; color: #1e293b; }
+  .jp-ob-opt-code { flex-shrink: 0; min-width: 4.5rem; font-size: .72rem; font-weight: 700; color: var(--hm-primary, #dc2626); background: var(--hm-primary-soft, rgba(220,38,38,.08)); border-radius: .35rem; padding: .25rem .4rem; text-align: center; }
+</style>
+<script>
+  (function () {
+    var SEARCH_URL = "{% url 'san_xuat:ie_operation_search' %}";
+    function $(id) { return document.getElementById(id); }
+    var lineSelect = $('jpObOpLine');
+    var groupSelect = $('jpObOpGroup');
+    var dd = $('jpObOpDd');
+    var toggle = $('jpObOpToggle');
+    var toggleText = $('jpObOpToggleText');
+    var filter = $('jpObOpFilter');
+    var list = $('jpObOpList');
+    var card = $('jpObOpCard');
+    var step2 = $('jpObOpStep2');
+    var addedBox = $('jpObOpAdded');
+    var addedList = $('jpObOpAddedList');
+    if (!groupSelect || !dd) return;
+    var cache = {};
+    var items = [];
+    var selected = null;
+    var seq = 0;
+
+    function esc(v) {
+      var d = document.createElement('div');
+      d.textContent = v == null ? '' : String(v);
+      return d.innerHTML;
+    }
+    function fmt(n) {
+      var x = Number(n);
+      if (!Number.isFinite(x)) return '—';
+      return x.toLocaleString('vi-VN', { maximumFractionDigits: 4 });
+    }
+    function norm(s) {
+      return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+    }
+    function lineId() { return lineSelect ? lineSelect.value : ''; }
+    function existingKeys() {
+      var set = new Set();
+      document.querySelectorAll('tr[data-ob-so-line="' + lineId() + '"]').forEach(function (tr) {
+        if (tr.classList.contains('jp-ob-removed')) return;
+        set.add(String(tr.dataset.obCode || '').trim().toUpperCase());
+      });
+      return set;
+    }
+    function setToggleEmpty(text) {
+      toggleText.className = 'text-muted';
+      toggleText.textContent = text;
+    }
+    function openDd(open) {
+      dd.classList.toggle('is-open', open);
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open) { filter.value = ''; renderList(); setTimeout(function () { filter.focus(); }, 30); }
+    }
+
+    function renderList() {
+      var q = norm(filter.value.trim());
+      var have = existingKeys();
+      var shown = items.filter(function (it) {
+        return !q || norm(it.op_code + ' ' + it.name_vi + ' ' + (it.machine_code || '')).indexOf(q) >= 0;
+      });
+      if (!shown.length) {
+        list.innerHTML = '<div class="text-muted small text-center py-3">Không có công đoạn phù hợp.</div>';
+        return;
+      }
+      list.innerHTML = '';
+      shown.forEach(function (it) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'jp-npl-opt' + (selected && selected.id === it.id ? ' is-active' : '');
+        var dup = have.has(String(it.op_code || '').toUpperCase());
+        b.innerHTML = '<span class="jp-ob-opt-code">' + esc(it.op_code) + '</span>'
+          + '<span class="jp-npl-opt-main"><span class="d-block jp-npl-opt-name">' + esc(it.name_vi || it.op_code) + '</span>'
+          + '<span class="d-block jp-npl-opt-sub">' + esc(it.op_rev) + (it.machine_code ? ' · ' + esc(it.machine_code) : '') + '</span></span>'
+          + '<span class="text-muted small text-nowrap">' + fmt(it.library_unit_smv) + '</span>'
+          + (dup ? '<span class="badge bg-secondary-subtle text-secondary ms-1">Đã có</span>' : '');
+        b.addEventListener('click', function () { selectItem(it); openDd(false); });
+        list.appendChild(b);
+      });
+    }
+
+    function loadGroup() {
+      var g = groupSelect.value;
+      selected = null;
+      renderCard();
+      items = [];
+      if (!g) {
+        toggle.disabled = true;
+        step2.classList.add('is-off');
+        setToggleEmpty('— Chọn công đoạn —');
+        return;
+      }
+      step2.classList.remove('is-off');
+      if (cache[g]) { items = cache[g]; toggle.disabled = !items.length; setToggleEmpty('— Chọn công đoạn (' + items.length + ') —'); return; }
+      toggle.disabled = true;
+      setToggleEmpty('…');
+      var my = ++seq;
+      fetch(SEARCH_URL + '?group_code=' + encodeURIComponent(g) + '&label=name', { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (my !== seq) return;
+          items = data.results || [];
+          cache[g] = items;
+          toggle.disabled = !items.length;
+          setToggleEmpty(items.length ? '— Chọn công đoạn (' + items.length + ') —' : 'Nhóm chưa có công đoạn');
+        })
+        .catch(function () { if (my === seq) setToggleEmpty('Lỗi tải công đoạn'); });
+    }
+
+    function selectItem(it) {
+      selected = it;
+      toggleText.className = 'jp-npl-val';
+      toggleText.textContent = (it.name_vi || it.op_code) + ' · ' + it.op_rev;
+      renderCard();
+      renderList();
+    }
+
+    function renderCard() {
+      if (!selected) { card.innerHTML = ''; return; }
+      var it = selected;
+      var smvLib = Number(it.library_unit_smv) || 0;
+      card.innerHTML = ''
+        + '<div class="border rounded p-3 bg-white">'
+        + '<div class="d-flex align-items-start gap-3 mb-2">'
+        + '<span class="jp-ob-opt-code" style="font-size:.8rem;padding:.4rem .6rem;">' + esc(it.op_code) + '</span>'
+        + '<div class="flex-grow-1 min-w-0">'
+        + '<div class="fw-bold text-truncate">' + esc(it.name_vi || it.op_code) + '</div>'
+        + '<div class="small text-muted">' + esc(it.op_rev) + (it.machine_code ? ' · Máy ' + esc(it.machine_code) : '') + (it.group_code ? ' · Nhóm ' + esc(it.group_code) : '') + '</div>'
+        + '</div>'
+        + '<div class="text-end flex-shrink-0"><div class="small text-muted">SMV sản phẩm</div><div class="fw-bold">' + fmt(smvLib) + '</div></div>'
+        + '</div>'
+        + '<div class="row g-2 align-items-end mt-1">'
+        + '<div class="col-6 col-md-3">'
+        + '<label class="jp-bom-lbl" for="jpObOpAppliedSmv">SMV đơn hàng <span class="text-danger">*</span></label>'
+        + '<input type="number" min="0" step="0.0001" id="jpObOpAppliedSmv" class="form-control form-control-sm text-end" value="' + (smvLib || '') + '" inputmode="decimal">'
+        + '</div>'
+        + '<div class="col-6 col-md-3">'
+        + '<label class="jp-bom-lbl" for="jpObOpQty">SL/SP</label>'
+        + '<input type="number" min="0" step="0.01" id="jpObOpQty" class="form-control form-control-sm text-end" value="1" inputmode="decimal">'
+        + '</div>'
+        + '<div class="col-12 col-md-6 d-flex justify-content-md-end">'
+        + '<button type="button" class="btn btn-sm btn-hm fw-bold w-100 w-md-auto" id="jpObOpAddBtn"><i class="bi bi-plus-lg me-1"></i>Thêm vào OB</button>'
+        + '</div>'
+        + '</div>'
+        + '</div>';
+      setTimeout(function () {
+        var btn = $('jpObOpAddBtn');
+        if (btn) btn.addEventListener('click', addToTable);
+      }, 0);
+    }
+
+    function addToTable() {
+      if (!selected) return;
+      var lid = lineId();
+      var smvInput = $('jpObOpAppliedSmv');
+      var smvVal = smvInput ? parseFloat(smvInput.value) : NaN;
+      if (!Number.isFinite(smvVal) || smvVal <= 0) { alert('Nhập SMV đơn hàng lớn hơn 0.'); return; }
+      var qtyInput = $('jpObOpQty');
+      var qtyVal = qtyInput ? (parseFloat(qtyInput.value) || 1) : 1;
+      // Tìm tbody của dòng sản phẩm đang chọn
+      var firstRow = document.querySelector('tr[data-ob-so-line="' + lid + '"]');
+      if (!firstRow) { alert('Không tìm thấy bảng OB cho sản phẩm này.'); return; }
+      var tbody = firstRow.closest('tbody');
+      // Đếm seq hiện có để đánh số thứ tự
+      var maxSeq = 0;
+      tbody.querySelectorAll('tr[data-ob-so-line="' + lid + '"]').forEach(function (tr) {
+        var s = parseInt(tr.children[1] && tr.children[1].textContent, 10);
+        if (Number.isFinite(s) && s > maxSeq) maxSeq = s;
+      });
+      var newSeq = maxSeq + 1;
+      var tr = document.createElement('tr');
+      tr.setAttribute('data-ob-so-line', lid);
+      tr.setAttribute('data-ob-pk', '');
+      tr.setAttribute('data-ob-code', selected.op_code);
+      tr.setAttribute('data-ob-rev', selected.op_rev);
+      tr.setAttribute('data-ob-smv', String(smvVal));
+      tr.classList.add('jp-ob-new');
+      tr.innerHTML = ''
+        + '<td class="text-end text-muted">' + newSeq + '</td>'
+        + '<td class="fw-semibold">' + esc(selected.op_code) + '</td>'
+        + '<td class="small">' + esc(selected.name_vi || selected.op_code) + '</td>'
+        + '<td class="text-end">' + fmt(Number(selected.library_unit_smv) || 0) + '</td>'
+        + '<td class="text-end fw-semibold"><input type="number" min="0" step="0.0001" class="form-control form-control-sm text-end jp-inline-ob-smv" value="' + smvVal + '"></td>'
+        + '<td class="small">' + esc(selected.work_center_code || '—') + '</td>'
+        + '<td class="text-end text-muted small">+</td>'
+        + '<td class="jp-ob-edit-control text-center align-middle" style="width:2.5rem;"><button type="button" class="jp-row-del jp-ob-remove" title="Xóa" aria-label="Xóa ' + esc(it.name_vi || it.op_code) + '"><i class="bi bi-x-lg" aria-hidden="true"></i></button></td>';
+      tbody.appendChild(tr);
+      markAddedChip(selected);
+      selected = null;
+      renderCard();
+      setToggleEmpty('— Chọn công đoạn —');
+      renderList();
+    }
+
+    function markAddedChip(it) {
+      addedBox.classList.remove('d-none');
+      var chip = document.createElement('span');
+      chip.className = 'badge rounded-pill bg-success-subtle text-success-emphasis border-0 py-1 px-2';
+      chip.style.fontSize = '.75rem';
+      chip.innerHTML = '<i class="bi bi-check2 me-1"></i>' + esc(it.op_code) + ' · ' + esc(it.name_vi || '');
+      addedList.appendChild(chip);
+    }
+
+    groupSelect.addEventListener('change', loadGroup);
+    lineSelect.addEventListener('change', function () {
+      selected = null;
+      renderCard();
+      items = [];
+      cache = {};
+      groupSelect.value = '';
+      toggle.disabled = true;
+      step2.classList.add('is-off');
+      setToggleEmpty('— Chọn nhóm trước —');
+      addedBox.classList.add('d-none');
+      addedList.innerHTML = '';
+    });
+    toggle.addEventListener('click', function () { openDd(!dd.classList.contains('is-open')); });
+    filter.addEventListener('input', renderList);
+    document.addEventListener('click', function (e) {
+      if (!dd.contains(e.target)) openDd(false);
+    });
+    document.getElementById('jpObOpModal').addEventListener('hidden.bs.modal', function () {
+      selected = null;
+      renderCard();
+      addedBox.classList.add('d-none');
+      addedList.innerHTML = '';
+    });
+  })();
+</script>

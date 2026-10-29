@@ -330,6 +330,9 @@ def _apply_header_ready(
     ])
 
 
+STALE_NPL_NOTE = 'Không còn trong BOM hiện tại'
+
+
 @transaction.atomic
 def sync_order_npl(
     *,
@@ -399,6 +402,8 @@ def sync_order_npl(
             ln.qty_allocated = cap
         ln.buy_lead_days = buy
         ln.sort_order = sort
+        if (ln.notes or '') == STALE_NPL_NOTE:
+            ln.notes = ''
         ln.save()
         keep_ids.append(ln.pk)
 
@@ -410,7 +415,7 @@ def sync_order_npl(
         qty_shortfall=Decimal('0'),
         qty_allocated=Decimal('0'),
         qty_inbound=Decimal('0'),
-        notes='Không còn trong BOM hiện tại',
+        notes=STALE_NPL_NOTE,
     )
     lines = list(order.npl_lines.order_by('sort_order', 'id'))
 

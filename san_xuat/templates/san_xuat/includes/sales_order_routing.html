@@ -1,7 +1,19 @@
 {% load sx_format %}
 <div class="card border-0 shadow-sm mb-3">
   <div class="card-body">
-    <h6 class="fw-bold mb-3">OB</h6>
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <h6 class="fw-bold mb-0">OB</h6>
+      {% if can_edit_order_routing %}
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-sm btn-outline-hm jp-ob-read-control" data-jp-edit-toggle="ob">
+          <i class="bi bi-pencil me-1"></i>Sửa OB
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary d-none jp-ob-edit-control" data-jp-edit-toggle="ob" data-jp-ob-cancel>Hủy</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary d-none jp-ob-edit-control" data-jp-add-ob="header">Thêm công đoạn</button>
+        <button type="button" class="btn btn-sm btn-hm d-none jp-ob-edit-control" data-jp-save-ob>Lưu OB</button>
+      </div>
+      {% endif %}
+    </div>
 
     <div class="table-responsive">
       <table class="table table-sm align-middle mb-0">
@@ -15,13 +27,13 @@
             <th class="text-end">SMV đơn hàng</th>
             <th>Bộ phận</th>
             <th class="text-end">Tổng SMV đơn hàng</th>
-            {% if can_edit_order_routing %}<th></th>{% endif %}
+            {% if can_edit_order_routing %}<th class="jp-ob-edit-control d-none"></th>{% endif %}
           </tr>
         </thead>
         <tbody>
         {% for ln in order.lines.all %}
           {% for l in ln.routing_lines.all %}
-          <tr>
+          <tr data-ob-so-line="{{ ln.pk }}" data-ob-pk="{{ l.pk }}" data-ob-code="{{ l.op_code }}" data-ob-smv="{{ l.applied_unit_smv|sx_num_input }}">
             {% if forloop.first %}
             <td class="small fw-semibold align-middle" rowspan="{{ ln.routing_lines.all|length }}">
               <div class="jp-so-product">
@@ -43,7 +55,10 @@
             <td class="fw-semibold">{{ l.op_code }}</td>
             <td class="small">{{ l.op_name_vi|default:"—" }}</td>
             <td class="text-end">{{ l.library_unit_smv|sx_num }}</td>
-            <td class="text-end fw-semibold">{{ l.applied_unit_smv|sx_num }}</td>
+            <td class="text-end fw-semibold">
+              <span class="jp-ob-read-smv">{{ l.applied_unit_smv|sx_num }}</span>
+              {% if can_edit_order_routing %}<input type="number" min="0" step="0.0001" class="form-control form-control-sm text-end jp-inline-ob-smv d-none" value="{{ l.applied_unit_smv|sx_num_input }}" aria-label="SMV đơn hàng {{ l.op_name_vi|default:l.op_code }}">{% endif %}
+            </td>
             <td class="small">{% if l.work_center %}{% if l.work_center.name == 'MAY (152A VĨNH LỘC)' %}MAY{% else %}{{ l.work_center.name }}{% endif %}{% elif l.work_center_code %}{{ l.work_center_code }}{% else %}—{% endif %}</td>
             {% if forloop.first %}
             <td class="text-end fw-bold align-middle" rowspan="{{ ln.routing_lines.all|length }}">
@@ -54,10 +69,10 @@
             </td>
             {% endif %}
             {% if can_edit_order_routing %}
-            <td class="text-nowrap">
-              <a href="?edit_rt={{ l.pk }}#so-line-{{ ln.pk }}" class="btn btn-sm btn-outline-secondary py-0">Sửa</a>
-              <button type="submit" form="del-so-rt-{{ l.pk }}" class="btn btn-sm btn-outline-danger py-0"
-                      onclick="return confirm('Xóa công đoạn {{ l.op_code }} trên đơn?');">Xóa</button>
+            <td class="jp-ob-edit-control d-none text-center align-middle" style="width:2.5rem;">
+              <button type="button" class="jp-row-del jp-ob-remove" title="Xóa" aria-label="Xóa {{ l.op_name_vi|default:l.op_code }}">
+                <i class="bi bi-x-lg" aria-hidden="true"></i>
+              </button>
             </td>
             {% endif %}
           </tr>
@@ -78,9 +93,9 @@
                 <span class="jp-so-product-name">{{ ln.product_name|default:"—" }}</span>
               </div>
             </td>
-            <td colspan="6" class="text-muted small text-center py-2">Chưa có công đoạn trên đơn.</td>
+            <td colspan="6" class="text-muted small text-center py-2" data-ob-empty-line="{{ ln.pk }}">Chưa có công đoạn trên đơn.</td>
             <td class="text-end text-muted">—</td>
-            {% if can_edit_order_routing %}<td></td>{% endif %}
+            {% if can_edit_order_routing %}<td class="jp-ob-edit-control d-none"></td>{% endif %}
           </tr>
           {% endfor %}
         {% empty %}
@@ -92,233 +107,64 @@
       </table>
     </div>
 
-    {% if can_attach_routing or can_edit_order_routing %}
+    {% if can_attach_routing %}
     {% for ln in order.lines.all %}
-    <div class="border rounded mt-3 p-3" id="so-line-{{ ln.pk }}">
-      {% if can_attach_routing %}
       {% if not ln.bom_version_id or not ln.routing_id %}
-      <div class="row g-2 align-items-end mb-2">
-        {% if not ln.bom_version_id %}
-        <form method="post" class="col-md-6 col-lg-5">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="attach_bom">
-          <input type="hidden" name="so_line_id" value="{{ ln.pk }}">
-          <label class="form-label small mb-0">Gắn BOM</label>
-          <div class="d-flex gap-2">
-            <select name="bom_version_id" class="form-select form-select-sm" required>
-              <option value="">— Chọn BOM —</option>
-              {% for bom in ln.available_boms %}
-              <option value="{{ bom.pk }}">{{ bom.version_label|default:bom.pk }}</option>
-              {% endfor %}
-            </select>
-            <button type="submit" class="btn btn-sm btn-hm" {% if not ln.available_boms %}disabled{% endif %}>Gắn BOM</button>
-          </div>
-          {% if not ln.available_boms %}
-          <p class="small text-muted mb-0 mt-1">Mã này chưa có BOM — tạo ở Hồ sơ thiết kế.</p>
+      <div class="border rounded mt-3 p-3" id="so-line-attach-{{ ln.pk }}">
+        <div class="row g-2 align-items-end">
+          {% if not ln.bom_version_id %}
+          <form method="post" class="col-md-6 col-lg-5">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="attach_bom">
+            <input type="hidden" name="so_line_id" value="{{ ln.pk }}">
+            <label class="form-label small mb-0">Gắn BOM</label>
+            <div class="d-flex gap-2">
+              <select name="bom_version_id" class="form-select form-select-sm" required>
+                <option value="">— Chọn BOM —</option>
+                {% for bom in ln.available_boms %}
+                <option value="{{ bom.pk }}">{{ bom.version_label|default:bom.pk }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="btn btn-sm btn-hm" {% if not ln.available_boms %}disabled{% endif %}>Gắn BOM</button>
+            </div>
+            {% if not ln.available_boms %}
+            <p class="small text-muted mb-0 mt-1">Mã này chưa có BOM — tạo ở Hồ sơ thiết kế.</p>
+            {% endif %}
+          </form>
           {% endif %}
-        </form>
-        {% endif %}
-        {% if not ln.routing_id %}
-        <form method="post" class="col-md-6 col-lg-5">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="attach_routing">
-          <input type="hidden" name="so_line_id" value="{{ ln.pk }}">
-          <label class="form-label small mb-0">Gắn công đoạn (OB)</label>
-          <div class="d-flex gap-2">
-            <select name="routing_id" class="form-select form-select-sm" required>
-              <option value="">— Chọn bản IE —</option>
-              {% for rt in ln.available_routings %}
-              <option value="{{ rt.pk }}">{{ rt.routing_rev }}</option>
-              {% endfor %}
-            </select>
-            <button type="submit" class="btn btn-sm btn-hm" {% if not ln.available_routings %}disabled{% endif %}>Gắn công đoạn</button>
-          </div>
-          {% if not ln.available_routings %}
-          <p class="small text-muted mb-0 mt-1">Chưa có routing IE — có thể dùng công đoạn trên BOM nếu đã gắn BOM.</p>
+          {% if not ln.routing_id %}
+          <form method="post" class="col-md-6 col-lg-5">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="attach_routing">
+            <input type="hidden" name="so_line_id" value="{{ ln.pk }}">
+            <label class="form-label small mb-0">Gắn công đoạn (OB)</label>
+            <div class="d-flex gap-2">
+              <select name="routing_id" class="form-select form-select-sm" required>
+                <option value="">— Chọn bản IE —</option>
+                {% for rt in ln.available_routings %}
+                <option value="{{ rt.pk }}">{{ rt.routing_rev }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="btn btn-sm btn-hm" {% if not ln.available_routings %}disabled{% endif %}>Gắn công đoạn</button>
+            </div>
+            {% if not ln.available_routings %}
+            <p class="small text-muted mb-0 mt-1">Chưa có routing IE — có thể dùng công đoạn trên BOM nếu đã gắn BOM.</p>
+            {% endif %}
+          </form>
           {% endif %}
-        </form>
-        {% endif %}
+        </div>
       </div>
       {% endif %}
-      {% endif %}
-
-      {% if can_edit_order_routing and ln.routing_id %}
-      <form method="post" class="d-inline mb-2">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="reset_routing">
-        <input type="hidden" name="so_line_id" value="{{ ln.pk }}">
-        <button type="submit" class="btn btn-sm btn-outline-secondary"
-                onclick="return confirm('Lấy lại công đoạn từ routing mã hàng? Mọi chỉnh SMV trên đơn sẽ mất.');">
-          Lấy lại từ routing mã hàng
-        </button>
-      </form>
-      {% endif %}
-
-      {% if can_edit_order_routing and ln.routing_lines.all %}
-      <form method="post" class="row g-2 align-items-end mb-2">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="scale_smv">
-        <input type="hidden" name="so_line_id" value="{{ ln.pk }}">
-        <div class="col-auto">
-          <label class="form-label small mb-0" for="smv-pct-{{ ln.pk }}">% lệch cả dòng</label>
-          <input type="number" name="smv_pct" id="smv-pct-{{ ln.pk }}"
-                 class="form-control form-control-sm" style="width:6.5rem"
-                 value="{{ ln.routing_smv_variance_pct|default:0 }}" step="0.1" inputmode="decimal">
-        </div>
-        <div class="col-md-5 col-lg-4">
-          <label class="form-label small mb-0" for="smv-why-{{ ln.pk }}">Lý do (nếu |lệch| &gt; 15%)</label>
-          <input type="text" name="variance_explanation" id="smv-why-{{ ln.pk }}"
-                 class="form-control form-control-sm" maxlength="500" placeholder="Vải khó, chi tiết thêm…">
-        </div>
-        <div class="col-auto">
-          <button type="submit" class="btn btn-sm btn-outline-hm">Áp SMV đơn</button>
-        </div>
-      </form>
-      <p class="small text-muted mb-2">SMV sản phẩm không đổi. % lệch nhân đều mọi công đoạn của đơn này — sửa từng CĐ bên dưới nếu cần.</p>
-      {% endif %}
-
-      {% if can_edit_order_routing %}
-      {% for l in ln.routing_lines.all %}
-      <form method="post" id="del-so-rt-{{ l.pk }}" class="d-none">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="delete_routing_line">
-        <input type="hidden" name="so_line_id" value="{{ ln.pk }}">
-        <input type="hidden" name="line_pk" value="{{ l.pk }}">
-      </form>
-      {% endfor %}
-
-      {% if edit_rt and edit_rt.sales_order_line_id == ln.pk or not edit_rt %}
-      <form method="post" class="row g-2 align-items-end mt-3 jp-so-rt-form" id="so-rt-form-{{ ln.pk }}">
-        {% csrf_token %}
-        {% if edit_rt and edit_rt.sales_order_line_id == ln.pk %}
-        <input type="hidden" name="action" value="edit_routing_line">
-        <input type="hidden" name="line_pk" value="{{ edit_rt.pk }}">
-        {% else %}
-        <input type="hidden" name="action" value="add_routing_line">
-        {% endif %}
-        <input type="hidden" name="so_line_id" value="{{ ln.pk }}">
-        <div class="col-6 col-md-1">
-          <label class="form-label small mb-0">SEQ</label>
-          <input type="number" name="seq_no" class="form-control form-control-sm" min="1"
-                 value="{% if edit_rt and edit_rt.sales_order_line_id == ln.pk %}{{ edit_rt.seq_no }}{% endif %}"
-                 placeholder="auto">
-        </div>
-        <div class="col-6 col-md-3">
-          <label class="form-label small mb-0">Mã CĐ <span class="text-danger">*</span></label>
-          <select class="form-select form-select-sm jp-ie-op-select" data-placeholder="Gõ tìm mã/tên công đoạn…">
-            {% if edit_rt and edit_rt.sales_order_line_id == ln.pk %}
-            <option value="{{ edit_rt.op_code }}|{{ edit_rt.op_rev }}" selected>
-              {{ edit_rt.op_code }}/{{ edit_rt.op_rev }} — {{ edit_rt.op_name_vi }}
-            </option>
-            {% endif %}
-          </select>
-          <input type="hidden" name="op_code" {% if not edit_rt or edit_rt.sales_order_line_id != ln.pk %}required{% endif %}
-                 value="{% if edit_rt and edit_rt.sales_order_line_id == ln.pk %}{{ edit_rt.op_code }}{% endif %}">
-        </div>
-        <div class="col-4 col-md-1">
-          <label class="form-label small mb-0">Phiên bản</label>
-          <input type="text" name="op_rev" class="form-control form-control-sm" readonly tabindex="-1"
-                 value="{% if edit_rt and edit_rt.sales_order_line_id == ln.pk %}{{ edit_rt.op_rev }}{% else %}R01{% endif %}">
-        </div>
-        <div class="col-8 col-md-2">
-          <label class="form-label small mb-0">Tên</label>
-          <input type="text" name="op_name_vi" class="form-control form-control-sm" maxlength="200"
-                 value="{% if edit_rt and edit_rt.sales_order_line_id == ln.pk %}{{ edit_rt.op_name_vi }}{% endif %}">
-        </div>
-        <div class="col-4 col-md-1">
-          <label class="form-label small mb-0">SL/SP</label>
-          <input type="text" name="qty_per_garment" class="form-control form-control-sm"
-                 value="{% if edit_rt and edit_rt.sales_order_line_id == ln.pk %}{{ edit_rt.qty_per_garment|sx_num_input }}{% else %}1{% endif %}">
-        </div>
-        <div class="col-4 col-md-1">
-          <label class="form-label small mb-0">SMV sản phẩm</label>
-          <input type="text" name="library_unit_smv" class="form-control form-control-sm"
-                 value="{% if edit_rt and edit_rt.sales_order_line_id == ln.pk %}{{ edit_rt.library_unit_smv|sx_num_input }}{% endif %}" placeholder="auto">
-        </div>
-        <div class="col-4 col-md-1">
-          <label class="form-label small mb-0">SMV đơn hàng <span class="text-danger">*</span></label>
-          <input type="text" name="applied_unit_smv" class="form-control form-control-sm"
-                 value="{% if edit_rt and edit_rt.sales_order_line_id == ln.pk %}{{ edit_rt.applied_unit_smv|sx_num_input }}{% endif %}">
-        </div>
-        <div class="col-12 col-md-3">
-          <label class="form-label small mb-0">Mô tả</label>
-          <input type="text" name="notes" class="form-control form-control-sm" maxlength="255"
-                 value="{% if edit_rt and edit_rt.sales_order_line_id == ln.pk %}{{ edit_rt.notes }}{% endif %}"
-                 placeholder="Mô tả">
-        </div>
-        <div class="col-4 col-md-1">
-          <label class="form-label small mb-0">Kiểm đếm (phút)</label>
-          <input type="text" name="count_minutes" class="form-control form-control-sm" inputmode="decimal"
-                 value="{% if edit_rt and edit_rt.sales_order_line_id == ln.pk %}{{ edit_rt.count_minutes|sx_num_input }}{% endif %}" placeholder="0">
-        </div>
-        <div class="col-4 col-md-1">
-          <label class="form-label small mb-0">Vận chuyển (phút)</label>
-          <input type="text" name="transfer_minutes" class="form-control form-control-sm" inputmode="decimal"
-                 value="{% if edit_rt and edit_rt.sales_order_line_id == ln.pk %}{{ edit_rt.transfer_minutes|sx_num_input }}{% endif %}" placeholder="0">
-        </div>
-        <div class="col-6 col-md-2">
-          <label class="form-label small mb-0">Bộ phận</label>
-          <select name="work_center_code" class="form-select form-select-sm">
-            <option value="">—</option>
-            {% for wc in work_centers %}
-            <option value="{{ wc.code }}"
-              {% if edit_rt and edit_rt.sales_order_line_id == ln.pk and edit_rt.work_center_code == wc.code %}selected{% endif %}>
-              {{ wc.name }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-6 col-md-2">
-          <label class="form-label small mb-0">Máy</label>
-          <select name="machine_code" class="form-select form-select-sm jp-ie-machine-select" data-placeholder="— Máy —">
-            {% if edit_rt and edit_rt.sales_order_line_id == ln.pk and edit_rt.machine_code %}
-            <option value="{{ edit_rt.machine_code }}" selected>{{ edit_rt.machine_code }}</option>
-            {% endif %}
-          </select>
-        </div>
-        <div class="col-6 col-md-2">
-          <label class="form-label small mb-0">Nhóm</label>
-          <select name="group_code" class="form-select form-select-sm">
-            <option value="">—</option>
-            {% for g in operation_groups %}
-            <option value="{{ g.code }}"
-              {% if edit_rt and edit_rt.sales_order_line_id == ln.pk and edit_rt.group_code == g.code %}selected{% endif %}>
-              {{ g.code }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-4 col-md-1">
-          <label class="form-label small mb-0">Bậc</label>
-          <select name="skill_level_label" class="form-select form-select-sm">
-            <option value="">—</option>
-            {% for s in skill_levels %}
-            <option value="{{ s.code }}"
-              {% if edit_rt and edit_rt.sales_order_line_id == ln.pk and edit_rt.skill_level_label == s.code %}selected{% endif %}>
-              {{ s.code }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-12 col-md-4">
-          <label class="form-label small mb-0">Giải trình lệch &gt; 15%</label>
-          <input type="text" name="variance_explanation" class="form-control form-control-sm" maxlength="500"
-                 value="{% if edit_rt and edit_rt.sales_order_line_id == ln.pk %}{{ edit_rt.variance_explanation }}{% endif %}"
-                 placeholder="Bắt buộc nếu lệch SMV > 15%">
-        </div>
-        <div class="col-auto">
-          <button type="submit" class="btn btn-sm btn-hm">
-            {% if edit_rt and edit_rt.sales_order_line_id == ln.pk %}Lưu dòng{% else %}Thêm công đoạn{% endif %}
-          </button>
-          {% if edit_rt and edit_rt.sales_order_line_id == ln.pk %}
-          <a href="{% url 'san_xuat:sales_order_detail' order.pk %}#so-line-{{ ln.pk }}" class="btn btn-sm btn-outline-secondary">Hủy</a>
-          {% endif %}
-        </div>
-      </form>
-      {% endif %}
-      {% endif %}
-    </div>
     {% endfor %}
     {% endif %}
+
+    {% if can_edit_order_routing %}
+    {% for ln in order.lines.all %}
+      <form method="post" class="d-none jp-ob-inline-form" data-ob-line="{{ ln.pk }}" data-ob-product="{{ ln.product_name|default:ln.product_code }}">
+        {% csrf_token %}<input type="hidden" name="action" value="edit_ob_lines"><input type="hidden" name="so_line_id" value="{{ ln.pk }}"><input type="hidden" name="ob_json" value="">
+      </form>
+    {% endfor %}
+    {% endif %}
+    {% if can_edit_order_routing %}{% include 'san_xuat/includes/sales_order_ob_modal.html' %}{% endif %}
   </div>
 </div>

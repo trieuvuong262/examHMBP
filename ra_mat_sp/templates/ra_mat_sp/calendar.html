@@ -9,14 +9,14 @@
   <div class="tk-card tk-panel mb-3">
     <form method="get" class="tk-toolbar">
       <div class="btn-group btn-group-sm" role="group" aria-label="Kiểu xem">
-        <a class="btn fw-bold {% if view == 'month' %}btn-hm text-white{% else %}btn-light border{% endif %}" href="?view=month&start={{ start|date:'Y-m' }}{% if group %}&group={{ group }}{% endif %}">Tháng</a>
-        <a class="btn fw-bold {% if view == 'quarter' %}btn-hm text-white{% else %}btn-light border{% endif %}" href="?view=quarter{% if group %}&group={{ group }}{% endif %}">Quý</a>
-        <a class="btn fw-bold {% if view == 'year' %}btn-hm text-white{% else %}btn-light border{% endif %}" href="?view=year{% if group %}&group={{ group }}{% endif %}">Năm</a>
+        <a class="btn fw-bold {% if view == 'month' %}btn-hm text-white{% else %}btn-light border{% endif %}" href="?view=month&start={{ start|date:'Y-m' }}{% if filter_qs %}&{{ filter_qs }}{% endif %}">Tháng</a>
+        <a class="btn fw-bold {% if view == 'quarter' %}btn-hm text-white{% else %}btn-light border{% endif %}" href="?view=quarter{% if filter_qs %}&{{ filter_qs }}{% endif %}">Quý</a>
+        <a class="btn fw-bold {% if view == 'year' %}btn-hm text-white{% else %}btn-light border{% endif %}" href="?view=year{% if filter_qs %}&{{ filter_qs }}{% endif %}">Năm</a>
       </div>
       <div class="btn-group btn-group-sm">
-        <a class="btn btn-outline-secondary" href="?view={{ view }}&start={{ nav.prev }}{% if group %}&group={{ group }}{% endif %}" aria-label="Trước"><i class="bi bi-chevron-left"></i></a>
-        <a class="btn btn-outline-secondary" href="?view={{ view }}{% if group %}&group={{ group }}{% endif %}">Hiện tại</a>
-        <a class="btn btn-outline-secondary" href="?view={{ view }}&start={{ nav.next }}{% if group %}&group={{ group }}{% endif %}" aria-label="Sau"><i class="bi bi-chevron-right"></i></a>
+        <a class="btn btn-outline-secondary" href="?view={{ view }}&start={{ nav.prev }}{% if filter_qs %}&{{ filter_qs }}{% endif %}" aria-label="Trước"><i class="bi bi-chevron-left"></i></a>
+        <a class="btn btn-outline-secondary" href="?view={{ view }}{% if filter_qs %}&{{ filter_qs }}{% endif %}">Hiện tại</a>
+        <a class="btn btn-outline-secondary" href="?view={{ view }}&start={{ nav.next }}{% if filter_qs %}&{{ filter_qs }}{% endif %}" aria-label="Sau"><i class="bi bi-chevron-right"></i></a>
       </div>
       <strong class="ms-1">{% if view == 'year' %}{{ start|date:'Y' }}{% elif view == 'quarter' %}{{ start|date:'m/Y' }} – {{ end|date:'m/Y' }}{% else %}{{ start|date:'m/Y' }}{% endif %}</strong>
       <input type="hidden" name="view" value="{{ view }}">
@@ -30,7 +30,7 @@
         {% for pk, name in coordinators %}<option value="{{ pk }}"{% if coordinator == pk|stringformat:'s' %} selected{% endif %}>{{ name }}</option>{% endfor %}
       </select>
       <select name="tone" class="form-select form-select-sm" onchange="this.form.submit()">
-        <option value="">Mọi trạng thái rủi ro</option><option value="green"{% if tone == 'green' %} selected{% endif %}>Đúng tiến độ</option><option value="amber"{% if tone == 'amber' %} selected{% endif %}>Có nguy cơ</option><option value="red"{% if tone == 'red' %} selected{% endif %}>Rủi ro chặn</option><option value="purple"{% if tone == 'purple' %} selected{% endif %}>Chờ phê duyệt</option>
+        <option value="">Mọi trạng thái rủi ro</option><option value="green"{% if tone == 'green' %} selected{% endif %}>Đúng tiến độ</option><option value="amber"{% if tone == 'amber' %} selected{% endif %}>Có nguy cơ</option><option value="red"{% if tone == 'red' %} selected{% endif %}>Rủi ro chặn</option><option value="purple"{% if tone == 'purple' %} selected{% endif %}>Chờ phê duyệt</option><option value="gray"{% if tone == 'gray' %} selected{% endif %}>Tạm dừng / chưa đến giai đoạn</option>
       </select>
       <input name="collection" value="{{ collection }}" class="form-control form-control-sm" placeholder="Bộ sưu tập" onchange="this.form.submit()">
       <span class="tk-count">{{ total|sx_num }} kế hoạch</span>

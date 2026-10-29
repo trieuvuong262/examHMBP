@@ -3,6 +3,7 @@ from __future__ import annotations
 import calendar as cal
 from collections import OrderedDict
 from datetime import date, timedelta
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
@@ -35,9 +36,11 @@ from .models import (
     Decision,
     LaunchGroupDefault,
     LaunchPlan,
+    LaunchPlanGroupOwner,
     LaunchPlanProduct,
     LaunchRisk,
     LaunchTask,
+    LaunchTaskFile,
     PostLaunchReview,
     RiskSeverity,
     Status,
@@ -114,10 +117,12 @@ def _decorate(plans: list[LaunchPlan]) -> list[LaunchPlan]:
     tasks: dict[int, list] = {}
     for t in LaunchTask.objects.filter(plan_id__in=ids):
         tasks.setdefault(t.plan_id, []).append(t)
-    high = dict(
-        LaunchRisk.objects.filter(plan_id__in=ids, state=LaunchRisk.STATE_OPEN, severity=RiskSeverity.HIGH)
-        .values('plan_id').annotate(n=Count('pk')).values_list('plan_id', 'n')
-    )
+    high_risks: dict[int, list] = {}
+    for plan_id, desc in LaunchRisk.objects.filter(
+        plan_id__in=ids, state=LaunchRisk.STATE_OPEN, severity=RiskSeverity.HIGH,
+    ).values_list('plan_id', 'description'):
+        high_risks.setdefault(plan_id, []).append((desc or '')[:80])
+    high = {k: len(v) for k, v in high_risks.items()}
     products: dict[int, list] = {}
     for link in LaunchPlanProduct.objects.filter(plan_id__in=ids).select_related('dossier'):
         products.setdefault(link.plan_id, []).append(link.dossier)
@@ -130,7 +135,23 @@ def _decorate(plans: list[LaunchPlan]) -> list[LaunchPlan]:
         p.dossiers = products.get(p.pk, [])
         p.groups = sorted({catalog.group_label(d.product_group) for d in p.dossiers if d.product_group})
         p.cover = next((covers[d.pk] for d in p.dossiers if d.pk in covers), None)
+        p.collections = sorted({(d.collection or '').strip() for d in p.dossiers} - {''})
+        p.blocking = _blocking_issues(p, tasks.get(p.pk, []), high_risks.get(p.pk, []))
     return plans
+
+
+def _blocking_issues(plan: LaunchPlan, tasks: list, high_risks: list) -> list[str]:
+    """Vấn đề đang chặn: việc «Vướng mắc», điều kiện Go trễ hạn, rủi ro mức Cao đang mở."""
+    if plan.status in FINAL_STATUSES:
+        return []
+    today = timezone.localdate()
+    issues = [f'Vướng: {t.title}' for t in tasks if t.status == TaskStatus.BLOCKED]
+    issues += [
+        f'Điều kiện Go trễ: {t.title}' for t in tasks
+        if t.is_go_blocker and t.status in OPEN_TASK_STATUSES and t.status != TaskStatus.BLOCKED and t.due_date < today
+    ]
+    issues += [f'Rủi ro cao: {r}' for r in high_risks]
+    return issues
 
 
 def _refresh_running(plans) -> None:
@@ -284,7 +305,8 @@ def calendar_view(request):
     if collection:
         qs = qs.filter(products__dossier__collection__icontains=collection).distinct()
     if coordinator.isdigit():
-        qs = qs.filter(coordinator_id=int(coordinator))
+        uid = int(coordinator)
+        qs = qs.filter(Q(coordinator_id=uid) | Q(group_owners__owner_id=uid)).distinct()
     plans = _decorate(list(qs.order_by('launch_date')))
     if tone_filter:
         plans = [p for p in plans if p.tone == tone_filter]
@@ -311,7 +333,12 @@ def calendar_view(request):
     }
     User = get_user_model()
     coordinators = User.objects.filter(
-        pk__in=LaunchPlan.objects.values('coordinator_id')).select_related('profile').order_by('profile__full_name')
+        Q(pk__in=LaunchPlan.objects.values('coordinator_id'))
+        | Q(pk__in=LaunchPlanGroupOwner.objects.exclude(owner=None).values('owner_id'))
+    ).select_related('profile').order_by('profile__full_name').distinct()
+    filter_qs = urlencode({k: v for k, v in (
+        ('group', group), ('coordinator', coordinator), ('tone', tone_filter), ('collection', collection),
+    ) if v})
     collections = sorted({
         (c or '').strip()
         for c in LaunchPlanProduct.objects.exclude(dossier__collection='')
@@ -322,7 +349,7 @@ def calendar_view(request):
         request, months=months, view=view, start=start, end=end - timedelta(days=1), nav=nav,
         group=group, group_choices=catalog.group_choices(), collection=collection, collections=collections,
         coordinator=coordinator, coordinators=[(u.pk, svc.display_name(u)) for u in coordinators],
-        tone=tone_filter, total=len(plans), rm_active='calendar',
+        tone=tone_filter, total=len(plans), rm_active='calendar', filter_qs=filter_qs,
         weekdays=('T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'),
     ))
 
@@ -427,7 +454,8 @@ def plan_detail(request, pk):
     if tab not in TAB_KEYS:
         tab = 'overview'
     svc.ensure_group_owners(plan)
-    tasks = list(plan.tasks.select_related('owner__profile', 'completed_by__profile'))
+    tasks = list(plan.tasks.select_related('owner__profile', 'completed_by__profile').prefetch_related(
+        'collaborators__profile', 'files'))
     can_edit = perms.can_edit_plan(plan, user)
     for t in tasks:
         t.can_update = perms.can_update_task(plan, t, user)
@@ -589,6 +617,8 @@ def _run_action(request, plan: LaunchPlan, action: str) -> str:
         svc.update_task(
             task, user, status=cd['status'], evidence=cd['evidence'], delay_reason=cd['delay_reason'],
             owner=cd['owner'], due_date=cd['due_date'], can_assign=can_edit,
+            start_date=cd['start_date'], collaborators=list(cd['collaborators']) if can_edit else None,
+            files=request.FILES.getlist('files'),
         )
         messages.success(request, f'Đã cập nhật «{task.title}».')
         return post.get('return_tab') or 'timeline'
@@ -602,6 +632,7 @@ def _run_action(request, plan: LaunchPlan, action: str) -> str:
         svc.add_task(
             plan, user, group=cd['group'], title=cd['title'], deliverable=cd['deliverable'], due_date=cd['due_date'],
             owner=cd['owner'], importance=cd['importance'], is_go_blocker=cd['is_go_blocker'],
+            start_date=cd['start_date'], collaborators=list(cd['collaborators']),
         )
         messages.success(request, 'Đã thêm công việc.')
         return post.get('return_tab') or 'timeline'
@@ -612,6 +643,13 @@ def _run_action(request, plan: LaunchPlan, action: str) -> str:
         svc.delete_task(task, user)
         messages.success(request, 'Đã xóa công việc.')
         return post.get('return_tab') or 'timeline'
+    if action == 'task_file_delete':
+        task_file = get_object_or_404(LaunchTaskFile.objects.select_related('task'), pk=post.get('file_id'), task__plan=plan)
+        if not perms.can_update_task(plan, task_file.task, user):
+            raise svc.WorkflowError('Bạn không xóa được tệp này.')
+        svc.delete_task_file(task_file, user)
+        messages.success(request, 'Đã xóa tệp.')
+        return post.get('return_tab') or 'timeline'
     if action == 'risk_add':
         if not (can_edit or plan.tasks.filter(owner=user).exists()) or plan.status in FINAL_STATUSES:
             raise svc.WorkflowError('Bạn không ghi nhận được rủi ro cho kế hoạch này.')
@@ -620,14 +658,14 @@ def _run_action(request, plan: LaunchPlan, action: str) -> str:
             raise svc.WorkflowError(_form_error_text(form))
         svc.add_risk(plan, user, form.save(commit=False))
         messages.success(request, 'Đã ghi nhận rủi ro.')
-        return 'risks'
+        return 'overview'
     if action == 'risk_resolve':
         risk = get_object_or_404(LaunchRisk, pk=post.get('risk_id'), plan=plan)
         if not (can_edit or risk.owner_id == user.pk):
             raise svc.WorkflowError('Bạn không xử lý được rủi ro này.')
         svc.resolve_risk(risk, user, post.get('resolution', ''))
         messages.success(request, 'Đã đóng rủi ro.')
-        return 'risks'
+        return 'overview'
     if action == 'product_qty':
         if not can_edit:
             raise svc.WorkflowError('Bạn không sửa được sản lượng.')
@@ -693,15 +731,43 @@ def my_tasks(request):
     qs = LaunchTask.objects.filter(owner=user).exclude(plan__status__in=FINAL_STATUSES + (Status.PAUSED,))
     if show == 'open':
         qs = qs.filter(status__in=OPEN_TASK_STATUSES)
-    tasks = list(qs.select_related('plan').order_by('due_date', 'pk'))
+    tasks = list(qs.select_related('plan', 'owner__profile').prefetch_related(
+        'collaborators__profile', 'files').order_by('due_date', 'pk'))
     for t in tasks:
         t.can_update = perms.can_update_task(t.plan, t, user)
     soon_end = today + timedelta(days=7)
+    # Việc chờ tôi xác nhận: việc của người khác đang vướng mắc, thuộc kế hoạch tôi điều phối
+    # hoặc nhóm tôi chịu trách nhiệm chính.
+    owned_groups = Q()
+    for plan_id, group in LaunchPlanGroupOwner.objects.filter(owner=user).values_list('plan_id', 'group'):
+        owned_groups |= Q(plan_id=plan_id, group=group)
+    confirm_filter = Q(plan__coordinator=user)
+    if owned_groups:
+        confirm_filter |= owned_groups
+    confirm = list(
+        LaunchTask.objects.filter(confirm_filter, status=TaskStatus.BLOCKED)
+        .exclude(owner=user)
+        .exclude(plan__status__in=FINAL_STATUSES + (Status.PAUSED,))
+        .select_related('plan', 'owner__profile').prefetch_related('collaborators__profile', 'files')
+        .order_by('due_date', 'pk')
+    )
+    for t in confirm:
+        t.can_update = perms.can_update_task(t.plan, t, user)
+    collab = list(
+        LaunchTask.objects.filter(collaborators=user, status__in=OPEN_TASK_STATUSES)
+        .exclude(owner=user)
+        .exclude(plan__status__in=FINAL_STATUSES + (Status.PAUSED,))
+        .select_related('plan', 'owner__profile').prefetch_related('collaborators__profile', 'files')
+        .order_by('due_date', 'pk')
+    )
+    for t in collab:
+        t.can_update = False
     buckets = {
+        'collab': collab,
         'overdue': [t for t in tasks if t.is_overdue],
         'soon': [t for t in tasks if t.is_open and not t.is_overdue and t.due_date <= soon_end],
-        'confirm': [t for t in tasks if t.is_open and t.status == TaskStatus.BLOCKED],
-        'open': [t for t in tasks if t.is_open and not t.is_overdue and t.due_date > soon_end and t.status != TaskStatus.BLOCKED],
+        'confirm': confirm,
+        'open': [t for t in tasks if t.is_open and not t.is_overdue and t.due_date > soon_end],
     }
     risks = list(
         LaunchRisk.objects.filter(owner=user, state=LaunchRisk.STATE_OPEN).exclude(plan__status__in=FINAL_STATUSES)
@@ -711,6 +777,31 @@ def my_tasks(request):
         request, tasks=tasks, buckets=buckets, risks=risks, show=show, today=today, task_form=f.TaskUpdateForm(),
         overdue=len(buckets['overdue']), rm_active='my_tasks',
     ))
+
+
+@login_required
+def task_file(request, pk):
+    import mimetypes
+    import os
+    from urllib.parse import quote
+
+    from django.http import FileResponse, Http404, HttpResponseForbidden
+
+    row = get_object_or_404(LaunchTaskFile.objects.select_related('task__plan'), pk=pk)
+    if not perms.can_view_plan(row.task.plan, request.user):
+        return HttpResponseForbidden('Không có quyền xem tệp.')
+    try:
+        handle = row.file.open('rb')
+    except (FileNotFoundError, OSError):
+        raise Http404('Không tìm thấy tệp.')
+    name = row.display_name
+    content_type = mimetypes.guess_type(name)[0] or 'application/octet-stream'
+    inline = request.GET.get('download') != '1' and (
+        content_type.startswith('image/') or content_type == 'application/pdf')
+    response = FileResponse(handle, content_type=content_type)
+    response['Content-Disposition'] = f"{'inline' if inline else 'attachment'}; filename*=UTF-8''{quote(name)}"
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response
 
 
 @login_required

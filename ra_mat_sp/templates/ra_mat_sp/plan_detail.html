@@ -141,7 +141,7 @@
           {% else %}
           <div class="tk-grid2">
             {% for row in group_owners %}
-            <div class="tk-field"><label>{{ row.get_group_display }}</label><span class="v">{{ row.owner.profile.full_name|default:row.owner.username|default:'Người điều phối' }}</span></div>
+            <div class="tk-field"><label>{{ row.get_group_display }}</label><span class="v">{% if row.owner %}{{ row.owner|uname }}{% else %}Người điều phối{% endif %}</span></div>
             {% endfor %}
           </div>
           {% endif %}
@@ -167,7 +167,7 @@
               <td><div class="fw-semibold">{{ r.description|linebreaksbr }}</div>{% if r.action %}<div class="rm-task-sub">Hướng xử lý: {{ r.action }}</div>{% endif %}{% if r.resolution %}<div class="small tk-ok">Kết quả: {{ r.resolution }}</div>{% endif %}</td>
               <td>{{ r.get_group_display }}</td>
               <td><span class="tk-pill {% if r.severity == 'high' %}is-red{% elif r.severity == 'medium' %}is-amber{% else %}is-gray{% endif %}">{{ r.get_severity_display }}</span></td>
-              <td class="text-nowrap">{{ r.owner.profile.full_name|default:r.owner.username|default:'—' }}</td>
+              <td class="text-nowrap">{% if r.owner %}{{ r.owner|uname }}{% else %}—{% endif %}</td>
               <td class="text-nowrap">{{ r.due_date|date:'d/m/Y'|default:'—' }}</td>
               <td>
                 {% if r.is_open %}
@@ -192,7 +192,7 @@
           <div class="tk-section-title"><i class="bi bi-flag"></i>Điều kiện Go/No-Go chưa xong</div>
           <div class="table-responsive"><table class="table tk-mini-table align-middle"><tbody>
             {% for t in ready.open_blockers %}
-            <tr class="{% if t.is_overdue %}tk-task-row is-late{% endif %}"><td><div class="rm-task-title">{{ t.title }}</div><div class="rm-task-sub">{{ t.get_group_display }} · {{ t.owner.profile.full_name|default:t.owner.username|default:'Chưa giao' }}</div></td>
+            <tr class="{% if t.is_overdue %}tk-task-row is-late{% endif %}"><td><div class="rm-task-title">{{ t.title }}</div><div class="rm-task-sub">{{ t.get_group_display }} · {% if t.owner %}{{ t.owner|uname }}{% else %}Chưa giao{% endif %}</div></td>
               <td class="text-nowrap">{{ t.milestone }}</td><td class="text-nowrap{% if t.is_overdue %} tk-late{% endif %}">{{ t.due_date|date:'d/m/Y' }}</td>
               <td><span class="tk-pill is-{{ t.status_tone }}">{{ t.get_status_display }}</span></td></tr>
             {% endfor %}
@@ -349,10 +349,10 @@
           <div class="tk-comment">
             <div class="d-flex justify-content-between flex-wrap gap-2">
               <strong>{{ d.get_kind_display }} · {{ d.get_decision_display }}</strong>
-              <span class="small text-muted">{{ d.decided_by.profile.full_name|default:d.decided_by.username }} · {{ d.decided_at|date:'d/m/Y H:i' }}{% if d.readiness is not None %} · sẵn sàng {{ d.readiness }}%{% endif %}</span>
+              <span class="small text-muted">{{ d.decided_by|uname }} · {{ d.decided_at|date:'d/m/Y H:i' }}{% if d.readiness is not None %} · sẵn sàng {{ d.readiness }}%{% endif %}</span>
             </div>
             {% if d.comment %}<div class="mt-1">{{ d.comment|linebreaksbr }}</div>{% endif %}
-            {% if d.condition_text %}<div class="small mt-1 tk-miss">Điều kiện: {{ d.condition_text }} · {{ d.condition_owner.profile.full_name|default:d.condition_owner.username }} · hạn {{ d.condition_due|date:'d/m/Y' }}</div>{% endif %}
+            {% if d.condition_text %}<div class="small mt-1 tk-miss">Điều kiện: {{ d.condition_text }} · {{ d.condition_owner|uname }} · hạn {{ d.condition_due|date:'d/m/Y' }}</div>{% endif %}
             {% if d.new_launch_date %}<div class="small mt-1">Ngày ra mắt mới: {{ d.new_launch_date|date:'d/m/Y' }}</div>{% endif %}
           </div>
           {% empty %}
@@ -367,7 +367,7 @@
           <div class="rm-review">
             <div class="d-flex justify-content-between flex-wrap gap-2 mb-2">
               <strong>{{ r.get_milestone_display }} · {{ r.due_date|date:'d/m/Y' }}</strong>
-              {% if r.is_done %}<span class="tk-pill is-green">Đã đánh giá · {{ r.submitted_by.profile.full_name|default:r.submitted_by.username }}</span>
+              {% if r.is_done %}<span class="tk-pill is-green">Đã đánh giá · {{ r.submitted_by|uname }}</span>
               {% elif r.can_submit %}<span class="tk-pill is-amber">Đến hạn đánh giá</span>
               {% else %}<span class="tk-pill is-gray">{% if plan.status == 'launched' or plan.status == 'reviewing' %}Chưa đến ngày{% else %}Mở sau khi ra mắt{% endif %}</span>{% endif %}
             </div>
@@ -405,7 +405,7 @@
           <div class="tk-section-title"><i class="bi bi-clock-history"></i>Lịch sử thay đổi</div>
           <ul class="tk-timeline">
             {% for l in logs %}
-            <li class="{% if l.is_status %}is-status{% endif %}"><strong>{{ l.user.profile.full_name|default:l.user.username|default:'Hệ thống' }}</strong> · <span class="t">{{ l.created_at|date:'d/m/Y H:i' }}</span><div>{{ l.message }}</div></li>
+            <li class="{% if l.is_status %}is-status{% endif %}"><strong>{% if l.user %}{{ l.user|uname }}{% else %}Hệ thống{% endif %}</strong> · <span class="t">{{ l.created_at|date:'d/m/Y H:i' }}</span><div>{{ l.message }}</div></li>
             {% empty %}<li>Chưa có lịch sử.</li>{% endfor %}
           </ul>
         </div>
@@ -422,7 +422,7 @@
       </div>
       <div class="tk-card tk-side-card">
         <h3>Người tham gia</h3>
-        <div class="tk-owner"><span class="tk-avatar" style="background:#1d4ed8">ĐP</span><div><strong>{{ plan.coordinator.profile.full_name|default:plan.coordinator.username }}</strong><small>Người điều phối</small></div></div>
+        <div class="tk-owner"><span class="tk-avatar" style="background:#1d4ed8">ĐP</span><div><strong>{{ plan.coordinator|uname }}</strong><small>Người điều phối</small></div></div>
         <div class="tk-owner"><span class="tk-avatar{% if not plan.approver %} is-empty{% endif %}" style="background:#6d28d9">DU</span><div><strong>{{ plan.approver|uname }}</strong><small>Người duyệt Go/No-Go</small></div></div>
       </div>
       <div class="tk-card tk-side-card">
@@ -457,11 +457,13 @@
       <div class="modal-body"><div class="row g-2">
         {% include 'thiet_ke_sp/includes/field.html' with field=task_add_form.title col='col-12' req=1 %}
         {% include 'thiet_ke_sp/includes/field.html' with field=task_add_form.group col='col-md-6' %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=task_add_form.importance col='col-md-6' %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=task_add_form.start_date col='col-md-6' %}
         {% include 'thiet_ke_sp/includes/field.html' with field=task_add_form.due_date col='col-md-6' req=1 %}
         {% include 'thiet_ke_sp/includes/field.html' with field=task_add_form.owner col='col-12' req=1 %}
+        {% include 'thiet_ke_sp/includes/field.html' with field=task_add_form.collaborators col='col-12' %}
         {% include 'thiet_ke_sp/includes/field.html' with field=task_add_form.deliverable col='col-12' %}
-        {% include 'thiet_ke_sp/includes/field.html' with field=task_add_form.importance col='col-md-6' %}
-        <div class="col-md-6 d-flex align-items-end"><div class="form-check">{{ task_add_form.is_go_blocker }}<label class="form-check-label small" for="{{ task_add_form.is_go_blocker.id_for_label }}">{{ task_add_form.is_go_blocker.label }}</label></div></div>
+        <div class="col-12"><div class="form-check">{{ task_add_form.is_go_blocker }}<label class="form-check-label small" for="{{ task_add_form.is_go_blocker.id_for_label }}">{{ task_add_form.is_go_blocker.label }}</label></div></div>
       </div></div>
       <div class="modal-footer"><button type="button" class="btn btn-sm btn-outline-secondary fw-bold" data-bs-dismiss="modal">Đóng</button><button class="btn btn-sm btn-hm text-white fw-bold">Thêm</button></div>
     </form>

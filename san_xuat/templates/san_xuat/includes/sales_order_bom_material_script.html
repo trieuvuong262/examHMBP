@@ -1,0 +1,265 @@
+<script>
+  (function () {
+    var SEARCH_URL = "{% url 'kho_npl:material_search' %}";
+    var lineSelect = document.getElementById('jpBomMaterialLine');
+    var groupSelect = document.getElementById('jpBomMaterialGroup');
+    var dd = document.getElementById('jpBomMaterialDd');
+    var toggle = document.getElementById('jpBomMaterialToggle');
+    var toggleText = document.getElementById('jpBomMaterialToggleText');
+    var filter = document.getElementById('jpBomMaterialFilter');
+    var list = document.getElementById('jpBomMaterialList');
+    var card = document.getElementById('jpBomMaterialCard');
+    var step2 = document.getElementById('jpBomStep2');
+    var addedBox = document.getElementById('jpBomMaterialAdded');
+    var addedList = document.getElementById('jpBomMaterialAddedList');
+    if (!groupSelect || !dd) return;
+
+    var cache = {};
+    var items = [];
+    var selected = null;
+    var seq = 0;
+
+    function esc(v) {
+      var d = document.createElement('div');
+      d.textContent = v == null ? '' : String(v);
+      return d.innerHTML;
+    }
+
+    function fmt(n) {
+      return (Math.round(n * 10000) / 10000).toLocaleString('vi-VN', { maximumFractionDigits: 4 });
+    }
+
+    function deptLabel(d) {
+      return d === 'MAY (152A VĨNH LỘC)' ? 'MAY' : (d || '');
+    }
+
+    function norm(s) {
+      return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+    }
+
+    function currentForm() {
+      var id = lineSelect ? lineSelect.value : '';
+      return document.querySelector('.jp-bom-inline-form[data-bom-line="' + id + '"]');
+    }
+
+    function existingCodes() {
+      var id = lineSelect ? lineSelect.value : '';
+      var set = new Set();
+      document.querySelectorAll('tr[data-bom-line-id="' + id + '"]').forEach(function (tr) {
+        if (!tr.classList.contains('jp-bom-removed')) set.add(String(tr.dataset.bomCode || '').toLowerCase());
+      });
+      return set;
+    }
+
+    function imgHtml(item, cls) {
+      if (!item.image_url) return '<span class="' + cls + '"><i class="bi bi-image"></i></span>';
+      return '<span class="' + cls + '"><img src="' + esc(item.image_url) + '" alt="" loading="lazy"></span>';
+    }
+
+    function swatch(item) {
+      return item.color_hex ? '<span class="jp-npl-swatch" style="background:' + esc(item.color_hex) + '"></span>' : '';
+    }
+
+    function subLine(item) {
+      var parts = [item.code];
+      if (item.color) parts.push(item.color);
+      if (item.specification_name || item.specification) parts.push(item.specification_name || item.specification);
+      if (item.unit_name || item.unit) parts.push(item.unit_name || item.unit);
+      return parts.filter(Boolean).map(esc).join(' · ');
+    }
+
+    function openDd(open) {
+      dd.classList.toggle('is-open', open);
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open) { filter.value = ''; renderList(); setTimeout(function () { filter.focus(); }, 30); }
+    }
+
+    function setToggleEmpty(text) {
+      toggleText.className = 'text-muted';
+      toggleText.innerHTML = esc(text);
+    }
+
+    function renderList() {
+      var q = norm(filter.value.trim());
+      var have = existingCodes();
+      var shown = items.filter(function (it) {
+        if (!q) return true;
+        return norm([it.code, it.name, it.color, it.specification_name, it.department].join(' ')).indexOf(q) >= 0;
+      });
+      if (!shown.length) {
+        list.innerHTML = '<div class="text-muted small text-center py-3">Không có NPL phù hợp.</div>';
+        return;
+      }
+      list.innerHTML = '';
+      shown.forEach(function (it) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'jp-npl-opt' + (selected && selected.id === it.id ? ' is-active' : '');
+        var dup = have.has(String(it.code || '').toLowerCase());
+        if (dup) b.disabled = true;
+        b.innerHTML = imgHtml(it, 'jp-npl-opt-img')
+          + '<span class="jp-npl-opt-main"><span class="d-block jp-npl-opt-name">' + swatch(it) + esc(it.name) + '</span>'
+          + '<span class="d-block jp-npl-opt-sub">' + subLine(it) + '</span></span>'
+          + (dup ? '<span class="badge bg-secondary-subtle text-secondary">Đã có</span>' : '');
+        b.addEventListener('click', function () { selectItem(it); openDd(false); });
+        list.appendChild(b);
+      });
+    }
+
+    function loadGroup() {
+      var gid = groupSelect.value;
+      selected = null;
+      renderCard();
+      items = [];
+      if (!gid) {
+        toggle.disabled = true;
+        step2.classList.add('is-off');
+        setToggleEmpty('— Chọn NPL —');
+        return;
+      }
+      step2.classList.remove('is-off');
+      if (cache[gid]) { items = cache[gid]; toggle.disabled = false; setToggleEmpty('— Chọn NPL (' + items.length + ') —'); return; }
+      toggle.disabled = true;
+      setToggleEmpty('Đang tải…');
+      var my = ++seq;
+      fetch(SEARCH_URL + '?category_id=' + encodeURIComponent(gid) + '&limit=1000', { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (my !== seq) return;
+          items = (data.results || []).slice().sort(function (a, b) { return String(a.name).localeCompare(String(b.name), 'vi'); });
+          cache[gid] = items;
+          toggle.disabled = !items.length;
+          setToggleEmpty(items.length ? '— Chọn NPL (' + items.length + ') —' : 'Nhóm chưa có NPL');
+        })
+        .catch(function () { if (my === seq) setToggleEmpty('Lỗi tải danh mục NPL'); });
+    }
+
+    function selectItem(it) {
+      selected = it;
+      toggleText.className = 'd-flex align-items-center gap-2 text-truncate';
+      toggleText.innerHTML = imgHtml(it, 'jp-npl-opt-img') + '<span class="text-truncate"><span class="d-block jp-npl-opt-name">'
+        + swatch(it) + esc(it.name) + '</span><span class="d-block jp-npl-opt-sub">' + esc(it.code) + '</span></span>';
+      renderCard();
+    }
+
+    function attr(label, value) {
+      return '<div class="col-6 col-md-4"><div class="jp-npl-attr">' + label + '</div><div class="jp-npl-val">' + (value || '—') + '</div></div>';
+    }
+
+    function renderCard() {
+      if (!selected) {
+        card.innerHTML = '<div class="jp-npl-placeholder"><i class="bi bi-box-seam"></i></div>';
+        return;
+      }
+      var it = selected;
+      var form = currentForm();
+      var scale = parseFloat((form && form.dataset.bomScale) || '0');
+      var unit = it.unit_name || it.unit || '';
+      var img = it.image_url
+        ? '<button type="button" class="jp-npl-card-img" data-npl-material-image="' + esc(it.image_url) + '" data-npl-material-image-title="' + esc(it.code + ' - ' + it.name) + '"><img src="' + esc(it.image_url) + '" alt=""></button>'
+        : '<span class="jp-npl-card-img is-empty"><i class="bi bi-image"></i></span>';
+      card.innerHTML = '<div class="jp-npl-card"><div class="d-flex gap-3 flex-column flex-md-row">' + img
+        + '<div class="flex-grow-1"><div class="fw-bold mb-2">' + esc(it.name) + '</div><div class="row g-2">'
+        + attr('Mã', esc(it.code))
+        + attr('Nhóm', esc(it.category || it.variant_group))
+        + attr('Bộ phận', esc(deptLabel(it.department)))
+        + attr('Màu', swatch(it) + esc(it.color))
+        + attr('Quy cách', esc(it.specification_name || it.specification))
+        + attr('ĐVT', esc(unit))
+        + '</div></div></div>'
+        + '<hr class="my-3"><div class="d-flex flex-wrap align-items-end gap-3">'
+        + '<div style="min-width:12rem"><label class="jp-npl-attr d-block mb-1" for="jpBomPickNeed">Nhu cầu</label>'
+        + '<div class="input-group input-group-sm"><input type="number" min="0" step="0.001" class="form-control form-control-sm text-end" id="jpBomPickNeed" placeholder="0">'
+        + '<span class="input-group-text">' + esc(unit || 'ĐVT') + '</span></div></div>'
+        + '<div><div class="jp-npl-attr">SL</div><div class="jp-npl-val">' + fmt(scale) + '</div></div>'
+        + '<div><div class="jp-npl-attr">ĐM/SP</div><div class="jp-npl-val" id="jpBomPickPer">—</div></div>'
+        + '<div class="ms-auto"><button type="button" class="btn btn-hm btn-sm fw-bold" id="jpBomPickAdd"><i class="bi bi-plus-lg me-1"></i>Thêm</button></div>'
+        + '</div></div>';
+      var needInput = document.getElementById('jpBomPickNeed');
+      var per = document.getElementById('jpBomPickPer');
+      needInput.addEventListener('input', function () {
+        var n = parseFloat(needInput.value);
+        per.textContent = Number.isFinite(n) && n > 0 && scale > 0 ? fmt(n / scale) : '—';
+        needInput.classList.remove('is-invalid');
+      });
+      needInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); addSelected(); } });
+      document.getElementById('jpBomPickAdd').addEventListener('click', addSelected);
+      setTimeout(function () { needInput.focus(); }, 30);
+    }
+
+    function addSelected() {
+      var it = selected;
+      var form = currentForm();
+      if (!it || !form) return;
+      var needInput = document.getElementById('jpBomPickNeed');
+      var need = parseFloat(needInput.value);
+      if (!Number.isFinite(need) || need <= 0) { needInput.classList.add('is-invalid'); needInput.focus(); return; }
+      var scale = parseFloat(form.dataset.bomScale || '0');
+      if (!(scale > 0)) { alert('Sản phẩm này có SL = 0, không thể tính định mức.'); return; }
+      var lineId = form.dataset.bomLine;
+      if (existingCodes().has(String(it.code || '').toLowerCase())) { alert('NPL này đã có trong BOM sản phẩm.'); return; }
+
+      var unit = it.unit_name || it.unit || '';
+      var tr = document.createElement('tr');
+      tr.className = 'jp-bom-new table-success';
+      tr.dataset.bomLineId = lineId;
+      tr.dataset.bomCode = it.code || '';
+      tr.dataset.bomName = it.name || it.code || '';
+      tr.dataset.bomUnit = unit;
+      tr.dataset.bomSize = '';
+      var thumb = it.image_url
+        ? '<button type="button" class="jp-so-npl-image-btn" data-npl-material-image="' + esc(it.image_url) + '" data-npl-material-image-title="' + esc(it.code + ' - ' + it.name) + '"><img src="' + esc(it.image_url) + '" alt="" class="jp-so-npl-image" loading="lazy"></button>'
+        : '<span class="jp-so-npl-image is-empty" aria-hidden="true"><i class="bi bi-image"></i></span>';
+      tr.innerHTML = '<td class="small text-muted">' + esc(form.dataset.bomProduct || '') + '</td>'
+        + '<td class="small"><div class="jp-so-npl-material">' + thumb
+        + '<span class="jp-so-npl-name">' + esc(it.name || it.code) + ' <span class="badge bg-success">Mới</span></span></div></td>'
+        + '<td class="small">' + esc(deptLabel(it.department) || '—') + '</td>'
+        + '<td class="text-end small">' + fmt(need / scale) + '</td>'
+        + '<td class="text-end small text-muted">' + fmt(scale) + '</td>'
+        + '<td class="text-end fw-semibold small"><input type="number" min="0" step="0.001" class="form-control form-control-sm text-end jp-inline-bom-need" value="' + (Math.round(need * 1000) / 1000) + '"></td>'
+        + '<td class="small text-muted">' + esc(unit || '—') + '</td>'
+        + '<td class="jp-bom-edit-control text-center align-middle" style="width:2.5rem;"><button type="button" class="jp-row-del jp-bom-remove" title="Xóa"><i class="bi bi-x-lg" aria-hidden="true"></i></button></td>';
+
+      var rows = document.querySelectorAll('tr[data-bom-line-id="' + lineId + '"]');
+      var empty = document.querySelector('[data-bom-empty-line="' + lineId + '"]');
+      if (rows.length) {
+        var last = rows[rows.length - 1];
+        last.parentNode.insertBefore(tr, last.nextSibling);
+      } else if (empty) {
+        var er = empty.closest('tr');
+        er.parentNode.insertBefore(tr, er.nextSibling);
+        er.classList.add('d-none');
+      } else {
+        return;
+      }
+
+      addedBox.classList.remove('d-none');
+      var chip = document.createElement('span');
+      chip.className = 'badge rounded-pill text-bg-light border';
+      chip.textContent = (it.code || '') + ' · ' + fmt(need) + ' ' + unit;
+      addedList.appendChild(chip);
+
+      selected = null;
+      setToggleEmpty('— Chọn NPL (' + items.length + ') —');
+      renderCard();
+    }
+
+    groupSelect.addEventListener('change', loadGroup);
+    if (lineSelect) lineSelect.addEventListener('change', function () { selected = null; renderCard(); if (items.length) setToggleEmpty('— Chọn NPL (' + items.length + ') —'); });
+    toggle.addEventListener('click', function () { if (!toggle.disabled) openDd(!dd.classList.contains('is-open')); });
+    filter.addEventListener('input', renderList);
+    filter.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { e.stopPropagation(); openDd(false); }
+      if (e.key === 'Enter') { e.preventDefault(); var first = list.querySelector('.jp-npl-opt:not([disabled])'); if (first) first.click(); }
+    });
+    document.addEventListener('click', function (e) { if (!dd.contains(e.target)) openDd(false); });
+    var modal = document.getElementById('jpBomMaterialModal');
+    if (modal) {
+      modal.addEventListener('hidden.bs.modal', function () {
+        openDd(false);
+        addedList.innerHTML = '';
+        addedBox.classList.add('d-none');
+      });
+    }
+  })();
+</script>

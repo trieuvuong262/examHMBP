@@ -182,6 +182,9 @@ def material_search_response(request):
         ).prefetch_related('specification__levels__unit')
         if bom_material_ids is not None:
             qs = qs.filter(pk__in=bom_material_ids)
+        category_id = _parse_positive_int(request.GET.get('category_id'))
+        if category_id:
+            qs = qs.filter(category_id=category_id)
         if not location_id:
             qs = qs.filter(materials_catalog_q())
         if q:
@@ -264,6 +267,7 @@ def material_search_response(request):
             'specification': spec_label(material.specification) if material.specification_id else '',
             'specification_name': material.specification.name if material.specification_id else '',
             'color': color_label(material.color) if material.color_id else '',
+            'color_hex': (material.color.hex_code or '') if material.color_id else '',
             'variant_group': (material.material_group.name if material.material_group_id else material.variant_group) or '',
             'category': material.category.name if material.category_id else '',
             'department': material.department or '',

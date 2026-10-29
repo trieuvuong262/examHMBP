@@ -3,7 +3,7 @@ from __future__ import annotations
 from django import forms
 
 from thiet_ke_sp import catalog
-from thiet_ke_sp.forms import UserChoiceField, active_users
+from thiet_ke_sp.forms import UserChoiceField, UserMultipleChoiceField, active_users
 from thiet_ke_sp.forms import user_field as _tk_user_field
 from thiet_ke_sp.models import ProductDevelopment
 from thiet_ke_sp.models import Status as DossierStatus
@@ -112,12 +112,21 @@ def owner_choice_rows(selected=None):
     ]
 
 
+def collaborators_field() -> UserMultipleChoiceField:
+    return UserMultipleChoiceField(
+        queryset=active_users(), required=False, label='Người phối hợp',
+        widget=forms.SelectMultiple(attrs={'class': 'form-select form-select-sm jp-tksp-user-select', 'multiple': 'multiple'}),
+    )
+
+
 class TaskAddForm(forms.Form):
     group = forms.ChoiceField(label='Nhóm', choices=TaskGroup.choices, widget=forms.Select(attrs=_SELECT))
     title = forms.CharField(max_length=255, label='Công việc', widget=forms.TextInput(attrs=_INPUT))
     deliverable = forms.CharField(max_length=255, required=False, label='Kết quả cần có', widget=forms.TextInput(attrs=_INPUT))
-    due_date = forms.DateField(label='Hạn', widget=forms.DateInput(attrs=_DATE))
-    owner = user_field('Người phụ trách', required=True)
+    start_date = forms.DateField(required=False, label='Ngày bắt đầu', widget=forms.DateInput(attrs=_DATE))
+    due_date = forms.DateField(label='Hạn hoàn thành', widget=forms.DateInput(attrs=_DATE))
+    owner = user_field('Người chịu trách nhiệm chính', required=True)
+    collaborators = collaborators_field()
     importance = forms.ChoiceField(label='Mức độ', choices=Importance.choices, widget=forms.Select(attrs=_SELECT))
     is_go_blocker = forms.BooleanField(
         required=False, label='Điều kiện bắt buộc Go/No-Go', widget=forms.CheckboxInput(attrs=_CHECK),
@@ -127,6 +136,8 @@ class TaskAddForm(forms.Form):
 class TaskUpdateForm(forms.Form):
     status = forms.ChoiceField(label='Trạng thái', choices=TaskStatus.choices, widget=forms.Select(attrs=_SELECT))
     owner = user_field('Người phụ trách')
+    collaborators = collaborators_field()
+    start_date = forms.DateField(required=False, label='Ngày bắt đầu', widget=forms.DateInput(attrs=_DATE))
     due_date = forms.DateField(required=False, label='Hạn', widget=forms.DateInput(attrs=_DATE))
     evidence = forms.CharField(required=False, label='Bằng chứng / kết quả', widget=_textarea(2))
     delay_reason = forms.CharField(required=False, label='Lý do trễ / vướng mắc', widget=_textarea(2))

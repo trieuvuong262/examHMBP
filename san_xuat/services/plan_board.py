@@ -3346,6 +3346,13 @@ def unhold_plan_order(*, order_id: int) -> SxSalesOrder:
     order.plan_status = SxSalesOrder.PLAN_QUEUED
     order.plan_hold_reason = ''
     order.save(update_fields=['plan_status', 'plan_hold_reason', 'updated_at'])
+    # BOM có thể đã sửa trên đơn lúc tạm giữ → tính lại NPL KHSX.
+    if order.npl_lines.exists():
+        from san_xuat.services.plan_order_npl import sync_order_npl
+        try:
+            order = sync_order_npl(order_id=order.pk)
+        except PlanningError:
+            pass
     return order
 
 
