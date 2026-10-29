@@ -1042,7 +1042,7 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
     var host = nplHost();
     var key = lineKey(row);
     var rows = [];
-    var inps = (host && key) ? host.querySelectorAll('.jp-so-bom-pct-input[data-line-key="' + key + '"]') : [];
+    var inps = (host && key) ? host.querySelectorAll('.jp-so-bom-need-input[data-line-key="' + key + '"]') : [];
     if (!inps.length) {
       if (onlyIfPresent) return;
       hidden.value = '[]';
@@ -1051,7 +1051,10 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
     inps.forEach(function (inp) {
       var id = parseInt(inp.getAttribute('data-bom-line-id'), 10) || 0;
       var std = parseFloat(inp.getAttribute('data-qty-std')) || 0;
-      var entry = readEntry(inp, std);
+      var applied = parseFloat(inp.getAttribute('data-applied'));
+      if (!Number.isFinite(applied)) applied = nplAppliedFromNeed(inp, row, parseFloat(inp.value));
+      applied = Math.max(0, Math.round(applied * 10000) / 10000);
+      var pct = pctFromApplied(applied, std);
       var scrap = parseFloat(inp.getAttribute('data-scrap-pct'));
       rows.push({
         bom_line_id: id,
@@ -1060,9 +1063,9 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
         unit: inp.getAttribute('data-unit') || '',
         size_code: inp.getAttribute('data-size') || '',
         qty_std: std,
-        qty_mode: entry.mode,
-        qty_pct: entry.pct,
-        qty: entry.applied,
+        qty_mode: 'qty',
+        qty_pct: pct,
+        qty: applied,
         scrap_pct: Number.isFinite(scrap) ? scrap : 0,
       });
     });
@@ -1075,7 +1078,7 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
     var host = opsHost();
     var key = lineKey(row);
     var rows = [];
-    var inps = (host && key) ? host.querySelectorAll('.jp-so-smv-pct-input[data-line-key="' + key + '"]') : [];
+    var inps = (host && key) ? host.querySelectorAll('.jp-so-smv-direct-input[data-line-key="' + key + '"]') : [];
     if (!inps.length) {
       if (onlyIfPresent) return;
       hidden.value = '[]';
@@ -1085,14 +1088,12 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
       var seq = parseInt(inp.getAttribute('data-smv-seq'), 10) || 0;
       var op = String(inp.getAttribute('data-smv-op') || '').trim();
       if (!seq && !op) return;
-      var std = parseFloat(inp.getAttribute('data-smv-std')) || 0;
-      var entry = readEntry(inp, std);
+      var applied = parseFloat(inp.value);
+      if (!Number.isFinite(applied)) applied = parseFloat(inp.getAttribute('data-smv-std')) || 0;
       var tr = inp.closest('tr');
       var notesInp = tr ? tr.querySelector('.jp-so-notes-input') : null;
       var notes = notesInp ? String(notesInp.value || '').trim() : '';
-      var row = { seq: seq, op_code: op, smv_mode: entry.mode, smv: entry.applied, notes: notes };
-      if (entry.mode === 'pct') row.smv_pct = entry.pct;
-      else row.smv_pct = '';
+      var row = { seq: seq, op_code: op, smv_mode: 'qty', smv: applied, notes: notes, smv_pct: '' };
       rows.push(row);
     });
     hidden.value = JSON.stringify(rows);
@@ -1103,7 +1104,7 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
     var host = opsHost();
     var key = lineKey(row);
     if (!hidden || !host || !key) return;
-    var inps = host.querySelectorAll('.jp-so-smv-pct-input[data-line-key="' + key + '"]');
+    var inps = host.querySelectorAll('.jp-so-smv-direct-input[data-line-key="' + key + '"]');
     if (!inps.length) return;
     if (!hidden.value || hidden.value === '[]') {
       writeAppliedSmv(row);
@@ -1155,12 +1156,7 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
         var pct = parseFloat(saved.smv_pct);
         if (!Number.isFinite(applied)) applied = appliedFromPct(std, Number.isFinite(pct) ? pct : 100);
         if (!Number.isFinite(pct)) pct = pctFromApplied(applied, std);
-        var mode = saved.smv_mode === 'qty' ? 'qty' : 'pct';
-        var sel = inp.closest('tr') && inp.closest('tr').querySelector('.jp-so-smv-entry-mode');
-        if (sel) sel.value = mode;
-        inp.setAttribute('data-entry-mode', mode);
-        inp.step = mode === 'qty' ? '0.0001' : '0.1';
-        inp.value = inputValueForMode(mode, applied, pct);
+        inp.value = fmtNeed(applied);
         var tr = inp.closest('tr');
         var notesInp = tr ? tr.querySelector('.jp-so-notes-input') : null;
         if (notesInp && saved.notes != null) notesInp.value = String(saved.notes);
@@ -1175,7 +1171,7 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
     var host = nplHost();
     var key = lineKey(row);
     if (!hidden || !host || !key) return;
-    var inps = host.querySelectorAll('.jp-so-bom-pct-input[data-line-key="' + key + '"]');
+    var inps = host.querySelectorAll('.jp-so-bom-need-input[data-line-key="' + key + '"]');
     if (!inps.length) return;
     if (!hidden.value || hidden.value === '[]') {
       writeAppliedBom(row);
@@ -1220,12 +1216,12 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
         var pct = parseFloat(r.qty_pct);
         if (!Number.isFinite(applied)) applied = appliedFromPct(std, Number.isFinite(pct) ? pct : 100);
         if (!Number.isFinite(pct)) pct = pctFromApplied(applied, std);
-        var mode = r.qty_mode === 'qty' ? 'qty' : 'pct';
-        var sel = inp.closest('tr') && inp.closest('tr').querySelector('.jp-so-bom-entry-mode');
-        if (sel) sel.value = mode;
-        inp.setAttribute('data-entry-mode', mode);
-        inp.step = mode === 'qty' ? '0.0001' : '0.1';
-        inp.value = inputValueForMode(mode, applied, pct);
+        var key = inp.getAttribute('data-line-key') || '';
+        var lineRow = key ? rowFromLineKey(key) : null;
+        var scrap = parseFloat(inp.getAttribute('data-scrap-pct')) || 0;
+        var scale = lineScaleFor(lineRow, inp.getAttribute('data-size'));
+        inp.setAttribute('data-applied', applied);
+        inp.value = fmtBomNeed(applied * (1 + scrap / 100) * scale);
       });
     } catch (e) { /* ignore */ }
     writeAppliedBom(row);
@@ -1250,6 +1246,11 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
     return String(r);
   }
 
+  function fmtBomNeed(n) {
+    if (!Number.isFinite(n)) return '0';
+    return String(Math.round(n * 10000) / 10000);
+  }
+
   function lineScaleFor(row, sizeCode) {
     var size = String(sizeCode || '').trim();
     var qtyEl = row ? row.querySelector('.jp-so-qty-total, input[name$="-qty"]') : null;
@@ -1266,43 +1267,49 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
     return 0;
   }
 
-  function nplNeedOf(inp, row) {
+  function nplAppliedFromNeed(inp, row, rawNeed) {
     var std = parseFloat(inp.getAttribute('data-qty-std')) || 0;
-    var qty = readEntry(inp, std).applied;
     var scrap = parseFloat(inp.getAttribute('data-scrap-pct')) || 0;
     var scale = lineScaleFor(row, inp.getAttribute('data-size'));
-    return qty * (1 + scrap / 100) * scale;
+    var need = Number.isFinite(rawNeed) && rawNeed >= 0 ? rawNeed : 0;
+    var denominator = (1 + scrap / 100) * scale;
+    if (!(denominator > 0)) return std;
+    return need / denominator;
   }
 
-  function refreshNplNeed() {
+  function refreshNplNeed(keepInput) {
     var host = nplHost();
     if (!host) return;
-    host.querySelectorAll('.jp-so-bom-pct-input').forEach(function (inp) {
+    host.querySelectorAll('.jp-so-bom-need-input').forEach(function (inp) {
       var key = inp.getAttribute('data-line-key') || '';
       var row = key ? rowFromLineKey(key) : null;
       var scale = lineScaleFor(row, inp.getAttribute('data-size'));
-      var std = parseFloat(inp.getAttribute('data-qty-std')) || 0;
-      var entry = readEntry(inp, std);
+      var applied = parseFloat(inp.getAttribute('data-applied'));
+      if (!Number.isFinite(applied)) {
+        applied = parseFloat(inp.getAttribute('data-qty-std')) || 0;
+        inp.setAttribute('data-applied', applied);
+      }
+      var scrap = parseFloat(inp.getAttribute('data-scrap-pct')) || 0;
       var tr = inp.closest('tr');
       if (!tr) return;
       var sl = tr.querySelector('[data-role="npl-scale"]');
       var appliedEl = tr.querySelector('[data-role="npl-applied"]');
-      var need = tr.querySelector('[data-role="npl-need"]');
       if (sl) sl.textContent = fmtNeed(scale);
-      if (appliedEl) appliedEl.textContent = fmtNeed(entry.applied);
-      if (need) need.textContent = fmtNeed(nplNeedOf(inp, row));
+      if (appliedEl) appliedEl.textContent = fmtNeed(applied);
+      if (!keepInput) inp.value = fmtBomNeed(applied * (1 + scrap / 100) * scale);
     });
   }
 
   function refreshSmvApplied() {
     var host = opsHost();
     if (!host) return;
-    host.querySelectorAll('.jp-so-smv-pct-input').forEach(function (inp) {
+    host.querySelectorAll('.jp-so-smv-direct-input').forEach(function (inp) {
       var std = parseFloat(inp.getAttribute('data-smv-std')) || 0;
-      var entry = readEntry(inp, std);
+      var applied = parseFloat(inp.value);
+      if (!Number.isFinite(applied)) applied = std;
       var tr = inp.closest('tr');
       var el = tr ? tr.querySelector('[data-role="smv-applied"]') : null;
-      if (el) el.textContent = fmtNeed(entry.applied);
+      if (el) el.textContent = fmtNeed(applied);
     });
   }
 
@@ -1330,10 +1337,9 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
       + '<thead class="table-light"><tr>'
       + '<th style="width:16%">Sản phẩm</th><th>NPL</th>'
       + '<th class="text-end" style="width:6rem">ĐM gốc</th>'
-      + '<th class="text-end" style="width:12.2rem" title="Chọn Số lượng hoặc % rồi nhập thay đổi định mức">Nhập thay đổi</th>'
       + '<th class="text-end" style="width:6.5rem">ĐM áp dụng</th>'
       + '<th class="text-end" style="width:5rem">SL</th>'
-      + '<th class="text-end" style="width:7rem">Nhu cầu</th>'
+      + '<th class="text-end" style="width:8rem">Nhu cầu</th>'
       + '<th style="width:4rem">ĐVT</th>'
       + '</tr></thead><tbody>';
     groups.forEach(function (g) {
@@ -1345,16 +1351,12 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
         var qtyStd = parseFloat(ln.qty_std != null ? ln.qty_std : ln.qty) || 0;
         var qty = parseFloat(ln.qty);
         if (!Number.isFinite(qty)) qty = qtyStd;
-        var pct = parseFloat(ln.qty_pct);
-        if (!Number.isFinite(pct)) pct = pctFromApplied(qty, qtyStd);
-        var mode = ln.qty_mode === 'qty' ? 'qty' : 'pct';
         var scrap = parseFloat(ln.scrap_pct) || 0;
         var unit = String(ln.unit || '').trim();
         var size = String(ln.size_code || '').trim();
         var scale = lineScaleFor(row, size);
-        var applied = Number.isFinite(qty) ? qty : appliedFromPct(qtyStd, pct);
-        if (mode === 'pct') applied = appliedFromPct(qtyStd, pct);
-        var need = applied * (1 + scrap / 100) * scale;
+        var applied = qty;
+        var needValue = applied * (1 + scrap / 100) * scale;
         var bomAttrs = 'data-bom-line-id="' + id + '"'
           + ' data-mat-code="' + escAttr(code) + '"'
           + ' data-mat-name="' + escAttr(name) + '"'
@@ -1370,10 +1372,11 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
           + (size ? ' <span class="badge bg-light text-dark border">' + escAttr(size) + '</span>' : '')
           + '</span></div></td>'
           + '<td class="text-end text-muted">' + qtyStd + '</td>'
-          + '<td>' + entryCellHtml('bom', g.key, bomAttrs, mode, applied, pct, 'ĐM ' + name) + '</td>'
           + '<td class="text-end fw-semibold" data-role="npl-applied">' + fmtNeed(applied) + '</td>'
           + '<td class="text-end small text-muted" data-role="npl-scale">' + fmtNeed(scale) + '</td>'
-          + '<td class="text-end fw-semibold" data-role="npl-need">' + fmtNeed(need) + '</td>'
+          + '<td><input type="number" class="form-control form-control-sm text-end jp-so-bom-need-input" min="0" step="0.001"'
+          + ' data-line-key="' + escAttr(g.key) + '" data-applied="' + applied + '" ' + bomAttrs
+          + ' value="' + fmtBomNeed(needValue) + '" aria-label="Nhu cầu ' + escAttr(name) + '"></td>'
           + '<td class="small text-muted">' + escAttr(unit || '—') + '</td></tr>';
       });
     });
@@ -1386,19 +1389,14 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
       + '<thead class="table-light"><tr>'
       + '<th style="width:16%">Sản phẩm</th><th style="width:3.5rem">Bước</th><th>Công đoạn</th>'
       + '<th class="text-end" style="width:7rem">SMV sản phẩm</th>'
-      + '<th class="text-end" style="width:12.2rem" title="Chọn Số lượng hoặc % rồi nhập thay đổi SMV đơn hàng">Nhập thay đổi</th>'
-      + '<th class="text-end" style="width:7.5rem">SMV đơn hàng</th>'
+      + '<th class="text-end" style="width:9rem">SMV đơn hàng</th>'
       + '<th>Mô tả</th></tr></thead><tbody>';
     groups.forEach(function (g) {
       g.steps.forEach(function (st, i) {
         var std = stepStd(st);
         var smv = parseFloat(st.smv);
         if (!Number.isFinite(smv)) smv = std;
-        var pct = parseFloat(st.smv_pct);
-        if (!Number.isFinite(pct)) pct = pctFromApplied(smv, std);
-        var mode = st.smv_mode === 'qty' ? 'qty' : 'pct';
-        var applied = Number.isFinite(smv) ? smv : appliedFromPct(std, pct);
-        if (mode === 'pct') applied = appliedFromPct(std, pct);
+        var applied = Number.isFinite(smv) ? smv : std;
         var code = String(st.code || '').trim();
         var name = String(st.name || '').trim() || code || '—';
         var notes = String(st.notes || '').trim();
@@ -1406,8 +1404,9 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
           + (i === 0 ? productLabelCell(g.label, g.steps.length) : '')
           + '<td>' + (st.seq || '') + '</td><td>' + escAttr(name) + '</td>'
           + '<td class="text-end text-muted">' + parseFloat(std.toFixed(4)) + '</td>'
-          + '<td>' + entryCellHtml('smv', g.key, 'data-smv-seq="' + (st.seq || '') + '" data-smv-std="' + std + '" data-smv-op="' + escAttr(code) + '"', mode, applied, pct, 'SMV ' + name) + '</td>'
-          + '<td class="text-end fw-semibold" data-role="smv-applied">' + fmtNeed(applied) + '</td>'
+          + '<td><input type="number" class="form-control form-control-sm text-end jp-so-smv-direct-input" min="0" step="0.0001"'
+          + ' data-line-key="' + escAttr(g.key) + '" data-smv-seq="' + (st.seq || '') + '" data-smv-std="' + std + '" data-smv-op="' + escAttr(code) + '"'
+          + ' value="' + fmtNeed(applied) + '" aria-label="SMV đơn hàng ' + escAttr(name) + '"></td>'
           + '<td><input type="text" class="form-control form-control-sm jp-so-notes-input" maxlength="255"'
           + ' data-line-key="' + escAttr(g.key) + '" data-smv-seq="' + (st.seq || '') + '"'
           + ' value="' + escAttr(notes) + '" placeholder="Mô tả" aria-label="Mô tả ' + escAttr(name) + '"></td></tr>';
@@ -1683,13 +1682,16 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
     var key = t.getAttribute('data-line-key') || '';
     var row = key ? rowFromLineKey(key) : t.closest('tr.jp-so-line-row');
     if (!row || !row.classList.contains('jp-so-line-row')) return;
-    if (t.classList.contains('jp-so-smv-pct-input') || t.classList.contains('jp-so-notes-input')) {
+    if (t.classList.contains('jp-so-smv-direct-input') || t.classList.contains('jp-so-notes-input')) {
       writeAppliedSmv(row);
       refreshSmvApplied();
     }
-    if (t.classList.contains('jp-so-bom-pct-input')) {
-      writeAppliedBom(row);
-      refreshNplNeed();
+    if (t.classList.contains('jp-so-bom-need-input')) {
+      if (t.value !== '' && Number.isFinite(parseFloat(t.value))) {
+        t.setAttribute('data-applied', nplAppliedFromNeed(t, row, parseFloat(t.value)));
+        writeAppliedBom(row);
+        refreshNplNeed(true);
+      }
     }
   });
 

@@ -17,7 +17,7 @@
     <td class="c-stt jp-route-sum-spacer"></td>
     <td class="c-product jp-route-sum-spacer"></td>
     <td class="c-dept jp-stage-{{ stage.slug }}" title="{{ stage.label }}">
-      <span class="jp-tl-dept-name">{{ stage.label }}</span>
+       <span class="jp-tl-dept-name">{% if stage.label == 'MAY (152A VĨNH LỘC)' %}MAY{% else %}{{ stage.label }}{% endif %}</span>
     </td>
     <td class="c-team jp-route-sum-spacer"></td>
     <td class="c-npl jp-route-sum-spacer"></td>

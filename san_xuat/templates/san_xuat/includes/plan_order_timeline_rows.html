@@ -41,9 +41,9 @@
                   {% if stage.progress_mo_id %}
                   <a class="jp-tl-dept-name" href="{% url 'san_xuat:team_work_progress' stage.progress_slug|default:stage.slug stage.progress_mo_id %}"
                      oncontextmenu="event.preventDefault(); if (window.jpRouteCtx) window.jpRouteCtx(event);"
-                     title="Phiếu tiến độ {{ stage.short_label }}">{{ stage.label }}</a>
+                     title="Phiếu tiến độ {{ stage.short_label }}">{% if stage.label == 'MAY (152A VĨNH LỘC)' %}MAY{% else %}{{ stage.label }}{% endif %}</a>
                   {% else %}
-                  <span class="jp-tl-dept-name">{% if stage.label %}{{ stage.label }}{% else %}{{ stage.short_label }}{% endif %}</span>
+                  <span class="jp-tl-dept-name">{% if stage.label == 'MAY (152A VĨNH LỘC)' %}MAY{% elif stage.label %}{{ stage.label }}{% else %}{{ stage.short_label }}{% endif %}</span>
                   {% endif %}
                   {% if stage.gc_hired %}
                     {% if stage.gc_pk %}

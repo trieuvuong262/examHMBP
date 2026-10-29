@@ -44,7 +44,7 @@
             <td class="small">{{ l.op_name_vi|default:"—" }}</td>
             <td class="text-end">{{ l.library_unit_smv|sx_num }}</td>
             <td class="text-end fw-semibold">{{ l.applied_unit_smv|sx_num }}</td>
-            <td class="small">{% if l.work_center %}{{ l.work_center.name }}{% elif l.work_center_code %}{{ l.work_center_code }}{% else %}—{% endif %}</td>
+            <td class="small">{% if l.work_center %}{% if l.work_center.name == 'MAY (152A VĨNH LỘC)' %}MAY{% else %}{{ l.work_center.name }}{% endif %}{% elif l.work_center_code %}{{ l.work_center_code }}{% else %}—{% endif %}</td>
             {% if forloop.first %}
             <td class="text-end fw-bold align-middle" rowspan="{{ ln.routing_lines.all|length }}">
               <div>{{ ln.routing_order_total_smv|sx_num }}</div>
