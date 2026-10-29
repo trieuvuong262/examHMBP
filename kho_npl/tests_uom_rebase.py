@@ -12,7 +12,7 @@ from kho_npl.models import (
     Unit,
     WarehouseLocation,
 )
-from kho_npl.services.uom import rebase_factor, rebase_price
+from kho_npl.services.uom import package_qty, rebase_factor, rebase_price
 
 
 class RebaseBasePriceTests(TestCase):
@@ -89,6 +89,8 @@ class RebaseBasePriceTests(TestCase):
             StockBalance.objects.get(material=material).quantity,
             Decimal('13000.000'),
         )
+        self.assertEqual(package_qty(material, Decimal('25000')), Decimal('2'))
+        self.assertEqual(package_qty(material, Decimal('25500')), Decimal('2'))
 
     def test_js_already_converted_price_is_not_divided_again(self):
         form = MaterialForm(

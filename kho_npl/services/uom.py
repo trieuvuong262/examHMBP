@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_DOWN, ROUND_HALF_UP
 
 from django.core.exceptions import ValidationError
 
@@ -82,12 +82,18 @@ def from_base(material, qty_base, unit) -> Decimal:
 
 
 def package_qty(material, qty_base):
-    """SL theo ĐVT chẵn lớn nhất. None nếu quy cách chỉ có ĐVT lẻ."""
+    """Số ĐVT chẵn hoàn chỉnh từ tổng tồn theo ĐVT lẻ/base.
+
+    ``qty_base`` vẫn là tổng tồn lẻ, ví dụ 250 cái. Với quy cách 100
+    cái/thùng, hàm trả 2 thùng, không trả 2,5 thùng. Phần 50 cái còn lại
+    không bị trừ khỏi tổng tồn lẻ và không được tính lần nữa vào giá trị tồn.
+    """
     unit = getattr(material, 'package_unit', None)
     if unit is None:
         return None
     try:
-        return from_base(material, qty_base, unit)
+        package_value = from_base(material, qty_base, unit)
+        return package_value.to_integral_value(rounding=ROUND_DOWN)
     except UomConversionError:
         return None
 

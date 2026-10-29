@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from django.db.models import F, Sum
-
 from kho_npl.models import Material, MaterialBatch
 
 
@@ -68,56 +66,65 @@ def batch_stock_options(material: Material) -> list[dict]:
 
 def material_avg_price(material: Material) -> Decimal:
     """
-    Đơn giá BQ = trung bình cộng giá của tất cả các lô đã nhập (mọi phiếu nhập,
-    kể cả lô đã hết tồn) cộng thêm giá cơ bản trong danh mục nếu có.
-    Giá cơ bản trống (0) thì chỉ tính trung bình từ các lô.
+    Đơn giá BQ gia quyền theo các lô còn tồn của NPL.
+
+    Trọng số là số lượng tồn của từng lô theo ĐVT lẻ/base. Lô chưa có giá
+    dùng giá cơ bản của danh mục; nếu chưa có lô tồn thì trả giá cơ bản.
     """
-    prices = list(
-        MaterialBatch.objects.filter(
-            material=material,
-            unit_price__gt=0,
-        ).values_list('unit_price', flat=True)
-    )
-    base_price = material.base_price or Decimal('0')
-    if base_price > 0:
-        prices.append(base_price)
-    if not prices:
-        return Decimal('0')
-    total = sum(prices, Decimal('0'))
-    return (total / len(prices)).quantize(Decimal('0.01'))
+    batches = MaterialBatch.objects.filter(
+        material=material,
+        is_active=True,
+        quantity__gt=0,
+    ).select_related('material')
+    total_qty = Decimal('0')
+    total_value = Decimal('0')
+    for batch in batches:
+        quantity = batch.quantity or Decimal('0')
+        total_qty += quantity
+        total_value += quantity * batch_effective_price(batch)
+    if total_qty <= 0:
+        return material.base_price or Decimal('0')
+    return (total_value / total_qty).quantize(Decimal('0.01'))
 
 
 def material_batch_totals(material: Material) -> tuple[Decimal, Decimal, Decimal]:
     """
     Trả (tổng tồn lô, tổng giá trị tồn, đơn giá BQ).
 
-    Giá trị tồn = Σ(tồn lô × giá lô) — chỉ tính lô còn tồn.
-    Đơn giá BQ = trung bình cộng giá tất cả lô + giá cơ bản (xem material_avg_price).
+    Giá trị tồn = Σ(tồn lô × giá lô hiệu lực) — chỉ tính lô còn tồn.
+    Đơn giá BQ = bình quân gia quyền theo tồn lô hiện tại.
+
+    Giá lô bằng 0 dùng giá cơ bản của danh mục, cùng quy tắc với
+    ``batch_effective_price``. Các giá trị đều đang theo ĐVT lẻ/base.
     """
-    agg = MaterialBatch.objects.filter(
+    batches = MaterialBatch.objects.filter(
         material=material,
         is_active=True,
         quantity__gt=0,
-    ).aggregate(
-        total_qty=Sum('quantity'),
-        total_value=Sum(F('quantity') * F('unit_price')),
-    )
-    total_qty = agg['total_qty'] or Decimal('0')
-    total_value = agg['total_value'] or Decimal('0')
-    avg_price = material_avg_price(material)
+    ).select_related('material')
+    total_qty = Decimal('0')
+    total_value = Decimal('0')
+    for batch in batches:
+        quantity = batch.quantity or Decimal('0')
+        total_qty += quantity
+        total_value += quantity * batch_effective_price(batch)
+
     if total_qty <= 0:
-        return Decimal('0'), Decimal('0'), avg_price
-    return total_qty, total_value.quantize(Decimal('0.01')), avg_price
+        return Decimal('0'), Decimal('0'), material.base_price or Decimal('0')
+
+    total_value = total_value.quantize(Decimal('0.01'))
+    avg_price = (total_value / total_qty).quantize(Decimal('0.01'))
+    return total_qty, total_value, avg_price
 
 
 def avg_cost(material: Material) -> Decimal:
-    """Đơn giá BQ — trung bình cộng giá các lô + giá cơ bản danh mục."""
+    """Đơn giá BQ gia quyền theo tồn lô hiện tại."""
     _qty, _value, avg = material_batch_totals(material)
     return avg
 
 
 def stock_value(material: Material) -> Decimal:
-    """Giá trị tồn = Σ(tồn lô × giá lô)."""
+    """Giá trị của các lô còn tồn = Σ(tồn lô × giá lô hiệu lực)."""
     _qty, value, _avg = material_batch_totals(material)
     return value
 

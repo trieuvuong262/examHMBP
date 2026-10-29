@@ -22,7 +22,7 @@ from kho_npl.models import (
     Unit,
     WarehouseLocation,
 )
-from kho_npl.services.batches import avg_cost, material_batch_totals
+from kho_npl.services.batches import avg_cost, material_avg_price, material_batch_totals
 from kho_npl.services.issues import IssueWorkflowError, post_stock_issue
 from kho_npl.services.receipts import ReceiptWorkflowError, post_stock_receipt
 
@@ -91,12 +91,29 @@ class MaterialBatchPriceTests(TestCase):
 
     def test_weighted_average_after_two_receipts(self):
         self._receipt(Decimal('10'), Decimal('10000'), 'LO-A', 'PN-B-04')
-        self._receipt(Decimal('10'), Decimal('30000'), 'LO-B', 'PN-B-05')
+        self._receipt(Decimal('30'), Decimal('30000'), 'LO-B', 'PN-B-05')
         _qty, value, avg = material_batch_totals(self.material)
-        self.assertEqual(_qty, Decimal('20'))
-        self.assertEqual(value, Decimal('400000.00'))
-        self.assertEqual(avg, Decimal('20000.00'))
-        self.assertEqual(avg_cost(self.material), Decimal('20000.00'))
+        self.assertEqual(_qty, Decimal('40'))
+        self.assertEqual(value, Decimal('1000000.00'))
+        self.assertEqual(avg, Decimal('25000.00'))
+        self.assertEqual(material_avg_price(self.material), Decimal('25000.00'))
+        self.assertEqual(avg_cost(self.material), Decimal('25000.00'))
+
+    def test_zero_batch_price_uses_material_base_price(self):
+        self.material.base_price = Decimal('5000')
+        self.material.save(update_fields=['base_price', 'updated_at'])
+        MaterialBatch.objects.create(
+            material=self.material,
+            code='LO-BASE',
+            quantity=Decimal('100'),
+            unit_price=Decimal('0'),
+        )
+
+        qty, value, avg = material_batch_totals(self.material)
+
+        self.assertEqual(qty, Decimal('100'))
+        self.assertEqual(value, Decimal('500000.00'))
+        self.assertEqual(avg, Decimal('5000.00'))
 
     def test_issue_uses_batch_price_and_decreases_batch_qty(self):
         self._receipt(Decimal('10'), Decimal('15000'), 'LO-A', 'PN-B-06')

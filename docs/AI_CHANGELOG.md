@@ -15,6 +15,13 @@ Mỗi entry nên có:
 
 ## Entries
 
+### 2026-10-29 — feature / npl-stock-uom-valuation
+
+- **Change**: Chuẩn hóa hiển thị tồn NPL: `Tồn lẻ` giữ tổng số lượng theo ĐVT base, `Tồn chẵn` là số ĐVT chẵn hoàn chỉnh theo quy cách; giá trị tồn dùng tổng tồn base nhân đơn giá bình quân gia quyền của các lô còn tồn.
+- **Reason**: Tránh hiểu nhầm hoặc tính trùng khi một NPL đồng thời có tồn theo ĐVT chẵn và ĐVT lẻ; đồng thời sửa định giá khi lô không có đơn giá bằng cách dùng giá cơ bản danh mục.
+- **Source**: `kho_npl/services/uom.py::package_qty`, `kho_npl/services/batches.py::material_batch_totals`, `kho_npl/services/stock.py::material_stock_rows`, `kho_npl/views_material.py::material_stock_detail`, tests `kho_npl/tests_batches.py` và `kho_npl/tests_uom_rebase.py`.
+- **Agent impact**: Khi trace tồn kho NPL, xem `StockBalance.quantity` là tổng ĐVT lẻ/base; không cộng thêm cột Tồn chẵn vào giá trị tồn hoặc tổng tồn.
+
 ### 2026-10-26 — feature / route-reschedule-loading
 
 - **Change**: Giữ overlay riêng của kéo ngày công đoạn trong suốt request lưu và partial reload; chỉ dọn loading sau khi DOM lộ trình đã được cập nhật, và dọn cả khi response/lần tải lại thất bại.
