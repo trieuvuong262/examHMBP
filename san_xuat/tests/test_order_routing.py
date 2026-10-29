@@ -67,11 +67,9 @@ class OrderRoutingTests(TestCase):
         self.assertEqual(snap.applied_unit_smv, Decimal('1.2000'))
         self.assertEqual(snap.library_unit_smv, Decimal('1.2000'))
 
-    def test_confirm_requires_routing(self):
+    def test_confirm_allows_missing_routing_until_production_release(self):
         order = self._order(with_routing=False)
-        with self.assertRaises(PlanningError) as ctx:
-            confirm_sales_order(order_id=order.pk)
-        self.assertIn('routing', str(ctx.exception).lower())
+        confirm_sales_order(order_id=order.pk)
 
     def test_upsert_does_not_change_master(self):
         order = self._order()
@@ -92,16 +90,14 @@ class OrderRoutingTests(TestCase):
         master = self.routing.lines.get()
         self.assertEqual(master.applied_unit_smv, Decimal('1.2000'))
 
-    def test_high_variance_blocks_confirm(self):
+    def test_high_variance_is_checked_at_production_release(self):
         order = self._order()
         line = order.lines.get()
         snap = line.routing_lines.get()
         snap.applied_unit_smv = Decimal('2.0000')
         snap.variance_explanation = ''
         snap.save()
-        with self.assertRaises(PlanningError) as ctx:
-            assert_order_ready_to_confirm(order)
-        self.assertIn('15', str(ctx.exception))
+        assert_order_ready_to_confirm(order)
 
     def test_reseed_from_master(self):
         order = self._order()
@@ -125,7 +121,7 @@ class OrderRoutingTests(TestCase):
         snap.save()
 
         costing = compute_costing_for_sales_line(line)
-        self.assertEqual(costing.labor_cost, Decimal('2000.00'))
+        self.assertEqual(costing.labor_cost, Decimal('33.33'))
 
         today = timezone.localdate()
         sheet = build_order_sheet_from_kv(
@@ -167,6 +163,6 @@ class OrderRoutingTests(TestCase):
         self.assertIsNone(line.routing_id)
         self.assertEqual(line.routing_lines.count(), 2)
         smvs = list(line.routing_lines.order_by('seq_no').values_list('applied_unit_smv', 'op_name_vi'))
-        self.assertEqual(smvs[0][0], Decimal('0.4200'))
+        self.assertEqual(smvs[0][0], Decimal('25.2000'))
         self.assertEqual(smvs[0][1], 'Cat than chinh')
-        self.assertEqual(smvs[1][0], Decimal('0.6000'))
+        self.assertEqual(smvs[1][0], Decimal('36.0000'))

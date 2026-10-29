@@ -393,12 +393,46 @@
           </tbody>
         </table>
       </div>
+      {% if can_edit_order_routing %}
+      <p class="small text-muted mt-3 mb-2">Sửa trực tiếp định mức áp dụng. Có thể xóa dòng, nhưng dòng đã xuất vẫn được giữ lịch sử trên KHSX.</p>
+      {% for ln in order.lines.all %}
+      {% if ln.bom_line_overrides %}
+      <form method="post" class="border rounded p-2 mb-2" onsubmit="return jpSubmitBomOverride(this);">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="edit_bom_lines">
+        <input type="hidden" name="so_line_id" value="{{ ln.pk }}">
+        <input type="hidden" name="bom_lines_json" value="{{ ln.bom_line_overrides|escape }}">
+        <div class="small fw-semibold mb-2">{{ ln.product_code }} — chỉnh định mức (dữ liệu JSON snapshot)</div>
+        <div class="table-responsive"><table class="table table-sm mb-2">
+          <thead><tr><th>Mã NPL</th><th class="text-end">ĐM/SP</th><th>Size</th></tr></thead>
+          <tbody>
+          {% for row in ln.bom_line_overrides %}
+          <tr><td>{{ row.material_code|default:row.material_name }}</td><td class="text-end"><input class="form-control form-control-sm text-end jp-bom-qty" type="number" step="0.0001" value="{{ row.qty }}"></td><td>{{ row.size_code|default:'—' }}</td></tr>
+          {% endfor %}
+          </tbody>
+        </table></div>
+        <button type="submit" class="btn btn-sm btn-outline-hm">Lưu BOM và đồng bộ</button>
+      </form>
+      {% endif %}
+      {% endfor %}
+      {% endif %}
     </div>
   </div>
   {% endif %}
 
   {# BOM/OB snapshot của đơn có thể điều chỉnh giữa kỳ; LSX đang chạy nhận phần còn lại. #}
   {% include 'san_xuat/includes/sales_order_routing.html' %}
+  <script>
+    function jpSubmitBomOverride(form) {
+      const rows = JSON.parse(form.querySelector('[name="bom_lines_json"]').value || '[]');
+      form.querySelectorAll('.jp-bom-qty').forEach((input, index) => {
+        if (rows[index]) rows[index].qty = parseFloat(input.value || '0');
+        if (rows[index]) rows[index].qty_mode = 'qty';
+      });
+      form.querySelector('[name="bom_lines_json"]').value = JSON.stringify(rows);
+      return confirm('Lưu thay đổi BOM và đồng bộ KHSX/LSX phần còn lại?');
+    }
+  </script>
 </div>
 
 {% if can_confirm and order.confirm_status == 'draft' %}

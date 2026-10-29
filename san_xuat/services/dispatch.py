@@ -369,6 +369,7 @@ def parse_mo_process_steps_from_post(post) -> list[dict] | None:
             "process_name": name,
             "work_center_id": wc_id,
             "manager_id": manager_id,
+            "applied_unit_smv": (post.get(f"{prefix}applied_unit_smv") or "0").strip(),
         })
     return rows
 
@@ -396,6 +397,7 @@ def sync_mo_process_steps(mo: SxProductionOrder, steps: list[dict] | None = None
                 "process_name": s.process_name,
                 "work_center_id": s.work_center_id,
                 "manager_id": None,
+                "applied_unit_smv": getattr(s, "applied_unit_smv", 0) or 0,
             }
             for i, s in enumerate(bom_rows)
         ]
@@ -470,6 +472,7 @@ def sync_mo_process_steps(mo: SxProductionOrder, steps: list[dict] | None = None
             bom_process_step_id=bom_id,
             count_minutes=row.get("count_minutes") or 0,
             transfer_minutes=row.get("transfer_minutes") or 0,
+            applied_unit_smv=row.get("applied_unit_smv") or 0,
         )
         for user_id, by_id in old_assignees.get(key, []):
             if not user_id:

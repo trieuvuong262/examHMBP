@@ -1633,6 +1633,11 @@ class SxMoProcessStep(models.Model):
         max_digits=10, decimal_places=2, default=Decimal('0'),
         verbose_name='Vận chuyển (phút)',
     )
+    applied_unit_smv = models.DecimalField(
+        max_digits=10, decimal_places=4, default=Decimal('0'),
+        verbose_name='SMV đơn hàng (giây/cái)',
+        help_text='Snapshot SMV áp dụng cho phần sản xuất còn lại của LSX.',
+    )
 
     class Meta:
         ordering = ['sequence', 'id']

@@ -67,8 +67,9 @@ Mỗi tính năng quan trọng nên có một dòng để agent biết bắt đ�
 | Portal request flow | `PortalJustPlay/urls.py` | root URL → app URL → view/API → service/model → response/template | tùy app | app tests |
 | Background jobs | `<app>/tasks.py`, `*/management/commands/` | request/command → RQ → worker → result | Redis/RQ | task tests/logs |
 | NPL inventory | `kho_npl/urls.py` | route → view → service/model → stock/ledger; tồn lưu theo ĐVT lẻ/base, Tồn chẵn quy đổi từ quy cách, Giá trị tồn = tồn base × đơn giá BQ gia quyền theo lô | Odoo/NAS nếu có | `kho_npl` tests |
-| Production planning | `san_xuat/urls.py` | route → view → planning/service → HRM/kho | RQ nếu export/nặng | `san_xuat` tests |
+| Production planning | `san_xuat/urls.py` | route → view → planning/service → HRM/kho; order detail BOM/OB edits → `order_routing.update_order_line_bom_overrides` / `sync_active_mos_from_order` → KHSX NPL + active LSX remainder | RQ nếu export/nặng | `san_xuat` tests |
 | External sync | `kiotviet/`, `odoo/` | trigger/command → integration service → remote API | network/API | integration tests/logs |
+| Recruitment Kanban | `recruitment/views.py::kanban_board` | Candidate status transition → `recruitment/services.py::transition` → Kanban column/audit event; `hired` may move to `joined_then_left` after the candidate has joined and left | PostgreSQL migration `recruitment/migrations/0031_candidate_joined_then_left.py` | `python manage.py check`, recruitment tests |
 
 Khi cập nhật workflow, mô tả ngắn: trigger, các bước chính, dữ liệu thay đổi, async/external boundary, quyền và test. Không chép toàn bộ implementation vào Markdown.
 

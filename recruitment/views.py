@@ -93,14 +93,15 @@ KANBAN_COLUMNS = [
     (C.STATUS_INTERVIEWING, 'Phỏng vấn', 'is-interviewing'),
     (C.STATUS_OFFERED, 'Trúng tuyển', 'is-offered'),
     (C.STATUS_HIRED, 'Đã nhận việc', 'is-hired'),
+    (C.STATUS_JOINED_THEN_LEFT, 'Nhận việc nhưng nghỉ việc', 'is-closed'),
     (C.STATUS_NOT_ONBOARDED, 'Không nhận việc', 'is-closed'),
     (C.STATUS_REJECTED, 'Loại', 'is-closed'),
 ]
-# Kanban chỉ cho luồng đang xử lý + 2 cột kết thúc có thể thả vào.
-# «Đã nhận việc» là trạng thái cuối — xem ở tab Danh sách.
+# Kanban hiển thị luồng đang xử lý và các trạng thái kết thúc cần theo dõi.
+# «Đã nhận việc» cần hiển thị để có thể chuyển sang trạng thái nghỉ việc.
 KANBAN_BOARD_STATUSES = (
     C.STATUS_NEW, C.STATUS_REVIEWING, C.STATUS_INTERVIEWING, C.STATUS_OFFERED,
-    C.STATUS_NOT_ONBOARDED, C.STATUS_REJECTED,
+    C.STATUS_HIRED, C.STATUS_NOT_ONBOARDED, C.STATUS_REJECTED, C.STATUS_JOINED_THEN_LEFT,
 )
 KANBAN_PAGE_SIZE = 20
 
@@ -751,7 +752,7 @@ def kanban_board(request):
         columns.append({
             'key': key, 'label': labels[key][0], 'css': labels[key][1], 'page': pages[key],
             'cards': cards, 'droppable': ctx['can_move'],
-            'is_closed': key in (C.STATUS_NOT_ONBOARDED, C.STATUS_REJECTED),
+            'is_closed': key in (C.STATUS_NOT_ONBOARDED, C.STATUS_REJECTED, C.STATUS_JOINED_THEN_LEFT),
         })
     return render(request, 'recruitment/admin/kanban_board.html', {
         **ctx,

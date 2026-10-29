@@ -102,28 +102,83 @@ def order_has_active_mo(order: SxSalesOrder) -> bool:
     ).exists()
 
 
-def order_tech_is_editable(order: SxSalesOrder) -> bool:
-    """Gắn BOM / công đoạn được khi nháp, hoặc đã xác nhận nhưng chưa Chuyển SX."""
-    if order_has_active_mo(order):
-        return False
-    if order.confirm_status == SxSalesOrder.CONFIRM_DRAFT:
-        return True
-    if order.confirm_status == SxSalesOrder.CONFIRM_CONFIRMED and order.plan_status in (
-        SxSalesOrder.PLAN_QUEUED,
-        SxSalesOrder.PLAN_ON_HOLD,
-        '',
+@transaction.atomic
+def sync_active_mos_from_order(order: SxSalesOrder, *, user=None) -> int:
+    """Apply the order OB snapshot to active MOs without resetting production history."""
+    from san_xuat.hub_models import SxMoProcessStep
+    from san_xuat.services.plan_audit import log_plan_action
+
+    changed = 0
+    for mo in order.production_orders.select_for_update().filter(is_demo=False).exclude(
+        status__in=(SxProductionOrder.STATUS_CANCELLED, SxProductionOrder.STATUS_DONE),
     ):
-        return True
-    return False
+        line = order.lines.filter(product_code=mo.product_code).prefetch_related(
+            'routing_lines',
+        ).first()
+        if line is None:
+            continue
+        source_rows = steps_dicts_from_order_line(line)
+        existing = {int(step.sequence): step for step in mo.mo_process_steps.all()}
+        before = []
+        after = []
+        for row in source_rows:
+            seq = int(row.get('sequence') or 0)
+            if not seq:
+                continue
+            step = existing.get(seq)
+            if step is None:
+                step = SxMoProcessStep.objects.create(
+                    production_order=mo,
+                    sequence=seq,
+                    process_name=row.get('process_name') or '',
+                    work_center_id=row.get('work_center_id'),
+                    count_minutes=row.get('count_minutes') or 0,
+                    transfer_minutes=row.get('transfer_minutes') or 0,
+                    applied_unit_smv=row.get('applied_unit_smv') or 0,
+                )
+                changed += 1
+                continue
+            before.append({
+                'sequence': step.sequence,
+                'process_name': step.process_name,
+                'applied_unit_smv': str(step.applied_unit_smv or 0),
+            })
+            fields = []
+            step.process_name = (row.get('process_name') or step.process_name or '')[:120]
+            step.work_center_id = row.get('work_center_id')
+            step.count_minutes = row.get('count_minutes') or 0
+            step.transfer_minutes = row.get('transfer_minutes') or 0
+            fields = ['process_name', 'work_center_id', 'count_minutes', 'transfer_minutes']
+            if step.status != SxMoProcessStep.STATUS_DONE:
+                step.applied_unit_smv = row.get('applied_unit_smv') or 0
+                fields.append('applied_unit_smv')
+            step.save(update_fields=fields)
+            after.append({
+                'sequence': step.sequence,
+                'process_name': step.process_name,
+                'applied_unit_smv': str(step.applied_unit_smv or 0),
+            })
+            changed += 1
+        if before or after:
+            log_plan_action(
+                action='update', obj=mo,
+                summary=f'Cập nhật snapshot OB phần còn lại từ đơn {order.code}.',
+                changes={'before': before, 'after': after, 'order_id': order.pk}, user=user,
+            )
+    return changed
+
+
+def order_tech_is_editable(order: SxSalesOrder) -> bool:
+    """Cho sửa kỹ thuật khi đơn chưa hủy/hoàn thành; LSX nhận thay đổi cho phần còn lại."""
+    return order.plan_status not in {
+        SxSalesOrder.PLAN_DONE,
+        SxSalesOrder.PLAN_CANCELLED,
+    }
 
 
 def assert_order_routing_editable(order: SxSalesOrder) -> None:
-    if order_has_active_mo(order):
-        raise OrderRoutingError('Đơn đã có lệnh sản xuất — không sửa snapshot công đoạn.')
     if not order_tech_is_editable(order):
-        raise OrderRoutingError(
-            'Chỉ gắn/sửa công đoạn khi đơn còn nháp hoặc đang chờ xếp trên KHSX (chưa Chuyển SX).'
-        )
+        raise OrderRoutingError('Đơn đã hoàn thành hoặc hủy — không sửa snapshot BOM/OB.')
 
 
 def _ob_smv_seconds(src) -> tuple[Decimal, Decimal]:
@@ -502,6 +557,7 @@ def steps_dicts_from_order_line(order_line: SxSalesOrderLine) -> list[dict]:
             'process_name': name,
             'work_center_id': wc_id,
             'manager_id': None,
+            'applied_unit_smv': ln.applied_unit_smv or Decimal('0'),
             'count_minutes': ln.count_minutes or Decimal('0'),
             'transfer_minutes': ln.transfer_minutes or Decimal('0'),
         })
@@ -716,6 +772,35 @@ def delete_order_routing_line(*, order_line: SxSalesOrderLine, line_pk: int) -> 
     if remaining <= 0:
         raise OrderRoutingError('Phải còn ít nhất một công đoạn trên dòng đơn.')
     line.delete()
+
+
+@transaction.atomic
+def update_order_line_bom_overrides(
+    order_line: SxSalesOrderLine,
+    *,
+    rows: list[dict],
+    user=None,
+) -> int:
+    """Lưu snapshot BOM trên đơn, cho phép chỉnh khi LSX chạy."""
+    from san_xuat.services.sales_orders import _normalize_bom_overrides
+    from san_xuat.services.plan_audit import log_plan_action
+
+    assert_order_routing_editable(order_line.order)
+    before = list(order_line.bom_line_overrides or [])
+    normalized = _normalize_bom_overrides(rows)
+    if not normalized:
+        raise OrderRoutingError('BOM phải còn ít nhất một dòng NPL hợp lệ.')
+    order_line.bom_line_overrides = normalized
+    order_line.save(update_fields=['bom_line_overrides'])
+    log_plan_action(
+        action='update', obj=order_line.order,
+        summary=f'Cập nhật chi tiết BOM dòng {order_line.product_code} trên đơn.',
+        changes={'line_id': order_line.pk, 'before': before, 'after': normalized},
+        user=user,
+    )
+    from san_xuat.services.plan_order_npl import sync_order_npl
+    sync_order_npl(order_id=order_line.order_id, apply_schedule=True)
+    return len(normalized)
 
 
 def boms_for_product(product_code: str):

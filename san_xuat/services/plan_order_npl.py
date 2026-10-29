@@ -402,7 +402,16 @@ def sync_order_npl(
         ln.save()
         keep_ids.append(ln.pk)
 
-    order.npl_lines.exclude(pk__in=keep_ids).delete()
+    # Không xóa dòng cũ: phiếu xuất/đặt chỗ có thể đã tham chiếu mã này.
+    # Đánh dấu nhu cầu hiện tại bằng 0 nhưng giữ allocation/inbound để đối soát lịch sử.
+    stale_lines = order.npl_lines.exclude(pk__in=keep_ids)
+    stale_lines.update(
+        qty_required=Decimal('0'),
+        qty_shortfall=Decimal('0'),
+        qty_allocated=Decimal('0'),
+        qty_inbound=Decimal('0'),
+        notes='Không còn trong BOM hiện tại',
+    )
     lines = list(order.npl_lines.order_by('sort_order', 'id'))
 
     if allocate_by_line is not None and not reset_allocated:

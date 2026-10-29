@@ -5,6 +5,7 @@ Luồng ứng viên:
     (Loại / Không nhận việc bắt buộc lý do; có thể «Mở lại» về bước đánh giá.)
     Vị trí «Bỏ qua duyệt CV»: Mới → Phỏng vấn; «Mở lại» về Mới.
     Vị trí «Bỏ qua giám đốc duyệt»: phỏng vấn Đạt → Trúng tuyển, không qua giám đốc.
+    Sau khi nhận việc, hồ sơ có thể chuyển sang «Nhận việc nhưng nghỉ việc».
 """
 
 from __future__ import annotations
@@ -45,7 +46,8 @@ TRANSITIONS: dict[str, frozenset[str]] = {
     C.STATUS_OFFERED: frozenset({C.STATUS_NOT_ONBOARDED}),
     C.STATUS_REJECTED: frozenset({C.STATUS_REVIEWING}),
     C.STATUS_NOT_ONBOARDED: frozenset({C.STATUS_REVIEWING}),
-    C.STATUS_HIRED: frozenset(),
+    C.STATUS_HIRED: frozenset({C.STATUS_JOINED_THEN_LEFT}),
+    C.STATUS_JOINED_THEN_LEFT: frozenset(),
 }
 
 REASON_REQUIRED = frozenset({C.STATUS_REJECTED, C.STATUS_NOT_ONBOARDED})
@@ -382,7 +384,7 @@ def add_candidate(job: JobPosting, data: CandidateInput, *, actor, referred_by=N
 
 def profile_locked(candidate) -> bool:
     """Đã onboard — hồ sơ tuyển dụng không sửa / xóa (nhân viên nằm ở Danh sách nhân viên)."""
-    return bool(candidate.employee_id) or candidate.status == C.STATUS_HIRED
+    return bool(candidate.employee_id) or candidate.status in (C.STATUS_HIRED, C.STATUS_JOINED_THEN_LEFT)
 
 
 def _reject_duplicate_contact(job, *, phone: str, email: str, exclude_pk=None):

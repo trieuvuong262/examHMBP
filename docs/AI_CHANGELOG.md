@@ -15,6 +15,20 @@ Mỗi entry nên có:
 
 ## Entries
 
+### 2026-10-29 — feature / recruitment-kanban-label-and-sizing
+
+- **Change**: Đổi nhãn trạng thái `joined_then_left` thành “Nhận việc nhưng nghỉ việc” và đồng nhất kích thước các cột Kanban.
+- **Reason**: Nhãn ngắn gọn hơn và giao diện Kanban dễ so sánh giữa các cột.
+- **Source**: `recruitment/models.py::Candidate`, `recruitment/views.py::KANBAN_COLUMNS`, `recruitment/templates/recruitment/admin/kanban_board.html`, migration `0032_rename_joined_then_left_label.py`.
+- **Agent impact**: Mã trạng thái không đổi; chỉ thay đổi nhãn hiển thị và layout.
+
+### 2026-10-29 — workflow / recruitment-candidate-joined-then-left
+
+- **Change**: Thêm trạng thái ứng viên `joined_then_left` — “Ứng viên nhận việc xong rồi nghỉ việc” — vào model, Kanban và luồng chuyển trạng thái; chỉ cho phép chuyển từ `hired`, có audit event và không tính lại chỉ tiêu đang tuyển.
+- **Reason**: Theo dõi riêng ứng viên đã nhận việc rồi nghỉ việc thay vì để lẫn với hồ sơ đã nhận việc hoặc không nhận việc.
+- **Source**: `recruitment/models.py::Candidate`, `recruitment/services.py::TRANSITIONS`, `recruitment/services.py::transition`, `recruitment/views.py::kanban_board`, migration `recruitment/migrations/0031_candidate_joined_then_left.py`.
+- **Agent impact**: Khi trace trạng thái ứng viên, xem `joined_then_left` là trạng thái kết thúc sau onboard; không coi đây là ứng viên đang dùng chỉ tiêu.
+
 ### 2026-10-29 — feature / npl-stock-uom-valuation
 
 - **Change**: Chuẩn hóa hiển thị tồn NPL: `Tồn lẻ` giữ tổng số lượng theo ĐVT base, `Tồn chẵn` là số ĐVT chẵn hoàn chỉnh theo quy cách; giá trị tồn dùng tổng tồn base nhân đơn giá bình quân gia quyền của các lô còn tồn.
@@ -56,6 +70,13 @@ Mỗi entry nên có:
 - **Reason**: Giảm token đọc source lặp lại và thống nhất workflow giữa các vibe-coding tool.
 - **Source**: `AI_AGENT_RULES.md`, `AGENTS.md`, `docs/AI_CODEBASE_MAP.md`, `.cursor/mcp.json`.
 - **Agent impact**: Đọc policy và map trước; dùng CodeGraph cho câu hỏi cấu trúc, Codebase Memory cho câu hỏi semantic/cross-boundary; chỉ mở source sau khi thu hẹp phạm vi.
+
+### 2026-10-29 — workflow / in-production-order-tech-edit
+
+- **Change**: Cho phép sửa snapshot BOM/OB trên chi tiết đơn hàng khi đơn còn LSX hoạt động; BOM được lưu lại, đồng bộ nhu cầu NPL KHSX mà không xóa dòng lịch sử, còn LSX chỉ nhận snapshot mới cho phần chưa hoàn thành. Thêm snapshot SMV trên `SxMoProcessStep` và audit before/after.
+- **Reason**: Đáp ứng nhu cầu điều chỉnh định mức và công đoạn giữa kỳ mà không làm mất lịch sử xuất NPL hoặc trạng thái công đoạn đã hoàn thành.
+- **Source**: `san_xuat/services/order_routing.py`, `san_xuat/services/plan_order_npl.py`, `san_xuat/services/dispatch.py`, `san_xuat/views_hub.py`, `san_xuat/templates/san_xuat/sales_order_detail.html`, migration `0148_sxmoprocessstep_applied_unit_smv.py`.
+- **Agent impact**: Khi trace sửa kỹ thuật đơn đang chạy, bắt đầu từ `sales_order_detail` → `update_order_line_bom_overrides` / OB actions → `sync_order_npl` → `sync_active_mos_from_order`; không xóa dòng `SxOrderNplLine` cũ vì có thể đã tham chiếu phiếu xuất/đặt chỗ.
 
 ## Template cho entry mới
 

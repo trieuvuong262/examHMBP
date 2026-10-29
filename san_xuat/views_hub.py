@@ -908,7 +908,7 @@ def _handle_order_routing_post(request, order) -> bool:
     action = (request.POST.get('action') or '').strip()
     if action not in {
         'add_routing_line', 'edit_routing_line', 'delete_routing_line',
-        'reset_routing', 'attach_routing', 'attach_bom', 'scale_smv',
+        'reset_routing', 'attach_routing', 'attach_bom', 'scale_smv', 'edit_bom_lines',
     }:
         return False
     can_pick = (
@@ -931,6 +931,21 @@ def _handle_order_routing_post(request, order) -> bool:
         if ln is None:
             raise OrderRoutingError('Không tìm thấy dòng sản phẩm.')
         return ln
+
+    if action == 'edit_bom_lines':
+        import json
+        from san_xuat.services.order_routing import update_order_line_bom_overrides
+
+        raw = request.POST.get('bom_lines_json') or '[]'
+        try:
+            rows = json.loads(raw)
+        except (TypeError, ValueError):
+            raise OrderRoutingError('Dữ liệu chi tiết BOM không hợp lệ.') from None
+        update_order_line_bom_overrides(_line(), rows=rows, user=request.user)
+        from san_xuat.services.order_routing import sync_active_mos_from_order
+        sync_active_mos_from_order(order, user=request.user)
+        messages.success(request, 'Đã lưu chi tiết BOM và đồng bộ KHSX/LSX phần còn lại.')
+        return True
 
     if action == 'attach_routing':
         from san_xuat.services.order_routing import attach_order_line_routing

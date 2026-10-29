@@ -290,6 +290,7 @@ class Candidate(models.Model):
     STATUS_INTERVIEWING = 'interviewing'
     STATUS_OFFERED = 'offered'
     STATUS_HIRED = 'hired'
+    STATUS_JOINED_THEN_LEFT = 'joined_then_left'
     STATUS_NOT_ONBOARDED = 'not_onboarded'
     STATUS_REJECTED = 'rejected'
     STATUS_CHOICES = [
@@ -298,6 +299,7 @@ class Candidate(models.Model):
         (STATUS_INTERVIEWING, 'Phỏng vấn'),
         (STATUS_OFFERED, 'Trúng tuyển'),
         (STATUS_HIRED, 'Đã nhận việc'),
+        (STATUS_JOINED_THEN_LEFT, 'Nhận việc nhưng nghỉ việc'),
         (STATUS_NOT_ONBOARDED, 'Không nhận việc'),
         (STATUS_REJECTED, 'Loại'),
     ]
