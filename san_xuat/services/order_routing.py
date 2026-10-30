@@ -185,6 +185,11 @@ def sync_order_plan_steps_from_ob(order: SxSalesOrder) -> int:
         apply_auto_team_day_splits(order, replace_existing=True)
     except PlanningError:
         pass
+    # Bảng KHSX đọc payload tính sẵn (SxRouteSheet) — phải đánh dấu tính lại,
+    # nếu không công đoạn mới đã vào DB nhưng bảng vẫn hiện bản cũ.
+    from san_xuat.services.route_sheet import mark_route_sheet_dirty
+
+    mark_route_sheet_dirty(order.pk)
     return len(steps or [])
 
 
@@ -285,6 +290,10 @@ def sync_active_mos_from_order(order: SxSalesOrder, *, user=None) -> int:
                 summary=f'Cập nhật snapshot OB phần còn lại từ đơn {order.code}.',
                 changes={'before': before, 'after': after, 'order_id': order.pk}, user=user,
             )
+    if changed:
+        from san_xuat.services.route_sheet import mark_route_sheet_dirty
+
+        mark_route_sheet_dirty(order.pk)
     return changed
 
 

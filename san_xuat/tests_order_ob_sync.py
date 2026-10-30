@@ -161,3 +161,17 @@ class OrderObSyncTests(TestCase):
         self.line.refresh_from_db()
         self.assertEqual(self.line.bom_line_overrides[0]['material_code'], 'NPL-A')
         self.assertFalse(self.order.npl_lines.exists())
+
+    def test_ob_sync_marks_route_sheet_dirty(self):
+        """Thêm CĐ trên đơn -> bảng KHSX (SxRouteSheet) phải được tính lại."""
+        from unittest import mock
+
+        from san_xuat.services.order_routing import sync_order_plan_steps_from_ob
+
+        self.order.confirm_status = SxSalesOrder.CONFIRM_CONFIRMED
+        self.order.save(update_fields=['confirm_status'])
+        apply_order_routing_edits(self.line, adds=[{'op_code': 'SEW-3', 'op_rev': 'R01'}])
+        with mock.patch('san_xuat.services.route_sheet.mark_route_sheet_dirty') as dirty:
+            n = sync_order_plan_steps_from_ob(self.order)
+        self.assertEqual(n, 3)
+        dirty.assert_any_call(self.order.pk)
