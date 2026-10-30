@@ -3943,6 +3943,18 @@ def _sync_schedule_to_mos(
     return order
 
 
+def sync_order_schedule_dates(order: SxSalesOrder) -> SxSalesOrder:
+    """Ghi ngày bắt đầu KHSX từng tổ xuống bước lộ trình + bước LSX (sau khi rebuild từ OB)."""
+    _assert_schedule_editable(order)
+    steps = list(order.plan_steps.select_related('work_center').order_by('sequence', 'id'))
+    spans = team_khsx_spans(order, plan_steps=steps)
+    starts = {s.slug: s.start for s in spans if s.slug != 'npl' and s.start}
+    if not starts:
+        return order
+    _write_team_planned_dates(steps, starts)
+    return _sync_schedule_to_mos(order, starts)
+
+
 def _reflow_order_from(
     order: SxSalesOrder,
     *,

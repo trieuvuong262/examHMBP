@@ -175,3 +175,18 @@ class OrderObSyncTests(TestCase):
             n = sync_order_plan_steps_from_ob(self.order)
         self.assertEqual(n, 3)
         dirty.assert_any_call(self.order.pk)
+
+    def test_ob_sync_dates_new_mo_step_from_khsx(self):
+        """CĐ mới thêm: bước LSX nhận ngày KHSX của tổ, không để trống."""
+        from san_xuat.services.order_routing import sync_order_plan_steps_from_ob
+
+        self.order.confirm_status = SxSalesOrder.CONFIRM_CONFIRMED
+        self.order.save(update_fields=['confirm_status'])
+        mo = self._mo()
+        apply_order_routing_edits(self.line, adds=[{'op_code': 'SEW-3', 'op_rev': 'R01'}])
+        sync_active_mos_from_order(self.order)
+        sync_order_plan_steps_from_ob(self.order)
+        plan_dates = set(self.order.plan_steps.values_list('planned_date', flat=True))
+        new_step = mo.mo_process_steps.get(op_code='SEW-3')
+        if plan_dates - {None}:
+            self.assertIsNotNone(new_step.planned_date)

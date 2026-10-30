@@ -185,6 +185,13 @@ def sync_order_plan_steps_from_ob(order: SxSalesOrder) -> int:
         apply_auto_team_day_splits(order, replace_existing=True)
     except PlanningError:
         pass
+    # Ngày tổ trên KHSX -> bước lộ trình + bước LSX (CĐ mới thêm có ngày, CĐ cũ khớp KHSX).
+    from san_xuat.services.plan_board import sync_order_schedule_dates
+
+    try:
+        sync_order_schedule_dates(order)
+    except PlanningError:
+        pass
     # Bảng KHSX đọc payload tính sẵn (SxRouteSheet) — phải đánh dấu tính lại,
     # nếu không công đoạn mới đã vào DB nhưng bảng vẫn hiện bản cũ.
     from san_xuat.services.route_sheet import mark_route_sheet_dirty
