@@ -71,9 +71,17 @@
         <p class="small text-muted">Dùng làm người phụ trách ban đầu khi tạo checklist cho kế hoạch mới; người điều phối vẫn có thể ghi đè theo từng kế hoạch.</p>
         <form method="post">{% csrf_token %}
           <input type="hidden" name="op" value="owners">
-          {% include 'ra_mat_sp/includes/owners_fields.html' %}
+          {% include 'ra_mat_sp/includes/owners_fields.html' with owner_rows=owner_rows %}
           <button class="btn btn-sm btn-hm text-white fw-bold mt-2"><i class="bi bi-check2"></i> Lưu phân công mặc định</button>
         </form>
+        {% if defaults %}
+        <div class="mt-3 small">
+          <div class="fw-bold mb-1">Đang áp dụng:</div>
+          {% for d in defaults %}
+          <div class="mb-1">{{ d.get_group_display }}: {% for u in d.owners.all %}{% if not forloop.first %}, {% endif %}{{ u|uname }}{% endfor %}{% if not d.owners.all %}Người điều phối{% endif %}</div>
+          {% endfor %}
+        </div>
+        {% endif %}
       </div>
       {% endif %}
       <div class="tk-section">

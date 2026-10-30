@@ -204,9 +204,8 @@ class LaunchGroupDefault(models.Model):
     """Người chịu trách nhiệm mặc định của một nhóm — áp cho kế hoạch tạo mới."""
 
     group = models.CharField(max_length=20, choices=TaskGroup.choices, unique=True, verbose_name='Nhóm')
-    owner = models.ForeignKey(
-        USER, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
-        verbose_name='Người chịu trách nhiệm',
+    owners = models.ManyToManyField(
+        USER, blank=True, related_name='ra_mat_default_groups', verbose_name='Người chịu trách nhiệm',
     )
 
     class Meta:
@@ -220,9 +219,8 @@ class LaunchPlanGroupOwner(models.Model):
 
     plan = models.ForeignKey(LaunchPlan, on_delete=models.CASCADE, related_name='group_owners')
     group = models.CharField(max_length=20, choices=TaskGroup.choices, verbose_name='Nhóm')
-    owner = models.ForeignKey(
-        USER, on_delete=models.SET_NULL, null=True, blank=True, related_name='ra_mat_group_owned',
-        verbose_name='Người chịu trách nhiệm',
+    owners = models.ManyToManyField(
+        USER, blank=True, related_name='ra_mat_group_owned', verbose_name='Người chịu trách nhiệm',
     )
 
     class Meta:

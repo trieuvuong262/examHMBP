@@ -2,10 +2,10 @@
   {% for row in owner_rows %}
   <div class="col-md-6">
     <label class="form-label small fw-bold mb-1" for="owner_{{ row.key }}">{{ row.label }}</label>
-    <select name="owner_{{ row.key }}" id="owner_{{ row.key }}" class="form-select form-select-sm jp-tksp-user-select">
-      <option value="">— Người điều phối —</option>
+    <select name="owner_{{ row.key }}" id="owner_{{ row.key }}" class="form-select form-select-sm jp-tksp-user-select" multiple>
       {% for u in row.users %}
-      <option value="{{ u.pk }}"{% if row.selected == u.pk %} selected{% endif %}>{{ u.profile.full_name|default:u.get_full_name|default:u.username }}</option>
+      <option value="{{ u.pk }}"{% if u.pk in row.selected %} selected{% endif %}
+          data-avatar="{{ u.avatar }}" data-initial="{{ u.initial }}" data-tone="{{ u.tone }}">{{ u.name }}</option>
       {% endfor %}
     </select>
   </div>

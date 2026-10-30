@@ -522,7 +522,7 @@ def plan_detail(request, pk):
         'ready': sum(1 for l in links if l.gap_ok == l.gap_total),
         'skus': sum(getattr(getattr(l, 'fact', None), 'sku_count', 0) or 0 for l in links),
     }
-    group_owners = list(plan.group_owners.select_related('owner__profile'))
+    group_owners = list(plan.group_owners.prefetch_related('owners__profile'))
     tab_tasks = {
         key: [t for t in tasks if t.group in groups]
         for key, groups in TAB_GROUPS.items()
@@ -894,10 +894,12 @@ def module_settings(request):
     for item in items:
         item.group_label = labels.get(item.product_group, item.product_group) if item.product_group else ''
         milestones.setdefault(item.offset_days, []).append(item)
-    selected = dict(LaunchGroupDefault.objects.values_list('group', 'owner_id'))
+    defaults = list(LaunchGroupDefault.objects.select_related().prefetch_related('owners__profile'))
+    selected = {d.group: list(d.owners.values_list('pk', flat=True)) for d in defaults}
+    owner_rows = f.owner_choice_rows(selected)
     return render(request, 'ra_mat_sp/settings.html', _common(
         request, form=form, edit_item=edit_item, can_edit=can_edit, rm_active='settings',
         milestones=[(milestone_label(k), v) for k, v in milestones.items()],
         weights=[(TaskGroup(k).label, w) for k, w in GROUP_WEIGHTS.items()],
-        owner_rows=f.owner_choice_rows(selected),
+        defaults=defaults, owner_rows=owner_rows,
     ))

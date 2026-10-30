@@ -114,22 +114,30 @@ def template_items_for(groups: set[str]):
 
 def ensure_group_owners(plan: LaunchPlan) -> None:
     """Tạo dòng phụ trách nhóm còn thiếu: mặc định trong Thiết lập, không có thì người điều phối."""
-    defaults = dict(LaunchGroupDefault.objects.values_list('group', 'owner_id'))
+    defaults = {g: list(d.owners.values_list('pk', flat=True)) for g, d in LaunchGroupDefault.objects.all().values_list('group', flat=True)}
     existing = set(plan.group_owners.values_list('group', flat=True))
     rows = [
-        LaunchPlanGroupOwner(
-            plan=plan, group=group, owner_id=defaults.get(group) or plan.coordinator_id,
-        )
+        LaunchPlanGroupOwner(plan=plan, group=group)
         for group in TaskGroup.values
         if group not in existing
     ]
     if rows:
         LaunchPlanGroupOwner.objects.bulk_create(rows)
+        for row in rows:
+            default_ids = defaults.get(row.group, [])
+            if default_ids:
+                row.owners.set(default_ids)
+            elif plan.coordinator_id:
+                row.owners.add(plan.coordinator_id)
 
 
-def group_owner_map(plan: LaunchPlan) -> dict[str, int | None]:
+def group_owner_map(plan: LaunchPlan) -> dict[str, list[int]]:
     ensure_group_owners(plan)
-    return dict(plan.group_owners.values_list('group', 'owner_id'))
+    out = {}
+    for row in plan.group_owners.all():
+        ids = list(row.owners.values_list('pk', flat=True))
+        out[row.group] = ids if ids else [plan.coordinator_id]
+    return out
 
 
 def milestone_starts(plan: LaunchPlan, offsets) -> dict[int, date]:
@@ -146,29 +154,24 @@ def milestone_starts(plan: LaunchPlan, offsets) -> dict[int, date]:
 
 
 def generate_tasks(plan: LaunchPlan) -> int:
+    ensure_group_owners(plan)
     groups = plan_product_groups(plan)
     existing = set(plan.tasks.exclude(template_item=None).values_list('template_item_id', flat=True))
     owners = group_owner_map(plan)
     items = template_items_for(groups)
     starts = milestone_starts(plan, [i.offset_days for i in items])
-    tasks = [
-        LaunchTask(
-            plan=plan,
-            template_item=item,
-            group=item.group,
-            offset_days=item.offset_days,
-            title=item.title,
-            deliverable=item.deliverable,
-            importance=item.importance,
-            is_go_blocker=item.is_go_blocker,
-            owner_id=owners.get(item.group) or plan.coordinator_id,
+    tasks = []
+    for item in items:
+        if item.pk in existing:
+            continue
+        owner_ids = owners.get(item.group, [plan.coordinator_id])
+        tasks.append(LaunchTask(
+            plan=plan, template_item=item, group=item.group, offset_days=item.offset_days,
+            title=item.title, deliverable=item.deliverable, importance=item.importance,
+            is_go_blocker=item.is_go_blocker, owner_id=owner_ids[0],
             start_date=starts.get(item.offset_days),
-            due_date=plan.launch_date + timedelta(days=item.offset_days),
-            sort_order=item.sort_order,
-        )
-        for item in items
-        if item.pk not in existing
-    ]
+            due_date=plan.launch_date + timedelta(days=item.offset_days), sort_order=item.sort_order,
+        ))
     LaunchTask.objects.bulk_create(tasks)
     return len(tasks)
 
@@ -205,34 +208,35 @@ def parse_owner_map(post) -> dict:
     users = {u.pk: u for u in active_users()}
     mapping = {}
     for key, _label in TaskGroup.choices:
-        raw = (post.get(f'owner_{key}') or '').strip()
-        if not raw:
-            mapping[key] = None
+        raw = post.getlist(f'owner_{key}')
+        if not raw or (len(raw) == 1 and not raw[0]):
+            mapping[key] = []
             continue
-        if not raw.isdigit() or int(raw) not in users:
-            raise WorkflowError('Người phụ trách nhóm không hợp lệ.')
-        mapping[key] = users[int(raw)]
+        ids = []
+        for r in raw:
+            if not r.isdigit() or int(r) not in users:
+                raise WorkflowError(f'Người phụ trách nhóm «{_label}» không hợp lệ.')
+            ids.append(int(r))
+        mapping[key] = ids
     return mapping
 
 
 def save_group_defaults(mapping: dict) -> None:
-    for group, owner in mapping.items():
-        LaunchGroupDefault.objects.update_or_create(group=group, defaults={'owner': owner})
+    for group, owner_ids in mapping.items():
+        row, _ = LaunchGroupDefault.objects.get_or_create(group=group)
+        row.owners.set(owner_ids)
 
 
 def assign_group_owners(plan: LaunchPlan, user, mapping: dict) -> None:
     ensure_group_owners(plan)
     changed = []
     for row in plan.group_owners.all():
-        new_user = mapping.get(row.group) or plan.coordinator
-        if row.owner_id == getattr(new_user, 'pk', None):
+        new_ids = mapping.get(row.group) or []
+        old_ids = set(row.owners.values_list('pk', flat=True))
+        new_set = set(new_ids)
+        if old_ids == new_set:
             continue
-        old_id = row.owner_id
-        row.owner = new_user
-        row.save(update_fields=['owner'])
-        plan.tasks.filter(group=row.group, status__in=OPEN_TASK_STATUSES).filter(
-            Q(owner_id=old_id) | Q(owner_id=plan.coordinator_id) | Q(owner__isnull=True)
-        ).update(owner=new_user)
+        row.owners.set(new_ids)
         changed.append(TaskGroup(row.group).label)
     if changed:
         log(plan, user, 'owners', 'Cập nhật người phụ trách nhóm: ' + ', '.join(changed) + '.')

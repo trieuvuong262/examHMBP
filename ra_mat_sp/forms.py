@@ -98,10 +98,18 @@ class PlanForm(forms.ModelForm):
 
 def owner_choice_rows(selected=None):
     """Danh sách chọn người phụ trách từng nhóm (Thiết lập hoặc từng kế hoạch)."""
+    from thiet_ke_sp.permissions import user_avatar_url, user_initial
+    from thiet_ke_sp.permissions import avatar_tone_for
+
     selected = selected or {}
-    users = list(active_users())
+    users = []
+    for u in active_users():
+        users.append({
+            'pk': u.pk, 'name': u.profile.full_name if u.profile else u.get_full_name() or u.username,
+            'avatar': user_avatar_url(u), 'initial': user_initial(u), 'tone': avatar_tone_for(u.pk),
+        })
     return [
-        {'key': key, 'label': label, 'selected': selected.get(key), 'users': users}
+        {'key': key, 'label': label, 'selected': selected.get(key, []), 'users': users}
         for key, label in TaskGroup.choices
     ]
 

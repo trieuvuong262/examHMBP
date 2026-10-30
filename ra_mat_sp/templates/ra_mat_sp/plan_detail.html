@@ -141,7 +141,8 @@
           {% else %}
           <div class="tk-grid2">
             {% for row in group_owners %}
-            <div class="tk-field"><label>{{ row.get_group_display }}</label><span class="v">{% if row.owner %}{{ row.owner|uname }}{% else %}Người điều phối{% endif %}</span></div>
+            <div class="tk-field"><label>{{ row.get_group_display }}</label>
+              <span class="v">{% for u in row.owners.all %}{% if not forloop.first %}, {% endif %}{{ u|uname }}{% endfor %}{% if not row.owners.all %}Người điều phối{% endif %}</span></div>
             {% endfor %}
           </div>
           {% endif %}
@@ -372,8 +373,8 @@
       </div>
       <div class="tk-card tk-side-card">
         <h3>Người tham gia</h3>
-        <div class="tk-owner"><span class="tk-avatar" style="background:#1d4ed8">ĐP</span><div><strong>{{ plan.coordinator|uname }}</strong><small>Người điều phối</small></div></div>
-        <div class="tk-owner"><span class="tk-avatar{% if not plan.approver %} is-empty{% endif %}" style="background:#6d28d9">DU</span><div><strong>{{ plan.approver|uname }}</strong><small>Người duyệt Go/No-Go</small></div></div>
+        <div class="tk-owner">{% if plan.coordinator %}<img class="tk-avatar" src="{{ plan.coordinator|avatar_url }}" alt="">{% else %}<span class="tk-avatar is-empty" style="background:#1d4ed8">ĐP</span>{% endif %}<div><strong>{{ plan.coordinator|uname }}</strong><small>Người điều phối</small></div></div>
+        <div class="tk-owner">{% if plan.approver %}<img class="tk-avatar" src="{{ plan.approver|avatar_url }}" alt="">{% else %}<span class="tk-avatar is-empty" style="background:#6d28d9">DU</span>{% endif %}<div><strong>{{ plan.approver|uname }}</strong><small>Người duyệt Go/No-Go</small></div></div>
       </div>
       <div class="tk-card tk-side-card">
         <h3>Tình trạng <span class="tk-pill is-{{ tone }}">{{ tone_label }}</span></h3>
