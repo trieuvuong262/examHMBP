@@ -51,13 +51,21 @@ class StyleChoiceField(forms.ModelMultipleChoiceField):
         type_label = obj.product_type.name if obj.product_type_id else ''
         return f'{obj.code} · {obj.name or "—"}' + (f' — {type_label}' if type_label else '')
 
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex, attrs)
+        style = getattr(value, 'instance', None)
+        cover_map = getattr(self, 'cover_map', {})
+        if style is not None and style.pk in cover_map:
+            option['attrs']['data-cover'] = cover_map[style.pk]
+        return option
+
 
 class PlanForm(forms.ModelForm):
     styles = StyleChoiceField(
         queryset=ProductStyle.objects.none(),
         label='Sản phẩm ra mắt (Thư viện sản phẩm)',
         help_text='Chọn Style đã có trong Thư viện sản phẩm.',
-        widget=forms.SelectMultiple(attrs={'class': 'form-select form-select-sm jp-tksp-user-select', 'multiple': 'multiple'}),
+        widget=forms.SelectMultiple(attrs={'class': 'form-select form-select-sm jp-rm-style-select', 'multiple': 'multiple'}),
     )
 
     class Meta:
@@ -87,6 +95,15 @@ class PlanForm(forms.ModelForm):
 
         current = [pk for pk in plan.products.values_list('style_id', flat=True) if pk] if plan.pk else []
         self.fields['styles'].queryset = library_styles(current)
+        from thiet_ke_sp.presenters import cover_map
+        from .services import dossiers_for_styles
+        styles = list(self.fields['styles'].queryset)
+        dossiers = dossiers_for_styles(styles)
+        covers = cover_map([d.pk for d in dossiers.values()])
+        self.fields['styles'].cover_map = {
+            style.pk: covers[dossiers[style.pk].pk].get_absolute_url()
+            for style in styles if style.pk in dossiers and dossiers[style.pk].pk in covers
+        }
         if plan.pk and not self.is_bound:
             self.initial['styles'] = current
         self.fields['coordinator'] = user_field('Người điều phối', required=True)

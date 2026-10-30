@@ -137,10 +137,15 @@ def explode_bom(
 ) -> list[MaterialNeed]:
     if bom is None:
         return []
+    from san_xuat.services.bom_group import expand_bom_lines
+
     rows: list[MaterialNeed] = []
-    lines = bom.lines.select_related('material', 'material__unit', 'substitute_material').all()
-    for bl in lines:
-        mat = bl.material
+    lines = bom.lines.select_related(
+        'material', 'material__unit', 'substitute_material', 'material_group',
+    ).all()
+    for item in expand_bom_lines(lines):
+        bl = item.line
+        mat = item.material
         if mat is None:
             continue
         size_code = (bl.size_code or '').strip()
@@ -273,8 +278,20 @@ def resolve_issue_material(need: MaterialNeed):
             .filter(pk=need.bom_line_id)
             .first()
         )
-        if bl is not None:
+        if bl is not None and bl.material_id:
             return bl.resolve_issue_material(needed_qty=need.qty_total)
+        if bl is not None and bl.material_group_id:
+            # Dòng nhóm: NVL chính là NPL thành viên theo mã; thiếu tồn thì dùng NVL thay thế của dòng nhóm.
+            code = (need.material_code or '').strip()
+            primary = Material.objects.filter(code__iexact=code).first() if code else None
+            if primary is None:
+                return bl.substitute_material
+            if bl.substitute_material_id:
+                from kho_npl.services.reservation import material_available_qty
+
+                if material_available_qty(primary) < (need.qty_total or 0):
+                    return bl.substitute_material
+            return primary
     code = (need.material_code or '').strip()
     if not code:
         return None

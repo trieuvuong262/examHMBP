@@ -324,6 +324,8 @@ class BomLineForm(forms.ModelForm):
                 self.fields['material'].widget.attrs['data-image-url'] = image_url
         else:
             self.fields['material'].queryset = Material.objects.none()
+            if self.instance.pk and self.instance.material_group_id:
+                self._mark_group_widget(self.instance.material_group)
         self.fields['material'].empty_label = None
         qty_field = self.fields.get('qty')
         if qty_field is not None:
@@ -331,16 +333,81 @@ class BomLineForm(forms.ModelForm):
             qty_field.widget.is_localized = False
         self.fields['sort_order'].min_value = 1
 
+    def _mark_group_widget(self, group):
+        attrs = self.fields['material'].widget.attrs
+        if group is None:
+            attrs.pop('data-group-id', None)
+            attrs.pop('data-group-name', None)
+            attrs.pop('data-group-count', None)
+            return
+        attrs['data-group-id'] = str(group.pk)
+        attrs['data-group-name'] = group.name or group.code or ''
+        attrs['data-group-count'] = str(group.materials.filter(is_active=True).count())
+
     def full_clean(self):
+        from kho_npl.models import MaterialGroup
+
+        self._posted_group = None
+        self._posted_group_error = ''
         if self.data:
-            posted = self.data.get(self.add_prefix('material'))
+            key = self.add_prefix('material')
+            posted = str(self.data.get(key) or '').strip()
+            if posted.startswith('g:'):
+                gid = posted[2:]
+                group = (
+                    MaterialGroup.objects.filter(pk=int(gid), stock_domain='npl').first()
+                    if gid.isdigit() else None
+                )
+                if group is None:
+                    self._posted_group_error = 'Nhóm gom NPL không tồn tại.'
+                elif not group.materials.filter(is_active=True).exists():
+                    self._posted_group_error = f'Nhóm gom "{group.name}" chưa có NPL đang dùng.'
+                self._posted_group = group
+                self._mark_group_widget(group)
+                data = self.data.copy()
+                data[key] = ''
+                self.data = data
+                self.fields['material'].queryset = Material.objects.none()
+                super().full_clean()
+                return
             if posted and str(posted).isdigit():
                 self.fields['material'].queryset = (
                     Material.objects.filter(pk=int(posted), is_active=True).select_related('unit')
                 )
             else:
                 self.fields['material'].queryset = Material.objects.filter(is_active=True, stock_domain='npl').select_related('unit')
+            self._mark_group_widget(None)
         super().full_clean()
+
+    def clean(self):
+        cleaned = super().clean()
+        if getattr(self, '_posted_group_error', ''):
+            self.add_error('material', self._posted_group_error)
+        elif (
+            getattr(self, '_posted_group', None) is None
+            and not cleaned.get('material')
+            and not cleaned.get('DELETE')
+            and 'material' not in self.errors
+        ):
+            self.add_error('material', 'Chọn NPL hoặc nhóm gom NPL.')
+        return cleaned
+
+    def has_changed(self):
+        if getattr(self, '_posted_group', None) is not None:
+            return True
+        return super().has_changed()
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        group = getattr(self, '_posted_group', None)
+        if group is not None:
+            instance.material = None
+            instance.material_group = group
+        elif instance.material_id:
+            instance.material_group = None
+        if commit:
+            instance.save()
+        return instance
 
 
 class ProcessGroupSelect(forms.Select):
@@ -490,7 +557,8 @@ class BomLineBaseFormSet(BaseInlineFormSet):
         seen = set()
         for form in self.forms:
             data = getattr(form, 'cleaned_data', {})
-            if not data or data.get('DELETE') or not data.get('material'):
+            is_group = getattr(form, '_posted_group', None) is not None
+            if not data or data.get('DELETE') or not (data.get('material') or is_group):
                 continue
             order = data.get('sort_order')
             if order in seen:

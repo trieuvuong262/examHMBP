@@ -166,8 +166,15 @@ def settings_deactivate(request, section, pk):
         return redirect('kho_npl:settings_list', section=section)
     if request.method == 'POST':
         if config.get('key') == 'nhom-gom':
-            obj.delete()
-            messages.success(request, f'Đã xóa nhóm gom {obj}. Các NPL thành viên đã trở về dòng riêng.')
+            from django.db import transaction
+
+            from san_xuat.services.bom_group import dissolve_group_bom_lines
+
+            with transaction.atomic():
+                n_bom = dissolve_group_bom_lines(obj, user=request.user)
+                obj.delete()
+            extra = f' {n_bom} dòng BOM theo nhóm đã tách thành NPL lẻ.' if n_bom else ''
+            messages.success(request, f'Đã xóa nhóm gom {obj}. Các NPL thành viên đã trở về dòng riêng.{extra}')
         else:
             obj.is_active = False
             obj.save(update_fields=['is_active'])

@@ -394,6 +394,7 @@ def _prefetch_doc_bom(bom: BomVersion | None) -> BomVersion | None:
             'lines__material__unit',
             'lines__material__color',
             'lines__material__specification',
+            'lines__material_group',
             'process_steps__work_center',
         )
         .select_related('routing')
@@ -707,6 +708,15 @@ def doc_detail(request, pk):
                     user=request.user,
                 )
                 messages.success(request, 'Đã lưu BOM.')
+                from san_xuat.services.bom_group import duplicate_material_codes
+
+                _dups = duplicate_material_codes(bom)
+                if _dups:
+                    messages.warning(
+                        request,
+                        'NPL xuất hiện nhiều lần (lẻ và/hoặc trong nhóm gom) — nhu cầu sẽ cộng dồn: '
+                        + ', '.join(_dups[:10]) + (' …' if len(_dups) > 10 else ''),
+                    )
                 return _doc_tab_redirect(request, 'bom', bom=bom.pk)
             _edit_flag = True
             messages.error(request, 'Không lưu được BOM — kiểm tra lại các dòng.')
@@ -1262,13 +1272,15 @@ def doc_detail(request, pk):
             skipped = 0
             for item in snapshot.get('lines') or []:
                 material_id = item.get('material_id')
-                if not material_id:
+                group_id = None if material_id else item.get('material_group_id')
+                if not material_id and not group_id:
                     skipped += 1
                     continue
                 try:
                     BomLine.objects.create(
                         bom=restored,
-                        material_id=material_id,
+                        material_id=material_id or None,
+                        material_group_id=group_id or None,
                         qty=Decimal(str(item.get('qty') or '0')),
                         scrap_pct=Decimal(str(item.get('scrap_pct') or '0')),
                         size_code=(item.get('size_code') or '')[:20],
@@ -1462,7 +1474,17 @@ def doc_detail(request, pk):
         from kho_npl.services.scrap_warehouse import exclude_scrap_locations
 
         if bom:
+            from san_xuat.services.bom_group import group_members_map
+
+            _group_ids = {ln.material_group_id for ln in bom.lines.all() if ln.material_group_id and not ln.material_id}
+            if line_formset is not None:
+                _group_ids |= {
+                    f.instance.material_group_id for f in line_formset
+                    if f.instance.material_group_id and not f.instance.material_id
+                }
+            _members = group_members_map(_group_ids)
             material_ids = [line.material_id for line in bom.lines.all() if line.material_id]
+            material_ids += [m.pk for ms in _members.values() for m in ms]
             if material_ids:
                 for row in (
                     exclude_scrap_locations(StockBalance.objects.filter(material_id__in=material_ids))
@@ -1470,12 +1492,25 @@ def doc_detail(request, pk):
                     .annotate(total=Sum('quantity'))
                 ):
                     bom_stock_map[row['material_id']] = row['total'] or Decimal('0')
+            def _decorate_group(obj):
+                ms = _members.get(obj.material_group_id, [])
+                obj.group_members_list = ms
+                obj.group_member_count = len(ms)
+                obj.group_unit = (ms[0].unit.name if ms and ms[0].unit_id else '')
+                obj.stock_qty = sum((bom_stock_map.get(m.pk, Decimal('0')) for m in ms), Decimal('0'))
+
             for line in bom.lines.all():
-                line.stock_qty = bom_stock_map.get(line.material_id, Decimal('0'))
+                if not line.material_id and line.material_group_id:
+                    _decorate_group(line)
+                else:
+                    line.stock_qty = bom_stock_map.get(line.material_id, Decimal('0'))
             if line_formset is not None:
                 for f in line_formset:
                     mid = f.instance.material_id
-                    f.instance.stock_qty = bom_stock_map.get(mid, Decimal('0')) if mid else None
+                    if not mid and f.instance.material_group_id:
+                        _decorate_group(f.instance)
+                    else:
+                        f.instance.stock_qty = bom_stock_map.get(mid, Decimal('0')) if mid else None
             bom_stock_map_json = json.dumps({
                 str(k): float(v) for k, v in bom_stock_map.items()
             })

@@ -48,4 +48,35 @@
   </form>
 </div>
 {% endblock %}
-{% block scripts %}{% include 'thiet_ke_sp/includes/tksp_scripts.html' %}{% endblock %}
+{% block scripts %}
+{% include 'thiet_ke_sp/includes/tksp_scripts.html' %}
+<script>
+(function () {
+  function renderStyle(data, escape) {
+    var cover = data.cover ? '<img class="rm-style-opt-cover" src="' + escape(data.cover) + '" alt="">' : '<span class="rm-style-opt-empty"><i class="bi bi-image"></i></span>';
+    return '<div class="rm-style-opt">' + cover + '<span>' + escape(data.text || '') + '</span></div>';
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    var el = document.querySelector('select.jp-rm-style-select');
+    if (!el || typeof TomSelect === 'undefined') return;
+    var options = {};
+    Array.prototype.forEach.call(el.options, function (option) {
+      options[option.value] = { cover: option.dataset.cover || '' };
+    });
+    new TomSelect(el, {
+      create: false,
+      maxOptions: 500,
+      plugins: ['remove_button'],
+      placeholder: 'Tìm, xem ảnh và chọn sản phẩm…',
+      render: { option: renderStyle, item: renderStyle },
+      onInitialize: function () {
+        var self = this;
+        Object.keys(options).forEach(function (value) {
+          if (self.options[value]) self.options[value].cover = options[value].cover;
+        });
+      }
+    });
+  });
+})();
+</script>
+{% endblock %}

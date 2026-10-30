@@ -178,6 +178,7 @@ def create_bom_version(
             BomLine.objects.create(
                 bom=bom,
                 material=line.material,
+                material_group=line.material_group,
                 qty=line.qty,
                 scrap_pct=line.scrap_pct,
                 size_code=line.size_code,

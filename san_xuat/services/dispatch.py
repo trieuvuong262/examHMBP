@@ -2877,15 +2877,18 @@ def explode_disassembly_from_bom(*, order_id: int) -> SxDisassemblyOrder:
         raise DispatchError(f"Không có BOM active cho {order.product_code}.")
     order.lines.all().delete()
     create_lines = []
-    for bl in bom.lines.select_related("material").all():
+    from san_xuat.services.bom_group import expand_bom_lines
+
+    for item in expand_bom_lines(bom.lines.select_related("material", "material_group").all()):
+        bl = item.line
         qty = (bl.qty_with_scrap * (order.qty or Decimal("0"))).quantize(Decimal("0.0001"))
         if qty <= 0:
             continue
         create_lines.append(
             SxDisassemblyOrderLine(
                 order=order,
-                material_code=bl.material.code,
-                material_name=bl.material.name,
+                material_code=item.material.code,
+                material_name=item.material.name,
                 qty=qty,
                 notes=f"BOM {bom.version_label}" + (f" size {bl.size_code}" if bl.size_code else ""),
             )

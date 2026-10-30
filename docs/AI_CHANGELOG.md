@@ -15,6 +15,13 @@ Mỗi entry nên có:
 
 ## Entries
 
+### 2026-10-30 — workflow / bom-line-material-group
+
+- **Change**: Dòng BOM hồ sơ (`?tab=bom&edit=1`) chọn được **[Nhóm] Nhóm gom NPL** thay cho NPL lẻ (giá trị `g:<pk>`; API `kho_npl:material_search?include_groups=1`). `BomLine.material` thành nullable + FK mới `material_group` (PROTECT), ràng buộc `sx_bom_line_material_xor_group`. Khi lên đơn, `bom_lines_snapshot` bung dòng nhóm thành mọi NPL thành viên **đang dùng**, mỗi NPL nhận đủ ĐM/hao hụt/size (snapshot cố định; đổi thành viên sau không ảnh hưởng đơn cũ). Chi tiết đơn hiện từng NPL kèm badge nhóm. KH NPL / LSX / phiếu xuất không đổi (theo mã NPL). Costing: dòng nhóm = tổng giá thành viên × ĐM. Cập nhật BOM từ đơn về hồ sơ gộp lại dòng nhóm nếu đủ thành viên + cùng ĐM. Xóa nhóm gom (vẫn xóa cứng) → `dissolve_group_bom_lines` tách dòng BOM nhóm thành NPL lẻ trước, ghi audit BOM. Lưu BOM cảnh báo NPL trùng (lẻ + trong nhóm).
+- **Reason**: Không phải nhập lại từng NPL đã gộp nhóm; đơn hàng / KHSX vẫn lấy đủ mọi NPL trong nhóm.
+- **Source**: `san_xuat/models.py::BomLine`, migration `san_xuat/0150_bomline_material_group`, `san_xuat/services/bom_group.py`, `bom_need.py`, `sales_orders.py`, `order_tech_publish.py`, `costing.py`, `cost_stats.py`, `bom_audit.py`, `dispatch.py`, `san_xuat/forms.py::BomLineForm`, `includes/tab_bom.html`, `kho_npl/views_material.py::_material_group_search_rows`, `kho_npl/views_settings.py::settings_deactivate`, `kho_npl/doc_prefill.py`.
+- **Agent impact**: Mọi code đọc `bom.lines` phải xử lý `material_id` = NULL (dòng nhóm) — dùng `expand_bom_lines`. Snapshot đơn có thể có nhiều dòng chung `bom_line_id` (cùng dòng nhóm); `resolve_issue_material` xử lý dòng nhóm theo mã NPL.
+
 ### 2026-10-30 — module / ra-mat-sp-group-owners-m2m-fix
 
 - **Change**: Sửa toàn bộ chỗ còn dùng FK cũ `owner`/`owner_id` của `LaunchGroupDefault` / `LaunchPlanGroupOwner` sau migration `0007_group_owners_multi` (đổi sang M2M `owners`): tạo/sửa/chi tiết kế hoạch, lịch (lọc người điều phối), việc của tôi, quyền participant; thêm `svc.owner_ids_by_group(qs)`; `settings.html` thiếu `{% load tksp_tags %}`.

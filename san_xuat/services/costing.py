@@ -204,20 +204,37 @@ def compute_costing(bom: BomVersion, *, routing=None) -> CostingResult:
         product_name=bom.tech_doc.product_name,
     )
 
+    from san_xuat.services.bom_group import group_members_map
+
     material_total = ZERO
-    for line in bom.lines.select_related('material', 'material__unit').all():
-        unit_price = material_avg_price(line.material)
+    bom_lines = list(bom.lines.select_related('material', 'material__unit', 'material_group').all())
+    members = group_members_map(
+        ln.material_group_id for ln in bom_lines if ln.material_group_id and not ln.material_id
+    )
+    for line in bom_lines:
+        unit_name = ''
+        if line.material_id:
+            unit_price = material_avg_price(line.material)
+            if line.material.unit_id:
+                unit_name = line.material.unit.code or line.material.unit.name or ''
+            mat_code, mat_name = line.material.code, line.material.name
+        else:
+            # Dòng nhóm gom: mỗi NPL thành viên nhận đủ ĐM → đơn giá = tổng giá thành viên.
+            group_mats = members.get(line.material_group_id, [])
+            unit_price = sum((material_avg_price(m) for m in group_mats), ZERO)
+            if group_mats and group_mats[0].unit_id:
+                unit_name = group_mats[0].unit.code or group_mats[0].unit.name or ''
+            group = line.material_group
+            mat_code = getattr(group, 'code', '') or ''
+            mat_name = f'[Nhóm] {getattr(group, "name", "")} · {len(group_mats)} NPL'
         qty_scrap = line.qty_with_scrap
         amount = (qty_scrap * unit_price).quantize(MONEY)
         material_total += amount
-        unit_name = ''
-        if line.material.unit_id:
-            unit_name = line.material.unit.code or line.material.unit.name or ''
         result.material_lines.append(
             BomLineCost(
                 line_id=line.pk,
-                material_code=line.material.code,
-                material_name=line.material.name,
+                material_code=mat_code,
+                material_name=mat_name,
                 qty=_d(line.qty),
                 scrap_pct=_d(line.scrap_pct),
                 qty_with_scrap=qty_scrap,

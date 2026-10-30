@@ -241,6 +241,7 @@ def _copy_bom_lines(source: BomVersion, target: BomVersion) -> int:
         BomLine.objects.create(
             bom=target,
             material=line.material,
+            material_group=line.material_group,
             substitute_material=line.substitute_material,
             qty=line.qty,
             scrap_pct=line.scrap_pct,

@@ -614,6 +614,9 @@
                     {% if need.size_code %}
                     <span class="badge bg-light text-dark border">{{ need.size_code }}</span>
                     {% endif %}
+                    {% if need.group_name %}
+                    <span class="badge text-bg-primary-subtle text-primary-emphasis" title="Lấy từ nhóm gom NPL trên BOM"><i class="bi bi-collection-fill me-1"></i>{{ need.group_name }}</span>
+                    {% endif %}
                   </span>
                 </div>
               </td>

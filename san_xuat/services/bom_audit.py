@@ -30,12 +30,16 @@ def log_bom_event(
 def bom_snapshot(bom) -> dict:
     """Chụp trạng thái BOM (meta + toàn bộ dòng NPL) để so sánh và khôi phục."""
     lines = []
-    for line in bom.lines.select_related('material', 'material__unit').order_by('sort_order', 'id'):
+    for line in bom.lines.select_related(
+        'material', 'material__unit', 'material_group',
+    ).order_by('sort_order', 'id'):
         material = line.material
+        group = line.material_group if not line.material_id else None
         lines.append({
             'material_id': line.material_id,
-            'code': getattr(material, 'code', '') or '',
-            'name': getattr(material, 'name', '') or '',
+            'material_group_id': line.material_group_id if group else None,
+            'code': getattr(material, 'code', '') or (getattr(group, 'code', '') if group else ''),
+            'name': getattr(material, 'name', '') or (f'[Nhóm] {group.name}' if group else ''),
             'unit': getattr(getattr(material, 'unit', None), 'name', '') or '',
             'qty': str(line.qty),
             'scrap_pct': str(line.scrap_pct),
@@ -63,6 +67,8 @@ BOM_FIELD_LABELS = {
 
 
 def _line_key(line: dict):
+    if not line.get('material_id') and line.get('material_group_id'):
+        return (f"group:{line.get('material_group_id')}", line.get('size_code') or '')
     return (line.get('material_id'), line.get('size_code') or '')
 
 

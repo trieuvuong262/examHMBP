@@ -1296,6 +1296,16 @@ def sales_order_detail(request, pk: int):
             from san_xuat.services.sales_orders import bom_lines_snapshot
             _bom_rows = bom_lines_snapshot(ln.bom_version_id)
         ln.bom_overrides_json = json.dumps(_bom_rows, ensure_ascii=False, default=str)
+        _group_by_code = {
+            str(r.get('material_code') or '').strip().casefold(): str(r.get('group_name') or '').strip()
+            for r in _bom_rows
+            if isinstance(r, dict) and r.get('material_group_id')
+        }
+        if _group_by_code:
+            for _need in ln.npl_needs:
+                _need['group_name'] = _group_by_code.get(
+                    str(_need.get('material_code') or '').strip().casefold(), '',
+                )
         snap = ln.suggest_snapshot if isinstance(ln.suggest_snapshot, dict) else {}
         ln.suggest_key = f'{order.pk}-{ln.pk}' if snap else ''
         if snap:

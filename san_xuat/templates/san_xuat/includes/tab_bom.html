@@ -88,12 +88,12 @@
                             </td>
                             <td class="text-end">{{ f.qty }}{% if f.qty.errors %}<div class="text-danger small">{{ f.qty.errors }}</div>{% endif %}</td>
                             <td class="jp-npl-line-unit-cell">
-                                <span class="jp-npl-line-unit text-muted small">{% if f.instance.material_id %}{{ f.instance.material.unit.name }}{% else %}—{% endif %}</span>
+                                <span class="jp-npl-line-unit text-muted small">{% if f.instance.material_id %}{{ f.instance.material.unit.name }}{% elif f.instance.material_group_id %}{{ f.instance.group_unit|default:"—" }}{% else %}—{% endif %}</span>
                             </td>
                             <td class="text-end">
                                 <span class="jp-npl-stock-qty small{% if f.instance.material_id and f.instance.stock_qty == 0 %} text-danger{% elif not f.instance.material_id %} text-muted{% endif %}"
                                       data-material-id="{{ f.instance.material_id|default:'' }}">
-                                    {% if f.instance.material_id %}{{ f.instance.stock_qty|default:0|sx_num }}{% else %}—{% endif %}
+                                    {% if f.instance.material_id %}{{ f.instance.stock_qty|default:0|sx_num }}{% elif f.instance.material_group_id %}{{ f.instance.group_member_count|default:0 }} NPL{% else %}—{% endif %}
                                 </span>
                             </td>
                             <td>{{ f.notes }}</td>
@@ -113,8 +113,11 @@
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
                 <div class="d-flex flex-wrap gap-2">
                     <button type="button" class="btn btn-outline-hm btn-sm" id="add-bom-row">
-                        <i class="bi bi-plus-lg me-1"></i>Thêm NPL
+                        <i class="bi bi-plus-lg me-1"></i>Thêm NPL / nhóm gom
                     </button>
+                </div>
+                <div class="small text-muted flex-grow-1">
+                    <i class="bi bi-collection-fill me-1"></i>Chọn <strong>[Nhóm]</strong> để lấy mọi NPL đang dùng trong nhóm gom — mỗi NPL nhận đủ định mức dòng.
                 </div>
                 <button type="submit" class="btn btn-hm">Lưu BOM</button>
             </div>
@@ -248,7 +251,21 @@ body > .ts-dropdown .jp-npl-material-option.is-name-stock.is-with-image {
         return '<span class="jp-npl-material-opt-img is-empty" aria-hidden="true"><i class="bi bi-image"></i></span>';
     }
 
+    function groupBadgeHtml(data, escape) {
+        return '<span class="jp-npl-material-opt-img is-empty" aria-hidden="true"><i class="bi bi-collection-fill text-primary"></i></span>'
+            + '<span class="badge text-bg-primary-subtle text-primary-emphasis me-1">Nhóm</span>';
+    }
+
     function renderOption(data, escape) {
+        if (data.is_group) {
+            var gname = escape(data.name || data.text || '');
+            var gmeta = escape((data.member_count || 0) + ' NPL' + (data.category ? ' · ' + data.category : ''));
+            return '<div class="jp-npl-material-option is-name-stock is-with-image" title="Nhóm gom ' + gname + '">'
+                + groupBadgeHtml(data, escape)
+                + '<span class="jp-npl-material-option-name">' + gname + '</span>'
+                + '<span class="jp-npl-material-option-meta text-muted small">' + gmeta + '</span>'
+                + '</div>';
+        }
         var name = escape(data.name || data.text || '');
         var stock = escape(stockLabel(data) || '0');
         return '<div class="jp-npl-material-option is-name-stock is-with-image" title="' + name + ' — ' + stock + '">'
@@ -260,6 +277,11 @@ body > .ts-dropdown .jp-npl-material-option.is-name-stock.is-with-image {
 
     function renderItem(data, escape) {
         var name = data.name || data.text || '';
+        if (data.is_group) {
+            return '<div class="jp-npl-material-item">' + groupBadgeHtml(data, escape)
+                + '<span class="jp-npl-material-item-name">' + escape(name)
+                + ' <span class="text-muted small">(' + escape(String(data.member_count || 0)) + ' NPL)</span></span></div>';
+        }
         return '<div class="jp-npl-material-item">'
             + nplThumbHtml(data, escape)
             + '<span class="jp-npl-material-item-name">' + escape(name) + '</span></div>';
@@ -295,6 +317,17 @@ body > .ts-dropdown .jp-npl-material-option.is-name-stock.is-with-image {
     function initBomMaterialSelect(select) {
         if (!select || materialInstances.has(select) || typeof TomSelect === 'undefined') return;
         var row = select.closest('tr');
+        var groupId = select.getAttribute('data-group-id');
+        if (groupId) {
+            // Dòng nhóm gom có sẵn (hoặc POST lỗi): tạo option g:<id> đã chọn.
+            var gval = 'g:' + groupId;
+            var gopt = document.createElement('option');
+            gopt.value = gval;
+            gopt.textContent = select.getAttribute('data-group-name') || gval;
+            gopt.selected = true;
+            select.innerHTML = '';
+            select.appendChild(gopt);
+        }
         var ts = new TomSelect(select, {
             maxOptions: null,
             maxItems: 1,
@@ -308,7 +341,7 @@ body > .ts-dropdown .jp-npl-material-option.is-name-stock.is-with-image {
             loadThrottle: 220,
             load: function (query, callback) {
                 // Không truyền location_id → tồn gộp mọi kho (API material_search)
-                var url = SEARCH_URL + '?q=' + encodeURIComponent(query || '') + '&limit=1000';
+                var url = SEARCH_URL + '?q=' + encodeURIComponent(query || '') + '&limit=1000&include_groups=1';
                 fetch(url, { headers: { 'Accept': 'application/json' } })
                     .then(function (r) { return r.json(); })
                     .then(function (data) { callback(data.results || []); })
@@ -344,6 +377,12 @@ body > .ts-dropdown .jp-npl-material-option.is-name-stock.is-with-image {
                 setLineUnit(row, unit);
                 var stockEl = row && row.querySelector('.jp-npl-stock-qty');
                 if (!stockEl) return;
+                if (opt && opt.is_group) {
+                    stockEl.textContent = (opt.member_count || 0) + ' NPL';
+                    stockEl.classList.add('text-muted');
+                    stockEl.classList.remove('text-danger');
+                    return;
+                }
                 if (opt && (opt.qty_label || opt.qty != null)) {
                     stockEl.textContent = opt.qty_label || formatStock(opt.qty, unit);
                     stockEl.classList.toggle('text-danger', Number(opt.qty) === 0);
@@ -362,6 +401,17 @@ body > .ts-dropdown .jp-npl-material-option.is-name-stock.is-with-image {
                 if (this.wrapper) this.wrapper.classList.add('jp-npl-material-ts');
                 var val = (select.value || '').trim();
                 var self = this;
+                if (val && val.indexOf('g:') === 0) {
+                    this.updateOption(val, {
+                        id: val,
+                        is_group: true,
+                        name: select.getAttribute('data-group-name') || val,
+                        text: select.getAttribute('data-group-name') || val,
+                        member_count: parseInt(select.getAttribute('data-group-count') || '0', 10) || 0,
+                    });
+                    if (self.items.indexOf(val) !== -1) self.refreshItems();
+                    return;
+                }
                 if (val) {
                     var opt = this.options[val];
                     var label = (select.options[select.selectedIndex] || {}).textContent || (opt && (opt.name || opt.text)) || val;
@@ -514,6 +564,28 @@ body > .ts-dropdown .jp-npl-material-option.is-name-stock.is-with-image {
                 </thead>
                 <tbody>
                     {% for line in bom.lines.all %}
+                    {% if not line.material_id and line.material_group_id %}
+                    <tr>
+                        <td>{{ line.sort_order }}</td>
+                        <td>
+                          <div class="jp-sx-bom-npl-thumb">
+                            <span class="is-empty" aria-hidden="true"><i class="bi bi-collection-fill text-primary"></i></span>
+                            <span class="jp-sx-bom-npl-thumb-name">
+                              <span class="badge text-bg-primary-subtle text-primary-emphasis me-1">Nhóm</span><strong>{{ line.material_group.name }}</strong>
+                              <details class="small">
+                                <summary class="text-muted">{{ line.group_members_list|length }} NPL thành viên</summary>
+                                <ul class="mb-0 ps-3">
+                                  {% for m in line.group_members_list %}<li>{{ m.code }} — {{ m.name }}</li>{% empty %}<li class="text-danger">Nhóm chưa có NPL đang dùng</li>{% endfor %}
+                                </ul>
+                              </details>
+                            </span>
+                          </div>
+                        </td>
+                        <td class="text-end">{{ line.qty|sx_num }} <span class="text-muted small">/NPL</span></td>
+                        <td class="text-muted small">{{ line.group_unit|default:"—" }}</td>
+                        <td class="text-end">{{ line.stock_qty|default:0|sx_num }}</td>
+                    </tr>
+                    {% else %}
                     <tr>
                         <td>{{ line.sort_order }}</td>
                         <td>
@@ -537,6 +609,7 @@ body > .ts-dropdown .jp-npl-material-option.is-name-stock.is-with-image {
                         <td class="text-muted small">{{ line.material.unit.name|default:"—" }}</td>
                         <td class="text-end{% if line.stock_qty == 0 %} text-danger{% endif %}">{{ line.stock_qty|default:0|sx_num }}</td>
                     </tr>
+                    {% endif %}
                     {% empty %}
                     <tr><td colspan="5" class="text-muted text-center py-3">Chưa có dòng NPL.</td></tr>
                     {% endfor %}

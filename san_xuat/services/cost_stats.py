@@ -113,11 +113,14 @@ def build_nvl_cost_matrix() -> NvlCostMatrix:
     for idx, bom in enumerate(bom_by_idx):
         if bom is None:
             continue
+        from san_xuat.services.bom_group import expand_bom_lines
+
         lines = bom.lines.select_related(
-            'material', 'material__category', 'material__unit',
+            'material', 'material__category', 'material__unit', 'material_group',
         ).all()
-        for line in lines:
-            material = line.material
+        for item in expand_bom_lines(lines):
+            line = item.line
+            material = item.material
             cat = material.category
             cat_id = cat.pk
             if cat_id not in amounts_by_cat:

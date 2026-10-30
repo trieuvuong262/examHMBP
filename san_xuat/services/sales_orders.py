@@ -190,7 +190,7 @@ def _normalize_bom_overrides(raw) -> list[dict]:
             qty_mode = 'qty' if row.get('qty') is not None else 'pct'
         if bom_line_id <= 0 and not code:
             continue
-        out.append({
+        item = {
             'bom_line_id': bom_line_id or None,
             'material_code': code,
             'material_name': name,
@@ -201,7 +201,15 @@ def _normalize_bom_overrides(raw) -> list[dict]:
             'scrap_pct': float(scrap),
             'unit': unit,
             'size_code': size_code,
-        })
+        }
+        try:
+            group_id = int(row.get('material_group_id') or 0)
+        except (TypeError, ValueError):
+            group_id = 0
+        if group_id > 0:
+            item['material_group_id'] = group_id
+            item['group_name'] = str(row.get('group_name') or '').strip()[:160]
+        out.append(item)
     return out
 
 
@@ -220,9 +228,15 @@ def bom_lines_snapshot(bom_id: int | None) -> list[dict]:
         return []
     from kho_npl.catalog_labels import unit_label
 
+    from san_xuat.services.bom_group import expand_bom_lines
+
     out: list[dict] = []
-    for line in bom.lines.select_related('material', 'material__unit').order_by('sort_order', 'pk'):
-        mat = line.material
+    bom_lines = bom.lines.select_related(
+        'material', 'material__unit', 'material_group',
+    ).order_by('sort_order', 'pk')
+    for item in expand_bom_lines(bom_lines):
+        line = item.line
+        mat = item.material
         unit = (unit_label(mat.unit) or '')[:30] if mat and mat.unit_id else ''
         qty = _q4(line.qty)
         image_url = ''
@@ -231,7 +245,7 @@ def bom_lines_snapshot(bom_id: int | None) -> list[dict]:
                 image_url = mat.image.url or ''
             except (ValueError, OSError):
                 image_url = ''
-        out.append({
+        row = {
             'bom_line_id': line.pk,
             'material_code': (mat.code if mat else '')[:60],
             'material_name': (mat.name if mat else '')[:255],
@@ -243,7 +257,11 @@ def bom_lines_snapshot(bom_id: int | None) -> list[dict]:
             'unit': unit,
             'size_code': (line.size_code or '')[:20],
             'image_url': image_url,
-        })
+        }
+        if item.group_id:
+            row['material_group_id'] = item.group_id
+            row['group_name'] = (item.group_name or '')[:160]
+        out.append(row)
     return out
 
 
@@ -279,6 +297,9 @@ def merge_bom_overrides(fresh: list[dict], previous) -> list[dict]:
         key = _bom_match_key(row)
         if key[0] and key in by_key:
             prev = by_key[key]
+        elif row.get('material_group_id'):
+            # Dòng bung từ nhóm: nhiều NPL chung bom_line_id — chỉ khớp theo mã + size.
+            prev = None
         else:
             try:
                 bid = int(row.get('bom_line_id') or 0)

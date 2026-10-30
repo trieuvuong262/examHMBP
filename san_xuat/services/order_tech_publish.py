@@ -212,12 +212,63 @@ def _resolve_material(code: str, bom_line_id):
         except (TypeError, ValueError):
             src_line = None
     code = (code or '').strip()
-    if src_line is not None and (not code or (src_line.material.code or '').strip().casefold() == code.casefold()):
+    if src_line is not None and src_line.material_id and (
+        not code or (src_line.material.code or '').strip().casefold() == code.casefold()
+    ):
         return src_line.material, src_line
     if not code:
         return None, None
     mat = Material.objects.filter(code__iexact=code).order_by('-pk').first()
-    return mat, (src_line if src_line is not None and mat is not None and src_line.material_id == mat.pk else None)
+    if src_line is not None and mat is not None:
+        if src_line.material_id == mat.pk:
+            return mat, src_line
+        if not src_line.material_id and src_line.material_group_id and mat.material_group_id == src_line.material_group_id:
+            return mat, src_line
+    return mat, None
+
+
+def _regroup_planned(planned: list[tuple], rows: list[dict]) -> list[tuple]:
+    """Gộp lại các NPL bung từ cùng 1 dòng nhóm → 1 dòng nhóm trên BOM mới.
+
+    Chỉ gộp khi đủ mọi thành viên đang dùng của nhóm và cùng ĐM / hao hụt / size;
+    nếu không, giữ các dòng NPL lẻ. Kết quả: (idx_list, mat|None, group|None, src_line, qty, scrap, size).
+    """
+    from kho_npl.models import MaterialGroup
+    from san_xuat.services.bom_group import group_members_map
+
+    by_key: dict[tuple, list[tuple]] = {}
+    for item in planned:
+        idx = item[0]
+        row = rows[idx - 1] if 0 < idx <= len(rows) else {}
+        gid = row.get('material_group_id') if isinstance(row, dict) else None
+        if gid:
+            by_key.setdefault((int(gid), row.get('bom_line_id') or 0), []).append(item)
+    members = group_members_map(k[0] for k in by_key)
+    groups = MaterialGroup.objects.in_bulk([k[0] for k in by_key])
+    merged_first: dict[int, tuple] = {}
+    merged_skip: set[int] = set()
+    for (gid, _bid), items in by_key.items():
+        group = groups.get(gid)
+        member_ids = {m.pk for m in members.get(gid, [])}
+        item_ids = {it[1].pk for it in items}
+        same = len({(it[3], it[4], it[5]) for it in items}) == 1
+        if group is None or not same or not member_ids or item_ids != member_ids or len(items) != len(member_ids):
+            continue
+        first = items[0]
+        merged_first[first[0]] = (
+            [it[0] for it in items], None, group, first[2], first[3], first[4], first[5],
+        )
+        merged_skip.update(it[0] for it in items[1:])
+    out = []
+    for item in planned:
+        idx = item[0]
+        if idx in merged_skip:
+            continue
+        if idx in merged_first:
+            out.append(merged_first[idx])
+        else:
+            out.append(([idx], item[1], None, item[2], item[3], item[4], item[5]))
+    return out
 
 
 @transaction.atomic
@@ -273,17 +324,25 @@ def publish_bom_for_line(
             bom.notes = f'{bom.notes}\n{base_notes}'
     bom.save()
     new_ids: dict[int, int] = {}
-    for idx, mat, src_line, qty, scrap, size_code in planned:
-        new_ids[idx] = BomLine.objects.create(
+    grouped_pks: set[int] = set()
+    for sort_no, (idx_list, mat, group, src_line, qty, scrap, size_code) in enumerate(
+        _regroup_planned(planned, rows), start=1,
+    ):
+        new_pk = BomLine.objects.create(
             bom=bom,
             material=mat,
+            material_group=group,
             substitute_material=src_line.substitute_material if src_line else None,
             qty=qty,
             scrap_pct=scrap,
             size_code=size_code,
             notes=(src_line.notes if src_line else '') or '',
-            sort_order=idx,
+            sort_order=sort_no,
         ).pk
+        if group is not None:
+            grouped_pks.add(new_pk)
+        for idx in idx_list:
+            new_ids[idx] = new_pk
     if base is not None:
         from san_xuat.models import ProcessStep
 
@@ -320,6 +379,9 @@ def publish_bom_for_line(
             item = dict(row)
             if idx in new_ids:
                 item['bom_line_id'] = new_ids[idx]
+                if new_ids[idx] not in grouped_pks:
+                    item.pop('material_group_id', None)
+                    item.pop('group_name', None)
                 if str(item.get('qty_mode') or '').lower() != 'pct':
                     item['qty_std'] = item.get('qty')
                     item['qty_pct'] = 100.0

@@ -361,8 +361,19 @@ class BomLine(models.Model):
     material = models.ForeignKey(
         'kho_npl.Material',
         on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name='san_xuat_bom_lines',
         verbose_name='Nguyên phụ liệu',
+    )
+    material_group = models.ForeignKey(
+        'kho_npl.MaterialGroup',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='san_xuat_bom_lines',
+        verbose_name='Nhóm gom NPL',
+        help_text='Dòng nhóm: mọi NPL thành viên đang dùng đều nhận đủ định mức dòng này.',
     )
     substitute_material = models.ForeignKey(
         'kho_npl.Material',
@@ -400,9 +411,34 @@ class BomLine(models.Model):
         ordering = ['sort_order', 'id']
         verbose_name = 'Dòng BOM'
         verbose_name_plural = 'Dòng BOM'
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    (models.Q(material__isnull=False) & models.Q(material_group__isnull=True))
+                    | (models.Q(material__isnull=True) & models.Q(material_group__isnull=False))
+                ),
+                name='sx_bom_line_material_xor_group',
+            ),
+        ]
 
     def __str__(self):
-        return f'{self.material.code} × {self.qty}'
+        if self.material_group_id and not self.material_id:
+            return f'[Nhóm] {self.material_group} × {self.qty}'
+        return f'{self.material.code if self.material_id else "?"} × {self.qty}'
+
+    @property
+    def is_group(self) -> bool:
+        return bool(self.material_group_id and not self.material_id)
+
+    def group_members(self):
+        """NPL thành viên đang dùng của dòng nhóm (rỗng nếu là dòng NPL lẻ)."""
+        if not self.is_group:
+            return []
+        return list(
+            self.material_group.materials.filter(is_active=True)
+            .select_related('unit')
+            .order_by('code')
+        )
 
     @property
     def qty_with_scrap(self) -> Decimal:
@@ -414,6 +450,8 @@ class BomLine(models.Model):
         from kho_npl.services.reservation import material_available_qty
 
         primary = self.material
+        if primary is None:
+            return self.substitute_material
         if not self.substitute_material_id:
             return primary
         need = needed_qty if needed_qty is not None else Decimal('0')

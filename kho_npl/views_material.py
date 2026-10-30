@@ -283,7 +283,48 @@ def material_search_response(request):
             'qty_label': qty_label,
             'units': material_units(material),
         })
+    if (request.GET.get('include_groups') or '').strip() in ('1', 'true') and bom_material_ids is None:
+        rows = _material_group_search_rows(q) + rows
     return JsonResponse({'results': rows})
+
+
+def _material_group_search_rows(q: str) -> list[dict]:
+    """Nhóm gom NPL (kho NPL) cho ô chọn BOM — id dạng ``g:<pk>``."""
+    from django.db.models import Count, Q
+
+    from kho_npl.material_search import apply_smart_search
+    from kho_npl.models import MaterialGroup
+
+    qs = (
+        MaterialGroup.objects.filter(stock_domain='npl', is_active=True)
+        .select_related('category')
+        .annotate(n_active=Count('materials', filter=Q(materials__is_active=True)))
+        .filter(n_active__gt=0)
+    )
+    if q:
+        qs = apply_smart_search(qs, q, ('code', 'name', 'category__name'))
+    out = []
+    for group in qs.order_by('name', 'code')[:30]:
+        first = (
+            group.materials.filter(is_active=True).select_related('unit').order_by('code').first()
+        )
+        out.append({
+            'id': f'g:{group.pk}',
+            'is_group': True,
+            'group_id': group.pk,
+            'text': f'[Nhóm] {group.name}',
+            'code': group.code,
+            'name': f'{group.name}',
+            'member_count': group.n_active,
+            'variant_group': group.name,
+            'category': group.category.name if group.category_id else '',
+            'unit': unit_label(first.unit) if first and first.unit_id else '',
+            'unit_name': first.unit.name if first and first.unit_id else '',
+            'image_url': '',
+            'qty': None,
+            'qty_label': f'{group.n_active} NPL',
+        })
+    return out
 
 
 @module_perm_required(MODULE_KHO_NPL, 'view')

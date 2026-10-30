@@ -68,12 +68,15 @@ def issue_line_prefill_from_bom(bom_id: int | None) -> tuple[list[dict], str]:
     except Exception:
         return [], ''
 
+    from san_xuat.services.bom_group import expand_bom_lines
+
     lines: list[dict] = []
-    for bl in bom.lines.all():
-        if not bl.material_id or not bl.material.is_active:
+    for item in expand_bom_lines(bom.lines.select_related('material', 'material_group').all()):
+        bl = item.line
+        if item.material is None or not item.material.is_active:
             continue
         lines.append({
-            'material': bl.material_id,
+            'material': item.material.pk,
             'quantity': bl.qty,
             'notes': f'BOM {bom.version_label}' + (f' · {bl.notes}' if bl.notes else ''),
         })
