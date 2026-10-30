@@ -248,7 +248,7 @@
         + '<td class="text-end fw-semibold"><input type="number" min="0" step="0.0001" class="form-control form-control-sm text-end jp-inline-ob-smv" value="' + smvVal + '"></td>'
         + '<td class="small">' + esc(selected.work_center_code || '—') + '</td>'
         + '<td class="text-end text-muted small">+</td>'
-        + '<td class="jp-ob-edit-control text-center align-middle" style="width:2.5rem;"><button type="button" class="jp-row-del jp-ob-remove" title="Xóa" aria-label="Xóa ' + esc(it.name_vi || it.op_code) + '"><i class="bi bi-x-lg" aria-hidden="true"></i></button></td>';
+        + '<td class="jp-ob-edit-control text-center align-middle" style="width:2.5rem;"><button type="button" class="jp-row-del jp-ob-remove" title="Xóa" aria-label="Xóa ' + esc(selected.name_vi || selected.op_code) + '"><i class="bi bi-x-lg" aria-hidden="true"></i></button></td>';
       tbody.appendChild(tr);
       markAddedChip(selected);
       selected = null;
