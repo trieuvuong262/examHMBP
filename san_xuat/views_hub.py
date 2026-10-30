@@ -718,6 +718,13 @@ def sales_order_create(request):
             except PlanningError as exc:
                 messages.error(request, str(exc))
             else:
+                from san_xuat.services.order_history import lines_snapshot, log_order_event
+
+                log_order_event(
+                    order=order, action='create', kind='order', user=request.user,
+                    summary=f'Tạo đơn {order.code}',
+                    before={}, after={}, lines_before=[], lines_after=lines_snapshot(order),
+                )
                 messages.success(request, f'Đã tạo đơn {order.code}.')
                 return redirect('san_xuat:sales_order_detail', pk=order.pk)
         else:
@@ -777,6 +784,10 @@ def sales_order_edit(request, pk: int):
     if request.method == 'POST':
         if header.is_valid() and formset.is_valid():
             lines = _lines_from_sales_order_formset(formset)
+            from san_xuat.services.order_history import header_snapshot, lines_snapshot, log_order_event
+
+            _hdr_before = header_snapshot(order)
+            _lines_before = lines_snapshot(order)
             try:
                 order = update_sales_order(
                     order_id=order.pk,
@@ -791,6 +802,13 @@ def sales_order_edit(request, pk: int):
             except PlanningError as exc:
                 messages.error(request, str(exc))
             else:
+                order.refresh_from_db()
+                log_order_event(
+                    order=order, action='update', kind='order', user=request.user,
+                    summary=f'Sửa đơn {order.code}',
+                    before=_hdr_before, after=header_snapshot(order),
+                    lines_before=_lines_before, lines_after=lines_snapshot(order),
+                )
                 messages.success(request, f'Đã cập nhật đơn {order.code}.')
                 return redirect('san_xuat:sales_order_detail', pk=order.pk)
         else:
@@ -905,6 +923,49 @@ def _sync_ob_downstream(order, user) -> None:
     sync_order_plan_steps_from_ob(order)
 
 
+def _handle_order_tech_publish(request, order, *, kind: str) -> bool:
+    """Cập nhật BOM / OB của đơn về hồ sơ thiết kế → tạo phiên bản mới (đang áp dụng / đã duyệt)."""
+    from san_xuat.services.order_routing import OrderRoutingError
+    from san_xuat.services.order_tech_publish import (
+        OrderTechPublishError,
+        publish_order_tech,
+        user_can_publish_order_tech,
+    )
+
+    if not user_can_publish_order_tech(request.user):
+        raise OrderRoutingError(
+            'Cần quyền sửa BOM/OB đơn (IE/Kế hoạch) và quyền cập nhật Sản xuất để cập nhật hồ sơ thiết kế.'
+        )
+    repoint_vals = request.POST.getlist('repoint') or ['1']
+    repoint = (repoint_vals[-1] or '').strip() in {'1', 'true', 'on'}
+    try:
+        result = publish_order_tech(order, kind=kind, user=request.user, repoint=repoint)
+    except OrderTechPublishError as exc:
+        raise OrderRoutingError(str(exc)) from exc
+    label = 'BOM' if kind == 'bom' else 'OB'
+    for it in result.ok_items:
+        msg = f'Đã tạo {label} {it.label} ({it.n_lines} dòng) trên hồ sơ {it.doc_code}'
+        if kind == 'bom':
+            msg += ' — đang áp dụng'
+        else:
+            msg += ' — đã duyệt'
+            if it.linked_bom:
+                msg += f', gắn vào BOM {it.linked_bom}'
+        if repoint:
+            msg += '; đơn đã trỏ sang bản mới'
+        messages.success(request, msg + '.')
+        if it.skipped:
+            messages.warning(
+                request,
+                f'{it.product_code}: bỏ qua NPL không có trong danh mục: {", ".join(it.skipped)}.',
+            )
+    for it in result.failed_items:
+        messages.error(request, it.error)
+    if not result.items:
+        messages.info(request, f'{label} trên đơn chưa thay đổi so với hồ sơ thiết kế — không tạo phiên bản mới.')
+    return True
+
+
 def _handle_order_routing_post(request, order) -> bool:
     """Xử lý POST công đoạn đơn. True = đã handle (redirect caller)."""
     from san_xuat.services.order_routing import (
@@ -920,9 +981,11 @@ def _handle_order_routing_post(request, order) -> bool:
     if action not in {
         'add_routing_line', 'edit_routing_line', 'delete_routing_line',
         'reset_routing', 'attach_routing', 'attach_bom', 'scale_smv', 'edit_bom_lines',
-        'edit_ob_lines',
+        'edit_ob_lines', 'publish_bom', 'publish_ob',
     }:
         return False
+    if action in {'publish_bom', 'publish_ob'}:
+        return _handle_order_tech_publish(request, order, kind=action.split('_', 1)[1])
     can_pick = (
         user_can_edit_order_routing(request.user)
         or user_can_update_menu(request.user, MODULE_SAN_XUAT, 'order_create')
@@ -982,6 +1045,7 @@ def _handle_order_routing_post(request, order) -> bool:
             updates=payload.get('updates'),
             adds=payload.get('adds'),
             deletes=payload.get('deletes'),
+            user=request.user,
         )
         _sync_ob_downstream(order, request.user)
         messages.success(
@@ -990,11 +1054,48 @@ def _handle_order_routing_post(request, order) -> bool:
         )
         return True
 
+    # Các thao tác OB đơn lẻ: chụp trước / sau để ghi lịch sử chi tiết.
+    from san_xuat.services.order_history import ob_snapshot
+    from san_xuat.services.order_routing import log_order_ob_change
+
+    _ob_labels = {
+        'attach_routing': 'Gắn OB lên đơn',
+        'attach_bom': 'Gắn BOM lên đơn',
+        'reset_routing': 'Lấy lại OB từ hồ sơ',
+        'scale_smv': 'Áp % SMV đơn hàng',
+        'delete_routing_line': 'Xóa công đoạn trên đơn',
+        'add_routing_line': 'Thêm công đoạn trên đơn',
+        'edit_routing_line': 'Sửa công đoạn trên đơn',
+    }
+    _ln_for_log = _line()
+    _ob_before = ob_snapshot(_ln_for_log)
+    _bom_before = list(_ln_for_log.bom_line_overrides or [])
+
+    def _log_ob(extra: str = '') -> None:
+        _ln_for_log.refresh_from_db()
+        name = _ln_for_log.product_name or _ln_for_log.product_code
+        if ob_snapshot(_ln_for_log) != _ob_before:
+            log_order_ob_change(
+                _ln_for_log, before=_ob_before,
+                summary=f'{_ob_labels.get(action, action)} — {name}{extra}',
+                user=request.user,
+            )
+        if action == 'attach_bom' and list(_ln_for_log.bom_line_overrides or []) != _bom_before:
+            from san_xuat.services.order_history import log_order_event
+
+            log_order_event(
+                order=order, action='update', kind='bom', user=request.user,
+                summary=f'Gắn BOM {getattr(_ln_for_log.bom_version, "version_label", "")} lên đơn — {name}',
+                line_id=_ln_for_log.pk, product=name,
+                before=_bom_before, after=list(_ln_for_log.bom_line_overrides or []),
+            )
+
     if action == 'attach_routing':
         from san_xuat.services.order_routing import attach_order_line_routing
 
         ln = _line()
         n = attach_order_line_routing(ln, routing_id=request.POST.get('routing_id') or 0)
+        _log_ob()
         _sync_ob_downstream(order, request.user)
         messages.success(request, f'Đã gắn routing và copy {n} công đoạn lên đơn.')
         return True
@@ -1004,6 +1105,7 @@ def _handle_order_routing_post(request, order) -> bool:
 
         ln = _line()
         n = attach_order_line_bom(ln, bom_version_id=request.POST.get('bom_version_id') or 0)
+        _log_ob()
         _sync_ob_downstream(order, request.user)
         extra = f' — đã copy {n} công đoạn từ BOM.' if n else ''
         messages.success(request, f'Đã gắn BOM lên đơn.{extra}')
@@ -1011,6 +1113,7 @@ def _handle_order_routing_post(request, order) -> bool:
 
     if action == 'reset_routing':
         n = reset_order_line_routing(_line())
+        _log_ob()
         _sync_ob_downstream(order, request.user)
         messages.success(request, f'Đã lấy lại {n} công đoạn từ routing mã hàng.')
         return True
@@ -1021,6 +1124,7 @@ def _handle_order_routing_post(request, order) -> bool:
             request.POST.get('smv_pct') or 0,
             explanation=request.POST.get('variance_explanation') or '',
         )
+        _log_ob(f" ({request.POST.get('smv_pct') or 0}%)")
         _sync_ob_downstream(order, request.user)
         messages.success(request, f'Đã áp SMV đơn cho {n} công đoạn (không đổi SMV sản phẩm).')
         return True
@@ -1034,6 +1138,7 @@ def _handle_order_routing_post(request, order) -> bool:
         if not line_pk:
             raise OrderRoutingError('Thiếu dòng cần xóa.')
         delete_order_routing_line(order_line=ln, line_pk=line_pk)
+        _log_ob()
         _sync_ob_downstream(order, request.user)
         messages.success(request, 'Đã xóa công đoạn trên đơn.')
         return True
@@ -1065,6 +1170,7 @@ def _handle_order_routing_post(request, order) -> bool:
         count_minutes=_so_dec(request.POST.get('count_minutes'), '0'),
         transfer_minutes=_so_dec(request.POST.get('transfer_minutes'), '0'),
     )
+    _log_ob()
     _sync_ob_downstream(order, request.user)
     messages.success(request, 'Đã lưu công đoạn trên đơn.')
     return True
@@ -1107,6 +1213,11 @@ def sales_order_detail(request, pk: int):
     ) or user_can_create_menu(request.user, MODULE_SAN_XUAT, 'order_create')
     tech_editable = order_tech_is_editable(order)
     routing_locked = not tech_editable
+    from san_xuat.services.order_tech_publish import order_tech_changes, user_can_publish_order_tech
+    can_publish_tech = tech_editable and user_can_publish_order_tech(request.user)
+    tech_changes = order_tech_changes(order) if can_publish_tech else {'bom': False, 'ob': False}
+    from san_xuat.services.order_history import history_summary, order_history
+    history_events = order_history(order)
     reject_form = SalesOrderRejectForm()
 
     if request.method == 'POST':
@@ -1125,6 +1236,12 @@ def sales_order_detail(request, pk: int):
             except PlanningError as exc:
                 messages.error(request, str(exc))
             else:
+                from san_xuat.services.order_history import log_order_event
+
+                log_order_event(
+                    order=order, action='confirm', kind='confirm', user=request.user,
+                    summary=f'Xác nhận đơn {order.code}',
+                )
                 messages.success(request, f'Đã xác nhận đơn {order.code}.')
                 return redirect(_sales_order_detail_return_url(order.pk, review=review_mode))
         elif action == 'reject':
@@ -1138,6 +1255,13 @@ def sales_order_detail(request, pk: int):
                 except PlanningError as exc:
                     messages.error(request, str(exc))
                 else:
+                    from san_xuat.services.order_history import log_order_event
+
+                    log_order_event(
+                        order=order, action='cancel', kind='confirm', user=request.user,
+                        summary=f'Từ chối đơn {order.code}',
+                        reason=reject_form.cleaned_data.get('reason') or '',
+                    )
                     messages.success(request, f'Đã từ chối đơn {order.code}.')
                     return redirect(_sales_order_detail_return_url(order.pk, review=review_mode))
 
@@ -1198,6 +1322,10 @@ def sales_order_detail(request, pk: int):
         'can_confirm': can_confirm,
         'review_mode': review_mode,
         'can_edit_order_routing': can_edit_routing,
+        'can_publish_order_tech': can_publish_tech,
+        'tech_changes': tech_changes,
+        'history_events': history_events,
+        'history_groups': history_summary(history_events),
         'can_attach_routing': can_attach_routing,
         'routing_locked': routing_locked,
         'edit_rt': edit_rt,

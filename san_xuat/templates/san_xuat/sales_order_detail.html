@@ -141,6 +141,175 @@
     text-decoration: line-through;
     opacity: .5;
   }
+
+  /* BOM / OB: thu gọn 3 dòng mỗi sản phẩm */
+  tr.jp-collapse-hidden { display: none; }
+  tr.jp-collapse-more > td {
+    padding: 0.3rem 0.5rem;
+    text-align: center;
+    background: linear-gradient(180deg, rgba(248, 250, 252, 0) 0%, #f8fafc 100%);
+    border-bottom-color: var(--bs-border-color);
+  }
+  .jp-collapse-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    background: #fff;
+    color: #475569;
+    font-size: 0.76rem;
+    font-weight: 600;
+    line-height: 1.3;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .05);
+    transition: color .12s ease, border-color .12s ease, background-color .12s ease;
+  }
+  .jp-collapse-btn:hover,
+  .jp-collapse-btn:focus-visible {
+    color: var(--hm-red, #dc2626);
+    border-color: rgba(220, 38, 38, .35);
+    background: #fff5f5;
+  }
+
+  /* Topbar: chip trạng thái */
+  .jp-so-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+  }
+  .jp-so-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    height: 1.7rem;
+    padding: 0 0.65rem;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    color: #334155;
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+  }
+  .jp-so-chip i { font-size: 0.85em; opacity: .9; }
+  .jp-so-chip-k {
+    padding: 0.12rem 0.32rem;
+    border-radius: 0.3rem;
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    background: rgba(255, 255, 255, 0.75);
+    color: inherit;
+  }
+  /* Xác nhận */
+  .jp-so-chip.is-confirm-confirmed { color: #fff; background: linear-gradient(135deg, #2563eb, #1d4ed8); border-color: #1d4ed8; box-shadow: 0 2px 6px rgba(37, 99, 235, .25); }
+  .jp-so-chip.is-confirm-draft { color: #475569; background: #f1f5f9; border-color: #cbd5e1; }
+  .jp-so-chip.is-confirm-rejected { color: #fff; background: linear-gradient(135deg, #dc2626, #b91c1c); border-color: #b91c1c; }
+  /* Kế hoạch */
+  .jp-so-chip.is-plan-queued, .jp-so-chip.is-plan-ranked { color: #475569; background: #f8fafc; border-color: #cbd5e1; }
+  .jp-so-chip.is-plan-released { color: #6d28d9; background: #f5f3ff; border-color: #ddd6fe; }
+  .jp-so-chip.is-plan-in_progress { color: #b45309; background: #fffbeb; border-color: #fde68a; }
+  .jp-so-chip.is-plan-done { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+  .jp-so-chip.is-plan-on_hold { color: #9a3412; background: #fff7ed; border-color: #fdba74; }
+  .jp-so-chip.is-plan-cancelled { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
+  /* Mức độ gấp */
+  .jp-so-chip.is-prio-critical { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
+  .jp-so-chip.is-prio-urgent { color: #c2410c; background: #fff7ed; border-color: #fed7aa; }
+  .jp-so-chip.is-prio-high { color: #a16207; background: #fffbeb; border-color: #fde68a; }
+  .jp-so-chip.is-prio-normal { color: #0369a1; background: #e0f2fe; border-color: #bae6fd; }
+  .jp-so-chip.is-prio-low { color: #475569; background: #f1f5f9; border-color: #e2e8f0; }
+  /* Sản xuất */
+  .jp-so-chip.is-prod-dang_sx { color: #b45309; background: #fffbeb; border-color: #fde68a; }
+  .jp-so-chip.is-prod-dang_sx i { animation: jp-so-spin 3s linear infinite; }
+  .jp-so-chip.is-prod-hoan_thanh { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+  .jp-so-chip.is-prod-chua_du_lenh { color: #9a3412; background: #fff7ed; border-color: #fdba74; }
+  .jp-so-chip.is-prod-tu_choi { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
+  @keyframes jp-so-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .jp-so-chip.is-prod-dang_sx i { animation: none; } }
+
+  /* Topbar: nút công cụ cạnh Quay lại */
+  .jp-so-topbar-tools { gap: 0.4rem; }
+  .jp-so-topbar-tools .jp-so-tool-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    height: 2rem;
+    padding: 0 0.8rem;
+    border-radius: 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #334155;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .05);
+    transition: background-color .12s ease, border-color .12s ease, color .12s ease, box-shadow .12s ease, transform .12s ease;
+  }
+  .jp-so-topbar-tools .jp-so-tool-btn i { font-size: 0.95em; color: var(--hm-red, #dc2626); }
+  .jp-so-topbar-tools .jp-so-tool-btn:hover,
+  .jp-so-topbar-tools .jp-so-tool-btn:focus-visible {
+    color: var(--hm-red, #dc2626);
+    border-color: rgba(220, 38, 38, .35);
+    background: #fff5f5;
+    box-shadow: 0 3px 8px rgba(220, 38, 38, .12);
+  }
+  .jp-so-topbar-tools .jp-so-tool-btn:active { transform: translateY(1px); }
+  .jp-so-topbar-tools .jp-so-tool-btn.is-primary {
+    color: #fff;
+    border-color: transparent;
+  }
+  .jp-so-topbar-tools .jp-so-tool-btn.is-primary i { color: #fff; }
+  .jp-so-topbar-tools .jp-so-tool-btn.is-primary:hover { color: #fff; box-shadow: 0 4px 12px rgba(220, 38, 38, .3); }
+  .jp-so-tool-wrap { display: inline-flex; }
+  .jp-so-tool-count {
+    min-width: 1.15rem;
+    padding: 0 .35rem;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: .68rem;
+    font-weight: 700;
+    line-height: 1.15rem;
+    text-align: center;
+  }
+  .jp-so-topbar-tools .jp-so-tool-btn { position: relative; }
+  .jp-so-topbar-tools .jp-so-tool-btn:disabled,
+  .jp-so-topbar-tools .jp-so-tool-btn[aria-disabled="true"] {
+    opacity: .45;
+    filter: grayscale(1);
+    box-shadow: none;
+    pointer-events: none;
+    background: #f8fafc;
+  }
+  .jp-so-topbar-tools .jp-so-tool-btn.has-change {
+    color: var(--hm-red, #dc2626);
+    border-color: rgba(220, 38, 38, .45);
+    background: #fff5f5;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, .10), 0 3px 8px rgba(220, 38, 38, .14);
+  }
+  .jp-so-tool-dot {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 10px;
+    height: 10px;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    background: var(--hm-red, #dc2626);
+    animation: jp-so-pulse 1.8s ease-out infinite;
+  }
+  @keyframes jp-so-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, .55); }
+    70% { box-shadow: 0 0 0 7px rgba(220, 38, 38, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+  }
+  @media (prefers-reduced-motion: reduce) { .jp-so-tool-dot { animation: none; } }
+  .jp-sx-detail-topbar { flex-wrap: wrap; row-gap: 0.5rem; }
+  .jp-sx-detail-topbar .jp-sx-detail-title { flex-wrap: wrap; }
 </style>
 {% endblock %}
 
@@ -148,17 +317,57 @@
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
-      <h2 class="jp-npl-mat-topbar-title w-100">{{ order.code }}</h2>
-      <span class="badge {% if order.confirm_status == 'draft' %}text-bg-secondary{% elif order.confirm_status == 'confirmed' %}text-bg-primary{% else %}text-bg-danger{% endif %}">
-        {{ order.get_confirm_status_display }}
-      </span>
-      {% if order.confirm_status == 'confirmed' %}
-      <span class="badge bg-light text-dark border">KH: {{ order.get_plan_status_display }}</span>
-      <span class="jp-pb-urgency is-{{ order.plan_priority }}">{{ order.get_plan_priority_display }}</span>
-      {% endif %}
-      <span class="badge bg-light text-dark border">{{ prod_label }}</span>
+      <h2 class="jp-npl-mat-topbar-title">{{ order.code }}</h2>
+      <div class="jp-so-chips">
+        <span class="jp-so-chip is-confirm-{{ order.confirm_status }}" title="Trạng thái xác nhận">
+          <i class="bi {% if order.confirm_status == 'confirmed' %}bi-patch-check-fill{% elif order.confirm_status == 'rejected' %}bi-x-octagon-fill{% else %}bi-pencil-square{% endif %}" aria-hidden="true"></i>
+          {{ order.get_confirm_status_display }}
+        </span>
+        {% if order.confirm_status == 'confirmed' %}
+        <span class="jp-so-chip is-plan-{{ order.plan_status }}" title="Trạng thái kế hoạch">
+          <i class="bi bi-calendar3" aria-hidden="true"></i>
+          <span class="jp-so-chip-k">KH</span>{{ order.get_plan_status_display }}
+        </span>
+        <span class="jp-so-chip is-prio-{{ order.plan_priority }}" title="Mức độ gấp">
+          <i class="bi bi-flag-fill" aria-hidden="true"></i>{{ order.get_plan_priority_display }}
+        </span>
+        {% endif %}
+        <span class="jp-so-chip is-prod-{{ prod_status }}" title="Tình trạng sản xuất">
+          <i class="bi {% if prod_status == 'hoan_thanh' %}bi-check2-circle{% elif prod_status == 'dang_sx' %}bi-gear-wide-connected{% else %}bi-hourglass-split{% endif %}" aria-hidden="true"></i>
+          <span class="jp-so-chip-k">SX</span>{{ prod_label }}
+        </span>
+      </div>
     </div>
-    <nav class="jp-sx-tools" aria-label="Công cụ">
+    <nav class="jp-sx-tools jp-so-topbar-tools" aria-label="Công cụ">
+      {% if can_publish_order_tech and order.lines.all %}
+      <span class="jp-so-tool-wrap" {% if not tech_changes.bom %}tabindex="0" data-bs-toggle="tooltip" title="BOM trên đơn chưa thay đổi so với hồ sơ thiết kế"{% endif %}>
+        <button type="button" class="btn btn-sm jp-so-tool-btn{% if tech_changes.bom %} has-change{% endif %}"
+                {% if tech_changes.bom %}data-bs-toggle="modal" data-bs-target="#jpPublishTechModal" title="BOM trên đơn đã sửa — cập nhật về hồ sơ thiết kế"{% else %}disabled aria-disabled="true"{% endif %}
+                data-jp-publish-kind="bom">
+          <i class="bi bi-diagram-3" aria-hidden="true"></i>Cập nhật BOM
+          {% if tech_changes.bom %}<span class="jp-so-tool-dot" aria-label="có thay đổi"></span>{% endif %}
+        </button>
+      </span>
+      <span class="jp-so-tool-wrap" {% if not tech_changes.ob %}tabindex="0" data-bs-toggle="tooltip" title="OB trên đơn chưa thay đổi so với hồ sơ thiết kế"{% endif %}>
+        <button type="button" class="btn btn-sm jp-so-tool-btn{% if tech_changes.ob %} has-change{% endif %}"
+                {% if tech_changes.ob %}data-bs-toggle="modal" data-bs-target="#jpPublishTechModal" title="OB trên đơn đã sửa — cập nhật về hồ sơ thiết kế"{% else %}disabled aria-disabled="true"{% endif %}
+                data-jp-publish-kind="ob">
+          <i class="bi bi-list-ol" aria-hidden="true"></i>Cập nhật OB
+          {% if tech_changes.ob %}<span class="jp-so-tool-dot" aria-label="có thay đổi"></span>{% endif %}
+        </button>
+      </span>
+      {% endif %}
+      {% if order.confirm_status == 'confirmed' %}
+      <a href="{% url 'san_xuat:plan_board' %}?q={{ order.code|urlencode }}" class="btn btn-sm btn-hm jp-so-tool-btn is-primary">
+        <i class="bi bi-kanban" aria-hidden="true"></i>Kế hoạch sản xuất
+      </a>
+      {% endif %}
+      <button type="button" class="btn btn-sm jp-so-tool-btn" data-bs-toggle="modal" data-bs-target="#jpOrderHistoryModal"
+              title="Xem toàn bộ lịch sử chỉnh sửa đơn">
+        <i class="bi bi-clock-history" aria-hidden="true"></i>Lịch sử cập nhật
+        <span class="jp-so-tool-count">{{ history_events|length }}</span>
+      </button>
+      <span class="sep" aria-hidden="true"></span>
       {% if can_edit_order %}
       <a href="{% url 'san_xuat:sales_order_edit' order.pk %}" class="btn btn-outline-hm btn-sm fw-bold"
          data-loading-message="Đang mở form sửa đơn…">Sửa</a>
@@ -227,7 +436,7 @@
         {% endif %}
       </div>
 
-      {% if can_confirm or order.confirm_status == 'confirmed' %}
+      {% if can_confirm and order.confirm_status == 'draft' %}
       <div class="jp-so-actions mt-3 pt-3 border-top">
         {% if can_confirm and order.confirm_status == 'draft' %}
         <form method="post">
@@ -239,12 +448,6 @@
         {% if can_confirm and order.confirm_status == 'draft' %}
         <button type="button" class="btn btn-outline-danger btn-sm"
                 data-bs-toggle="modal" data-bs-target="#rejectSalesOrderModal">Từ chối</button>
-        {% endif %}
-        <span class="jp-so-actions-spacer" aria-hidden="true"></span>
-        {% if order.confirm_status == 'confirmed' %}
-        <a href="{% url 'san_xuat:plan_board' %}?q={{ order.code|urlencode }}" class="btn btn-hm btn-sm">
-          Kế hoạch sản xuất
-        </a>
         {% endif %}
       </div>
       {% endif %}
@@ -361,7 +564,7 @@
         {% endif %}
       </div>
       <div class="table-responsive">
-        <table class="table table-sm table-hover align-middle mb-0">
+        <table class="table table-sm table-hover align-middle mb-0" data-jp-collapse="bom" data-jp-collapse-key="bomLineId">
           <thead class="table-light">
             <tr>
               <th>Sản phẩm</th>
@@ -724,6 +927,153 @@
   });
 </script>
 {% endif %}
+{% if can_publish_order_tech %}
+<div class="modal fade" id="jpPublishTechModal" tabindex="-1" aria-labelledby="jpPublishTechModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="post" class="modal-content">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="publish_bom" data-jp-publish-action>
+      <div class="modal-header">
+        <h5 class="modal-title" id="jpPublishTechModalLabel">Cập nhật <span data-jp-publish-label>BOM</span> về hồ sơ thiết kế</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body small">
+        <p class="mb-2" data-jp-publish-help="bom">
+          Tạo <strong>phiên bản BOM mới</strong> trên hồ sơ thiết kế của từng sản phẩm trong đơn, lấy theo BOM đang áp dụng trên đơn (ĐM/SP, hao hụt, size).
+          Bản mới chuyển sang <strong>Đang áp dụng</strong>, bản đang áp dụng cũ sẽ ngừng.
+        </p>
+        <p class="mb-2 d-none" data-jp-publish-help="ob">
+          Tạo <strong>phiên bản OB mới (REV)</strong> trên hồ sơ thiết kế, lấy theo công đoạn và SMV đơn hàng.
+          Bản mới được <strong>duyệt và áp dụng</strong> ngay, đồng thời gắn vào BOM mới nhất còn sửa được.
+        </p>
+        <input type="hidden" name="repoint" value="0">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="repoint" value="1" id="jpPublishRepoint" checked>
+          <label class="form-check-label" for="jpPublishRepoint">
+            Trỏ đơn sang phiên bản mới (giữ nguyên số liệu BOM/OB trên đơn, không tính lại NPL/LSX)
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+        <button type="submit" class="btn btn-hm">Tạo phiên bản mới</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+  document.addEventListener('click', function (event) {
+    var btn = event.target.closest('[data-jp-publish-kind]');
+    if (!btn) return;
+    var kind = btn.getAttribute('data-jp-publish-kind');
+    var modal = document.getElementById('jpPublishTechModal');
+    if (!modal) return;
+    modal.querySelector('[data-jp-publish-action]').value = 'publish_' + kind;
+    modal.querySelector('[data-jp-publish-label]').textContent = kind === 'ob' ? 'OB' : 'BOM';
+    modal.querySelectorAll('[data-jp-publish-help]').forEach(function (el) {
+      el.classList.toggle('d-none', el.getAttribute('data-jp-publish-help') !== kind);
+    });
+  });
+</script>
+{% endif %}
+<script>
+  document.querySelectorAll('.jp-so-tool-wrap[data-bs-toggle="tooltip"]').forEach(function (el) {
+    if (window.bootstrap && bootstrap.Tooltip) bootstrap.Tooltip.getOrCreateInstance(el);
+  });
+  /* BOM / OB: mặc định chỉ hiện 3 dòng mỗi sản phẩm, bấm "Xem thêm" để mở hết. */
+  (function () {
+    var LIMIT = 3;
+
+    function groups(table) {
+      var key = table.getAttribute('data-jp-collapse-key');
+      var out = [];
+      var cur = null;
+      table.querySelectorAll('tbody > tr').forEach(function (tr) {
+        if (tr.classList.contains('jp-collapse-more')) return;
+        var k = tr.dataset[key];
+        if (!k) { cur = null; return; }
+        if (!cur || cur.key !== k) { cur = { key: k, rows: [] }; out.push(cur); }
+        cur.rows.push(tr);
+      });
+      return out;
+    }
+
+    function colCount(table) {
+      var n = 0;
+      table.querySelectorAll('thead tr:first-child > th').forEach(function (th) {
+        n += parseInt(th.getAttribute('colspan') || '1', 10);
+      });
+      return n || 1;
+    }
+
+    function setGroup(g, table, expanded) {
+      var first = g.rows[0];
+      var hidden = g.rows.length - LIMIT;
+      first.querySelectorAll('td[rowspan]').forEach(function (td) {
+        if (!td.dataset.fullRowspan) td.dataset.fullRowspan = td.getAttribute('rowspan');
+        td.setAttribute('rowspan', expanded ? g.rows.length + 1 : LIMIT + 1);
+      });
+      g.rows.forEach(function (tr, i) {
+        tr.classList.toggle('jp-collapse-hidden', !expanded && i >= LIMIT);
+      });
+      var more = g.more;
+      if (!more) {
+        more = document.createElement('tr');
+        more.className = 'jp-collapse-more';
+        var td = document.createElement('td');
+        td.colSpan = colCount(table);
+        td.innerHTML = '<button type="button" class="jp-collapse-btn"></button>';
+        more.appendChild(td);
+        g.more = more;
+        more.querySelector('button').addEventListener('click', function () {
+          setGroup(g, table, !g.expanded);
+        });
+      }
+      // Ô rowspan (Sản phẩm) chiếm cột đầu → nút nằm ở các cột còn lại.
+      var spanned = first.querySelectorAll('td[rowspan]').length;
+      more.firstChild.colSpan = Math.max(colCount(table) - spanned, 1);
+      var anchor = expanded ? g.rows[g.rows.length - 1] : g.rows[LIMIT - 1];
+      anchor.after(more);
+      more.querySelector('button').innerHTML = expanded
+        ? '<i class="bi bi-chevron-up" aria-hidden="true"></i>Thu gọn'
+        : '<i class="bi bi-chevron-down" aria-hidden="true"></i>Xem thêm ' + hidden + ' dòng';
+      g.expanded = expanded;
+    }
+
+    function init(table) {
+      table._jpGroups = groups(table).filter(function (g) { return g.rows.length > LIMIT; });
+      table._jpGroups.forEach(function (g) { setGroup(g, table, false); });
+    }
+
+    function expandAll(table) {
+      (table._jpGroups || []).forEach(function (g) {
+        if (g.more) g.more.remove();
+        g.rows.forEach(function (tr) { tr.classList.remove('jp-collapse-hidden'); });
+        g.rows[0].querySelectorAll('td[rowspan]').forEach(function (td) {
+          if (td.dataset.fullRowspan) td.setAttribute('rowspan', td.dataset.fullRowspan);
+        });
+      });
+      table._jpGroups = [];
+    }
+
+    document.querySelectorAll('table[data-jp-collapse]').forEach(init);
+
+    // Bật chế độ Sửa BOM/OB → mở toàn bộ để thao tác; Hủy thì thu gọn lại.
+    document.addEventListener('click', function (event) {
+      var toggle = event.target.closest('[data-jp-edit-toggle]');
+      if (!toggle) return;
+      var kind = toggle.getAttribute('data-jp-edit-toggle');
+      var table = document.querySelector('table[data-jp-collapse="' + kind + '"]');
+      if (!table) return;
+      if (toggle.hasAttribute('data-jp-' + kind + '-cancel')) {
+        setTimeout(function () { init(table); }, 0);
+      } else {
+        expandAll(table);
+      }
+    }, true);
+  })();
+</script>
+{% include 'san_xuat/includes/sales_order_history_modal.html' %}
 {% include 'san_xuat/includes/product_image_gallery_modal.html' %}
 {% include 'kho_npl/includes/material_image_modal.html' %}
 {% endblock %}

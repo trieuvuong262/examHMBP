@@ -53,8 +53,16 @@ def _empty_fact() -> SimpleNamespace:
     )
 
 
+def _link_code(link) -> str:
+    """Mã Style trong Thư viện của dòng sản phẩm (dữ liệu cũ chưa gắn style thì lấy mã chính thức của hồ sơ)."""
+    if link.style_id:
+        return (link.style.code or '').strip().upper()
+    return (link.dossier.official_product_code or '').strip().upper()
+
+
 def _load_links(plan):
     return list(plan.products.select_related(
+        'style',
         'dossier__approved_design_version',
         'dossier__final_sample_version',
         'dossier__handover__tech_doc',
@@ -80,7 +88,7 @@ def build_facts(links) -> dict[int, SimpleNamespace]:
             for pack in TechnicalPack.objects.filter(sample_version_id__in=sample_ids).annotate(line_count=Count('material_lines'))
         }
 
-    codes = sorted({(d.official_product_code or '').strip().upper() for d in dossiers} - {''})
+    codes = sorted({_link_code(link) for link in links} - {''})
     skus: dict[str, list] = defaultdict(list)
     if codes:
         for row in (
@@ -148,7 +156,7 @@ def build_facts(links) -> dict[int, SimpleNamespace]:
     for link in links:
         dossier = link.dossier
         fact = facts[dossier.pk]
-        code = (dossier.official_product_code or '').strip().upper()
+        code = _link_code(link)
         version = dossier.approved_design_version
         sample = dossier.final_sample_version
         reopening = dossier.status == DossierStatus.LIBRARY_REOPEN
@@ -305,7 +313,7 @@ def gate_pack(plan, links=None, tasks=None) -> list[dict]:
         for link in links:
             gap = getattr(link.fact, attr, '')
             if gap:
-                found.append(f'{link.dossier.code}: {gap}')
+                found.append(f'{_link_code(link) or link.dossier.code}: {gap}')
         return found
 
     if not links:

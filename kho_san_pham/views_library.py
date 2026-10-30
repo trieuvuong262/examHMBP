@@ -312,11 +312,12 @@ def library_detail(request, style):
     cover_url = _style_avatar_url(dossier, rep)
     if cover_url and all(img['url'] != cover_url for img in images):
         images.insert(0, {'url': cover_url, 'label': 'Ảnh đại diện', 'sku': code})
-    launches = []
-    if dossier:
-        from ra_mat_sp.models import LaunchPlan
+    from ra_mat_sp.models import LaunchPlan
 
-        launches = list(LaunchPlan.objects.filter(products__dossier=dossier).order_by('-launch_date'))
+    launch_q = Q(products__style__code__iexact=code)
+    if dossier:
+        launch_q |= Q(products__dossier=dossier)
+    launches = list(LaunchPlan.objects.filter(launch_q).distinct().order_by('-launch_date'))
     history = []
     if style_obj:
         history.append({'at': style_obj.created_at, 'text': f'Tạo Style ({style_obj.get_source_display()})',

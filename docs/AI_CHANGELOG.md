@@ -15,6 +15,20 @@ Mỗi entry nên có:
 
 ## Entries
 
+### 2026-10-30 — feature / sales-order-history-modal
+
+- **Change**: Nút **Lịch sử cập nhật** trên topbar chi tiết ĐĐH mở modal timeline (lọc theo nhóm, tìm kiếm, mở/thu từng sự kiện) với diff chi tiết trước → sau: thông tin đơn, dòng SP (SL, size, hạn, BOM/OB), BOM trên đơn (NPL thêm/xóa/sửa ĐM, hao hụt), OB trên đơn (CĐ thêm/xóa/sửa SMV, SL/SP, bộ phận; tổng SMV/SP), xác nhận/từ chối, Cập nhật BOM/OB về hồ sơ (link mở hồ sơ), KH NPL và LSX bị đồng bộ.
+- **Reason**: Truy vết ai sửa gì trên đơn đang chạy.
+- **Source**: `san_xuat/services/order_history.py` (`order_history`, `log_order_event`, `ob_snapshot`, `diff_*`), `san_xuat/templates/san_xuat/includes/sales_order_history_modal.html`; ghi log mới trong `views_hub.py` (create/edit/confirm/reject + mọi action OB đơn lẻ qua `_log_ob`), `order_routing.apply_order_routing_edits(user=)` / `log_order_ob_change`, `update_order_line_bom_overrides` (`changes.kind='bom'`).
+- **Agent impact**: Nhật ký đơn nằm trong `SxPlanAuditLog` (`object_type='SxSalesOrder'`, `changes.kind` ∈ order/confirm/bom/ob/publish_bom/publish_ob). Thao tác mới sửa đơn phải ghi qua `log_order_event` kèm before/after để hiện trong modal. Log cũ không có `kind` vẫn được map tương thích.
+
+### 2026-10-30 — workflow / sales-order-publish-bom-ob-to-tech-doc
+
+- **Change**: Chi tiết ĐĐH có 2 nút header **Cập nhật BOM** / **Cập nhật OB** (cho cả đơn, mỗi hồ sơ 1 lần). BOM: tạo `BomVersion` `vN` từ `bom_line_overrides` (ĐM/SP, hao hụt, size; giữ NVL thay thế/ghi chú/phụ phí/ProcessStep từ BOM gốc), chuyển **Đang áp dụng** (bản cũ ngừng), ghi `SxBomAuditLog new_version`; NPL không có trong danh mục bị bỏ qua và cảnh báo. OB: tạo `SxRouting` REV mới từ `SxSalesOrderRoutingLine` (SMV sản phẩm = SMV đơn hàng), **duyệt ngay** (`approve_routing`), gắn vào BOM mới nhất chưa gắn LSX và dựng lại ProcessStep. Checkbox "Trỏ đơn sang phiên bản mới": đổi `bom_version`/`routing` + remap `bom_line_id`/`source_routing_line` nhưng giữ số liệu snapshot, không tính lại NPL/LSX.
+- **Reason**: Đẩy điều chỉnh kỹ thuật trên đơn ngược về hồ sơ thiết kế làm chuẩn cho đơn sau.
+- **Source**: `san_xuat/services/order_tech_publish.py`, `san_xuat/views_hub.py::_handle_order_tech_publish` / `sales_order_detail` (`can_publish_order_tech`), `san_xuat/templates/san_xuat/sales_order_detail.html` (`#jpPublishTechModal`).
+- **Agent impact**: Quyền = `user_can_edit_order_routing` **và** `user_can_update_module(SAN_XUAT)`; chặn khi đơn hoàn thành/hủy. Đây là luồng duy nhất ghi từ đơn → hồ sơ; các action `edit_bom_lines`/`edit_ob_lines` vẫn chỉ sửa snapshot đơn.
+
 ### 2026-10-29 — feature / sales-order-bom-edit-by-need
 
 - **Change**: Sửa BOM trên chi tiết ĐĐH nhập theo **Nhu cầu** (quy ngược ĐM/SP = Nhu cầu ÷ SL ÷ (1 + hao hụt%)), xóa NPL dư, popup Thêm NPL chọn Nhóm → NPL từ danh mục (ảnh, mã, tên, nhóm, bộ phận, màu, quy cách, ĐVT). API `kho_npl:material_search` nhận thêm `category_id`, trả thêm `color_hex`.

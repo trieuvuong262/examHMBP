@@ -1,0 +1,66 @@
+{% load tksp_tags sx_format %}
+<div class="tk-section">
+  <div class="tk-section-title"><i class="bi bi-bag"></i>Sản phẩm trong đợt ra mắt
+    {% if can_edit_header %}<a href="{% url 'ra_mat_sp:edit' plan.pk %}" class="btn btn-sm btn-outline-secondary ms-auto"><i class="bi bi-pencil"></i> Chọn sản phẩm</a>{% endif %}
+  </div>
+
+  {% if links %}
+  <div class="rm-prod-stats mb-3">
+    <div><span>Sản phẩm</span><b>{{ product_summary.count }}</b></div>
+    <div><span>SKU trong Thư viện</span><b>{{ product_summary.skus|sx_num }}</b></div>
+    <div><span>Tổng SL ra mắt</span><b>{{ product_summary.qty|sx_num }}</b></div>
+    <div><span>Đủ điều kiện dữ liệu</span><b>{{ product_summary.ready }}/{{ product_summary.count }}</b></div>
+  </div>
+
+  <form method="post" action="{% url 'ra_mat_sp:action' plan.pk 'product_qty' %}">{% csrf_token %}
+  <div class="rm-prod-list">
+    {% for link in links %}{% with d=link.dossier fact=link.fact %}
+    <div class="rm-prod">
+      <div class="rm-prod-media">
+        {% if link.cover %}<img src="{{ link.cover.get_absolute_url }}" alt="" data-sx-gallery data-sx-gallery-image="{{ link.cover.get_absolute_url }}" data-sx-gallery-title="{{ link.display_name }}">{% else %}<i class="bi bi-palette"></i>{% endif %}
+      </div>
+
+      <div class="rm-prod-main">
+        <div class="rm-prod-head">
+          <div class="min-w-0">
+            <a class="rm-prod-name" href="{% if link.in_library %}{% url 'kho_san_pham:library_detail' link.library_code %}{% else %}{{ d.get_absolute_url }}{% endif %}">{{ link.display_name }}</a>
+            <div class="rm-prod-code">
+              <span>{{ link.library_code|default:'Chưa có style' }}</span>
+              {% if link.group_label %}<span>{{ link.group_label }}</span>{% endif %}
+              <span>Hồ sơ <a href="{{ d.get_absolute_url }}">{{ d.code }}</a></span>
+            </div>
+          </div>
+          <div class="rm-prod-badges">
+            <span class="tk-pill {% if link.production_state == 'transferred' %}is-green{% elif link.production_state == 'pending' %}is-amber{% else %}is-gray{% endif %}">{{ link.production_label }}</span>
+            <span class="tk-pill {% if link.gap_ok == link.gap_total %}is-green{% elif link.gap_ok >= 4 %}is-amber{% else %}is-red{% endif %}">{{ link.gap_ok }}/{{ link.gap_total }} điều kiện</span>
+          </div>
+        </div>
+        {% if not link.in_library and link.library_code %}<div class="small tk-late mb-1">Style chưa hiện trong Thư viện{% if d.status == 'library_reopen' %} (hồ sơ đang chỉnh){% endif %}</div>{% endif %}
+
+        <div class="rm-prod-facts">
+          <div><span>Thiết kế / mẫu</span><b>{{ fact.design_label|default:'Chưa có' }}</b><small>Mẫu: {{ fact.sample_label|default:'Chưa có' }}</small></div>
+          <div><span>Colorway</span><b>{{ fact.colorways|default:'—' }}</b></div>
+          <div><span>Techpack · BOM</span><b>{{ fact.techpack_label|default:'Chưa có' }}</b><small>BOM: {{ fact.bom_label|default:'Chưa có' }} · Giá thành: {{ fact.cost_label|default:'Chưa khóa' }}</small></div>
+          <div><span>Giá bán lẻ</span><b>{% if fact.retail %}{{ fact.retail|sx_num }} đ{% elif d.target_retail_price %}{{ d.target_retail_price|sx_num }} đ <small class="text-muted">(mục tiêu)</small>{% else %}—{% endif %}</b><small>Sỉ: {% if fact.wholesale %}{{ fact.wholesale|sx_num }} đ{% else %}—{% endif %}</small></div>
+          <div><span>Kênh / SKU</span><b>{{ fact.channel_label|default:'Chưa có' }}</b>{% if fact.channel_gap %}<small class="tk-late">{{ fact.channel_gap }}</small>{% endif %}</div>
+          <div><span>Tồn kho</span><b>{{ fact.stock|sx_num }}</b><small>{% if fact.stock_min %}Tối thiểu {{ fact.stock_min|sx_num }}{% else %}Chưa có mức tối thiểu{% endif %}</small></div>
+        </div>
+      </div>
+
+      <div class="rm-prod-plan">
+        <label class="form-label small fw-bold mb-1" for="qty_{{ link.pk }}">SL ra mắt</label>
+        {% if can_edit %}<input type="number" min="0" id="qty_{{ link.pk }}" name="qty_{{ link.pk }}" value="{{ link.planned_qty|default_if_none:'' }}" class="form-control form-control-sm text-end">
+        {% else %}<div class="fw-bold">{% if link.planned_qty is not None %}{{ link.planned_qty|sx_num }}{% else %}—{% endif %}</div>{% endif %}
+        <label class="form-label small fw-bold mb-1 mt-2" for="note_{{ link.pk }}">Ghi chú</label>
+        {% if can_edit %}<textarea id="note_{{ link.pk }}" name="note_{{ link.pk }}" maxlength="255" rows="2" class="form-control form-control-sm">{{ link.note }}</textarea>
+        {% else %}<div class="small">{{ link.note|default:'—' }}</div>{% endif %}
+      </div>
+    </div>
+    {% endwith %}{% endfor %}
+  </div>
+  {% if can_edit %}<div class="text-end mt-3"><button class="btn btn-sm btn-hm text-white fw-bold">Lưu sản lượng & ghi chú</button></div>{% endif %}
+  </form>
+  {% else %}
+  <div class="text-center text-muted py-4">Chưa gắn sản phẩm.{% if can_edit_header %} <a href="{% url 'ra_mat_sp:edit' plan.pk %}">Chọn sản phẩm từ Thư viện</a>{% endif %}</div>
+  {% endif %}
+</div>

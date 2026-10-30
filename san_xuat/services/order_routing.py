@@ -890,10 +890,14 @@ def apply_order_routing_edits(
     updates: list | None = None,
     adds: list | None = None,
     deletes: list | None = None,
+    user=None,
 ) -> dict:
     """Lưu OB trên đơn theo lô: sửa SMV đơn hàng, thêm công đoạn, xóa công đoạn."""
     assert_order_routing_editable(order_line.order)
     stats = {'updated': 0, 'added': 0, 'deleted': 0}
+    from san_xuat.services.order_history import ob_snapshot
+
+    stats['_before'] = ob_snapshot(order_line)
 
     for raw in updates or []:
         if not isinstance(raw, dict):
@@ -937,7 +941,35 @@ def apply_order_routing_edits(
         if not order_line.routing_lines.exclude(pk__in=delete_ids).exists():
             raise OrderRoutingError('Phải còn ít nhất một công đoạn trên dòng đơn.')
         stats['deleted'] = order_line.routing_lines.filter(pk__in=delete_ids).delete()[0]
+    before = stats.pop('_before')
+    if stats['updated'] or stats['added'] or stats['deleted']:
+        log_order_ob_change(
+            order_line, before=before,
+            summary=(
+                f"Sửa OB trên đơn — {order_line.product_name or order_line.product_code}: "
+                f"sửa {stats['updated']}, thêm {stats['added']}, xóa {stats['deleted']} CĐ"
+            ),
+            user=user,
+        )
     return stats
+
+
+def log_order_ob_change(order_line: SxSalesOrderLine, *, before: list, summary: str, source: str = '', user=None) -> None:
+    """Ghi nhật ký OB trên đơn (trước / sau) — user lấy từ thread-local request nếu không truyền."""
+    from san_xuat.services.order_history import log_order_event, ob_snapshot
+
+    log_order_event(
+        order=order_line.order,
+        action='update',
+        kind='ob',
+        summary=summary,
+        user=user,
+        line_id=order_line.pk,
+        product=f'{order_line.product_code} — {order_line.product_name}'.strip(' —'),
+        before=before,
+        after=ob_snapshot(order_line),
+        source=source,
+    )
 
 
 @transaction.atomic
@@ -972,8 +1004,15 @@ def update_order_line_bom_overrides(
     order_line.save(update_fields=['bom_line_overrides'])
     log_plan_action(
         action='update', obj=order_line.order,
-        summary=f'Cập nhật chi tiết BOM dòng {order_line.product_code} trên đơn.',
-        changes={'line_id': order_line.pk, 'before': before, 'after': normalized},
+        summary=f'Sửa BOM trên đơn — {order_line.product_name or order_line.product_code}',
+        changes={
+            'kind': 'bom',
+            'line_id': order_line.pk,
+            'product': f'{order_line.product_code} — {order_line.product_name}'.strip(' —'),
+            'before': before,
+            'after': normalized,
+            'npl_deferred': order_npl_deferred(order_line.order),
+        },
         user=user,
     )
     order = order_line.order

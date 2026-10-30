@@ -179,9 +179,13 @@ class LaunchPlan(models.Model):
 
 class LaunchPlanProduct(models.Model):
     plan = models.ForeignKey(LaunchPlan, on_delete=models.CASCADE, related_name='products')
+    style = models.ForeignKey(
+        'kho_san_pham.ProductStyle', on_delete=models.PROTECT, null=True, related_name='launch_links',
+        verbose_name='Style (Thư viện sản phẩm)',
+    )
     dossier = models.ForeignKey(
         'thiet_ke_sp.ProductDevelopment', on_delete=models.CASCADE, related_name='launch_links',
-        verbose_name='Hồ sơ thiết kế',
+        verbose_name='Hồ sơ thiết kế nguồn',
     )
     planned_qty = models.PositiveIntegerField(null=True, blank=True, verbose_name='Sản lượng ra mắt')
     note = models.CharField(max_length=255, blank=True, default='', verbose_name='Ghi chú')
@@ -192,6 +196,7 @@ class LaunchPlanProduct(models.Model):
         ordering = ['sort_order', 'pk']
         constraints = [
             models.UniqueConstraint(fields=['plan', 'dossier'], name='ra_mat_sp_plan_dossier_uniq'),
+            models.UniqueConstraint(fields=['plan', 'style'], name='ra_mat_sp_plan_style_uniq'),
         ]
 
 

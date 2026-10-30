@@ -1,0 +1,242 @@
+{# Modal lịch sử chỉnh sửa đơn đặt hàng #}
+<div class="modal fade" id="jpOrderHistoryModal" tabindex="-1" aria-labelledby="jpOrderHistoryLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content jp-hist">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title" id="jpOrderHistoryLabel">
+            <i class="bi bi-clock-history me-1" aria-hidden="true"></i>Lịch sử chỉnh sửa — {{ order.code }}
+          </h5>
+          <div class="small text-muted">{{ history_events|length }} sự kiện · mới nhất ở trên</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="jp-hist-toolbar">
+        <div class="jp-hist-filters" role="tablist">
+          <button type="button" class="jp-hist-filter is-active" data-jp-hist-filter="">Tất cả <span>{{ history_events|length }}</span></button>
+          {% for g in history_groups %}
+          <button type="button" class="jp-hist-filter" data-jp-hist-filter="{{ g.kind }}">{{ g.label }} <span>{{ g.count }}</span></button>
+          {% endfor %}
+        </div>
+        <div class="jp-hist-tools">
+          <input type="search" class="form-control form-control-sm" placeholder="Tìm người, NPL, công đoạn…" data-jp-hist-search>
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-jp-hist-expand="1">Mở tất cả</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-jp-hist-expand="0">Thu tất cả</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        {% if history_events %}
+        <ol class="jp-hist-list">
+          {% for ev in history_events %}
+          {% ifchanged ev.at.date %}
+          <li class="jp-hist-day" data-jp-hist-day>{{ ev.at|date:"l, d/m/Y" }}</li>
+          {% endifchanged %}
+          <li class="jp-hist-item tone-{{ ev.tone }}" data-jp-hist-kind="{{ ev.kind }}">
+            <span class="jp-hist-dot"><i class="bi {{ ev.icon }}" aria-hidden="true"></i></span>
+            <div class="jp-hist-card">
+              <div class="jp-hist-head"{% if ev.has_detail %} role="button" tabindex="0" data-jp-hist-toggle aria-expanded="{% if forloop.counter <= 3 %}true{% else %}false{% endif %}"{% endif %}>
+                <div class="jp-hist-main">
+                  <div class="jp-hist-title">{{ ev.title|default:ev.kind_label }}</div>
+                  <div class="jp-hist-meta">
+                    <span class="jp-hist-kind">{{ ev.kind_label }}</span>
+                    <span><i class="bi bi-person" aria-hidden="true"></i>{{ ev.user }}</span>
+                    <span title="{{ ev.at|date:'d/m/Y H:i:s' }}"><i class="bi bi-clock" aria-hidden="true"></i>{{ ev.at|date:"H:i:s" }}</span>
+                    {% if ev.product %}<span><i class="bi bi-box-seam" aria-hidden="true"></i>{{ ev.product }}</span>{% endif %}
+                    {% if ev.stats %}<span class="jp-hist-stats">{{ ev.stats }}</span>{% endif %}
+                  </div>
+                </div>
+                {% if ev.has_detail %}
+                <div class="jp-hist-counts">
+                  {% if ev.added %}<span class="is-add">+{{ ev.added|length }}</span>{% endif %}
+                  {% if ev.removed %}<span class="is-del">−{{ ev.removed|length }}</span>{% endif %}
+                  {% if ev.changed %}<span class="is-chg">~{{ ev.changed|length }}</span>{% endif %}
+                  {% if ev.fields %}<span class="is-chg">{{ ev.fields|length }} trường</span>{% endif %}
+                  <i class="bi bi-chevron-down jp-hist-caret" aria-hidden="true"></i>
+                </div>
+                {% endif %}
+              </div>
+              {% if ev.has_detail %}
+              <div class="jp-hist-body"{% if forloop.counter > 3 %} hidden{% endif %}>
+                {% if ev.fields %}
+                <table class="table table-sm jp-hist-table">
+                  <thead><tr><th>Trường</th><th>Trước</th><th></th><th>Sau</th></tr></thead>
+                  <tbody>
+                  {% for f in ev.fields %}
+                  <tr><td class="fw-semibold">{{ f.label }}</td><td class="is-before">{{ f.before }}</td><td class="text-muted">→</td><td class="is-after">{{ f.after }}</td></tr>
+                  {% endfor %}
+                  </tbody>
+                </table>
+                {% endif %}
+                {% if ev.changed %}
+                <div class="jp-hist-sec">
+                  <div class="jp-hist-sec-title is-chg"><i class="bi bi-pencil" aria-hidden="true"></i>Thay đổi ({{ ev.changed|length }})</div>
+                  <table class="table table-sm jp-hist-table">
+                    <thead><tr><th>Dòng</th><th>Trường</th><th>Trước</th><th></th><th>Sau</th></tr></thead>
+                    <tbody>
+                    {% for c in ev.changed %}
+                      {% for d in c.diffs %}
+                      <tr>
+                        {% if forloop.first %}<td class="fw-semibold" rowspan="{{ c.diffs|length }}">{{ c.title }}</td>{% endif %}
+                        <td class="text-muted">{{ d.label }}</td>
+                        <td class="is-before">{{ d.before }}</td>
+                        <td class="text-muted">→</td>
+                        <td class="is-after">{{ d.after }}</td>
+                      </tr>
+                      {% endfor %}
+                    {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+                {% endif %}
+                {% if ev.added %}
+                <div class="jp-hist-sec">
+                  <div class="jp-hist-sec-title is-add"><i class="bi bi-plus-circle" aria-hidden="true"></i>Thêm mới ({{ ev.added|length }})</div>
+                  <ul class="jp-hist-rows is-add">
+                    {% for r in ev.added %}<li><span>{{ r.title }}</span><small>{{ r.detail }}</small></li>{% endfor %}
+                  </ul>
+                </div>
+                {% endif %}
+                {% if ev.removed %}
+                <div class="jp-hist-sec">
+                  <div class="jp-hist-sec-title is-del"><i class="bi bi-dash-circle" aria-hidden="true"></i>Đã xóa ({{ ev.removed|length }})</div>
+                  <ul class="jp-hist-rows is-del">
+                    {% for r in ev.removed %}<li><span>{{ r.title }}</span><small>{{ r.detail }}</small></li>{% endfor %}
+                  </ul>
+                </div>
+                {% endif %}
+                {% if ev.notes %}
+                <ul class="jp-hist-notes">
+                  {% for n in ev.notes %}<li>{{ n }}</li>{% endfor %}
+                </ul>
+                {% endif %}
+                {% if ev.links %}
+                <div class="jp-hist-links">
+                  {% for l in ev.links %}<a href="{{ l.url }}" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>{{ l.label }}</a>{% endfor %}
+                </div>
+                {% endif %}
+              </div>
+              {% endif %}
+            </div>
+          </li>
+          {% endfor %}
+        </ol>
+        <div class="jp-hist-empty d-none" data-jp-hist-empty>Không có sự kiện phù hợp.</div>
+        {% else %}
+        <div class="jp-hist-empty">Chưa có lịch sử chỉnh sửa.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+<style>
+  .jp-hist .modal-header { align-items: flex-start; }
+  .jp-hist-toolbar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; justify-content: space-between; padding: .6rem 1rem; border-bottom: 1px solid var(--bs-border-color); background: #f8fafc; }
+  .jp-hist-filters { display: flex; flex-wrap: wrap; gap: .35rem; }
+  .jp-hist-filter { border: 1px solid #e2e8f0; background: #fff; color: #475569; border-radius: 999px; padding: .2rem .7rem; font-size: .76rem; font-weight: 600; }
+  .jp-hist-filter span { margin-left: .25rem; padding: 0 .35rem; border-radius: 999px; background: #f1f5f9; font-size: .7rem; }
+  .jp-hist-filter.is-active { color: #fff; background: var(--hm-red, #dc2626); border-color: var(--hm-red, #dc2626); }
+  .jp-hist-filter.is-active span { background: rgba(255,255,255,.25); }
+  .jp-hist-tools { display: flex; gap: .35rem; align-items: center; }
+  .jp-hist-tools input { width: 15rem; }
+  .jp-hist-list { list-style: none; margin: 0; padding: 0 0 0 1.4rem; position: relative; }
+  .jp-hist-list::before { content: ''; position: absolute; left: .55rem; top: .3rem; bottom: .3rem; width: 2px; background: #e2e8f0; }
+  .jp-hist-day { margin: .9rem 0 .4rem -1.4rem; font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #64748b; }
+  .jp-hist-day:first-child { margin-top: 0; }
+  .jp-hist-item { position: relative; margin-bottom: .55rem; }
+  .jp-hist-dot { position: absolute; left: -1.4rem; top: .55rem; width: 1.2rem; height: 1.2rem; display: grid; place-items: center; border-radius: 50%; font-size: .62rem; color: #fff; background: var(--jp-tone, #64748b); box-shadow: 0 0 0 3px #fff; }
+  .jp-hist-card { border: 1px solid #e2e8f0; border-left: 3px solid var(--jp-tone, #64748b); border-radius: .55rem; background: #fff; }
+  .jp-hist-head { display: flex; gap: .75rem; align-items: center; justify-content: space-between; padding: .55rem .75rem; }
+  .jp-hist-head[role="button"] { cursor: pointer; }
+  .jp-hist-head[role="button"]:hover { background: #f8fafc; }
+  .jp-hist-title { font-weight: 600; font-size: .86rem; color: #0f172a; }
+  .jp-hist-meta { display: flex; flex-wrap: wrap; gap: .25rem .8rem; margin-top: .15rem; font-size: .74rem; color: #64748b; }
+  .jp-hist-meta i { margin-right: .2rem; }
+  .jp-hist-kind { font-weight: 700; color: var(--jp-tone, #64748b); }
+  .jp-hist-stats { padding: 0 .4rem; border-radius: .3rem; background: #f1f5f9; color: #334155; font-weight: 600; }
+  .jp-hist-counts { display: flex; gap: .3rem; align-items: center; flex-shrink: 0; font-size: .72rem; font-weight: 700; }
+  .jp-hist-counts span { padding: .05rem .4rem; border-radius: .3rem; }
+  .is-add { color: #047857; } .jp-hist-counts .is-add { background: #ecfdf5; }
+  .is-del { color: #b91c1c; } .jp-hist-counts .is-del { background: #fef2f2; }
+  .is-chg { color: #b45309; } .jp-hist-counts .is-chg { background: #fffbeb; }
+  .jp-hist-caret { color: #94a3b8; transition: transform .15s ease; }
+  .jp-hist-head[aria-expanded="true"] .jp-hist-caret { transform: rotate(180deg); }
+  .jp-hist-body { padding: .2rem .75rem .7rem; border-top: 1px dashed #e2e8f0; }
+  .jp-hist-sec { margin-top: .55rem; }
+  .jp-hist-sec-title { font-size: .74rem; font-weight: 700; margin-bottom: .25rem; }
+  .jp-hist-sec-title i { margin-right: .25rem; }
+  .jp-hist-table { margin: .4rem 0 0; font-size: .78rem; }
+  .jp-hist-table th { font-size: .7rem; color: #64748b; font-weight: 600; background: #f8fafc; }
+  .jp-hist-table td.is-before { color: #b91c1c; text-decoration: line-through; text-decoration-color: rgba(185,28,28,.35); }
+  .jp-hist-table td.is-after { color: #047857; font-weight: 600; }
+  .jp-hist-rows { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); gap: .25rem .6rem; font-size: .78rem; }
+  .jp-hist-rows li { display: flex; flex-direction: column; padding: .3rem .5rem; border-radius: .35rem; }
+  .jp-hist-rows.is-add li { background: #f0fdf4; border-left: 2px solid #34d399; }
+  .jp-hist-rows.is-del li { background: #fef2f2; border-left: 2px solid #f87171; }
+  .jp-hist-rows small { color: #64748b; }
+  .jp-hist-notes { margin: .55rem 0 0; padding-left: 1.1rem; font-size: .78rem; color: #334155; }
+  .jp-hist-links { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .5rem; }
+  .jp-hist-links a { font-size: .76rem; font-weight: 600; text-decoration: none; padding: .2rem .55rem; border: 1px solid rgba(220,38,38,.3); border-radius: .4rem; color: var(--hm-red, #dc2626); }
+  .jp-hist-links a i { margin-right: .3rem; }
+  .jp-hist-empty { padding: 2rem; text-align: center; color: #94a3b8; }
+  .tone-slate { --jp-tone: #64748b; } .tone-indigo { --jp-tone: #4f46e5; } .tone-blue { --jp-tone: #2563eb; }
+  .tone-amber { --jp-tone: #d97706; } .tone-teal { --jp-tone: #0d9488; } .tone-red { --jp-tone: #dc2626; }
+  .tone-violet { --jp-tone: #7c3aed; } .tone-green { --jp-tone: #059669; } .tone-orange { --jp-tone: #ea580c; }
+  @media (max-width: 767.98px) { .jp-hist-tools input { width: 100%; } .jp-hist-tools { width: 100%; } }
+</style>
+<script>
+  (function () {
+    var modal = document.getElementById('jpOrderHistoryModal');
+    if (!modal) return;
+    var kind = '';
+    var term = '';
+    function setOpen(head, open) {
+      var body = head.parentElement.querySelector('.jp-hist-body');
+      if (!body) return;
+      body.hidden = !open;
+      head.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+    function apply() {
+      var shown = 0;
+      modal.querySelectorAll('.jp-hist-item').forEach(function (li) {
+        var ok = (!kind || li.dataset.jpHistKind === kind) && (!term || li.textContent.toLowerCase().indexOf(term) !== -1);
+        li.hidden = !ok;
+        if (ok) shown++;
+        if (ok && term) {
+          var head = li.querySelector('[data-jp-hist-toggle]');
+          if (head) setOpen(head, true);
+        }
+      });
+      modal.querySelectorAll('[data-jp-hist-day]').forEach(function (day) {
+        var n = day.nextElementSibling;
+        var any = false;
+        while (n && !n.hasAttribute('data-jp-hist-day')) { if (!n.hidden) { any = true; break; } n = n.nextElementSibling; }
+        day.hidden = !any;
+      });
+      var empty = modal.querySelector('[data-jp-hist-empty]');
+      if (empty) empty.classList.toggle('d-none', shown > 0);
+    }
+    modal.addEventListener('click', function (e) {
+      var f = e.target.closest('[data-jp-hist-filter]');
+      if (f) {
+        kind = f.dataset.jpHistFilter;
+        modal.querySelectorAll('[data-jp-hist-filter]').forEach(function (b) { b.classList.toggle('is-active', b === f); });
+        apply();
+        return;
+      }
+      var x = e.target.closest('[data-jp-hist-expand]');
+      if (x) {
+        var open = x.dataset.jpHistExpand === '1';
+        modal.querySelectorAll('.jp-hist-item:not([hidden]) [data-jp-hist-toggle]').forEach(function (h) { setOpen(h, open); });
+        return;
+      }
+      var head = e.target.closest('[data-jp-hist-toggle]');
+      if (head && !e.target.closest('a')) setOpen(head, head.getAttribute('aria-expanded') !== 'true');
+    });
+    modal.addEventListener('keydown', function (e) {
+      var head = e.target.closest('[data-jp-hist-toggle]');
+      if (head && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); head.click(); }
+    });
+    var search = modal.querySelector('[data-jp-hist-search]');
+    if (search) search.addEventListener('input', function () { term = search.value.trim().toLowerCase(); apply(); });
+  })();
+</script>

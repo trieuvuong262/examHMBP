@@ -124,7 +124,8 @@ def _decorate(plans: list[LaunchPlan]) -> list[LaunchPlan]:
         high_risks.setdefault(plan_id, []).append((desc or '')[:80])
     high = {k: len(v) for k, v in high_risks.items()}
     products: dict[int, list] = {}
-    for link in LaunchPlanProduct.objects.filter(plan_id__in=ids).select_related('dossier'):
+    for link in LaunchPlanProduct.objects.filter(plan_id__in=ids).select_related('dossier', 'style'):
+        link.dossier.style_code = link.style.code if link.style_id else ''
         products.setdefault(link.plan_id, []).append(link.dossier)
     covers = cover_map([d.pk for ds in products.values() for d in ds])
     for p in plans:
@@ -236,7 +237,8 @@ def plan_list(request):
     if q:
         qs = qs.filter(
             Q(code__icontains=q) | Q(name__icontains=q) | Q(products__dossier__code__icontains=q)
-            | Q(products__dossier__name__icontains=q)
+            | Q(products__dossier__name__icontains=q) | Q(products__style__code__icontains=q)
+            | Q(products__style__name__icontains=q)
         ).distinct()
     coordinator = g.get('coordinator') or ''
     if coordinator.isdigit():
@@ -364,19 +366,24 @@ def plan_create(request):
     if not perms.can_create(user):
         return _deny(request, perms.MENU_PLANS)
     initial = {'coordinator': user.pk}
-    dossier_id = request.GET.get('ho_so')
-    if dossier_id and dossier_id.isdigit():
-        initial['dossiers'] = [int(dossier_id)]
+    style_code = (request.GET.get('style') or '').strip()
+    if style_code:
+        initial['styles'] = list(svc.library_styles().filter(code__iexact=style_code).values_list('pk', flat=True))
     form = f.PlanForm(request.POST or None, initial=initial)
     if request.method == 'POST' and form.is_valid():
-        plan = svc.create_plan(form.save(commit=False), list(form.cleaned_data['dossiers']), user)
         try:
-            svc.assign_group_owners(plan, user, svc.parse_owner_map(request.POST))
+            with transaction.atomic():
+                plan = svc.create_plan(form.save(commit=False), list(form.cleaned_data['styles']), user)
         except svc.WorkflowError as exc:
-            messages.error(request, str(exc))
-        invalidate_plan_badges(plan)
-        messages.success(request, f'Đã tạo kế hoạch {plan.code} và sinh checklist theo mốc T-/D+.')
-        return redirect(f'{plan.get_absolute_url()}?tab=timeline')
+            form.add_error('styles', str(exc))
+        else:
+            try:
+                svc.assign_group_owners(plan, user, svc.parse_owner_map(request.POST))
+            except svc.WorkflowError as exc:
+                messages.error(request, str(exc))
+            invalidate_plan_badges(plan)
+            messages.success(request, f'Đã tạo kế hoạch {plan.code} và sinh checklist theo mốc T-/D+.')
+            return redirect(f'{plan.get_absolute_url()}?tab=timeline')
     selected = dict(LaunchGroupDefault.objects.values_list('group', 'owner_id'))
     return render(request, 'ra_mat_sp/plan_form.html', _common(
         request, form=form, rm_active='create', title='Tạo kế hoạch ra mắt',
@@ -394,15 +401,21 @@ def plan_edit(request, pk):
     old_date = plan.launch_date
     form = f.PlanForm(request.POST or None, instance=plan)
     if request.method == 'POST' and form.is_valid():
-        with transaction.atomic():
-            svc.update_plan(form.save(commit=False), list(form.cleaned_data['dossiers']), user, old_launch_date=old_date)
+        try:
+            with transaction.atomic():
+                svc.update_plan(form.save(commit=False), list(form.cleaned_data['styles']), user,
+                                old_launch_date=old_date)
+        except svc.WorkflowError as exc:
+            form.add_error('styles', str(exc))
+            plan.refresh_from_db()
+        else:
             try:
                 svc.assign_group_owners(plan, user, svc.parse_owner_map(request.POST))
             except svc.WorkflowError as exc:
                 messages.error(request, str(exc))
-        invalidate_plan_badges(plan)
-        messages.success(request, 'Đã cập nhật kế hoạch.')
-        return redirect(plan.get_absolute_url())
+            invalidate_plan_badges(plan)
+            messages.success(request, 'Đã cập nhật kế hoạch.')
+            return redirect(plan.get_absolute_url())
     svc.ensure_group_owners(plan)
     selected = dict(plan.group_owners.values_list('group', 'owner_id'))
     return render(request, 'ra_mat_sp/plan_form.html', _common(
@@ -464,11 +477,14 @@ def plan_detail(request, pk):
     risks = list(plan.risks.select_related('owner__profile', 'created_by__profile'))
     high = sum(1 for r in risks if r.is_open and r.severity == RiskSeverity.HIGH)
     links = list(plan.products.select_related(
+        'style__product_type',
         'dossier__owner__profile', 'dossier__designer__profile', 'dossier__handover',
         'dossier__approved_design_version', 'dossier__final_sample_version',
     ))
     covers = cover_map([l.dossier_id for l in links])
-    official = {(l.dossier.official_product_code or '').strip().upper() for l in links} - {''}
+    official = {
+        (l.style.code if l.style_id else (l.dossier.official_product_code or '')).strip().upper() for l in links
+    } - {''}
     in_library = set()
     if official:
         from thiet_ke_sp.models import Handover, Status as HandoverStatus
@@ -482,7 +498,8 @@ def plan_detail(request, pk):
         }
     for link in links:
         link.cover = covers.get(link.dossier_id)
-        link.library_code = (link.dossier.official_product_code or '').strip().upper()
+        link.library_code = (link.style.code if link.style_id else (link.dossier.official_product_code or '')).strip().upper()
+        link.display_name = (link.style.name if link.style_id and link.style.name else link.dossier.name)
         link.in_library = link.library_code in in_library
         link.production_state = svc.production_state(link.dossier)
         link.production_label = svc.PRODUCTION_STATE_LABELS[link.production_state]
@@ -494,6 +511,17 @@ def plan_detail(request, pk):
     is_approver = perms.is_plan_approver(plan, user)
     plan_tone = svc.tone(plan, ready, high)
     go_rows = svc.go_conditions(plan, tasks, links)
+    gap_keys = ('design_gap', 'lock_gap', 'price_gap', 'mo_gap', 'stock_gap', 'media_gap', 'channel_gap')
+    for link in links:
+        fact = getattr(link, 'fact', None)
+        link.gap_total = len(gap_keys)
+        link.gap_ok = sum(1 for k in gap_keys if fact is not None and not getattr(fact, k, ''))
+    product_summary = {
+        'count': len(links),
+        'qty': sum(l.planned_qty or 0 for l in links),
+        'ready': sum(1 for l in links if l.gap_ok == l.gap_total),
+        'skus': sum(getattr(getattr(l, 'fact', None), 'sku_count', 0) or 0 for l in links),
+    }
     group_owners = list(plan.group_owners.select_related('owner__profile'))
     tab_tasks = {
         key: [t for t in tasks if t.group in groups]
@@ -512,6 +540,7 @@ def plan_detail(request, pk):
         open_risks=[r for r in risks if r.is_open],
         high_risks=high,
         links=links,
+        product_summary=product_summary,
         timeline=_timeline(tasks),
         tab_tasks=tab_tasks,
         group_owners=group_owners,

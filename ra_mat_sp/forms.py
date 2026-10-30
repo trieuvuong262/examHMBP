@@ -5,8 +5,7 @@ from django import forms
 from thiet_ke_sp import catalog
 from thiet_ke_sp.forms import UserChoiceField, UserMultipleChoiceField, active_users
 from thiet_ke_sp.forms import user_field as _tk_user_field
-from thiet_ke_sp.models import ProductDevelopment
-from thiet_ke_sp.models import Status as DossierStatus
+from kho_san_pham.catalog_models import ProductStyle
 
 from . import permissions as perms
 from .models import (
@@ -47,24 +46,17 @@ def approver_queryset(current_id=None):
     return active_users().filter(pk__in=ids)
 
 
-class DossierChoiceField(forms.ModelMultipleChoiceField):
+class StyleChoiceField(forms.ModelMultipleChoiceField):
     def label_from_instance(self, obj):
-        group = catalog.group_label(obj.product_group) if obj.product_group else 'Chưa chọn nhóm'
-        return f'{obj.code} · {obj.name} — {group} · {obj.get_status_display()}'
-
-
-def dossier_queryset(current_ids=()):
-    from django.db.models import Q
-
-    return ProductDevelopment.objects.filter(
-        Q(pk__in=list(current_ids)) | ~Q(status__in=(DossierStatus.CANCELLED,)),
-    ).order_by('-created_at')
+        type_label = obj.product_type.name if obj.product_type_id else ''
+        return f'{obj.code} · {obj.name or "—"}' + (f' — {type_label}' if type_label else '')
 
 
 class PlanForm(forms.ModelForm):
-    dossiers = DossierChoiceField(
-        queryset=ProductDevelopment.objects.none(),
-        label='Sản phẩm ra mắt (hồ sơ thiết kế)',
+    styles = StyleChoiceField(
+        queryset=ProductStyle.objects.none(),
+        label='Sản phẩm ra mắt (Thư viện sản phẩm)',
+        help_text='Chọn Style đã có trong Thư viện sản phẩm.',
         widget=forms.SelectMultiple(attrs={'class': 'form-select form-select-sm jp-tksp-user-select', 'multiple': 'multiple'}),
     )
 
@@ -91,10 +83,12 @@ class PlanForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         plan = self.instance
-        current = list(plan.products.values_list('dossier_id', flat=True)) if plan.pk else []
-        self.fields['dossiers'].queryset = dossier_queryset(current)
+        from .services import library_styles
+
+        current = [pk for pk in plan.products.values_list('style_id', flat=True) if pk] if plan.pk else []
+        self.fields['styles'].queryset = library_styles(current)
         if plan.pk and not self.is_bound:
-            self.initial['dossiers'] = current
+            self.initial['styles'] = current
         self.fields['coordinator'] = user_field('Người điều phối', required=True)
         self.fields['approver'] = UserChoiceField(
             queryset=approver_queryset(plan.approver_id), required=False, label='Người duyệt (Go/No-Go)',

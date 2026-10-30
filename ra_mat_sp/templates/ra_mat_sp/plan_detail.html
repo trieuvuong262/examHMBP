@@ -201,57 +201,7 @@
         {% endif %}
 
       {% elif tab == 'products' %}
-        <div class="tk-section">
-          <div class="tk-section-title"><i class="bi bi-bag"></i>Sản phẩm trong đợt ra mắt</div>
-          {% if links %}
-          <div class="tk-prod-grid mb-3">
-            {% for link in links %}
-            {% with d=link.dossier %}
-            <a class="tk-prod-card" href="{{ d.get_absolute_url }}">
-              <div class="art">{% if link.cover %}<img src="{{ link.cover.get_absolute_url }}" alt="" data-sx-gallery data-sx-gallery-image="{{ link.cover.get_absolute_url }}" data-sx-gallery-title="{{ d.name }}" style="cursor:zoom-in">{% else %}<i class="bi bi-palette"></i>{% endif %}</div>
-              <div class="info">
-                <b>{{ d.name }}</b>
-                <small>{{ d.code }}{% if link.group_label %} · {{ link.group_label }}{% endif %}</small>
-                <div class="foot">
-                  <span class="tk-pill {% if d.status == 'approved' or d.status == 'handed_over' or d.status == 'closed' %}is-green{% elif d.status == 'cancelled' or d.status == 'paused' %}is-gray{% else %}is-amber{% endif %}">{{ d.get_status_display }}</span>
-                  <span class="small text-muted">{% if link.planned_qty is not None %}{{ link.planned_qty|sx_num }} sp{% else %}—{% endif %}</span>
-                </div>
-              </div>
-            </a>
-            {% endwith %}
-            {% endfor %}
-          </div>
-          {% endif %}
-          <form method="post" action="{% url 'ra_mat_sp:action' plan.pk 'product_qty' %}">{% csrf_token %}
-          <div class="table-responsive"><table class="table tk-mini-table align-middle">
-            <thead><tr><th>Hồ sơ</th><th>Nhóm / colorway</th><th>Thiết kế / mẫu chuẩn</th><th>Sản xuất</th><th>Mã chính thức</th><th>Techpack · BOM · giá thành</th><th>Kênh / SKU</th><th>Giá bán lẻ</th><th style="width:120px">SL ra mắt</th><th>Ghi chú</th></tr></thead>
-            <tbody>
-            {% for link in links %}
-            {% with d=link.dossier %}
-            <tr>
-              <td><a class="tk-prod text-decoration-none text-reset" href="{{ d.get_absolute_url }}">
-                <span class="tk-prod-thumb">{% if link.cover %}<img src="{{ link.cover.get_absolute_url }}" alt="" data-sx-gallery data-sx-gallery-image="{{ link.cover.get_absolute_url }}" data-sx-gallery-title="{{ d.name }}" style="cursor:zoom-in">{% else %}<i class="bi bi-palette"></i>{% endif %}</span>
-                <span><strong>{{ d.name }}</strong><small>{{ d.code }}</small></span></a></td>
-              <td>{{ link.group_label|default:'—' }}{% if link.fact %}<div class="small text-muted">{{ link.fact.colorways }}</div>{% endif %}</td>
-              <td><div>{{ link.fact.design_label|default:d.get_status_display }}</div><small class="text-muted">Mẫu: {{ link.fact.sample_label|default:'Chưa có' }}</small></td>
-              <td><span class="tk-pill {% if d.status == 'approved' or d.status == 'handed_over' or d.status == 'closed' %}is-green{% elif d.status == 'cancelled' or d.status == 'paused' %}is-gray{% else %}is-amber{% endif %}">{{ d.get_status_display }}</span></td>
-              <td><span class="tk-pill {% if link.production_state == 'transferred' %}is-green{% elif link.production_state == 'pending' %}is-amber{% else %}is-gray{% endif %}">{{ link.production_label }}</span></td>
-              <td>{% if link.in_library %}<a href="{% url 'kho_san_pham:library_detail' link.library_code %}">{{ d.official_product_code }}</a>{% elif d.status == 'library_reopen' %}{{ d.official_product_code }} <small class="text-muted d-block">Tạm ẩn khỏi Thư viện</small>{% elif d.official_product_code %}{{ d.official_product_code }} <small class="text-muted d-block">Chưa có trong Thư viện</small>{% else %}<span class="text-muted">Chưa có</span>{% endif %}</td>
-              <td><div>{{ link.fact.techpack_label|default:'Chưa có' }}</div><small class="text-muted">BOM: {{ link.fact.bom_label|default:'Chưa có' }} · Cost: {{ link.fact.cost_label|default:'Chưa khóa' }}</small></td>
-              <td><div>{{ link.fact.channel_label|default:'Chưa có' }}</div>{% if link.fact.channel_gap %}<small class="tk-late">{{ link.fact.channel_gap }}</small>{% endif %}</td>
-              <td class="text-end">{% if link.fact.retail %}{{ link.fact.retail|sx_num }}{% elif d.proposed_retail_price %}{{ d.proposed_retail_price|sx_num }}{% elif d.target_retail_price %}{{ d.target_retail_price|sx_num }} <small class="text-muted">(mục tiêu)</small>{% else %}—{% endif %}</td>
-              <td>{% if can_edit %}<input type="number" min="0" name="qty_{{ link.pk }}" value="{{ link.planned_qty|default_if_none:'' }}" class="form-control form-control-sm text-end">{% else %}{% if link.planned_qty is not None %}{{ link.planned_qty|sx_num }}{% else %}—{% endif %}{% endif %}</td>
-              <td>{% if can_edit %}<input type="text" maxlength="255" name="note_{{ link.pk }}" value="{{ link.note }}" class="form-control form-control-sm">{% else %}{{ link.note|default:'—' }}{% endif %}</td>
-            </tr>
-            {% endwith %}
-            {% empty %}
-            <tr><td colspan="8" class="text-center text-muted py-3">Chưa gắn sản phẩm. {% if can_edit_header %}<a href="{% url 'ra_mat_sp:edit' plan.pk %}">Thêm hồ sơ thiết kế</a>{% endif %}</td></tr>
-            {% endfor %}
-            </tbody>
-          </table></div>
-          {% if can_edit and links %}<div class="text-end"><button class="btn btn-sm btn-hm text-white fw-bold">Lưu sản lượng</button></div>{% endif %}
-          </form>
-        </div>
+        {% include 'ra_mat_sp/includes/products_tab.html' %}
 
       {% elif tab == 'timeline' %}
         <div class="tk-section">

@@ -273,6 +273,7 @@
           {% empty %}
           <li><i class="bi bi-rocket-takeoff"></i>Chưa gắn kế hoạch ra mắt</li>
           {% endfor %}
+          {% if jp_can_ra_mat_sp and dossier %}<li><i class="bi bi-plus-lg"></i><a href="{% url 'ra_mat_sp:create' %}?style={{ code|urlencode }}">Tạo kế hoạch ra mắt</a></li>{% endif %}
           <li><i class="bi bi-tags"></i>{% if handover and handover.is_transferred %}<a href="{% url 'kho_san_pham:product_list' %}?q={{ code|urlencode }}&status=all">Danh mục</a>{% else %}Chưa chuyển sản xuất{% endif %}</li>
         </ul>
       </div>

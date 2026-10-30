@@ -263,30 +263,76 @@ def reschedule(plan: LaunchPlan) -> int:
     return changed
 
 
-def sync_products(plan: LaunchPlan, dossiers) -> tuple[int, int]:
+def library_styles(current_ids=()):
+    """Style đang hiện trong Thư viện sản phẩm (đã bàn giao từ hồ sơ thiết kế), cộng style đã gắn sẵn."""
+    from kho_san_pham.catalog_models import ProductStyle
+    from kho_san_pham.choices import STYLE_SOURCE_DESIGN
+    from thiet_ke_sp.models import Handover
+
+    shelf = Handover.objects.filter(
+        dossier__status__in=(DossierStatus.HANDED_OVER, DossierStatus.CLOSED),
+    ).values('product_code')
+    return ProductStyle.objects.filter(
+        Q(pk__in=list(current_ids)) | Q(source=STYLE_SOURCE_DESIGN, is_active=True, code__in=shelf),
+    ).select_related('product_type').order_by('code')
+
+
+def dossiers_for_styles(styles) -> dict[int, object]:
+    """Style → hồ sơ thiết kế nguồn (qua biên bản bàn giao / mã chính thức)."""
+    from thiet_ke_sp.models import Handover, ProductDevelopment
+
+    codes = {s.code.upper(): s.pk for s in styles}
+    out: dict[int, object] = {}
+    for h in Handover.objects.filter(product_code__in=list(codes)).select_related('dossier'):
+        pk = codes.get((h.product_code or '').strip().upper())
+        if pk:
+            out.setdefault(pk, h.dossier)
+    missing = [code for code, pk in codes.items() if pk not in out]
+    if missing:
+        q = Q()
+        for code in missing:
+            q |= Q(official_product_code__iexact=code)
+        for d in ProductDevelopment.objects.filter(q).order_by('-created_at'):
+            pk = codes.get((d.official_product_code or '').strip().upper())
+            if pk:
+                out.setdefault(pk, d)
+    return out
+
+
+def sync_products(plan: LaunchPlan, styles) -> tuple[int, int]:
     from .models import LaunchPlanProduct
 
-    wanted = {d.pk for d in dossiers}
-    current = set(plan.products.values_list('dossier_id', flat=True))
+    styles = list(styles)
+    dossiers = dossiers_for_styles(styles)
+    orphan = [s.code for s in styles if s.pk not in dossiers]
+    if orphan:
+        raise WorkflowError('Không tìm thấy hồ sơ thiết kế nguồn cho style: ' + ', '.join(orphan) + '.')
+    wanted = {s.pk for s in styles}
+    current = set(plan.products.values_list('style_id', flat=True))
     removed = current - wanted
     if removed:
-        plan.products.filter(dossier_id__in=removed).delete()
-    added = [d for d in dossiers if d.pk not in current]
+        plan.products.filter(style_id__in=removed).delete()
+    added = [s for s in styles if s.pk not in current]
+    taken = set(plan.products.values_list('dossier_id', flat=True))
+    dup = [s.code for s in added if dossiers[s.pk].pk in taken]
+    if dup:
+        raise WorkflowError('Style trùng hồ sơ thiết kế đã có trong kế hoạch: ' + ', '.join(dup) + '.')
     base = plan.products.count()
     LaunchPlanProduct.objects.bulk_create([
-        LaunchPlanProduct(plan=plan, dossier=d, planned_qty=d.expected_qty, sort_order=base + i)
-        for i, d in enumerate(added)
+        LaunchPlanProduct(plan=plan, style=s, dossier=dossiers[s.pk], planned_qty=dossiers[s.pk].expected_qty,
+                          sort_order=base + i)
+        for i, s in enumerate(added)
     ])
     return len(added), len(removed)
 
 
 @transaction.atomic
-def create_plan(plan: LaunchPlan, dossiers, user) -> LaunchPlan:
+def create_plan(plan: LaunchPlan, styles, user) -> LaunchPlan:
     plan.code = next_code(plan.launch_date.year if plan.launch_date else None)
     plan.created_by = user
     plan.status = Status.DRAFT
     plan.save()
-    sync_products(plan, dossiers)
+    sync_products(plan, styles)
     count = generate_tasks(plan)
     ensure_reviews(plan)
     log(plan, user, 'create', f'Tạo kế hoạch, sinh {count} công việc từ checklist mẫu.', is_status=True)
@@ -294,9 +340,9 @@ def create_plan(plan: LaunchPlan, dossiers, user) -> LaunchPlan:
 
 
 @transaction.atomic
-def update_plan(plan: LaunchPlan, dossiers, user, *, old_launch_date: date) -> None:
+def update_plan(plan: LaunchPlan, styles, user, *, old_launch_date: date) -> None:
     plan.save()
-    added, removed = sync_products(plan, dossiers)
+    added, removed = sync_products(plan, styles)
     parts = ['Cập nhật thông tin kế hoạch']
     if added or removed:
         parts.append(f'sản phẩm +{added}/-{removed}')
