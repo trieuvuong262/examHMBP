@@ -440,6 +440,11 @@ def update_sales_order(
     order.save(update_fields=update_fields)
     if lines is not None:
         _replace_lines(order, lines)
+        if order.confirm_status == SxSalesOrder.CONFIRM_CONFIRMED:
+            # Thẻ ngày lộ trình lưu SL tuyệt đối — phải khớp lại SL đơn mới.
+            from san_xuat.services.plan_board import sync_team_day_plans_to_order_qty
+
+            sync_team_day_plans_to_order_qty(order)
     return order
 
 

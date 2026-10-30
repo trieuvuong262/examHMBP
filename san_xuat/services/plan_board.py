@@ -5483,6 +5483,59 @@ def _order_team_target_qty(order: SxSalesOrder, slug: str) -> Decimal:
         return plan_rows_qty
 
 
+def sync_team_day_plans_to_order_qty(order: SxSalesOrder) -> list[tuple[str, Decimal, Decimal]]:
+    """Khớp tổng SL thẻ ngày từng tổ với SL đơn sau khi sửa dòng đơn.
+
+    Giảm SL: cắt bớt từ ngày cuối (giữ ngày bắt đầu + tách tay).
+    Tăng SL: tự tách lại theo công suất từ ngày bắt đầu cũ.
+    Trả danh sách (slug, SL cũ, SL mới) đã đổi.
+    """
+    if not getattr(order, 'pk', None):
+        return []
+    rows = list(
+        SxOrderTeamDayPlan.objects.filter(sales_order_id=order.pk).order_by('plan_date', 'id')
+    )
+    by_slug: dict[str, list[SxOrderTeamDayPlan]] = {}
+    for row in rows:
+        slug = (row.team_slug or '').strip().lower()
+        if slug and slug != 'npl':
+            by_slug.setdefault(slug, []).append(row)
+    changed: list[tuple[str, Decimal, Decimal]] = []
+    for slug, plans in by_slug.items():
+        have = sum((_q(p.qty) for p in plans), Decimal('0'))
+        target = _order_team_target_qty(order, slug)
+        if abs(have - target) <= Decimal('0.01'):
+            continue
+        if target < have:
+            excess = have - target
+            for p in sorted(plans, key=lambda x: (x.plan_date, x.pk), reverse=True):
+                if excess <= 0:
+                    break
+                cur = _q(p.qty)
+                take = min(cur, excess)
+                excess -= take
+                if cur - take <= 0:
+                    p.delete()
+                else:
+                    p.qty = cur - take
+                    p.save(update_fields=['qty'])
+        else:
+            first_day = plans[0].plan_date
+            try:
+                apply_auto_team_day_splits(
+                    order, only_slug=slug, replace_existing=True, origin_start=first_day,
+                )
+            except PlanningError:
+                continue
+        changed.append((slug, have, target))
+    if changed:
+        _clear_day_plan_cache(order)
+        from san_xuat.services.route_sheet import mark_route_sheet_dirty
+
+        mark_route_sheet_dirty(order.pk)
+    return changed
+
+
 def _pin_team_planned_date(order: SxSalesOrder, slug: str, pin: date) -> dict[str, date]:
     """Ghim planned_date các bước của tổ = pin; giữ pin các tổ khác."""
     from san_xuat.services.work_calendar import next_working_day
