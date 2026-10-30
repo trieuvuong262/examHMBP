@@ -24,7 +24,7 @@
     </nav>
   </div>
 
-  {% include 'san_xuat/includes/sx_list_filter.html' with filter_code_placeholder='Mã đơn / LSX…' filter_name_placeholder='Tên SP / khách…' %}
+  {% include 'san_xuat/includes/sx_list_filter.html' with filter_auto_ms=3000 filter_code_placeholder='Mã đơn / LSX…' filter_name_placeholder='Tên SP / khách…' %}
   <div class="card border-0 shadow-sm overflow-hidden jp-mo-panel">
     <div class="jp-npl-mat-grid-wrap">
       <table class="table table-hover align-middle mb-0 jp-npl-mat-grid" id="{{ sx_list_table_id }}">
