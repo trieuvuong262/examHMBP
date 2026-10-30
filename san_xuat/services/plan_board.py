@@ -3930,12 +3930,17 @@ def _sync_schedule_to_mos(
         if fields:
             mo.save(update_fields=fields)
         for step in mo.mo_process_steps.select_related('work_center'):
-            st_slug = (
-                team_slug_for_process_label(step.process_name or '')
-                or team_slug_for_work_center(step.work_center)
-                or ''
-            ).strip().lower()
-            new_date = starts.get(st_slug)
+            # Tên CĐ có thể map ra slug mẫu cũ ('may') trong khi KHSX theo tổ ('d25'):
+            # lấy slug nào có trong lịch, ưu tiên theo tên rồi tới tổ.
+            new_date = None
+            for cand in (
+                team_slug_for_process_label(step.process_name or ''),
+                team_slug_for_work_center(step.work_center),
+            ):
+                key = (cand or '').strip().lower()
+                if key and key in starts:
+                    new_date = starts[key]
+                    break
             if new_date and step.planned_date != new_date:
                 step.planned_date = new_date
                 step.save(update_fields=['planned_date'])
