@@ -15,6 +15,13 @@ Mỗi entry nên có:
 
 ## Entries
 
+### 2026-10-30 — module / ra-mat-sp-group-owners-m2m-fix
+
+- **Change**: Sửa toàn bộ chỗ còn dùng FK cũ `owner`/`owner_id` của `LaunchGroupDefault` / `LaunchPlanGroupOwner` sau migration `0007_group_owners_multi` (đổi sang M2M `owners`): tạo/sửa/chi tiết kế hoạch, lịch (lọc người điều phối), việc của tôi, quyền participant; thêm `svc.owner_ids_by_group(qs)`; `settings.html` thiếu `{% load tksp_tags %}`.
+- **Reason**: `FieldError: Cannot resolve keyword 'owner_id'` tại `/ke-hoach-ra-mat/ke-hoach/tao/`.
+- **Source**: `ra_mat_sp/services.py`, `ra_mat_sp/views.py`, `ra_mat_sp/permissions.py`, `ra_mat_sp/templates/ra_mat_sp/settings.html`.
+- **Agent impact**: Phụ trách nhóm là danh sách nhiều người — lọc bằng `owners=user`, lấy map bằng `owner_ids_by_group`, không dùng `owner`/`owner_id` trên 2 model này.
+
 ### 2026-10-30 — feature / sales-order-history-modal
 
 - **Change**: Nút **Lịch sử cập nhật** trên topbar chi tiết ĐĐH mở modal timeline (lọc theo nhóm, tìm kiếm, mở/thu từng sự kiện) với diff chi tiết trước → sau: thông tin đơn, dòng SP (SL, size, hạn, BOM/OB), BOM trên đơn (NPL thêm/xóa/sửa ĐM, hao hụt), OB trên đơn (CĐ thêm/xóa/sửa SMV, SL/SP, bộ phận; tổng SMV/SP), xác nhận/từ chối, Cập nhật BOM/OB về hồ sơ (link mở hồ sơ), KH NPL và LSX bị đồng bộ.

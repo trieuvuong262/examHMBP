@@ -62,6 +62,9 @@
   #jpObOpModal .jp-step-num { width: 1.2rem; height: 1.2rem; border-radius: 50%; background: var(--hm-primary, #dc2626); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: .68rem; line-height: 1; }
   #jpObOpModal .jp-step-num.is-off { background: #cbd5e1; }
   #jpObOpModal .btn { display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
+  /* Popup cao hơn để dropdown công đoạn hiện được nhiều dòng (không bị khung modal cắt). */
+  #jpObOpModal .modal-body { min-height: min(78vh, 760px); }
+  #jpObOpModal .jp-npl-dd-list { max-height: min(55vh, 540px); }
   .jp-ob-modal .jp-npl-val { font-size: .85rem; font-weight: 600; color: #1e293b; }
   .jp-ob-opt-code { flex-shrink: 0; min-width: 4.5rem; font-size: .72rem; font-weight: 700; color: var(--hm-primary, #dc2626); background: var(--hm-primary-soft, rgba(220,38,38,.08)); border-radius: .35rem; padding: .25rem .4rem; text-align: center; }
 </style>

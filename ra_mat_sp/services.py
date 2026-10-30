@@ -112,9 +112,19 @@ def template_items_for(groups: set[str]):
     return [i for i in items if not i.product_group or i.product_group in groups]
 
 
+def owner_ids_by_group(qs) -> dict[str, list[int]]:
+    """{nhóm: [user_id, ...]} từ queryset LaunchGroupDefault / LaunchPlanGroupOwner (M2M `owners`)."""
+    out: dict[str, list[int]] = {}
+    for group, uid in qs.values_list('group', 'owners'):
+        ids = out.setdefault(group, [])
+        if uid is not None and uid not in ids:
+            ids.append(uid)
+    return out
+
+
 def ensure_group_owners(plan: LaunchPlan) -> None:
     """Tạo dòng phụ trách nhóm còn thiếu: mặc định trong Thiết lập, không có thì người điều phối."""
-    defaults = {g: list(d.owners.values_list('pk', flat=True)) for g, d in LaunchGroupDefault.objects.all().values_list('group', flat=True)}
+    defaults = owner_ids_by_group(LaunchGroupDefault.objects.all())
     existing = set(plan.group_owners.values_list('group', flat=True))
     rows = [
         LaunchPlanGroupOwner(plan=plan, group=group)

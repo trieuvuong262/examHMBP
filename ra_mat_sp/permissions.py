@@ -65,7 +65,7 @@ def is_participant(plan: LaunchPlan, user) -> bool:
     return (
         plan.tasks.filter(Q(owner=user) | Q(collaborators=user)).exists()
         or plan.risks.filter(owner=user).exists()
-        or plan.group_owners.filter(owner=user).exists()
+        or plan.group_owners.filter(owners=user).exists()
     )
 
 
@@ -109,7 +109,7 @@ def participant_plan_ids(user):
         set(LaunchPlan.objects.filter(Q(coordinator=user) | Q(approver=user)).values_list('pk', flat=True))
         | set(LaunchTask.objects.filter(Q(owner=user) | Q(collaborators=user)).values_list('plan_id', flat=True))
         | set(LaunchRisk.objects.filter(owner=user).values_list('plan_id', flat=True))
-        | set(LaunchPlanGroupOwner.objects.filter(owner=user).values_list('plan_id', flat=True))
+        | set(LaunchPlanGroupOwner.objects.filter(owners=user).values_list('plan_id', flat=True))
     )
 
 

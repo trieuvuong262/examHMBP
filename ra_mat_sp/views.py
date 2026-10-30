@@ -308,7 +308,7 @@ def calendar_view(request):
         qs = qs.filter(products__dossier__collection__icontains=collection).distinct()
     if coordinator.isdigit():
         uid = int(coordinator)
-        qs = qs.filter(Q(coordinator_id=uid) | Q(group_owners__owner_id=uid)).distinct()
+        qs = qs.filter(Q(coordinator_id=uid) | Q(group_owners__owners=uid)).distinct()
     plans = _decorate(list(qs.order_by('launch_date')))
     if tone_filter:
         plans = [p for p in plans if p.tone == tone_filter]
@@ -336,7 +336,7 @@ def calendar_view(request):
     User = get_user_model()
     coordinators = User.objects.filter(
         Q(pk__in=LaunchPlan.objects.values('coordinator_id'))
-        | Q(pk__in=LaunchPlanGroupOwner.objects.exclude(owner=None).values('owner_id'))
+        | Q(pk__in=LaunchPlanGroupOwner.objects.exclude(owners=None).values('owners'))
     ).select_related('profile').order_by('profile__full_name').distinct()
     filter_qs = urlencode({k: v for k, v in (
         ('group', group), ('coordinator', coordinator), ('tone', tone_filter), ('collection', collection),
@@ -384,7 +384,7 @@ def plan_create(request):
             invalidate_plan_badges(plan)
             messages.success(request, f'Đã tạo kế hoạch {plan.code} và sinh checklist theo mốc T-/D+.')
             return redirect(f'{plan.get_absolute_url()}?tab=timeline')
-    selected = dict(LaunchGroupDefault.objects.values_list('group', 'owner_id'))
+    selected = svc.owner_ids_by_group(LaunchGroupDefault.objects.all())
     return render(request, 'ra_mat_sp/plan_form.html', _common(
         request, form=form, rm_active='create', title='Tạo kế hoạch ra mắt',
         back_url=reverse('ra_mat_sp:list'), owner_rows=f.owner_choice_rows(selected),
@@ -417,7 +417,7 @@ def plan_edit(request, pk):
             messages.success(request, 'Đã cập nhật kế hoạch.')
             return redirect(plan.get_absolute_url())
     svc.ensure_group_owners(plan)
-    selected = dict(plan.group_owners.values_list('group', 'owner_id'))
+    selected = svc.owner_ids_by_group(plan.group_owners.all())
     return render(request, 'ra_mat_sp/plan_form.html', _common(
         request, form=form, plan=plan, rm_active='edit', title=f'Sửa kế hoạch {plan.code}',
         back_url=plan.get_absolute_url(), owner_rows=f.owner_choice_rows(selected),
@@ -544,7 +544,7 @@ def plan_detail(request, pk):
         timeline=_timeline(tasks),
         tab_tasks=tab_tasks,
         group_owners=group_owners,
-        owner_rows=f.owner_choice_rows(dict(plan.group_owners.values_list('group', 'owner_id'))),
+        owner_rows=f.owner_choice_rows(svc.owner_ids_by_group(plan.group_owners.all())),
         go_conditions=go_rows,
         decisions=list(plan.decisions.select_related('decided_by__profile', 'condition_owner__profile')),
         reviews=reviews,
@@ -768,7 +768,7 @@ def my_tasks(request):
     # Việc chờ tôi xác nhận: việc của người khác đang vướng mắc, thuộc kế hoạch tôi điều phối
     # hoặc nhóm tôi chịu trách nhiệm chính.
     owned_groups = Q()
-    for plan_id, group in LaunchPlanGroupOwner.objects.filter(owner=user).values_list('plan_id', 'group'):
+    for plan_id, group in LaunchPlanGroupOwner.objects.filter(owners=user).values_list('plan_id', 'group').distinct():
         owned_groups |= Q(plan_id=plan_id, group=group)
     confirm_filter = Q(plan__coordinator=user)
     if owned_groups:
