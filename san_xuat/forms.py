@@ -285,7 +285,7 @@ class BomLineForm(forms.ModelForm):
         widgets = {
             'material': forms.Select(attrs={
                 'class': 'form-select form-select-sm jp-npl-material-select',
-                'data-placeholder': 'Gõ tên NPL…',
+                'data-placeholder': 'Gõ tên / mã NPL hoặc nhóm gom…',
             }),
             'qty': CompactNumberInput(attrs={
                 'class': 'form-control form-control-sm',
@@ -395,6 +395,12 @@ class BomLineForm(forms.ModelForm):
     def has_changed(self):
         if getattr(self, '_posted_group', None) is not None:
             return True
+        # Dòng mới chưa chọn NPL / nhóm (dòng trống cuối bảng, có thể đã có STT / ĐM)
+        # → coi như form trống, bỏ qua khi lưu thay vì báo "Trường này là bắt buộc".
+        if not self.instance.pk and self.data:
+            posted = str(self.data.get(self.add_prefix('material')) or '').strip()
+            if not posted:
+                return False
         return super().has_changed()
 
     def save(self, commit=True):

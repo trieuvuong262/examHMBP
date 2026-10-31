@@ -209,12 +209,20 @@ def _normalize_bom_overrides(raw) -> list[dict]:
         if group_id > 0:
             item['material_group_id'] = group_id
             item['group_name'] = str(row.get('group_name') or '').strip()[:160]
+            if row.get('member_size'):
+                item['member_size'] = str(row.get('member_size') or '').strip()[:100]
         out.append(item)
     return out
 
 
-def bom_lines_snapshot(bom_id: int | None) -> list[dict]:
-    """Snapshot NPL từ phiên bản BOM (định mức gốc)."""
+def bom_lines_snapshot(bom_id: int | None, *, size_qtys=None) -> list[dict]:
+    """Snapshot NPL từ phiên bản BOM (định mức gốc).
+
+    Dòng nhóm gom bung thành mọi NPL thành viên: ĐM gốc (``qty_std``) = ĐM dòng
+    nhóm cho 1 SP, nhưng ĐM áp dụng mặc định = 0 để người lên đơn tự chia nhu cầu
+    cho từng NPL lẻ. Thành viên có ``Material.size`` trùng size trong đơn
+    (``size_qtys``) được tự gán ĐM đầy đủ và ``size_code`` của size đó.
+    """
     if not bom_id:
         return []
     from san_xuat.models import BomVersion
@@ -228,8 +236,10 @@ def bom_lines_snapshot(bom_id: int | None) -> list[dict]:
         return []
     from kho_npl.catalog_labels import unit_label
 
-    from san_xuat.services.bom_group import expand_bom_lines
+    from san_xuat.services.bom_group import expand_bom_lines, member_matches_size
 
+    size_map = normalize_size_qtys(size_qtys)
+    size_lookup = {str(k).strip().casefold(): str(k).strip() for k in size_map}
     out: list[dict] = []
     bom_lines = bom.lines.select_related(
         'material', 'material__unit', 'material_group',
@@ -261,6 +271,23 @@ def bom_lines_snapshot(bom_id: int | None) -> list[dict]:
         if item.group_id:
             row['material_group_id'] = item.group_id
             row['group_name'] = (item.group_name or '')[:160]
+            row['member_size'] = str(getattr(mat, 'size', '') or '').strip()[:100]
+            matched_size = ''
+            if not row['size_code'] and size_lookup and member_matches_size(mat, set(size_lookup)):
+                raw = str(getattr(mat, 'size', '') or '').strip().casefold()
+                matched_size = size_lookup.get(raw) or next(
+                    (size_lookup[k] for k in size_lookup if k in raw.replace('/', ' ').replace(',', ' ').split()),
+                    '',
+                )
+            if matched_size:
+                # NPL lẻ đúng size: nhận đủ ĐM, chỉ nhân với SL của size đó.
+                row['size_code'] = matched_size[:20]
+                row['qty_mode'] = 'qty'
+            else:
+                # Người lên đơn tự chia nhu cầu cho từng NPL lẻ trong nhóm.
+                row['qty'] = 0.0
+                row['qty_pct'] = 0.0
+                row['qty_mode'] = 'qty'
         out.append(row)
     return out
 
@@ -492,7 +519,7 @@ def _replace_lines(order: SxSalesOrder, lines: list[LineInput]) -> None:
             routing_id = None
         bom_overrides = _normalize_bom_overrides(getattr(ln, 'applied_bom', None))
         if not bom_overrides and bom_id:
-            bom_overrides = bom_lines_snapshot(bom_id)
+            bom_overrides = bom_lines_snapshot(bom_id, size_qtys=size_map)
         rows.append(
             SxSalesOrderLine(
                 order=order,

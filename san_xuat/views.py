@@ -708,14 +708,16 @@ def doc_detail(request, pk):
                     user=request.user,
                 )
                 messages.success(request, 'Đã lưu BOM.')
-                from san_xuat.services.bom_group import duplicate_material_codes
+                from san_xuat.services.bom_group import duplicate_material_details
 
-                _dups = duplicate_material_codes(bom)
+                _dups = duplicate_material_details(bom)
                 if _dups:
                     messages.warning(
                         request,
-                        'NPL xuất hiện nhiều lần (lẻ và/hoặc trong nhóm gom) — nhu cầu sẽ cộng dồn: '
-                        + ', '.join(_dups[:10]) + (' …' if len(_dups) > 10 else ''),
+                        'NPL xuất hiện nhiều lần — nhu cầu sẽ cộng dồn: '
+                        + '; '.join(_dups[:10]) + (' …' if len(_dups) > 10 else '')
+                        + '. Bấm Sửa BOM → dòng trùng được tô vàng; dùng nút “Xoá dòng trùng” '
+                        'hoặc xoá dòng NPL lẻ đã có trong nhóm gom.',
                     )
                 return _doc_tab_redirect(request, 'bom', bom=bom.pk)
             _edit_flag = True
@@ -1466,6 +1468,7 @@ def doc_detail(request, pk):
 
     bom_stock_map = {}
     bom_stock_map_json = '{}'
+    bom_group_members_json = '{}'
     if tab == 'bom':
         from django.db.models import Sum
         from decimal import Decimal
@@ -1513,6 +1516,9 @@ def doc_detail(request, pk):
                         f.instance.stock_qty = bom_stock_map.get(mid, Decimal('0')) if mid else None
             bom_stock_map_json = json.dumps({
                 str(k): float(v) for k, v in bom_stock_map.items()
+            })
+            bom_group_members_json = json.dumps({
+                str(gid): [m.pk for m in ms] for gid, ms in _members.items()
             })
 
     skus = []
@@ -1721,6 +1727,7 @@ def doc_detail(request, pk):
         'desc_form': desc_form,
         'bom_stock_map': bom_stock_map,
         'bom_stock_map_json': bom_stock_map_json,
+        'bom_group_members_json': bom_group_members_json,
         'skus': skus,
         'skus_active_count': skus_active_count,
         'catalog_category': catalog_category,

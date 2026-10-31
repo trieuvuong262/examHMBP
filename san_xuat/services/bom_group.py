@@ -1,11 +1,15 @@
 """Dòng BOM theo Nhóm gom NPL — bung thành NPL thành viên.
 
-Quy ước (đã chốt 2026-10-30):
-- 1 dòng BOM = 1 NPL lẻ **hoặc** 1 nhóm gom (``BomLine.material_group``).
-- Dòng nhóm bung thành mọi NPL thành viên **đang dùng**; mỗi thành viên nhận đủ
-  định mức / hao hụt / size của dòng nhóm.
-- Đơn hàng chụp kết quả bung vào ``bom_line_overrides`` lúc tạo đơn (snapshot);
-  KH NPL / LSX / phiếu xuất tiếp tục làm việc theo mã NPL.
+Quy ước (chốt lại 2026-10-31):
+- 1 dòng BOM = 1 NPL lẻ HOẶC 1 nhóm gom (BomLine.material_group).
+- Hồ sơ thiết kế là cho 1 sản phẩm: dòng nhóm = MỘT phần định mức (vd 1 nhãn size
+  cho 1 SP), KHÔNG phải mỗi thành viên nhận đủ định mức. Costing / thống kê chi phí
+  tính 1 lần với giá đại diện (bình quân giá các thành viên).
+- Qua đơn hàng: dòng nhóm bung thành mọi NPL thành viên đang dùng, ĐM gốc của
+  từng thành viên = ĐM dòng nhóm, nhưng NHU CẦU mặc định = 0 (qty_mode='qty',
+  qty=0) để người lên đơn tự chia theo size / thực tế. Riêng thành viên có
+  Material.size trùng 1 size trong đơn thì tự nhận ĐM đầy đủ cho đúng size đó.
+- KH NPL / LSX / phiếu xuất tiếp tục làm việc theo mã NPL.
 """
 
 from __future__ import annotations
@@ -39,8 +43,12 @@ def group_members_map(group_ids) -> dict[int, list]:
     return out
 
 
-def expand_bom_lines(lines) -> list[ExpandedBomLine]:
-    """Bung danh sách ``BomLine`` (giữ thứ tự) — dòng nhóm → các NPL thành viên."""
+def expand_bom_lines(lines, *, representative: bool = False) -> list[ExpandedBomLine]:
+    """Bung danh sách ``BomLine`` (giữ thứ tự) — dòng nhóm → các NPL thành viên.
+
+    ``representative=True``: dòng nhóm chỉ lấy 1 NPL đại diện (định mức cho 1 SP,
+    không nhân theo số thành viên) — dùng cho tháo dỡ / thống kê theo thiết kế.
+    """
     lines = list(lines)
     members = group_members_map(
         ln.material_group_id for ln in lines if ln.material_group_id and not ln.material_id
@@ -53,11 +61,55 @@ def expand_bom_lines(lines) -> list[ExpandedBomLine]:
         if not ln.material_group_id:
             continue
         name = getattr(ln.material_group, 'name', '') or ''
-        for mat in members.get(ln.material_group_id, []):
+        mats = members.get(ln.material_group_id, [])
+        if representative:
+            mats = mats[:1]
+        for mat in mats:
             out.append(ExpandedBomLine(
                 line=ln, material=mat, group_id=ln.material_group_id, group_name=name,
             ))
     return out
+
+
+def group_unit_price(members) -> 'Decimal':
+    """Giá đại diện của 1 dòng nhóm gom cho 1 SP = bình quân giá các thành viên.
+
+    Dòng nhóm là 1 phần định mức (không phải mỗi thành viên nhận đủ ĐM),
+    nên costing không cộng dồn giá mọi thành viên.
+    """
+    from decimal import Decimal
+
+    from kho_npl.services.batches import material_avg_price
+
+    members = list(members or [])
+    if not members:
+        return Decimal('0')
+    total = sum((material_avg_price(m) for m in members), Decimal('0'))
+    return (total / Decimal(len(members))).quantize(Decimal('0.01'))
+
+
+def group_representative(members):
+    """NPL đại diện của nhóm (thành viên đầu theo mã) — dùng cho danh mục / ĐVT."""
+    members = list(members or [])
+    return members[0] if members else None
+
+
+def _size_key(raw) -> str:
+    return str(raw or '').strip().casefold()
+
+
+def member_matches_size(material, size_keys: set[str]) -> bool:
+    """Thành viên nhóm có Material.size trùng 1 size trong đơn?"""
+    raw = _size_key(getattr(material, 'size', ''))
+    if not raw or not size_keys:
+        return False
+    if raw in size_keys:
+        return True
+    # Material.size có thể là "S, M" / "S/M"
+    import re
+
+    parts = {p for p in re.split(r'[\s,;/|]+', raw) if p}
+    return bool(parts & size_keys)
 
 
 def duplicate_material_codes(bom) -> list[str]:
@@ -68,6 +120,26 @@ def duplicate_material_codes(bom) -> list[str]:
         key = ((item.material.code or '').strip(), (item.line.size_code or '').strip())
         seen[key] = seen.get(key, 0) + 1
     return sorted({code for (code, _size), n in seen.items() if n > 1 and code})
+
+
+def duplicate_material_details(bom) -> list[str]:
+    """Mô tả từng NPL trùng: ``"CODE (TT 19, 21)"`` hoặc ``"CODE (TT 5, nhóm L9 – TT 30)"``."""
+    seen: dict[tuple, list[str]] = {}
+    lines = bom.lines.select_related('material', 'material_group').order_by('sort_order', 'id')
+    for item in expand_bom_lines(lines):
+        code = (item.material.code or '').strip()
+        if not code:
+            continue
+        key = (code, (item.line.size_code or '').strip())
+        where = f'TT {item.line.sort_order}'
+        if item.group_id:
+            where = f'nhóm {item.group_name or item.group_id} – {where}'
+        seen.setdefault(key, []).append(where)
+    return [
+        f'{code} ({", ".join(places)})'
+        for (code, _size), places in sorted(seen.items())
+        if len(places) > 1
+    ]
 
 
 def empty_group_lines(lines) -> list:

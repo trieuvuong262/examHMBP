@@ -1290,11 +1290,11 @@ def sales_order_detail(request, pk: int):
         ln.product_image_url = product_ref.image_url if product_ref else ''
         ln.available_routings = routings_for_product(ln.product_code) if not ln.routing_id else []
         ln.available_boms = boms_for_product(ln.product_code) if not ln.bom_version_id else []
-        ln.npl_needs = needs_as_display_dicts(explode_for_sales_line(ln))
+        ln.npl_needs = needs_as_display_dicts(explode_for_sales_line(ln, keep_zero_group=True))
         _bom_rows = list(ln.bom_line_overrides or [])
         if not _bom_rows and ln.bom_version_id:
             from san_xuat.services.sales_orders import bom_lines_snapshot
-            _bom_rows = bom_lines_snapshot(ln.bom_version_id)
+            _bom_rows = bom_lines_snapshot(ln.bom_version_id, size_qtys=ln.size_qtys)
         ln.bom_overrides_json = json.dumps(_bom_rows, ensure_ascii=False, default=str)
         _group_by_code = {
             str(r.get('material_code') or '').strip().casefold(): str(r.get('group_name') or '').strip()
@@ -1306,6 +1306,40 @@ def sales_order_detail(request, pk: int):
                 _need['group_name'] = _group_by_code.get(
                     str(_need.get('material_code') or '').strip().casefold(), '',
                 )
+        # Nhóm gom: tổng nhu cầu đã chia cho NPL lẻ so với ĐM nhóm × SL đơn.
+        from decimal import Decimal as _D
+
+        from san_xuat.services.bom_need import per_unit_with_scrap
+
+        _alloc: dict[tuple, dict] = {}
+        _line_qty = _D(str(ln.qty_to_produce or 0))
+        for r in _bom_rows:
+            if not isinstance(r, dict) or not r.get('material_group_id'):
+                continue
+            k = (r.get('material_group_id'), r.get('bom_line_id'))
+            per_std = per_unit_with_scrap(r.get('qty_std') if r.get('qty_std') is not None else r.get('qty'), r.get('scrap_pct'))
+            a = _alloc.setdefault(k, {
+                'name': str(r.get('group_name') or ''), 'target': per_std * _line_qty,
+                'allocated': _D('0'), 'members': 0,
+            })
+            a['members'] += 1
+        for _need in ln.npl_needs:
+            if not _need.get('group_name'):
+                continue
+            for a in _alloc.values():
+                if a['name'] == _need['group_name']:
+                    a['allocated'] += _D(str(_need.get('qty_total') or 0))
+                    break
+        ln.group_allocations = [
+            {
+                'name': a['name'], 'members': a['members'],
+                'target': a['target'].quantize(_D('0.001')),
+                'allocated': a['allocated'].quantize(_D('0.001')),
+                'ok': abs(a['allocated'] - a['target']) < _D('0.001'),
+                'empty': a['allocated'] <= 0,
+            }
+            for a in _alloc.values()
+        ]
         snap = ln.suggest_snapshot if isinstance(ln.suggest_snapshot, dict) else {}
         ln.suggest_key = f'{order.pk}-{ln.pk}' if snap else ''
         if snap:

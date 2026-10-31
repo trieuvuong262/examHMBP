@@ -113,14 +113,25 @@ def build_nvl_cost_matrix() -> NvlCostMatrix:
     for idx, bom in enumerate(bom_by_idx):
         if bom is None:
             continue
-        from san_xuat.services.bom_group import expand_bom_lines
+        from san_xuat.services.bom_group import group_members_map, group_unit_price
 
-        lines = bom.lines.select_related(
+        lines = list(bom.lines.select_related(
             'material', 'material__category', 'material__unit', 'material_group',
-        ).all()
-        for item in expand_bom_lines(lines):
-            line = item.line
-            material = item.material
+        ).all())
+        members = group_members_map(
+            ln.material_group_id for ln in lines if ln.material_group_id and not ln.material_id
+        )
+        for line in lines:
+            if line.material_id:
+                material = line.material
+                unit_price = material_avg_price(material)
+            else:
+                # Dòng nhóm gom = 1 phần ĐM cho 1 SP → tính 1 lần, giá BQ thành viên.
+                group_mats = members.get(line.material_group_id, [])
+                if not group_mats:
+                    continue
+                material = group_mats[0]
+                unit_price = group_unit_price(group_mats)
             cat = material.category
             cat_id = cat.pk
             if cat_id not in amounts_by_cat:
@@ -130,7 +141,6 @@ def build_nvl_cost_matrix() -> NvlCostMatrix:
                     cat.name or '',
                     int(cat.sort_order or 0),
                 )
-            unit_price = material_avg_price(material)
             amount = (line.qty_with_scrap * unit_price).quantize(MONEY)
             amounts_by_cat[cat_id][idx] += amount
 

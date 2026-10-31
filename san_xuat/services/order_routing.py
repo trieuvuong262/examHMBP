@@ -1084,7 +1084,7 @@ def attach_order_line_bom(order_line: SxSalesOrderLine, *, bom_version_id: int) 
     if code and bom_code and code != bom_code:
         raise OrderRoutingError('Phiên bản BOM không thuộc mã sản phẩm này.')
     order_line.bom_version = bom
-    fresh = bom_lines_snapshot(bom.pk)
+    fresh = bom_lines_snapshot(bom.pk, size_qtys=order_line.size_qtys)
     prev = list(order_line.bom_line_overrides or [])
     if prev:
         order_line.bom_line_overrides = merge_bom_overrides(fresh, prev)

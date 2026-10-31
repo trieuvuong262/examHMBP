@@ -1056,7 +1056,7 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
       applied = Math.max(0, Math.round(applied * 10000) / 10000);
       var pct = pctFromApplied(applied, std);
       var scrap = parseFloat(inp.getAttribute('data-scrap-pct'));
-      rows.push({
+      var item = {
         bom_line_id: id,
         material_code: inp.getAttribute('data-mat-code') || '',
         material_name: inp.getAttribute('data-mat-name') || '',
@@ -1067,7 +1067,13 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
         qty_pct: pct,
         qty: applied,
         scrap_pct: Number.isFinite(scrap) ? scrap : 0,
-      });
+      };
+      var gid = parseInt(inp.getAttribute('data-group-id'), 10) || 0;
+      if (gid) {
+        item.material_group_id = gid;
+        item.group_name = inp.getAttribute('data-group-name') || '';
+      }
+      rows.push(item);
     });
     hidden.value = JSON.stringify(rows);
   }
@@ -1213,6 +1219,12 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
         if (!r) return;
         var std = parseFloat(inp.getAttribute('data-qty-std')) || 0;
         var applied = parseFloat(r.qty);
+        if (inp.getAttribute('data-auto') === '1' && Number.isFinite(applied)) {
+          // Đơn đã lưu: nếu nhu cầu NPL size từng bị sửa tay (khác giá trị tự tính) thì giữ nguyên.
+          var lr = rowFromLineKey(inp.getAttribute('data-line-key') || '');
+          var autoApplied = matchMemberSize(lr, inp.getAttribute('data-member-size')) ? std : 0;
+          if (Math.abs(applied - autoApplied) > 0.00005) inp.setAttribute('data-auto', '0');
+        }
         var pct = parseFloat(r.qty_pct);
         if (!Number.isFinite(applied)) applied = appliedFromPct(std, Number.isFinite(pct) ? pct : 100);
         if (!Number.isFinite(pct)) pct = pctFromApplied(applied, std);
@@ -1280,9 +1292,19 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
   function refreshNplNeed(keepInput) {
     var host = nplHost();
     if (!host) return;
+    var autoTouched = {};
     host.querySelectorAll('.jp-so-bom-need-input').forEach(function (inp) {
       var key = inp.getAttribute('data-line-key') || '';
       var row = key ? rowFromLineKey(key) : null;
+      var keep = keepInput;
+      if (inp.getAttribute('data-auto') === '1') {
+        // NPL lẻ trong nhóm có size: khớp size đơn → ĐM đầy đủ × SL size đó; không khớp → 0.
+        var matched = matchMemberSize(row, inp.getAttribute('data-member-size'));
+        inp.setAttribute('data-size', matched || '');
+        inp.setAttribute('data-applied', matched ? (parseFloat(inp.getAttribute('data-qty-std')) || 0) : 0);
+        keep = false;
+        autoTouched[key] = true;
+      }
       var scale = lineScaleFor(row, inp.getAttribute('data-size'));
       var applied = parseFloat(inp.getAttribute('data-applied'));
       if (!Number.isFinite(applied)) {
@@ -1296,8 +1318,13 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
       var appliedEl = tr.querySelector('[data-role="npl-applied"]');
       if (sl) sl.textContent = fmtNeed(scale);
       if (appliedEl) appliedEl.textContent = fmtNeed(applied);
-      if (!keepInput) inp.value = fmtBomNeed(applied * (1 + scrap / 100) * scale);
+      if (!keep) inp.value = fmtBomNeed(applied * (1 + scrap / 100) * scale);
     });
+    Object.keys(autoTouched).forEach(function (k) {
+      var r = rowFromLineKey(k);
+      if (r) writeAppliedBom(r, true);
+    });
+    refreshNplGroupSums();
   }
 
   function refreshSmvApplied() {
@@ -1344,16 +1371,50 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
       + '</tr></thead><tbody>';
     groups.forEach(function (g) {
       var row = rowFromLineKey(g.key);
+      var lastGroupKey = '';
+      var totalRows = g.lines.length + g.lines.reduce(function (acc, ln, i) {
+        var gk = ln.material_group_id ? String(ln.material_group_id) + ':' + (ln.bom_line_id || '') : '';
+        var prev = i > 0 && g.lines[i - 1].material_group_id
+          ? String(g.lines[i - 1].material_group_id) + ':' + (g.lines[i - 1].bom_line_id || '') : '';
+        return acc + (gk && gk !== prev ? 1 : 0);
+      }, 0);
+      var productCellDone = false;
       g.lines.forEach(function (ln, i) {
         var id = ln.bom_line_id || ln.id || '';
         var code = String(ln.material_code || '').trim();
         var name = String(ln.material_name || '').trim() || code || '—';
         var qtyStd = parseFloat(ln.qty_std != null ? ln.qty_std : ln.qty) || 0;
+        var gkey = ln.material_group_id ? String(ln.material_group_id) + ':' + (ln.bom_line_id || '') : '';
+        if (gkey && gkey !== lastGroupKey) {
+          var members = g.lines.filter(function (x) {
+            return x.material_group_id && String(x.material_group_id) + ':' + (x.bom_line_id || '') === gkey;
+          }).length;
+          html += '<tr class="jp-so-npl-group-head" data-group-key="' + escAttr(g.key + '|' + gkey) + '">'
+            + (!productCellDone ? productLabelCell(g.label, totalRows) : '')
+            + '<td colspan="6" class="small">'
+            + '<span class="badge text-bg-primary-subtle text-primary-emphasis me-1"><i class="bi bi-collection-fill me-1"></i>Nhóm gom</span>'
+            + '<strong>' + escAttr(ln.group_name || '') + '</strong>'
+            + ' <span class="text-muted">· ĐM thiết kế ' + fmtNeed(qtyStd) + ' / SP · ' + members + ' NPL lẻ</span>'
+            + ' <span class="text-muted">— nhập nhu cầu cho từng NPL lẻ bên dưới (theo size).</span>'
+            + ' <span class="ms-2 fw-semibold" data-role="npl-group-sum"></span>'
+            + '</td></tr>';
+          productCellDone = true;
+        }
+        lastGroupKey = gkey;
         var qty = parseFloat(ln.qty);
         if (!Number.isFinite(qty)) qty = qtyStd;
         var scrap = parseFloat(ln.scrap_pct) || 0;
         var unit = String(ln.unit || '').trim();
         var size = String(ln.size_code || '').trim();
+        if (gkey && !size) {
+          // NPL lẻ trong nhóm có size trùng size đơn → tự nhận đủ ĐM cho đúng size đó.
+          var matched = matchMemberSize(row, ln.member_size);
+          if (matched) {
+            size = matched;
+            ln.size_code = matched;
+            if (!(parseFloat(ln.qty) > 0)) ln.qty = qtyStd;
+          }
+        }
         var scale = lineScaleFor(row, size);
         var applied = qty;
         var needValue = applied * (1 + scrap / 100) * scale;
@@ -1363,25 +1424,75 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
           + ' data-unit="' + escAttr(unit) + '"'
           + ' data-size="' + escAttr(size) + '"'
           + ' data-qty-std="' + qtyStd + '"'
-          + ' data-scrap-pct="' + scrap + '"';
-        html += '<tr>'
-          + (i === 0 ? productLabelCell(g.label, g.lines.length) : '')
-          + '<td><div class="jp-so-npl-material">'
+          + ' data-scrap-pct="' + scrap + '"'
+          + (gkey ? ' data-group-id="' + escAttr(ln.material_group_id) + '" data-group-name="' + escAttr(ln.group_name || '') + '"'
+            + ' data-group-key="' + escAttr(g.key + '|' + gkey) + '"' : '');
+        var memberSize = String(ln.member_size || '').trim();
+        if (gkey && memberSize) {
+          // NPL lẻ có size → tự tính nhu cầu = ĐM × SL size tương ứng của đơn (đến khi người dùng sửa tay).
+          bomAttrs += ' data-member-size="' + escAttr(memberSize) + '" data-auto="1"';
+        }
+        html += '<tr' + (gkey ? ' class="jp-so-npl-group-member"' : '') + '>'
+          + (!productCellDone ? productLabelCell(g.label, totalRows) : '')
+          + '<td><div class="jp-so-npl-material' + (gkey ? ' ps-3' : '') + '">'
+          + (gkey ? '<i class="bi bi-arrow-return-right text-primary me-1"></i>' : '')
           + nplThumbHtml(ln, name)
           + '<span class="jp-so-npl-name">' + escAttr(name)
-          + (size ? ' <span class="badge bg-light text-dark border">' + escAttr(size) + '</span>' : '')
+          + (gkey && memberSize ? ' <span class="badge bg-light text-dark border" title="Size của NPL — nhu cầu = ĐM × SL size này" data-role="npl-member-size">' + escAttr(memberSize) + '</span>' : (size ? ' <span class="badge bg-light text-dark border">' + escAttr(size) + '</span>' : ''))
           + '</span></div></td>'
-          + '<td class="text-end text-muted">' + qtyStd + '</td>'
+          + '<td class="text-end text-muted">' + (gkey ? '<span title="ĐM nhóm cho 1 SP">' + qtyStd + '</span>' : qtyStd) + '</td>'
           + '<td class="text-end fw-semibold" data-role="npl-applied">' + fmtNeed(applied) + '</td>'
           + '<td class="text-end small text-muted" data-role="npl-scale">' + fmtNeed(scale) + '</td>'
           + '<td><input type="number" class="form-control form-control-sm text-end jp-so-bom-need-input" min="0" step="0.001"'
           + ' data-line-key="' + escAttr(g.key) + '" data-applied="' + applied + '" ' + bomAttrs
           + ' value="' + fmtBomNeed(needValue) + '" aria-label="Nhu cầu ' + escAttr(name) + '"></td>'
           + '<td class="small text-muted">' + escAttr(unit || '—') + '</td></tr>';
+        productCellDone = true;
       });
     });
     html += '</tbody></table></div>';
     return html;
+  }
+
+  function matchMemberSize(row, memberSize) {
+    var raw = String(memberSize || '').trim().toLowerCase();
+    if (!raw || !row) return '';
+    var map = (typeof window.jpSoReadSizeMap === 'function') ? window.jpSoReadSizeMap(row) : {};
+    var keys = Object.keys(map || {}).filter(function (k) { return Number(map[k]) > 0; });
+    if (!keys.length) return '';
+    var parts = raw.split(/[\s,;\/|]+/).filter(Boolean);
+    for (var i = 0; i < keys.length; i++) {
+      var k = String(keys[i]).trim().toLowerCase();
+      if (k === raw || parts.indexOf(k) !== -1) return String(keys[i]).trim();
+    }
+    return '';
+  }
+
+  // Tổng nhu cầu các NPL lẻ trong nhóm so với ĐM nhóm × SL đơn.
+  function refreshNplGroupSums() {
+    var host = nplHost();
+    if (!host) return;
+    host.querySelectorAll('tr.jp-so-npl-group-head').forEach(function (head) {
+      var gk = head.getAttribute('data-group-key') || '';
+      var sumEl = head.querySelector('[data-role="npl-group-sum"]');
+      if (!sumEl) return;
+      var inps = Array.prototype.filter.call(
+        host.querySelectorAll('.jp-so-bom-need-input[data-group-key]'),
+        function (x) { return x.getAttribute('data-group-key') === gk; }
+      );
+      if (!inps.length) return;
+      var total = 0;
+      inps.forEach(function (inp) { total += parseFloat(inp.value) || 0; });
+      var first = inps[0];
+      var lk = first.getAttribute('data-line-key') || '';
+      var lineRow = lk ? rowFromLineKey(lk) : null;
+      var std = parseFloat(first.getAttribute('data-qty-std')) || 0;
+      var scrap = parseFloat(first.getAttribute('data-scrap-pct')) || 0;
+      var target = std * (1 + scrap / 100) * lineScaleFor(lineRow, '');
+      var ok = Math.abs(total - target) < 0.0005;
+      sumEl.className = 'ms-2 fw-semibold ' + (ok ? 'text-success' : (total > target ? 'text-danger' : 'text-warning'));
+      sumEl.textContent = 'Đã chia ' + fmtBomNeed(total) + ' / cần ' + fmtBomNeed(target);
+    });
   }
 
   function renderOpsTable(groups) {
@@ -1687,6 +1798,8 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
       refreshSmvApplied();
     }
     if (t.classList.contains('jp-so-bom-need-input')) {
+      // Người dùng tự nhập → thôi tự tính theo size cho NPL này.
+      if (t.getAttribute('data-auto') === '1') t.setAttribute('data-auto', '0');
       if (t.value !== '' && Number.isFinite(parseFloat(t.value))) {
         t.setAttribute('data-applied', nplAppliedFromNeed(t, row, parseFloat(t.value)));
         writeAppliedBom(row);

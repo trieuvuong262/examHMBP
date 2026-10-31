@@ -76,7 +76,9 @@ def explode_overrides(
     overrides: list | None,
     qty: Decimal,
     size_qtys: dict | None = None,
+    keep_zero_group: bool = False,
 ) -> list[MaterialNeed]:
+    """``keep_zero_group``: giữ NPL lẻ thuộc nhóm gom chưa chia nhu cầu (=0) để hiển thị / sửa."""
     rows: list[MaterialNeed] = []
     for raw in overrides or []:
         if not isinstance(raw, dict):
@@ -106,7 +108,7 @@ def explode_overrides(
         per = per_unit_with_scrap(raw.get('qty'), scrap)
         scale = scale_qty(size_code=size_code, line_qty=qty, size_qtys=size_qtys)
         total = (per * scale).quantize(Decimal('0.001'))
-        if total <= 0 and per <= 0:
+        if total <= 0 and per <= 0 and not (keep_zero_group and raw.get('material_group_id')):
             continue
         unit = str(raw.get('unit') or '')[:30]
         if bl is not None and getattr(bl, 'material_id', None) and bl.material.unit_id:
@@ -137,18 +139,45 @@ def explode_bom(
 ) -> list[MaterialNeed]:
     if bom is None:
         return []
-    from san_xuat.services.bom_group import expand_bom_lines
+    from san_xuat.services.bom_group import expand_bom_lines, member_matches_size
 
     rows: list[MaterialNeed] = []
-    lines = bom.lines.select_related(
+    lines = list(bom.lines.select_related(
         'material', 'material__unit', 'substitute_material', 'material_group',
-    ).all()
-    for item in expand_bom_lines(lines):
+    ).all())
+    expanded = expand_bom_lines(lines)
+    size_lookup = {
+        _size_key(k): str(k).strip()
+        for k, v in (size_qtys.items() if isinstance(size_qtys, dict) else [])
+        if _q(v) > 0 and str(k or '').strip()
+    }
+    # Dòng nhóm gom (ĐM cho 1 SP): NPL lẻ khớp size đơn → nhận ĐM theo size đó;
+    # nhóm không có thành viên khớp size → lấy 1 NPL đại diện (không nhân số thành viên).
+    group_has_match: dict[int, bool] = {}
+    for item in expanded:
+        if item.group_id and not (item.line.size_code or '').strip():
+            hit = member_matches_size(item.material, set(size_lookup))
+            group_has_match[item.line.pk] = group_has_match.get(item.line.pk, False) or hit
+    seen_rep: set[int] = set()
+    for item in expanded:
         bl = item.line
         mat = item.material
         if mat is None:
             continue
         size_code = (bl.size_code or '').strip()
+        if item.group_id:
+            if not size_code and group_has_match.get(bl.pk):
+                if not member_matches_size(mat, set(size_lookup)):
+                    continue
+                raw = _size_key(getattr(mat, 'size', ''))
+                size_code = size_lookup.get(raw) or next(
+                    (v for k, v in size_lookup.items() if k in raw.replace('/', ' ').replace(',', ' ').split()),
+                    '',
+                )
+            else:
+                if bl.pk in seen_rep:
+                    continue
+                seen_rep.add(bl.pk)
         per = bl.qty_with_scrap
         scale = scale_qty(size_code=size_code, line_qty=qty, size_qtys=size_qtys)
         total = (per * scale).quantize(Decimal('0.001'))
@@ -192,12 +221,14 @@ def size_qtys_for_mo(mo: SxProductionOrder, so_line: SxSalesOrderLine | None = N
     return labeled
 
 
-def explode_for_sales_line(line: SxSalesOrderLine) -> list[MaterialNeed]:
+def explode_for_sales_line(line: SxSalesOrderLine, *, keep_zero_group: bool = False) -> list[MaterialNeed]:
     qty = line.qty_to_produce
     sizes = line.size_qtys or {}
     overrides = list(line.bom_line_overrides or [])
     if overrides:
-        return explode_overrides(overrides=overrides, qty=qty, size_qtys=sizes)
+        return explode_overrides(
+            overrides=overrides, qty=qty, size_qtys=sizes, keep_zero_group=keep_zero_group,
+        )
     return explode_bom(bom=line.bom_version, qty=qty, size_qtys=sizes)
 
 

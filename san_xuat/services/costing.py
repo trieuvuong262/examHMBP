@@ -219,9 +219,11 @@ def compute_costing(bom: BomVersion, *, routing=None) -> CostingResult:
                 unit_name = line.material.unit.code or line.material.unit.name or ''
             mat_code, mat_name = line.material.code, line.material.name
         else:
-            # Dòng nhóm gom: mỗi NPL thành viên nhận đủ ĐM → đơn giá = tổng giá thành viên.
+            # Dòng nhóm gom = 1 phần ĐM cho 1 SP (vd 1 nhãn size) → giá đại diện = BQ giá thành viên.
+            from san_xuat.services.bom_group import group_unit_price
+
             group_mats = members.get(line.material_group_id, [])
-            unit_price = sum((material_avg_price(m) for m in group_mats), ZERO)
+            unit_price = group_unit_price(group_mats)
             if group_mats and group_mats[0].unit_id:
                 unit_name = group_mats[0].unit.code or group_mats[0].unit.name or ''
             group = line.material_group

@@ -563,6 +563,17 @@
         </div>
         {% endif %}
       </div>
+      {% for ln in order.lines.all %}{% for ga in ln.group_allocations %}
+      <div class="alert {% if ga.ok %}alert-success{% elif ga.empty %}alert-warning{% else %}alert-info{% endif %} py-2 px-3 small mb-2 d-flex flex-wrap align-items-center gap-2">
+        <span class="badge text-bg-primary-subtle text-primary-emphasis"><i class="bi bi-collection-fill me-1"></i>Nhóm gom</span>
+        <strong>{{ ga.name }}</strong>
+        <span class="text-muted">· {{ ln.product_name|default:ln.product_code }} · {{ ga.members }} NPL lẻ</span>
+        <span class="ms-auto">
+          Đã chia <strong>{{ ga.allocated|sx_num }}</strong> / cần <strong>{{ ga.target|sx_num }}</strong>
+          {% if ga.empty %}— chưa chia nhu cầu cho NPL lẻ, bấm <em>Sửa BOM</em> để nhập theo size.{% elif not ga.ok %}— lệch so với ĐM nhóm × SL đơn.{% endif %}
+        </span>
+      </div>
+      {% endfor %}{% endfor %}
       <div class="table-responsive">
         <table class="table table-sm table-hover align-middle mb-0" data-jp-collapse="bom" data-jp-collapse-key="bomLineId">
           <thead class="table-light">

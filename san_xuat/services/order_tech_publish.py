@@ -78,6 +78,9 @@ def design_qty(row: dict) -> Decimal:
     `qty_mode='qty'` = người dùng nhập định mức / nhu cầu tay → dùng `qty`.
     """
     mode = str(row.get('qty_mode') or '').strip().lower()
+    if row.get('material_group_id') and row.get('qty_std') not in (None, ''):
+        # NPL bung từ nhóm gom: người lên đơn chia nhu cầu theo size — thiết kế giữ ĐM nhóm.
+        return _d(row.get('qty_std'))
     if mode == 'pct' and row.get('qty_std') not in (None, ''):
         return _d(row.get('qty_std'))
     return _d(row.get('qty'))
@@ -93,7 +96,7 @@ def _bom_sig(rows) -> list[tuple]:
             continue
         out.append((
             code or f"#{r.get('bom_line_id')}",
-            str(r.get('size_code') or '').strip().casefold(),
+            '' if r.get('material_group_id') else str(r.get('size_code') or '').strip().casefold(),
             design_qty(r),
             _d(r.get('scrap_pct'), _Q2),
         ))
@@ -109,7 +112,9 @@ def order_line_bom_changed(order_line: SxSalesOrderLine) -> bool:
         return True
     from san_xuat.services.sales_orders import bom_lines_snapshot
 
-    return _bom_sig(rows) != _bom_sig(bom_lines_snapshot(order_line.bom_version_id))
+    return _bom_sig(rows) != _bom_sig(
+        bom_lines_snapshot(order_line.bom_version_id, size_qtys=order_line.size_qtys)
+    )
 
 
 def _ob_sig(lines) -> list[tuple]:
@@ -306,7 +311,11 @@ def publish_bom_for_line(
         if qty < 0:
             qty = Decimal('0').quantize(_Q4)
         scrap = _d(row.get('scrap_pct'), _Q2)
-        planned.append((idx, mat, src_line, qty, scrap, str(row.get('size_code') or '').strip()[:20]))
+        size_code = str(row.get('size_code') or '').strip()[:20]
+        if row.get('material_group_id') and src_line is not None and not src_line.material_id:
+            # Size gán tự động theo NPL lẻ trên đơn — thiết kế giữ size của dòng nhóm.
+            size_code = (src_line.size_code or '').strip()[:20]
+        planned.append((idx, mat, src_line, qty, scrap, size_code))
     if not planned:
         raise OrderTechPublishError(
             f'{order_line.product_code}: không có NPL hợp lệ trong danh mục để tạo BOM.'

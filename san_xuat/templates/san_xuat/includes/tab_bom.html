@@ -45,6 +45,17 @@
         <form method="post" id="bom-form" data-loading-message="Đang lưu BOM…">
             {% csrf_token %}
             <input type="hidden" name="action" value="save_bom">
+            <div class="jp-bom-toolbar d-flex flex-wrap align-items-center gap-2 mb-3">
+                <h6 class="fw-bold mb-0 me-auto"><i class="bi bi-list-check me-1"></i>Định mức NPL</h6>
+                <span class="small text-muted d-none d-md-inline">Dòng trống sẽ tự bỏ khi lưu</span>
+                <button type="button" class="btn btn-warning btn-sm d-none" id="bom-remove-dup-btn"
+                        title="Xoá dòng NPL lẻ trùng với dòng khác hoặc đã nằm trong nhóm gom (tô vàng đậm)">
+                    <i class="bi bi-intersect me-1"></i>Xoá dòng trùng (<span data-role="dup-count">0</span>)
+                </button>
+                <button type="submit" class="btn btn-hm btn-sm fw-bold" title="Lưu BOM (Ctrl+S)">
+                    <i class="bi bi-save me-1"></i>Lưu BOM
+                </button>
+            </div>
             <div class="row g-3 mb-3">
                 <div class="col-md-3">
                     <label class="form-label small">Phiên bản{{ meta_form.version_label|sx_req_star }}</label>
@@ -116,10 +127,6 @@
                         <i class="bi bi-plus-lg me-1"></i>Thêm NPL / nhóm gom
                     </button>
                 </div>
-                <div class="small text-muted flex-grow-1">
-                    <i class="bi bi-collection-fill me-1"></i>Chọn <strong>[Nhóm]</strong> để lấy mọi NPL đang dùng trong nhóm gom — mỗi NPL nhận đủ định mức dòng.
-                </div>
-                <button type="submit" class="btn btn-hm">Lưu BOM</button>
             </div>
         </form>
 
@@ -210,6 +217,147 @@ body > .ts-dropdown .jp-npl-material-option.is-name-stock.is-with-image {
   width: 3.75rem;
   text-align: center;
 }
+/* ===== Ô chọn NPL / nhóm gom (BOM) ===== */
+body > .ts-dropdown.jp-bom-dropdown {
+  /* Trên footer (1025) / sticky header; dưới modal Bootstrap (1055) */
+  z-index: 1050;
+  min-width: min(34rem, 94vw);
+  border-radius: 0.6rem;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+body > .ts-dropdown.jp-bom-dropdown .ts-dropdown-content {
+  max-height: var(--jp-bom-dd-max, 26rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+body > .ts-dropdown.jp-bom-dropdown.is-drop-up {
+  box-shadow: 0 -12px 32px rgba(15, 23, 42, 0.16);
+}
+.jp-bom-mode-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.4rem 0.45rem;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.jp-bom-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #475569;
+  font-size: 0.8rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  cursor: pointer;
+  line-height: 1.2;
+}
+.jp-bom-mode-btn:hover { background: #eef2f7; }
+.jp-bom-mode-btn.is-active { background: #fff; border-color: #cbd5e1; color: #0f172a; font-weight: 600; box-shadow: 0 1px 2px rgba(15,23,42,.06); }
+.jp-bom-mode-btn[data-bom-mode="group"].is-active { border-color: #93c5fd; color: #1d4ed8; background: #eff6ff; }
+.jp-bom-mode-btn[data-bom-mode="material"].is-active { border-color: #fca5a5; color: #b91c1c; background: #fef2f2; }
+.jp-bom-mode-count {
+  font-size: 0.7rem;
+  color: #64748b;
+  background: #e2e8f0;
+  border-radius: 999px;
+  padding: 0 0.4rem;
+  min-width: 1.2rem;
+  text-align: center;
+}
+.jp-bom-mode-count:empty { display: none; }
+.jp-bom-mode-hint { margin-left: auto; font-size: 0.7rem; color: #94a3b8; }
+
+.jp-bom-optgroup-header {
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.4rem 0.75rem !important;
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+  border-top: 1px solid #e2e8f0;
+}
+.jp-bom-optgroup-header.is-group { color: #1d4ed8 !important; background: #eff6ff !important; }
+.jp-bom-dropdown.is-mode-group .jp-bom-optgroup-header,
+.jp-bom-dropdown.is-mode-material .jp-bom-optgroup-header { display: none; }
+
+.jp-bom-opt {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  padding: 0.15rem 0;
+}
+.jp-bom-opt-body { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; line-height: 1.25; }
+.jp-bom-opt-name { font-weight: 600; color: #0f172a; font-size: 0.86rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jp-bom-opt-sub { font-size: 0.74rem; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jp-bom-opt-code { font-family: var(--jp-font-emphasis, inherit); color: #334155; }
+.jp-bom-opt-preview { font-size: 0.72rem; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jp-bom-opt-side { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }
+.jp-bom-opt-stock { font-size: 0.8rem; font-weight: 600; color: #047857; white-space: nowrap; }
+.jp-bom-opt-stock.is-zero { color: #dc2626; }
+.jp-bom-opt-side-label { font-size: 0.66rem; color: #94a3b8; }
+.jp-bom-opt-icon {
+  width: 36px; height: 36px; flex: 0 0 36px;
+  border-radius: 0.4rem;
+  display: grid; place-items: center;
+  font-size: 1.05rem;
+}
+.jp-bom-opt-icon.is-group { background: #dbeafe; color: #1d4ed8; }
+.jp-bom-opt.is-group { border-left: 3px solid #3b82f6; padding-left: 0.45rem; margin-left: -0.5rem; }
+.jp-bom-opt-pill { font-size: 0.74rem; font-weight: 600; border-radius: 999px; padding: 0.1rem 0.5rem; white-space: nowrap; }
+.jp-bom-opt-pill.is-group { background: #dbeafe; color: #1e40af; }
+body > .ts-dropdown.jp-bom-dropdown .option.active .jp-bom-opt-name { color: #b91c1c; }
+
+/* Ô đã chọn */
+#bom-form .jp-bom-item-tag {
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  font-size: 0.7rem; font-weight: 700;
+  padding: 0.12rem 0.45rem; border-radius: 999px; flex: 0 0 auto;
+}
+#bom-form .jp-bom-item-tag.is-group { background: #dbeafe; color: #1d4ed8; }
+#bom-form .jp-bom-item-count { margin-left: auto; font-size: 0.72rem; color: #1e40af; flex: 0 0 auto; }
+#bom-form .jp-bom-item-code { font-size: 0.72rem; color: #94a3b8; font-weight: 400; }
+#bom-form .jp-npl-material-item { width: 100%; }
+
+/* Dòng BOM là nhóm gom: nền xanh nhạt để phân biệt với NPL lẻ */
+#bom-form .bom-line-row.is-group-line > td { background: #f5f9ff; }
+#bom-form .bom-line-row.is-group-line > td:first-child { box-shadow: inset 3px 0 0 #3b82f6; }
+#bom-form .bom-line-row.is-group-line .jp-npl-material-ts .ts-control { border-color: #93c5fd; }
+
+[data-theme="dark"] .jp-bom-mode-bar { background: var(--jp-surface-2, #1e293b); border-color: #334155; }
+[data-theme="dark"] .jp-bom-mode-btn { color: #cbd5e1; }
+[data-theme="dark"] .jp-bom-mode-btn.is-active { background: #0f172a; color: #f8fafc; }
+[data-theme="dark"] .jp-bom-opt-name { color: var(--jp-text-primary, #f8fafc); }
+[data-theme="dark"] .jp-bom-optgroup-header { background: #1e293b !important; color: #cbd5e1 !important; }
+[data-theme="dark"] #bom-form .bom-line-row.is-group-line > td { background: rgba(59,130,246,.08); }
+
+#bom-form .jp-bom-toolbar {
+  position: sticky;
+  top: var(--jp-sticky-top, 0px);
+  z-index: 5;
+  background: var(--bs-body-bg, #fff);
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--bs-border-color, #e2e8f0);
+}
+#bom-form .bom-line-row.is-empty-line > td { background: #fafafa; }
+#bom-form ul.errorlist {
+  list-style: none; margin: 0.15rem 0 0; padding: 0;
+  font-size: 0.72rem; line-height: 1.2; white-space: nowrap; text-align: left;
+}
+#bom-form .bom-line-row.is-dup-line > td { background: #fffbeb; }
+#bom-form .bom-line-row.is-dup-removable > td { background: #fef3c7; }
+#bom-form .bom-line-row.is-dup-removable > td:first-child { box-shadow: inset 3px 0 0 #f59e0b; }
+
 #bom-form .bom-drag-handle { cursor: grab; }
 #bom-form .bom-drag-handle:active { cursor: grabbing; }
 #bom-form .bom-line-row.is-dragging {
@@ -222,6 +370,7 @@ body > .ts-dropdown .jp-npl-material-option.is-name-stock.is-with-image {
 (function () {
     var SEARCH_URL = '{% url "kho_npl:material_search" %}';
     var STOCK_MAP = {{ bom_stock_map_json|safe }};
+    var GROUP_MEMBERS = {{ bom_group_members_json|default:"{}"|safe }};
     var materialInstances = new WeakMap();
 
     function normalizeText(v) {
@@ -259,32 +408,66 @@ body > .ts-dropdown .jp-npl-material-option.is-name-stock.is-with-image {
     function renderOption(data, escape) {
         if (data.is_group) {
             var gname = escape(data.name || data.text || '');
-            var gmeta = escape((data.member_count || 0) + ' NPL' + (data.category ? ' · ' + data.category : ''));
-            return '<div class="jp-npl-material-option is-name-stock is-with-image" title="Nhóm gom ' + gname + '">'
-                + groupBadgeHtml(data, escape)
-                + '<span class="jp-npl-material-option-name">' + gname + '</span>'
-                + '<span class="jp-npl-material-option-meta text-muted small">' + gmeta + '</span>'
+            var count = Number(data.member_count || 0);
+            var sub = [];
+            if (data.code) sub.push(escape(data.code));
+            if (data.category) sub.push(escape(data.category));
+            if (data.unit_name || data.unit) sub.push('ĐVT ' + escape(data.unit_name || data.unit));
+            var preview = Array.isArray(data.members_preview) ? data.members_preview : [];
+            var previewHtml = preview.length
+                ? '<span class="jp-bom-opt-preview">' + preview.map(function (n) { return escape(n); }).join(' · ')
+                    + (count > preview.length ? ' · +' + (count - preview.length) : '') + '</span>'
+                : '';
+            return '<div class="jp-bom-opt is-group" title="Nhóm gom ' + gname + ' — ' + count + ' NPL">'
+                + '<span class="jp-bom-opt-icon is-group" aria-hidden="true"><i class="bi bi-collection-fill"></i></span>'
+                + '<span class="jp-bom-opt-body">'
+                + '<span class="jp-bom-opt-name">' + gname + '</span>'
+                + (sub.length ? '<span class="jp-bom-opt-sub">' + sub.join(' · ') + '</span>' : '')
+                + previewHtml
+                + '</span>'
+                + '<span class="jp-bom-opt-side"><span class="jp-bom-opt-pill is-group">' + count + ' NPL</span></span>'
                 + '</div>';
         }
         var name = escape(data.name || data.text || '');
-        var stock = escape(stockLabel(data) || '0');
-        return '<div class="jp-npl-material-option is-name-stock is-with-image" title="' + name + ' — ' + stock + '">'
+        var stockRaw = stockLabel(data) || '0';
+        var stock = escape(stockRaw);
+        var qtyNum = Number(data.qty);
+        var stockCls = (data.qty != null && Number.isFinite(qtyNum) && qtyNum <= 0) ? ' is-zero' : '';
+        var msub = [];
+        if (data.code) msub.push('<span class="jp-bom-opt-code">' + escape(data.code) + '</span>');
+        if (data.specification) msub.push(escape(data.specification));
+        if (data.color) msub.push(escape(data.color));
+        if (data.variant_group) msub.push('<i class="bi bi-collection"></i> ' + escape(data.variant_group));
+        return '<div class="jp-bom-opt is-material" title="' + name + ' — tồn ' + stock + '">'
             + nplThumbHtml(data, escape)
-            + '<span class="jp-npl-material-option-name">' + name + '</span>'
-            + '<span class="jp-npl-material-option-meta text-muted small">' + stock + '</span>'
+            + '<span class="jp-bom-opt-body">'
+            + '<span class="jp-bom-opt-name">' + name + '</span>'
+            + (msub.length ? '<span class="jp-bom-opt-sub">' + msub.join(' · ') + '</span>' : '')
+            + '</span>'
+            + '<span class="jp-bom-opt-side"><span class="jp-bom-opt-stock' + stockCls + '">' + stock + '</span>'
+            + '<span class="jp-bom-opt-side-label">tồn</span></span>'
             + '</div>';
+    }
+
+    function renderOptgroupHeader(data, escape) {
+        var icon = data.value === 'group' ? 'bi-collection-fill' : 'bi-box-seam';
+        return '<div class="optgroup-header jp-bom-optgroup-header is-' + escape(data.value) + '">'
+            + '<i class="bi ' + icon + ' me-1"></i>' + escape(data.label) + '</div>';
     }
 
     function renderItem(data, escape) {
         var name = data.name || data.text || '';
         if (data.is_group) {
-            return '<div class="jp-npl-material-item">' + groupBadgeHtml(data, escape)
-                + '<span class="jp-npl-material-item-name">' + escape(name)
-                + ' <span class="text-muted small">(' + escape(String(data.member_count || 0)) + ' NPL)</span></span></div>';
+            return '<div class="jp-npl-material-item is-group" title="Nhóm gom ' + escape(name) + '">'
+                + '<span class="jp-bom-item-tag is-group"><i class="bi bi-collection-fill"></i> Nhóm</span>'
+                + '<span class="jp-npl-material-item-name">' + escape(name) + '</span>'
+                + '<span class="jp-bom-item-count">' + escape(String(data.member_count || 0)) + ' NPL</span></div>';
         }
-        return '<div class="jp-npl-material-item">'
+        return '<div class="jp-npl-material-item is-material" title="' + escape(name) + (data.code ? ' — ' + escape(data.code) : '') + '">'
             + nplThumbHtml(data, escape)
-            + '<span class="jp-npl-material-item-name">' + escape(name) + '</span></div>';
+            + '<span class="jp-npl-material-item-name">' + escape(name)
+            + (data.code ? ' <span class="jp-bom-item-code">' + escape(data.code) + '</span>' : '')
+            + '</span></div>';
     }
 
     function scoreFactory(query) {
@@ -328,32 +511,70 @@ body > .ts-dropdown .jp-npl-material-option.is-name-stock.is-with-image {
             select.innerHTML = '';
             select.appendChild(gopt);
         }
+        var state = { mode: 'all', reqId: 0, bar: null };
         var ts = new TomSelect(select, {
             maxOptions: null,
             maxItems: 1,
             valueField: 'id',
             labelField: 'name',
             searchField: [],
-            placeholder: select.dataset.placeholder || 'Gõ tên NPL…',
+            placeholder: select.dataset.placeholder || 'Gõ tên / mã NPL hoặc nhóm gom…',
             dropdownParent: 'body',
             openOnFocus: true,
             preload: 'focus',
             loadThrottle: 220,
+            optgroupField: 'kind',
+            optgroups: [
+                { value: 'group', label: 'Nhóm gom — lấy mọi NPL trong nhóm' },
+                { value: 'material', label: 'NPL lẻ' },
+            ],
+            lockOptgroupOrder: true,
             load: function (query, callback) {
+                var mode = state.mode;
+                var reqId = ++state.reqId;
                 // Không truyền location_id → tồn gộp mọi kho (API material_search)
-                var url = SEARCH_URL + '?q=' + encodeURIComponent(query || '') + '&limit=1000&include_groups=1';
+                var url = SEARCH_URL + '?q=' + encodeURIComponent(query || '');
+                if (mode === 'group') {
+                    url += '&groups_only=1';
+                } else if (mode === 'material') {
+                    url += '&limit=' + (query ? 300 : 1000);
+                } else {
+                    url += '&limit=' + (query ? 300 : 1000) + '&include_groups=1&group_limit=' + (query ? 50 : 30);
+                }
                 fetch(url, { headers: { 'Accept': 'application/json' } })
                     .then(function (r) { return r.json(); })
-                    .then(function (data) { callback(data.results || []); })
+                    .then(function (data) {
+                        var rows = (data.results || []).map(function (row) {
+                            row.kind = row.is_group ? 'group' : 'material';
+                            return row;
+                        });
+                        if (reqId === state.reqId) updateModeCounts(state, rows, mode);
+                        callback(rows);
+                    })
                     .catch(function () { callback(); });
             },
-            score: function (query) { return scoreFactory(query); },
+            score: function (query) {
+                var base = scoreFactory(query);
+                return function (data) {
+                    var mode = state.mode;
+                    if (mode === 'group' && !data.is_group) return 0;
+                    if (mode === 'material' && data.is_group) return 0;
+                    return base(data);
+                };
+            },
             sortField: [{ field: '$score', direction: 'desc' }],
             render: {
                 option: renderOption,
                 item: renderItem,
+                optgroup_header: renderOptgroupHeader,
                 no_results: function () {
-                    return '<div class="px-2 py-2 text-muted small">Không tìm thấy NPL — thử tên khác</div>';
+                    var mode = state.mode;
+                    var msg = mode === 'group'
+                        ? 'Không tìm thấy nhóm gom — thử tên khác hoặc chuyển sang “NPL lẻ”'
+                        : (mode === 'material'
+                            ? 'Không tìm thấy NPL — thử tên / mã khác'
+                            : 'Không tìm thấy NPL hay nhóm gom — thử tên khác');
+                    return '<div class="px-2 py-2 text-muted small">' + msg + '</div>';
                 },
                 loading: function () {
                     return '<div class="px-2 py-2 text-muted small">Đang tải...</div>';
@@ -372,7 +593,12 @@ body > .ts-dropdown .jp-npl-material-option.is-name-stock.is-with-image {
                         sortInput.value = (orders.length ? Math.max.apply(Math, orders) : 0) + 1;
                     }
                 }
+                // Chọn xong ở dòng cuối → tự thêm dòng trống mới bên dưới.
+                setTimeout(ensureTrailingEmptyRow, 0);
                 var opt = value ? this.options[value] : null;
+                if (opt && opt.is_group && Array.isArray(opt.member_ids)) {
+                    GROUP_MEMBERS[String(value).slice(2)] = opt.member_ids;
+                }
                 var unit = opt ? (opt.unit_name || opt.unit || '') : '';
                 setLineUnit(row, unit);
                 var stockEl = row && row.querySelector('.jp-npl-stock-qty');
@@ -404,6 +630,7 @@ body > .ts-dropdown .jp-npl-material-option.is-name-stock.is-with-image {
                 if (val && val.indexOf('g:') === 0) {
                     this.updateOption(val, {
                         id: val,
+                        kind: 'group',
                         is_group: true,
                         name: select.getAttribute('data-group-name') || val,
                         text: select.getAttribute('data-group-name') || val,
@@ -427,6 +654,7 @@ body > .ts-dropdown .jp-npl-material-option.is-name-stock.is-with-image {
                         || '';
                     this.updateOption(val, {
                         id: val,
+                        kind: 'material',
                         name: (opt && opt.name) || nameOnly,
                         text: label,
                         code: (opt && opt.code) || (sep > 0 ? label.slice(0, sep).trim() : ''),
@@ -456,7 +684,7 @@ body > .ts-dropdown .jp-npl-material-option.is-name-stock.is-with-image {
                                     return String(x.id) === String(val);
                                 });
                                 if (!hit) return;
-                                self.updateOption(val, Object.assign({}, self.options[val] || {}, hit));
+                                self.updateOption(val, Object.assign({}, self.options[val] || {}, hit, { kind: 'material' }));
                                 if (self.items.indexOf(val) !== -1) self.refreshItems();
                                 var stockEl2 = row && row.querySelector('.jp-npl-stock-qty');
                                 if (stockEl2) {
@@ -470,7 +698,151 @@ body > .ts-dropdown .jp-npl-material-option.is-name-stock.is-with-image {
                 }
             },
         });
+        attachModeBar(ts, state);
         materialInstances.set(select, ts);
+    }
+
+    var MODE_DEFS = [
+        { mode: 'all', icon: 'bi-grid', label: 'Tất cả' },
+        { mode: 'material', icon: 'bi-box-seam', label: 'NPL lẻ' },
+        { mode: 'group', icon: 'bi-collection-fill', label: 'Nhóm gom' },
+    ];
+
+    function updateModeCounts(state, rows, mode) {
+        if (!state.bar) return;
+        var nGroup = 0, nMat = 0;
+        rows.forEach(function (r) { if (r.is_group) nGroup++; else nMat++; });
+        var set = function (m, n) {
+            var el = state.bar.querySelector('[data-bom-mode="' + m + '"] .jp-bom-mode-count');
+            if (el) el.textContent = n >= 1000 ? '1000+' : String(n);
+        };
+        if (mode === 'all') { set('group', nGroup); set('material', nMat); set('all', nGroup + nMat); }
+        else if (mode === 'group') set('group', nGroup);
+        else if (mode === 'material') set('material', nMat);
+    }
+
+    // Canh dropdown theo khoảng trống màn hình: thiếu chỗ phía dưới thì lật lên trên,
+    // chiều cao danh sách co theo khoảng trống — không tràn xuống footer/đáy trang.
+    function installSmartPosition(ts, dropdown) {
+        var GAP = 4, MARGIN = 12, MIN_LIST = 160, MAX_LIST = 416;
+        var control = ts.control || ts.wrapper;
+        var raf = 0;
+
+        function place() {
+            raf = 0;
+            if (!ts.isOpen || !control) return;
+            var rect = control.getBoundingClientRect();
+            var vh = window.innerHeight || document.documentElement.clientHeight;
+            var vw = window.innerWidth || document.documentElement.clientWidth;
+            var bar = dropdown.querySelector('.jp-bom-mode-bar');
+            var barH = bar ? bar.offsetHeight : 0;
+            var below = vh - rect.bottom - GAP - MARGIN;
+            var above = rect.top - GAP - MARGIN;
+            var up = below < MIN_LIST + barH + 40 && above > below;
+            var space = up ? above : below;
+            var listMax = Math.max(MIN_LIST, Math.min(MAX_LIST, space - barH));
+            dropdown.style.setProperty('--jp-bom-dd-max', listMax + 'px');
+            dropdown.classList.toggle('is-drop-up', up);
+
+            var width = Math.max(rect.width, Math.min(544, vw * 0.94));
+            var left = Math.min(rect.left, vw - width - 8);
+            left = Math.max(8, left);
+            dropdown.style.position = 'fixed';
+            dropdown.style.width = width + 'px';
+            dropdown.style.left = left + 'px';
+            if (up) {
+                dropdown.style.top = 'auto';
+                dropdown.style.bottom = (vh - rect.top + GAP) + 'px';
+            } else {
+                dropdown.style.bottom = 'auto';
+                dropdown.style.top = (rect.bottom + GAP) + 'px';
+            }
+        }
+
+        function schedule() {
+            if (!raf) raf = requestAnimationFrame(place);
+        }
+
+        // TomSelect tự đặt top/left mỗi lần mở/refresh → ghi đè sau đó.
+        var origPosition = ts.positionDropdown ? ts.positionDropdown.bind(ts) : null;
+        ts.positionDropdown = function () {
+            if (origPosition) origPosition();
+            place();
+        };
+        ts.on('dropdown_open', function () {
+            place();
+            window.addEventListener('scroll', schedule, true);
+            window.addEventListener('resize', schedule);
+        });
+        ts.on('dropdown_close', function () {
+            window.removeEventListener('scroll', schedule, true);
+            window.removeEventListener('resize', schedule);
+        });
+        ts.on('load', schedule);
+    }
+
+    function markGroupLine(row, value) {
+        if (row) row.classList.toggle('is-group-line', String(value || '').indexOf('g:') === 0);
+    }
+
+    function attachModeBar(ts, state) {
+        var dropdown = ts.dropdown;
+        if (!dropdown) return;
+        dropdown.classList.add('jp-bom-dropdown');
+        installSmartPosition(ts, dropdown);
+        var row = ts.input ? ts.input.closest('tr') : null;
+        markGroupLine(row, ts.getValue());
+        ts.on('change', function (v) { markGroupLine(row, v); });
+        var bar = document.createElement('div');
+        bar.className = 'jp-bom-mode-bar';
+        bar.setAttribute('role', 'tablist');
+        bar.innerHTML = MODE_DEFS.map(function (d) {
+            return '<button type="button" class="jp-bom-mode-btn' + (d.mode === state.mode ? ' is-active' : '') + '"'
+                + ' data-bom-mode="' + d.mode + '" role="tab" tabindex="-1">'
+                + '<i class="bi ' + d.icon + '"></i><span>' + d.label + '</span>'
+                + '<span class="jp-bom-mode-count"></span></button>';
+        }).join('')
+            + '<span class="jp-bom-mode-hint">Alt+1/2/3</span>';
+        dropdown.insertBefore(bar, dropdown.firstChild);
+        state.bar = bar;
+
+        function setMode(mode) {
+            if (!mode || mode === state.mode) return;
+            state.mode = mode;
+            bar.querySelectorAll('.jp-bom-mode-btn').forEach(function (b) {
+                b.classList.toggle('is-active', b.getAttribute('data-bom-mode') === mode);
+            });
+            dropdown.classList.toggle('is-mode-group', mode === 'group');
+            dropdown.classList.toggle('is-mode-material', mode === 'material');
+            var q = ts.lastQuery || (ts.control_input ? ts.control_input.value : '') || '';
+            // Xóa option chưa chọn để tải lại theo chế độ mới
+            ts.clearOptions();
+            ts.loadedSearches = {};
+            ts.load(q);
+            ts.refreshOptions(false);
+            if (ts.control_input) ts.control_input.focus();
+        }
+
+        // mousedown: giữ focus trong ô input, không đóng dropdown
+        bar.addEventListener('mousedown', function (e) {
+            var btn = e.target.closest('[data-bom-mode]');
+            e.preventDefault();
+            e.stopPropagation();
+            if (btn) setMode(btn.getAttribute('data-bom-mode'));
+        });
+        bar.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); });
+
+        if (ts.control_input) {
+            ts.control_input.addEventListener('keydown', function (e) {
+                if (!e.altKey) return;
+                var map = { '1': 'all', '2': 'material', '3': 'group' };
+                if (map[e.key]) {
+                    e.preventDefault();
+                    if (!ts.isOpen) ts.open();
+                    setMode(map[e.key]);
+                }
+            });
+        }
     }
 
     function destroyBomMaterialSelect(row) {
@@ -499,8 +871,11 @@ body > .ts-dropdown .jp-npl-material-option.is-name-stock.is-with-image {
         });
     }
 
-    function renumberRows() {
-        visibleRows().forEach(function (row, index) {
+    function renumberRows(filledOnly) {
+        var rows = filledOnly
+            ? visibleRows()
+            : Array.from(body ? body.querySelectorAll('.bom-line-row') : []).filter(isLiveRow);
+        rows.forEach(function (row, index) {
             var input = row.querySelector('input[name$="-sort_order"]');
             if (input) input.value = index + 1;
         });
@@ -512,12 +887,55 @@ body > .ts-dropdown .jp-npl-material-option.is-name-stock.is-with-image {
             draggable: '.bom-line-row',
             animation: 150,
             ghostClass: 'is-dragging',
-            onEnd: renumberRows,
+            onEnd: function () { renumberRows(); },
         });
     }
 
-    document.getElementById('add-bom-row')?.addEventListener('click', function () {
-        if (!body || !tmpl || !totalForms) return;
+    function rowMaterialValue(row) {
+        var sel = row && row.querySelector('select[name$="-material"]');
+        return sel ? String(sel.value || '').trim() : '';
+    }
+
+    function isLiveRow(row) {
+        var del = row.querySelector('input[type=checkbox][name$="-DELETE"]');
+        return row.style.display !== 'none' && !(del && del.checked);
+    }
+
+    // Luôn giữ đúng 1 dòng trống cuối bảng để chọn NPL tiếp.
+    function ensureTrailingEmptyRow() {
+        if (!body) return;
+        var live = Array.from(body.querySelectorAll('.bom-line-row')).filter(isLiveRow);
+        var last = live[live.length - 1];
+        if (!last || rowMaterialValue(last)) addBomRow({ focus: false });
+        fillMissingSortOrders();
+        body.querySelectorAll('.bom-line-row').forEach(function (row) {
+            row.classList.toggle('is-empty-line', !rowMaterialValue(row));
+        });
+        if (typeof window.jpBomMarkDuplicates === 'function') window.jpBomMarkDuplicates();
+    }
+    window.jpBomEnsureTrailingEmptyRow = ensureTrailingEmptyRow;
+
+    // Dòng nào chưa có STT (dòng mới thêm) → điền tiếp theo STT lớn nhất.
+    function fillMissingSortOrders() {
+        if (!body) return;
+        var live = Array.from(body.querySelectorAll('.bom-line-row')).filter(isLiveRow);
+        var max = 0;
+        live.forEach(function (row) {
+            var input = row.querySelector('input[name$="-sort_order"]');
+            var v = parseInt((input && input.value) || '0', 10) || 0;
+            if (v > max) max = v;
+        });
+        live.forEach(function (row) {
+            var input = row.querySelector('input[name$="-sort_order"]');
+            if (input && (parseInt(input.value || '0', 10) || 0) <= 0) {
+                max += 1;
+                input.value = max;
+            }
+        });
+    }
+
+    function addBomRow(opts) {
+        if (!body || !tmpl || !totalForms) return null;
         var idx = parseInt(totalForms.value, 10);
         var html = tmpl.innerHTML.replace(/__prefix__/g, idx);
         body.insertAdjacentHTML('beforeend', html);
@@ -529,25 +947,153 @@ body > .ts-dropdown .jp-npl-material-option.is-name-stock.is-with-image {
                 return parseInt(input.value || '0', 10) || 0;
             });
             var sortInput = lastRow.querySelector('input[name$="-sort_order"]');
-            if (sortInput) sortInput.value = (orders.length ? Math.max.apply(Math, orders) : 0) + 1;
-            initBomMaterialSelect(lastRow.querySelector('select.jp-npl-material-select'));
+            if (sortInput) {
+                sortInput.value = '';
+                fillMissingSortOrders();
+            }
+            lastRow.classList.add('is-empty-line');
+            var sel = lastRow.querySelector('select.jp-npl-material-select');
+            initBomMaterialSelect(sel);
+            if (opts && opts.focus) {
+                var ts = sel ? materialInstances.get(sel) : null;
+                if (ts) setTimeout(function () { ts.focus(); }, 0);
+            }
+        }
+        return lastRow;
+    }
+
+    document.getElementById('add-bom-row')?.addEventListener('click', function () {
+        if (!body) return;
+        // Đã có dòng trống cuối thì chỉ focus vào đó.
+        var live = Array.from(body.querySelectorAll('.bom-line-row')).filter(isLiveRow);
+        var last = live[live.length - 1];
+        if (last && !rowMaterialValue(last)) {
+            var sel = last.querySelector('select.jp-npl-material-select');
+            var ts = sel ? materialInstances.get(sel) : null;
+            if (ts) ts.focus();
+            return;
+        }
+        addBomRow({ focus: true });
+    });
+
+    // Lưu: bỏ dòng trống (chưa chọn NPL / nhóm) — dòng mới thì xóa khỏi form, dòng cũ đánh dấu xóa.
+    var bomForm = document.getElementById('bom-form');
+    bomForm?.addEventListener('submit', function () {
+        if (!body) return;
+        renumberRows(true);
+        body.querySelectorAll('.bom-line-row').forEach(function (row) {
+            if (rowMaterialValue(row)) return;
+            var idInput = row.querySelector('input[type=hidden][name$="-id"]');
+            var del = row.querySelector('input[type=checkbox][name$="-DELETE"]');
+            if (idInput && idInput.value && del) {
+                del.checked = true;
+                return;
+            }
+            // Dòng chưa lưu: vô hiệu hóa các input để Django coi là form trống (không validate).
+            row.querySelectorAll('input, select, textarea').forEach(function (el) {
+                if (/-(id|bom|DELETE)$/.test(el.name || '')) return;
+                if (el.tagName === 'SELECT') {
+                    el.value = '';
+                } else if (el.type !== 'hidden' && el.type !== 'checkbox') {
+                    el.value = '';
+                }
+            });
+            if (del) del.checked = true;
+        });
+    }, true);
+
+    bomForm?.addEventListener('keydown', function (e) {
+        if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+            e.preventDefault();
+            if (typeof bomForm.requestSubmit === 'function') bomForm.requestSubmit();
+            else bomForm.submit();
         }
     });
+
+    ensureTrailingEmptyRow();
 
     body?.addEventListener('click', function (e) {
         var btn = e.target.closest('.remove-bom-row');
         if (!btn) return;
-        var row = btn.closest('tr');
+        removeBomRow(btn.closest('tr'));
+        renumberRows();
+        ensureTrailingEmptyRow();
+    });
+
+    function removeBomRow(row) {
+        if (!row) return;
         destroyBomMaterialSelect(row);
-        var del = row && row.querySelector('input[type=checkbox][name$="-DELETE"]');
+        var del = row.querySelector('input[type=checkbox][name$="-DELETE"]');
         if (del) {
             del.checked = true;
             row.style.display = 'none';
-        } else if (row) {
+        } else {
             row.remove();
         }
+    }
+
+    // NPL trùng: cùng NPL lẻ nhiều dòng, hoặc NPL lẻ đã nằm trong 1 nhóm gom của BOM.
+    // Dòng thừa = dòng NPL lẻ đã có nhóm gom chứa nó, hoặc lần lặp thứ 2+ của cùng NPL lẻ.
+    function rowMaterialIds(row) {
+        var v = rowMaterialValue(row);
+        if (!v) return [];
+        if (v.indexOf('g:') === 0) return (GROUP_MEMBERS[v.slice(2)] || []).map(String);
+        return [v];
+    }
+
+    function findDuplicateRows() {
+        var live = Array.from(body ? body.querySelectorAll('.bom-line-row') : []).filter(isLiveRow);
+        var inGroup = {};
+        var count = {};
+        live.forEach(function (row) {
+            var v = rowMaterialValue(row);
+            rowMaterialIds(row).forEach(function (id) {
+                count[id] = (count[id] || 0) + 1;
+                if (v.indexOf('g:') === 0) inGroup[id] = true;
+            });
+        });
+        var seenSingle = {};
+        var dupRows = [];
+        var removable = [];
+        live.forEach(function (row) {
+            var ids = rowMaterialIds(row);
+            if (!ids.some(function (id) { return count[id] > 1; })) return;
+            dupRows.push(row);
+            var v = rowMaterialValue(row);
+            if (v.indexOf('g:') === 0) return;
+            if (inGroup[v] || seenSingle[v]) removable.push(row);
+            seenSingle[v] = true;
+        });
+        return { dupRows: dupRows, removable: removable };
+    }
+
+    var dupBtn = document.getElementById('bom-remove-dup-btn');
+    function markDuplicates() {
+        if (!body) return;
+        var res = findDuplicateRows();
+        body.querySelectorAll('.bom-line-row').forEach(function (row) {
+            row.classList.remove('is-dup-line', 'is-dup-removable');
+        });
+        res.dupRows.forEach(function (row) { row.classList.add('is-dup-line'); });
+        res.removable.forEach(function (row) { row.classList.add('is-dup-removable'); });
+        if (dupBtn) {
+            dupBtn.classList.toggle('d-none', !res.removable.length);
+            var n = dupBtn.querySelector('[data-role="dup-count"]');
+            if (n) n.textContent = res.removable.length;
+        }
+    }
+    window.jpBomMarkDuplicates = markDuplicates;
+
+    dupBtn?.addEventListener('click', function () {
+        var res = findDuplicateRows();
+        if (!res.removable.length) return;
+        if (!window.confirm('Xoá ' + res.removable.length + ' dòng NPL lẻ bị trùng (đã có ở dòng khác hoặc trong nhóm gom)?')) return;
+        res.removable.forEach(removeBomRow);
         renumberRows();
+        ensureTrailingEmptyRow();
     });
+
+    markDuplicates();
 })();
 </script>
         {% else %}
@@ -581,7 +1127,7 @@ body > .ts-dropdown .jp-npl-material-option.is-name-stock.is-with-image {
                             </span>
                           </div>
                         </td>
-                        <td class="text-end">{{ line.qty|sx_num }} <span class="text-muted small">/NPL</span></td>
+                        <td class="text-end">{{ line.qty|sx_num }} <span class="text-muted small">/SP</span></td>
                         <td class="text-muted small">{{ line.group_unit|default:"—" }}</td>
                         <td class="text-end">{{ line.stock_qty|default:0|sx_num }}</td>
                     </tr>

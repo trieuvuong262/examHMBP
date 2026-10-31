@@ -3395,7 +3395,7 @@ def _persist_line_tech(order_line: SxSalesOrderLine, *, bom_id: int, routing_id:
         order_line.bom_version_id = bom_id
         fields.append('bom_version')
         if not order_line.bom_line_overrides:
-            order_line.bom_line_overrides = bom_lines_snapshot(bom_id)
+            order_line.bom_line_overrides = bom_lines_snapshot(bom_id, size_qtys=order_line.size_qtys)
             fields.append('bom_line_overrides')
     if routing_id and order_line.routing_id != routing_id:
         order_line.routing_id = routing_id
@@ -3525,7 +3525,7 @@ def reload_plan_order_tech(
                 routing_count += 1
             continue
         if ln.bom_version_id:
-            ln.bom_line_overrides = bom_lines_snapshot(ln.bom_version_id)
+            ln.bom_line_overrides = bom_lines_snapshot(ln.bom_version_id, size_qtys=ln.size_qtys)
             ln.save(update_fields=['bom_line_overrides'])
             bom_count += 1
         if has_ob_source:

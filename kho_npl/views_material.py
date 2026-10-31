@@ -142,6 +142,9 @@ def _bom_qty_display_caps(request, filter_caps):
 
 def material_search_response(request):
     q = (request.GET.get('q') or '').strip()
+    if (request.GET.get('groups_only') or '').strip() in ('1', 'true'):
+        # Ô chọn BOM — tab "Nhóm gom": chỉ trả nhóm, không tải danh mục NPL.
+        return JsonResponse({'results': _material_group_search_rows(q, limit=300)})
     location_id = _parse_positive_int(request.GET.get('location_id'))
     in_stock_only = (request.GET.get('in_stock_only') or '').strip().lower() in ('1', 'true', 'yes')
     limit_param = _parse_positive_int(request.GET.get('limit'))
@@ -284,13 +287,14 @@ def material_search_response(request):
             'units': material_units(material),
         })
     if (request.GET.get('include_groups') or '').strip() in ('1', 'true') and bom_material_ids is None:
-        rows = _material_group_search_rows(q) + rows
+        group_limit = min(_parse_positive_int(request.GET.get('group_limit')) or 30, 300)
+        rows = _material_group_search_rows(q, limit=group_limit) + rows
     return JsonResponse({'results': rows})
 
 
-def _material_group_search_rows(q: str) -> list[dict]:
+def _material_group_search_rows(q: str, limit: int = 30) -> list[dict]:
     """Nhóm gom NPL (kho NPL) cho ô chọn BOM — id dạng ``g:<pk>``."""
-    from django.db.models import Count, Q
+    from django.db.models import Count, Prefetch, Q
 
     from kho_npl.material_search import apply_smart_search
     from kho_npl.models import MaterialGroup
@@ -303,12 +307,20 @@ def _material_group_search_rows(q: str) -> list[dict]:
     )
     if q:
         qs = apply_smart_search(qs, q, ('code', 'name', 'category__name'))
-    out = []
-    for group in qs.order_by('name', 'code')[:30]:
-        first = (
-            group.materials.filter(is_active=True).select_related('unit').order_by('code').first()
+    qs = qs.order_by('name', 'code').prefetch_related(
+        Prefetch(
+            'materials',
+            queryset=Material.objects.filter(is_active=True).select_related('unit').order_by('code'),
+            to_attr='_active_members',
         )
+    )
+    out = []
+    for group in qs[:limit]:
+        members = list(getattr(group, '_active_members', []) or [])
+        first = members[0] if members else None
         out.append({
+            'members_preview': [m.name for m in members[:4]],
+            'member_ids': [m.pk for m in members],
             'id': f'g:{group.pk}',
             'is_group': True,
             'group_id': group.pk,

@@ -2879,7 +2879,9 @@ def explode_disassembly_from_bom(*, order_id: int) -> SxDisassemblyOrder:
     create_lines = []
     from san_xuat.services.bom_group import expand_bom_lines
 
-    for item in expand_bom_lines(bom.lines.select_related("material", "material_group").all()):
+    for item in expand_bom_lines(
+        bom.lines.select_related("material", "material_group").all(), representative=True,
+    ):
         bl = item.line
         qty = (bl.qty_with_scrap * (order.qty or Decimal("0"))).quantize(Decimal("0.0001"))
         if qty <= 0:
