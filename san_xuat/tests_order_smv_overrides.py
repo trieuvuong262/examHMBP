@@ -225,6 +225,39 @@ class BomPreviewSeqAndQtyTests(TestCase):
         self.assertEqual(Decimal(str(rows[0]['qty'])), Decimal('0.1250'))
         self.assertEqual(Decimal(str(rows[0]['qty_std'])), Decimal('0.1250'))
 
+    def test_bom_override_locks_scrap_to_zero(self):
+        # Sửa BOM trên đơn: nhu cầu là con số cuối cùng → hao hụt luôn về 0,
+        # kể cả khi client gửi scrap_pct > 0.
+        rows = _normalize_bom_overrides([{
+            'bom_line_id': 1,
+            'material_code': 'NPL-SMV-A',
+            'qty_std': 0.5,
+            'qty': 0.5,
+            'qty_mode': 'qty',
+            'scrap_pct': 7.5,
+        }])
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['scrap_pct'], 0.0)
+        self.assertEqual(Decimal(str(rows[0]['qty'])), Decimal('0.5000'))
+
+    def test_bom_override_need_round_trips_with_large_qty(self):
+        # Nhu cầu 1, SL 4990: ĐM/SP 4 số lẻ (0,0002) cho lại 0,998. Cần giữ nhiều số lẻ.
+        from san_xuat.services.bom_need import explode_overrides
+
+        sl = Decimal('4990')
+        qty_js = round(1 / 4990, 10)  # giống Math.round(need / SL * 1e10) / 1e10 phía client
+        rows = _normalize_bom_overrides([{
+            'bom_line_id': 1,
+            'material_code': 'NPL-SMV-A',
+            'qty_std': 0.0002,
+            'qty': qty_js,
+            'qty_mode': 'qty',
+            'scrap_pct': 5,
+        }])
+        self.assertEqual(Decimal(str(rows[0]['qty'])), Decimal('0.0002004008'))
+        needs = explode_overrides(overrides=rows, qty=sl)
+        self.assertEqual(needs[0].qty_total, Decimal('1.000'))
+
     def test_merge_bom_keeps_pct_by_material_when_line_id_changes(self):
         fresh = [{
             'bom_line_id': 99,

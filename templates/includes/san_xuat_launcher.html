@@ -167,6 +167,7 @@
   body.jp-sx-focus[data-sx-area="docs"] #jp-sidebar-san-xuat-submenu > [data-sx-area="docs"],
   body.jp-sx-focus[data-sx-area="equipment_sx"] #jp-sidebar-san-xuat-submenu > [data-sx-area="equipment_sx"],
   body.jp-sx-focus[data-sx-area="plan"] #jp-sidebar-san-xuat-submenu > [data-sx-area="plan"],
+  body.jp-sx-focus[data-sx-area="subcontract"] #jp-sidebar-san-xuat-submenu > [data-sx-area="subcontract"],
   body.jp-sx-focus[data-sx-area="plan_npl"] #jp-sidebar-san-xuat-submenu > [data-sx-area="plan_npl"],
   body.jp-sx-focus[data-sx-area="kho_npl"] #jp-sidebar-san-xuat-submenu > [data-sx-area="kho_npl"],
   body.jp-sx-focus[data-sx-area="kho_vat_tu"] #jp-sidebar-san-xuat-submenu > [data-sx-area="kho_vat_tu"],
@@ -288,9 +289,12 @@
         || document.body.getAttribute('data-eq-scope') === 'production';
     }},
     { area: 'plan_npl', test: function (p) { return p.indexOf('/san-xuat/ke-hoach-npl') !== -1; } },
+    { area: 'subcontract', test: function (p) {
+      return p.indexOf('/san-xuat/gia-cong') !== -1
+        || p.indexOf('/san-xuat/thue-gia-cong') !== -1;
+    } },
     { area: 'plan', test: function (p) {
       return p.indexOf('/san-xuat/ke-hoach') !== -1
-        || p.indexOf('/san-xuat/thue-gia-cong') !== -1
         || p.indexOf('/san-xuat/nang-luc') !== -1;
     } },
     { area: 'kho_npl', test: function (p) { return p.indexOf('/kho-npl') !== -1; } },

@@ -47,8 +47,10 @@ def scale_qty(*, size_code: str, line_qty: Decimal, size_qtys: dict | None) -> D
 
 
 def per_unit_with_scrap(qty, scrap_pct) -> Decimal:
+    # Giữ 10 số lẻ: ĐM/SP trên đơn quy ngược từ Nhu cầu (Nhu cầu / SL), làm tròn 4 số
+    # lẻ sẽ lệch khi nhân lại với SL lớn (vd 1 / 4990 → 0,0002 × 4990 = 0,998).
     factor = Decimal('1') + _q(scrap_pct) / Decimal('100')
-    return (_q(qty) * factor).quantize(Decimal('0.0001'))
+    return (_q(qty) * factor).quantize(Decimal('0.0000000001'))
 
 
 def _unit_display(unit) -> str:

@@ -633,7 +633,7 @@
               </td>
               <td class="small">{% if need.department == 'MAY (152A VĨNH LỘC)' %}MAY{% else %}{{ need.department|default:"—" }}{% endif %}</td>
               <td class="text-end small jp-bom-qty-cell" data-bom-code="{{ need.material_code }}" data-bom-name="{{ need.material_name|default:need.material_code }}">
-                <span class="jp-bom-read-qty">{{ need.qty_per_unit|sx_num }}</span>
+                <span class="jp-bom-read-qty">{{ need.qty_per_unit|sx_num:10 }}</span>
               </td>
               <td class="text-end small text-muted">{{ need.scale_qty|sx_num }}</td>
               <td class="text-end fw-semibold small">
@@ -688,7 +688,8 @@
   {# BOM/OB snapshot của đơn có thể điều chỉnh giữa kỳ; LSX đang chạy nhận phần còn lại. #}
   {% include 'san_xuat/includes/sales_order_routing.html' %}
   <script>
-    // Sửa BOM trên đơn: người dùng nhập Nhu cầu, quy ngược ra ĐM/SP = Nhu cầu / SL / (1 + hao hụt%).
+    // Sửa BOM trên đơn: người dùng nhập Nhu cầu (con số cuối cùng), quy ngược ra ĐM/SP = Nhu cầu / SL.
+    // Hao hụt khóa về 0 — nhu cầu đã là con số cuối, không cộng thêm hao hụt.
     function jpBomKey(code, size) {
       return String(code || '').trim().toLowerCase() + '|' + String(size || '').trim().toLowerCase();
     }
@@ -705,12 +706,13 @@
         if (tr.classList.contains('jp-bom-removed')) return;
         const need = parseFloat((tr.querySelector('.jp-inline-bom-need') || {}).value);
         if (!Number.isFinite(need) || need <= 0 || !(lineScale > 0)) return;
-        const qty = Math.round(need / lineScale * 10000) / 10000;
+        const qty = Math.round(need / lineScale * 1e10) / 1e10;
         rows.push({
           bom_line_id: null, material_code: tr.dataset.bomCode, material_name: tr.dataset.bomName,
           qty: qty, qty_std: qty, qty_mode: 'qty', qty_pct: 100, scrap_pct: 0,
           unit: tr.dataset.bomUnit || '', size_code: '',
         });
+        // Dòng mới đã không có hao hụt (scrap_pct: 0) — ĐM/SP = Nhu cầu / SL.
         used.add(rows.length - 1);
         changed = true;
       });
@@ -734,8 +736,10 @@
         // Size không khớp tuyệt đối vẫn cho phép sửa nhu cầu; dùng SL tổng làm hệ số dự phòng.
         const scale = parseFloat(tr.dataset.bomScale || '0') || lineScale;
         if (!(scale > 0)) return;
-        const scrap = parseFloat(rows[idx].scrap_pct != null ? rows[idx].scrap_pct : (tr.dataset.bomScrap || '0')) || 0;
-        rows[idx].qty = Math.round(need / scale / (1 + scrap / 100) * 10000) / 10000;
+        // Nhu cầu là con số cuối cùng: ĐM/SP = Nhu cầu / SL, khóa hao hụt về 0.
+        // Giữ 10 số lẻ để Nhu cầu nhân lại đúng con số đã nhập.
+        rows[idx].qty = Math.round(need / scale * 1e10) / 1e10;
+        rows[idx].scrap_pct = 0;
         rows[idx].qty_mode = 'qty';
         changed = true;
       });

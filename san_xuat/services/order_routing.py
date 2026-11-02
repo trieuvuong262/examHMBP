@@ -1006,8 +1006,13 @@ def update_order_line_bom_overrides(
     *,
     rows: list[dict],
     user=None,
-) -> int:
-    """Lưu snapshot BOM trên đơn, cho phép chỉnh khi LSX chạy."""
+):
+    """Lưu snapshot BOM trên đơn, cho phép chỉnh khi LSX chạy.
+
+    Sau khi lưu: chỉnh YCX còn mở + phiếu xuất NPL nháp theo nhu cầu mới.
+    Trả ``YcxNeedSyncResult`` (rỗng nếu đơn chưa có YCX nào còn mở).
+    """
+    from san_xuat.services.dispatch import sync_open_ycx_with_order_need
     from san_xuat.services.sales_orders import _normalize_bom_overrides
     from san_xuat.services.plan_audit import log_plan_action
 
@@ -1042,7 +1047,13 @@ def update_order_line_bom_overrides(
             sync_order_npl(order_id=order_line.order_id, apply_schedule=True)
         except PlanningError as exc:
             raise OrderRoutingError(str(exc)) from exc
-    return len(normalized)
+    # Phiếu xuất NPL chưa ghi sổ đi theo nhu cầu mới (không phụ thuộc Chốt A:
+    # YCX chỉ có khi LSX đã release).
+    from san_xuat.services.dispatch import DispatchError
+    try:
+        return sync_open_ycx_with_order_need(order)
+    except DispatchError as exc:
+        raise OrderRoutingError(str(exc)) from exc
 
 
 def order_npl_deferred(order: SxSalesOrder) -> bool:

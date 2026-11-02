@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from dataclasses import field as dc_field
 from decimal import Decimal
 
 from django.db import models as dj_models
@@ -1538,6 +1539,249 @@ def cancel_material_issue_request(*, request_id: int, user=None) -> SxMaterialIs
     req.save(update_fields=["status"])
     release_reservations_for_ycx(ycx_code=req.code)
     return req
+
+
+@dataclass
+class YcxNeedSyncResult:
+    """Kết quả chỉnh YCX / phiếu kho nháp theo nhu cầu BOM mới của đơn."""
+
+    lines_changed: int = 0
+    requests_cancelled: list[str] = dc_field(default_factory=list)
+    issues_cancelled: list[str] = dc_field(default_factory=list)
+    # (mã NPL, đã xuất, nhu cầu mới) — xuất vượt nhu cầu, cần lập phiếu NPL thừa.
+    over_issued: list[tuple[str, Decimal, Decimal]] = dc_field(default_factory=list)
+
+    @property
+    def changed(self) -> bool:
+        return bool(self.lines_changed or self.requests_cancelled or self.issues_cancelled)
+
+
+_Q3 = Decimal("0.001")
+
+
+def _set_issue_line_base_qty(line: StockIssueLine, qty_base: Decimal) -> None:
+    """Đặt SL ĐVT lẻ cho dòng phiếu nháp; giữ ĐVT chọn nếu quy đổi chẵn, không thì về ĐVT lẻ."""
+    factor = line.uom_factor or Decimal("1")
+    quantity = (qty_base / factor).quantize(_Q3) if factor > 0 else qty_base
+    if factor != 1 and (quantity * factor).quantize(_Q3) != qty_base:
+        line.line_unit_id = line.material.unit_id
+        line.uom_factor = Decimal("1")
+        quantity = qty_base
+    line.quantity = quantity
+    line.qty_base = qty_base
+    line.save(update_fields=["quantity", "qty_base", "line_unit", "uom_factor"])
+
+
+def _resize_draft_issue_lines(issue: StockIssue, material_code: str, target: Decimal, req_code: str) -> bool:
+    """Chỉnh tổng SL một NPL trên phiếu kho nháp về ``target``. True nếu có đổi."""
+    key = _ycx_pool_key(material_code)
+    lines = [
+        ln for ln in issue.lines.select_related("material").order_by("id")
+        if _ycx_pool_key(ln.material.code) == key
+    ]
+    current = sum(((ln.qty_base or ln.quantity or Decimal("0")) for ln in lines), Decimal("0")).quantize(_Q3)
+    target = target.quantize(_Q3)
+    if current == target:
+        return False
+    if target <= 0:
+        for ln in lines:
+            ln.delete()
+        return True
+    if not lines:
+        material = _resolve_material_by_code(material_code)
+        location = _pick_issue_location(material, target)
+        if location is None:
+            raise DispatchError("Kho NPL chưa có vị trí kho nào đang hoạt động.")
+        StockIssueLine.objects.create(
+            issue=issue,
+            material=material,
+            quantity=target,
+            line_unit_id=material.unit_id,
+            uom_factor=Decimal("1"),
+            qty_base=target,
+            location=location,
+            unit_price=catalog_base_unit_price(
+                material, fallback_batch=batches_with_stock(material).first()
+            ),
+            notes=f"{req_code} · cập nhật theo BOM đơn",
+        )
+        return True
+    if target > current:
+        last = lines[-1]
+        _set_issue_line_base_qty(last, ((last.qty_base or last.quantity) + target - current).quantize(_Q3))
+        return True
+    # Giảm: cắt từ dòng cuối lên.
+    cut = current - target
+    for ln in reversed(lines):
+        if cut <= 0:
+            break
+        qty = (ln.qty_base or ln.quantity or Decimal("0")).quantize(_Q3)
+        if qty <= cut:
+            ln.delete()
+            cut -= qty
+        else:
+            _set_issue_line_base_qty(ln, (qty - cut).quantize(_Q3))
+            cut = Decimal("0")
+    return True
+
+
+def _order_issued_by_bom_key(order, requests) -> dict[str, Decimal]:
+    """SL đã ghi sổ theo mã NPL BOM: qua YCX (theo dòng YCX) + phiếu kho gắn đơn không qua YCX."""
+    from kho_npl.stock_domain import STOCK_DOMAIN_NPL
+
+    issued: dict[str, Decimal] = {}
+    for req in requests:
+        for line in req.lines.all():
+            key = _ycx_pool_key(line.bom_material_code or line.material_code)
+            issued[key] = issued.get(key, Decimal("0")) + (line.qty_issued or Decimal("0"))
+    direct = StockIssueLine.objects.filter(
+        issue__status=DOC_STATUS_POSTED,
+        issue__stock_domain=STOCK_DOMAIN_NPL,
+        issue__sales_order=order,
+        issue__ycx_requests__isnull=True,
+        issue__material_issue_requests__isnull=True,
+    ).values_list("material__code", "qty_base", "quantity")
+    for code, qty_base, quantity in direct:
+        key = _ycx_pool_key(code)
+        if not key:
+            continue
+        amount = Decimal(qty_base or 0) or Decimal(quantity or 0)
+        issued[key] = issued.get(key, Decimal("0")) + amount
+    return issued
+
+
+@transaction.atomic
+def sync_open_ycx_with_order_need(order) -> YcxNeedSyncResult:
+    """Sau khi sửa Nhu cầu BOM trên đơn: chỉnh YCX còn mở + phiếu xuất kho nháp theo nhu cầu mới.
+
+    - Phần cần xuất tiếp của mỗi NPL = Nhu cầu đơn − đã ghi sổ. Phần này được chia lại
+      cho các dòng YCX còn mở (tăng/giảm dòng mới nhất trước).
+    - Phiếu kho đã ghi sổ không bị đụng. Xuất vượt nhu cầu mới chỉ được báo lại
+      (lập phiếu NPL thừa để nhập lại kho).
+    - YCX không còn gì để xuất: chưa xuất lần nào → hủy; đã xuất một phần → hoàn tất.
+    """
+    from kho_npl.choices import DOC_STATUS_CANCELLED
+    from kho_npl.services.issues import cancel_stock_issue
+    from kho_npl.services.reservation import consume_reservations_for_ycx, release_reservations_for_ycx
+
+    from san_xuat.services.bom_need import explode_for_sales_line
+
+    result = YcxNeedSyncResult()
+    all_reqs = list(
+        SxMaterialIssueRequest.objects.select_for_update(of=("self",))
+        .filter(production_order__sales_order=order, is_demo=False)
+        .exclude(status="cancelled")
+        .select_related("production_order")
+        .prefetch_related("lines")
+        .order_by("pk")
+    )
+    open_reqs = [r for r in all_reqs if r.status in _YCX_OPEN_STATUSES]
+    if not all_reqs and not StockIssue.objects.filter(
+        sales_order=order, status=DOC_STATUS_POSTED,
+    ).exists():
+        return result  # Đơn chưa có phiếu xuất NPL nào.
+
+    need: dict[str, Decimal] = {}
+    label: dict[str, str] = {}
+    for so_line in order.lines.all():
+        if (so_line.qty or 0) <= 0:
+            continue
+        for row in explode_for_sales_line(so_line):
+            key = _ycx_pool_key(row.material_code)
+            if key and row.qty_total > 0:
+                need[key] = need.get(key, Decimal("0")) + row.qty_total
+                label.setdefault(key, row.material_code)
+    issued = _order_issued_by_bom_key(order, all_reqs)
+
+    open_lines: dict[str, list] = {}
+    for req in open_reqs:
+        for line in req.lines.all():
+            code = line.bom_material_code or line.material_code
+            key = _ycx_pool_key(code)
+            open_lines.setdefault(key, []).append(line)
+            label.setdefault(key, code)
+
+    touched: dict[int, set[int]] = {}
+    for key, lines in open_lines.items():
+        lines.sort(key=lambda ln: (ln.request_id, ln.pk), reverse=True)  # mới nhất trước
+        target = (need.get(key, Decimal("0")) - issued.get(key, Decimal("0"))).quantize(_Q3)
+        if target < 0:
+            result.over_issued.append((label.get(key, key), issued[key], need.get(key, Decimal("0"))))
+            target = Decimal("0")
+        current = sum((_ycx_line_remaining(ln) for ln in lines), Decimal("0"))
+        delta = target - current
+        if abs(delta) < _Q3:
+            continue
+        if delta > 0:
+            ln = lines[0]
+            ln.qty_requested = ((ln.qty_requested or Decimal("0")) + delta).quantize(_Q3)
+            ln.save(update_fields=["qty_requested"])
+            touched.setdefault(ln.request_id, set()).add(ln.pk)
+            result.lines_changed += 1
+            continue
+        cut = -delta
+        for ln in lines:
+            if cut <= 0:
+                break
+            take = min(_ycx_line_remaining(ln), cut)
+            if take <= 0:
+                continue
+            ln.qty_requested = ((ln.qty_requested or Decimal("0")) - take).quantize(_Q3)
+            ln.save(update_fields=["qty_requested"])
+            touched.setdefault(ln.request_id, set()).add(ln.pk)
+            result.lines_changed += 1
+            cut -= take
+
+    # Ghi nhận cả phần xuất vượt ở NPL không còn dòng YCX mở.
+    for key, qty in issued.items():
+        if key not in open_lines and qty - need.get(key, Decimal("0")) >= _Q3:
+            result.over_issued.append((label.get(key, key), qty, need.get(key, Decimal("0"))))
+
+    for req in open_reqs:
+        if req.pk not in touched:
+            continue
+        lines = list(req.lines.all().order_by("id"))
+        drafts = list(
+            StockIssue.objects.select_for_update()
+            .filter(ycx_requests=req, status=DOC_STATUS_DRAFT)
+            .order_by("pk")
+        )
+        for issue in drafts:
+            for line in lines:
+                if line.pk in touched[req.pk]:
+                    _resize_draft_issue_lines(issue, line.material_code, _ycx_line_remaining(line), req.code)
+        # Dòng YCX không còn SL và chưa xuất gì → bỏ khỏi phiếu yêu cầu.
+        for line in lines:
+            if (line.qty_requested or 0) <= 0 and (line.qty_issued or 0) <= 0:
+                line.delete()
+        lines = list(req.lines.all().order_by("id"))
+        for issue in drafts:
+            if not issue.lines.exists():
+                # Hủy phiếu nháp rỗng; sync_ycx_from_stock_issue cập nhật trạng thái YCX.
+                cancel_stock_issue(issue)
+                result.issues_cancelled.append(issue.number)
+        req.refresh_from_db()
+        if req.status == "cancelled":
+            result.requests_cancelled.append(req.code)
+            continue
+        has_remaining = any(_ycx_line_remaining(ln) > 0 for ln in lines)
+        has_open_issue = req.stock_issues.exclude(status=DOC_STATUS_CANCELLED).exists()
+        has_posted = req.stock_issues.filter(status=DOC_STATUS_POSTED).exists()
+        if has_remaining:
+            if req.status in ("draft", "submitted"):
+                _reserve_ycx_safe(req)
+            continue
+        if has_posted and not req.stock_issues.filter(status=DOC_STATUS_DRAFT).exists():
+            req.status = "done"
+            req.save(update_fields=["status"])
+            consume_reservations_for_ycx(ycx_code=req.code)
+            _recompute_mo_progress(req.production_order)
+        elif not has_open_issue or not lines:
+            req.status = "cancelled"
+            req.save(update_fields=["status"])
+            release_reservations_for_ycx(ycx_code=req.code)
+            result.requests_cancelled.append(req.code)
+    return result
 
 
 @dataclass(frozen=True)

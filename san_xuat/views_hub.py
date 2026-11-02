@@ -1019,7 +1019,7 @@ def _handle_order_routing_post(request, order) -> bool:
             rows = json.loads(raw)
         except (TypeError, ValueError):
             raise OrderRoutingError('Dữ liệu chi tiết BOM không hợp lệ.') from None
-        update_order_line_bom_overrides(_line(), rows=rows, user=request.user)
+        ycx_sync = update_order_line_bom_overrides(_line(), rows=rows, user=request.user)
         from san_xuat.services.order_routing import order_npl_deferred
         if order_npl_deferred(order):
             messages.success(
@@ -1028,6 +1028,23 @@ def _handle_order_routing_post(request, order) -> bool:
             )
         else:
             messages.success(request, 'Đã lưu BOM và cập nhật NPL KHSX / LSX.')
+        if ycx_sync is not None and ycx_sync.changed:
+            parts = [f'chỉnh {ycx_sync.lines_changed} dòng yêu cầu xuất chưa ghi sổ']
+            if ycx_sync.requests_cancelled:
+                parts.append('hủy YCX ' + ', '.join(ycx_sync.requests_cancelled))
+            if ycx_sync.issues_cancelled:
+                parts.append('hủy phiếu xuất nháp ' + ', '.join(ycx_sync.issues_cancelled))
+            messages.info(request, 'Phiếu xuất NPL theo nhu cầu mới: ' + '; '.join(parts) + '.')
+        if ycx_sync is not None and ycx_sync.over_issued:
+            from san_xuat.templatetags.sx_format import format_sx_num
+            detail = ', '.join(
+                f'{code} (đã xuất {format_sx_num(done)}, nhu cầu {format_sx_num(need)})'
+                for code, done, need in ycx_sync.over_issued
+            )
+            messages.warning(
+                request,
+                f'Đã xuất vượt nhu cầu mới: {detail}. Lập phiếu NPL thừa để nhập lại kho.',
+            )
         return True
 
     if action == 'edit_ob_lines':

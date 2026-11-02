@@ -32,6 +32,14 @@ def _q4(value) -> Decimal:
     return (Decimal(str(value or 0))).quantize(_Q4)
 
 
+# ĐM/SP trên BOM đơn quy ngược từ Nhu cầu → cần nhiều số lẻ để Nhu cầu hiển thị lại đúng.
+_Q10 = Decimal('0.0000000001')
+
+
+def _q10(value) -> Decimal:
+    return (Decimal(str(value or 0))).quantize(_Q10)
+
+
 def _resolve_name(code: str, fallback: str = '') -> str:
     name = (fallback or '').strip()
     if name:
@@ -169,23 +177,25 @@ def _normalize_bom_overrides(raw) -> list[dict]:
             bom_line_id = int(row.get('bom_line_id') or row.get('id') or 0)
         except (TypeError, ValueError):
             bom_line_id = 0
-        scrap = _q(row.get('scrap_pct'))
+        # Sửa BOM trên đơn: nhu cầu nhập là con số cuối cùng → khóa hao hụt về 0,
+        # ĐM/SP = Nhu cầu / SL (không cộng thêm hao hụt ở khâu hiển thị / tính NPL).
+        scrap = Decimal('0')
         code = str(row.get('material_code') or '').strip()[:60]
         name = str(row.get('material_name') or '').strip()[:255]
         unit = str(row.get('unit') or '').strip()[:30]
         size_code = str(row.get('size_code') or '').strip()[:20]
-        qty_std = _q4(row.get('qty_std') if row.get('qty_std') is not None else row.get('qty'))
+        qty_std = _q10(row.get('qty_std') if row.get('qty_std') is not None else row.get('qty'))
         qty_mode = str(row.get('qty_mode') or '').strip().lower()
         qty_pct = row.get('qty_pct')
         if qty_mode == 'qty':
-            qty = _q4(row.get('qty'))
+            qty = _q10(row.get('qty'))
             qty_pct_val = float((qty / qty_std * Decimal('100')).quantize(Decimal('0.01'))) if qty_std > 0 else 100.0
         elif qty_pct is not None and str(qty_pct).strip() != '':
-            qty = (qty_std * Decimal(str(qty_pct)) / Decimal('100')).quantize(_Q4)
+            qty = (qty_std * Decimal(str(qty_pct)) / Decimal('100')).quantize(_Q10)
             qty_pct_val = float(Decimal(str(qty_pct)).quantize(Decimal('0.01')))
             qty_mode = 'pct'
         else:
-            qty = _q4(row.get('qty'))
+            qty = _q10(row.get('qty'))
             qty_pct_val = float((qty / qty_std * Decimal('100')).quantize(Decimal('0.01'))) if qty_std > 0 else 100.0
             qty_mode = 'qty' if row.get('qty') is not None else 'pct'
         if bom_line_id <= 0 and not code:
@@ -341,7 +351,8 @@ def merge_bom_overrides(fresh: list[dict], previous) -> list[dict]:
         std = _q4(row.get('qty_std') if row.get('qty_std') is not None else row.get('qty'))
         mode = str(prev.get('qty_mode') or '').strip().lower()
         if mode == 'qty':
-            qty = _q4(prev.get('qty'))
+            # ĐM nhập tay (quy từ Nhu cầu) giữ đủ số lẻ khi gắn lại phiên bản BOM.
+            qty = _q10(prev.get('qty'))
             pct = (qty / std * Decimal('100')) if std > 0 else Decimal('100')
             merged['qty'] = float(qty)
             merged['qty_std'] = float(std)

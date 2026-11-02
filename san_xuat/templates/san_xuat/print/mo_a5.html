@@ -36,7 +36,7 @@
         <strong>{{ bl.material_name|default:bl.material_code }}</strong><br>
         {% if bl.material_code and bl.material_name and bl.material_code != bl.material_name %}{{ bl.material_code }}{% endif %}
       </td>
-      <td class="text-end">{{ bl.qty_per_unit|sx_num }}</td>
+      <td class="text-end">{{ bl.qty_per_unit|sx_num:10 }}</td>
       <td class="text-center">{{ bl.scrap_pct }}%</td>
       <td class="text-end"><strong>{{ bl.qty_total|sx_num }}</strong></td>
     </tr>

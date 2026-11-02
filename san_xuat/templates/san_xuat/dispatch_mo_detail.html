@@ -364,7 +364,7 @@
                       </span>
                     </div>
                   </td>
-                  <td class="text-end small">{{ bl.qty_per_unit|sx_num }}</td>
+                  <td class="text-end small">{{ bl.qty_per_unit|sx_num:10 }}</td>
                   <td class="text-end small text-muted">{{ bl.scrap_pct }}%</td>
                   <td class="text-end fw-semibold small">{{ bl.qty_total|sx_num }}</td>
                   <td class="text-end small">{{ bl.qty_issued|sx_num }}</td>
