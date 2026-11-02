@@ -1406,6 +1406,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   function histKind(log) {
     if (log.kind === 'complete') return '<span class="jp-tw-day-tag is-done">Hoàn thành</span>';
+    if (log.kind === 'gc') return '<span class="jp-tw-day-tag is-done">Nhận GC</span>';
     if (log.backfill) return '<span class="jp-tw-day-tag is-bf">Nhập bù</span>';
     return '<span class="jp-tw-day-tag is-day">Đúng ngày</span>';
   }

@@ -511,6 +511,8 @@
         rows.innerHTML = logs.map(function (log) {
           var kind = log.kind === 'complete'
             ? '<span class="jp-rd-tag is-done">Hoàn thành</span>'
+            : log.kind === 'gc'
+            ? '<span class="jp-rd-tag is-done">Nhận GC</span>'
             : (log.backfill ? '<span class="jp-rd-tag is-bf">Nhập bù</span>' : '<span class="jp-rd-tag is-day">Đúng ngày</span>');
           return '<tr><td>' + esc(log.at) + '</td><td>' + esc(log.user || '—') + '</td><td>' + show(log.old) + '</td><td>' + show(log.new) + '</td><td>' + kind + '</td></tr>';
         }).join('');

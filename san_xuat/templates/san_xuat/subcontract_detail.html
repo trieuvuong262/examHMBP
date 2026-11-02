@@ -34,9 +34,15 @@
       <div class="border rounded-3 p-3 mb-3">
         <div class="row g-3 small">
           <div class="col-6"><div class="text-muted">SP</div><div class="fw-semibold">{{ item.product_code }}</div>{{ item.product_name }}</div>
+          <div class="col-6"><div class="text-muted">Đối tác GC</div><div class="fw-semibold">{% if item.partner %}<a href="{% url 'san_xuat:gc_partner_detail' item.partner_id %}">{{ item.partner.name }}</a>{% else %}{{ item.vendor_name|default:"—" }}{% endif %}</div></div>
           <div class="col-6"><div class="text-muted">Người lên đơn</div><div class="fw-semibold">{% if item.created_by %}{{ item.created_by.get_full_name|default:item.created_by.username }}{% else %}—{% endif %}</div></div>
           <div class="col-3"><div class="text-muted">SL đặt</div><div class="fs-5 fw-semibold">{{ item.qty|sx_num }}</div></div>
           <div class="col-3"><div class="text-muted">Số lượng nhận</div><div class="fs-5 fw-semibold">{{ item.qty_received|sx_num }}</div></div>
+          <div class="col-3"><div class="text-muted">Đơn giá GC</div><div class="fw-semibold">{{ item.unit_price|sx_num:0 }}</div></div>
+          <div class="col-3"><div class="text-muted">Phí GC</div><div class="fw-semibold">{{ item.service_fee|sx_num:0 }}</div></div>
+          {% if item.progress_date %}
+          <div class="col-6"><div class="text-muted">Đã ghi tiến độ tổ</div><div>Ngày {{ item.progress_date|date:'d/m/Y' }}{% for size, q in item.progress_posted.items %} · {{ size }}: {{ q }}{% endfor %}</div></div>
+          {% endif %}
           <div class="col-6"><div class="text-muted">Bộ phận</div><div>{{ item.team_label|default:"—" }}</div></div>
           <div class="col-6"><div class="text-muted">Đơn đặt hàng</div>
             <div>{% if item.sales_order %}<a href="{% url 'san_xuat:sales_order_detail' item.sales_order_id %}">{{ item.sales_order.code }}</a>{% else %}—{% endif %}</div>
@@ -56,13 +62,18 @@
         {% if update_form.non_field_errors %}<div class="alert alert-danger py-2">{{ update_form.non_field_errors }}</div>{% endif %}
         <div class="row g-2 mb-3">
           <div class="col-md-6">
-            <label class="form-label small">{{ update_form.vendor_name.label }}</label>{{ update_form.vendor_name }}
+            <label class="form-label small">{{ update_form.partner.label }}</label>{{ update_form.partner }}
+            {% if update_form.partner.errors %}<div class="text-danger small">{{ update_form.partner.errors }}</div>{% endif %}
           </div>
           <div class="col-md-3">
             <label class="form-label small">{{ update_form.order_date.label }}</label>{{ update_form.order_date }}
           </div>
           <div class="col-md-3">
             <label class="form-label small">{{ update_form.due_date.label }}</label>{{ update_form.due_date }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small">{{ update_form.unit_price.label }}</label>{{ update_form.unit_price }}
+            {% if update_form.unit_price.errors %}<div class="text-danger small">{{ update_form.unit_price.errors }}</div>{% endif %}
           </div>
           <div class="col-12">
             <label class="form-label small">{{ update_form.notes.label }}</label>{{ update_form.notes }}

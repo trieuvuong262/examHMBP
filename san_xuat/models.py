@@ -698,6 +698,14 @@ from san_xuat.hub_models import (  # noqa: E402,F401
     SxWorkCenter,
 )
 
+# Đối tác gia công (cổng pn)
+from san_xuat.partner_models import (  # noqa: E402,F401
+    GcOutputReport,
+    GcPartner,
+    GcPartnerAccount,
+    GcPriceRule,
+)
+
 # IE / Master data mã công đoạn sản xuất
 from san_xuat.ie_models import (  # noqa: E402,F401
     SxMachine,

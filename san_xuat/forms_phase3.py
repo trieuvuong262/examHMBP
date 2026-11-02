@@ -439,11 +439,39 @@ class PackingLineForm(forms.Form):
 PackingLineFormSet = formset_factory(PackingLineForm, extra=3, can_delete=False)
 
 
+def _setup_partner_field(form, *, data, team_slug: str = "") -> None:
+    from san_xuat.services.gc_partner import partner_choices
+
+    include = None
+    raw = ""
+    if data is not None:
+        raw = (data.get("partner") or "").strip()
+    elif form.initial:
+        raw = str(form.initial.get("partner") or "").strip()
+    if raw.isdigit():
+        include = int(raw)
+    choices = partner_choices(team_slug=team_slug, include_id=include)
+    form.fields["partner"].choices = (
+        [("", "— Chọn đối tác gia công —")] + choices
+        if choices else [("", "— Chưa khai đối tác GC (Sản xuất › Đối tác GC) —")]
+    )
+
+
+def _clean_partner(form):
+    from san_xuat.partner_models import GcPartner
+
+    raw = (form.cleaned_data.get("partner") or "").strip()
+    partner = GcPartner.objects.filter(pk=int(raw)).first() if raw.isdigit() else None
+    if partner is None:
+        raise forms.ValidationError("Chọn đối tác gia công.")
+    return partner
+
+
 class SubcontractCreateForm(forms.Form):
-    vendor_name = forms.ChoiceField(
-        label="Đơn vị gia công",
+    partner = forms.ChoiceField(
+        label="Đối tác gia công",
         choices=[],
-        widget=forms.Select(attrs={"class": "form-select form-select-sm"}),
+        widget=forms.Select(attrs={"class": "form-select form-select-sm", "id": "id_partner"}),
     )
     product_code = forms.ChoiceField(
         label="Mã sản phẩm",
@@ -501,6 +529,18 @@ class SubcontractCreateForm(forms.Form):
         label="Ghi chú",
         widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
     )
+    unit_price = forms.DecimalField(
+        required=False,
+        min_value=Decimal("0"),
+        max_digits=14,
+        decimal_places=2,
+        label="Đơn giá GC / SP (VNĐ)",
+        widget=_CompactDecimalInput(attrs={
+            "class": "form-control form-control-sm",
+            "step": "any",
+            "min": "0",
+        }),
+    )
     qty = forms.DecimalField(
         min_value=Decimal("0.01"),
         label="Số lượng thuê GC",
@@ -557,20 +597,9 @@ class SubcontractCreateForm(forms.Form):
         if mo is not None and so is None:
             so = mo.sales_order
         self.fields["product_code"].choices = _product_code_choices(extra_product)
-        from san_xuat.services.phase3 import subcontract_vendor_choices
         from san_xuat.services.progress_template import team_by_slug
 
-        extra_vendor = ""
-        if data is not None:
-            extra_vendor = (data.get("vendor_name") or "").strip()
-        elif self.initial:
-            extra_vendor = (self.initial.get("vendor_name") or "").strip()
-        vendor_choices = subcontract_vendor_choices(extra_name=extra_vendor)
-        self.fields["vendor_name"].choices = (
-            [("", "— Chọn tổ gia công —")] + vendor_choices
-        )
-        if not vendor_choices:
-            self.fields["vendor_name"].choices = [("", "— Chưa khai tổ thuê gia công —")]
+        _setup_partner_field(self, data=data, team_slug=extra_team)
 
         team_meta = team_by_slug(extra_team) if extra_team else None
         self.fields["team_slug"].choices = (
@@ -609,11 +638,8 @@ class SubcontractCreateForm(forms.Form):
             raise forms.ValidationError(f"Mã {code} không có trong kho sản phẩm.")
         return ref.code
 
-    def clean_vendor_name(self):
-        name = (self.cleaned_data.get("vendor_name") or "").strip()
-        if not name:
-            raise forms.ValidationError("Chọn tổ thuê gia công trong danh mục năng lực.")
-        return name
+    def clean_partner(self):
+        return _clean_partner(self)
 
     def clean_team_slug(self):
         return (self.cleaned_data.get("team_slug") or "").strip().lower()
@@ -649,41 +675,38 @@ class SubcontractCreateForm(forms.Form):
 
 
 class SubcontractUpdateForm(forms.Form):
-    vendor_name = forms.ChoiceField(
-        label="Đơn vị gia công",
+    partner = forms.ChoiceField(
+        label="Đối tác gia công",
         choices=[],
         widget=forms.Select(attrs={"class": "form-select form-select-sm"}),
     )
     order_date = forms.DateField(label="Ngày", widget=forms.DateInput(attrs=_DATE_SM))
     due_date = forms.DateField(required=False, label="Hạn", widget=forms.DateInput(attrs=_DATE_SM))
+    unit_price = forms.DecimalField(
+        required=False,
+        min_value=Decimal("0"),
+        max_digits=14,
+        decimal_places=2,
+        label="Đơn giá GC / SP (VNĐ)",
+        widget=_CompactDecimalInput(attrs={
+            "class": "form-control form-control-sm",
+            "step": "any",
+            "min": "0",
+        }),
+    )
     notes = forms.CharField(
         required=False,
         label="Ghi chú",
         widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
     )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, team_slug: str = "", **kwargs):
         super().__init__(*args, **kwargs)
-        from san_xuat.services.phase3 import subcontract_vendor_choices
-
-        extra_vendor = ""
         data = args[0] if args else None
-        if data is not None:
-            extra_vendor = (data.get("vendor_name") or "").strip()
-        elif self.initial:
-            extra_vendor = (self.initial.get("vendor_name") or "").strip()
-        vendor_choices = subcontract_vendor_choices(extra_name=extra_vendor)
-        self.fields["vendor_name"].choices = (
-            [("", "— Chọn tổ gia công —")] + vendor_choices
-        )
-        if not vendor_choices:
-            self.fields["vendor_name"].choices = [("", "— Chưa khai tổ thuê gia công —")]
+        _setup_partner_field(self, data=data, team_slug=team_slug)
 
-    def clean_vendor_name(self):
-        name = (self.cleaned_data.get("vendor_name") or "").strip()
-        if not name:
-            raise forms.ValidationError("Chọn tổ thuê gia công trong danh mục năng lực.")
-        return name
+    def clean_partner(self):
+        return _clean_partner(self)
 
 
 class SubcontractMaterialLineForm(forms.Form):

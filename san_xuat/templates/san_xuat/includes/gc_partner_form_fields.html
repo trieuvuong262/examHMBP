@@ -1,0 +1,26 @@
+{% if form.non_field_errors %}<div class="alert alert-danger py-2 small">{{ form.non_field_errors }}</div>{% endif %}
+<div class="row g-2">
+  {% for field in form %}
+  <div class="{% if field.name == 'notes' or field.name == 'address' or field.name == 'team_slugs' %}col-12{% else %}col-sm-6{% endif %}">
+    {% if field.name == 'is_active' %}
+    <div class="form-check mt-2">
+      {{ field }}
+      <label class="form-check-label small" for="{{ field.id_for_label }}">{{ field.label }}</label>
+    </div>
+    {% elif field.name == 'team_slugs' %}
+    <div class="form-label fw-bold small mb-1">{{ field.label }}</div>
+    <div class="d-flex flex-wrap gap-3 small">
+      {% for cb in field %}
+      <label class="form-check-label d-inline-flex align-items-center gap-1">{{ cb.tag }} {{ cb.choice_label }}</label>
+      {% endfor %}
+    </div>
+    {% else %}
+    <label class="form-label fw-bold small mb-1" for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {{ field }}
+    {% endif %}
+    {% if field.help_text %}<div class="form-text small">{{ field.help_text }}</div>{% endif %}
+    {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors }}</div>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+<div class="mb-3"></div>

@@ -927,13 +927,13 @@
                 {% jp_can_menu 'san_xuat' 'sx_price_approve' as jp_can_sx_price %}
                 {% jp_can_menu 'san_xuat' 'sx_price_quote' as jp_can_sx_price_quote %}
                 {% if jp_can_san_xuat_plan or jp_can_san_xuat_plan_board or jp_can_san_xuat_cancel_approve or jp_can_san_xuat_capacity or jp_can_san_xuat_plan_inter %}
-                <li class="jp-sidebar-nested-group{% if '/san-xuat/nang-luc' in request.path or 'thue-gia-cong' in request.path or '/san-xuat/ke-hoach/' in request.path %} is-open{% endif %}"
+                <li class="jp-sidebar-nested-group{% if '/san-xuat/nang-luc' in request.path or '/san-xuat/gia-cong' in request.path or 'thue-gia-cong' in request.path or '/san-xuat/ke-hoach/' in request.path %} is-open{% endif %}"
                     data-sx-area="plan" data-sx-icon="bi-calendar3" data-sx-label="Kế hoạch SX"
                     data-sx-href="{% if jp_can_san_xuat_plan_board or jp_can_san_xuat_plan %}{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=route{% elif jp_can_san_xuat_cancel_approve %}{% url 'san_xuat:sx_cancel_approve' %}{% elif jp_can_san_xuat_plan_inter %}{% url 'san_xuat:plan_inter_step' %}{% else %}{% url 'san_xuat:capacity_list' %}{% endif %}">
                     <button type="button"
                             class="jp-sidebar-nested-toggle"
                             data-jp-sidebar-group-toggle
-                            aria-expanded="{% if '/san-xuat/nang-luc' in request.path or 'thue-gia-cong' in request.path or '/san-xuat/ke-hoach/' in request.path %}true{% else %}false{% endif %}"
+                            aria-expanded="{% if '/san-xuat/nang-luc' in request.path or '/san-xuat/gia-cong' in request.path or 'thue-gia-cong' in request.path or '/san-xuat/ke-hoach/' in request.path %}true{% else %}false{% endif %}"
                             aria-controls="jp-sidebar-san-xuat-plan-submenu">
                         <span class="jp-sidebar-nested-toggle-main">
                             <i class="bi bi-calendar3"></i><span>Kế hoạch SX</span>
@@ -960,8 +960,8 @@
                         {% if jp_can_san_xuat_plan_board or jp_can_san_xuat_plan %}
                         <li>
                             <a href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=subcontract"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.GET.tab == 'subcontract' or 'thue-gia-cong' in request.path %}active{% endif %}">
-                                <i class="bi bi-building"></i><span>Thuê gia công</span>
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.GET.tab == 'subcontract' and '/san-xuat/gia-cong' not in request.path %}active{% endif %}">
+                                <i class="bi bi-kanban"></i><span>Kế hoạch sản xuất</span>
                             </a>
                         </li>
                         {% endif %}
@@ -981,6 +981,23 @@
                             </a>
                         </li>
                         {% endif %}
+                    </ul>
+                </li>
+                {% endif %}
+
+                {# —— 3b. Gia Công — quản lý tổ/đối tác/tài khoản/thống kê/QC —— #}
+                {% if jp_can_menu 'san_xuat' 'subcontract' %}
+                <li class="jp-sidebar-nested-group{% if '/san-xuat/gia-cong' in request.path or 'thue-gia-cong' in request.path %} is-open{% endif %}">
+                    <button type="button" class="jp-sidebar-nested-toggle" data-jp-sidebar-group-toggle
+                            aria-expanded="{% if '/san-xuat/gia-cong' in request.path or 'thue-gia-cong' in request.path %}true{% else %}false{% endif %}">
+                        <span class="jp-sidebar-nested-toggle-main"><i class="bi bi-building-gear"></i><span>Gia Công</span></span>
+                        <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
+                    </button>
+                    <ul class="jp-sidebar-nested-submenu">
+                        <li><a href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=subcontract" class="jp-sidebar-link jp-sidebar-sublink"><i class="bi bi-kanban"></i><span>Tổ GC trong KHSX</span></a></li>
+                        <li><a href="{% url 'san_xuat:subcontract_list' %}" class="jp-sidebar-link jp-sidebar-sublink"><i class="bi bi-file-earmark-text"></i><span>Phiếu thuê gia công</span></a></li>
+                        <li><a href="{% url 'san_xuat:gc_partner_list' %}" class="jp-sidebar-link jp-sidebar-sublink"><i class="bi bi-person-vcard"></i><span>Đối tác &amp; tài khoản</span></a></li>
+                        <li><a href="{% url 'san_xuat:gc_output_review' %}" class="jp-sidebar-link jp-sidebar-sublink"><i class="bi bi-clipboard-check"></i><span>Duyệt kiểm kê / sản lượng</span></a></li>
                     </ul>
                 </li>
                 {% endif %}

@@ -312,6 +312,48 @@ def subcontract_vendor_choices(*, extra_name: str = "") -> list[tuple[str, str]]
     return choices
 
 
+def default_subcontract_partner_id(*, team_slug: str = "") -> int | None:
+    """Đối tác GC mặc định: duy nhất đối tác nhận công đoạn, hoặc duy nhất đối tác đang hợp tác."""
+    from san_xuat.partner_models import GcPartner
+
+    partners = list(GcPartner.objects.filter(is_active=True).only("pk", "team_slugs"))
+    slug = (team_slug or "").strip().lower()
+    matched = [p for p in partners if slug and slug in (p.team_slugs or [])]
+    if len(matched) == 1:
+        return matched[0].pk
+    if not matched and len(partners) == 1:
+        return partners[0].pk
+    return None
+
+
+def _apply_partner(*, partner_id, vendor_name: str):
+    """(partner, vendor_name) — tên đối tác ghi đè vendor_name khi có đối tác."""
+    from san_xuat.partner_models import GcPartner
+
+    partner = None
+    if partner_id:
+        partner = GcPartner.objects.filter(pk=partner_id).first()
+        if partner is None:
+            raise Phase3Error("Đối tác gia công không tồn tại.")
+        vendor_name = partner.name
+    return partner, (vendor_name or "").strip()
+
+
+def _resolve_unit_price(*, unit_price, partner, product_code: str, team_slug: str, on_date) -> Decimal:
+    """Đơn giá nhập tay > 0 ưu tiên; trống/0 → lấy bảng giá đã duyệt của đối tác."""
+    if unit_price is not None and Decimal(str(unit_price)) > 0:
+        return _gc_price(unit_price)
+    if partner is not None:
+        from san_xuat.services.gc_partner import resolve_gc_price
+
+        rule = resolve_gc_price(
+            partner_id=partner.pk, product_code=product_code, team_slug=team_slug, on_date=on_date,
+        )
+        if rule is not None:
+            return _gc_price(rule.unit_price)
+    return _gc_price(unit_price)
+
+
 def default_subcontract_vendor_name(*, team_slug: str = "") -> str:
     """Ưu tiên tổ GC cùng slug với công đoạn; nếu chỉ có một tổ GC thì lấy tổ đó."""
     centers = list(
@@ -726,6 +768,13 @@ def _open_subcontract_conflict(
         )
 
 
+def _gc_price(value) -> Decimal:
+    price = Decimal(str(value or 0)).quantize(Decimal("0.01"))
+    if price < 0:
+        raise Phase3Error("Đơn giá gia công không được âm.")
+    return price
+
+
 @transaction.atomic
 def create_subcontract_order(
     *,
@@ -745,9 +794,12 @@ def create_subcontract_order(
     created_by=None,
     plan_date=None,
     work_center_id: int | None = None,
+    unit_price: Decimal | None = None,
+    partner_id: int | None = None,
 ) -> SxSubcontractOrder:
-    vendor_name = (vendor_name or "").strip()
+    partner, vendor_name = _apply_partner(partner_id=partner_id, vendor_name=vendor_name)
     product_code = (product_code or "").strip()
+    _gc_price(unit_price)
     if not vendor_name:
         raise Phase3Error("Thiếu đơn vị gia công.")
     if not product_code:
@@ -810,19 +862,26 @@ def create_subcontract_order(
         plan_date=plan_date,
         work_center_id=wc.pk if wc else None,
     )
+    the_date = order_date or timezone.localdate()
+    price = _resolve_unit_price(
+        unit_price=unit_price, partner=partner, product_code=product_code,
+        team_slug=slug, on_date=the_date,
+    )
     order = SxSubcontractOrder.objects.create(
         code=_code("subcontract", SxSubcontractOrder, code=code),
         sales_order=so,
         production_order=mo,
         vendor_name=vendor_name,
+        partner=partner,
         product_code=product_code,
         product_name=(product_name or "").strip(),
         process_name=process_name,
         team_slug=slug,
         qty=qty.quantize(Decimal("0.01")),
+        unit_price=price,
         plan_date=plan_date,
         work_center=wc,
-        order_date=order_date or timezone.localdate(),
+        order_date=the_date,
         due_date=due_date,
         status=SxSubcontractOrder.STATUS_DRAFT,
         notes=notes or "",
@@ -861,18 +920,31 @@ def update_subcontract_order(
     due_date=None,
     notes: str = "",
     out_lines: list[dict] | None = None,
+    unit_price: Decimal | None = None,
+    partner_id: int | None = None,
 ) -> SxSubcontractOrder:
     order = SxSubcontractOrder.objects.select_for_update().get(pk=order_id)
     if order.status != SxSubcontractOrder.STATUS_DRAFT:
         raise Phase3Error("Chỉ được sửa phiếu Thuê SX đang ở trạng thái nháp.")
-    vendor_name = (vendor_name or "").strip()
+    partner, vendor_name = _apply_partner(
+        partner_id=partner_id, vendor_name=vendor_name,
+    )
     if not vendor_name:
         raise Phase3Error("Thiếu đơn vị gia công.")
     order.vendor_name = vendor_name
+    if partner is not None:
+        order.partner = partner
     order.order_date = order_date or order.order_date
     order.due_date = due_date
     order.notes = notes or ""
-    order.save(update_fields=["vendor_name", "order_date", "due_date", "notes"])
+    fields = ["vendor_name", "partner", "order_date", "due_date", "notes"]
+    if unit_price is not None or partner is not None:
+        order.unit_price = _resolve_unit_price(
+            unit_price=unit_price, partner=order.partner, product_code=order.product_code,
+            team_slug=order.team_slug, on_date=order.order_date,
+        )
+        fields.append("unit_price")
+    order.save(update_fields=fields)
     if out_lines is not None:
         order.material_lines.filter(
             direction=SxSubcontractMaterialLine.DIRECTION_OUT,
@@ -992,6 +1064,10 @@ def advance_subcontract_order(
             order.received_at = now
             update_fields.append("received_at")
 
+    if to_status in (SxSubcontractOrder.STATUS_RECEIVED, SxSubcontractOrder.STATUS_DONE) and order.unit_price > 0:
+        order.service_fee = (order.unit_price * (order.qty_received or Decimal("0"))).quantize(Decimal("0.01"))
+        update_fields.append("service_fee")
+
     order.status = to_status
     order.save(update_fields=update_fields)
 
@@ -1023,8 +1099,13 @@ def _team_slugs_for_gc(*, order: SxSubcontractOrder, mo: SxProductionOrder) -> l
 
 
 def _close_ob_team_for_gc(*, order: SxSubcontractOrder, user=None) -> None:
-    """Nhận hàng GC = hoàn thành đúng tổ thuê — không cần phân công nội bộ."""
+    """Nhận hàng GC = ghi SL nhận vào tiến độ tổ thuê, rồi hoàn thành tổ khi đủ.
+
+    Phiếu tách ngày (``plan_date``) chỉ đóng tổ khi tổ đã đủ SL — phần còn lại
+    tổ nội bộ vẫn làm tiếp.
+    """
     from san_xuat.services.planning import PlanningError
+    from san_xuat.services.subcontract_progress import post_gc_progress, should_close_team
     from san_xuat.services.team_work import (
         accept_production,
         close_team_job,
@@ -1038,7 +1119,17 @@ def _close_ob_team_for_gc(*, order: SxSubcontractOrder, user=None) -> None:
                     accept_production(mo_id=mo.pk, team_slug=slug, user=user)
                 except PlanningError:
                     pass
+            # Phiếu có báo SL đối tác đã duyệt: tiến độ đã ghi theo từng báo cáo.
+            if order.production_order_id == mo.pk and not order.output_reports.filter(
+                status="approved",
+            ).exists():
+                try:
+                    post_gc_progress(order=order, qty=order.qty_received or order.qty, user=user)
+                except PlanningError:
+                    pass
             if is_team_job_closed(mo_id=mo.pk, team_slug=slug):
+                continue
+            if not should_close_team(order=order, mo=mo, slug=slug):
                 continue
             try:
                 close_team_job(
@@ -1110,18 +1201,34 @@ def undo_receive_subcontract_goods(*, order_id: int, user=None) -> SxSubcontract
         SxSubcontractOrder.STATUS_RECEIVED,
     }:
         raise Phase3Error("Phiếu chưa nhận hàng — không huỷ nhận được.")
+    if order.output_reports.filter(status="approved").exists():
+        raise Phase3Error(
+            "Phiếu có báo sản lượng đối tác đã duyệt — huỷ duyệt từng báo cáo thay vì huỷ nhận."
+        )
+
+    from san_xuat.services.planning import PlanningError
+    from san_xuat.services.subcontract_progress import revert_gc_progress
+    from san_xuat.services.team_work import is_team_job_closed, reopen_team_job
+
+    try:
+        revert_gc_progress(order=order, user=user)
+    except PlanningError:
+        pass
 
     order.status = SxSubcontractOrder.STATUS_DRAFT
     order.qty_received = Decimal("0")
     order.received_at = None
     order.sent_at = None
-    order.save(update_fields=["status", "qty_received", "received_at", "sent_at"])
-
-    from san_xuat.services.planning import PlanningError
-    from san_xuat.services.team_work import reopen_team_job
+    fields = ["status", "qty_received", "received_at", "sent_at"]
+    if order.unit_price > 0:
+        order.service_fee = Decimal("0")
+        fields.append("service_fee")
+    order.save(update_fields=fields)
 
     for mo in _mos_for_subcontract(order):
         for slug in _team_slugs_for_gc(order=order, mo=mo):
+            if not is_team_job_closed(mo_id=mo.pk, team_slug=slug):
+                continue
             try:
                 reopen_team_job(mo_id=mo.pk, team_slug=slug)
             except PlanningError:

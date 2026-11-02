@@ -2115,6 +2115,11 @@
     <div class="jp-sx-detail-title">
       <h2 class="jp-npl-mat-topbar-title w-100">{% if tab == 'subcontract' %}Thuê gia công{% else %}Kế hoạch sản xuất{% endif %}</h2>
     </div>
+    {% if tab == 'subcontract' %}
+    <nav class="jp-sx-tools" aria-label="Công cụ gia công">
+      <a href="{% url 'san_xuat:gc_partner_list' %}"><i class="bi bi-buildings" aria-hidden="true"></i>Đối tác &amp; bảng giá GC</a>
+    </nav>
+    {% endif %}
     {% if tab != 'subcontract' %}
     <nav class="jp-sx-tools jp-pb-top-tabs" aria-label="Tab kế hoạch" role="tablist">
       <a role="tab"

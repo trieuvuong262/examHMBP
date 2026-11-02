@@ -3158,6 +3158,17 @@ class SxSubcontractOrder(DemoMarkedModel):
         related_name='subcontract_orders',
     )
     vendor_name = models.CharField(max_length=200, verbose_name='Đơn vị gia công')
+    partner = models.ForeignKey(
+        'san_xuat.GcPartner',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='subcontract_orders',
+        verbose_name='Đối tác GC',
+    )
+    partner_accepted_at = models.DateTimeField(
+        null=True, blank=True, verbose_name='Đối tác nhận đơn lúc',
+    )
     product_code = models.CharField(max_length=60, db_index=True)
     product_name = models.CharField(max_length=255, blank=True, default='')
     process_name = models.CharField(max_length=120, blank=True, default='')
@@ -3188,6 +3199,13 @@ class SxSubcontractOrder(DemoMarkedModel):
     qty_received = models.DecimalField(
         max_digits=14, decimal_places=2, default=Decimal('0'), verbose_name='SL nhận lại',
     )
+    unit_price = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal('0'),
+        verbose_name='Đơn giá GC / SP (VNĐ)',
+        help_text='Chốt trên phiếu; phí GC = đơn giá × SL nhận.',
+    )
     service_fee = models.DecimalField(
         max_digits=14,
         decimal_places=2,
@@ -3199,6 +3217,18 @@ class SxSubcontractOrder(DemoMarkedModel):
     due_date = models.DateField(null=True, blank=True)
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True,
+    )
+    progress_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Ngày ghi tiến độ GC',
+        help_text='Ngày SL nhận GC được ghi vào tiến độ tổ.',
+    )
+    progress_posted = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name='SL GC đã ghi tiến độ',
+        help_text='{size: SL} — để huỷ nhận trừ đúng phần đã cộng.',
     )
     stock_issue = models.ForeignKey(
         'kho_npl.StockIssue',
@@ -3895,9 +3925,11 @@ class SxTeamProgressLog(models.Model):
     is_backfill = models.BooleanField(default=False, db_index=True, verbose_name='Nhập bù')
     KIND_EDIT = 'edit'
     KIND_COMPLETE = 'complete'
+    KIND_GC = 'gc'
     KIND_CHOICES = [
         (KIND_EDIT, 'Nhập tay'),
         (KIND_COMPLETE, 'Hoàn thành'),
+        (KIND_GC, 'Nhận GC'),
     ]
     kind = models.CharField(max_length=10, choices=KIND_CHOICES, default=KIND_EDIT, verbose_name='Loại')
     changed_by = models.ForeignKey(

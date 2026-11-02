@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% load sx_format %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3">
+    <div class="jp-page-header-main">
+      <h2 class="jp-page-title fw-bold text-dark mb-1">Duyệt sản lượng gia công</h2>
+      <p class="text-muted small mb-0">QC kiểm tra hàng → duyệt/từ chối báo cáo sản lượng đối tác.</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      {% if pending_count %}<span class="badge bg-danger align-self-center fs-6">{{ pending_count }} chờ duyệt</span>{% endif %}
+      <a href="{% url 'san_xuat:gc_partner_list' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Đối tác</a>
+    </div>
+  </div>
+
+  <form method="get" class="row g-2 mb-3 align-items-end">
+    <div class="col-auto">
+      <label class="form-label small mb-0">Trạng thái</label>
+      <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+        <option value="submitted" {% if status == 'submitted' %}selected{% endif %}>Chờ duyệt</option>
+        <option value="approved" {% if status == 'approved' %}selected{% endif %}>Đã duyệt</option>
+        <option value="rejected" {% if status == 'rejected' %}selected{% endif %}>Từ chối</option>
+      </select>
+    </div>
+    <div class="col-auto">
+      <label class="form-label small mb-0">Đối tác</label>
+      <select name="partner" class="form-select form-select-sm" onchange="this.form.submit()">
+        <option value="">Tất cả</option>
+        {% for p in partners %}<option value="{{ p.pk }}" {% if partner_id == p.pk|stringformat:'s' %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+      </select>
+    </div>
+  </form>
+
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Ngày SX</th><th>Phiếu GC</th><th>Đối tác</th><th>Người báo</th>
+            <th>SL báo (size)</th><th class="text-end">Tổng</th>
+            <th>Ghi chú ĐT</th><th>TT</th>
+            {% if can_review %}<th>Duyệt SL (size)</th><th></th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+        {% for row in rows %}
+          {% with r=row.report %}
+          <tr class="{% if r.status == 'approved' %}table-success{% elif r.status == 'rejected' %}table-danger{% endif %}">
+            <td class="small">{{ r.work_date|date:'d/m/Y' }}</td>
+            <td class="small"><a href="{% url 'san_xuat:subcontract_detail' r.order_id %}">{{ r.order.code }}</a></td>
+            <td class="small">{{ r.partner.name }}</td>
+            <td class="small">{{ r.account.full_name|default:r.account.username|default:"—" }}</td>
+            <td class="small">
+              {% for sz, q in row.sizes %}{{ sz }}: {{ q|sx_num }}{% if not forloop.last %}, {% endif %}{% endfor %}
+            </td>
+            <td class="text-end fw-bold small">{{ r.total_qty|sx_num }}</td>
+            <td class="small text-muted">{{ r.note }}</td>
+            <td class="small">
+              {% if r.status == 'submitted' %}<span class="badge bg-warning text-dark">Chờ</span>
+              {% elif r.status == 'approved' %}<span class="badge bg-success">Duyệt {{ r.approved_qty|sx_num }}</span>
+              {% else %}<span class="badge bg-danger">Từ chối</span>{% endif %}
+              {% if r.review_note %}<div class="text-muted mt-1">{{ r.review_note }}</div>{% endif %}
+            </td>
+            {% if can_review %}
+            <td>
+              {% if r.status == 'submitted' %}
+              <form method="post" class="d-flex flex-wrap gap-1 align-items-end">
+                {% csrf_token %}
+                <input type="hidden" name="report_id" value="{{ r.pk }}">
+                <input type="hidden" name="action" value="approve">
+                {% for sz, q in row.sizes %}
+                <div class="d-flex align-items-center gap-1">
+                  <label class="small mb-0">{{ sz }}</label>
+                  <input type="number" name="size_{{ sz }}" value="{{ q }}" min="0" step="1" class="form-control form-control-sm" style="width:5rem">
+                </div>
+                {% endfor %}
+                <input type="text" name="note" placeholder="Ghi chú QC" class="form-control form-control-sm" style="width:10rem">
+                <button class="btn btn-sm btn-success fw-bold"><i class="bi bi-check-lg"></i> Duyệt</button>
+              </form>
+              {% elif r.status == 'approved' %}
+              <form method="post">{% csrf_token %}
+                <input type="hidden" name="report_id" value="{{ r.pk }}">
+                <input type="hidden" name="action" value="unapprove">
+                <button class="btn btn-sm btn-outline-warning" onclick="return confirm('Huỷ duyệt?')">Huỷ duyệt</button>
+              </form>
+              {% endif %}
+            </td>
+            <td>
+              {% if r.status == 'submitted' %}
+              <form method="post">{% csrf_token %}
+                <input type="hidden" name="report_id" value="{{ r.pk }}">
+                <input type="hidden" name="action" value="reject">
+                <input type="text" name="note" placeholder="Lý do" class="form-control form-control-sm mb-1" style="width:10rem">
+                <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Từ chối?')"><i class="bi bi-x-lg"></i></button>
+              </form>
+              {% endif %}
+            </td>
+            {% endif %}
+          </tr>
+          {% endwith %}
+        {% empty %}
+          <tr><td colspan="10" class="text-muted text-center py-4">Không có báo cáo.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

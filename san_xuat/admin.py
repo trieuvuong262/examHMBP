@@ -85,6 +85,32 @@ class _RefAdmin(admin.ModelAdmin):
     list_editable = ('sort_order', 'is_active')
 
 
+from san_xuat.partner_models import GcPartner, GcPartnerAccount, GcPriceRule  # noqa: E402
+
+
+@admin.register(GcPartner)
+class GcPartnerAdmin(admin.ModelAdmin):
+    list_display = ('code', 'name', 'phone', 'is_active', 'updated_at')
+    list_filter = ('is_active',)
+    search_fields = ('code', 'name', 'phone')
+
+
+@admin.register(GcPartnerAccount)
+class GcPartnerAccountAdmin(admin.ModelAdmin):
+    list_display = ('username', 'partner', 'role', 'is_active', 'last_login')
+    list_filter = ('is_active', 'role')
+    search_fields = ('username', 'full_name', 'partner__name')
+    exclude = ('password',)
+    readonly_fields = ('failed_logins', 'locked_until', 'last_login')
+
+
+@admin.register(GcPriceRule)
+class GcPriceRuleAdmin(admin.ModelAdmin):
+    list_display = ('partner', 'team_slug', 'product_code', 'unit_price', 'valid_from', 'valid_to', 'status')
+    list_filter = ('status', 'team_slug')
+    search_fields = ('partner__name', 'product_code')
+
+
 admin.site.register(SxMachine, _RefAdmin)
 admin.site.register(SxStitchClass, _RefAdmin)
 admin.site.register(SxSkillLevel, _RefAdmin)

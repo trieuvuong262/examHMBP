@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 
 {% load sx_format %}
 {% block extra_head %}
@@ -638,7 +638,7 @@
               <td class="text-end small text-muted">{{ need.scale_qty|sx_num }}</td>
               <td class="text-end fw-semibold small">
                 <span class="jp-bom-read-total">{{ need.qty_total|sx_num }}</span>
-                {% if can_edit_order_routing %}<input type="number" min="0" step="0.001" class="form-control form-control-sm text-end jp-inline-bom-need d-none" value="{{ need.qty_total|sx_num_input:3 }}" aria-label="Nhu cầu {{ need.material_name|default:need.material_code }}"{% if not need.scale_qty %} disabled data-locked title="SL = 0, không thể tính định mức từ nhu cầu"{% endif %}>{% endif %}
+                {% if can_edit_order_routing %}<input type="number" min="0" step="0.001" class="form-control form-control-sm text-end jp-inline-bom-need d-none" value="{{ need.qty_total|sx_num_input:3 }}" aria-label="Nhu cầu {{ need.material_name|default:need.material_code }}">{% endif %}
               </td>
               <td class="small text-muted">{{ need.unit|default:"—" }}</td>
               {% if can_edit_order_routing %}
@@ -731,7 +731,8 @@
         const need = parseFloat(input.value);
         const oldNeed = parseFloat(tr.dataset.bomNeed || '0');
         if (!Number.isFinite(need) || need < 0 || Math.abs(need - oldNeed) < 0.0005) return;
-        const scale = parseFloat(tr.dataset.bomScale || '0');
+        // Size không khớp tuyệt đối vẫn cho phép sửa nhu cầu; dùng SL tổng làm hệ số dự phòng.
+        const scale = parseFloat(tr.dataset.bomScale || '0') || lineScale;
         if (!(scale > 0)) return;
         const scrap = parseFloat(rows[idx].scrap_pct != null ? rows[idx].scrap_pct : (tr.dataset.bomScrap || '0')) || 0;
         rows[idx].qty = Math.round(need / scale / (1 + scrap / 100) * 10000) / 10000;
@@ -1095,3 +1096,4 @@
 {% block scripts %}
 {% include 'san_xuat/includes/sales_order_suggest_view_modal.html' %}
 {% endblock %}
+

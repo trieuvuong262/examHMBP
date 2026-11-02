@@ -101,6 +101,18 @@ allowed_hosts_env = os.getenv("ALLOWED_HOSTS", default_allowed_hosts)
 ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_env.split(",") if host.strip()]
 if PORTAL_DOMAIN and PORTAL_DOMAIN not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append(PORTAL_DOMAIN)
+# Cổng đối tác gia công — cùng codebase, urlconf riêng (san_xuat.partner_portal).
+PARTNER_PORTAL_DOMAIN = os.getenv("PARTNER_PORTAL_DOMAIN", "pn.justplay.vn").strip().lower()
+PARTNER_PORTAL_HOSTS = {
+    h.strip().lower()
+    for h in os.getenv("PARTNER_PORTAL_HOSTS", PARTNER_PORTAL_DOMAIN).split(",")
+    if h.strip()
+}
+if IS_LOCAL:
+    PARTNER_PORTAL_HOSTS.add("pn.localhost")
+for _pn_host in sorted(PARTNER_PORTAL_HOSTS):
+    if _pn_host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_pn_host)
 www_domain = f"www.{PORTAL_DOMAIN}" if PORTAL_DOMAIN and not PORTAL_DOMAIN.startswith("www.") else ""
 if www_domain and www_domain not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append(www_domain)
@@ -243,6 +255,8 @@ MIDDLEWARE = [
     # Sau Session trên chiều response — gỡ cờ Secure khi vào bằng http://IP.
     'PortalJustPlay.middleware.RelaxSecureCookiesOnHttpIpMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    # Host pn.* → urlconf cổng đối tác GC; bỏ qua các middleware chỉ dành cho portal nội bộ.
+    'san_xuat.partner_portal.middleware.PartnerPortalHostMiddleware',
     'san_xuat.middleware.SxListFilterPersistMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',

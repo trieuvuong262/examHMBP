@@ -482,6 +482,8 @@ document.addEventListener('DOMContentLoaded', function () {
         + '<td class="num new">' + show(l.new) + '</td>'
         + '<td>' + (l.kind === 'complete'
           ? '<span class="jp-hist-tag is-done">Hoàn thành</span>'
+          : l.kind === 'gc'
+            ? '<span class="jp-hist-tag is-done">Nhận GC</span>'
           : l.backfill
             ? '<span class="jp-hist-tag is-bf">Nhập bù</span>'
             : '<span class="jp-hist-tag is-day">Đúng ngày</span>') + '</td>'

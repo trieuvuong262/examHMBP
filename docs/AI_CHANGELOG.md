@@ -15,6 +15,55 @@ Mỗi entry nên có:
 
 ## Entries
 
+### 2026-10-31 — feature / gc-partner-gd2 (Cổng đối tác pn.justplay.vn)
+
+- **Type**: feature | architecture | workflow
+- **Change**: Giai đoạn 2 cổng đối tác gia công.
+  - Model `GcOutputReport` (báo sản lượng ngày × size, trạng thái submitted/approved/rejected, SL duyệt, progress_posted).
+  - Field `SxSubcontractOrder.partner_accepted_at`.
+  - Service `gc_output.py`: submit/cancel/approve/reject/unapprove báo cáo; tự động cộng tiến độ tổ thuê khi QC duyệt, trừ lại khi huỷ duyệt; tự hoàn thành phiếu khi đủ SL.
+  - Service `gc_kpi.py`: thống kê KPI đối tác theo tháng (SL duyệt, tỉ lệ QC, đúng hạn, thành tiền, biểu đồ ngày).
+  - Service `subcontract_progress.py`: thêm `team_size_status`, `post_report_progress`, `revert_report_progress`.
+  - `phase3.py`: bỏ qua `post_gc_progress` tổng nếu phiếu đã có báo cáo được duyệt; chặn huỷ nhận khi có báo cáo đã duyệt.
+  - Middleware `PartnerPortalHostMiddleware` route host pn.* sang urlconf riêng `san_xuat.partner_portal.urls`.
+  - Auth backend tách biệt (`partner_portal/auth.py`): session lưu account_id + hash mật khẩu, lockout sau 5 lần sai, force đổi mật khẩu lần đầu.
+  - Partner portal views: login, logout, change_password, home (danh sách đơn), order_detail (nhận đơn + báo SL), reports (KPI chủ ĐT).
+  - Internal view `gc_output_review` + template: QC duyệt/từ chối/huỷ duyệt báo cáo SL, nhập SL duyệt theo size.
+  - Settings: `PARTNER_PORTAL_DOMAIN`, `PARTNER_PORTAL_HOSTS` tự thêm vào ALLOWED_HOSTS.
+  - Migration `0153_gc_output_report.py`.
+- **Reason**: Đối tác cần portal riêng để nhận đơn và báo sản lượng; QC nội bộ duyệt trước khi ghi tiến độ.
+- **Source**: `san_xuat/partner_portal/`, `san_xuat/services/gc_output.py`, `san_xuat/services/gc_kpi.py`, `san_xuat/views_gc_partner.py`, `PortalJustPlay/settings.py`
+- **Agent impact**: Host `pn.*` dùng urlconf `san_xuat.partner_portal.urls` (không phải ROOT_URLCONF); auth partner dùng `request.gc_account` thay vì `request.user`; middleware nội bộ (DepartmentModuleAccess, AttendancePunchGate...) thấy AnonymousUser trên host pn nên tự cho qua.
+
+### 2026-10-31 — schema+workflow / gc-partner-gd1
+
+- **Change**: Đối tác gia công (GĐ1).
+  - Model mới trong `san_xuat/partner_models.py`: `GcPartner` (danh mục đối tác + công đoạn nhận + năng lực), `GcPartnerAccount` (**bảng tài khoản riêng**, không phải `auth.User`; mật khẩu băm Django, bắt buộc đổi lần đầu, có trường khóa/sai MK cho cổng `pn`), `GcPriceRule` (giá theo đối tác × công đoạn × mã SP, trống = giá chung; nháp → duyệt; hiệu lực từ/đến; chặn trùng hiệu lực khi duyệt).
+  - `SxSubcontractOrder.partner` (FK PROTECT). Migration 0152 backfill đối tác từ tổ GC `is_subcontract` + `vendor_name` phiếu cũ.
+  - Form tạo/sửa phiếu GC chọn **Đối tác** thay cho tổ GC. `vendor_name` = tên đối tác (giữ cho các màn cũ). Đơn giá trống/0 → lấy giá đã duyệt hiệu lực ngày phiếu (`gc_partner.resolve_gc_price`); giá được chốt vào phiếu.
+  - Màn `/san-xuat/thue-gia-cong/doi-tac/` (+ chi tiết): CRUD đối tác, tạo/khóa/reset MK tài khoản, bảng giá + duyệt, thống kê phiếu. Có nút vào từ tab Thuê gia công trên KHSX.
+- **Reason**: Nền cho cổng đối tác `pn.justplay.vn` (GĐ2: đăng nhập, nhận đơn, báo SL; QC duyệt).
+- **Source**: `san_xuat/partner_models.py`, `services/gc_partner.py`, `forms_gc_partner.py`, `views_gc_partner.py`, `services/phase3.py` (`_apply_partner`, `_resolve_unit_price`, `default_subcontract_partner_id`), `forms_phase3.py`, `views_hub.py::subcontract_create/detail`, templates `gc_partner_list.html`, `gc_partner_detail.html`, `includes/gc_partner_form_fields.html`, migration `0152_gc_partner`.
+- **Agent impact**:
+  - Quyền: xem/sửa theo menu `subcontract` / `plan_board`. Duyệt, xóa hoặc kết thúc giá đã duyệt cần `is_staff` hoặc quyền delete menu `subcontract`. Cổng `pn.justplay.vn` đã có route, auth riêng, báo SL và KPI; QC duyệt tại `gc_output_review` mới ghi tiến độ.
+  - Không tạo `User` cho đối tác. Phiên đăng nhập `pn` (GĐ2) phải dùng `GcPartnerAccount.check_password`.
+  - `subcontract_vendor_choices` / `default_subcontract_vendor_name` không còn dùng trên form, nhưng vẫn được giữ lại.
+
+### 2026-10-31 — workflow / subcontract-progress-gd0
+
+- **Change**: Thuê GC (GĐ0, nền cho cổng đối tác `pn.justplay.vn`).
+  - Nhận hàng GC giờ **ghi SL nhận vào tiến độ tổ Ob thuê**, vào ngày nhận. SL được chia theo phần còn lại từng size, ghi qua `set_team_day_qtys` và log `SxTeamProgressLog.kind='gc'` (nhãn «Nhận GC»).
+  - **Phiếu tách ngày** (`plan_date`) chỉ đóng tổ khi tổ đã đủ SL. Phiếu cả công đoạn vẫn đóng ngay.
+  - Huỷ nhận trừ đúng phần đã cộng (`progress_posted`/`progress_date`) và chỉ mở lại tổ nếu tổ đang đóng.
+  - Thêm `SxSubcontractOrder.unit_price` (nhập ở form tạo/sửa). Khi nhận: `service_fee = unit_price × qty_received`, lên giá thành thực tế. Đơn giá = 0 thì giữ `service_fee` cũ.
+- **Reason**: Trước đây nhận một phần tách GC đóng cả tổ trên LSX, và SL GC không lên lộ trình/tiến độ. `service_fee` không có chỗ nhập.
+- **Source**: `san_xuat/services/subcontract_progress.py`, `san_xuat/services/phase3.py::_close_ob_team_for_gc`, `receive_subcontract_goods`, `undo_receive_subcontract_goods`, `advance_subcontract_order`, `create_subcontract_order`, `update_subcontract_order`; migration `san_xuat/0151_subcontract_price_progress`; `forms_phase3.py::SubcontractCreateForm`, `SubcontractUpdateForm`; `subcontract_create.html`, `subcontract_detail.html`.
+- **Agent impact**:
+  - SL GC chỉ nằm trong `SxProductionStat` của tổ thuê (team_label theo tổ). Đừng cộng thêm `qty_received` khi tính tiến độ.
+  - Dữ liệu cũ (nhận trước 0151) không có `progress_posted`, nên huỷ nhận sẽ không trừ SL.
+  - Phiếu GC chỉ gắn SO (chưa có LSX) không ghi tiến độ cho tới khi gắn LSX.
+  - Nhận GC chưa trừ/nhập kho NPL (giữ nguyên hành vi cũ).
+
 ### 2026-10-30 — workflow / bom-line-material-group
 
 - **Change**: Dòng BOM hồ sơ (`?tab=bom&edit=1`) chọn được **[Nhóm] Nhóm gom NPL** thay cho NPL lẻ (giá trị `g:<pk>`; API `kho_npl:material_search?include_groups=1`). `BomLine.material` thành nullable + FK mới `material_group` (PROTECT), ràng buộc `sx_bom_line_material_xor_group`. Khi lên đơn, `bom_lines_snapshot` bung dòng nhóm thành mọi NPL thành viên **đang dùng**, mỗi NPL nhận đủ ĐM/hao hụt/size (snapshot cố định; đổi thành viên sau không ảnh hưởng đơn cũ). Chi tiết đơn hiện từng NPL kèm badge nhóm. KH NPL / LSX / phiếu xuất không đổi (theo mã NPL). Costing: dòng nhóm = tổng giá thành viên × ĐM. Cập nhật BOM từ đơn về hồ sơ gộp lại dòng nhóm nếu đủ thành viên + cùng ĐM. Xóa nhóm gom (vẫn xóa cứng) → `dissolve_group_bom_lines` tách dòng BOM nhóm thành NPL lẻ trước, ghi audit BOM. Lưu BOM cảnh báo NPL trùng (lẻ + trong nhóm).
