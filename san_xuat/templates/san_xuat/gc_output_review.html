@@ -1,110 +1,131 @@
 {% extends 'base.html' %}
 {% load sx_format %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/gc_ui_styles.html' %}
+<style>
+  .jp-gc-review-form { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
+  .jp-gc-review-size { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.15rem 0.3rem 0.15rem 0.5rem; border: 1px solid rgba(15,23,42,.1); border-radius: 0.45rem; background: #f8fafc; }
+  .jp-gc-review-size label { margin: 0; font-size: 0.72rem; font-weight: 700; color: #475569; }
+  .jp-gc-review-size input { width: 4.5rem; }
+  .jp-gc-review-form .jp-gc-review-note { width: 9rem; }
+  .jp-gc-size-list { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
-  <div class="jp-page-header mb-3">
-    <div class="jp-page-header-main">
-      <h2 class="jp-page-title fw-bold text-dark mb-1">Duyệt sản lượng gia công</h2>
-      <p class="text-muted small mb-0">QC kiểm tra hàng → duyệt/từ chối báo cáo sản lượng đối tác.</p>
+<div class="container jp-page jp-sx-page jp-gc-page jp-npl-material-catalog-page py-3 py-md-4 mb-5"
+     data-loading-message="Đang tải báo sản lượng…">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Duyệt kiểm kê / sản lượng gia công</h2>
     </div>
-    <div class="d-flex gap-2 flex-wrap">
-      {% if pending_count %}<span class="badge bg-danger align-self-center fs-6">{{ pending_count }} chờ duyệt</span>{% endif %}
-      <a href="{% url 'san_xuat:gc_partner_list' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Đối tác</a>
-    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      {% if pending_count %}<span class="jp-gc-badge is-warn is-pulse">{{ pending_count }} chờ duyệt</span>{% endif %}
+      <a href="{% url 'san_xuat:gc_partner_list' %}"><i class="bi bi-buildings" aria-hidden="true"></i>Đối tác</a>
+      {% include 'san_xuat/includes/sx_list_col_picker.html' %}
+    </nav>
   </div>
 
-  <form method="get" class="row g-2 mb-3 align-items-end">
-    <div class="col-auto">
-      <label class="form-label small mb-0">Trạng thái</label>
-      <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
-        <option value="submitted" {% if status == 'submitted' %}selected{% endif %}>Chờ duyệt</option>
-        <option value="approved" {% if status == 'approved' %}selected{% endif %}>Đã duyệt</option>
-        <option value="rejected" {% if status == 'rejected' %}selected{% endif %}>Từ chối</option>
-      </select>
-    </div>
-    <div class="col-auto">
-      <label class="form-label small mb-0">Đối tác</label>
-      <select name="partner" class="form-select form-select-sm" onchange="this.form.submit()">
-        <option value="">Tất cả</option>
-        {% for p in partners %}<option value="{{ p.pk }}" {% if partner_id == p.pk|stringformat:'s' %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
-      </select>
-    </div>
-  </form>
+  <div class="jp-sx-page-body">
+    <form method="get" class="card border-0 shadow-sm mb-3 jp-team-filter-form" role="search" aria-label="Bộ lọc báo sản lượng">
+      <div class="card-body p-3 jp-team-filter-body">
+        <div class="jp-team-filter-org-search">
+          <div class="jp-team-filter-org">
+            <label class="form-label fw-bold small mb-1" for="jp-gco-status">Trạng thái</label>
+            <select id="jp-gco-status" name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+              <option value="submitted" {% if status == 'submitted' %}selected{% endif %}>Chờ duyệt</option>
+              <option value="approved" {% if status == 'approved' %}selected{% endif %}>Đã duyệt</option>
+              <option value="rejected" {% if status == 'rejected' %}selected{% endif %}>Từ chối</option>
+              <option value="cancelled" {% if status == 'cancelled' %}selected{% endif %}>Đối tác đã hủy</option>
+              <option value="all" {% if status == 'all' %}selected{% endif %}>Tất cả</option>
+            </select>
+          </div>
+          <div class="jp-team-filter-org">
+            <label class="form-label fw-bold small mb-1" for="jp-gco-partner">Đối tác</label>
+            <select id="jp-gco-partner" name="partner" class="form-select form-select-sm" onchange="this.form.submit()">
+              <option value="">Tất cả</option>
+              {% for p in partners %}<option value="{{ p.pk }}" {% if partner_id == p.pk|stringformat:'s' %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+    </form>
 
-  <div class="card border-0 shadow-sm">
-    <div class="table-responsive">
-      <table class="table table-sm align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>Ngày SX</th><th>Phiếu GC</th><th>Đối tác</th><th>Người báo</th>
-            <th>SL báo (size)</th><th class="text-end">Tổng</th>
-            <th>Ghi chú ĐT</th><th>TT</th>
-            {% if can_review %}<th>Duyệt SL (size)</th><th></th>{% endif %}
-          </tr>
-        </thead>
-        <tbody>
-        {% for row in rows %}
-          {% with r=row.report %}
-          <tr class="{% if r.status == 'approved' %}table-success{% elif r.status == 'rejected' %}table-danger{% endif %}">
-            <td class="small">{{ r.work_date|date:'d/m/Y' }}</td>
-            <td class="small"><a href="{% url 'san_xuat:subcontract_detail' r.order_id %}">{{ r.order.code }}</a></td>
-            <td class="small">{{ r.partner.name }}</td>
-            <td class="small">{{ r.account.full_name|default:r.account.username|default:"—" }}</td>
-            <td class="small">
-              {% for sz, q in row.sizes %}{{ sz }}: {{ q|sx_num }}{% if not forloop.last %}, {% endif %}{% endfor %}
-            </td>
-            <td class="text-end fw-bold small">{{ r.total_qty|sx_num }}</td>
-            <td class="small text-muted">{{ r.note }}</td>
-            <td class="small">
-              {% if r.status == 'submitted' %}<span class="badge bg-warning text-dark">Chờ</span>
-              {% elif r.status == 'approved' %}<span class="badge bg-success">Duyệt {{ r.approved_qty|sx_num }}</span>
-              {% else %}<span class="badge bg-danger">Từ chối</span>{% endif %}
-              {% if r.review_note %}<div class="text-muted mt-1">{{ r.review_note }}</div>{% endif %}
-            </td>
-            {% if can_review %}
-            <td>
-              {% if r.status == 'submitted' %}
-              <form method="post" class="d-flex flex-wrap gap-1 align-items-end">
-                {% csrf_token %}
-                <input type="hidden" name="report_id" value="{{ r.pk }}">
-                <input type="hidden" name="action" value="approve">
-                {% for sz, q in row.sizes %}
-                <div class="d-flex align-items-center gap-1">
-                  <label class="small mb-0">{{ sz }}</label>
-                  <input type="number" name="size_{{ sz }}" value="{{ q }}" min="0" step="1" class="form-control form-control-sm" style="width:5rem">
+    <div class="card border-0 shadow-sm overflow-hidden">
+      <div class="jp-npl-mat-grid-wrap">
+        <table class="table table-hover table-sm mb-0 align-middle jp-npl-mat-grid jp-gc-table" id="{{ sx_list_table_id }}">
+          <thead class="table-light"><tr>{% include 'san_xuat/includes/sx_list_grid_head.html' %}</tr></thead>
+          <tbody class="jp-gc-rows">
+          {% for row in rows %}
+            {% with r=row.report %}
+            <tr>
+              <td class="npl-col small fw-semibold" data-col="work_date">{{ r.work_date|date:'d/m/Y' }}</td>
+              <td class="npl-col" data-col="order"><a href="{% url 'san_xuat:subcontract_detail' r.order_id %}" class="jp-gc-name">{{ r.order.code }}</a>{% if r.order.production_order %}<span class="jp-gc-sub">{{ r.order.production_order.code }}</span>{% endif %}</td>
+              <td class="npl-col small" data-col="partner">{{ r.partner.name }}</td>
+              <td class="npl-col small" data-col="account">{{ r.account.full_name|default:r.account.username|default:"—" }}</td>
+              <td class="npl-col" data-col="sizes"><div class="jp-gc-size-list">{% for sz, q in row.sizes %}<span class="jp-gc-chip">{{ sz }}: <strong class="ms-1">{{ q|sx_num }}</strong></span>{% endfor %}</div></td>
+              <td class="npl-col text-end jp-gc-num" data-col="total">{{ r.total_qty|sx_num }}</td>
+              <td class="npl-col small text-muted" data-col="note">{{ r.note|default:"—" }}</td>
+              <td class="npl-col text-center" data-col="status">
+                {% if r.status == 'submitted' %}<span class="jp-gc-badge is-warn is-pulse">Chờ duyệt</span>
+                {% elif r.status == 'approved' %}<span class="jp-gc-badge is-ok">Duyệt {{ r.approved_qty|sx_num }}</span>
+                  {% if row.posted_qty != r.approved_qty %}<span class="jp-gc-sub">Ghi tiến độ {{ row.posted_qty|sx_num }}</span>{% endif %}
+                {% elif r.status == 'cancelled' %}<span class="jp-gc-badge">Đối tác hủy</span>
+                {% else %}<span class="jp-gc-badge is-bad">Từ chối</span>{% endif %}
+                {% if r.review_note %}<span class="jp-gc-sub">{{ r.review_note }}</span>{% endif %}
+              </td>
+              <td class="npl-col small text-muted" data-col="created_at">{{ r.created_at|date:'d/m/Y H:i' }}</td>
+              <td class="npl-col" data-col="review">
+                {% if can_review and r.status == 'submitted' %}
+                <form method="post" class="jp-gc-review-form">
+                  {% csrf_token %}
+                  <input type="hidden" name="report_id" value="{{ r.pk }}">
+                  <input type="hidden" name="action" value="approve">
+                  {% for sz, q in row.sizes %}
+                  <span class="jp-gc-review-size">
+                    <label for="jp-gco-{{ r.pk }}-{{ forloop.counter }}">{{ sz }}</label>
+                    <input type="number" id="jp-gco-{{ r.pk }}-{{ forloop.counter }}" name="size_{{ sz }}" value="{{ q|stringformat:'s' }}" min="0" max="{{ q|stringformat:'s' }}" step="any" class="form-control form-control-sm">
+                  </span>
+                  {% endfor %}
+                  <input type="text" name="note" placeholder="Ghi chú QC" class="form-control form-control-sm jp-gc-review-note">
+                  <button class="btn btn-hm btn-sm fw-bold" type="submit"><i class="bi bi-check-lg me-1"></i>Duyệt</button>
+                </form>
+                {% else %}<span class="text-muted small">—</span>{% endif %}
+              </td>
+              <td class="npl-col text-end" data-col="actions">
+                {% if can_review %}
+                <div class="jp-gc-actions">
+                  {% if r.status == 'submitted' %}
+                  <form method="post" onsubmit="var n=prompt('Lý do từ chối:'); if(!n) return false; this.note.value=n; return true;">
+                    {% csrf_token %}
+                    <input type="hidden" name="report_id" value="{{ r.pk }}">
+                    <input type="hidden" name="action" value="reject">
+                    <input type="hidden" name="note" value="">
+                    <button class="btn btn-outline-danger btn-sm jp-gc-icon-btn" type="submit" title="Từ chối"><i class="bi bi-x-lg"></i></button>
+                  </form>
+                  {% elif r.status == 'approved' %}
+                  <form method="post" onsubmit="return confirm('Hủy duyệt báo cáo này? Tiến độ đã ghi sẽ bị trừ lại.');">
+                    {% csrf_token %}
+                    <input type="hidden" name="report_id" value="{{ r.pk }}">
+                    <input type="hidden" name="action" value="unapprove">
+                    <button class="btn btn-outline-secondary btn-sm jp-gc-icon-btn" type="submit" title="Hủy duyệt"><i class="bi bi-arrow-counterclockwise"></i></button>
+                  </form>
+                  {% endif %}
                 </div>
-                {% endfor %}
-                <input type="text" name="note" placeholder="Ghi chú QC" class="form-control form-control-sm" style="width:10rem">
-                <button class="btn btn-sm btn-success fw-bold"><i class="bi bi-check-lg"></i> Duyệt</button>
-              </form>
-              {% elif r.status == 'approved' %}
-              <form method="post">{% csrf_token %}
-                <input type="hidden" name="report_id" value="{{ r.pk }}">
-                <input type="hidden" name="action" value="unapprove">
-                <button class="btn btn-sm btn-outline-warning" onclick="return confirm('Huỷ duyệt?')">Huỷ duyệt</button>
-              </form>
-              {% endif %}
-            </td>
-            <td>
-              {% if r.status == 'submitted' %}
-              <form method="post">{% csrf_token %}
-                <input type="hidden" name="report_id" value="{{ r.pk }}">
-                <input type="hidden" name="action" value="reject">
-                <input type="text" name="note" placeholder="Lý do" class="form-control form-control-sm mb-1" style="width:10rem">
-                <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Từ chối?')"><i class="bi bi-x-lg"></i></button>
-              </form>
-              {% endif %}
-            </td>
-            {% endif %}
-          </tr>
-          {% endwith %}
-        {% empty %}
-          <tr><td colspan="10" class="text-muted text-center py-4">Không có báo cáo.</td></tr>
-        {% endfor %}
-        </tbody>
-      </table>
+                {% endif %}
+              </td>
+            </tr>
+            {% endwith %}
+          {% empty %}
+            <tr><td colspan="{{ list_columns|length }}" class="jp-gc-empty"><i class="bi bi-clipboard-check"></i>Không có báo cáo.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
+{% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
 {% endblock %}

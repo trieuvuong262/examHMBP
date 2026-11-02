@@ -1,0 +1,168 @@
+{# UI chung menu Gia Công — dùng kèm sx_detail_tools_styles.html (topbar) / sx_npl_catalog_styles.html (grid). #}
+<style>
+.jp-gc-page {
+  --gc-red: var(--hm-primary, #dc2626);
+  --gc-ink: #0f172a;
+  --gc-muted: #64748b;
+  --gc-line: rgba(15, 23, 42, 0.08);
+  --gc-ok: #047857;   --gc-ok-bg: #ecfdf5;
+  --gc-warn: #b45309; --gc-warn-bg: #fffbeb;
+  --gc-bad: #b91c1c;  --gc-bad-bg: #fef2f2;
+  --gc-info: #1d4ed8; --gc-info-bg: #eff6ff;
+  --gc-off: #475569;  --gc-off-bg: #f1f5f9;
+}
+
+/* —— Thẻ số liệu —— */
+.jp-gc-stats { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); margin-bottom: 1rem; }
+.jp-gc-stat {
+  position: relative; overflow: hidden;
+  padding: 0.95rem 1.05rem; background: #fff;
+  border: 1px solid var(--gc-line); border-radius: 0.75rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.jp-gc-stat::before {
+  content: ''; position: absolute; inset: 0 0 auto 0; height: 3px;
+  background: var(--gc-accent, var(--gc-red));
+}
+.jp-gc-stat:hover { transform: translateY(-2px); border-color: rgba(220, 38, 38, 0.2); box-shadow: 0 10px 24px rgba(15, 23, 42, 0.07); }
+.jp-gc-stat-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; color: var(--gc-muted); font-size: 0.74rem; font-weight: 600; }
+.jp-gc-stat-icon {
+  width: 2rem; height: 2rem; border-radius: 0.55rem; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--gc-accent, var(--gc-red)); background: var(--gc-accent-bg, rgba(220, 38, 38, 0.08));
+}
+.jp-gc-stat-value { margin-top: 0.35rem; color: var(--gc-ink); font-size: 1.55rem; font-weight: 750; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.15; }
+.jp-gc-stat-value small { font-size: 0.8rem; font-weight: 600; color: var(--gc-muted); }
+.jp-gc-stat-sub { margin-top: 0.2rem; color: var(--gc-muted); font-size: 0.72rem; }
+.jp-gc-stat.is-ok   { --gc-accent: var(--gc-ok);   --gc-accent-bg: var(--gc-ok-bg); }
+.jp-gc-stat.is-warn { --gc-accent: var(--gc-warn); --gc-accent-bg: var(--gc-warn-bg); }
+.jp-gc-stat.is-info { --gc-accent: var(--gc-info); --gc-accent-bg: var(--gc-info-bg); }
+.jp-gc-stat.is-off  { --gc-accent: var(--gc-off);  --gc-accent-bg: var(--gc-off-bg); }
+
+/* —— Badge trạng thái —— */
+.jp-gc-badge {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem;
+  padding: 0.18rem 0.6rem; border-radius: 999px; white-space: nowrap;
+  font-size: 0.72rem; font-weight: 650; line-height: 1.35;
+  color: var(--gc-off); background: var(--gc-off-bg);
+}
+.jp-gc-badge::before { content: ''; width: 0.4rem; height: 0.4rem; border-radius: 50%; background: currentColor; opacity: 0.8; }
+.jp-gc-badge.is-ok   { color: var(--gc-ok);   background: var(--gc-ok-bg); }
+.jp-gc-badge.is-warn { color: var(--gc-warn); background: var(--gc-warn-bg); }
+.jp-gc-badge.is-bad  { color: var(--gc-bad);  background: var(--gc-bad-bg); }
+.jp-gc-badge.is-info { color: var(--gc-info); background: var(--gc-info-bg); }
+.jp-gc-badge.is-plain::before { display: none; }
+.jp-gc-badge.is-pulse::before { animation: jp-gc-pulse 1.6s ease-in-out infinite; }
+.jp-gc-grade {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.85rem; height: 1.85rem; border-radius: 0.5rem;
+  font-weight: 800; font-size: 0.9rem; color: #fff; background: var(--gc-off);
+}
+.jp-gc-grade.is-A { background: var(--gc-ok); }
+.jp-gc-grade.is-B { background: var(--gc-info); }
+.jp-gc-grade.is-C { background: var(--gc-bad); }
+
+/* —— Thanh tiến độ —— */
+.jp-gc-progress { display: flex; align-items: center; gap: 0.45rem; min-width: 6rem; }
+.jp-gc-progress-track { flex: 1 1 auto; height: 6px; border-radius: 999px; background: #eef2f7; overflow: hidden; }
+.jp-gc-progress-track > span {
+  display: block; height: 100%; width: var(--p, 0%); max-width: 100%;
+  border-radius: inherit; background: linear-gradient(90deg, var(--gc-red), #f97316);
+  animation: jp-gc-grow 0.8s cubic-bezier(.2, .8, .2, 1) both;
+}
+.jp-gc-progress.is-done .jp-gc-progress-track > span { background: linear-gradient(90deg, #059669, #10b981); }
+.jp-gc-progress-label { font-size: 0.72rem; color: var(--gc-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* —— Bộ lọc: hàng ngày + hàng điều kiện thẳng nhau, ô cùng 38px —— */
+.jp-gc-page .jp-team-filter-form .jp-team-filter-dates { flex: 1 1 100%; max-width: 46rem; }
+.jp-gc-page .jp-team-filter-form .jp-team-filter-org-search { flex: 1 1 32rem; }
+.jp-gc-page .jp-team-filter-form .form-control,
+.jp-gc-page .jp-team-filter-form .form-select,
+.jp-gc-page .jp-team-filter-form input.flatpickr-input {
+  height: var(--jp-sx-ctl-h-sm, 38px); min-height: var(--jp-sx-ctl-h-sm, 38px);
+  font-size: 0.875rem; padding-top: 0.25rem; padding-bottom: 0.25rem;
+}
+.jp-gc-page .jp-team-filter-form .jp-team-filter-actions .btn { height: var(--jp-sx-ctl-h-sm, 38px); padding: 0 0.9rem; }
+
+/* —— Bảng —— */
+.jp-gc-page .jp-gc-table > tbody > tr > td { white-space: normal; overflow-wrap: anywhere; }
+.jp-gc-page .jp-gc-table .jp-gc-badge { white-space: normal; text-align: center; }
+.jp-gc-page .jp-gc-table > tbody > tr { transition: background-color 0.15s ease, box-shadow 0.15s ease; }
+.jp-gc-page .jp-gc-table > tbody > tr:hover { background-color: rgba(220, 38, 38, 0.04); box-shadow: inset 3px 0 0 var(--gc-red); }
+.jp-gc-page .jp-gc-table td { vertical-align: middle; }
+.jp-gc-page .jp-gc-num { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--gc-ink); }
+.jp-gc-page .jp-gc-sub { display: block; margin-top: 0.1rem; font-size: 0.72rem; color: var(--gc-muted); }
+.jp-gc-page .jp-gc-name { font-weight: 650; color: var(--gc-ink); letter-spacing: -0.01em; }
+.jp-gc-page tr[data-href] .jp-gc-name { color: var(--gc-red); }
+.jp-gc-chip {
+  display: inline-flex; align-items: center; margin: 0 0.25rem 0.2rem 0;
+  padding: 0.12rem 0.5rem; border-radius: 999px; border: 1px solid var(--gc-line);
+  font-size: 0.72rem; color: #334155; background: #fff; text-decoration: none;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+a.jp-gc-chip:hover { border-color: var(--gc-red); color: var(--gc-red); }
+.jp-gc-empty { padding: 2.5rem 1rem !important; text-align: center; color: var(--gc-muted); }
+.jp-gc-empty .bi { display: block; margin-bottom: 0.4rem; font-size: 1.8rem; opacity: 0.35; }
+
+/* —— Thẻ nội dung (card) có tiêu đề —— */
+.jp-gc-card { background: #fff; border: 1px solid var(--gc-line); border-radius: 0.75rem; overflow: hidden; }
+.jp-gc-card + .jp-gc-card { margin-top: 1rem; }
+.jp-gc-card-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  padding: 0.8rem 1rem; border-bottom: 1px solid var(--gc-line); background: #fff;
+}
+.jp-gc-card-head h6 { margin: 0; font-weight: 700; color: var(--gc-ink); display: inline-flex; align-items: center; gap: 0.45rem; }
+.jp-gc-card-head h6 .bi { color: var(--gc-red); }
+.jp-gc-card-body { padding: 1rem; }
+
+/* —— Nút icon trong bảng (canh giữa đúng rule) —— */
+.jp-gc-page .jp-gc-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.9rem; height: 1.9rem; padding: 0; line-height: 1;
+  transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+.jp-gc-page .jp-gc-icon-btn:hover { transform: translateY(-1px); }
+.jp-gc-page .jp-gc-actions { display: inline-flex; align-items: center; gap: 0.3rem; }
+.jp-gc-page .jp-gc-actions form { display: inline-flex; align-items: center; margin: 0; }
+.jp-gc-page .btn-sm { display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
+
+/* —— Hộp mật khẩu hiện một lần —— */
+.jp-gc-secret {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1rem;
+  padding: 0.85rem 1rem; margin-bottom: 1rem; border-radius: 0.75rem;
+  border: 1px dashed #f59e0b; background: #fffbeb; color: #78350f;
+  animation: jp-gc-rise 0.35s ease-out both;
+}
+.jp-gc-secret code { font-size: 1.05rem; padding: 0.2rem 0.55rem; border-radius: 0.4rem; background: #fff; color: #92400e; user-select: all; }
+
+/* —— Hiệu ứng xuất hiện —— */
+.jp-gc-anim > * { animation: jp-gc-rise 0.42s cubic-bezier(.2, .8, .2, 1) both; }
+.jp-gc-anim > *:nth-child(2) { animation-delay: 0.05s; }
+.jp-gc-anim > *:nth-child(3) { animation-delay: 0.1s; }
+.jp-gc-anim > *:nth-child(4) { animation-delay: 0.15s; }
+.jp-gc-anim > *:nth-child(5) { animation-delay: 0.2s; }
+.jp-gc-anim > *:nth-child(n+6) { animation-delay: 0.24s; }
+.jp-gc-rows > tr { animation: jp-gc-fade 0.35s ease-out both; }
+.jp-gc-rows > tr:nth-child(2) { animation-delay: 0.02s; }
+.jp-gc-rows > tr:nth-child(3) { animation-delay: 0.04s; }
+.jp-gc-rows > tr:nth-child(4) { animation-delay: 0.06s; }
+.jp-gc-rows > tr:nth-child(5) { animation-delay: 0.08s; }
+.jp-gc-rows > tr:nth-child(6) { animation-delay: 0.1s; }
+.jp-gc-rows > tr:nth-child(7) { animation-delay: 0.12s; }
+.jp-gc-rows > tr:nth-child(8) { animation-delay: 0.14s; }
+.jp-gc-rows > tr:nth-child(n+9) { animation-delay: 0.16s; }
+
+@keyframes jp-gc-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes jp-gc-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes jp-gc-grow { from { width: 0; } }
+@keyframes jp-gc-pulse { 0%, 100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.6); opacity: 0.35; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .jp-gc-page *, .jp-gc-page *::before { animation: none !important; transition: none !important; }
+}
+@media (max-width: 575.98px) {
+  .jp-gc-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .jp-gc-stat-value { font-size: 1.25rem; }
+}
+</style>

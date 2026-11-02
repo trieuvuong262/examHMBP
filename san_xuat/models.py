@@ -700,9 +700,11 @@ from san_xuat.hub_models import (  # noqa: E402,F401
 
 # Đối tác gia công (cổng pn)
 from san_xuat.partner_models import (  # noqa: E402,F401
+    GcKpiSnapshot,
     GcOutputReport,
     GcPartner,
     GcPartnerAccount,
+    GcPartnerActivity,
     GcPriceRule,
 )
 

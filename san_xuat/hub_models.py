@@ -3166,8 +3166,42 @@ class SxSubcontractOrder(DemoMarkedModel):
         related_name='subcontract_orders',
         verbose_name='Đối tác GC',
     )
+    # Cổng đối tác pn: phiếu chỉ hiện cho đối tác sau khi nội bộ bấm "Gửi đối tác".
+    partner_sent_at = models.DateTimeField(
+        null=True, blank=True, db_index=True, verbose_name='Gửi đối tác lúc',
+    )
+    partner_sent_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+        verbose_name='Người gửi đối tác',
+    )
     partner_accepted_at = models.DateTimeField(
         null=True, blank=True, verbose_name='Đối tác nhận đơn lúc',
+    )
+    partner_accepted_by = models.ForeignKey(
+        'san_xuat.GcPartnerAccount',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+        verbose_name='Tài khoản nhận đơn',
+    )
+    partner_rejected_at = models.DateTimeField(
+        null=True, blank=True, verbose_name='Đối tác từ chối lúc',
+    )
+    partner_rejected_by = models.ForeignKey(
+        'san_xuat.GcPartnerAccount',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+        verbose_name='Tài khoản từ chối',
+    )
+    partner_reject_reason = models.CharField(
+        max_length=255, blank=True, default='', verbose_name='Lý do đối tác từ chối',
     )
     product_code = models.CharField(max_length=60, db_index=True)
     product_name = models.CharField(max_length=255, blank=True, default='')
@@ -3276,6 +3310,27 @@ class SxSubcontractOrder(DemoMarkedModel):
         if self.status == self.STATUS_CANCELLED:
             return 'Hủy'
         return 'Đang sản xuất'
+
+    @property
+    def partner_state(self) -> str:
+        """Trạng thái phía đối tác: none / unsent / rejected / waiting / accepted."""
+        if not self.partner_id:
+            return 'none'
+        if self.partner_rejected_at and not self.partner_sent_at:
+            return 'rejected'
+        if not self.partner_sent_at:
+            return 'unsent'
+        return 'accepted' if self.partner_accepted_at else 'waiting'
+
+    @property
+    def partner_state_label(self) -> str:
+        return {
+            'none': '—',
+            'unsent': 'Chưa gửi đối tác',
+            'rejected': 'Đối tác từ chối',
+            'waiting': 'Chờ đối tác nhận',
+            'accepted': 'Đối tác đã nhận',
+        }[self.partner_state]
 
 
 class SxSubcontractMaterialLine(models.Model):

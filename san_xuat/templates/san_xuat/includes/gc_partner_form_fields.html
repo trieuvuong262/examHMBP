@@ -18,7 +18,6 @@
     <label class="form-label fw-bold small mb-1" for="{{ field.id_for_label }}">{{ field.label }}</label>
     {{ field }}
     {% endif %}
-    {% if field.help_text %}<div class="form-text small">{{ field.help_text }}</div>{% endif %}
     {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors }}</div>{% endif %}
   </div>
   {% endfor %}

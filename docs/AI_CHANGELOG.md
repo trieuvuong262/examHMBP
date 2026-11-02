@@ -15,6 +15,56 @@ Mỗi entry nên có:
 
 ## Entries
 
+### 2026-11-02 — workflow / gộp "Tổ gia công" và "Đối tác" thành một (GcPartner)
+
+- **Type**: workflow | feature | schema
+- **Change**: Menu Gia Công bỏ khái niệm kép. "Tổ gia công" giờ = `GcPartner` (đơn vị thuê ngoài, song song tổ nội bộ qua `team_slug`, có tài khoản cổng pn, giá, KPI, duyệt sản lượng).
+  - `GcPartnerForm` bỏ FK `work_center`; thêm nhãn tổ (Mã tổ, Tên tổ, Công đoạn = team_slugs, Năng lực/ngày) + giữ trường doanh nghiệp (MST, liên hệ, thanh toán). `team_slugs` set initial từ instance, lưu qua `cleaned_data`.
+  - `views_gc.gc_team_list` render lại `gc_partner_list`; `gc_team_create` → `?add=1`; `gc_team_edit(pk)` → `gc_partner_detail`. Sidebar gộp còn: Tổ gia công, Thuê gia công, Tài khoản, Thống kê, KPI, Duyệt sản lượng (bỏ mục "Đối tác" riêng). Nhãn trang/đổi "Đối tác" → "Tổ gia công".
+  - `default_subcontract_vendor_name` lấy theo `GcPartner` (qua `default_subcontract_partner_id`) thay cho `SxWorkCenter.is_subcontract`.
+  - Migration dữ liệu `0155_gc_merge_work_center`: tạo GcPartner từ SxWorkCenter tick GC (dedup theo tên — thực tế 11 tổ đã được 0152 seed nên không trùng), gán partner cho phiếu cũ thiếu partner, rồi bỏ cờ `is_subcontract` trên các work center đó.
+  - Giữ nguyên cột `SxWorkCenter.is_subcontract` và `SxSubcontractOrder.work_center` (ngừng dùng, không xóa — theo quyết định). Bỏ ô "Tổ thuê gia công" khỏi form Năng lực SX.
+- **Reason**: Người dùng muốn một khái niệm duy nhất "Tổ gia công" mang đủ tính chất (đơn vị kế hoạch + tài khoản + giá + KPI + duyệt).
+- **Source**: `san_xuat/migrations/0155_gc_merge_work_center.py`, `san_xuat/views_gc.py`, `san_xuat/views_gc_partner.py`, `san_xuat/forms_gc_partner.py::GcPartnerForm`, `san_xuat/services/phase3.py::default_subcontract_vendor_name`, `san_xuat/list_grid.py`, `templates/includes/portal_sidebar.html`, templates `gc_partner_list/detail`, `capacity_form.html`
+- **Agent impact**: "Tổ gia công" = `GcPartner`, KHÔNG phải `SxWorkCenter`. Phiếu GC gắn `partner` + `team_slug`; `work_center` chỉ là liên kết phụ không load-bearing. Năng lực SX không còn tổ GC.
+
+### 2026-11-02 — ui / menu Gia Công theo rule san-xuat-ui
+
+- **Type**: feature (UI)
+- **Change**: Mọi danh sách Gia Công dùng grid chuẩn Kho NPL (sắp xếp, đổi rộng, menu **Cột**): spec mới `gc_team`, `gc_partner`, `gc_account`, `gc_output`, `subcontract` (viết lại) trong `san_xuat/list_grid.py`. Topbar chuẩn `jp-npl-mat-topbar … w-100` cho Đối tác, Chi tiết đối tác, Duyệt sản lượng (bỏ `jp-page-header` + `btn-outline`). Bỏ đoạn mô tả / `form-text`. Style + hiệu ứng chung `san_xuat/templates/san_xuat/includes/gc_ui_styles.html` (thẻ số liệu, badge, thanh tiến độ, xuất hiện lần lượt; tắt khi `prefers-reduced-motion`). Bộ lọc Thuê GC có preset khoảng ngày (`Mọi thời gian` mặc định để không ẩn phiếu). `subcontract` submenu bỏ `perm_label` dài (đang bị dùng làm tiêu đề tab trình duyệt).
+- **Source**: `san_xuat/list_grid.py`, `san_xuat/views_gc.py`, `san_xuat/views_gc_partner.py`, templates `subcontract_list`, `gc_*`, `includes/gc_kpi_cards.html`, `includes/gc_ui_styles.html`
+- **Agent impact**: Trang Gia Công mới: bọc `jp-gc-page`, include `gc_ui_styles.html`; danh sách phải dùng `sx_list_grid_context(request, '<gc_key>')` + `sx_list_grid_head.html` + `sx_list_grid_scripts.html`.
+
+### 2026-11-02 — workflow / cổng đối tác pn: Gửi đối tác, nhận/từ chối, KPI 4 chỉ tiêu
+
+- **Type**: workflow | feature | schema
+- **Change**:
+  - Phiếu GC chỉ hiện trên pn sau khi nội bộ bấm **Gửi đối tác** (`services/gc_output.send_to_partner`, bắt buộc có LSX). Có **Thu hồi** khi đối tác chưa báo SL. Đổi đối tác trên phiếu đã gửi bị chặn (`phase3.update_subcontract_order`).
+  - Đối tác: **Nhận đơn / Từ chối (bắt buộc lý do)**, chỉ tài khoản Chủ (`auth.is_owner`). Từ chối → phiếu rời pn, nội bộ thấy lý do, có thể Gửi lại. NV chỉ báo SL; không thấy giá/KPI.
+  - Báo SL **được vượt từng size và tổng phiếu**; tiền = đơn giá × SL QC duyệt (`qty_received` có thể > `qty`). Tiến độ LSX vẫn chỉ cộng tới phần còn lại của size (trang duyệt hiện "Ghi tiến độ x" khi khác SL duyệt). Size gửi lên phải thuộc danh sách size của phiếu.
+  - Hủy báo cáo không xóa: `GcOutputReport.STATUS_CANCELLED` + `cancelled_at/by`.
+  - Duyệt giữ 1 cấp (QC nội bộ).
+  - Nhật ký `GcPartnerActivity` (đăng nhập/sai/đăng xuất/đổi MK/nhận/từ chối/báo/hủy, IP proxy, UA) hiện ở chi tiết đối tác. Giới hạn đăng nhập sai theo IP (20 lần / 15 phút, cache). Mọi lỗi đăng nhập cùng một thông báo.
+  - KPI (`services/gc_kpi.py`): Chất lượng 40%, Đúng hạn 30%, Đạt kế hoạch 20%, Phản hồi đơn ≤ 24h 10%; chỉ tiêu thiếu dữ liệu chia lại trọng số; hạng A ≥ 90 / B ≥ 75 / C. Chốt tháng `GcKpiSnapshot` (trang nội bộ `/san-xuat/gia-cong/kpi/`), `kpi_for_display` trả bản chốt nếu có.
+  - pn thêm `/bang-gia/` (đơn giá đã duyệt đang hiệu lực), KPI trang `/bao-cao/`, giá + thành tiền trên chi tiết đơn (Chủ). 404/500 riêng cho urlconf pn (template 404 nội bộ dùng URL không có trên pn).
+  - Migration `san_xuat/0154_gc_partner_send_kpi.py` (điền `partner_sent_at` cho phiếu đối tác đã nhận / đã báo SL / không còn nháp).
+- **Reason**: Theo phân tích đã duyệt (Q1a, Q2–Q5, Q6); Q7–Q10 (thưởng/phạt, đối soát, thông báo, NPL trên pn) tạm hoãn.
+- **Source**: `san_xuat/services/gc_output.py`, `san_xuat/services/gc_kpi.py`, `san_xuat/partner_portal/{views,auth,activity,urls}.py`, `san_xuat/partner_models.py`, `san_xuat/hub_models.py::SxSubcontractOrder.partner_*`, `san_xuat/views_gc.py::gc_kpi`, `san_xuat/views_hub.py::subcontract_detail`, `san_xuat/tests/test_partner_portal.py`
+- **Agent impact**: `partner_orders()` lọc `partner_sent_at__isnull=False` — đừng tạo đường cho đối tác thấy phiếu chưa gửi. Không chặn SL báo theo SL phiếu nữa. Test DB mới hỏng ở migration dữ liệu cũ (`thiet_ke_sp/0025`, `kho_npl/0016`, `0019` gọi code runtime); chạy test với settings có `DATABASES[...]['TEST']['MIGRATE'] = False`.
+
+### 2026-11-02 — workflow / menu Gia Công tách khỏi KHSX
+
+- **Type**: feature | workflow
+- **Change**:
+  - Nhóm sidebar **Gia Công** có 6 mục, mỗi mục URL riêng dưới `/san-xuat/gia-cong/`: Thuê gia công (`/`, view `views_gc.subcontract_list` — trang riêng, không còn redirect sang `plan_board?tab=subcontract`), Tổ gia công (`to/`, `to/them/`, `to/<id>/`), Đối tác (`doi-tac/`), Tài khoản đối tác (`tai-khoan/`), Thống kê (`thong-ke/`, theo đối tác / tổ / đơn hàng), Duyệt kiểm kê / sản lượng (`duyet-san-luong/`).
+  - Tổ thuê gia công (`SxWorkCenter.is_subcontract`) chỉ quản lý ở Gia Công: Năng lực SX ẩn tổ GC, bỏ checkbox "Tổ thuê gia công", `capacity_edit` của tổ GC redirect sang `gc_team_edit`.
+  - `plan_board` GET `tab=subcontract` → redirect `/san-xuat/gia-cong/` (giữ q/date/status/team; `gc=<id>` → chi tiết). Đã gỡ nhánh dữ liệu + bảng GC trong `plan_board`. Bỏ link trùng "Kế hoạch sản xuất" (tab=subcontract) trong nhóm Kế hoạch SX.
+  - Menu quyền `subcontract` đăng ký lại trong `MODULE_SUBMENUS` (nhãn "Gia Công", mục riêng trong ma trận quyền). Alias `subcontract → plan_board/plan` giữ nguyên nên người làm KHSX không mất quyền. `resolve_menu_from_request` map `/san-xuat/ke-hoach/bang/?tab=subcontract` → `subcontract`. Xóa rule thừa `/san-xuat/thue-gia-cong → plan_board`.
+  - Chi tiết phiếu GC: quyền Sửa/In menu `subcontract` cũng được sửa/in phiếu.
+- **Reason**: Menu Gia Công trước đây dẫn về URL/quyền/menu-active của Kế hoạch SX; người chỉ có quyền Gia công bị chặn với thông báo "Kế hoạch sản xuất".
+- **Source**: `san_xuat/views_gc.py`, `san_xuat/services/gc_stats.py`, `san_xuat/urls.py`, `san_xuat/views_hub.py::plan_board/_redirect_legacy_subcontract_tab/capacity_list/capacity_edit/subcontract_detail`, `templates/includes/portal_sidebar.html`, `hrm/submenu_registry.py`, `hrm/menu_permissions.py`, `hrm/forms.py::SAN_XUAT_PERMISSION_SECTIONS`
+- **Agent impact**: Không tạo link mới tới `plan_board?tab=subcontract`; dùng `san_xuat:subcontract_list`. Màn GC mới đặt trong `views_gc.py`, quyền dùng `_can_view/_can_edit` của `views_gc_partner.py`.
+
 ### 2026-10-31 — feature / gc-partner-gd2 (Cổng đối tác pn.justplay.vn)
 
 - **Type**: feature | architecture | workflow

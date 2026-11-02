@@ -1,68 +1,66 @@
 {% extends 'base.html' %}
 {% load sx_format %}
 
-{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/gc_ui_styles.html' %}
+{% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
-  <div class="jp-page-header mb-3">
-    <div class="jp-page-header-main">
-      <h2 class="jp-page-title fw-bold text-dark mb-1">{{ partner.name }}</h2>
-      <p class="text-muted small mb-0">
-        {{ partner.code }}
-        {% if not partner.is_active %}· <span class="badge bg-secondary">Ngưng hợp tác</span>{% endif %}
-        {% for label in partner.team_labels %}· {{ label }} {% endfor %}
-      </p>
+<div class="container jp-page jp-sx-page jp-gc-page py-3 py-md-4 mb-5">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">{{ partner.name }}</h2>
     </div>
-    <div class="d-flex gap-2 flex-wrap">
-      <a href="{% url 'san_xuat:gc_partner_list' %}" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left me-1"></i>Danh sách đối tác
-      </a>
-    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="{% url 'san_xuat:subcontract_list' %}?partner={{ partner.pk }}"><i class="bi bi-file-earmark-text" aria-hidden="true"></i>Phiếu GC</a>
+      <a href="{% url 'san_xuat:gc_output_review' %}?partner={{ partner.pk }}"><i class="bi bi-clipboard-check" aria-hidden="true"></i>Duyệt sản lượng</a>
+      <a href="{% url 'san_xuat:gc_kpi' %}{% if kpi %}?month={{ kpi.month_value }}{% endif %}"><i class="bi bi-speedometer2" aria-hidden="true"></i>KPI</a>
+      <a href="https://pn.justplay.vn/dang-nhap/" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Cổng đối tác</a>
+      <span class="sep" aria-hidden="true"></span>
+      <a href="{% url 'san_xuat:gc_partner_list' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+    </nav>
+  </div>
+
+  <div class="jp-sx-page-body">
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <span class="jp-gc-chip fw-semibold">{{ partner.code }}</span>
+    {% if partner.is_active %}<span class="jp-gc-badge is-ok">Đang hợp tác</span>{% else %}<span class="jp-gc-badge">Ngưng hợp tác</span>{% endif %}
+    {% for label in partner.team_labels %}<span class="jp-gc-chip">{{ label }}</span>{% endfor %}
   </div>
 
   {% if new_password %}
-  <div class="alert alert-warning">
-    <div class="fw-bold mb-1">Mật khẩu tài khoản {{ new_password.username }} (chỉ hiện một lần)</div>
-    <code class="fs-5 user-select-all">{{ new_password.password }}</code>
-    <div class="small mt-1">Gửi cho đối tác qua kênh riêng. Đối tác sẽ phải đổi mật khẩu lần đầu đăng nhập.</div>
+  <div class="jp-gc-secret" role="status">
+    <i class="bi bi-key-fill fs-5"></i>
+    <span>Mật khẩu tài khoản <strong>{{ new_password.username }}</strong></span>
+    <code>{{ new_password.password }}</code>
+    <span class="small">Chỉ hiện một lần.</span>
   </div>
   {% endif %}
 
-  <div class="row g-3 mb-3">
-    <div class="col-6 col-md-3"><div class="card border-0 shadow-sm"><div class="card-body p-3">
-      <div class="text-muted small">Phiếu GC</div><div class="fs-4 fw-bold">{{ stats.orders }}</div>
-      <div class="small text-muted">{{ stats.open_orders }} đang mở</div>
-    </div></div></div>
-    <div class="col-6 col-md-3"><div class="card border-0 shadow-sm"><div class="card-body p-3">
-      <div class="text-muted small">SL đặt</div><div class="fs-4 fw-bold">{{ stats.qty|sx_num }}</div>
-    </div></div></div>
-    <div class="col-6 col-md-3"><div class="card border-0 shadow-sm"><div class="card-body p-3">
-      <div class="text-muted small">SL nhận</div><div class="fs-4 fw-bold">{{ stats.received|sx_num }}</div>
-    </div></div></div>
-    <div class="col-6 col-md-3"><div class="card border-0 shadow-sm"><div class="card-body p-3">
-      <div class="text-muted small">Phí GC (VNĐ)</div><div class="fs-4 fw-bold">{{ stats.fee|sx_num:0 }}</div>
-    </div></div></div>
-  </div>
-
   {% if kpi %}
-  <div class="mb-3">
-    <h6 class="fw-bold mb-2">KPI tháng {{ kpi.month_value }}</h6>
-    {% include 'san_xuat/includes/gc_kpi_cards.html' with kpi=kpi %}
+  <div class="jp-gc-card mb-3">
+    <div class="jp-gc-card-head">
+      <h6><i class="bi bi-speedometer2"></i>KPI tháng {{ kpi.month_value }}</h6>
+      <form method="get" class="d-inline-flex align-items-center gap-2 m-0">
+        <input type="month" name="month" value="{{ kpi.month_value }}" class="form-control form-control-sm" onchange="this.form.submit()" aria-label="Tháng KPI">
+      </form>
+    </div>
+    <div class="jp-gc-card-body">{% include 'san_xuat/includes/gc_kpi_cards.html' with kpi=kpi %}</div>
   </div>
   {% endif %}
 
   <div class="row g-3">
     <div class="col-12 col-lg-5">
-      <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white border-bottom py-3"><h6 class="fw-bold mb-0">Thông tin đối tác</h6></div>
-        <div class="card-body">
+      <div class="jp-gc-card">
+        <div class="jp-gc-card-head"><h6><i class="bi bi-people"></i>Thông tin tổ gia công</h6></div>
+        <div class="jp-gc-card-body">
           {% if can_edit %}
           <form method="post">
             {% csrf_token %}
             <input type="hidden" name="action" value="update_partner">
             {% include 'san_xuat/includes/gc_partner_form_fields.html' with form=partner_form %}
-            <button type="submit" class="btn btn-hm fw-bold w-100">Lưu thông tin</button>
+            <button type="submit" class="btn btn-hm btn-sm fw-bold px-4">Lưu thông tin</button>
           </form>
           {% else %}
           <dl class="row small mb-0">
@@ -79,160 +77,205 @@
       </div>
     </div>
     <div class="col-12 col-lg-7">
-      <div class="card border-0 shadow-sm mb-3">
-        <div class="card-header bg-white border-bottom py-3"><h6 class="fw-bold mb-0">Bảng giá gia công</h6></div>
+      <div class="jp-gc-card">
+        <div class="jp-gc-card-head"><h6><i class="bi bi-tags"></i>Bảng giá gia công</h6></div>
         <div class="table-responsive">
-          <table class="table table-sm align-middle mb-0">
+          <table class="table table-sm align-middle mb-0 jp-gc-table">
             <thead class="table-light">
-              <tr>
-                <th>Công đoạn</th><th>Mã SP</th><th class="text-end">Đơn giá</th>
-                <th>Hiệu lực</th><th>Trạng thái</th><th></th>
-              </tr>
+              <tr><th>Công đoạn</th><th>Mã SP</th><th class="text-end">Đơn giá</th><th>Hiệu lực</th><th class="text-center">Trạng thái</th><th class="text-end"></th></tr>
             </thead>
-            <tbody>
+            <tbody class="jp-gc-rows">
             {% for r in price_rules %}
-              <tr class="{% if r.status == 'draft' %}table-warning{% elif r.valid_to and r.valid_to < today %}text-muted{% endif %}">
-                <td class="small">{{ r.team_label }}</td>
-                <td class="small">{% if r.product_code %}<span class="fw-semibold">{{ r.product_code }}</span><div class="text-muted">{{ r.product_name }}</div>{% else %}<span class="text-muted">Giá chung</span>{% endif %}</td>
-                <td class="text-end fw-semibold">{{ r.unit_price|sx_num:0 }}</td>
+              <tr class="{% if r.valid_to and r.valid_to < today %}text-muted{% endif %}">
+                <td class="small fw-semibold">{{ r.team_label }}</td>
+                <td class="small">{% if r.product_code %}<span class="fw-semibold">{{ r.product_code }}</span><span class="jp-gc-sub">{{ r.product_name }}</span>{% else %}<span class="text-muted">Giá chung</span>{% endif %}</td>
+                <td class="text-end jp-gc-num">{{ r.unit_price|sx_num:0 }}</td>
                 <td class="small">{{ r.valid_from|date:'d/m/Y' }} → {% if r.valid_to %}{{ r.valid_to|date:'d/m/Y' }}{% else %}…{% endif %}</td>
-                <td class="small">
-                  {% if r.status == 'approved' %}
-                  <span class="badge bg-success-subtle text-success-emphasis">Đã duyệt</span>
-                  {% if r.approved_by %}<div class="text-muted">{{ r.approved_by.get_full_name|default:r.approved_by.username }}</div>{% endif %}
-                  {% else %}
-                  <span class="badge bg-warning-subtle text-warning-emphasis">Chờ duyệt</span>
-                  {% endif %}
+                <td class="text-center">
+                  {% if r.status == 'approved' %}<span class="jp-gc-badge is-ok">Đã duyệt</span>
+                  {% if r.approved_by %}<span class="jp-gc-sub">{{ r.approved_by.get_full_name|default:r.approved_by.username }}</span>{% endif %}
+                  {% else %}<span class="jp-gc-badge is-warn is-pulse">Chờ duyệt</span>{% endif %}
                 </td>
-                <td class="text-end text-nowrap">
-                  {% if r.status == 'draft' and can_approve_price %}
-                  <form method="post" class="d-inline">{% csrf_token %}
-                    <input type="hidden" name="action" value="approve_price"><input type="hidden" name="rule_id" value="{{ r.pk }}">
-                    <button class="btn btn-sm btn-outline-success" title="Duyệt"><i class="bi bi-check2"></i></button>
-                  </form>
-                  {% endif %}
-                  {% if r.status == 'approved' and not r.valid_to and can_approve_price %}
-                  <form method="post" class="d-inline" onsubmit="return confirm('Chốt giá này hết hiệu lực từ hôm nay?');">{% csrf_token %}
-                    <input type="hidden" name="action" value="end_price"><input type="hidden" name="rule_id" value="{{ r.pk }}">
-                    <button class="btn btn-sm btn-outline-secondary" title="Kết thúc hiệu lực"><i class="bi bi-stop-circle"></i></button>
-                  </form>
-                  {% endif %}
-                  {% if can_edit and r.status == 'draft' or can_approve_price %}
-                  <form method="post" class="d-inline" onsubmit="return confirm('Xóa dòng giá?');">{% csrf_token %}
-                    <input type="hidden" name="action" value="delete_price"><input type="hidden" name="rule_id" value="{{ r.pk }}">
-                    <button class="btn btn-sm btn-outline-danger" title="Xóa"><i class="bi bi-trash3"></i></button>
-                  </form>
-                  {% endif %}
+                <td class="text-end">
+                  <div class="jp-gc-actions">
+                    {% if r.status == 'draft' and can_approve_price %}
+                    <form method="post">{% csrf_token %}
+                      <input type="hidden" name="action" value="approve_price"><input type="hidden" name="rule_id" value="{{ r.pk }}">
+                      <button class="btn btn-sm btn-outline-success jp-gc-icon-btn" title="Duyệt"><i class="bi bi-check2"></i></button>
+                    </form>
+                    {% endif %}
+                    {% if r.status == 'approved' and not r.valid_to and can_approve_price %}
+                    <form method="post" onsubmit="return confirm('Chốt giá này hết hiệu lực từ hôm nay?');">{% csrf_token %}
+                      <input type="hidden" name="action" value="end_price"><input type="hidden" name="rule_id" value="{{ r.pk }}">
+                      <button class="btn btn-sm btn-outline-secondary jp-gc-icon-btn" title="Kết thúc hiệu lực"><i class="bi bi-stop-circle"></i></button>
+                    </form>
+                    {% endif %}
+                    {% if can_edit and r.status == 'draft' or can_approve_price %}
+                    <form method="post" onsubmit="return confirm('Xóa dòng giá?');">{% csrf_token %}
+                      <input type="hidden" name="action" value="delete_price"><input type="hidden" name="rule_id" value="{{ r.pk }}">
+                      <button class="btn btn-sm btn-outline-danger jp-gc-icon-btn" title="Xóa"><i class="bi bi-trash3"></i></button>
+                    </form>
+                    {% endif %}
+                  </div>
                 </td>
               </tr>
             {% empty %}
-              <tr><td colspan="6" class="text-muted small p-3 text-center">Chưa có giá. Phiếu GC sẽ phải nhập đơn giá tay.</td></tr>
+              <tr><td colspan="6" class="jp-gc-empty"><i class="bi bi-tags"></i>Chưa có giá.</td></tr>
             {% endfor %}
             </tbody>
           </table>
         </div>
         {% if can_edit %}
-        <div class="card-body border-top">
+        <div class="jp-gc-card-body border-top">
           <form method="post">
             {% csrf_token %}
             <input type="hidden" name="action" value="add_price">
             <div class="row g-2 align-items-end">
               {% for field in price_form %}
               <div class="{% if field.name == 'notes' or field.name == 'product_name' %}col-md-6{% else %}col-6 col-md-3{% endif %}">
-                <label class="form-label small mb-1" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                <label class="form-label fw-bold small mb-1" for="{{ field.id_for_label }}">{{ field.label }}</label>
                 {{ field }}
                 {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
               </div>
               {% endfor %}
-              <div class="col-12"><button class="btn btn-hm btn-sm fw-bold">Thêm giá (chờ duyệt)</button></div>
+              <div class="col-12"><button class="btn btn-hm btn-sm fw-bold px-4">Thêm giá (chờ duyệt)</button></div>
             </div>
           </form>
         </div>
         {% endif %}
       </div>
-      <div class="card border-0 shadow-sm mb-3">
-        <div class="card-header bg-white border-bottom py-3">
-          <h6 class="fw-bold mb-0">Tài khoản cổng đối tác</h6>
-          <div class="small text-muted">Đăng nhập tại <a href="https://pn.justplay.vn/dang-nhap/" target="_blank" rel="noopener">pn.justplay.vn</a>.</div>
+
+      <div class="jp-gc-card">
+        <div class="jp-gc-card-head">
+          <h6><i class="bi bi-person-vcard"></i>Tài khoản cổng đối tác</h6>
+          <a href="{% url 'san_xuat:gc_account_list' %}?partner={{ partner.pk }}&amp;show=all" class="small">Tất cả tài khoản</a>
         </div>
         <div class="table-responsive">
-          <table class="table table-sm align-middle mb-0">
+          <table class="table table-sm align-middle mb-0 jp-gc-table">
             <thead class="table-light">
-              <tr><th>Tên đăng nhập</th><th>Họ tên</th><th>Vai trò</th><th>Đăng nhập cuối</th><th></th></tr>
+              <tr><th>Tên đăng nhập</th><th>Họ tên</th><th class="text-center">Vai trò</th><th>Đăng nhập cuối</th><th class="text-center">Trạng thái</th><th class="text-end"></th></tr>
             </thead>
-            <tbody>
+            <tbody class="jp-gc-rows">
             {% for a in accounts %}
-              <tr class="{% if not a.is_active %}table-secondary{% endif %}">
-                <td class="fw-semibold small">{{ a.username }}{% if not a.is_active %} <span class="badge bg-secondary">Khóa</span>{% endif %}{% if a.must_change_password %} <span class="badge bg-light text-dark border">Chờ đổi MK</span>{% endif %}</td>
-                <td class="small">{{ a.full_name|default:"—" }}{% if a.phone %}<div class="text-muted">{{ a.phone }}</div>{% endif %}</td>
-                <td class="small">{{ a.get_role_display }}</td>
-                <td class="small">{% if a.last_login %}{{ a.last_login|date:'d/m/Y H:i' }}{% else %}—{% endif %}</td>
-                <td class="text-end text-nowrap">
+              <tr>
+                <td class="jp-gc-name small">{{ a.username }}</td>
+                <td class="small">{{ a.full_name|default:"—" }}{% if a.phone %}<span class="jp-gc-sub">{{ a.phone }}</span>{% endif %}</td>
+                <td class="text-center">{% if a.role == 'owner' %}<span class="jp-gc-badge is-info is-plain">{{ a.get_role_display }}</span>{% else %}<span class="jp-gc-badge is-plain">{{ a.get_role_display }}</span>{% endif %}</td>
+                <td class="small">{% if a.last_login %}{{ a.last_login|date:'d/m/Y H:i' }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                <td class="text-center">
+                  {% if not a.is_active %}<span class="jp-gc-badge">Đã khóa</span>
+                  {% elif a.is_locked %}<span class="jp-gc-badge is-bad">Tạm khóa</span>
+                  {% elif a.must_change_password %}<span class="jp-gc-badge is-warn">Chờ đổi MK</span>
+                  {% else %}<span class="jp-gc-badge is-ok">Hoạt động</span>{% endif %}
+                </td>
+                <td class="text-end">
                   {% if can_edit %}
-                  <form method="post" class="d-inline" onsubmit="return confirm('Đặt lại mật khẩu {{ a.username }}?');">{% csrf_token %}
-                    <input type="hidden" name="action" value="reset_password"><input type="hidden" name="account_id" value="{{ a.pk }}">
-                    <button class="btn btn-sm btn-outline-secondary" title="Đặt lại mật khẩu"><i class="bi bi-key"></i></button>
-                  </form>
-                  <form method="post" class="d-inline">{% csrf_token %}
-                    <input type="hidden" name="action" value="toggle_account"><input type="hidden" name="account_id" value="{{ a.pk }}">
-                    <button class="btn btn-sm {% if a.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %}" title="{% if a.is_active %}Khóa{% else %}Mở khóa{% endif %}">
-                      <i class="bi {% if a.is_active %}bi-lock{% else %}bi-unlock{% endif %}"></i>
-                    </button>
-                  </form>
+                  <div class="jp-gc-actions">
+                    <form method="post" onsubmit="return confirm('Đặt lại mật khẩu {{ a.username }}?');">{% csrf_token %}
+                      <input type="hidden" name="action" value="reset_password"><input type="hidden" name="account_id" value="{{ a.pk }}">
+                      <button class="btn btn-sm btn-outline-secondary jp-gc-icon-btn" title="Đặt lại mật khẩu"><i class="bi bi-key"></i></button>
+                    </form>
+                    <form method="post">{% csrf_token %}
+                      <input type="hidden" name="action" value="toggle_account"><input type="hidden" name="account_id" value="{{ a.pk }}">
+                      <button class="btn btn-sm jp-gc-icon-btn {% if a.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %}" title="{% if a.is_active %}Khóa{% else %}Mở khóa{% endif %}"><i class="bi {% if a.is_active %}bi-lock{% else %}bi-unlock{% endif %}"></i></button>
+                    </form>
+                  </div>
                   {% endif %}
                 </td>
               </tr>
             {% empty %}
-              <tr><td colspan="5" class="text-muted small p-3 text-center">Chưa có tài khoản.</td></tr>
+              <tr><td colspan="6" class="jp-gc-empty"><i class="bi bi-person-vcard"></i>Chưa có tài khoản.</td></tr>
             {% endfor %}
             </tbody>
           </table>
         </div>
         {% if can_edit %}
-        <div class="card-body border-top">
+        <div class="jp-gc-card-body border-top">
           <form method="post" autocomplete="off">
             {% csrf_token %}
             <input type="hidden" name="action" value="add_account">
             <div class="row g-2 align-items-end">
               {% for field in account_form %}
               <div class="col-6 col-md-4">
-                <label class="form-label small mb-1" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                <label class="form-label fw-bold small mb-1" for="{{ field.id_for_label }}">{{ field.label }}</label>
                 {{ field }}
                 {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
               </div>
               {% endfor %}
-              <div class="col-6 col-md-4"><button class="btn btn-hm btn-sm fw-bold w-100">Tạo tài khoản</button></div>
+              <div class="col-6 col-md-4"><button class="btn btn-hm btn-sm fw-bold px-4">Tạo tài khoản</button></div>
             </div>
           </form>
         </div>
         {% endif %}
       </div>
-      <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white border-bottom py-3"><h6 class="fw-bold mb-0">Phiếu GC gần đây</h6></div>
+
+      <div class="jp-gc-card">
+        <div class="jp-gc-card-head">
+          <h6><i class="bi bi-file-earmark-text"></i>Phiếu GC gần đây</h6>
+          <a href="{% url 'san_xuat:subcontract_list' %}?partner={{ partner.pk }}" class="small">Xem tất cả</a>
+        </div>
         <div class="table-responsive">
-          <table class="table table-sm table-hover align-middle mb-0">
+          <table class="table table-sm table-hover align-middle mb-0 jp-gc-table">
             <thead class="table-light">
-              <tr><th>Mã</th><th>LSX / SP</th><th>Công đoạn</th><th class="text-end">SL</th><th class="text-end">Nhận</th><th class="text-end">Đơn giá</th><th>TT</th></tr>
+              <tr><th>Mã</th><th>LSX / SP</th><th>Công đoạn</th><th class="text-end">SL</th><th>Nhận</th><th class="text-end">Đơn giá</th><th class="text-center">Cổng đối tác</th></tr>
             </thead>
-            <tbody>
+            <tbody class="jp-gc-rows">
             {% for o in recent_orders %}
               <tr>
-                <td class="small"><a href="{% url 'san_xuat:subcontract_detail' o.pk %}">{{ o.code }}</a><div class="text-muted">{{ o.order_date|date:'d/m/Y' }}</div></td>
-                <td class="small">{% if o.production_order %}{{ o.production_order.code }}<br>{% endif %}<span class="text-muted">{{ o.product_code }}</span></td>
+                <td class="small"><a href="{% url 'san_xuat:subcontract_detail' o.pk %}" class="jp-gc-name">{{ o.code }}</a><span class="jp-gc-sub">{{ o.order_date|date:'d/m/Y' }} · {{ o.work_status_label }}</span></td>
+                <td class="small">{% if o.production_order %}{{ o.production_order.code }}{% endif %}<span class="jp-gc-sub">{{ o.product_code }}</span></td>
                 <td class="small">{{ o.process_name|default:o.team_slug }}</td>
-                <td class="text-end small">{{ o.qty|sx_num }}</td>
-                <td class="text-end small">{{ o.qty_received|sx_num }}</td>
-                <td class="text-end small">{{ o.unit_price|sx_num:0 }}</td>
-                <td class="small">{{ o.get_status_display }}</td>
+                <td class="text-end jp-gc-num">{{ o.qty|sx_num }}</td>
+                <td>
+                  {% widthratio o.qty_received o.qty 100 as pct %}
+                  <div class="jp-gc-progress{% if o.qty and o.qty_received >= o.qty %} is-done{% endif %}"><div class="jp-gc-progress-track"><span style="--p: {{ pct }}%"></span></div><span class="jp-gc-progress-label">{{ o.qty_received|sx_num }}</span></div>
+                </td>
+                <td class="text-end jp-gc-num">{{ o.unit_price|sx_num:0 }}</td>
+                <td class="text-center">
+                  {% with st=o.partner_state %}
+                  {% if st == 'accepted' %}<span class="jp-gc-badge is-ok">{{ o.partner_state_label }}</span>
+                  {% elif st == 'waiting' %}<span class="jp-gc-badge is-warn">{{ o.partner_state_label }}</span>
+                  {% elif st == 'rejected' %}<span class="jp-gc-badge is-bad" title="{{ o.partner_reject_reason }}">{{ o.partner_state_label }}</span>
+                  {% else %}<span class="jp-gc-badge">{{ o.partner_state_label }}</span>{% endif %}
+                  {% endwith %}
+                </td>
               </tr>
             {% empty %}
-              <tr><td colspan="7" class="text-muted small p-3 text-center">Chưa có phiếu GC.</td></tr>
+              <tr><td colspan="7" class="jp-gc-empty"><i class="bi bi-inbox"></i>Chưa có phiếu GC.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="jp-gc-card">
+        <div class="jp-gc-card-head"><h6><i class="bi bi-clock-history"></i>Nhật ký cổng đối tác</h6><span class="small text-muted">30 thao tác gần nhất</span></div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0 jp-gc-table">
+            <thead class="table-light"><tr><th>Lúc</th><th>Tài khoản</th><th>Thao tác</th><th>Chi tiết</th><th>IP</th></tr></thead>
+            <tbody class="jp-gc-rows">
+            {% for a in activities %}
+              <tr>
+                <td class="small text-nowrap">{{ a.created_at|date:'d/m/Y H:i' }}</td>
+                <td class="small">{{ a.username|default:"—" }}</td>
+                <td>
+                  {% if a.action == 'login_failed' %}<span class="jp-gc-badge is-bad">{{ a.get_action_display }}</span>
+                  {% elif a.action == 'accept_order' or a.action == 'submit_report' %}<span class="jp-gc-badge is-ok">{{ a.get_action_display }}</span>
+                  {% elif a.action == 'reject_order' or a.action == 'cancel_report' %}<span class="jp-gc-badge is-warn">{{ a.get_action_display }}</span>
+                  {% else %}<span class="jp-gc-badge">{{ a.get_action_display }}</span>{% endif %}
+                </td>
+                <td class="small">{% if a.order %}<a href="{% url 'san_xuat:subcontract_detail' a.order_id %}">{{ a.detail|default:a.order.code }}</a>{% else %}{{ a.detail }}{% endif %}</td>
+                <td class="small text-muted">{{ a.ip|default:"" }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="5" class="jp-gc-empty"><i class="bi bi-clock-history"></i>Chưa có thao tác.</td></tr>
             {% endfor %}
             </tbody>
           </table>
         </div>
       </div>
     </div>
+  </div>
   </div>
 </div>
 {% endblock %}

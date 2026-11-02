@@ -355,22 +355,14 @@ def _resolve_unit_price(*, unit_price, partner, product_code: str, team_slug: st
 
 
 def default_subcontract_vendor_name(*, team_slug: str = "") -> str:
-    """Ưu tiên tổ GC cùng slug với công đoạn; nếu chỉ có một tổ GC thì lấy tổ đó."""
-    centers = list(
-        SxWorkCenter.objects.filter(is_demo=False, is_active=True, is_subcontract=True)
-        .order_by("name", "code")
-    )
-    if not centers:
-        return ""
-    slug = (team_slug or "").strip().lower()
-    if slug:
-        from san_xuat.services.capacity_from_hrm import team_slug_for_work_center
+    """Tên tổ gia công mặc định theo công đoạn (lấy từ GcPartner)."""
+    pid = default_subcontract_partner_id(team_slug=team_slug)
+    if pid:
+        from san_xuat.partner_models import GcPartner
 
-        for center in centers:
-            if team_slug_for_work_center(center) == slug:
-                return (center.name or "").strip()
-    if len(centers) == 1:
-        return (centers[0].name or "").strip()
+        partner = GcPartner.objects.filter(pk=pid).only("name").first()
+        if partner:
+            return (partner.name or "").strip()
     return ""
 
 
@@ -926,6 +918,8 @@ def update_subcontract_order(
     order = SxSubcontractOrder.objects.select_for_update().get(pk=order_id)
     if order.status != SxSubcontractOrder.STATUS_DRAFT:
         raise Phase3Error("Chỉ được sửa phiếu Thuê SX đang ở trạng thái nháp.")
+    if order.partner_sent_at and partner_id and int(partner_id) != order.partner_id:
+        raise Phase3Error("Phiếu đã gửi đối tác — thu hồi phiếu trước khi đổi đối tác.")
     partner, vendor_name = _apply_partner(
         partner_id=partner_id, vendor_name=vendor_name,
     )

@@ -10,10 +10,65 @@
   </a>
 </nav>
 
+<!-- Order summary -->
+<div class="card pn-card mb-4 pn-fade-in">
+  <div class="card-body">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+      <div>
+        <div class="pn-order-code fs-5">{{ order.code }}</div>
+        <div class="text-muted small">{{ order.process_name|default:order.team_slug }} · <strong>{{ order.product_code }}</strong> {{ order.product_name }}</div>
+      </div>
+      {% if row.is_new %}<span class="pn-status pn-status--new">Chờ nhận đơn</span>
+      {% elif row.is_open %}<span class="pn-status pn-status--active">Đang làm</span>
+      {% else %}<span class="pn-status pn-status--done">Đã xong</span>{% endif %}
+    </div>
+    <div class="row g-3 small">
+      <div class="col-6 col-md-3"><div class="text-muted">SL đặt</div><div class="fw-bold fs-6">{{ order.qty|sx_num }}</div></div>
+      <div class="col-6 col-md-3"><div class="text-muted">QC đã duyệt</div><div class="fw-bold fs-6 text-hm">{{ row.approved|sx_num }}{% if row.over %} <span class="small text-muted">(vượt {{ row.over|sx_num }})</span>{% endif %}</div></div>
+      <div class="col-6 col-md-3"><div class="text-muted">Ngày giao</div><div class="fw-semibold">{{ order.partner_sent_at|date:'d/m/Y' }}</div></div>
+      <div class="col-6 col-md-3"><div class="text-muted">Hạn</div><div class="fw-semibold {% if row.is_late %}text-danger{% endif %}">{{ order.due_date|date:'d/m/Y'|default:'—' }}{% if row.is_late %} · Trễ hạn{% endif %}</div></div>
+      {% if show_price %}
+      <div class="col-6 col-md-3"><div class="text-muted">Đơn giá / SP</div><div class="fw-semibold">{{ order.unit_price|sx_num:0 }} đ</div></div>
+      <div class="col-6 col-md-3"><div class="text-muted">Thành tiền (SL duyệt × đơn giá)</div><div class="fw-semibold">{{ row.amount|sx_num:0 }} đ</div></div>
+      {% endif %}
+      {% if order.partner_accepted_at %}
+      <div class="col-12 col-md-6"><div class="text-muted">Nhận đơn</div><div>{{ order.partner_accepted_at|date:'d/m/Y H:i' }}{% if order.partner_accepted_by %} · {{ order.partner_accepted_by.full_name|default:order.partner_accepted_by.username }}{% endif %}</div></div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Accept / reject -->
+{% if row.is_new %}
+<section class="pn-report-panel mb-4 pn-fade-in">
+  <div class="pn-report-heading"><span class="pn-report-icon"><i class="bi bi-inbox"></i></span><div><h2>Đơn mới từ JustPlay</h2><p>Nhận đơn để bắt đầu báo sản lượng, hoặc từ chối kèm lý do.</p></div></div>
+  <div class="pn-report-body">
+    {% if is_owner %}
+    <div class="row g-3 align-items-end">
+      <div class="col-12 col-md-4">
+        <form method="post">{% csrf_token %}<input type="hidden" name="action" value="accept">
+          <button class="btn btn-hm fw-bold w-100 py-2"><i class="bi bi-check2-circle me-1"></i>Nhận đơn</button>
+        </form>
+      </div>
+      <div class="col-12 col-md-8">
+        <form method="post" class="d-flex gap-2" onsubmit="return confirm('Từ chối đơn {{ order.code }}?');">{% csrf_token %}
+          <input type="hidden" name="action" value="reject">
+          <input type="text" name="reason" class="form-control" placeholder="Lý do từ chối (bắt buộc)" maxlength="255" required>
+          <button class="btn btn-outline-danger fw-bold text-nowrap">Từ chối</button>
+        </form>
+      </div>
+    </div>
+    {% else %}
+    <div class="text-muted small"><i class="bi bi-info-circle me-1"></i>Đơn đang chờ chủ / quản lý đối tác bấm <strong>Nhận đơn</strong>. Sau đó bạn mới báo sản lượng được.</div>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
 <!-- Report form -->
 {% if row.is_open and order.partner_accepted_at %}
 <section class="pn-report-panel mb-4 pn-fade-in">
-  <div class="pn-report-heading"><span class="pn-report-icon"><i class="bi bi-pencil-square"></i></span><div><h2>Báo sản lượng hôm nay</h2><p>Nhập số lượng hoàn thành theo từng size trong ngày.</p></div></div>
+  <div class="pn-report-heading"><span class="pn-report-icon"><i class="bi bi-pencil-square"></i></span><div><h2>Báo sản lượng</h2><p>Nhập số lượng hoàn thành theo từng size trong ngày. Được báo vượt kế hoạch — JustPlay QC duyệt số đạt.</p></div></div>
   <div class="pn-report-body">
     <form method="post">
       {% csrf_token %}<input type="hidden" name="action" value="report">
@@ -102,13 +157,17 @@
               <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-2"><i class="bi bi-hourglass-split me-1"></i>Chờ duyệt</span>
             {% elif rpt.status == 'approved' %}
               <span class="badge bg-success-subtle text-success-emphasis rounded-pill px-2"><i class="bi bi-check-circle me-1"></i>Đã duyệt</span>
+            {% elif rpt.status == 'cancelled' %}
+              <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill px-2"><i class="bi bi-slash-circle me-1"></i>Đã hủy</span>
             {% else %}
               <span class="badge bg-danger-subtle text-danger-emphasis rounded-pill px-2"><i class="bi bi-x-circle me-1"></i>Từ chối</span>
             {% endif %}
           </td>
           <td class="small text-muted">
             {{ rpt.note|default:"" }}
-            {% if rpt.review_note %}<br><span class="text-danger small"><i class="bi bi-chat-quote me-1"></i>QC: {{ rpt.review_note }}</span>{% endif %}
+            {% if rpt.account %}<div>Báo: {{ rpt.account.full_name|default:rpt.account.username }}</div>{% endif %}
+            {% if rpt.review_note %}<span class="text-danger small"><i class="bi bi-chat-quote me-1"></i>QC: {{ rpt.review_note }}</span>{% endif %}
+            {% if rpt.status == 'cancelled' and rpt.cancelled_by %}<div>Hủy bởi {{ rpt.cancelled_by.full_name|default:rpt.cancelled_by.username }} · {{ rpt.cancelled_at|date:'d/m H:i' }}</div>{% endif %}
           </td>
           <td class="text-end pe-3">
             {% if rpt.status == 'submitted' %}

@@ -4,6 +4,7 @@ from django.views.generic import RedirectView
 from san_xuat import (
     views,
     views_export,
+    views_gc,
     views_gc_partner,
     views_hub,
     views_ie,
@@ -239,13 +240,20 @@ urlpatterns = [
     path('dong-goi/them/', views_hub.packing_create, name='packing_create'),
     path('dong-goi/<int:pk>/', views_hub.packing_detail, name='packing_detail'),
     path('dong-goi/<int:pk>/in/', views_print.print_packing, name='print_packing'),
-    # Gia Công — URL chuẩn tập trung toàn bộ nghiệp vụ thuê ngoài.
-    path('gia-cong/', views_hub.subcontract_list, name='subcontract_list'),
+    # Gia Công — URL chuẩn tập trung toàn bộ nghiệp vụ thuê ngoài (menu quyền `subcontract`).
+    path('gia-cong/', views_gc.subcontract_list, name='subcontract_list'),
     path('gia-cong/them/', views_hub.subcontract_create, name='subcontract_create'),
     path('gia-cong/<int:pk>/', views_hub.subcontract_detail, name='subcontract_detail'),
     path('gia-cong/<int:pk>/in/', views_print.print_subcontract, name='print_subcontract'),
+    # "Tổ gia công" = đối tác GC (gộp). URL tổ GC cũ chuyển hướng về trang đối tác.
+    path('gia-cong/to/', views_gc.gc_team_list, name='gc_team_list'),
+    path('gia-cong/to/them/', views_gc.gc_team_create, name='gc_team_create'),
+    path('gia-cong/to/<int:pk>/', views_gc.gc_team_edit, name='gc_team_edit'),
     path('gia-cong/doi-tac/', views_gc_partner.gc_partner_list, name='gc_partner_list'),
     path('gia-cong/doi-tac/<int:pk>/', views_gc_partner.gc_partner_detail, name='gc_partner_detail'),
+    path('gia-cong/tai-khoan/', views_gc.gc_account_list, name='gc_account_list'),
+    path('gia-cong/thong-ke/', views_gc.gc_stats, name='gc_stats'),
+    path('gia-cong/kpi/', views_gc.gc_kpi, name='gc_kpi'),
     path('gia-cong/duyet-san-luong/', views_gc_partner.gc_output_review, name='gc_output_review'),
     # URL cũ — redirect để giữ bookmark/thông báo cũ.
     path('thue-gia-cong/', _legacy('subcontract_list')),

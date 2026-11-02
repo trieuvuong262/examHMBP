@@ -18,9 +18,11 @@ def _team_choices():
 
 
 class GcPartnerForm(forms.ModelForm):
+    """Form tổ gia công — đơn vị thuê ngoài, song song với tổ nội bộ trên kế hoạch SX."""
+
     team_slugs = forms.MultipleChoiceField(
         required=False,
-        label='Công đoạn nhận GC',
+        label='Công đoạn',
         choices=[],
         widget=forms.CheckboxSelectMultiple,
     )
@@ -28,8 +30,9 @@ class GcPartnerForm(forms.ModelForm):
     class Meta:
         model = GcPartner
         fields = [
-            'code', 'name', 'tax_code', 'contact_name', 'phone', 'email', 'address',
-            'team_slugs', 'work_center', 'capacity_per_day', 'payment_terms', 'notes', 'is_active',
+            'code', 'name', 'team_slugs', 'capacity_per_day',
+            'tax_code', 'contact_name', 'phone', 'email', 'address',
+            'payment_terms', 'notes', 'is_active',
         ]
         widgets = {
             'code': forms.TextInput(attrs=_INPUT),
@@ -39,29 +42,28 @@ class GcPartnerForm(forms.ModelForm):
             'phone': forms.TextInput(attrs=_INPUT),
             'email': forms.EmailInput(attrs=_INPUT),
             'address': forms.TextInput(attrs=_INPUT),
-            'work_center': forms.Select(attrs=_SELECT),
             'capacity_per_day': forms.NumberInput(attrs={**_INPUT, 'step': 'any', 'min': '0'}),
             'payment_terms': forms.TextInput(attrs=_INPUT),
             'notes': forms.Textarea(attrs={**_INPUT, 'rows': 2}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
+        labels = {
+            'code': 'Mã tổ',
+            'name': 'Tên tổ gia công',
+            'capacity_per_day': 'Năng lực / ngày (SP)',
+            'is_active': 'Đang hợp tác',
+        }
 
     def __init__(self, *args, **kwargs):
-        from san_xuat.hub_models import SxWorkCenter
-
         super().__init__(*args, **kwargs)
         self.fields['team_slugs'].choices = _team_choices()
-        self.fields['work_center'].queryset = SxWorkCenter.objects.filter(
-            is_demo=False, is_subcontract=True,
-        ).order_by('name')
-        self.fields['work_center'].required = False
-        self.fields['work_center'].empty_label = '— Không gắn —'
-        self.fields['work_center'].help_text = 'Tổ đánh dấu "thuê gia công" trên danh mục năng lực (nếu có).'
+        if self.instance and self.instance.pk and not self.is_bound:
+            self.initial.setdefault('team_slugs', list(self.instance.team_slugs or []))
 
     def clean_code(self):
         code = (self.cleaned_data.get('code') or '').strip().upper()
         if not code:
-            raise forms.ValidationError('Nhập mã đối tác.')
+            raise forms.ValidationError('Nhập mã tổ gia công.')
         return code
 
 

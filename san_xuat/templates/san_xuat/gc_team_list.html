@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% load sx_format %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/gc_ui_styles.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-gc-page jp-npl-material-catalog-page py-3 py-md-4 mb-5"
+     data-loading-message="Đang tải tổ gia công…">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Tổ gia công</h2>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="{% url 'san_xuat:gc_partner_list' %}"><i class="bi bi-buildings" aria-hidden="true"></i>Đối tác</a>
+      {% if can_edit %}
+      <a href="{% url 'san_xuat:gc_team_create' %}" class="btn btn-hm btn-sm fw-bold"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Thêm tổ gia công</a>
+      {% endif %}
+      {% include 'san_xuat/includes/sx_list_col_picker.html' %}
+    </nav>
+  </div>
+
+  <div class="jp-sx-page-body">
+    <form method="get" class="card border-0 shadow-sm mb-3 jp-team-filter-form" role="search" aria-label="Bộ lọc tổ gia công">
+      <div class="card-body p-3 jp-team-filter-body">
+        <div class="jp-team-filter-org-search">
+          <div class="jp-team-filter-org" style="flex-basis:16rem">
+            <label class="form-label fw-bold small mb-1" for="jp-gct-q">Tìm kiếm</label>
+            <input type="search" id="jp-gct-q" name="q" value="{{ search_query }}" class="form-control form-control-sm" placeholder="Mã, tên tổ…" autocomplete="off">
+          </div>
+          <div class="jp-team-filter-org">
+            <label class="form-label fw-bold small mb-1" for="jp-gct-show">Trạng thái</label>
+            <select id="jp-gct-show" name="show" class="form-select form-select-sm" onchange="this.form.submit()">
+              <option value="active" {% if show == 'active' %}selected{% endif %}>Đang dùng</option>
+              <option value="inactive" {% if show == 'inactive' %}selected{% endif %}>Ngưng</option>
+              <option value="all" {% if show == 'all' %}selected{% endif %}>Tất cả</option>
+            </select>
+          </div>
+        </div>
+        <div class="jp-team-filter-actions"><button type="submit" class="btn btn-hm btn-sm fw-bold">Lọc</button></div>
+      </div>
+    </form>
+
+    <div class="card border-0 shadow-sm overflow-hidden">
+      <div class="jp-npl-mat-grid-wrap">
+        <table class="table table-hover table-sm mb-0 align-middle jp-npl-mat-grid jp-gc-table" id="{{ sx_list_table_id }}">
+          <thead class="table-light"><tr>{% include 'san_xuat/includes/sx_list_grid_head.html' %}</tr></thead>
+          <tbody class="jp-gc-rows">
+          {% for row in rows %}
+            {% with c=row.center %}
+            <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:gc_team_edit' c.pk %}">
+              <td class="npl-col" data-col="name"><span class="jp-gc-name">{{ c.name }}</span><span class="jp-gc-sub">{{ c.code }}</span></td>
+              <td class="npl-col small" data-col="stage">{{ row.stage_label|default:"—" }}</td>
+              <td class="npl-col" data-col="partners">
+                {% for p in row.partners %}<a href="{% url 'san_xuat:gc_partner_detail' p.pk %}" class="jp-gc-chip">{{ p.name }}</a>{% empty %}<span class="text-muted small">Chưa gắn</span>{% endfor %}
+              </td>
+              <td class="npl-col text-end jp-gc-num" data-col="capacity">{% if c.capacity_per_day %}{{ c.capacity_per_day|sx_num }}{% else %}—{% endif %}</td>
+              <td class="npl-col text-center" data-col="open_orders">
+                {% if row.open_orders %}<a href="{% url 'san_xuat:subcontract_list' %}?status=running&amp;q={{ c.name|urlencode }}" class="jp-gc-badge is-info is-plain">{{ row.open_orders }}</a>{% else %}<span class="text-muted">—</span>{% endif %}
+              </td>
+              <td class="npl-col text-end jp-gc-num" data-col="open_qty">{% if row.open_qty %}{{ row.open_qty|sx_num }}{% else %}—{% endif %}</td>
+              <td class="npl-col text-center" data-col="status">{% if c.is_active %}<span class="jp-gc-badge is-ok">Đang dùng</span>{% else %}<span class="jp-gc-badge">Ngưng</span>{% endif %}</td>
+              {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=c %}
+            </tr>
+            {% endwith %}
+          {% empty %}
+            <tr><td colspan="{{ list_columns|length }}" class="jp-gc-empty"><i class="bi bi-people"></i>Chưa có tổ gia công.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
+{% endblock %}

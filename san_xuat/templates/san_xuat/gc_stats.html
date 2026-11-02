@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+{% load sx_format %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/gc_ui_styles.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-gc-page py-3 py-md-4 mb-5" data-loading-message="Đang tổng hợp thống kê gia công…">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Thống kê gia công</h2>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="{% url 'san_xuat:gc_kpi' %}?month={{ report.month_value }}"><i class="bi bi-speedometer2" aria-hidden="true"></i>KPI gia công</a>
+      <a href="{% url 'san_xuat:subcontract_list' %}?date_from={{ report.start|date:'Y-m-d' }}&amp;date_to={{ report.end|date:'Y-m-d' }}"><i class="bi bi-file-earmark-text" aria-hidden="true"></i>Phiếu trong tháng</a>
+    </nav>
+  </div>
+
+  <div class="jp-sx-page-body">
+    <form method="get" class="card border-0 shadow-sm mb-3 jp-team-filter-form">
+      <div class="card-body p-3 jp-team-filter-body">
+        <input type="hidden" name="by" value="{{ report.group_by }}">
+        <div class="jp-team-filter-period">
+          <label class="form-label fw-bold small mb-1" for="jp-gcs-month">Tháng</label>
+          <input type="month" id="jp-gcs-month" name="month" value="{{ report.month_value }}" class="form-control form-control-sm" onchange="this.form.submit()">
+        </div>
+        <ul class="nav nav-pills jp-portal-pills gap-2 mb-0 align-self-end">
+          {% for value, label in group_choices %}
+          <li class="nav-item"><a class="nav-link rounded-pill fw-bold{% if report.group_by == value %} active{% endif %}" href="?month={{ report.month_value }}&amp;by={{ value }}">{{ label }}</a></li>
+          {% endfor %}
+        </ul>
+        <span class="text-muted small ms-auto align-self-center">{{ report.start|date:'d/m/Y' }} – {{ report.end|date:'d/m/Y' }}</span>
+      </div>
+    </form>
+
+    {% with t=report.total %}
+    <div class="jp-gc-stats jp-gc-anim">
+      <div class="jp-gc-stat">
+        <div class="jp-gc-stat-head">Phiếu GC trong tháng<span class="jp-gc-stat-icon"><i class="bi bi-file-earmark-text"></i></span></div>
+        <div class="jp-gc-stat-value">{{ t.orders }}</div>
+        <div class="jp-gc-stat-sub">SL đặt {{ t.qty|sx_num }} · nhận {{ t.qty_received|sx_num }}</div>
+      </div>
+      <div class="jp-gc-stat is-ok">
+        <div class="jp-gc-stat-head">SL duyệt / báo<span class="jp-gc-stat-icon"><i class="bi bi-check2-circle"></i></span></div>
+        <div class="jp-gc-stat-value">{{ t.approved|sx_num }} <small>/ {{ t.reported|sx_num }}</small></div>
+        <div class="jp-gc-stat-sub">Đạt {% if t.pass_rate is not None %}{{ t.pass_rate|sx_num:1 }}%{% else %}—{% endif %}{% if t.pending_qty %} · chờ duyệt {{ t.pending_qty|sx_num }}{% endif %}</div>
+      </div>
+      <div class="jp-gc-stat is-info">
+        <div class="jp-gc-stat-head">Đúng hạn<span class="jp-gc-stat-icon"><i class="bi bi-calendar2-check"></i></span></div>
+        <div class="jp-gc-stat-value">{% if t.on_time_rate is not None %}{{ t.on_time_rate|sx_num:1 }}%{% else %}—{% endif %}</div>
+        <div class="jp-gc-stat-sub">{{ t.on_time }}/{{ t.with_due }} phiếu có hạn · {{ t.done_orders }} nhận lại</div>
+      </div>
+      <div class="jp-gc-stat is-warn">
+        <div class="jp-gc-stat-head">Thành tiền duyệt<span class="jp-gc-stat-icon"><i class="bi bi-cash-coin"></i></span></div>
+        <div class="jp-gc-stat-value">{{ t.amount|sx_num:0 }} <small>đ</small></div>
+        <div class="jp-gc-stat-sub">Phí GC theo phiếu {{ t.service_fee|sx_num:0 }}</div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm overflow-hidden">
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0 jp-gc-table">
+          <thead class="table-light">
+            <tr>
+              <th>{% if report.group_by == 'team' %}Tổ / công đoạn{% elif report.group_by == 'order' %}Đơn hàng{% else %}Đối tác{% endif %}</th>
+              <th class="text-center">Phiếu</th>
+              <th class="text-end">SL đặt</th>
+              <th class="text-end">SL nhận</th>
+              <th class="text-end">SL báo</th>
+              <th>SL duyệt</th>
+              <th class="text-end">Tỷ lệ đạt</th>
+              <th class="text-end">Chờ duyệt</th>
+              <th class="text-end">Đúng hạn</th>
+              <th class="text-end">Thành tiền duyệt</th>
+              <th class="text-end">Phí GC (phiếu)</th>
+            </tr>
+          </thead>
+          <tbody class="jp-gc-rows">
+          {% for r in report.rows %}
+            <tr>
+              <td>{% if r.url %}<a href="{{ r.url }}" class="jp-gc-name">{{ r.label }}</a>{% else %}<span class="jp-gc-name">{{ r.label }}</span>{% endif %}</td>
+              <td class="text-center jp-gc-num">{{ r.orders }}</td>
+              <td class="text-end jp-gc-num">{{ r.qty|sx_num }}</td>
+              <td class="text-end jp-gc-num">{{ r.qty_received|sx_num }}</td>
+              <td class="text-end jp-gc-num">{{ r.reported|sx_num }}</td>
+              <td>
+                {% widthratio r.approved t.approved 100 as share %}
+                <div class="jp-gc-progress is-done"><div class="jp-gc-progress-track"><span style="--p: {{ share }}%"></span></div><span class="jp-gc-progress-label">{{ r.approved|sx_num }}</span></div>
+              </td>
+              <td class="text-end">{% if r.pass_rate is not None %}<span class="jp-gc-badge is-plain {% if r.pass_rate >= 95 %}is-ok{% elif r.pass_rate >= 85 %}is-info{% else %}is-bad{% endif %}">{{ r.pass_rate|sx_num:1 }}%</span>{% else %}—{% endif %}</td>
+              <td class="text-end jp-gc-num">{% if r.pending_qty %}{{ r.pending_qty|sx_num }}{% else %}—{% endif %}</td>
+              <td class="text-end">{% if r.on_time_rate is not None %}<span class="jp-gc-num">{{ r.on_time_rate|sx_num:1 }}%</span><span class="jp-gc-sub">{{ r.on_time }}/{{ r.with_due }}</span>{% else %}—{% endif %}</td>
+              <td class="text-end jp-gc-num">{{ r.amount|sx_num:0 }}</td>
+              <td class="text-end jp-gc-num">{{ r.service_fee|sx_num:0 }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="11" class="jp-gc-empty"><i class="bi bi-bar-chart"></i>Không có số liệu gia công trong tháng này.</td></tr>
+          {% endfor %}
+          </tbody>
+          {% if report.rows %}
+          <tfoot class="table-light fw-bold">
+            <tr>
+              <td>Tổng cộng</td>
+              <td class="text-center">{{ t.orders }}</td>
+              <td class="text-end">{{ t.qty|sx_num }}</td>
+              <td class="text-end">{{ t.qty_received|sx_num }}</td>
+              <td class="text-end">{{ t.reported|sx_num }}</td>
+              <td>{{ t.approved|sx_num }}</td>
+              <td class="text-end">{% if t.pass_rate is not None %}{{ t.pass_rate|sx_num:1 }}%{% else %}—{% endif %}</td>
+              <td class="text-end">{% if t.pending_qty %}{{ t.pending_qty|sx_num }}{% else %}—{% endif %}</td>
+              <td class="text-end">{% if t.on_time_rate is not None %}{{ t.on_time_rate|sx_num:1 }}%{% else %}—{% endif %}</td>
+              <td class="text-end">{{ t.amount|sx_num:0 }}</td>
+              <td class="text-end">{{ t.service_fee|sx_num:0 }}</td>
+            </tr>
+          </tfoot>
+          {% endif %}
+        </table>
+      </div>
+    </div>
+    {% endwith %}
+  </div>
+</div>
+{% endblock %}

@@ -1,15 +1,17 @@
 {% extends 'base.html' %}
 {% load sx_format %}
-{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% if gc_mode %}{% include 'san_xuat/includes/gc_ui_styles.html' %}{% endif %}{% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+{% url 'san_xuat:capacity_list' as capacity_list_url %}
+{% with back_url=back_href|default:capacity_list_url %}
+<div class="container jp-page jp-sx-page{% if gc_mode %} jp-gc-page{% endif %} py-3 py-md-4 mb-5">
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
       <h2 class="jp-npl-mat-topbar-title w-100">{{ title }}</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
-      <a href="{% url 'san_xuat:capacity_list' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+      <a href="{{ back_url }}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
     </nav>
   </div>
 
@@ -17,7 +19,7 @@
     {% csrf_token %}
     <div class="card border-0 shadow-sm">
       <div class="card-header bg-white border-bottom py-3">
-        <h6 class="fw-bold mb-0">Thông tin tổ sản xuất</h6>
+        <h6 class="fw-bold mb-0">{% if gc_mode %}<i class="bi bi-people text-hm me-1"></i>Thông tin tổ gia công{% else %}Thông tin tổ sản xuất{% endif %}</h6>
       </div>
       <div class="card-body">
         <div class="row g-3">
@@ -38,10 +40,6 @@
               <div class="form-check">
                 {{ form.is_active }}
                 <label class="form-check-label" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
-              </div>
-              <div class="form-check">
-                {{ form.is_subcontract }}
-                <label class="form-check-label" for="{{ form.is_subcontract.id_for_label }}">{{ form.is_subcontract.label }}</label>
               </div>
             </div>
           </div>
@@ -126,7 +124,7 @@
           {% endif %}
         </div>
         <div class="d-flex gap-2">
-          <a href="{% url 'san_xuat:capacity_list' %}" class="btn btn-light border">Hủy</a>
+          <a href="{{ back_url }}" class="btn btn-light border">Hủy</a>
           <button type="submit" class="btn btn-hm fw-bold px-4">
             <i class="bi bi-check-lg me-1"></i>Lưu
           </button>
@@ -141,6 +139,7 @@
   </form>
   {% endif %}
 </div>
+{% endwith %}
 <script>
 (function () {
   var form = document.getElementById('sx-capacity-form');

@@ -50,9 +50,9 @@ def _can_approve_price(user) -> bool:
 
 
 def _partner_kpi(partner, month: str) -> dict:
-    from san_xuat.services.gc_kpi import partner_kpi
+    from san_xuat.services.gc_kpi import kpi_for_display
 
-    return partner_kpi(partner, month=month)
+    return kpi_for_display(partner, month=month)
 
 
 def _perm(request) -> dict:
@@ -81,23 +81,35 @@ def gc_partner_list(request):
         qs = qs.filter(is_active=False)
     if q:
         qs = qs.filter(Q(code__icontains=q) | Q(name__icontains=q) | Q(phone__icontains=q))
+    qs = qs.select_related('created_by').order_by('name', 'code')
+    if (request.GET.get('sort') or '').strip():
+        from san_xuat.list_grid import apply_sx_list_sort
+
+        qs = apply_sx_list_sort(qs, request, 'gc_partner')
 
     form = None
+    show_add_form = (request.GET.get('add') or '').strip() == '1'
     if _can_edit(request.user):
         if request.method == 'POST':
             form = GcPartnerForm(request.POST)
             if form.is_valid():
                 partner = form.save(commit=False)
                 partner.created_by = request.user
+                partner.team_slugs = form.cleaned_data.get('team_slugs') or []
                 partner.save()
-                messages.success(request, f'Đã thêm đối tác {partner.name}.')
+                messages.success(request, f'Đã thêm tổ gia công {partner.name}.')
                 return redirect('san_xuat:gc_partner_detail', pk=partner.pk)
-            messages.error(request, 'Chưa thêm được đối tác — kiểm tra lại các ô báo lỗi.')
+            messages.error(request, 'Chưa thêm được tổ gia công — kiểm tra lại các ô báo lỗi.')
+            show_add_form = True
         else:
             form = GcPartnerForm(initial={'is_active': True})
+    from san_xuat.list_grid import sx_list_grid_context
+
     return render(request, 'san_xuat/gc_partner_list.html', {
         **_perm(request),
-        'partners': qs.order_by('name', 'code'),
+        **sx_list_grid_context(request, 'gc_partner'),
+        'partners': qs,
+        'show_add_form': show_add_form,
         'form': form,
         'search_query': q,
         'show': show,
@@ -125,8 +137,10 @@ def gc_partner_detail(request, pk: int):
         if action == 'update_partner':
             partner_form = GcPartnerForm(request.POST, instance=partner)
             if partner_form.is_valid():
-                partner_form.save()
-                messages.success(request, 'Đã cập nhật thông tin đối tác.')
+                obj = partner_form.save(commit=False)
+                obj.team_slugs = partner_form.cleaned_data.get('team_slugs') or []
+                obj.save()
+                messages.success(request, 'Đã cập nhật thông tin tổ gia công.')
                 return redirect('san_xuat:gc_partner_detail', pk=partner.pk)
             messages.error(request, 'Chưa lưu được — kiểm tra lại các ô báo lỗi.')
 
@@ -227,6 +241,7 @@ def gc_partner_detail(request, pk: int):
         'recent_orders': recent_orders,
         'stats': partner_stats(partner),
         'kpi': _partner_kpi(partner, request.GET.get('month') or ''),
+        'activities': partner.activities.select_related('account', 'order').order_by('-created_at', '-pk')[:30],
         'new_password': new_password,
         'today': timezone.localdate(),
     })
@@ -287,16 +302,26 @@ def gc_output_review(request):
     qs = GcOutputReport.objects.select_related(
         'order', 'order__production_order', 'partner', 'account', 'reviewed_by',
     )
-    if status in {'submitted', 'approved', 'rejected'}:
+    if status in {'submitted', 'approved', 'rejected', 'cancelled'}:
         qs = qs.filter(status=status)
     if partner_id.isdigit():
         qs = qs.filter(partner_id=int(partner_id))
+    from san_xuat.list_grid import apply_sx_list_sort, sx_list_grid_context
+
+    if (request.GET.get('sort') or '').strip():
+        ordered = apply_sx_list_sort(qs, request, 'gc_output')
+    elif status == 'submitted':
+        ordered = qs.order_by('work_date', 'pk')
+    else:
+        ordered = qs.order_by('-reviewed_at', '-pk')
     rows = []
-    for r in qs.order_by('work_date', 'pk')[:300] if status == 'submitted' else qs.order_by('-reviewed_at', '-pk')[:300]:
+    for r in ordered[:300]:
         sizes = [(k, Decimal(str(v))) for k, v in (r.size_qtys or {}).items()]
-        rows.append({'report': r, 'sizes': sizes})
+        posted_qty = sum((Decimal(str(v)) for v in (r.progress_posted or {}).values()), Decimal('0'))
+        rows.append({'report': r, 'sizes': sizes, 'posted_qty': posted_qty})
     return render(request, 'san_xuat/gc_output_review.html', {
         **_perm(request),
+        **sx_list_grid_context(request, 'gc_output'),
         'can_review': can_review,
         'rows': rows,
         'status': status,

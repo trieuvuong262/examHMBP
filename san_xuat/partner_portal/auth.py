@@ -46,16 +46,26 @@ def get_session_account(request) -> GcPartnerAccount | None:
     return acc
 
 
+GENERIC_LOGIN_ERROR = (
+    'Đăng nhập không thành công. Kiểm tra tên đăng nhập, mật khẩu '
+    f'hoặc thử lại sau {LOCK_MINUTES} phút.'
+)
+
+
 def authenticate(username: str, password: str) -> GcPartnerAccount:
-    """Kiểm tra đăng nhập + khoá tạm sau MAX_FAILED lần sai."""
+    """Kiểm tra đăng nhập + khoá tạm sau MAX_FAILED lần sai.
+
+    Mọi lỗi (sai tên, sai mật khẩu, đang khoá) cùng một thông báo — không lộ tên đăng nhập.
+    """
     username = (username or '').strip().lower()
     acc = GcPartnerAccount.objects.select_related('partner').filter(username=username).first()
-    generic = 'Sai tên đăng nhập hoặc mật khẩu.'
+    generic = GENERIC_LOGIN_ERROR
     if acc is None:
         GcPartnerAccount(password='').check_password(password or 'x')  # cân thời gian
         raise PartnerLoginError(generic)
     if acc.is_locked:
-        raise PartnerLoginError('Tài khoản tạm khoá do nhập sai nhiều lần. Thử lại sau ít phút.')
+        acc.check_password(password or 'x')  # cân thời gian
+        raise PartnerLoginError(generic)
     if not acc.check_password(password):
         acc.failed_logins += 1
         fields = ['failed_logins']
@@ -105,11 +115,15 @@ def partner_login_required(view):
     return wrapper
 
 
+def is_owner(account: GcPartnerAccount | None) -> bool:
+    """Chủ / quản lý đối tác: nhận/từ chối đơn, xem giá, KPI. NV chỉ báo sản lượng."""
+    return bool(account and account.role == GcPartnerAccount.ROLE_OWNER)
+
+
 def owner_required(view):
     @wraps(view)
     def wrapper(request, *args, **kwargs):
-        acc = getattr(request, 'gc_account', None)
-        if acc is None or acc.role != GcPartnerAccount.ROLE_OWNER:
+        if not is_owner(getattr(request, 'gc_account', None)):
             return redirect('home')
         return view(request, *args, **kwargs)
 

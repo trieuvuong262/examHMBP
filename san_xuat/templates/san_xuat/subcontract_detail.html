@@ -3,6 +3,7 @@
 {% load sx_format %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/gc_ui_styles.html' %}
 {% if embed %}
 <style>
   .jp-topbar, .jp-sidebar, .jp-site-footer, .jp-sidebar-drawer { display:none !important; }
@@ -17,7 +18,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+<div class="container jp-page jp-sx-page jp-gc-page py-3 py-md-4 mb-5">
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
       <h2 class="jp-npl-mat-topbar-title w-100">{{ item.code }}</h2>
@@ -26,7 +27,7 @@
       {% if can_print %}<a href="{% url 'san_xuat:print_subcontract' item.pk %}?autoprint=1" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i>In A5</a>{% endif %}
       <a href="{% url 'san_xuat:traceability' %}?query={{ item.code }}"><i class="bi bi-signpost-split" aria-hidden="true"></i>Truy vết</a>
       <span class="sep" aria-hidden="true"></span>
-      <a href="{{ board_detail_url }}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại KHSX</a>
+      <a href="{{ board_detail_url }}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Danh sách thuê GC</a>
     </nav>
   </div>
   <div class="row g-3">
@@ -153,6 +154,40 @@
       {% endif %}
     </div>
     <div class="col-lg-5">
+      {% if item.partner %}
+      <div class="jp-gc-card mb-3">
+        <div class="jp-gc-card-head">
+          <h6><i class="bi bi-globe2"></i>Cổng đối tác</h6>
+          {% with st=item.partner_state %}
+          {% if st == 'accepted' %}<span class="jp-gc-badge is-ok">{{ item.partner_state_label }}</span>
+          {% elif st == 'waiting' %}<span class="jp-gc-badge is-warn is-pulse">{{ item.partner_state_label }}</span>
+          {% elif st == 'rejected' %}<span class="jp-gc-badge is-bad">{{ item.partner_state_label }}</span>
+          {% else %}<span class="jp-gc-badge">{{ item.partner_state_label }}</span>{% endif %}
+          {% endwith %}
+        </div>
+        <div class="jp-gc-card-body small">
+          <div class="d-grid gap-1">
+            {% if item.partner_sent_at %}<div><i class="bi bi-send text-muted me-1"></i>Gửi {{ item.partner_sent_at|date:'d/m/Y H:i' }}{% if item.partner_sent_by %} · {{ item.partner_sent_by.get_full_name|default:item.partner_sent_by.username }}{% endif %}</div>{% endif %}
+            {% if item.partner_accepted_at %}<div><i class="bi bi-check2-circle text-success me-1"></i>Nhận {{ item.partner_accepted_at|date:'d/m/Y H:i' }}{% if item.partner_accepted_by %} · {{ item.partner_accepted_by.full_name|default:item.partner_accepted_by.username }}{% endif %}</div>{% endif %}
+            {% if item.partner_rejected_at %}<div class="text-danger"><i class="bi bi-x-octagon me-1"></i>Từ chối {{ item.partner_rejected_at|date:'d/m/Y H:i' }}{% if item.partner_rejected_by %} · {{ item.partner_rejected_by.full_name|default:item.partner_rejected_by.username }}{% endif %}: {{ item.partner_reject_reason }}</div>{% endif %}
+            {% if not item.production_order %}<div class="text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Chưa gắn lệnh sản xuất</div>{% endif %}
+          </div>
+          {% if can_update and item.status != STATUS_CANCELLED and item.status != STATUS_DONE and item.status != STATUS_RECEIVED %}
+          <div class="d-flex gap-2 mt-3">
+            {% if not item.partner_sent_at %}
+            <form method="post" class="d-inline-flex">{% csrf_token %}<input type="hidden" name="action" value="send_partner">
+              <button class="btn btn-hm btn-sm fw-bold" type="submit"{% if not item.production_order %} disabled{% endif %}><i class="bi bi-send me-1" aria-hidden="true"></i>{% if item.partner_rejected_at %}Gửi lại đối tác{% else %}Gửi đối tác{% endif %}</button>
+            </form>
+            {% else %}
+            <form method="post" class="d-inline-flex" onsubmit="return confirm('Thu hồi phiếu khỏi cổng đối tác?');">{% csrf_token %}<input type="hidden" name="action" value="recall_partner">
+              <button class="btn btn-outline-secondary btn-sm fw-bold" type="submit"><i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>Thu hồi</button>
+            </form>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
       <div class="border rounded-3 p-3">
         <div class="small text-muted mb-2">Trạng thái: <strong>{{ item.get_status_display }}</strong>
           · Đơn vị GC: {{ item.vendor_name }}</div>

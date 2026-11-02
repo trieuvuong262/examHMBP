@@ -21,6 +21,7 @@ from hrm.group_permissions import (
 from hrm.module_permissions import (
     MODULE_ASSESSMENT,
     MODULE_LABELS,
+    MODULE_SAN_XUAT,
     MODULE_TRAINING,
     bypass_department_modules,
     get_user_enabled_modules,
@@ -226,6 +227,14 @@ def resolve_menu_from_request(path: str, tab: str | None = None) -> tuple[str | 
 
     if _path_defers_menu_check(path):
         return module_key, None
+
+    # Bookmark cũ tab Thuê gia công trên KHSX — view chuyển sang /san-xuat/gia-cong/.
+    if (
+        module_key == MODULE_SAN_XUAT
+        and tab == 'subcontract'
+        and normalized_path.startswith('/san-xuat/ke-hoach/bang')
+    ):
+        return module_key, 'subcontract'
 
     normalized = path if path.endswith('/') else f'{path}/'
     for pattern, rule_module, menu_key in _MENU_REGEX_RULES:

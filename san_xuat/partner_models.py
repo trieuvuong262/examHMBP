@@ -121,10 +121,12 @@ class GcOutputReport(models.Model):
     STATUS_SUBMITTED = 'submitted'
     STATUS_APPROVED = 'approved'
     STATUS_REJECTED = 'rejected'
+    STATUS_CANCELLED = 'cancelled'
     STATUS_CHOICES = [
         (STATUS_SUBMITTED, 'Chờ QC duyệt'),
         (STATUS_APPROVED, 'Đã duyệt'),
         (STATUS_REJECTED, 'Từ chối'),
+        (STATUS_CANCELLED, 'Đối tác đã hủy'),
     ]
 
     order = models.ForeignKey(
@@ -151,6 +153,10 @@ class GcOutputReport(models.Model):
     )
     reviewed_at = models.DateTimeField(null=True, blank=True)
     review_note = models.CharField(max_length=255, blank=True, default='')
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancelled_by = models.ForeignKey(
+        GcPartnerAccount, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -160,6 +166,80 @@ class GcOutputReport(models.Model):
 
     def __str__(self):
         return f'{self.order_id} {self.work_date} {self.total_qty}'
+
+
+class GcPartnerActivity(models.Model):
+    """Nhật ký thao tác trên cổng pn (đăng nhập, nhận/từ chối đơn, báo/hủy sản lượng)."""
+
+    ACTION_LOGIN = 'login'
+    ACTION_LOGIN_FAILED = 'login_failed'
+    ACTION_LOGOUT = 'logout'
+    ACTION_PASSWORD = 'change_password'
+    ACTION_ACCEPT = 'accept_order'
+    ACTION_REJECT = 'reject_order'
+    ACTION_REPORT = 'submit_report'
+    ACTION_CANCEL_REPORT = 'cancel_report'
+    ACTION_CHOICES = [
+        (ACTION_LOGIN, 'Đăng nhập'),
+        (ACTION_LOGIN_FAILED, 'Đăng nhập sai'),
+        (ACTION_LOGOUT, 'Đăng xuất'),
+        (ACTION_PASSWORD, 'Đổi mật khẩu'),
+        (ACTION_ACCEPT, 'Nhận đơn'),
+        (ACTION_REJECT, 'Từ chối đơn'),
+        (ACTION_REPORT, 'Báo sản lượng'),
+        (ACTION_CANCEL_REPORT, 'Hủy báo sản lượng'),
+    ]
+
+    partner = models.ForeignKey(
+        GcPartner, on_delete=models.CASCADE, null=True, blank=True, related_name='activities',
+    )
+    account = models.ForeignKey(
+        GcPartnerAccount, on_delete=models.SET_NULL, null=True, blank=True, related_name='activities',
+    )
+    username = models.CharField(max_length=60, blank=True, default='')
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES, db_index=True)
+    order = models.ForeignKey(
+        'san_xuat.SxSubcontractOrder', on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+    )
+    detail = models.CharField(max_length=255, blank=True, default='')
+    ip = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=255, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-created_at', '-pk']
+        verbose_name = 'Nhật ký cổng đối tác'
+        verbose_name_plural = 'Nhật ký cổng đối tác'
+
+    def __str__(self):
+        return f'{self.username} {self.action} {self.created_at:%Y-%m-%d %H:%M}'
+
+
+class GcKpiSnapshot(models.Model):
+    """KPI tháng đã chốt của đối tác — không đổi khi dữ liệu cũ được sửa sau đó."""
+
+    GRADE_CHOICES = [('A', 'A'), ('B', 'B'), ('C', 'C')]
+
+    partner = models.ForeignKey(GcPartner, on_delete=models.CASCADE, related_name='kpi_snapshots')
+    month = models.DateField(verbose_name='Tháng (ngày 1)')
+    metrics = models.JSONField(default=dict, verbose_name='Chỉ tiêu đã chốt')
+    score = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True, verbose_name='Điểm')
+    grade = models.CharField(max_length=1, blank=True, default='', choices=GRADE_CHOICES, verbose_name='Hạng')
+    locked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+    )
+    locked_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-month', 'partner__name']
+        constraints = [
+            models.UniqueConstraint(fields=['partner', 'month'], name='uniq_gc_kpi_partner_month'),
+        ]
+        verbose_name = 'KPI gia công đã chốt'
+        verbose_name_plural = 'KPI gia công đã chốt'
+
+    def __str__(self):
+        return f'{self.partner.code} {self.month:%Y-%m} {self.grade}'
 
 
 class GcPriceRule(models.Model):

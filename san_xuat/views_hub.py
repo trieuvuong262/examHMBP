@@ -46,9 +46,6 @@ from san_xuat.list_filters import (
     SX_FILTER_QC_REQUEST,
     SX_FILTER_QC_SHEET,
     SX_FILTER_SUBCONTRACT,
-    SUBCONTRACT_WORK_STATUS_CHOICES,
-    SUBCONTRACT_WORK_STATUS_DONE,
-    SUBCONTRACT_WORK_STATUS_RUNNING,
     SX_FILTER_WIP_HANDOVER,
     SX_FILTER_WIP_RETURN,
     SX_FILTER_WORK_CENTER,
@@ -2044,6 +2041,9 @@ def plan_board(request):
 
     menu_key = 'plan_board'
     tab_peek = (request.GET.get('tab') or request.POST.get('tab') or '').strip()
+    if request.method == 'GET' and tab_peek == 'subcontract':
+        # Tab Thuê gia công cũ trên KHSX → menu Gia Công (/san-xuat/gia-cong/).
+        return _redirect_legacy_subcontract_tab(request)
     can_open_cancel = user_can_access_menu(request.user, MODULE_SAN_XUAT, 'sx_cancel_approve')
     can_open_plan = (
         user_can_access_menu(request.user, MODULE_SAN_XUAT, menu_key)
@@ -2107,8 +2107,6 @@ def plan_board(request):
     plan_status_filter = (request.GET.get('plan_status') or request.POST.get('plan_status') or '').strip()
     if plan_status_filter != 'done':
         plan_status_filter = 'open'
-    gc_status_filter = (request.GET.get('gc_status') or request.POST.get('gc_status') or '').strip()
-    gc_team_filter = (request.GET.get('gc_team') or request.POST.get('gc_team') or '').strip().lower()
     route_view = normalize_route_view(
         request.GET.get('route_view') or request.POST.get('route_view') or ''
     )
@@ -2176,15 +2174,8 @@ def plan_board(request):
                 if date_to_raw:
                     params['date_to'] = date_to_raw
         if tab == 'subcontract':
-            if date_from_raw:
-                params['date_from'] = date_from_raw
-            if date_to_raw:
-                params['date_to'] = date_to_raw
-            if gc_status_filter:
-                params['gc_status'] = gc_status_filter
-            if gc_team_filter:
-                params['gc_team'] = gc_team_filter
-        elif tab == 'route':
+            return redirect('san_xuat:subcontract_list')
+        if tab == 'route':
             route_set = (request.GET.get('route_set') or request.POST.get('route_set') or '').strip()
             route_from_raw = (request.GET.get('route_from') or request.POST.get('route_from') or '').strip()
             route_to_raw = (request.GET.get('route_to') or request.POST.get('route_to') or '').strip()
@@ -2211,14 +2202,6 @@ def plan_board(request):
         npl_open_id = int(request.GET.get('npl') or request.POST.get('npl_open') or 0)
     except (TypeError, ValueError):
         npl_open_id = 0
-    gc_open_id = 0
-    try:
-        gc_open_id = int(request.GET.get('gc') or 0)
-    except (TypeError, ValueError):
-        gc_open_id = 0
-    if request.method == 'GET' and tab == 'subcontract' and gc_open_id:
-        return redirect('san_xuat:subcontract_detail', pk=gc_open_id)
-
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
         try:
@@ -2877,7 +2860,6 @@ def plan_board(request):
     qty_summary = confirmed_order_qty_summary()
     queue_rows = []
     released_rows = []
-    subcontract_items = []
     today_start = None
     today_end_month = None
     filter_date_from = None
@@ -2974,6 +2956,9 @@ def plan_board(request):
             rows = [row for row in rows if not (row.is_overdue or row.khsx_overrun)]
         return rows
 
+    if tab == 'subcontract':
+        # Danh sách phiếu GC đã tách sang menu Gia Công.
+        return redirect('san_xuat:subcontract_list')
     if tab == 'queue':
         from san_xuat.list_filters import parse_sx_date
         from san_xuat.services.plan_board import queue_statuses_for_filter, resolve_route_range
@@ -3046,50 +3031,6 @@ def plan_board(request):
             from san_xuat.services.team_output_report import export_team_output_xlsx
 
             return export_team_output_xlsx(team_report)
-    elif tab == 'subcontract':
-        from django.db.models import Q
-        from san_xuat.list_filters import parse_sx_date
-        from san_xuat.services.team_division_map import team_slug_choices
-
-        filter_date_from = parse_sx_date(date_from_raw)
-        filter_date_to = parse_sx_date(date_to_raw)
-        if filter_date_from and filter_date_to and filter_date_from > filter_date_to:
-            filter_date_from, filter_date_to = filter_date_to, filter_date_from
-        gc_qs = (
-            SxSubcontractOrder.objects.filter(is_demo=False)
-            .select_related('sales_order', 'production_order', 'created_by')
-            .order_by('-order_date', '-pk')
-        )
-        if q:
-            gc_qs = gc_qs.filter(
-                Q(code__icontains=q)
-                | Q(vendor_name__icontains=q)
-                | Q(product_code__icontains=q)
-                | Q(product_name__icontains=q)
-                | Q(sales_order__code__icontains=q)
-            )
-        if filter_date_from:
-            gc_qs = gc_qs.filter(order_date__gte=filter_date_from)
-        if filter_date_to:
-            gc_qs = gc_qs.filter(order_date__lte=filter_date_to)
-        if gc_status_filter == SUBCONTRACT_WORK_STATUS_RUNNING:
-            gc_qs = gc_qs.filter(status__in=[
-                SxSubcontractOrder.STATUS_DRAFT, SxSubcontractOrder.STATUS_SENT,
-            ])
-        elif gc_status_filter == SUBCONTRACT_WORK_STATUS_DONE:
-            gc_qs = gc_qs.filter(status__in=[
-                SxSubcontractOrder.STATUS_RECEIVED, SxSubcontractOrder.STATUS_DONE,
-            ])
-        elif gc_status_filter == SxSubcontractOrder.STATUS_CANCELLED:
-            gc_qs = gc_qs.filter(status=SxSubcontractOrder.STATUS_CANCELLED)
-        else:
-            gc_qs = gc_qs.exclude(status=SxSubcontractOrder.STATUS_CANCELLED)
-        if gc_team_filter:
-            gc_qs = gc_qs.filter(team_slug=gc_team_filter)
-        subcontract_items = list(gc_qs[:500])
-        gc_team_choices = team_slug_choices()
-        route_board = None
-        route_stats = None
     elif tab == 'route':
         from san_xuat.list_filters import parse_sx_date
         from san_xuat.services.plan_board import resolve_route_range
@@ -3272,7 +3213,6 @@ def plan_board(request):
         'qty_summary': qty_summary,
         'queue_rows': queue_rows,
         'released_rows': released_rows,
-        'subcontract_items': subcontract_items,
         'can_schedule': can_schedule,
         'plan_work_centers': plan_board_work_center_options(),
         'can_release': can_release,
@@ -3289,11 +3229,6 @@ def plan_board(request):
         'can_view_subcontract': True,
         'can_create_subcontract': can_release,
         'can_receive_gc': can_schedule,
-        'gc_status_filter': gc_status_filter,
-        'gc_team_filter': gc_team_filter,
-        'gc_status_choices': SUBCONTRACT_WORK_STATUS_CHOICES,
-        'gc_team_choices': locals().get('gc_team_choices', []),
-        'gc_open_id': gc_open_id,
         'plan_status_labels': PLAN_STATUS_LABELS,
         'priority_labels': PRIORITY_LABELS,
         'priority_choices': SxSalesOrder.PRIORITY_CHOICES,
@@ -8630,8 +8565,9 @@ def capacity_list(request):
             return redirect('san_xuat:capacity_list')
 
     filters = parse_sx_list_filters(request)
+    # Tổ gia công quản lý ở menu Gia Công › Tổ gia công.
     base_centers = (
-        SxWorkCenter.objects.filter(is_demo=False)
+        SxWorkCenter.objects.filter(is_demo=False, is_subcontract=False)
         .select_related('created_by', 'division', 'division__department')
     )
     from san_xuat.list_grid import apply_sx_list_sort, sx_list_grid_context
@@ -8773,6 +8709,8 @@ def capacity_edit(request, pk: int):
         pk=pk,
         is_demo=False,
     )
+    if center.is_subcontract:
+        return redirect('san_xuat:gc_team_edit', pk=center.pk)
     can_delete = bool(_perm_ctx(request).get('can_delete')) or user_can_delete_menu(
         request.user, MODULE_SAN_XUAT, 'capacity',
     )
@@ -8968,7 +8906,7 @@ def _subcontract_next_url(request) -> str:
 
     nxt = (request.GET.get('next') or request.POST.get('next') or '').strip()
     if nxt == 'list':
-        return f"{reverse('san_xuat:plan_board')}?mode=list&tab=subcontract"
+        return reverse('san_xuat:subcontract_list')
     if nxt and url_has_allowed_host_and_scheme(
         nxt, allowed_hosts={request.get_host()}, require_https=request.is_secure(),
     ):
@@ -8976,25 +8914,23 @@ def _subcontract_next_url(request) -> str:
     return ''
 
 
-@login_required
-def subcontract_list(request):
-    if not (
-        user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan_board')
-        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan')
-        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'subcontract')
-    ):
-        return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'plan_board')
+def _redirect_legacy_subcontract_tab(request):
+    """Bookmark cũ ``/ke-hoach/bang/?tab=subcontract`` → ``/gia-cong/`` (giữ bộ lọc)."""
     from urllib.parse import urlencode
 
-    params = {'mode': 'list', 'tab': 'subcontract'}
+    gc_open = (request.GET.get('gc') or '').strip()
+    if gc_open.isdigit():
+        return redirect('san_xuat:subcontract_detail', pk=int(gc_open))
+    params = {}
     for source, target in (
         ('q', 'q'), ('date_from', 'date_from'), ('date_to', 'date_to'),
-        ('status', 'gc_status'), ('team', 'gc_team'),
+        ('gc_status', 'status'), ('gc_team', 'team'),
     ):
         value = (request.GET.get(source) or '').strip()
         if value:
             params[target] = value
-    return redirect(f"{reverse('san_xuat:plan_board')}?{urlencode(params)}")
+    url = reverse('san_xuat:subcontract_list')
+    return redirect(f'{url}?{urlencode(params)}' if params else url)
 
 @login_required
 def subcontract_create(request):
@@ -9053,7 +8989,7 @@ def subcontract_create(request):
     team = team_by_slug(raw_team) if raw_team else None
     if (mo and mo.status == SxProductionOrder.STATUS_CANCELLED) or (not mo and not so):
         messages.info(request, 'Mở thuê sản xuất từ công đoạn trên bảng kế hoạch.')
-        return redirect(f"{reverse('san_xuat:plan_board')}?mode=list&tab=subcontract")
+        return redirect('san_xuat:subcontract_list')
     if not team:
         messages.info(request, 'Chọn tổ trên phân công để thuê gia công đúng bộ phận.')
         return redirect('san_xuat:team_work_hub')
@@ -9261,13 +9197,17 @@ def subcontract_detail(request, pk: int):
         return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'plan_board')
 
     item = get_object_or_404(
-        SxSubcontractOrder.objects.select_related('production_order', 'sales_order', 'created_by').prefetch_related('material_lines'),
+        SxSubcontractOrder.objects.select_related(
+            'production_order', 'sales_order', 'created_by', 'partner',
+            'partner_sent_by', 'partner_accepted_by', 'partner_rejected_by',
+        ).prefetch_related('material_lines'),
         pk=pk,
     )
     embed = (request.GET.get('embed') or '').strip() == '1'
-    board_detail_url = f"{reverse('san_xuat:plan_board')}?mode=list&tab=subcontract"
+    board_detail_url = reverse('san_xuat:subcontract_list')
     can_update = (
-        user_can_update_menu(request.user, MODULE_SAN_XUAT, 'plan_board')
+        user_can_update_menu(request.user, MODULE_SAN_XUAT, 'subcontract')
+        or user_can_update_menu(request.user, MODULE_SAN_XUAT, 'plan_board')
         or user_can_update_menu(request.user, MODULE_SAN_XUAT, 'plan')
     )
     receive_form = SubcontractReceiveForm(initial={'qty_received': item.qty or Decimal('0')})
@@ -9306,7 +9246,7 @@ def subcontract_detail(request, pk: int):
                         'item': item,
                         'success_message': f'Đã xóa phiếu {deleted_code}.',
                     })
-                return redirect(f"{reverse('san_xuat:plan_board')}?mode=list&tab=subcontract")
+                return redirect('san_xuat:subcontract_list')
         elif action == 'update':
             update_form = SubcontractUpdateForm(request.POST)
             edit_formset = SubcontractOutLineFormSet(request.POST, prefix='out')
@@ -9337,6 +9277,19 @@ def subcontract_detail(request, pk: int):
                             'success_message': f'Đã cập nhật phiếu {item.code}.',
                         })
                     return redirect('san_xuat:subcontract_detail', pk=item.pk)
+        elif action in ('send_partner', 'recall_partner'):
+            from san_xuat.services.gc_output import GcOutputError, recall_from_partner, send_to_partner
+
+            try:
+                if action == 'send_partner':
+                    item = send_to_partner(order_id=item.pk, user=request.user)
+                    messages.success(request, f'Đã gửi {item.code} cho đối tác {item.partner.name}.')
+                else:
+                    item = recall_from_partner(order_id=item.pk)
+                    messages.success(request, f'Đã thu hồi {item.code} khỏi cổng đối tác.')
+            except GcOutputError as exc:
+                messages.error(request, str(exc))
+            return redirect('san_xuat:subcontract_detail', pk=item.pk)
         elif action == 'receive':
             receive_form = SubcontractReceiveForm(request.POST)
             if receive_form.is_valid():
@@ -9384,7 +9337,10 @@ def subcontract_detail(request, pk: int):
         **_perm_ctx(request),
         'item': item,
         'can_update': can_update,
-        'can_print': user_can_print_menu(request.user, MODULE_SAN_XUAT, 'plan_board'),
+        'can_print': (
+            user_can_print_menu(request.user, MODULE_SAN_XUAT, 'subcontract')
+            or user_can_print_menu(request.user, MODULE_SAN_XUAT, 'plan_board')
+        ),
         'can_receive': can_receive,
         'out_lines': out_lines,
         'in_lines': in_lines,

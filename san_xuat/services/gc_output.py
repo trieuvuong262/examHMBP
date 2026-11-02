@@ -1,4 +1,8 @@
-"""Báo sản lượng GC (GĐ2): đối tác báo ngày × size → QC duyệt → ghi tiến độ tổ thuê."""
+"""Phiếu GC trên cổng đối tác pn.
+
+Luồng: nội bộ "Gửi đối tác" (bắt buộc có LSX) → đối tác nhận / từ chối → đối tác báo
+SL ngày × size (được vượt SL phiếu, vẫn tính tiền) → QC duyệt (1 cấp) → ghi tiến độ tổ thuê.
+"""
 
 from __future__ import annotations
 
@@ -12,6 +16,8 @@ from san_xuat.partner_models import GcOutputReport, GcPartnerAccount
 
 ZERO = Decimal('0')
 OPEN_STATUSES = (SxSubcontractOrder.STATUS_DRAFT, SxSubcontractOrder.STATUS_SENT)
+# Báo cáo còn hiệu lực (tính vào SL đã báo).
+LIVE_REPORT_STATUSES = (GcOutputReport.STATUS_SUBMITTED, GcOutputReport.STATUS_APPROVED)
 
 
 class GcOutputError(Exception):
@@ -26,8 +32,11 @@ def _q(value) -> Decimal:
 
 
 def partner_orders(partner):
+    """Phiếu đối tác được thấy: đã "Gửi đối tác", chưa hủy."""
     return (
-        SxSubcontractOrder.objects.filter(partner=partner, is_demo=False)
+        SxSubcontractOrder.objects.filter(
+            partner=partner, is_demo=False, partner_sent_at__isnull=False,
+        )
         .exclude(status=SxSubcontractOrder.STATUS_CANCELLED)
         .select_related('production_order', 'sales_order')
     )
@@ -36,7 +45,7 @@ def partner_orders(partner):
 def reported_totals(order) -> dict:
     """Tổng SL đã báo (chờ + duyệt) và đã duyệt của phiếu."""
     pending = approved = ZERO
-    for r in order.output_reports.exclude(status=GcOutputReport.STATUS_REJECTED):
+    for r in order.output_reports.filter(status__in=LIVE_REPORT_STATUSES):
         if r.status == GcOutputReport.STATUS_APPROVED:
             approved += r.approved_qty
         else:
@@ -44,20 +53,102 @@ def reported_totals(order) -> dict:
     return {'pending': pending, 'approved': approved, 'reported': pending + approved}
 
 
-def accept_order(*, order, account: GcPartnerAccount) -> None:
-    if order.partner_id != account.partner_id:
+# ---------------------------------------------------------------------------
+# Nội bộ: gửi / thu hồi phiếu
+# ---------------------------------------------------------------------------
+
+@transaction.atomic
+def send_to_partner(*, order_id: int, user) -> SxSubcontractOrder:
+    order = SxSubcontractOrder.objects.select_for_update().get(pk=order_id)
+    if order.status not in OPEN_STATUSES:
+        raise GcOutputError('Chỉ gửi đối tác phiếu đang mở (nháp / đã gửi GC).')
+    if not order.partner_id:
+        raise GcOutputError('Chọn đối tác gia công trước khi gửi.')
+    if not order.production_order_id:
+        raise GcOutputError('Phiếu chưa gắn lệnh sản xuất — gắn LSX trước khi gửi đối tác.')
+    if order.partner_sent_at:
+        return order
+    order.partner_sent_at = timezone.now()
+    order.partner_sent_by = user if getattr(user, 'pk', None) else None
+    order.partner_accepted_at = None
+    order.partner_accepted_by = None
+    order.partner_rejected_at = None
+    order.partner_rejected_by = None
+    order.partner_reject_reason = ''
+    order.save(update_fields=[
+        'partner_sent_at', 'partner_sent_by', 'partner_accepted_at', 'partner_accepted_by',
+        'partner_rejected_at', 'partner_rejected_by', 'partner_reject_reason',
+    ])
+    return order
+
+
+@transaction.atomic
+def recall_from_partner(*, order_id: int) -> SxSubcontractOrder:
+    """Thu hồi phiếu khỏi cổng đối tác — chỉ khi đối tác chưa báo SL."""
+    order = SxSubcontractOrder.objects.select_for_update().get(pk=order_id)
+    if not order.partner_sent_at:
+        return order
+    if order.output_reports.filter(status__in=LIVE_REPORT_STATUSES).exists():
+        raise GcOutputError('Đối tác đã báo sản lượng — không thu hồi được phiếu.')
+    order.partner_sent_at = None
+    order.partner_sent_by = None
+    order.partner_accepted_at = None
+    order.partner_accepted_by = None
+    order.save(update_fields=[
+        'partner_sent_at', 'partner_sent_by', 'partner_accepted_at', 'partner_accepted_by',
+    ])
+    return order
+
+
+# ---------------------------------------------------------------------------
+# Đối tác: nhận / từ chối đơn, báo / hủy sản lượng
+# ---------------------------------------------------------------------------
+
+def _check_partner_order(order, account: GcPartnerAccount) -> None:
+    if order.partner_id != account.partner_id or not order.partner_sent_at:
         raise GcOutputError('Phiếu không thuộc đối tác.')
-    if order.partner_accepted_at:
-        return
     if order.status not in OPEN_STATUSES:
         raise GcOutputError('Phiếu đã đóng.')
+
+
+@transaction.atomic
+def accept_order(*, order, account: GcPartnerAccount) -> None:
+    order = SxSubcontractOrder.objects.select_for_update().get(pk=order.pk)
+    _check_partner_order(order, account)
+    if order.partner_accepted_at:
+        return
     order.partner_accepted_at = timezone.now()
-    order.save(update_fields=['partner_accepted_at'])
+    order.partner_accepted_by = account
+    order.save(update_fields=['partner_accepted_at', 'partner_accepted_by'])
+
+
+@transaction.atomic
+def reject_order(*, order, account: GcPartnerAccount, reason: str) -> None:
+    """Đối tác từ chối: phiếu rời cổng pn, nội bộ thấy lý do để giao đối tác/tổ khác."""
+    order = SxSubcontractOrder.objects.select_for_update().get(pk=order.pk)
+    _check_partner_order(order, account)
+    reason = (reason or '').strip()
+    if not reason:
+        raise GcOutputError('Nhập lý do từ chối đơn.')
+    if order.output_reports.filter(status__in=LIVE_REPORT_STATUSES).exists():
+        raise GcOutputError('Đã báo sản lượng cho phiếu này — không từ chối được.')
+    order.partner_rejected_at = timezone.now()
+    order.partner_rejected_by = account
+    order.partner_reject_reason = reason[:255]
+    order.partner_sent_at = None
+    order.partner_accepted_at = None
+    order.partner_accepted_by = None
+    order.save(update_fields=[
+        'partner_rejected_at', 'partner_rejected_by', 'partner_reject_reason',
+        'partner_sent_at', 'partner_accepted_at', 'partner_accepted_by',
+    ])
+
 
 @transaction.atomic
 def submit_report(*, order_id: int, account: GcPartnerAccount, work_date, size_qtys: dict, note: str = '') -> GcOutputReport:
+    """Đối tác báo SL. Cho phép vượt SL từng size / tổng phiếu — tiền tính theo SL QC duyệt."""
     order = SxSubcontractOrder.objects.select_for_update().get(pk=order_id)
-    if order.partner_id != account.partner_id:
+    if order.partner_id != account.partner_id or not order.partner_sent_at:
         raise GcOutputError('Phiếu không thuộc đối tác.')
     if order.status not in OPEN_STATUSES:
         raise GcOutputError('Phiếu đã đóng — không báo thêm sản lượng.')
@@ -77,33 +168,36 @@ def submit_report(*, order_id: int, account: GcPartnerAccount, work_date, size_q
             clean[str(size)] = q
     if not clean:
         raise GcOutputError('Nhập ít nhất một size có số lượng > 0.')
-    total = sum(clean.values(), ZERO)
-    done = reported_totals(order)['reported']
-    if done + total > order.qty:
-        raise GcOutputError(
-            f'Vượt SL phiếu: đã báo {done:,.0f}, phiếu {order.qty:,.0f}, còn được báo {max(order.qty - done, ZERO):,.0f}.'
-        )
     return GcOutputReport.objects.create(
         order=order,
         partner_id=order.partner_id,
         account=account,
         work_date=work_date,
         size_qtys={k: str(v) for k, v in clean.items()},
-        total_qty=total,
+        total_qty=sum(clean.values(), ZERO),
         note=(note or '').strip()[:255],
     )
 
 
 @transaction.atomic
-def cancel_report(*, report_id: int, account: GcPartnerAccount) -> None:
+def cancel_report(*, report_id: int, account: GcPartnerAccount) -> GcOutputReport:
+    """Hủy báo cáo chờ duyệt — giữ bản ghi (trạng thái Đã hủy) để truy vết."""
     report = GcOutputReport.objects.select_for_update().get(pk=report_id, partner_id=account.partner_id)
     if report.status != GcOutputReport.STATUS_SUBMITTED:
-        raise GcOutputError('Chỉ huỷ được báo cáo đang chờ duyệt.')
-    report.delete()
+        raise GcOutputError('Chỉ hủy được báo cáo đang chờ duyệt.')
+    report.status = GcOutputReport.STATUS_CANCELLED
+    report.cancelled_at = timezone.now()
+    report.cancelled_by = account
+    report.save(update_fields=['status', 'cancelled_at', 'cancelled_by'])
+    return report
 
+
+# ---------------------------------------------------------------------------
+# QC nội bộ duyệt
+# ---------------------------------------------------------------------------
 
 def _close_if_done(order, *, user) -> None:
-    """Đủ SL duyệt = SL phiếu → hoàn thành phiếu (đóng tổ nếu đủ)."""
+    """Đủ SL duyệt ≥ SL phiếu → hoàn thành phiếu (đóng tổ nếu đủ)."""
     approved = reported_totals(order)['approved']
     if approved < order.qty:
         return
@@ -116,6 +210,7 @@ def _close_if_done(order, *, user) -> None:
 
 
 def _sync_order_received(order) -> None:
+    """SL nhận = Σ SL duyệt (có thể > SL phiếu); phí GC = đơn giá × SL duyệt."""
     approved = reported_totals(order)['approved']
     order.qty_received = approved
     fields = ['qty_received']
@@ -127,7 +222,10 @@ def _sync_order_received(order) -> None:
 
 @transaction.atomic
 def approve_report(*, report_id: int, user, size_qtys: dict | None = None, note: str = '') -> GcOutputReport:
-    """QC duyệt (có thể chỉnh SL đạt theo size ≤ SL báo) → ghi tiến độ tổ ngày SX."""
+    """QC duyệt (chỉnh SL đạt theo size ≤ SL báo) → ghi tiến độ tổ ngày SX.
+
+    Tiến độ LSX chỉ cộng tới phần còn lại của từng size; phần vượt vẫn tính SL duyệt / tiền.
+    """
     from san_xuat.services.subcontract_progress import post_report_progress
 
     report = GcOutputReport.objects.select_for_update().get(pk=report_id)

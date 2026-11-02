@@ -2113,14 +2113,8 @@
 <div class="container-fluid jp-page jp-sx-page jp-pb py-3 py-md-4 mb-5 px-3 px-lg-4{% if tab == 'route' %} is-route{% endif %}">
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
-      <h2 class="jp-npl-mat-topbar-title w-100">{% if tab == 'subcontract' %}Thuê gia công{% else %}Kế hoạch sản xuất{% endif %}</h2>
+      <h2 class="jp-npl-mat-topbar-title w-100">Kế hoạch sản xuất</h2>
     </div>
-    {% if tab == 'subcontract' %}
-    <nav class="jp-sx-tools" aria-label="Công cụ gia công">
-      <a href="{% url 'san_xuat:gc_partner_list' %}"><i class="bi bi-buildings" aria-hidden="true"></i>Đối tác &amp; bảng giá GC</a>
-    </nav>
-    {% endif %}
-    {% if tab != 'subcontract' %}
     <nav class="jp-sx-tools jp-pb-top-tabs" aria-label="Tab kế hoạch" role="tablist">
       <a role="tab"
          class="btn btn-sm fw-bold {% if tab == 'route' %}btn-hm{% else %}btn-outline-secondary{% endif %}"
@@ -2144,7 +2138,6 @@
       </a>
       {% endif %}
     </nav>
-    {% endif %}
   </div>
 
   <div class="jp-sx-page-body">
@@ -2157,7 +2150,7 @@
       {% if tab == 'route' and route_view != 'open' %}
       <input type="hidden" name="route_view" value="{{ route_view }}">
       {% endif %}
-      {% if tab == 'queue' or tab == 'subcontract' or tab == 'team' %}
+      {% if tab == 'queue' or tab == 'team' %}
       <div class="jp-team-filter-dates">
         <div>
           <label class="form-label fw-bold small mb-1" for="jp-pb-date-from">Từ ngày</label>
@@ -2242,27 +2235,6 @@
             <option value="overdue" {% if deadline_filter == 'overdue' %}selected{% endif %}>Đã quá hạn</option>
             <option value="due_soon" {% if deadline_filter == 'due_soon' %}selected{% endif %}>Còn tối đa 3 ngày</option>
             <option value="on_time" {% if deadline_filter == 'on_time' %}selected{% endif %}>Còn hạn</option>
-          </select>
-        </div>
-        {% endif %}
-        {% if tab == 'subcontract' %}
-        <div class="jp-team-filter-org">
-          <label class="form-label fw-bold small mb-1" for="jp-pb-gc-status">Trạng thái</label>
-          <select id="jp-pb-gc-status" name="gc_status" class="form-select form-select-sm">
-            <option value="">Tất cả trạng thái</option>
-            {% for value, label in gc_status_choices %}
-            <option value="{{ value }}"{% if gc_status_filter == value %} selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-            <option value="cancelled"{% if gc_status_filter == 'cancelled' %} selected{% endif %}>Đã hủy</option>
-          </select>
-        </div>
-        <div class="jp-team-filter-org">
-          <label class="form-label fw-bold small mb-1" for="jp-pb-gc-team">Bộ phận</label>
-          <select id="jp-pb-gc-team" name="gc_team" class="form-select form-select-sm">
-            <option value="">Tất cả bộ phận</option>
-            {% for value, label in gc_team_choices %}
-            <option value="{{ value }}"{% if gc_team_filter == value %} selected{% endif %}>{{ label }}</option>
-            {% endfor %}
           </select>
         </div>
         {% endif %}
@@ -2563,55 +2535,6 @@
        aria-selected="{% if route_view == 'cancelled' %}true{% else %}false{% endif %}">Đã huỷ</a>
   </nav>
   {% include 'san_xuat/includes/plan_order_timeline.html' %}
-  {% endif %}
-
-  {% if tab == 'subcontract' %}
-  <div class="card border-0 shadow-sm overflow-hidden">
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0 jp-pb-gc-table">
-        <thead class="table-light">
-          <tr>
-            <th>Phiếu</th><th>Đơn hàng</th><th>Sản phẩm</th><th>Bộ phận</th>
-            <th>Đơn vị gia công</th><th class="text-end">Số lượng</th>
-            <th>Ngày / hạn</th><th>Trạng thái</th>{% if can_create_subcontract %}<th class="text-end">Thao tác</th>{% endif %}
-          </tr>
-        </thead>
-        <tbody>
-        {% for item in subcontract_items %}
-          <tr>
-            <td>
-              <a href="{% url 'san_xuat:subcontract_detail' item.pk %}" class="fw-bold">{{ item.code }}</a>
-            </td>
-            <td>{% if item.sales_order %}{{ item.sales_order.code }}{% else %}—{% endif %}</td>
-            <td><strong>{{ item.product_name|default:item.product_code }}</strong><br><span class="small text-muted">{{ item.product_code }}</span></td>
-            <td>{{ item.team_label|default:"—" }}</td>
-            <td>{{ item.vendor_name }}</td>
-            <td class="text-end">{{ item.qty|sx_num }}</td>
-            <td>{{ item.order_date|date:"d/m/Y" }}{% if item.due_date %}<br><span class="small text-muted">Hạn {{ item.due_date|date:"d/m/Y" }}</span>{% endif %}</td>
-            <td>{{ item.work_status_label }}</td>
-            {% if can_create_subcontract %}
-            <td class="text-end">
-              {% if item.status != 'done' and item.status != 'cancelled' %}
-              <form method="post" class="jp-pb-gc-del"
-                    onsubmit="return confirm('Xóa phiếu {{ item.code }}? Công đoạn trên KHSX sẽ trở lại Thuê GC.');">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="delete_gc">
-                <input type="hidden" name="gc_id" value="{{ item.pk }}">
-                <input type="hidden" name="tab" value="subcontract">
-                <input type="hidden" name="mode" value="list">
-                <button type="submit" class="btn btn-outline-danger btn-sm fw-bold">Xóa</button>
-              </form>
-              {% endif %}
-            </td>
-            {% endif %}
-          </tr>
-        {% empty %}
-          <tr><td colspan="{% if can_create_subcontract %}9{% else %}8{% endif %}" class="text-center text-muted p-4">Chưa có phiếu thuê gia công phù hợp.</td></tr>
-        {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
   {% endif %}
   </div>
 </div>

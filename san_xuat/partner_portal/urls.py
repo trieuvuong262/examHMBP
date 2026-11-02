@@ -10,5 +10,9 @@ urlpatterns = [
     path('dang-xuat/', views.logout_view, name='logout'),
     path('doi-mat-khau/', views.change_password, name='change_password'),
     path('don/<int:pk>/', views.order_detail, name='order_detail'),
+    path('bang-gia/', views.price_list, name='price_list'),
     path('bao-cao/', views.reports, name='reports'),
 ]
+
+handler404 = 'san_xuat.partner_portal.views.page_not_found'
+handler500 = 'san_xuat.partner_portal.views.server_error'

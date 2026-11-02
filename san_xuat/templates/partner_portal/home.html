@@ -7,17 +7,17 @@
 </div>
 
 <div class="row g-2 mb-4" aria-label="Tổng quan đơn hàng">
-  <div class="col-6 col-xl-3"><div class="pn-business-stat"><span>Tổng đơn</span><strong>{{ summary.total }}</strong></div></div>
+  <div class="col-6 col-xl-3"><div class="pn-business-stat"><span>Đơn mới chờ nhận</span><strong>{{ summary.new }}</strong></div></div>
   <div class="col-6 col-xl-3"><div class="pn-business-stat"><span>Đang thực hiện</span><strong>{{ summary.open }}</strong></div></div>
-  <div class="col-6 col-xl-3"><div class="pn-business-stat"><span>Đã hoàn thành</span><strong>{{ summary.done }}</strong></div></div>
+  <div class="col-6 col-xl-3"><div class="pn-business-stat"><span>Báo cáo chờ QC duyệt</span><strong>{{ summary.pending_reports }}</strong></div></div>
   <div class="col-6 col-xl-3"><div class="pn-business-stat pn-business-stat--alert"><span>Trễ hạn</span><strong>{{ summary.late }}</strong></div></div>
 </div>
 
-<div class="d-flex flex-wrap justify-content-between align-items-end gap-2 border-bottom mb-3 pb-2"><div><h2 class="h6 fw-bold mb-1">Danh sách đơn hàng</h2><span class="text-muted small">Các đơn được JustPlay phân bổ cho đối tác.</span></div><div class="pn-filter-tabs"><a href="?tab=open" class="{% if tab == 'open' %}active{% endif %}">Đang làm{% if new_count %}<b>{{ new_count }}</b>{% endif %}</a><a href="?tab=done" class="{% if tab == 'done' %}active{% endif %}">Đã xong</a><a href="?tab=all" class="{% if tab == 'all' %}active{% endif %}">Tất cả</a></div></div>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-2 border-bottom mb-3 pb-2"><div><h2 class="h6 fw-bold mb-1">Danh sách đơn hàng</h2><span class="text-muted small">Các đơn JustPlay đã gửi cho đối tác.</span></div><div class="pn-filter-tabs"><a href="?tab=new" class="{% if tab == 'new' %}active{% endif %}">Chờ nhận{% if new_count %}<b>{{ new_count }}</b>{% endif %}</a><a href="?tab=open" class="{% if tab == 'open' %}active{% endif %}">Đang làm</a><a href="?tab=done" class="{% if tab == 'done' %}active{% endif %}">Đã xong{% if summary.done %} ({{ summary.done }}){% endif %}</a><a href="?tab=all" class="{% if tab == 'all' %}active{% endif %}">Tất cả</a></div></div>
 
 <div class="row g-3">{% for r in rows %}{% with o=r.order %}
-  <div class="col-12 col-md-6 col-xl-4"><a href="{% url 'order_detail' o.pk %}" class="pn-work-card-link"><article class="pn-work-card {% if r.is_open and not o.partner_accepted_at %}is-new{% elif r.is_open %}is-active{% else %}is-done{% endif %}">
-    <div class="d-flex justify-content-between align-items-start gap-2"><span class="pn-order-code">{{ o.code }}</span>{% if r.is_open and not o.partner_accepted_at %}<span class="pn-status pn-status--new">Mới</span>{% elif r.is_open %}<span class="pn-status pn-status--active">Đang làm</span>{% else %}<span class="pn-status pn-status--done">Đã xong</span>{% endif %}</div>
+  <div class="col-12 col-md-6 col-xl-4"><a href="{% url 'order_detail' o.pk %}" class="pn-work-card-link"><article class="pn-work-card {% if r.is_new %}is-new{% elif r.is_open %}is-active{% else %}is-done{% endif %}">
+    <div class="d-flex justify-content-between align-items-start gap-2"><span class="pn-order-code">{{ o.code }}</span>{% if r.is_new %}<span class="pn-status pn-status--new">Chờ nhận</span>{% elif r.is_open %}<span class="pn-status pn-status--active">Đang làm</span>{% else %}<span class="pn-status pn-status--done">Đã xong</span>{% endif %}</div>
     <div class="pn-work-process"><i class="bi bi-gear"></i>{{ o.process_name|default:o.team_slug }}</div>
     <div class="pn-work-product"><i class="bi bi-box"></i><span><strong>{{ o.product_code }}</strong>{% if o.product_name %}<small>{{ o.product_name }}</small>{% endif %}</span></div>
     <div class="pn-work-progress-head"><span>Tiến độ QC</span><strong>{{ r.approved|sx_num }} <em>/ {{ o.qty|sx_num }}</em></strong></div><div class="pn-work-progress"><span style="width:{{ r.pct|stringformat:'s' }}%"></span></div>

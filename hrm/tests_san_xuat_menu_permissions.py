@@ -27,6 +27,14 @@ class SanXuatMenuPermissionTests(SimpleTestCase):
             ("/san-xuat/dong-goi/", "packing"),
             ("/san-xuat/dong-goi/1/in/", "packing"),
             ("/san-xuat/thue-gia-cong/", "subcontract"),
+            ("/san-xuat/gia-cong/", "subcontract"),
+            ("/san-xuat/gia-cong/to/", "subcontract"),
+            ("/san-xuat/gia-cong/to/3/", "subcontract"),
+            ("/san-xuat/gia-cong/tai-khoan/", "subcontract"),
+            ("/san-xuat/gia-cong/thong-ke/", "subcontract"),
+            ("/san-xuat/gia-cong/doi-tac/", "subcontract"),
+            ("/san-xuat/gia-cong/duyet-san-luong/", "subcontract"),
+            ("/san-xuat/ke-hoach/bang/", "plan_board"),
             ("/san-xuat/ncr/", "ncr"),
             ("/san-xuat/ncr/1/in/", "ncr"),
             ("/san-xuat/truy-xuat/", "traceability"),
@@ -54,3 +62,9 @@ class SanXuatMenuPermissionTests(SimpleTestCase):
             module, menu = resolve_menu_from_request(path)
             self.assertEqual(module, MODULE_SAN_XUAT, path)
             self.assertEqual(menu, expected, path)
+
+    def test_legacy_khsx_subcontract_tab_resolves_to_subcontract(self):
+        module, menu = resolve_menu_from_request("/san-xuat/ke-hoach/bang/", "subcontract")
+        self.assertEqual((module, menu), (MODULE_SAN_XUAT, "subcontract"))
+        module, menu = resolve_menu_from_request("/san-xuat/ke-hoach/bang/", "route")
+        self.assertEqual((module, menu), (MODULE_SAN_XUAT, "plan_board"))

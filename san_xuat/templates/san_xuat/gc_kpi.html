@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% load sx_format %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/gc_ui_styles.html' %}
+<style>
+  .jp-gc-kpi-table .jp-gc-progress { min-width: 5.5rem; }
+  .jp-gc-kpi-table th small { display: block; font-weight: 600; text-transform: none; letter-spacing: 0; color: #94a3b8; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-gc-page py-3 py-md-4 mb-5" data-loading-message="Đang tính KPI gia công…">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">KPI gia công</h2>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="{% url 'san_xuat:gc_stats' %}?month={{ month }}"><i class="bi bi-bar-chart" aria-hidden="true"></i>Thống kê</a>
+    </nav>
+  </div>
+
+  <div class="jp-sx-page-body">
+    <form method="get" class="card border-0 shadow-sm mb-3 jp-team-filter-form">
+      <div class="card-body p-3 jp-team-filter-body">
+        <div class="jp-team-filter-period">
+          <label class="form-label fw-bold small mb-1" for="jp-gck-month">Tháng</label>
+          <input type="month" id="jp-gck-month" name="month" value="{{ month }}" class="form-control form-control-sm" onchange="this.form.submit()">
+        </div>
+        <div class="jp-team-filter-actions ms-auto align-self-center d-flex flex-wrap gap-2">
+          <span class="jp-gc-grade is-A">A</span><span class="small text-muted align-self-center">≥ 90</span>
+          <span class="jp-gc-grade is-B">B</span><span class="small text-muted align-self-center">≥ 75</span>
+          <span class="jp-gc-grade is-C">C</span><span class="small text-muted align-self-center">&lt; 75</span>
+        </div>
+      </div>
+    </form>
+
+    <form method="post" onsubmit="return confirm('Chốt KPI tháng {{ month }} cho các đối tác đã chọn? Chốt lại sẽ ghi đè bản cũ.');">
+      {% csrf_token %}
+      <input type="hidden" name="month" value="{{ month }}">
+      <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle mb-0 jp-gc-table jp-gc-kpi-table">
+            <thead class="table-light">
+              <tr>
+                {% if can_lock %}<th class="text-center" style="width:2.5rem"><input type="checkbox" class="form-check-input" id="jp-gck-all" checked title="Chọn tất cả"></th>{% endif %}
+                <th>Đối tác</th>
+                {% for key, label, w in weights %}<th>{{ label }}<small>{{ w|sx_num }}%</small></th>{% endfor %}
+                <th class="text-center">Điểm</th>
+                <th class="text-end">SL duyệt</th>
+                <th class="text-end">Thành tiền</th>
+                <th class="text-center">Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody class="jp-gc-rows">
+            {% for row in rows %}
+              {% with p=row.partner k=row.kpi %}
+              <tr class="{% if not row.has_data %}text-muted{% endif %}">
+                {% if can_lock %}<td class="text-center"><input type="checkbox" class="form-check-input jp-gck-pick" name="partner_id" value="{{ p.pk }}"{% if row.has_data %} checked{% endif %}></td>{% endif %}
+                <td><a href="{% url 'san_xuat:gc_partner_detail' p.pk %}?month={{ month }}" class="jp-gc-name">{{ p.name }}</a><span class="jp-gc-sub">{{ p.code }}</span></td>
+                {% for c in k.criteria %}
+                <td>
+                  {% if c.rate is not None %}
+                  <div class="jp-gc-progress{% if c.rate >= 90 %} is-done{% endif %}"><div class="jp-gc-progress-track"><span style="--p: {{ c.rate|stringformat:'s' }}%"></span></div><span class="jp-gc-progress-label">{{ c.rate|sx_num:1 }}%</span></div>
+                  {% else %}<span class="text-muted small">—</span>{% endif %}
+                </td>
+                {% endfor %}
+                <td class="text-center">
+                  {% if k.grade %}<span class="d-inline-flex align-items-center gap-2"><span class="jp-gc-grade is-{{ k.grade }}">{{ k.grade }}</span><span class="jp-gc-num">{{ k.score|sx_num:1 }}</span></span>{% else %}<span class="text-muted">—</span>{% endif %}
+                </td>
+                <td class="text-end jp-gc-num">{{ k.approved|sx_num }}</td>
+                <td class="text-end jp-gc-num">{{ k.amount|sx_num:0 }}</td>
+                <td class="text-center">{% if k.locked %}<span class="jp-gc-badge is-ok">Đã chốt {{ k.locked_at|date:'d/m' }}</span>{% else %}<span class="jp-gc-badge is-warn">Tạm tính</span>{% endif %}</td>
+              </tr>
+              {% endwith %}
+            {% empty %}
+              <tr><td colspan="11" class="jp-gc-empty"><i class="bi bi-speedometer2"></i>Chưa có đối tác gia công.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% if can_lock and rows %}
+        <div class="card-footer bg-white d-flex justify-content-end">
+          <button type="submit" class="btn btn-hm btn-sm fw-bold"><i class="bi bi-lock me-1" aria-hidden="true"></i>Chốt KPI tháng {{ month }}</button>
+        </div>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+{% if can_lock %}
+<script>
+(function () {
+  var all = document.getElementById('jp-gck-all');
+  var picks = document.querySelectorAll('.jp-gck-pick');
+  if (!all) return;
+  function sync() {
+    var n = 0; picks.forEach(function (cb) { if (cb.checked) n += 1; });
+    all.checked = picks.length > 0 && n === picks.length;
+    all.indeterminate = n > 0 && n < picks.length;
+  }
+  all.addEventListener('change', function () { picks.forEach(function (cb) { cb.checked = all.checked; }); });
+  picks.forEach(function (cb) { cb.addEventListener('change', sync); });
+  sync();
+})();
+</script>
+{% endif %}
+{% endblock %}

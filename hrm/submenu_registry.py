@@ -235,6 +235,11 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'capacity', 'label': 'Năng lực sản xuất', 'icon': 'bi-speedometer'},
         {'key': 'plan_route', 'label': 'Lộ trình sản xuất', 'icon': 'bi-calendar2-week'},
         {'key': 'plan_inter_step', 'label': 'Thời gian trung gian', 'icon': 'bi-hourglass-split'},
+        {
+            'key': 'subcontract',
+            'label': 'Gia Công',
+            'icon': 'bi-building-gear',
+        },
         {'key': 'plan_progress', 'label': 'Tiến độ', 'icon': 'bi-clipboard-data'},
         {'key': 'plan_overall', 'label': 'Kế hoạch tổng thể', 'icon': 'bi-calendar-range'},
         {'key': 'plan_detail', 'label': 'Kế hoạch chi tiết', 'icon': 'bi-list-columns'},
@@ -607,7 +612,6 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/san-xuat/luong-san-pham', MODULE_SAN_XUAT, 'piece_rate'),
     ('/san-xuat/ncr', MODULE_SAN_XUAT, 'ncr'),
     ('/san-xuat/dong-goi', MODULE_SAN_XUAT, 'packing'),
-    ('/san-xuat/thue-gia-cong', MODULE_SAN_XUAT, 'plan_board'),
     ('/san-xuat/truy-xuat', MODULE_SAN_XUAT, 'traceability'),
     ('/san-xuat/bao-cao-van-hanh', MODULE_SAN_XUAT, 'ops_report'),
     ('/san-xuat/catalog', MODULE_SAN_XUAT, 'unified_catalog'),
@@ -678,6 +682,7 @@ MENU_PATH_ACCESS_ALIASES: dict[tuple[str, str], tuple[str, ...]] = {
     (MODULE_CHAM_CONG, 'timesheet'): ('punch',),
     (MODULE_CHAM_CONG, 'leave'): ('punch',),
     (MODULE_CHAM_CONG, 'payroll'): ('punch',),
+    # Menu Gia Công: người làm KHSX vẫn vào được (quyết định giữ quyền hiện có).
     (MODULE_SAN_XUAT, 'subcontract'): ('plan_board', 'plan'),
     # Xác nhận làm trên danh sách / chi tiết; người chỉ có menu xác nhận vẫn vào được danh sách.
     (MODULE_SAN_XUAT, 'orders'): ('order_confirm',),

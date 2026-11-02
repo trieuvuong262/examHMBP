@@ -1,51 +1,151 @@
 {% extends 'base.html' %}
 {% load sx_format %}
 {% block extra_head %}
-{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/gc_ui_styles.html' %}
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
-    <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+<div class="container jp-page jp-sx-page jp-gc-page jp-npl-material-catalog-page py-3 py-md-4 mb-5"
+     data-loading-message="Đang tải phiếu thuê gia công…">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
       <h2 class="jp-npl-mat-topbar-title w-100">Thuê gia công</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="{% url 'san_xuat:gc_stats' %}"><i class="bi bi-bar-chart" aria-hidden="true"></i>Thống kê</a>
       {% include 'san_xuat/includes/sx_export_btn.html' with export_key='subcontract_list' %}
       {% include 'san_xuat/includes/sx_list_col_picker.html' %}
     </nav>
   </div>
 
-  {% include 'san_xuat/includes/sx_list_filter.html' %}
+  <div class="jp-sx-page-body">
+    <form method="get" class="card border-0 shadow-sm mb-3 jp-team-filter-form" role="search" aria-label="Bộ lọc thuê gia công">
+      <div class="card-body p-3 jp-team-filter-body">
+        {% if sort_key and request.GET.sort %}<input type="hidden" name="sort" value="{{ sort_key }}"><input type="hidden" name="dir" value="{{ sort_dir }}">{% endif %}
+        <div class="jp-team-filter-dates">
+          {% include 'includes/date_range_span_select.html' with span_id='jp-gc-span' allow_all=True %}
+          <div>
+            <label class="form-label fw-bold small mb-1" for="jp-gc-date-from">Từ ngày</label>
+            <input type="date" id="jp-gc-date-from" name="date_from" class="form-control jp-date-vn" value="{{ filter_date_from|date:'Y-m-d' }}">
+          </div>
+          <div>
+            <label class="form-label fw-bold small mb-1" for="jp-gc-date-to">Đến ngày</label>
+            <input type="date" id="jp-gc-date-to" name="date_to" class="form-control jp-date-vn" value="{{ filter_date_to|date:'Y-m-d' }}">
+          </div>
+        </div>
+        <div class="jp-team-filter-org-search">
+          <div class="jp-team-filter-org" style="flex-basis:14rem">
+            <label class="form-label fw-bold small mb-1" for="jp-gc-q">Tìm kiếm</label>
+            <input type="search" id="jp-gc-q" name="q" value="{{ search_query }}" class="form-control form-control-sm"
+                   placeholder="Mã phiếu, đơn hàng, LSX, sản phẩm, đối tác…" autocomplete="off">
+          </div>
+          <div class="jp-team-filter-org">
+            <label class="form-label fw-bold small mb-1" for="jp-gc-status">Trạng thái</label>
+            <select id="jp-gc-status" name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+              <option value="">Tất cả</option>
+              {% for value, label in status_choices %}
+              <option value="{{ value }}"{% if status_filter == value %} selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+              <option value="cancelled"{% if status_filter == 'cancelled' %} selected{% endif %}>Đã hủy</option>
+            </select>
+          </div>
+          <div class="jp-team-filter-org">
+            <label class="form-label fw-bold small mb-1" for="jp-gc-team">Bộ phận</label>
+            <select id="jp-gc-team" name="team" class="form-select form-select-sm" onchange="this.form.submit()">
+              <option value="">Tất cả</option>
+              {% for value, label in team_choices %}
+              <option value="{{ value }}"{% if team_filter == value %} selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="jp-team-filter-org">
+            <label class="form-label fw-bold small mb-1" for="jp-gc-partner">Đối tác</label>
+            <select id="jp-gc-partner" name="partner" class="form-select form-select-sm" onchange="this.form.submit()">
+              <option value="">Tất cả</option>
+              {% for p in partners %}
+              <option value="{{ p.pk }}"{% if partner_filter == p.pk|stringformat:'s' %} selected{% endif %}>{{ p.name }}{% if not p.is_active %} (ngưng){% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="jp-team-filter-actions">
+          <button type="submit" class="btn btn-hm btn-sm fw-bold">Lọc</button>
+          {% if has_filters %}
+          <a href="{% url 'san_xuat:subcontract_list' %}" class="btn btn-light border btn-sm" title="Xóa bộ lọc"><i class="bi bi-x-lg" aria-hidden="true"></i></a>
+          {% endif %}
+        </div>
+      </div>
+    </form>
 
-  <div class="card border-0 shadow-sm overflow-hidden">
-    <div class="jp-npl-mat-grid-wrap">
-      <table class="table table-hover align-middle mb-0 jp-npl-mat-grid" id="{{ sx_list_table_id }}">
-        <thead class="table-light">
-          <tr>
-            {% include 'san_xuat/includes/sx_list_grid_head.html' %}
-          </tr>
-        </thead>
-        <tbody>
-        {% for item in items %}
-          <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:subcontract_detail' item.pk %}" style="cursor:pointer">
-            <td class="npl-col" data-col="code"><strong>{{ item.code }}</strong></td>
-            <td class="npl-col" data-col="vendor">{{ item.vendor_name }}</td>
-            <td class="npl-col" data-col="product">{{ item.product_name|default:item.product_code }}</td>
-            <td class="npl-col" data-col="team">{{ item.team_label|default:"—" }}</td>
-<td class="npl-col" data-col="qty">{{ item.qty|sx_num }}</td>
-            <td class="npl-col" data-col="order_date">{{ item.order_date|date:"d/m/Y" }}</td>
-            <td class="npl-col" data-col="status">{{ item.work_status_label }}</td>
-                        {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=item %}
-</tr>
-        {% empty %}
-          <tr><td colspan="13" class="text-muted small p-3">Chưa có lệnh gia công. Tạo phiếu từ kế hoạch sản xuất hoặc lệnh sản xuất.</td></tr>
-        {% endfor %}
-        </tbody>
-      </table>
+    <div class="card border-0 shadow-sm overflow-hidden">
+      <div class="jp-npl-mat-grid-wrap">
+        <table class="table table-hover table-sm mb-0 align-middle jp-npl-mat-grid jp-gc-table" id="{{ sx_list_table_id }}">
+          <thead class="table-light">
+            <tr>{% include 'san_xuat/includes/sx_list_grid_head.html' %}</tr>
+          </thead>
+          <tbody class="jp-gc-rows">
+          {% for item in items %}
+            <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:subcontract_detail' item.pk %}">
+              <td class="npl-col" data-col="code"><span class="jp-gc-name">{{ item.code }}</span></td>
+              <td class="npl-col small" data-col="order">
+                {% if item.sales_order %}{{ item.sales_order.code }}{% else %}—{% endif %}
+                {% if item.production_order %}<span class="jp-gc-sub">{{ item.production_order.code }}</span>{% endif %}
+              </td>
+              <td class="npl-col" data-col="product"><span class="fw-semibold">{{ item.product_name|default:item.product_code }}</span><span class="jp-gc-sub">{{ item.product_code }}</span></td>
+              <td class="npl-col small" data-col="team">{{ item.team_label|default:"—" }}</td>
+              <td class="npl-col small" data-col="vendor">
+                {% if item.partner %}<a href="{% url 'san_xuat:gc_partner_detail' item.partner_id %}">{{ item.vendor_name }}</a>{% else %}{{ item.vendor_name }}{% endif %}
+              </td>
+              <td class="npl-col text-end jp-gc-num" data-col="qty">{{ item.qty|sx_num }}</td>
+              <td class="npl-col" data-col="received">
+                {% widthratio item.qty_received item.qty 100 as pct %}
+                <div class="jp-gc-progress{% if item.qty_received >= item.qty and item.qty %} is-done{% endif %}">
+                  <div class="jp-gc-progress-track"><span style="--p: {{ pct }}%"></span></div>
+                  <span class="jp-gc-progress-label">{{ item.qty_received|sx_num }}</span>
+                </div>
+              </td>
+              <td class="npl-col small" data-col="order_date">{{ item.order_date|date:"d/m/Y" }}</td>
+              <td class="npl-col small" data-col="due_date">{{ item.due_date|date:"d/m/Y"|default:"—" }}</td>
+              <td class="npl-col text-center" data-col="status">
+                {% if item.status == 'done' or item.status == 'received' %}<span class="jp-gc-badge is-ok">{{ item.work_status_label }}</span>
+                {% elif item.status == 'cancelled' %}<span class="jp-gc-badge">{{ item.work_status_label }}</span>
+                {% else %}<span class="jp-gc-badge is-info">{{ item.work_status_label }}</span>{% endif %}
+              </td>
+              <td class="npl-col text-center" data-col="partner_state">
+                {% with st=item.partner_state %}
+                {% if st == 'none' %}<span class="text-muted">—</span>
+                {% elif st == 'accepted' %}<span class="jp-gc-badge is-ok">{{ item.partner_state_label }}</span>
+                {% elif st == 'waiting' %}<span class="jp-gc-badge is-warn is-pulse">{{ item.partner_state_label }}</span>
+                {% elif st == 'rejected' %}<span class="jp-gc-badge is-bad" title="{{ item.partner_reject_reason }}">{{ item.partner_state_label }}</span>
+                {% else %}<span class="jp-gc-badge">{{ item.partner_state_label }}</span>{% endif %}
+                {% endwith %}
+              </td>
+              <td class="npl-col text-end jp-gc-num" data-col="unit_price">{{ item.unit_price|sx_num:0 }}</td>
+              <td class="npl-col text-end jp-gc-num" data-col="fee">{{ item.service_fee|sx_num:0 }}</td>
+              {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=item %}
+              <td class="npl-col text-end" data-col="actions">
+                {% if can_delete_gc and item.status != 'done' and item.status != 'cancelled' %}
+                <form method="post" class="d-inline-flex" onsubmit="return confirm('Xóa phiếu {{ item.code }}? Công đoạn trên KHSX sẽ trở lại Thuê GC.');">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="delete_gc">
+                  <input type="hidden" name="gc_id" value="{{ item.pk }}">
+                  <button type="submit" class="btn btn-outline-danger btn-sm jp-gc-icon-btn" title="Xóa / hủy phiếu"><i class="bi bi-trash3"></i></button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="{{ list_columns|length }}" class="jp-gc-empty"><i class="bi bi-inbox"></i>Chưa có phiếu thuê gia công phù hợp.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
 {% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
 {% endblock %}
+
+{% block scripts %}{% include 'includes/date_range_span_script.html' %}{% endblock %}
