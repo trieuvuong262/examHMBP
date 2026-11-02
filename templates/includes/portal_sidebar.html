@@ -986,7 +986,8 @@
                 {% endif %}
 
                 {# —— 3b. Gia Công — quản lý tổ/đối tác/tài khoản/thống kê/QC —— #}
-                {% if jp_can_menu 'san_xuat' 'subcontract' %}
+                {% jp_can_menu 'san_xuat' 'subcontract' as jp_can_san_xuat_subcontract %}
+                {% if jp_can_san_xuat_subcontract %}
                 <li class="jp-sidebar-nested-group{% if '/san-xuat/gia-cong' in request.path or 'thue-gia-cong' in request.path %} is-open{% endif %}">
                     <button type="button" class="jp-sidebar-nested-toggle" data-jp-sidebar-group-toggle
                             aria-expanded="{% if '/san-xuat/gia-cong' in request.path or 'thue-gia-cong' in request.path %}true{% else %}false{% endif %}">
