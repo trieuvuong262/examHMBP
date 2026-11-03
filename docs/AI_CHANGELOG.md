@@ -15,6 +15,14 @@ Mỗi entry nên có:
 
 ## Entries
 
+### 2026-11-03 — infra / gỡ site portfolio.phongkstudio.com
+
+- **Type**: infra
+- **Change**: Xoá `PortalJustPlay/nginx/portfolio.conf`, `portfolio-ssl.conf` và hai mount tương ứng trong `docker-compose.yml` / `docker-compose.ssl.yml`. Trên VPS đã xoá container + image `portfolio`, thư mục `/opt/portfolio` và chứng chỉ Let's Encrypt của domain.
+- **Reason**: Ngừng chạy web portfolio trên VPS.
+- **Source**: `docker-compose.yml` (service `nginx`), `docker-compose.ssl.yml`.
+- **Agent impact**: Nginx portal không còn vhost nào ngoài portal/erp/pn/ip. Network `justplay_edge` vẫn giữ vì `nginx` khai báo nó là external.
+
 ### 2026-11-03 — feature / chip SX và danh sách LSX trên chi tiết đơn
 
 - **Type**: feature (UI) | bugfix

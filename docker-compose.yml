@@ -200,7 +200,6 @@ services:
       - ./PortalJustPlay/nginx/erp.conf:/etc/nginx/conf.d/erp.conf:ro
       - ./PortalJustPlay/nginx/pn.conf:/etc/nginx/conf.d/pn.conf:ro
       - ./PortalJustPlay/nginx/pn-ssl.conf:/etc/nginx/conf.d/pn-ssl.conf:ro
-      - ./PortalJustPlay/nginx/portfolio.conf:/etc/nginx/conf.d/portfolio.conf:ro
       - ./PortalJustPlay/nginx/error-pages.conf:/etc/nginx/error-pages.conf:ro
       - ./PortalJustPlay/nginx/scanner-block.conf:/etc/nginx/scanner-block.conf:ro
       - ./PortalJustPlay/nginx/html:/etc/nginx/jp-errors:ro
