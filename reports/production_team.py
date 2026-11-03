@@ -170,12 +170,17 @@ def _aggregate_production_row(
 ) -> dict:
     visible = _sort_visible_production_reports(_visible_reports(reports, visible_fn))
     row = _production_row_flags(visible)
-    row['production_efficiency_pct'] = (
+    efficiency_pct = (
         _weighted_efficiency_pct(visible) if compute_efficiency and visible else None
     )
-    row['production_support_efficiency_pct'] = (
+    support_efficiency_pct = (
         _weighted_support_efficiency_pct(visible) if compute_efficiency and visible else None
     )
+    # Hỗ trợ bằng hiệu suất (không có bù) thì khỏi lặp số — để trống, hiện dấu «—».
+    if support_efficiency_pct is not None and support_efficiency_pct == efficiency_pct:
+        support_efficiency_pct = None
+    row['production_efficiency_pct'] = efficiency_pct
+    row['production_support_efficiency_pct'] = support_efficiency_pct
     return row
 
 

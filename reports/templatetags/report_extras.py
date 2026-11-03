@@ -111,9 +111,9 @@ def summary_efficiency_class(pct):
 
 @register.filter
 def summary_efficiency_grade(pct):
-    """Nhãn xếp loại, vd. «A – Vượt»; rỗng khi không có số liệu."""
+    """Nhãn xếp loại — chỉ mã, vd. «A»; rỗng khi không có số liệu."""
     tier = _efficiency_tier(pct)
-    return f'{tier[3]} – {tier[4]}' if tier else ''
+    return tier[3] if tier else ''
 
 
 @register.simple_tag
