@@ -15,6 +15,14 @@ Mỗi entry nên có:
 
 ## Entries
 
+### 2026-11-03 — workflow / xác nhận đơn tự tạo LSX
+
+- **Type**: workflow
+- **Change**: `confirm_sales_order` sau khi tạo KHSX và lịch tổ sẽ tự tạo, gắn đơn và phát hành LSX cho mọi mã sản phẩm có số lượng dương trong cùng transaction. Xác nhận rollback nếu thiếu BOM/công đoạn, tạo LSX lỗi hoặc không tạo đủ LSX.
+- **Reason**: Đơn đã xác nhận phải luôn có cả KHSX và LSX, tránh trạng thái chỉ có kế hoạch nhưng không có lệnh để theo dõi sản xuất.
+- **Source**: `san_xuat/services/sales_orders.py::confirm_sales_order`, `san_xuat/services/plan_board.py::release_order_to_production`, `san_xuat/tests/test_order_routing.py`.
+- **Agent impact**: Không còn giả định xác nhận chỉ đưa đơn vào hàng đợi. Trước khi xác nhận, mọi dòng dương phải có BOM và ít nhất một nguồn công đoạn từ snapshot đơn, OB hoặc BOM; thành công trả về đơn ở trạng thái kế hoạch `released` với LSX đã phát hành.
+
 ### 2026-11-02 — workflow / gộp "Tổ gia công" và "Đối tác" thành một (GcPartner)
 
 - **Type**: workflow | feature | schema

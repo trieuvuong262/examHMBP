@@ -67,9 +67,16 @@ class OrderRoutingTests(TestCase):
         self.assertEqual(snap.applied_unit_smv, Decimal('1.2000'))
         self.assertEqual(snap.library_unit_smv, Decimal('1.2000'))
 
-    def test_confirm_allows_missing_routing_until_production_release(self):
+    def test_confirm_rolls_back_when_bom_is_missing(self):
         order = self._order(with_routing=False)
-        confirm_sales_order(order_id=order.pk)
+
+        with self.assertRaises(PlanningError) as ctx:
+            confirm_sales_order(order_id=order.pk)
+
+        self.assertIn('chưa gắn BOM', str(ctx.exception))
+        order.refresh_from_db()
+        self.assertEqual(order.confirm_status, SxSalesOrder.CONFIRM_DRAFT)
+        self.assertFalse(order.production_orders.exists())
 
     def test_upsert_does_not_change_master(self):
         order = self._order()
@@ -166,3 +173,10 @@ class OrderRoutingTests(TestCase):
         self.assertEqual(smvs[0][0], Decimal('25.2000'))
         self.assertEqual(smvs[0][1], 'Cat than chinh')
         self.assertEqual(smvs[1][0], Decimal('36.0000'))
+
+        confirmed = confirm_sales_order(order_id=order.pk)
+        self.assertEqual(confirmed.confirm_status, SxSalesOrder.CONFIRM_CONFIRMED)
+        self.assertEqual(confirmed.plan_status, SxSalesOrder.PLAN_RELEASED)
+        mo = confirmed.production_orders.get()
+        self.assertEqual(mo.product_code, 'JP-JKT-TEST')
+        self.assertEqual(mo.qty, Decimal('5'))

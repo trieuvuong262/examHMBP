@@ -589,9 +589,42 @@ def confirm_sales_order(*, order_id: int, user=None) -> SxSalesOrder:
     from san_xuat.services.plan_route import ensure_order_plan_steps
 
     ensure_order_plan_steps(order)
-    from san_xuat.services.plan_board import apply_auto_team_day_splits
+    from san_xuat.services.plan_board import (
+        apply_auto_team_day_splits,
+        release_order_to_production,
+    )
 
     apply_auto_team_day_splits(order, replace_existing=False)
+    try:
+        release_order_to_production(order_id=order.pk, user=user)
+    except PlanningError as exc:
+        raise PlanningError(
+            f'Không xác nhận được vì chưa tạo được LSX. {exc}'
+        ) from exc
+
+    expected_codes = {
+        (line.product_code or '').strip().casefold()
+        for line in order.lines.all()
+        if (line.qty or 0) > 0
+    }
+    active_mo_codes = {
+        (code or '').strip().casefold()
+        for code in SxProductionOrder.objects.filter(
+            sales_order_id=order.pk,
+            is_demo=False,
+        ).exclude(
+            status=SxProductionOrder.STATUS_CANCELLED,
+        ).values_list('product_code', flat=True)
+    }
+    missing_codes = sorted(expected_codes - active_mo_codes)
+    if missing_codes:
+        raise PlanningError(
+            'Không xác nhận được vì chưa tạo đủ LSX cho mã: '
+            + ', '.join(missing_codes)
+            + '.'
+        )
+
+    order.refresh_from_db()
     return order
 
 
