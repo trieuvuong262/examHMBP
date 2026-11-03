@@ -183,6 +183,7 @@ def export_production_team_summary_xlsx(
     metric = summary.get('metric') or 'efficiency'
     metric_part = {
         'efficiency': 'hieu_suat',
+        'support_efficiency': 'hieu_suat_ho_tro',
         'time': 'hieu_suat_thoi_gian',
         'quantity': 'san_luong',
     }.get(metric, metric)

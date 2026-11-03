@@ -597,10 +597,12 @@ def build_production_summary_shift_tabs(
 
 
 SUMMARY_METRIC_EFFICIENCY = 'efficiency'
+SUMMARY_METRIC_SUPPORT_EFFICIENCY = 'support_efficiency'
 SUMMARY_METRIC_TIME = 'time'
 SUMMARY_METRIC_QUANTITY = 'quantity'
 SUMMARY_METRIC_CHOICES = (
     (SUMMARY_METRIC_EFFICIENCY, 'Hiệu suất TB'),
+    (SUMMARY_METRIC_SUPPORT_EFFICIENCY, 'Hiệu suất TB hỗ trợ'),
     (SUMMARY_METRIC_TIME, 'Hiệu suất theo thời gian'),
     (SUMMARY_METRIC_QUANTITY, 'Sản lượng'),
 )
@@ -910,6 +912,8 @@ def _day_efficiency_pct(reports: list[DailyWorkReport]) -> float | None:
 
 def _metric_parts(reports, metric: str) -> tuple[Decimal, Decimal]:
     """Trả (tử số tích lũy, mẫu số) theo loại chỉ số."""
+    if metric == SUMMARY_METRIC_SUPPORT_EFFICIENCY:
+        return _support_efficiency_parts(reports)
     if metric == SUMMARY_METRIC_TIME:
         return _time_efficiency_parts(reports)
     if metric == SUMMARY_METRIC_QUANTITY:
