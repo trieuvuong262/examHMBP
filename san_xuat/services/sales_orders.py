@@ -760,9 +760,28 @@ def related_mos(order: SxSalesOrder) -> list[SxProductionOrder]:
     return list(qs.select_related('detail_plan').distinct().order_by('-order_date', 'code')[:80])
 
 
-def production_status_summary(order: SxSalesOrder) -> str:
+def order_codes_missing_mo(order: SxSalesOrder, mos: list[SxProductionOrder]) -> list[str]:
+    """Mã SP (dòng SL > 0) của đơn chưa có LSX còn hiệu lực trong ``mos``."""
+    expected = {
+        (ln.product_code or '').strip().casefold(): (ln.product_code or '').strip()
+        for ln in order.lines.all()
+        if (ln.qty or 0) > 0 and (ln.product_code or '').strip()
+    }
+    covered = {
+        (m.product_code or '').strip().casefold()
+        for m in mos
+        if m.status != SxProductionOrder.STATUS_CANCELLED
+    }
+    return sorted(code for key, code in expected.items() if key not in covered)
+
+
+def production_status_summary(
+    order: SxSalesOrder,
+    mos: list[SxProductionOrder] | None = None,
+) -> str:
     """Chip TT SX suy từ LSX liên quan."""
-    mos = related_mos(order)
+    if mos is None:
+        mos = related_mos(order)
     if not mos:
         if order.confirm_status == SxSalesOrder.CONFIRM_DRAFT:
             return 'chua_xac_nhan'
@@ -782,7 +801,9 @@ def production_status_summary(order: SxSalesOrder) -> str:
     if SxProductionOrder.STATUS_IN_PROGRESS in statuses:
         return 'dang_sx'
     if SxProductionOrder.STATUS_RELEASED in statuses or SxProductionOrder.STATUS_DRAFT in statuses:
-        return 'chua_du_lenh'
+        if order_codes_missing_mo(order, mos):
+            return 'chua_du_lenh'
+        return 'da_co_lenh'
     return 'chua_sx'
 
 
@@ -791,6 +812,7 @@ PROD_STATUS_LABELS = {
     'tu_choi': 'Từ chối',
     'chua_sx': 'Chưa sản xuất',
     'chua_du_lenh': 'Chưa lập đủ lệnh',
+    'da_co_lenh': 'Đã có lệnh',
     'dang_sx': 'Đang sản xuất',
     'hoan_thanh': 'Hoàn thành',
 }

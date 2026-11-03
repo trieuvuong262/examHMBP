@@ -15,6 +15,14 @@ Mỗi entry nên có:
 
 ## Entries
 
+### 2026-11-03 — feature / chip SX và danh sách LSX trên chi tiết đơn
+
+- **Type**: feature (UI) | bugfix
+- **Change**: `production_status_summary` chỉ trả `chua_du_lenh` khi còn mã SP (dòng SL > 0) chưa có LSX còn hiệu lực (`order_codes_missing_mo`). Đủ LSX nhưng chưa bắt đầu (draft/released) → trạng thái mới `da_co_lenh` «Đã có lệnh». Header chi tiết đơn liệt kê mã LSX (không tính đã hủy) kèm link `dispatch_mo_detail`.
+- **Reason**: Đơn đã có đủ LSX phát hành vẫn hiện «Chưa lập đủ lệnh», người dùng hiểu là đơn chưa có lệnh sản xuất.
+- **Source**: `san_xuat/services/sales_orders.py::production_status_summary`, `order_codes_missing_mo`, `PROD_STATUS_LABELS`; `san_xuat/views_hub.py::sales_order_detail` (context `order_mos`); `san_xuat/templates/san_xuat/sales_order_detail.html`; `san_xuat/tests/test_order_routing.py`.
+- **Agent impact**: `production_status_summary(order, mos)` nhận sẵn danh sách LSX để tránh query `related_mos` hai lần. Thêm trạng thái chip mới phải bổ sung cả nhãn trong `PROD_STATUS_LABELS` và CSS `.is-prod-<key>` trong template chi tiết đơn.
+
 ### 2026-11-03 — workflow / xác nhận đơn tự tạo LSX
 
 - **Type**: workflow

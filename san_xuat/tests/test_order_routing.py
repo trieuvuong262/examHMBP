@@ -180,3 +180,21 @@ class OrderRoutingTests(TestCase):
         mo = confirmed.production_orders.get()
         self.assertEqual(mo.product_code, 'JP-JKT-TEST')
         self.assertEqual(mo.qty, Decimal('5'))
+
+        from san_xuat.hub_models import SxProductionOrder
+        from san_xuat.services.sales_orders import (
+            order_codes_missing_mo,
+            production_status_summary,
+        )
+
+        self.assertEqual(production_status_summary(confirmed), 'da_co_lenh')
+        self.assertEqual(order_codes_missing_mo(confirmed, [mo]), [])
+
+        other = SxProductionOrder(product_code='KHAC', status=SxProductionOrder.STATUS_RELEASED)
+        self.assertEqual(production_status_summary(confirmed, [other]), 'chua_du_lenh')
+        self.assertEqual(order_codes_missing_mo(confirmed, [other]), ['JP-JKT-TEST'])
+
+        cancelled = SxProductionOrder(
+            product_code='JP-JKT-TEST', status=SxProductionOrder.STATUS_CANCELLED,
+        )
+        self.assertEqual(order_codes_missing_mo(confirmed, [cancelled]), ['JP-JKT-TEST'])

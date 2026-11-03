@@ -1204,6 +1204,7 @@ def sales_order_detail(request, pk: int):
         PROD_STATUS_LABELS,
         confirm_sales_order,
         production_status_summary,
+        related_mos,
         reject_sales_order,
         sales_order_is_editable,
     )
@@ -1279,7 +1280,11 @@ def sales_order_detail(request, pk: int):
                     messages.success(request, f'Đã từ chối đơn {order.code}.')
                     return redirect(_sales_order_detail_return_url(order.pk, review=review_mode))
 
-    prod_status = production_status_summary(order)
+    order_mos = related_mos(order)
+    prod_status = production_status_summary(order, order_mos)
+    active_order_mos = [
+        m for m in order_mos if m.status != SxProductionOrder.STATUS_CANCELLED
+    ]
     can_edit_order = (
         sales_order_is_editable(order)
         and user_can_access_menu(request.user, MODULE_SAN_XUAT, 'order_create')
@@ -1395,6 +1400,7 @@ def sales_order_detail(request, pk: int):
         'reject_form': reject_form,
         'prod_status': prod_status,
         'prod_label': PROD_STATUS_LABELS.get(prod_status, prod_status),
+        'order_mos': active_order_mos,
         'can_edit_order': can_edit_order,
         'suggest_snaps_json': json.dumps(suggest_snaps, ensure_ascii=False),
     })

@@ -228,6 +228,7 @@
   .jp-so-chip.is-prod-dang_sx i { animation: jp-so-spin 3s linear infinite; }
   .jp-so-chip.is-prod-hoan_thanh { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
   .jp-so-chip.is-prod-chua_du_lenh { color: #9a3412; background: #fff7ed; border-color: #fdba74; }
+  .jp-so-chip.is-prod-da_co_lenh { color: #6d28d9; background: #f5f3ff; border-color: #ddd6fe; }
   .jp-so-chip.is-prod-tu_choi { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
   @keyframes jp-so-spin { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) { .jp-so-chip.is-prod-dang_sx i { animation: none; } }
@@ -337,6 +338,15 @@
           <span class="jp-so-chip-k">SX</span>{{ prod_label }}
         </span>
       </div>
+      {% if order_mos %}
+      <div class="jp-so-mos small mt-1">
+        <span class="text-muted">LSX:</span>
+        {% for mo in order_mos %}
+        <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}" class="jp-so-mo-link" title="{{ mo.get_status_display }}">{{ mo.code }}</a>
+        <span class="text-muted">({{ mo.get_status_display }})</span>{% if not forloop.last %}<span class="text-muted">, </span>{% endif %}
+        {% endfor %}
+      </div>
+      {% endif %}
     </div>
     <nav class="jp-sx-tools jp-so-topbar-tools" aria-label="Công cụ">
       {% if can_publish_order_tech and order.lines.all %}
