@@ -364,7 +364,37 @@ step "7) Start app services (web + worker + nginx)"
 export DOCKER_PYTHON_IMAGE
 # worker phải nằm trong danh sách: trước đây chỉ `up -d web nginx` nên container
 # worker cũ vẫn chạy image cũ → job RQ thực thi code của bản deploy trước.
-compose up -d web worker nginx
+#
+# Recreate race của docker compose: khi vừa gỡ container cũ vừa `start` container
+# mới trong cùng một `up`, daemon thỉnh thoảng trả «No such container: <hash>»
+# (container ID đã bị thay). Với `set -e` lỗi này làm hỏng cả deploy dù web/nginx
+# vẫn OK. Thử lại kèm dọn orphan để tự phục hồi thay vì abort.
+start_app_services() {
+  local attempt max_attempts up_log up_rc
+  max_attempts=3
+  for attempt in $(seq 1 "${max_attempts}"); do
+    up_log="$(mktemp)"
+    if compose up -d --remove-orphans web worker nginx >"${up_log}" 2>&1; then
+      cat "${up_log}"
+      rm -f "${up_log}"
+      return 0
+    fi
+    up_rc=$?
+    cat "${up_log}"
+    if grep -q "No such container" "${up_log}" && [[ "${attempt}" -lt "${max_attempts}" ]]; then
+      echo "    Recreate race (No such container) — dọn orphan, thử lại (${attempt}/${max_attempts}) sau 5s..."
+      rm -f "${up_log}"
+      sleep 5
+      continue
+    fi
+    rm -f "${up_log}"
+    echo "ERROR: compose up -d web worker nginx thất bại (rc=${up_rc})."
+    compose ps || true
+    return "${up_rc}"
+  done
+  return 1
+}
+start_app_services
 
 step "7b) Reload nginx để resolve lại IP container web"
 # PortalJustPlay/nginx/default.conf dùng `upstream django_app { server web:8000; }`.
