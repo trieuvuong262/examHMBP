@@ -102,6 +102,13 @@
     <span class="text-muted">—</span>
     {% endif %}
 </td>
+<td class="text-center">
+    {% if row.production_support_efficiency_pct is not None %}
+    <span class="jp-eff {{ row.production_support_efficiency_pct|summary_efficiency_class }}" title="Hiệu suất hỗ trợ · {{ row.production_support_efficiency_pct|summary_efficiency_grade }}">{{ row.production_support_efficiency_pct|efficiency_pct_display:2 }}%</span>
+    {% else %}
+    <span class="text-muted">—</span>
+    {% endif %}
+</td>
 <td class="text-end">
     {% if row.production_total_qty or row.production_total_damaged %}
     {% if row.production_total_qty %}SL {{ row.production_total_qty|prod_qty }}{% endif %}

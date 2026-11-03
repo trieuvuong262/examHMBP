@@ -34,6 +34,7 @@ from reports.production_hourly import (
     _products_for_productivity,
     _report_efficiency_totals,
     _report_overall_efficiency_pct,
+    _report_support_quantity_efficiency_pct,
     compute_day_work_waste_summary,
     list_production_products,
     report_has_manager_fixable_anomaly,
@@ -171,6 +172,9 @@ def _aggregate_production_row(
     row = _production_row_flags(visible)
     row['production_efficiency_pct'] = (
         _weighted_efficiency_pct(visible) if compute_efficiency and visible else None
+    )
+    row['production_support_efficiency_pct'] = (
+        _weighted_support_efficiency_pct(visible) if compute_efficiency and visible else None
     )
     return row
 
@@ -816,6 +820,32 @@ def _combined_efficiency_parts(reports) -> tuple[Decimal, Decimal]:
     return weighted, weight
 
 
+def _support_efficiency_parts(reports) -> tuple[Decimal, Decimal]:
+    """Trả (HS hỗ trợ × trọng số giờ, tổng giờ).
+
+    HS hỗ trợ = HS sản lượng (sau khi bù hiệu suất) × HS thời gian —
+    khớp day_summary.support_efficiency_pct trong chi tiết báo cáo.
+    """
+    weighted = Decimal('0')
+    weight = Decimal('0')
+    for report in reports:
+        products = list_production_products(report)
+        productive = _products_for_productivity(products)
+        _qty, hours, _expected = _report_efficiency_totals(productive)
+        quantity_pct = _report_support_quantity_efficiency_pct(productive)
+        day_times = compute_day_work_waste_summary(report, products)
+        combined = _combined_efficiency_pct(
+            quantity_pct,
+            day_times.get('time_efficiency_pct'),
+        )
+        if combined is None:
+            continue
+        part_weight = hours if hours > 0 else Decimal('1')
+        weighted += Decimal(str(combined)) * part_weight
+        weight += part_weight
+    return weighted, weight
+
+
 def _time_efficiency_parts(reports) -> tuple[Decimal, Decimal]:
     """Trả (HS thời gian × trọng số giờ khai báo, tổng trọng số)."""
     weighted = Decimal('0')
@@ -853,6 +883,11 @@ def _pct_from_parts(weighted: Decimal, hours: Decimal) -> float | None:
 def _weighted_efficiency_pct(reports: list[DailyWorkReport]) -> float | None:
     """Hiệu suất TB — HS sản lượng × HS thời gian (trọng số theo giờ công đoạn)."""
     return _pct_from_parts(*_combined_efficiency_parts(reports))
+
+
+def _weighted_support_efficiency_pct(reports: list[DailyWorkReport]) -> float | None:
+    """Hiệu suất hỗ trợ — HS sản lượng (sau bù) × HS thời gian, trọng số theo giờ."""
+    return _pct_from_parts(*_support_efficiency_parts(reports))
 
 
 def report_overall_efficiency_pct(report) -> float | None:

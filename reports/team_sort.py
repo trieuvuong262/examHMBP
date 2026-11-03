@@ -15,6 +15,7 @@ TEAM_SORT_STATUS = 'status'
 TEAM_SORT_REVIEWED = 'reviewed'
 TEAM_SORT_SUMMARY = 'summary'
 TEAM_SORT_EFFICIENCY = 'efficiency'
+TEAM_SORT_SUPPORT_EFFICIENCY = 'support_efficiency'
 
 TEAM_SORT_SHIFT = 'shift'
 
@@ -88,6 +89,7 @@ def build_team_table_columns(
         {'key': 'comment', 'label': 'Nhận xét', 'align': 'center', 'sortable': False},
         {'key': TEAM_SORT_REVIEWED, 'label': 'Đã xem', 'align': 'center'},
         {'key': TEAM_SORT_EFFICIENCY, 'label': 'Hiệu suất', 'align': 'center', 'production_only': True},
+        {'key': TEAM_SORT_SUPPORT_EFFICIENCY, 'label': 'Hiệu suất hỗ trợ', 'align': 'center', 'production_only': True, 'sortable': False},
         {'key': TEAM_SORT_SUMMARY, 'label': 'Tóm tắt', 'align': 'end'},
         {'key': None, 'label': '', 'align': 'end', 'sortable': False},
     ]
