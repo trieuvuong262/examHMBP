@@ -6,6 +6,7 @@ vẫn vào được qua alias trong ``MENU_PATH_ACCESS_ALIASES``.
 
 from __future__ import annotations
 
+import json
 from decimal import Decimal
 from urllib.parse import urlencode
 
@@ -156,11 +157,20 @@ def subcontract_list(request):
     has_filters = bool(q or status or team or partner_raw or date_from or date_to)
     from utilities.date_range_filter import date_range_span_context
 
+    items = list(qs.select_related('created_by')[:500])
+    from san_xuat.services.products import product_gallery_map
+
+    image_map = product_gallery_map([it.product_code for it in items])
+    for it in items:
+        urls = image_map.get((it.product_code or '').casefold(), [])
+        it.product_image_url = urls[0] if urls else ''
+        it.product_image_urls_json = json.dumps(urls, ensure_ascii=False)
+
     return render(request, 'san_xuat/subcontract_list.html', {
         **sx_list_grid_context(request, 'subcontract'),
         **date_range_span_context(date_from, date_to),
         'range_all': not (date_from or date_to),
-        'items': list(qs.select_related('created_by')[:500]),
+        'items': items,
         'search_query': q,
         'status_filter': status,
         'team_filter': team,
@@ -218,7 +228,7 @@ def gc_account_list(request):
         return _denied(request)
     can_edit = _can_edit(request.user)
     new_password = None
-    account_form = GcPartnerAccountForm(initial={'role': GcPartnerAccount.ROLE_OWNER}) if can_edit else None
+    account_form = GcPartnerAccountForm() if can_edit else None
     add_partner_id = (request.GET.get('partner') or '').strip()
     show_add_form = False
 
@@ -244,7 +254,6 @@ def gc_account_list(request):
                         username=cd['username'],
                         full_name=cd.get('full_name') or '',
                         phone=cd.get('phone') or '',
-                        role=cd['role'],
                         password=cd.get('password') or '',
                         created_by=request.user,
                     )
@@ -253,7 +262,7 @@ def gc_account_list(request):
                 else:
                     new_password = {'username': acc.username, 'password': raw, 'partner': partner.name}
                     messages.success(request, f'Đã tạo tài khoản {acc.username} cho {partner.name}.')
-                    account_form = GcPartnerAccountForm(initial={'role': GcPartnerAccount.ROLE_OWNER})
+                    account_form = GcPartnerAccountForm()
                     show_add_form = False
             else:
                 messages.error(request, 'Chưa tạo được tài khoản — kiểm tra lại các ô báo lỗi.')

@@ -3356,11 +3356,43 @@ class SxSubcontractMaterialLine(models.Model):
     lot_code = models.CharField(max_length=60, blank=True, default='')
     notes = models.CharField(max_length=255, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
+    # Tổ gia công xác nhận đã nhận NPL trên cổng pn (chỉ dòng 'out').
+    qty_confirmed = models.DecimalField(
+        max_digits=14, decimal_places=2, null=True, blank=True,
+        verbose_name='SL đối tác xác nhận nhận',
+    )
+    confirm_note = models.CharField(
+        max_length=255, blank=True, default='', verbose_name='Ghi chú xác nhận NPL',
+    )
+    confirmed_at = models.DateTimeField(null=True, blank=True, verbose_name='Xác nhận lúc')
+    confirmed_by = models.ForeignKey(
+        'san_xuat.GcPartnerAccount',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+        verbose_name='Tài khoản xác nhận NPL',
+    )
 
     class Meta:
         ordering = ['direction', 'pk']
         verbose_name = 'Dòng NVL/BTP GC'
         verbose_name_plural = 'Dòng NVL/BTP GC'
+
+    @property
+    def is_confirmed(self) -> bool:
+        return self.qty_confirmed is not None
+
+    @property
+    def confirm_diff(self) -> Decimal:
+        """SL thực nhận trừ SL xuất (âm = thiếu, dương = thừa). 0 khi chưa xác nhận."""
+        if self.qty_confirmed is None:
+            return Decimal('0')
+        return (self.qty_confirmed - (self.qty or Decimal('0'))).quantize(Decimal('0.01'))
+
+    @property
+    def is_mismatch(self) -> bool:
+        return self.is_confirmed and self.confirm_diff != 0
 
 
 class SxWorkAssignment(DemoMarkedModel):

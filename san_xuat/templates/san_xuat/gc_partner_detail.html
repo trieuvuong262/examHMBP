@@ -82,45 +82,33 @@
         <div class="table-responsive">
           <table class="table table-sm align-middle mb-0 jp-gc-table">
             <thead class="table-light">
-              <tr><th>Công đoạn</th><th>Mã SP</th><th class="text-end">Đơn giá</th><th>Hiệu lực</th><th class="text-center">Trạng thái</th><th class="text-end"></th></tr>
+              <tr><th>Công đoạn</th><th class="text-end">Đơn giá</th><th>Hiệu lực</th><th class="text-end"></th></tr>
             </thead>
             <tbody class="jp-gc-rows">
             {% for r in price_rules %}
               <tr class="{% if r.valid_to and r.valid_to < today %}text-muted{% endif %}">
                 <td class="small fw-semibold">{{ r.team_label }}</td>
-                <td class="small">{% if r.product_code %}<span class="fw-semibold">{{ r.product_code }}</span><span class="jp-gc-sub">{{ r.product_name }}</span>{% else %}<span class="text-muted">Giá chung</span>{% endif %}</td>
                 <td class="text-end jp-gc-num">{{ r.unit_price|sx_num:0 }}</td>
                 <td class="small">{{ r.valid_from|date:'d/m/Y' }} → {% if r.valid_to %}{{ r.valid_to|date:'d/m/Y' }}{% else %}…{% endif %}</td>
-                <td class="text-center">
-                  {% if r.status == 'approved' %}<span class="jp-gc-badge is-ok">Đã duyệt</span>
-                  {% if r.approved_by %}<span class="jp-gc-sub">{{ r.approved_by.get_full_name|default:r.approved_by.username }}</span>{% endif %}
-                  {% else %}<span class="jp-gc-badge is-warn is-pulse">Chờ duyệt</span>{% endif %}
-                </td>
                 <td class="text-end">
+                  {% if can_edit %}
                   <div class="jp-gc-actions">
-                    {% if r.status == 'draft' and can_approve_price %}
-                    <form method="post">{% csrf_token %}
-                      <input type="hidden" name="action" value="approve_price"><input type="hidden" name="rule_id" value="{{ r.pk }}">
-                      <button class="btn btn-sm btn-outline-success jp-gc-icon-btn" title="Duyệt"><i class="bi bi-check2"></i></button>
-                    </form>
-                    {% endif %}
-                    {% if r.status == 'approved' and not r.valid_to and can_approve_price %}
+                    {% if not r.valid_to %}
                     <form method="post" onsubmit="return confirm('Chốt giá này hết hiệu lực từ hôm nay?');">{% csrf_token %}
                       <input type="hidden" name="action" value="end_price"><input type="hidden" name="rule_id" value="{{ r.pk }}">
                       <button class="btn btn-sm btn-outline-secondary jp-gc-icon-btn" title="Kết thúc hiệu lực"><i class="bi bi-stop-circle"></i></button>
                     </form>
                     {% endif %}
-                    {% if can_edit and r.status == 'draft' or can_approve_price %}
                     <form method="post" onsubmit="return confirm('Xóa dòng giá?');">{% csrf_token %}
                       <input type="hidden" name="action" value="delete_price"><input type="hidden" name="rule_id" value="{{ r.pk }}">
                       <button class="btn btn-sm btn-outline-danger jp-gc-icon-btn" title="Xóa"><i class="bi bi-trash3"></i></button>
                     </form>
-                    {% endif %}
                   </div>
+                  {% endif %}
                 </td>
               </tr>
             {% empty %}
-              <tr><td colspan="6" class="jp-gc-empty"><i class="bi bi-tags"></i>Chưa có giá.</td></tr>
+              <tr><td colspan="4" class="jp-gc-empty"><i class="bi bi-tags"></i>Chưa có giá.</td></tr>
             {% endfor %}
             </tbody>
           </table>
@@ -132,13 +120,13 @@
             <input type="hidden" name="action" value="add_price">
             <div class="row g-2 align-items-end">
               {% for field in price_form %}
-              <div class="{% if field.name == 'notes' or field.name == 'product_name' %}col-md-6{% else %}col-6 col-md-3{% endif %}">
+              <div class="{% if field.name == 'notes' %}col-md-6{% else %}col-6 col-md-3{% endif %}">
                 <label class="form-label fw-bold small mb-1" for="{{ field.id_for_label }}">{{ field.label }}</label>
                 {{ field }}
                 {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
               </div>
               {% endfor %}
-              <div class="col-12"><button class="btn btn-hm btn-sm fw-bold px-4">Thêm giá (chờ duyệt)</button></div>
+              <div class="col-12"><button class="btn btn-hm btn-sm fw-bold px-4">Thêm giá</button></div>
             </div>
           </form>
         </div>
@@ -153,14 +141,13 @@
         <div class="table-responsive">
           <table class="table table-sm align-middle mb-0 jp-gc-table">
             <thead class="table-light">
-              <tr><th>Tên đăng nhập</th><th>Họ tên</th><th class="text-center">Vai trò</th><th>Đăng nhập cuối</th><th class="text-center">Trạng thái</th><th class="text-end"></th></tr>
+              <tr><th>Tên đăng nhập</th><th>Họ tên</th><th>Đăng nhập cuối</th><th class="text-center">Trạng thái</th><th class="text-end"></th></tr>
             </thead>
             <tbody class="jp-gc-rows">
             {% for a in accounts %}
               <tr>
                 <td class="jp-gc-name small">{{ a.username }}</td>
                 <td class="small">{{ a.full_name|default:"—" }}{% if a.phone %}<span class="jp-gc-sub">{{ a.phone }}</span>{% endif %}</td>
-                <td class="text-center">{% if a.role == 'owner' %}<span class="jp-gc-badge is-info is-plain">{{ a.get_role_display }}</span>{% else %}<span class="jp-gc-badge is-plain">{{ a.get_role_display }}</span>{% endif %}</td>
                 <td class="small">{% if a.last_login %}{{ a.last_login|date:'d/m/Y H:i' }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
                 <td class="text-center">
                   {% if not a.is_active %}<span class="jp-gc-badge">Đã khóa</span>
@@ -184,7 +171,7 @@
                 </td>
               </tr>
             {% empty %}
-              <tr><td colspan="6" class="jp-gc-empty"><i class="bi bi-person-vcard"></i>Chưa có tài khoản.</td></tr>
+              <tr><td colspan="5" class="jp-gc-empty"><i class="bi bi-person-vcard"></i>Chưa có tài khoản.</td></tr>
             {% endfor %}
             </tbody>
           </table>

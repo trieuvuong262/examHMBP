@@ -1,76 +1,98 @@
-﻿{% extends 'partner_portal/base.html' %}
+{% extends 'partner_portal/base.html' %}
 {% load static %}
 {% block title %}Đăng nhập{% endblock %}
+{% block body_class %}jp-guest{% endblock %}
 {% block extra_head %}
 <style>
-  body:has(.pn-login-screen) { background:#f4f5f7; }
-  body:has(.pn-login-screen) .pn-app { margin-left:0; padding-top:0; }
-  body:has(.pn-login-screen) .pn-content { max-width:none; padding:0; }
-  body:has(.pn-login-screen) .pn-footer { display:none; }
-  .pn-login-screen { min-height:100vh; display:grid; grid-template-columns:minmax(0,1.1fr) minmax(360px,.9fr); background:#fff; }
-  .pn-login-brand { position:relative; overflow:hidden; display:flex; flex-direction:column; justify-content:space-between; padding:clamp(2rem,5vw,5rem); color:#fff; background:linear-gradient(145deg,#111827 0%,#1f2937 58%,#7f1d1d 140%); }
-  .pn-login-brand::before,.pn-login-brand::after { content:''; position:absolute; border-radius:50%; pointer-events:none; }
-  .pn-login-brand::before { width:32rem;height:32rem;right:-13rem;top:-12rem;border:1px solid rgba(255,255,255,.12);box-shadow:0 0 0 70px rgba(255,255,255,.025),0 0 0 140px rgba(255,255,255,.018); }
-  .pn-login-brand::after { width:18rem;height:18rem;left:-8rem;bottom:-8rem;background:radial-gradient(circle,rgba(220,38,38,.28),transparent 68%); }
-  .pn-login-logo { position:relative;z-index:1; display:inline-flex;align-items:center;gap:.75rem;color:#fff;text-decoration:none;font-family:var(--jp-font-emphasis);font-size:1.2rem;letter-spacing:.02em; }
-  .pn-login-logo img { width:44px;height:44px;object-fit:contain;background:#fff;border-radius:10px;padding:5px; }
-  .pn-login-copy { position:relative;z-index:1; max-width:34rem; }
-  .pn-login-copy h1 { font-size:clamp(2rem,4vw,3.5rem); line-height:1.08; letter-spacing:-.045em; margin-bottom:1.25rem; font-family:var(--jp-font-emphasis); }
-  .pn-login-copy h1 span { color:#f87171; }
-  .pn-login-copy p { color:rgba(255,255,255,.7); max-width:29rem; line-height:1.7; }
-  .pn-login-points { display:grid;gap:.7rem;margin-top:2rem; }
-  .pn-login-point { display:flex;align-items:center;gap:.65rem;color:rgba(255,255,255,.82);font-size:.88rem; }
-  .pn-login-point i { width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:rgba(220,38,38,.22);color:#fca5a5;font-size:.72rem; }
-  .pn-login-note { position:relative;z-index:1;color:rgba(255,255,255,.45);font-size:.72rem; }
-  .pn-login-panel { display:flex;align-items:center;justify-content:center;padding:2rem clamp(1.25rem,5vw,5rem);background:#fff; }
-  .pn-login-box { width:min(100%,390px); }
-  .pn-login-mobile-logo { display:none; }
-  .pn-login-heading h2 { color:#111827;font-family:var(--jp-font-emphasis);font-size:1.65rem;letter-spacing:-.025em;margin-bottom:.35rem; }
-  .pn-login-heading p { color:#64748b;font-size:.86rem;margin-bottom:2rem; }
-  .pn-login-field { position:relative; }
-  .pn-login-field > i { position:absolute;left:.85rem;top:50%;transform:translateY(-50%);color:#94a3b8;z-index:2; }
-  .pn-login-field .form-control { min-height:48px;padding-left:2.65rem;border:1px solid #dbe1e8;border-radius:8px;background:#f8fafc; }
-  .pn-login-field .form-control:focus { background:#fff;border-color:var(--hm-primary);box-shadow:0 0 0 .22rem rgba(220,38,38,.1); }
-  .pn-login-field .jp-pwd-input { padding-right:3rem; }
-  .pn-login-submit { min-height:48px;border-radius:8px;font-weight:700;box-shadow:0 5px 12px rgba(220,38,38,.18); }
-  .pn-login-secure { display:flex;justify-content:center;align-items:center;gap:.35rem;color:#94a3b8;font-size:.7rem;margin-top:1.5rem; }
-  @media(max-width:767.98px) { .pn-login-screen{display:block;background:#f7f8fa;}.pn-login-brand{display:none;}.pn-login-panel{min-height:100vh;padding:1.5rem 1rem;}.pn-login-mobile-logo{display:flex;align-items:center;justify-content:center;gap:.6rem;margin-bottom:2rem;color:#111827;font-family:var(--jp-font-emphasis);}.pn-login-mobile-logo img{width:38px;height:38px;object-fit:contain;background:#fff;border-radius:8px;padding:4px;box-shadow:0 2px 8px rgba(0,0,0,.1);}.pn-login-box{background:#fff;padding:1.5rem;border-radius:12px;box-shadow:0 8px 26px rgba(15,23,42,.07);} }
+  /* Giao diện khách giống portal.justplay.vn: navbar đỏ, nền gradient, thẻ đăng nhập giữa trang. */
+  body:has(.pn-guest-page) .pn-app { margin-left:0; padding-top:0; }
+  body:has(.pn-guest-page) .pn-content { max-width:none; padding:0; }
+  body:has(.pn-guest-page) .pn-footer { display:none; }
+  .pn-guest-page { min-height:100vh; display:flex; flex-direction:column; }
+  .pn-guest-page .pn-guest-body { flex:1; }
 </style>
 {% endblock %}
 {% block content %}
-<div class="pn-login-screen">
-  <section class="pn-login-brand">
-    <a class="pn-login-logo" href="#"><img src="{{ site_logo }}" alt="JustPlay"><span>JUSTPLAY</span></a>
-    <div class="pn-login-copy">
-      <div class="small text-uppercase fw-bold mb-3" style="letter-spacing:.16em;color:#fca5a5">Partner Network</div>
-      <h1>Quản lý gia công<br><span>minh bạch, hiệu quả.</span></h1>
-      <p>Cổng làm việc dành riêng cho đối tác gia công: nhận đơn, cập nhật sản lượng và theo dõi kết quả được QC JustPlay duyệt.</p>
-      <div class="pn-login-points">
-        <div class="pn-login-point"><i class="bi bi-check-lg"></i><span>Nhận và theo dõi đơn gia công theo công đoạn</span></div>
-        <div class="pn-login-point"><i class="bi bi-check-lg"></i><span>Báo sản lượng theo ngày và từng size</span></div>
-        <div class="pn-login-point"><i class="bi bi-check-lg"></i><span>Minh bạch tiến độ và thống kê KPI</span></div>
+<div class="pn-guest-page">
+  <nav class="navbar navbar-expand-lg bg-hm sticky-top">
+    <div class="container-fluid px-3 px-lg-4 d-flex align-items-center justify-content-between">
+      <a class="navbar-brand text-white d-flex align-items-center m-0" href="{% url 'login' %}">
+        <img src="{{ site_logo }}" alt="Logo JustPlay" class="me-2">
+      </a>
+    </div>
+  </nav>
+
+  <div class="container py-5 pn-guest-body">
+    <div class="row justify-content-center">
+      <div class="col-md-6 col-lg-4">
+        <div class="card jp-auth-card">
+          <div class="jp-auth-header">
+            <h3 class="fw-bold mb-0">Just Play</h3>
+          </div>
+
+          <div class="card-body p-4 p-md-5">
+            {% if error %}
+            <div class="alert alert-danger border-0 small py-2 px-3 mb-4 text-center" role="alert">{{ error }}</div>
+            {% endif %}
+
+            <form method="post" autocomplete="on">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{{ next }}">
+
+              <div class="mb-4">
+                <label class="form-label small fw-bold text-jp-dark text-uppercase" for="pnLoginUsername">Tên đăng nhập</label>
+                <div class="input-group">
+                  <input type="text" id="pnLoginUsername" name="username" value="{{ username }}" class="form-control" placeholder="Tên đăng nhập" required autofocus autocomplete="username" autocapitalize="none">
+                </div>
+              </div>
+
+              <div class="mb-4">
+                <label class="form-label small fw-bold text-jp-dark text-uppercase" for="jpLoginPassword">Mật khẩu</label>
+                <div class="jp-pwd-field">
+                  <input type="password" name="password" id="jpLoginPassword" class="form-control jp-pwd-input" placeholder="••••••••" required autocomplete="current-password">
+                  <button type="button" class="jp-pwd-toggle" id="jpTogglePwd" title="Hiện mật khẩu" aria-label="Hiện mật khẩu" aria-pressed="false">
+                    <i class="bi bi-eye jp-pwd-icon jp-pwd-icon-off" aria-hidden="true"></i>
+                    <i class="bi bi-eye-slash jp-pwd-icon jp-pwd-icon-on" aria-hidden="true"></i>
+                  </button>
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-hm w-100 shadow-sm fw-bold">
+                Đăng nhập <i class="bi bi-box-arrow-in-right ms-1"></i>
+              </button>
+            </form>
+
+            <div class="text-center mt-4">
+              <span class="small text-muted">Quên mật khẩu? Liên hệ JustPlay để được cấp lại.</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-    <div class="pn-login-note">© {% now "Y" %} JustPlay.vn · Cổng đối tác gia công</div>
-  </section>
-  <section class="pn-login-panel">
-    <div class="pn-login-box">
-      <div class="pn-login-mobile-logo"><img src="{{ site_logo }}" alt="JustPlay"><span>JUSTPLAY</span></div>
-      <div class="pn-login-heading"><h2>Chào mừng trở lại</h2><p>Đăng nhập để tiếp tục công việc của bạn.</p></div>
-      {% if error %}<div class="alert alert-danger py-2 small border-0 mb-3"><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</div>{% endif %}
-      <form method="post" autocomplete="on">
-        {% csrf_token %}<input type="hidden" name="next" value="{{ next }}">
-        <div class="mb-3"><label class="form-label small fw-bold text-jp-dark" for="u">Tên đăng nhập</label><div class="pn-login-field"><i class="bi bi-person"></i><input id="u" type="text" name="username" value="{{ username }}" class="form-control" placeholder="Nhập tên đăng nhập" required autofocus autocomplete="username" autocapitalize="none"></div></div>
-        <div class="mb-4"><label class="form-label small fw-bold text-jp-dark" for="p">Mật khẩu</label><div class="pn-login-field"><i class="bi bi-lock"></i><input type="password" name="password" id="pnLoginPassword" class="form-control jp-pwd-input" placeholder="Nhập mật khẩu" required autocomplete="current-password"><button type="button" class="jp-pwd-toggle" id="pnTogglePwd" title="Hiện mật khẩu" aria-label="Hiện mật khẩu" aria-pressed="false"><i class="bi bi-eye jp-pwd-icon jp-pwd-icon-off"></i><i class="bi bi-eye-slash jp-pwd-icon jp-pwd-icon-on"></i></button></div></div>
-        <button type="submit" class="btn btn-hm pn-login-submit w-100">Đăng nhập <i class="bi bi-arrow-right ms-1"></i></button>
-      </form>
-      <div class="pn-login-secure"><i class="bi bi-shield-check text-success"></i> Kết nối bảo mật · Dành riêng cho đối tác JustPlay</div>
+  </div>
+
+  <footer class="jp-site-footer">
+    <div class="container-fluid px-3 px-lg-4 d-flex flex-column flex-md-row align-items-center justify-content-between gap-1">
+      <span class="jp-footer-copy">&copy; {% now "Y" %} JustPlay.vn — Cổng đối tác gia công</span>
+      <span class="jp-footer-credit">Design by <strong>IT</strong></span>
     </div>
-  </section>
+  </footer>
 </div>
 {% endblock %}
 {% block scripts %}
 <script>
-(function(){var p=document.getElementById('pnLoginPassword'),b=document.getElementById('pnTogglePwd');if(!p||!b)return;b.addEventListener('click',function(){var s=p.type==='password';p.type=s?'text':'password';b.classList.toggle('is-visible',s);b.setAttribute('aria-label',s?'Ẩn mật khẩu':'Hiện mật khẩu');b.setAttribute('title',s?'Ẩn mật khẩu':'Hiện mật khẩu');});})();
+(function () {
+  var pwdInput = document.getElementById('jpLoginPassword');
+  var togglePwd = document.getElementById('jpTogglePwd');
+  if (!pwdInput || !togglePwd) return;
+  togglePwd.addEventListener('click', function () {
+    var show = pwdInput.type === 'password';
+    pwdInput.type = show ? 'text' : 'password';
+    togglePwd.classList.toggle('is-visible', show);
+    togglePwd.setAttribute('aria-pressed', show ? 'true' : 'false');
+    togglePwd.setAttribute('aria-label', show ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
+    togglePwd.setAttribute('title', show ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
+  });
+})();
 </script>
 {% endblock %}

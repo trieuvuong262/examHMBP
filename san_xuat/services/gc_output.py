@@ -11,7 +11,7 @@ from decimal import Decimal, InvalidOperation
 from django.db import transaction
 from django.utils import timezone
 
-from san_xuat.hub_models import SxSubcontractOrder
+from san_xuat.hub_models import SxSubcontractMaterialLine, SxSubcontractOrder
 from san_xuat.partner_models import GcOutputReport, GcPartnerAccount
 
 ZERO = Decimal('0')
@@ -39,6 +39,32 @@ def partner_orders(partner):
         )
         .exclude(status=SxSubcontractOrder.STATUS_CANCELLED)
         .select_related('production_order', 'sales_order')
+    )
+
+
+def material_image_urls(codes) -> dict[str, str]:
+    """Map mã NPL (casefold) → URL ảnh kho NPL; mã không có ảnh thì không có trong map."""
+    from kho_npl.models import Material
+
+    wanted = {(c or '').strip() for c in codes if (c or '').strip()}
+    urls: dict[str, str] = {}
+    if not wanted:
+        return urls
+    for mat in Material.objects.filter(code__in=wanted):
+        key = (mat.code or '').strip().casefold()
+        if key in urls or not mat.image:
+            continue
+        try:
+            urls[key] = mat.image.url
+        except (ValueError, OSError):
+            continue
+    return urls
+
+
+def clear_material_confirmations(order) -> None:
+    """Xóa xác nhận NPL của đối tác (khi thu hồi / từ chối / gửi lại phiếu)."""
+    order.material_lines.filter(direction=SxSubcontractMaterialLine.DIRECTION_OUT).update(
+        qty_confirmed=None, confirm_note='', confirmed_at=None, confirmed_by=None,
     )
 
 
@@ -79,6 +105,7 @@ def send_to_partner(*, order_id: int, user) -> SxSubcontractOrder:
         'partner_sent_at', 'partner_sent_by', 'partner_accepted_at', 'partner_accepted_by',
         'partner_rejected_at', 'partner_rejected_by', 'partner_reject_reason',
     ])
+    clear_material_confirmations(order)
     return order
 
 
@@ -97,6 +124,7 @@ def recall_from_partner(*, order_id: int) -> SxSubcontractOrder:
     order.save(update_fields=[
         'partner_sent_at', 'partner_sent_by', 'partner_accepted_at', 'partner_accepted_by',
     ])
+    clear_material_confirmations(order)
     return order
 
 
@@ -142,6 +170,62 @@ def reject_order(*, order, account: GcPartnerAccount, reason: str) -> None:
         'partner_rejected_at', 'partner_rejected_by', 'partner_reject_reason',
         'partner_sent_at', 'partner_accepted_at', 'partner_accepted_by',
     ])
+    clear_material_confirmations(order)
+
+
+@transaction.atomic
+def confirm_materials(
+    *, order, account: GcPartnerAccount, qtys: dict, notes: dict | None = None,
+) -> tuple[int, int]:
+    """Tổ gia công xác nhận SL thực nhận cho từng dòng NPL JustPlay xuất đi.
+
+    ``qtys`` / ``notes`` khóa theo id dòng NPL. SL khác SL xuất thì bắt buộc ghi chú.
+    Không chặn báo sản lượng; chỉ sửa lại được xác nhận khi chưa có báo sản lượng.
+    Trả về (số dòng đã xác nhận, số dòng lệch SL).
+    """
+    order = SxSubcontractOrder.objects.select_for_update().get(pk=order.pk)
+    _check_partner_order(order, account)
+    if not order.partner_accepted_at:
+        raise GcOutputError('Hãy bấm "Nhận đơn" trước khi xác nhận NPL.')
+    lines = list(
+        order.material_lines.select_for_update().filter(
+            direction=SxSubcontractMaterialLine.DIRECTION_OUT,
+        ).order_by('pk')
+    )
+    if not lines:
+        raise GcOutputError('Phiếu không có NPL xuất đi để xác nhận.')
+    if any(ln.is_confirmed for ln in lines) and order.output_reports.filter(
+        status__in=LIVE_REPORT_STATUSES,
+    ).exists():
+        raise GcOutputError('Đã báo sản lượng — không sửa lại xác nhận NPL.')
+
+    notes = notes or {}
+    resolved = []
+    for ln in lines:
+        key = str(ln.pk)
+        label = ln.material_name or ln.material_code
+        raw = qtys.get(key)
+        if raw is None or str(raw).strip() == '':
+            raise GcOutputError(f'Nhập SL thực nhận cho {label}.')
+        qty = _q(raw)
+        if qty < 0:
+            raise GcOutputError(f'{label}: số lượng không được âm.')
+        note = (notes.get(key) or '').strip()[:255]
+        if qty != (ln.qty or ZERO) and not note:
+            raise GcOutputError(f'{label}: SL thực nhận khác SL xuất — ghi chú lý do.')
+        resolved.append((ln, qty, note))
+
+    now = timezone.now()
+    mismatch = 0
+    for ln, qty, note in resolved:
+        ln.qty_confirmed = qty
+        ln.confirm_note = note
+        ln.confirmed_at = now
+        ln.confirmed_by = account
+        ln.save(update_fields=['qty_confirmed', 'confirm_note', 'confirmed_at', 'confirmed_by'])
+        if qty != (ln.qty or ZERO):
+            mismatch += 1
+    return len(resolved), mismatch
 
 
 @transaction.atomic

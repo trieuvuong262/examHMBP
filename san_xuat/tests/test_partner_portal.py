@@ -31,8 +31,8 @@ _MIDDLEWARE = [
 HOST = 'pn.localhost:8000'
 
 
-def _account(partner, username, role):
-    acc = GcPartnerAccount(partner=partner, username=username, role=role, must_change_password=False)
+def _account(partner, username):
+    acc = GcPartnerAccount(partner=partner, username=username, must_change_password=False)
     acc.set_password('TestPass123')
     acc.save()
     return acc
@@ -43,8 +43,8 @@ class PartnerPortalFlowTests(TestCase):
     def setUp(self):
         cache.clear()
         self.partner = GcPartner.objects.create(code='TEST-GC', name='Đối tác test')
-        self.owner = _account(self.partner, 'owner-test', GcPartnerAccount.ROLE_OWNER)
-        self.staff = _account(self.partner, 'staff-test', GcPartnerAccount.ROLE_STAFF)
+        self.owner = _account(self.partner, 'owner-test')
+        self.staff = _account(self.partner, 'staff-test')
         self.mo = SxProductionOrder.objects.create(
             code='LSX-PN-001', product_code='SP-SMOKE', product_name='Sản phẩm test',
             qty=Decimal('100'), order_date=date.today(), status=SxProductionOrder.STATUS_IN_PROGRESS,
@@ -94,35 +94,22 @@ class PartnerPortalFlowTests(TestCase):
     def test_other_partner_cannot_open_order(self):
         send_to_partner(order_id=self.order.pk, user=self.user)
         other = GcPartner.objects.create(code='OTHER', name='Khác')
-        _account(other, 'other-owner', GcPartnerAccount.ROLE_OWNER)
+        _account(other, 'other-owner')
         self._login('other-owner')
         self.assertEqual(self.client.get(f'/don/{self.order.pk}/', HTTP_HOST=HOST).status_code, 404)
         self.assertNotContains(self.client.get('/?tab=all', HTTP_HOST=HOST), self.order.code)
 
     # --- Nhận / từ chối --------------------------------------------------
 
-    def test_only_owner_accepts_and_staff_reports_after_accept(self):
+    def test_any_account_accepts_and_reports(self):
+        # Bỏ vai trò: mọi tài khoản đối tác đều là chủ xưởng, nhận đơn + báo SL được.
         send_to_partner(order_id=self.order.pk, user=self.user)
         self._login('staff-test')
         self._post({'action': 'accept'})
         self.order.refresh_from_db()
-        self.assertIsNone(self.order.partner_accepted_at)
-        response = self._post(
-            {'action': 'report', 'work_date': date.today().isoformat(), 'size_Tổng': '5'}, follow=True,
-        )
-        self.assertContains(response, 'Nhận đơn')
-        self.assertFalse(GcOutputReport.objects.exists())
-        self.assertNotContains(self.client.get('/', HTTP_HOST=HOST), '/bao-cao/')
-
-        self.client.post('/dang-xuat/', HTTP_HOST=HOST)
-        self._login('owner-test')
-        self._post({'action': 'accept'})
-        self.order.refresh_from_db()
-        self.assertEqual(self.order.partner_accepted_by, self.owner)
+        self.assertEqual(self.order.partner_accepted_by, self.staff)
         self.assertTrue(GcPartnerActivity.objects.filter(action=GcPartnerActivity.ACTION_ACCEPT).exists())
 
-        self.client.post('/dang-xuat/', HTTP_HOST=HOST)
-        self._login('staff-test')
         self._report(5)
         self.assertEqual(GcOutputReport.objects.get().account, self.staff)
 

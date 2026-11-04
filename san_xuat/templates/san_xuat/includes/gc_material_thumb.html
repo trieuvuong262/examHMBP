@@ -1,0 +1,14 @@
+{% comment %}Thumbnail NPL 40x40 trên phiếu GC. Tham số: image_url, title.{% endcomment %}
+{% if image_url %}
+<button type="button" class="sx-doc-thumb flex-shrink-0"
+        data-sx-gallery
+        data-sx-gallery-title="{{ title }}"
+        data-sx-gallery-image="{{ image_url }}"
+        aria-label="Xem ảnh {{ title }}">
+  <img src="{{ image_url }}" alt="" class="rounded border" loading="lazy"
+       style="width:40px;height:40px;object-fit:cover;">
+</button>
+{% else %}
+<span class="rounded border d-inline-flex align-items-center justify-content-center flex-shrink-0 text-muted"
+      style="width:40px;height:40px;" aria-hidden="true"><i class="bi bi-image"></i></span>
+{% endif %}

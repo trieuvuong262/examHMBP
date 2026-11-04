@@ -116,15 +116,9 @@ def partner_login_required(view):
 
 
 def is_owner(account: GcPartnerAccount | None) -> bool:
-    """Chủ / quản lý đối tác: nhận/từ chối đơn, xem giá, KPI. NV chỉ báo sản lượng."""
-    return bool(account and account.role == GcPartnerAccount.ROLE_OWNER)
+    """Mọi tài khoản đối tác đều là chủ xưởng: toàn quyền nhận/từ chối đơn, xem giá, KPI."""
+    return account is not None
 
 
 def owner_required(view):
-    @wraps(view)
-    def wrapper(request, *args, **kwargs):
-        if not is_owner(getattr(request, 'gc_account', None)):
-            return redirect('home')
-        return view(request, *args, **kwargs)
-
-    return partner_login_required(wrapper)
+    return partner_login_required(view)

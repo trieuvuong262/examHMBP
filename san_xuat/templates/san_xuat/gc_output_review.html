@@ -29,30 +29,6 @@
   </div>
 
   <div class="jp-sx-page-body">
-    <form method="get" class="card border-0 shadow-sm mb-3 jp-team-filter-form" role="search" aria-label="Bộ lọc báo sản lượng">
-      <div class="card-body p-3 jp-team-filter-body">
-        <div class="jp-team-filter-org-search">
-          <div class="jp-team-filter-org">
-            <label class="form-label fw-bold small mb-1" for="jp-gco-status">Trạng thái</label>
-            <select id="jp-gco-status" name="status" class="form-select form-select-sm" onchange="this.form.submit()">
-              <option value="submitted" {% if status == 'submitted' %}selected{% endif %}>Chờ duyệt</option>
-              <option value="approved" {% if status == 'approved' %}selected{% endif %}>Đã duyệt</option>
-              <option value="rejected" {% if status == 'rejected' %}selected{% endif %}>Từ chối</option>
-              <option value="cancelled" {% if status == 'cancelled' %}selected{% endif %}>Đối tác đã hủy</option>
-              <option value="all" {% if status == 'all' %}selected{% endif %}>Tất cả</option>
-            </select>
-          </div>
-          <div class="jp-team-filter-org">
-            <label class="form-label fw-bold small mb-1" for="jp-gco-partner">Đối tác</label>
-            <select id="jp-gco-partner" name="partner" class="form-select form-select-sm" onchange="this.form.submit()">
-              <option value="">Tất cả</option>
-              {% for p in partners %}<option value="{{ p.pk }}" {% if partner_id == p.pk|stringformat:'s' %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
-            </select>
-          </div>
-        </div>
-      </div>
-    </form>
-
     <div class="card border-0 shadow-sm overflow-hidden">
       <div class="jp-npl-mat-grid-wrap">
         <table class="table table-hover table-sm mb-0 align-middle jp-npl-mat-grid jp-gc-table" id="{{ sx_list_table_id }}">
@@ -62,9 +38,11 @@
             {% with r=row.report %}
             <tr>
               <td class="npl-col small fw-semibold" data-col="work_date">{{ r.work_date|date:'d/m/Y' }}</td>
-              <td class="npl-col" data-col="order"><a href="{% url 'san_xuat:subcontract_detail' r.order_id %}" class="jp-gc-name">{{ r.order.code }}</a>{% if r.order.production_order %}<span class="jp-gc-sub">{{ r.order.production_order.code }}</span>{% endif %}</td>
-              <td class="npl-col small" data-col="partner">{{ r.partner.name }}</td>
-              <td class="npl-col small" data-col="account">{{ r.account.full_name|default:r.account.username|default:"—" }}</td>
+              <td class="npl-col" data-col="order">
+                <a href="{% url 'san_xuat:subcontract_detail' r.order_id %}" class="jp-gc-name">{{ r.order.code }}</a>
+                {% if r.order.production_order %}<span class="jp-gc-sub">{{ r.order.production_order.code }}</span>{% endif %}
+                <span class="jp-gc-sub">{{ r.partner.name }}{% if r.account %} · {{ r.account.full_name|default:r.account.username }}{% endif %}</span>
+              </td>
               <td class="npl-col" data-col="sizes"><div class="jp-gc-size-list">{% for sz, q in row.sizes %}<span class="jp-gc-chip">{{ sz }}: <strong class="ms-1">{{ q|sx_num }}</strong></span>{% endfor %}</div></td>
               <td class="npl-col text-end jp-gc-num" data-col="total">{{ r.total_qty|sx_num }}</td>
               <td class="npl-col small text-muted" data-col="note">{{ r.note|default:"—" }}</td>

@@ -97,8 +97,8 @@ class GcPartnerAdmin(admin.ModelAdmin):
 
 @admin.register(GcPartnerAccount)
 class GcPartnerAccountAdmin(admin.ModelAdmin):
-    list_display = ('username', 'partner', 'role', 'is_active', 'last_login')
-    list_filter = ('is_active', 'role')
+    list_display = ('username', 'partner', 'is_active', 'last_login')
+    list_filter = ('is_active',)
     search_fields = ('username', 'full_name', 'partner__name')
     exclude = ('password',)
     readonly_fields = ('failed_logins', 'locked_until', 'last_login')
@@ -106,9 +106,9 @@ class GcPartnerAccountAdmin(admin.ModelAdmin):
 
 @admin.register(GcPriceRule)
 class GcPriceRuleAdmin(admin.ModelAdmin):
-    list_display = ('partner', 'team_slug', 'product_code', 'unit_price', 'valid_from', 'valid_to', 'status')
-    list_filter = ('status', 'team_slug')
-    search_fields = ('partner__name', 'product_code')
+    list_display = ('partner', 'team_slug', 'unit_price', 'valid_from', 'valid_to')
+    list_filter = ('team_slug',)
+    search_fields = ('partner__name',)
 
 
 admin.site.register(SxMachine, _RefAdmin)

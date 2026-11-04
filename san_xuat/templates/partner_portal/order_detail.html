@@ -65,6 +65,77 @@
 </section>
 {% endif %}
 
+<!-- NPL nhận từ JustPlay -->
+{% if material_lines %}
+<section class="pn-report-panel mb-4 pn-fade-in" id="pn-materials">
+  <div class="pn-report-heading">
+    <span class="pn-report-icon"><i class="bi bi-box-seam"></i></span>
+    <div>
+      <h2>NPL nhận từ JustPlay</h2>
+      <p>Đối chiếu nguyên phụ liệu JustPlay xuất đi gia công với số bạn thực nhận.</p>
+    </div>
+    <div class="ms-auto">
+      {% if materials_confirmed %}
+        {% if materials_mismatch %}<span class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-2"><i class="bi bi-exclamation-triangle me-1"></i>Đã xác nhận · {{ materials_mismatch }} dòng lệch</span>
+        {% else %}<span class="badge bg-success-subtle text-success-emphasis rounded-pill px-2"><i class="bi bi-check-circle me-1"></i>Đã xác nhận đủ</span>{% endif %}
+      {% else %}<span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill px-2">Chưa xác nhận</span>{% endif %}
+    </div>
+  </div>
+  <div class="pn-report-body">
+    {% if can_confirm_materials %}
+    <form method="post">{% csrf_token %}<input type="hidden" name="action" value="confirm_materials">
+    {% endif %}
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-3">
+        <thead class="table-light">
+          <tr><th>Nguyên phụ liệu</th><th class="text-end">JustPlay xuất</th><th class="text-end" style="width:9rem">Thực nhận</th><th>Ghi chú</th></tr>
+        </thead>
+        <tbody>
+        {% for ln in material_lines %}
+          <tr>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                {% include 'san_xuat/includes/gc_material_thumb.html' with image_url=ln.image_url title=ln.material_name|default:ln.material_code %}
+                <div>
+                  <div class="fw-semibold small">{{ ln.material_name|default:ln.material_code }}</div>
+                  {% if ln.material_code and ln.material_name and ln.material_code != ln.material_name %}<div class="text-muted small">{{ ln.material_code }}</div>{% endif %}
+                </div>
+              </div>
+            </td>
+            <td class="text-end small">{{ ln.qty|sx_num }} {{ ln.uom_label }}</td>
+            {% if can_confirm_materials %}
+            <td><input type="number" name="mqty_{{ ln.pk }}" min="0" step="any" required class="form-control form-control-sm text-end"
+                       value="{% if ln.is_confirmed %}{{ ln.qty_confirmed|stringformat:'s' }}{% else %}{{ ln.qty|stringformat:'s' }}{% endif %}"
+                       aria-label="Thực nhận {{ ln.material_name|default:ln.material_code }}"></td>
+            <td><input type="text" name="mnote_{{ ln.pk }}" maxlength="255" class="form-control form-control-sm"
+                       value="{{ ln.confirm_note }}" placeholder="Bắt buộc nếu nhận khác SL xuất"
+                       aria-label="Ghi chú {{ ln.material_name|default:ln.material_code }}"></td>
+            {% else %}
+            <td class="text-end small">
+              {% if ln.is_confirmed %}
+                <b class="{% if ln.is_mismatch %}text-warning-emphasis{% else %}text-success{% endif %}">{{ ln.qty_confirmed|sx_num }}</b>
+                {% if ln.is_mismatch %}<div class="text-muted">lệch {{ ln.confirm_diff|sx_num }}</div>{% endif %}
+              {% else %}—{% endif %}
+            </td>
+            <td class="small text-muted">{{ ln.confirm_note|default:"" }}</td>
+            {% endif %}
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if can_confirm_materials %}
+      <button class="btn btn-hm fw-bold w-100 py-2"><i class="bi bi-check2-square me-1"></i>{% if materials_confirmed %}Cập nhật xác nhận NPL{% else %}Xác nhận đã nhận NPL{% endif %}</button>
+    </form>
+    {% elif not order.partner_accepted_at %}
+    <div class="text-muted small"><i class="bi bi-info-circle me-1"></i>Bấm <strong>Nhận đơn</strong> xong mới xác nhận NPL được.</div>
+    {% elif materials_confirmed %}
+    <div class="text-muted small"><i class="bi bi-lock me-1"></i>Không sửa lại được xác nhận NPL (đã có báo sản lượng hoặc phiếu đã đóng).{% with by=material_lines.0.confirmed_by %}{% if by %} Xác nhận bởi {{ by.full_name|default:by.username }}.{% endif %}{% endwith %}</div>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
 <!-- Report form -->
 {% if row.is_open and order.partner_accepted_at %}
 <section class="pn-report-panel mb-4 pn-fade-in">
@@ -196,4 +267,5 @@
   </div>
 </div>
 
+{% include 'san_xuat/includes/product_image_gallery_modal.html' %}
 {% endblock %}

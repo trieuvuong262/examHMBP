@@ -71,13 +71,6 @@ class GcPartner(models.Model):
 
 
 class GcPartnerAccount(models.Model):
-    ROLE_OWNER = 'owner'
-    ROLE_STAFF = 'staff'
-    ROLE_CHOICES = [
-        (ROLE_OWNER, 'Chủ / quản lý'),
-        (ROLE_STAFF, 'Nhân viên báo SL'),
-    ]
-
     partner = models.ForeignKey(
         GcPartner, on_delete=models.CASCADE, related_name='accounts', verbose_name='Đối tác',
     )
@@ -85,7 +78,6 @@ class GcPartnerAccount(models.Model):
     password = models.CharField(max_length=128, verbose_name='Mật khẩu (băm)')
     full_name = models.CharField(max_length=120, blank=True, default='', verbose_name='Họ tên')
     phone = models.CharField(max_length=30, blank=True, default='', verbose_name='Điện thoại')
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default=ROLE_STAFF, verbose_name='Vai trò')
     is_active = models.BooleanField(default=True, db_index=True, verbose_name='Đang hoạt động')
     must_change_password = models.BooleanField(default=True, verbose_name='Bắt buộc đổi MK')
     failed_logins = models.PositiveSmallIntegerField(default=0)
@@ -179,6 +171,7 @@ class GcPartnerActivity(models.Model):
     ACTION_REJECT = 'reject_order'
     ACTION_REPORT = 'submit_report'
     ACTION_CANCEL_REPORT = 'cancel_report'
+    ACTION_CONFIRM_MATERIALS = 'confirm_materials'
     ACTION_CHOICES = [
         (ACTION_LOGIN, 'Đăng nhập'),
         (ACTION_LOGIN_FAILED, 'Đăng nhập sai'),
@@ -188,6 +181,7 @@ class GcPartnerActivity(models.Model):
         (ACTION_REJECT, 'Từ chối đơn'),
         (ACTION_REPORT, 'Báo sản lượng'),
         (ACTION_CANCEL_REPORT, 'Hủy báo sản lượng'),
+        (ACTION_CONFIRM_MATERIALS, 'Xác nhận NPL'),
     ]
 
     partner = models.ForeignKey(
@@ -243,25 +237,15 @@ class GcKpiSnapshot(models.Model):
 
 
 class GcPriceRule(models.Model):
-    """Đơn giá GC theo đối tác × mã SP × công đoạn, có hiệu lực theo ngày.
+    """Đơn giá GC chung theo đối tác × công đoạn, có hiệu lực theo ngày.
 
-    product_code trống = giá chung cho công đoạn của đối tác.
+    Mỗi (đối tác × công đoạn) chỉ có một mức giá áp cho tất cả sản phẩm.
+    Giá có hiệu lực ngay khi thêm, không qua bước duyệt.
     """
-
-    STATUS_DRAFT = 'draft'
-    STATUS_APPROVED = 'approved'
-    STATUS_CHOICES = [
-        (STATUS_DRAFT, 'Chờ duyệt'),
-        (STATUS_APPROVED, 'Đã duyệt'),
-    ]
 
     partner = models.ForeignKey(
         GcPartner, on_delete=models.CASCADE, related_name='price_rules', verbose_name='Đối tác',
     )
-    product_code = models.CharField(
-        max_length=60, blank=True, default='', db_index=True, verbose_name='Mã SP (trống = chung)',
-    )
-    product_name = models.CharField(max_length=255, blank=True, default='')
     team_slug = models.CharField(max_length=20, db_index=True, verbose_name='Công đoạn')
     unit_price = models.DecimalField(
         max_digits=14, decimal_places=2,
@@ -270,26 +254,19 @@ class GcPriceRule(models.Model):
     )
     valid_from = models.DateField(verbose_name='Hiệu lực từ')
     valid_to = models.DateField(null=True, blank=True, verbose_name='Đến ngày')
-    status = models.CharField(
-        max_length=10, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True,
-    )
     notes = models.CharField(max_length=255, blank=True, default='')
-    approved_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
-    )
-    approved_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
     )
 
     class Meta:
-        ordering = ['partner__name', 'team_slug', 'product_code', '-valid_from']
+        ordering = ['partner__name', 'team_slug', '-valid_from']
         verbose_name = 'Bảng giá gia công'
         verbose_name_plural = 'Bảng giá gia công'
 
     def __str__(self):
-        return f'{self.partner.code} {self.team_slug} {self.product_code or "*"} {self.unit_price}'
+        return f'{self.partner.code} {self.team_slug} {self.unit_price}'
 
     @property
     def team_label(self) -> str:
@@ -299,7 +276,6 @@ class GcPriceRule(models.Model):
 
     def is_effective(self, day) -> bool:
         return (
-            self.status == self.STATUS_APPROVED
-            and self.valid_from <= day
+            self.valid_from <= day
             and (self.valid_to is None or self.valid_to >= day)
         )

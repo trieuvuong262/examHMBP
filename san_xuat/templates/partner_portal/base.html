@@ -1,4 +1,4 @@
-﻿{% load static %}
+{% load static %}
 <!doctype html>
 <html lang="vi">
 <head>
@@ -121,8 +121,6 @@
     .pn-mobile-menu { display:none; }
     .pn-footer { border-top:3px solid var(--pn-red); background:var(--jp-black-900); color:#a3a3a3; font-size:.72rem; padding:1rem clamp(1rem,2.5vw,2.5rem); }
     .pn-footer-inner { max-width:1440px; margin:auto; display:flex; justify-content:space-between; gap:1rem; align-items:center; }
-    .pn-footer-brand { color:#fff; font-family:var(--jp-font-emphasis); display:flex; align-items:center; gap:.45rem; }
-    .pn-footer-brand img { width:22px; height:22px; object-fit:contain; }
     @media(max-width:991.98px) {
       .pn-dashboard-head { display:flex; align-items:flex-end; justify-content:space-between; gap:1rem; }
     .pn-eyebrow { color:var(--pn-red); font-size:.68rem; font-weight:700; letter-spacing:.12em; margin-bottom:.35rem; }
@@ -167,7 +165,7 @@
   </style>
   {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
 {% if gc_account %}
 <header class="jp-topbar jp-topbar--amis pn-shell-topbar" role="banner">
   <div class="jp-topbar-start pn-topbar-inner">
@@ -202,7 +200,7 @@
     {% for m in messages %}<div class="alert alert-{% if m.tags == 'error' %}danger{% else %}{{ m.tags|default:'info' }}{% endif %} py-2 small border-0 shadow-sm">{{ m }}</div>{% endfor %}
     {% block content %}{% endblock %}
   </main>
-  <footer class="jp-site-footer jp-app-footer pn-footer"><div class="container-fluid px-3 px-lg-4 d-flex flex-column flex-md-row align-items-center justify-content-between gap-2"><span class="jp-footer-copy">&copy; {% now "Y" %} JustPlay.vn — Cổng đối tác gia công</span><span class="pn-footer-brand"><img src="{{ site_logo }}" alt="JustPlay"> JUSTPLAY <span class="text-danger mx-1">•</span> Đối tác gia công</span><span class="jp-footer-credit">Design by <strong>IT</strong></span></div></footer>
+  <footer class="jp-site-footer jp-app-footer pn-footer"><div class="container-fluid px-3 px-lg-4 d-flex flex-column flex-md-row align-items-center justify-content-between gap-2"><span class="jp-footer-copy">&copy; {% now "Y" %} JustPlay.vn — Cổng đối tác gia công</span><span class="jp-footer-credit">Design by <strong>IT</strong></span></div></footer>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 {% block scripts %}{% endblock %}

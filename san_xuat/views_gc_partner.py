@@ -12,7 +12,6 @@ from hrm.menu_permissions import (
     handle_menu_access_denied,
     user_can_access_menu,
     user_can_create_menu,
-    user_can_delete_menu,
     user_can_update_menu,
 )
 from hrm.module_permissions import MODULE_SAN_XUAT
@@ -20,11 +19,11 @@ from san_xuat.forms_gc_partner import GcPartnerAccountForm, GcPartnerForm, GcPri
 from san_xuat.partner_models import GcPartner, GcPartnerAccount, GcPriceRule
 from san_xuat.services.gc_partner import (
     GcPartnerError,
-    approve_price_rule,
     create_partner_account,
     partner_stats,
     reset_partner_password,
     toggle_partner_account,
+    validate_price_rule,
 )
 
 MENU = 'subcontract'
@@ -45,10 +44,6 @@ def _can_edit(user) -> bool:
     )
 
 
-def _can_approve_price(user) -> bool:
-    return bool(user.is_staff or user_can_delete_menu(user, MODULE_SAN_XUAT, MENU))
-
-
 def _partner_kpi(partner, month: str) -> dict:
     from san_xuat.services.gc_kpi import kpi_for_display
 
@@ -58,7 +53,6 @@ def _partner_kpi(partner, month: str) -> dict:
 def _perm(request) -> dict:
     return {
         'can_edit': _can_edit(request.user),
-        'can_approve_price': _can_approve_price(request.user),
     }
 
 
@@ -71,9 +65,6 @@ def gc_partner_list(request):
     qs = GcPartner.objects.annotate(
         n_accounts=Count('accounts', filter=Q(accounts__is_active=True), distinct=True),
         n_orders=Count('subcontract_orders', distinct=True),
-        n_prices_pending=Count(
-            'price_rules', filter=Q(price_rules__status=GcPriceRule.STATUS_DRAFT), distinct=True,
-        ),
     )
     if show == 'active':
         qs = qs.filter(is_active=True)
@@ -122,7 +113,6 @@ def gc_partner_detail(request, pk: int):
         return handle_menu_access_denied(request, MODULE_SAN_XUAT, MENU)
     partner = get_object_or_404(GcPartner, pk=pk)
     can_edit = _can_edit(request.user)
-    can_approve = _can_approve_price(request.user)
 
     partner_form = GcPartnerForm(instance=partner)
     account_form = GcPartnerAccountForm()
@@ -131,7 +121,7 @@ def gc_partner_detail(request, pk: int):
 
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
-        if not can_edit and action != 'approve_price':
+        if not can_edit:
             return handle_menu_access_denied(request, MODULE_SAN_XUAT, MENU)
 
         if action == 'update_partner':
@@ -154,7 +144,6 @@ def gc_partner_detail(request, pk: int):
                         username=cd['username'],
                         full_name=cd.get('full_name') or '',
                         phone=cd.get('phone') or '',
-                        role=cd['role'],
                         password=cd.get('password') or '',
                         created_by=request.user,
                     )
@@ -182,43 +171,29 @@ def gc_partner_detail(request, pk: int):
                 rule = price_form.save(commit=False)
                 rule.partner = partner
                 rule.created_by = request.user
-                rule.status = GcPriceRule.STATUS_DRAFT
-                rule.save()
-                messages.success(request, 'Đã thêm giá — chờ duyệt.')
-                return redirect('san_xuat:gc_partner_detail', pk=partner.pk)
-            messages.error(request, 'Chưa thêm được giá — kiểm tra lại.')
-
-        elif action == 'approve_price':
-            if not can_approve:
-                messages.error(request, 'Bạn không có quyền duyệt giá gia công.')
-            else:
-                rule = get_object_or_404(GcPriceRule, pk=request.POST.get('rule_id'), partner=partner)
                 try:
-                    approve_price_rule(rule, user=request.user)
+                    validate_price_rule(rule)
                 except GcPartnerError as exc:
                     messages.error(request, str(exc))
                 else:
-                    messages.success(request, 'Đã duyệt giá.')
-            return redirect('san_xuat:gc_partner_detail', pk=partner.pk)
+                    rule.save()
+                    messages.success(request, 'Đã thêm giá — áp dụng ngay.')
+                    return redirect('san_xuat:gc_partner_detail', pk=partner.pk)
+            else:
+                messages.error(request, 'Chưa thêm được giá — kiểm tra lại.')
 
         elif action == 'delete_price':
             rule = get_object_or_404(GcPriceRule, pk=request.POST.get('rule_id'), partner=partner)
-            if rule.status == GcPriceRule.STATUS_APPROVED and not can_approve:
-                messages.error(request, 'Giá đã duyệt — chỉ người duyệt giá được xóa.')
-            else:
-                rule.delete()
-                messages.success(request, 'Đã xóa dòng giá.')
+            rule.delete()
+            messages.success(request, 'Đã xóa dòng giá.')
             return redirect('san_xuat:gc_partner_detail', pk=partner.pk)
 
         elif action == 'end_price':
             rule = get_object_or_404(GcPriceRule, pk=request.POST.get('rule_id'), partner=partner)
-            if not can_approve:
-                messages.error(request, 'Bạn không có quyền chốt hết hiệu lực giá.')
-            else:
-                today = timezone.localdate()
-                rule.valid_to = max(rule.valid_from, today)
-                rule.save(update_fields=['valid_to'])
-                messages.success(request, f'Giá hết hiệu lực từ sau {rule.valid_to:%d/%m/%Y}.')
+            today = timezone.localdate()
+            rule.valid_to = max(rule.valid_from, today)
+            rule.save(update_fields=['valid_to'])
+            messages.success(request, f'Giá hết hiệu lực từ sau {rule.valid_to:%d/%m/%Y}.')
             return redirect('san_xuat:gc_partner_detail', pk=partner.pk)
 
     from san_xuat.hub_models import SxSubcontractOrder
@@ -235,8 +210,8 @@ def gc_partner_detail(request, pk: int):
         'account_form': account_form,
         'price_form': price_form,
         'accounts': partner.accounts.order_by('-is_active', 'username'),
-        'price_rules': partner.price_rules.select_related('approved_by').order_by(
-            'team_slug', 'product_code', '-valid_from',
+        'price_rules': partner.price_rules.order_by(
+            'team_slug', '-valid_from',
         ),
         'recent_orders': recent_orders,
         'stats': partner_stats(partner),
@@ -271,8 +246,6 @@ def gc_output_review(request):
     if not (_can_view(request.user) or _can_review_output(request.user)):
         return handle_menu_access_denied(request, MODULE_SAN_XUAT, MENU)
     can_review = _can_review_output(request.user)
-    status = (request.GET.get('status') or 'submitted').strip()
-    partner_id = (request.GET.get('partner') or '').strip()
 
     if request.method == 'POST':
         if not can_review:
@@ -302,18 +275,12 @@ def gc_output_review(request):
     qs = GcOutputReport.objects.select_related(
         'order', 'order__production_order', 'partner', 'account', 'reviewed_by',
     )
-    if status in {'submitted', 'approved', 'rejected', 'cancelled'}:
-        qs = qs.filter(status=status)
-    if partner_id.isdigit():
-        qs = qs.filter(partner_id=int(partner_id))
     from san_xuat.list_grid import apply_sx_list_sort, sx_list_grid_context
 
     if (request.GET.get('sort') or '').strip():
         ordered = apply_sx_list_sort(qs, request, 'gc_output')
-    elif status == 'submitted':
-        ordered = qs.order_by('work_date', 'pk')
     else:
-        ordered = qs.order_by('-reviewed_at', '-pk')
+        ordered = qs.order_by('-work_date', '-pk')
     rows = []
     for r in ordered[:300]:
         sizes = [(k, Decimal(str(v))) for k, v in (r.size_qtys or {}).items()]
@@ -324,8 +291,5 @@ def gc_output_review(request):
         **sx_list_grid_context(request, 'gc_output'),
         'can_review': can_review,
         'rows': rows,
-        'status': status,
-        'partner_id': partner_id,
-        'partners': GcPartner.objects.filter(is_active=True).order_by('name'),
         'pending_count': GcOutputReport.objects.filter(status='submitted').count(),
     })

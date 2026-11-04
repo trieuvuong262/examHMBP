@@ -339,15 +339,15 @@ def _apply_partner(*, partner_id, vendor_name: str):
     return partner, (vendor_name or "").strip()
 
 
-def _resolve_unit_price(*, unit_price, partner, product_code: str, team_slug: str, on_date) -> Decimal:
-    """Đơn giá nhập tay > 0 ưu tiên; trống/0 → lấy bảng giá đã duyệt của đối tác."""
+def _resolve_unit_price(*, unit_price, partner, team_slug: str, on_date) -> Decimal:
+    """Đơn giá nhập tay > 0 ưu tiên; trống/0 → lấy giá chung đã duyệt của đối tác theo công đoạn."""
     if unit_price is not None and Decimal(str(unit_price)) > 0:
         return _gc_price(unit_price)
     if partner is not None:
         from san_xuat.services.gc_partner import resolve_gc_price
 
         rule = resolve_gc_price(
-            partner_id=partner.pk, product_code=product_code, team_slug=team_slug, on_date=on_date,
+            partner_id=partner.pk, team_slug=team_slug, on_date=on_date,
         )
         if rule is not None:
             return _gc_price(rule.unit_price)
@@ -856,7 +856,7 @@ def create_subcontract_order(
     )
     the_date = order_date or timezone.localdate()
     price = _resolve_unit_price(
-        unit_price=unit_price, partner=partner, product_code=product_code,
+        unit_price=unit_price, partner=partner,
         team_slug=slug, on_date=the_date,
     )
     order = SxSubcontractOrder.objects.create(
@@ -934,7 +934,7 @@ def update_subcontract_order(
     fields = ["vendor_name", "partner", "order_date", "due_date", "notes"]
     if unit_price is not None or partner is not None:
         order.unit_price = _resolve_unit_price(
-            unit_price=unit_price, partner=order.partner, product_code=order.product_code,
+            unit_price=unit_price, partner=order.partner,
             team_slug=order.team_slug, on_date=order.order_date,
         )
         fields.append("unit_price")

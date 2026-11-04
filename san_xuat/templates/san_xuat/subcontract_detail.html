@@ -84,10 +84,11 @@
         {{ edit_formset.management_form }}
         <div class="table-responsive">
           <table class="table table-sm align-middle mb-2">
-            <thead><tr><th>Mã</th><th>Tên</th><th>ĐVT</th><th class="text-end">Số lượng</th></tr></thead>
+            <thead><tr><th style="width:3.5rem">Ảnh</th><th>Mã</th><th>Tên</th><th>ĐVT</th><th class="text-end">Số lượng</th></tr></thead>
             <tbody>
             {% for f in edit_formset %}
               <tr data-jp-gc-edit-row>
+                <td>{% include 'san_xuat/includes/gc_material_thumb.html' with image_url=f.image_url title=f.material_name.value %}</td>
                 <td>{{ f.material_code }}<strong>{{ f.material_code.value }}</strong></td>
                 <td>{{ f.material_name }}</td>
                 <td>{{ f.uom_label }}</td>
@@ -116,10 +117,15 @@
           {% for ln in out_lines %}
             <tr>
               <td>
-                <div class="fw-semibold small">{{ ln.material_name|default:ln.material_code }}</div>
-                {% if ln.material_code and ln.material_name and ln.material_code != ln.material_name %}
-                <div class="text-muted small">{{ ln.material_code }}</div>
-                {% endif %}
+                <div class="d-flex align-items-center gap-2">
+                  {% include 'san_xuat/includes/gc_material_thumb.html' with image_url=ln.image_url title=ln.material_name|default:ln.material_code %}
+                  <div>
+                    <div class="fw-semibold small">{{ ln.material_name|default:ln.material_code }}</div>
+                    {% if ln.material_code and ln.material_name and ln.material_code != ln.material_name %}
+                    <div class="text-muted small">{{ ln.material_code }}</div>
+                    {% endif %}
+                  </div>
+                </div>
               </td>
               <td class="text-end">{{ ln.qty|sx_num }} {{ ln.uom_label }}</td>
             </tr>
@@ -128,6 +134,45 @@
           {% endfor %}
           </tbody>
         </table>
+      </div>
+      {% endif %}
+
+      {% if item.partner_sent_at and out_lines %}
+      <div class="border rounded-3 p-3 mb-3">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+          <div class="fw-semibold">Đối tác xác nhận NPL</div>
+          {% if npl_confirm.confirmed == 0 %}<span class="jp-gc-badge">Chưa xác nhận</span>
+          {% elif npl_confirm.mismatch %}<span class="jp-gc-badge is-warn">Lệch {{ npl_confirm.mismatch }}/{{ npl_confirm.total }} dòng</span>
+          {% elif npl_confirm.confirmed == npl_confirm.total %}<span class="jp-gc-badge is-ok">Đã xác nhận đủ</span>
+          {% else %}<span class="jp-gc-badge is-info">{{ npl_confirm.confirmed }}/{{ npl_confirm.total }} dòng</span>{% endif %}
+        </div>
+        {% if npl_confirm.confirmed %}
+        <table class="table table-hover table-sm mb-0">
+          <thead><tr><th>Nguyên phụ liệu</th><th class="text-end">Xuất</th><th class="text-end">Thực nhận</th><th>Ghi chú / người xác nhận</th></tr></thead>
+          <tbody>
+          {% for ln in out_lines %}
+            <tr{% if ln.is_mismatch %} class="table-warning"{% endif %}>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  {% include 'san_xuat/includes/gc_material_thumb.html' with image_url=ln.image_url title=ln.material_name|default:ln.material_code %}
+                  <div class="fw-semibold small">{{ ln.material_name|default:ln.material_code }}</div>
+                </div>
+              </td>
+              <td class="text-end small">{{ ln.qty|sx_num }}</td>
+              <td class="text-end small">
+                {% if ln.is_confirmed %}<b>{{ ln.qty_confirmed|sx_num }}</b>{% if ln.is_mismatch %}<div class="text-danger">lệch {{ ln.confirm_diff|sx_num }}</div>{% endif %}{% else %}—{% endif %}
+              </td>
+              <td class="small text-muted">
+                {{ ln.confirm_note|default:"" }}
+                {% if ln.confirmed_at %}<div>{% if ln.confirmed_by %}{{ ln.confirmed_by.full_name|default:ln.confirmed_by.username }} · {% endif %}{{ ln.confirmed_at|date:'d/m/Y H:i' }}</div>{% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="small text-muted">Tổ gia công chưa xác nhận đã nhận NPL trên cổng đối tác.</div>
+        {% endif %}
       </div>
       {% endif %}
 
@@ -140,10 +185,15 @@
           {% for ln in in_lines %}
             <tr>
               <td>
-                <div class="fw-semibold small">{{ ln.material_name|default:ln.material_code }}</div>
-                {% if ln.material_code and ln.material_name and ln.material_code != ln.material_name %}
-                <div class="text-muted small">{{ ln.material_code }}</div>
-                {% endif %}
+                <div class="d-flex align-items-center gap-2">
+                  {% include 'san_xuat/includes/gc_material_thumb.html' with image_url=ln.image_url title=ln.material_name|default:ln.material_code %}
+                  <div>
+                    <div class="fw-semibold small">{{ ln.material_name|default:ln.material_code }}</div>
+                    {% if ln.material_code and ln.material_name and ln.material_code != ln.material_name %}
+                    <div class="text-muted small">{{ ln.material_code }}</div>
+                    {% endif %}
+                  </div>
+                </div>
               </td>
               <td class="text-end">{{ ln.qty|sx_num }}</td>
             </tr>
@@ -232,6 +282,7 @@
     </div>
   </div>
 </div>
+{% include 'san_xuat/includes/product_image_gallery_modal.html' %}
 {% if embed %}
 <script>document.body.classList.remove('jp-has-sidebar', 'jp-has-amis-header');</script>
 {% endif %}

@@ -9206,7 +9206,7 @@ def subcontract_detail(request, pk: int):
         SxSubcontractOrder.objects.select_related(
             'production_order', 'sales_order', 'created_by', 'partner',
             'partner_sent_by', 'partner_accepted_by', 'partner_rejected_by',
-        ).prefetch_related('material_lines'),
+        ).prefetch_related('material_lines__confirmed_by'),
         pk=pk,
     )
     embed = (request.GET.get('embed') or '').strip() == '1'
@@ -9336,6 +9336,28 @@ def subcontract_detail(request, pk: int):
 
     out_lines = [ln for ln in item.material_lines.all() if ln.direction == 'out']
     in_lines = [ln for ln in item.material_lines.all() if ln.direction == 'in']
+
+    # Ảnh NPL: tra Material theo mã một lần cho mọi dòng (xuất, nhận về, form sửa).
+    from san_xuat.services.gc_output import material_image_urls
+
+    edit_codes = [
+        (form['material_code'].value() or '').strip() for form in edit_formset
+    ]
+    image_by_code = material_image_urls(
+        [ln.material_code for ln in out_lines + in_lines] + edit_codes,
+    )
+    for ln in out_lines + in_lines:
+        ln.image_url = image_by_code.get((ln.material_code or '').strip().casefold(), '')
+    for form, code in zip(edit_formset, edit_codes):
+        form.image_url = image_by_code.get(code.casefold(), '')
+
+    # Đối tác (tổ GC) xác nhận NPL trên cổng pn.
+    npl_confirm = {
+        'total': len(out_lines),
+        'confirmed': sum(1 for ln in out_lines if ln.is_confirmed),
+        'mismatch': sum(1 for ln in out_lines if ln.is_mismatch),
+    }
+
     can_receive = can_update and item.status in (
         Sub.STATUS_DRAFT, Sub.STATUS_SENT, Sub.STATUS_RECEIVED,
     )
@@ -9350,6 +9372,7 @@ def subcontract_detail(request, pk: int):
         'can_receive': can_receive,
         'out_lines': out_lines,
         'in_lines': in_lines,
+        'npl_confirm': npl_confirm,
         'receive_form': receive_form,
         'update_form': update_form,
         'edit_formset': edit_formset,

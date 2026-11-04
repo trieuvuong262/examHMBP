@@ -74,9 +74,6 @@ class GcPartnerAccountForm(forms.Form):
     )
     full_name = forms.CharField(max_length=120, required=False, label='Họ tên', widget=forms.TextInput(attrs=_INPUT))
     phone = forms.CharField(max_length=30, required=False, label='Điện thoại', widget=forms.TextInput(attrs=_INPUT))
-    role = forms.ChoiceField(
-        choices=GcPartnerAccount.ROLE_CHOICES, label='Vai trò', widget=forms.Select(attrs=_SELECT),
-    )
     password = forms.CharField(
         required=False, min_length=8, label='Mật khẩu (trống = tự sinh)',
         widget=forms.TextInput(attrs={**_INPUT, 'autocomplete': 'new-password'}),
@@ -88,10 +85,8 @@ class GcPriceRuleForm(forms.ModelForm):
 
     class Meta:
         model = GcPriceRule
-        fields = ['team_slug', 'product_code', 'product_name', 'unit_price', 'valid_from', 'valid_to', 'notes']
+        fields = ['team_slug', 'unit_price', 'valid_from', 'valid_to', 'notes']
         widgets = {
-            'product_code': forms.TextInput(attrs={**_INPUT, 'placeholder': 'Trống = giá chung công đoạn'}),
-            'product_name': forms.TextInput(attrs=_INPUT),
             'unit_price': forms.NumberInput(attrs={**_INPUT, 'step': 'any', 'min': '0'}),
             'valid_from': forms.DateInput(attrs=_DATE, format='%Y-%m-%d'),
             'valid_to': forms.DateInput(attrs=_DATE, format='%Y-%m-%d'),
@@ -106,22 +101,8 @@ class GcPriceRuleForm(forms.ModelForm):
             choices = [c for c in choices if c[0] in allowed] or choices
         self.fields['team_slug'].choices = choices
 
-    def clean_product_code(self):
-        code = (self.cleaned_data.get('product_code') or '').strip()
-        if not code:
-            return ''
-        from san_xuat.services.products import resolve_product_ref
-
-        ref = resolve_product_ref(code)
-        if not ref:
-            raise forms.ValidationError(f'Mã {code} không có trong kho sản phẩm.')
-        self._ref_name = ref.name
-        return ref.code
-
     def clean(self):
         cleaned = super().clean()
-        if cleaned.get('product_code') and not (cleaned.get('product_name') or '').strip():
-            cleaned['product_name'] = getattr(self, '_ref_name', '')
         start, end = cleaned.get('valid_from'), cleaned.get('valid_to')
         if start and end and end < start:
             self.add_error('valid_to', 'Ngày kết thúc phải sau ngày bắt đầu.')

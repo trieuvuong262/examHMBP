@@ -35,29 +35,6 @@
     </form>
 
     {% with t=report.total %}
-    <div class="jp-gc-stats jp-gc-anim">
-      <div class="jp-gc-stat">
-        <div class="jp-gc-stat-head">Phiếu GC trong tháng<span class="jp-gc-stat-icon"><i class="bi bi-file-earmark-text"></i></span></div>
-        <div class="jp-gc-stat-value">{{ t.orders }}</div>
-        <div class="jp-gc-stat-sub">SL đặt {{ t.qty|sx_num }} · nhận {{ t.qty_received|sx_num }}</div>
-      </div>
-      <div class="jp-gc-stat is-ok">
-        <div class="jp-gc-stat-head">SL duyệt / báo<span class="jp-gc-stat-icon"><i class="bi bi-check2-circle"></i></span></div>
-        <div class="jp-gc-stat-value">{{ t.approved|sx_num }} <small>/ {{ t.reported|sx_num }}</small></div>
-        <div class="jp-gc-stat-sub">Đạt {% if t.pass_rate is not None %}{{ t.pass_rate|sx_num:1 }}%{% else %}—{% endif %}{% if t.pending_qty %} · chờ duyệt {{ t.pending_qty|sx_num }}{% endif %}</div>
-      </div>
-      <div class="jp-gc-stat is-info">
-        <div class="jp-gc-stat-head">Đúng hạn<span class="jp-gc-stat-icon"><i class="bi bi-calendar2-check"></i></span></div>
-        <div class="jp-gc-stat-value">{% if t.on_time_rate is not None %}{{ t.on_time_rate|sx_num:1 }}%{% else %}—{% endif %}</div>
-        <div class="jp-gc-stat-sub">{{ t.on_time }}/{{ t.with_due }} phiếu có hạn · {{ t.done_orders }} nhận lại</div>
-      </div>
-      <div class="jp-gc-stat is-warn">
-        <div class="jp-gc-stat-head">Thành tiền duyệt<span class="jp-gc-stat-icon"><i class="bi bi-cash-coin"></i></span></div>
-        <div class="jp-gc-stat-value">{{ t.amount|sx_num:0 }} <small>đ</small></div>
-        <div class="jp-gc-stat-sub">Phí GC theo phiếu {{ t.service_fee|sx_num:0 }}</div>
-      </div>
-    </div>
-
     <div class="card border-0 shadow-sm overflow-hidden">
       <div class="table-responsive">
         <table class="table table-sm table-hover align-middle mb-0 jp-gc-table">

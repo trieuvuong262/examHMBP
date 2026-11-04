@@ -93,7 +93,24 @@
                 {% if item.sales_order %}{{ item.sales_order.code }}{% else %}—{% endif %}
                 {% if item.production_order %}<span class="jp-gc-sub">{{ item.production_order.code }}</span>{% endif %}
               </td>
-              <td class="npl-col" data-col="product"><span class="fw-semibold">{{ item.product_name|default:item.product_code }}</span><span class="jp-gc-sub">{{ item.product_code }}</span></td>
+              <td class="npl-col" data-col="product">
+                <div class="d-flex align-items-center gap-2">
+                  {% if item.product_image_url %}
+                  <button type="button" class="sx-doc-thumb flex-shrink-0 border-0 bg-transparent p-0"
+                          data-sx-gallery
+                          data-sx-gallery-title="{{ item.product_name|default:item.product_code }}"
+                          data-sx-gallery-images="{{ item.product_image_urls_json }}"
+                          aria-label="Xem ảnh {{ item.product_name|default:item.product_code }}">
+                    <img src="{{ item.product_image_url }}" alt="" class="rounded border" loading="lazy"
+                         style="width:40px;height:40px;object-fit:cover;">
+                  </button>
+                  {% else %}
+                  <span class="rounded border d-inline-flex align-items-center justify-content-center flex-shrink-0 text-muted"
+                        style="width:40px;height:40px;" aria-hidden="true"><i class="bi bi-image"></i></span>
+                  {% endif %}
+                  <span><span class="fw-semibold d-block">{{ item.product_name|default:item.product_code }}</span><span class="jp-gc-sub">{{ item.product_code }}</span></span>
+                </div>
+              </td>
               <td class="npl-col small" data-col="team">{{ item.team_label|default:"—" }}</td>
               <td class="npl-col small" data-col="vendor">
                 {% if item.partner %}<a href="{% url 'san_xuat:gc_partner_detail' item.partner_id %}">{{ item.vendor_name }}</a>{% else %}{{ item.vendor_name }}{% endif %}
@@ -145,6 +162,7 @@
     </div>
   </div>
 </div>
+{% include 'san_xuat/includes/product_image_gallery_modal.html' %}
 {% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
 {% endblock %}
 

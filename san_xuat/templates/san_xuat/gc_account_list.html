@@ -108,7 +108,6 @@
               <td class="npl-col" data-col="username"><span class="jp-gc-name">{{ acc.username }}</span></td>
               <td class="npl-col small" data-col="full_name">{{ acc.full_name|default:"—" }}{% if acc.phone %}<span class="jp-gc-sub">{{ acc.phone }}</span>{% endif %}</td>
               <td class="npl-col small" data-col="partner">{{ acc.partner.name }}<span class="jp-gc-sub">{{ acc.partner.code }}</span></td>
-              <td class="npl-col text-center" data-col="role">{% if acc.role == 'owner' %}<span class="jp-gc-badge is-info is-plain">{{ acc.get_role_display }}</span>{% else %}<span class="jp-gc-badge is-plain">{{ acc.get_role_display }}</span>{% endif %}</td>
               <td class="npl-col small" data-col="last_login">{% if acc.last_login %}{{ acc.last_login|date:'d/m/Y H:i' }}{% else %}<span class="text-muted">Chưa đăng nhập</span>{% endif %}</td>
               <td class="npl-col text-center" data-col="status">
                 {% if not acc.is_active %}<span class="jp-gc-badge">Đã khóa</span>

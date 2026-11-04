@@ -23,6 +23,22 @@ Mỗi entry nên có:
 - **Source**: `PortalJustPlay/middleware.py::ReadOnlyAccountMiddleware`; `PortalJustPlay/settings.py::MIDDLEWARE`; `hrm/user_search.py::is_read_only_account`; `zalo/password_reset.py::resolve_user_for_password_reset`; `zalo/email_password_reset.py::_user_can_reset`; `cham_cong/services.py::_should_force_punch`; test `hrm/tests_read_only_account.py`.
 - **Agent impact**: Thêm tài khoản chỉ xem mới = thêm username vào `READ_ONLY_USERNAMES`. Middleware chặn GET theo token của `url_name`; URL thao tác mới nên đặt tên chứa động từ (`*_delete`, `*_export`, `*_print`, `*_edit`…) để được chặn tự động. Nhóm quyền của demo là `PermissionGroup` riêng; lệnh `grant_export_print` bật export/print cho mọi nhóm nhưng middleware vẫn chặn.
 
+### 2026-11-04 — workflow / tổ gia công xác nhận đã nhận NPL trên cổng pn
+
+- **Type**: workflow | feature
+- **Change**: Trang chi tiết phiếu trên cổng đối tác (`order_detail`) có mục «NPL nhận từ JustPlay» (ảnh, SL xuất, SL thực nhận, ghi chú). Sau khi bấm «Nhận đơn», đối tác nhập SL thực nhận từng dòng NPL `direction='out'`; khác SL xuất thì bắt buộc ghi chú. Sửa lại được xác nhận cho đến khi có báo sản lượng đầu tiên. Không chặn báo sản lượng và không tạo/sửa chứng từ kho. Trang chi tiết phiếu nội bộ hiện thẻ «Đối tác xác nhận NPL» (đủ / lệch / chưa xác nhận). Thu hồi, từ chối đơn hoặc sửa dòng NPL phía nội bộ sẽ xóa xác nhận cũ.
+- **Reason**: Cần bằng chứng tổ gia công đã nhận đúng NPL JustPlay xuất đi, và thấy sớm chênh lệch.
+- **Source**: `san_xuat/hub_models.py::SxSubcontractMaterialLine` (`qty_confirmed`, `confirm_note`, `confirmed_at`, `confirmed_by`, `is_mismatch`); `san_xuat/services/gc_output.py::confirm_materials`, `clear_material_confirmations`, `material_image_urls`; `san_xuat/partner_portal/views.py::_handle_order_post`, `order_detail`; `GcPartnerActivity.ACTION_CONFIRM_MATERIALS`; templates `partner_portal/order_detail.html`, `san_xuat/subcontract_detail.html`, `san_xuat/includes/gc_material_thumb.html`; migration `0159`.
+- **Agent impact**: Xác nhận NPL chỉ là đối soát, không đụng `stock_issue`. Dòng NPL phía nội bộ bị xóa và tạo lại khi sửa phiếu (`update_subcontract_order`), nên xác nhận đối tác mất theo. Trong template, không dùng `x.account.username` làm tham số `default` khi FK có thể null (gây `VariableDoesNotExist`).
+
+### 2026-11-04 — workflow / đơn giản hóa bảng giá và tài khoản đối tác gia công
+
+- **Type**: workflow
+- **Change**: `GcPriceRule` chỉ còn giá chung theo đối tác × công đoạn (bỏ `product_code`, `product_name`) và có hiệu lực ngay khi thêm (bỏ `status`, `approved_by`, `approved_at`, hàm `approve_price_rule`, quyền duyệt giá). `GcPartnerAccount` bỏ `role`: mọi tài khoản đối tác đều toàn quyền (nhận/từ chối đơn, xem giá, KPI, báo sản lượng); `auth.is_owner` chỉ còn kiểm tra đã đăng nhập. Danh sách duyệt sản lượng bỏ bộ lọc và gộp cột Phiếu/đối tác/người báo. Trang thống kê gia công bỏ 4 thẻ tổng.
+- **Reason**: Yêu cầu nghiệp vụ: giá áp chung cho mọi sản phẩm, không duyệt giá, chỉ chủ xưởng gia công thao tác.
+- **Source**: `san_xuat/partner_models.py`; `san_xuat/services/gc_partner.py::resolve_gc_price`, `validate_price_rule`; `san_xuat/partner_portal/auth.py`; `san_xuat/views_gc_partner.py`; `san_xuat/list_grid.py` (`gc_partner`, `gc_account`, `gc_output`); migrations `0156`–`0158`.
+- **Agent impact**: `resolve_gc_price(partner_id, team_slug, on_date)` không còn nhận `product_code`. `validate_price_rule` được gọi lúc thêm giá để chặn trùng hiệu lực. Duyệt sản lượng (`GcOutputReport`) là luồng riêng và vẫn giữ nguyên.
+
 ### 2026-11-03 — infra / gỡ site portfolio.phongkstudio.com
 
 - **Type**: infra

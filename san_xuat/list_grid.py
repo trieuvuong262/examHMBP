@@ -424,7 +424,6 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
             _col('capacity', 'NL/ngày', weight=80, align='end'),
             _col('accounts', 'Tài khoản', weight=70, align='center'),
             _col('orders', 'Phiếu GC', weight=70, align='center'),
-            _col('prices_pending', 'Giá chờ duyệt', weight=80, align='center'),
             _col('status', 'Trạng thái', weight=90, align='center'),
         ),
         {
@@ -433,7 +432,6 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
             'capacity': 'capacity_per_day',
             'accounts': 'n_accounts',
             'orders': 'n_orders',
-            'prices_pending': 'n_prices_pending',
             'status': 'is_active',
             'created_by': 'created_by__username',
             'created_at': 'created_at',
@@ -445,7 +443,6 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
             _col('username', 'Tên đăng nhập', weight=120, required=True),
             _col('full_name', 'Họ tên', weight=130),
             _col('partner', 'Đối tác', weight=140),
-            _col('role', 'Vai trò', weight=100, align='center'),
             _col('last_login', 'Đăng nhập gần nhất', weight=110),
             _col('status', 'Trạng thái', weight=110, align='center'),
             actions=True,
@@ -454,7 +451,6 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
             'username': 'username',
             'full_name': 'full_name',
             'partner': 'partner__name',
-            'role': 'role',
             'last_login': 'last_login',
             'status': 'is_active',
             'created_by': 'created_by__username',
@@ -465,9 +461,7 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
     'gc_output': _spec(
         _cols(
             _col('work_date', 'Ngày SX', weight=80),
-            _col('order', 'Phiếu GC', weight=100, required=True),
-            _col('partner', 'Đối tác', weight=120),
-            _col('account', 'Người báo', weight=100),
+            _col('order', 'Phiếu / đối tác', weight=200, required=True),
             _col('sizes', 'SL báo theo size', weight=130, sortable=False),
             _col('total', 'Tổng', weight=70, align='end'),
             _col('note', 'Ghi chú ĐT', weight=110, sortable=False, default=False),
@@ -480,8 +474,6 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
         {
             'work_date': 'work_date',
             'order': 'order__code',
-            'partner': 'partner__name',
-            'account': 'account__username',
             'total': 'total_qty',
             'status': 'status',
             'created_at': 'created_at',

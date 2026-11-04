@@ -74,7 +74,6 @@
               <td class="npl-col text-end jp-gc-num" data-col="capacity">{% if p.capacity_per_day %}{{ p.capacity_per_day|sx_num }}{% else %}—{% endif %}</td>
               <td class="npl-col text-center jp-gc-num" data-col="accounts">{{ p.n_accounts }}</td>
               <td class="npl-col text-center jp-gc-num" data-col="orders">{{ p.n_orders }}</td>
-              <td class="npl-col text-center" data-col="prices_pending">{% if p.n_prices_pending %}<span class="jp-gc-badge is-warn is-plain">{{ p.n_prices_pending }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
               <td class="npl-col text-center" data-col="status">{% if p.is_active %}<span class="jp-gc-badge is-ok">Đang hợp tác</span>{% else %}<span class="jp-gc-badge">Ngưng</span>{% endif %}</td>
               {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=p %}
             </tr>

@@ -1,7 +1,7 @@
 """View cổng đối tác GC: đăng nhập, danh sách đơn, nhận/từ chối đơn, báo SL ngày × size, giá, KPI.
 
-Vai trò: Chủ / quản lý (``ROLE_OWNER``) nhận/từ chối đơn, xem giá, thành tiền, KPI.
-Nhân viên (``ROLE_STAFF``) chỉ báo sản lượng cho đơn đã nhận.
+Mọi tài khoản đối tác đều là chủ xưởng gia công: toàn quyền nhận/từ chối đơn,
+xem giá, thành tiền, KPI và báo sản lượng.
 """
 
 from __future__ import annotations
@@ -21,10 +21,13 @@ from san_xuat.hub_models import SxSubcontractOrder
 from san_xuat.partner_models import GcOutputReport, GcPartnerAccount, GcPartnerActivity as Act
 from san_xuat.partner_portal import activity, auth
 from san_xuat.services.gc_output import (
+    LIVE_REPORT_STATUSES,
     OPEN_STATUSES,
     GcOutputError,
     accept_order,
     cancel_report,
+    confirm_materials,
+    material_image_urls,
     partner_orders,
     reject_order,
     reported_totals,
@@ -175,8 +178,6 @@ def _size_rows(order) -> list[dict]:
 def _handle_order_post(request, order, size_rows) -> None:
     acc = request.gc_account
     action = (request.POST.get('action') or '').strip()
-    if action in {'accept', 'reject'} and not auth.is_owner(acc):
-        raise GcOutputError('Chỉ tài khoản chủ / quản lý đối tác được nhận hoặc từ chối đơn.')
     if action == 'accept':
         accept_order(order=order, account=acc)
         activity.log(request, Act.ACTION_ACCEPT, order=order, detail=order.code)
@@ -186,6 +187,19 @@ def _handle_order_post(request, order, size_rows) -> None:
         reject_order(order=order, account=acc, reason=reason)
         activity.log(request, Act.ACTION_REJECT, order=order, detail=f'{order.code}: {reason}')
         messages.success(request, f'Đã từ chối đơn {order.code}. JustPlay sẽ sắp xếp lại.')
+    elif action == 'confirm_materials':
+        qtys = {key[5:]: val for key, val in request.POST.items() if key.startswith('mqty_')}
+        notes = {key[6:]: val for key, val in request.POST.items() if key.startswith('mnote_')}
+        confirmed, mismatch = confirm_materials(order=order, account=acc, qtys=qtys, notes=notes)
+        activity.log(
+            request, Act.ACTION_CONFIRM_MATERIALS, order=order,
+            detail=f'{order.code}: {confirmed} dòng NPL' + (f', {mismatch} dòng lệch' if mismatch else ''),
+        )
+        messages.success(
+            request,
+            f'Đã xác nhận nhận {confirmed} dòng NPL'
+            + (f' ({mismatch} dòng lệch SL, JustPlay sẽ kiểm tra).' if mismatch else '.'),
+        )
     elif action == 'report':
         allowed = {row['size'] for row in size_rows}
         sizes = {
@@ -231,6 +245,17 @@ def order_detail(request, pk: int):
         return redirect('order_detail', pk=order.pk)
 
     reports = order.output_reports.select_related('account', 'cancelled_by').order_by('-work_date', '-pk')
+
+    material_lines = list(
+        order.material_lines.filter(direction='out').select_related('confirmed_by').order_by('pk')
+    )
+    images = material_image_urls(ln.material_code for ln in material_lines)
+    for ln in material_lines:
+        ln.image_url = images.get((ln.material_code or '').strip().casefold(), '')
+    materials_confirmed = bool(material_lines) and all(ln.is_confirmed for ln in material_lines)
+    materials_locked = materials_confirmed and order.output_reports.filter(
+        status__in=LIVE_REPORT_STATUSES,
+    ).exists()
     return render(request, 'partner_portal/order_detail.html', _ctx(
         request,
         row=_order_row(order),
@@ -239,6 +264,11 @@ def order_detail(request, pk: int):
         reports=reports,
         today=timezone.localdate(),
         show_price=auth.is_owner(acc),
+        material_lines=material_lines,
+        materials_confirmed=materials_confirmed,
+        materials_mismatch=sum(1 for ln in material_lines if ln.is_mismatch),
+        can_confirm_materials=bool(order.partner_accepted_at) and not materials_locked
+        and order.status in OPEN_STATUSES,
     ))
 
 
@@ -253,10 +283,10 @@ def price_list(request):
     today = timezone.localdate()
     rules = (
         GcPriceRule.objects.filter(
-            partner=acc.partner, status=GcPriceRule.STATUS_APPROVED, valid_from__lte=today,
+            partner=acc.partner, valid_from__lte=today,
         )
         .filter(Q(valid_to__isnull=True) | Q(valid_to__gte=today))
-        .order_by('team_slug', 'product_code', '-valid_from')
+        .order_by('team_slug', '-valid_from')
     )
     return render(request, 'partner_portal/price_list.html', _ctx(request, rules=rules, today=today))
 
