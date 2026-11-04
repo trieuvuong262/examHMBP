@@ -143,3 +143,29 @@ class ReadOnlyAccountReportScopeTests(TestCase):
         with mock.patch.object(report_lock, 'is_production_report', return_value=False):
             self.assertFalse(report_lock.lock_report_on_supervisor_view(report, demo))
         report.save.assert_not_called()
+
+
+class ReadOnlyAccountExtraModulesTests(TestCase):
+    def test_demo_gets_product_modules_despite_department_config(self):
+        from hrm.models import Department, DepartmentMenuPermission
+        from hrm.module_permissions import (
+            MODULE_RA_MAT_SP,
+            MODULE_REPORTS,
+            MODULE_THIET_KE_SP,
+            get_user_enabled_modules,
+        )
+
+        dept = Department.objects.create(name='IT RO modules', sort_order=98)
+        DepartmentMenuPermission.objects.create(department=dept, modules=[MODULE_REPORTS])
+        demo = User.objects.create_user('demo', password='123123sS@@')
+        other = User.objects.create_user('it_nv_mod', password='x-Strong-123')
+        for u in (demo, other):
+            u.profile.department = dept
+            u.profile.save()
+
+        demo_mods = get_user_enabled_modules(demo)
+        other_mods = get_user_enabled_modules(other)
+        self.assertIn(MODULE_THIET_KE_SP, demo_mods)
+        self.assertIn(MODULE_RA_MAT_SP, demo_mods)
+        self.assertNotIn(MODULE_THIET_KE_SP, other_mods)
+        self.assertNotIn(MODULE_RA_MAT_SP, other_mods)

@@ -370,8 +370,22 @@ def get_user_enabled_modules(user) -> set:
 
     return get_or_set(
         user_key('user_modules', user),
-        lambda: get_department_enabled_modules(get_user_department(user)),
+        lambda: _compute_user_enabled_modules(user),
     )
+
+
+# Module tài khoản demo chỉ xem được mở thêm ngoài cấu hình phòng ban
+# (quyền chi tiết vẫn theo nhóm quyền; ghi bị ReadOnlyAccountMiddleware chặn).
+READ_ONLY_EXTRA_MODULES = frozenset({MODULE_THIET_KE_SP, MODULE_RA_MAT_SP})
+
+
+def _compute_user_enabled_modules(user) -> set:
+    enabled = set(get_department_enabled_modules(get_user_department(user)))
+    from hrm.user_search import is_read_only_account
+
+    if is_read_only_account(user):
+        enabled |= READ_ONLY_EXTRA_MODULES
+    return enabled
 
 
 def cham_cong_demo_allowed(user, module_key: str):
