@@ -23,6 +23,14 @@ Mỗi entry nên có:
 - **Source**: `san_xuat/views.py::sales_order_line_versions_api`, `san_xuat/templates/san_xuat/sales_order_form.html::renderBoards`, `san_xuat/services/order_routing.py::seed_order_line_routing`, `_copy_from_process_step`.
 - **Agent impact**: Preview OB trên form phải giữ đúng thứ tự nguồn của `seed_order_line_routing`: có OB thì chỉ dùng OB đó, không có OB thì mới dùng BOM. Không thêm cơ chế dự phòng chỉ ở một phía.
 
+### 2026-11-04 — feature / vananh, thoptt xem toàn bộ tab «Bộ phận» ở /kpi/
+
+- **Type**: feature
+- **Change**: Username trong `kpi/views.py::_KPI_DIVISION_TAB_ALL_VIEWERS` (`vananh`, `thoptt`, so khớp không phân biệt hoa thường) thấy tab «Bộ phận» ở `kpi_list_view` với KPI của mọi nhân sự đang làm việc (trừ chính họ), và bộ lọc có mọi bộ phận đang hoạt động. Chỉ áp dụng cho danh sách: nút «Mở» chỉ hiện với bảng mà họ vốn đã mở được chi tiết (`_kpi_detail_openable_ids`, khớp `_kpi_detail_roles`). Quyền sửa/xoá/giao KPI vẫn theo phạm vi cũ. `kpi_detail_view`, tổng kết KPI (`_kpi_division_choices` mặc định) và các màn hình khác không đổi.
+- **Reason**: HCNS cần xem toàn bộ KPI bộ phận trên một màn hình, nhưng không mở rộng quyền ở chỗ khác.
+- **Source**: `kpi/views.py::_is_kpi_division_tab_all_viewer`, `_kpi_detail_openable_ids`, `_kpi_division_choices(all_divisions=)`, `kpi_list_view`; `kpi/templates/kpi/kpi_list.html` (`dk.can_open_detail`).
+- **Agent impact**: Thêm/bớt người xem thì sửa `_KPI_DIVISION_TAB_ALL_VIEWERS`. Đừng thêm họ vào `is_global_report_viewer`, vì hàm đó mở quyền toàn công ty ở nhiều module.
+
 ### 2026-11-04 — workflow / KPI tháng của TBP/TP bỏ bước quản lý chấm
 
 - **Type**: workflow

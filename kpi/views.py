@@ -431,6 +431,27 @@ def _can_view_division_kpi(user) -> bool:
     return bool(roles & {ROLE_DIVISION_HEAD, ROLE_DEPARTMENT_HEAD})
 
 
+# User được xem KPI toàn công ty CHỈ ở tab «Bộ phận» của màn hình danh sách KPI
+# (không mở chi tiết ngoài phạm vi, không sửa/xoá/giao, không áp dụng màn hình khác).
+_KPI_DIVISION_TAB_ALL_VIEWERS = frozenset({'vananh', 'thoptt'})
+
+
+def _is_kpi_division_tab_all_viewer(user) -> bool:
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    return (user.username or '').strip().lower() in _KPI_DIVISION_TAB_ALL_VIEWERS
+
+
+def _kpi_detail_openable_ids(user) -> set[int]:
+    """User IDs mà user mở được chi tiết KPI (khớp _kpi_detail_roles, không gồm company-wide)."""
+    ids: set[int] = set()
+    if effective_roles(user) & SUBORDINATE_MANAGER_ROLES:
+        ids.update(get_report_team_users(user).values_list('pk', flat=True))
+    ids -= _superior_user_ids(user)
+    ids.add(user.pk)
+    return ids
+
+
 def _can_import_division_kpi(user) -> bool:
     """Giao KPI bộ phận — chỉ trưởng bộ phận (hoặc admin)."""
     if not getattr(user, 'is_authenticated', False):
@@ -569,11 +590,11 @@ def _apply_division_filter(qs, division_id: int | None):
     return qs.filter(employee__profile__division_id=division_id)
 
 
-def _kpi_division_choices(user) -> list[tuple[int, str]]:
+def _kpi_division_choices(user, *, all_divisions: bool = False) -> list[tuple[int, str]]:
     """Danh sách bộ phận cho bộ lọc — theo phạm vi xem KPI của user."""
     from hrm.models import Division
 
-    if user.is_superuser or user_is_director(user) or is_global_report_viewer(user):
+    if all_divisions or user.is_superuser or user_is_director(user) or is_global_report_viewer(user):
         return list(
             Division.objects.filter(is_active=True)
             .order_by('sort_order', 'name')
@@ -641,7 +662,11 @@ def kpi_list_view(request):
     search_query = get_search_query(request)
     year, month = _parse_month_year(request, default_previous_month=True)
     filter_division = _parse_division_filter(request)
-    division_choices = _kpi_division_choices(request.user)
+    # vananh / thoptt: tab Bộ phận xem toàn công ty (chỉ danh sách màn hình này)
+    division_tab_all_viewer = _is_kpi_division_tab_all_viewer(request.user)
+    division_choices = _kpi_division_choices(
+        request.user, all_divisions=division_tab_all_viewer,
+    )
     allowed_division_ids = {pk for pk, _ in division_choices}
     if filter_division and filter_division not in allowed_division_ids:
         filter_division = None
@@ -652,7 +677,7 @@ def kpi_list_view(request):
         or is_global_report_viewer(request.user)
         or bool(effective_roles(request.user) & SUBORDINATE_MANAGER_ROLES)
     )
-    show_division_kpi = _can_view_division_kpi(request.user)
+    show_division_kpi = _can_view_division_kpi(request.user) or division_tab_all_viewer
     can_import_division = _can_import_division_kpi(request.user) and user_can_create_module(
         request.user, MODULE_KPI,
     )
@@ -730,7 +755,17 @@ def kpi_list_view(request):
     else:  # division
         if not division_id_set:
             division_id_set = set(_division_member_user_ids(request.user))
-        if division_id_set:
+        # Nút «Mở» chi tiết: chỉ hiện khi user thật sự có quyền xem chi tiết bảng đó.
+        detail_openable_ids: set[int] | None = None
+        if division_tab_all_viewer and not is_company_wide:
+            detail_openable_ids = _kpi_detail_openable_ids(request.user)
+            division_kpis_qs = base.filter(
+                employee__is_active=True,
+                employee__profile__is_employed=True,
+            ).exclude(employee=request.user).order_by(
+                'employee__profile__full_name', 'employee__username',
+            )
+        elif division_id_set:
             division_kpis_qs = base.filter(employee_id__in=division_id_set).order_by(
                 'employee__profile__full_name', 'employee__username',
             )
@@ -742,6 +777,9 @@ def kpi_list_view(request):
         )
         division_list = _annotate_boards(list(division_page.object_list), with_managers=False)
         for board in division_list:
+            board.can_open_detail = (
+                detail_openable_ids is None or board.employee_id in detail_openable_ids
+            )
             board.can_edit_board = (
                 can_import_division and _can_edit_kpi_board(
                     request.user, board,

@@ -208,8 +208,10 @@
                         <td><span class="jp-kpi-badge jp-kpi-badge--{{ dk.status_badge_code }}">{% if dk.status == 'approved' %}<i class="bi bi-lock-fill me-1"></i>{% endif %}{{ dk.status_label }}</span></td>
                         <td class="pe-4 text-end">
                             <div class="d-inline-flex flex-wrap gap-1 justify-content-end">
+                                {% if dk.can_open_detail %}
                                 <a href="{% url 'kpi_detail' dk.id %}" class="btn btn-sm btn-outline-hm fw-bold"
                                    data-loading-message="Đang tải bảng đánh giá KPI…">Mở</a>
+                                {% endif %}
                                 {% if dk.can_edit_board %}
                                 <a href="{% url 'kpi_import_excel' %}?scope=division&edit={{ dk.id }}"
                                    class="btn btn-sm btn-outline-secondary fw-bold"
