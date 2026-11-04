@@ -124,3 +124,22 @@ class ReadOnlyAccountExternalSyncTests(TestCase):
         demo = User.objects.create_user('demo', password='123123sS@@')
         self.assertFalse(user_has_odoo_portal_access(demo))
         self.assertFalse(_should_sync_user(demo))
+
+
+class ReadOnlyAccountReportScopeTests(TestCase):
+    def test_demo_views_company_wide_reports_without_marking_reviewed(self):
+        from unittest import mock
+
+        from hrm.permissions import has_company_wide_report_access, is_global_report_viewer
+        from reports import report_lock
+
+        demo = User.objects.create_user('demo', password='123123sS@@')
+        other = User.objects.create_user('nv_bc', password='x-Strong-123')
+        self.assertTrue(is_global_report_viewer(demo))
+        self.assertTrue(has_company_wide_report_access(demo))
+        self.assertFalse(is_global_report_viewer(other))
+
+        report = mock.Mock(employee_id=other.pk, hod_reviewed=False)
+        with mock.patch.object(report_lock, 'is_production_report', return_value=False):
+            self.assertFalse(report_lock.lock_report_on_supervisor_view(report, demo))
+        report.save.assert_not_called()

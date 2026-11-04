@@ -384,8 +384,12 @@ def _can_supervisor_view_report(viewer, report) -> bool:
 def lock_report_on_supervisor_view(report, viewer) -> bool:
     """Tự khóa khi cấp trên mở xem báo cáo đã gửi (lần đầu) — không áp dụng SX."""
     from hrm.permissions import get_report_team_users, has_company_wide_report_access
+    from hrm.user_search import is_read_only_account
 
     if is_production_report(report):
+        return False
+    # Tài khoản demo chỉ xem — mở báo cáo không được đánh dấu «đã xem».
+    if is_read_only_account(viewer):
         return False
     if (
         report.employee_id == viewer.id

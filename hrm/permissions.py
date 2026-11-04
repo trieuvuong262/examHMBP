@@ -131,6 +131,10 @@ def is_global_report_viewer(user) -> bool:
     from hrm.module_permissions import bypass_department_modules
     if bypass_department_modules(user):
         return True
+    # Tài khoản demo chỉ xem — xem toàn công ty như TGĐ (ghi bị ReadOnlyAccountMiddleware chặn).
+    from hrm.user_search import is_read_only_account
+    if is_read_only_account(user):
+        return True
     return user.username.lower() in GLOBAL_REPORT_VIEWER_USERNAMES
 
 
