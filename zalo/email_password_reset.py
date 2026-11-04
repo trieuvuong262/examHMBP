@@ -55,7 +55,9 @@ def mask_email(email: str) -> str:
 
 
 def _user_can_reset(user: User | None) -> bool:
-    if not user or not user.is_active:
+    from hrm.user_search import is_read_only_account
+
+    if not user or not user.is_active or is_read_only_account(user):
         return False
     profile = getattr(user, 'profile', None)
     if profile is None:
@@ -192,7 +194,7 @@ def set_password_from_email_token(
     password2: str,
 ) -> User:
     user = get_user_from_uidb64(uidb64)
-    if not user or not default_token_generator.check_token(user, token):
+    if not user or not _user_can_reset(user) or not default_token_generator.check_token(user, token):
         raise PasswordResetError('Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.')
 
     p1 = password1 or ''

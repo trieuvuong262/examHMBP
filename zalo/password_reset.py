@@ -73,15 +73,20 @@ def resolve_user_for_password_reset(identifier: str) -> User | None:
     text = (identifier or '').strip()
     if not text:
         return None
+    from hrm.user_search import is_read_only_account
+
     user = resolve_user_by_login_identifier(text)
-    if user:
-        return user
-    profile = (
-        Profile.objects.filter(employee_code__iexact=text)
-        .select_related('user')
-        .first()
-    )
-    return profile.user if profile else None
+    if not user:
+        profile = (
+            Profile.objects.filter(employee_code__iexact=text)
+            .select_related('user')
+            .first()
+        )
+        user = profile.user if profile else None
+    # Tài khoản demo chỉ xem — không cho đặt lại mật khẩu.
+    if user and is_read_only_account(user):
+        return None
+    return user
 
 
 def _user_eligible(user: User | None) -> tuple[bool, str]:

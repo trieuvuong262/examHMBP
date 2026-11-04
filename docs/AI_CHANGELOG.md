@@ -15,6 +15,14 @@ Mỗi entry nên có:
 
 ## Entries
 
+### 2026-11-04 — feature / tài khoản demo chỉ xem
+
+- **Type**: feature | workflow
+- **Change**: Thêm `ReadOnlyAccountMiddleware` (sau `DepartmentModuleAccessMiddleware`) áp dụng cho username trong `hrm/user_search.py::READ_ONLY_USERNAMES` (`demo`). Tài khoản này không được thêm/sửa/xóa/in/xuất/tải về/đổi hoặc đặt lại mật khẩu, không vào được DS nhân sự, và bị ẩn khỏi DS nhân sự, file export, sơ đồ tổ chức và ô chọn người (`HIDDEN_HRM_LIST_USERNAMES`). Không bị ép chấm công. `_PROTECTED_USERNAMES` vẫn chỉ gồm `admin`.
+- **Reason**: Cần tài khoản demo cho khách xem portal với phạm vi quyền Trưởng phòng IT nhưng không thể thay đổi dữ liệu.
+- **Source**: `PortalJustPlay/middleware.py::ReadOnlyAccountMiddleware`; `PortalJustPlay/settings.py::MIDDLEWARE`; `hrm/user_search.py::is_read_only_account`; `zalo/password_reset.py::resolve_user_for_password_reset`; `zalo/email_password_reset.py::_user_can_reset`; `cham_cong/services.py::_should_force_punch`; test `hrm/tests_read_only_account.py`.
+- **Agent impact**: Thêm tài khoản chỉ xem mới = thêm username vào `READ_ONLY_USERNAMES`. Middleware chặn GET theo token của `url_name`; URL thao tác mới nên đặt tên chứa động từ (`*_delete`, `*_export`, `*_print`, `*_edit`…) để được chặn tự động. Nhóm quyền của demo là `PermissionGroup` riêng; lệnh `grant_export_print` bật export/print cho mọi nhóm nhưng middleware vẫn chặn.
+
 ### 2026-11-03 — infra / gỡ site portfolio.phongkstudio.com
 
 - **Type**: infra

@@ -17,9 +17,21 @@ from hrm.permissions import (
     ROLE_TEAM_LEADER,
 )
 
-# Tài khoản quản trị hệ thống — không hiển thị trên danh sách nhân sự
-HIDDEN_HRM_LIST_USERNAMES = ('admin',)
-_PROTECTED_USERNAMES = {name.lower() for name in HIDDEN_HRM_LIST_USERNAMES}
+# Tài khoản demo chỉ xem — chặn mọi thao tác ghi/in/xuất/đổi MK (ReadOnlyAccountMiddleware).
+READ_ONLY_USERNAMES = ('demo',)
+_READ_ONLY_USERNAMES = {name.lower() for name in READ_ONLY_USERNAMES}
+
+# Tài khoản hệ thống / demo — không hiển thị trên danh sách nhân sự, export, sơ đồ tổ chức
+HIDDEN_HRM_LIST_USERNAMES = ('admin',) + READ_ONLY_USERNAMES
+_PROTECTED_USERNAMES = {'admin'}
+
+
+def is_read_only_account(user) -> bool:
+    """Tài khoản demo chỉ được xem."""
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    username = (getattr(user, 'username', None) or '').strip().lower()
+    return username in _READ_ONLY_USERNAMES
 
 
 def is_protected_system_user(user) -> bool:

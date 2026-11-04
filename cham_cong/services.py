@@ -246,7 +246,11 @@ def should_force_punch(user, when=None) -> bool:
 
 def _should_force_punch(user, when=None) -> bool:
     from cham_cong.permissions import can_punch
+    from hrm.user_search import is_read_only_account
 
+    # Tài khoản demo không chấm công được (chặn POST) — không ép về màn chấm công.
+    if is_read_only_account(user):
+        return False
     profile = get_profile(user)
     if not profile or not profile.is_employed or not can_punch(user):
         return False

@@ -271,6 +271,8 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'PortalJustPlay.middleware.ForcePasswordChangeMiddleware',
     'hrm.middleware.DepartmentModuleAccessMiddleware',
+    # Tài khoản demo chỉ xem: chặn ghi/in/xuất/đổi MK (hrm.user_search.READ_ONLY_USERNAMES).
+    'PortalJustPlay.middleware.ReadOnlyAccountMiddleware',
     'cham_cong.middleware.AttendancePunchGateMiddleware',
     'audit.middleware.ActivityAuditMiddleware',
 ]
