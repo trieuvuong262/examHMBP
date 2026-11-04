@@ -499,20 +499,22 @@ def department_has_department_heads_extended(department) -> bool:
     if not department:
         return False
     from hrm.models import Profile, ProfileConcurrentPosition
+    from hrm.user_search import read_only_username_q
 
+    # Tài khoản demo chỉ xem không tính là trưởng phòng thật (không thêm bước duyệt).
     if User.objects.filter(
         profile__department=department,
         profile__role=ROLE_DEPARTMENT_HEAD,
         profile__is_employed=True,
         is_active=True,
-    ).exists():
+    ).exclude(read_only_username_q()).exists():
         return True
     if Profile.objects.filter(
         is_employed=True,
         department_id=department.id,
         division__isnull=True,
         job_position__in=_HEAD_POSITION_NAMES,
-    ).exists():
+    ).exclude(read_only_username_q(user_prefix='user__')).exists():
         return True
     return ProfileConcurrentPosition.objects.filter(
         is_active=True,
@@ -520,7 +522,7 @@ def department_has_department_heads_extended(department) -> bool:
         role=ROLE_DEPARTMENT_HEAD,
         profile__is_employed=True,
         profile__user__is_active=True,
-    ).exists()
+    ).exclude(read_only_username_q(user_prefix='profile__user__')).exists()
 
 
 def department_has_team_leaders_extended(department) -> bool:
@@ -553,10 +555,13 @@ def find_manager_with_subordinate(user, role: str):
     if not profile or not profile.department_id:
         return None
 
+    from hrm.user_search import read_only_username_q
+
+    # Tài khoản demo chỉ xem không bao giờ là người duyệt.
     candidates = User.objects.filter(
         is_active=True,
         profile__is_employed=True,
-    ).select_related('profile')
+    ).exclude(read_only_username_q()).select_related('profile')
 
     for manager in candidates.order_by('profile__full_name', 'username'):
         if manager.pk == user.pk:

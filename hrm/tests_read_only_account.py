@@ -87,3 +87,30 @@ class ReadOnlyAccountTests(TestCase):
 
         self.assertIsNone(resolve_user_for_password_reset('demo'))
         self.assertEqual(resolve_user_for_password_reset('nv_khac'), self.other)
+
+
+class ReadOnlyAccountNotApproverTests(TestCase):
+    """demo là Trưởng phòng (xem) nhưng không được thành người duyệt / thêm bước duyệt."""
+
+    def test_demo_department_head_is_not_manager(self):
+        from hrm.concurrent_positions import (
+            department_has_department_heads_extended,
+            find_manager_with_subordinate,
+        )
+        from hrm.models import Department
+        from hrm.permissions import ROLE_DEPARTMENT_HEAD
+
+        dept = Department.objects.create(name='IT test RO', sort_order=99)
+        demo = User.objects.create_user('demo', password='123123sS@@')
+        demo.profile.department = dept
+        demo.profile.role = ROLE_DEPARTMENT_HEAD
+        demo.profile.job_position = 'Trưởng phòng'
+        demo.profile.is_employed = True
+        demo.profile.save()
+        staff = User.objects.create_user('it_nv_ro', password='x-Strong-123')
+        staff.profile.department = dept
+        staff.profile.is_employed = True
+        staff.profile.save()
+
+        self.assertFalse(department_has_department_heads_extended(dept))
+        self.assertIsNone(find_manager_with_subordinate(staff, ROLE_DEPARTMENT_HEAD))

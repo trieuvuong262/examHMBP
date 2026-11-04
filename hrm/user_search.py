@@ -34,6 +34,14 @@ def is_read_only_account(user) -> bool:
     return username in _READ_ONLY_USERNAMES
 
 
+def read_only_username_q(*, user_prefix: str = '') -> Q:
+    """Q khớp tài khoản demo chỉ xem — dùng để loại khỏi luồng tìm người duyệt/quản lý."""
+    q = Q()
+    for name in READ_ONLY_USERNAMES:
+        q |= Q(**{f'{user_prefix}username__iexact': name})
+    return q
+
+
 def is_protected_system_user(user) -> bool:
     """Tài khoản hệ thống — không xóa / không đổi trạng thái qua UI nhân sự."""
     username = (getattr(user, 'username', None) or '').strip().lower()
