@@ -1971,7 +1971,6 @@ def sales_order_line_versions_api(request):
 
     from decimal import Decimal
 
-    from san_xuat.ie_models import SxRouting
     from san_xuat.services.order_routing import (
         default_routing_for_product,
         process_preview_from_bom,
@@ -2071,19 +2070,22 @@ def sales_order_line_versions_api(request):
 
         bom_for_lines = BomVersion.objects.filter(pk=payload['default_bom_id']).first()
 
-    rt_candidates = []
+    # Preview phải khớp đúng OB sẽ được lưu (seed_order_line_routing): OB đang chọn
+    # (phải thuộc mã hàng — dropdown chỉ giữ được các OB này), không chọn thì OB mặc định.
+    # OB rỗng → trả steps rỗng + cờ routing_empty, KHÔNG mượn OB khác/BOM (khi lưu sẽ không có OB).
     if preview_rt_id.isdigit():
-        rt = SxRouting.objects.filter(pk=int(preview_rt_id)).first()
-        if rt:
-            rt_candidates.append(rt)
-    if default_rt and all(r.pk != default_rt.pk for r in rt_candidates):
-        rt_candidates.append(default_rt)
-    for rt in rt_candidates:
-        steps = process_preview_from_routing(rt)
-        if steps:
-            source = 'ie'
-            break
-    if not steps and bom_for_lines is not None:
+        effective_rt = next((r for r in routings if r.pk == int(preview_rt_id)), None)
+    else:
+        effective_rt = default_rt
+    payload['routing_empty'] = False
+    payload['routing_label'] = ''
+    if effective_rt is not None:
+        steps = process_preview_from_routing(effective_rt)
+        source = 'ie'
+        if not steps:
+            payload['routing_empty'] = True
+            payload['routing_label'] = (effective_rt.routing_rev or '').strip() or f'#{effective_rt.pk}'
+    elif bom_for_lines is not None:
         steps = process_preview_from_bom(bom_for_lines)
         source = 'bom'
     payload['steps'] = steps

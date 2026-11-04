@@ -1533,6 +1533,7 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
     if (!npl || !ops) return;
     var nplGroups = [];
     var opsGroups = [];
+    var emptyOb = [];
     var nplCount = 0;
     var opsCount = 0;
     visibleLineRows().forEach(function (row) {
@@ -1547,13 +1548,24 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
       }
       var steps = data.steps || [];
       var source = data.steps_source || '';
-      if (steps.length && (selectedRoutingId(row) || source === 'ie')) {
+      // Hiện đúng nguồn sẽ được lưu (seed_order_line_routing): OB đang chọn,
+      // không có OB thì công đoạn của BOM đang chọn.
+      var showOps = source === 'ie'
+        || (source === 'bom' && !selectedRoutingId(row) && !!selectedBomId(row));
+      if (steps.length && showOps) {
         opsGroups.push({ key: key, label: label, steps: steps });
         opsCount += steps.length;
+      } else if (data.routing_empty && selectedRoutingId(row)) {
+        emptyOb.push(label + (data.routing_label ? ' — OB ' + data.routing_label : ''));
       }
     });
     npl.innerHTML = nplGroups.length ? renderNplTable(nplGroups) : '';
-    ops.innerHTML = opsGroups.length ? renderOpsTable(opsGroups) : '';
+    var emptyHtml = emptyOb.length
+      ? '<div class="alert alert-warning small py-2 mb-2">OB đang chọn chưa có công đoạn — lưu đơn sẽ không có OB: <strong>'
+        + emptyOb.map(escAttr).join('; ')
+        + '</strong>. Bổ sung công đoạn trên hồ sơ hoặc chọn OB khác.</div>'
+      : '';
+    ops.innerHTML = emptyHtml + (opsGroups.length ? renderOpsTable(opsGroups) : '');
     setBoardCount('jp-so-npl-count', nplCount);
     setBoardCount('jp-so-ops-count', opsCount);
     refreshNplNeed();

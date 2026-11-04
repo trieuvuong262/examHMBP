@@ -517,13 +517,19 @@ def _copy_from_process_step(order_line: SxSalesOrderLine, src) -> SxSalesOrderRo
     if smv <= 0:
         smv = _q(smv_from_process_step(src) * Decimal('60'))
     wc = getattr(src, 'work_center', None)
+    # Mã/tên giống process_preview_from_bom để SMV sửa trên form khớp được theo mã CĐ.
+    code, name = _step_code_and_name(
+        code=getattr(src, 'op_code', None),
+        name=src.process_name,
+        operation=getattr(src, 'operation', None),
+    )
     return SxSalesOrderRoutingLine(
         sales_order_line=order_line,
         seq_no=int(src.sequence or 0) or 10,
         operation=getattr(src, 'operation', None),
-        op_code=(getattr(src, 'op_code', None) or '')[:30],
+        op_code=code[:30],
         op_rev='R01',
-        op_name_vi=(src.process_name or '')[:200],
+        op_name_vi=name[:200],
         library_unit_smv=smv,
         applied_unit_smv=smv,
         qty_per_garment=Decimal('1'),
@@ -650,7 +656,8 @@ def seed_order_line_routing(
                 ).order_by('sequence', 'id')
             ):
                 row = _copy_from_process_step(order_line, src)
-                row.seq_no = _next_unique_seq(row.seq_no, used_seq, i)
+                # Cùng quy tắc SEQ với process_preview_from_bom (dùng số gốc của bước BOM).
+                row.seq_no = _next_unique_seq(src.sequence, used_seq, i)
                 row.recompute()
                 rows.append(row)
     if rows:

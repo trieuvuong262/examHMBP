@@ -15,6 +15,14 @@ Mỗi entry nên có:
 
 ## Entries
 
+### 2026-11-04 — feature / xem trước OB trên form đơn hàng khớp với OB được lưu
+
+- **Type**: feature
+- **Change**: `sales_order_line_versions_api` không còn lấy công đoạn từ OB mặc định khác hoặc từ BOM khi OB đang chọn không có công đoạn. API chỉ xem trước OB đang chọn (phải thuộc mã hàng, nếu không thì coi như chưa chọn), không chọn thì dùng OB mặc định. OB đó rỗng thì trả `steps=[]`, `routing_empty=true`, `routing_label`, và form đơn hàng hiện cảnh báo «OB đang chọn chưa có công đoạn». Chỉ khi mã hàng không có OB nào thì mới xem trước công đoạn từ BOM (`steps_source='bom'`). Khung OB trên form giờ hiện các công đoạn BOM này khi dòng không chọn OB nhưng có chọn BOM (trước đây bị ẩn dù khi lưu vẫn chép vào đơn). Khi chép từ BOM, `_copy_from_process_step` lấy mã/tên công đoạn qua `_step_code_and_name` (mã trống thì lấy mã của công đoạn thư viện), và `seed_order_line_routing` đánh SEQ từ số gốc của bước BOM, giống hệt `process_preview_from_bom`, nên SMV sửa trên form khớp được vào đúng dòng.
+- **Reason**: Đơn 216: form sửa hiện 32 dòng OB mượn từ nguồn khác, nhưng khi lưu `seed_order_line_routing` chỉ chép từ OB đã chọn (rỗng), nên đơn lưu xong vẫn không có OB. Ngược lại, với mã hàng chỉ có BOM, form ẩn công đoạn nhưng khi lưu vẫn chép vào đơn.
+- **Source**: `san_xuat/views.py::sales_order_line_versions_api`, `san_xuat/templates/san_xuat/sales_order_form.html::renderBoards`, `san_xuat/services/order_routing.py::seed_order_line_routing`, `_copy_from_process_step`.
+- **Agent impact**: Preview OB trên form phải giữ đúng thứ tự nguồn của `seed_order_line_routing`: có OB thì chỉ dùng OB đó, không có OB thì mới dùng BOM. Không thêm cơ chế dự phòng chỉ ở một phía.
+
 ### 2026-11-04 — workflow / KPI tháng của TBP/TP bỏ bước quản lý chấm
 
 - **Type**: workflow
