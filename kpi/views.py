@@ -151,6 +151,46 @@ def _sync_board_direct_manager(board: MonthlyKpi) -> MonthlyKpi:
     return board
 
 
+# Vai trò trực thuộc giám đốc: KPI bỏ bước "Quản lý chấm", GĐ chấm & phê duyệt luôn.
+_DIRECTOR_ONLY_KPI_ROLES = frozenset({ROLE_DIVISION_HEAD, ROLE_DEPARTMENT_HEAD})
+
+
+def _skips_manager_step(employee) -> bool:
+    """KPI của Trưởng bộ phận / Trưởng phòng (kể cả kiêm nhiệm) chỉ cần GĐ chấm cuối."""
+    if not employee:
+        return False
+    return bool(effective_roles(employee) & _DIRECTOR_ONLY_KPI_ROLES)
+
+
+def _promote_director_only_board(board: MonthlyKpi, *, skips: bool | None = None) -> MonthlyKpi:
+    """Bảng TBP/TP đang «Chờ quản lý chấm» → chuyển sang «Chờ giám đốc phê duyệt»."""
+    if board.status != MonthlyKpi.STATUS_SELF_SUBMITTED:
+        return board
+    if skips is None:
+        skips = _skips_manager_step(board.employee)
+    if skips:
+        board.status = MonthlyKpi.STATUS_MGR_REVIEWED
+        board.mgr_reviewed_at = board.mgr_reviewed_at or timezone.now()
+        board.save(update_fields=['status', 'mgr_reviewed_at', 'updated_at'])
+    return board
+
+
+def _promote_director_only_boards(qs) -> None:
+    """Áp dụng _promote_director_only_board cho các bảng self_submitted trong queryset."""
+    pending = list(
+        MonthlyKpi.objects.filter(
+            pk__in=qs.filter(status=MonthlyKpi.STATUS_SELF_SUBMITTED).values('pk'),
+        ).select_related('employee')
+    )
+    ids = [b.pk for b in pending if _skips_manager_step(b.employee)]
+    if ids:
+        MonthlyKpi.objects.filter(pk__in=ids, status=MonthlyKpi.STATUS_SELF_SUBMITTED).update(
+            status=MonthlyKpi.STATUS_MGR_REVIEWED,
+            mgr_reviewed_at=timezone.now(),
+            updated_at=timezone.now(),
+        )
+
+
 def _score_item_prefetch():
     """Prefetch tiêu chí chỉ lấy field cần tính điểm (list/summary)."""
     return Prefetch(
@@ -632,6 +672,8 @@ def kpi_list_view(request):
         'direct_manager__profile',
     ).prefetch_related(_score_item_prefetch())
     base = _apply_division_filter(base, filter_division)
+    # KPI TBP/TP còn kẹt ở «Chờ quản lý chấm» → chuyển sang chờ GĐ (bỏ bước QL).
+    _promote_director_only_boards(base)
 
     def _kpi_search(qs):
         if not search_query:
@@ -854,6 +896,8 @@ def kpi_detail_view(request, kpi_id):
 
     # Đồng bộ QL theo HR trước khi xét quyền — tránh tin field import sai
     _sync_board_direct_manager(kpi_board)
+    director_only_flow = _skips_manager_step(kpi_board.employee)
+    _promote_director_only_board(kpi_board, skips=director_only_flow)
 
     is_owner, is_manager, can_view_board = _kpi_detail_roles(request.user, kpi_board)
     if not can_view_board:
@@ -907,6 +951,11 @@ def kpi_detail_view(request, kpi_id):
         if not can_edit_self and not can_edit_manager:
             if role_can_edit_self and not kpi_board.can_self_edit():
                 messages.error(request, 'Bạn đã nộp KPI — không thể sửa cột Nhân viên nữa.')
+            elif role_can_edit_manager and director_only_flow and not is_director:
+                messages.error(
+                    request,
+                    'KPI của Trưởng bộ phận / Trưởng phòng do giám đốc chấm và phê duyệt trực tiếp.',
+                )
             elif role_can_edit_manager and kpi_board.status == MonthlyKpi.STATUS_MGR_REVIEWED:
                 messages.error(
                     request,
@@ -961,6 +1010,7 @@ def kpi_detail_view(request, kpi_id):
         'can_submit_manager': can_submit_manager,
         'can_approve': can_approve,
         'can_reopen': can_reopen,
+        'director_only_flow': director_only_flow,
         'kpi_status': kpi_board.status,
         'kpi_status_label': kpi_board.status_label,
         'kpi_status_badge': kpi_board.status_badge_code,
@@ -982,6 +1032,8 @@ def kpi_workflow_action(request, kpi_id):
         pk=kpi_id,
     )
     _sync_board_direct_manager(kpi_board)
+    director_only_flow = _skips_manager_step(kpi_board.employee)
+    _promote_director_only_board(kpi_board, skips=director_only_flow)
     is_owner, is_manager, can_view_board = _kpi_detail_roles(request.user, kpi_board)
     if not can_view_board:
         messages.error(request, 'Bạn không có quyền thao tác KPI này.')
@@ -998,6 +1050,15 @@ def kpi_workflow_action(request, kpi_id):
             messages.error(request, 'Không thể nộp KPI ở trạng thái hiện tại.')
         elif not kpi_board.self_scored():
             messages.error(request, 'Hãy chấm điểm tự đánh giá trước khi nộp.')
+        elif director_only_flow:
+            # TBP/TP: bỏ bước QL chấm — chuyển thẳng chờ GĐ chấm & phê duyệt.
+            kpi_board.status = S.STATUS_MGR_REVIEWED
+            kpi_board.self_submitted_at = now
+            kpi_board.mgr_reviewed_at = now
+            kpi_board.save(update_fields=[
+                'status', 'self_submitted_at', 'mgr_reviewed_at', 'updated_at',
+            ])
+            messages.success(request, 'Đã nộp bản tự đánh giá. Chờ giám đốc chấm & phê duyệt.')
         else:
             kpi_board.status = S.STATUS_SELF_SUBMITTED
             kpi_board.self_submitted_at = now
@@ -1037,6 +1098,9 @@ def kpi_workflow_action(request, kpi_id):
                 S.STATUS_MGR_REVIEWED: S.STATUS_SELF_SUBMITTED,
                 S.STATUS_SELF_SUBMITTED: S.STATUS_DRAFT,
             }[kpi_board.status]
+            if director_only_flow and prev == S.STATUS_SELF_SUBMITTED:
+                # TBP/TP không có bước QL chấm → trả thẳng về tự đánh giá.
+                prev = S.STATUS_DRAFT
             fields = ['status', 'updated_at']
             kpi_board.status = prev
             if prev == S.STATUS_MGR_REVIEWED:
@@ -1048,7 +1112,8 @@ def kpi_workflow_action(request, kpi_id):
                 fields += ['mgr_reviewed_at']
             elif prev == S.STATUS_DRAFT:
                 kpi_board.self_submitted_at = None
-                fields += ['self_submitted_at']
+                kpi_board.mgr_reviewed_at = None
+                fields += ['self_submitted_at', 'mgr_reviewed_at']
             kpi_board.save(update_fields=fields)
             messages.success(request, f'Đã trả lại KPI về bước «{kpi_board.status_label}».')
     else:

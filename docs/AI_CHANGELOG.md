@@ -15,6 +15,14 @@ Mỗi entry nên có:
 
 ## Entries
 
+### 2026-11-04 — workflow / KPI tháng của TBP/TP bỏ bước quản lý chấm
+
+- **Type**: workflow
+- **Change**: Bảng KPI tháng của người có vai trò Trưởng bộ phận hoặc Trưởng phòng (tính cả kiêm nhiệm, `effective_roles`) không còn bước «Chờ quản lý chấm». Khi nộp tự đánh giá, bảng chuyển thẳng `draft` → `mgr_reviewed` («Chờ giám đốc phê duyệt»). Ở bước này chỉ giám đốc chấm cột Quản lý (theo `MonthlyKpi.can_manager_edit`) rồi «Phê duyệt & khoá». «Trả lại» từ `mgr_reviewed` về thẳng `draft`. Bảng TBP/TP đang ở `self_submitted` tự chuyển sang `mgr_reviewed` khi mở danh sách KPI, mở chi tiết hoặc thao tác quy trình. Luồng cho các vai trò khác giữ nguyên.
+- **Reason**: TBP/TP trực thuộc giám đốc, nên giám đốc chấm cuối là đủ.
+- **Source**: `kpi/views.py::_skips_manager_step`, `_promote_director_only_board(s)`, `kpi_list_view`, `kpi_detail_view`, `kpi_workflow_action`; `kpi/templates/kpi/kpi_detail.html` (`director_only_flow`).
+- **Agent impact**: Muốn đổi những vai trò được bỏ bước QL thì sửa `_DIRECTOR_ONLY_KPI_ROLES` trong `kpi/views.py`. Không có migration, trạng thái vẫn dùng 4 giá trị cũ.
+
 ### 2026-11-04 — feature / tài khoản demo chỉ xem
 
 - **Type**: feature | workflow

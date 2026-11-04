@@ -68,7 +68,11 @@
         Thang điểm tiêu chí thường 0–10 (có thể &gt;10 khi vượt).
         Ô đánh giá thực tế hỗ trợ <strong>dán / chèn ảnh</strong> (lưu như báo cáo).
         <br>
+        {% if director_only_flow %}
+        <strong>Quy trình:</strong> TBP/TP tự đánh giá &amp; nộp → Giám đốc chấm &amp; phê duyệt (khoá).
+        {% else %}
         <strong>Quy trình:</strong> NV tự đánh giá &amp; nộp → Quản lý/TBP chấm &amp; trình → Giám đốc phê duyệt (khoá).
+        {% endif %}
         {% if can_edit_self and not can_edit_manager %}
         <span class="ms-1">Bạn đang chấm cột <strong>Nhân viên</strong>.</span>
         {% elif can_edit_manager and not can_edit_self %}
