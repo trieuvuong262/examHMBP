@@ -30,7 +30,12 @@ def odoo_configured() -> bool:
 
 
 def user_has_odoo_portal_access(user) -> bool:
+    from hrm.user_search import is_read_only_account
+
     if not user or not user.is_authenticated or not user.is_active:
+        return False
+    # Tài khoản demo chỉ xem — không tạo/đồng bộ tài khoản Odoo.
+    if is_read_only_account(user):
         return False
     profile = getattr(user, 'profile', None)
     if not profile or not profile.is_employed:

@@ -114,3 +114,13 @@ class ReadOnlyAccountNotApproverTests(TestCase):
 
         self.assertFalse(department_has_department_heads_extended(dept))
         self.assertIsNone(find_manager_with_subordinate(staff, ROLE_DEPARTMENT_HEAD))
+
+
+class ReadOnlyAccountExternalSyncTests(TestCase):
+    def test_no_odoo_or_nas_ldap_sync(self):
+        from audit.services.nas_ldap_sync import _should_sync_user
+        from audit.services.odoo_sync import user_has_odoo_portal_access
+
+        demo = User.objects.create_user('demo', password='123123sS@@')
+        self.assertFalse(user_has_odoo_portal_access(demo))
+        self.assertFalse(_should_sync_user(demo))

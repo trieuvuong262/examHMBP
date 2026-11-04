@@ -167,6 +167,11 @@ def _should_sync_user(user: User) -> bool:
         return False
     if login.lower() in _skip_usernames():
         return False
+    from hrm.user_search import is_read_only_account
+
+    # Tài khoản demo chỉ xem — không tạo tài khoản NAS LDAP.
+    if is_read_only_account(user):
+        return False
     profile = getattr(user, 'profile', None)
     if profile is None or not profile.is_employed:
         return False
