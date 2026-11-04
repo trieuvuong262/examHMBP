@@ -60,28 +60,6 @@
     </div>
     {% endif %}
 
-    <div class="jp-kpi-rules mb-3">
-        <strong>Quy tắc:</strong>
-        Điểm TP = (Điểm / 10) × Trọng số ·
-        Tổng ưu tiên điểm <strong>Quản lý</strong> (chưa có thì dùng điểm NV) ·
-        Dưới 70 Chưa đạt · 70 – dưới 90 Cần cải thiện · 90–100 Đạt · Trên 100 Vượt ·
-        Thang điểm tiêu chí thường 0–10 (có thể &gt;10 khi vượt).
-        Ô đánh giá thực tế hỗ trợ <strong>dán / chèn ảnh</strong> (lưu như báo cáo).
-        <br>
-        {% if director_only_flow %}
-        <strong>Quy trình:</strong> TBP/TP tự đánh giá &amp; nộp → Giám đốc chấm &amp; phê duyệt (khoá).
-        {% else %}
-        <strong>Quy trình:</strong> NV tự đánh giá &amp; nộp → Quản lý/TBP chấm &amp; trình → Giám đốc phê duyệt (khoá).
-        {% endif %}
-        {% if can_edit_self and not can_edit_manager %}
-        <span class="ms-1">Bạn đang chấm cột <strong>Nhân viên</strong>.</span>
-        {% elif can_edit_manager and not can_edit_self %}
-        <span class="ms-1">Bạn đang chấm cột <strong>Quản lý</strong>.</span>
-        {% elif can_edit_self and can_edit_manager %}
-        <span class="ms-1">Bạn có thể chấm cả hai cột.</span>
-        {% endif %}
-    </div>
-
     <form method="post" id="kpi-detail-form"
           data-kpi-id="{{ kpi.id }}"
           data-loading-message="Đang lưu đánh giá KPI…"

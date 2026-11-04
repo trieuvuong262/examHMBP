@@ -1010,7 +1010,6 @@ def kpi_detail_view(request, kpi_id):
         'can_submit_manager': can_submit_manager,
         'can_approve': can_approve,
         'can_reopen': can_reopen,
-        'director_only_flow': director_only_flow,
         'kpi_status': kpi_board.status,
         'kpi_status_label': kpi_board.status_label,
         'kpi_status_badge': kpi_board.status_badge_code,
