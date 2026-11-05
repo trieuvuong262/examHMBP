@@ -322,6 +322,11 @@ def progress_steps_for_team(
         ]
         if matched:
             return matched
+        # Slug dạng d{id} là bộ phận HR cụ thể. Nếu không có công đoạn
+        # mang đúng HRD-{id}, không fallback về nhóm logic (vd. MAY),
+        # vì công đoạn có thể đã chuyển sang tổ mặc định/thuê ngoài khác.
+        if stage_slug.startswith('d'):
+            return []
         if group_key:
             return [s for s in steps if s.group == group_key]
         if stage_slug and not stage_slug.startswith('d'):
