@@ -312,13 +312,12 @@ def progress_steps_for_team(
     group_key = (team.get('group_key') or '').strip()
     stage_slug = (team.get('stage_slug') or team.get('slug') or '').strip().lower()
     if div_id:
-        from san_xuat.services.capacity_from_hrm import division_id_from_work_center_code
-
+        # Bộ phận d{id} chỉ khớp chính xác HRD-{id}; work center thuê ngoài
+        # có thể giữ division_id gốc để truy vết nhưng không thuộc bảng tổ nội bộ.
         matched = [
             s
             for s in steps
             if (s.work_center_code or '').strip().upper() == want_code
-            or division_id_from_work_center_code(s.work_center_code) == div_id
         ]
         if matched:
             return matched
