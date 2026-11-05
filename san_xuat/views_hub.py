@@ -7840,6 +7840,25 @@ def team_work_progress(request, slug: str, mo_id: int):
         return redirect('san_xuat:team_work_board', slug=slug)
 
     team_steps = progress_steps_for_team(mo, team_meta)
+    if not team_steps:
+        # Không cho mở trực tiếp một LSX không có công đoạn của tổ này.
+        # Bảng tổ cũng lọc theo cùng điều kiện trong build_team_work_rows().
+        if request.method != 'POST':
+            messages.error(request, 'Lệnh không có công đoạn của tổ này.')
+            return redirect('san_xuat:team_work_board', slug=slug)
+        wants_json = (
+            request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or 'application/json' in (request.headers.get('Accept') or '')
+        )
+        if wants_json:
+            from django.http import JsonResponse
+
+            return JsonResponse(
+                {'ok': False, 'error': 'Lệnh không có công đoạn của tổ này.'},
+                status=400,
+            )
+        messages.error(request, 'Lệnh không có công đoạn của tổ này.')
+        return redirect('san_xuat:team_work_board', slug=slug)
     allowed_keys = {s.key for s in team_steps}
     ensure_progress_work_centers()
     job_closed = is_team_job_closed(mo_id=mo.pk, team_slug=slug)
