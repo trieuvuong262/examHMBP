@@ -1194,14 +1194,20 @@
                         {% endif %}
                         {% for item in tw_nav_teams %}
                         {% if item.is_gc_start %}
-                        <li class="jp-sidebar-subgroup-label"><span><i class="bi bi-building-gear"></i>Gia công</span></li>
+                        <li class="jp-sidebar-subgroup-label">
+                            <a href="{% url 'san_xuat:team_work_gc_hub' %}" class="jp-sidebar-link jp-sidebar-sublink{% if '/cong-viec-to/gia-cong/' in request.path %} active{% endif %}">
+                                <i class="bi bi-building-gear"></i><span>Gia công</span>
+                            </a>
+                        </li>
                         {% endif %}
+                        {% if not item.is_gc %}
                         <li>
                             <a href="{% url 'san_xuat:team_work_board' item.slug %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if '/cong-viec-to/'|add:item.slug|add:'/' in request.path %}active{% endif %}">
                                 <i class="bi {{ item.icon }}"></i><span>{{ item.label }}</span>
                             </a>
                         </li>
+                        {% endif %}
                         {% endfor %}
                     </ul>
                 </li>

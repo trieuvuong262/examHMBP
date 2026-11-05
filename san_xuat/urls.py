@@ -209,6 +209,7 @@ urlpatterns = [
     path('giao-viec/them/', views_hub.work_assignment_create, name='work_assignment_create'),
     path('cong-viec-to/map-bo-phan/', views_hub.team_division_map, name='team_division_map'),
     path('cong-viec-to/', views_hub.team_work_hub, name='team_work_hub'),
+    path('cong-viec-to/gia-cong/', views_hub.team_work_gc_hub, name='team_work_gc_hub'),
     path(
         'cong-viec-to/tien-do-hang-hoa/',
         views_hub.team_work_goods,

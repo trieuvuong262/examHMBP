@@ -7111,6 +7111,20 @@ def _nav_team_for_user(user):
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
+def team_work_gc_hub(request):
+    """Trang chỉ xem các tổ gia công trong khu vực Công việc tổ."""
+    from san_xuat.services.team_division_map import team_work_menu_items
+
+    items = [item for item in team_work_menu_items(request.user) if item.get('is_gc')]
+    if not items:
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'team_work')
+    return render(request, 'san_xuat/team_work_gc_hub.html', {
+        **_perm_ctx(request),
+        'gc_teams': items,
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
 def team_work_hub(request):
     """Hub Công việc tổ → tiến độ hàng hoá, không thì tổ đầu tiên user có quyền."""
     from san_xuat.services.team_division_map import team_work_menu_items

@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block extra_head %}
+<style>
+  .jp-gc-team-list { overflow-x: auto; }
+  .jp-gc-team-table { min-width: 38rem; }
+  .jp-gc-team-table tbody tr { cursor: pointer; transition: background-color .15s ease, box-shadow .15s ease; }
+  .jp-gc-team-table tbody tr:hover { background: rgba(220, 38, 38, .04); box-shadow: inset 3px 0 0 #dc2626; }
+  .jp-gc-team-table td { vertical-align: middle; }
+  .jp-gc-team-name { font-weight: 750; color: #0f172a; }
+  .jp-gc-team-code { display: block; margin-top: .15rem; color: #64748b; font-size: .74rem; font-weight: 650; letter-spacing: .03em; }
+  .jp-gc-team-icon { display: inline-grid; place-items: center; width: 2rem; height: 2rem; margin-right: .55rem; border-radius: .55rem; color: #b91c1c; background: #fef2f2; }
+  .jp-gc-team-view { color: #b91c1c; font-size: .8rem; font-weight: 750; white-space: nowrap; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100 mb-3">
+    <div class="jp-sx-detail-title"><h2 class="jp-npl-mat-topbar-title w-100">Gia công</h2></div>
+  </div>
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-3 p-md-4">
+      <div class="d-flex flex-wrap justify-content-end gap-2 mb-3">
+        <span class="badge text-bg-light">{{ gc_teams|length }} tổ</span>
+      </div>
+      <div class="jp-gc-team-list">
+        <table class="table table-hover table-sm align-middle mb-0 jp-gc-team-table">
+          <thead class="table-light"><tr><th>Tổ gia công</th><th>Mã trung tâm</th><th class="text-end">Thao tác</th></tr></thead>
+          <tbody>
+          {% for item in gc_teams %}
+          <tr onclick="window.location.href='{% url 'san_xuat:team_work_board' item.slug %}'">
+            <td><span class="jp-gc-team-icon"><i class="bi {{ item.icon }}" aria-hidden="true"></i></span><span class="jp-gc-team-name">{{ item.label }}</span></td>
+            <td>{% if item.work_center_code %}<span class="jp-gc-team-code">{{ item.work_center_code }}</span>{% else %}—{% endif %}</td>
+            <td class="text-end"><a class="jp-gc-team-view" href="{% url 'san_xuat:team_work_board' item.slug %}">Xem công việc <i class="bi bi-arrow-right" aria-hidden="true"></i></a></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" class="text-muted text-center py-4">Chưa có tổ gia công được cấp quyền xem.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
