@@ -7126,7 +7126,7 @@ def team_work_hub(request):
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def team_work_goods(request):
     """Tiến độ hàng hoá — mọi lệnh, công đoạn các tổ, đơn gấp để tổ trưởng xếp việc."""
-    from PortalJustPlay.pagination import LIST_PAGE_SIZE, paginate_queryset
+    from PortalJustPlay.pagination import LIST_PAGE_SIZE
     from san_xuat.services.goods_progress import build_goods_progress_board
 
     if not _can_team_work_overview(request.user):
@@ -7141,6 +7141,8 @@ def team_work_goods(request):
     sort_dir = 'desc' if (request.GET.get('dir') or '').strip().lower() == 'desc' else 'asc'
 
     nav_team = _nav_team_for_user(request.user)
+    page_number = max(1, int(request.GET.get('page') or 1)) if (request.GET.get('page') or '').isdigit() else 1
+    page_offset = (page_number - 1) * LIST_PAGE_SIZE
     board = build_goods_progress_board(
         search=(request.GET.get('q') or '').strip(),
         priority=(request.GET.get('priority') or '').strip(),
@@ -7149,8 +7151,18 @@ def team_work_goods(request):
         sort=grid_sorts.get(sort_key, ''),
         descending=sort_dir == 'desc',
         team_slug=(request.GET.get('team') or '').strip(),
+        limit=LIST_PAGE_SIZE if sort_key else None,
+        offset=page_offset if sort_key else 0,
     )
-    page_obj, query_string = paginate_queryset(request, board.rows, per_page=LIST_PAGE_SIZE)
+    from django.core.paginator import Paginator
+    if sort_key:
+        page_obj = Paginator(range(board.total_count), LIST_PAGE_SIZE).get_page(page_number)
+        page_obj.object_list = board.rows
+    else:
+        page_obj = Paginator(board.rows, LIST_PAGE_SIZE).get_page(page_number)
+    params = request.GET.copy()
+    params.pop('page', None)
+    query_string = params.urlencode()
 
     team_columns = board.team_columns
     list_columns = [

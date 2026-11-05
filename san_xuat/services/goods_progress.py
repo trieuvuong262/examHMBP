@@ -165,6 +165,7 @@ class GoodsProgressBoard:
     sort: str = ""
     has_filters: bool = False
     team_columns: list[GoodsTeamColumn] = field(default_factory=list)
+    total_count: int = 0
 
 
 def _due_for(mo: SxProductionOrder) -> date | None:
@@ -666,9 +667,28 @@ def build_goods_progress_board(
     team_slug: str = "",
     today: date | None = None,
     limit: int | None = None,
+    offset: int = 0,
 ) -> GoodsProgressBoard:
     today = today or timezone.localdate()
     teams = _team_meta()
+    term = (search or "").strip()
+    priority_key = (priority or "").strip().lower()
+    if priority_key not in PRIORITY_RANK:
+        priority_key = ""
+    status_key = (mo_status or "").strip().lower()
+    if status_key not in (
+        "",
+        SxProductionOrder.STATUS_RELEASED,
+        SxProductionOrder.STATUS_IN_PROGRESS,
+        SxProductionOrder.STATUS_DONE,
+    ):
+        status_key = ""
+    due_filter = (due or "").strip().lower()
+    if due_filter not in ("", "overdue", "today", "week", "none"):
+        due_filter = ""
+    sort_key = (sort or "").strip().lower()
+    if sort_key not in SORT_KEYS:
+        sort_key = ""
 
     qs = (
         SxProductionOrder.objects.filter(is_demo=False)
@@ -702,7 +722,6 @@ def build_goods_progress_board(
         )
         .order_by("-order_date", "-pk")
     )
-    term = (search or "").strip()
     if term:
         qs = qs.filter(
             Q(code__icontains=term)
@@ -710,8 +729,34 @@ def build_goods_progress_board(
             | Q(product_name__icontains=term)
             | Q(sales_order__code__icontains=term)
         )
+    if priority_key:
+        qs = qs.filter(sales_order__plan_priority=priority_key)
+    if status_key:
+        qs = qs.filter(status=status_key)
 
-    mos = list(qs[:limit] if limit else qs)
+    # Chỉ phân trang sớm khi kết quả không còn phụ thuộc vào tiến độ đã tính.
+    # Bộ phận, hạn giao và thứ tự mặc định cần toàn bộ rows để giữ đúng logic cũ.
+    sql_sort = {
+        "code": "code",
+        "name": "product_name",
+        "priority": "sales_order__plan_priority",
+        "due": "sales_order__due_date",
+        "qty": "qty",
+    }
+    can_page_early = bool(
+        limit is not None
+        and not team_slug
+        and not due_filter
+        and sort_key in sql_sort
+    )
+    if can_page_early:
+        qs = qs.order_by(sql_sort[sort_key], "pk")
+    total_count = qs.count()
+    if can_page_early:
+        start = max(0, int(offset or 0))
+        mos = list(qs[start : start + max(0, int(limit))])
+    else:
+        mos = list(qs)
     handovers = build_mo_handover_rows(mos)
     attach_qc_to_handover_rows(handovers)
     attach_gc_to_handover_rows(handovers)
@@ -725,6 +770,8 @@ def build_goods_progress_board(
         )
         for h in handovers
     ]
+    # Chỉ nạp ảnh cho các dòng thuộc trang hiện tại; tránh query/chuẩn bị ảnh
+    # cho toàn bộ danh sách lệnh sản xuất.
     attach_goods_product_images(rows)
 
     team_key = (team_slug or "").strip().lower()
@@ -748,27 +795,6 @@ def build_goods_progress_board(
     team_columns = _team_columns()
     _attach_team_cells(rows, team_columns)
     _count_team_columns(rows, team_columns)
-
-    priority_key = (priority or "").strip().lower()
-    if priority_key and priority_key not in PRIORITY_RANK:
-        priority_key = ""
-
-    status_key = (mo_status or "").strip().lower()
-    if status_key not in (
-        "",
-        SxProductionOrder.STATUS_RELEASED,
-        SxProductionOrder.STATUS_IN_PROGRESS,
-        SxProductionOrder.STATUS_DONE,
-    ):
-        status_key = ""
-
-    due_filter = (due or "").strip().lower()
-    if due_filter not in ("", "overdue", "today", "week", "none"):
-        due_filter = ""
-
-    sort_key = (sort or "").strip().lower()
-    if sort_key not in SORT_KEYS:
-        sort_key = ""
 
     filtered = _apply_row_filters(
         rows,
@@ -805,4 +831,5 @@ def build_goods_progress_board(
         sort=sort_key,
         has_filters=has_filters,
         team_columns=team_columns,
+        total_count=total_count,
     )
