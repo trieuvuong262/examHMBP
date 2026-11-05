@@ -915,11 +915,22 @@ def apply_default_capacity_teams(
         for ln in order.lines.all()
         for rl in related_manager_rows(
             ln.routing_lines,
-            select_related=('work_center', 'operation__group'),
+            select_related=('work_center', 'operation__group', 'operation__group__default_work_center'),
         )
     ]
     if steps:
         attach_group_codes_from_routing(steps, routing_lines)
+    # Tổ được cấu hình trực tiếp trên nhóm công đoạn là placeholder mặc định,
+    # kể cả khi chưa khai báo năng lực; người lập kế hoạch sẽ đổi sang tổ thực.
+    explicit_default_ids = {
+        int(rl.operation.group.default_work_center_id)
+        for rl in routing_lines
+        if (
+            getattr(rl, 'operation', None) is not None
+            and getattr(rl.operation, 'group', None) is not None
+            and rl.operation.group.default_work_center_id
+        )
+    }
     catalog = _work_center_catalog_by_slug()
     if not catalog:
         return steps
@@ -936,7 +947,9 @@ def apply_default_capacity_teams(
                     raise
                 wc = None
             keep = bool(step.work_center_id) and (
-                _wc_has_capacity(wc) or not replace_without_capacity
+                _wc_has_capacity(wc)
+                or not replace_without_capacity
+                or int(step.work_center_id) in explicit_default_ids
             )
             if keep:
                 continue
@@ -949,7 +962,9 @@ def apply_default_capacity_teams(
         for rl in routing_lines:
             wc = getattr(rl, 'work_center', None)
             keep = bool(rl.work_center_id) and (
-                _wc_has_capacity(wc) or not replace_without_capacity
+                _wc_has_capacity(wc)
+                or not replace_without_capacity
+                or int(rl.work_center_id) in explicit_default_ids
             )
             if keep:
                 continue

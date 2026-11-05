@@ -218,9 +218,17 @@ def resolve_work_center_code(code: str | None, *, name_hint: str = '') -> SxWork
 
 
 def work_center_for_operation_group(group) -> SxWorkCenter | None:
-    """Bộ phận của nhóm công đoạn chuẩn = Tên bộ phận (process_stage_label)."""
+    """Resolve tổ mặc định của nhóm công đoạn.
+
+    ``default_work_center`` là override có chủ đích của IE: dùng được cho
+    bộ phận cần đưa đơn vào một tổ chờ phân công (ví dụ ``THUÊ NGOÀI``),
+    thay vì tự động lấy tổ HR cùng tên bộ phận.
+    """
     if group is None:
         return None
+    explicit = getattr(group, 'default_work_center', None)
+    if explicit is not None and explicit.is_active and not explicit.is_demo:
+        return explicit
     label = (getattr(group, 'process_stage_label', None) or '').strip()
     if label:
         hit = resolve_work_center_code(label, name_hint=f'{group.code} {group.name}')
@@ -253,14 +261,18 @@ def department_label_for_operation(op) -> str:
 
 
 def work_center_for_operation(op) -> SxWorkCenter | None:
-    """Resolve HRD theo bộ phận công đoạn (override) hoặc nhóm."""
+    """Resolve tổ theo override của nhóm, rồi mới tới nhãn bộ phận."""
+    group = getattr(op, 'group', None)
+    explicit = getattr(group, 'default_work_center', None) if group is not None else None
+    if explicit is not None and explicit.is_active and not explicit.is_demo:
+        return explicit
     label = department_label_for_operation(op)
     if label:
         # Không kèm mã nhóm SEW_* vào hint — tránh map nhầm QC → MAY.
         hit = resolve_work_center_code(label)
         if hit:
             return hit
-    return work_center_for_operation_group(getattr(op, 'group', None))
+    return work_center_for_operation_group(group)
 
 
 def sync_routing_lines_department_from_groups(*, routing_id: int | None = None) -> dict[str, int]:

@@ -411,8 +411,28 @@ def _copy_from_routing_line(
         total_unit_price=src.total_unit_price or Decimal('0'),
         machine_id=src.machine_id,
         machine_code=(src.machine_code or '')[:40],
-        work_center_id=src.work_center_id,
-        work_center_code=(src.work_center_code or '')[:40],
+        work_center_id=(
+            getattr(
+                getattr(getattr(src, 'operation', None), 'group', None),
+                'default_work_center_id',
+                None,
+            )
+            or src.work_center_id
+        ),
+        work_center_code=(
+            (
+                getattr(
+                    getattr(getattr(src, 'operation', None), 'group', None),
+                    'default_work_center',
+                    None,
+                )
+                and getattr(
+                    getattr(getattr(src, 'operation', None), 'group', None),
+                    'default_work_center',
+                ).code
+            )
+            or (src.work_center_code or '')
+        )[:40],
         skill_level_label=(src.skill_level_label or '')[:60],
         critical_qc=bool(src.critical_qc),
         notes=(src.notes or '')[:255],
@@ -517,6 +537,11 @@ def _copy_from_process_step(order_line: SxSalesOrderLine, src) -> SxSalesOrderRo
     if smv <= 0:
         smv = _q(smv_from_process_step(src) * Decimal('60'))
     wc = getattr(src, 'work_center', None)
+    # Override mặc định của nhóm công đoạn thắng bộ phận HR cùng tên.
+    if getattr(src, 'operation', None) is not None:
+        from san_xuat.services.capacity_from_hrm import work_center_for_operation
+
+        wc = work_center_for_operation(src.operation) or wc
     # Mã/tên giống process_preview_from_bom để SMV sửa trên form khớp được theo mã CĐ.
     code, name = _step_code_and_name(
         code=getattr(src, 'op_code', None),
@@ -636,7 +661,9 @@ def seed_order_line_routing(
     if routing is not None:
         used_seq: set[int] = set()
         for i, src in enumerate(
-            routing.lines.select_related('operation', 'machine', 'work_center').order_by('seq_no', 'id')
+            routing.lines.select_related(
+                'operation', 'operation__group__default_work_center', 'machine', 'work_center',
+            ).order_by('seq_no', 'id')
         ):
             row = _copy_from_routing_line(order_line, src)
             row.seq_no = _next_unique_seq(row.seq_no, used_seq, i)
