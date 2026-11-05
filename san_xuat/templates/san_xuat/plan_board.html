@@ -2258,9 +2258,18 @@
           </select>
         </div>
         <div class="jp-team-filter-org">
-          <label class="form-label fw-bold small mb-1" for="jp-pb-filter-team">Bộ phận</label>
-          <select id="jp-pb-filter-team" name="team" class="form-select form-select-sm jp-pb-multi-filter"
+          <label class="form-label fw-bold small mb-1" for="jp-pb-filter-dept">Bộ phận</label>
+          <select id="jp-pb-filter-dept" name="dept" class="form-select form-select-sm jp-pb-multi-filter"
                   multiple data-placeholder="Tất cả bộ phận">
+            {% for slug, label in route_dept_choices %}
+            <option value="{{ slug }}"{% if slug in route_dept_filter %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="jp-team-filter-org">
+          <label class="form-label fw-bold small mb-1" for="jp-pb-filter-team">Tổ</label>
+          <select id="jp-pb-filter-team" name="team" class="form-select form-select-sm jp-pb-multi-filter"
+                  multiple data-placeholder="Tất cả tổ">
             {% for wc in route_team_choices %}
             <option value="{{ wc.id }}"{% if wc.id|stringformat:"s" in route_team_filter %} selected{% endif %}>{{ wc.name }}</option>
             {% endfor %}
@@ -2275,7 +2284,7 @@
         </div>
         {% endif %}
       </div>
-      {% if search_query or priority_filter or npl_filter or tech_filter or deadline_filter or route_team_filter or plan_status_filter != 'open' and tab == 'queue' %}
+      {% if search_query or priority_filter or npl_filter or tech_filter or deadline_filter or route_dept_filter or route_team_filter or plan_status_filter != 'open' and tab == 'queue' %}
       <div class="jp-team-filter-actions">
         <a href="?mode={{ mode }}&amp;tab={{ tab }}&amp;sx_reset=1{% if tab == 'route' %}{% if route_view == 'done' %}&amp;route_view=done{% elif route_view == 'cancelled' %}&amp;route_view=cancelled{% endif %}{% if route_board %}&amp;route_set=1&amp;route_from={{ route_board.range_start|date:'Y-m-d' }}&amp;route_to={{ route_board.range_end|date:'Y-m-d' }}{% endif %}{% endif %}"
            class="btn btn-light border btn-sm" title="Xóa bộ lọc">

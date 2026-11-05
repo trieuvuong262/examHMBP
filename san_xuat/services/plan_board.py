@@ -3234,6 +3234,11 @@ def assign_plan_team(
                 rl.work_center = wc
                 rl.work_center_code = (wc.code if wc else '')[:40]
                 rl.save(update_fields=['work_center', 'work_center_code', 'board_slug'])
+    # LSX đang chạy có snapshot công đoạn riêng; đồng bộ để bảng Công việc tổ
+    # lọc được đúng các bước theo work center gia công mới.
+    from san_xuat.services.order_routing import sync_active_mos_from_order
+
+    sync_active_mos_from_order(order)
     cache = getattr(order, '_prefetched_objects_cache', None)
     if cache is not None:
         cache.pop('plan_steps', None)
@@ -3242,7 +3247,7 @@ def assign_plan_team(
     owned = day_qs.filter(work_center_id__isnull=True)
     if src_wc:
         owned = day_qs.filter(Q(work_center_id__isnull=True) | Q(work_center_id=src_wc))
-    if wc is not None:
+    if wc is not None and wc.pk != src_wc:
         clash_dates = set(
             day_qs.filter(work_center_id=wc.pk).values_list('plan_date', flat=True)
         )
@@ -3253,6 +3258,21 @@ def assign_plan_team(
     # Tổ năng lực đổi để tính người/phút. Slug bộ phận (may, d25, …) giữ nguyên.
     apply_auto_team_day_splits(order, only_slug=slug, replace_existing=True)
     _reflow_order_from(order, origin_slug=slug)
+    # KHSX vẫn dùng slug bộ phận (ví dụ d25), còn bảng Công việc tổ gia công
+    # dùng slug riêng gc-<work_center_id>. Giữ work_center_id để đối soát.
+    if wc is not None:
+        from san_xuat.services.team_division_map import gc_work_center_items
+
+        gc_slug = next(
+            (
+                item['slug']
+                for item in gc_work_center_items()
+                if int(item.get('work_center_id') or 0) == int(wc.pk)
+            ),
+            '',
+        )
+        if gc_slug:
+            day_qs.update(team_slug=gc_slug)
     return order, wc
 
 

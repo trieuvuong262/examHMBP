@@ -15,6 +15,22 @@ Mỗi entry nên có:
 
 ## Entries
 
+### 2026-11-05 — bugfix / chuyển tổ gia công phải vào đúng Công việc tổ
+
+- **Type**: workflow | feature
+- **Change**: `assign_plan_team` đồng bộ snapshot LSX đang hoạt động và đổi day plan sang slug `gc-<work_center_id>` khi work center đích là tổ gia công; slug bộ phận KHSX vẫn giữ nguyên để tính lịch.
+- **Reason**: Trước đây chỉ đổi work center, trong khi `SxOrderTeamDayPlan` vẫn mang slug `d25`, khiến route board hiển thị đúng tổ nhưng bảng `/cong-viec-to/gc-44/` không thấy đơn.
+- **Source**: `san_xuat/services/plan_board.py::assign_plan_team`, `san_xuat/services/order_routing.py::sync_active_mos_from_order`, `san_xuat/services/team_division_map.py::gc_work_center_items`.
+- **Agent impact**: Khi đổi sang tổ gia công, phải cập nhật cả work center, snapshot LSX và slug day plan; không chỉ cập nhật `SxSalesOrderPlanStep`.
+
+### 2026-11-05 — bugfix / đổi tổ trên bảng lộ trình cập nhật ngay
+
+- **Type**: workflow | feature
+- **Change**: Sau thao tác `assign_plan_team` trên bảng KHSX, route sheet của đơn vừa đổi tổ được dựng lại đồng bộ trước khi trả phản hồi AJAX.
+- **Reason**: Tránh lần reload ngay sau khi chọn work center mới đọc snapshot `SxRouteSheet` cũ trong lúc worker chưa rebuild xong.
+- **Source**: `san_xuat/views_hub.py::plan_board`, `san_xuat/services/plan_board.py::assign_plan_team`, `san_xuat/services/route_sheet.py::refresh_route_sheets`.
+- **Agent impact**: Khi đổi tổ trên route board, kiểm tra cả dữ liệu nguồn và payload `SxRouteSheet`; không kết luận thao tác thất bại chỉ từ snapshot cũ.
+
 ### 2026-11-05 — feature / submenu Công việc tổ cho tổ gia công
 
 - **Type**: feature | workflow

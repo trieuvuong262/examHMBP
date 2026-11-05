@@ -1992,6 +1992,7 @@ def plan_board(request):
         plan_board_work_center_options,
         plan_stage_legend_items,
         filter_route_timeline,
+        route_dept_filter_choices,
         route_team_filter_choices,
         build_route_stats,
         set_plan_priority,
@@ -2157,6 +2158,8 @@ def plan_board(request):
                     params['route_from'] = route_from_raw
                 if route_to_raw:
                     params['route_to'] = route_to_raw
+            if route_dept_filter:
+                params['dept'] = route_dept_filter
             if route_team_filter:
                 params['team'] = route_team_filter
             if priority_filter:
@@ -2253,6 +2256,11 @@ def plan_board(request):
                     work_center_id=wc_id,
                     source_work_center_id=src_wc_id,
                 )
+                # Route board đọc payload SxRouteSheet; rebuild đồng bộ để lần
+                # reload ngay sau thao tác không còn hiển thị snapshot cũ.
+                from san_xuat.services.route_sheet import refresh_route_sheets
+
+                refresh_route_sheets([order.pk])
                 wants_json = (
                     (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
                     or 'application/json' in (request.headers.get('Accept') or '')
@@ -3055,6 +3063,7 @@ def plan_board(request):
             board = load_route_board(batch, range_from=route_from, range_to=route_to)
             board = filter_route_timeline(
                 board,
+                dept_slugs=route_dept_filter,
                 team_ids=route_team_ids,
                 include_unassigned_team=route_team_unassigned,
             )
@@ -3132,6 +3141,7 @@ def plan_board(request):
             else:
                 first_ids, route_more_ids = active_ids[:half], active_ids[half:]
         route_board = _route_board_for(first_ids)
+        route_dept_choices = route_dept_filter_choices(route_board)
         route_team_choices = route_team_filter_choices(route_board)
         if route_more_ids:
             route_stats = None
