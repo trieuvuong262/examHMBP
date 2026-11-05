@@ -310,7 +310,8 @@ def progress_steps_for_team(
     want_code = (team.get('work_center_code') or '').strip().upper()
     div_id = int(team.get('division_id') or 0)
     group_key = (team.get('group_key') or '').strip()
-    stage_slug = (team.get('stage_slug') or team.get('slug') or '').strip().lower()
+    team_slug = (team.get('slug') or '').strip().lower()
+    stage_slug = (team.get('stage_slug') or team_slug).strip().lower()
     if div_id:
         # Bộ phận d{id} chỉ khớp chính xác HRD-{id}; work center thuê ngoài
         # có thể giữ division_id gốc để truy vết nhưng không thuộc bảng tổ nội bộ.
