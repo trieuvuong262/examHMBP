@@ -7151,11 +7151,13 @@ def team_work_goods(request):
         sort=grid_sorts.get(sort_key, ''),
         descending=sort_dir == 'desc',
         team_slug=(request.GET.get('team') or '').strip(),
-        limit=LIST_PAGE_SIZE if sort_key else None,
-        offset=page_offset if sort_key else 0,
+        # Trang mặc định cũng phải phân trang sớm; trước đây chỉ các cột
+        # được sort mới truyền limit nên URL mở trực tiếp vẫn xử lý toàn bộ LSX.
+        limit=LIST_PAGE_SIZE if not (request.GET.get('team') or '').strip() and not (request.GET.get('due') or '').strip() else None,
+        offset=page_offset,
     )
     from django.core.paginator import Paginator
-    if sort_key:
+    if board.total_count >= len(board.rows) and len(board.rows) <= LIST_PAGE_SIZE:
         page_obj = Paginator(range(board.total_count), LIST_PAGE_SIZE).get_page(page_number)
         page_obj.object_list = board.rows
     else:

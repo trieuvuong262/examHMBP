@@ -11,7 +11,8 @@ from dataclasses import dataclass, field, replace
 from datetime import date
 from decimal import Decimal
 
-from django.db.models import Prefetch, Q
+from django.db.models import Case, IntegerField, Prefetch, Q, Value, When
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from san_xuat.hub_models import (
@@ -747,10 +748,40 @@ def build_goods_progress_board(
         limit is not None
         and not team_slug
         and not due_filter
-        and sort_key in sql_sort
+        and (sort_key == "" or sort_key in sql_sort)
     )
-    if can_page_early:
-        qs = qs.order_by(sql_sort[sort_key], "pk")
+    if can_page_early and sort_key in sql_sort:
+        order_field = sql_sort[sort_key]
+        if descending:
+            order_field = f"-{order_field}"
+        qs = qs.order_by(order_field, "pk")
+    elif can_page_early:
+        # Giữ thứ tự mặc định gần với sort_key cũ nhưng để DB cắt trang
+        # trước khi tải các quan hệ và tính tiến độ.
+        due_expr = Coalesce("sales_order__due_date", "due_date", "planned_end")
+        qs = qs.annotate(
+            _goods_due=due_expr,
+            _goods_overdue=Case(
+                When(
+                    _goods_due__lt=today,
+                    status__in=(
+                        SxProductionOrder.STATUS_RELEASED,
+                        SxProductionOrder.STATUS_IN_PROGRESS,
+                    ),
+                    then=Value(0),
+                ),
+                default=Value(1),
+                output_field=IntegerField(),
+            ),
+            _goods_priority=Case(
+                When(sales_order__plan_priority=SxSalesOrder.PRIORITY_CRITICAL, then=Value(0)),
+                When(sales_order__plan_priority=SxSalesOrder.PRIORITY_URGENT, then=Value(1)),
+                When(sales_order__plan_priority=SxSalesOrder.PRIORITY_HIGH, then=Value(2)),
+                When(sales_order__plan_priority=SxSalesOrder.PRIORITY_LOW, then=Value(4)),
+                default=Value(3),
+                output_field=IntegerField(),
+            ),
+        ).order_by("_goods_overdue", "_goods_priority", "_goods_due", "pk")
     total_count = qs.count()
     if can_page_early:
         start = max(0, int(offset or 0))
