@@ -486,7 +486,7 @@ def _matches_due_filter(row: GoodsProgressRow, due_key: str) -> bool:
 def _team_columns() -> list[GoodsTeamColumn]:
     """Cột tổ = bộ phận HR theo thứ tự công đoạn KHSX, rồi tổ chất lượng."""
     from san_xuat.services.progress_template import TEAM_SLUGS, team_by_slug
-    from san_xuat.services.team_division_map import all_hr_team_items
+    from san_xuat.services.team_division_map import all_hr_team_items, gc_work_center_items
 
     stage_rank = {slug: idx for idx, (slug, *_rest) in enumerate(TEAM_SLUGS)}
     picked = []
@@ -494,7 +494,18 @@ def _team_columns() -> list[GoodsTeamColumn]:
         meta = team_by_slug(item["slug"])
         if meta:
             picked.append((idx, item, meta))
-    picked.sort(key=lambda t: (stage_rank.get(t[1].get("stage_slug") or "", len(stage_rank)), t[0]))
+    # Tổ gia công cũng là cột tiến độ hợp lệ. Giữ slug gc-* để bảng
+    # Công việc tổ và báo cáo tiến độ cùng nhận đúng work center đã chọn.
+    gc_items = gc_work_center_items()
+    for idx, item in enumerate(gc_items, start=len(picked)):
+        meta = team_by_slug(item["slug"])
+        if meta:
+            picked.append((idx, item, meta))
+    picked.sort(key=lambda t: (
+        1 if t[1].get("is_gc") else 0,
+        stage_rank.get(t[1].get("stage_slug") or "", len(stage_rank)),
+        t[0],
+    ))
     return [GoodsTeamColumn(slug=item["slug"], label=item["label"], meta=meta) for _i, item, meta in picked]
 
 
