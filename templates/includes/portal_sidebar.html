@@ -1193,6 +1193,9 @@
                         </li>
                         {% endif %}
                         {% for item in tw_nav_teams %}
+                        {% if item.is_gc_start %}
+                        <li class="jp-sidebar-subgroup-label"><span><i class="bi bi-building-gear"></i>Gia công</span></li>
+                        {% endif %}
                         <li>
                             <a href="{% url 'san_xuat:team_work_board' item.slug %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if '/cong-viec-to/'|add:item.slug|add:'/' in request.path %}active{% endif %}">

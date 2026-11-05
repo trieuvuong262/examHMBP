@@ -68,9 +68,9 @@ def team_by_slug(slug: str) -> dict | None:
                 'division_id': 0,
                 'stage_slug': item_slug,
             }
-    from san_xuat.services.team_division_map import team_from_hr_division_slug
+    from san_xuat.services.team_division_map import gc_team_from_slug, team_from_hr_division_slug
 
-    return team_from_hr_division_slug(s)
+    return gc_team_from_slug(s) or team_from_hr_division_slug(s)
 
 
 # CD chuẩn JustPlay — thứ tự theo luồng xưởng (Cắt → In-Ép → Thêu → May → HT → GH)

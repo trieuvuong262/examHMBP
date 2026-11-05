@@ -7489,6 +7489,7 @@ def team_work_board(request, slug: str):
 
     can_map = user_can_update_menu(request.user, MODULE_SAN_XUAT, 'general_settings')
     mapped = has_mapped_divisions(slug)
+    is_gc_team = bool((team or {}).get('is_gc'))
 
     assignee_candidates = []
     if can_assign:
@@ -7581,7 +7582,7 @@ def team_work_board(request, slug: str):
         'cancelled_count': cancelled_count,
         'can_assign': can_assign,
         'can_map_divisions': can_map,
-        'team_has_division_map': mapped,
+        'team_has_division_map': mapped or is_gc_team,
         'assignee_candidates': assignee_candidates,
         'can_view_subcontract': user_can_access_menu(request.user, MODULE_SAN_XUAT, 'subcontract'),
         'can_create_subcontract': user_can_create_menu(request.user, MODULE_SAN_XUAT, 'subcontract'),

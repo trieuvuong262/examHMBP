@@ -273,6 +273,50 @@ def all_hr_team_items() -> list[dict]:
     return _hr_team_items(only_ids=None, mapped=_mapped_stage_by_division())
 
 
+
+def gc_work_center_items() -> list[dict]:
+    """Các tổ gia công active đã gắn đối tác với work center active."""
+    from san_xuat.partner_models import GcPartner
+
+    rows = []
+    partners = (
+        GcPartner.objects.filter(
+            is_active=True,
+            work_center__isnull=False,
+            work_center__is_active=True,
+        )
+        .select_related('work_center')
+        .order_by('name', 'code', 'pk')
+    )
+    seen = set()
+    for partner in partners:
+        wc = partner.work_center
+        if wc.pk in seen:
+            continue
+        seen.add(wc.pk)
+        rows.append({
+            'slug': f'gc-{wc.pk}',
+            'label': (wc.team_label or wc.name or partner.name or wc.code or '').strip(),
+            'icon': 'bi-building-gear',
+            'menu_key': 'team_work',
+            'division_id': 0,
+            'group_key': '',
+            'work_center_code': (wc.code or '').strip(),
+            'work_center_id': int(wc.pk),
+            'stage_slug': '',
+            'is_gc': True,
+            'partner_id': int(partner.pk),
+        })
+    return rows
+
+
+def gc_team_from_slug(slug: str) -> dict | None:
+    raw = (slug or '').strip().lower()
+    if not raw.startswith('gc-') or not raw[3:].isdigit():
+        return None
+    wid = int(raw[3:])
+    return next((item for item in gc_work_center_items() if item['work_center_id'] == wid), None)
+
 def team_work_menu_items(user) -> list[dict]:
     """Menu tổ: tổ trưởng chỉ thấy bộ phận mình; admin/ductn thấy hết."""
     from san_xuat.services.capacity_from_hrm import hr_divisions_for_ie_groups
@@ -280,7 +324,14 @@ def team_work_menu_items(user) -> list[dict]:
     see_all = can_see_all_team_work_teams(user)
     mapped = _mapped_stage_by_division()
 
-    led_ids = set() if see_all else user_led_team_division_ids(user)
+    if see_all:
+        items = _hr_team_items(only_ids=None, mapped=mapped)
+        gc_items = gc_work_center_items()
+        if gc_items:
+            gc_items[0]['is_gc_start'] = True
+        return items + gc_items
+
+    led_ids = user_led_team_division_ids(user)
     if hr_divisions_for_ie_groups().exists():
         return _hr_team_items(only_ids=None if see_all else led_ids, mapped=mapped)
     items: list[dict] = []
@@ -308,7 +359,7 @@ def user_can_open_team_work_slug(user, slug: str) -> bool:
     if can_see_all_team_work_teams(user):
         from san_xuat.services.progress_template import team_by_slug
 
-        return team_by_slug(raw) is not None
+        return bool(team_by_slug(raw) or gc_team_from_slug(raw))
     return any(item['slug'] == raw for item in team_work_menu_items(user))
 
 

@@ -308,10 +308,16 @@ def progress_steps_for_team(
     if not steps:
         return []
     want_code = (team.get('work_center_code') or '').strip().upper()
+    work_center_id = int(team.get('work_center_id') or 0)
     div_id = int(team.get('division_id') or 0)
     group_key = (team.get('group_key') or '').strip()
     team_slug = (team.get('slug') or '').strip().lower()
     stage_slug = (team.get('stage_slug') or team_slug).strip().lower()
+    if work_center_id:
+        return [
+            s for s in steps
+            if (s.work_center_code or '').strip().upper() == want_code
+        ]
     if div_id:
         # Bộ phận d{id} chỉ khớp chính xác HRD-{id}; work center thuê ngoài
         # có thể giữ division_id gốc để truy vết nhưng không thuộc bảng tổ nội bộ.
@@ -443,10 +449,12 @@ def _size_plans(mo: SxProductionOrder) -> list[SizePlanRow]:
 
 
 def team_stat_label(team: dict | None) -> str:
-    """Tên tổ ghi trên TKSX khi tổ bộ phận HR (`d{id}`) nhập tiến độ — mỗi tổ chỉ tính SL của mình."""
-    if not team or not int(team.get('division_id') or 0):
+    """Nhãn tổ dùng để tách sản lượng theo bộ phận hoặc tổ gia công."""
+    if not team:
         return ''
-    return (team.get('label') or '').strip()
+    if int(team.get('division_id') or 0) or int(team.get('work_center_id') or 0):
+        return (team.get('label') or '').strip()
+    return ''
 
 
 def ensure_order_progress_mos(order, *, user=None) -> list:

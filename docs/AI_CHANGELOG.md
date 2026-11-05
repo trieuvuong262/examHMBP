@@ -15,6 +15,15 @@ Mỗi entry nên có:
 
 ## Entries
 
+### 2026-11-05 — feature / submenu Công việc tổ cho tổ gia công
+
+- **Type**: feature | workflow
+- **Change**: Submenu Công việc tổ bổ sung nhóm Gia công, lấy động từ `GcPartner` đang hoạt động và đã gắn `SxWorkCenter` active. Mỗi tổ dùng slug riêng `gc-<work_center_id>` và lọc công đoạn theo đúng work center, không theo bộ phận HR/division.
+- **Reason**: Tách các tổ như THUÊ NGOÀI, 31-Sòn TV, 34-Triệu TV khỏi submenu bộ phận HR như MAY, đồng thời vẫn cho planner chọn work center thủ công trong Năng lực sản xuất.
+- **Source**: `san_xuat/services/team_division_map.py::gc_work_center_items`, `gc_team_from_slug`; `san_xuat/services/progress_template.py::team_by_slug`; `san_xuat/services/order_progress_sheet.py::progress_steps_for_team`; `templates/includes/portal_sidebar.html`.
+- **Agent impact**: Không dùng `division_id` hoặc slug `d{id}` để lọc tổ gia công; chỉ đối tác active có work center active mới xuất hiện.
+
+
 ### 2026-11-04 — feature / xem trước OB trên form đơn hàng khớp với OB được lưu
 
 - **Type**: feature
