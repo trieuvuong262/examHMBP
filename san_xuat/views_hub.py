@@ -2262,11 +2262,36 @@ def plan_board(request):
                     raise PlanningError('Danh sách thay đổi không hợp lệ.') from exc
                 if not isinstance(changes, list) or not changes:
                     raise PlanningError('Chưa có thay đổi để lưu.')
+                # Một phiên sửa có thể đổi cùng công đoạn nhiều lần (A → B → C).
+                # Chỉ áp dụng trạng thái cuối cùng, nhưng giữ tổ nguồn ban đầu để
+                # service chuyển đúng day plan đang sở hữu từ đầu phiên.
+                collapsed_changes: list[dict] = []
+                assign_indexes: dict[tuple[int, str], int] = {}
+                for raw_change in changes:
+                    if not isinstance(raw_change, dict):
+                        raise PlanningError('Một thay đổi không hợp lệ.')
+                    kind = str(raw_change.get('action') or '').strip()
+                    if kind != 'assign_plan_team':
+                        collapsed_changes.append(raw_change)
+                        continue
+                    oid = int(raw_change.get('order_id') or 0)
+                    slug = str(raw_change.get('team_slug') or '').strip().lower()
+                    key = (oid, slug)
+                    previous_index = assign_indexes.get(key)
+                    if previous_index is None:
+                        assign_indexes[key] = len(collapsed_changes)
+                        collapsed_changes.append({**raw_change, 'team_slug': slug})
+                    else:
+                        original = collapsed_changes[previous_index]
+                        collapsed_changes[previous_index] = {
+                            **raw_change,
+                            'team_slug': slug,
+                            'source_work_center_id': original.get('source_work_center_id') or '',
+                        }
+                changes = collapsed_changes
                 affected_ids: set[int] = set()
                 with transaction.atomic():
                     for change in changes:
-                        if not isinstance(change, dict):
-                            raise PlanningError('Một thay đổi không hợp lệ.')
                         kind = str(change.get('action') or '').strip()
                         oid = int(change.get('order_id') or 0)
                         if oid > 0:
@@ -3215,18 +3240,19 @@ def plan_board(request):
                 'count': len(route_board.rows),
             })
 
-        # Partial reload after a route drag must be self-contained. The original
-        # page intentionally loads half of the rows and appends the rest through
-        # a background route_more request, but scripts inserted with innerHTML do
-        # not execute and the old request can race with this refreshed DOM.
+        # Partial reload after a route drag must be self-contained. The page
+        # initially loads only 20% of the rows, then appends the rest through
+        # background route_more requests so the first paint stays responsive.
+        # Scripts inserted with innerHTML do not execute and the old request can
+        # race with this refreshed DOM.
         if force_full_route:
             first_ids, route_more_ids = active_ids, []
         else:
-            half = (len(active_ids) + 1) // 2
+            initial_count = max(1, (len(active_ids) + 4) // 5)
             if len(active_ids) < 2:
                 first_ids, route_more_ids = active_ids, []
             else:
-                first_ids, route_more_ids = active_ids[:half], active_ids[half:]
+                first_ids, route_more_ids = active_ids[:initial_count], active_ids[initial_count:]
         route_board = _route_board_for(first_ids)
         route_dept_choices = route_dept_filter_choices(route_board)
         route_team_choices = route_team_filter_choices(route_board)
