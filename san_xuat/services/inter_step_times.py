@@ -329,6 +329,11 @@ def _step_team_slug(step) -> str | None:
             group_slug = _norm_slug(slug)
     wc = _step_attr(step, 'work_center')
     if wc is not None:
+        # Tổ thuê ngoài là năng lực thực hiện, không phải bộ phận của OB.
+        # Không suy ra d<id> từ mã tổ thuê ngoài (ví dụ 40-Rong HCM), nếu
+        # không route board sẽ hiển thị tên tổ thuê ngoài ở cột Bộ phận.
+        if getattr(wc, 'is_subcontract', False) and group_slug:
+            return group_slug
         from san_xuat.services.capacity_from_hrm import (
             division_id_from_work_center_code,
             team_slug_for_work_center,

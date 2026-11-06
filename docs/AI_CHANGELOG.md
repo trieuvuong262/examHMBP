@@ -15,6 +15,22 @@ Mỗi entry nên có:
 
 ## Entries
 
+### 2026-11-06 — maintenance / command sửa bộ phận route board cho tổ thuê ngoài
+
+- **Type**: workflow
+- **Change**: Thêm `repair_route_subcontract_departments` với dry-run mặc định và `--apply`, chỉ cập nhật `SxSalesOrderPlanStep.board_slug/dept_label` khi mapping từ routing line là duy nhất; sau khi apply rebuild route sheet bị ảnh hưởng.
+- **Reason**: Cho phép sửa dữ liệu production có kiểm soát mà không động vào routing master/OB dùng chung.
+- **Source**: `san_xuat/management/commands/repair_route_subcontract_departments.py`.
+- **Agent impact**: Luôn chạy dry-run trước; không dùng `align_route_departments` cho việc sửa snapshot thuê ngoài nếu chưa muốn thay đổi routing master.
+
+### 2026-11-06 — bugfix / tổ thuê ngoài không thay thế bộ phận OB trên route board
+
+- **Type**: bugfix | workflow
+- **Change**: `_step_team_slug()` giữ slug bộ phận từ nhóm công đoạn OB khi work center được gắn là tổ thuê ngoài; work center thuê ngoài vẫn được giữ làm tổ thực hiện và dùng cho nhập tiến độ.
+- **Reason**: Route board hiển thị mã/tên tổ thuê ngoài như `40-Rong HCM` ở cột Bộ phận thay vì bộ phận OB như `MAY`.
+- **Source**: `san_xuat/services/inter_step_times.py::_step_team_slug`.
+- **Agent impact**: Không suy ra slug bộ phận từ work center thuê ngoài; phân biệt bộ phận OB với tổ năng lực/slug `gc-*` của bảng Công việc tổ.
+
 ### 2026-11-06 — bugfix / SL đơn hàng trên route board
 
 - **Type**: bugfix
