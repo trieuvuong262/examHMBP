@@ -6,6 +6,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from san_xuat.hub_models import SxSalesOrderPlanStep, SxSalesOrderRoutingLine
+from san_xuat.ie_models import SxOperationGroup
 from san_xuat.services.inter_step_times import _group_slug_scope, _step_team_slug
 from san_xuat.services.team_division_map import gc_work_center_items
 
@@ -58,13 +59,11 @@ class Command(BaseCommand):
                     skipped += 1
                     continue
                 slug = next(iter(slugs))
-                label = ''
-                for line in candidates:
-                    candidate = getattr(line.operation, 'group', None) if line.operation_id else None
-                    if candidate is not None:
-                        label = (candidate.process_stage_label or '').strip()
-                    if label:
-                        break
+                group = (
+                    SxOperationGroup.objects.filter(code__iexact=step.group_code).first()
+                    if step.group_code else None
+                )
+                label = (getattr(group, 'process_stage_label', '') or '').strip()
                 if not label:
                     skipped += 1
                     continue
