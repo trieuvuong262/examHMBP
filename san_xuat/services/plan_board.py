@@ -3933,6 +3933,20 @@ def _move_team_start_independent(
     written = _write_team_planned_dates(steps, starts, require_slug=slug)
     if written <= 0:
         raise PlanningError('Không gán được công đoạn của tổ này.')
+
+    # Công việc tổ lấy ngày/SLSX từ các mảnh day-plan. Khi kéo một tổ chưa
+    # từng được tách ngày, trước đây chỉ cập nhật plan_steps nên bảng Công
+    # việc tổ không có dòng ở ngày mới. Tạo mảnh duy nhất cho toàn bộ sản
+    # lượng của tổ để hai màn hình dùng cùng một nguồn lịch.
+    target_qty = _order_team_target_qty(order, slug)
+    if target_qty > 0:
+        SxOrderTeamDayPlan.objects.update_or_create(
+            sales_order=order,
+            team_slug=slug,
+            plan_date=next_working_day(start_date),
+            work_center=None,
+            defaults={'qty': target_qty},
+        )
     return _sync_schedule_to_mos(order, starts)
 
 
@@ -5916,13 +5930,20 @@ def move_team_day_plan(
     wc_id = int(work_center_id or 0)
     src_qs = qs.filter(plan_date=old_day)
     if wc_id:
-        src = src_qs.filter(work_center_id=wc_id).first() or src_qs.filter(work_center__isnull=True).first()
+        # Ưu tiên đúng tổ con mà frontend gửi lên. Với lộ trình gốc, mảnh
+        # ngày có thể được lưu từ trước khi work center được gán (NULL), hoặc
+        # thuộc một work center khác nhưng vẫn cùng team_slug. Khi đó không
+        # được báo lỗi — phải kéo mảnh ngày của tổ và đồng bộ lại lộ trình.
+        src = (
+            src_qs.filter(work_center_id=wc_id).first()
+            or src_qs.filter(work_center__isnull=True).first()
+        )
+        if src is None:
+            src = src_qs.order_by('id').first()
     else:
         src = src_qs.first()
     if not src:
         # Không tìm thấy mảnh — kéo cả khối (và xóa day-plans lệch nếu có)
-        if wc_id:
-            raise PlanningError('Không tìm thấy mảnh ngày của tổ này.')
         qs.delete()
         return _move_team_start_independent(order, slug=slug, start_date=new_day)
 
