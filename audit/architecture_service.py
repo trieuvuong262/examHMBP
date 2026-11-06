@@ -66,10 +66,16 @@ def build_architecture_map(app_label=''):
     for config in apps.get_app_configs():
         if selected and config.label not in selected:
             continue
+        config_path = Path(config.path)
+        try:
+            display_path = config_path.relative_to(PROJECT_ROOT)
+        except ValueError:
+            # Django's built-in apps live in site-packages, outside the project root.
+            display_path = config_path
         app_rows.append({
             'label': config.label,
             'name': config.name,
-            'path': str(Path(config.path).relative_to(PROJECT_ROOT)).replace('\\', '/'),
+            'path': str(display_path).replace('\\', '/'),
             'models': [model.__name__ for model in config.get_models()],
         })
     if selected:
