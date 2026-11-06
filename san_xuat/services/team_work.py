@@ -176,7 +176,30 @@ def apply_own_plan_team(jobs: list[TeamWorkJob], *, team: dict) -> list[TeamWork
     # Khi toàn bộ phần việc của bộ phận đã được chuyển sang một work center
     # gia công, không giữ đơn trên board bộ phận nội bộ. Nếu còn phân bổ song
     # song cho cả hai loại tổ thì mỗi board vẫn giữ phần của mình.
-    gc_center_ids: set[int] = set()
+    from san_xuat.partner_models import GcPartner
+
+    gc_center_ids: set[int] = set(
+        GcPartner.objects.filter(
+            is_active=True,
+            work_center__is_active=True,
+        ).values_list('work_center_id', flat=True)
+    )
+    # Một đơn chỉ được hiển thị ở tổ GC đích hiện hành. Dữ liệu lịch cũ có thể
+    # còn giữ nhiều work center GC cùng lúc; lấy work center cuối cùng trong
+    # snapshot lộ trình làm nguồn quyết định, tránh hiện cùng đơn ở gc-47 và
+    # gc-37 (ví dụ đơn đã chuyển về 50-Phú TV).
+    if team.get('is_gc'):
+        gc_order_centers: dict[int, list[int]] = {}
+        for oid, center_id in SxSalesOrderPlanStep.objects.filter(
+            sales_order_id__in=order_ids,
+            work_center_id__in=gc_center_ids,
+        ).order_by('sales_order_id', 'sequence', 'id').values_list(
+            'sales_order_id', 'work_center_id',
+        ):
+            gc_order_centers.setdefault(int(oid), []).append(int(center_id))
+        for oid, center_ids in gc_order_centers.items():
+            if center_ids and center_ids[-1] != wc.pk:
+                assigned.discard(oid)
     if not team.get('is_gc'):
         from san_xuat.partner_models import GcPartner
 

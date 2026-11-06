@@ -15,6 +15,14 @@ Mỗi entry nên có:
 
 ## Entries
 
+### 2026-11-06 — bugfix / một đơn chỉ hiển thị ở tổ gia công đích
+
+- **Type**: bugfix | workflow
+- **Change**: `apply_own_plan_team` ưu tiên work center gia công hiện hành trong snapshot lộ trình khi lọc bảng Công việc tổ; dữ liệu lịch cũ còn sót ở tổ GC khác không làm cùng đơn xuất hiện đồng thời ở hai bảng.
+- **Reason**: Đơn đã chuyển về tổ `50-Phú TV` (`gc-37`) nhưng vẫn xuất hiện ở `THUÊ NGOÀI` (`gc-47`).
+- **Source**: `san_xuat/services/team_work.py::apply_own_plan_team`.
+- **Agent impact**: Khi kiểm tra đơn gia công bị trùng bảng, đối chiếu `SxSalesOrderPlanStep.work_center` theo thứ tự snapshot; không xóa dữ liệu tiến độ hoặc phiếu GC chỉ để sửa hiển thị.
+
 ### 2026-11-06 — maintenance / command sửa bộ phận route board cho tổ thuê ngoài
 
 - **Type**: workflow
@@ -347,6 +355,14 @@ Mỗi entry nên có:
 - **Reason**: Giảm thay đổi giao diện khi xem lại đơn, chỉ hiện công cụ chỉnh sửa khi người dùng chủ động bật.
 - **Source**: `san_xuat/templates/san_xuat/sales_order_detail.html`, `san_xuat/templates/san_xuat/includes/sales_order_routing.html`, API `kho_npl:material_search` và `san_xuat:ie_operation_search`.
 - **Agent impact**: Khi kiểm tra màn chi tiết đơn, mặc định không được coi bảng là form sửa; cần bấm Sửa BOM/OB để hiện công cụ.
+
+### 2026-11-06 — architecture / static architecture map
+
+- **Type**: architecture | feature
+- **Change**: Thêm command `python manage.py architecture_map` kết hợp Django introspection và AST để sinh app/URL/model-table/function/call hints, Mermaid và trang HTML tìm kiếm local.
+- **Reason**: Giúp truy vết chức năng, bảng liên quan và phạm vi cần kiểm tra trước khi sửa code.
+- **Source**: `tools/architecture/ast_scanner.py`, `tools/management/commands/architecture_map.py`, `docs/architecture/README.md`.
+- **Agent impact**: Đây là bản đồ tĩnh bổ trợ; vẫn dùng CodeGraph để xác minh callers/callees/impact và runtime tracing để xác nhận SQL thực tế.
 
 ## Template cho entry mới
 
