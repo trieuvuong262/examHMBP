@@ -7,6 +7,7 @@ from django.db import transaction
 
 from san_xuat.hub_models import SxSalesOrderPlanStep, SxSalesOrderRoutingLine
 from san_xuat.services.inter_step_times import _group_slug_scope, _step_team_slug
+from san_xuat.services.team_division_map import gc_work_center_items
 
 
 class Command(BaseCommand):
@@ -22,9 +23,17 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         apply = bool(options['apply'])
         code = (options.get('order_code') or '').strip()
+        gc_work_center_ids = {
+            int(item['work_center_id'])
+            for item in gc_work_center_items()
+            if item.get('work_center_id')
+        }
         steps = SxSalesOrderPlanStep.objects.select_related(
             'sales_order', 'work_center',
-        ).filter(work_center__is_subcontract=True, sales_order__is_demo=False)
+        ).filter(
+            work_center_id__in=gc_work_center_ids,
+            sales_order__is_demo=False,
+        )
         if code:
             steps = steps.filter(sales_order__code=code)
 
