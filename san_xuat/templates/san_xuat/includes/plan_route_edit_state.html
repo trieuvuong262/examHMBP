@@ -1,0 +1,103 @@
+<script>
+(function () {
+  var toolbar = document.getElementById('jpRouteEditToolbar');
+  var root = document.getElementById('lo-trinh');
+  if (!toolbar || !root) return;
+  var state = window.jpRouteEditState || (window.jpRouteEditState = {
+    editing: false,
+    draft: [],
+    dirty: false,
+  });
+  var start = document.getElementById('jpRouteEditStart');
+  var save = document.getElementById('jpRouteEditSave');
+  var cancel = document.getElementById('jpRouteEditCancel');
+  var status = document.getElementById('jpRouteEditStatus');
+
+  function render() {
+    toolbar.dataset.editing = state.editing ? '1' : '0';
+    if (status) status.textContent = state.editing
+      ? (state.dirty ? 'Đang sửa — có thay đổi chưa lưu' : 'Đang sửa')
+      : 'Chế độ xem';
+    if (start) start.classList.toggle('d-none', state.editing);
+    if (save) save.classList.toggle('d-none', !state.editing);
+    if (cancel) cancel.classList.toggle('d-none', !state.editing);
+    root.classList.toggle('jp-route-editing', state.editing);
+    root.dataset.routeEditing = state.editing ? '1' : '0';
+  }
+
+  window.jpRouteCanEdit = function () { return !!state.editing; };
+  window.jpRouteAddDraft = function (change) {
+    if (!state.editing) return false;
+    state.draft.push(change);
+    state.dirty = true;
+    render();
+    return true;
+  };
+  window.jpRouteDraft = function () { return state.draft.slice(); };
+  window.jpRouteResetDraft = function () {
+    state.draft = [];
+    state.dirty = false;
+    state.editing = false;
+    render();
+  };
+
+  window.addEventListener('jp-route-save-draft', function () {
+    if (!state.draft.length) { alert('Chưa có thay đổi để lưu.'); return; }
+    var loading = document.getElementById('jpRouteDraftLoading');
+    if (!loading) {
+      loading = document.createElement('div');
+      loading.id = 'jpRouteDraftLoading';
+      loading.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(15,23,42,.42);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:1rem;';
+      loading.innerHTML = '<div style="background:#0f172a;padding:1rem 1.4rem;border-radius:.7rem;box-shadow:0 8px 30px rgba(0,0,0,.25)"><span class="spinner-border spinner-border-sm me-2" role="status"></span>Đang lưu thay đổi lộ trình…</div>';
+      document.body.appendChild(loading);
+    }
+    loading.hidden = false;
+    var csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+    var csrf = csrfInput ? csrfInput.value : '';
+    if (!csrf) { alert('Thiếu mã bảo mật — tải lại trang rồi thử lại.'); return; }
+    var body = new URLSearchParams();
+    body.set('action', 'save_route_draft');
+    body.set('changes', JSON.stringify(state.draft));
+    body.set('csrfmiddlewaretoken', csrf);
+    var button = save;
+    if (button) button.disabled = true;
+    fetch(window.location.pathname + window.location.search, {
+      method: 'POST', credentials: 'same-origin', body: body,
+      headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json', 'X-CSRFToken': csrf}
+    }).then(function (res) {
+      return res.json().then(function (data) {
+        if (!res.ok || !data.ok) throw new Error((data && data.error) || 'Không lưu được thay đổi.');
+        state.draft = [];
+        state.dirty = false;
+        state.editing = false;
+        render();
+        window.location.reload();
+      });
+    }).catch(function (err) {
+      if (button) button.disabled = false;
+      if (loading) loading.hidden = true;
+      alert(err.message || 'Không lưu được thay đổi.');
+    });
+  });
+
+  if (start) start.addEventListener('click', function () {
+    state.editing = true;
+    state.draft = [];
+    state.dirty = false;
+    render();
+  });
+  if (cancel) cancel.addEventListener('click', function () {
+    if (state.dirty && !window.confirm('Bỏ toàn bộ thay đổi chưa lưu?')) return;
+    window.location.reload();
+  });
+  if (save) save.addEventListener('click', function () {
+    window.dispatchEvent(new CustomEvent('jp-route-save-draft'));
+  });
+  window.addEventListener('beforeunload', function (ev) {
+    if (!state.dirty) return;
+    ev.preventDefault();
+    ev.returnValue = '';
+  });
+  render();
+})();
+</script>

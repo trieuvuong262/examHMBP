@@ -1,3 +1,4 @@
+{% load sx_format %}
 <div class="jp-sheet-product" title="{{ row.order.code }}{% if row.product_name_label %} · {{ row.product_name_label }}{% endif %}">
   <div class="jp-sheet-product-head">
     <span class="jp-tl-prio is-{{ row.order.plan_priority }}">{{ row.order.get_plan_priority_display }}</span>
@@ -70,6 +71,10 @@
     {% endfor %}
   </div>
   <div class="jp-sheet-product-meta">
+    <div class="jp-sheet-product-placed" title="Số lượng theo đơn hàng">
+      <span class="k">SL đơn hàng</span>
+      <strong>{{ row.total_qty|sx_num }}</strong>
+    </div>
     <div class="jp-sheet-product-placed" title="Ngày lên đơn">
       <span class="k">Lên đơn</span>
       <strong>{% if row.order.created_at %}{{ row.order.created_at|date:"d/m/Y" }}{% else %}—{% endif %}</strong>

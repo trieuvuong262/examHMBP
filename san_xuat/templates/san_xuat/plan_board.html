@@ -26,8 +26,30 @@
     line-height: 1;
   }
 
+  /* Chỉ ẩn thanh menu trên khi bảng lộ trình đang fullscreen. */
+  body.jp-route-fullscreen .jp-sx-detail-topbar { display: none !important; }
   .jp-pb-top-tabs {
     gap: 0.4rem !important;
+  }
+  #lo-trinh .jp-route-draft-change {
+    outline: 2px solid #f59e0b;
+    outline-offset: -2px;
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, .18);
+  }
+  #lo-trinh:not(.jp-route-editing) [data-jp-stage-split],
+  #lo-trinh:not(.jp-route-editing) [data-jp-stage-team],
+  #lo-trinh:not(.jp-route-editing) [data-jp-order-drag],
+  #lo-trinh:not(.jp-route-editing) [data-jp-stt-up],
+  #lo-trinh:not(.jp-route-editing) [data-jp-stt-down],
+  #lo-trinh:not(.jp-route-editing) [data-jp-stt-input] {
+    display: none !important;
+  }
+  #lo-trinh:not(.jp-route-editing) [data-jp-team-drag] {
+    pointer-events: none !important;
+    cursor: default !important;
+  }
+  #lo-trinh:not(.jp-route-editing) [data-jp-order-drag] {
+    pointer-events: none !important;
   }
   .jp-pb-top-tabs .btn {
     height: 1.85rem;
@@ -1935,6 +1957,21 @@
   }
   .jp-pb-zoom-btn .bi { font-size: .95rem; line-height: 1; }
   .jp-route-full-bar { display: none; }
+  #lo-trinh.is-fullscreen .jp-route-full-bar {
+    display: flex;
+    justify-content: flex-end;
+    min-height: 0;
+    margin: 0 0 4px;
+  }
+  #lo-trinh.is-fullscreen .jp-route-full-exit {
+    opacity: .72;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border-radius: 50%;
+    background: #334155;
+  }
+  #lo-trinh.is-fullscreen .jp-route-full-exit:hover { opacity: 1; background: #0f172a; }
   #lo-trinh.is-fullscreen {
     position: fixed;
     inset: 0;
@@ -2228,15 +2265,6 @@
             <option value="ready" {% if tech_filter == 'ready' %}selected{% endif %}>Đã đủ</option>
           </select>
         </div>
-        <div class="jp-team-filter-org">
-          <label class="form-label fw-bold small mb-1" for="jp-pb-filter-deadline">Hạn đơn</label>
-          <select id="jp-pb-filter-deadline" name="deadline" class="form-select form-select-sm">
-            <option value="">Tất cả</option>
-            <option value="overdue" {% if deadline_filter == 'overdue' %}selected{% endif %}>Đã quá hạn</option>
-            <option value="due_soon" {% if deadline_filter == 'due_soon' %}selected{% endif %}>Còn tối đa 3 ngày</option>
-            <option value="on_time" {% if deadline_filter == 'on_time' %}selected{% endif %}>Còn hạn</option>
-          </select>
-        </div>
         {% endif %}
         {% if tab == 'route' %}
         <div class="jp-team-filter-org">
@@ -2246,15 +2274,6 @@
             {% for value, label in priority_choices %}
             <option value="{{ value }}" {% if priority_filter == value %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
-          </select>
-        </div>
-        <div class="jp-team-filter-org">
-          <label class="form-label fw-bold small mb-1" for="jp-pb-filter-deadline">Hạn đơn</label>
-          <select id="jp-pb-filter-deadline" name="deadline" class="form-select form-select-sm">
-            <option value="">Tất cả</option>
-            <option value="overdue" {% if deadline_filter == 'overdue' %}selected{% endif %}>Đã quá hạn</option>
-            <option value="due_soon" {% if deadline_filter == 'due_soon' %}selected{% endif %}>Còn tối đa 3 ngày</option>
-            <option value="on_time" {% if deadline_filter == 'on_time' %}selected{% endif %}>Còn hạn</option>
           </select>
         </div>
         <div class="jp-team-filter-org">
@@ -2275,23 +2294,17 @@
             {% endfor %}
           </select>
         </div>
-        <div class="jp-pb-route-zoom">
-          <button type="button" class="jp-pb-zoom-btn" id="jpRouteFullscreen"
-                  aria-pressed="false" title="Phóng to bảng lộ trình">
-            <i class="bi bi-arrows-fullscreen" aria-hidden="true"></i>
-            <span>Phóng to</span>
-          </button>
-        </div>
         {% endif %}
       </div>
-      {% if search_query or priority_filter or npl_filter or tech_filter or deadline_filter or route_dept_filter or route_team_filter or plan_status_filter != 'open' and tab == 'queue' %}
       <div class="jp-team-filter-actions">
+        <button type="submit" class="btn btn-hm btn-sm"><i class="bi bi-search me-1"></i>Tìm kiếm</button>
+        {% if search_query or priority_filter or npl_filter or tech_filter or route_dept_filter or route_team_filter or plan_status_filter != 'open' and tab == 'queue' %}
         <a href="?mode={{ mode }}&amp;tab={{ tab }}&amp;sx_reset=1{% if tab == 'route' %}{% if route_view == 'done' %}&amp;route_view=done{% elif route_view == 'cancelled' %}&amp;route_view=cancelled{% endif %}{% if route_board %}&amp;route_set=1&amp;route_from={{ route_board.range_start|date:'Y-m-d' }}&amp;route_to={{ route_board.range_end|date:'Y-m-d' }}{% endif %}{% endif %}"
            class="btn btn-light border btn-sm" title="Xóa bộ lọc">
           <i class="bi bi-x-lg"></i> Xóa lọc
         </a>
+        {% endif %}
       </div>
-      {% endif %}
       {% if tab == 'team' and filter_date_from and filter_date_to %}
       <div class="jp-pb-date-shift" aria-label="Chuyển tháng">
         <a href="?mode={{ mode }}&amp;tab=team{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;date_from={{ filter_prev_from|date:'Y-m-d' }}&amp;date_to={{ filter_prev_to|date:'Y-m-d' }}"
@@ -2526,7 +2539,26 @@
   {% endif %}
 
   {% if tab == 'route' %}
-  <nav class="jp-pb-route-views" aria-label="Nhóm đơn lộ trình" role="tablist">
+  <div class="d-flex align-items-center gap-2 mb-2 flex-wrap" id="jpRouteEditToolbar" data-editing="0">
+    <div class="jp-pb-route-views mb-0" aria-label="Nhóm đơn lộ trình" role="tablist">
+      <a role="tab" class="btn btn-sm fw-bold {% if route_view != 'done' and route_view != 'cancelled' %}btn-hm{% else %}btn-outline-secondary{% endif %}" href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}{% if route_board %}&amp;route_set=1&amp;route_from={{ route_board.range_start|date:'Y-m-d' }}&amp;route_to={{ route_board.range_end|date:'Y-m-d' }}{% endif %}">Đang làm</a>
+      <a role="tab" class="btn btn-sm fw-bold {% if route_view == 'done' %}btn-hm{% else %}btn-outline-secondary{% endif %}" href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=route&amp;route_view=done">Đã hoàn thành</a>
+      <a role="tab" class="btn btn-sm fw-bold {% if route_view == 'cancelled' %}btn-hm{% else %}btn-outline-secondary{% endif %}" href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=route&amp;route_view=cancelled">Đã huỷ</a>
+    </div>
+    <div class="small text-muted ms-auto" id="jpRouteEditStatus">Chế độ xem</div>
+    {% if can_schedule %}
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-sm btn-hm" id="jpRouteEditStart">Sửa lộ trình</button>
+      <button type="button" class="btn btn-sm btn-success d-none" id="jpRouteEditSave">Lưu thay đổi</button>
+      <button type="button" class="btn btn-sm btn-outline-secondary d-none" id="jpRouteEditCancel">Hủy</button>
+      <button type="button" class="jp-pb-zoom-btn" id="jpRouteFullscreen"
+              aria-pressed="false" title="Phóng to bảng lộ trình" aria-label="Phóng to bảng lộ trình">
+        <i class="bi bi-arrows-fullscreen" aria-hidden="true"></i>
+      </button>
+    </div>
+    {% endif %}
+  </div>
+  <nav class="jp-pb-route-views d-none" aria-label="Nhóm đơn lộ trình" role="tablist">
     <a role="tab"
        class="btn btn-sm fw-bold {% if route_view != 'done' and route_view != 'cancelled' %}btn-hm{% else %}btn-outline-secondary{% endif %}"
        href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}{% include 'san_xuat/includes/plan_board_route_filter_qs.html' %}{% if route_board %}&amp;route_set=1&amp;route_from={{ route_board.range_start|date:'Y-m-d' }}&amp;route_to={{ route_board.range_end|date:'Y-m-d' }}{% endif %}"
@@ -2983,48 +3015,43 @@
     return true;
   }
   function assignTeam(bar, wcId) {
-    if (!canSplitBar(bar)) {
-      alert('Không gán được tổ (thiếu quyền xếp lịch).');
+    if (!canSplitBar(bar) || !window.jpRouteCanEdit || !window.jpRouteCanEdit()) {
+      alert('Bấm “Sửa lộ trình” trước khi thay đổi.');
       return;
     }
-    if (!csrf) {
-      alert('Thiếu mã bảo mật — tải lại trang rồi thử lại.');
-      return;
-    }
-    var body = new URLSearchParams();
-    body.set('action', 'assign_plan_team');
-    body.set('order_id', bar.getAttribute('data-order-id') || '');
-    body.set('team_slug', bar.getAttribute('data-team-slug') || '');
-    body.set('work_center_id', wcId || '');
-    body.set('source_work_center_id', bar.getAttribute('data-work-center-id') || '');
-    var params = new URLSearchParams(window.location.search);
-    body.set('mode', params.get('mode') || 'list');
-    body.set('tab', params.get('tab') || 'queue');
-    body.set('csrfmiddlewaretoken', csrf);
     hideCtxMenu();
     var pickMod = getPickTeamModal();
     if (pickMod) pickMod.hide();
-    showLoading('Đang gán tổ — ' + (bar.getAttribute('data-order-code') || '') + '…');
-    fetch(window.location.pathname + window.location.search, {
-      method: 'POST',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-        'Accept': 'application/json',
-        'X-CSRFToken': csrf,
-      },
-      body: body,
-      credentials: 'same-origin',
-    }).then(function (res) {
-      return res.json().then(function (data) {
-        if (!res.ok || !data.ok) {
-          throw new Error((data && data.error) || 'Không gán được tổ.');
+    var oldWc = bar.getAttribute('data-work-center-id') || '';
+    var change = {
+      action: 'assign_plan_team',
+      order_id: bar.getAttribute('data-order-id') || '',
+      team_slug: bar.getAttribute('data-team-slug') || '',
+      work_center_id: wcId || '',
+      source_work_center_id: oldWc,
+    };
+    if (window.jpRouteAddDraft(change)) {
+      bar.setAttribute('data-work-center-id', String(wcId || ''));
+      bar.setAttribute('data-draft-team', String(wcId || ''));
+      var label = document.querySelector('[data-wc-id="' + String(wcId || '').replace(/"/g, '\\"') + '"] strong');
+      var text = label ? label.textContent : ('Tổ ' + (wcId || ''));
+      var stageRow = bar.closest ? bar.closest('tr') : null;
+      var teamCell = bar.matches && bar.matches('.c-team') ? bar : (stageRow && stageRow.querySelector('.c-team'));
+      if (teamCell) {
+        teamCell.setAttribute('data-work-center-id', String(wcId || ''));
+        var teamText = teamCell.querySelector('.jp-sheet-team-name, [data-jp-team-label], .jp-pb-stage-team-label');
+        if (teamText) teamText.textContent = text;
+        var teamButton = teamCell.querySelector('[data-jp-stage-team]');
+        if (teamButton) {
+          teamButton.classList.add('is-on');
+          teamButton.setAttribute('title', text + ' — bấm để đổi tổ');
+          teamButton.setAttribute('aria-label', 'Đổi tổ ' + text);
         }
-        window.location.reload();
-      });
-    }).catch(function (err) {
-      hideLoading();
-      alert(err.message || 'Không gán được tổ.');
-    });
+        teamCell.classList.add('is-on', 'jp-route-draft-change');
+      }
+      bar.classList.add('jp-route-draft-change');
+      return;
+    }
   }
   function getCapModal() {
     if (capModal) return capModal;
@@ -3324,12 +3351,17 @@
     var root = rootEl();
     if (!root) return [];
     var rows = [];
+    var seen = {};
     root.querySelectorAll(splitSel(orderId, teamSlug, wcId)).forEach(function (bar) {
-      if (bar.getAttribute('data-is-split') !== '1') return;
-      rows.push({
-        date: bar.getAttribute('data-plan-date') || bar.getAttribute('data-start') || '',
-        qty: parseNum(bar.getAttribute('data-qty')),
-      });
+      var isVisualBar = bar.classList && (bar.classList.contains('jp-sheet-qty') || bar.classList.contains('jp-tl-bar'));
+      if (!isVisualBar) return;
+      var date = bar.getAttribute('data-plan-date') || bar.getAttribute('data-start') || '';
+      var qty = parseNum(bar.getAttribute('data-qty'));
+      if (!date || !(qty > 0)) return;
+      var key = date + '|' + qty + '|' + (bar.getAttribute('data-segment-id') || '');
+      if (seen[key]) return;
+      seen[key] = true;
+      rows.push({date: date, qty: qty});
     });
     rows.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
     return rows;
@@ -3477,6 +3509,10 @@
       || parseNum(capacitySource(bar).getAttribute('data-planned-qty'))
       || parseNum(capacitySource(bar).getAttribute('data-team-qty'))
       || parseNum(bar.getAttribute('data-qty'));
+    var persistedPieces = collectSegments(state.orderId, state.teamSlug, bar.getAttribute('data-work-center-id') || '');
+    if (persistedPieces.length) {
+      state.targetQty = persistedPieces.reduce(function (total, piece) { return total + piece.qty; }, 0);
+    }
     state.workCenterId = bar.getAttribute('data-work-center-id') || '';
     state.bar = bar;
     if (titleEl) titleEl.textContent = 'Tách công đoạn — ' + state.teamLabel + ' · ' + state.orderCode;
@@ -3581,6 +3617,7 @@
   var capSave = document.getElementById('jpKhsxCapSave');
   if (capSave) capSave.addEventListener('click', saveCapacity);
   document.addEventListener('click', function (ev) {
+    if (!window.jpRouteCanEdit || !window.jpRouteCanEdit()) return;
     var splitBtn = ev.target && ev.target.closest && ev.target.closest('[data-jp-stage-split]');
     if (splitBtn) {
       ev.preventDefault();
@@ -3777,6 +3814,17 @@
         alert('SL chuyển không được lớn hơn SL tổ hiện tại (' + fmtNum(state.targetQty) + ').');
         return;
       }
+      var addMod = getAddTeamModal();
+      if (window.jpRouteCanEdit && window.jpRouteCanEdit() && window.jpRouteAddDraft) {
+        if (state.bar) state.bar.classList.add('jp-route-draft-change');
+        window.jpRouteAddDraft({
+          action: 'add_plan_team', order_id: state.orderId,
+          team_slug: state.teamSlug, work_center_id: state.addWcId,
+          source_work_center_id: state.workCenterId || '', qty: qty
+        });
+        if (addMod) addMod.hide();
+        return;
+      }
       var body = new URLSearchParams();
       body.set('action', 'add_plan_team');
       body.set('order_id', state.orderId);
@@ -3831,6 +3879,15 @@
       document.body.classList.remove('jp-tool-loading-active');
     }
   }
+  function previewSplitDays(bar, days) {
+    // Không tự clone/chèn thanh vào DOM: lưới có cấu trúc stage/cell do backend dựng.
+    // Chỉ đánh dấu đúng stage đang có draft; preview dữ liệu được render lại khi reload sau save.
+    if (!bar || !days || !days.length) return;
+    bar.classList.add('jp-route-draft-change');
+    var row = bar.closest ? bar.closest('tr') : null;
+    if (row) row.classList.add('jp-route-draft-change');
+  }
+
   var saveBtn = document.getElementById('jpSplitTeamDaysSave');
   if (saveBtn) {
     saveBtn.addEventListener('click', function () {
@@ -3854,6 +3911,18 @@
       var sum = days.reduce(function (a, r) { return a + r.qty; }, 0);
       if (Math.abs(sum - state.targetQty) > 0.01) {
         alert('Tổng SL (' + fmtNum(sum) + ') phải bằng SL tổ (' + fmtNum(state.targetQty) + ').');
+        return;
+      }
+      var mod = getModal();
+      if (window.jpRouteCanEdit && window.jpRouteCanEdit() && window.jpRouteAddDraft) {
+        var previewBar = state.bar || (rootEl() && rootEl().querySelector(splitSel(state.orderId, state.teamSlug, state.workCenterId)));
+        previewSplitDays(previewBar, days);
+        window.jpRouteAddDraft({
+          action: 'split_team_days', order_id: state.orderId,
+          team_slug: state.teamSlug, days: days,
+          work_center_id: state.workCenterId || ''
+        });
+        if (mod) mod.hide();
         return;
       }
       var body = new URLSearchParams();
@@ -4592,7 +4661,39 @@
   document.addEventListener('pointerup', onPointerUp);
   document.addEventListener('pointercancel', onPointerUp);
 
+  function previewReschedule(bar, newStart) {
+    if (!bar || !newStart) return;
+    var row = bar.closest('tr');
+    var target = row && row.querySelector('.jp-sheet-cell[data-date="' + newStart + '"], .jp-tl-slot[data-date="' + newStart + '"]');
+    var oldDate = bar.getAttribute('data-plan-date') || bar.getAttribute('data-start') || '';
+    if (target && target !== bar.parentElement) {
+      var host = target.querySelector('.jp-tl-bars, .jp-sheet-cell-inner') || target;
+      host.appendChild(bar);
+    }
+    bar.setAttribute('data-plan-date', newStart);
+    bar.setAttribute('data-start', newStart);
+    bar.dataset.draftDate = newStart;
+    bar.classList.add('jp-route-draft-change');
+    var title = bar.getAttribute('title') || '';
+    if (title && oldDate) bar.setAttribute('title', title.replace(oldDate, newStart));
+  }
+
   async function save(bar, newStart) {
+    if (!window.jpRouteCanEdit || !window.jpRouteCanEdit()) {
+      alert('Bấm “Sửa lộ trình” trước khi thay đổi.');
+      return;
+    }
+    previewReschedule(bar, newStart);
+    if (window.jpRouteAddDraft && window.jpRouteAddDraft({
+      action: 'reschedule_route',
+      order_id: bar.getAttribute('data-order-id') || '',
+      start_date: newStart,
+      team_slug: bar.getAttribute('data-team-slug') || '',
+      from_date: bar.getAttribute('data-plan-date') || bar.getAttribute('data-start') || '',
+      work_center_id: bar.getAttribute('data-work-center-id') || '',
+    })) {
+      return;
+    }
     if (!csrf) {
       alert('Thiếu mã bảo mật — tải lại trang rồi kéo lại.');
       return;
@@ -4665,6 +4766,7 @@
       reloadUrl.searchParams.delete('route_more');
       // POST đã commit xong; không cho trình duyệt/proxy trả lại HTML lộ trình cũ.
       reloadUrl.searchParams.set('_route_refresh', String(Date.now()));
+      if (data.order_id) reloadUrl.searchParams.set('route_order_id', String(data.order_id));
       var htmlRes = await fetch(reloadUrl.toString(), {
         cache: 'no-store',
         credentials: 'same-origin',
@@ -4801,7 +4903,10 @@
     }
     renumber();
     var after = idsOf(groups());
-    if (after.join(',') !== before.join(',')) saveOrder(after);
+    if (after.join(',') !== before.join(',') && window.jpRouteCanEdit && window.jpRouteCanEdit() && window.jpRouteAddDraft) {
+      window.jpRouteAddDraft({action: 'reorder_plan_orders', order_ids: after});
+      table.classList.add('jp-route-draft-change');
+    }
   }
   function clearDrop() {
     groups().forEach(function (g) { g.classList.remove('is-drop-before'); });
@@ -4869,6 +4974,7 @@
   }
 
   root.addEventListener('pointerdown', function (ev) {
+    if (!window.jpRouteCanEdit || !window.jpRouteCanEdit()) return;
     if (root.getAttribute('data-route-loading') === '1') return;
     if (ev.button !== 0) return;
     var t = ev.target;
@@ -4915,7 +5021,9 @@
     if (!payload.moved) return;
     var nextIds = idsOf(groups());
     if (nextIds.join(',') === payload.startIds.join(',')) return;
-    saveOrder(nextIds);
+    if (window.jpRouteCanEdit && window.jpRouteCanEdit() && window.jpRouteAddDraft) {
+      window.jpRouteAddDraft({action: 'reorder_plan_orders', order_ids: nextIds});
+    }
   }
   document.addEventListener('pointermove', onMove);
   document.addEventListener('pointerup', onUp);
@@ -4934,6 +5042,7 @@
   }, true);
 
   root.addEventListener('click', function (ev) {
+    if (!window.jpRouteCanEdit || !window.jpRouteCanEdit()) return;
     if (root.getAttribute('data-route-loading') === '1') return;
     var up = ev.target && ev.target.closest ? ev.target.closest('[data-jp-stt-up]') : null;
     var down = !up && ev.target && ev.target.closest ? ev.target.closest('[data-jp-stt-down]') : null;
@@ -5388,11 +5497,28 @@
   var openBtn = document.getElementById('jpRouteFullscreen');
   var closeBtn = document.getElementById('jpRouteFullscreenExit');
   if (!sheet || !openBtn) return;
-
+  var startFull = document.getElementById('jpRouteEditStartFullscreen');
+  var saveFull = document.getElementById('jpRouteEditSaveFullscreen');
+  var cancelFull = document.getElementById('jpRouteEditCancelFullscreen');
+  function syncEditButtons() {
+    var editing = sheet.classList.contains('jp-route-editing');
+    if (startFull) startFull.classList.toggle('d-none', editing);
+    if (saveFull) saveFull.classList.toggle('d-none', !editing);
+    if (cancelFull) cancelFull.classList.toggle('d-none', !editing);
+    var status = document.getElementById('jpRouteEditStatusFullscreen');
+    var sourceStatus = document.getElementById('jpRouteEditStatus');
+    if (status && sourceStatus) status.textContent = sourceStatus.textContent;
+  }
+  if (startFull) startFull.addEventListener('click', function () { var b = document.getElementById('jpRouteEditStart'); if (b) b.click(); syncEditButtons(); });
+  if (saveFull) saveFull.addEventListener('click', function () { var b = document.getElementById('jpRouteEditSave'); if (b) b.click(); });
+  if (cancelFull) cancelFull.addEventListener('click', function () { var b = document.getElementById('jpRouteEditCancel'); if (b) b.click(); });
+  var editToolbar = document.getElementById('jpRouteEditToolbar');
+  if (editToolbar) new MutationObserver(syncEditButtons).observe(editToolbar, {attributes: true, subtree: true, attributeFilter: ['class', 'data-editing']});
   function sync() {
     var on = sheet.classList.contains('is-fullscreen');
     openBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
     document.body.classList.toggle('jp-route-fullscreen', on);
+    syncEditButtons();
   }
   function enter() {
     sheet.classList.add('is-fullscreen');

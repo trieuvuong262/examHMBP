@@ -291,11 +291,14 @@ def _attribute_day_plan_team(
     Đơn đã có ngày của tổ cụ thể thì bỏ slug cũ, không cộng đè.
     """
     key = (team_slug or '').strip().lower()
-    if key in by_slug:
-        return key
     wc = (work_center_code or '').strip().upper()
+    # Tổ thực hiện được quyết định bởi work center. Một số dòng KHSX cũ
+    # còn giữ team_slug của bộ phận nguồn (vd. d25), trong khi work center
+    # đã được phân bổ sang tổ gia công (vd. NL-2026-0002 → gc-38).
     if wc and wc in by_wc:
         return by_wc[wc]
+    if key in by_slug:
+        return key
     from san_xuat.services.capacity_from_hrm import stage_slug_is_shared
 
     # Slug chung (may) không còn là dòng trên lộ trình: lộ trình dùng d25 / d39.

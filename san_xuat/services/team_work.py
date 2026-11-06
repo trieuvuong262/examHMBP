@@ -173,6 +173,50 @@ def apply_own_plan_team(jobs: list[TeamWorkJob], *, team: dict) -> list[TeamWork
     ).values_list('sales_order_id', 'work_center_id'):
         centers_by_order.setdefault(int(oid), set()).add(int(center_id))
     assigned = {oid for oid, centers in centers_by_order.items() if wc.pk in centers}
+    # Khi toàn bộ phần việc của bộ phận đã được chuyển sang một work center
+    # gia công, không giữ đơn trên board bộ phận nội bộ. Nếu còn phân bổ song
+    # song cho cả hai loại tổ thì mỗi board vẫn giữ phần của mình.
+    gc_center_ids: set[int] = set()
+    if not team.get('is_gc'):
+        from san_xuat.partner_models import GcPartner
+
+        gc_center_ids = set(
+            GcPartner.objects.filter(
+                is_active=True,
+                work_center__is_active=True,
+            ).values_list('work_center_id', flat=True)
+        )
+        if gc_center_ids:
+            day_centers_by_order: dict[int, set[int]] = {}
+            for oid, center_id in SxOrderTeamDayPlan.objects.filter(
+                sales_order_id__in=order_ids,
+                work_center_id__in=gc_center_ids,
+                qty__gt=0,
+            ).values_list('sales_order_id', 'work_center_id'):
+                day_centers_by_order.setdefault(int(oid), set()).add(int(center_id))
+            own_day_slugs = {
+                value for value in (
+                    (team.get('slug') or '').strip().lower(),
+                    (team.get('stage_slug') or '').strip().lower(),
+                ) if value
+            }
+            own_day_orders = set(
+                SxOrderTeamDayPlan.objects.filter(
+                    sales_order_id__in=order_ids,
+                    work_center_id=wc.pk,
+                    team_slug__in=own_day_slugs,
+                    qty__gt=0,
+                ).values_list('sales_order_id', flat=True)
+            )
+            gc_only_orders = {
+                oid for oid in day_centers_by_order
+                if oid not in own_day_orders
+            }
+            assigned -= gc_only_orders
+        else:
+            gc_only_orders = set()
+    else:
+        gc_only_orders = set()
     own_slug = (team.get('slug') or '').strip().lower()
     stage_slug = (team.get('stage_slug') or '').strip().lower()
     loose_slugs = {s for s in (own_slug, stage_slug) if s}
@@ -208,6 +252,8 @@ def apply_own_plan_team(jobs: list[TeamWorkJob], *, team: dict) -> list[TeamWork
     kept: list[TeamWorkJob] = []
     for job in jobs:
         oid = int(job.mo.sales_order_id or 0)
+        if oid in gc_only_orders:
+            continue
         if strict and oid not in assigned:
             continue
         if oid in assigned:
@@ -530,6 +576,19 @@ def assign_team_work(
         slug = _team_slug_for_process_key(process_key) or ''
     if not slug:
         raise PlanningError('Không xác định được tổ chuyền của công đoạn.')
+
+    # Công việc tổ phải khớp đồng thời bộ phận và tổ năng lực. Không dùng
+    # fallback theo group_key ở đây: công đoạn MAY giao THUÊ NGOÀI phải
+    # được phân công trên board gc-<work_center_id>, không phải board d25.
+    from san_xuat.services.order_progress_sheet import progress_steps_for_team
+    from san_xuat.services.progress_template import team_by_slug
+
+    team_meta = team_by_slug(slug)
+    if not team_meta:
+        raise PlanningError('Tổ không hợp lệ.')
+    valid_steps = progress_steps_for_team(mo, team_meta)
+    if not any(step.key == sd.key for step in valid_steps):
+        raise PlanningError('Công đoạn không thuộc đúng bộ phận và tổ này.')
 
     if mo.status in (SxProductionOrder.STATUS_DRAFT, SxProductionOrder.STATUS_CANCELLED):
         raise PlanningError('Lệnh sản xuất chưa phát hành hoặc đã hủy.')

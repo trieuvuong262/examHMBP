@@ -6,6 +6,8 @@ Phase 1: chỉ ĐĐH đã xác nhận. MTS/MPS swimlane sau.
 from __future__ import annotations
 
 import json
+import logging
+import time
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from decimal import ROUND_DOWN, Decimal
@@ -21,6 +23,7 @@ from san_xuat.hub_models import (
     SxOrderTeamDayPlan,
     SxOverallPlan,
     SxProductionOrder,
+    SxMoProcessStep,
     SxProductionStat,
     SxSalesOrder,
     SxSalesOrderLine,
@@ -32,6 +35,9 @@ from san_xuat.services.dispatch import DispatchError, create_mo_from_bom
 from san_xuat.services.planning import PlanningError
 from san_xuat.services.order_routing import sales_order_line_routing, steps_dicts_from_order_line
 from san_xuat.templatetags.sx_format import format_sx_num, format_sx_num_input
+
+
+logger = logging.getLogger(__name__)
 
 _Q2 = Decimal('0.01')
 # Ca KHSX mặc định: 9 giờ 30 phút
@@ -3954,16 +3960,16 @@ def _sync_schedule_to_mos(
     mos = order.production_orders.filter(is_demo=False).exclude(
         status=SxProductionOrder.STATUS_CANCELLED,
     )
+    changed_mos = []
+    changed_steps = []
     for mo in mos:
-        fields: list[str] = []
         if mo.planned_start != pstart:
             mo.planned_start = pstart
-            fields.append('planned_start')
+            changed_mos.append(mo)
         if mo.planned_end != pend:
             mo.planned_end = pend
-            fields.append('planned_end')
-        if fields:
-            mo.save(update_fields=fields)
+            if mo not in changed_mos:
+                changed_mos.append(mo)
         for step in mo.mo_process_steps.select_related('work_center'):
             # Tên CĐ có thể map ra slug mẫu cũ ('may') trong khi KHSX theo tổ ('d25'):
             # lấy slug nào có trong lịch, ưu tiên theo tên rồi tới tổ.
@@ -3978,7 +3984,11 @@ def _sync_schedule_to_mos(
                     break
             if new_date and step.planned_date != new_date:
                 step.planned_date = new_date
-                step.save(update_fields=['planned_date'])
+                changed_steps.append(step)
+    if changed_mos:
+        SxProductionOrder.objects.bulk_update(changed_mos, ['planned_start', 'planned_end'])
+    if changed_steps:
+        SxMoProcessStep.objects.bulk_update(changed_steps, ['planned_date'])
     mark_route_sheet_dirty(order.pk)
     return order
 
@@ -4237,6 +4247,7 @@ class PlanTimelineRow:
     duration_script_id: str
     subtitle: str
     duration_detail: dict = field(default_factory=dict)
+    total_qty: Decimal = field(default_factory=lambda: Decimal('0'))
     can_drag: bool = False
     span_days: int = 1
     accepted_teams: list = field(default_factory=list)
@@ -6330,6 +6341,7 @@ def build_order_timeline(
     range_to: date | None = None,
 ) -> MoTimelineBoard:
     """Timeline đơn trên KHSX theo khoảng ngày. Mặc định 15 ngày trước đến 30 ngày sau."""
+    started = time.perf_counter()
     today = timezone.localdate()
     start, end = resolve_route_range(range_from, range_to, today)
     axis_days, month_spans, span = _timeline_axis(start, end, today)
@@ -6678,6 +6690,7 @@ def build_order_timeline(
             duration_script_id=r.duration_script_id or '',
             subtitle=subtitle,
             duration_detail=r.duration_detail or {},
+            total_qty=r.total_qty or Decimal('0'),
             can_drag=can_drag,
             span_days=span_days,
             accepted_teams=accepts_by_order.get(r.order.pk, []),
@@ -6723,6 +6736,10 @@ def build_order_timeline(
     prev_from = prev_to - timedelta(days=span_days - 1)
     next_from = end + timedelta(days=1)
     next_to = next_from + timedelta(days=span_days - 1)
+    logger.info(
+        'route_timeline orders=%s seconds=%.3f',
+        len(plan_rows), time.perf_counter() - started,
+    )
     return MoTimelineBoard(
         range_start=start,
         range_end=end,

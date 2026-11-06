@@ -314,10 +314,42 @@ def progress_steps_for_team(
     team_slug = (team.get('slug') or '').strip().lower()
     stage_slug = (team.get('stage_slug') or team_slug).strip().lower()
     if work_center_id:
-        return [
+        direct = [
             s for s in steps
             if (s.work_center_code or '').strip().upper() == want_code
         ]
+        if direct:
+            return direct
+
+        # Tổ gia công nhận một phần SL của công đoạn nội bộ. Khi đó snapshot
+        # LSX vẫn giữ work center/bộ phận nguồn, còn SxOrderTeamDayPlan giữ
+        # work center gia công đích (vd. d25 → gc-38). Dùng phân bổ này để
+        # đưa đúng công đoạn nguồn lên board gia công, không fallback theo
+        # group_key vì một bộ phận có thể có nhiều tổ/đối tác.
+        if team.get('is_gc') and getattr(mo, 'sales_order_id', None):
+            from san_xuat.hub_models import SxOrderTeamDayPlan
+
+            source_slugs = set(
+                (slug or '').strip().lower()
+                for slug in SxOrderTeamDayPlan.objects.filter(
+                    sales_order_id=mo.sales_order_id,
+                    work_center_id=work_center_id,
+                    qty__gt=0,
+                ).values_list('team_slug', flat=True)
+                if (slug or '').strip()
+            )
+            source_codes: set[str] = set()
+            for source_slug in source_slugs:
+                source_meta = team_by_slug(source_slug)
+                code = (source_meta or {}).get('work_center_code') or ''
+                if code:
+                    source_codes.add(code.strip().upper())
+            if source_codes:
+                return [
+                    s for s in steps
+                    if (s.work_center_code or '').strip().upper() in source_codes
+                ]
+        return []
     if div_id:
         # Bộ phận d{id} chỉ khớp chính xác HRD-{id}; work center thuê ngoài
         # có thể giữ division_id gốc để truy vết nhưng không thuộc bảng tổ nội bộ.

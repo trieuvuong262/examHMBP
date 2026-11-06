@@ -331,9 +331,23 @@ def team_work_menu_items(user) -> list[dict]:
             gc_items[0]['is_gc_start'] = True
         return items + gc_items
 
+    from hrm.menu_permissions import user_can_access_menu
+    from hrm.module_permissions import MODULE_SAN_XUAT
+
+    can_view_gc = (
+        user_can_access_menu(user, MODULE_SAN_XUAT, 'team_work')
+        or user_can_access_menu(user, MODULE_SAN_XUAT, 'subcontract')
+    )
+
     led_ids = user_led_team_division_ids(user)
     if hr_divisions_for_ie_groups().exists():
-        return _hr_team_items(only_ids=None if see_all else led_ids, mapped=mapped)
+        items = _hr_team_items(only_ids=None if see_all else led_ids, mapped=mapped)
+        if can_view_gc:
+            gc_items = gc_work_center_items()
+            if gc_items:
+                gc_items[0]['is_gc_start'] = True
+            items.extend(gc_items)
+        return items
     items: list[dict] = []
 
     led_stages = set() if see_all else _fallback_led_stage_slugs(led_ids, mapped)
@@ -348,6 +362,11 @@ def team_work_menu_items(user) -> list[dict]:
             'division_id': 0,
             'work_center_code': '',
         })
+    if can_view_gc:
+        gc_items = gc_work_center_items()
+        if gc_items:
+            gc_items[0]['is_gc_start'] = True
+        items.extend(gc_items)
     return items
 
 

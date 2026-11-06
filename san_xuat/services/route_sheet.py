@@ -6,15 +6,47 @@ tiến độ hoặc phiếu xuất đổi.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 import json
+import logging
+import time
 
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.utils import timezone
 
 from san_xuat.hub_models import SxRouteSheet, SxSalesOrder
+
+
+logger = logging.getLogger(__name__)
+
+
+@contextmanager
+def suppress_route_sheet_enqueue(order_id: int | None):
+    """Tạm ngăn enqueue refresh cho đơn được refresh đồng bộ trong request."""
+    oid = int(order_id or 0)
+    conn = transaction.get_connection()
+    suppressed = getattr(conn, '_route_sheet_enqueue_suppressed', None)
+    if suppressed is None:
+        suppressed = set()
+        conn._route_sheet_enqueue_suppressed = suppressed
+    if oid > 0:
+        suppressed.add(oid)
+    try:
+        yield
+    finally:
+        def _clear():
+            if oid > 0:
+                suppressed.discard(oid)
+            if not suppressed:
+                conn._route_sheet_enqueue_suppressed = None
+
+        if conn.in_atomic_block:
+            transaction.on_commit(_clear)
+        else:
+            _clear()
 
 
 def mark_route_sheet_dirty(order_id: int | None) -> None:
@@ -23,6 +55,8 @@ def mark_route_sheet_dirty(order_id: int | None) -> None:
     if oid <= 0:
         return
     conn = transaction.get_connection()
+    if oid in (getattr(conn, '_route_sheet_enqueue_suppressed', None) or set()):
+        return
     bucket = getattr(conn, '_route_sheet_dirty', None)
     if bucket is None:
         bucket = set()
@@ -91,11 +125,17 @@ def refresh_route_sheets(
     ids = list({int(pk) for pk in (order_ids or []) if int(pk or 0) > 0})
     if not ids:
         return
+    started = time.perf_counter()
+    rows_started = time.perf_counter()
     rows = build_plan_board_rows(
         include_released=True,
         persist_side_effects=False,
         for_route=True,
         order_ids=ids,
+    )
+    logger.info(
+        'route_sheet.build_rows orders=%s seconds=%.3f',
+        len(ids), time.perf_counter() - rows_started,
     )
     today = timezone.localdate()
     found: set[int] = set()
@@ -120,6 +160,10 @@ def refresh_route_sheets(
     stale = [pk for pk in ids if pk not in found]
     if stale:
         SxRouteSheet.objects.filter(sales_order_id__in=stale).delete()
+    logger.info(
+        'route_sheet.refresh orders=%s found=%s seconds=%.3f',
+        len(ids), len(found), time.perf_counter() - started,
+    )
 
 
 def route_sheet_deadline_ids(order_ids, deadline: str, today: date) -> set[int]:
@@ -273,6 +317,7 @@ def _dump_timeline(row) -> dict:
         'duration_label': row.duration_label or '',
         'duration_script_id': row.duration_script_id or '',
         'duration_detail': row.duration_detail or {},
+        'total_qty': str(row.total_qty or 0),
         'subtitle': row.subtitle or '',
         'can_drag': bool(row.can_drag),
         'product_images': list(row.product_images or []),
@@ -378,6 +423,9 @@ def _hydrate_row(
     if not payload.get('visible'):
         return None
     order = sheet.sales_order
+    total_qty = _dec(payload.get('total_qty'))
+    if not total_qty:
+        total_qty = _dec(order.lines.aggregate(total_qty=Sum('qty')).get('total_qty'))
     due = order.due_date
     is_late = bool(sheet.khsx_overrun or (due and due < today))
     stages = []
@@ -477,6 +525,7 @@ def _hydrate_row(
         duration_script_id=payload.get('duration_script_id') or '',
         subtitle=payload.get('subtitle') or '',
         duration_detail=payload.get('duration_detail') or {},
+        total_qty=total_qty,
         can_drag=bool(payload.get('can_drag')),
         product_images=list(payload.get('product_images') or []),
         product_code_label=payload.get('product_code_label') or '',

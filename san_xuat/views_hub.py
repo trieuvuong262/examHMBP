@@ -2076,7 +2076,7 @@ def plan_board(request):
     ).strip()
     npl_filter = (request.GET.get('npl_status') or request.POST.get('npl_status') or '').strip()
     tech_filter = (request.GET.get('tech') or request.POST.get('tech') or '').strip()
-    deadline_filter = (request.GET.get('deadline') or request.POST.get('deadline') or '').strip()
+    deadline_filter = ''
     plan_status_filter = (request.GET.get('plan_status') or request.POST.get('plan_status') or '').strip()
     if plan_status_filter != 'done':
         plan_status_filter = 'open'
@@ -2244,7 +2244,82 @@ def plan_board(request):
                     })
                 save_plan_hops(order_id=order_id, hops=hops)
                 messages.success(request, 'Đã lưu thời gian kiểm đếm / vận chuyển.')
-            elif action == 'assign_plan_team' and can_schedule and order_id:
+            elif action == 'save_route_draft' and can_schedule:
+                import json as _json
+                from django.db import transaction
+                from django.http import JsonResponse
+                from san_xuat.list_filters import parse_sx_date
+                from san_xuat.services.plan_board import (
+                    add_plan_team_share,
+                    assign_plan_team,
+                    reschedule_order_team_start,
+                    save_team_day_plans,
+                    split_team_bar_in_two,
+                )
+                try:
+                    changes = _json.loads(request.POST.get('changes') or '[]')
+                except _json.JSONDecodeError as exc:
+                    raise PlanningError('Danh sách thay đổi không hợp lệ.') from exc
+                if not isinstance(changes, list) or not changes:
+                    raise PlanningError('Chưa có thay đổi để lưu.')
+                affected_ids: set[int] = set()
+                with transaction.atomic():
+                    for change in changes:
+                        if not isinstance(change, dict):
+                            raise PlanningError('Một thay đổi không hợp lệ.')
+                        kind = str(change.get('action') or '').strip()
+                        oid = int(change.get('order_id') or 0)
+                        if oid > 0:
+                            affected_ids.add(oid)
+                        if kind == 'reschedule_route':
+                            day = parse_sx_date(str(change.get('start_date') or ''))
+                            if not day:
+                                raise PlanningError('Ngày công đoạn không hợp lệ.')
+                            reschedule_order_team_start(
+                                order_id=oid,
+                                start_date=day,
+                                team_slug=str(change.get('team_slug') or '').strip().lower(),
+                                from_date=parse_sx_date(str(change.get('from_date') or '')) if change.get('from_date') else None,
+                                work_center_id=int(change.get('work_center_id') or 0) or None,
+                            )
+                        elif kind == 'assign_plan_team':
+                            assign_plan_team(
+                                order_id=oid,
+                                team_slug=str(change.get('team_slug') or '').strip().lower(),
+                                work_center_id=int(change.get('work_center_id') or 0) or None,
+                                source_work_center_id=int(change.get('source_work_center_id') or 0) or None,
+                            )
+                        elif kind == 'split_team_days':
+                            save_team_day_plans(
+                                order_id=oid,
+                                team_slug=str(change.get('team_slug') or '').strip().lower(),
+                                rows=change.get('days') if isinstance(change.get('days'), list) else [],
+                                work_center_id=int(change.get('work_center_id') or 0) or None,
+                            )
+                        elif kind == 'split_team_in_two':
+                            split_team_bar_in_two(
+                                order_id=oid,
+                                team_slug=str(change.get('team_slug') or '').strip().lower(),
+                                from_date=parse_sx_date(str(change.get('from_date') or '')) if change.get('from_date') else None,
+                                segment_id=int(change.get('segment_id') or 0),
+                            )
+                        elif kind == 'add_plan_team':
+                            add_plan_team_share(
+                                order_id=oid,
+                                team_slug=str(change.get('team_slug') or '').strip().lower(),
+                                work_center_id=int(change.get('work_center_id') or 0),
+                                qty=change.get('qty') or 0,
+                                source_work_center_id=int(change.get('source_work_center_id') or 0) or None,
+                            )
+                        elif kind == 'reorder_plan_orders':
+                            reorder_plan_orders(ordered_ids=change.get('order_ids') or [])
+                        else:
+                            raise PlanningError(f'Thông tin thao tác không được hỗ trợ: {kind}.')
+                if affected_ids:
+                    from san_xuat.services.route_sheet import refresh_route_sheets
+                    refresh_route_sheets(sorted(affected_ids))
+                return JsonResponse({'ok': True, 'affected_order_ids': sorted(affected_ids)})
+            elif action == 'assign_plan_team' and can_schedule:
                 team_slug = (request.POST.get('team_slug') or '').strip().lower()
                 raw_wc = (request.POST.get('work_center_id') or '').strip()
                 wc_id = int(raw_wc) if raw_wc.isdigit() and int(raw_wc) > 0 else None
@@ -2647,13 +2722,16 @@ def plan_board(request):
                 )
                 from_date = parse_sx_date(from_raw) if from_raw else None
                 raw_wc = (request.POST.get('work_center_id') or '').strip()
-                order = reschedule_order_team_start(
-                    order_id=order_id,
-                    start_date=start_date,
-                    team_slug=team_slug,
-                    from_date=from_date,
-                    work_center_id=int(raw_wc) if raw_wc.isdigit() and int(raw_wc) > 0 else None,
-                )
+                from san_xuat.services.route_sheet import suppress_route_sheet_enqueue
+
+                with suppress_route_sheet_enqueue(order_id):
+                    order = reschedule_order_team_start(
+                        order_id=order_id,
+                        start_date=start_date,
+                        team_slug=team_slug,
+                        from_date=from_date,
+                        work_center_id=int(raw_wc) if raw_wc.isdigit() and int(raw_wc) > 0 else None,
+                    )
                 wants_json = (
                     (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
                     or 'application/json' in (request.headers.get('Accept') or '')
@@ -3029,6 +3107,11 @@ def plan_board(request):
         )
 
         force_full_route = bool((request.GET.get('_route_refresh') or '').strip())
+        route_row = (request.GET.get('route_row') or '').strip() == '1'
+        try:
+            route_refresh_order_id = int(request.GET.get('route_order_id') or 0)
+        except (TypeError, ValueError):
+            route_refresh_order_id = 0
         grouped_ids = route_window_status_ids(
             search=q,
             date_from=route_from,
@@ -3053,9 +3136,13 @@ def plan_board(request):
         def _route_board_for(ids):
             batch = [int(pk) for pk in ids if int(pk) > 0]
             if force_full_route:
-                # reschedule_route queues route-sheet rebuild after commit. The
-                # immediate partial reload must not read that stale snapshot.
-                refresh_route_sheets(batch, range_from=route_from, range_to=route_to)
+                # Chỉ rebuild đơn vừa kéo; các đơn còn lại dùng snapshot hiện có.
+                refresh_ids = (
+                    [route_refresh_order_id]
+                    if route_refresh_order_id in batch
+                    else batch
+                )
+                refresh_route_sheets(refresh_ids, range_from=route_from, range_to=route_to)
             ensure_route_sheets(batch, range_from=route_from, range_to=route_to)
             if deadline_filter in {'overdue', 'on_time'}:
                 allowed = route_sheet_deadline_ids(batch, deadline_filter, timezone.localdate())

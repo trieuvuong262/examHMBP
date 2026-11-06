@@ -15,6 +15,22 @@ Mỗi entry nên có:
 
 ## Entries
 
+### 2026-11-06 — bugfix / SL đơn hàng trên route board
+
+- **Type**: bugfix
+- **Change**: Truyền `PlanBoardRow.total_qty` vào `PlanTimelineRow`, serialize/deserialize trong `SxRouteSheet.payload`, và template có fallback về `order.total_qty` cho cache cũ.
+- **Reason**: Route board đã có tổng SL đơn ở row nguồn nhưng payload cache bỏ qua trường này, khiến cột «SL đơn hàng» hiển thị trống.
+- **Source**: `san_xuat/services/plan_board.py::PlanTimelineRow/build_order_timeline`, `san_xuat/services/route_sheet.py::_dump_timeline/_hydrate_row`, `san_xuat/templates/san_xuat/includes/plan_board_route_product.html`.
+- **Agent impact**: Khi thêm trường hiển thị vào route board, phải kiểm tra đủ chuỗi DTO → serializer → cache loader → template và test cả cache cũ.
+
+### 2026-11-06 — workflow / Công việc tổ khớp bộ phận và tổ
+
+- **Type**: workflow | feature
+- **Change**: Board submenu HR chỉ nhận công đoạn khớp đồng thời work center của bộ phận và tổ nội bộ; công đoạn chuyển sang tổ gia công `gc-<work_center_id>` không xuất hiện ở board `d{id}`. Phân công và mở phiếu tiến độ trực tiếp cũng áp dụng cùng điều kiện.
+- **Reason**: Một bộ phận có nhiều tổ; MAY giao THUÊ NGOÀI phải đi qua menu Gia công, không lẫn vào submenu MAY nội bộ.
+- **Source**: `san_xuat/services/order_progress_sheet.py::progress_steps_for_team`, `san_xuat/services/team_work.py::build_team_work_rows/assign_team_work`, `san_xuat/views_hub.py::team_work_progress`, `san_xuat/services/team_division_map.py`.
+- **Agent impact**: Không fallback từ `group_key` sang board bộ phận khi work center thực tế là tổ gia công; kiểm tra `work_center_id/code` trước khi hiển thị hoặc phân công.
+
 ### 2026-11-05 — bugfix / chuyển tổ gia công phải vào đúng Công việc tổ
 
 - **Type**: workflow | feature

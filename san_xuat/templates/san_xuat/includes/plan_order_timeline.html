@@ -7,10 +7,8 @@
          oncontextmenu="event.preventDefault(); if (window.jpRouteCtx) window.jpRouteCtx(event);">
   {% csrf_token %}
   <div class="jp-route-full-bar">
-    <span class="jp-route-full-title">Lộ trình sản xuất</span>
-    <button type="button" class="jp-route-full-exit" id="jpRouteFullscreenExit" title="Thu nhỏ bảng lộ trình">
+    <button type="button" class="jp-route-full-exit" id="jpRouteFullscreenExit" title="Thu nhỏ bảng lộ trình" aria-label="Thu nhỏ bảng lộ trình">
       <i class="bi bi-fullscreen-exit" aria-hidden="true"></i>
-      <span>Thu nhỏ</span>
     </button>
   </div>
   {% for row in route_board.rows %}
@@ -72,6 +70,7 @@
   </div>
 </section>
 {% include 'san_xuat/includes/plan_route_day_entry.html' %}
+{% include 'san_xuat/includes/plan_route_edit_state.html' %}
 <div class="modal fade" id="jpNplNeedModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
