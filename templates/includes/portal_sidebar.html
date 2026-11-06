@@ -1546,7 +1546,7 @@
             </a>
         </li>
         {% endif %}
-        {% if jp_can_audit %}
+        {% if jp_can_audit or request.user.is_superuser %}
         <li class="jp-sidebar-group{% if 'nhat-ky' in request.path %} is-open{% endif %}">
             <button type="button"
                     class="jp-sidebar-group-toggle"
@@ -1559,6 +1559,14 @@
                 <i class="bi bi-chevron-down jp-sidebar-group-chevron" aria-hidden="true"></i>
             </button>
             <ul class="jp-sidebar-submenu" id="jp-sidebar-sysadmin-submenu">
+                {% if request.user.is_superuser %}
+                <li>
+                    <a href="{% url 'audit:architecture_map' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'architecture_map' %}active{% endif %}">
+                        <i class="bi bi-diagram-3"></i><span>Quản lý code</span>
+                    </a>
+                </li>
+                {% endif %}
                 {% jp_can_menu 'audit' 'login_security' as jp_can_audit_login_security %}
                 {% if jp_can_audit_login_security %}
                 <li>

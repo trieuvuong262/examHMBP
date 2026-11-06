@@ -3,6 +3,7 @@
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
+from types import SimpleNamespace
 
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
@@ -12,6 +13,7 @@ from django.utils import timezone
 from san_xuat.hub_models import (
     SxSalesOrder,
     SxSalesOrderLine,
+    SxSalesOrderPlanStep,
     SxSalesOrderRoutingLine,
     SxWorkCenter,
 )
@@ -21,6 +23,57 @@ from san_xuat.services.plan_board import (
     reschedule_order_team_start,
     team_khsx_spans,
 )
+from san_xuat.services.team_work import TeamWorkJob, apply_own_plan_team
+
+
+class TeamWorkGcOwnershipTests(TestCase):
+    def test_latest_gc_snapshot_owns_order_and_hides_old_board(self):
+        order = SxSalesOrder.objects.create(
+            code='DH-TW-GC-OWNERSHIP',
+            request_date=date(2026, 8, 3),
+            confirm_status=SxSalesOrder.CONFIRM_CONFIRMED,
+            plan_status=SxSalesOrder.PLAN_IN_PROGRESS,
+        )
+        old_gc = SxWorkCenter.objects.create(code='GC-OLD', name='Thuê ngoài cũ')
+        new_gc = SxWorkCenter.objects.create(code='GC-NEW', name='50-phú tv')
+        internal = SxWorkCenter.objects.create(code='MAY-INTERNAL', name='May nội bộ')
+        from san_xuat.partner_models import GcPartner
+
+        GcPartner.objects.create(
+            code='GC-OLD-PARTNER', name='Thuê ngoài', work_center=old_gc,
+        )
+        GcPartner.objects.create(
+            code='GC-NEW-PARTNER', name='50-phú tv', work_center=new_gc,
+        )
+        SxSalesOrderPlanStep.objects.create(
+            sales_order=order, sequence=10, process_name='Công đoạn cũ', work_center=old_gc,
+        )
+        SxSalesOrderPlanStep.objects.create(
+            sales_order=order, sequence=20, process_name='Công đoạn mới', work_center=new_gc,
+        )
+        job = TeamWorkJob(mo=SimpleNamespace(sales_order_id=order.pk), rows=[])
+
+        old_board = apply_own_plan_team(
+            [job],
+            team={
+                'work_center_code': internal.code,
+                'slug': 'theu',
+                'stage_slug': '',
+                'is_gc': False,
+            },
+        )
+        new_gc_board = apply_own_plan_team(
+            [job],
+            team={
+                'work_center_code': new_gc.code,
+                'slug': 'gc-new',
+                'stage_slug': '',
+                'is_gc': True,
+            },
+        )
+
+        self.assertEqual(old_board, [])
+        self.assertEqual(new_gc_board, [job])
 
 
 def _wc(code, name):
@@ -198,6 +251,23 @@ class RescheduleRouteViewTests(TestCase):
         spans = {s.slug: s for s in team_khsx_spans(SxSalesOrder.objects.get(pk=order.pk))}
         self.assertEqual(spans['cat'].start, date(2026, 8, 18))
         self.assertEqual(spans['may'].start, date(2026, 8, 4))
+
+    def test_post_json_save_route_draft_error_is_json(self):
+        url = reverse('san_xuat:plan_board') + '?mode=list&tab=route'
+        resp = self.client.post(
+            url,
+            {
+                'action': 'save_route_draft',
+                'changes': '{not-json',
+            },
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+            HTTP_ACCEPT='application/json',
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp['Content-Type'].split(';', 1)[0], 'application/json')
+        data = resp.json()
+        self.assertFalse(data.get('ok'))
+        self.assertIn('không hợp lệ', data.get('error', ''))
 
     def test_route_drag_save_waits_for_reload_before_hiding_loading(self):
         template = Path(__file__).resolve().parent / 'templates' / 'san_xuat' / 'plan_board.html'

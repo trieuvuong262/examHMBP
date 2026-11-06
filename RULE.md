@@ -42,6 +42,20 @@ For the approval question, include the affected scope, estimated file count, opt
 
 After following the reading order and approval gate, perform the request using the graph-first workflow. Keep context narrow, update living documentation when the change affects documented architecture/workflows, and report files, graph/index context, checks and limitations at the end.
 
+## Add/change feature gate
+
+For every new or modified function, view, route, model, command, worker or user-facing feature:
+
+1. Trace the current path before editing: `URL → view/API → form/serializer → service → model/table → template/response`, including worker and external integration boundaries.
+2. Run `python manage.py architecture_map` or the narrow `--app`/`--open-function` variant; use CodeGraph `callers`, `callees` and `impact` for existing behavior.
+3. Check permissions, audit logging, migrations, related tests and documented workflow.
+4. After editing, run the smallest relevant checks/tests, regenerate the architecture map, and update `docs/AI_CODEBASE_MAP.md` and `docs/AI_CHANGELOG.md` when routes, workflows, modules, integrations or data models change.
+5. Do not claim a function is safe to change from the static map alone; state unresolved dynamic-import, runtime-query or stale-index limitations.
+
+If the change affects security, permissions, privacy, data, workflow, user-facing behavior or more than 10 files, stop at the approval gate before coding.
+
+The final response must list changed files, trace/index context, checks/tests, documentation updates and known limitations.
+
 ## Short user prompt
 
 Use this prompt in any AI coding tool:

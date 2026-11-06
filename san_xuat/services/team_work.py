@@ -186,10 +186,11 @@ def apply_own_plan_team(jobs: list[TeamWorkJob], *, team: dict) -> list[TeamWork
     )
     # Một đơn chỉ được hiển thị ở tổ GC đích hiện hành. Dữ liệu lịch cũ có thể
     # còn giữ nhiều work center GC cùng lúc; lấy work center cuối cùng trong
-    # snapshot lộ trình làm nguồn quyết định, tránh hiện cùng đơn ở gc-47 và
-    # gc-37 (ví dụ đơn đã chuyển về 50-Phú TV).
-    if team.get('is_gc'):
-        gc_order_centers: dict[int, list[int]] = {}
+    # snapshot lộ trình làm nguồn quyết định. Quy tắc này áp dụng cho cả board
+    # GC và board nội bộ/Thuê Ngoài, để đơn đã chuyển sang GC không bị hiển thị
+    # đồng thời ở board cũ (ví dụ đơn đã chuyển về 50-Phú TV).
+    gc_order_centers: dict[int, list[int]] = {}
+    if gc_center_ids:
         for oid, center_id in SxSalesOrderPlanStep.objects.filter(
             sales_order_id__in=order_ids,
             work_center_id__in=gc_center_ids,
@@ -197,18 +198,15 @@ def apply_own_plan_team(jobs: list[TeamWorkJob], *, team: dict) -> list[TeamWork
             'sales_order_id', 'work_center_id',
         ):
             gc_order_centers.setdefault(int(oid), []).append(int(center_id))
+
+    if team.get('is_gc'):
         for oid, center_ids in gc_order_centers.items():
             if center_ids and center_ids[-1] != wc.pk:
                 assigned.discard(oid)
-    if not team.get('is_gc'):
-        from san_xuat.partner_models import GcPartner
-
-        gc_center_ids = set(
-            GcPartner.objects.filter(
-                is_active=True,
-                work_center__is_active=True,
-            ).values_list('work_center_id', flat=True)
-        )
+    else:
+        # Có snapshot GC hiện hành thì đơn thuộc board GC, không thuộc board
+        # bộ phận nội bộ/Thuê Ngoài, kể cả khi day-plan cũ vẫn còn sót.
+        gc_only_orders = set(gc_order_centers)
         if gc_center_ids:
             day_centers_by_order: dict[int, set[int]] = {}
             for oid, center_id in SxOrderTeamDayPlan.objects.filter(
@@ -231,14 +229,13 @@ def apply_own_plan_team(jobs: list[TeamWorkJob], *, team: dict) -> list[TeamWork
                     qty__gt=0,
                 ).values_list('sales_order_id', flat=True)
             )
-            gc_only_orders = {
+            gc_only_orders.update(
                 oid for oid in day_centers_by_order
                 if oid not in own_day_orders
-            }
-            assigned -= gc_only_orders
-        else:
-            gc_only_orders = set()
-    else:
+            )
+        assigned -= gc_only_orders
+
+    if team.get('is_gc'):
         gc_only_orders = set()
     own_slug = (team.get('slug') or '').strip().lower()
     stage_slug = (team.get('stage_slug') or '').strip().lower()

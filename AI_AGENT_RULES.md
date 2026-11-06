@@ -60,6 +60,36 @@ Expected: <validation/result>
 8. If the task changes modules, features, routes, workflows, integrations, data models, commands, deployment, or agent instructions, update the living documentation before finishing.
 9. Review the documentation diff together with the code diff; documentation drift is an incomplete task.
 
+## Add/change feature protocol
+
+Use this protocol whenever adding or modifying a function, view, URL, API, model, command, worker, template flow or external integration.
+
+### Before editing
+
+- State the observable plan, affected scope and expected validation.
+- Run `python manage.py architecture_map --app <app>` when the app is known; use `--open-function <name>` for a specific symbol.
+- For existing symbols, use CodeGraph in this order: `context`/`search` → `callers`/`callees` → `impact`.
+- Identify the actual path: `URL → view/API → form/serializer → service → model/query → table → template/response`.
+- Check background jobs, signals, permissions, audit logging and external APIs.
+- Locate related tests and decide whether the change needs a migration, new test, documentation entry or rollback note.
+- Apply the approval gate before coding when behavior, workflow, security, data, permissions, policy or more than 10 files are affected.
+
+### While editing
+
+- Keep views thin and place substantial business logic in the established service layer.
+- Preserve existing permission and audit boundaries unless the user explicitly approves a workflow/security change.
+- If a model or field changes, create a new migration; never edit a migration already merged.
+- Update tests with the same behavior change, including permission and failure-path tests where applicable.
+- Do not use generated architecture output as a substitute for reading the directly affected source.
+
+### After editing
+
+- Regenerate the architecture map and inspect changed routes, functions, models and tables.
+- Run `python manage.py check`, focused tests, `compileall` for changed Python files and `git diff --check`.
+- Update `docs/AI_CODEBASE_MAP.md` for new/changed modules, entry points, routes, data relationships and workflows.
+- Add a dated entry to `docs/AI_CHANGELOG.md` for architecture, workflow, integration, module or agent-policy changes.
+- Review code and documentation diffs together; report skipped checks, stale indexes and static-analysis limitations explicitly.
+
 ## Living documentation workflow
 
 Documentation is part of the implementation, not an optional follow-up. The canonical files are:

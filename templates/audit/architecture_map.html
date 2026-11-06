@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Quản lý code · Just Play{% endblock %}
+
+{% block extra_head %}
+<style>
+    .jp-arch-hero { background: linear-gradient(135deg, #101a33 0%, #1e3a5f 100%); color: #fff; border-radius: 1rem; }
+    .jp-arch-stat { border: 0; border-radius: .9rem; box-shadow: 0 .25rem 1rem rgba(16, 24, 40, .08); }
+    .jp-arch-stat .value { font-size: 1.7rem; font-weight: 800; line-height: 1; }
+    .jp-arch-panel { border: 0; border-radius: .9rem; box-shadow: 0 .25rem 1rem rgba(16, 24, 40, .06); }
+    .jp-arch-table { font-size: .82rem; }
+    .jp-arch-table td, .jp-arch-table th { vertical-align: top; }
+    .jp-arch-table code { color: #173d6d; word-break: break-word; }
+    .jp-arch-pre { max-height: 32rem; overflow: auto; background: #101827; color: #d7e6ff; border-radius: .7rem; padding: 1rem; font-size: .78rem; }
+    .jp-arch-pill { display: inline-block; margin: .12rem .2rem .12rem 0; padding: .2rem .45rem; border-radius: 999px; background: #eef4fb; color: #24476e; font-size: .74rem; }
+    .jp-arch-muted { color: #667085; }
+    .jp-arch-sticky { position: sticky; top: 1rem; }
+    @media (max-width: 991px) { .jp-arch-sticky { position: static; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid jp-page py-3 py-md-4 px-2 px-md-4 mb-5" id="jp-architecture-page">
+    <section class="jp-arch-hero p-4 p-lg-5 mb-4">
+        <div class="d-flex flex-wrap gap-3 align-items-start justify-content-between">
+            <div>
+                <div class="text-uppercase small opacity-75 fw-bold mb-2"><i class="bi bi-shield-lock me-1"></i>Chỉ superuser</div>
+                <h1 class="h2 fw-bold mb-2">Quản lý code</h1>
+                <p class="mb-0 opacity-75">Tra cứu quan hệ URL, function, module, model và bảng dữ liệu của Portal.</p>
+            </div>
+            <div class="text-lg-end small opacity-75">
+                <div>Phân tích: Django introspection + AST</div>
+                <div>Không hiển thị nội dung source, secret hoặc dữ liệu nghiệp vụ</div>
+            </div>
+        </div>
+    </section>
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-xl-3"><div class="card jp-arch-stat h-100"><div class="card-body"><div class="jp-arch-muted small">Apps</div><div class="value">{{ architecture.apps|length }}</div><div class="small jp-arch-muted">module Django</div></div></div></div>
+        <div class="col-6 col-xl-3"><div class="card jp-arch-stat h-100"><div class="card-body"><div class="jp-arch-muted small">URL patterns</div><div class="value">{{ architecture.urls|length }}</div><div class="small jp-arch-muted">route đã nạp</div></div></div></div>
+        <div class="col-6 col-xl-3"><div class="card jp-arch-stat h-100"><div class="card-body"><div class="jp-arch-muted small">Models</div><div class="value">{{ architecture.models|length }}</div><div class="small jp-arch-muted">bảng/quan hệ</div></div></div></div>
+        <div class="col-6 col-xl-3"><div class="card jp-arch-stat h-100"><div class="card-body"><div class="jp-arch-muted small">Python modules</div><div class="value">{{ architecture.modules|length }}</div><div class="small jp-arch-muted">function/class được quét</div></div></div></div>
+    </div>
+
+    <div class="card jp-arch-panel mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-2 align-items-end">
+                <div class="col-lg-4"><label class="form-label small fw-bold">Chọn app</label><select name="app" class="form-select"><option value="">Toàn bộ project</option>{% for app in architecture.apps %}<option value="{{ app.label }}"{% if architecture.selected_app == app.label %} selected{% endif %}>{{ app.label }}</option>{% endfor %}</select></div>
+                <div class="col-lg-5"><label class="form-label small fw-bold">Tìm trong report</label><input id="jp-arch-search" type="search" class="form-control" placeholder="function, file, model, table, URL..."></div>
+                <div class="col-lg-3 d-flex gap-2"><button class="btn btn-primary flex-grow-1"><i class="bi bi-arrow-clockwise me-1"></i>Nạp lại</button><button type="button" class="btn btn-outline-secondary" id="jp-arch-clear">Xóa lọc</button></div>
+            </form>
+            {% if architecture.selected_app %}<div class="small text-primary mt-3"><i class="bi bi-funnel me-1"></i>Đang lọc app <strong>{{ architecture.selected_app }}</strong>. URL vẫn hiển thị toàn bộ resolver project để thấy route mount.</div>{% endif %}
+        </div>
+    </div>
+
+    <div class="card jp-arch-panel mb-4">
+        <div class="card-header bg-white border-0 pt-3 px-3"><ul class="nav nav-tabs card-header-tabs" role="tablist">
+            <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#jp-arch-overview">Tổng quan</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#jp-arch-functions">Functions</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#jp-arch-models">Models / tables</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#jp-arch-urls">URLs</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#jp-arch-diagram">Sơ đồ</button></li>
+        </ul></div>
+        <div class="card-body tab-content">
+            <div class="tab-pane fade show active" id="jp-arch-overview">
+                <div class="row g-3"><div class="col-lg-7"><h2 class="h5 fw-bold">Apps và phạm vi dữ liệu</h2><div class="table-responsive"><table class="table table-hover jp-arch-table"><thead><tr><th>App</th><th>Đường dẫn</th><th>Models</th></tr></thead><tbody id="jp-arch-app-rows">{% for app in architecture.apps %}<tr data-search="{{ app.label }} {{ app.name }} {{ app.path }}"><td><code>{{ app.label }}</code></td><td class="jp-arch-muted">{{ app.path }}</td><td>{{ app.models|length }}</td></tr>{% endfor %}</tbody></table></div></div><div class="col-lg-5"><h2 class="h5 fw-bold">Quy trình tra cứu khi sửa</h2><ol class="small jp-arch-muted"><li>Chọn function hoặc URL bị ảnh hưởng.</li><li>Đối chiếu caller/callee và model hints.</li><li>Kiểm tra permission, audit, worker và integration.</li><li>Kiểm tra migration và test tương ứng.</li><li>Sửa xong chạy check/test và nạp lại report.</li></ol><div class="alert alert-warning small mb-0"><i class="bi bi-exclamation-triangle me-1"></i>Report là phân tích tĩnh; không thay thế CodeGraph hoặc SQL runtime tracing.</div></div></div>
+            </div>
+            <div class="tab-pane fade" id="jp-arch-functions"><div class="table-responsive"><table class="table table-hover jp-arch-table"><thead><tr><th>Function</th><th>File : line</th><th>Calls</th><th>Model hints</th></tr></thead><tbody id="jp-arch-function-rows"></tbody></table></div></div>
+            <div class="tab-pane fade" id="jp-arch-models"><div class="table-responsive"><table class="table table-hover jp-arch-table"><thead><tr><th>Model</th><th>Database table</th><th>Fields / relations</th></tr></thead><tbody id="jp-arch-model-rows"></tbody></table></div></div>
+            <div class="tab-pane fade" id="jp-arch-urls"><div class="table-responsive"><table class="table table-hover jp-arch-table"><thead><tr><th>Route</th><th>Name</th><th>Callback</th></tr></thead><tbody id="jp-arch-url-rows"></tbody></table></div></div>
+            <div class="tab-pane fade" id="jp-arch-diagram"><h2 class="h5 fw-bold">Model relationship diagram</h2><p class="small jp-arch-muted">Copy nội dung Mermaid vào Mermaid Live hoặc extension Mermaid Preview để xem sơ đồ trực quan.</p><pre class="jp-arch-pre" id="jp-arch-mermaid">{{ architecture.model_mermaid }}</pre></div>
+        </div>
+    </div>
+
+    <div class="small jp-arch-muted"><strong>Giới hạn:</strong> {% for item in architecture.meta.limitations %}{{ item }}{% if not forloop.last %} {% endif %}{% endfor %}</div>
+</div>
+{{ architecture|json_script:"jp-architecture-data" }}
+<script>
+(function () {
+    const data = JSON.parse(document.getElementById('jp-architecture-data').textContent);
+    const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    const search = document.getElementById('jp-arch-search');
+    function matches(value) { return !search.value.trim() || String(value).toLowerCase().includes(search.value.trim().toLowerCase()); }
+    function render() {
+        const functions = data.modules.flatMap(module => module.functions).filter(item => matches([item.qualified_name, item.file, item.calls, item.model_names].join(' ')));
+        document.getElementById('jp-arch-function-rows').innerHTML = functions.map(item => `<tr><td><code>${esc(item.qualified_name)}</code></td><td>${esc(item.file)}:${item.line}</td><td>${item.calls.map(esc).join(', ') || '<span class="text-muted">—</span>'}</td><td>${item.model_names.map(esc).join(', ') || '<span class="text-muted">—</span>'}</td></tr>`).join('') || '<tr><td colspan="4" class="text-muted">Không có kết quả.</td></tr>';
+        document.getElementById('jp-arch-model-rows').innerHTML = data.models.filter(item => matches([item.label, item.table, JSON.stringify(item.fields)].join(' '))).map(item => `<tr><td><code>${esc(item.label)}</code><div class="small text-muted">${esc(item.name)}</div></td><td><code>${esc(item.table)}</code></td><td>${item.fields.map(field => `<span class="jp-arch-pill">${esc(field.name)}${field.related_model ? ' → ' + esc(field.related_model) : ''}</span>`).join('')}</td></tr>`).join('') || '<tr><td colspan="3" class="text-muted">Không có kết quả.</td></tr>';
+        document.getElementById('jp-arch-url-rows').innerHTML = data.urls.filter(item => matches([item.route, item.name, item.callback].join(' '))).map(item => `<tr><td><code>${esc(item.route)}</code></td><td>${esc(item.name) || '<span class="text-muted">—</span>'}</td><td><code>${esc(item.callback)}</code></td></tr>`).join('') || '<tr><td colspan="3" class="text-muted">Không có kết quả.</td></tr>';
+    }
+    search.addEventListener('input', render);
+    document.getElementById('jp-arch-clear').addEventListener('click', () => { search.value = ''; render(); });
+    render();
+}());
+</script>
+{% endblock %}

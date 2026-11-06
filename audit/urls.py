@@ -13,10 +13,12 @@ from . import views_nas
 from . import views_rustdesk
 from . import views_rustdesk_setup
 from . import views_vps
+from . import views_architecture
 
 app_name = 'audit'
 
 urlpatterns = [
+    path('quan-ly-code/', views_architecture.architecture_map, name='architecture_map'),
     path('thong-bao-day/', views_push.push_config_page, name='push_config'),
     path('tro-ly-ai/', admin_qa_settings, name='qa_assistant'),
     path('zalo-oa/', zalo_oa_config_page, name='zalo_oa'),

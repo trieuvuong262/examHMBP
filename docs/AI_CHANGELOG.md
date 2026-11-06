@@ -15,12 +15,40 @@ Mỗi entry nên có:
 
 ## Entries
 
+### 2026-11-06 — feature / superuser code management explorer
+
+- **Type**: feature | architecture
+- **Change**: Thêm submenu `Quản lý code` trong `Quản Trị Hệ thống`, chỉ superuser truy cập được. Trang hiển thị app, URL, function/file-line, model/table, quan hệ field và Mermaid diagram từ metadata Django + AST.
+- **Reason**: Cho phép quản trị viên tra cứu dependency trước khi thêm hoặc sửa chức năng mà không lộ nội dung source, secret hay dữ liệu nghiệp vụ.
+- **Source**: `audit/architecture_service.py`, `audit/views_architecture.py`, `audit/urls.py`, `templates/audit/architecture_map.html`, `templates/includes/portal_sidebar.html`, `audit/tests_architecture.py`.
+- **Agent impact**: Route `/nhat-ky/quan-ly-code/` dùng decorator + `PermissionDenied`; 403 cho authenticated non-superuser. Data là static metadata, cần CodeGraph/runtime trace để xác minh sâu hơn.
+
+### 2026-11-06 — ai-policy / add-change feature checklist
+
+
+### 2026-11-06 — bugfix / lưu lộ trình trả lỗi JSON cho AJAX
+
+- **Type**: bugfix
+- **Change**: Bổ sung `save_route_draft` vào các nhánh response lỗi AJAX của `plan_board`; lỗi nghiệp vụ, lỗi bất ngờ hoặc thiếu quyền giờ trả JSON `{ok: false, error: ...}` thay vì redirect về HTML.
+- **Reason**: Frontend lưu lộ trình gọi `res.json()`, nên response HTML bắt đầu bằng `<!DOCTYPE` gây lỗi `Unexpected token '<'` và che mất thông báo thật.
+- **Source**: `san_xuat/views_hub.py::plan_board`; regression test `san_xuat/tests_plan_route_teams.py::RescheduleRouteViewTests.test_post_json_save_route_draft_error_is_json`; template `san_xuat/templates/san_xuat/includes/plan_route_edit_state.html`.
+- **Agent impact**: Khi thêm action AJAX mới vào `plan_board`, phải đưa action vào toàn bộ nhánh JSON lỗi tương ứng với nhánh thành công.
+
+### 2026-11-06 — ai-policy / add-change feature checklist
+
+
+- **Type**: ai-policy | architecture
+- **Change**: Bổ sung quy trình bắt buộc khi thêm/sửa chức năng: trace URL → view → service → model/table, chạy architecture map và CodeGraph, kiểm tra permission/migration/test, cập nhật code map/changelog và báo giới hạn phân tích tĩnh.
+- **Reason**: Giảm bỏ sót dependency, bảng dữ liệu, migration, quyền và tài liệu khi thay đổi chức năng hiện hữu.
+- **Source**: `RULE.md`, `AI_AGENT_RULES.md`, `docs/AI_CODEBASE_MAP.md`, `docs/architecture/README.md`.
+- **Agent impact**: Luôn trace trước khi sửa; nếu ảnh hưởng workflow, security, data, permission, policy hoặc trên 10 file thì phải dừng ở approval gate.
+
 ### 2026-11-06 — bugfix / một đơn chỉ hiển thị ở tổ gia công đích
 
 - **Type**: bugfix | workflow
-- **Change**: `apply_own_plan_team` ưu tiên work center gia công hiện hành trong snapshot lộ trình khi lọc bảng Công việc tổ; dữ liệu lịch cũ còn sót ở tổ GC khác không làm cùng đơn xuất hiện đồng thời ở hai bảng.
+- **Change**: `apply_own_plan_team` ưu tiên work center gia công hiện hành trong snapshot lộ trình khi lọc bảng Công việc tổ; dữ liệu lịch cũ còn sót ở tổ GC khác không làm cùng đơn xuất hiện đồng thời ở hai bảng. Board nội bộ/THUÊ NGOÀI cũng loại đơn đã có work center GC hiện hành trong snapshot, thay vì chỉ dựa vào day-plan.
 - **Reason**: Đơn đã chuyển về tổ `50-Phú TV` (`gc-37`) nhưng vẫn xuất hiện ở `THUÊ NGOÀI` (`gc-47`).
-- **Source**: `san_xuat/services/team_work.py::apply_own_plan_team`.
+- **Source**: `san_xuat/services/team_work.py::apply_own_plan_team`; regression test `san_xuat/tests_plan_route_teams.py::TeamWorkGcOwnershipTests`.
 - **Agent impact**: Khi kiểm tra đơn gia công bị trùng bảng, đối chiếu `SxSalesOrderPlanStep.work_center` theo thứ tự snapshot; không xóa dữ liệu tiến độ hoặc phiếu GC chỉ để sửa hiển thị.
 
 ### 2026-11-06 — maintenance / command sửa bộ phận route board cho tổ thuê ngoài

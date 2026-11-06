@@ -2884,7 +2884,7 @@ def plan_board(request):
             else:
                 if action:
                     if (
-                        action in ('reschedule_route', 'split_team_days', 'split_team_in_two', 'assign_plan_team', 'add_plan_team', 'save_plan_team_capacity', 'reorder_plan_orders', 'reorder_team_day_orders')
+                        action in ('save_route_draft', 'reschedule_route', 'split_team_days', 'split_team_in_two', 'assign_plan_team', 'add_plan_team', 'save_plan_team_capacity', 'reorder_plan_orders', 'reorder_team_day_orders')
                         and (
                             (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
                             or 'application/json' in (request.headers.get('Accept') or '')
@@ -2906,7 +2906,7 @@ def plan_board(request):
                     messages.error(request, 'Bạn không có quyền thực hiện thao tác này.')
         except PlanningError as exc:
             if (
-                (request.POST.get('action') or '').strip() in ('reschedule_route', 'split_team_days', 'split_team_in_two', 'assign_plan_team', 'add_plan_team', 'save_plan_team_capacity', 'reorder_plan_orders', 'reorder_team_day_orders')
+                (request.POST.get('action') or '').strip() in ('save_route_draft', 'reschedule_route', 'split_team_days', 'split_team_in_two', 'assign_plan_team', 'add_plan_team', 'save_plan_team_capacity', 'reorder_plan_orders', 'reorder_team_day_orders')
                 and (
                     (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
                     or 'application/json' in (request.headers.get('Accept') or '')
@@ -2918,7 +2918,7 @@ def plan_board(request):
             messages.error(request, str(exc))
         except Exception as exc:
             if (
-                (request.POST.get('action') or '').strip() in ('reschedule_route', 'split_team_days', 'split_team_in_two', 'assign_plan_team', 'add_plan_team', 'save_plan_team_capacity', 'reorder_plan_orders', 'reorder_team_day_orders')
+                (request.POST.get('action') or '').strip() in ('save_route_draft', 'reschedule_route', 'split_team_days', 'split_team_in_two', 'assign_plan_team', 'add_plan_team', 'save_plan_team_capacity', 'reorder_plan_orders', 'reorder_team_day_orders')
                 and (
                     (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
                     or 'application/json' in (request.headers.get('Accept') or '')
