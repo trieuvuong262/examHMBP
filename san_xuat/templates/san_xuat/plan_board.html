@@ -3445,10 +3445,11 @@
       || src.getAttribute('data-start')
       || ''
     );
+    // `start` đã là ngày làm việc đầu tiên; không gọi nextWorkYmd lần nữa
+    // cho dòng đầu, nếu không modal sẽ lệch thêm một ngày (01/10 -> 02/10).
     var ymd = start;
     var rows = chunks.map(function (q, i) {
       if (i) ymd = addWorkDaysYmd(ymd, 1);
-      else ymd = nextWorkYmd(ymd);
       return { date: ymd, qty: q };
     });
     return { rows: rows, daily: daily, rawDaily: rawDaily, smv: smv };
@@ -3883,11 +3884,42 @@
     }
   }
   function previewSplitDays(bar, days) {
-    // Không tự clone/chèn thanh vào DOM: lưới có cấu trúc stage/cell do backend dựng.
-    // Chỉ đánh dấu đúng stage đang có draft; preview dữ liệu được render lại khi reload sau save.
     if (!bar || !days || !days.length) return;
-    bar.classList.add('jp-route-draft-change');
     var row = bar.closest ? bar.closest('tr') : null;
+    var root = rootEl();
+    var cells = row && row.querySelectorAll
+      ? row.querySelectorAll('.jp-sheet-cell[data-date], .jp-tl-slot[data-date]') : [];
+    var byDate = {};
+    (days || []).forEach(function (item) {
+      var date = item.date || '';
+      if (!date) return;
+      byDate[date] = (byDate[date] || 0) + (parseNum(item.qty) || 0);
+    });
+    var existing = row && row.querySelectorAll
+      ? row.querySelectorAll('.jp-sheet-qty[data-team-slug="' + state.teamSlug + '"], .jp-tl-bar[data-team-slug="' + state.teamSlug + '"]') : [];
+    Array.prototype.forEach.call(existing, function (node) {
+      node.classList.add('jp-route-draft-change');
+      node.style.opacity = '.35';
+    });
+    Object.keys(byDate).forEach(function (date) {
+      var cell = null;
+      Array.prototype.forEach.call(cells, function (candidate) {
+        if (!cell && candidate.getAttribute('data-date') === date) cell = candidate;
+      });
+      if (!cell) return;
+      var host = cell.querySelector('.jp-tl-bars, .jp-sheet-cell-inner') || cell;
+      var clone = bar.cloneNode(true);
+      clone.removeAttribute('id');
+      clone.setAttribute('data-plan-date', date);
+      clone.setAttribute('data-start', date);
+      clone.setAttribute('data-end', date);
+      clone.setAttribute('data-qty', String(byDate[date]));
+      clone.setAttribute('data-is-split', '1');
+      clone.classList.add('jp-route-draft-change', 'jp-route-draft-preview');
+      clone.style.opacity = '1';
+      clone.title = (bar.getAttribute('title') || state.teamLabel) + ' · Nháp ' + date + ' · SL ' + fmtNum(byDate[date]);
+      host.appendChild(clone);
+    });
     if (row) row.classList.add('jp-route-draft-change');
   }
 
