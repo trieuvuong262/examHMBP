@@ -15,6 +15,14 @@ Mỗi entry nên có:
 
 ## Entries
 
+### 2026-11-07 — bugfix / đổi tổ KHSX không cập nhật LSX nên không nhập được tiến độ
+
+- **Type**: bugfix | workflow
+- **Change**: `assign_plan_team` gọi `plan_board.sync_mo_steps_team`: bước LSX đang chạy (không hủy/xong) cùng tên công đoạn (và cùng nhóm khi có mã CĐ) với bước KHSX của slug được gán tổ mới. OB đơn vẫn không bị ghi. Thêm lệnh `sync_mo_teams_from_plan` (dry-run mặc định, `--apply`, `--order-id`) đưa bước LSX đang ở tổ không phải `HRD-*` (THUÊ NGOÀI, tổ GC) về tổ KHSX; bỏ qua tên công đoạn nằm ở hai tổ trong cùng đơn.
+- **Reason**: Fix `4f730c2a` bỏ `sync_active_mos_from_order` khỏi `assign_plan_team`, nên LSX giữ tổ cũ (THUÊ NGOÀI). Nhập tiến độ trên lộ trình dùng slug của tổ thực hiện (`d39`, `gc-43`) và `progress_steps_for_team` chỉ khớp work center của bước LSX → «Đơn chưa có công đoạn của tổ này».
+- **Source**: `san_xuat/services/plan_board.py::assign_plan_team`, `sync_mo_steps_team`; `san_xuat/management/commands/sync_mo_teams_from_plan.py`; `san_xuat/services/order_progress_sheet.py::progress_steps_for_team`; test `san_xuat/tests_plan_placeholder_team.py`.
+- **Agent impact**: Tổ thực hiện nằm ở KHSX + LSX; bộ phận nằm ở OB. Đổi tổ phải cập nhật LSX, không cập nhật OB.
+
 ### 2026-11-07 — workflow / LSX nháp cho đơn Chờ xếp
 
 - **Type**: workflow

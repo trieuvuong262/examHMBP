@@ -3202,6 +3202,45 @@ def _retarget_day_plans_after_team_change(
     _clear_day_plan_cache(order)
 
 
+def sync_mo_steps_team(order: SxSalesOrder, plan_steps, wc: SxWorkCenter, *, only_from_ids=None) -> int:
+    """Gán tổ KHSX cho bước LSX đang chạy cùng tên công đoạn (và cùng nhóm nếu có mã CĐ)."""
+    from san_xuat.hub_models import SxMoProcessStep
+
+    groups_by_name: dict[str, set[str]] = {}
+    for step in plan_steps or []:
+        name = (step.process_name or '').strip().casefold()
+        if name:
+            groups_by_name.setdefault(name, set()).add((step.group_code or '').strip().upper())
+    if not groups_by_name:
+        return 0
+    qs = SxMoProcessStep.objects.filter(
+        production_order__sales_order_id=order.pk,
+        production_order__is_demo=False,
+    ).exclude(
+        production_order__status__in=(
+            SxProductionOrder.STATUS_CANCELLED, SxProductionOrder.STATUS_DONE,
+        ),
+    )
+    dirty = []
+    for mo_step in qs:
+        if mo_step.work_center_id == wc.pk:
+            continue
+        if only_from_ids is not None and mo_step.work_center_id not in only_from_ids:
+            continue
+        groups = groups_by_name.get((mo_step.process_name or '').strip().casefold())
+        if groups is None:
+            continue
+        code = (mo_step.op_code or '').strip().upper()
+        # Cùng tên ở hai bộ phận (Cắt chỉ…) thì mã CĐ phải thuộc nhóm của bước KHSX.
+        if code and not any(g and code.startswith(g) for g in groups) and any(groups):
+            continue
+        mo_step.work_center = wc
+        dirty.append(mo_step)
+    if dirty:
+        SxMoProcessStep.objects.bulk_update(dirty, ['work_center'])
+    return len(dirty)
+
+
 @transaction.atomic
 def assign_plan_team(
     *,
@@ -3288,6 +3327,9 @@ def assign_plan_team(
         ])
     # Không ghi tổ vào OB đơn hàng (SxSalesOrderRoutingLine): bộ phận OB theo
     # hồ sơ thiết kế, đổi tổ chỉ là phân công năng lực trên plan step/day plan.
+    # LSX giữ tổ thực hiện vì phiếu tiến độ đối chiếu work center của bước LSX.
+    if wc is not None:
+        sync_mo_steps_team(order, matched, wc)
     cache = getattr(order, '_prefetched_objects_cache', None)
     if cache is not None:
         cache.pop('plan_steps', None)

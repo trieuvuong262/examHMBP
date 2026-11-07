@@ -78,3 +78,41 @@ class PlaceholderTeamTests(TestCase):
         row = next(r for r in _team_loads_from_order(order) if r['slug'] == step.board_slug)
         self.assertEqual(row['work_center_id'], self.thue.pk)
         self.assertEqual(row['dept_label'], MAY_LABEL)
+
+    def test_assign_team_moves_lsx_steps_not_ob(self):
+        from san_xuat.hub_models import SxMoProcessStep, SxProductionOrder
+        from san_xuat.services.plan_board import assign_plan_team
+
+        order = create_sales_order(
+            customer_name='KH', request_date=timezone.localdate(),
+            lines=[LineInput(product_code='PH', qty=Decimal('10'), product_name='Ao',
+                             routing_id=self.routing.pk)],
+        )
+        order.confirm_status = SxSalesOrder.CONFIRM_CONFIRMED
+        order.save(update_fields=['confirm_status'])
+        order.plan_steps.all().delete()
+        ensure_order_plan_steps(order)
+        step = order.plan_steps.get()
+        mo = SxProductionOrder.objects.create(
+            code='LSX-PH-1', product_code='PH', qty=Decimal('10'),
+            order_date=timezone.localdate(), sales_order=order,
+            status=SxProductionOrder.STATUS_IN_PROGRESS,
+        )
+        mo_step = SxMoProcessStep.objects.create(
+            production_order=mo, sequence=10, process_name=step.process_name,
+            op_code='SEW_HEM_1008', work_center=self.thue,
+        )
+        gc = SxWorkCenter.objects.create(
+            code='NL-2026-0001', name='50-Phú TV', team_label='50-Phú TV',
+            headcount=5, capacity_per_day=Decimal('100'),
+        )
+
+        assign_plan_team(
+            order_id=order.pk, team_slug=step.board_slug,
+            work_center_id=gc.pk, source_work_center_id=self.thue.pk,
+        )
+
+        mo_step.refresh_from_db()
+        self.assertEqual(mo_step.work_center_id, gc.pk)
+        ob = order.lines.get().routing_lines.get()
+        self.assertEqual(ob.work_center_id, self.may.pk)
