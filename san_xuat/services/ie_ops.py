@@ -1444,7 +1444,9 @@ def _sync_process_steps_after_smv_reload(
     """Đồng bộ process steps + gắn BOM → OB mới. False nếu BOM đã có LSX (không đụng)."""
     if target_bom is None:
         return False
-    if target_bom.production_orders.exists():
+    from san_xuat.services.order_draft_mo import order_draft_mo_q
+
+    if target_bom.production_orders.exclude(order_draft_mo_q()).exists():
         return False
     if target_bom.routing_id != clone.pk:
         target_bom.routing = clone

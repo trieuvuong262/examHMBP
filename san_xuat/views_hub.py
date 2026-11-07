@@ -3979,7 +3979,7 @@ def _active_progress_mos(order) -> list:
 
     return list(
         order.production_orders.filter(is_demo=False)
-        .exclude(status=SxProductionOrder.STATUS_CANCELLED)
+        .exclude(status__in=(SxProductionOrder.STATUS_CANCELLED, SxProductionOrder.STATUS_DRAFT))
         .select_related('sales_order')
         .prefetch_related(
             Prefetch(

@@ -48,7 +48,9 @@ def is_bom_locked(bom: BomVersion | None) -> bool:
     """BOM đã gắn lệnh SX thì không sửa đè — tạo phiên bản mới."""
     if bom is None:
         return False
-    return bom.production_orders.exists()
+    from san_xuat.services.order_draft_mo import order_draft_mo_q
+
+    return bom.production_orders.exclude(order_draft_mo_q()).exists()
 
 
 def _source_meta(doc: ProductTechDoc) -> dict:

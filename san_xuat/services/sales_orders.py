@@ -633,8 +633,10 @@ def reject_sales_order(*, order_id: int, reason: str = '') -> SxSalesOrder:
     order = SxSalesOrder.objects.select_for_update().get(pk=order_id)
     if order.confirm_status == SxSalesOrder.CONFIRM_REJECTED:
         return order
-    # Cho phép từ chối cả confirmed nếu chưa gắn KHTT/LSX
-    if order.overall_plan_lines.exists() or order.production_orders.exists():
+    # Cho phép từ chối cả confirmed nếu chưa gắn KHTT/LSX (LSX nháp tự hủy theo đơn)
+    from san_xuat.services.order_draft_mo import order_draft_mo_q
+
+    if order.overall_plan_lines.exists() or order.production_orders.exclude(order_draft_mo_q()).exists():
         raise PlanningError('Đơn đã gắn kế hoạch / lệnh SX — không thể từ chối.')
     order.confirm_status = SxSalesOrder.CONFIRM_REJECTED
     order.reject_reason = (reason or '').strip()[:500]

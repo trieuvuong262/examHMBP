@@ -554,7 +554,8 @@ def ensure_order_progress_mos(order, *, user=None) -> list:
             )
             steps = line_steps(ln)
             if existing is not None:
-                needs_steps = not existing.mo_process_steps.exists()
+                is_draft = existing.status == SxProductionOrder.STATUS_DRAFT
+                needs_steps = is_draft or not existing.mo_process_steps.exists()
                 if needs_steps and steps:
                     sync_mo_process_steps(existing, steps)
                 if (

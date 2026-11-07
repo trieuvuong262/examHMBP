@@ -135,13 +135,20 @@ def delete_bom_version(bom: BomVersion) -> str:
     """Xóa phiên bản BOM nếu chưa được dùng trên lệnh sản xuất."""
     if bom is None:
         raise BomError('Không tìm thấy phiên bản BOM.')
+    from san_xuat.services.order_draft_mo import order_draft_mo_q, schedule_order_draft_mo_sync
+
     locked = BomVersion.objects.select_for_update().get(pk=bom.pk)
-    if locked.production_orders.exists():
+    if locked.production_orders.exclude(order_draft_mo_q()).exists():
         raise BomError(
             f'Không thể xóa BOM {locked.version_label}: phiên bản đang được dùng trên lệnh SX.'
         )
+    draft_order_ids = set(
+        locked.production_orders.filter(order_draft_mo_q()).values_list('sales_order_id', flat=True)
+    )
     label = locked.version_label
     locked.delete()
+    for order_id in draft_order_ids:
+        schedule_order_draft_mo_sync(order_id)
     return label
 
 

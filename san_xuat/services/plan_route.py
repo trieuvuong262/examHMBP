@@ -168,7 +168,7 @@ def replace_order_plan_steps(*, order_id: int, steps: list[dict]) -> list[SxSale
     if order.plan_status in {SxSalesOrder.PLAN_DONE}:
         raise PlanningError('Đơn đã hoàn thành — không chỉnh lộ trình.')
     if order.production_orders.filter(is_demo=False).exclude(
-        status=SxProductionOrder.STATUS_CANCELLED,
+        status__in=(SxProductionOrder.STATUS_CANCELLED, SxProductionOrder.STATUS_DRAFT),
     ).exists():
         raise PlanningError('Đơn đã có lệnh sản xuất — chỉnh công đoạn trên lệnh sản xuất / kéo Kanban.')
 
@@ -456,7 +456,7 @@ def move_kanban_card(
         if order.confirm_status != SxSalesOrder.CONFIRM_CONFIRMED:
             raise PlanningError('Đơn chưa xác nhận.')
         if order.production_orders.filter(is_demo=False).exclude(
-            status=SxProductionOrder.STATUS_CANCELLED,
+            status__in=(SxProductionOrder.STATUS_CANCELLED, SxProductionOrder.STATUS_DRAFT),
         ).exists():
             raise PlanningError('Đơn đã có lệnh sản xuất — kéo thẻ công đoạn lệnh sản xuất.')
 

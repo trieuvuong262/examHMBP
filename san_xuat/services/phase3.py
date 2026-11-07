@@ -1081,7 +1081,7 @@ def _mos_for_subcontract(order: SxSubcontractOrder) -> list[SxProductionOrder]:
     if order.sales_order_id:
         return list(
             order.sales_order.production_orders.filter(is_demo=False).exclude(
-                status=SxProductionOrder.STATUS_CANCELLED,
+                status__in=(SxProductionOrder.STATUS_CANCELLED, SxProductionOrder.STATUS_DRAFT),
             )
         )
     return []

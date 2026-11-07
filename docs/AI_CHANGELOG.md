@@ -15,6 +15,14 @@ Mỗi entry nên có:
 
 ## Entries
 
+### 2026-11-07 — workflow / LSX nháp cho đơn Chờ xếp
+
+- **Type**: workflow
+- **Change**: Đơn đã xác nhận đang Chờ xếp / Tạm giữ có một LSX **Nháp** cho mỗi mã hàng đủ BOM + công đoạn (`services/order_draft_mo.py::sync_order_draft_mos`). Signal `post_save` `SxSalesOrder` / `post_save`+`post_delete` `SxSalesOrderLine` xếp đồng bộ sau commit (gộp theo đơn trong một transaction): tạo mới, cập nhật SL / hạn / ngày KH / BOM / OB, hủy nháp khi bỏ dòng, mất BOM, đơn hủy hoặc bị từ chối. `release_order_to_production` dùng lại lệnh nháp (giữ mã, đồng bộ lại CĐ rồi phát hành); `ensure_order_progress_mos` đồng bộ lại CĐ trước khi mở lệnh nháp; `unrelease_order_from_production` đưa LSX về Nháp thay vì hủy. `derive_plan_status`, xếp hạng hàng đợi, tạm giữ, tải lại BOM/OB/NPL, sửa lộ trình / Kanban, `_production_status_after_reopen`, phiếu tiến độ theo đơn và GC bỏ qua LSX nháp. BOM chỉ có LSX nháp gắn đơn không bị khoá (`is_bom_locked`, `delete_bom_version`, `ie_ops`). `mo_release` chặn phát hành tay lệnh nháp của đơn Chờ xếp. Lệnh `manage.py sync_order_draft_mos [--order ID] [--apply]` (mặc định chạy thử) để tạo nháp cho đơn cũ.
+- **Reason**: Đơn SXJP:005344 có trên KHSX nhưng không có LSX vì đơn xác nhận trước khi xác nhận tự Chuyển SX (03/11) và nút Chuyển SX đã tắt từ 19/10. Người dùng muốn đơn chờ xếp vẫn có LSX.
+- **Source**: `san_xuat/services/order_draft_mo.py`, `san_xuat/apps.py`, `san_xuat/services/plan_board.py` (`NOT_RELEASED_MO_STATUSES`, `order_plan_step_maps`, `order_line_plan_window`, `sync_mo_steps_from_order_line`), `san_xuat/services/order_progress_sheet.py`, `san_xuat/services/dispatch.py::mo_release`, `san_xuat/management/commands/sync_order_draft_mos.py`; test `san_xuat/tests_order_draft_mo.py`.
+- **Agent impact**: LSX `draft` có `sales_order` = nháp tự động, không phải lệnh đã chuyển SX; khi đếm "đơn đã có LSX" phải loại `NOT_RELEASED_MO_STATUSES` hoặc `order_draft_mo_q()`. Không tạo LSX gắn đơn ở trạng thái nháp cho mục đích khác. Nhiều đơn có `plan_status=queued` nhưng đã có LSX phát hành (mở từ nhập tiến độ) — KHSX hiển thị theo trạng thái suy ra.
+
 ### 2026-11-07 — bugfix / đơn mới bị bộ phận THUÊ NGOÀI trên lộ trình
 
 - **Type**: bugfix | workflow

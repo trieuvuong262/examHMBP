@@ -959,6 +959,20 @@ def mo_release(*, mo_id: int, user) -> SxProductionOrder:
     mo = SxProductionOrder.objects.select_for_update().get(pk=mo_id)
     if mo.status != SxProductionOrder.STATUS_DRAFT:
         raise DispatchError("Chỉ Lệnh sản xuất trạng thái Nháp mới được release.")
+    if mo.sales_order_id:
+        from san_xuat.hub_models import SxSalesOrder
+        from san_xuat.services.order_draft_mo import DRAFT_PLAN_STATUSES
+
+        plan_status = (
+            SxSalesOrder.objects.filter(pk=mo.sales_order_id)
+            .values_list("plan_status", flat=True)
+            .first()
+        )
+        if plan_status in DRAFT_PLAN_STATUSES:
+            raise DispatchError(
+                "Lệnh nháp theo đơn đang Chờ xếp — lệnh sẽ phát hành khi đơn được chuyển SX "
+                "hoặc khi tổ mở lệnh nhập tiến độ."
+            )
     if not mo.bom_version_id:
         raise DispatchError("Lệnh sản xuất chưa gắn BOM.")
 

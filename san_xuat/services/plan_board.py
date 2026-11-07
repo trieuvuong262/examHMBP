@@ -189,6 +189,12 @@ QUEUE_STATUSES = (
     SxSalesOrder.PLAN_ON_HOLD,
 )
 
+# LSX nháp của đơn còn chờ xếp chưa tính là đã chuyển SX
+NOT_RELEASED_MO_STATUSES = (
+    SxProductionOrder.STATUS_CANCELLED,
+    SxProductionOrder.STATUS_DRAFT,
+)
+
 # Tab kế hoạch gộp hàng đợi + đã chuyển SX
 BOARD_LIST_STATUSES = QUEUE_STATUSES + (
     SxSalesOrder.PLAN_RELEASED,
@@ -553,11 +559,11 @@ def derive_plan_status(order: SxSalesOrder, mos: list[SxProductionOrder] | None 
     if mos is None:
         mos = list(
             order.production_orders.filter(is_demo=False).exclude(
-                status=SxProductionOrder.STATUS_CANCELLED,
+                status__in=NOT_RELEASED_MO_STATUSES,
             )
         )
     else:
-        mos = [m for m in mos if m.status != SxProductionOrder.STATUS_CANCELLED]
+        mos = [m for m in mos if m.status not in NOT_RELEASED_MO_STATUSES]
     if order.plan_status == SxSalesOrder.PLAN_DONE:
         return SxSalesOrder.PLAN_DONE
     if mos:
@@ -2293,6 +2299,7 @@ def build_plan_board_rows(
     for order in qs:
         lines = list(order.lines.all())
         mos = list(order.production_orders.all())
+        released_mos = [m for m in mos if m.status != SxProductionOrder.STATUS_DRAFT]
         total_qty = sum((ln.qty_to_produce for ln in lines), Decimal('0'))
         names: list[str] = []
         work_min = Decimal('0')
@@ -2458,10 +2465,10 @@ def build_plan_board_rows(
         score, days_to_due, is_overdue = compute_score(
             order=order, cycle_minutes=cycle_min, today=today,
         )
-        mo_count, mo_open, qty_planned, qty_done, pct = _mo_progress(mos)
+        mo_count, mo_open, qty_planned, qty_done, pct = _mo_progress(released_mos)
         stored_status = order.plan_status
         order._route_list_status = stored_status
-        derived = derive_plan_status(order, mos)
+        derived = derive_plan_status(order, released_mos)
         if (
             stored_status not in (
                 SxSalesOrder.PLAN_ON_HOLD,
@@ -2661,7 +2668,7 @@ def build_plan_board_rows(
             open_hops=[h for h in hops if not getattr(h, 'is_set', False)],
             flow_groups=flow_groups,
             product_flows=product_flows,
-            can_unrelease=mos_allow_unrelease(mos),
+            can_unrelease=mos_allow_unrelease(released_mos),
             team_spans=team_spans,
             missing_bom=missing_bom,
             missing_ops=missing_ops,
@@ -3006,7 +3013,7 @@ def recompute_plan_ranks(*, only_queue: bool = True) -> int:
         if order.plan_status == SxSalesOrder.PLAN_ON_HOLD:
             continue
         if order.production_orders.filter(is_demo=False).exclude(
-            status=SxProductionOrder.STATUS_CANCELLED,
+            status__in=NOT_RELEASED_MO_STATUSES,
         ).exists():
             continue
         order.plan_score = row.score
@@ -3359,7 +3366,7 @@ def save_plan_team_capacity(
         cache.pop('plan_steps', None)
     apply_auto_team_day_splits(order, only_slug=slug, replace_existing=True)
     has_mo = order.production_orders.filter(is_demo=False).exclude(
-        status=SxProductionOrder.STATUS_CANCELLED,
+        status__in=NOT_RELEASED_MO_STATUSES,
     ).exists()
     return _reflow_order_from(order, origin_slug=slug, sync_mos=not has_mo)
 
@@ -3403,7 +3410,7 @@ def hold_plan_order(*, order_id: int, reason: str = '') -> SxSalesOrder:
     if order.plan_status == SxSalesOrder.PLAN_CANCELLED:
         raise PlanningError('Kế hoạch đã hủy.')
     if order.production_orders.filter(is_demo=False).exclude(
-        status=SxProductionOrder.STATUS_CANCELLED,
+        status__in=NOT_RELEASED_MO_STATUSES,
     ).exists():
         raise PlanningError('Đơn đã có LSX — không tạm giữ trên hàng đợi.')
     order.plan_status = SxSalesOrder.PLAN_ON_HOLD
@@ -3543,7 +3550,7 @@ def _assert_plan_tech_reloadable(order: SxSalesOrder) -> None:
             'Đơn đã chuyển SX — BOM, OB, NPL đã khoá. Hủy chuyển SX nếu cần tải lại.'
         )
     if order.production_orders.filter(is_demo=False).exclude(
-        status=SxProductionOrder.STATUS_CANCELLED,
+        status__in=NOT_RELEASED_MO_STATUSES,
     ).exists():
         raise PlanningError(
             'Đơn đã có lệnh sản xuất — BOM, OB, NPL đã khoá. Hủy chuyển SX nếu cần tải lại.'
@@ -3872,7 +3879,7 @@ def release_order_to_production(
 
 @transaction.atomic
 def unrelease_order_from_production(*, order_id: int) -> tuple[SxSalesOrder, int]:
-    """Hủy chuyển SX: hủy LSX chưa phát sinh SX, đơn về hàng đợi để sửa lại."""
+    """Hủy chuyển SX: LSX chưa phát sinh SX về Nháp (giữ mã), đơn về hàng đợi để sửa lại."""
     order = SxSalesOrder.objects.select_for_update().get(pk=order_id, is_demo=False)
     if order.confirm_status != SxSalesOrder.CONFIRM_CONFIRMED:
         raise PlanningError('Chỉ hủy chuyển đơn đã xác nhận.')
@@ -3897,11 +3904,13 @@ def unrelease_order_from_production(*, order_id: int) -> tuple[SxSalesOrder, int
 
     _assert_order_unreleasable(order, mos)
 
-    cancelled = 0
+    reverted = 0
     for mo in mos:
-        mo.status = SxProductionOrder.STATUS_CANCELLED
+        if mo.status == SxProductionOrder.STATUS_DRAFT:
+            continue
+        mo.status = SxProductionOrder.STATUS_DRAFT
         mo.save(update_fields=['status'])
-        cancelled += 1
+        reverted += 1
 
     from san_xuat.hub_models import SxSubcontractOrder, SxTeamWorkClose
 
@@ -3914,7 +3923,7 @@ def unrelease_order_from_production(*, order_id: int) -> tuple[SxSalesOrder, int
     order.plan_rank = None
     order.plan_hold_reason = ''
     order.save(update_fields=['plan_status', 'plan_rank', 'plan_hold_reason', 'updated_at'])
-    return order, cancelled
+    return order, reverted
 
 
 @transaction.atomic
@@ -6413,7 +6422,7 @@ def _production_status_after_reopen(order: SxSalesOrder) -> str:
     """Trạng thái sản xuất khi huỷ hoàn thành — không giữ lại tab Đã hoàn thành."""
     mos = [
         mo for mo in order.production_orders.filter(is_demo=False)
-        if mo.status != SxProductionOrder.STATUS_CANCELLED
+        if mo.status not in NOT_RELEASED_MO_STATUSES
     ]
     if not mos:
         return SxSalesOrder.PLAN_QUEUED
