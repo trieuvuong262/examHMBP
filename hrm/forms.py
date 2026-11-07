@@ -1104,7 +1104,7 @@ SAN_XUAT_PERMISSION_SECTIONS = (
         'Tiến độ',
         (
             'team_work', 'team_work_goods', 'team_work_cat', 'team_work_inep',
-            'team_work_theu', 'team_work_may', 'team_work_ht', 'team_work_gh',
+            'team_work_theu', 'team_work_may', 'team_work_ht',
         ),
     ),
     ('Kiểm tra chất lượng', ('qc_request', 'qc_sheet', 'qc', 'ncr', 'qc_criteria')),

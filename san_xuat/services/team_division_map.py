@@ -22,7 +22,6 @@ _SLUG_HR_KEYS: dict[str, tuple[str, ...]] = {
     'theu': ('theu',),
     'may': ('may',),
     'ht': ('ui', 'gap', 'gap xep'),
-    'gh': ('giao hang', 'thanh pham', 'tp'),
 }
 
 VALID_TEAM_SLUGS = frozenset(item[0] for item in TEAM_SLUGS)
@@ -42,7 +41,6 @@ TEAM_MENU_ICONS = {
     'theu': 'bi-flower1',
     'may': 'bi-grid-3x3-gap',
     'ht': 'bi-layers',
-    'gh': 'bi-truck',
 }
 
 
@@ -569,7 +567,7 @@ def suggest_maps_from_names() -> dict[str, list[int]]:
     claimed: set[int] = set()
 
     # Ưu tiên khóa dài hơn / cụ thể hơn để tránh MAY nuốt mọi thứ
-    ordered_slugs = ('cat', 'inep', 'theu', 'ht', 'gh', 'may')
+    ordered_slugs = ('cat', 'inep', 'theu', 'ht', 'may')
     for slug in ordered_slugs:
         keys = _SLUG_HR_KEYS.get(slug) or ()
         hits: list[tuple[int, int]] = []

@@ -37,7 +37,6 @@ TEAM_OUTPUT_STEP: dict[str, str | None] = {
     "THEU": None,
     "MAY": "may_giao",
     "HOAN_THANH": "ht_gap",
-    "GIAO_HANG": "gh_tp",
 }
 
 # Chỉ Cắt bắt buộc đủ bộ. In-ép / thêu: min các CĐ đã báo cáo (không trừ CĐ chưa in).
@@ -501,9 +500,6 @@ def done_qty_by_order_team(order_ids: list[int]) -> dict[tuple[int, str], Decima
     return out
 
 
-_STAGE_SHORT_LABEL = {"gh": "Giao hàng"}
-
-
 @dataclass
 class OrderStageProgress:
     """SL đạt / kế hoạch của một bộ phận trên đơn — cùng công thức lộ trình."""
@@ -547,7 +543,7 @@ def stage_progress_by_order(order_ids: list[int]) -> dict[int, list[OrderStagePr
             if item is None:
                 item = slot[slug] = OrderStageProgress(
                     slug=slug,
-                    label=_STAGE_SHORT_LABEL.get(slug, cell.label),
+                    label=cell.label,
                     done=Decimal("0"),
                     plan=Decimal("0"),
                 )

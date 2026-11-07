@@ -763,8 +763,6 @@ _ROUTE_DEPT_ORDER: tuple[tuple[str, ...], ...] = (
     ('ui',),
     ('gap xep', 'gap'),
     ('qc',),
-    ('qa',),
-    ('giao hang', 'thanh pham'),
 )
 _LEGACY_SLUG_RANK = {
     'cat': 0,
@@ -772,7 +770,6 @@ _LEGACY_SLUG_RANK = {
     'theu': 3,
     'may': 4,
     'ht': 5,
-    'gh': 9,
     'kho': 10,
 }
 
@@ -833,7 +830,8 @@ def _factory_slug_rank() -> dict[str, int]:
     rank = dict(_LEGACY_SLUG_RANK)
     for div in hr_divisions_for_ie_groups():
         folded = _fold(div.name or '')
-        place = len(_ROUTE_DEPT_ORDER)
+        # Bộ phận không khớp khâu (vd. Cơ điện) luôn xếp cuối, cùng hạng Nhập kho.
+        place = _LEGACY_SLUG_RANK['kho']
         for index, keys in enumerate(_ROUTE_DEPT_ORDER):
             if any(key in folded for key in keys):
                 place = index
@@ -879,7 +877,7 @@ def _work_center_catalog_by_slug() -> dict[str, SxWorkCenter]:
                 continue
             cap = 1 if _wc_has_capacity(wc) else 0
             code = (wc.code or '').strip().upper()
-            exact = 1 if code in {'CAT', 'IN-EP', 'THEU', 'MAY', 'HT', 'GH'} else 0
+            exact = 1 if code in {'CAT', 'IN-EP', 'THEU', 'MAY', 'HT'} else 0
             key = (cap, exact)
             prev = ranked.get(slug)
             if prev is None or key > prev[0]:
@@ -4539,10 +4537,9 @@ _SHEET_STAGE_LABELS = {
     'may': 'May',
     'qc': 'QC',
     'ht': 'Ủi - Gấp xếp',
-    'gh': 'Giao hàng thành phẩm',
     'kho': 'Nhập kho',
 }
-_SHEET_STAGE_ORDER = ('cat', 'inep', 'theu', 'may', 'qc', 'ht', 'gh', 'kho')
+_SHEET_STAGE_ORDER = ('cat', 'inep', 'theu', 'may', 'qc', 'ht', 'kho')
 
 
 def _stage_sheet_label(slug: str, full_label: str = '') -> str:

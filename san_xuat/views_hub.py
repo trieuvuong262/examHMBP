@@ -1727,10 +1727,243 @@ def plan_stub(request):
     return redirect('san_xuat:plan_board')
 
 
+def _parse_route_size_qtys(payload):
+    """Đọc danh sách size/SL từ modal hoặc từ bản nháp lộ trình."""
+    from decimal import Decimal, InvalidOperation
+
+    from san_xuat.services.planning import PlanningError
+
+    if not isinstance(payload, list):
+        raise PlanningError('Danh sách size không hợp lệ.')
+    size_qtys: list[tuple[str, Decimal]] = []
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        label = str(item.get('size') or '').strip()
+        try:
+            item_qty = Decimal(str(item.get('qty') or '0').replace(',', '').strip() or '0')
+        except (InvalidOperation, ValueError):
+            item_qty = Decimal('0')
+        size_qtys.append((label, item_qty))
+    return size_qtys
+
+
+def _route_note_flag(value) -> bool:
+    return value in (True, 1, '1', 'true', 'True')
+
+
+def _load_route_progress_target(*, slug: str, mo_id: int, order_id: int, ngay):
+    """Lệnh và công đoạn của tổ trên một ngày lộ trình."""
+    from django.db.models import Prefetch
+
+    from san_xuat.hub_models import SxMoProcessStep, SxProductionOrder
+    from san_xuat.services.order_progress_sheet import progress_steps_for_team
+    from san_xuat.services.planning import PlanningError
+    from san_xuat.services.progress_template import team_by_slug
+
+    team_meta = team_by_slug(slug)
+    if not team_meta:
+        raise PlanningError('Tổ không hợp lệ.')
+    if not ngay or (mo_id <= 0 and order_id <= 0):
+        raise PlanningError('Thiếu lệnh hoặc ngày.')
+    mo_qs = (
+        SxProductionOrder.objects.filter(is_demo=False)
+        .exclude(status=SxProductionOrder.STATUS_CANCELLED)
+        .exclude(status=SxProductionOrder.STATUS_DRAFT)
+        .select_related('sales_order')
+        .prefetch_related(
+            Prefetch(
+                'mo_process_steps',
+                queryset=SxMoProcessStep.objects.select_related('work_center').order_by('sequence', 'id'),
+            ),
+            'lines',
+        )
+    )
+    mo = mo_qs.filter(pk=mo_id).first() if mo_id > 0 else None
+    team_steps = progress_steps_for_team(mo, team_meta) if mo else []
+    if not mo and order_id > 0:
+        for cand in mo_qs.filter(sales_order_id=order_id):
+            steps = progress_steps_for_team(cand, team_meta)
+            if steps:
+                mo = cand
+                team_steps = steps
+                break
+    if not mo:
+        raise PlanningError('Không tìm thấy lệnh sản xuất đang chạy.')
+    if not team_steps:
+        raise PlanningError('Đơn chưa có công đoạn của tổ này.')
+    return mo, team_meta, team_steps
+
+
+def _commit_route_day_qtys(*, request, mo, team_meta, team_steps, slug: str, ngay, size_qtys, save_note: bool, notes: str) -> dict:
+    """Ghi sản lượng một ngày vào tiến độ. Chỉ gọi khi bấm Lưu thay đổi hoặc khi không có chế độ nháp."""
+    from decimal import Decimal
+
+    from san_xuat.hub_models import SxTeamWorkDayNote
+    from san_xuat.services.order_progress_sheet import (
+        set_team_day_qtys,
+        team_size_rollups,
+    )
+    from san_xuat.services.planning import PlanningError
+    from san_xuat.services.team_progress_log import log_day_change, log_to_dict
+    from san_xuat.services.team_work import (
+        accept_production,
+        ensure_team_accept,
+        is_production_accepted,
+    )
+
+    if not is_production_accepted(mo):
+        try:
+            mo = accept_production(mo_id=mo.pk, team_slug=slug, user=request.user)
+        except PlanningError:
+            raise
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).exception('route_day_sheet: accept_production failed')
+            raise PlanningError(f'Lỗi nhận sản xuất: {exc}') from exc
+    else:
+        try:
+            ensure_team_accept(mo_id=mo.pk, team_slug=slug, user=request.user)
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).exception('route_day_sheet: ensure_team_accept failed')
+            raise PlanningError(f'Lỗi xác nhận tổ: {exc}') from exc
+    try:
+        written = set_team_day_qtys(
+            mo_id=mo.pk,
+            process_keys=[s.key for s in team_steps],
+            size_qtys=size_qtys,
+            user=request.user,
+            team_slug=slug,
+            stat_date=ngay,
+        ) if size_qtys else []
+    except PlanningError:
+        raise
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).exception('route_day_sheet: set_team_day_qtys failed')
+        raise PlanningError(f'Lỗi lưu sản lượng: {exc}') from exc
+    rollups = team_size_rollups(mo, steps=team_steps, team=team_meta) if written else {}
+    sizes_out = []
+    for row in written:
+        info = rollups.get(row['size']) or {}
+        day_log = None
+        if row['changed']:
+            logged = log_day_change(
+                mo=mo,
+                team_slug=slug,
+                work_date=ngay,
+                size_label=row['size'],
+                old_qty=Decimal(str(row.get('old') or 0)),
+                new_qty=Decimal(str(row['done'] or 0)),
+                user=request.user,
+            )
+            day_log = log_to_dict(logged) if logged else None
+        sizes_out.append({
+            'size': row['size'],
+            'day_done': str(row['done'] or 0),
+            'size_done': str(info.get('done') or 0),
+            'log': day_log,
+        })
+    saved_note = None
+    if save_note:
+        saved_note = (notes or '').strip()[:500]
+        if saved_note:
+            SxTeamWorkDayNote.objects.update_or_create(
+                production_order=mo,
+                team_slug=slug,
+                note_date=ngay,
+                defaults={'notes': saved_note, 'created_by': request.user},
+            )
+        else:
+            SxTeamWorkDayNote.objects.filter(
+                production_order=mo, team_slug=slug, note_date=ngay,
+            ).delete()
+    body = {'ok': True, 'sizes': sizes_out}
+    if saved_note is not None:
+        body['notes'] = saved_note
+    return body
+
+
+def _merge_route_day_qty(previous: dict, current: dict) -> dict:
+    """Gộp hai lần nhập cùng ngày: size sau đè size trước, ghi chú lấy lần có sửa cuối."""
+    sizes: dict[str, object] = {}
+    order: list[str] = []
+    for src in (previous.get('sizes') or [], current.get('sizes') or []):
+        if not isinstance(src, list):
+            continue
+        for item in src:
+            if not isinstance(item, dict):
+                continue
+            label = str(item.get('size') or '').strip()
+            if label not in sizes:
+                order.append(label)
+            sizes[label] = item.get('qty')
+    if _route_note_flag(current.get('save_note')):
+        save_note = '1'
+        notes = current.get('notes') or ''
+    elif _route_note_flag(previous.get('save_note')):
+        save_note = '1'
+        notes = previous.get('notes') or ''
+    else:
+        save_note = '0'
+        notes = ''
+    slug = str(current.get('team_slug') or previous.get('team_slug') or '').strip().lower()
+    return {
+        **current,
+        'action': 'route_day_qty',
+        'team_slug': slug,
+        'sizes': [{'size': label, 'qty': sizes[label]} for label in order],
+        'save_note': save_note,
+        'notes': notes,
+    }
+
+
+def _commit_route_day_change(request, change: dict) -> int:
+    """Áp một bản nháp sản lượng ngày. Trả về id đơn để dựng lại lộ trình."""
+    from django.utils import timezone
+    from django.utils.dateparse import parse_date
+
+    from san_xuat.services.order_progress_sheet import ensure_progress_work_centers
+    from san_xuat.services.planning import PlanningError
+    from san_xuat.services.team_work import is_team_job_closed
+
+    slug = str(change.get('team_slug') or '').strip().lower()
+    try:
+        mo_id = int(change.get('mo_id') or 0)
+    except (TypeError, ValueError):
+        mo_id = 0
+    try:
+        order_id = int(change.get('order_id') or 0)
+    except (TypeError, ValueError):
+        order_id = 0
+    ngay = parse_date(str(change.get('stat_date') or '').strip())
+    mo, team_meta, team_steps = _load_route_progress_target(
+        slug=slug, mo_id=mo_id, order_id=order_id, ngay=ngay,
+    )
+    if ngay > timezone.localdate():
+        raise PlanningError('Không ghi tiến độ cho ngày tương lai.')
+    if is_team_job_closed(mo_id=mo.pk, team_slug=slug):
+        raise PlanningError('Tổ đã hoàn thành lệnh này — mở lại nếu cần sửa SL.')
+    ensure_progress_work_centers()
+    _commit_route_day_qtys(
+        request=request,
+        mo=mo,
+        team_meta=team_meta,
+        team_steps=team_steps,
+        slug=slug,
+        ngay=ngay,
+        size_qtys=_parse_route_size_qtys(change.get('sizes') or []),
+        save_note=_route_note_flag(change.get('save_note')),
+        notes=str(change.get('notes') or ''),
+    )
+    return int(mo.sales_order_id or order_id or 0)
+
+
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def _route_progress_day(request, *, can_update: bool):
     """Phiếu SL theo size của một ngày trên lộ trình — cùng luật với tiến độ tổ."""
-    from decimal import Decimal, InvalidOperation
+    from decimal import Decimal
     import json as _json
 
     from django.db.models import Prefetch
@@ -1743,19 +1976,12 @@ def _route_progress_day(request, *, can_update: bool):
         build_team_day_grid,
         ensure_progress_work_centers,
         progress_steps_for_team,
-        set_team_day_qtys,
         team_plan_days,
-        team_size_rollups,
     )
     from san_xuat.services.planning import PlanningError
     from san_xuat.services.progress_template import team_by_slug
-    from san_xuat.services.team_progress_log import log_day_change, log_to_dict, team_day_logs
-    from san_xuat.services.team_work import (
-        accept_production,
-        ensure_team_accept,
-        is_production_accepted,
-        is_team_job_closed,
-    )
+    from san_xuat.services.team_progress_log import log_to_dict, team_day_logs
+    from san_xuat.services.team_work import is_team_job_closed
 
     def _plain(value) -> str:
         q = Decimal(str(value or 0))
@@ -1823,92 +2049,24 @@ def _route_progress_day(request, *, can_update: bool):
             if job_closed:
                 return _fail('Tổ đã hoàn thành lệnh này — mở lại nếu cần sửa SL.')
             return _fail('Bạn không có quyền nhập sản lượng.', 403)
-        if not is_production_accepted(mo):
-            try:
-                mo = accept_production(mo_id=mo.pk, team_slug=slug, user=request.user)
-            except PlanningError as exc:
-                return _fail(str(exc))
-            except Exception as exc:
-                import logging
-                logging.getLogger(__name__).exception('route_day_sheet: accept_production failed')
-                return _fail(f'Lỗi nhận sản xuất: {exc}')
-        else:
-            try:
-                ensure_team_accept(mo_id=mo.pk, team_slug=slug, user=request.user)
-            except Exception as exc:
-                import logging
-                logging.getLogger(__name__).exception('route_day_sheet: ensure_team_accept failed')
-                return _fail(f'Lỗi xác nhận tổ: {exc}')
         try:
             payload = _json.loads(request.POST.get('sizes') or '[]')
         except (TypeError, ValueError):
             payload = None
-        if not isinstance(payload, list):
-            return _fail('Danh sách size không hợp lệ.')
-        size_qtys: list[tuple[str, Decimal]] = []
-        for item in payload:
-            if not isinstance(item, dict):
-                continue
-            label = str(item.get('size') or '').strip()
-            try:
-                item_qty = Decimal(str(item.get('qty') or '0').replace(',', '').strip() or '0')
-            except (InvalidOperation, ValueError):
-                item_qty = Decimal('0')
-            size_qtys.append((label, item_qty))
         try:
-            written = set_team_day_qtys(
-                mo_id=mo.pk,
-                process_keys=[s.key for s in team_steps],
-                size_qtys=size_qtys,
-                user=request.user,
-                team_slug=slug,
-                stat_date=ngay,
-            ) if size_qtys else []
+            body = _commit_route_day_qtys(
+                request=request,
+                mo=mo,
+                team_meta=team_meta,
+                team_steps=team_steps,
+                slug=slug,
+                ngay=ngay,
+                size_qtys=_parse_route_size_qtys(payload),
+                save_note=request.POST.get('save_note') == '1',
+                notes=request.POST.get('notes') or '',
+            )
         except PlanningError as exc:
             return _fail(str(exc))
-        except Exception as exc:
-            import logging
-            logging.getLogger(__name__).exception('route_day_sheet: set_team_day_qtys failed')
-            return _fail(f'Lỗi lưu sản lượng: {exc}')
-        rollups = team_size_rollups(mo, steps=team_steps, team=team_meta) if written else {}
-        sizes_out = []
-        for row in written:
-            info = rollups.get(row['size']) or {}
-            day_log = None
-            if row['changed']:
-                logged = log_day_change(
-                    mo=mo,
-                    team_slug=slug,
-                    work_date=ngay,
-                    size_label=row['size'],
-                    old_qty=Decimal(str(row.get('old') or 0)),
-                    new_qty=Decimal(str(row['done'] or 0)),
-                    user=request.user,
-                )
-                day_log = log_to_dict(logged) if logged else None
-            sizes_out.append({
-                'size': row['size'],
-                'day_done': str(row['done'] or 0),
-                'size_done': str(info.get('done') or 0),
-                'log': day_log,
-            })
-        saved_note = None
-        if request.POST.get('save_note') == '1':
-            saved_note = (request.POST.get('notes') or '').strip()[:500]
-            if saved_note:
-                SxTeamWorkDayNote.objects.update_or_create(
-                    production_order=mo,
-                    team_slug=slug,
-                    note_date=ngay,
-                    defaults={'notes': saved_note, 'created_by': request.user},
-                )
-            else:
-                SxTeamWorkDayNote.objects.filter(
-                    production_order=mo, team_slug=slug, note_date=ngay,
-                ).delete()
-        body = {'ok': True, 'sizes': sizes_out}
-        if saved_note is not None:
-            body['notes'] = saved_note
         return JsonResponse(body)
 
     sheet = build_progress_sheet(mo, team=team_meta)
@@ -2267,10 +2425,30 @@ def plan_board(request):
                 # service chuyển đúng day plan đang sở hữu từ đầu phiên.
                 collapsed_changes: list[dict] = []
                 assign_indexes: dict[tuple[int, str], int] = {}
+                day_qty_indexes: dict[tuple, int] = {}
                 for raw_change in changes:
                     if not isinstance(raw_change, dict):
                         raise PlanningError('Một thay đổi không hợp lệ.')
                     kind = str(raw_change.get('action') or '').strip()
+                    if kind == 'route_day_qty':
+                        try:
+                            mo_key = int(raw_change.get('mo_id') or 0)
+                        except (TypeError, ValueError):
+                            mo_key = 0
+                        day_slug = str(raw_change.get('team_slug') or '').strip().lower()
+                        day_key = (mo_key, day_slug, str(raw_change.get('stat_date') or '').strip())
+                        previous_day = day_qty_indexes.get(day_key)
+                        merged_day = (
+                            _merge_route_day_qty(collapsed_changes[previous_day], raw_change)
+                            if previous_day is not None
+                            else {**raw_change, 'team_slug': day_slug, 'action': 'route_day_qty'}
+                        )
+                        if previous_day is None:
+                            day_qty_indexes[day_key] = len(collapsed_changes)
+                            collapsed_changes.append(merged_day)
+                        else:
+                            collapsed_changes[previous_day] = merged_day
+                        continue
                     if kind != 'assign_plan_team':
                         collapsed_changes.append(raw_change)
                         continue
@@ -2338,6 +2516,10 @@ def plan_board(request):
                             )
                         elif kind == 'reorder_plan_orders':
                             reorder_plan_orders(ordered_ids=change.get('order_ids') or [])
+                        elif kind == 'route_day_qty':
+                            committed_order_id = _commit_route_day_change(request, change)
+                            if committed_order_id:
+                                affected_ids.add(committed_order_id)
                         else:
                             raise PlanningError(f'Thông tin thao tác không được hỗ trợ: {kind}.')
                 if affected_ids:

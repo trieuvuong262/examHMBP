@@ -15,6 +15,30 @@ Mỗi entry nên có:
 
 ## Entries
 
+### 2026-11-07 — workflow / bỏ khâu Giao hàng thành phẩm (gh)
+
+- **Type**: workflow
+- **Change**: Xoá khâu `gh` / nhóm `GIAO_HANG` / bước `gh_tp` / tổ chuẩn `GH` khỏi mẫu công đoạn (`progress_template`), khâu SX mặc định (`ie_models.PROCESS_STAGE_DEFAULTS`), đồng bộ thư viện (`sync_process_master`), lộ trình KHSX (`_SHEET_STAGE_*`, `_ROUTE_DEPT_ORDER`, `_LEGACY_SLUG_RANK`), map năng lực/tổ (`capacity_from_hrm`, `team_division_map`), bàn giao (`handover_status`), resolver nhóm khi import (`operation_group_resolve`), màu khâu, tiêu chí QC mặc định, menu «Tổ giao hàng» (`team_work_gh`) và choices `team_slug`. Luồng còn 5 tổ: Cắt → In - Ép → Thêu → May → Ủi - Gấp xếp; cột cuối lộ trình vẫn là Nhập kho (`kho`). **YCNTP** giờ lấy SL đã xong từ bước **Gấp xếp** (`dispatch.FG_SOURCE_STEP_KEY = "ht_gap"`) cho prefill, chặn vượt SL và trạng thái partial/done. Nhóm `FOD_`/`PACK` fallback về `ht` (trước là `gh`); lệnh `sync_operation_group_departments` map `FOD_` → «Gấp xếp». Migration `0162` (chỉ choices) + `0163_retire_gh_stage_data` tắt tiêu chí QC `gh`, nhóm `QC-GH`, khâu/nhóm/tổ `GH`, map `gh`, xoá màu `gh` (reverse bật lại).
+- **Reason**: Người dùng bỏ khâu Giao hàng thành phẩm. Production chưa từng có tiến độ `gh_tp`, tổ `GH`, nhóm `GH` hay YCNTP; mô phỏng 27.560 dòng routing/plan step cho thấy không dòng nào đổi bộ phận.
+- **Source**: `san_xuat/services/progress_template.py`, `san_xuat/services/dispatch.py::_completed_progress_lines`, `san_xuat/services/plan_board.py`, `san_xuat/services/capacity_from_hrm.py`, `hrm/submenu_registry.py`, `san_xuat/migrations/0162_*`, `0163_*`.
+- **Agent impact**: Không còn slug `gh`; «Giao hàng may» (`may_giao`) là bước khác của tổ May. Muốn đổi mốc nhập thành phẩm thì sửa `FG_SOURCE_STEP_KEY`. Ảnh PNG/PDF training trong `san_xuat/docs/` cần render lại từ `render_training_diagrams.py` / `build_workflow_pdf.py`.
+
+### 2026-11-07 — workflow / bỏ bộ phận QA khỏi sản xuất
+
+- **Type**: workflow
+- **Change**: Bộ phận HR tên `QA` (phòng ĐẢM BẢO CHẤT LƯỢNG) vẫn giữ trên Nhân sự nhưng bị loại khỏi sản xuất qua `SX_EXCLUDED_DIVISION_NAMES` / `sx_excluded_division_q()`: không còn trong `hr_divisions_for_ie_groups` (menu Tiến độ tổ, thiết lập tổ, dropdown Tên bộ phận nhóm công đoạn + bộ phận NPL, thứ tự lộ trình), không được `sync_capacity_from_hrm` tạo/bật `HRD-*`, không có trong dropdown bộ phận của form Năng lực. Bỏ bậc `('qa',)` khỏi `_ROUTE_DEPT_ORDER` và khóa `qa` khỏi `_IE_WC_TO_HR_KEYS`; bộ phận không khớp khâu vẫn xếp hạng `kho` (10) như trước nên Giao hàng thành phẩm (`gh`) không đổi vị trí. Migration `0161_hide_qa_division_from_production` tắt `SxWorkCenter` `HRD-{QA}` và dòng `SxTeamDivisionMap` của QA (reverse bật lại).
+- **Reason**: QA không tham gia quy trình sản xuất (0 nhân sự, không có kế hoạch/tiến độ/QC gắn vào); người dùng yêu cầu bỏ khỏi mọi màn hình và logic sản xuất mà không đổi luồng.
+- **Source**: `san_xuat/services/capacity_from_hrm.py`, `san_xuat/services/plan_board.py::_factory_slug_rank`, `san_xuat/forms_phase3.py::WorkCenterForm`, `san_xuat/migrations/0161_hide_qa_division_from_production.py`.
+- **Agent impact**: Muốn loại thêm bộ phận HR khỏi sản xuất thì thêm tên vào `SX_EXCLUDED_DIVISION_NAMES`, đừng tắt bộ phận trên Nhân sự. Vai trò «QA/QC» trong `thiet_ke_sp` là luồng duyệt thiết kế khác, không liên quan.
+
+### 2026-11-07 — bugfix / đơn gia công chỉ hiện một tổ
+
+- **Type**: bugfix | workflow
+- **Change**: Lưới Công việc tổ và danh sách phân công chỉ giữ đơn ở tổ gia công của work center cuối trong `SxSalesOrderPlanStep`. Lịch ngày còn sót ở tổ GC khác bị bỏ khi tổ đích đã có lịch riêng; nếu tổ đích chưa có lịch thì sản lượng lịch cũ được tính trên bảng tổ đích. Lịch ngày GC không còn work center nào trên lộ trình thì bỏ khỏi bảng GC (đơn ở lại tổ nội bộ của lộ trình, ví dụ `d25` chứ không kèm `gc-47`). Không ghi đè `SxOrderTeamDayPlan`.
+- **Reason**: Đơn đã chuyển khỏi THUÊ NGOÀI (`gc-47`) vẫn hiện ở đó vì lưới đọc lịch ngày cũ, trong khi snapshot lộ trình đã trỏ tổ khác.
+- **Source**: `san_xuat/services/team_output_report.py::_sole_gc_team`, `_team_plan_hits`, `_plan_by_team_day`; `san_xuat/services/team_work.py::apply_own_plan_team`; test `san_xuat/tests_gc_board_owner.py`.
+- **Agent impact**: Đối chiếu work center GC cuối trên snapshot, không xóa lịch ngày để sửa hiển thị. Bộ phận nội bộ (cắt, may, …) vẫn hiện đơn của công đoạn đó.
+
 ### 2026-11-07 — bugfix / SL đã làm khi ô bộ phận giao cho tổ thuộc bộ phận HR khác
 
 - **Type**: bugfix | workflow

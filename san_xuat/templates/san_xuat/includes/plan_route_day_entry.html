@@ -223,7 +223,10 @@
   }
   function showSave(on) {
     var btn = document.getElementById('jpRdSave');
-    if (btn) btn.hidden = !on;
+    if (btn) {
+      btn.hidden = !on;
+      btn.textContent = document.getElementById('jpRouteEditSave') ? 'Ghi nhận' : 'Lưu sản lượng';
+    }
     var fill = document.getElementById('jpRdFill');
     var hasPlan = !!on && inputs().some(function (input) { return num(input.getAttribute('data-plan')) > 0; });
     if (fill) fill.hidden = !hasPlan;
@@ -326,6 +329,35 @@
     }
     hideHist();
     showSave(!!data.can_update);
+    applyPendingDraft(data);
+  }
+  function applyPendingDraft(data) {
+    if (!window.jpRouteDayQtyDraft || !data) return;
+    var draft = window.jpRouteDayQtyDraft(data.mo_id, data.slug, data.date);
+    if (!draft) return;
+    var bySize = {};
+    (draft.sizes || []).forEach(function (row) {
+      bySize[row.size || ''] = row.qty;
+    });
+    inputs().forEach(function (input) {
+      var size = input.getAttribute('data-size') || '';
+      if (!Object.prototype.hasOwnProperty.call(bySize, size)) return;
+      var qty = num(bySize[size]);
+      input.value = qty ? plain(qty) : '';
+      paintInput(input, true);
+    });
+    fillSums(true);
+    if (draft.save_note === '1' || draft.save_note === true) {
+      var note = document.getElementById('jpRdNote');
+      if (note) note.value = draft.notes || '';
+    }
+    setStatus('Số liệu này đang chờ. Bấm Lưu thay đổi để cập nhật tiến độ.', 'warn');
+  }
+  function markDayDraft(cell, pending) {
+    if (!cell) return;
+    cell.classList.toggle('jp-route-draft-change', !!pending);
+    var qtyBtn = cell.querySelector('.jp-sheet-qty');
+    if (qtyBtn) qtyBtn.classList.toggle('jp-route-draft-change', !!pending);
   }
   function openDay(cell) {
     var row = cell.closest('tr');
@@ -427,11 +459,52 @@
         if (plain(qty) === plain(num(input.getAttribute('data-qty')))) return;
         rows.push({size: input.getAttribute('data-size') || '', qty: String(qty)});
       });
+      var canStage = !!(window.jpRouteStageDayQty && document.getElementById('jpRouteEditSave'));
       if (!rows.length && !noteChanged) {
-        setStatus('Đã lưu.', 'ok');
+        if (canStage && window.jpRouteDayQtyDraft && window.jpRouteDayQtyDraft(dayData.mo_id, dayData.slug, dayData.date)) {
+          window.jpRouteStageDayQty({
+            action: 'route_day_qty',
+            order_id: dayData.order_id || '',
+            mo_id: dayData.mo_id || '',
+            team_slug: dayData.slug,
+            stat_date: dayData.date,
+            sizes: [],
+            save_note: '0',
+            notes: ''
+          });
+          paintRoute(sourceCell, dayTotal(false));
+          markDayDraft(sourceCell, false);
+          setStatus('Đã bỏ sản lượng chờ lưu.', 'ok');
+        } else {
+          setStatus(canStage ? 'Chưa có thay đổi.' : 'Đã lưu.', 'ok');
+        }
         saving = false;
         if (btn) btn.disabled = false;
         return;
+      }
+      if (canStage) {
+        var staged = window.jpRouteStageDayQty({
+          action: 'route_day_qty',
+          order_id: dayData.order_id || '',
+          mo_id: dayData.mo_id || '',
+          team_slug: dayData.slug,
+          stat_date: dayData.date,
+          sizes: rows,
+          save_note: noteChanged ? '1' : '0',
+          notes: noteChanged ? noteVal : ''
+        });
+        if (staged) {
+          paintRoute(sourceCell, dayTotal(true));
+          markDayDraft(sourceCell, true);
+          setStatus('Đã ghi nhận. Bấm Lưu thay đổi để cập nhật tiến độ.', 'ok');
+          saving = false;
+          if (btn) btn.disabled = false;
+          if (window.bootstrap && bootstrap.Modal) {
+            var inst = bootstrap.Modal.getInstance(modalEl);
+            if (inst) inst.hide();
+          }
+          return;
+        }
       }
       setStatus('Đang lưu…', 'info');
       postDay({

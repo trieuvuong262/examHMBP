@@ -9,6 +9,7 @@ Bootstrap entry point dùng chung cho mọi vibe-coding tool nằm tại `RULE.m
 - URL `https://portal.justplay.vn/` means production: check the VPS/production state before inspecting or changing anything.
 - URL `http://127.0.0.1:8000/` means local development: check local and update within the requested scope.
 - Any other URL requires environment clarification before environment-dependent work.
+- Công việc tổ `cong-viec-to/gc-<id>/`: đơn có snapshot gia công chỉ hiện ở work center GC cuối của `SxSalesOrderPlanStep`. Lịch ngày GC cũ không tạo thêm một bảng; nếu tổ đích chưa có lịch thì sản lượng lịch cũ hiện ở tổ đích. Lịch ngày GC mà lộ trình không còn work center đó thì không hiện trên bảng GC. Không sửa dòng `SxOrderTeamDayPlan`.
 
 ## Snapshot
 

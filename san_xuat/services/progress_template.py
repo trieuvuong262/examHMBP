@@ -13,7 +13,6 @@ WC_CAT = 'CAT'
 WC_THEU = 'THEU'
 WC_MAY = 'MAY'
 WC_HT = 'HT'
-WC_GH = 'GH'
 
 
 @dataclass(frozen=True)
@@ -38,7 +37,6 @@ GROUPS: tuple[ProgressGroup, ...] = (
     ProgressGroup('THEU', 'Thêu', WC_THEU),
     ProgressGroup('MAY', 'May', WC_MAY),
     ProgressGroup('HOAN_THANH', 'Ủi - Gấp xếp', WC_HT),
-    ProgressGroup('GIAO_HANG', 'Giao hàng thành phẩm', WC_GH),
 )
 
 # slug URL ↔ group key ↔ menu key
@@ -49,7 +47,6 @@ TEAM_SLUGS: tuple[tuple[str, str, str, str], ...] = (
     ('theu', 'THEU', 'team_work_theu', 'Thêu'),
     ('may', 'MAY', 'team_work_may', 'May'),
     ('ht', 'HOAN_THANH', 'team_work_ht', 'Ủi - Gấp xếp'),
-    ('gh', 'GIAO_HANG', 'team_work_gh', 'Giao hàng thành phẩm'),
 )
 
 
@@ -73,7 +70,7 @@ def team_by_slug(slug: str) -> dict | None:
     return gc_team_from_slug(s) or team_from_hr_division_slug(s)
 
 
-# CD chuẩn JustPlay — thứ tự theo luồng xưởng (Cắt → In-Ép → Thêu → May → HT → GH)
+# CD chuẩn JustPlay — thứ tự theo luồng xưởng (Cắt → In-Ép → Thêu → May → HT)
 _STEPS_RAW: tuple[tuple[str, str, str, str], ...] = (
     # —— Cắt ——
     ('cat_ao', 'Áo TT + TS + Tay', 'CAT', WC_CAT),
@@ -130,8 +127,6 @@ _STEPS_RAW: tuple[tuple[str, str, str, str], ...] = (
     ('ht_kiem', 'Kiểm hàng', 'HOAN_THANH', WC_HT),
     ('ht_ui', 'Ủi', 'HOAN_THANH', WC_HT),
     ('ht_gap', 'Gấp xếp', 'HOAN_THANH', WC_HT),
-    # —— Giao hàng ——
-    ('gh_tp', 'Giao hàng thành phẩm', 'GIAO_HANG', WC_GH),
 )
 
 # Tên cũ → tên mới (map khi đổi nhãn / thêm xN)
@@ -150,7 +145,6 @@ LABEL_ALIASES: dict[str, str] = {
     'diễu đáy sau': 'Diễu đáy sau x1',
     'ráp đáy trước': 'Ráp đáy trước x1',
     'ráp đáy sau': 'Ráp đáy sau x1',
-    'giao hàng tp': 'Giao hàng thành phẩm',
     'giao hàng may': 'Giao hàng may',
 }
 
@@ -227,8 +221,6 @@ _WC_CODE_TO_SLUG.update({
     'MAY': 'may',
     'HT': 'ht',
     'HOAN_THANH': 'ht',
-    'GH': 'gh',
-    'GIAO_HANG': 'gh',
 })
 
 
@@ -252,8 +244,6 @@ def team_slug_for_work_center_code(code: str) -> str | None:
         'may': 'may',
         'ht': 'ht',
         'ủi-gấpxếp': 'ht',
-        'gh': 'gh',
-        'giaohàng': 'gh',
     }
     return aliases.get(folded)
 
@@ -281,10 +271,9 @@ WC_SEED: tuple[tuple[str, str, str], ...] = (
     (WC_THEU, 'Thêu', 'Thêu'),
     (WC_MAY, 'May', 'May'),
     (WC_HT, 'Ủi - Gấp xếp', 'Ủi - Gấp xếp'),
-    (WC_GH, 'Giao hàng thành phẩm', 'Giao hàng thành phẩm'),
 )
 
 
 def standard_work_center_codes() -> frozenset[str]:
-    """Mã tổ/chuyền chuẩn (Cắt → Giao hàng thành phẩm)."""
+    """Mã tổ/chuyền chuẩn (Cắt → Ủi - Gấp xếp)."""
     return frozenset(code for code, _name, _team in WC_SEED)

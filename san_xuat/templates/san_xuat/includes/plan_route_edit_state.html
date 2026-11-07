@@ -23,6 +23,16 @@
     if (cancel) cancel.classList.toggle('d-none', !state.editing);
     root.classList.toggle('jp-route-editing', state.editing);
     root.dataset.routeEditing = state.editing ? '1' : '0';
+    toolbar.dataset.dirty = state.dirty ? '1' : '0';
+    var fullStatus = document.getElementById('jpRouteEditStatusFullscreen');
+    if (fullStatus && status) fullStatus.textContent = status.textContent;
+  }
+  function dayQtyKey(change) {
+    return [
+      change.mo_id || '',
+      String(change.team_slug || '').toLowerCase(),
+      change.stat_date || ''
+    ].join('|');
   }
 
   window.jpRouteCanEdit = function () { return !!state.editing; };
@@ -34,6 +44,30 @@
     return true;
   };
   window.jpRouteDraft = function () { return state.draft.slice(); };
+  window.jpRouteDayQtyDraft = function (moId, slug, date) {
+    var key = dayQtyKey({mo_id: moId, team_slug: slug, stat_date: date});
+    for (var i = state.draft.length - 1; i >= 0; i--) {
+      var item = state.draft[i];
+      if (item && item.action === 'route_day_qty' && dayQtyKey(item) === key) return item;
+    }
+    return null;
+  };
+  window.jpRouteStageDayQty = function (change) {
+    if (!document.getElementById('jpRouteEditSave')) return false;
+    if (!state.editing) state.editing = true;
+    var key = dayQtyKey(change);
+    var next = [];
+    state.draft.forEach(function (item) {
+      if (!item || item.action !== 'route_day_qty' || dayQtyKey(item) !== key) next.push(item);
+    });
+    var sizes = change.sizes || [];
+    var noteOn = change.save_note === '1' || change.save_note === true;
+    if (sizes.length || noteOn) next.push(change);
+    state.draft = next;
+    state.dirty = state.draft.length > 0;
+    render();
+    return true;
+  };
   window.jpRouteResetDraft = function () {
     state.draft = [];
     state.dirty = false;

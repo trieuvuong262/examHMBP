@@ -46,11 +46,6 @@ def _build_import_aliases() -> dict[str, str]:
         'ủi - gấp': 'HT',
         'ủi - gấp xếp': 'HT',
         'hoàn thành': 'HT',
-        'gh': 'GH',
-        'giao_hang': 'GH',
-        'giao hang': 'GH',
-        'giao hàng': 'GH',
-        'giao hàng thành phẩm': 'GH',
     }
     for grp in GROUPS:
         aliases.setdefault(grp.key.casefold(), grp.key)
@@ -163,7 +158,6 @@ class OperationGroupResolver:
             'THEU': 'THEU',
             'EMB': 'THEU',
             'HT': 'HT',
-            'GH': 'GH',
         }
         alias_from_prefix = prefix_map.get(prefix)
         if alias_from_prefix:

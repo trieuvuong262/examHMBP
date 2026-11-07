@@ -54,7 +54,6 @@ ASSIGN_SAMPLES = (
     ('may_rap_vai', 1),
     ('ht_ui', 1),
     ('ht_gap', 1),
-    ('gh_tp', 1),
 )
 
 

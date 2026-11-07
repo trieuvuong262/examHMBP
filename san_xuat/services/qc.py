@@ -789,21 +789,11 @@ DEFAULT_TEAM_CRITERIA: tuple[tuple[str, str, tuple[tuple[str, str], ...]], ...] 
             ("TC-HT-04", "Size / combo xếp đúng"),
         ),
     ),
-    (
-        "gh",
-        "Giao hàng thành phẩm",
-        (
-            ("TC-GH-01", "Đúng mã, màu, size so với đơn"),
-            ("TC-GH-02", "Bao bì, nhãn hàng đầy đủ"),
-            ("TC-GH-03", "Số lượng khớp packing list"),
-            ("TC-GH-04", "Ngoại quan thành phẩm đạt"),
-        ),
-    ),
 )
 
 
 def seed_default_team_qc_criteria() -> int:
-    """Tạo nhóm + tiêu chuẩn mặc định theo 6 tổ Ob (idempotent theo mã)."""
+    """Tạo nhóm + tiêu chuẩn mặc định theo 5 tổ Ob (idempotent theo mã)."""
     created = 0
     for slug, label, items in DEFAULT_TEAM_CRITERIA:
         group, _ = SxQcCriteriaGroup.objects.get_or_create(

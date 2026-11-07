@@ -239,9 +239,11 @@ class WorkCenterForm(forms.Form):
         super().__init__(*args, **kwargs)
         from django.db.models import Count, Q
         from hrm.models import Division
+        from san_xuat.services.capacity_from_hrm import sx_excluded_division_q
 
         self.fields["division"].queryset = (
             Division.objects.filter(is_active=True)
+            .exclude(sx_excluded_division_q())
             .select_related("department")
             .annotate(
                 staff_count=Count(

@@ -23,7 +23,7 @@ Thứ tự đúng trên sidebar:
 | 3 | **Kế hoạch SX** | Kế hoạch sản xuất (3 tab) · Thời gian trung gian · Kế hoạch NPL · Yêu cầu mua NPL |
 | 4 | **Kho NPL** | Tồn / phiếu nhập / phiếu xuất |
 | 5 | **Điều phối** | Lệnh sản xuất · Yêu cầu xuất vật tư · Tình hình bàn giao · Yêu cầu nhập thành phẩm |
-| 6 | **Phân công SX** | Tiến độ hàng hoá · 6 tổ · Thuê gia công |
+| 6 | **Phân công SX** | Tiến độ hàng hoá · 5 tổ · Thuê gia công |
 | 7 | **Kiểm tra chất lượng** | Tiến độ QC · Phiếu kiểm tra · Cảnh báo · Hàng không đạt · Tiêu chuẩn |
 | 8 | **Kho sản phẩm** | Tồn / phiếu nhập thành phẩm |
 | 9 | **Báo cáo** | Truy xuất nguồn gốc · Báo cáo vận hành |
@@ -70,8 +70,6 @@ Thứ tự đúng trên sidebar:
 | Tổ thêu | `/san-xuat/cong-viec-to/theu/` | TT áo / quần |
 | Tổ may | `/san-xuat/cong-viec-to/may/` | May áo, may quần, kiểm, giao may |
 | Tổ ủi gấp xếp | `/san-xuat/cong-viec-to/ht/` | Kiểm hàng, ủi, gấp xếp |
-| Tổ giao hàng | `/san-xuat/cong-viec-to/gh/` | Giao hàng thành phẩm |
-
 Trên mỗi phiếu tổ:
 
 ```text
@@ -107,7 +105,7 @@ Nhận sản xuất  →  Phân công  →  Ghi tiến độ  →  Hoàn thành
 | 2 | Lên đơn → Xác nhận | Đơn đặt hàng |
 | 3 | Tab Hàng đợi → **Chuyển SX** (chọn BOM) | Kế hoạch sản xuất |
 | 4 | Tổ cắt: **Nhận sản xuất** → Phân công → Hoàn thành | Phân công SX |
-| 5 | Lần lượt In ép / Thêu / May / Ủi / Giao hàng | Phân công SX |
+| 5 | Lần lượt In ép / Thêu / May / Ủi - Gấp xếp | Phân công SX |
 | 6 | Tạo và duyệt **Yêu cầu xuất vật tư** | Điều phối + Kho NPL |
 | 7 | Làm **Phiếu kiểm tra** theo tổ, chốt Đạt | Kiểm tra chất lượng |
 | 8 | Tạo **Yêu cầu nhập thành phẩm** | Điều phối |

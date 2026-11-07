@@ -199,9 +199,11 @@ def apply_own_plan_team(jobs: list[TeamWorkJob], *, team: dict) -> list[TeamWork
         ):
             gc_order_centers.setdefault(int(oid), []).append(int(center_id))
 
+    foreign_gc: set[int] = set()
     if team.get('is_gc'):
         for oid, center_ids in gc_order_centers.items():
             if center_ids and center_ids[-1] != wc.pk:
+                foreign_gc.add(oid)
                 assigned.discard(oid)
     else:
         # Có snapshot GC hiện hành thì đơn thuộc board GC, không thuộc board
@@ -254,6 +256,8 @@ def apply_own_plan_team(jobs: list[TeamWorkJob], *, team: dict) -> list[TeamWork
         qty__gt=0,
     ).values_list('sales_order_id', 'plan_date', 'qty', 'work_center_id', 'team_slug'):
         oid = int(oid)
+        if oid in foreign_gc:
+            continue
         centers = centers_by_order.get(oid, set())
         slug = (team_slug or '').strip().lower()
         if center_id:
@@ -272,7 +276,7 @@ def apply_own_plan_team(jobs: list[TeamWorkJob], *, team: dict) -> list[TeamWork
     kept: list[TeamWorkJob] = []
     for job in jobs:
         oid = int(job.mo.sales_order_id or 0)
-        if oid in gc_only_orders:
+        if oid in foreign_gc or oid in gc_only_orders:
             continue
         if strict and oid not in assigned:
             continue

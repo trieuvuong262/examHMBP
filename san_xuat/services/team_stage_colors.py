@@ -19,7 +19,6 @@ DEFAULT_TEAM_STAGE_COLORS: dict[str, str] = {
     'theu': '#fef08a',
     'may': '#bfdbfe',
     'ht': '#bbf7d0',
-    'gh': '#f0cfe0',
 }
 _EXTRA_STAGE_COLORS: dict[str, str] = {
     'kho': '#a7f3d0',

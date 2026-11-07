@@ -270,7 +270,6 @@ def build_shopfloor_drawing():
         ("3. THÊU", "TT áo · TT quần", HexColor("#fce7f3"), PINK),
         ("4. MAY", "May áo · May quần\nCắt chỉ · Kiểm · Giao may", HexColor("#fff1f2"), ACCENT),
         ("5. ỦI - GẤP", "Kiểm · Ủi · Gấp xếp", HexColor("#f3e8ff"), PURPLE),
-        ("6. GIAO TP", "Giao hàng\nthành phẩm", HexColor("#ecfdf5"), HexColor("#059669")),
     ]
     box_w, box_h = 72, 58
     gap = 10
@@ -321,10 +320,10 @@ def build_shopfloor_drawing():
     )
     make_flow_box(d, 30, 175, 225, 95, may_text, HexColor("#fff1f2"), ACCENT)
     ht_text = (
-        "ỦI - GẤP (ht) → GIAO TP (gh)\n"
+        "ỦI - GẤP (ht)\n"
         "• Kiểm hàng → Ủi → Gấp xếp\n"
-        "• Giao hàng thành phẩm\n"
-        "• Sau đó: YCNTP / Đóng gói trên Portal"
+        "• Gấp xếp xong → YCNTP\n"
+        "• Sau đó: Đóng gói trên Portal"
     )
     make_flow_box(d, 275, 175, 220, 95, ht_text, HexColor("#ecfdf5"), HexColor("#059669"))
     return d
@@ -857,7 +856,7 @@ def build():
         "Không (báo cáo / sổ tồn BTP theo tổ)",
         [
             "Tồn bán thành phẩm giữa các tổ lấy từ SL tiến độ Công việc tổ đã cập nhật",
-            "Luồng Cắt → In-Ép → Thêu → May → Ủi-Gấp → Giao hàng; bấm tổ để mở phiếu tiến độ",
+            "Luồng Cắt → In-Ép → Thêu → May → Ủi-Gấp; bấm tổ để mở phiếu tiến độ",
             "<b>Không</b> lập / xác nhận phiếu bàn giao trên màn này",
         ],
     )

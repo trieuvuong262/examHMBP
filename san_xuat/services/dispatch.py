@@ -2243,8 +2243,11 @@ def _compose_sku(style: str, color: str, size: str) -> str:
     return f"{style}-{color}-{size}"
 
 
+FG_SOURCE_STEP_KEY = "ht_gap"
+
+
 def _completed_progress_lines(mo: SxProductionOrder) -> list[dict]:
-    """SKU đã hoàn thành tiến độ (công đoạn Giao hàng thành phẩm), trừ SL đã lập YCNTP."""
+    """SKU đã hoàn thành tiến độ (công đoạn Gấp xếp), trừ SL đã lập YCNTP."""
     from django.db.models import Sum
 
     from san_xuat.hub_models import SxFgReceiptLine
@@ -2257,7 +2260,7 @@ def _completed_progress_lines(mo: SxProductionOrder) -> list[dict]:
         is_demo=False,
     ).order_by("pk"):
         step = step_by_label(st.process_name or "")
-        if not step or step.key != "gh_tp":
+        if not step or step.key != FG_SOURCE_STEP_KEY:
             continue
         good = st.qty_good or Decimal("0")
         if good <= 0:
@@ -2369,7 +2372,7 @@ def remaining_fg_qty_by_key(
     *,
     stat: SxProductionStat | None = None,
 ) -> dict[tuple[str, str, str], Decimal]:
-    """SL còn được nhập TP theo (màu, size, sku) — tiến độ GH-TP trừ YCNTP đã lập."""
+    """SL còn được nhập TP theo (màu, size, sku) — tiến độ Gấp xếp trừ YCNTP đã lập."""
     lines = _completed_progress_lines(mo)
     if stat is not None:
         color = (stat.color_code or "").strip().upper()
@@ -2440,7 +2443,7 @@ def validate_fg_receipt_lines_qty(
 
 
 def fg_receipt_prefill(*, mo: SxProductionOrder, stat: SxProductionStat | None = None) -> dict:
-    """Nguồn form YCNTP: lệnh + dòng SKU đã hoàn thành tiến độ giao hàng thành phẩm."""
+    """Nguồn form YCNTP: lệnh + dòng SKU đã hoàn thành tiến độ Gấp xếp."""
     base_rows = _completed_progress_lines(mo)
     remain = remaining_fg_qty_by_key(mo, stat=stat)
     label_by_key = {_fg_sku_key(row): row for row in base_rows}
@@ -2476,9 +2479,9 @@ def fg_receipt_prefill(*, mo: SxProductionOrder, stat: SxProductionStat | None =
         ),
         "lines": lines,
         "lines_hint": (
-            "Tự điền SKU đã hoàn thành công đoạn Giao hàng thành phẩm."
+            "Tự điền SKU đã hoàn thành công đoạn Gấp xếp."
             if lines
-            else "Chưa có sản lượng hoàn thành tiến độ giao hàng thành phẩm."
+            else "Chưa có sản lượng hoàn thành tiến độ Gấp xếp."
         ),
     }
 
@@ -2553,7 +2556,7 @@ def create_fg_receipt_from_mo(
             receipt_qty = Decimal("0")
     if (receipt_qty or Decimal("0")) <= 0:
         raise DispatchError(
-            "Chưa có số lượng nhập — cần sản phẩm đã hoàn thành tiến độ giao hàng thành phẩm."
+            "Chưa có số lượng nhập — cần sản phẩm đã hoàn thành tiến độ Gấp xếp."
         )
 
     from san_xuat.services.gates import (
@@ -2647,7 +2650,7 @@ def _post_fg_receipt_stock(req: SxFgReceiptRequest, *, user=None) -> None:
 
 
 def _refresh_fg_receipt_status(req: SxFgReceiptRequest) -> SxFgReceiptRequest:
-    """done nếu không còn SL GH-TP chưa nhập; ngược lại partial."""
+    """done nếu không còn SL Gấp xếp chưa nhập; ngược lại partial."""
     mo = req.production_order
     remain = remaining_fg_qty_by_key(mo)
     still = any(v > 0 for v in remain.values())

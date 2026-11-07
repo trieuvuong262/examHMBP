@@ -20,6 +20,8 @@ SX_DEPT_NAMES = ('SẢN XUẤT', 'SAN XUAT')
 QC_DEPT_NAMES = ('ĐẢM BẢO CHẤT LƯỢNG', 'DAM BAO CHAT LUONG')
 # Nhóm công đoạn / IE: bộ phận thuộc hai phòng này trên HR.
 IE_GROUP_DEPT_NAME_GROUPS = (SX_DEPT_NAMES, QC_DEPT_NAMES)
+# Bộ phận HR vẫn giữ trên Nhân sự nhưng không tham gia sản xuất (không tổ, không năng lực, không lộ trình).
+SX_EXCLUDED_DIVISION_NAMES = ('QA',)
 CODE_PREFIX = 'HRD-'
 _tls = local()
 LEGACY_FAKE_CODES = frozenset({
@@ -35,8 +37,8 @@ _IE_WC_TO_HR_KEYS: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (('theu', 'wc-embroider'), ('theu',)),
     (('may (san xuat)', 'wc-sew', 'sew', 'may'), ('may',)),
     (('wc-finish', 'finish', 'ui', 'press', 'ht'), ('ui',)),
-    (('gap xep', 'wc-pack', 'pack', 'gap', 'gh'), ('gap xep', 'gap', 'giao hang', 'thanh pham')),
-    (('wc-qc', 'qc', 'fullcheck', 'qa'), ('qc', 'qa')),
+    (('gap xep', 'wc-pack', 'pack', 'gap'), ('gap xep', 'gap')),
+    (('wc-qc', 'qc', 'fullcheck'), ('qc',)),
 )
 
 # SP/người/ngày ước lượng theo loại chuyền (IE chỉnh lại sau trên UI).
@@ -595,6 +597,13 @@ def departments_for_ie_groups() -> list[Department]:
     return found
 
 
+def sx_excluded_division_q() -> Q:
+    q = Q()
+    for name in SX_EXCLUDED_DIVISION_NAMES:
+        q |= Q(name__iexact=name)
+    return q
+
+
 def hr_divisions_for_ie_groups():
     """Bộ phận (Division) thuộc phòng SẢN XUẤT và ĐẢM BẢO CHẤT LƯỢNG trên Nhân sự."""
     depts = departments_for_ie_groups()
@@ -602,6 +611,7 @@ def hr_divisions_for_ie_groups():
         return Division.objects.none()
     return (
         Division.objects.filter(department__in=depts, is_active=True)
+        .exclude(sx_excluded_division_q())
         .select_related('department')
         .order_by('department__sort_order', 'department__name', 'sort_order', 'name')
     )
@@ -771,7 +781,6 @@ _WC_CODE_TO_SLUG = {
     'THEU': 'theu',
     'MAY': 'may',
     'HT': 'ht',
-    'GH': 'gh',
 }
 
 
@@ -832,13 +841,11 @@ def _team_slug_from_folded(folded: str) -> str | None:
         return None
     rules: tuple[tuple[tuple[str, ...], str], ...] = (
         (('in-ep', 'in_ep', 'in ep', 'in nhiet', 'wc-print', 'ep logo'), 'inep'),
-        (('giao hang', 'thanh pham', 'wc-pack', 'pack'), 'gh'),
-        (('gap xep', 'wc-finish', 'finish'), 'ht'),
+        (('gap xep', 'wc-finish', 'finish', 'wc-pack', 'pack'), 'ht'),
         (('wc-embroider', 'theu'), 'theu'),
         (('wc-cut', 'wc-fusing', 'fusing', 'trai vai', 'cat'), 'cat'),
         (('wc-sew', 'sew', 'may'), 'may'),
         (('ui', 'ht'), 'ht'),
-        (('gh',), 'gh'),
     )
     for keys, slug in rules:
         if any(k == folded or k in folded for k in keys):
@@ -1024,9 +1031,9 @@ def sync_capacity_from_hrm(
     result.department = ', '.join(d.name for d in depts)
 
     divisions = list(
-        Division.objects.filter(department__in=depts, is_active=True).order_by(
-            'department__sort_order', 'sort_order', 'name',
-        )
+        Division.objects.filter(department__in=depts, is_active=True)
+        .exclude(sx_excluded_division_q())
+        .order_by('department__sort_order', 'sort_order', 'name')
     )
     keep_codes: set[str] = set()
     today = timezone.localdate().isoformat() if hasattr(timezone, 'localdate') else date.today().isoformat()
@@ -1148,7 +1155,6 @@ def _apply_hr_headcount_to_standard_centers() -> int:
     from san_xuat.services.order_progress_sheet import ensure_progress_work_centers
     from san_xuat.services.progress_template import (
         WC_CAT,
-        WC_GH,
         WC_HT,
         WC_IN_EP,
         WC_MAY,
@@ -1165,7 +1171,6 @@ def _apply_hr_headcount_to_standard_centers() -> int:
         (WC_THEU, ('theu',)),
         (WC_MAY, ('may',)),
         (WC_HT, ('ui', 'gap', 'gap xep')),
-        (WC_GH, ('giao hang', 'thanh pham', 'tp')),
     )
     updated = 0
     for code, keys in mapping:

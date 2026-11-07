@@ -166,7 +166,7 @@ def run():
                 SxProductionStat(
                     code=f"TKSX-F001-{n:04d}",
                     production_order=mo,
-                    stat_date=today - timedelta(days=1 if sd.group != "GIAO_HANG" else 0),
+                    stat_date=today - timedelta(days=1 if sd.key != "ht_gap" else 0),
                     process_name=sd.label,
                     qty_good=qty,
                     qty_defect=Decimal("0"),
@@ -192,7 +192,7 @@ def run():
         production_order=mo,
         product_code=STYLE,
         product_name=product_name,
-        stage_name="Giao hang thanh pham",
+        stage_name="Gap xep",
         qty=total,
         request_date=today,
         status="done",

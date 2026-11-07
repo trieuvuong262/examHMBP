@@ -2186,7 +2186,6 @@ class SxQcCriteria(DemoMarkedModel):
         ('theu', 'Thêu'),
         ('may', 'May'),
         ('ht', 'Ủi - Gấp xếp'),
-        ('gh', 'Giao hàng thành phẩm'),
     ]
 
     code = models.CharField(max_length=40, unique=True)
@@ -3756,7 +3755,6 @@ class SxTeamDivisionMap(DemoMarkedModel):
         ('theu', 'Thêu'),
         ('may', 'May'),
         ('ht', 'Ủi - Gấp xếp'),
-        ('gh', 'Giao hàng thành phẩm'),
     ]
 
     team_slug = models.CharField(

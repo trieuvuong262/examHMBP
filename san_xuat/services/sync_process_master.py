@@ -20,7 +20,6 @@ _GROUP_META: dict[str, tuple[str, str]] = {
     'THEU': ('THEU', 'THEU'),
     'MAY': ('MAY', 'MAY'),
     'HOAN_THANH': ('HT', 'HT'),
-    'GIAO_HANG': ('GH', 'GH'),
 }
 
 

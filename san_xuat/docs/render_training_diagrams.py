@@ -113,7 +113,7 @@ def render_portal_flow() -> Path:
             [
                 "Tiến độ hàng hoá — nhìn mọi tổ / mọi lệnh",
                 "Từng tổ: Nhận sản xuất  →  Phân công  →  ghi tiến độ  →  Hoàn thành",
-                "Thứ tự tổ: Cắt → In ép → Thêu → May → Ủi gấp xếp → Giao hàng",
+                "Thứ tự tổ: Cắt → In ép → Thêu → May → Ủi gấp xếp",
             ],
             "Menu: Sản xuất → Phân công SX",
         ),
@@ -214,7 +214,6 @@ def render_shopfloor() -> Path:
             BOX,
         ),
         ("5. Tổ ủi gấp xếp", "/cong-viec-to/ht/", ["Kiểm hàng", "Ủi", "Gấp xếp"], (243, 232, 255)),
-        ("6. Tổ giao hàng", "/cong-viec-to/gh/", ["Giao hàng thành phẩm"], BOX3),
     ]
 
     n = len(teams)

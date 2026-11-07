@@ -181,9 +181,9 @@ _GROUP_PREFIX_SLUGS: tuple[tuple[str, str], ...] = (
     ('IRN_', 'ht'),
     ('FIN-', 'ht'),
     ('FIN_', 'ht'),
-    ('FOD_', 'gh'),
-    ('PACK-', 'gh'),
-    ('PACK_', 'gh'),
+    ('FOD_', 'ht'),
+    ('PACK-', 'ht'),
+    ('PACK_', 'ht'),
 )
 
 

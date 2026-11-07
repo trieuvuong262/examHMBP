@@ -18,7 +18,7 @@ GROUP_PREFIX_DEPARTMENTS = (
     ('HTF_', 'In - Ép'),
     ('SEW_', 'May'),
     ('IRN_', 'Ủi - Gấp xếp'),
-    ('FOD_', 'Giao hàng thành phẩm'),
+    ('FOD_', 'Gấp xếp'),
 )
 
 # Các công đoạn từng được nhập nhầm vào PRE_PRE dù thuộc nhóm In - Ép.

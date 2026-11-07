@@ -10,7 +10,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from decimal import Decimal
-from types import SimpleNamespace
 
 from django.db.models import Prefetch, Q
 
@@ -315,6 +314,85 @@ def _attribute_day_plan_team(
     return ''
 
 
+def _gc_board_index(teams) -> dict[int, str]:
+    """Work center gia công đang mở menu → slug bảng tổ ``gc-<id>``."""
+    out: dict[int, str] = {}
+    for col in teams:
+        meta = getattr(col, 'meta', None) or {}
+        if not meta.get('is_gc'):
+            continue
+        wid = int(meta.get('work_center_id') or 0)
+        slug = (getattr(col, 'slug', '') or '').strip().lower()
+        if wid and slug:
+            out[wid] = slug
+    return out
+
+
+def _gc_order_placement(
+    order_ids: set[int], gc_centers: dict[int, str],
+) -> tuple[dict[int, int], dict[int, set[int]]]:
+    """Tổ GC đích theo snapshot cuối, và work center GC nào đang có lịch ngày."""
+    from san_xuat.hub_models import SxOrderTeamDayPlan, SxSalesOrderPlanStep
+
+    owners: dict[int, int] = {}
+    days: dict[int, set[int]] = {}
+    ids = {int(oid) for oid in order_ids if oid}
+    center_ids = set(gc_centers)
+    if not ids or not center_ids:
+        return owners, days
+    for oid, wid in SxSalesOrderPlanStep.objects.filter(
+        sales_order_id__in=ids,
+        work_center_id__in=center_ids,
+    ).order_by('sales_order_id', 'sequence', 'id').values_list(
+        'sales_order_id', 'work_center_id',
+    ):
+        owners[int(oid)] = int(wid)
+    for oid, wid in SxOrderTeamDayPlan.objects.filter(
+        sales_order_id__in=ids,
+        work_center_id__in=center_ids,
+        qty__gt=0,
+    ).values_list('sales_order_id', 'work_center_id'):
+        days.setdefault(int(oid), set()).add(int(wid))
+    return owners, days
+
+
+def _sole_gc_team(
+    attributed: str,
+    *,
+    order_id: int,
+    work_center_id: int | None,
+    gc_centers: dict[int, str],
+    owners: dict[int, int],
+    day_centers: dict[int, set[int]],
+) -> str:
+    """Một đơn gia công chỉ hiện ở tổ của work center cuối trên lộ trình.
+
+    Lịch ngày còn sót ở tổ GC khác bị bỏ khi tổ đích đã có lịch riêng.
+    Tổ đích chưa có lịch thì lấy sản lượng của lịch cũ, không để đơn biến mất.
+    Dòng của bộ phận nội bộ giữ nguyên.
+    """
+    owner = owners.get(int(order_id or 0))
+    wc_id = int(work_center_id or 0)
+    gc_slugs = set(gc_centers.values())
+    row_is_gc = wc_id in gc_centers or (attributed or '') in gc_slugs
+    if not owner:
+        # Lộ trình không còn tổ gia công. Lịch ngày GC sót (cùng ngày với tổ
+        # nội bộ, ví dụ d25 và gc-47) không được mở thêm một bảng.
+        if row_is_gc:
+            return ''
+        return attributed
+    owner_slug = gc_centers.get(int(owner), '')
+    if not owner_slug:
+        return attributed
+    if not row_is_gc:
+        return attributed
+    if wc_id == owner or attributed == owner_slug:
+        return owner_slug
+    if owner in day_centers.get(int(order_id), ()):
+        return ''
+    return owner_slug
+
+
 def retire_legacy_may_day_plans() -> dict[str, int]:
     """Bỏ slug ``may``. Đơn đã có tổ cụ thể thì xóa dòng cũ; đơn chỉ còn ``may`` thì chuyển sang đúng một tổ may."""
     from django.db import transaction
@@ -431,6 +509,8 @@ def _plan_by_team_day(
             team = by_wc.get((code or '').strip().upper())
             if team:
                 order_teams.setdefault(oid, set()).add(team)
+    gc_centers = _gc_board_index(teams)
+    gc_owners, gc_day_centers = _gc_order_placement(order_ids, gc_centers)
 
     by_team: dict[str, dict[date, Decimal]] = {}
     by_stage: dict[str, dict[date, Decimal]] = {}
@@ -453,6 +533,14 @@ def _plan_by_team_day(
             teams_by_stage=teams_by_stage,
             order_teams=order_teams,
             stage_claims=stage_claims,
+        )
+        team = _sole_gc_team(
+            team,
+            order_id=row.sales_order_id,
+            work_center_id=row.work_center_id,
+            gc_centers=gc_centers,
+            owners=gc_owners,
+            day_centers=gc_day_centers,
         )
         if not team:
             continue
@@ -519,7 +607,23 @@ def _plan_by_team_day(
             order.pk: order
             for order in SxSalesOrder.objects.filter(pk__in=[oid for _t, _d, oid, _s, _q in extras])
         }
+        extra_ids = {oid for _team, _day, oid, _status, _qty in extras if oid not in gc_owners}
+        if extra_ids:
+            more_owners, more_days = _gc_order_placement(extra_ids, gc_centers)
+            gc_owners.update(more_owners)
+            for oid, centers in more_days.items():
+                gc_day_centers.setdefault(oid, set()).update(centers)
         for team, day, oid, _status, qty in extras:
+            team = _sole_gc_team(
+                team,
+                order_id=oid,
+                work_center_id=None,
+                gc_centers=gc_centers,
+                owners=gc_owners,
+                day_centers=gc_day_centers,
+            )
+            if not team or (team, oid) in covered:
+                continue
             order = extra_orders.get(oid)
             if order is None:
                 continue
@@ -579,13 +683,17 @@ def build_team_output_report(
     from san_xuat.services.work_calendar import working_days
 
     today = today or timezone.localdate()
-    from san_xuat.services.plan_board import _factory_slug_rank
+    from san_xuat.services.plan_board import _factory_slug_rank, _qc_rank_place
 
     rank = _factory_slug_rank()
-    teams = sorted(
-        _team_columns(),
-        key=lambda col: (rank.get(col.slug, 99), col.label),
-    )
+    may_place = _qc_rank_place() + 0.5
+
+    def _team_place(col):
+        if (col.meta.get('stage_slug') or '').strip().lower() == 'may':
+            return (may_place, col.label)
+        return (rank.get(col.slug, 99), col.label)
+
+    teams = sorted(_team_columns(), key=_team_place)
     workdays = set(working_days(date_from, date_to))
     day_list: list[date] = []
     d = date_from
@@ -697,17 +805,18 @@ def build_team_output_report(
 
     palette = team_stage_palette()
 
-    stages: dict[str, TeamOutputStage] = {}
+    stages: dict[tuple[str, bool], TeamOutputStage] = {}
     for col in teams:
         stage_slug = (col.meta.get('stage_slug') or '').strip().lower()
-        stage = stages.get(stage_slug)
+        group = (stage_slug, bool(col.meta.get('is_gc')))
+        stage = stages.get(group)
         if stage is None:
             stage = TeamOutputStage(
                 slug=stage_slug,
                 label=_stage_label(stage_slug),
                 day_totals=[ZERO] * len(day_list),
             )
-            stages[stage_slug] = stage
+            stages[group] = stage
         row = TeamOutputRow(
             slug=col.slug,
             label=col.label,
@@ -764,8 +873,7 @@ def build_team_output_report(
             for i, day in enumerate(day_list)
         ]
 
-    stage_order = [s.slug for s in teams_stage_order(teams)]
-    ordered = sorted(stages.values(), key=lambda s: stage_order.index(s.slug) if s.slug in stage_order else 99)
+    ordered = list(stages.values())
     for stage in ordered:
         active_days = sum(1 for v in stage.day_totals if v > 0)
         stage.active_days = active_days
@@ -892,7 +1000,8 @@ def _team_plan_hits(team_slug: str) -> list[tuple[date, int, str]]:
     from san_xuat.services.goods_progress import _team_columns
 
     slug = (team_slug or '').strip().lower()
-    by_slug, by_wc, teams_by_stage = _day_plan_team_maps(_team_columns())
+    teams = _team_columns()
+    by_slug, by_wc, teams_by_stage = _day_plan_team_maps(teams)
     rows = list(
         SxOrderTeamDayPlan.objects.filter(
             qty__gt=0,
@@ -912,18 +1021,28 @@ def _team_plan_hits(team_slug: str) -> list[tuple[date, int, str]]:
     stage_claims = _stage_claims_from_member_rows(
         rows, by_slug=by_slug, teams_by_stage=teams_by_stage,
     )
+    gc_centers = _gc_board_index(teams)
+    gc_owners, gc_day_centers = _gc_order_placement(order_ids, gc_centers)
     hits: list[tuple[date, int, str]] = []
     for row in rows:
-        if _attribute_day_plan_team(
-            row.team_slug,
-            getattr(row.work_center, 'code', '') or '',
-            row.sales_order_id,
-            by_slug=by_slug,
-            by_wc=by_wc,
-            teams_by_stage=teams_by_stage,
-            order_teams=order_teams,
-            stage_claims=stage_claims,
-        ) != slug:
+        team = _sole_gc_team(
+            _attribute_day_plan_team(
+                row.team_slug,
+                getattr(row.work_center, 'code', '') or '',
+                row.sales_order_id,
+                by_slug=by_slug,
+                by_wc=by_wc,
+                teams_by_stage=teams_by_stage,
+                order_teams=order_teams,
+                stage_claims=stage_claims,
+            ),
+            order_id=row.sales_order_id,
+            work_center_id=row.work_center_id,
+            gc_centers=gc_centers,
+            owners=gc_owners,
+            day_centers=gc_day_centers,
+        )
+        if team != slug:
             continue
         if row.sales_order.plan_status == SxSalesOrder.PLAN_CANCELLED:
             status = 'cancelled'
@@ -932,10 +1051,27 @@ def _team_plan_hits(team_slug: str) -> list[tuple[date, int, str]]:
         else:
             status = 'open'
         hits.append((row.plan_date, int(row.sales_order_id), status))
-    covered = {(slug, oid) for _day, oid, _status in hits}
-    for team, day, oid, status, _qty in _route_span_fallbacks(_team_columns(), covered=covered):
-        if team == slug:
+    seen_orders = {oid for _day, oid, _status in hits}
+    covered = {(slug, oid) for oid in seen_orders}
+    fallback_rows = _route_span_fallbacks(teams, covered=covered)
+    extra_ids = {oid for _team, _day, oid, _status, _qty in fallback_rows if oid not in gc_owners}
+    if extra_ids:
+        more_owners, more_days = _gc_order_placement(extra_ids, gc_centers)
+        gc_owners.update(more_owners)
+        for oid, centers in more_days.items():
+            gc_day_centers.setdefault(oid, set()).update(centers)
+    for team, day, oid, status, _qty in fallback_rows:
+        team = _sole_gc_team(
+            team,
+            order_id=oid,
+            work_center_id=None,
+            gc_centers=gc_centers,
+            owners=gc_owners,
+            day_centers=gc_day_centers,
+        )
+        if team == slug and oid not in seen_orders:
             hits.append((day, oid, status))
+            seen_orders.add(oid)
     closed_orders = _team_closed_sales_order_ids(slug)
     if not closed_orders:
         return hits
@@ -1625,15 +1761,6 @@ def reorder_team_day_orders(*, team_slug: str, plan_date: date, ordered_ids) -> 
                 row.save(update_fields=['sort_order'])
                 updated += 1
         return updated
-
-
-def teams_stage_order(teams) -> list[SimpleNamespace]:
-    seen: list[str] = []
-    for col in teams:
-        s = (col.meta.get('stage_slug') or '').strip().lower()
-        if s not in seen:
-            seen.append(s)
-    return [SimpleNamespace(slug=s) for s in seen]
 
 
 def export_team_output_xlsx(report: TeamOutputReport):

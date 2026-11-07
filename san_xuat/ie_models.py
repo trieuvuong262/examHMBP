@@ -181,7 +181,6 @@ PROCESS_STAGE_DEFAULTS: tuple[tuple[str, str, int], ...] = (
     ('THEU', 'Thêu', 30),
     ('MAY', 'May', 40),
     ('HT', 'Ủi - Gấp xếp', 50),
-    ('GH', 'Giao hàng thành phẩm', 60),
 )
 
 
