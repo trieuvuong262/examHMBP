@@ -3229,22 +3229,8 @@ def assign_plan_team(
             'work_center', 'khsx_headcount', 'khsx_efficiency_pct',
             'board_slug', 'dept_label',
         ])
-    with _group_slug_scope():
-        for ln in order.lines.all():
-            for rl in ln.routing_lines.select_related('work_center', 'operation__group').all():
-                rl_slug = (_step_team_slug(rl) or '').strip().lower()
-                if rl_slug != slug:
-                    continue
-                if not (getattr(rl, 'board_slug', '') or '').strip():
-                    rl.board_slug = slug[:40]
-                rl.work_center = wc
-                rl.work_center_code = (wc.code if wc else '')[:40]
-                rl.save(update_fields=['work_center', 'work_center_code', 'board_slug'])
-    # LSX đang chạy có snapshot công đoạn riêng; đồng bộ để bảng Công việc tổ
-    # lọc được đúng các bước theo work center gia công mới.
-    from san_xuat.services.order_routing import sync_active_mos_from_order
-
-    sync_active_mos_from_order(order)
+    # Không ghi tổ vào OB đơn hàng (SxSalesOrderRoutingLine): bộ phận OB theo
+    # hồ sơ thiết kế, đổi tổ chỉ là phân công năng lực trên plan step/day plan.
     cache = getattr(order, '_prefetched_objects_cache', None)
     if cache is not None:
         cache.pop('plan_steps', None)

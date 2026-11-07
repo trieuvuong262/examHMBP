@@ -15,6 +15,23 @@ Mỗi entry nên có:
 
 ## Entries
 
+### 2026-11-07 — workflow / hồ sơ thiết kế là nguồn bộ phận của OB
+
+- **Type**: workflow | bugfix
+- **Change**: `plan_board.assign_plan_team` không còn ghi `work_center` vào OB snapshot của đơn hàng và không gọi `sync_active_mos_from_order` khi đổi tổ trên KHSX. Kế hoạch chỉ thay đổi phân công tổ thực hiện trên `SxSalesOrderPlanStep`; bộ phận theo mã công đoạn tiếp tục lấy từ hồ sơ thiết kế/OB chuẩn.
+- **Reason**: Không để thay đổi tổ trong kế hoạch sản xuất ghi ngược làm đổi bộ phận OB của đơn hàng từ MAY sang Thuê Ngoài.
+- **Source**: `san_xuat/services/plan_board.py::assign_plan_team`; `san_xuat/services/order_routing.py`; `docs/AI_CODEBASE_MAP.md`.
+- **Agent impact**: Khi đổi tổ, kiểm tra `SxSalesOrderPlanStep` và LSX snapshot riêng; không dùng thao tác phân công tổ để sửa `SxSalesOrderRoutingLine`.
+
+### 2026-11-07 — maintenance / khôi phục bộ phận OB đơn hàng bị tổ KHSX ghi đè
+
+- **Type**: workflow | bugfix
+- **Change**: Thêm `restore_order_ob_departments` (dry-run mặc định, `--apply`, `--order-id`, `--order-code`, `--include-unmatched`). Đưa `work_center/work_center_code` của `SxSalesOrderRoutingLine` về dòng routing nguồn chỉ khi: slug bộ phận của dòng OB trùng slug của routing nguồn, routing nguồn trỏ vào bộ phận `HRD-*`, và cặp (slug, tổ hiện tại) có trong `SxSalesOrderPlanStep`/`SxOrderTeamDayPlan` của đơn. Không đụng plan step, day plan, LSX.
+- **Reason**: `assign_plan_team` cũ đã ghi tổ KHSX (THUÊ NGOÀI, tổ GC…) vào OB của hàng trăm đơn, làm công đoạn MAY hiển thị sai bộ phận (ví dụ đơn 275).
+- **Source**: `san_xuat/management/commands/restore_order_ob_departments.py`.
+- **Agent impact**: Dòng lệch khác (routing master sửa sau khi chụp snapshot, OB sửa tay, master bị publish từ OB lỗi) chỉ được liệt kê `SKIP`; xem từng đơn trước khi dùng `--include-unmatched`. Sau khi khôi phục, sửa OB trên đơn sẽ gọi `sync_order_plan_steps_from_ob` dựng lại KHSX theo OB và bỏ phân công tổ thủ công.
+
+
 ### 2026-11-07 — ai-policy / production and local URL safety
 
 - **Type**: ai-policy
