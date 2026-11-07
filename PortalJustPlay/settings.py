@@ -349,6 +349,8 @@ else:
 # Session đọc từ cache trước, ghi cả cache + DB → bỏ được 1 query/request khi
 # cache còn nóng, vẫn an toàn vì DB luôn là nguồn thật.
 SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
+# Session hết hạn sau 1 tuần kể từ lần đăng nhập/lưu session gần nhất.
+SESSION_COOKIE_AGE = 7 * 24 * 60 * 60
 
 # --- Hàng đợi job nền (django-rq) ---
 # Có REDIS_URL thì việc nặng (copy file NAS, đồng bộ, backup) chạy ở container
@@ -385,6 +387,12 @@ DATABASES = {
 # ==============================================================================
 # 4. VALIDATION & INTERNATIONALIZATION
 # ==============================================================================
+
+# Dùng bcrypt cho mật khẩu mới; giữ PBKDF2 để xác thực các mật khẩu cũ.
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+]
 
 AUTH_PASSWORD_VALIDATORS = [
     {

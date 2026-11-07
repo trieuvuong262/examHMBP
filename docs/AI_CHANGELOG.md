@@ -15,6 +15,14 @@ Mỗi entry nên có:
 
 ## Entries
 
+### 2026-11-07 — ai-policy / production and local URL safety
+
+- **Type**: ai-policy
+- **Change**: Added an environment check rule: URLs beginning with `https://portal.justplay.vn/` require checking the VPS/production state first; URLs beginning with `http://127.0.0.1:8000/` are treated as local and may be updated within scope; other URLs require clarification.
+- **Reason**: Prevent accidental production changes while keeping local development workflow flexible.
+- **Source**: `RULE.md`, `AI_AGENT_RULES.md`, `docs/AI_CODEBASE_MAP.md`.
+- **Agent impact**: Determine the target environment from the URL before checking or modifying the application.
+
 ### 2026-11-06 — feature / superuser code management explorer
 
 - **Type**: feature | architecture

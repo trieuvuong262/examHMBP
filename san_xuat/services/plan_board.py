@@ -4694,24 +4694,36 @@ def filter_route_timeline(
     slugs = {(s or '').strip().lower() for s in (dept_slugs or []) if (s or '').strip()}
     teams = {int(x) for x in (team_ids or []) if int(x) > 0}
     filter_team = bool(teams) or include_unassigned_team
-    if board is None or (not slugs and not filter_team):
+    # Không chọn bộ phận nghĩa là lấy tất cả bộ phận. Khi chỉ chọn Tổ,
+    # tuyệt đối không dùng bộ phận của Tổ để thu hẹp thêm kết quả.
+    filter_dept = bool(slugs)
+    if board is None or (not filter_dept and not filter_team):
         return board
     kept = []
     for row in list(getattr(board, 'rows', None) or []):
+        all_stages = list(getattr(row, 'stage_rows', None) or [])
         stages = []
-        for stage in list(getattr(row, 'stage_rows', None) or []):
+        team_matched = False
+        for stage in all_stages:
             slug = (getattr(stage, 'slug', '') or '').strip().lower()
             if slugs and slug not in slugs:
                 continue
             wc_id = int(getattr(stage, 'work_center_id', 0) or 0)
             if filter_team:
                 if wc_id > 0 and wc_id in teams:
-                    pass
+                    team_matched = True
                 elif wc_id <= 0 and include_unassigned_team:
-                    pass
+                    team_matched = True
                 else:
                     continue
             stages.append(stage)
+        # Lọc riêng Tổ là lọc theo đơn hàng; không cắt mất các công đoạn
+        # thuộc bộ phận khác của cùng đơn hàng. Chỉ khi chọn Bộ phận mới
+        # thu hẹp các dòng công đoạn theo bộ phận đó.
+        if filter_team and not filter_dept:
+            if not team_matched:
+                continue
+            stages = all_stages
         if not stages:
             continue
         row.stage_rows = stages
@@ -5242,7 +5254,9 @@ def _stage_rows_from_bars(
         elif home_name:
             shown_dept = home_name
         else:
-            shown_dept = row_team or (sample.label if sample else '') or sheet_fallback or slug
+            # Không có nhãn bộ phận được lưu thì để dấu "-"; không suy diễn
+            # bộ phận từ tổ thực hiện (đặc biệt tổ thuê ngoài).
+            shown_dept = '-'
         dept_label = _stage_sheet_label(slug, frozen_dept or sheet_fallback)
         qty_total = (sample.team_qty_total if sample else '') or ''
         if not qty_total and plan is not None and not items:

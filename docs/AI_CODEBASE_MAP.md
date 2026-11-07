@@ -4,6 +4,12 @@ Tài liệu ngắn dành cho AI agent. Đây là bản đồ định hướng, k
 
 Bootstrap entry point dùng chung cho mọi vibe-coding tool nằm tại `RULE.md`; hãy đọc file đó trước khi làm việc. `RULE.md` sẽ điều hướng tới `AI_AGENT_RULES.md`, code map, changelog và rule theo client. `AGENTS.md` chỉ là pointer phụ để agent tự nhận diện bootstrap.
 
+## AI workflow and environment safety
+
+- URL `https://portal.justplay.vn/` means production: check the VPS/production state before inspecting or changing anything.
+- URL `http://127.0.0.1:8000/` means local development: check local and update within the requested scope.
+- Any other URL requires environment clarification before environment-dependent work.
+
 ## Snapshot
 
 - Framework: Django 5.2 + Django REST Framework.

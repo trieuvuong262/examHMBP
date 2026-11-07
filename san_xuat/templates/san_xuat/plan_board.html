@@ -1909,6 +1909,36 @@
     flex: 0 0 auto;
     margin-bottom: 0.75rem !important;
   }
+  /* Tab lộ trình: bộ lọc Bộ phận và Tổ là hai ô độc lập, không dùng chung chiều rộng. */
+  .jp-pb.is-route #jpPlanBoardFilter .jp-team-filter-org-search {
+    display: grid;
+    grid-template-columns: minmax(14rem, 1fr) minmax(11rem, 0.8fr) minmax(14rem, 1fr) minmax(14rem, 1fr);
+    gap: 0.75rem;
+    align-items: end;
+  }
+  .jp-pb.is-route #jpPlanBoardFilter .jp-team-filter-org {
+    min-width: 0;
+    flex: none;
+  }
+  .jp-pb.is-route #jpPlanBoardFilter .jp-team-filter-org .ts-wrapper,
+  .jp-pb.is-route #jpPlanBoardFilter .jp-team-filter-org .form-select {
+    width: 100%;
+    min-width: 0;
+  }
+  .jp-pb.is-route #jpPlanBoardFilter #jp-pb-filter-dept,
+  .jp-pb.is-route #jpPlanBoardFilter #jp-pb-filter-team {
+    min-height: 2.25rem;
+  }
+  @media (max-width: 900px) {
+    .jp-pb.is-route #jpPlanBoardFilter .jp-team-filter-org-search {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 560px) {
+    .jp-pb.is-route #jpPlanBoardFilter .jp-team-filter-org-search {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
   body > .ts-dropdown {
     z-index: 2000;
   }

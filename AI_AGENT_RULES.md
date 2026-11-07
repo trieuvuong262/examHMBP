@@ -45,6 +45,14 @@ Scope: <files/tools/commands>
 Expected: <validation/result>
 ```
 
+## Environment URL safety rule
+
+Before checking or changing anything based on a URL supplied by the user:
+
+- URLs starting with `https://portal.justplay.vn/` are **production**. Check the VPS/production state first before inspecting or applying changes; do not update production casually.
+- URLs starting with `http://127.0.0.1:8000/` are **local development**. Check the local environment; updates are allowed within the requested scope.
+- For any other URL, ask the user to clarify whether it targets local or production before environment-dependent work.
+
 ## Required workflow
 
 1. Read this file and `docs/AI_CODEBASE_MAP.md`.

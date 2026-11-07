@@ -38,6 +38,14 @@ Stop and ask the user before coding if any one condition applies:
 
 For the approval question, include the affected scope, estimated file count, options, risks and validation strategy. Context reading needed to prepare the plan is allowed only after announcing it. Do not code, migrate, make broad configuration changes or run destructive actions until the user answers. If the scope crosses a gate during implementation, stop and ask again.
 
+## Environment URL safety rule
+
+Before checking or changing anything based on a URL supplied by the user:
+
+- If the URL starts with `https://portal.justplay.vn/`, treat it as **production**. Check the VPS/production state first before inspecting or applying changes. Do not update production casually; state the intended action and risk.
+- If the URL starts with `http://127.0.0.1:8000/`, treat it as **local development**. Check the local environment and updates are allowed within the requested scope.
+- If the URL does not match either prefix, ask the user to clarify the target environment before making environment-dependent changes.
+
 ## Task instruction
 
 After following the reading order and approval gate, perform the request using the graph-first workflow. Keep context narrow, update living documentation when the change affects documented architecture/workflows, and report files, graph/index context, checks and limitations at the end.

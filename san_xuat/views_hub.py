@@ -3158,7 +3158,7 @@ def plan_board(request):
             .values_list('pk', flat=True)
         )
 
-        def _route_board_for(ids):
+        def _route_board_for(ids, *, apply_filters=True):
             batch = [int(pk) for pk in ids if int(pk) > 0]
             if force_full_route:
                 # Chỉ rebuild đơn vừa kéo; các đơn còn lại dùng snapshot hiện có.
@@ -3173,13 +3173,15 @@ def plan_board(request):
                 allowed = route_sheet_deadline_ids(batch, deadline_filter, timezone.localdate())
                 batch = [pk for pk in batch if pk in allowed]
             board = load_route_board(batch, range_from=route_from, range_to=route_to)
-            board = filter_route_timeline(
-                board,
-                dept_slugs=route_dept_filter,
-                team_ids=route_team_ids,
-                include_unassigned_team=route_team_unassigned,
-            )
-            return _apply_route_board_filters(board)
+            if apply_filters:
+                board = filter_route_timeline(
+                    board,
+                    dept_slugs=route_dept_filter,
+                    team_ids=route_team_ids,
+                    include_unassigned_team=route_team_unassigned,
+                )
+                board = _apply_route_board_filters(board)
+            return board
 
         more_kind = (request.GET.get('route_more') or '').strip()
         if more_kind in {'1', 'stats'}:
