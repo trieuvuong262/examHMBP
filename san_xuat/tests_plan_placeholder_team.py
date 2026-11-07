@@ -157,3 +157,39 @@ class PlaceholderTeamTests(TestCase):
         GcPartner.objects.create(code='GC-MN', name='Minh Nhân', work_center=gc)
 
         self.assertEqual(board_slugs_for_work_centers([gc.pk]), {gc.pk: f'gc-{gc.pk}'})
+
+    def test_gc_day_plan_team_finds_lsx_steps_on_khsx_team(self):
+        from san_xuat.hub_models import SxMoProcessStep, SxOrderTeamDayPlan, SxProductionOrder
+        from san_xuat.partner_models import GcPartner
+        from san_xuat.services.order_progress_sheet import progress_steps_for_team
+        from san_xuat.services.team_division_map import gc_team_from_slug
+
+        order = create_sales_order(
+            customer_name='KH', request_date=timezone.localdate(),
+            lines=[LineInput(product_code='PH', qty=Decimal('10'), product_name='Ao',
+                             routing_id=self.routing.pk)],
+        )
+        order.confirm_status = SxSalesOrder.CONFIRM_CONFIRMED
+        order.save(update_fields=['confirm_status'])
+        order.plan_steps.all().delete()
+        ensure_order_plan_steps(order)
+        step = order.plan_steps.get()
+        mo = SxProductionOrder.objects.create(
+            code='LSX-PH-3', product_code='PH', qty=Decimal('10'),
+            order_date=timezone.localdate(), sales_order=order,
+            status=SxProductionOrder.STATUS_IN_PROGRESS,
+        )
+        SxMoProcessStep.objects.create(
+            production_order=mo, sequence=10, process_name=step.process_name,
+            op_code='SEW_HEM_1008', work_center=self.thue,
+        )
+        gc = SxWorkCenter.objects.create(code='NL-2026-0007', name='44-Minh Nhân TV')
+        GcPartner.objects.create(code='GC-MN2', name='Minh Nhân', work_center=gc)
+        SxOrderTeamDayPlan.objects.create(
+            sales_order=order, team_slug=step.board_slug, work_center=gc,
+            plan_date=timezone.localdate(), qty=Decimal('10'),
+        )
+
+        steps = progress_steps_for_team(mo, gc_team_from_slug(f'gc-{gc.pk}'))
+
+        self.assertEqual([s.label for s in steps], [step.process_name])

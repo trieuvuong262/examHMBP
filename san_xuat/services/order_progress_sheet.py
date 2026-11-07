@@ -344,6 +344,19 @@ def progress_steps_for_team(
                 code = (source_meta or {}).get('work_center_code') or ''
                 if code:
                     source_codes.add(code.strip().upper())
+            if source_slugs:
+                # LSX mang tổ KHSX của bộ phận (THUÊ NGOÀI, tổ GC…), không chỉ HRD bộ phận.
+                from san_xuat.hub_models import SxSalesOrderPlanStep
+                from san_xuat.services.inter_step_times import _group_slug_scope
+                from san_xuat.services.plan_board import _plan_step_team_slug
+
+                with _group_slug_scope():
+                    for plan_step in SxSalesOrderPlanStep.objects.filter(
+                        sales_order_id=mo.sales_order_id, work_center__isnull=False,
+                    ).select_related('work_center'):
+                        if _plan_step_team_slug(plan_step) in source_slugs:
+                            source_codes.add((plan_step.work_center.code or '').strip().upper())
+                source_codes.discard('')
             if source_codes:
                 return [
                     s for s in steps

@@ -22,11 +22,11 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         apply = bool(options['apply'])
-        # Chỉ sửa bước LSX đang ở tổ không phải bộ phận HR (HRD-*): bước nằm ở
-        # bộ phận khác có thể là chủ đích của OB, không suy từ tên công đoạn.
+        # Chỉ sửa bước LSX chưa có tổ hoặc đang ở tổ không phải bộ phận HR (HRD-*):
+        # bước nằm ở bộ phận khác có thể là chủ đích của OB, không suy từ tên công đoạn.
         from_ids = set(
             SxWorkCenter.objects.exclude(code__istartswith=CODE_PREFIX).values_list('pk', flat=True)
-        )
+        ) | {None}
         orders = SxSalesOrder.objects.filter(
             is_demo=False,
             production_orders__is_demo=False,
