@@ -660,13 +660,22 @@ def done_qty_by_order_team_day(
         for label, rec in by_label.items()
         if rec.get("stage")
     }
+    from san_xuat.services.capacity_from_hrm import division_id_from_work_center_code
+
     plan_slugs: dict[int, set[str]] = {}
-    for oid, slug in SxOrderTeamDayPlan.objects.filter(
+    # Ô kế hoạch bộ phận giao cho work center của bộ phận HR khác (d25 → HRD-39):
+    # SL tổ d39 nhập phải tính vào ô d25.
+    slot_by_team: dict[int, dict[str, str]] = {}
+    for oid, slug, wc_code in SxOrderTeamDayPlan.objects.filter(
         sales_order_id__in=[int(x) for x in order_ids if x],
-    ).values_list("sales_order_id", "team_slug"):
+    ).values_list("sales_order_id", "team_slug", "work_center__code"):
         key = (slug or "").strip().lower()
-        if key:
-            plan_slugs.setdefault(int(oid), set()).add(key)
+        if not key:
+            continue
+        plan_slugs.setdefault(int(oid), set()).add(key)
+        did = division_id_from_work_center_code(wc_code)
+        if did and f"d{did}" != key:
+            slot_by_team.setdefault(int(oid), {}).setdefault(f"d{did}", key)
 
     out: dict[tuple[int, str], dict[date, Decimal]] = {}
     for mo in mos:
@@ -679,6 +688,7 @@ def done_qty_by_order_team_day(
         sizes = _size_plans(mo)
         mo_steps = _output_steps_for_mo(mo)
         planned = plan_slugs.get(oid, set())
+        team_slots = slot_by_team.get(oid, {})
         buckets: dict[str, list[SxProductionStat]] = {}
         for st in stats:
             label = (getattr(st, "team_label", "") or "").strip().casefold()
@@ -697,12 +707,13 @@ def done_qty_by_order_team_day(
                 mo, rows, sizes=sizes, mo_steps=mo_steps, stage_by_label=stage_by_label,
             )
             if bucket:
+                target = team_slots.get(bucket, bucket) if bucket not in planned else bucket
                 series = deltas.get(stage, {}) if stage else {}
                 if not stage:
                     for days in deltas.values():
-                        _merge_day_qty(direct, bucket, days)
+                        _merge_day_qty(direct, target, days)
                 else:
-                    _merge_day_qty(direct, bucket, series)
+                    _merge_day_qty(direct, target, series)
                 continue
             for stage_slug, days in deltas.items():
                 _merge_day_qty(direct, stage_slug, days)

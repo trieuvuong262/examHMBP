@@ -15,6 +15,14 @@ Mỗi entry nên có:
 
 ## Entries
 
+### 2026-11-07 — bugfix / SL đã làm khi ô bộ phận giao cho tổ thuộc bộ phận HR khác
+
+- **Type**: bugfix | workflow
+- **Change**: `handover_status.done_qty_by_order_team_day` cộng SL của tổ nhập tiến độ (`d{id}` theo nhãn tổ) vào ô day plan được giao cho work center `HRD-{id}` của chính tổ đó, khi tổ không có ô riêng trên đơn (vd. ô MAY `d25` giao cho MAY (19 CHIẾN LƯỢC) `HRD-39`, SL nhập dưới `d39`).
+- **Reason**: Dòng Tổng MAY trên lộ trình hiện 0 dù tổ đã nhập đủ, nên nút «Hoàn thành» (mọi dòng Tổng > 80%) không hiện (đơn SXJP:005318 - 6).
+- **Source**: `san_xuat/services/handover_status.py::done_qty_by_order_team_day`; dùng bởi `plan_board._done_qty_by_order_team(_day)`, `route_stage_rows_can_complete`, Tiến độ hàng hoá.
+- **Agent impact**: Mô phỏng trên production trước khi đổi: 177 đơn đang chạy, chỉ đơn 198 đổi khóa `d39 → d25`. Sau deploy phải `refresh_route_sheets` cho đơn bị ảnh hưởng vì `can_complete` nằm trong cache `SxRouteSheet.payload`.
+
 ### 2026-11-07 — workflow / hồ sơ thiết kế là nguồn bộ phận của OB
 
 - **Type**: workflow | bugfix
