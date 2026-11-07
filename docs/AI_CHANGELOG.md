@@ -15,6 +15,14 @@ Mỗi entry nên có:
 
 ## Entries
 
+### 2026-11-07 — bugfix / đơn mới bị bộ phận THUÊ NGOÀI trên lộ trình
+
+- **Type**: bugfix | workflow
+- **Change**: `SxOperationGroup.default_work_center` (migration `0160`: nhóm `SEW_*` của MAY (152A VĨNH LỘC) → THUÊ NGOÀI `NL-2026-0011`) giờ chỉ là **tổ chờ trên KHSX**. `_copy_from_routing_line` / `_copy_from_process_step` chép bộ phận OB đơn theo hồ sơ thiết kế (không lấy tổ mặc định của nhóm). `work_center_for_operation(_group)` trả lại bộ phận theo Tên bộ phận, không trả tổ mặc định. Thêm `capacity_from_hrm.placeholder_team_for_operation_group` và `plan_board.apply_placeholder_plan_teams`: khi `ensure_order_plan_steps` seed bước mới, bước thuộc nhóm có tổ chờ được ghim `board_slug`/`dept_label` theo bộ phận OB (vd. `d25` / `MAY (152A VĨNH LỘC)`) rồi gán tổ chờ.
+- **Reason**: Đơn tạo sau fix sáng 07/11 (SXJP:005378 - 1, SXJP:005377 - 2, SXJP:005377 - TE) vẫn có OB MAY = THUÊ NGOÀI và KHSX không ghim bộ phận, nên cột Bộ phận lẫn Tổ đều hiện THUÊ NGOÀI. Yêu cầu 05/11 là Bộ phận MAY, tổ THUÊ NGOÀI.
+- **Source**: `san_xuat/services/order_routing.py`, `san_xuat/services/capacity_from_hrm.py`, `san_xuat/services/plan_board.py::apply_placeholder_plan_teams`, `san_xuat/services/plan_route.py::ensure_order_plan_steps`; test `san_xuat/tests_plan_placeholder_team.py`.
+- **Agent impact**: Không dùng `default_work_center` làm bộ phận OB. Cột Bộ phận lộ trình lấy `dept_label` đã ghim, không có thì lấy tên tổ của day plan; muốn đổi tổ chờ thì sửa `default_work_center` của nhóm.
+
 ### 2026-11-07 — workflow / nhập sản lượng ngày trên lộ trình KHSX
 
 - **Type**: workflow

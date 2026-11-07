@@ -73,7 +73,10 @@ def _q(value, places: str = '0.0001') -> Decimal:
 
 def ensure_order_plan_steps(order: SxSalesOrder) -> list[SxSalesOrderPlanStep]:
     """Seed snapshot từ routing dòng SP nếu đơn chưa có bước; fallback mẫu cố định."""
-    from san_xuat.services.plan_board import apply_default_capacity_teams
+    from san_xuat.services.plan_board import (
+        apply_default_capacity_teams,
+        apply_placeholder_plan_teams,
+    )
 
     existing = list(order.plan_steps.select_related('work_center').order_by('sequence', 'id'))
     if existing:
@@ -150,6 +153,7 @@ def ensure_order_plan_steps(order: SxSalesOrder) -> list[SxSalesOrderPlanStep]:
     if cache is not None:
         cache.pop('plan_steps', None)
     seeded = list(order.plan_steps.select_related('work_center').order_by('sequence', 'id'))
+    seeded = apply_placeholder_plan_teams(seeded)
     return apply_default_capacity_teams(
         order, seeded, replace_without_capacity=True,
     )

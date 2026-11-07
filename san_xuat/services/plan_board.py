@@ -887,6 +887,51 @@ def _work_center_catalog_by_slug() -> dict[str, SxWorkCenter]:
     return get_or_set(('sx_wc_catalog_by_slug',), _load)
 
 
+def apply_placeholder_plan_teams(steps) -> list:
+    """Bước KHSX vừa seed từ OB: giao tổ chờ của nhóm (vd. THUÊ NGOÀI).
+
+    Ghim slug + chữ bộ phận theo OB trước khi đổi tổ, giống ``assign_plan_team``,
+    để cột Bộ phận vẫn là MAY còn cột Tổ là tổ chờ.
+    """
+    from san_xuat.ie_models import SxOperationGroup
+    from san_xuat.services.capacity_from_hrm import placeholder_team_for_operation_group
+    from san_xuat.services.inter_step_times import _group_slug_scope
+
+    steps = list(steps or [])
+    codes = {(s.group_code or '').strip() for s in steps if (s.group_code or '').strip()}
+    if not codes:
+        return steps
+    placeholder_by_code: dict[str, SxWorkCenter] = {}
+    for grp in SxOperationGroup.objects.filter(
+        code__in=codes, default_work_center__isnull=False,
+    ).select_related('default_work_center'):
+        wc = placeholder_team_for_operation_group(grp)
+        if wc is not None:
+            placeholder_by_code[(grp.code or '').strip()] = wc
+    if not placeholder_by_code:
+        return steps
+    dirty: list[SxSalesOrderPlanStep] = []
+    with _group_slug_scope():
+        for step in steps:
+            wc = placeholder_by_code.get((step.group_code or '').strip())
+            if wc is None or step.work_center_id == wc.pk:
+                continue
+            slug = _plan_step_team_slug(step)
+            if not (step.board_slug or '').strip() and slug:
+                step.board_slug = slug[:40]
+            if not (step.dept_label or '').strip():
+                old = step.work_center
+                own = (old.team_label or old.name or old.code or '').strip() if old else ''
+                step.dept_label = (own or _team_display_label(slug))[:120]
+            step.work_center = wc
+            dirty.append(step)
+    if dirty:
+        SxSalesOrderPlanStep.objects.bulk_update(
+            dirty, ['work_center', 'board_slug', 'dept_label'],
+        )
+    return steps
+
+
 def apply_default_capacity_teams(
     order: SxSalesOrder,
     steps=None,
