@@ -1286,7 +1286,7 @@ def _team_loads_from_order(
         plan_bucket = plan_members.get(slug) or {}
         # OB giữ bộ phận hồ sơ thiết kế; KHSX đã giao tổ khác (THUÊ NGOÀI, tổ GC…)
         # thì tổ thực hiện và năng lực lấy theo KHSX.
-        if plan_bucket and not set(plan_bucket) & set(routing_bucket):
+        if plan_bucket and set(plan_bucket) != set(routing_bucket):
             bucket = plan_bucket
         else:
             bucket = routing_bucket or plan_bucket
@@ -3660,6 +3660,82 @@ def reload_plan_order_tech(
     )
 
 
+def order_plan_step_maps(order: SxSalesOrder) -> tuple[dict, dict]:
+    """Ngày + thời gian chuyển CĐ từ snapshot kế hoạch, khoá theo tên công đoạn."""
+    from san_xuat.services.inter_step_times import hop_pair_map, resolve_adjacent_hop
+
+    plan_step_rows = list(order.plan_steps.all())
+    planned_by_name = {
+        (s.process_name or '').strip().casefold(): s.planned_date
+        for s in plan_step_rows
+        if s.planned_date
+    }
+    hop_by_name = {}
+    if plan_step_rows:
+        pairs = hop_pair_map()
+        for i, s in enumerate(plan_step_rows):
+            nxt = plan_step_rows[i + 1] if i + 1 < len(plan_step_rows) else None
+            key = (s.process_name or '').strip().casefold()
+            hop_by_name[key] = resolve_adjacent_hop(s, nxt, fill_default=True, pairs=pairs)
+    return planned_by_name, hop_by_name
+
+
+def order_line_plan_window(order: SxSalesOrder, order_line: SxSalesOrderLine) -> tuple[date, date]:
+    from san_xuat.services.inter_step_times import schedule_span
+
+    line_routing = sales_order_line_routing(order_line)
+    lead = (line_routing.total_smv * order_line.qty_to_produce) + line_routing.hop_buffer_minutes
+    plan_anchor = order.plan_start_date or order.request_date or timezone.localdate()
+    return schedule_span(
+        start=plan_anchor,
+        lead_minutes=lead,
+        minutes_per_day=PLAN_SHIFT_MINUTES,
+    )
+
+
+def sync_mo_steps_from_order_line(
+    mo: SxProductionOrder,
+    order_line: SxSalesOrderLine,
+    *,
+    routing_id: int | None,
+    planned_by_name: dict,
+    hop_by_name: dict,
+) -> None:
+    """Ưu tiên snapshot CĐ trên dòng đơn; fallback routing mã hàng; không thì BOM."""
+    from san_xuat.models import ProcessStep
+    from san_xuat.services.dispatch import steps_dicts_from_routing, sync_mo_process_steps
+
+    routing_steps = steps_dicts_from_order_line(order_line) or steps_dicts_from_routing(routing_id)
+    if routing_steps:
+        for row in routing_steps:
+            key = (row.get('process_name') or '').strip().casefold()
+            if key in planned_by_name:
+                row['planned_date'] = planned_by_name[key]
+            if key in hop_by_name:
+                row['count_minutes'], row['transfer_minutes'] = hop_by_name[key]
+        sync_mo_process_steps(mo, routing_steps)
+        return
+    if planned_by_name and mo.bom_version_id:
+        bom_rows = list(
+            ProcessStep.objects.filter(bom_id=mo.bom_version_id).order_by('sequence', 'id')
+        )
+        step_dicts = []
+        for i, s in enumerate(bom_rows):
+            key = (s.process_name or '').strip().casefold()
+            step_dicts.append({
+                'id': s.pk,
+                'sequence': s.sequence or ((i + 1) * 10),
+                'process_name': s.process_name,
+                'work_center_id': s.work_center_id,
+                'planned_date': planned_by_name.get(key),
+                'manager_id': None,
+            })
+        if step_dicts:
+            sync_mo_process_steps(mo, step_dicts)
+            return
+    sync_mo_process_steps(mo, None)
+
+
 @transaction.atomic
 def release_order_to_production(
     *,
@@ -3668,13 +3744,9 @@ def release_order_to_production(
     bom_by_product: dict[str, int] | None = None,
     routing_by_product: dict[str, int] | None = None,
 ) -> list[SxProductionOrder]:
-    """Chuyển đơn xuống SX: tạo LSX theo từng dòng SP, gắn sales_order + BOM đã chọn."""
-    from san_xuat.models import BomVersion, ProcessStep
-    from san_xuat.services.dispatch import (
-        publish_mo_to_team_work,
-        steps_dicts_from_routing,
-        sync_mo_process_steps,
-    )
+    """Chuyển đơn xuống SX: phát hành LSX nháp có sẵn hoặc tạo LSX theo từng dòng SP."""
+    from san_xuat.models import BomVersion
+    from san_xuat.services.dispatch import publish_mo_to_team_work
 
     order = (
         SxSalesOrder.objects.select_for_update()
@@ -3710,32 +3782,18 @@ def release_order_to_production(
     routing_map = _id_map(routing_by_product)
     _assert_lines_ready_to_release(lines, bom_map=bom_map, routing_map=routing_map)
 
-    # planned_date + hop times từ snapshot kế hoạch — khớp theo tên công đoạn
-    planned_by_name = {
-        (s.process_name or '').strip().casefold(): s.planned_date
-        for s in order.plan_steps.all()
-        if s.planned_date
-    }
-    from san_xuat.services.inter_step_times import hop_pair_map, resolve_adjacent_hop
-
-    plan_step_rows = list(order.plan_steps.all())
-    hop_by_name = {}
-    if plan_step_rows:
-        pairs = hop_pair_map()
-        for i, s in enumerate(plan_step_rows):
-            nxt = plan_step_rows[i + 1] if i + 1 < len(plan_step_rows) else None
-            key = (s.process_name or '').strip().casefold()
-            hop_by_name[key] = resolve_adjacent_hop(s, nxt, fill_default=True, pairs=pairs)
+    planned_by_name, hop_by_name = order_plan_step_maps(order)
 
     created: list[SxProductionOrder] = []
     errors: list[str] = []
     for ln in lines:
-        exists = order.production_orders.filter(
+        active = order.production_orders.filter(
             is_demo=False,
             product_code__iexact=ln.product_code,
-        ).exclude(status=SxProductionOrder.STATUS_CANCELLED).exists()
-        if exists:
+        ).exclude(status=SxProductionOrder.STATUS_CANCELLED)
+        if active.exclude(status=SxProductionOrder.STATUS_DRAFT).exists():
             continue
+        draft = active.filter(status=SxProductionOrder.STATUS_DRAFT).order_by('pk').first()
 
         code = (ln.product_code or '').strip()
         bom_id = bom_map.get(code.casefold()) or ln.bom_version_id
@@ -3747,60 +3805,42 @@ def release_order_to_production(
         routing_id = routing_map.get(code.casefold()) or ln.routing_id
         _persist_line_tech(ln, bom_id=bom_id, routing_id=routing_id)
 
-        from san_xuat.services.inter_step_times import schedule_span
-        from san_xuat.services.order_routing import sales_order_line_routing as _line_routing
-
-        line_routing = _line_routing(ln)
-        lead = (line_routing.total_smv * ln.qty_to_produce) + line_routing.hop_buffer_minutes
-        plan_anchor = order.plan_start_date or order.request_date or timezone.localdate()
-        plan_start, plan_end = schedule_span(
-            start=plan_anchor,
-            lead_minutes=lead,
-            minutes_per_day=PLAN_SHIFT_MINUTES,
-        )
+        plan_start, plan_end = order_line_plan_window(order, ln)
 
         mo = None
         try:
-            mo = create_mo_from_bom(
-                product_code=code,
-                qty=ln.qty_to_produce,
-                order_date=timezone.localdate(),
-                due_date=ln.due_date or order.due_date,
-                planned_start=plan_start,
-                planned_end=plan_end,
-                notes=f'Từ ĐĐH {order.code}',
-                user=user,
-                sales_order_id=order.pk,
-                bom_version_id=bom_id,
-                routing_id=routing_id,
-            )
-            # Ưu tiên snapshot CĐ trên dòng đơn; fallback routing mã hàng; không thì BOM
-            routing_steps = steps_dicts_from_order_line(ln) or steps_dicts_from_routing(routing_id)
-            if routing_steps:
-                for row in routing_steps:
-                    key = (row.get('process_name') or '').strip().casefold()
-                    if key in planned_by_name:
-                        row['planned_date'] = planned_by_name[key]
-                    if key in hop_by_name:
-                        row['count_minutes'], row['transfer_minutes'] = hop_by_name[key]
-                sync_mo_process_steps(mo, routing_steps)
-            elif planned_by_name and mo.bom_version_id:
-                bom_rows = list(
-                    ProcessStep.objects.filter(bom_id=mo.bom_version_id).order_by('sequence', 'id')
+            if draft is not None:
+                mo = draft
+                mo.qty = ln.qty_to_produce
+                mo.due_date = ln.due_date or order.due_date
+                mo.planned_start = plan_start
+                mo.planned_end = plan_end
+                mo.bom_version_id = bom_id
+                mo.routing_id = routing_id
+                mo.save(update_fields=[
+                    'qty', 'due_date', 'planned_start', 'planned_end', 'bom_version', 'routing',
+                ])
+            else:
+                mo = create_mo_from_bom(
+                    product_code=code,
+                    qty=ln.qty_to_produce,
+                    order_date=timezone.localdate(),
+                    due_date=ln.due_date or order.due_date,
+                    planned_start=plan_start,
+                    planned_end=plan_end,
+                    notes=f'Từ ĐĐH {order.code}',
+                    user=user,
+                    sales_order_id=order.pk,
+                    bom_version_id=bom_id,
+                    routing_id=routing_id,
                 )
-                step_dicts = []
-                for i, s in enumerate(bom_rows):
-                    key = (s.process_name or '').strip().casefold()
-                    step_dicts.append({
-                        'id': s.pk,
-                        'sequence': s.sequence or ((i + 1) * 10),
-                        'process_name': s.process_name,
-                        'work_center_id': s.work_center_id,
-                        'planned_date': planned_by_name.get(key),
-                        'manager_id': None,
-                    })
-                if step_dicts:
-                    sync_mo_process_steps(mo, step_dicts)
+            sync_mo_steps_from_order_line(
+                mo,
+                ln,
+                routing_id=routing_id,
+                planned_by_name=planned_by_name,
+                hop_by_name=hop_by_name,
+            )
             if ln.product_name and not mo.product_name:
                 mo.product_name = ln.product_name
                 mo.save(update_fields=['product_name'])
@@ -3809,7 +3849,7 @@ def release_order_to_production(
             mo.refresh_from_db()
             created.append(mo)
         except DispatchError as exc:
-            if mo is not None and getattr(mo, 'pk', None):
+            if draft is None and mo is not None and getattr(mo, 'pk', None):
                 mo.delete()
             errors.append(f'{code}: {exc}')
 
