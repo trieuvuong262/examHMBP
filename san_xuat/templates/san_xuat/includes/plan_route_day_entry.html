@@ -20,7 +20,7 @@
   .jp-rd-seg button.is-on { background: #dc2626; color: #fff; }
   .jp-rd-sheet-card { background: #fff; border: 1px solid #e8edf3; border-radius: .85rem; overflow: hidden; }
   .jp-rd-sheet { width: 100%; border-collapse: separate; border-spacing: 0; font-size: .84rem; }
-  .jp-rd-sheet th, .jp-rd-sheet td { padding: .55rem .55rem; border-bottom: 1px solid #f1f5f9; text-align: right; white-space: nowrap; }
+  .jp-rd-sheet th, .jp-rd-sheet td { padding: .55rem .55rem; border-bottom: 1px solid #f1f5f9; text-align: right; vertical-align: middle; white-space: nowrap; }
   .jp-rd-sheet thead th { background: #fff5f5; color: #9f1239; font-size: .68rem; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; }
   .jp-rd-sheet thead th:first-child, .jp-rd-sheet tbody th { text-align: left; font-weight: 800; color: #0f172a; }
   .jp-rd-sheet tbody tr:last-child th, .jp-rd-sheet tbody tr:last-child td { border-bottom: 0; }
@@ -36,14 +36,18 @@
   .jp-rd-log-title { font-size: .78rem; font-weight: 800; color: #0f172a; }
   .jp-rd-log-hint { color: #94a3b8; font-size: .68rem; font-weight: 700; }
   .jp-rd-log-list { display: flex; flex-direction: column; gap: .4rem; max-height: 15rem; overflow: auto; padding-right: .1rem; }
-  .jp-rd-log-row { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; padding: .6rem .7rem; border-radius: .8rem; background: #fff; border: 1px solid #e8edf3; }
+  .jp-rd-log-row { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .6rem .7rem; border-radius: .8rem; background: #fff; border: 1px solid #e8edf3; }
   .jp-rd-log-row.is-pending { background: #fffaf5; border-color: #fed7aa; }
   .jp-rd-log-who { display: flex; align-items: center; gap: .4rem; color: #0f172a; font-size: .82rem; font-weight: 800; }
   .jp-rd-badge { display: inline-flex; align-items: center; padding: .05rem .4rem; border-radius: 999px; background: #ffedd5; color: #c2410c; font-size: .64rem; font-weight: 800; }
   .jp-rd-log-meta { margin-top: .12rem; color: #64748b; font-size: .7rem; font-weight: 700; }
   .jp-rd-log-editby { margin-top: .15rem; color: #c2410c; font-size: .7rem; font-weight: 800; }
   .jp-rd-log-side { display: flex; align-items: center; gap: .5rem; }
-  .jp-rd-log-qty { color: #0f172a; font-size: .84rem; font-weight: 800; text-align: right; }
+  .jp-rd-log-qty { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .45rem .65rem; text-align: right; }
+  .jp-rd-log-bit { display: inline-flex; align-items: center; gap: .3rem; }
+  .jp-rd-size-tag { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-width: 1.7rem; height: 1.35rem; padding: 0 .4rem; border-radius: .4rem; background: #fff; border: 1px solid #e2e8f0; color: #475569; font-size: .72rem; font-weight: 700; letter-spacing: 0; line-height: 1; }
+  .jp-rd-log-num { display: inline-flex; align-items: center; height: 1.35rem; color: #b91c1c; font-size: .95rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+  .jp-rd-sheet tbody tr:not(.is-sum) th { width: 1%; padding-right: .35rem; }
   .jp-rd-log-fix, .jp-rd-log-ok, .jp-rd-log-cancel { border: 1px solid #fecaca; background: #fff; color: #b91c1c; font-size: .72rem; font-weight: 800; padding: .22rem .5rem; border-radius: .5rem; }
   .jp-rd-log-fix:hover, .jp-rd-log-ok:hover { background: #fef2f2; }
   .jp-rd-log-cancel { border-color: #e2e8f0; color: #64748b; }
@@ -270,10 +274,11 @@
   }
   function qtyText(sizes) {
     return (sizes || []).map(function (row) {
-      var label = row.size || '';
-      var qty = show(row.qty);
-      return label ? label + ' ' + qty : qty;
-    }).join(' · ');
+      var size = row.size
+        ? '<span class="jp-rd-size-tag">' + esc(row.size) + '</span>'
+        : '';
+      return '<span class="jp-rd-log-bit">' + size + '<span class="jp-rd-log-num">' + esc(show(row.qty)) + '</span></span>';
+    }).join('');
   }
   var editingKey = '';
   function dayDraft() {
@@ -392,12 +397,12 @@
       var badge = entry.pending ? '<span class="jp-rd-badge">Chờ lưu</span>' : '';
       var side = editingKey === key
         ? '<div class="jp-rd-log-editor">' + (entry.sizes || []).map(function (row) {
-            return '<label>' + esc(row.size || 'SL') +
+            return '<label><span class="jp-rd-size-tag">' + esc(row.size || 'SL') + '</span>' +
               ' <input class="form-control form-control-sm" data-edit-size="' + esc(row.size || '') + '" data-log-id="' + esc(row.log_id || '') + '" value="' + esc(plain(row.qty)) + '" inputmode="decimal"></label>';
           }).join('') +
           '<button type="button" class="jp-rd-log-ok" data-edit-save="' + esc(key) + '">Lưu sửa</button>' +
           '<button type="button" class="jp-rd-log-cancel" data-edit-cancel>Hủy</button></div>'
-        : '<div class="jp-rd-log-side"><div class="jp-rd-log-qty">' + esc(qtyText(entry.sizes)) + '</div>' +
+        : '<div class="jp-rd-log-side"><div class="jp-rd-log-qty">' + qtyText(entry.sizes) + '</div>' +
           (dayData.can_update ? '<button type="button" class="jp-rd-log-fix" data-edit-open="' + esc(key) + '">Sửa</button>' : '') +
           '</div>';
       return '<div class="jp-rd-log-row' + (entry.pending ? ' is-pending' : '') + '">' +
@@ -440,7 +445,7 @@
       var label = size.label || '';
       var row = document.createElement('tr');
       row.innerHTML = '<th scope="row"></th><td data-role="plan"></td><td data-role="done"></td><td data-role="remain"></td><td><div class="jp-rd-in"><input class="form-control form-control-sm" inputmode="decimal" placeholder="0"></div><span class="jp-rd-alt"></span></td>';
-      row.querySelector('th').textContent = label || '—';
+      row.querySelector('th').innerHTML = '<span class="jp-rd-size-tag">' + esc(label || '—') + '</span>';
       row.querySelector('[data-role="plan"]').textContent = num(size.plan) ? show(size.plan) : '—';
       var input = row.querySelector('input');
       input.setAttribute('data-size', label);
