@@ -420,7 +420,12 @@ def board_slugs_for_work_centers(work_center_ids) -> dict[int, str]:
     if not ids:
         return {}
     out: dict[int, str] = {}
+    # Tổ gia công có thể gắn phòng HR để truy vết nhưng nhập tiến độ theo bảng gc-{id}.
+    gc_ids = {item['work_center_id'] for item in gc_work_center_items()}
     for wc in SxWorkCenter.objects.filter(pk__in=ids).only('id', 'code', 'division_id'):
+        if int(wc.pk) in gc_ids:
+            out[int(wc.pk)] = f'gc-{wc.pk}'
+            continue
         did = int(getattr(wc, 'division_id', 0) or 0) or (
             division_id_from_work_center_code(wc.code) or 0
         )

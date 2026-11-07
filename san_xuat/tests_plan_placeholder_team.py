@@ -143,3 +143,17 @@ class PlaceholderTeamTests(TestCase):
         self.assertEqual(
             set(mo.mo_process_steps.values_list('work_center_id', flat=True)), {self.thue.pk},
         )
+
+    def test_gc_team_with_hr_division_uses_gc_progress_slug(self):
+        from hrm.models import Department, Division
+        from san_xuat.partner_models import GcPartner
+        from san_xuat.services.team_division_map import board_slugs_for_work_centers
+
+        dept = Department.objects.create(name='SX Test', sort_order=990)
+        div = Division.objects.create(name='MAY (19 CHIẾN LƯỢC)', department=dept, sort_order=1)
+        gc = SxWorkCenter.objects.create(
+            code='NL-2026-0003', name='44-Minh Nhân TV', team_label='44-Minh Nhân TV', division=div,
+        )
+        GcPartner.objects.create(code='GC-MN', name='Minh Nhân', work_center=gc)
+
+        self.assertEqual(board_slugs_for_work_centers([gc.pk]), {gc.pk: f'gc-{gc.pk}'})
