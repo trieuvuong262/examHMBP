@@ -72,3 +72,9 @@ class PlaceholderTeamTests(TestCase):
         self.assertTrue(step.board_slug)
         ob.refresh_from_db()
         self.assertEqual(ob.work_center_id, self.may.pk)
+
+        from san_xuat.services.plan_board import _team_loads_from_order
+
+        row = next(r for r in _team_loads_from_order(order) if r['slug'] == step.board_slug)
+        self.assertEqual(row['work_center_id'], self.thue.pk)
+        self.assertEqual(row['dept_label'], MAY_LABEL)

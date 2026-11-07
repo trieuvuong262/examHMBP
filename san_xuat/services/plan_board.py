@@ -1282,7 +1282,14 @@ def _team_loads_from_order(
 
     members: dict[str, list[SxWorkCenter]] = {}
     for slug in work:
-        bucket = routing_members.get(slug) or plan_members.get(slug) or {}
+        routing_bucket = routing_members.get(slug) or {}
+        plan_bucket = plan_members.get(slug) or {}
+        # OB giữ bộ phận hồ sơ thiết kế; KHSX đã giao tổ khác (THUÊ NGOÀI, tổ GC…)
+        # thì tổ thực hiện và năng lực lấy theo KHSX.
+        if plan_bucket and not set(plan_bucket) & set(routing_bucket):
+            bucket = plan_bucket
+        else:
+            bucket = routing_bucket or plan_bucket
         if not bucket:
             continue
         members[slug] = [entry[0] for entry in bucket.values()]
