@@ -116,3 +116,30 @@ class PlaceholderTeamTests(TestCase):
         self.assertEqual(mo_step.work_center_id, gc.pk)
         ob = order.lines.get().routing_lines.get()
         self.assertEqual(ob.work_center_id, self.may.pk)
+
+    def test_lsx_built_from_ob_takes_khsx_team(self):
+        from san_xuat.hub_models import SxProductionOrder
+        from san_xuat.services.plan_board import sync_mo_steps_from_order_line
+
+        order = create_sales_order(
+            customer_name='KH', request_date=timezone.localdate(),
+            lines=[LineInput(product_code='PH', qty=Decimal('10'), product_name='Ao',
+                             routing_id=self.routing.pk)],
+        )
+        order.confirm_status = SxSalesOrder.CONFIRM_CONFIRMED
+        order.save(update_fields=['confirm_status'])
+        order.plan_steps.all().delete()
+        ensure_order_plan_steps(order)
+        mo = SxProductionOrder.objects.create(
+            code='LSX-PH-2', product_code='PH', qty=Decimal('10'),
+            order_date=timezone.localdate(), sales_order=order,
+            status=SxProductionOrder.STATUS_DRAFT,
+        )
+
+        sync_mo_steps_from_order_line(
+            mo, order.lines.get(), routing_id=None, planned_by_name={}, hop_by_name={},
+        )
+
+        self.assertEqual(
+            set(mo.mo_process_steps.values_list('work_center_id', flat=True)), {self.thue.pk},
+        )

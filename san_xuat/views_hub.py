@@ -916,8 +916,11 @@ def _sync_ob_downstream(order, user) -> None:
         sync_order_plan_steps_from_ob,
     )
 
+    from san_xuat.services.plan_board import apply_plan_teams_to_mos
+
     sync_active_mos_from_order(order, user=user)
-    sync_order_plan_steps_from_ob(order)
+    if sync_order_plan_steps_from_ob(order):
+        apply_plan_teams_to_mos(order)
 
 
 def _handle_order_tech_publish(request, order, *, kind: str) -> bool:

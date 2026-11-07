@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
-
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from san_xuat.hub_models import SxProductionOrder, SxSalesOrder, SxSalesOrderPlanStep, SxWorkCenter
+from san_xuat.hub_models import SxProductionOrder, SxSalesOrder, SxWorkCenter
 from san_xuat.services.capacity_from_hrm import CODE_PREFIX
-from san_xuat.services.plan_board import sync_mo_steps_team
+from san_xuat.services.plan_board import apply_plan_teams_to_mos
 
 
 class Command(BaseCommand):
@@ -44,27 +42,12 @@ class Command(BaseCommand):
         touched = 0
         with transaction.atomic():
             for order in orders.order_by('pk'):
-                plan_steps = list(SxSalesOrderPlanStep.objects.filter(
-                    sales_order=order, work_center__isnull=False,
-                ))
-                wcs_by_name: dict[str, set[int]] = defaultdict(set)
-                for step in plan_steps:
-                    wcs_by_name[(step.process_name or '').strip().casefold()].add(step.work_center_id)
-                by_wc: dict[int, list] = defaultdict(list)
-                for step in plan_steps:
-                    # Cùng tên công đoạn ở hai tổ trong một đơn thì không đoán.
-                    if len(wcs_by_name[(step.process_name or '').strip().casefold()]) == 1:
-                        by_wc[step.work_center_id].append(step)
-                changed = 0
-                for wc_id, steps in by_wc.items():
-                    wc = SxWorkCenter.objects.get(pk=wc_id)
-                    n = sync_mo_steps_team(order, steps, wc, only_from_ids=from_ids)
-                    if n:
-                        self.stdout.write(f'  order={order.pk} {order.code}: {n} bước LSX -> {names.get(wc_id)}')
-                    changed += n
+                changed = apply_plan_teams_to_mos(order, only_from_ids=from_ids)
+                for wc_id, n in changed.items():
+                    self.stdout.write(f'  order={order.pk} {order.code}: {n} bước LSX -> {names.get(wc_id)}')
                 if changed:
                     touched += 1
-                    total += changed
+                    total += sum(changed.values())
             mode = 'APPLY' if apply else 'DRY-RUN'
             self.stdout.write(f'[{mode}] {total} bước LSX trên {touched} đơn.')
             if not apply:

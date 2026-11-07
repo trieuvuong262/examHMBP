@@ -298,8 +298,10 @@ def sync_active_mos_from_order(order: SxSalesOrder, *, user=None) -> int:
                 changes={'before': before, 'after': after, 'order_id': order.pk}, user=user,
             )
     if changed:
+        from san_xuat.services.plan_board import apply_plan_teams_to_mos
         from san_xuat.services.route_sheet import mark_route_sheet_dirty
 
+        apply_plan_teams_to_mos(order)
         mark_route_sheet_dirty(order.pk)
     return changed
 

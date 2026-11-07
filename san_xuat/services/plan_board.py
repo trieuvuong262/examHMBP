@@ -3202,7 +3202,9 @@ def _retarget_day_plans_after_team_change(
     _clear_day_plan_cache(order)
 
 
-def sync_mo_steps_team(order: SxSalesOrder, plan_steps, wc: SxWorkCenter, *, only_from_ids=None) -> int:
+def sync_mo_steps_team(
+    order: SxSalesOrder, plan_steps, wc: SxWorkCenter, *, only_from_ids=None, mo_id: int | None = None,
+) -> int:
     """Gán tổ KHSX cho bước LSX đang chạy cùng tên công đoạn (và cùng nhóm nếu có mã CĐ)."""
     from san_xuat.hub_models import SxMoProcessStep
 
@@ -3221,6 +3223,8 @@ def sync_mo_steps_team(order: SxSalesOrder, plan_steps, wc: SxWorkCenter, *, onl
             SxProductionOrder.STATUS_CANCELLED, SxProductionOrder.STATUS_DONE,
         ),
     )
+    if mo_id:
+        qs = qs.filter(production_order_id=mo_id)
     dirty = []
     for mo_step in qs:
         if mo_step.work_center_id == wc.pk:
@@ -3239,6 +3243,26 @@ def sync_mo_steps_team(order: SxSalesOrder, plan_steps, wc: SxWorkCenter, *, onl
     if dirty:
         SxMoProcessStep.objects.bulk_update(dirty, ['work_center'])
     return len(dirty)
+
+
+def apply_plan_teams_to_mos(order: SxSalesOrder, *, only_from_ids=None, mo_id: int | None = None) -> dict[int, int]:
+    """Bước LSX dựng từ OB mang bộ phận; tổ thực hiện lấy theo KHSX của đơn."""
+    plan_steps = list(order.plan_steps.exclude(work_center__isnull=True).select_related('work_center'))
+    wcs_by_name: dict[str, set[int]] = {}
+    for step in plan_steps:
+        wcs_by_name.setdefault((step.process_name or '').strip().casefold(), set()).add(step.work_center_id)
+    by_wc: dict[int, list] = {}
+    for step in plan_steps:
+        # Cùng tên công đoạn ở hai tổ trong một đơn thì không đoán.
+        if len(wcs_by_name[(step.process_name or '').strip().casefold()]) == 1:
+            by_wc.setdefault(step.work_center_id, []).append(step)
+    out: dict[int, int] = {}
+    for steps in by_wc.values():
+        wc = steps[0].work_center
+        n = sync_mo_steps_team(order, steps, wc, only_from_ids=only_from_ids, mo_id=mo_id)
+        if n:
+            out[wc.pk] = n
+    return out
 
 
 @transaction.atomic
@@ -3743,6 +3767,23 @@ def order_line_plan_window(order: SxSalesOrder, order_line: SxSalesOrderLine) ->
 
 
 def sync_mo_steps_from_order_line(
+    mo: SxProductionOrder,
+    order_line: SxSalesOrderLine,
+    *,
+    routing_id: int | None,
+    planned_by_name: dict,
+    hop_by_name: dict,
+) -> None:
+    """Dựng bước LSX từ dòng đơn rồi gán tổ thực hiện theo KHSX."""
+    _sync_mo_steps_from_order_line(
+        mo, order_line,
+        routing_id=routing_id, planned_by_name=planned_by_name, hop_by_name=hop_by_name,
+    )
+    if mo.pk and order_line.order_id:
+        apply_plan_teams_to_mos(order_line.order, mo_id=mo.pk)
+
+
+def _sync_mo_steps_from_order_line(
     mo: SxProductionOrder,
     order_line: SxSalesOrderLine,
     *,
