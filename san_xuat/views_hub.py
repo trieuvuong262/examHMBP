@@ -1795,7 +1795,7 @@ def _load_route_progress_target(*, slug: str, mo_id: int, order_id: int, ngay):
     return mo, team_meta, team_steps
 
 
-def _commit_route_day_qtys(*, request, mo, team_meta, team_steps, slug: str, ngay, size_qtys, save_note: bool, notes: str) -> dict:
+def _commit_route_day_qtys(*, request, mo, team_meta, team_steps, slug: str, ngay, size_qtys, save_note: bool, notes: str, stamp_editor: bool = False) -> dict:
     """Ghi sản lượng một ngày vào tiến độ. Chỉ gọi khi bấm Lưu thay đổi hoặc khi không có chế độ nháp."""
     from decimal import Decimal
 
@@ -1858,6 +1858,11 @@ def _commit_route_day_qtys(*, request, mo, team_meta, team_steps, slug: str, nga
                 new_qty=Decimal(str(row['done'] or 0)),
                 user=request.user,
             )
+            if stamp_editor and logged is not None:
+                logged.revised_qty = Decimal(logged.new_qty or 0) - Decimal(logged.old_qty or 0)
+                logged.revised_by = request.user if getattr(request.user, 'is_authenticated', False) else None
+                logged.revised_at = timezone.now()
+                logged.save(update_fields=['revised_qty', 'revised_by', 'revised_at'])
             day_log = log_to_dict(logged) if logged else None
         sizes_out.append({
             'size': row['size'],
@@ -1909,18 +1914,110 @@ def _merge_route_day_qty(previous: dict, current: dict) -> dict:
         save_note = '0'
         notes = ''
     slug = str(current.get('team_slug') or previous.get('team_slug') or '').strip().lower()
+    entries = current.get('entries') if isinstance(current.get('entries'), list) else previous.get('entries') or []
+    revisions = current.get('revisions') if isinstance(current.get('revisions'), list) else previous.get('revisions') or []
     return {
         **current,
         'action': 'route_day_qty',
         'team_slug': slug,
         'sizes': [{'size': label, 'qty': sizes[label]} for label in order],
+        'entries': entries,
+        'revisions': revisions,
         'save_note': save_note,
         'notes': notes,
     }
 
 
+def _apply_route_day_revisions(*, request, mo, team_meta, team_steps, slug: str, ngay, revisions) -> None:
+    """Sửa một lần nhập đã lưu: chỉnh SL ngày và ghi người sửa, không tạo dòng lịch sử mới."""
+    from decimal import Decimal, InvalidOperation
+
+    from django.utils import timezone
+
+    from san_xuat.hub_models import SxTeamProgressLog
+    from san_xuat.services.order_progress_sheet import (
+        build_progress_sheet,
+        build_team_day_grid,
+        set_team_day_qtys,
+        team_plan_days,
+    )
+    from san_xuat.services.planning import PlanningError
+
+    wanted: dict[int, Decimal] = {}
+    for rev in revisions or []:
+        if not isinstance(rev, dict):
+            continue
+        for item in rev.get('sizes') or []:
+            if not isinstance(item, dict):
+                continue
+            try:
+                log_id = int(item.get('log_id') or 0)
+            except (TypeError, ValueError):
+                log_id = 0
+            if log_id <= 0:
+                continue
+            try:
+                qty = Decimal(str(item.get('qty') or '0').replace(',', '').strip() or '0')
+            except (InvalidOperation, ValueError):
+                qty = Decimal('0')
+            if qty < 0:
+                raise PlanningError('SL sửa không được âm.')
+            wanted[log_id] = qty
+    if not wanted:
+        return
+    logs = list(SxTeamProgressLog.objects.filter(
+        pk__in=list(wanted),
+        production_order=mo,
+        team_slug=slug,
+        work_date=ngay,
+    ))
+    if len(logs) != len(wanted):
+        raise PlanningError('Không tìm thấy lần nhập để sửa.')
+    diffs: dict[str, Decimal] = {}
+    now = timezone.now()
+    editor = request.user if getattr(request.user, 'is_authenticated', False) else None
+    for log in logs:
+        shown = log.revised_qty if log.revised_qty is not None else (Decimal(log.new_qty or 0) - Decimal(log.old_qty or 0))
+        diff = wanted[log.pk] - shown
+        label = log.size_label or ''
+        if diff != 0:
+            diffs[label] = diffs.get(label, Decimal('0')) + diff
+        log.revised_qty = wanted[log.pk]
+        log.revised_by = editor
+        log.revised_at = now
+    if diffs:
+        sheet = build_progress_sheet(mo, team=team_meta)
+        grid = build_team_day_grid(
+            sheet,
+            steps=team_steps,
+            plan_days=team_plan_days(mo, team_meta),
+            extra_days=[ngay],
+            notes={},
+        )
+        day = next((row for row in grid['days'] if row['date'] == ngay), None)
+        running: dict[str, Decimal] = {}
+        if day:
+            for cell in day['cells']:
+                running[str(cell.get('size') or '')] = Decimal(str(cell.get('qty') or 0))
+        payload = []
+        for label, diff in diffs.items():
+            running[label] = running.get(label, Decimal('0')) + diff
+            payload.append((label, running[label]))
+        set_team_day_qtys(
+            mo_id=mo.pk,
+            process_keys=[step.key for step in team_steps],
+            size_qtys=payload,
+            user=request.user,
+            team_slug=slug,
+            stat_date=ngay,
+        )
+    SxTeamProgressLog.objects.bulk_update(logs, ['revised_qty', 'revised_by', 'revised_at'])
+
+
 def _commit_route_day_change(request, change: dict) -> int:
     """Áp một bản nháp sản lượng ngày. Trả về id đơn để dựng lại lộ trình."""
+    from decimal import Decimal
+
     from django.utils import timezone
     from django.utils.dateparse import parse_date
 
@@ -1946,17 +2043,78 @@ def _commit_route_day_change(request, change: dict) -> int:
     if is_team_job_closed(mo_id=mo.pk, team_slug=slug):
         raise PlanningError('Tổ đã hoàn thành lệnh này — mở lại nếu cần sửa SL.')
     ensure_progress_work_centers()
-    _commit_route_day_qtys(
-        request=request,
-        mo=mo,
-        team_meta=team_meta,
-        team_steps=team_steps,
-        slug=slug,
-        ngay=ngay,
-        size_qtys=_parse_route_size_qtys(change.get('sizes') or []),
-        save_note=_route_note_flag(change.get('save_note')),
-        notes=str(change.get('notes') or ''),
-    )
+    raw_entries = change.get('entries') if isinstance(change.get('entries'), list) else []
+    raw_revisions = change.get('revisions') if isinstance(change.get('revisions'), list) else []
+    if raw_revisions:
+        _apply_route_day_revisions(
+            request=request,
+            mo=mo,
+            team_meta=team_meta,
+            team_steps=team_steps,
+            slug=slug,
+            ngay=ngay,
+            revisions=raw_revisions,
+        )
+    parsed_entries: list[dict] = []
+    for entry in raw_entries:
+        if not isinstance(entry, dict):
+            continue
+        adds = [
+            (label, qty)
+            for label, qty in _parse_route_size_qtys(entry.get('sizes') or [])
+            if qty != 0
+        ]
+        if adds:
+            parsed_entries.append({'adds': adds, 'edited': bool(entry.get('edited_by'))})
+    if parsed_entries:
+        from san_xuat.services.order_progress_sheet import (
+            build_progress_sheet,
+            build_team_day_grid,
+            team_plan_days,
+        )
+
+        sheet = build_progress_sheet(mo, team=team_meta)
+        grid = build_team_day_grid(
+            sheet,
+            steps=team_steps,
+            plan_days=team_plan_days(mo, team_meta),
+            extra_days=[ngay],
+            notes={},
+        )
+        day = next((row for row in grid['days'] if row['date'] == ngay), None)
+        running: dict[str, Decimal] = {}
+        if day:
+            for cell in day['cells']:
+                running[str(cell.get('size') or '')] = Decimal(str(cell.get('qty') or 0))
+        for entry in parsed_entries:
+            payload: list[tuple[str, Decimal]] = []
+            for label, add in entry['adds']:
+                running[label] = running.get(label, Decimal('0')) + add
+                payload.append((label, running[label]))
+            _commit_route_day_qtys(
+                request=request,
+                mo=mo,
+                team_meta=team_meta,
+                team_steps=team_steps,
+                slug=slug,
+                ngay=ngay,
+                size_qtys=payload,
+                save_note=False,
+                notes='',
+                stamp_editor=entry['edited'],
+            )
+    elif not raw_revisions:
+        _commit_route_day_qtys(
+            request=request,
+            mo=mo,
+            team_meta=team_meta,
+            team_steps=team_steps,
+            slug=slug,
+            ngay=ngay,
+            size_qtys=_parse_route_size_qtys(change.get('sizes') or []),
+            save_note=_route_note_flag(change.get('save_note')),
+            notes=str(change.get('notes') or ''),
+        )
     return int(mo.sales_order_id or order_id or 0)
 
 
@@ -1980,7 +2138,7 @@ def _route_progress_day(request, *, can_update: bool):
     )
     from san_xuat.services.planning import PlanningError
     from san_xuat.services.progress_template import team_by_slug
-    from san_xuat.services.team_progress_log import log_to_dict, team_day_logs
+    from san_xuat.services.team_progress_log import team_day_logs
     from san_xuat.services.team_work import is_team_job_closed
 
     def _plain(value) -> str:
@@ -2088,9 +2246,59 @@ def _route_progress_day(request, *, can_update: bool):
     from san_xuat.services.products import product_gallery_map
 
     images = product_gallery_map([mo.product_code]).get((mo.product_code or '').casefold(), [])
-    history_by_size: dict[str, list] = {}
-    for log in reversed(team_day_logs(mo_id=mo.pk, team_slug=slug).get(ngay, [])):
-        history_by_size.setdefault(log.size_label, []).append(log_to_dict(log))
+    actor = ''
+    if getattr(request.user, 'is_authenticated', False):
+        actor = (request.user.get_full_name() or request.user.username or '').strip()
+    entries: list[dict] = []
+    for log in team_day_logs(mo_id=mo.pk, team_slug=slug).get(ngay, []):
+        who = log.changed_by
+        name = ((who.get_full_name() or who.username or '').strip() if who else '') or '—'
+        stamp = timezone.localtime(log.changed_at)
+        delta = Decimal(str(log.new_qty or 0)) - Decimal(str(log.old_qty or 0))
+        shown = log.revised_qty if log.revised_qty is not None else delta
+        if shown == 0 and delta == 0:
+            continue
+        editor = log.revised_by
+        editor_name = ((editor.get_full_name() or editor.username or '').strip() if editor else '')
+        size_row = {
+            'size': log.size_label or '',
+            'qty': _plain(shown),
+            'log_id': log.pk,
+        }
+        prev = entries[-1] if entries else None
+        already = {item['size'] for item in prev['sizes']} if prev else set()
+        if (
+            prev
+            and prev['user'] == name
+            and prev['kind'] == log.kind
+            and size_row['size'] not in already
+            and abs((stamp - prev['_stamp']).total_seconds()) <= 5
+        ):
+            prev['sizes'].append(size_row)
+            prev['ids'].append(log.pk)
+            prev['_stamp'] = stamp
+            prev['backfill'] = prev['backfill'] or bool(log.is_backfill)
+            if editor_name and (not prev.get('_revised_at') or (log.revised_at and log.revised_at >= prev['_revised_at'])):
+                prev['edited_by'] = editor_name
+                prev['edited_at'] = timezone.localtime(log.revised_at).strftime('%d/%m/%Y %H:%M') if log.revised_at else ''
+                prev['_revised_at'] = log.revised_at
+            continue
+        entries.append({
+            'at': stamp.strftime('%d/%m/%Y %H:%M'),
+            'user': name,
+            'kind': log.kind,
+            'backfill': bool(log.is_backfill),
+            'ids': [log.pk],
+            'edited_by': editor_name,
+            'edited_at': timezone.localtime(log.revised_at).strftime('%d/%m/%Y %H:%M') if log.revised_at else '',
+            'sizes': [size_row],
+            '_stamp': stamp,
+            '_revised_at': log.revised_at,
+        })
+    for entry in entries:
+        entry.pop('_stamp', None)
+        entry.pop('_revised_at', None)
+    entries.reverse()
     return JsonResponse({
         'ok': True,
         'mo_id': mo.pk,
@@ -2107,6 +2315,8 @@ def _route_progress_day(request, *, can_update: bool):
         'day_plan': _plain(day['plan_qty']) if day.get('plan_qty') is not None else '',
         'scope': 'day' if day.get('plan_qty') is not None else 'order',
         'note': day.get('note') or '',
+        'actor': actor,
+        'entries': entries,
         'sizes': [
             {
                 'label': cell['size'],
@@ -2121,7 +2331,6 @@ def _route_progress_day(request, *, can_update: bool):
                     if day.get('plan_qty') is not None
                     else (totals.get(cell['size']) or {}).get('done')
                 ),
-                'history': history_by_size.get(cell['size'], []),
             }
             for cell in day['cells']
         ],
@@ -2218,14 +2427,18 @@ def plan_board(request):
             and (request.POST.get('action') or '').strip() == 'route_day_sheet'
         )
     ):
-        return _route_progress_day(
-            request,
-            can_update=_can_update_route_progress(
-                request.user,
-                can_schedule=can_schedule,
-                can_release=can_release,
-            ),
-        )
+        try:
+            return _route_progress_day(
+                request,
+                can_update=_can_update_route_progress(
+                    request.user,
+                    can_schedule=can_schedule,
+                    can_release=can_release,
+                ),
+            )
+        except Exception as exc:
+            from django.http import JsonResponse
+            return JsonResponse({'ok': False, 'error': str(exc)}, status=500)
     q = (request.GET.get('q') or request.POST.get('q') or '').strip()
     date_from_raw = (request.GET.get('date_from') or request.POST.get('date_from') or '').strip()
     date_to_raw = (request.GET.get('date_to') or request.POST.get('date_to') or '').strip()

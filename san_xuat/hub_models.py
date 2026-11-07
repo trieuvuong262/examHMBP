@@ -4025,6 +4025,18 @@ class SxTeamProgressLog(models.Model):
         related_name='sx_team_progress_logs',
     )
     changed_at = models.DateTimeField(auto_now_add=True)
+    revised_qty = models.DecimalField(
+        max_digits=14, decimal_places=2, null=True, blank=True, verbose_name='SL sau khi sửa',
+    )
+    revised_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sx_team_progress_log_revisions',
+        verbose_name='Người sửa',
+    )
+    revised_at = models.DateTimeField(null=True, blank=True, verbose_name='Lúc sửa')
 
     class Meta:
         ordering = ['work_date', 'changed_at', 'pk']

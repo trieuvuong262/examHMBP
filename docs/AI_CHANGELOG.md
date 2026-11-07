@@ -15,6 +15,14 @@ Mỗi entry nên có:
 
 ## Entries
 
+### 2026-11-07 — workflow / nhập sản lượng ngày trên lộ trình KHSX
+
+- **Type**: workflow
+- **Change**: Nháy đúp ô ngày công đoạn trên tab lộ trình mở modal nhập sản lượng. Bấm **Ghi nhận** chỉ cộng số vừa nhập vào **Đã làm**, xóa ô nhập và thêm một dòng lần nhập (người + SL). Tiến độ chỉ ghi khi bấm **Lưu thay đổi**. Dòng đã nhập có **Sửa**; lần sửa lưu người sửa (`SxTeamProgressLog.revised_by`). Migration `0164_team_progress_log_revision`.
+- **Reason**: Nhập sai không được ghi thẳng tiến độ, và mỗi lần nhập phải cộng dồn rồi sửa được.
+- **Source**: `san_xuat/templates/san_xuat/includes/plan_route_day_entry.html`, `san_xuat/views_hub.py::_route_progress_day`, `_commit_route_day_change`, `_apply_route_day_revisions`, `san_xuat/hub_models.py::SxTeamProgressLog`.
+- **Agent impact**: SL trong modal là phần cộng thêm, không phải SL tuyệt đối của ngày. Bản nháp `route_day_qty` nằm trong `save_route_draft` (`entries` + `revisions`). Test: `san_xuat/tests_route_day_entry.py`.
+
 ### 2026-11-07 — workflow / bỏ khâu Giao hàng thành phẩm (gh)
 
 - **Type**: workflow

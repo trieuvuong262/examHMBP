@@ -62,7 +62,8 @@
     });
     var sizes = change.sizes || [];
     var noteOn = change.save_note === '1' || change.save_note === true;
-    if (sizes.length || noteOn) next.push(change);
+    var hasEntries = (change.entries || []).length || (change.revisions || []).length;
+    if (sizes.length || noteOn || hasEntries) next.push(change);
     state.draft = next;
     state.dirty = state.draft.length > 0;
     render();
@@ -99,8 +100,14 @@
       method: 'POST', credentials: 'same-origin', body: body,
       headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json', 'X-CSRFToken': csrf}
     }).then(function (res) {
-      return res.json().then(function (data) {
-        if (!res.ok || !data.ok) throw new Error((data && data.error) || 'Không lưu được thay đổi.');
+      return res.text().then(function (text) {
+        var data = null;
+        try { data = text ? JSON.parse(text) : null; }
+        catch (err) {
+          var snippet = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 180);
+          throw new Error(snippet || 'Máy chủ không trả dữ liệu hợp lệ.');
+        }
+        if (!res.ok || !data || !data.ok) throw new Error((data && data.error) || 'Không lưu được thay đổi.');
         state.draft = [];
         state.dirty = false;
         state.editing = false;

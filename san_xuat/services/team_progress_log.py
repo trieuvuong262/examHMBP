@@ -232,7 +232,7 @@ def team_day_logs(*, mo_id: int, team_slug: str) -> dict[date, list[SxTeamProgre
     out: dict[date, list[SxTeamProgressLog]] = {}
     rows = (
         SxTeamProgressLog.objects.filter(production_order_id=mo_id, team_slug=team_slug)
-        .select_related('changed_by')
+        .select_related('changed_by', 'revised_by')
         .order_by('work_date', 'changed_at', 'pk')
     )
     for log in rows:

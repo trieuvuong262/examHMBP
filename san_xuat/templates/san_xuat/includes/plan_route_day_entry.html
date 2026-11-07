@@ -1,41 +1,60 @@
 <style>
-  .jp-rd-day .modal-dialog { max-width: min(44rem, calc(100vw - 1.5rem)); }
-  .jp-rd-day .modal-content { border: 0; border-radius: .85rem; overflow: hidden; }
-  .jp-rd-day .modal-header { align-items: flex-start; }
-  .jp-rd-day .modal-title { color: #dc2626; font-size: 1rem; font-weight: 800; }
-  .jp-rd-sub { margin-top: .1rem; color: #64748b; font-size: .8rem; font-weight: 650; }
-  .jp-rd-photo { width: 2.6rem; height: 2.6rem; object-fit: cover; border-radius: .45rem; background: #f8fafc; }
-  .jp-rd-titlebox { display: flex; align-items: center; gap: .65rem; min-width: 0; }
-  .jp-rd-status { margin-bottom: .65rem; padding: .45rem .65rem; border-radius: .5rem; font-size: .8rem; font-weight: 700; }
-  .jp-rd-status.is-info { background: #f8fafc; color: #64748b; }
-  .jp-rd-status.is-warn { background: #fff7ed; color: #c2410c; }
-  .jp-rd-status.is-ok { background: #f0fdf4; color: #15803d; }
-  .jp-rd-status.is-err { background: #fef2f2; color: #b91c1c; }
+  .jp-rd-day .modal-dialog { max-width: min(48rem, calc(100vw - 1.5rem)); }
+  .jp-rd-day .modal-content { border: 0; border-radius: 1rem; overflow: hidden; box-shadow: 0 24px 60px rgba(15, 23, 42, .22); }
+  .jp-rd-day .modal-header { align-items: center; padding: .9rem 1.1rem; background: linear-gradient(180deg, #fff 0%, #fff7f7 100%); border-bottom: 1px solid #fee2e2; }
+  .jp-rd-day .modal-body { padding: 1rem 1.1rem 1.05rem; background: #f8fafc; }
+  .jp-rd-day .modal-footer { padding: .75rem 1.1rem; background: #fff; border-top: 1px solid #e8edf3; gap: .45rem; }
+  .jp-rd-day .modal-title { color: #b91c1c; font-size: 1.05rem; font-weight: 800; letter-spacing: -.01em; }
+  .jp-rd-sub { margin-top: .15rem; color: #64748b; font-size: .78rem; font-weight: 650; }
+  .jp-rd-photo { width: 3rem; height: 3rem; object-fit: cover; border-radius: .7rem; background: #fff; border: 1px solid #fecaca; }
+  .jp-rd-titlebox { display: flex; align-items: center; gap: .75rem; min-width: 0; }
+  .jp-rd-status { margin-bottom: .75rem; padding: .5rem .7rem; border-radius: .7rem; font-size: .8rem; font-weight: 700; }
+  .jp-rd-status.is-info { background: #fff; color: #475569; border: 1px solid #e2e8f0; }
+  .jp-rd-status.is-warn { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+  .jp-rd-status.is-ok { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+  .jp-rd-status.is-err { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
   .jp-rd-tools { display: flex; align-items: center; justify-content: space-between; margin-bottom: .55rem; }
-  .jp-rd-tools > span { font-size: .75rem; font-weight: 800; }
-  .jp-rd-seg { display: inline-flex; border: 1px solid #e8edf3; border-radius: .5rem; overflow: hidden; }
-  .jp-rd-seg button { border: 0; background: #fff; color: #0f172a; font-size: .75rem; font-weight: 800; padding: .28rem .55rem; }
+  .jp-rd-tools > span { font-size: .72rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: #94a3b8; }
+  .jp-rd-seg { display: inline-flex; padding: .15rem; border-radius: .65rem; background: #fff; border: 1px solid #e8edf3; }
+  .jp-rd-seg button { border: 0; background: transparent; color: #334155; font-size: .75rem; font-weight: 800; padding: .28rem .65rem; border-radius: .5rem; }
   .jp-rd-seg button.is-on { background: #dc2626; color: #fff; }
-  .jp-rd-sheet { width: 100%; border-collapse: separate; border-spacing: 0; font-size: .82rem; }
-  .jp-rd-sheet th, .jp-rd-sheet td { padding: .4rem .45rem; border-bottom: 1px solid #e8edf3; text-align: right; white-space: nowrap; }
-  .jp-rd-sheet thead th { background: #fef2f2; color: #64748b; font-size: .68rem; font-weight: 800; }
-  .jp-rd-sheet thead th:first-child, .jp-rd-sheet tbody th { text-align: left; font-weight: 800; }
-  .jp-rd-sheet tr.is-sum th, .jp-rd-sheet tr.is-sum td { font-weight: 800; }
+  .jp-rd-sheet-card { background: #fff; border: 1px solid #e8edf3; border-radius: .85rem; overflow: hidden; }
+  .jp-rd-sheet { width: 100%; border-collapse: separate; border-spacing: 0; font-size: .84rem; }
+  .jp-rd-sheet th, .jp-rd-sheet td { padding: .55rem .55rem; border-bottom: 1px solid #f1f5f9; text-align: right; white-space: nowrap; }
+  .jp-rd-sheet thead th { background: #fff5f5; color: #9f1239; font-size: .68rem; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; }
+  .jp-rd-sheet thead th:first-child, .jp-rd-sheet tbody th { text-align: left; font-weight: 800; color: #0f172a; }
+  .jp-rd-sheet tbody tr:last-child th, .jp-rd-sheet tbody tr:last-child td { border-bottom: 0; }
+  .jp-rd-sheet tr.is-sum th, .jp-rd-sheet tr.is-sum td { font-weight: 800; background: #f8fafc; color: #0f172a; }
   .jp-rd-sheet .is-over { color: #b91c1c; }
-  .jp-rd-sheet .form-control { text-align: right; font-weight: 700; }
+  .jp-rd-sheet .form-control { width: 5.2rem; margin-left: auto; text-align: right; font-weight: 800; border-radius: .55rem; border-color: #fecaca; background: #fff; }
+  .jp-rd-sheet .form-control:focus { border-color: #dc2626; box-shadow: 0 0 0 .15rem rgba(220, 38, 38, .15); }
   .jp-rd-sheet .form-control.is-over { border-color: #f43f5e; background: #fff1f2; }
-  .jp-rd-in { display: flex; align-items: center; justify-content: flex-end; gap: .3rem; }
-  .jp-rd-alt { display: block; color: #64748b; font-size: .68rem; font-weight: 700; text-align: right; }
-  .jp-rd-hist-btn { border: 1px solid #e8edf3; background: #fff; color: #64748b; border-radius: .4rem; width: 1.7rem; height: 1.7rem; }
-  .jp-rd-hist-btn.has-log { color: #b91c1c; border-color: #fecaca; }
-  .jp-rd-note { margin-top: .85rem; }
-  .jp-rd-note .form-label { margin-bottom: .25rem; font-size: .75rem; font-weight: 800; }
-  .jp-rd-tag { display: inline-block; padding: .1rem .4rem; border-radius: 999px; font-size: .68rem; font-weight: 800; }
-  .jp-rd-tag.is-bf { background: #fff7ed; color: #c2410c; }
-  .jp-rd-tag.is-done { background: #f0fdf4; color: #15803d; }
-  .jp-rd-tag.is-day { background: #f8fafc; color: #64748b; }
-  .jp-rd-save { background: #dc2626; border-color: #dc2626; color: #fff; }
+  .jp-rd-in { display: flex; align-items: center; justify-content: flex-end; }
+  .jp-rd-alt { display: block; margin-top: .15rem; color: #94a3b8; font-size: .68rem; font-weight: 700; text-align: right; }
+  .jp-rd-log { margin-top: .85rem; }
+  .jp-rd-log-head { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; margin-bottom: .4rem; }
+  .jp-rd-log-title { font-size: .78rem; font-weight: 800; color: #0f172a; }
+  .jp-rd-log-hint { color: #94a3b8; font-size: .68rem; font-weight: 700; }
+  .jp-rd-log-list { display: flex; flex-direction: column; gap: .4rem; max-height: 15rem; overflow: auto; padding-right: .1rem; }
+  .jp-rd-log-row { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; padding: .6rem .7rem; border-radius: .8rem; background: #fff; border: 1px solid #e8edf3; }
+  .jp-rd-log-row.is-pending { background: #fffaf5; border-color: #fed7aa; }
+  .jp-rd-log-who { display: flex; align-items: center; gap: .4rem; color: #0f172a; font-size: .82rem; font-weight: 800; }
+  .jp-rd-badge { display: inline-flex; align-items: center; padding: .05rem .4rem; border-radius: 999px; background: #ffedd5; color: #c2410c; font-size: .64rem; font-weight: 800; }
+  .jp-rd-log-meta { margin-top: .12rem; color: #64748b; font-size: .7rem; font-weight: 700; }
+  .jp-rd-log-editby { margin-top: .15rem; color: #c2410c; font-size: .7rem; font-weight: 800; }
+  .jp-rd-log-side { display: flex; align-items: center; gap: .5rem; }
+  .jp-rd-log-qty { color: #0f172a; font-size: .84rem; font-weight: 800; text-align: right; }
+  .jp-rd-log-fix, .jp-rd-log-ok, .jp-rd-log-cancel { border: 1px solid #fecaca; background: #fff; color: #b91c1c; font-size: .72rem; font-weight: 800; padding: .22rem .5rem; border-radius: .5rem; }
+  .jp-rd-log-fix:hover, .jp-rd-log-ok:hover { background: #fef2f2; }
+  .jp-rd-log-cancel { border-color: #e2e8f0; color: #64748b; }
+  .jp-rd-log-editor { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .4rem; }
+  .jp-rd-log-editor label { display: inline-flex; align-items: center; gap: .3rem; margin: 0; font-size: .72rem; font-weight: 800; color: #334155; }
+  .jp-rd-log-editor input { width: 4.2rem; text-align: right; font-weight: 800; border-radius: .5rem; }
+  .jp-rd-log-empty { padding: .8rem; border-radius: .8rem; background: #fff; border: 1px dashed #e2e8f0; color: #94a3b8; font-size: .78rem; font-weight: 700; text-align: center; }
+  .jp-rd-foot-note { margin-right: auto; color: #94a3b8; font-size: .72rem; font-weight: 700; }
+  .jp-rd-save { background: #dc2626; border-color: #dc2626; color: #fff; border-radius: .6rem; padding-inline: .8rem; }
   .jp-rd-save:hover { background: #b91c1c; color: #fff; }
+  .jp-rd-day .btn-outline-secondary { border-radius: .6rem; }
 </style>
 <div class="modal fade jp-rd-day" id="jpRouteDayEntry" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
@@ -59,7 +78,7 @@
             <button type="button" data-mode="pct">%</button>
           </div>
         </div>
-        <div id="jpRdSheetWrap" hidden>
+        <div class="jp-rd-sheet-card" id="jpRdSheetWrap" hidden>
           <table class="jp-rd-sheet">
             <thead>
               <tr>
@@ -67,35 +86,22 @@
                 <th id="jpRdKhHead">KH</th>
                 <th>Đã làm</th>
                 <th>Còn lại</th>
-                <th id="jpRdQtyHead">SL</th>
+                <th id="jpRdQtyHead">Nhập</th>
               </tr>
             </thead>
             <tbody id="jpRdSizes"></tbody>
           </table>
         </div>
-        <div class="jp-rd-note" id="jpRdNoteWrap" hidden>
-          <label class="form-label" for="jpRdNote">Ghi chú</label>
-          <textarea id="jpRdNote" class="form-control" maxlength="500" rows="2"></textarea>
-        </div>
-        <div id="jpRdHist" hidden>
-          <div class="fw-bold mb-2" id="jpRdHistLabel"></div>
-          <table class="jp-rd-sheet">
-            <thead>
-              <tr>
-                <th>Thời gian</th>
-                <th>Người cập nhật</th>
-                <th>Cũ</th>
-                <th>Mới</th>
-                <th>Loại</th>
-              </tr>
-            </thead>
-            <tbody id="jpRdHistRows"></tbody>
-          </table>
-          <div class="text-secondary py-2" id="jpRdHistEmpty" hidden>Chưa có lịch sử cập nhật.</div>
+        <div class="jp-rd-log" id="jpRdLogWrap" hidden>
+          <div class="jp-rd-log-head">
+            <div class="jp-rd-log-title">Lần nhập</div>
+            <div class="jp-rd-log-hint">Mỗi lần cộng vào Đã làm</div>
+          </div>
+          <div class="jp-rd-log-list" id="jpRdLog"></div>
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" id="jpRdHistBack" hidden>Quay lại</button>
+        <span class="jp-rd-foot-note">Tiến độ chỉ đổi khi bấm Lưu thay đổi</span>
         <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" data-bs-dismiss="modal">Đóng</button>
         <button type="button" class="btn btn-sm fw-bold" id="jpRdFill" hidden>Điền nhanh</button>
         <button type="button" class="btn btn-sm fw-bold jp-rd-save" id="jpRdSave" hidden>Lưu sản lượng</button>
@@ -113,7 +119,6 @@
   var sourceCell = null;
   var dayData = null;
   var dayMode = 'qty';
-  var dayLogs = {};
   var saving = false;
 
   function esc(value) {
@@ -135,6 +140,20 @@
   }
   function qtyToPct(q, plan) { return plan > 0 ? Math.round(q * 1000 / plan) / 10 : 0; }
   function pctToQty(p, plan) { return Math.round(plan * p / 100); }
+  function readJson(res) {
+    return res.text().then(function (text) {
+      var data = null;
+      try { data = text ? JSON.parse(text) : null; }
+      catch (err) {
+        var snippet = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 180);
+        throw new Error(snippet || 'Máy chủ không trả dữ liệu hợp lệ.');
+      }
+      if (!res.ok || !data || data.ok === false) {
+        throw new Error((data && data.error) || 'Không xử lý được phiếu ngày.');
+      }
+      return data;
+    });
+  }
   function csrfToken() {
     var input = root.querySelector('input[name=csrfmiddlewaretoken]');
     if (input && input.value) return input.value;
@@ -163,7 +182,7 @@
     return v;
   }
   function projected(input) {
-    return num(input.getAttribute('data-done')) - num(input.getAttribute('data-qty')) + liveQty(input);
+    return num(input.getAttribute('data-done')) + liveQty(input);
   }
   function setRemain(cell, plan, done) {
     if (!cell) return;
@@ -177,10 +196,9 @@
   }
   function paintInput(input, fromLive) {
     var plan = num(input.getAttribute('data-plan'));
-    var q = fromLive ? liveQty(input) : num(input.getAttribute('data-qty'));
+    var q = fromLive ? liveQty(input) : 0;
     var done = fromLive ? projected(input) : num(input.getAttribute('data-done'));
     var asPct = dayMode === 'pct' && plan > 0;
-    if (!fromLive) input.value = q ? plain(asPct ? qtyToPct(q, plan) : q) : '';
     input.classList.toggle('is-over', plan > 0 && done > plan);
     var alt = input.closest('td') && input.closest('td').querySelector('.jp-rd-alt');
     if (alt) {
@@ -196,9 +214,9 @@
     }
     setRemain(row && row.querySelector('[data-role="remain"]'), plan, done);
   }
-  function dayTotal(fromLive) {
+  function dayTotal() {
     return inputs().reduce(function (sum, input) {
-      return sum + (fromLive ? liveQty(input) : num(input.getAttribute('data-qty')));
+      return sum + num(input.getAttribute('data-qty'));
     }, 0);
   }
   function fillSums(fromLive) {
@@ -210,7 +228,7 @@
     inputs().forEach(function (input) {
       plan += num(input.getAttribute('data-plan'));
       done += fromLive ? projected(input) : num(input.getAttribute('data-done'));
-      day += fromLive ? liveQty(input) : num(input.getAttribute('data-qty'));
+      day += liveQty(input);
     });
     foot.querySelector('[data-role="plan"]').textContent = show(plan);
     var doneCell = foot.querySelector('[data-role="done"]');
@@ -250,18 +268,142 @@
     var total = cell.closest('tr') && cell.closest('tr').querySelector('td.c-total .jp-sheet-done');
     if (total) total.textContent = plain(Math.max(0, num(total.textContent) - old + num(nextDone)));
   }
-  function hideHist() {
-    part('jpRdHist', false);
-    var back = document.getElementById('jpRdHistBack');
-    if (back) back.hidden = true;
-    if (!dayData) return;
-    if (dayData.closed) setStatus('Tổ đã hoàn thành lệnh này.', 'ok');
-    else if (dayData.future) setStatus('Chưa tới ngày này.', 'warn');
-    else setStatus('');
-    showSave(!!dayData.can_update);
-    part('jpRdTools', !!dayData.can_update);
-    part('jpRdSheetWrap', true);
-    part('jpRdNoteWrap', !!(dayData.can_update || dayData.note));
+  function qtyText(sizes) {
+    return (sizes || []).map(function (row) {
+      var label = row.size || '';
+      var qty = show(row.qty);
+      return label ? label + ' ' + qty : qty;
+    }).join(' · ');
+  }
+  var editingKey = '';
+  function dayDraft() {
+    if (!dayData || !window.jpRouteDayQtyDraft) return null;
+    return window.jpRouteDayQtyDraft(dayData.mo_id, dayData.slug, dayData.date);
+  }
+  function pendingEntries() {
+    var draft = dayDraft();
+    return (draft && draft.entries) || [];
+  }
+  function revisionsOf() {
+    var draft = dayDraft();
+    return (draft && draft.revisions) || [];
+  }
+  function entryKey(entry) {
+    if (!entry) return '';
+    if (entry.key) return entry.key;
+    if (entry.ids && entry.ids.length) return 'log:' + entry.ids.join('-');
+    return '';
+  }
+  function extraBySize(entries, revisions) {
+    var added = {};
+    function add(size, qty) {
+      var key = size || '';
+      added[key] = (added[key] || 0) + num(qty);
+    }
+    (entries || []).forEach(function (entry) {
+      (entry.sizes || []).forEach(function (row) { add(row.size, row.qty); });
+    });
+    (revisions || []).forEach(function (rev) {
+      (rev.sizes || []).forEach(function (row) {
+        add(row.size, num(row.qty) - num(row.origin));
+      });
+    });
+    return added;
+  }
+  function stageCurrent(entries, revisions) {
+    if (!window.jpRouteStageDayQty) return false;
+    var added = extraBySize(entries, revisions);
+    var sizes = [];
+    inputs().forEach(function (input) {
+      var size = input.getAttribute('data-size') || '';
+      var qty = num(input.getAttribute('data-base')) + (added[size] || 0);
+      if (plain(qty) === plain(num(input.getAttribute('data-base')))) return;
+      sizes.push({size: size, qty: plain(qty)});
+    });
+    return window.jpRouteStageDayQty({
+      action: 'route_day_qty',
+      order_id: dayData.order_id || '',
+      mo_id: dayData.mo_id || '',
+      team_slug: dayData.slug,
+      stat_date: dayData.date,
+      sizes: sizes,
+      entries: entries,
+      revisions: revisions,
+      save_note: '0',
+      notes: ''
+    });
+  }
+  function syncTotalsFromDraft() {
+    var added = extraBySize(pendingEntries(), revisionsOf());
+    inputs().forEach(function (input) {
+      var size = input.getAttribute('data-size') || '';
+      var extra = added[size] || 0;
+      input.setAttribute('data-done', plain(num(input.getAttribute('data-done-base')) + extra));
+      input.setAttribute('data-qty', plain(num(input.getAttribute('data-base')) + extra));
+      input.value = '';
+      paintInput(input, false);
+    });
+    fillSums(false);
+    paintRoute(sourceCell, dayTotal());
+    markDayDraft(sourceCell, !!(pendingEntries().length || revisionsOf().length));
+    renderLog();
+  }
+  function visibleEntries() {
+    var pending = pendingEntries().map(function (entry) {
+      if (!entry.key) entry.key = entryKey(entry) || ('p' + Math.random().toString(36).slice(2));
+      return entry;
+    });
+    var saved = (dayData.entries || []).map(function (entry) {
+      var key = entryKey(entry);
+      var rev = null;
+      revisionsOf().forEach(function (item) { if (item.key === key) rev = item; });
+      if (!rev) return Object.assign({key: key, saved: true}, entry);
+      return {
+        key: key,
+        ids: entry.ids,
+        saved: true,
+        pending: true,
+        user: entry.user,
+        at: entry.at,
+        edited_by: rev.edited_by,
+        edited_at: rev.edited_at,
+        sizes: rev.sizes
+      };
+    });
+    return pending.concat(saved);
+  }
+  function renderLog() {
+    var wrap = document.getElementById('jpRdLogWrap');
+    var list = document.getElementById('jpRdLog');
+    if (!wrap || !list || !dayData) return;
+    var entries = visibleEntries();
+    wrap.hidden = false;
+    var title = wrap.querySelector('.jp-rd-log-title');
+    if (title) title.textContent = entries.length ? ('Lần nhập · ' + entries.length) : 'Lần nhập';
+    if (!entries.length) {
+      list.innerHTML = '<div class="jp-rd-log-empty">Chưa có lần nhập.</div>';
+      return;
+    }
+    list.innerHTML = entries.map(function (entry) {
+      var key = entryKey(entry);
+      var editor = entry.edited_by
+        ? '<div class="jp-rd-log-editby">Sửa bởi ' + esc(entry.edited_by) + (entry.edited_at ? ' · ' + esc(entry.edited_at) : '') + '</div>'
+        : '';
+      var badge = entry.pending ? '<span class="jp-rd-badge">Chờ lưu</span>' : '';
+      var side = editingKey === key
+        ? '<div class="jp-rd-log-editor">' + (entry.sizes || []).map(function (row) {
+            return '<label>' + esc(row.size || 'SL') +
+              ' <input class="form-control form-control-sm" data-edit-size="' + esc(row.size || '') + '" data-log-id="' + esc(row.log_id || '') + '" value="' + esc(plain(row.qty)) + '" inputmode="decimal"></label>';
+          }).join('') +
+          '<button type="button" class="jp-rd-log-ok" data-edit-save="' + esc(key) + '">Lưu sửa</button>' +
+          '<button type="button" class="jp-rd-log-cancel" data-edit-cancel>Hủy</button></div>'
+        : '<div class="jp-rd-log-side"><div class="jp-rd-log-qty">' + esc(qtyText(entry.sizes)) + '</div>' +
+          (dayData.can_update ? '<button type="button" class="jp-rd-log-fix" data-edit-open="' + esc(key) + '">Sửa</button>' : '') +
+          '</div>';
+      return '<div class="jp-rd-log-row' + (entry.pending ? ' is-pending' : '') + '">' +
+        '<div><div class="jp-rd-log-who">' + esc(entry.user || '—') + badge + '</div>' +
+        '<div class="jp-rd-log-meta">' + esc(entry.at || '') + '</div>' + editor + '</div>' + side + '</div>';
+    }).join('');
   }
   function renderDay(data) {
     dayData = data;
@@ -288,26 +430,26 @@
       btn.classList.toggle('is-on', btn.getAttribute('data-mode') === 'qty');
     });
     var head = document.getElementById('jpRdQtyHead');
-    if (head) head.textContent = 'SL';
+    if (head) head.textContent = 'Nhập';
     var box = document.getElementById('jpRdSizes');
     box.innerHTML = '';
-    dayLogs = {};
+    dayData.entries = data.entries || [];
     var sizes = data.sizes || [];
     if (!sizes.length) box.innerHTML = '<tr><td colspan="5">Chưa có size.</td></tr>';
     sizes.forEach(function (size) {
       var label = size.label || '';
-      dayLogs[label] = size.history || [];
       var row = document.createElement('tr');
-      row.innerHTML = '<th scope="row"></th><td data-role="plan"></td><td data-role="done"></td><td data-role="remain"></td><td><div class="jp-rd-in"><input class="form-control form-control-sm" inputmode="decimal"><button type="button" class="jp-rd-hist-btn" title="Lịch sử cập nhật"><i class="bi bi-clock-history"></i></button></div><span class="jp-rd-alt"></span></td>';
+      row.innerHTML = '<th scope="row"></th><td data-role="plan"></td><td data-role="done"></td><td data-role="remain"></td><td><div class="jp-rd-in"><input class="form-control form-control-sm" inputmode="decimal" placeholder="0"></div><span class="jp-rd-alt"></span></td>';
       row.querySelector('th').textContent = label || '—';
       row.querySelector('[data-role="plan"]').textContent = num(size.plan) ? show(size.plan) : '—';
-      var hist = row.querySelector('.jp-rd-hist-btn');
-      if (dayLogs[label].length) hist.classList.add('has-log');
       var input = row.querySelector('input');
       input.setAttribute('data-size', label);
       input.setAttribute('data-plan', size.plan || '0');
+      input.setAttribute('data-base', size.qty || '0');
       input.setAttribute('data-qty', size.qty || '0');
+      input.setAttribute('data-done-base', size.done || '0');
       input.setAttribute('data-done', size.done || '0');
+      input.value = '';
       if (!data.can_update) input.readOnly = true;
       box.appendChild(row);
       paintInput(input, false);
@@ -320,37 +462,13 @@
       fillSums(false);
     }
     part('jpRdSheetWrap', true);
-    var note = document.getElementById('jpRdNote');
-    part('jpRdNoteWrap', !!(data.can_update || data.note));
-    if (note) {
-      note.value = data.note || '';
-      note.setAttribute('data-orig', data.note || '');
-      note.readOnly = !data.can_update;
-    }
-    hideHist();
     showSave(!!data.can_update);
     applyPendingDraft(data);
+    renderLog();
   }
   function applyPendingDraft(data) {
-    if (!window.jpRouteDayQtyDraft || !data) return;
-    var draft = window.jpRouteDayQtyDraft(data.mo_id, data.slug, data.date);
-    if (!draft) return;
-    var bySize = {};
-    (draft.sizes || []).forEach(function (row) {
-      bySize[row.size || ''] = row.qty;
-    });
-    inputs().forEach(function (input) {
-      var size = input.getAttribute('data-size') || '';
-      if (!Object.prototype.hasOwnProperty.call(bySize, size)) return;
-      var qty = num(bySize[size]);
-      input.value = qty ? plain(qty) : '';
-      paintInput(input, true);
-    });
-    fillSums(true);
-    if (draft.save_note === '1' || draft.save_note === true) {
-      var note = document.getElementById('jpRdNote');
-      if (note) note.value = draft.notes || '';
-    }
+    if (!data || !dayDraft()) return;
+    syncTotalsFromDraft();
     setStatus('Số liệu này đang chờ. Bấm Lưu thay đổi để cập nhật tiến độ.', 'warn');
   }
   function markDayDraft(cell, pending) {
@@ -382,8 +500,7 @@
     setStatus('Đang tải…', 'info');
     part('jpRdTools', false);
     part('jpRdSheetWrap', false);
-    part('jpRdNoteWrap', false);
-    part('jpRdHist', false);
+    part('jpRdLogWrap', false);
     showSave(false);
     if (!window.bootstrap || !bootstrap.Modal) {
       setStatus('Trang chưa sẵn sàng. Tải lại rồi thử lại.', 'err');
@@ -399,10 +516,7 @@
     url.searchParams.delete('route_more');
     url.searchParams.delete('ids');
     fetch(url.toString(), {credentials: 'same-origin', headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'}})
-      .then(function (res) { return res.json().then(function (data) {
-        if (!res.ok || !data.ok) throw new Error(data.error || 'Không mở được phiếu ngày.');
-        return data;
-      }); })
+      .then(readJson)
       .then(renderDay)
       .catch(function (err) { setStatus(err.message || 'Không mở được phiếu ngày.', 'err'); });
   }
@@ -431,10 +545,7 @@
       credentials: 'same-origin',
       signal: controller ? controller.signal : undefined
     }).then(function (res) {
-      return res.json().catch(function () { return {}; }).then(function (data) {
-        if (!res.ok || !data.ok) throw new Error(data.error || 'Không lưu được.');
-        return data;
-      });
+      return readJson(res);
     }).catch(function (err) {
       if (err && err.name === 'AbortError') {
         throw new Error('Lưu quá lâu (30 giây). Vui lòng kiểm tra lại dữ liệu rồi thử lại.');
@@ -444,75 +555,89 @@
       window.clearTimeout(timer);
     });
   }
+  function rememberSavedEntry(rows) {
+    if (!dayData || !rows || !rows.length) return;
+    var now = new Date();
+    function two(n) { return n < 10 ? '0' + n : String(n); }
+    var at = two(now.getDate()) + '/' + two(now.getMonth() + 1) + '/' + now.getFullYear()
+      + ' ' + two(now.getHours()) + ':' + two(now.getMinutes());
+    dayData.entries = dayData.entries || [];
+    dayData.entries.unshift({
+      at: at,
+      user: dayData.actor || '—',
+      kind: 'edit',
+      backfill: !!(today && dayData.date && dayData.date < today),
+      sizes: rows.map(function (row) { return {size: row.size || '', qty: row.qty}; })
+    });
+    renderLog();
+  }
   function saveSheet() {
     if (saving || !dayData || !dayData.can_update) return;
     saving = true;
     var btn = document.getElementById('jpRdSave');
     if (btn) btn.disabled = true;
     try {
-      var note = document.getElementById('jpRdNote');
-      var noteVal = note ? (note.value || '').trim() : '';
-      var noteChanged = !!(note && noteVal !== (note.getAttribute('data-orig') || '').trim());
-      var rows = [];
+      var adds = [];
       inputs().forEach(function (input) {
-        var qty = liveQty(input);
-        if (plain(qty) === plain(num(input.getAttribute('data-qty')))) return;
-        rows.push({size: input.getAttribute('data-size') || '', qty: String(qty)});
+        var add = liveQty(input);
+        if (!(add > 0)) return;
+        adds.push({size: input.getAttribute('data-size') || '', qty: plain(add)});
       });
-      var canStage = !!(window.jpRouteStageDayQty && document.getElementById('jpRouteEditSave'));
-      if (!rows.length && !noteChanged) {
-        if (canStage && window.jpRouteDayQtyDraft && window.jpRouteDayQtyDraft(dayData.mo_id, dayData.slug, dayData.date)) {
-          window.jpRouteStageDayQty({
-            action: 'route_day_qty',
-            order_id: dayData.order_id || '',
-            mo_id: dayData.mo_id || '',
-            team_slug: dayData.slug,
-            stat_date: dayData.date,
-            sizes: [],
-            save_note: '0',
-            notes: ''
-          });
-          paintRoute(sourceCell, dayTotal(false));
-          markDayDraft(sourceCell, false);
-          setStatus('Đã bỏ sản lượng chờ lưu.', 'ok');
-        } else {
-          setStatus(canStage ? 'Chưa có thay đổi.' : 'Đã lưu.', 'ok');
-        }
+      if (!adds.length) {
+        setStatus('Chưa có số lượng để cộng.', 'warn');
         saving = false;
         if (btn) btn.disabled = false;
         return;
       }
-      if (canStage) {
-        var staged = window.jpRouteStageDayQty({
-          action: 'route_day_qty',
-          order_id: dayData.order_id || '',
-          mo_id: dayData.mo_id || '',
-          team_slug: dayData.slug,
-          stat_date: dayData.date,
-          sizes: rows,
-          save_note: noteChanged ? '1' : '0',
-          notes: noteChanged ? noteVal : ''
+      function applyAdds() {
+        adds.forEach(function (row) {
+          var input = null;
+          inputs().forEach(function (el) {
+            if ((el.getAttribute('data-size') || '') === (row.size || '')) input = el;
+          });
+          if (!input) return;
+          input.setAttribute('data-done', plain(num(input.getAttribute('data-done')) + num(row.qty)));
+          input.setAttribute('data-qty', plain(num(input.getAttribute('data-qty')) + num(row.qty)));
+          input.value = '';
+          paintInput(input, false);
         });
+        fillSums(false);
+      }
+      var canStage = !!(window.jpRouteStageDayQty && document.getElementById('jpRouteEditSave'));
+      if (canStage) {
+        var entries = pendingEntries().slice();
+        entries.unshift({
+          key: 'p' + Date.now(),
+          pending: true,
+          user: dayData.actor || 'Bạn',
+          at: 'Đang chờ lưu',
+          sizes: adds
+        });
+        var staged = stageCurrent(entries, revisionsOf().slice());
         if (staged) {
-          paintRoute(sourceCell, dayTotal(true));
-          markDayDraft(sourceCell, true);
-          setStatus('Đã ghi nhận. Bấm Lưu thay đổi để cập nhật tiến độ.', 'ok');
+          syncTotalsFromDraft();
+          setStatus('Đã cộng vào Đã làm. Bấm Lưu thay đổi để cập nhật tiến độ.', 'ok');
           saving = false;
           if (btn) btn.disabled = false;
-          if (window.bootstrap && bootstrap.Modal) {
-            var inst = bootstrap.Modal.getInstance(modalEl);
-            if (inst) inst.hide();
-          }
           return;
         }
       }
+      var payload = adds.map(function (row) {
+        var input = null;
+        inputs().forEach(function (el) {
+          if ((el.getAttribute('data-size') || '') === (row.size || '')) input = el;
+        });
+        var next = input ? num(input.getAttribute('data-qty')) + num(row.qty) : num(row.qty);
+        return {size: row.size, qty: plain(next)};
+      });
       setStatus('Đang lưu…', 'info');
       postDay({
-        sizes: JSON.stringify(rows),
-        save_note: noteChanged ? '1' : '0',
-        notes: noteChanged ? noteVal : ''
+        sizes: JSON.stringify(payload),
+        save_note: '0',
+        notes: ''
       }).then(function (data) {
         try {
+          applyAdds();
           (data.sizes || []).forEach(function (row) {
             var input = null;
             inputs().forEach(function (el) {
@@ -520,23 +645,15 @@
             });
             if (!input) return;
             input.setAttribute('data-qty', plain(row.day_done));
+            input.setAttribute('data-base', plain(row.day_done));
             input.setAttribute('data-done', plain(dayData.scope === 'day' ? row.day_done : row.size_done));
+            input.setAttribute('data-done-base', input.getAttribute('data-done'));
+            input.value = '';
             paintInput(input, false);
-            if (row.log) {
-              var key = input.getAttribute('data-size') || '';
-              dayLogs[key] = dayLogs[key] || [];
-              dayLogs[key].unshift(row.log);
-              var tr = input.closest('tr');
-              var hist = tr ? tr.querySelector('.jp-rd-hist-btn') : null;
-              if (hist) hist.classList.add('has-log');
-            }
           });
           fillSums(false);
-          paintRoute(sourceCell, dayTotal(false));
-          if (note && data.notes != null) {
-            note.value = data.notes || '';
-            note.setAttribute('data-orig', data.notes || '');
-          }
+          paintRoute(sourceCell, dayTotal());
+          rememberSavedEntry(adds);
           setStatus('Đã lưu.', 'ok');
         } catch (renderErr) {
           console.error('[jpRouteDay] Lỗi cập nhật UI sau khi lưu:', renderErr);
@@ -572,36 +689,6 @@
     fillSums(true);
   });
   body.addEventListener('click', function (ev) {
-    var hist = ev.target && ev.target.closest ? ev.target.closest('.jp-rd-hist-btn') : null;
-    if (hist) {
-      var input = hist.closest('tr') && hist.closest('tr').querySelector('input[data-size]');
-      var size = input ? (input.getAttribute('data-size') || '') : '';
-      var logs = dayLogs[size] || [];
-      var label = document.getElementById('jpRdHistLabel');
-      if (label) label.textContent = 'Size ' + (size || '—');
-      var rows = document.getElementById('jpRdHistRows');
-      if (rows) {
-        rows.innerHTML = logs.map(function (log) {
-          var kind = log.kind === 'complete'
-            ? '<span class="jp-rd-tag is-done">Hoàn thành</span>'
-            : log.kind === 'gc'
-            ? '<span class="jp-rd-tag is-done">Nhận GC</span>'
-            : (log.backfill ? '<span class="jp-rd-tag is-bf">Nhập bù</span>' : '<span class="jp-rd-tag is-day">Đúng ngày</span>');
-          return '<tr><td>' + esc(log.at) + '</td><td>' + esc(log.user || '—') + '</td><td>' + show(log.old) + '</td><td>' + show(log.new) + '</td><td>' + kind + '</td></tr>';
-        }).join('');
-      }
-      var empty = document.getElementById('jpRdHistEmpty');
-      if (empty) empty.hidden = logs.length > 0;
-      part('jpRdTools', false);
-      part('jpRdSheetWrap', false);
-      part('jpRdNoteWrap', false);
-      showSave(false);
-      setStatus('');
-      part('jpRdHist', true);
-      var back = document.getElementById('jpRdHistBack');
-      if (back) back.hidden = false;
-      return;
-    }
     var modeBtn = ev.target && ev.target.closest ? ev.target.closest('#jpRdMode button') : null;
     if (!modeBtn || !dayData || !dayData.can_update) return;
     var kept = inputs().map(function (input) { return liveQty(input); });
@@ -610,7 +697,7 @@
       btn.classList.toggle('is-on', btn === modeBtn);
     });
     var head = document.getElementById('jpRdQtyHead');
-    if (head) head.textContent = dayMode === 'pct' ? '%' : 'SL';
+    if (head) head.textContent = dayMode === 'pct' ? '%' : 'Nhập';
     inputs().forEach(function (input, index) {
       var plan = num(input.getAttribute('data-plan'));
       var qty = kept[index] || 0;
@@ -627,16 +714,101 @@
     inputs().forEach(function (input) {
       var plan = num(input.getAttribute('data-plan'));
       if (!(plan > 0)) return;
-      input.value = dayMode === 'pct' ? '100' : plain(plan);
+      var remain = Math.max(plan - num(input.getAttribute('data-done')), 0);
+      if (!(remain > 0)) return;
+      input.value = dayMode === 'pct' ? plain(qtyToPct(remain, plan)) : plain(remain);
       paintInput(input, true);
       filled += 1;
     });
     fillSums(true);
-    setStatus(filled ? 'Đã điền theo KH.' : 'Ngày này chưa có KH để điền.', filled ? 'ok' : 'warn');
+    setStatus(filled ? 'Đã điền phần còn lại.' : 'Không còn số lượng để điền.', filled ? 'ok' : 'warn');
+  });
+  function saveLogEdit(key) {
+    var box = document.querySelector('#jpRdLog .jp-rd-log-editor');
+    if (!box || !dayData) return;
+    var rows = [];
+    box.querySelectorAll('[data-edit-size]').forEach(function (input) {
+      rows.push({
+        size: input.getAttribute('data-edit-size') || '',
+        qty: plain(Math.max(0, num(input.value))),
+        log_id: input.getAttribute('data-log-id') || ''
+      });
+    });
+    var entries = pendingEntries().slice();
+    var revisions = revisionsOf().slice();
+    var pendingHit = null;
+    entries.forEach(function (entry) {
+      if (entryKey(entry) === key) pendingHit = entry;
+    });
+    if (pendingHit) {
+      pendingHit.sizes = rows.map(function (row) { return {size: row.size, qty: row.qty}; });
+      pendingHit.edited_by = dayData.actor || 'Bạn';
+      pendingHit.edited_at = 'Đang chờ lưu';
+      entries = entries.filter(function (entry) {
+        return (entry.sizes || []).some(function (row) { return num(row.qty) > 0; });
+      });
+    } else {
+      var source = null;
+      (dayData.entries || []).forEach(function (entry) {
+        if (entryKey(entry) === key) source = entry;
+      });
+      if (!source) return;
+      var existing = null;
+      revisions.forEach(function (rev) { if (rev.key === key) existing = rev; });
+      var baseline = existing ? existing.sizes : (source.sizes || []);
+      var nextSizes = rows.map(function (row, index) {
+        var base = baseline[index] || {};
+        return {
+          size: row.size,
+          qty: row.qty,
+          log_id: row.log_id || base.log_id || '',
+          origin: base.origin != null ? base.origin : base.qty
+        };
+      });
+      revisions = revisions.filter(function (rev) { return rev.key !== key; });
+      var changed = nextSizes.some(function (row) {
+        return plain(num(row.qty)) !== plain(num(row.origin));
+      });
+      if (changed) {
+        revisions.push({
+          key: key,
+          ids: source.ids || [],
+          edited_by: dayData.actor || 'Bạn',
+          edited_at: 'Đang chờ lưu',
+          sizes: nextSizes
+        });
+      }
+    }
+    editingKey = '';
+    if (!(window.jpRouteStageDayQty && document.getElementById('jpRouteEditSave'))) {
+      renderLog();
+      setStatus('Chưa lưu được người sửa.', 'err');
+      return;
+    }
+    stageCurrent(entries, revisions);
+    syncTotalsFromDraft();
+    setStatus('Đã lưu sửa. Bấm Lưu thay đổi để cập nhật tiến độ.', 'ok');
+  }
+  var logList = document.getElementById('jpRdLog');
+  if (logList) logList.addEventListener('click', function (ev) {
+    var openBtn = ev.target && ev.target.closest ? ev.target.closest('[data-edit-open]') : null;
+    if (openBtn) {
+      editingKey = openBtn.getAttribute('data-edit-open') || '';
+      renderLog();
+      var focus = logList.querySelector('.jp-rd-log-editor input');
+      if (focus) focus.focus();
+      return;
+    }
+    if (ev.target && ev.target.closest && ev.target.closest('[data-edit-cancel]')) {
+      editingKey = '';
+      renderLog();
+      return;
+    }
+    var editSave = ev.target && ev.target.closest ? ev.target.closest('[data-edit-save]') : null;
+    if (!editSave) return;
+    saveLogEdit(editSave.getAttribute('data-edit-save') || '');
   });
   var saveBtn = document.getElementById('jpRdSave');
   if (saveBtn) saveBtn.addEventListener('click', saveSheet);
-  var backBtn = document.getElementById('jpRdHistBack');
-  if (backBtn) backBtn.addEventListener('click', hideHist);
 })();
 </script>
